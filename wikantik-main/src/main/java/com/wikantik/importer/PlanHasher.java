@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
+import java.util.stream.Collectors;
 import java.util.HexFormat;
 import java.util.TreeSet;
 
@@ -31,10 +32,17 @@ public final class PlanHasher {
     private PlanHasher() {
     }
 
-    public static String hash( final String zipSha256, final ImportOptions options, final Collection< String > collidedNames ) {
+    /**
+     * Folds in the planned cluster outcomes (slug, JOIN/CREATE, hub page), so a hub declared by someone else between
+     * plan and apply changes the hash.
+     */
+    public static String hash( final String zipSha256, final ImportOptions options, final Collection< String > collidedNames,
+                              final Collection< PlannedCluster > clusters ) {
         final String cluster = options.cluster() == null ? "" : options.cluster();
         final String text = zipSha256 + "\n" + options.mode() + "\n" + cluster + "\n"
-            + String.join( "\n", new TreeSet<>( collidedNames ) );
+            + String.join( "\n", new TreeSet<>( collidedNames ) ) + "\n"
+            + clusters.stream().map( c -> c.cluster() + "=" + c.action() + "=" + c.hubPage() ).sorted()
+                .collect( Collectors.joining( "\n" ) );
         try {
             return HexFormat.of().formatHex( MessageDigest.getInstance( "SHA-256" ).digest( text.getBytes( StandardCharsets.UTF_8 ) ) );
         } catch ( final NoSuchAlgorithmException e ) {

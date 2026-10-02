@@ -20,7 +20,7 @@ package com.wikantik.importer;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +41,7 @@ final class PlanTargets implements VaultTargets {
     private final Map< String, String > owners = new HashMap<>();
     private final Map< String, String > fileNames = new HashMap<>();
     private final Map< String, Set< String > > namesByOwner = new HashMap<>();
-    private final Set< String > blocked = new LinkedHashSet<>();
+    private final Map< String, String > blocked = new LinkedHashMap<>();
     private String currentPage;
 
     PlanTargets( final Map< String, String > names, final Map< String, PageStatus > statuses, final WikiSnapshot snapshot,
@@ -58,7 +58,7 @@ final class PlanTargets implements VaultTargets {
         currentPage = name;
     }
 
-    Set< String > blocked() {
+    Map< String, String > blocked() {
         return blocked;
     }
 
@@ -97,8 +97,9 @@ final class PlanTargets implements VaultTargets {
             return LinkTarget.unresolved();
         }
         final VaultFile file = filesByPath.get( path.get() );
-        if ( gate.rejection( VaultPaths.basename( file.path() ), file.size() ).isPresent() ) {
-            blocked.add( file.path() );
+        final Optional< String > rejection = gate.rejection( VaultPaths.basename( file.path() ), file.size() );
+        if ( rejection.isPresent() ) {
+            blocked.put( file.path(), rejection.get() );
             return LinkTarget.keep();
         }
         final String owner = owners.computeIfAbsent( file.path(), p -> currentPage );

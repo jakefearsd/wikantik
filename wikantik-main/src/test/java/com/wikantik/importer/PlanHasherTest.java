@@ -30,17 +30,27 @@ class PlanHasherTest {
 
     @Test
     void collidedNamesAreOrderInsensitive() {
-        assertEquals( PlanHasher.hash( "z", FOLDERS, List.of( "B", "A" ) ), PlanHasher.hash( "z", FOLDERS, List.of( "A", "B", "A" ) ) );
+        assertEquals( PlanHasher.hash( "z", FOLDERS, List.of( "B", "A" ), List.of() ), PlanHasher.hash( "z", FOLDERS, List.of( "A", "B", "A" ), List.of() ) );
     }
 
     @Test
     void differsByZipModeClusterAndCollisions() {
-        final String base = PlanHasher.hash( "z", FOLDERS, List.of() );
+        final String base = PlanHasher.hash( "z", FOLDERS, List.of(), List.of() );
         assertEquals( 64, base.length() );
-        assertNotEquals( base, PlanHasher.hash( "y", FOLDERS, List.of() ) );
-        assertNotEquals( base, PlanHasher.hash( "z", ImportOptions.parse( "none", null ), List.of() ) );
-        assertNotEquals( PlanHasher.hash( "z", ImportOptions.parse( "fixed", "a" ), List.of() ),
-            PlanHasher.hash( "z", ImportOptions.parse( "fixed", "b" ), List.of() ) );
-        assertNotEquals( base, PlanHasher.hash( "z", FOLDERS, List.of( "Alpha" ) ) );
+        assertNotEquals( base, PlanHasher.hash( "y", FOLDERS, List.of(), List.of() ) );
+        assertNotEquals( base, PlanHasher.hash( "z", ImportOptions.parse( "none", null ), List.of(), List.of() ) );
+        assertNotEquals( PlanHasher.hash( "z", ImportOptions.parse( "fixed", "a" ), List.of(), List.of() ),
+            PlanHasher.hash( "z", ImportOptions.parse( "fixed", "b" ), List.of(), List.of() ) );
+        assertNotEquals( base, PlanHasher.hash( "z", FOLDERS, List.of( "Alpha" ), List.of() ) );
+    }
+
+    @Test
+    void differsByPlannedClusterOutcome() {
+        final PlannedCluster create = new PlannedCluster( "f", ClusterAction.CREATE, "F Hub", "F" );
+        final PlannedCluster join = new PlannedCluster( "f", ClusterAction.JOIN, "Other", "F" );
+        final String a = PlanHasher.hash( "z", FOLDERS, List.of(), List.of( create ) );
+        assertNotEquals( a, PlanHasher.hash( "z", FOLDERS, List.of(), List.of( join ) ) );
+        assertNotEquals( a, PlanHasher.hash( "z", FOLDERS, List.of(), List.of() ) );
+        assertEquals( a, PlanHasher.hash( "z", FOLDERS, List.of(), List.of( create ) ) );
     }
 }

@@ -212,4 +212,68 @@ class VaultImportPlannerTest {
         assertEquals( "article", draft( r, "F" ).metadata().get( "type" ) );
         assertFalse( draft( r, "F" ).hub() );
     }
+
+    @Test
+    void failedFolderNoteIsReplacedByGeneratedHub() throws Exception {
+        final PlanResult r = plan( Map.of( "F/F.md", b( "---\naudience: robots\n---\nx" ), "F/g.md", b( "g" ),
+            "Root.md", b( "r" ) ), SNAP, FOLDERS );
+        final Map< String, PlannedPage > byName = r.plan().pages().stream().collect( toMap( PlannedPage::name, p -> p ) );
+        assertEquals( PageStatus.WILL_FAIL, byName.get( "F" ).status() );
+        assertFalse( byName.get( "F" ).hub() );
+        assertEquals( "f", byName.get( "g" ).cluster() );
+        assertEquals( "F Hub", r.plan().clusters().get( 0 ).hubPage() );
+        assertTrue( byName.containsKey( "F Hub" ) && byName.get( "F Hub" ).hub() );
+        assertEquals( "f", draftByCluster( r, "f" ).metadata().get( "cluster" ) );
+        assertEquals( "F Hub", draftByCluster( r, "f" ).name() );
+        assertFalse( r.plan().warningGroups().containsKey( "cluster" ) );
+    }
+
+    @Test
+    void failedFolderNoteFallsBackToAnotherMergedFolderNote() throws Exception {
+        final PlanResult r = plan( Map.of( "My Notes/My Notes.md", b( "---\naudience: robots\n---\nx" ),
+            "my-notes/my-notes.md", b( "ok" ), "Root.md", b( "r" ) ), SNAP, FOLDERS );
+        assertEquals( "my-notes", r.plan().clusters().get( 0 ).hubPage() );
+        assertTrue( r.drafts().stream().anyMatch( d -> d.hub() && "my-notes".equals( d.name() ) ) );
+    }
+
+    @Test
+    void oversizedNoteIsWillFailNamingTheLimit() throws Exception {
+        final String big = "x".repeat( ImportLimits.DEFAULT_MAX_PAGE_BYTES + 10 );
+        final PlanResult r = plan( Map.of( "Big.md", b( big ), "Small.md", b( "s" ) ), SNAP, FOLDERS );
+        final PlannedPage p = r.plan().pages().stream().filter( x -> "Big".equals( x.name() ) ).findFirst().orElseThrow();
+        assertEquals( PageStatus.WILL_FAIL, p.status() );
+        assertTrue( p.reason().contains( "wikantik.api.maxPageBytes" ) );
+    }
+
+    @Test
+    void policyBlockedAttachmentCarriesTheGateReason() throws Exception {
+        final Path p = TestVaults.write( TestVaults.zip( Map.of( "N.md", b( "![[big.png]]" ), "big.png", b( "0123456789" ) ) ) );
+        try {
+            final VaultArchive a = new VaultArchiveReader( ImportLimits.defaults() ).read( p );
+            final PlanResult r = new VaultImportPlanner( FrontmatterSchema.defaultSchema(),
+                new AttachmentGate( new AttachmentUploadPolicy( new String[ 0 ], new String[ 0 ], 5 ) ), 2000 )
+                .plan( a, ImportOptions.parse( "none", null ), SNAP, "sha", "v.zip" );
+            final PlannedAttachment pa = r.plan().attachments().get( 0 );
+            assertEquals( AttachmentStatus.BLOCKED, pa.status() );
+            assertTrue( pa.reason().contains( "wikantik.attachment.maxsize (5 bytes)" ) );
+            assertTrue( draft( r, "N" ).body().contains( "![[big.png]]" ) );
+        } finally {
+            Files.deleteIfExists( p );
+        }
+    }
+
+    @Test
+    void duplicateBasenameInTwoFoldersBothImport() throws Exception {
+        final PlanResult r = plan( Map.of( "a/Dup.md", b( "1" ), "b/Dup.md", b( "2" ), "Root.md", b( "[[a/Dup]] [[b/Dup]]" ) ),
+            SNAP, ImportOptions.parse( "none", null ) );
+        assertEquals( Set.of( "Dup", "Dup (b)", "Root" ), r.drafts().stream().map( PageDraft::name ).collect( java.util.stream.Collectors.toSet() ) );
+        assertTrue( draft( r, "Root" ).body().contains( "[[Dup (b)|b/Dup]]" ), draft( r, "Root" ).body() );
+    }
+
+    @Test
+    void linkToExistingPageWithDifferingCaseIsKeptAndNotUnresolved() throws Exception {
+        final PlanResult r = plan( Map.of( "A.md", b( "[[existing PAGE]]" ), "B.md", b( "b" ) ), SNAP, FOLDERS );
+        assertEquals( "[[existing PAGE]]", draft( r, "A" ).body() );   // the wiki resolves case-insensitively
+        assertFalse( r.plan().warningGroups().containsKey( "link" ) );
+    }
 }

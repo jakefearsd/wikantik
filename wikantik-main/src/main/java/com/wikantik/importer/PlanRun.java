@@ -56,7 +56,6 @@ final class PlanRun {
     private final Map< String, String > bodies = new LinkedHashMap<>();
     private VaultClusterPlanner.Result clusters;
     private PlanTargets targets;
-    private final VaultNoteNamer namer;
 
     PlanRun( final FrontmatterSchema schema, final AttachmentGate gate, final VaultArchive archive,
              final ImportOptions options, final WikiSnapshot snapshot ) {
@@ -65,15 +64,16 @@ final class PlanRun {
         this.archive = archive;
         this.options = options;
         this.snapshot = snapshot;
-        this.namer = new VaultNoteNamer( snapshot );
         archive.notes().forEach( n -> notes.put( n.path(), n ) );
         this.notePaths = notes.keySet().stream().sorted( VaultPaths.ORDER ).toList();
     }
 
     PlanResult execute( final String zipSha256, final String vaultName ) {
         classify();
-        planClusters();
-        mapAndValidate();
+        do {
+            planClusters();
+            mapAndValidate();
+        } while ( failedHubNote() );
         rewrite();
         final List< PlannedAttachment > attachments = attachments();
         return assemble( attachments, zipSha256, vaultName );
@@ -84,7 +84,7 @@ final class PlanRun {
     }
 
     private void classify() {
-        names = namer.assign( notePaths );
+        names = new VaultNoteNamer( snapshot ).assign( notePaths );
         for ( final String path : notePaths ) {
             final VaultNote note = notes.get( path );
             final String name = names.get( path );
@@ -108,7 +108,17 @@ final class PlanRun {
         }
     }
 
+    /**
+     * True when a folder note chosen as a cluster hub failed validation. It is no longer NEW, so planning the clusters
+     * again picks another folder note or a generated hub. Statuses only move NEW to WILL_FAIL, so this terminates.
+     */
+    private boolean failedHubNote() {
+        return clusters.hubNotePaths().stream().anyMatch( p -> status( p ) != PageStatus.NEW );
+    }
+
     private void planClusters() {
+        final VaultNoteNamer namer = new VaultNoteNamer( snapshot );
+        namer.assign( notePaths );
         final List< NoteRef > refs = notePaths.stream()
             .map( p -> new NoteRef( p, names.get( p ), status( p ) == PageStatus.NEW ) ).toList();
         clusters = new VaultClusterPlanner().plan( refs, options, snapshot, namer );
@@ -167,9 +177,9 @@ final class PlanRun {
             if ( owner != null ) {
                 out.add( new PlannedAttachment( f.path(), f.entryName(), owner, targets.fileName( f.path() ), f.size(),
                     AttachmentStatus.IMPORT, null ) );
-            } else if ( targets.blocked().contains( f.path() ) ) {
+            } else if ( targets.blocked().containsKey( f.path() ) ) {
                 out.add( new PlannedAttachment( f.path(), f.entryName(), null, null, f.size(), AttachmentStatus.BLOCKED,
-                    gate.rejection( VaultPaths.basename( f.path() ), f.size() ).orElse( null ) ) );
+                    targets.blocked().get( f.path() ) ) );
             } else {
                 out.add( new PlannedAttachment( f.path(), f.entryName(), null, null, f.size(),
                     AttachmentStatus.SKIPPED_UNREFERENCED, null ) );
@@ -212,7 +222,7 @@ final class PlanRun {
         final List< PlannedPage > pages = pages();
         final List< PageDraft > drafts = drafts();
         final PlanTotals totals = totals( pages, attachments, drafts );
-        final ImportPlan plan = new ImportPlan( PlanHasher.hash( zipSha256, options, collided ), vaultName, options.mode(),
+        final ImportPlan plan = new ImportPlan( PlanHasher.hash( zipSha256, options, collided, clusters.clusters() ), vaultName, options.mode(),
             totals, pages, List.copyOf( attachments ), clusters.clusters(), warningGroups( pages ) );
         final List< PlannedAttachment > toImport = attachments.stream().filter( a -> a.status() == AttachmentStatus.IMPORT ).toList();
         return new PlanResult( plan, List.copyOf( drafts ), toImport );

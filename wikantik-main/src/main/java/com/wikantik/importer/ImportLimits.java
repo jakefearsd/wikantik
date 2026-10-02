@@ -35,9 +35,12 @@ import java.util.Properties;
  * @param maxPages             largest number of Markdown notes
  * @param maxConcurrent        largest number of import jobs running at once
  * @param maxPageBytes         largest single page body, in bytes
+ * @param maxNoteTextBytes     largest total of note text buffered in memory while planning, in bytes
+ * @param maxConcurrentPlans   largest number of vault plans (dry runs and apply re-plans) computed at once
  */
 public record ImportLimits( long maxUploadBytes, long maxUncompressedBytes, int maxEntries,
-                            int maxPages, int maxConcurrent, int maxPageBytes ) {
+                            int maxPages, int maxConcurrent, int maxPageBytes,
+                            long maxNoteTextBytes, int maxConcurrentPlans ) {
 
     private static final Logger LOG = LogManager.getLogger( ImportLimits.class );
 
@@ -53,6 +56,17 @@ public record ImportLimits( long maxUploadBytes, long maxUncompressedBytes, int 
     public static final int DEFAULT_MAX_CONCURRENT = 1;
     public static final String PROP_MAX_PAGE_BYTES = "wikantik.api.maxPageBytes";
     public static final int DEFAULT_MAX_PAGE_BYTES = 262144;
+    public static final String PROP_MAX_NOTE_TEXT_BYTES = "wikantik.import.maxNoteTextBytes";
+    public static final int DEFAULT_MAX_NOTE_TEXT_BYTES = 134217728;
+    public static final String PROP_MAX_CONCURRENT_PLANS = "wikantik.import.maxConcurrentPlans";
+    public static final int DEFAULT_MAX_CONCURRENT_PLANS = 2;
+
+    /** The six original limits, with the note-text budget and plan concurrency at their defaults. */
+    public ImportLimits( final long maxUploadBytes, final long maxUncompressedBytes, final int maxEntries,
+                         final int maxPages, final int maxConcurrent, final int maxPageBytes ) {
+        this( maxUploadBytes, maxUncompressedBytes, maxEntries, maxPages, maxConcurrent, maxPageBytes,
+              DEFAULT_MAX_NOTE_TEXT_BYTES, DEFAULT_MAX_CONCURRENT_PLANS );
+    }
 
     /** Reads the limits from wiki properties; a missing or non-positive value falls back to the documented default. */
     public static ImportLimits fromProperties( final Properties props ) {
@@ -62,7 +76,9 @@ public record ImportLimits( long maxUploadBytes, long maxUncompressedBytes, int 
             positive( props, PROP_MAX_ENTRIES, DEFAULT_MAX_ENTRIES ),
             positive( props, PROP_MAX_PAGES, DEFAULT_MAX_PAGES ),
             positive( props, PROP_MAX_CONCURRENT, DEFAULT_MAX_CONCURRENT ),
-            positive( props, PROP_MAX_PAGE_BYTES, DEFAULT_MAX_PAGE_BYTES ) );
+            positive( props, PROP_MAX_PAGE_BYTES, DEFAULT_MAX_PAGE_BYTES ),
+            positive( props, PROP_MAX_NOTE_TEXT_BYTES, DEFAULT_MAX_NOTE_TEXT_BYTES ),
+            positive( props, PROP_MAX_CONCURRENT_PLANS, DEFAULT_MAX_CONCURRENT_PLANS ) );
     }
 
     private static int positive( final Properties props, final String key, final int dflt ) {

@@ -50,6 +50,7 @@ public final class VaultArchiveReader {
     private static final long MAX_RATIO = 100L;
 
     private final ImportLimits limits;
+    private long bufferedNoteBytes;
 
     public VaultArchiveReader( final ImportLimits limits ) {
         this.limits = limits;
@@ -62,9 +63,19 @@ public final class VaultArchiveReader {
      * @throws ImportLimitException  when the entry count or total uncompressed size limit is exceeded
      */
     public VaultArchive read( final Path zip ) throws IOException, VaultArchiveException, ImportLimitException {
+        bufferedNoteBytes = 0;
         final List< String > names = readNames( zip );
         final String prefix = VaultEntryNames.wrapperPrefix( names );
+        requirePageCap( names.stream().filter( n -> {
+            final String rel = VaultEntryNames.relative( n, prefix );
+            return VaultPaths.isNote( rel ) && !VaultEntryNames.ignored( n, rel );
+        } ).count() );
         return readData( zip, prefix );
+    }
+
+    /** Total note text bytes buffered by the last {@link #read}; a test seam for the "nothing buffered yet" checks. */
+    long bufferedNoteBytes() {
+        return bufferedNoteBytes;
     }
 
     // ---- pass 1 ---------------------------------------------------------------------------------
@@ -73,6 +84,7 @@ public final class VaultArchiveReader {
         final List< String > names = new ArrayList<>();
         final byte[] buf = new byte[ 8192 ];
         long total = 0;
+        long notes = 0;
         try ( CountingInputStream raw = new CountingInputStream( Files.newInputStream( zip ) );
               ZipInputStream zin = new ZipInputStream( raw, StandardCharsets.UTF_8 ) ) {
             ZipEntry entry = zin.getNextEntry();
@@ -81,6 +93,10 @@ public final class VaultArchiveReader {
                 names.add( entry.getName() );
                 if ( names.size() > limits.maxEntries() ) {
                     throw new ImportLimitException( ImportLimits.PROP_MAX_ENTRIES, limits.maxEntries(), "zip entry count" );
+                }
+                // A lower bound (the wrapper folder is not known yet), so stopping here is never a false rejection.
+                if ( VaultEntryNames.surelyImportableNote( entry.getName() ) ) {
+                    requirePageCap( ++notes );
                 }
                 // Drain under the same caps as pass 2 so a bomb is stopped before it is fully inflated.
                 total += drain( zin, raw, entry.getName(), false, total, buf ).size();
@@ -95,6 +111,13 @@ public final class VaultArchiveReader {
             throw new VaultArchiveException( "not a zip archive" );
         }
         return names;
+    }
+
+    private void requirePageCap( final long notes ) throws ImportLimitException {
+        if ( notes > limits.maxPages() ) {
+            throw new ImportLimitException( ImportLimits.PROP_MAX_PAGES, limits.maxPages(), "more than "
+                                            + limits.maxPages() + " notes" );
+        }
     }
 
     private static boolean startsWithPk( final Path zip ) throws IOException {
@@ -141,6 +164,7 @@ public final class VaultArchiveReader {
                 if ( skip ) {
                     ignoredCount++;
                 } else if ( keepText ) {
+                    retain( d );
                     notes.add( new VaultNote( rel, d.text(), d.size() ) );
                 } else {
                     files.add( new VaultFile( rel, name, d.size() ) );
@@ -158,6 +182,18 @@ public final class VaultArchiveReader {
     }
 
     private record Drained( long size, String text ) {
+    }
+
+    /** Counts a buffered note against {@code wikantik.import.maxNoteTextBytes}; an oversized (unbuffered) note is free. */
+    private void retain( final Drained d ) throws ImportLimitException {
+        if ( d.text() == null ) {
+            return;
+        }
+        bufferedNoteBytes += d.size();
+        if ( bufferedNoteBytes > limits.maxNoteTextBytes() ) {
+            throw new ImportLimitException( ImportLimits.PROP_MAX_NOTE_TEXT_BYTES, limits.maxNoteTextBytes(),
+                                            "total note text" );
+        }
     }
 
     private Drained drain( final ZipInputStream zin, final CountingInputStream raw, final String name,

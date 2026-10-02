@@ -167,6 +167,41 @@ class VaultArchiveReaderTest {
     }
 
     @Test
+    void pageCapRejectedInPassOneBeforeAnyNoteIsBuffered() throws Exception {
+        final ImportLimits two = new ImportLimits( 1_000_000, 10_000_000, 100, 2, 1, 262144 );
+        final Map< String, String > m = ordered( "A.md", "a".repeat( 100_000 ), "B.md", "b".repeat( 100_000 ),
+            "C.md", "c".repeat( 100_000 ) );
+        final Path p = TestVaults.write( TestVaults.zipText( m ) );
+        try {
+            final VaultArchiveReader reader = new VaultArchiveReader( two );
+            final ImportLimitException e = assertThrows( ImportLimitException.class, () -> reader.read( p ) );
+            assertEquals( ImportLimits.PROP_MAX_PAGES, e.limitKey() );
+            assertEquals( 0, reader.bufferedNoteBytes(), "no note text may be buffered before the page cap is checked" );
+        } finally {
+            Files.deleteIfExists( p );
+        }
+    }
+
+    @Test
+    void pageCapCountsOnlyImportableNotes() throws Exception {
+        final ImportLimits two = new ImportLimits( 1_000_000, 10_000_000, 100, 2, 1, 262144 );
+        final VaultArchive a = read( TestVaults.zipText( ordered( "V/A.md", "a", "V/B.md", "b",
+            "V/Wikantik Export.md", "x", "V/.trash/C.md", "c", "__MACOSX/V/._A.md", "m" ) ), two );
+        assertEquals( 2, a.notes().size() );
+    }
+
+    @Test
+    void noteTextBudgetIs413Limit() throws Exception {
+        final ImportLimits small = new ImportLimits( 1_000_000, 10_000_000, 100, 100, 1, 262144, 150, 2 );
+        final ImportLimitException e = assertThrows( ImportLimitException.class,
+            () -> read( TestVaults.zipText( ordered( "A.md", "a".repeat( 100 ), "B.md", "b".repeat( 100 ) ) ), small ) );
+        assertEquals( ImportLimits.PROP_MAX_NOTE_TEXT_BYTES, e.limitKey() );
+        // Only buffered note text counts: a large non-note file does not use the budget.
+        assertEquals( 1, read( TestVaults.zipText( ordered( "A.md", "a".repeat( 100 ), "img.png", "x".repeat( 500 ) ) ),
+            small ).notes().size() );
+    }
+
+    @Test
     void wrapperFolderStripped() throws Exception {
         final VaultArchive a = read( TestVaults.zipText( ordered(
             "MyVault/A.md", "a", "MyVault/.obsidian/app.json", "{}", "__MACOSX/MyVault/._A.md", "x" ) ) );

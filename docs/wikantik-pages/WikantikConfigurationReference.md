@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-10-01'
+date: '2026-10-02'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -936,12 +936,16 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.import.maxEntries` | `int` | `20000` | `wikantik_import_maxEntries` | Maximum number of entries (files and folders) in an imported vault zip. HTTP 413 above it. |
 | `wikantik.import.maxPages` | `int` | `2000` | `wikantik_import_maxPages` | Maximum number of Markdown notes a single vault import may contain. HTTP 413 above it. |
 | `wikantik.import.maxConcurrent` | `int` | `1` | `wikantik_import_maxConcurrent` | Maximum number of vault import jobs that may run at the same time across the wiki. … |
+| `wikantik.import.maxNoteTextBytes` | `int` | `134217728` | `wikantik_import_maxNoteTextBytes` | Maximum total size, in bytes, of Markdown note text held in memory while a vault import is planned (each note is also capped by wikantik.api.maxPageBytes). … |
+| `wikantik.import.maxConcurrentPlans` | `int` | `2` | `wikantik_import_maxConcurrentPlans` | Maximum number of vault import plans computed at the same time across the wiki -- both dry runs (POST /api/import/obsidian/plan) and the re-plan an apply … |
 
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.import.maxUploadBytes`** — Maximum size, in bytes, of an uploaded Obsidian vault zip (POST /api/import/obsidian/plan and /apply). Larger uploads are refused with HTTP 413 naming this key. Note that the servlet container's multipart-config in web.xml independently caps any upload at 200 MB (209715200 bytes), so a value above that is ineffective.
 - **`wikantik.import.maxUncompressedBytes`** — Maximum total uncompressed size, in bytes, of all entries in an imported vault zip, counted while streaming (header sizes are never trusted). Exceeding it is HTTP 413.
 - **`wikantik.import.maxConcurrent`** — Maximum number of vault import jobs that may run at the same time across the wiki. An apply arriving while this many jobs are running is refused with HTTP 429.
+- **`wikantik.import.maxNoteTextBytes`** — Maximum total size, in bytes, of Markdown note text held in memory while a vault import is planned (each note is also capped by wikantik.api.maxPageBytes). A vault whose buffered note text would exceed it is refused with HTTP 413 naming this key.
+- **`wikantik.import.maxConcurrentPlans`** — Maximum number of vault import plans computed at the same time across the wiki -- both dry runs (POST /api/import/obsidian/plan) and the re-plan an apply performs. A request arriving while this many plans are in progress is refused with HTTP 429.
 
 The following settings come from `wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties` (bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`).
 

@@ -82,6 +82,20 @@ final class VaultEntryNames {
         return name.startsWith( prefix ) ? name.substring( prefix.length() ) : name;
     }
 
+    /**
+     * True when {@code name} is a note that will be imported whatever the wrapper folder turns out to be. Used to count
+     * notes while streaming, before the wrapper is known: it may under-count (a sub-folder note named like the export
+     * marker), never over-count.
+     */
+    static boolean surelyImportableNote( final String name ) {
+        if ( !VaultPaths.isNote( name ) || ignored( name, name ) ) {
+            return false;
+        }
+        final boolean couldBeMarker = EXPORT_MARKER.equals( VaultPaths.basename( name ) )
+            && name.indexOf( '/' ) == name.lastIndexOf( '/' );
+        return !couldBeMarker;
+    }
+
     static boolean ignored( final String name, final String rel ) {
         if ( name.endsWith( "/" ) || name.startsWith( MACOSX ) || EXPORT_MARKER.equals( rel ) ) {
             return true;

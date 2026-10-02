@@ -40,6 +40,16 @@ final class WikiLinkRenamer {
                 : null );
     }
 
+    /**
+     * True when {@code ref} names the page being renamed.
+     *
+     * <p><b>Known limitation:</b> this uses string heuristics ({@code equalsIgnoreCase}, {@code cleanLink},
+     * {@code wikifyLink} and a whitespace/case fold of the beautified old name), not the
+     * {@link com.wikantik.wikilink.WikiLinkResolver}. By the time referrers are rewritten the page has already been
+     * moved, so the resolver can no longer answer "did this link point at the old name". A link whose text is also an
+     * alias phrase of a different page (for example {@code [[old name]]} where another page lists "old name" as an
+     * alias) can therefore be rewritten even though it resolved to that other page.</p>
+     */
     private static boolean renames( final WikiLinkSyntax.WikiLinkRef ref, final String from ) {
         if ( ref.isSamePage() ) {
             return false;

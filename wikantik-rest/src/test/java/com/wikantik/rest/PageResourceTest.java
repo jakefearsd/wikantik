@@ -1032,6 +1032,51 @@ class PageResourceTest {
         assertFalse( hiddenBody.toString().contains( "Secret" ) );
     }
 
+    // ----- Feature: transcluded embed -----
+
+    @Test
+    void embedReturnsRenderedBodyAndFlags() throws Exception {
+        engine.saveText( "RestEmbedPage", "---\ntitle: X\n---\nHello **there**.\n\n## Usage\n\nRun it.\n" );
+        final JsonObject all = gson.fromJson( doGet( "RestEmbedPage/embed" ), JsonObject.class );
+        assertTrue( all.get( "html" ).getAsString().contains( "<strong>there</strong>" ) );
+        assertFalse( all.get( "missing" ).getAsBoolean() );
+        assertFalse( all.get( "restricted" ).getAsBoolean() );
+        assertFalse( all.get( "truncated" ).getAsBoolean() );
+        final JsonObject sec = gson.fromJson( doGetWithParams( "RestEmbedPage/embed", Map.of( "section", "Usage" ) ),
+                JsonObject.class );
+        assertTrue( sec.get( "html" ).getAsString().contains( "Run it." ) );
+        assertFalse( sec.get( "html" ).getAsString().contains( "there" ) );
+    }
+
+    @Test
+    void embedOfAMissingPageIsMissingNot404() throws Exception {
+        final JsonObject obj = gson.fromJson( doGet( "RestNoSuchEmbed/embed" ), JsonObject.class );
+        assertTrue( obj.get( "missing" ).getAsBoolean() );
+    }
+
+    @Test
+    void embedWithoutViewPermissionIs403() throws Exception {
+        engine.saveText( "RestEmbedSecret", "Secret." );
+        final PageResource spy = Mockito.spy( servlet );
+        Mockito.doAnswer( inv -> {
+            ( (HttpServletResponse) inv.getArgument( 1 ) ).setStatus( 403 );
+            return false;
+        } ).when( spy ).checkPagePermission( Mockito.any(), Mockito.any(), Mockito.eq( "RestEmbedSecret" ),
+                Mockito.eq( "view" ) );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        spy.doGet( createRequest( "RestEmbedSecret/embed" ), response );
+        Mockito.verify( response ).setStatus( 403 );
+    }
+
+    @Test
+    void embedIsNeverServedFromTheHttpCache() throws Exception {
+        engine.saveText( "RestEmbedPage", "Body." );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+        servlet.doGet( createRequest( "RestEmbedPage/embed" ), response );
+        Mockito.verify( response ).setHeader( "Cache-Control", "private, no-cache" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {

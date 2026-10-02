@@ -43,6 +43,8 @@ import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.wikilink.WikiEmbedRenderer;
+import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.export.HeadingSlugs;
 import com.wikantik.preview.PageExcerpts;
@@ -168,6 +170,12 @@ public class PageResource extends RestServletBase {
         // GET /api/pages/{name}/preview — link-preview card data; missing and unviewable are the same 404
         if ( pathParam.endsWith( "/preview" ) ) {
             handlePreview( request, response, pathParam.substring( 0, pathParam.length() - "/preview".length() ) );
+            return;
+        }
+
+        // GET /api/pages/{name}/embed — rendered transclusion body; a missing page is data, not a 404
+        if ( pathParam.endsWith( "/embed" ) ) {
+            handleEmbed( request, response, pathParam.substring( 0, pathParam.length() - "/embed".length() ) );
             return;
         }
 
@@ -826,6 +834,35 @@ public class PageResource extends RestServletBase {
         out.put( "excerpt", PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ) );
         out.put( "lastModified", page.getLastModified() );
         // Per-viewer (ACL-filtered) and stale after a save: always revalidate, never reuse from the HTTP cache.
+        response.setHeader( "Cache-Control", "private, no-cache" );
+        sendJson( response, out );
+    }
+
+    /**
+     * Embed body for {@code ![[name]]}: {@code 403} only when the caller cannot view the resolved page; an
+     * unresolvable target answers {@code 200 missing:true}. The title is the client's to render (html is body only).
+     */
+    private static final String EMBED_HOST_PAGE = "<embed>";
+
+    private void handleEmbed( final HttpServletRequest request, final HttpServletResponse response,
+                              final String name ) throws IOException {
+        final Engine engine = getEngine();
+        final WikiLinkResolver.Resolution resolved = WikiLinkResolver.forEngine( engine ).resolve( name );
+        if ( resolved.exists() && !checkPagePermission( request, response, resolved.pageName(), "view" ) ) {
+            return;
+        }
+        // The endpoint has no host page: use a placeholder whose name cannot be a real page, so the renderer's
+        // loop guard (seeded with the context page) never mistakes the embedded page for its own host.
+        final Page page = Wiki.contents().page( engine, EMBED_HOST_PAGE );
+        final Context context = Wiki.context().create( engine, request, page );
+        final String section = request.getParameter( "section" );
+        final WikiEmbedRenderer.EmbedResult r = WikiEmbedRenderer.forEngine( engine ).render( context, name, section );
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "html", r.bodyHtml() == null ? "" : r.bodyHtml() );
+        out.put( "missing", r.missing() );
+        out.put( "restricted", r.restricted() );
+        out.put( "truncated", r.truncated() );
+        // Viewer-dependent and stale after a save: never reusable from the HTTP cache.
         response.setHeader( "Cache-Control", "private, no-cache" );
         sendJson( response, out );
     }

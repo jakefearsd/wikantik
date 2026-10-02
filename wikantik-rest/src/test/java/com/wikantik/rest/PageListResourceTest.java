@@ -345,6 +345,32 @@ class PageListResourceTest {
         }
     }
 
+    @Test
+    void resolveTrueMapsEachRequestedNameToItsPageOrNull() throws Exception {
+        engine.saveText( "RestResolveTarget", "---\naliases: [zebra notes]\n---\nBody." );
+        engine.saveText( "RestResolveSecret", "[{ALLOW view Admin}]\nSecret." );
+        try {
+            final String json = doGetParams( indexAwareServlet(), java.util.Map.of(
+                    "names", "RestResolveTarget,restresolvetarget,zebra notes,RestNoSuch,RestResolveSecret",
+                    "resolve", "true" ) );
+            final JsonObject resolved = gson.fromJson( json, JsonObject.class ).getAsJsonObject( "resolved" );
+            assertEquals( "RestResolveTarget", resolved.get( "RestResolveTarget" ).getAsString() );
+            assertEquals( "RestResolveTarget", resolved.get( "restresolvetarget" ).getAsString() );
+            assertEquals( "RestResolveTarget", resolved.get( "zebra notes" ).getAsString() );
+            assertTrue( resolved.get( "RestNoSuch" ).isJsonNull() );
+            assertTrue( resolved.get( "RestResolveSecret" ).isJsonNull(),
+                    "anonymous caller must not learn a restricted page" );
+        } finally {
+            engine.deleteQuietly( "RestResolveTarget", "RestResolveSecret" );
+        }
+    }
+
+    @Test
+    void withoutResolveThereIsNoResolvedMap() throws Exception {
+        assertFalse( gson.fromJson( doGetParams( servlet, java.util.Map.of( "names", "Anything" ) ),
+                JsonObject.class ).has( "resolved" ) );
+    }
+
     /**
      * The bare TestEngine wires no structural index; build a real one over its page manager and serve it to a
      * servlet through the subsystems seam.

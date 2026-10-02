@@ -64,6 +64,14 @@ public final class RestJson {
         response.getWriter().write( RestServletBase.GSON.toJson( object ) );
     }
 
+    /** Like {@link #sendJson} but keeps explicit JSON nulls in {@code tree} (the default Gson drops them). */
+    static void sendJsonKeepingNulls( final HttpServletResponse response, final com.google.gson.JsonElement tree )
+            throws IOException {
+        response.setContentType( "application/json" );
+        response.setCharacterEncoding( "UTF-8" );
+        response.getWriter().write( RestServletBase.GSON.newBuilder().serializeNulls().create().toJson( tree ) );
+    }
+
     /**
      * Sends a JSON error response.
      *

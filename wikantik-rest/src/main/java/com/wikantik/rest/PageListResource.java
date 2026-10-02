@@ -18,6 +18,10 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
@@ -158,7 +162,35 @@ public class PageListResource extends RestServletBase {
         result.put( "offset", offset );
         result.put( "limit", limit );
 
+        if ( "true".equals( request.getParameter( "resolve" ) ) && namesParam != null ) {
+            sendWithResolved( request, response, result, wantedNames );
+            return;
+        }
         sendJson( response, result );
+    }
+
+    /**
+     * Adds {@code resolved}: each requested name (verbatim) to the page it resolves to, or JSON null when it does
+     * not resolve or the caller cannot view the target (so the map is not an existence oracle).
+     */
+    private void sendWithResolved( final HttpServletRequest request, final HttpServletResponse response,
+                                   final Map< String, Object > result, final List< String > wantedNames )
+            throws IOException {
+        final WikiLinkResolver resolver = new WikiLinkResolver( getEngine()::getFinalPageName, this::titleLookup );
+        final Map< String, String > targets = new LinkedHashMap<>();
+        for ( final String wanted : wantedNames ) {
+            final WikiLinkResolver.Resolution r = resolver.resolve( wanted );
+            targets.put( wanted, r.exists() ? r.pageName() : null );
+        }
+        final java.util.Set< String > viewable = filterViewable( request,
+                targets.values().stream().filter( java.util.Objects::nonNull ).distinct().toList() );
+        final JsonObject resolved = new JsonObject();
+        targets.forEach( ( wanted, target ) -> resolved.add( wanted,
+                target != null && viewable.contains( target ) ? new JsonPrimitive( target ) : JsonNull.INSTANCE ) );
+        // Tree first (default null handling for the payload), then write with nulls kept for the resolved map.
+        final JsonObject tree = GSON.toJsonTree( result ).getAsJsonObject();
+        tree.add( "resolved", resolved );
+        RestJson.sendJsonKeepingNulls( response, tree );
     }
 
     /** One {@code pages[]} entry; the structural-index fields are present only when the index knows them. */

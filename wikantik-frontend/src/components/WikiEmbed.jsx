@@ -10,17 +10,18 @@ export function clearWikiEmbedCache() {
 }
 
 /**
- * Live preview of an {@code ![[Page#Section]]} embed. The body html is produced by the server (sanitized
+ * Live preview of an {@code ![[Page#Section]]} embed: fetched by `target` (the name as written; the server
+ * resolves it), titled and linked by `page` (the canonical name, once known). The body html is produced by the server (sanitized
  * when allowHtml is on, built from escaped markdown otherwise) — the same trust posture as PageView
  * rendering page.contentHtml. The title is rendered here, not by the server.
  */
-export default function WikiEmbed({ page, section = null }) {
+export default function WikiEmbed({ page, target = page, section = null }) {
   const [result, setResult] = useState({ key: null, state: 'loading', html: '' });
-  const key = `${page}#${section || ''}`;
+  const key = `${target}#${section || ''}`;
 
   useEffect(() => {
     let live = true;
-    loadEmbed(page, section).then(
+    loadEmbed(target, section).then(
       (r) => { if (live) setResult({ key, state: 'ok', html: r?.html || '' }); },
       (err) => {
         if (!live) return;
@@ -33,7 +34,7 @@ export default function WikiEmbed({ page, section = null }) {
       },
     );
     return () => { live = false; };
-  }, [page, section, key]);
+  }, [target, section, key]);
 
   const state = result.key === key ? result.state : 'loading';
   const html = result.key === key ? result.html : '';
@@ -62,5 +63,6 @@ export default function WikiEmbed({ page, section = null }) {
 
 /** react-markdown components adapter for the {@code wiki-embed} element emitted by remarkWikiLinks. */
 export function WikiEmbedElement(props) {
-  return <WikiEmbed page={props['data-page']} section={props['data-section'] || null} />;
+  const page = props['data-page'];
+  return <WikiEmbed page={page} target={props['data-target'] || page} section={props['data-section'] || null} />;
 }

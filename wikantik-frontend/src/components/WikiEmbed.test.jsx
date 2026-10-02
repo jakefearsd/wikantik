@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import WikiEmbed, { clearWikiEmbedCache, WikiEmbedElement } from './WikiEmbed';
 import { api } from '../api/client';
+import ReactMarkdown from 'react-markdown';
+import { remarkWikiLinks } from '../utils/remarkWikiLinks';
 
 vi.mock('../api/client', () => ({ api: { getPageEmbed: vi.fn() } }));
 
@@ -62,4 +64,22 @@ describe('WikiEmbed', () => {
     await findByText('z');
     expect(api.getPageEmbed).toHaveBeenCalledWith('P', expect.objectContaining({ section: 'S' }));
   });
+
+  it('fetches an embed once while its target resolves to the canonical name (no second request)', async () => {
+    api.getPageEmbed.mockResolvedValue(ok('<p>body</p>'));
+    const md = (resolved) => (
+      <ReactMarkdown components={{ 'wiki-embed': WikiEmbedElement }} remarkPlugins={[[remarkWikiLinks, { resolved }]]}>
+        {'![[target page#Usage]]'}
+      </ReactMarkdown>
+    );
+    const { rerender, findByText, container } = render(md(new Map()));
+    await findByText('body');
+    rerender(md(new Map([['target page', 'TargetPage']])));
+    await waitFor(() => expect(container.querySelector('.wiki-embed-title').textContent).toBe('TargetPage › Usage'));
+    expect(container.querySelector('.wiki-embed-title a').getAttribute('href')).toMatch(/\/wiki\/TargetPage#usage$/);
+    expect(container.querySelector('.wiki-embed-body').textContent).toBe('body');
+    expect(api.getPageEmbed).toHaveBeenCalledTimes(1);
+    expect(api.getPageEmbed).toHaveBeenCalledWith('target page', expect.objectContaining({ section: 'Usage' }));
+  });
 });
+

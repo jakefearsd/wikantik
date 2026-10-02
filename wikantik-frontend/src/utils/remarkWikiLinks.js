@@ -84,7 +84,14 @@ function embedElement(ref, resolved, paragraph) {
     type: 'wikiEmbed',
     data: {
       hName: 'wiki-embed',
-      hProperties: { 'data-page': typeof name === 'string' ? name : ref.target, 'data-section': ref.heading || '' },
+      // data-page (canonical once resolved) is what the embed shows and links to; data-target (as written) is
+      // what it fetches — the server resolves it the same way, and the fetch key then stays stable when the
+      // resolution arrives (no second request) and matches the live-preview widget's key.
+      hProperties: {
+        'data-page': typeof name === 'string' ? name : ref.target,
+        'data-target': ref.target,
+        'data-section': ref.heading || '',
+      },
     },
     position: paragraph.position,
   };

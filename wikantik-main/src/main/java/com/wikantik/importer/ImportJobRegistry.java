@@ -22,14 +22,18 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -42,27 +46,45 @@ public final class ImportJobRegistry implements AutoCloseable {
     private final Clock clock;
     private final Executor executor;
     private final Map< String, VaultImportJob > jobs = new LinkedHashMap<>();
+    /** Owners holding a slot for an apply that is still re-planning (counted like running jobs). */
+    private final Set< String > reserved = new HashSet<>();
+    private final Semaphore plans;
 
     public ImportJobRegistry( final int maxConcurrent, final Clock clock, final Executor executor ) {
+        this( maxConcurrent, ImportLimits.DEFAULT_MAX_CONCURRENT_PLANS, clock, executor );
+    }
+
+    public ImportJobRegistry( final int maxConcurrent, final int maxConcurrentPlans, final Clock clock,
+                              final Executor executor ) {
         this.maxConcurrent = maxConcurrent;
+        this.plans = new Semaphore( maxConcurrentPlans );
         this.clock = clock;
         this.executor = executor;
     }
 
     /** A registry running jobs on a cached pool of daemon threads named {@code obsidian-import-N}. */
     public static ImportJobRegistry create( final int maxConcurrent ) {
+        return create( maxConcurrent, ImportLimits.DEFAULT_MAX_CONCURRENT_PLANS );
+    }
+
+    /** As {@link #create(int)}, with at most {@code maxConcurrentPlans} plans computed at once. */
+    public static ImportJobRegistry create( final int maxConcurrent, final int maxConcurrentPlans ) {
         final AtomicInteger n = new AtomicInteger();
         final ExecutorService pool = Executors.newCachedThreadPool( r -> {
             final Thread t = new Thread( r, "obsidian-import-" + n.incrementAndGet() );
             t.setDaemon( true );
             return t;
         } );
-        return new ImportJobRegistry( maxConcurrent, Clock.systemUTC(), pool );
+        return new ImportJobRegistry( maxConcurrent, maxConcurrentPlans, Clock.systemUTC(), pool );
     }
 
-    /** Throws if {@code owner} could not start a job right now. */
+    /** Throws if {@code owner} could not start a job right now (running jobs and held reservations both count). */
     public synchronized void ensureCanStart( final String owner ) throws ImportJobConflictException {
-        long running = 0;
+        if ( reserved.contains( owner ) ) {
+            throw new ImportJobConflictException( ImportJobConflictException.Reason.USER_RUNNING,
+                "an import is already in progress for you" );
+        }
+        long running = reserved.size();
         for ( final VaultImportJob j : jobs.values() ) {
             if ( j.isRunning() ) {
                 running++;
@@ -78,11 +100,41 @@ public final class ImportJobRegistry implements AutoCloseable {
         }
     }
 
-    /** Registers the job built by {@code factory} (given its new id) and queues it for execution. */
-    public synchronized VaultImportJob start( final String owner, final Function< String, VaultImportJob > factory )
-            throws ImportJobConflictException {
+    /**
+     * Takes a plan permit ({@code wikantik.import.maxConcurrentPlans}) for a dry run or an apply's re-plan.
+     *
+     * @throws ImportJobConflictException (CAPACITY) when every permit is in use
+     */
+    public PlanPermit acquirePlan() throws ImportJobConflictException {
+        if ( !plans.tryAcquire() ) {
+            throw new ImportJobConflictException( ImportJobConflictException.Reason.CAPACITY,
+                "too many import plans in progress; try again shortly" );
+        }
+        return new PlanPermit();
+    }
+
+    /**
+     * Holds {@code owner}'s job slot before the apply re-plans, so concurrent applies are refused up front instead of
+     * all re-planning. Start the job through the reservation, or close it to give the slot back.
+     */
+    public synchronized Reservation reserve( final String owner ) throws ImportJobConflictException {
         evictExpired();
         ensureCanStart( owner );
+        reserved.add( owner );
+        return new Reservation( owner );
+    }
+
+    /** Registers the job built by {@code factory} (given its new id) and queues it for execution. */
+    public VaultImportJob start( final String owner, final Function< String, VaultImportJob > factory )
+            throws ImportJobConflictException {
+        try ( Reservation r = reserve( owner ) ) {
+            return r.start( factory );
+        }
+    }
+
+    private synchronized VaultImportJob startReserved( final String owner,
+                                                       final Function< String, VaultImportJob > factory ) {
+        reserved.remove( owner );
         final String id = UUID.randomUUID().toString();
         final VaultImportJob job = factory.apply( id );
         job.useClock( clock );
@@ -97,6 +149,10 @@ public final class ImportJobRegistry implements AutoCloseable {
             throw e;
         }
         return job;
+    }
+
+    private synchronized void release( final String owner ) {
+        reserved.remove( owner );
     }
 
     private void abandon( final String id, final VaultImportJob job ) {
@@ -127,5 +183,51 @@ public final class ImportJobRegistry implements AutoCloseable {
             es.shutdownNow();
         }
         jobs.values().forEach( VaultImportJob::discardUpload );
+    }
+
+    /** One of the {@code wikantik.import.maxConcurrentPlans} permits; closing it more than once releases it once. */
+    public final class PlanPermit implements AutoCloseable {
+        private final AtomicBoolean held = new AtomicBoolean( true );
+
+        private PlanPermit() {
+        }
+
+        @Override
+        public void close() {
+            if ( held.compareAndSet( true, false ) ) {
+                plans.release();
+            }
+        }
+    }
+
+    /** A held job slot for one owner: {@link #start} it once, or {@link #close} it to release the slot. */
+    public final class Reservation implements AutoCloseable {
+        private final String owner;
+        private boolean open = true;
+
+        private Reservation( final String owner ) {
+            this.owner = owner;
+        }
+
+        /** Starts the job in this slot. */
+        public VaultImportJob start( final Function< String, VaultImportJob > factory ) {
+            synchronized ( ImportJobRegistry.this ) {
+                if ( !open ) {
+                    throw new IllegalStateException( "reservation already used or released" );
+                }
+                open = false;
+                return startReserved( owner, factory );
+            }
+        }
+
+        @Override
+        public void close() {
+            synchronized ( ImportJobRegistry.this ) {
+                if ( open ) {
+                    open = false;
+                    release( owner );
+                }
+            }
+        }
     }
 }

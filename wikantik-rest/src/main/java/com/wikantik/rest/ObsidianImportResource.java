@@ -110,7 +110,7 @@ public class ObsidianImportResource extends RestServletBase {
 
     /** Test seam: the job registry. */
     protected ImportJobRegistry newRegistry( final ImportLimits l ) {
-        return ImportJobRegistry.create( l.maxConcurrent() );
+        return ImportJobRegistry.create( l.maxConcurrent(), l.maxConcurrentPlans() );
     }
 
     /** Test seam: the import service. */
@@ -188,12 +188,14 @@ public class ObsidianImportResource extends RestServletBase {
         try {
             final Part part = uploads.filePart( req );
             final ImportOptions options = ImportOptions.parse( req.getParameter( "clusterMode" ), req.getParameter( "cluster" ) );
-            upload = uploads.spool( part );
-            sendJson( resp, importService().plan( upload, options ).plan() );
+            try ( ImportJobRegistry.PlanPermit permit = registry.acquirePlan() ) {
+                upload = uploads.spool( part );
+                sendJson( resp, importService().plan( upload, options ).plan() );
+            }
         } catch ( final ImportUploads.UploadRejected e ) {
             sendError( resp, e.status(), e.getMessage() );
         } catch ( final IOException | ServletException | ProviderException | VaultArchiveException
-                       | ImportLimitException | RuntimeException e ) {
+                       | ImportLimitException | ImportJobConflictException | RuntimeException e ) {
             ImportFailures.send( resp, e );
         } finally {
             if ( upload != null ) {
@@ -208,9 +210,12 @@ public class ObsidianImportResource extends RestServletBase {
         final String author = session.getUserPrincipal().getName();
         Planned planned = null;
         boolean started = false;
-        try {
-            registry.ensureCanStart( owner );
-            planned = spoolAndPlan( req );
+        // The slot is held before re-planning (released on any failure by the try-with-resources), so concurrent
+        // applies are refused up front instead of all re-planning; the plan permit is held only while planning.
+        try ( ImportJobRegistry.Reservation slot = registry.reserve( owner ) ) {
+            try ( ImportJobRegistry.PlanPermit permit = registry.acquirePlan() ) {
+                planned = spoolAndPlan( req );
+            }
             if ( !planned.plan().plan().planHash().equals( req.getParameter( "planHash" ) ) ) {
                 sendError( resp, HttpServletResponse.SC_CONFLICT,
                     "The vault or the wiki changed since the plan was made; review the new plan" );
@@ -218,7 +223,7 @@ public class ObsidianImportResource extends RestServletBase {
             }
             final Planned p = planned;
             final VaultImportService service = importService();
-            final VaultImportJob job = registry.start( owner,
+            final VaultImportJob job = slot.start(
                 id -> service.newJob( id, owner, author, p.upload(), p.plan(), () -> canCreatePages( session ) ) );
             started = true;
             resp.setStatus( HttpServletResponse.SC_ACCEPTED );

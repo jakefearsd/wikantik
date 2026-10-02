@@ -118,4 +118,43 @@ class ImportJobRegistryTest {
         queued.get( 0 ).run();
         assertEquals( fixed, job.finishedAt() );
     }
+
+    @Test
+    void reservationHoldsTheUsersSlotUntilStartedOrClosed() throws Exception {
+        try ( ImportJobRegistry.Reservation r = registry.reserve( "alice" ) ) {
+            assertEquals( ImportJobConflictException.Reason.USER_RUNNING,
+                assertThrows( ImportJobConflictException.class, () -> registry.reserve( "alice" ) ).reason() );
+            assertEquals( ImportJobConflictException.Reason.CAPACITY,
+                assertThrows( ImportJobConflictException.class, () -> registry.reserve( "bob" ) ).reason() );
+            assertNotNull( r );
+        }
+        registry.reserve( "bob" ).close();   // released on close
+        registry.reserve( "alice" ).close();
+    }
+
+    @Test
+    void reservedSlotStartsTheJobWithoutAnotherCapacityCheck() throws Exception {
+        final ImportJobRegistry.Reservation r = registry.reserve( "alice" );
+        final VaultImportJob job = r.start( id -> ImportTestJobs.job( id, "alice" ) );
+        r.close();   // no-op once started
+        assertTrue( job.isRunning() );
+        assertEquals( ImportJobConflictException.Reason.USER_RUNNING,
+            assertThrows( ImportJobConflictException.class, () -> registry.reserve( "alice" ) ).reason() );
+        assertThrows( IllegalStateException.class, () -> r.start( id -> ImportTestJobs.job( id, "alice" ) ) );
+    }
+
+    @Test
+    void planPermitsAreCappedAndReleasedOnce() throws Exception {
+        final ImportJobRegistry reg = new ImportJobRegistry( 1, 2, clock, queued::add );
+        final ImportJobRegistry.PlanPermit a = reg.acquirePlan();
+        final ImportJobRegistry.PlanPermit b = reg.acquirePlan();
+        final ImportJobConflictException e = assertThrows( ImportJobConflictException.class, reg::acquirePlan );
+        assertEquals( ImportJobConflictException.Reason.CAPACITY, e.reason() );
+        a.close();
+        a.close();   // idempotent: must not release a second permit
+        final ImportJobRegistry.PlanPermit c = reg.acquirePlan();
+        assertThrows( ImportJobConflictException.class, reg::acquirePlan );
+        b.close();
+        c.close();
+    }
 }

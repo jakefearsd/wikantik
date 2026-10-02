@@ -291,6 +291,99 @@ class ObsidianImportResourceTest {
         verify( r.mock() ).setStatus( 429 );
     }
 
+    /** A servlet whose plans block on {@code gate} after counting themselves in {@code plans}. */
+    private ObsidianImportResource blockingPlanServlet( final int planPermits, final java.util.concurrent.CountDownLatch entered,
+                                                        final java.util.concurrent.CountDownLatch gate,
+                                                        final java.util.concurrent.atomic.AtomicInteger plans ) throws Exception {
+        final ObsidianImportResource r = new ObsidianImportResource() {
+            @Override protected ImportJobRegistry newRegistry( final ImportLimits l ) {
+                return new ImportJobRegistry( l.maxConcurrent(), planPermits, Clock.systemUTC(), new Queued() );
+            }
+            @Override protected com.wikantik.importer.VaultImportService importService() {
+                final ImportLimits limits = ImportLimits.defaults();
+                return new com.wikantik.importer.VaultImportService( limits,
+                    new com.wikantik.importer.VaultImportPlanner( com.wikantik.api.frontmatter.schema.FrontmatterSchema.defaultSchema(),
+                        com.wikantik.importer.AttachmentGate.fromProperties( new java.util.Properties() ), limits.maxPages() ),
+                    () -> {
+                        plans.incrementAndGet();
+                        entered.countDown();
+                        try {
+                            gate.await( 10, java.util.concurrent.TimeUnit.SECONDS );
+                        } catch ( final InterruptedException e ) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return com.wikantik.importer.FakeWikiSnapshot.EMPTY;
+                    }, ImportTestJobs.noopSink() );
+            }
+            @Override protected boolean canCreatePages( final Session s ) { return true; }
+            @Override protected boolean isAdmin( final Session s ) { return true; }
+            @Override protected Path spoolDir() { return spool; }
+        };
+        final ServletConfig cfg = mock( ServletConfig.class );
+        doReturn( engine.getServletContext() ).when( cfg ).getServletContext();
+        r.init( cfg );
+        return r;
+    }
+
+    @Test
+    void concurrentApplyBySameUserIs409WithoutReplanning() throws Exception {
+        loginAdmin();
+        final java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.atomic.AtomicInteger plans = new java.util.concurrent.atomic.AtomicInteger();
+        final ObsidianImportResource s = blockingPlanServlet( 2, entered, gate, plans );
+        final byte[] zip = oneNote();
+        final Thread first = new Thread( () -> {
+            try {
+                s.doPost( post( "/apply", zip, zip.length, Map.of( "planHash", "x" ) ), resp().mock() );
+            } catch ( final Exception e ) {
+                throw new IllegalStateException( e );
+            }
+        } );
+        first.start();
+        try {
+            assertTrue( entered.await( 10, java.util.concurrent.TimeUnit.SECONDS ), "first apply never re-planned" );
+            final Resp r = resp();
+            s.doPost( post( "/apply", zip, zip.length, Map.of( "planHash", "x" ) ), r.mock() );
+            verify( r.mock() ).setStatus( 409 );
+            assertEquals( 1, plans.get(), "a second apply must be refused before it re-plans" );
+        } finally {
+            gate.countDown();
+            first.join( 10_000 );
+        }
+        s.registry().reserve( Users.ADMIN ).close();   // the first apply's 409 (stale hash) released the slot
+    }
+
+    @Test
+    void planBeyondConcurrentPlanCapIs429() throws Exception {
+        loginAdmin();
+        final java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.atomic.AtomicInteger plans = new java.util.concurrent.atomic.AtomicInteger();
+        final ObsidianImportResource s = blockingPlanServlet( 1, entered, gate, plans );
+        final Thread first = new Thread( () -> {
+            try {
+                s.doPost( post( "/plan", oneNote() ), resp().mock() );
+            } catch ( final Exception e ) {
+                throw new IllegalStateException( e );
+            }
+        } );
+        first.start();
+        try {
+            assertTrue( entered.await( 10, java.util.concurrent.TimeUnit.SECONDS ), "first plan never started" );
+            final Resp r = resp();
+            s.doPost( post( "/plan", oneNote() ), r.mock() );
+            verify( r.mock() ).setStatus( 429 );
+            assertEquals( 1, plans.get() );
+        } finally {
+            gate.countDown();
+            first.join( 10_000 );
+        }
+        final Resp after = resp();
+        s.doPost( post( "/plan", oneNote() ), after.mock() );
+        assertTrue( json( after ).has( "planHash" ), "the permit must be released after the first plan" );
+    }
+
     @Test
     void jobReadableOnlyByOwnerOrAdmin() throws Exception {
         loginAdmin();

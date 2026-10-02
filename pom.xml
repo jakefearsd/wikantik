@@ -346,6 +346,12 @@
 
       <dependency>
         <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-ext-wikilink</artifactId>
+        <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
         <artifactId>flexmark-util-ast</artifactId>
         <version>${flexmark.version}</version>
       </dependency>

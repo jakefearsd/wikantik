@@ -24,7 +24,9 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.html.MutableAttributes;
 import org.apache.commons.lang3.Strings;
 import com.wikantik.api.core.Context;
+import com.wikantik.markdown.nodes.NativeWikiLinkNode;
 import com.wikantik.markdown.nodes.WikantikLink;
+import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.util.TextUtil;
 
@@ -60,7 +62,9 @@ public class WikantikLinkAttributeProvider implements AttributeProvider {
      */
     @Override
     public void setAttributes( final Node node, final AttributablePart part, final MutableAttributes attributes ) {
-        if( node instanceof WikantikLink link ) {
+        if( node instanceof NativeWikiLinkNode n ) {
+            nativeState( n ).setAttributes( attributes, n );
+        } else if( node instanceof WikantikLink link ) {
             final NodeAttributeProviderState< WikantikLink > linkState;
             if( linkOperations.isExternalLink( link.getWikiLink() ) ) {
                 linkState = new ExternalLinkAttributeProviderState( wikiContext, link.hasRef(), isImageInlining, inlineImagePatterns );
@@ -75,6 +79,17 @@ public class WikantikLinkAttributeProvider implements AttributeProvider {
             }
             linkState.setAttributes( attributes, link );
         }
+    }
+
+    private NodeAttributeProviderState< WikantikLink > nativeState( final NativeWikiLinkNode n ) {
+        return switch( n.kind() ) {
+            case PAGE, ANCHOR -> new LocalReadLinkAttributeProviderState( wikiContext );
+            case MISSING -> new LocalEditLinkAttributeProviderState( wikiContext, n.target() );
+            case ATTACHMENT -> ( a, l ) -> {
+                a.replaceValue( "class", MarkupParser.CLASS_ATTACHMENT );
+                a.replaceValue( "href", l.getUrl().toString() );
+            };
+        };
     }
 
 }

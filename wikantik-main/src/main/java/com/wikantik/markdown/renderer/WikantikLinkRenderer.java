@@ -25,6 +25,7 @@ import com.vladsch.flexmark.html.renderer.NodeRendererContext;
 import com.vladsch.flexmark.html.renderer.NodeRenderingHandler;
 import com.vladsch.flexmark.html.renderer.ResolvedLink;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.WikiHtmlInline;
+import com.wikantik.markdown.nodes.NativeWikiLinkNode;
 import com.wikantik.markdown.nodes.WikantikLink;
 
 import java.util.HashSet;
@@ -44,29 +45,9 @@ public class WikantikLinkRenderer implements NodeRenderer {
     @Override
     public Set< NodeRenderingHandler< ? > > getNodeRenderingHandlers() {
         final HashSet< NodeRenderingHandler< ? > > set = new HashSet<>();
-        set.add( new NodeRenderingHandler<>( WikantikLink.class, new NodeRenderingHandler.CustomNodeRenderer<>() {
-
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public void render( final WikantikLink node, final NodeRendererContext context, final HtmlWriter html ) {
-                if (context.isDoNotRenderLinks()) {
-                    context.renderChildren(node);
-                } else {
-                    // standard Link Rendering
-                    final ResolvedLink resolvedLink = context.resolveLink(LinkType.LINK, node.getUrl().unescape(), null);
-
-                    html.attr("href", resolvedLink.getUrl());
-                    if (node.getTitle().isNotNull()) {
-                        html.attr("title", node.getTitle().unescape());
-                    }
-                    html.srcPos(node.getChars()).withAttr(resolvedLink).tag("a");
-                    context.renderChildren(node);
-                    html.tag("/a");
-                }
-            }
-        } ) );
+        set.add( new NodeRenderingHandler<>( WikantikLink.class, WikantikLinkRenderer::renderLink ) );
+        // flexmark dispatches by exact node class, so the native [[ ]] subclass needs its own registration
+        set.add( new NodeRenderingHandler<>( NativeWikiLinkNode.class, WikantikLinkRenderer::renderLink ) );
         set.add( new NodeRenderingHandler<>( WikiHtmlInline.class, new NodeRenderingHandler.CustomNodeRenderer<>() {
 
             /**
@@ -78,6 +59,23 @@ public class WikantikLinkRenderer implements NodeRenderer {
             }
         } ) );
         return set;
+    }
+
+    private static void renderLink( final WikantikLink node, final NodeRendererContext context, final HtmlWriter html ) {
+        if( context.isDoNotRenderLinks() ) {
+            context.renderChildren( node );
+        } else {
+            // standard Link Rendering
+            final ResolvedLink resolvedLink = context.resolveLink( LinkType.LINK, node.getUrl().unescape(), null );
+
+            html.attr( "href", resolvedLink.getUrl() );
+            if( node.getTitle().isNotNull() ) {
+                html.attr( "title", node.getTitle().unescape() );
+            }
+            html.srcPos( node.getChars() ).withAttr( resolvedLink ).tag( "a" );
+            context.renderChildren( node );
+            html.tag( "/a" );
+        }
     }
 
 }

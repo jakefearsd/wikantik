@@ -304,4 +304,82 @@ class VaultImportServiceTest {
         assertFalse( pm.wikiPageExists( "A" ) );
         assertFalse( Files.exists( up.file() ) );
     }
+
+    /** A sink that reads every attachment stream to the end, counting the bytes it was handed. */
+    private ImportPageSink byteCounting( final java.util.concurrent.atomic.AtomicLong bytes ) {
+        return new ImportPageSink() {
+            @Override public boolean pageExists( final String name ) {
+                return sink.pageExists( name );
+            }
+            @Override public List< String > savePage( final String name, final String body,
+                    final Map< String, Object > metadata, final String author, final String changeNote )
+                    throws ImportSaveException {
+                return sink.savePage( name, body, metadata, author, changeNote );
+            }
+            @Override public void storeAttachment( final String page, final String fileName, final InputStream in,
+                    final String author ) throws Exception {
+                final byte[] buf = new byte[ 65536 ];
+                for ( int n = in.read( buf ); n >= 0; n = in.read( buf ) ) {
+                    bytes.addAndGet( n );
+                }
+            }
+        };
+    }
+
+    private static final byte[] PNG = { ( byte ) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+
+    @Test
+    void applyReadsTheEntryThePlanValidatedNotTheCentralDirectoryOne() throws Exception {
+        final byte[] zip = TestVaults.zipWithHiddenCentralEntry( "A.md",
+            "see ![[img.png]]".getBytes( java.nio.charset.StandardCharsets.UTF_8 ), "img.png", PNG,
+            new byte[ 64 * 1024 * 1024 ] );
+        final java.util.concurrent.atomic.AtomicLong bytes = new java.util.concurrent.atomic.AtomicLong();
+        final VaultImportService svc = serviceWith( byteCounting( bytes ) );
+        final SpooledUpload up = TestVaults.upload( zip, "crafted.zip" );
+        final PlanResult plan = svc.plan( up, ImportOptions.parse( "none", null ) );
+        assertEquals( 1, plan.attachmentsToImport().size() );
+        assertEquals( PNG.length, plan.attachmentsToImport().get( 0 ).size() );
+        final VaultImportJob job = svc.newJob( "j9", "admin", "admin", up, plan, () -> true );
+        job.run();
+        assertEquals( JobState.DONE, job.view().state(), job.view().message() );
+        assertEquals( PNG.length, bytes.get(), "only the planned (locally validated) bytes may reach the store" );
+        assertEquals( ItemStatus.CREATED, result( job.view(), "A/img.png" ).status() );
+    }
+
+    @Test
+    void attachmentLargerThanPlannedFailsWithoutStoringMore() throws Exception {
+        final Map< String, byte[] > vault = new java.util.LinkedHashMap<>();
+        vault.put( "A.md", "see ![[img.png]]".getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+        vault.put( "img.png", new byte[ 1024 * 1024 ] );
+        final java.util.concurrent.atomic.AtomicLong bytes = new java.util.concurrent.atomic.AtomicLong();
+        final VaultImportService svc = serviceWith( byteCounting( bytes ) );
+        final SpooledUpload up = TestVaults.upload( TestVaults.zip( vault ), "v.zip" );
+        final PlanResult real = svc.plan( up, ImportOptions.parse( "none", null ) );
+        final PlannedAttachment a = real.attachmentsToImport().get( 0 );
+        final PlannedAttachment shrunk = new PlannedAttachment( a.vaultPath(), a.entryName(), a.owner(), a.fileName(),
+            1000, a.status(), a.reason() );
+        final PlanResult plan = new PlanResult( real.plan(), real.drafts(), List.of( shrunk ) );
+        final VaultImportJob job = svc.newJob( "j10", "admin", "admin", up, plan, () -> true );
+        job.run();
+        final ItemResult r = result( job.view(), "A/img.png" );
+        assertEquals( ItemStatus.FAILED, r.status() );
+        assertTrue( r.reason().contains( "size differs from plan" ), r.reason() );
+        assertTrue( bytes.get() <= 1000, "read past the planned size: " + bytes.get() );
+        assertEquals( JobState.DONE, job.view().state() );
+    }
+
+    @Test
+    void importerNeverUsesZipFile() throws Exception {
+        try ( java.util.stream.Stream< java.nio.file.Path > files = Files.walk(
+                java.nio.file.Path.of( "src/main/java/com/wikantik/importer" ) ) ) {
+            final List< String > offenders = files.filter( f -> f.toString().endsWith( ".java" ) ).filter( f -> {
+                try {
+                    return Files.readString( f ).contains( "java.util.zip.ZipFile" );
+                } catch ( final java.io.IOException e ) {
+                    throw new java.io.UncheckedIOException( e );
+                }
+            } ).map( Object::toString ).toList();
+            assertTrue( offenders.isEmpty(), "ZipFile trusts the central directory; use ZipInputStream: " + offenders );
+        }
+    }
 }

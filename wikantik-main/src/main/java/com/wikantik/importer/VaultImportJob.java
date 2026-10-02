@@ -21,12 +21,16 @@ package com.wikantik.importer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,11 +38,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 /**
  * Applies a reviewed {@link PlanResult}: hubs and notes first (the plan orders drafts hub-first), then
  * attachments streamed from the spooled zip. Never overwrites; per-item errors never fail the job.
+ *
+ * <p>Attachments are read in one sequential {@link ZipInputStream} pass — the same local headers the plan
+ * validated — never through the central directory, and each entry is bounded by its planned size and the
+ * zip-bomb ratio guard.</p>
  */
 public final class VaultImportJob implements Runnable {
 
@@ -181,40 +189,137 @@ public final class VaultImportJob implements Runnable {
         if ( plan.attachmentsToImport().isEmpty() ) {
             return;
         }
-        try ( ZipFile zip = new ZipFile( upload.file().toFile(), StandardCharsets.UTF_8 ) ) {
-            for ( final PlannedAttachment a : plan.attachmentsToImport() ) {
-                importAttachment( zip, a, created );
+        final Map< String, Deque< PlannedAttachment > > pending = new LinkedHashMap<>();
+        for ( final PlannedAttachment a : plan.attachmentsToImport() ) {
+            pending.computeIfAbsent( a.entryName(), k -> new ArrayDeque<>() ).add( a );
+        }
+        try ( CountingInputStream raw = new CountingInputStream( Files.newInputStream( upload.file() ) );
+              ZipInputStream zin = new ZipInputStream( raw, StandardCharsets.UTF_8 ) ) {
+            ZipEntry entry = zin.getNextEntry();
+            while ( entry != null && !pending.isEmpty() ) {
+                final Deque< PlannedAttachment > queue = pending.get( entry.getName() );
+                if ( queue != null ) {
+                    final PlannedAttachment a = queue.poll();
+                    if ( queue.isEmpty() ) {
+                        pending.remove( entry.getName() );
+                    }
+                    importAttachment( new PlannedEntryStream( zin, raw, a.size() ), a, created );
+                }
+                entry = zin.getNextEntry();
+            }
+        }
+        for ( final Deque< PlannedAttachment > queue : pending.values() ) {
+            for ( final PlannedAttachment a : queue ) {
+                record( "attachment", a.owner() + "/" + a.fileName(), a.vaultPath(), ItemStatus.FAILED,
+                    "file missing from archive: " + a.entryName(), List.of() );
+                tick();
             }
         }
     }
 
-    private void importAttachment( final ZipFile zip, final PlannedAttachment a, final Set< String > created ) {
+    private void importAttachment( final PlannedEntryStream in, final PlannedAttachment a, final Set< String > created ) {
         final String name = a.owner() + "/" + a.fileName();
         checkNotInterrupted();
         setCurrent( name );
         final String rejection = sink.attachmentRejection( a.fileName(), a.size() ).orElse( null );
         if ( !created.contains( a.owner() ) ) {
             record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, "owner page " + a.owner() + " was not created", List.of() );
+        } else if ( rejection != null ) {
+            record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, "refused by attachment policy: " + rejection, List.of() );
         } else {
-            final ZipEntry entry = zip.getEntry( a.entryName() );
-            if ( entry == null ) {
-                record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, "file missing from archive: " + a.entryName(), List.of() );
-            } else if ( rejection != null ) {
-                record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, "refused by attachment policy: " + rejection, List.of() );
-            } else {
-                storeAttachment( zip, entry, a, name );
-            }
+            storeAttachment( in, a, name );
         }
         tick();
     }
 
-    private void storeAttachment( final ZipFile zip, final ZipEntry entry, final PlannedAttachment a, final String name ) {
-        try ( InputStream in = zip.getInputStream( entry ) ) {
+    private void storeAttachment( final PlannedEntryStream in, final PlannedAttachment a, final String name ) {
+        try {
             sink.storeAttachment( a.owner(), a.fileName(), in, author );
             record( "attachment", name, a.vaultPath(), ItemStatus.CREATED, null, List.of() );
         } catch ( final Exception e ) {
-            LOG.warn( "Obsidian import {}: attachment {} failed: {}", id, name, e.getMessage(), e );
-            record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, String.valueOf( e.getMessage() ), List.of() );
+            final String reason = in.violation() != null ? in.violation() : String.valueOf( e.getMessage() );
+            LOG.warn( "Obsidian import {}: attachment {} failed: {}", id, name, reason, e );
+            record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, reason, List.of() );
+        }
+    }
+
+    /**
+     * The current zip entry, refusing to yield more than the planned size or to inflate past the zip-bomb ratio.
+     * Closing it does not close the zip stream (the sink may close what it is given).
+     */
+    private static final class PlannedEntryStream extends FilterInputStream {
+
+        private final CountingInputStream raw;
+        private final long rawStart;
+        private final long planned;
+        private long count;
+        private String violation;
+
+        PlannedEntryStream( final ZipInputStream zin, final CountingInputStream raw, final long planned ) {
+            super( zin );
+            this.raw = raw;
+            this.rawStart = raw.count();
+            this.planned = planned;
+        }
+
+        /** Why reading was refused, or null. */
+        String violation() {
+            return violation;
+        }
+
+        @Override
+        public int read() throws IOException {
+            final byte[] one = new byte[ 1 ];
+            final int n = read( one, 0, 1 );
+            return n < 0 ? -1 : one[ 0 ] & 0xFF;
+        }
+
+        @Override
+        public int read( final byte[] b, final int off, final int len ) throws IOException {
+            if ( len == 0 ) {
+                return 0;
+            }
+            // Ask for at most one byte past the plan, so an overrun is detected without handing it on.
+            final int n = super.read( b, off, ( int ) Math.min( len, planned - count + 1 ) );
+            if ( n > 0 ) {
+                count += n;
+                if ( count > planned ) {
+                    throw refuse( "size differs from plan (more than " + planned + " bytes)" );
+                }
+                if ( VaultArchiveReader.exceedsRatio( count, raw.count() - rawStart ) ) {
+                    throw refuse( "expands more than 100:1 (possible zip bomb)" );
+                }
+            }
+            return n;
+        }
+
+        private IOException refuse( final String why ) {
+            violation = why;
+            return new IOException( why );
+        }
+
+        @Override
+        public long skip( final long n ) throws IOException {
+            final byte[] buf = new byte[ 8192 ];
+            long skipped = 0;
+            while ( skipped < n ) {
+                final int r = read( buf, 0, ( int ) Math.min( buf.length, n - skipped ) );
+                if ( r < 0 ) {
+                    break;
+                }
+                skipped += r;
+            }
+            return skipped;
+        }
+
+        @Override
+        public boolean markSupported() {
+            return false;
+        }
+
+        @Override
+        public void close() {
+            // The zip stream stays open for the next entry.
         }
     }
 

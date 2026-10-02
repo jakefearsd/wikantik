@@ -222,10 +222,15 @@ public final class VaultArchiveReader {
             throw new ImportLimitException( ImportLimits.PROP_MAX_UNCOMPRESSED_BYTES,
                                             limits.maxUncompressedBytes(), "uncompressed vault" );
         }
-        if ( entryBytes > RATIO_FLOOR_BYTES && entryBytes > MAX_RATIO * Math.max( 1, rawBytes ) ) {
+        if ( exceedsRatio( entryBytes, rawBytes ) ) {
             throw new VaultArchiveException( "zip entry '" + name + "' expands more than 100:1 (possible zip bomb; "
                                               + "very highly compressible files over 1 MiB are rejected)" );
         }
+    }
+
+    /** The zip-bomb guard: more than 1 MiB inflated at over 100:1 from the compressed bytes actually consumed. */
+    static boolean exceedsRatio( final long entryBytes, final long rawBytes ) {
+        return entryBytes > RATIO_FLOOR_BYTES && entryBytes > MAX_RATIO * Math.max( 1, rawBytes );
     }
 
     private static String decode( final byte[] bytes ) {

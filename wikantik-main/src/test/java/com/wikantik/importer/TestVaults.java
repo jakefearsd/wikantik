@@ -89,6 +89,76 @@ public final class TestVaults {
         return out.toByteArray();
     }
 
+    /**
+     * A zip whose local headers and central directory disagree. Streaming readers ({@code ZipInputStream}) see
+     * {@code note} and a STORED {@code file} holding {@code visible}, then stop at padding. The central directory (what
+     * {@code java.util.zip.ZipFile} trusts) points {@code file} at a hidden DEFLATED local entry, placed after the
+     * padding, that inflates to {@code hidden}.
+     */
+    public static byte[] zipWithHiddenCentralEntry( final String note, final byte[] noteData, final String file,
+                                                    final byte[] visible, final byte[] hidden ) {
+        final byte[] deflated = rawDeflate( hidden );
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final int noteOff = out.size();
+        writeLoc( out, note, 0, noteData, noteData, noteData.length );
+        writeLoc( out, file, 0, visible, visible, visible.length );
+        out.writeBytes( new byte[ 16 ] );   // not a local-header signature: a streaming reader stops here
+        final int hiddenOff = out.size();
+        writeLoc( out, file, 8, deflated, hidden, deflated.length );
+        final int cdOff = out.size();
+        writeCen( out, note, 0, noteData, noteData.length, noteOff );
+        writeCen( out, file, 8, hidden, deflated.length, hiddenOff );
+        final int cdSize = out.size() - cdOff;
+        final ByteBuffer eocd = header( 22, 0x06054b50 );
+        eocd.putShort( ( short ) 0 ).putShort( ( short ) 0 ).putShort( ( short ) 2 ).putShort( ( short ) 2 );
+        eocd.putInt( cdSize ).putInt( cdOff ).putShort( ( short ) 0 );
+        out.writeBytes( eocd.array() );
+        return out.toByteArray();
+    }
+
+    private static byte[] rawDeflate( final byte[] data ) {
+        final java.util.zip.Deflater d = new java.util.zip.Deflater( java.util.zip.Deflater.BEST_COMPRESSION, true );
+        d.setInput( data );
+        d.finish();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final byte[] buf = new byte[ 65536 ];
+        while ( !d.finished() ) {
+            out.write( buf, 0, d.deflate( buf ) );
+        }
+        d.end();
+        return out.toByteArray();
+    }
+
+    private static long crc( final byte[] data ) {
+        final CRC32 crc = new CRC32();
+        crc.update( data );
+        return crc.getValue();
+    }
+
+    private static void writeLoc( final ByteArrayOutputStream out, final String name, final int method,
+                                  final byte[] stored, final byte[] plain, final int csize ) {
+        final byte[] n = name.getBytes( StandardCharsets.UTF_8 );
+        final ByteBuffer lfh = header( 30, 0x04034b50 );
+        lfh.putShort( ( short ) 20 ).putShort( ( short ) 0x0800 ).putShort( ( short ) method ).putInt( 0 );
+        lfh.putInt( ( int ) crc( plain ) ).putInt( csize ).putInt( plain.length );
+        lfh.putShort( ( short ) n.length ).putShort( ( short ) 0 );
+        out.writeBytes( lfh.array() );
+        out.writeBytes( n );
+        out.writeBytes( stored );
+    }
+
+    private static void writeCen( final ByteArrayOutputStream out, final String name, final int method,
+                                  final byte[] plain, final int csize, final int locOffset ) {
+        final byte[] n = name.getBytes( StandardCharsets.UTF_8 );
+        final ByteBuffer cdh = header( 46, 0x02014b50 );
+        cdh.putShort( ( short ) 20 ).putShort( ( short ) 20 ).putShort( ( short ) 0x0800 ).putShort( ( short ) method );
+        cdh.putInt( 0 ).putInt( ( int ) crc( plain ) ).putInt( csize ).putInt( plain.length );
+        cdh.putShort( ( short ) n.length ).putShort( ( short ) 0 ).putShort( ( short ) 0 );
+        cdh.putShort( ( short ) 0 ).putShort( ( short ) 0 ).putInt( 0 ).putInt( locOffset );
+        out.writeBytes( cdh.array() );
+        out.writeBytes( n );
+    }
+
     private static ByteBuffer header( final int size, final int signature ) {
         final ByteBuffer b = ByteBuffer.allocate( size ).order( ByteOrder.LITTLE_ENDIAN );
         b.putInt( signature );

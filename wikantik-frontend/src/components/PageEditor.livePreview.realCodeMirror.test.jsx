@@ -105,4 +105,20 @@ describe('live preview mode toggle', () => {
     const payload = saveAndExpectVisibleText(api, view);
     expect(payload.content).toContain('- [x] task **b**');
   });
+
+  it('Mod-e is ignored while a modal is open, on key auto-repeat, and during IME composition', async () => {
+    await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    fireEvent.keyDown(window, { key: 'e', code: 'KeyE', ctrlKey: true });
+    dialog.remove();
+    fireEvent.keyDown(window, { key: 'e', code: 'KeyE', ctrlKey: true, repeat: true });
+    fireEvent.keyDown(window, { key: 'e', code: 'KeyE', ctrlKey: true, isComposing: true });
+    await flush();
+    expect(isLive()).toBe(false);
+    expect(localStorage.getItem('wikantik.editor.mode')).toBeNull();
+    fireEvent.keyDown(window, { key: 'e', code: 'KeyE', ctrlKey: true });
+    await until(isLive);
+  });
 });

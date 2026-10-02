@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const KEY = 'wikantik.editor.mode';
 
@@ -15,16 +15,20 @@ function initialMode() {
 /** Source vs live-preview editing, remembered per browser; defaults to source. */
 export function useEditorMode() {
   const [mode, setMode] = useState(initialMode);
+  // Persist from an effect, not the state updater: StrictMode double-invokes updaters. Only after a toggle,
+  // so merely mounting never writes the default.
+  const dirty = useRef(false);
+  useEffect(() => {
+    if (!dirty.current) return;
+    try {
+      localStorage.setItem(KEY, mode);
+    } catch (err) {
+      console.warn('[editor-mode] could not save the editor mode', err?.message || err);
+    }
+  }, [mode]);
   const toggle = useCallback(() => {
-    setMode((prev) => {
-      const next = prev === 'live' ? 'source' : 'live';
-      try {
-        localStorage.setItem(KEY, next);
-      } catch (err) {
-        console.warn('[editor-mode] could not save the editor mode', err?.message || err);
-      }
-      return next;
-    });
+    dirty.current = true;
+    setMode((prev) => (prev === 'live' ? 'source' : 'live'));
   }, []);
   return [mode, toggle];
 }

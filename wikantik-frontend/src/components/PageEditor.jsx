@@ -510,7 +510,10 @@ export default function PageEditor() {
   // Mod-e: source <-> live preview (Obsidian's binding), wherever focus is. CodeMirror does not bind Mod-e.
   useEffect(() => {
     const handler = (e) => {
-      if (e.defaultPrevented || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      if (e.defaultPrevented || e.repeat || e.isComposing || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      // Not while a dialog/overlay (QuickOverlay, ConfirmDialog, Modal) is open over the editor.
+      if (document.querySelector('[aria-modal="true"],[role="dialog"]')) return;
+      // e.key is a deliberate fallback to e.code so the shortcut still works on non-QWERTY layouts.
       if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') { e.preventDefault(); toggleEditorMode(); }
     };
     window.addEventListener('keydown', handler);

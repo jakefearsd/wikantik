@@ -32,12 +32,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ready at startup.
 
 ### Changed
-- The editor parses GitHub-flavoured markdown (tables, strikethrough, task lists) in both modes, matching
-  the server and preview.
+- Performance: the final-HTML render cache is now active (repeat views ~1.5 ms → ~0.01 ms) and is refreshed on
+  save, delete, rename and attachment changes; renames of widely-linked pages are ~13x faster; reference data
+  is written to disk at most every 5 s; Obsidian import ~2.5x faster. Editor: typing with the preview open on
+  a 2,000-line page ~184 ms → ~1.5 ms per keystroke (large pages refresh the preview after a short pause);
+  live preview cost no longer grows with page length; initial JavaScript ~519 → ~258 kB gzip.
+- The editor parses GitHub-flavoured markdown (tables, strikethrough, task lists) in both modes, like the
+  editor preview. (The published page does not yet render strikethrough or task lists.)
 - `[{InsertPage}]` now renders the inserted page as its own real page, so plugins and variables inside
   it (`AliasPlugin`, `{$attr}` fallbacks) see the inserted page, not the host.
 
 ### Fixed
+- Concurrent page saves no longer corrupt the reference (backlink) maps.
+- Creating a Knowledge Graph node whose existing source page is excluded no longer fails with a null result.
 - `RenderingManager.textToHTML` no longer writes viewer-sensitive renders (ACL-aware plugins, embeds) to the
   shared HTML cache.
 - The legacy-syntax converter emits `\[` for JSPWiki `[[` escapes so its output can never form a wikilink.
@@ -45,6 +52,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Unit tests no longer leak SSO configuration between test classes.
 
 ### Security
+- Page variables (`[{$name}]`) no longer read HTTP request parameters or session attributes; previously
+  `?msg=<b>…</b>` was rendered into the page and cached for every viewer.
+- The render filters can no longer be switched off with a request parameter (`wikantik.runFilters`), and a
+  render that skipped the filters is never cached.
 - Pages included with `[{InsertPage}]` (and the new `![[embeds]]`) no longer apply their own `[{ALLOW}]`/`[{DENY}]` rules to the host page; previously an authorised view of a host could restrict it — or, when the included page granted wider access, widen it — for every later reader.
 - `POST /api/convert` renders on a throwaway page; previously `[{ALLOW}]` lines and frontmatter in the
   converted text could rewrite the live ACL and attributes of a shared page (the front page) until the

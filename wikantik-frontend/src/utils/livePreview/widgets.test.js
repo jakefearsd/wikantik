@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { history, undo } from '@codemirror/commands';
+import katex from 'katex';
 import {
   BulletWidget, CheckboxWidget, ImageWidget, MathWidget, EmbedWidget, TextWidget, CalloutTitleWidget, RuleWidget,
   widgetFor, toggleTaskAt, toggleTaskBox,
@@ -47,6 +48,34 @@ describe('widget DOM', () => {
     const bad = new MathWidget('\\frac{', false).toDOM();
     expect(bad.classList.contains('cm-lp-math-error')).toBe(true);
     expect(bad.textContent).toBe('$\\frac{$');
+  });
+  it('renders each distinct formula once and clones it (separate DOM per widget)', () => {
+    const render = vi.spyOn(katex, 'renderToString');
+    const a = new MathWidget('q_{cache}^1', true).toDOM();
+    const b = new MathWidget('q_{cache}^1', true).toDOM();
+    const inline = new MathWidget('q_{cache}^1', false).toDOM();
+    expect(render).toHaveBeenCalledTimes(2); // display and inline are distinct renders
+    expect(a.querySelector('.katex-display')).not.toBeNull();
+    expect(inline.querySelector('.katex-display')).toBeNull();
+    expect(a.innerHTML).toBe(b.innerHTML);
+    expect(a.firstChild).not.toBe(b.firstChild);
+    a.querySelector('.katex').remove(); // mutating one widget's DOM never leaks into the next clone
+    expect(new MathWidget('q_{cache}^1', true).toDOM().querySelector('.katex')).not.toBeNull();
+  });
+  it('remembers invalid TeX too, and evicts the least recently used formula past 500', () => {
+    const render = vi.spyOn(katex, 'renderToString');
+    for (let i = 0; i < 2; i += 1) {
+      const bad = new MathWidget('\\frac{evict', false).toDOM();
+      expect(bad.classList.contains('cm-lp-math-error')).toBe(true);
+      expect(bad.title).not.toBe('');
+    }
+    expect(render).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 500; i += 1) new MathWidget(`e_{${i}}`, false).toDOM();
+    render.mockClear();
+    new MathWidget('\\frac{evict', false).toDOM();
+    expect(render).toHaveBeenCalledTimes(1); // evicted, so rendered again
+    new MathWidget('e_{499}', false).toDOM();
+    expect(render).toHaveBeenCalledTimes(1); // still cached
   });
   it('image: size attributes, and a readable fallback when it fails to load', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

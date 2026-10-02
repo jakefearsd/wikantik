@@ -3,18 +3,19 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
-import { history, undo } from '@codemirror/commands';
+import { history, undo, redo } from '@codemirror/commands';
+import { EditorSelection } from '@codemirror/state';
 import { fireEvent } from '@testing-library/react';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
-import { livePreviewPlugin, refreshLivePreview } from './plugin';
+import { livePreviewPlugin, refreshLivePreview, blockField } from './plugin';
 const views = [];
 function liveView(doc, { context = {}, live = true, caret = doc.length } = {}) {
   const parent = document.createElement('div');
   document.body.appendChild(parent);
   const view = new EditorView({
     parent,
-    state: EditorState.create({ doc, extensions: [markdown(editorMarkdownConfig), history(), livePreview({ getContext: () => context })] }),
+    state: EditorState.create({ doc, extensions: [markdown(editorMarkdownConfig), history(), EditorState.allowMultipleSelections.of(true), livePreview({ getContext: () => context })] }),
   });
   ensureSyntaxTree(view.state, view.state.doc.length, 5000);
   view.dispatch({ selection: { anchor: caret } });
@@ -135,7 +136,7 @@ describe('live preview extension', () => {
   it('a throwing block spec builder (blockField only) fails open to source and warns', async () => {
     const ranges = await import('./ranges');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(ranges, 'blockSpecs').mockImplementation(() => { throw new Error('block-boom'); });
+    vi.spyOn(ranges, 'blockCandidates').mockImplementation(() => { throw new Error('block-boom'); });
     const view = liveView('**a**\n\nend', { caret: 9 });
     expect(view.contentDOM.querySelector('.cm-line').textContent).toBe('a'); // inline path is unaffected
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'block-boom', expect.any(Error));
@@ -149,3 +150,94 @@ describe('live preview extension', () => {
     expect(view.dom.querySelector('img.cm-lp-image').getAttribute('src')).toBe('/attach/P/pic.png');
   });
 });
+
+describe('live preview incremental updates', () => {
+  const blocksOf = (view) => view.state.field(blockField).decos;
+  const typeAt = (view, pos, text) => view.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length }, userEvent: 'input.type' });
+  const DOC = 'para one\n\n$$\nx^2\n$$\n\n![[Other]]\n\npara two **b**\n';
+
+  it('a caret move within the revealed line keeps both decoration sets (no rebuild)', () => {
+    const view = liveView(DOC, { caret: 1 });
+    const inline = view.plugin(livePreviewPlugin).decorations;
+    const blocks = blocksOf(view);
+    view.dispatch({ selection: { anchor: 5 } });
+    expect(view.plugin(livePreviewPlugin).decorations).toBe(inline);
+    expect(blocksOf(view)).toBe(blocks);
+  });
+
+  it('a caret move to another line rebuilds the inline set but keeps the block set', () => {
+    const view = liveView(DOC, { caret: 1 });
+    const blocks = blocksOf(view);
+    view.dispatch({ selection: { anchor: DOC.indexOf('para two') } });
+    const lines = () => [...view.contentDOM.querySelectorAll('.cm-line')].map((l) => l.textContent);
+    expect(lines()).toContain('para two **b**');
+    expect(blocksOf(view)).toBe(blocks);
+    view.dispatch({ selection: { anchor: 1 } });
+    expect(lines()).toContain('para two b');
+  });
+
+  it('typing above a display-math block keeps its rendered widget (mapped, not rebuilt)', () => {
+    const view = liveView(DOC, { caret: 1 });
+    const math = view.dom.querySelector('.cm-lp-math-block');
+    typeAt(view, 1, 'abc');
+    expect(view.state.doc.toString()).toBe(`pabcara one${DOC.slice(8)}`);
+    expect(view.dom.querySelector('.cm-lp-math-block')).toBe(math);
+    expect(math.isConnected).toBe(true);
+    expect(view.dom.querySelectorAll('.cm-lp-embed')).toHaveLength(1);
+  });
+
+  it('editing inside a block reveals its source, and leaving renders the new TeX', () => {
+    const view = liveView(DOC, { caret: 1 });
+    view.dispatch({ selection: { anchor: DOC.indexOf('x^2') + 3 } });
+    expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
+    typeAt(view, DOC.indexOf('x^2') + 3, '+y');
+    view.dispatch({ selection: { anchor: 1 } });
+    const math = view.dom.querySelector('.cm-lp-math-block');
+    expect(math).not.toBeNull();
+    expect(math.querySelector('annotation').textContent).toBe('x^2+y');
+  });
+
+  it('a second cursor inside a block reveals it; dropping that cursor renders it again', () => {
+    const view = liveView(DOC, { caret: 1 });
+    view.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(1), EditorSelection.cursor(DOC.indexOf('![[') + 2)]) });
+    expect(view.dom.querySelector('.cm-lp-embed')).toBeNull();
+    expect(view.dom.querySelector('.cm-lp-math-block')).not.toBeNull();
+    view.dispatch({ selection: { anchor: 1 } });
+    expect(view.dom.querySelector('.cm-lp-embed')).not.toBeNull();
+  });
+
+  it('a multi-cursor edit inside and around blocks never leaves a stale widget', () => {
+    const view = liveView(DOC, { caret: 1 });
+    const end = DOC.indexOf('$$\n\n') + 2; // after the closing $$
+    view.dispatch({ changes: [{ from: 0, insert: 'z' }, { from: end, insert: '\nmore' }], selection: { anchor: 1 }, userEvent: 'input.type' });
+    // "$$\nx^2\n$$\nmore" is no longer display math: no math widget may remain.
+    expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
+    expect(view.dom.querySelectorAll('.cm-lp-embed')).toHaveLength(1);
+  });
+
+  it('opening a fence above the blocks removes their widgets; undo/redo restore and remove them', () => {
+    const view = liveView(DOC, { caret: 0 });
+    typeAt(view, 0, '```\n');
+    view.dispatch({ selection: { anchor: 0 } });
+    expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
+    expect(view.dom.querySelector('.cm-lp-embed')).toBeNull();
+    undo(view);
+    expect(view.state.doc.toString()).toBe(DOC);
+    view.dispatch({ selection: { anchor: 0 } });
+    expect(view.dom.querySelector('.cm-lp-math-block')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-lp-embed')).not.toBeNull();
+    redo(view);
+    view.dispatch({ selection: { anchor: 0 } });
+    expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
+  });
+
+  it('turning live mode off and on again rebuilds the block widgets from scratch', () => {
+    const view = liveView(DOC, { caret: 1 });
+    setLivePreview(view, false);
+    expect(blocksOf(view).size).toBe(0);
+    typeAt(view, 0, '$$\nq\n$$\n\n');
+    setLivePreview(view, true);
+    expect(view.dom.querySelectorAll('.cm-lp-math-block')).toHaveLength(2);
+  });
+});
+

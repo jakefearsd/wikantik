@@ -52,30 +52,97 @@ function blockEmbedAt(state, pos, context) {
   }
   return false;
 }
-/** Block widgets (display math, whole-line page embeds): top-level paragraphs only, each covering whole lines. */
+/** The block widget a top-level node becomes (display math, whole-line page embed), or null. */
+function blockCandidateOf(doc, node, context) {
+  if (node.name !== 'Paragraph') return null;
+  const first = doc.sliceString(node.from, Math.min(node.to, node.from + 3));
+  if (!first.startsWith('$$') && !first.startsWith('![')) return null; // cheap prefix test before slicing the paragraph
+  const startLine = doc.lineAt(node.from);
+  const endLine = node.to <= startLine.to ? startLine : doc.lineAt(node.to);
+  const text = doc.sliceString(node.from, node.to);
+  if (isBlockMathText(text)) {
+    const tex = text.replace(/^\$\$[ \t]*\n/, '').replace(/\n[ \t]*\$\$[ \t]*$/, '');
+    return { kind: 'block', from: startLine.from, to: endLine.to, widget: { type: 'math', tex, display: true } };
+  }
+  if (startLine !== endLine) return null;
+  const embed = pageEmbedLine(text, context);
+  return embed ? { kind: 'block', from: startLine.from, to: endLine.to, widget: { type: 'embed', target: embed.target, section: embed.heading } } : null;
+}
+/**
+ * Every block-widget candidate (display math, whole-line page embed) regardless of the caret: top-level
+ * paragraphs only, each covering whole lines, in document order (so both `from` and `to` ascend).
+ */
+export function blockCandidates(state, context = {}) {
+  const out = [];
+  for (let node = syntaxTree(state).topNode.firstChild; node; node = node.nextSibling) {
+    const c = blockCandidateOf(state.doc, node, context);
+    if (c) out.push(c);
+  }
+  return out;
+}
+/** The top-level node (a child of the document node) at `pos` in `tree` that starts exactly there, or null. */
+function topLevelStartingAt(tree, pos) {
+  let n = tree.resolve(pos, 1);
+  while (n.parent && n.parent.parent) n = n.parent;
+  return n.parent && n.from === pos ? n : null;
+}
+/**
+ * `blockCandidates` for `tr.state`, given `prev` = the candidates of `tr.startState`: only the top-level
+ * nodes from the one before the edit up to the first node past it that the old tree also had (same type,
+ * same span, mapped) are re-examined; candidates before keep their positions and those after are mapped
+ * through the changes. The markdown block parser restarts at every top-level block, so once a node past the
+ * edit matches the old tree, every later node does too. Equal to a full rescan by construction (tested); a
+ * partial old tree falls back to the full rescan.
+ */
+export function updateBlockCandidates(prev, tr, context = {}) {
+  const { changes } = tr;
+  const doc = tr.state.doc;
+  let fromB = Infinity;
+  let toB = -1;
+  changes.iterChangedRanges((_fa, _ta, fb, tb) => { fromB = Math.min(fromB, fb); toB = Math.max(toB, tb); });
+  if (toB < 0) return prev;
+  const tree = syntaxTree(tr.state);
+  const oldTree = syntaxTree(tr.startState);
+  // A partial old parse (large page, parser still catching up) left `prev` without the blocks past its end;
+  // the tail cannot be mapped from it.
+  if (oldTree.length < tr.startState.doc.length) return blockCandidates(tr.state, context);
+  const top = tree.topNode;
+  let node = top.childBefore(fromB) || top.firstChild;
+  if (!node) return [];
+  if (node.prevSibling) node = node.prevSibling; // a change can re-shape the block just before it (setext, merges)
+  const start = node.from;
+  const out = prev.filter((c) => c.to < start); // untouched: wholly before the first change
+  const inverted = changes.invertedDesc;
+  for (; node; node = node.nextSibling) {
+    // Past the edit including the node's line prefix (indentation), so the mapped candidate spans are exact.
+    if (doc.lineAt(node.from).from > toB) {
+      const oldFrom = inverted.mapPos(node.from);
+      const old = topLevelStartingAt(oldTree, oldFrom);
+      if (old && old.name === node.name && old.to - old.from === node.to - node.from) {
+        for (const c of prev) {
+          // Block nodes span whole lines, so a candidate at or after the matched node ends at or after its
+          // start (its own `from` may sit before it: a paragraph can be indented).
+          if (c.to < oldFrom) continue;
+          const to = changes.mapPos(c.to);
+          // Past a partial new parse's end a full scan sees no blocks yet; neither does this.
+          if (to <= tree.length) out.push({ ...c, from: changes.mapPos(c.from), to });
+        }
+        return out;
+      }
+    }
+    const c = blockCandidateOf(doc, node, context);
+    if (c) out.push(c);
+  }
+  return out;
+}
+/** The block widgets to show: every candidate none of whose lines is active. */
 export function blockSpecs(state, activeLines, context = {}) {
   const doc = state.doc;
-  const out = [];
   const anyActive = (a, b) => {
     for (let n = doc.lineAt(a).number, e = doc.lineAt(b).number; n <= e; n += 1) if (activeLines.has(n)) return true;
     return false;
   };
-  for (let node = syntaxTree(state).topNode.firstChild; node; node = node.nextSibling) {
-    if (node.name !== 'Paragraph' || anyActive(node.from, node.to)) continue;
-    const from = doc.lineAt(node.from).from;
-    const to = doc.lineAt(node.to).to;
-    const first = doc.sliceString(node.from, Math.min(node.to, node.from + 3));
-    if (!first.startsWith('$$') && !first.startsWith('![')) continue; // cheap prefix test before slicing the paragraph
-    const text = doc.sliceString(node.from, node.to);
-    if (isBlockMathText(text)) {
-      const tex = text.replace(/^\$\$[ \t]*\n/, '').replace(/\n[ \t]*\$\$[ \t]*$/, '');
-      out.push({ kind: 'block', from, to, widget: { type: 'math', tex, display: true } });
-    } else if (doc.lineAt(node.from).number === doc.lineAt(node.to).number) {
-      const embed = pageEmbedLine(text, context);
-      if (embed) out.push({ kind: 'block', from, to, widget: { type: 'embed', target: embed.target, section: embed.heading } });
-    }
-  }
-  return out;
+  return blockCandidates(state, context).filter((s) => !anyActive(s.from, s.to));
 }
 /** Drops replacing specs that cross a line break or overlap an earlier one; sorts by from, then to. */
 function finalize(doc, specs) {

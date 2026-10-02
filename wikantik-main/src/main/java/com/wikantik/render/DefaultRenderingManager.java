@@ -444,8 +444,8 @@ public class DefaultRenderingManager implements RenderingManager {
         sw.stop();
         LOG.debug( "Page {} rendered, took {}", context.getRealPage().getName(), sw );
 
-        // Store in HTML cache
-        if( useHtmlCache( context ) ) {
+        // Store in HTML cache (never a viewer-dependent render: embeds / ACL-aware includes)
+        if( useHtmlCache( context ) && !isViewerSensitive( context ) ) {
             final String cacheId = htmlCacheId( context );
             final String contentHash = WikiDocument.hashPageData( pagedata );
             cachingManager.put( CachingManager.CACHE_HTML, cacheId, new HtmlCacheEntry( result, contentHash ) );

@@ -55,6 +55,7 @@ public final class WikantikHtmlSanitizer {
             .allowAttributes( "src", "alt", "title", "width", "height" ).onElements( "img" )
             .allowAttributes( "align", "valign", "colspan", "rowspan", "scope" ).onElements( "td", "th" )
             .allowAttributes( "data-callout" ).matching( java.util.regex.Pattern.compile( "[a-z]+" ) ).onElements( "div", "details" )
+            .allowAttributes( "data-embed", "data-section" ).onElements( "div" )
             .allowAttributes( "open" ).onElements( "details" )
             .allowAttributes( "class", "id", "title", "lang", "dir" ).globally()
             .allowAttributes( "style" ).globally()

@@ -40,4 +40,11 @@ class WikantikHtmlSanitizerTest {
         final String out = WikantikHtmlSanitizer.sanitize( "<div data-callout=\"x onload=alert(1)\">y</div>" );
         assertFalse( out.contains( "data-callout" ), out );
     }
+
+    @Test
+    void keepsEmbedDataAttributes() {
+        final String out = WikantikHtmlSanitizer.sanitize( "<div class=\"wiki-embed\" data-embed=\"A B\" data-section=\"H\">x</div>" );
+        assertTrue( out.contains( "data-embed=\"A B\"" ), out );
+        assertTrue( out.contains( "data-section=\"H\"" ), out );
+    }
 }

@@ -211,6 +211,19 @@ class DefaultRenderingManagerCITest {
         verify( cachingManager, never() ).put( eq( CachingManager.CACHE_DOCUMENTS ), anyString(), any() );
     }
 
+    @Test
+    void textToHTMLDoesNotCacheAViewerSensitiveRender() {
+        when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( true );
+        when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( null );
+        when( variableManager.getValue( any( Context.class ), eq( VariableManager.VAR_RUNFILTERS ), eq( "true" ) ) ).thenReturn( "false" );
+        final Context ctx = viewContext( "EmbedderPage", 1 );
+        when( ctx.getVariable( com.wikantik.api.core.Context.VAR_VIEWER_SENSITIVE ) ).thenReturn( Boolean.TRUE );
+
+        mgr.textToHTML( ctx, "**hi**" );
+
+        verify( cachingManager, never() ).put( eq( CachingManager.CACHE_HTML ), anyString(), any() );
+    }
+
     // ========== getRenderedDocument: cache hit with matching hash ==========
 
     @Test

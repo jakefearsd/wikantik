@@ -27,6 +27,7 @@ import com.vladsch.flexmark.html.renderer.ResolvedLink;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.WikiHtmlInline;
 import com.wikantik.markdown.nodes.NativeWikiLinkNode;
 import com.wikantik.markdown.nodes.WikantikLink;
+import com.wikantik.markdown.nodes.WikiEmbedBlock;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -48,6 +49,11 @@ public class WikantikLinkRenderer implements NodeRenderer {
         set.add( new NodeRenderingHandler<>( WikantikLink.class, WikantikLinkRenderer::renderLink ) );
         // flexmark dispatches by exact node class, so the native [[ ]] subclass needs its own registration
         set.add( new NodeRenderingHandler<>( NativeWikiLinkNode.class, WikantikLinkRenderer::renderLink ) );
+        set.add( new NodeRenderingHandler<>( WikiEmbedBlock.class, ( node, ctx, html ) -> {
+            html.line();
+            html.raw( node.html() );
+            html.line();
+        } ) );
         set.add( new NodeRenderingHandler<>( WikiHtmlInline.class, new NodeRenderingHandler.CustomNodeRenderer<>() {
 
             /**

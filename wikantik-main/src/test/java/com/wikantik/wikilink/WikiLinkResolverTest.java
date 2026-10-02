@@ -101,4 +101,25 @@ class WikiLinkResolverTest {
     void blankTargetIsNotFound() {
         assertFalse( resolver( Set.of(), null ).resolve( "  " ).exists() );
     }
+
+    @Test
+    void throwingTitleSupplierBehavesAsIndexNotReady() {
+        final var r = new WikiLinkResolver( n -> "Alpha".equals( n ) ? n : null,
+                () -> { throw new IllegalStateException( "boom" ); } );
+        assertEquals( new WikiLinkResolver.Resolution( "Alpha", true ), r.resolve( "Alpha" ) );
+        assertEquals( new WikiLinkResolver.Resolution( "Foo bar", false ), r.resolve( "foo bar" ) );
+    }
+
+    @Test
+    void throwingExactLookupIsTreatedAsMiss() {
+        final var r = new WikiLinkResolver( n -> { throw new IllegalStateException( "boom" ); }, Optional::empty );
+        assertEquals( new WikiLinkResolver.Resolution( "Foo", false ), r.resolve( "foo" ) );
+    }
+
+    @Test
+    void pageNameBeatsAnotherPagesAliasWithSamePhrase() {
+        final var r = resolver( Set.of( "A", "Beta" ),
+                lookup( entry( "A", "beta" ), entry( "Beta" ) ) );
+        assertEquals( "Beta", r.resolve( "beta" ).pageName() );
+    }
 }

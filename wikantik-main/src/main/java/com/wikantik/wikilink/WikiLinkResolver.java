@@ -32,6 +32,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import java.util.function.Supplier;
 
 /**
@@ -53,6 +54,8 @@ public final class WikiLinkResolver {
     public record Resolution( String pageName, boolean exists ) {}
 
     private record Folded( PageTitleLookup source, Map< String, String > byName, Map< String, String > byPhrase ) {}
+
+    private static final Pattern WHITESPACE = Pattern.compile( "\\s+" );
 
     private static final AtomicReference< Folded > FOLDED = new AtomicReference<>();
 
@@ -88,7 +91,7 @@ public final class WikiLinkResolver {
         if ( exactName != null ) {
             return new Resolution( exactName, true );
         }
-        final Optional< Folded > folded = titles.get().map( WikiLinkResolver::fold );
+        final Optional< Folded > folded = foldedIndex( t );
         final String key = key( t );
         final String byName = folded.map( f -> f.byName().get( key ) ).orElse( null );
         if ( byName != null ) {
@@ -101,14 +104,23 @@ public final class WikiLinkResolver {
     private String exactName( final String t ) {
         try {
             return exact.finalPageName( t );
-        } catch ( final ProviderException e ) {
+        } catch ( final ProviderException | RuntimeException e ) {
             LOG.warn( "Wikilink exact lookup failed for '{}': {}", t, e.getMessage() );
             return null;
         }
     }
 
+    private Optional< Folded > foldedIndex( final String t ) {
+        try {
+            return titles.get().map( WikiLinkResolver::fold );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Wikilink title index failed for '{}': {}", t, e.getMessage() );
+            return Optional.empty();
+        }
+    }
+
     static String key( final String s ) {
-        return s.replaceAll( "\\s+", " " ).strip().toLowerCase( Locale.ROOT );
+        return WHITESPACE.matcher( s ).replaceAll( " " ).strip().toLowerCase( Locale.ROOT );
     }
 
     private static Folded fold( final PageTitleLookup lookup ) {

@@ -75,7 +75,9 @@ final class TitleIndexState {
                 aliasesBySlug.put( d.slug(), a );
             }
         }
-        final PageTitleIndex index = PageTitleIndex.of( proj.allPages(), aliasesBySlug );
+        // Every save swaps the projection; reuse the previous index's unchanged entries (and the index itself when no
+        // title or alias changed) instead of re-deriving every page's phrases.
+        final PageTitleIndex index = PageTitleIndex.of( proj.allPages(), aliasesBySlug, cached == null ? null : cached.index() );
         cachedTitles = new CachedTitles( proj, aliases, index );
         return Optional.of( index );
     }

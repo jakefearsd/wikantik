@@ -343,6 +343,28 @@ class DefaultStructuralIndexServiceTest {
 
     @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void titleLookup_aBodyOnlySaveKeepsTheSameIndexWhileATitleChangeReplacesIt() throws Exception {
+        final Page a = fakePage( "AlphaPage", "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8A1\ntitle: Alpha\naliases: [zeta]", "b" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+        final var before = svc.titleLookup().orElseThrow();
+
+        final Page edited = fakePage( "AlphaPage", "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8A1\ntitle: Alpha\naliases: [zeta]", "new body" );
+        when( pageManager.getPage( "AlphaPage" ) ).thenReturn( edited );
+        svc.onPageSaved( "AlphaPage" );
+        assertSame( before, svc.titleLookup().orElseThrow(),
+                "titles and aliases unchanged: the same index, so the wikilink resolver keeps its folded maps" );
+
+        final Page retitled = fakePage( "AlphaPage", "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8A1\ntitle: Omega\naliases: [zeta]", "b" );
+        when( pageManager.getPage( "AlphaPage" ) ).thenReturn( retitled );
+        svc.onPageSaved( "AlphaPage" );
+        final var after = svc.titleLookup().orElseThrow();
+        assertNotSame( before, after );
+        assertEquals( List.of( "AlphaPage" ), after.rank( List.of( "AlphaPage" ), "omega" ) );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
     void titleLookup_renameUnderTheSameCanonicalIdDropsTheOldSlug() throws Exception {
         final Page oldPage = fakePage( "OldName", "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8R1\naliases: [legacy]", "b" );
         when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( oldPage ) );

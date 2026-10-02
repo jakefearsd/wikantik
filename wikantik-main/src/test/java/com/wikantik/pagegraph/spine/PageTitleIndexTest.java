@@ -117,4 +117,53 @@ class PageTitleIndexTest {
                 .filter( e -> e.slug().equals( "LowCostIndexFundInvesting" ) ).findFirst().orElseThrow();
         assertEquals( List.of( "Low Cost Index Fund Investing", "Low-Cost Index Fund Investing" ), l.phrases() );
     }
+
+    // ---- incremental rebuild: the index is rebuilt after every save, reusing what did not change ----------------
+
+    private static List< PageDescriptor > corpus( final String kubernetesTitle ) {
+        return List.of( page( "LowCostIndexFundInvesting", "Low-Cost Index Fund Investing" ),
+                        page( "BondLadders", "Bond Ladders" ),
+                        page( "Kubernetes", kubernetesTitle ) );
+    }
+
+    @Test void aRebuildWithNoTitleOrAliasChangeReturnsThePreviousIndex() {
+        final PageTitleIndex first = PageTitleIndex.of( corpus( "Kubernetes" ), Map.of( "Kubernetes", List.of( "k8s" ) ) );
+        // fresh descriptor instances, as an incremental projection update produces for the saved page
+        final PageTitleIndex second = PageTitleIndex.of( corpus( "Kubernetes" ),
+                Map.of( "Kubernetes", List.of( "k8s" ) ), first );
+        assertSame( first, second, "same titles and aliases: the previous index (and anything cached on it) is kept" );
+    }
+
+    @Test void aTitleChangeRebuildsOnlyThatEntry() {
+        final PageTitleIndex first = PageTitleIndex.of( corpus( "Kubernetes" ), Map.of() );
+        final PageTitleIndex second = PageTitleIndex.of( corpus( "Container Orchestration" ), Map.of(), first );
+        assertNotSame( first, second );
+        assertEquals( List.of( "Kubernetes" ), second.rank( List.of( "Kubernetes", "BondLadders" ), "container orch" ) );
+        assertSame( entry( first, "BondLadders" ), entry( second, "BondLadders" ), "unchanged entries are reused" );
+        assertEquals( List.of( "Kubernetes", "Container Orchestration" ), entry( second, "Kubernetes" ).phrases() );
+    }
+
+    @Test void anAliasChangeRebuilds() {
+        final PageTitleIndex first = PageTitleIndex.of( corpus( "Kubernetes" ), Map.of( "Kubernetes", List.of( "k8s" ) ) );
+        final PageTitleIndex second = PageTitleIndex.of( corpus( "Kubernetes" ), Map.of( "Kubernetes", List.of( "kube" ) ), first );
+        assertNotSame( first, second );
+        assertEquals( List.of( "Kubernetes", "kube" ), entry( second, "Kubernetes" ).phrases() );
+    }
+
+    @Test void anAddedOrRemovedPageRebuilds() {
+        final PageTitleIndex first = PageTitleIndex.of( corpus( "Kubernetes" ), Map.of() );
+        final List< PageDescriptor > more = new java.util.ArrayList<>( corpus( "Kubernetes" ) );
+        more.add( page( "Terraform", "Terraform" ) );
+        final PageTitleIndex added = PageTitleIndex.of( more, Map.of(), first );
+        assertNotSame( first, added );
+        assertEquals( 4, added.entries().size() );
+        final PageTitleIndex removed = PageTitleIndex.of( corpus( "Kubernetes" ).subList( 0, 2 ), Map.of(), added );
+        assertEquals( 2, removed.entries().size() );
+        assertTrue( removed.rank( List.of( "Kubernetes" ), "kubernetes" ).contains( "Kubernetes" ),
+                "names not in the index still match on their own name" );
+    }
+
+    private static PageTitleLookup.TitleEntry entry( final PageTitleIndex idx, final String slug ) {
+        return idx.entries().stream().filter( e -> e.slug().equals( slug ) ).findFirst().orElseThrow();
+    }
 }

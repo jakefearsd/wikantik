@@ -129,4 +129,16 @@ class WikiLinkResolverTest {
                 lookup( entry( "A", "beta" ), entry( "Beta" ) ) );
         assertEquals( "Beta", r.resolve( "beta" ).pageName() );
     }
+
+    /** The fold of every title phrase runs after each page save, so key() must not pay for a regex; same result. */
+    @Test
+    void keyCollapsesAsciiWhitespaceRunsStripsAndLowerCasesLikeTheRegexItReplaced() {
+        final java.util.regex.Pattern ws = java.util.regex.Pattern.compile( "\\s+" );
+        for ( final String s : List.of( "", " ", "Machine Learning", "  Machine \t\n Learning  ", "a\u000Bb\fc\rd",
+                "\u00A0nbsp\u00A0kept\u00A0", "\u2003em\u2003space\u2003", "\u001Cfile sep\u001C", "ÄÖÜ Straße",
+                "İstanbul I", "x  y\n\nz", "\t", "already lower" ) ) {
+            assertEquals( ws.matcher( s ).replaceAll( " " ).strip().toLowerCase( java.util.Locale.ROOT ),
+                    WikiLinkResolver.key( s ), "key(" + s + ")" );
+        }
+    }
 }

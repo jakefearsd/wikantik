@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -45,36 +46,63 @@ public final class PageTitleIndex implements PageTitleLookup {
     private static final int NO_MATCH = Integer.MAX_VALUE;
 
     private final List< TitleEntry > entries;
-    private final Map< String, List< MatchKey > > normalizedKeysBySlug;
+    /** Per slug, the inputs each entry was built from, so the next rebuild can reuse unchanged entries. */
+    private final Map< String, Source > sources;
+    /** Match keys for {@link #rank}; built on first use (the wikilink resolver, rebuilt after every save, never ranks). */
+    private volatile Map< String, List< MatchKey > > normalizedKeysBySlug;
 
-    private PageTitleIndex( final List< TitleEntry > entries ) {
+    private record Source( String title, List< String > aliases, TitleEntry entry ) {}
+
+    private PageTitleIndex( final List< TitleEntry > entries, final Map< String, Source > sources ) {
         this.entries = List.copyOf( entries );
-        final Map< String, List< MatchKey > > keys = new HashMap<>();
-        for ( final TitleEntry e : entries ) {
-            keys.put( e.slug(), normalizedKeys( e.slug(), e.phrases() ) );
-        }
-        this.normalizedKeysBySlug = Map.copyOf( keys );
+        this.sources = sources;
     }
 
     public static PageTitleIndex of( final Collection< PageDescriptor > pages,
                                      final Map< String, List< String > > aliasesBySlug ) {
+        return of( pages, aliasesBySlug, null );
+    }
+
+    /**
+     * As {@link #of(Collection, Map)}, reusing {@code previous}'s entry for every page whose title and aliases are
+     * unchanged, and returning {@code previous} itself when nothing changed (the common case after a body-only
+     * save), so whatever callers cached against that instance stays valid.
+     */
+    public static PageTitleIndex of( final Collection< PageDescriptor > pages,
+                                     final Map< String, List< String > > aliasesBySlug,
+                                     final PageTitleIndex previous ) {
         final List< TitleEntry > out = new ArrayList<>( pages.size() );
+        final Map< String, Source > sources = new HashMap<>( pages.size() * 2 );
+        boolean unchanged = previous != null && previous.sources.size() == pages.size();
         for ( final PageDescriptor p : pages ) {
-            final Set< String > phrases = new LinkedHashSet<>();
-            phrases.add( phraseOf( p.slug() ) );
-            if ( p.title() != null && !p.title().isBlank() && !p.title().equals( p.slug() ) ) {
-                phrases.add( p.title().trim() );
-            }
-            for ( final String a : aliasesBySlug.getOrDefault( p.slug(), List.of() ) ) {
-                if ( a != null && !a.isBlank() ) {
-                    phrases.add( a.trim() );
-                }
-            }
-            final String title = p.title() == null || p.title().isBlank() || p.title().equals( p.slug() )
-                    ? phraseOf( p.slug() ) : p.title().trim();
-            out.add( new TitleEntry( p.slug(), title, List.copyOf( phrases ) ) );
+            final List< String > aliases = aliasesBySlug.getOrDefault( p.slug(), List.of() );
+            final Source prior = previous == null ? null : previous.sources.get( p.slug() );
+            final Source src = prior != null && Objects.equals( prior.title(), p.title() ) && prior.aliases().equals( aliases )
+                    ? prior : new Source( p.title(), aliases, entryOf( p, aliases ) );
+            unchanged &= src == prior;
+            sources.put( p.slug(), src );
+            out.add( src.entry() );
         }
-        return new PageTitleIndex( out );
+        if ( unchanged && sources.size() == pages.size() ) {
+            return previous;
+        }
+        return new PageTitleIndex( out, sources );
+    }
+
+    private static TitleEntry entryOf( final PageDescriptor p, final List< String > aliases ) {
+        final Set< String > phrases = new LinkedHashSet<>();
+        phrases.add( phraseOf( p.slug() ) );
+        if ( p.title() != null && !p.title().isBlank() && !p.title().equals( p.slug() ) ) {
+            phrases.add( p.title().trim() );
+        }
+        for ( final String a : aliases ) {
+            if ( a != null && !a.isBlank() ) {
+                phrases.add( a.trim() );
+            }
+        }
+        final String title = p.title() == null || p.title().isBlank() || p.title().equals( p.slug() )
+                ? phraseOf( p.slug() ) : p.title().trim();
+        return new TitleEntry( p.slug(), title, List.copyOf( phrases ) );
     }
 
     /** De-CamelCased page name, e.g. {@code LowCostIndexFundInvesting} → {@code Low Cost Index Fund Investing}. */
@@ -96,7 +124,7 @@ public final class PageTitleIndex implements PageTitleLookup {
         }
         final Map< String, Integer > tiers = new HashMap<>();
         for ( final String name : names ) {
-            final List< MatchKey > known = normalizedKeysBySlug.get( name );
+            final List< MatchKey > known = normalizedKeys().get( name );
             final List< MatchKey > keys = known != null ? known : normalizedKeys( name, List.of( phraseOf( name ) ) );
             int best = NO_MATCH;
             for ( final MatchKey key : keys ) {
@@ -109,6 +137,19 @@ public final class PageTitleIndex implements PageTitleLookup {
         return tiers.keySet().stream()
                 .sorted( Comparator.comparingInt( ( String n ) -> tiers.get( n ) ).thenComparing( natural ) )
                 .toList();
+    }
+
+    private Map< String, List< MatchKey > > normalizedKeys() {
+        Map< String, List< MatchKey > > keys = normalizedKeysBySlug;
+        if ( keys == null ) { // benign race: concurrent first callers build identical maps
+            final Map< String, List< MatchKey > > built = new HashMap<>();
+            for ( final TitleEntry e : entries ) {
+                built.put( e.slug(), normalizedKeys( e.slug(), e.phrases() ) );
+            }
+            keys = Map.copyOf( built );
+            normalizedKeysBySlug = keys;
+        }
+        return keys;
     }
 
     /** Match keys built from the ORIGINAL-case slug and phrases, so CamelCase word starts survive. */

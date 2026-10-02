@@ -32,7 +32,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
 import java.util.function.Supplier;
 
 /**
@@ -54,8 +53,6 @@ public final class WikiLinkResolver {
     public record Resolution( String pageName, boolean exists ) {}
 
     private record Folded( PageTitleLookup source, Map< String, String > byName, Map< String, String > byPhrase ) {}
-
-    private static final Pattern WHITESPACE = Pattern.compile( "\\s+" );
 
     private static final AtomicReference< Folded > FOLDED = new AtomicReference<>();
 
@@ -132,8 +129,26 @@ public final class WikiLinkResolver {
         }
     }
 
+    /**
+     * Collapses each run of ASCII whitespace (the regex {@code \\s} class) to one space, strips and lower-cases.
+     * Runs for every title phrase whenever the title index changes, so it is a plain loop rather than a regex.
+     */
     static String key( final String s ) {
-        return WHITESPACE.matcher( s ).replaceAll( " " ).strip().toLowerCase( Locale.ROOT );
+        final StringBuilder sb = new StringBuilder( s.length() );
+        boolean inRun = false;
+        for ( int i = 0; i < s.length(); i++ ) {
+            final char c = s.charAt( i );
+            if ( c == ' ' || c == '\t' || c == '\n' || c == '\u000B' || c == '\f' || c == '\r' ) {
+                if ( !inRun ) {
+                    sb.append( ' ' );
+                    inRun = true;
+                }
+            } else {
+                sb.append( c );
+                inRun = false;
+            }
+        }
+        return sb.toString().strip().toLowerCase( Locale.ROOT );
     }
 
     private static Folded fold( final PageTitleLookup lookup ) {

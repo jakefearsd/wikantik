@@ -368,19 +368,22 @@ class VaultImportServiceTest {
         assertEquals( JobState.DONE, job.view().state() );
     }
 
+    /**
+     * Bytecode-level guard (ArchUnit): no importer class may depend on {@code ZipFile} — it trusts the central
+     * directory, which can disagree with the local headers the plan validated. Catches wildcard imports and
+     * fully-qualified uses that a source text search would miss.
+     */
     @Test
-    void importerNeverUsesZipFile() throws Exception {
-        try ( java.util.stream.Stream< java.nio.file.Path > files = Files.walk(
-                java.nio.file.Path.of( "src/main/java/com/wikantik/importer" ) ) ) {
-            final List< String > offenders = files.filter( f -> f.toString().endsWith( ".java" ) ).filter( f -> {
-                try {
-                    return Files.readString( f ).contains( "java.util.zip.ZipFile" );
-                } catch ( final java.io.IOException e ) {
-                    throw new java.io.UncheckedIOException( e );
-                }
-            } ).map( Object::toString ).toList();
-            assertTrue( offenders.isEmpty(), "ZipFile trusts the central directory; use ZipInputStream: " + offenders );
-        }
+    void importerNeverUsesZipFile() {
+        final com.tngtech.archunit.core.domain.JavaClasses importer = new com.tngtech.archunit.core.importer.ClassFileImporter()
+            .withImportOption( com.tngtech.archunit.core.importer.ImportOption.Predefined.DO_NOT_INCLUDE_TESTS )
+            .importPackages( "com.wikantik.importer" );
+        assertFalse( importer.isEmpty(), "no importer classes were loaded; the guard would be vacuous" );
+        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses()
+            .that().resideInAPackage( "com.wikantik.importer.." )
+            .should().dependOnClassesThat().areAssignableTo( java.util.zip.ZipFile.class )
+            .because( "ZipFile trusts the central directory; read vaults with ZipInputStream only" )
+            .check( importer );
     }
 
     @Test

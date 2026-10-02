@@ -126,6 +126,23 @@ class DefaultReferenceManagerSerializationCoalescingTest {
         assertTrue( warm.findRefersTo( "Gone" ) == null || warm.findRefersTo( "Gone" ).isEmpty() );
     }
 
+    @Test
+    void aPendingWriteIsFlushedOnItsOwnWithinABoundedDelay( @TempDir final File workDir ) throws Exception {
+        final DefaultReferenceManager mgr = manager( workDir, mock( PageManager.class ) );
+        mgr.setSerializeIntervalMillis( 100L );
+        mgr.initialize( List.of() );
+        mgr.updateReferences( "A", List.of( "T" ) );
+        mgr.updateReferences( "B", List.of( "T" ) ); // inside the interval: pending
+        final int pending = mgr.serializationCount();
+
+        final long deadline = System.nanoTime() + 5_000_000_000L;
+        while ( mgr.serializationCount() == pending && System.nanoTime() < deadline ) {
+            Thread.sleep( 20 );
+        }
+
+        assertEquals( pending + 1, mgr.serializationCount(), "no further update and no shutdown: a timer writes it" );
+    }
+
     private static Page page( final String name, final PageManager pm ) {
         final Page p = mock( Page.class );
         when( p.getName() ).thenReturn( name );

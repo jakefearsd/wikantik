@@ -139,6 +139,16 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     /** {@link System#nanoTime()} of the last write; meaningless until {@link #serializedOnce}. */
     private transient volatile long lastSerializedNanos;
     private transient volatile boolean serializedOnce;
+    private final transient AtomicBoolean flushScheduled = new AtomicBoolean();
+    private transient volatile boolean destroyed;
+
+    /** One daemon thread for every manager's deferred write (a write is at most one interval late). */
+    private static final java.util.concurrent.ScheduledExecutorService FLUSHER =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor( r -> {
+                final Thread t = new Thread( r, "refmgr-deferred-serialization" );
+                t.setDaemon( true );
+                return t;
+            } );
 
     /** Test seam: the minimum spacing between runtime writes (0 writes on every update). */
     void setSerializeIntervalMillis( final long millis ) {
@@ -348,7 +358,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     }
 
     /** Removes the outbound references of every snapshot page that is not among {@code pages} (deleted meanwhile). */
-    private void dropVanishedReferrers( final Collection< Page > pages ) {
+    private synchronized void dropVanishedReferrers( final Collection< Page > pages ) {
         final Set< String > existing = new HashSet<>();
         for( final Page page : pages ) {
             existing.add( page.getName() );
@@ -424,8 +434,25 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     /** Marks the reference database dirty and writes it now unless the last write is younger than the interval. */
     private void requestSerialization() {
         serializationPending.set( true );
-        if ( !serializedOnce || System.nanoTime() - lastSerializedNanos >= serializeIntervalNanos ) {
+        final long sinceLast = System.nanoTime() - lastSerializedNanos;
+        if ( !serializedOnce || sinceLast >= serializeIntervalNanos ) {
             flushSerialization();
+        } else if ( flushScheduled.compareAndSet( false, true ) ) {
+            // bound the delay: with no further update and no shutdown the pending write would otherwise wait forever
+            FLUSHER.schedule( this::deferredFlush, serializeIntervalNanos - sinceLast, TimeUnit.NANOSECONDS );
+        }
+    }
+
+    private void deferredFlush() {
+        flushScheduled.set( false );
+        if ( destroyed ) {
+            return; // destroy() already flushed; the work dir may be gone
+        }
+        try {
+            flushSerialization();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Deferred reference-database write failed; it is retried on the next update: {}", e.getMessage(), e );
+            serializationPending.set( true );
         }
     }
 
@@ -439,6 +466,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     /** Flushes a pending write of the reference database when the filter chain is torn down (engine shutdown). */
     @Override
     public void destroy( final Engine engine ) {
+        destroyed = true;
         flushSerialization();
     }
 
@@ -720,12 +748,15 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             return false;
         }
         final Collection< String > links = scanWikiLinks( page, text );
-        final Page current = pageManager.getPage( page.getName() );
-        if ( current == null || !Objects.equals( current.getLastModified(), page.getLastModified() ) ) {
-            return false;
+        // Check and write atomically: a save's post-save update landing between them would be overwritten.
+        synchronized( this ) {
+            final Page current = pageManager.getPage( page.getName() );
+            if ( current == null || !Objects.equals( current.getLastModified(), page.getLastModified() ) ) {
+                return false;
+            }
+            internalUpdateReferences( page.getName(), links );
+            return true;
         }
-        internalUpdateReferences( page.getName(), links );
-        return true;
     }
 
     private WikiLinkResolver resolver() {

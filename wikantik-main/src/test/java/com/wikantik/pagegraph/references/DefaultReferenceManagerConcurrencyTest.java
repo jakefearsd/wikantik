@@ -120,8 +120,43 @@ class DefaultReferenceManagerConcurrencyTest {
                 "a caller iterating the result must not observe (or race) later updates" );
     }
 
-    private static DefaultReferenceManager manager( final File workDir ) throws Exception {
+    /**
+     * The native rescan checks that a page is unchanged and then writes its references; a save landing between the
+     * check and the write was overwritten with the older scan. The check and the write must be one atomic step.
+     */
+    @Test
+    void aSaveRacingTheRescanIsNeverOverwrittenByTheOlderScan( @TempDir final File workDir ) throws Exception {
         final PageManager pm = mock( PageManager.class );
+        final DefaultReferenceManager mgr = manager( workDir, pm );
+        mgr.setWikiLinkResolver( new com.wikantik.wikilink.WikiLinkResolver( n -> n, java.util.Optional::empty ) );
+        mgr.initialize( List.of() );
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "Racy" );
+        final java.util.Date modified = new java.util.Date( 1_000L );
+        when( page.getLastModified() ).thenReturn( modified );
+        when( pm.getAllPages() ).thenReturn( List.of( page ) );
+        when( pm.getPureText( "Racy", com.wikantik.api.providers.PageProvider.LATEST_VERSION ) ).thenReturn( "old [[OldTarget]]" );
+        final Thread[] saver = new Thread[ 1 ];
+        when( pm.getPage( "Racy" ) ).thenAnswer( inv -> {
+            // a concurrent save's post-save reference update, landing right after the rescan's freshness check
+            saver[ 0 ] = new Thread( () -> mgr.updateReferences( "Racy", List.of( "NewTarget" ) ) );
+            saver[ 0 ].start();
+            saver[ 0 ].join( 300 );
+            return page;
+        } );
+
+        mgr.rescanNativeWikiLinks();
+        saver[ 0 ].join( 5_000 );
+
+        assertEquals( List.of( "NewTarget" ), new ArrayList<>( mgr.findRefersTo( "Racy" ) ),
+                "the save's newer references must win over the rescan's older scan" );
+    }
+
+    private static DefaultReferenceManager manager( final File workDir ) throws Exception {
+        return manager( workDir, mock( PageManager.class ) );
+    }
+
+    private static DefaultReferenceManager manager( final File workDir, final PageManager pm ) throws Exception {
         final AttachmentManager am = mock( AttachmentManager.class );
         when( am.listAttachments( any( Page.class ) ) ).thenReturn( Collections.emptyList() );
         when( pm.getPageText( anyString(), anyInt() ) ).thenReturn( "no links" );

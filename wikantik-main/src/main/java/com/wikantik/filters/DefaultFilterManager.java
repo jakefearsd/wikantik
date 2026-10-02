@@ -317,7 +317,12 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     @Override
     public void destroy() {
         for( final PageFilter f : pageFilters ) {
-            f.destroy( engine );
+            try {
+                f.destroy( engine );
+            } catch( final RuntimeException e ) {
+                // keep going: a later filter (e.g. the reference manager's pending write) must still be torn down
+                LOG.warn( "Page filter {} failed to destroy: {}", f.getClass().getName(), e.getMessage(), e );
+            }
         }
     }
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildEditorCommands } from './editorCommands';
 
 const deps = () => ({ format: vi.fn(), save: vi.fn(), pickImage: vi.fn(), togglePreview: vi.fn(),
-                      toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn() });
+                      toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn(), toggleLivePreview: vi.fn() });
 
 describe('buildEditorCommands', () => {
   it('declares the editor command set with stable ids', () => {
@@ -11,7 +11,7 @@ describe('buildEditorCommands', () => {
       'editor-save', 'format-bold', 'format-italic', 'format-code', 'format-list', 'insert-link',
       'heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-warning', 'callout-danger',
       'callout-info', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
-      'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail']));
+      'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail', 'toggle-live-preview']));
   });
 
   it('marks only insert commands as slash commands', () => {
@@ -39,5 +39,13 @@ describe('buildEditorCommands', () => {
     expect(byId['callout-warning'].slashLabel).toBe('Callout: Warning');
     expect(byId['callout-warning'].title).toBe('Insert callout: Warning');
     expect(byId['callout-note'].slashLabel).toBe('Callout: Note');
+  });
+
+  it('declares the live-preview toggle with Mod-E and runs the injected action', () => {
+    const d = deps();
+    const cmd = buildEditorCommands(d).find((c) => c.id === 'toggle-live-preview');
+    expect(cmd).toMatchObject({ title: 'Toggle live preview', section: 'View', keys: 'Mod-E' });
+    cmd.run();
+    expect(d.toggleLivePreview).toHaveBeenCalled();
   });
 });

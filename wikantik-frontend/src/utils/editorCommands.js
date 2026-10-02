@@ -1,7 +1,7 @@
 const CALLOUTS = [['note', 'Note'], ['tip', 'Tip'], ['warning', 'Warning'], ['danger', 'Danger'], ['info', 'Info']];
 
 /** The editor's command-registry entries; every action is injected so the list stays pure. */
-export function buildEditorCommands({ format, save, pickImage, togglePreview, toggleRail, foldAll, unfoldAll }) {
+export function buildEditorCommands({ format, save, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview }) {
   const cmd = (id, title, section, run, extra = {}) => ({ id, title, section, run, ...extra });
   return [
     cmd('editor-save', 'Save', 'Editor', save, { keys: 'Mod-S' }),
@@ -22,5 +22,6 @@ export function buildEditorCommands({ format, save, pickImage, togglePreview, to
     cmd('unfold-all', 'Unfold all headings', 'View', unfoldAll, { keys: 'Ctrl-Alt-]' }),
     cmd('toggle-preview', 'Toggle preview', 'View', togglePreview),
     cmd('toggle-rail', 'Toggle rail', 'View', toggleRail),
+    cmd('toggle-live-preview', 'Toggle live preview', 'View', toggleLivePreview, { keys: 'Mod-E' }),
   ];
 }

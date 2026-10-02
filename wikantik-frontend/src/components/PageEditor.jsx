@@ -54,6 +54,8 @@ import { useUnlinkedMentions } from '../hooks/useUnlinkedMentions';
 import { locatePhrase, linkMarkup } from '../utils/mentionLink';
 import { createEditorCursorStore } from '../utils/editorCursorStore';
 import { useRailOpen } from '../hooks/useRailOpen';
+import { useEditorMode } from '../hooks/useEditorMode';
+import { loadEmbedState } from '../utils/livePreview/embedSource';
 import { useRunCommand } from '../commands/useCommands';
 import { getCommands, registerCommands } from '../commands/registry';
 import { buildEditorCommands } from '../utils/editorCommands';
@@ -91,6 +93,7 @@ export default function PageEditor() {
   const editorRef = useRef(null);
   const [cursorStore] = useState(createEditorCursorStore);
   const [railOpen, toggleRail] = useRailOpen();
+  const [editorMode, toggleEditorMode] = useEditorMode();
   const dropContainerRef = useRef(null);
   const previewRef = useRef(null);
   const syncRafRef = useRef(0);
@@ -504,6 +507,16 @@ export default function PageEditor() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // Mod-e: source <-> live preview (Obsidian's binding), wherever focus is. CodeMirror does not bind Mod-e.
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.defaultPrevented || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') { e.preventDefault(); toggleEditorMode(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [toggleEditorMode]);
+
   const [previewOpen, setPreviewOpen] = useState(true);
   // Re-fetch embeds whenever the preview is re-opened so edits to embedded pages show up.
   useEmbedCacheLifecycle(previewOpen);
@@ -555,8 +568,15 @@ export default function PageEditor() {
   const unfoldAll = useCallback(() => editorRef.current?.unfoldAll?.(), []);
   // Built inside the effect (not during render): several actions read refs, which render must not touch.
   useEffect(() => registerCommands(buildEditorCommands({
-    format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll,
-  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll]);
+    format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview: toggleEditorMode,
+  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode]);
+  // Memoised on content: the attachments hook may hand back a fresh array each render.
+  const attachmentNamesKey = (attachments.list || []).map((a) => a.fileName).join('\n');
+  const livePreviewContext = useMemo(() => ({
+    pageName: name,
+    attachments: attachmentNamesKey ? attachmentNamesKey.split('\n') : [],
+    loadEmbed: loadEmbedState,
+  }), [name, attachmentNamesKey]);
   const slashSource = useMemo(() => createSlashSource(getCommands, (id) => runCommand(id)), [runCommand]);
 
   const handleBold = useCallback(() => applyFormat('bold'), [applyFormat]);
@@ -942,7 +962,7 @@ export default function PageEditor() {
 
       <MathValidationSummary violations={mathViolations} onJump={jumpToMath} />
 
-      <EditorToolbar onRun={runCommand} />
+      <EditorToolbar onRun={runCommand} liveMode={editorMode === 'live'} />
 
       <div className={`editor-layout${railOpen ? ' rail-open' : ''}`}>
       <div className={`editor-container${previewOpen ? '' : ' preview-hidden'}`}>
@@ -967,6 +987,8 @@ export default function PageEditor() {
             value={body}
             onChange={handleBodyChange}
             dark={dark}
+            livePreview={editorMode === 'live'}
+            livePreviewContext={livePreviewContext}
             onBold={handleBold}
             onItalic={handleItalic}
             onLink={handleLink}

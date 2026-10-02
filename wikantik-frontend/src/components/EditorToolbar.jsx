@@ -5,6 +5,7 @@ import { formatKeys } from '../utils/keyHints';
  *
  * Props:
  *   onRun(commandId) — e.g. 'format-bold', 'heading-2', 'insert-table'
+ *   liveMode — whether live preview is on (drives the Live button's aria-pressed)
  */
 const LinkGlyph = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -14,7 +15,7 @@ const LinkGlyph = (
   </svg>
 );
 
-export default function EditorToolbar({ onRun }) {
+export default function EditorToolbar({ onRun, liveMode = false }) {
   const buttons = [
     { id: 'format-bold',   label: 'B',   title: `Bold (${formatKeys('Mod-B')})`, style: { fontWeight: 'bold' } },
     { id: 'format-italic', label: 'I',   title: `Italic (${formatKeys('Mod-I')})`, style: { fontStyle: 'italic' } },
@@ -45,6 +46,20 @@ export default function EditorToolbar({ onRun }) {
           {label}
         </button>
       ))}
+      <button
+        type="button"
+        id="toggle-live-preview"
+        className="editor-format-btn editor-format-btn-mode"
+        title={`Live preview (${formatKeys('Mod-E')})`}
+        aria-label={`Live preview (${formatKeys('Mod-E')})`}
+        aria-pressed={liveMode}
+        onMouseDown={e => {
+          e.preventDefault();
+          onRun('toggle-live-preview');
+        }}
+      >
+        Live
+      </button>
     </div>
   );
 }

@@ -18,7 +18,7 @@ describe('EditorToolbar', () => {
   it('each button has an accessible name (aria-label)', () => {
     render(<EditorToolbar onRun={vi.fn()} />);
     const buttons = screen.getByRole('toolbar').querySelectorAll('button');
-    expect(buttons.length).toBe(8);
+    expect(buttons.length).toBe(9);
     buttons.forEach(btn => {
       expect(btn).toHaveAttribute('aria-label');
       expect(btn.getAttribute('aria-label').length).toBeGreaterThan(0);
@@ -54,5 +54,17 @@ describe('EditorToolbar', () => {
     render(<EditorToolbar onRun={onRun} />);
     fireEvent.mouseDown(screen.getByTitle(title));
     expect(onRun).toHaveBeenCalledWith(id);
+  });
+
+  it('the Live toggle reflects the mode and runs toggle-live-preview', () => {
+    const onRun = vi.fn();
+    const { rerender } = render(<EditorToolbar onRun={onRun} liveMode={false} />);
+    const live = screen.getByRole('button', { name: /live preview/i });
+    expect(live).toHaveAttribute('aria-pressed', 'false');
+    expect(live.textContent).toBe('Live');
+    fireEvent.mouseDown(live);
+    expect(onRun).toHaveBeenCalledWith('toggle-live-preview');
+    rerender(<EditorToolbar onRun={onRun} liveMode />);
+    expect(screen.getByRole('button', { name: /live preview/i })).toHaveAttribute('aria-pressed', 'true');
   });
 });

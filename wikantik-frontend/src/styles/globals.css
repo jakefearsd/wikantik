@@ -1046,6 +1046,12 @@ a.tag:hover {
   border-color: var(--border);
 }
 
+.editor-format-btn-mode { margin-left: auto; font-family: var(--font-ui); font-weight: 600; letter-spacing: 0.02em; }
+.editor-format-btn[aria-pressed="true"] {
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
 /* ============================================================
    Editor Drop-zone hint (#22)
    ============================================================ */

@@ -2,6 +2,7 @@
  * Seeded randomized interleavings of typing, attachment-rename resolutions and latch-clock advances against the
  * REAL CodeMirror editor. A plain-string model receives the same operations; after every operation the editor
  * must show the model text, the caret must sit where the model says, and save probes must send exactly that text.
+ * A third of the seeds run in live preview, so typing/renames interleave with rendered image widgets.
  * Deterministic: a fixed list of seeds drives a mulberry32 PRNG, and the latch clock is faked (realEditorHarness).
  */
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
@@ -113,7 +114,7 @@ const SEEDS = Array.from({ length: 50 }, (_, i) => 1009 + i * 7919);
 
 // Guard against a vacuous run: across all seeds the interleavings must actually hit the races under test.
 // The floors only apply to a full run: a filtered run (`-t 'seed 1009'`) is too small to meet them.
-const stats = { seeds: 0, rewrites: 0, rewritesInLatch: 0, caretShifted: 0, caretInsideName: 0, rejected: 0, saves: 0, keystrokes: 0 };
+const stats = { seeds: 0, rewrites: 0, rewritesInLatch: 0, caretShifted: 0, caretInsideName: 0, rejected: 0, saves: 0, keystrokes: 0, liveSeeds: 0, liveWidgetSeeds: 0 };
 afterAll(() => {
   if (stats.seeds < SEEDS.length) return;
   expect(stats.rewrites).toBeGreaterThanOrEqual(40);         // renames that changed the text
@@ -122,15 +123,24 @@ afterAll(() => {
   expect(stats.rejected).toBeGreaterThanOrEqual(1);
   expect(stats.saves).toBeGreaterThanOrEqual(100);
   expect(stats.keystrokes).toBeGreaterThanOrEqual(1000);
+  expect(stats.liveSeeds).toBeGreaterThanOrEqual(15);
+  expect(stats.liveWidgetSeeds).toBeGreaterThanOrEqual(15); // live seeds really typed around rendered widgets
 });
 
 describe('randomized interleaving of typing, attachment renames and the typing latch', () => {
   it.each(SEEDS)('seed %i keeps editor text == React body == model text, and every keystroke', async (seed) => {
     const rand = prng(seed);
     const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+    const live = SEEDS.indexOf(seed) % 3 === 0;
+    if (live) localStorage.setItem('wikantik.editor.mode', 'live');
     const view = await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
     fakeLatchClock();
     placeCaret(view, INITIAL.length);
+    if (live) {
+      expect(document.querySelector('.cm-editor.cm-live-preview'), `seed ${seed}: live mode`).not.toBeNull();
+      stats.liveSeeds += 1;
+      if (document.querySelector('.cm-lp-image-wrap')) stats.liveWidgetSeeds += 1;
+    }
 
     const model = { text: INITIAL, caret: INITIAL.length };
     const log = [];

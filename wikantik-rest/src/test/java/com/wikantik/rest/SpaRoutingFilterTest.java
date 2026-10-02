@@ -755,6 +755,40 @@ class SpaRoutingFilterTest {
         }
     }
 
+    @Test
+    void pageWithNativeEmbedIsNeverEtaggedNorServed304() throws Exception {
+        assertViewerDependentPageNotCacheable( "SpaEmbedPage", "intro\n\n![[SpaEmbedRestricted]]\n" );
+    }
+
+    @Test
+    void pageWithInsertPageIsNeverEtaggedNorServed304() throws Exception {
+        assertViewerDependentPageNotCacheable( "SpaInsertPage", "intro [{insertpage page='SpaEmbedRestricted'}]" );
+    }
+
+    private void assertViewerDependentPageNotCacheable( final String name, final String text ) throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            engine.saveText( "SpaEmbedRestricted", "[{ALLOW view Admin}]\n\nclassified" );
+            engine.saveText( name, text );
+            filter.setEngineForTest( engine );
+
+            final HttpServletRequest request = mockRequest( "/wiki/" + name );
+            filter.doFilter( request, response, chain );
+            verify( response, never() ).setHeader( eq( "ETag" ), any() );
+            verify( response ).setHeader( "Cache-Control", "private, no-store" );
+
+            // Any validator the browser holds must be ignored: the body differs per viewer.
+            final HttpServletResponse response2 = mock( HttpServletResponse.class );
+            when( response2.getOutputStream() ).thenReturn( new CapturingServletOutputStream() );
+            final HttpServletRequest request2 = mockRequest( "/wiki/" + name );
+            when( request2.getHeader( "If-None-Match" ) ).thenReturn( "W/\"anything\"" );
+            filter.doFilter( request2, response2, chain );
+            verify( response2, never() ).setStatus( HttpServletResponse.SC_NOT_MODIFIED );
+        } finally {
+            engine.stop();
+        }
+    }
+
     // ---- view-ACL enforcement on the server-rendered body ----
 
     /**

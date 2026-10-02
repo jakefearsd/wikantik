@@ -316,7 +316,11 @@ public class SpaRoutingFilter implements Filter {
         // and the injection step: a denied caller must neither be server-rendered nor
         // share a validator with a permitted one.
         final boolean viewAllowed = cacheablePage == null || mayView( req, pageName );
-        if ( cacheablePage != null ) {
+        if ( cacheablePage != null && isViewerDependent( pageName ) ) {
+            // Transclusion (![[...]] / InsertPage) renders per viewer: an embedded page the caller may not view is
+            // omitted, so one viewer's body must never be replayed to another via a 304 on the same browser.
+            resp.setHeader( "Cache-Control", "private, no-store" );
+        } else if ( cacheablePage != null ) {
             // The SSR output for a page is a pure function of (shell build, page
             // version, mtime, viewer-allowed) — the underlying render cache is already
             // shared across users by content hash. private+no-cache forces revalidation
@@ -402,6 +406,29 @@ public class SpaRoutingFilter implements Filter {
                             final boolean viewAllowed ) {
         return "W/\"" + shellFp + '-' + version + '-' + lastModifiedMillis
                 + ( viewAllowed ? "-v" : "-d" ) + '"';
+    }
+
+    private static final java.util.regex.Pattern VIEWER_DEPENDENT_MARKUP =
+            java.util.regex.Pattern.compile( "!\\[\\[|\\[\\{\\s*InsertPage", java.util.regex.Pattern.CASE_INSENSITIVE );
+
+    /**
+     * Whether the page's raw text transcludes other pages ({@code ![[...]]} native embeds or an
+     * {@code InsertPage} plugin call), making its rendered output depend on who is viewing. Fails
+     * <em>closed</em>: an unreadable page is treated as viewer-dependent (never cached).
+     */
+    private boolean isViewerDependent( final String pageName ) {
+        final Engine eng = resolveEngine();
+        if ( eng == null ) {
+            return true;
+        }
+        try {
+            final String text = PageSubsystemBridge.fromLegacyEngine( eng ).pages().getPureText( pageName, -1 );
+            return text == null || VIEWER_DEPENDENT_MARKUP.matcher( text ).find();
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "SpaRoutingFilter: could not read '{}' to classify viewer-dependence; treating as dependent: {}",
+                    pageName, ex.getMessage() );
+            return true;
+        }
     }
 
     /** Null-safe page lookup mirroring injectSemantic's ladder; null = engine/pm/page unavailable. */

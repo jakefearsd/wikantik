@@ -89,4 +89,19 @@ class VaultFrontmatterMapperTest {
     void normaliseTag() {
         assertEquals( "team-core", VaultFrontmatterMapper.normaliseTag( "#Team/Core" ) );
     }
+
+    @Test
+    void scalarAliasesSplitOnCommasOnly() {
+        final NoteContext ctx = new NoteContext( "N", "N", null, false );
+        assertEquals( List.of( "Old Name" ), mapper.map( "---\nalias: Old Name\n---\nx", ctx ).metadata().get( "aliases" ) );
+        assertEquals( List.of( "A b", "C d" ), mapper.map( "---\naliases: A b, C d\n---\nx", ctx ).metadata().get( "aliases" ) );
+        assertEquals( List.of( "A b", "C" ), mapper.map( "---\naliases: [A b, C]\n---\nx", ctx ).metadata().get( "aliases" ) );
+    }
+
+    @Test
+    void mapValuedTagsAreSkippedWithWarning() {
+        final MappedNote m = mapper.map( "---\ntags: {a: b}\n---\nx", new NoteContext( "N", "N", null, false ) );
+        assertFalse( m.metadata().containsKey( "tags" ) );
+        assertTrue( m.warnings().stream().anyMatch( w -> w.startsWith( "frontmatter:" ) ), m.warnings().toString() );
+    }
 }

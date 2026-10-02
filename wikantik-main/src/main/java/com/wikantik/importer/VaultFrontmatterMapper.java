@@ -43,6 +43,7 @@ public final class VaultFrontmatterMapper {
     private static final Logger LOG = LogManager.getLogger( VaultFrontmatterMapper.class );
     private static final Set< String > ALWAYS_DROPPED =
         Set.of( "canonical_id", "wikantik_url", "wikantik_version", "verified_at", "verified_by" );
+    private static final Pattern COMMA_SPLIT = Pattern.compile( "," );
     private static final Pattern LIST_SPLIT = Pattern.compile( "[,\\s]+" );
 
     private final FrontmatterSchema schema;
@@ -65,8 +66,8 @@ public final class VaultFrontmatterMapper {
         final Map< String, Object > meta = new LinkedHashMap<>();
         final String body = parse( noteText, meta, warnings );
         dropKeys( meta );
-        mergeTags( meta, body );
-        mergeAliases( meta, ctx );
+        mergeTags( meta, body, warnings );
+        mergeAliases( meta, ctx, warnings );
         applyTitle( meta, ctx );
         applyType( meta, ctx, warnings );
         applyCluster( meta, ctx );
@@ -94,24 +95,25 @@ public final class VaultFrontmatterMapper {
         }
     }
 
-    private static void mergeTags( final Map< String, Object > meta, final String body ) {
+    private static void mergeTags( final Map< String, Object > meta, final String body, final List< String > warnings ) {
         final Set< String > tags = new LinkedHashSet<>();
-        for ( final String t : listOf( meta.remove( "tags" ) ) ) {
+        for ( final String t : listOf( meta.remove( "tags" ), "tags", true, warnings ) ) {
             final String n = normaliseTag( t );
             if ( !n.isEmpty() ) {
                 tags.add( n );
             }
         }
+        // A malformed-YAML block is kept as a fenced code block in the body, so its tags are deliberately not scanned.
         tags.addAll( InlineTags.scan( body ) );
         if ( !tags.isEmpty() ) {
             meta.put( "tags", new ArrayList<>( tags ) );
         }
     }
 
-    private static void mergeAliases( final Map< String, Object > meta, final NoteContext ctx ) {
+    private static void mergeAliases( final Map< String, Object > meta, final NoteContext ctx, final List< String > warnings ) {
         final Set< String > aliases = new LinkedHashSet<>();
-        aliases.addAll( listOf( meta.remove( "aliases" ) ) );
-        aliases.addAll( listOf( meta.remove( "alias" ) ) );
+        aliases.addAll( listOf( meta.remove( "aliases" ), "aliases", false, warnings ) );
+        aliases.addAll( listOf( meta.remove( "alias" ), "alias", false, warnings ) );
         if ( !ctx.pageName().equals( ctx.basename() ) ) {
             aliases.add( ctx.basename() );
         }
@@ -158,19 +160,27 @@ public final class VaultFrontmatterMapper {
         }
     }
 
-    /** A string (comma or whitespace separated) or a list, flattened to trimmed non-empty strings. */
-    private static List< String > listOf( final Object value ) {
+    /**
+     * A string or a list, flattened to trimmed non-empty strings. A scalar splits on commas, and also on whitespace
+     * when {@code splitOnSpace} (tags); list items stay whole. Any other value (a map) is skipped with a warning.
+     */
+    private static List< String > listOf( final Object value, final String key, final boolean splitOnSpace,
+                                          final List< String > warnings ) {
         final List< String > out = new ArrayList<>();
         if ( value instanceof Iterable< ? > items ) {
             for ( final Object o : items ) {
-                if ( o != null && !String.valueOf( o ).isBlank() ) {
+                if ( o != null && !( o instanceof Map ) && !String.valueOf( o ).isBlank() ) {
                     out.add( String.valueOf( o ).strip() );
                 }
             }
+        } else if ( value instanceof Map ) {
+            LOG.warn( "Vault note frontmatter '{}' is a map, not a string or list; skipped", key );
+            warnings.add( "frontmatter: '" + key + "' is not a string or list; ignored" );
         } else if ( value != null ) {
-            for ( final String part : LIST_SPLIT.split( String.valueOf( value ).strip() ) ) {
-                if ( !part.isEmpty() ) {
-                    out.add( part );
+            final Pattern splitter = splitOnSpace ? LIST_SPLIT : COMMA_SPLIT;
+            for ( final String part : splitter.split( String.valueOf( value ).strip() ) ) {
+                if ( !part.isBlank() ) {
+                    out.add( part.strip() );
                 }
             }
         }

@@ -42,4 +42,17 @@ class InlineTagsTest {
     void fencedCodeAndLinkDestinationsIgnored() {
         assertEquals( Set.of(), InlineTags.scan( "```\n#x\n```\n[t](a#b) word#nope" ) );
     }
+
+    @Test
+    void segmentAfterInlineCodeIsNotALineStart() {
+        assertEquals( Set.of(), InlineTags.scan( "`c`#x" ) );
+        assertEquals( Set.of(), InlineTags.scan( "# Title with `code` #real" ) );
+        assertEquals( Set.of( "ok" ), InlineTags.scan( "see `c` #ok" ) );
+    }
+
+    @Test
+    void tagNeedsLetterUnderscoreOrDash() {
+        assertEquals( Set.of(), InlineTags.scan( "#2024/ #123 #1/2" ) );
+        assertEquals( Set.of( "2024-q1", "y2024" ), InlineTags.scan( "#2024-q1 #y2024" ) );
+    }
 }

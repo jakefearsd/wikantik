@@ -23,6 +23,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.wikantik.api.parser.CodeMask;
+
 /** Extracts Obsidian inline {@code #tags} from the prose of a note body. */
 public final class InlineTags {
 
@@ -31,20 +33,20 @@ public final class InlineTags {
     private static final Pattern URL = Pattern.compile( "\\S+://\\S+" );
     private static final Pattern HEADING = Pattern.compile( "^\\s{0,3}#{1,6}\\s.*" );
     private static final Pattern TAG = Pattern.compile( "(?<![^\\s])#([\\p{L}\\p{N}_/-]+)" );
-    private static final Pattern NON_DIGIT = Pattern.compile( "[^\\p{N}]" );
+    private static final Pattern NON_DIGIT = Pattern.compile( "[\\p{L}_-]" );
+    private static final char CODE_PLACEHOLDER = 'X';
 
     private InlineTags() {
     }
 
-    /** Normalised inline tags in first-seen order. Code is skipped; a tag must contain a non-digit. */
+    /**
+     * Normalised inline tags in first-seen order. Code (fenced, indented, inline) is replaced by a non-space
+     * placeholder of equal length, so line context survives and text glued to a code span is never a tag.
+     */
     public static Set< String > scan( final String body ) {
         final Set< String > tags = new LinkedHashSet<>();
-        CodeSegments.forEachProse( body, segment -> scanSegment( segment, tags ) );
-        return tags;
-    }
-
-    private static void scanSegment( final String segment, final Set< String > tags ) {
-        String s = WIKILINK.matcher( segment ).replaceAll( " " );
+        String s = blankCode( body );
+        s = WIKILINK.matcher( s ).replaceAll( " " );
         s = LINK_DEST.matcher( s ).replaceAll( " " );
         s = URL.matcher( s ).replaceAll( " " );
         for ( final String line : s.split( "\n", -1 ) ) {
@@ -52,6 +54,18 @@ public final class InlineTags {
                 collect( line, tags );
             }
         }
+        return tags;
+    }
+
+    private static String blankCode( final String body ) {
+        final boolean[] code = CodeMask.of( body );
+        final StringBuilder sb = new StringBuilder( body );
+        for ( int i = 0; i < sb.length(); i++ ) {
+            if ( code[ i ] && sb.charAt( i ) != '\n' && sb.charAt( i ) != '\r' ) {
+                sb.setCharAt( i, CODE_PLACEHOLDER );
+            }
+        }
+        return sb.toString();
     }
 
     private static void collect( final String line, final Set< String > tags ) {

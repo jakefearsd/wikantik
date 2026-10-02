@@ -19,7 +19,20 @@
 package com.wikantik.plugin;
 
 import com.wikantik.TestEngine;
+import com.wikantik.HttpMockFactory;
+import com.wikantik.WikiSessionTest;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.permissions.PermissionFilter;
+import com.wikantik.auth.Users;
 import com.wikantik.render.RenderingManager;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import org.mockito.Mockito;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -37,6 +50,53 @@ public class InsertPageTest {
         testEngine.deleteTestPage( "Test_Page" );
         testEngine.deleteTestPage( "TestPage" );
         testEngine.deleteTestPage( "Test Page" );
+    }
+
+    @Test
+    public void insertingARestrictedPageDoesNotChangeHostAcl() throws Exception {
+        testEngine.saveText( "InsHostPlain", "intro [{InsertPage page='InsSecret'}]" );
+        testEngine.saveText( "InsSecret", "[{ALLOW view Admin}]\n\nclassified" );
+        final PermissionFilter pf = new PermissionFilter( testEngine );
+        final Session guest = WikiSessionTest.anonymousSession( testEngine );
+        Assertions.assertTrue( pf.canAccessQuietly( guest, "InsHostPlain", "view" ) );
+
+        final String html = renderHostAsAdmin( "InsHostPlain" );
+
+        Assertions.assertTrue( html.contains( "classified" ), html );
+        Assertions.assertTrue( pf.canAccessQuietly( guest, "InsHostPlain", "view" ),
+                "InsertPage must not write the inserted page's ACL onto the host" );
+        testEngine.deleteTestPage( "InsHostPlain" );
+        testEngine.deleteTestPage( "InsSecret" );
+    }
+
+    @Test
+    public void insertingAnOpenPageCannotWidenHostAcl() throws Exception {
+        testEngine.saveText( "InsHostLocked", "[{ALLOW view Admin}]\n\n[{InsertPage page='InsOpen'}]" );
+        testEngine.saveText( "InsOpen", "[{ALLOW view All}]\n\nopen text" );
+        final PermissionFilter pf = new PermissionFilter( testEngine );
+        final Session guest = WikiSessionTest.anonymousSession( testEngine );
+        Assertions.assertFalse( pf.canAccessQuietly( guest, "InsHostLocked", "view" ) );
+
+        renderHostAsAdmin( "InsHostLocked" );
+
+        Assertions.assertFalse( pf.canAccessQuietly( guest, "InsHostLocked", "view" ),
+                "an inserted page's ACL must not widen the host's ACL" );
+        testEngine.deleteTestPage( "InsHostLocked" );
+        testEngine.deleteTestPage( "InsOpen" );
+    }
+
+    private String renderHostAsAdmin( final String name ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final HttpSession http = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "acl-admin-" + System.nanoTime() ).when( http ).getId();
+        Mockito.doReturn( http ).when( request ).getSession();
+        final Session admin = Wiki.session().find( testEngine, request );
+        testEngine.getManager( AuthenticationManager.class ).login( admin, request, Users.ADMIN, Users.ADMIN_PASS );
+        Assertions.assertTrue( admin.isAuthenticated() );
+        final Page host = testEngine.getManager( PageManager.class ).getPage( name );
+        final Context ctx = Wiki.context().create( testEngine, request, host );
+        return testEngine.getManager( RenderingManager.class )
+                .textToHTML( ctx, testEngine.getManager( PageManager.class ).getPureText( name, -1 ) );
     }
 
     @Test

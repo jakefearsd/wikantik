@@ -22,7 +22,14 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
+import com.wikantik.WikiSessionTest;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.permissions.PermissionFilter;
+import com.wikantik.auth.Users;
+import jakarta.servlet.http.HttpServletRequest;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.parser.markdown.MarkdownParser;
@@ -134,6 +141,46 @@ class NativeWikiEmbedRenderingTest {
         engine.saveText( "EmbFootTarget", "x\n" );
         final String html = translate( "Text[^1]\n\n[^1]: see [[EmbFootTarget]]\n" );
         assertTrue( html.contains( "<a href=\"/test/wiki/EmbFootTarget\" class=\"wikipage\">EmbFootTarget</a>" ), html );
+    }
+
+    @Test void embeddingARestrictedPageDoesNotChangeHostAcl() throws Exception {
+        engine.saveText( "EmbHostPlain", "intro\n\n![[EmbSecret]]\n" );
+        engine.saveText( "EmbSecret", "[{ALLOW view Admin}]\n\nclassified\n" );
+        final PermissionFilter pf = new PermissionFilter( engine );
+        final Session guest = WikiSessionTest.anonymousSession( engine );
+        assertTrue( pf.canAccessQuietly( guest, "EmbHostPlain", "view" ) );
+
+        final String html = renderHostAsAdmin( "EmbHostPlain" );
+
+        assertTrue( html.contains( "classified" ), "admin sees the embedded body: " + html );
+        assertTrue( pf.canAccessQuietly( guest, "EmbHostPlain", "view" ),
+                "rendering an embed must not write the embedded page's ACL onto the host" );
+    }
+
+    @Test void embeddingAnOpenPageCannotWidenHostAcl() throws Exception {
+        engine.saveText( "EmbHostLocked", "[{ALLOW view Admin}]\n\n![[EmbOpen]]\n" );
+        engine.saveText( "EmbOpen", "[{ALLOW view All}]\n\nopen text\n" );
+        final PermissionFilter pf = new PermissionFilter( engine );
+        final Session guest = WikiSessionTest.anonymousSession( engine );
+        assertFalse( pf.canAccessQuietly( guest, "EmbHostLocked", "view" ) );
+
+        renderHostAsAdmin( "EmbHostLocked" );
+
+        assertFalse( pf.canAccessQuietly( guest, "EmbHostLocked", "view" ),
+                "an embedded page's ACL must not widen the host's ACL" );
+    }
+
+    private String renderHostAsAdmin( final String name ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final jakarta.servlet.http.HttpSession http = org.mockito.Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        org.mockito.Mockito.doReturn( "acl-admin-" + System.nanoTime() ).when( http ).getId();
+        org.mockito.Mockito.doReturn( http ).when( request ).getSession();
+        final Session admin = com.wikantik.api.spi.Wiki.session().find( engine, request );
+        engine.getManager( AuthenticationManager.class ).login( admin, request, Users.ADMIN, Users.ADMIN_PASS );
+        assertTrue( admin.isAuthenticated() );
+        final Page host = engine.getManager( PageManager.class ).getPage( name );
+        final Context ctx = Wiki.context().create( engine, request, host );
+        return render( ctx, engine.getManager( PageManager.class ).getPureText( name, -1 ) );
     }
 
     private Context hostContext() throws Exception {

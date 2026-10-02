@@ -153,7 +153,12 @@ public final class WikiEmbedRenderer {
         final Object prev = context.getVariable( ATTR_EMBED_STACK );
         try {
             final Context inner = context.clone();
-            inner.setPage( page );
+            // Render against a private copy, as both the page and the real page: access rules
+            // parsed from the embedded body are applied to the real page, and must never land on
+            // the host's (shared, ACL-bearing) page object.
+            final Page scoped = page.clone();
+            inner.setPage( scoped );
+            inner.setRealPage( scoped );
             final List< String > next = new ArrayList<>( stack );
             next.add( page.getName() );
             inner.setVariable( ATTR_EMBED_STACK, next );

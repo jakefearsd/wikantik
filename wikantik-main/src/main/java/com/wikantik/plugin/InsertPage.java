@@ -192,7 +192,11 @@ public class InsertPage implements Plugin {
         final int maxlen = maxlenParam == -1 ? Integer.MAX_VALUE : maxlenParam;
 
         final Context includedContext = context.clone();
-        includedContext.setPage( page );
+        // Private copy as page AND real page: ACL lines in the inserted text are applied to the real
+        // page and must not be written onto the host page object.
+        final Page scoped = page.clone();
+        includedContext.setPage( scoped );
+        includedContext.setRealPage( scoped );
 
         String pageData = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
         if ( section != -1 ) {

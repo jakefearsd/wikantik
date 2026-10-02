@@ -24,7 +24,8 @@ import { remarkMissingLinks } from '../utils/wikiLinkTargets';
 import { useMissingPages } from '../hooks/useMissingPages';
 import { remarkWikiLinks } from '../utils/remarkWikiLinks';
 import { useWikiLinkResolution } from '../hooks/useWikiLinkResolution';
-import { WikiEmbedElement, clearWikiEmbedCache } from './WikiEmbed';
+import { WikiEmbedElement } from './WikiEmbed';
+import { useEmbedCacheLifecycle } from '../hooks/useEmbedCacheLifecycle';
 import { useTagSuggestions } from '../hooks/useTagSuggestions';
 import { useLowlight } from '../hooks/useLowlight';
 import { rehypeHighlightCode } from '../utils/codeHighlight';
@@ -504,8 +505,8 @@ export default function PageEditor() {
   }, []);
 
   const [previewOpen, setPreviewOpen] = useState(true);
-  // Re-fetch embeds whenever the preview is (re)opened so edits to embedded pages show up.
-  useEffect(() => { if (previewOpen) clearWikiEmbedCache(); }, [previewOpen]);
+  // Re-fetch embeds whenever the preview is re-opened so edits to embedded pages show up.
+  useEmbedCacheLifecycle(previewOpen);
 
   const previewArticleRef = useRef(null);
   const { card: previewCard } = useLinkPreview(previewArticleRef, previewOpen);
@@ -972,6 +973,7 @@ export default function PageEditor() {
             linkCompletion={linkCompletion}
             slashSource={slashSource}
             onLinkHover={handleLinkHover}
+            wikiLinkResolution={wikiLinkResolution}
             onViewChange={handleViewChange}
             onFiles={handleFiles}
           />

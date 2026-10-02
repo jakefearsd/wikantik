@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
@@ -75,6 +75,52 @@ describe('linkRanges marks wikilinks', () => {
     const marked = [...view.dom.querySelectorAll('.cm-link-range')].map((e) => e.textContent);
     expect(marked).toContain('[[A]]');
     expect(marked).not.toContain('[[C]]');
+    view.destroy();
+    parent.remove();
+  });
+});
+
+describe('linkAt / linkInteraction with wikilink resolution', () => {
+  const atResolved = (doc, pos, resolve) => {
+    const state = EditorState.create({ doc, extensions: [markdown()] });
+    ensureSyntaxTree(state, doc.length, 5000);
+    return linkAt(state, pos, resolve);
+  };
+  const resolve = (key) => ({ 'my page': 'My Page' })[key];
+
+  it('uses the resolved page name for [[my page]] and alias links, raw when unresolved or unknown', () => {
+    expect(atResolved('see [[my page]] x', 8, resolve).url).toBe('My%20Page');
+    expect(atResolved('see [[my page|alias]] x', 8, resolve).url).toBe('My%20Page');
+    expect(atResolved('see [[my page#Set Up]] x', 8, resolve).url).toBe('My%20Page#set-up');
+    expect(atResolved('see [[other]] x', 8, resolve).url).toBe('other');
+    expect(atResolved('see [[my page]] x', 8, () => null).url).toBe('my%20page');
+    expect(atResolved('see [[my page]] x', 8).url).toBe('my%20page');
+  });
+
+  it('Ctrl-click opens, and Ctrl-hover reports, the resolved target; lookup is read live', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const lookup = { current: new Map() };
+    const onHover = vi.fn();
+    const doc = 'see [[my page]] x';
+    const view = new EditorView({
+      parent, doc,
+      extensions: [markdown(), linkInteraction({ onHover, resolve: (k) => lookup.current.get(k) })],
+    });
+    ensureSyntaxTree(view.state, doc.length, 5000);
+    vi.spyOn(view, 'posAtCoords').mockReturnValue(8);
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+    lookup.current = new Map([['my page', 'My Page']]); // changes after the extension was built
+    view.contentDOM.dispatchEvent(new MouseEvent('mousedown', { ctrlKey: true, button: 0, bubbles: true, cancelable: true }));
+    expect(open).toHaveBeenCalledWith('/wiki/My%20Page', '_blank', 'noopener');
+    view.contentDOM.dispatchEvent(new MouseEvent('mousemove', { ctrlKey: true, bubbles: true }));
+    expect(onHover.mock.calls.at(-1)[0]).toBe('My%20Page');
+
+    lookup.current = new Map(); // unknown -> raw
+    view.contentDOM.dispatchEvent(new MouseEvent('mousedown', { ctrlKey: true, button: 0, bubbles: true, cancelable: true }));
+    expect(open).toHaveBeenLastCalledWith('/wiki/my%20page', '_blank', 'noopener');
+    open.mockRestore();
     view.destroy();
     parent.remove();
   });

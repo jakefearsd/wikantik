@@ -90,7 +90,7 @@ export function minimalChange(prev, next) {
 }
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, onViewChange, onFiles, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -103,6 +103,9 @@ const CodeEditor = forwardRef(function CodeEditor(
   slashSourceRef.current = slashSource;
   const onLinkHoverRef = useRef(onLinkHover);
   onLinkHoverRef.current = onLinkHover;
+  // Resolved wikilink targets (lowercased raw target -> page name | null); read live by the link interaction.
+  const wikiLinkResolutionRef = useRef(wikiLinkResolution);
+  wikiLinkResolutionRef.current = wikiLinkResolution;
 
   // Fired on scroll / caret move / edit so the parent can sync the preview.
   // Held in a ref so the extension (built once) always calls the latest handler.
@@ -396,7 +399,10 @@ const CodeEditor = forwardRef(function CodeEditor(
   );
 
   const linkExtension = useMemo(
-    () => linkInteraction({ onHover: (url, rect) => onLinkHoverRef.current?.(url, rect) }),
+    () => linkInteraction({
+      onHover: (url, rect) => onLinkHoverRef.current?.(url, rect),
+      resolve: (key) => wikiLinkResolutionRef.current?.get(key),
+    }),
     [],
   );
 

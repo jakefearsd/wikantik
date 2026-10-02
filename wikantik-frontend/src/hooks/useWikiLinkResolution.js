@@ -51,7 +51,7 @@ export function useWikiLinkResolution(markdown) {
           Object.entries(r?.resolved || {}).forEach(([k, v]) => known.current.set(k.toLowerCase(), v ?? null));
         })
         .catch((err) => {
-          if (signal.aborted) return;
+          if (signal.aborted) return; // expected on unmount: the abort rejects the request, nothing to report
           console.warn('[wikilink-resolve] resolution failed for', names, err?.message || err);
           names.forEach((n) => failedUntil.current.set(n.toLowerCase(), Date.now() + FAILURE_BACKOFF_MS));
         })

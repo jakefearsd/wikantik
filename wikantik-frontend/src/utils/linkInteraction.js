@@ -15,16 +15,20 @@ function inCode(state, pos) {
 }
 
 /** Native [[wikilinks]] on one document line, as absolute ranges, skipping any inside code. */
-function wikiLinksOnLine(state, line) {
+function wikiLinksOnLine(state, line, resolve) {
   return findWikiLinks(line.text)
-    .map((m) => ({ url: wikiLinkHref(m), from: line.from + m.from, to: line.from + m.to }))
+    .map((m) => ({ url: wikiLinkHref(m, resolve?.(m.target.toLowerCase()) || undefined), from: line.from + m.from, to: line.from + m.to }))
     .filter((l) => !inCode(state, l.from));
 }
 
-/** The link (Markdown, autolink or native wikilink) containing {@code pos}: its URL text and full range, or null. */
-export function linkAt(state, pos) {
+/**
+ * The link (Markdown, autolink or native wikilink) containing {@code pos}: its URL text and full range, or null.
+ * {@code resolve} maps a lowercased wikilink target to its canonical page name (string) or a falsy value;
+ * unresolved wikilinks keep their raw target.
+ */
+export function linkAt(state, pos, resolve) {
   // Lezer reads `[Page]` inside `[[Page]]` as a URL-less Link, so wikilinks are checked first.
-  const wiki = wikiLinksOnLine(state, state.doc.lineAt(pos)).find((l) => pos >= l.from && pos <= l.to);
+  const wiki = wikiLinksOnLine(state, state.doc.lineAt(pos), resolve).find((l) => pos >= l.from && pos <= l.to);
   if (wiki) return wiki;
   for (let node = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent) {
     if (node.name === 'Link' || node.name === 'Autolink') {
@@ -49,7 +53,7 @@ export function hrefFor(url) {
 const linkMark = Decoration.mark({ class: 'cm-link-range' });
 
 /** Ctrl/Cmd-hover reports the link under the pointer; Ctrl/Cmd-click opens it in a new tab. */
-export function linkInteraction({ onHover }) {
+export function linkInteraction({ onHover, resolve }) {
   // Marks every link range so CSS can show a pointer/underline while Ctrl/Cmd is held
   // (the editor theme's highlight classes are generated, so there is no stable token class).
   const linkRanges = ViewPlugin.fromClass(class {
@@ -92,7 +96,7 @@ export function linkInteraction({ onHover }) {
 
   const linkUnderPointer = (e, view) => {
     const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
-    return pos == null ? null : linkAt(view.state, pos);
+    return pos == null ? null : linkAt(view.state, pos, resolve);
   };
 
   const handlers = EditorView.domEventHandlers({

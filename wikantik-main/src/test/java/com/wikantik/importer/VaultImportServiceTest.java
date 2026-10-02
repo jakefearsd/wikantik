@@ -396,4 +396,38 @@ class VaultImportServiceTest {
         assertFalse( meta.containsKey( "type" ) || meta.containsKey( "cluster" ), "body re-read as frontmatter: " + meta );
         assertTrue( saved.contains( "type: hub" ), "the body text itself is kept: " + saved );
     }
+
+    @Test
+    void oversizedAttachmentLeavesNoPartialVersionInTheStore() throws Exception {
+        final Map< String, byte[] > vault = new java.util.LinkedHashMap<>();
+        vault.put( "A.md", "see ![[img.png]]".getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+        final byte[] img = new byte[ 256 * 1024 ];
+        new java.util.Random( 3 ).nextBytes( img );
+        vault.put( "img.png", img );
+        final SpooledUpload up = TestVaults.upload( TestVaults.zip( vault ), "v.zip" );
+        final PlanResult real = service.plan( up, ImportOptions.parse( "none", null ) );
+        final PlannedAttachment a = real.attachmentsToImport().get( 0 );
+        final PlannedAttachment shrunk = new PlannedAttachment( a.vaultPath(), a.entryName(), a.owner(), a.fileName(),
+            100_000, a.status(), a.reason() );
+        final VaultImportJob job = service.newJob( "j12", "admin", "admin", up,
+            new PlanResult( real.plan(), real.drafts(), List.of( shrunk ) ), () -> true );
+        job.run();
+        final ItemResult r = result( job.view(), "A/img.png" );
+        assertEquals( ItemStatus.FAILED, r.status() );
+        assertTrue( r.reason().contains( "size differs from plan" ), r.reason() );
+        assertNull( am.getAttachmentInfo( "A/img.png" ), "a refused attachment must leave no (truncated) version" );
+        final java.nio.file.Path attDir = java.nio.file.Path.of( engine.getWikiProperties().getProperty(
+            com.wikantik.providers.BasicAttachmentProvider.PROP_STORAGEDIR ), "A-att", "img.png-dir" );
+        if ( Files.isDirectory( attDir ) ) {
+            try ( java.util.stream.Stream< java.nio.file.Path > versions = Files.list( attDir ) ) {
+                final List< String > names = versions.map( f -> f.getFileName().toString() ).toList();
+                assertTrue( names.stream().noneMatch( n -> n.matches( "\\d+\\..*" ) ),
+                    "no (truncated) version file may be written: " + names );
+            }
+        }
+        try ( java.util.stream.Stream< java.nio.file.Path > left = Files.list( up.file().getParent() ) ) {
+            assertTrue( left.noneMatch( f -> f.getFileName().toString().startsWith( "wikantik-import-att-" ) ),
+                "the staging temp file must be deleted" );
+        }
+    }
 }

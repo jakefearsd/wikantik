@@ -22,6 +22,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -215,14 +218,24 @@ public final class VaultImportJob implements Runnable {
         tick();
     }
 
+    /**
+     * Stages the whole (bounded) entry to a temp file first and calls the store only once the copy completed: a
+     * failure mid-copy (size differs from plan, ratio guard, corrupt data) must never leave a truncated version.
+     */
     private void storeAttachment( final PlannedEntryStream in, final PlannedAttachment a, final String name ) {
+        Path staged = null;
         try {
-            sink.storeAttachment( a.owner(), a.fileName(), in, author );
+            staged = PlannedEntryPass.stage( in, upload.file().getParent() );
+            try ( InputStream data = Files.newInputStream( staged ) ) {
+                sink.storeAttachment( a.owner(), a.fileName(), data, author );
+            }
             record( "attachment", name, a.vaultPath(), ItemStatus.CREATED, null, List.of() );
         } catch ( final Exception e ) {
             final String reason = in.violation() != null ? in.violation() : String.valueOf( e.getMessage() );
             LOG.warn( "Obsidian import {}: attachment {} failed: {}", id, name, reason, e );
             record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, reason, List.of() );
+        } finally {
+            PlannedEntryPass.discard( staged );
         }
     }
 

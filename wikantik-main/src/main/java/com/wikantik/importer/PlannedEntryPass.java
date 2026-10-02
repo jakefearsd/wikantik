@@ -19,6 +19,7 @@
 package com.wikantik.importer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +32,9 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /**
  * Reads the planned attachments of a spooled vault zip in ONE sequential {@link ZipInputStream} pass (UTF-8),
  * in stream order. The central directory is never consulted: it can disagree with the local headers the plan
@@ -38,6 +42,10 @@ import java.util.zip.ZipInputStream;
  * {@link PlannedEntryStream} bounded by its planned size and the zip-bomb ratio guard.
  */
 final class PlannedEntryPass {
+
+    private static final Logger LOG = LogManager.getLogger( PlannedEntryPass.class );
+    /** Starts with the spool prefix, so the startup sweep also removes staging files a crash left behind. */
+    private static final String STAGE_PREFIX = "wikantik-import-att-";
 
     /** Receives one planned attachment and its bounded entry stream. */
     @FunctionalInterface
@@ -77,5 +85,32 @@ final class PlannedEntryPass {
         final List< PlannedAttachment > missing = new ArrayList<>();
         pending.values().forEach( missing::addAll );
         return missing;
+    }
+
+    /**
+     * Copies the whole entry into a new temp file in {@code dir}. If the copy fails (the bounded stream refuses an
+     * oversized or bomb entry, or the data is corrupt) the partial file is deleted and the exception rethrown.
+     */
+    static Path stage( final PlannedEntryStream in, final Path dir ) throws IOException {
+        final Path staged = Files.createTempFile( dir, STAGE_PREFIX, ".part" );
+        try ( OutputStream out = Files.newOutputStream( staged ) ) {
+            in.transferTo( out );
+        } catch ( final IOException | RuntimeException e ) {
+            discard( staged );
+            throw e;
+        }
+        return staged;
+    }
+
+    /** Deletes a staged file; null is ignored, a failure is logged. */
+    static void discard( final Path staged ) {
+        if ( staged == null ) {
+            return;
+        }
+        try {
+            Files.deleteIfExists( staged );
+        } catch ( final IOException e ) {
+            LOG.warn( "Could not delete import staging file {}: {}", staged, e.getMessage(), e );
+        }
     }
 }

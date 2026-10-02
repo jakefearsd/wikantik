@@ -79,6 +79,9 @@ public final class CitationLinkRenderingFilter implements PageFilter {
         if ( htmlContent == null || !htmlContent.contains( "cite://" ) ) {
             return htmlContent;
         }
+        // The rewritten hrefs depend on the live structural index (a renamed or newly created target changes them)
+        // and are not covered by the render-cache eviction on save, so this render must not enter the HTML cache.
+        context.setVariable( Context.VAR_RENDER_UNCACHEABLE, Boolean.TRUE );
 
         final StringBuffer sb = new StringBuffer( htmlContent.length() );
         final Matcher m = CITE_HREF.matcher( htmlContent );

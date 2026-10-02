@@ -638,64 +638,34 @@ class DefaultRenderingManagerCITest {
         verify( cachingManager, times( 6 ) ).remove( anyString(), any() );
     }
 
-    // ========== HTML cache: getHTML(context, pagedata) stores in HTML cache ==========
+    // ========== HTML cache: getHTML(context, pagedata) never touches it ==========
+    // getHTML(Context, String) renders without the post-translate filters; only textToHTML may read or write the
+    // page-view HTML cache, or a page view could be served HTML the filters never saw.
 
     @Test
-    void getHTMLWithPagedataPopulatesHtmlCache() {
+    void getHTMLWithPagedataNeverWritesTheHtmlCache() {
         when( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ).thenReturn( false );
         when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( true );
-        when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( null );
 
-        final Context ctx = viewContext( "HtmlCachePage", 1 );
-        final String html = mgr.getHTML( ctx, "**bold**" );
+        final String html = mgr.getHTML( viewContext( "HtmlCachePage", 1 ), "**bold**" );
 
         assertNotNull( html );
-        verify( cachingManager ).put( eq( CachingManager.CACHE_HTML ), anyString(), any( DefaultRenderingManager.HtmlCacheEntry.class ) );
-    }
-
-    // ========== HTML cache: hit returns cached HTML directly ==========
-
-    @Test
-    void getHTMLWithPagedataReturnsCachedHtmlOnHit() {
-        when( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ).thenReturn( false );
-        when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( true );
-
-        final String pagedata = "cached data";
-        final String cachedHtml = "<p>cached data</p>\n";
-        final String hash = WikiDocument.hashPageData( pagedata );
-        final DefaultRenderingManager.HtmlCacheEntry entry =
-                new DefaultRenderingManager.HtmlCacheEntry( cachedHtml, hash );
-
-        when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( entry );
-
-        final Context ctx = viewContext( "HtmlHitPage", 1 );
-        final String result = mgr.getHTML( ctx, pagedata );
-
-        assertEquals( cachedHtml, result );
-        // Should NOT call put since it was a cache hit
         verify( cachingManager, never() ).put( eq( CachingManager.CACHE_HTML ), anyString(), any() );
     }
 
-    // ========== HTML cache: stale entry (hash mismatch) causes re-render ==========
-
     @Test
-    void getHTMLWithPagedataReRendersOnStaleCacheEntry() {
+    void getHTMLWithPagedataIgnoresAnHtmlCacheEntry() {
         when( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ).thenReturn( false );
         when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( true );
+        final String pagedata = "cached data";
+        final DefaultRenderingManager.HtmlCacheEntry entry =
+                new DefaultRenderingManager.HtmlCacheEntry( "<p>post-filtered elsewhere</p>", WikiDocument.hashPageData( pagedata ) );
+        when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( entry );
 
-        final String oldHash = WikiDocument.hashPageData( "old data" );
-        final DefaultRenderingManager.HtmlCacheEntry staleEntry =
-                new DefaultRenderingManager.HtmlCacheEntry( "<p>old</p>", oldHash );
+        final String result = mgr.getHTML( viewContext( "HtmlHitPage", 1 ), pagedata );
 
-        when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( staleEntry );
-
-        final Context ctx = viewContext( "StalePage", 1 );
-        final String result = mgr.getHTML( ctx, "new data" );
-
-        assertNotNull( result );
-        assertNotEquals( "<p>old</p>", result, "Should re-render instead of returning stale HTML" );
-        // Should store new entry
-        verify( cachingManager ).put( eq( CachingManager.CACHE_HTML ), anyString(), any( DefaultRenderingManager.HtmlCacheEntry.class ) );
+        assertNotEquals( "<p>post-filtered elsewhere</p>", result, "renders the data instead of serving the cache" );
+        verify( cachingManager, never() ).get( eq( CachingManager.CACHE_HTML ), anyString(), any() );
     }
 
     // ========== textToHTML: HTML cache hit skips all rendering ==========

@@ -329,31 +329,15 @@ public class DefaultRenderingManager implements RenderingManager {
                context.getVariable( Context.VAR_EXECUTE_PLUGINS );
     }
 
+    /**
+     *  Renders WITHOUT the post-translate filters, so its output must never be cached as a page view's final HTML:
+     *  only {@link #textToHTML(Context, String)} reads and writes {@link CachingManager#CACHE_HTML}. (This override
+     *  used to share that key, letting a page view be served HTML the post-translate filters never saw.)
+     */
     @Override
     public String getHTML( final Context context, final String pagedata ) {
-        // Check HTML cache before doing parse+render
-        if( useHtmlCache( context ) ) {
-            final String cacheId = htmlCacheId( context );
-            final HtmlCacheEntry cached = cachingManager.get( CachingManager.CACHE_HTML, cacheId, () -> null );
-            if( cached != null ) {
-                final String currentHash = WikiDocument.hashPageData( pagedata );
-                if( cached.contentHash().equals( currentHash ) ) {
-                    LOG.debug( "HTML cache hit (getHTML) for {}", cacheId );
-                    return cached.html();
-                }
-            }
-        }
-
         try {
-            final WikiDocument doc = getRenderedDocument( context, pagedata );
-            final String html = getHTML( context, doc );
-
-            if( useHtmlCache( context ) && !isViewerSensitive( context ) ) {
-                final String cacheId = htmlCacheId( context );
-                final String contentHash = WikiDocument.hashPageData( pagedata );
-                cachingManager.put( CachingManager.CACHE_HTML, cacheId, new HtmlCacheEntry( html, contentHash ) );
-            }
-            return html;
+            return getHTML( context, getRenderedDocument( context, pagedata ) );
         } catch( final IOException e ) {
             LOG.error( "Unable to parse", e );
         }

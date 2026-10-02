@@ -92,6 +92,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
                         .withCache( CACHE_ATTACHMENTS_COLLECTION, getDefaultCacheConfig() )
                         .withCache( CACHE_ATTACHMENTS_DYNAMIC, getDefaultCacheConfig() )
                         .withCache( CACHE_DOCUMENTS, getDefaultCacheConfig() )
+                        .withCache( CACHE_HTML, getDefaultCacheConfig() )
                         .withCache( CACHE_PAGES, getDefaultCacheConfig() )
                         .withCache( CACHE_PAGES_HISTORY, getDefaultCacheConfig() )
                         .withCache( CACHE_PAGES_TEXT, getDefaultCacheConfig() )
@@ -102,6 +103,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
             registerCache( CACHE_ATTACHMENTS_COLLECTION );
             registerCache( CACHE_ATTACHMENTS_DYNAMIC );
             registerCache( CACHE_DOCUMENTS );
+            registerCache( CACHE_HTML );
             registerCache( CACHE_PAGES );
             registerCache( CACHE_PAGES_HISTORY );
             registerCache( CACHE_PAGES_TEXT );

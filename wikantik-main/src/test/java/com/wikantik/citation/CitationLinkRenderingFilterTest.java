@@ -64,4 +64,27 @@ class CitationLinkRenderingFilterTest {
         final String out = f.postTranslate( mock( Context.class ), "<a href=\"cite://gone\">c</a>" );
         assertTrue( out.contains( "wiki-citation-missing" ) );
     }
+
+    /**
+     * cite:// targets are resolved against the live structural index on every render (a renamed or newly created
+     * target changes the href), and that resolution is not covered by the render-cache eviction on save. A rewritten
+     * render must therefore keep out of the principal-less HTML cache.
+     */
+    @Test
+    void aRenderWithCitationsIsFlaggedUncacheable() throws Exception {
+        final StructuralIndexService idx = mock( StructuralIndexService.class );
+        when( idx.resolveSlugFromCanonicalId( "abc123" ) ).thenReturn( Optional.of( "Deploy" ) );
+        final CitationLinkRenderingFilter f = new CitationLinkRenderingFilter( idx );
+        final Context ctx = mock( Context.class );
+        f.postTranslate( ctx, "<p><a href=\"cite://abc123\">claim</a></p>" );
+        verify( ctx ).setVariable( Context.VAR_RENDER_UNCACHEABLE, Boolean.TRUE );
+    }
+
+    @Test
+    void aRenderWithoutCitationsStaysCacheable() throws Exception {
+        final CitationLinkRenderingFilter f = new CitationLinkRenderingFilter( mock( StructuralIndexService.class ) );
+        final Context ctx = mock( Context.class );
+        f.postTranslate( ctx, "<p><a href=\"/wiki/Deploy\">plain</a></p>" );
+        verify( ctx, never() ).setVariable( eq( Context.VAR_RENDER_UNCACHEABLE ), any() );
+    }
 }

@@ -51,10 +51,11 @@ public class EhcacheCachingManagerTest {
         props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "ehcache-wikantik-test.xml" );
         EhcacheCachingManager testEcm = new EhcacheCachingManager();
         testEcm.initialize( null, props );
-        Assertions.assertEquals( 8, testEcm.cacheMap.size() );
+        Assertions.assertEquals( 9, testEcm.cacheMap.size() );
+        Assertions.assertTrue( testEcm.enabled( CachingManager.CACHE_HTML ), "the final-HTML cache is registered" );
 
         testEcm.registerCache( "anotherCache" );
-        Assertions.assertEquals( 9, testEcm.cacheMap.size() );
+        Assertions.assertEquals( 10, testEcm.cacheMap.size() );
 
         testEcm.shutdown();
         testEcm.shutdown(); // does nothing if already shutdown
@@ -97,8 +98,9 @@ public class EhcacheCachingManagerTest {
         final EhcacheCachingManager testEcm = new EhcacheCachingManager();
         try {
             testEcm.initialize( null, props );
-            Assertions.assertEquals( 8, testEcm.cacheMap.size() );
+            Assertions.assertEquals( 9, testEcm.cacheMap.size() );
             Assertions.assertTrue( testEcm.enabled( CachingManager.CACHE_PAGES ) );
+            Assertions.assertTrue( testEcm.enabled( CachingManager.CACHE_HTML ) );
         } finally {
             testEcm.shutdown();
         }

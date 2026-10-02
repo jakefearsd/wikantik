@@ -21,7 +21,6 @@ package com.wikantik.importer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -74,14 +73,18 @@ public final class VaultArchiveReader {
 
     private List< String > readNames( final Path zip ) throws IOException, VaultArchiveException, ImportLimitException {
         final List< String > names = new ArrayList<>();
-        try ( ZipInputStream zin = new ZipInputStream( new BufferedInputStream( Files.newInputStream( zip ) ),
-                                                       StandardCharsets.UTF_8 ) ) {
+        final byte[] buf = new byte[ 8192 ];
+        long total = 0;
+        try ( CountingInputStream raw = new CountingInputStream( Files.newInputStream( zip ) );
+              ZipInputStream zin = new ZipInputStream( raw, StandardCharsets.UTF_8 ) ) {
             ZipEntry entry = zin.getNextEntry();
             while ( entry != null ) {
                 names.add( entry.getName() );
                 if ( names.size() > limits.maxEntries() ) {
                     throw new ImportLimitException( ImportLimits.PROP_MAX_ENTRIES, limits.maxEntries(), "zip entry count" );
                 }
+                // Drain under the same caps as pass 2 so a bomb is stopped before it is fully inflated.
+                total += drain( zin, raw, entry.getName(), false, total, buf ).size();
                 entry = zin.getNextEntry();
             }
         } catch ( final IllegalArgumentException e ) {

@@ -121,6 +121,25 @@ class VaultArchiveReaderTest {
     }
 
     @Test
+    void passOneStopsEarlyOnLimit() {
+        // A truncated bomb: reading it to the end would raise EOFException, so only an early stop
+        // (during the names pass) can yield the limit exception.
+        final byte[] full = TestVaults.zip( Map.of( "big.bin", new byte[ 10 * 1024 * 1024 ] ) );
+        final byte[] cut = java.util.Arrays.copyOf( full, full.length / 2 );
+        final ImportLimits tiny = new ImportLimits( 1_000_000, 1000, 100, 100, 1, 262144 );
+        final ImportLimitException e = assertThrows( ImportLimitException.class, () -> read( cut, tiny ) );
+        assertEquals( ImportLimits.PROP_MAX_UNCOMPRESSED_BYTES, e.limitKey() );
+    }
+
+    @Test
+    void passOneStopsEarlyOnRatio() {
+        final byte[] full = TestVaults.zip( Map.of( "big.bin", new byte[ 10 * 1024 * 1024 ] ) );
+        final byte[] cut = java.util.Arrays.copyOf( full, full.length / 2 );
+        final VaultArchiveException e = assertThrows( VaultArchiveException.class, () -> read( cut ) );
+        assertTrue( e.getMessage().contains( "100:1" ), e.getMessage() );
+    }
+
+    @Test
     void entryCapIs413Limit() {
         final ImportLimits two = new ImportLimits( 1_000_000, 1_000_000, 2, 100, 1, 262144 );
         final byte[] zip = TestVaults.zipText( ordered( "A.md", "a", "B.md", "b", "C.md", "c" ) );

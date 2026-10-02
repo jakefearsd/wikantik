@@ -24,6 +24,8 @@ import com.google.gson.JsonParser;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.permissions.WikiPermission;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
@@ -266,6 +268,12 @@ public class AuthResource extends RestServletBase {
                 .map( Principal::getName )
                 .toList();
         result.put( "roles", roles );
+
+        // Silent check (isPermitted, never checkPermission) so polling this endpoint writes no
+        // access.denied audit rows; drives the SPA's "Import from Obsidian" menu item.
+        result.put( "canCreatePages", session.isAuthenticated()
+                && AuthSubsystemBridge.fromLegacyEngine( engine ).authorization()
+                        .isPermitted( session, WikiPermission.CREATE_PAGES ) );
 
         // Tell the SPA whether SSO is available and where to start it, so the
         // login UI can render a "Continue with <provider>" button (which is

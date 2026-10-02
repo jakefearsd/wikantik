@@ -93,6 +93,24 @@ class AuthResourceTest {
     }
 
     @Test
+    void testGetUserAnonymousCannotCreatePages() throws Exception {
+        final JsonObject obj = gson.fromJson( doGetUser(), JsonObject.class );
+        assertTrue( obj.has( "canCreatePages" ) );
+        assertFalse( obj.get( "canCreatePages" ).getAsBoolean() );
+    }
+
+    @Test
+    void testGetUserAdminCanCreatePages() throws Exception {
+        final HttpServletRequest login = HttpMockFactory.createHttpRequest();
+        final Session session = com.wikantik.WikiSession.getWikiSession( engine, login );
+        engine.getManager( com.wikantik.auth.AuthenticationManager.class )
+              .login( session, login, com.wikantik.auth.Users.ADMIN, com.wikantik.auth.Users.ADMIN_PASS );
+        final JsonObject obj = gson.fromJson( doGetUser(), JsonObject.class );
+        assertTrue( obj.get( "authenticated" ).getAsBoolean() );
+        assertTrue( obj.get( "canCreatePages" ).getAsBoolean() );
+    }
+
+    @Test
     void testGetUserHasLoginPrincipal() throws Exception {
         final String json = doGetUser();
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -643,6 +661,8 @@ class AuthResourceTest {
         Mockito.when( s.getUserPrincipal() ).thenReturn( p );
         Mockito.when( s.getLoginPrincipal() ).thenReturn( p );
         Mockito.when( s.getRoles() ).thenReturn( new Principal[]{ p } );
+        // handleGetUser's canCreatePages check consults the real authorizer, which reads principals.
+        Mockito.when( s.getPrincipals() ).thenReturn( new Principal[ 0 ] );
         return s;
     }
 

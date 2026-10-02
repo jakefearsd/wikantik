@@ -616,6 +616,14 @@
        </multipart-config>
    </servlet>
    <servlet>
+       <servlet-name>ObsidianImportResource</servlet-name>
+       <servlet-class>com.wikantik.rest.ObsidianImportResource</servlet-class>
+       <multipart-config>
+           <max-file-size>209715200</max-file-size>
+           <max-request-size>209715200</max-request-size>
+       </multipart-config>
+   </servlet>
+   <servlet>
        <servlet-name>DiffResource</servlet-name>
        <servlet-class>com.wikantik.rest.DiffResource</servlet-class>
    </servlet>
@@ -949,6 +957,10 @@
    <servlet-mapping>
        <servlet-name>DerivedIngestResource</servlet-name>
        <url-pattern>/api/ingest</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ObsidianImportResource</servlet-name>
+       <url-pattern>/api/import/obsidian/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>DiffResource</servlet-name>

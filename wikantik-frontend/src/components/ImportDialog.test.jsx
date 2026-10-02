@@ -93,6 +93,25 @@ describe('ImportDialog', () => {
     expect(screen.getByText('Alpha')).toBeInTheDocument();
   });
 
+  it('filters and labels generated-hub rows that have no vault path', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const pages = [...PLAN.pages,
+      { name: 'Notes Hub', status: 'NEW', warnings: [] },
+      { name: 'Deep Hub', status: 'NEW', warnings: [] }];
+    api.importVault.plan.mockResolvedValue({ ...PLAN, pages });
+    open();
+    await pick(FILE());
+    await screen.findByTestId('import-pages');
+    fireEvent.change(screen.getByTestId('import-filter'), { target: { value: 'notes' } });
+    expect(screen.getByText('Notes Hub')).toBeInTheDocument();
+    expect(screen.queryByText('Deep Hub')).toBeNull();
+    expect(screen.queryByText('Alpha')).toBeNull();
+    fireEvent.change(screen.getByTestId('import-filter'), { target: { value: '' } });
+    expect(screen.getAllByText('(generated hub)')).toHaveLength(2);
+    expect(errors.mock.calls.filter((c) => String(c[0]).includes('key'))).toEqual([]);
+    errors.mockRestore();
+  });
+
   it('caps rows at 200 with a more indicator', async () => {
     const pages = Array.from({ length: 500 }, (_, i) => ({ vaultPath: `n${i}.md`, name: `N${i}`, status: 'NEW', warnings: [] }));
     api.importVault.plan.mockResolvedValue({ ...PLAN, pages });

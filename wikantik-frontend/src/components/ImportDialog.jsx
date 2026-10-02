@@ -46,7 +46,8 @@ function PlanTable({ pages }) {
   const matches = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return pages;
-    return pages.filter((p) => p.vaultPath.toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
+    // Generated hubs have no vault path (the server omits the null field).
+    return pages.filter((p) => (p.vaultPath || '').toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
   }, [pages, filter]);
   const shown = matches.slice(0, ROW_CAP);
   return (
@@ -68,8 +69,8 @@ function PlanTable({ pages }) {
           </thead>
           <tbody>
             {shown.map((p) => (
-              <tr key={p.vaultPath}>
-                <td>{p.vaultPath}</td>
+              <tr key={p.vaultPath ?? `gen-${p.name}`}>
+                <td>{p.vaultPath ?? <em>(generated hub)</em>}</td>
                 <td>{p.name}</td>
                 <td className={statusInfo(p.status)[1] || undefined}>{statusInfo(p.status)[0]}</td>
                 <td>{p.reason || (p.warnings || []).join('; ')}</td>

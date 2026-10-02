@@ -78,6 +78,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Content Intelligence](#content-intelligence)
 - [Connectors](#connectors)
 - [Export](#export)
+- [Import](#import)
 
 ## General
 
@@ -910,6 +911,22 @@ Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.export.maxPages`** — Maximum number of pages a single Obsidian export (GET /api/export) may contain. A selection that resolves to more pages is refused with HTTP 413 and the real count, never silently truncated.
 - **`wikantik.export.maxConcurrent`** — Maximum number of Obsidian export zip downloads (GET /api/export) that may run at the same time across the whole wiki. A download arriving while this many are already streaming is refused with HTTP 429 rather than queued. The size preview (GET /api/export/preview) is not limited by this setting.
+
+## Import
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.import.maxUploadBytes` | `int` | `104857600` | `wikantik_import_maxUploadBytes` | Maximum size, in bytes, of an uploaded Obsidian vault zip (POST /api/import/obsidian/plan and /apply). … |
+| `wikantik.import.maxUncompressedBytes` | `int` | `524288000` | `wikantik_import_maxUncompressedBytes` | Maximum total uncompressed size, in bytes, of all entries in an imported vault zip, counted while streaming (header sizes are never trusted). … |
+| `wikantik.import.maxEntries` | `int` | `20000` | `wikantik_import_maxEntries` | Maximum number of entries (files and folders) in an imported vault zip. HTTP 413 above it. |
+| `wikantik.import.maxPages` | `int` | `2000` | `wikantik_import_maxPages` | Maximum number of Markdown notes a single vault import may contain. HTTP 413 above it. |
+| `wikantik.import.maxConcurrent` | `int` | `1` | `wikantik_import_maxConcurrent` | Maximum number of vault import jobs that may run at the same time across the wiki. … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.import.maxUploadBytes`** — Maximum size, in bytes, of an uploaded Obsidian vault zip (POST /api/import/obsidian/plan and /apply). Larger uploads are refused with HTTP 413 naming this key.
+- **`wikantik.import.maxUncompressedBytes`** — Maximum total uncompressed size, in bytes, of all entries in an imported vault zip, counted while streaming (header sizes are never trusted). Exceeding it is HTTP 413.
+- **`wikantik.import.maxConcurrent`** — Maximum number of vault import jobs that may run at the same time across the wiki. An apply arriving while this many jobs are running is refused with HTTP 429.
 
 The following settings come from `wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties` (bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`).
 

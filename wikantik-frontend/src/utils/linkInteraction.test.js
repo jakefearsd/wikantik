@@ -45,3 +45,37 @@ describe('mod-held class', () => {
     parent.remove();
   });
 });
+
+describe('linkAt on native wikilinks', () => {
+  it('finds [[ ]] and ![[ ]] with the same relative url scheme', () => {
+    expect(at('see [[Index Funds Hub|hub]] now', 8)).toEqual({ url: 'Index%20Funds%20Hub', from: 4, to: 27 });
+    expect(at('x ![[Page#Set Up]] y', 6).url).toBe('Page#set-up');
+    expect(at('go [[#Setup]]', 6).url).toBe('#setup');
+  });
+  it('ignores wikilinks inside inline code and prose with a leading space', () => {
+    expect(at('`[[Page]]` x', 4)).toBeNull();
+    expect(at('if [[ -f x ]]; then', 6)).toBeNull();
+  });
+  it('ignores wikilinks inside fenced code', () => {
+    expect(at('```\n[[Page]]\n```', 6)).toBeNull();
+  });
+  it('maps wikilink urls into the app', () => {
+    expect(hrefFor('Index%20Funds%20Hub')).toBe('/wiki/Index%20Funds%20Hub');
+  });
+});
+
+describe('linkRanges marks wikilinks', () => {
+  it('marks wikilinks outside code only, alongside markdown links', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const doc = '[[A]] and [b](B) and `[[C]]`';
+    const view = new EditorView({ parent, doc, extensions: [markdown(), linkInteraction({ onHover: () => {} })] });
+    ensureSyntaxTree(view.state, doc.length, 5000);
+    view.dispatch({ changes: { from: doc.length, insert: ' ' } });
+    const marked = [...view.dom.querySelectorAll('.cm-link-range')].map((e) => e.textContent);
+    expect(marked).toContain('[[A]]');
+    expect(marked).not.toContain('[[C]]');
+    view.destroy();
+    parent.remove();
+  });
+});

@@ -35,13 +35,13 @@ describe('createWikiLinkSource', () => {
     expect(await createWikiLinkSource(deps())(ctx('plain text'))).toBeNull();
   });
 
-  it('[[ searches pages live and inserts [Name](Name), unfiltered by CodeMirror', async () => {
+  it('[[ searches pages live and inserts [[Name]], unfiltered by CodeMirror', async () => {
     const d = deps();
     const res = await createWikiLinkSource(d)(ctx('see [[machine'));
     expect(d.searchPages).toHaveBeenCalledWith('machine');
     expect(res.from).toBe(4);
     expect(res.filter).toBe(false);
-    expect(res.options[0]).toMatchObject({ label: 'MachineLearning', apply: '[MachineLearning](MachineLearning)' });
+    expect(res.options[0]).toMatchObject({ label: 'MachineLearning', apply: '[[MachineLearning]]' });
   });
 
   it('[[ replaces the auto-closed ]] that follows the cursor (to = pos + 2)', async () => {
@@ -69,7 +69,7 @@ describe('createWikiLinkSource', () => {
     const res = await createWikiLinkSource(deps())(ctx('[[retirement planning'));
     const last = res.options[res.options.length - 1];
     expect(last.label).toBe('Link to new page: RetirementPlanning');
-    expect(last.apply).toBe('[retirement planning](RetirementPlanning)');
+    expect(last.apply).toBe('[[retirement planning]]');
   });
 
   it('no new-page item when a result matches exactly (case-insensitive)', async () => {
@@ -82,7 +82,7 @@ describe('createWikiLinkSource', () => {
     const res = await createWikiLinkSource(d)(ctx('[[MachineLearning#inst'));
     expect(d.getHeadings).toHaveBeenCalledWith('MachineLearning');
     expect(res.options).toHaveLength(1);
-    expect(res.options[0]).toMatchObject({ label: 'Install Steps', apply: '[Install Steps](MachineLearning#install-steps)' });
+    expect(res.options[0]).toMatchObject({ label: 'Install Steps', apply: '[[MachineLearning#Install Steps]]' });
   });
 
   it('](target completes pages and attachments, replacing only the target', async () => {
@@ -148,9 +148,21 @@ describe('createWikiLinkSource', () => {
     expect(res.options.map((o) => o.label)).toEqual(['MachineLearning']);
   });
 
-  it('M8: escapes brackets and backslashes in heading link text', async () => {
+  it('M8: strips brackets, pipes and backslashes from heading text', async () => {
     const getHeadings = vi.fn(async () => [{ level: 2, text: 'Arrays [and] a\\b', line: 1, id: 'arrays-and-a-b' }]);
     const res = await createWikiLinkSource(deps({ getHeadings }))(ctx('[[Page#arr'));
-    expect(res.options[0].apply).toBe('[Arrays \\[and\\] a\\\\b](Page#arrays-and-a-b)');
+    expect(res.options[0].apply).toBe('[[Page#Arrays and ab]]');
+  });
+
+  it('[[# completes headings of the page being edited as [[#Heading]]', async () => {
+    const d = deps({ getHeadings: vi.fn(async () => [{ text: 'Setup', id: 'setup' }]) });
+    const res = await createWikiLinkSource(d)(ctx('[[#se'));
+    expect(res.options[0].apply).toBe('[[#Setup]]');
+  });
+
+  it('keeps the ! of an embed outside the replaced range', async () => {
+    const res = await createWikiLinkSource(deps())(ctx('![[Mach'));
+    expect(res.from).toBe(1);
+    expect(res.options[0].apply).toBe('[[MachineLearning]]');
   });
 });

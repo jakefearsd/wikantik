@@ -1,6 +1,6 @@
 // CodeMirror 6 completion source for internal links. Triggers:
-//   [[frag           → live page search (spaces ignored: page names are CamelCase); inserts [Name](Name)
-//   [[Page#frag      → the target page's h2/h3 headings; inserts [Heading](Page#anchor)
+//   [[frag           → live page search (spaces ignored: page names are CamelCase); inserts native [[Name]]
+//   [[Page#frag      → the target page's h2/h3 headings; inserts [[Page#Heading]] ([[#Heading]] on this page)
 //   ](frag           → pages + this page's attachments; replaces only the link target
 //   ](Page#frag      → headings of Page; ](#frag → headings of the page being edited
 // Anchors come from headingsFromMarkdown (the page view's ids). Results are ranked server-side, so
@@ -26,6 +26,9 @@ async function safely(label, promiseFn) {
 
 // Brackets and backslashes in link text would end or corrupt the link.
 export const escapeLinkText = (text) => text.replace(/[\\[\]]/g, '\\$&');
+
+// Heading text goes inside [[ ]], where brackets, pipes and backslashes would end or split the link.
+const wikiHeadingText = (text) => text.replace(/[\\[\]|]/g, '');
 
 function newPageOption(fragment, names, applyFor) {
   const text = (fragment || '').trim();
@@ -76,13 +79,13 @@ export function createWikiLinkSource({ searchPages, getHeadings, getAttachmentNa
     const to = autoClosedBrackets(context);
     const [, page, heading] = WIKI_TRIGGER.exec(match.text);
     if (heading !== undefined) {
-      const options = await headingOptions(page, heading, (h) => `[${escapeLinkText(h.text)}](${page}#${h.id})`);
+      const options = await headingOptions(page, heading, (h) => `[[${page}#${wikiHeadingText(h.text)}]]`);
       return context.aborted ? null : result(match.from, options, to);
     }
     const names = await pageNames(page, context);
     if (!names) return null;
-    const options = names.slice(0, MAX_OPTIONS).map((name) => ({ label: name, type: 'wikilink', apply: `[${name}](${name})` }));
-    const created = newPageOption(page, names, (slug, text) => `[${text}](${slug})`);
+    const options = names.slice(0, MAX_OPTIONS).map((name) => ({ label: name, type: 'wikilink', apply: `[[${name}]]` }));
+    const created = newPageOption(page, names, (slug, text) => `[[${text}]]`);
     return result(match.from, created ? [...options, created] : options, to);
   }
 

@@ -39,13 +39,31 @@ public final class VaultClusterPlanner {
 
     /** The plan: cluster per note path, folder notes promoted to hubs, generated hubs, clusters in order. */
     public record Result( Map< String, String > clusterByPath, Set< String > hubNotePaths,
-                          List< GeneratedHub > generated, List< PlannedCluster > clusters ) {}
+                          List< GeneratedHub > generated, List< PlannedCluster > clusters ) {
+        /** Defensive, unmodifiable, order-preserving copies. */
+        public Result {
+            clusterByPath = java.util.Collections.unmodifiableMap( new LinkedHashMap<>( clusterByPath ) );
+            hubNotePaths = java.util.Collections.unmodifiableSet( new LinkedHashSet<>( hubNotePaths ) );
+            generated = List.copyOf( generated );
+            clusters = List.copyOf( clusters );
+        }
+    }
 
     /** A folder segment with its slug and the original folder path ending at it. */
     private record Seg( String name, String slug, String folderPath ) {}
 
-    /** Display name and original folder path of a cluster, from the first note that needed it. */
-    private record Origin( String display, String folderPath ) {}
+    /** Display name of a cluster (from the first folder that needed it) and every folder path that folds into it. */
+    private record Origin( String display, List< String > folderPaths ) {
+        String folderPath() {
+            return folderPaths.get( 0 );
+        }
+
+        void add( final String folderPath ) {
+            if ( !folderPaths.contains( folderPath ) ) {
+                folderPaths.add( folderPath );
+            }
+        }
+    }
 
     public Result plan( final List< NoteRef > notes, final ImportOptions options,
                         final WikiSnapshot snapshot, final VaultNoteNamer namer ) {
@@ -94,15 +112,19 @@ public final class VaultClusterPlanner {
                 continue;
             }
             final Seg s0 = segs.get( 0 );
-            origins.putIfAbsent( s0.slug(), new Origin( s0.name(), s0.folderPath() ) );
+            origin( origins, s0.slug(), s0 );
             String cluster = s0.slug();
             if ( segs.size() > 1 ) {
                 final Seg s1 = segs.get( 1 );
                 cluster = s0.slug() + "/" + s1.slug();
-                origins.putIfAbsent( cluster, new Origin( s1.name(), s1.folderPath() ) );
+                origin( origins, cluster, s1 );
             }
             byPath.put( note.path(), cluster );
         }
+    }
+
+    private static void origin( final Map< String, Origin > origins, final String cluster, final Seg seg ) {
+        origins.computeIfAbsent( cluster, c -> new Origin( seg.name(), new ArrayList<>() ) ).add( seg.folderPath() );
     }
 
     private static List< Seg > segments( final String folder ) {
@@ -134,11 +156,13 @@ public final class VaultClusterPlanner {
         if ( declared.isPresent() ) {
             return new PlannedCluster( cluster, ClusterAction.JOIN, declared.get(), origin.folderPath() );
         }
-        final Optional< NoteRef > folderNote = findFolderNote( origin.folderPath(), notes );
+        final Optional< NoteRef > folderNote = origin.folderPaths().stream()
+            .map( f -> findFolderNote( f, notes ) ).flatMap( Optional::stream ).findFirst();
         if ( folderNote.isPresent() ) {
             hubNotes.add( folderNote.get().path() );
             byPath.put( folderNote.get().path(), cluster );
-            return new PlannedCluster( cluster, ClusterAction.CREATE, folderNote.get().name(), origin.folderPath() );
+            return new PlannedCluster( cluster, ClusterAction.CREATE, folderNote.get().name(),
+                VaultPaths.parentFolder( folderNote.get().path() ) );
         }
         final String name = namer.allocateGenerated( origin.display() + " Hub" );
         generated.add( new GeneratedHub( name, cluster, origin.display() ) );

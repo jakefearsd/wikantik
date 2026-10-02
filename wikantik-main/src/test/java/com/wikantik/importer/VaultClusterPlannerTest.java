@@ -143,4 +143,52 @@ class VaultClusterPlannerTest {
         final Result r = folders( List.of( new NoteRef( "Notes/a.md", "a", true ) ), snap );
         assertEquals( "Notes Hub 2", r.clusters().get( 0 ).hubPage() );
     }
+
+    @Test
+    void folderNoteAtFoldedDepthThreeIsFoundAtSecondSegment() {
+        final Result r = folders( List.of(
+            new NoteRef( "a/b/c/d/x.md", "x", true ),
+            new NoteRef( "a/b/b.md", "b", true ),
+            new NoteRef( "a/a.md", "a", true ) ), FakeWikiSnapshot.EMPTY );
+        assertEquals( Set.of( "a/a.md", "a/b/b.md" ), r.hubNotePaths() );
+        assertEquals( "a/b", r.clusterByPath().get( "a/b/c/d/x.md" ) );
+        assertTrue( r.generated().isEmpty() );
+    }
+
+    @Test
+    void caseDifferingFolderNoteIsPromoted() {
+        final Result r = folders( List.of(
+            new NoteRef( "Projects/projects.md", "projects", true ),
+            new NoteRef( "Projects/Alpha.md", "Alpha", true ) ), FakeWikiSnapshot.EMPTY );
+        assertEquals( Set.of( "Projects/projects.md" ), r.hubNotePaths() );
+        assertTrue( r.generated().isEmpty() );
+    }
+
+    @Test
+    void mergedFoldersTryEachContributingFolderNote() {
+        final Result later = folders( List.of(
+            new NoteRef( "My Notes/a.md", "a", true ),
+            new NoteRef( "my-notes/my-notes.md", "my-notes", true ) ), FakeWikiSnapshot.EMPTY );
+        assertEquals( Set.of( "my-notes/my-notes.md" ), later.hubNotePaths() );
+        assertTrue( later.generated().isEmpty() );
+        final Result first = folders( List.of(
+            new NoteRef( "My Notes/My Notes.md", "My Notes", true ),
+            new NoteRef( "my-notes/b.md", "b", true ) ), FakeWikiSnapshot.EMPTY );
+        assertEquals( Set.of( "My Notes/My Notes.md" ), first.hubNotePaths() );
+        assertTrue( first.generated().isEmpty() );
+    }
+
+    @Test
+    void resultViewsAreUnmodifiableAndKeepOrder() {
+        final Result r = folders( List.of(
+            new NoteRef( "Zed/Zed.md", "Zed", true ),
+            new NoteRef( "Alpha/a.md", "a", true ),
+            new NoteRef( "Mid/m.md", "m", true ) ), FakeWikiSnapshot.EMPTY );
+        assertEquals( List.of( "alpha", "mid", "zed" ), r.clusters().stream().map( PlannedCluster::cluster ).toList() );
+        assertEquals( List.of( "Alpha/a.md", "Mid/m.md", "Zed/Zed.md" ), List.copyOf( r.clusterByPath().keySet() ) );
+        assertThrows( UnsupportedOperationException.class, () -> r.clusterByPath().put( "x", "y" ) );
+        assertThrows( UnsupportedOperationException.class, () -> r.hubNotePaths().add( "x" ) );
+        assertThrows( UnsupportedOperationException.class, () -> r.generated().clear() );
+        assertThrows( UnsupportedOperationException.class, () -> r.clusters().clear() );
+    }
 }

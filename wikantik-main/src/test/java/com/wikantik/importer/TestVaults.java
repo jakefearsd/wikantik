@@ -108,4 +108,30 @@ public final class TestVaults {
             return SpooledUpload.spool( in, name, Long.MAX_VALUE );
         }
     }
+
+    private static final String FIXTURE_ROOT = "/com/wikantik/importer/fixture-vault/";
+    private static final byte[] PNG = { ( byte ) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+    /** Explicit list (not a directory walk) so it also works when the fixture is read from the test-jar. */
+    private static final java.util.List< String > FIXTURE_FILES = java.util.List.of(
+        ".obsidian/app.json", "Wikantik Export.md", "Welcome.md", "Main.md", "Projects/Projects.md",
+        "Projects/Alpha.md", "Projects/Beta v2!.md", "Projects/Deep/Deeper/Gamma.md",
+        "Projects/assets/evil.svg", "Notes/Daily.md", "Notes/Code.md" );
+
+    /** The shared fixture vault (path to bytes), plus two PNGs added in code so no binary is committed. */
+    public static Map< String, byte[] > fixture() {
+        final Map< String, byte[] > vault = new LinkedHashMap<>();
+        for ( final String path : FIXTURE_FILES ) {
+            try ( InputStream in = TestVaults.class.getResourceAsStream( FIXTURE_ROOT + path ) ) {
+                if ( in == null ) {
+                    throw new IllegalStateException( "missing fixture resource " + path );
+                }
+                vault.put( path, in.readAllBytes() );
+            } catch ( final IOException e ) {
+                throw new UncheckedIOException( e );
+            }
+        }
+        vault.put( "Projects/assets/diagram.png", PNG.clone() );
+        vault.put( "Projects/assets/unused.png", PNG.clone() );
+        return vault;
+    }
 }

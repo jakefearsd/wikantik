@@ -56,7 +56,10 @@ public final class VaultImportJob implements Runnable {
     private final String owner;
     private final String author;
     private final SpooledUpload upload;
-    private final PlanResult plan;
+    /** Released (nulled) when the job finishes, so a retained job does not pin every draft body. */
+    private PlanResult plan;
+    private final List< String > hubDrafts;
+    private final int unreferencedFiles;
     private final ImportPageSink sink;
     private final BooleanSupplier permitted;
     private final Instant createdAt = Instant.now();
@@ -80,6 +83,8 @@ public final class VaultImportJob implements Runnable {
         this.sink = sink;
         this.permitted = permitted;
         this.total = plan.drafts().size() + plan.attachmentsToImport().size();
+        this.hubDrafts = plan.drafts().stream().filter( PageDraft::hub ).map( PageDraft::name ).toList();
+        this.unreferencedFiles = plan.plan().totals().attachmentsSkipped();
     }
 
     public String id() {
@@ -141,6 +146,11 @@ public final class VaultImportJob implements Runnable {
     /** Lets the registry stamp {@code finishedAt} from its own clock. */
     synchronized void useClock( final Clock c ) {
         this.clock = c;
+    }
+
+    /** True until the job finishes; afterwards the plan (with every draft body) is released. */
+    synchronized boolean retainsPlan() {
+        return plan != null;
     }
 
     /** Deletes the spooled zip. Idempotent. */
@@ -343,6 +353,7 @@ public final class VaultImportJob implements Runnable {
         message = msg;
         current = null;
         finishedAt = clock.instant();
+        plan = null;
     }
 
     private long count( final String kind, final ItemStatus status ) {
@@ -356,12 +367,11 @@ public final class VaultImportJob implements Runnable {
         s.put( "pagesFailed", count( "page", ItemStatus.FAILED ) );
         s.put( "attachmentsCreated", count( "attachment", ItemStatus.CREATED ) );
         s.put( "attachmentsFailed", count( "attachment", ItemStatus.FAILED ) );
-        s.put( "unreferencedFiles", plan.plan().totals().attachmentsSkipped() );
+        s.put( "unreferencedFiles", unreferencedFiles );
         final Set< String > created = new HashSet<>();
         results.stream().filter( r -> r.kind().equals( "page" ) && r.status() == ItemStatus.CREATED )
             .forEach( r -> created.add( r.name() ) );
-        s.put( "hubs", plan.drafts().stream().filter( d -> d.hub() && created.contains( d.name() ) )
-            .map( PageDraft::name ).toList() );
+        s.put( "hubs", hubDrafts.stream().filter( created::contains ).toList() );
         return s;
     }
 }

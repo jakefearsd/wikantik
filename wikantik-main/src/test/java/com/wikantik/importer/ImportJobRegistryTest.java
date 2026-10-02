@@ -157,4 +157,26 @@ class ImportJobRegistryTest {
         b.close();
         c.close();
     }
+
+    @Test
+    void finishingAJobEvictsExpiredOnesWithoutAnyRegistryCall() throws Exception {
+        final ImportJobRegistry two = new ImportJobRegistry( 2, clock, queued::add );
+        final VaultImportJob alice = two.start( "alice", id -> ImportTestJobs.job( id, "alice" ) );
+        two.start( "bob", id -> ImportTestJobs.job( id, "bob" ) );
+        queued.get( 0 ).run();
+        assertFalse( alice.isRunning() );
+        now.set( now.get().plus( Duration.ofMinutes( 61 ) ) );
+        queued.get( 1 ).run();   // bob finishes
+        assertEquals( 1, two.size(), "alice's expired job must be evicted when another job finishes" );
+    }
+
+    @Test
+    void finishedJobDropsItsPlan() throws Exception {
+        final VaultImportJob job = registry.start( "alice", id -> ImportTestJobs.job( id, "alice" ) );
+        assertTrue( job.retainsPlan() );
+        queued.get( 0 ).run();
+        assertFalse( job.retainsPlan(), "a finished job must not keep every draft body alive for the retention period" );
+        assertEquals( 0, ( ( Number ) job.view().summary().get( "unreferencedFiles" ) ).intValue() );
+        assertEquals( List.of(), job.view().summary().get( "hubs" ) );
+    }
 }

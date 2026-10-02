@@ -140,7 +140,13 @@ public final class ImportJobRegistry implements AutoCloseable {
         job.useClock( clock );
         jobs.put( id, job );
         try {
-            executor.execute( job );
+            executor.execute( () -> {
+                try {
+                    job.run();
+                } finally {
+                    evictExpiredNow();
+                }
+            } );
         } catch ( final RejectedExecutionException e ) {
             abandon( id, job );
             throw new IllegalStateException( "import executor rejected the job", e );
@@ -160,6 +166,11 @@ public final class ImportJobRegistry implements AutoCloseable {
         job.discardUpload();
     }
 
+    /** Number of jobs held (running or retained); a test seam. */
+    synchronized int size() {
+        return jobs.size();
+    }
+
     public synchronized Optional< VaultImportJob > find( final String jobId ) {
         evictExpired();
         return Optional.ofNullable( jobs.get( jobId ) );
@@ -170,6 +181,11 @@ public final class ImportJobRegistry implements AutoCloseable {
         evictExpired();
         return jobs.values().stream().filter( j -> j.owner().equals( owner ) )
             .max( Comparator.comparing( VaultImportJob::createdAt ) );
+    }
+
+    /** Opportunistic eviction when a job finishes, so retained results expire without further requests. */
+    private synchronized void evictExpiredNow() {
+        evictExpired();
     }
 
     private void evictExpired() {

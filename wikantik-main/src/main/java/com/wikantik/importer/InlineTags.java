@@ -28,9 +28,12 @@ import com.wikantik.api.parser.CodeMask;
 /** Extracts Obsidian inline {@code #tags} from the prose of a note body. */
 public final class InlineTags {
 
-    private static final Pattern WIKILINK = Pattern.compile( "\\[\\[[^\\]\\n]*\\]\\]" );
-    private static final Pattern LINK_DEST = Pattern.compile( "\\]\\([^)\\n]*\\)" );
-    private static final Pattern URL = Pattern.compile( "\\S+://\\S+" );
+    // Every variable-length scan below stops where the next match could start (a bracket, or the end of a
+    // non-space run), so a 256 KB single-line note is scanned in linear time — no per-start rescans.
+    private static final Pattern WIKILINK = Pattern.compile( "\\[\\[[^\\[\\]\\n]*\\]\\]" );
+    private static final Pattern LINK_DEST = Pattern.compile( "\\]\\([^)\\]\\n]*\\)" );
+    /** Anchored at the start of a non-space run: same matches as {@code \\S+://\\S+}, one attempt per run. */
+    private static final Pattern URL = Pattern.compile( "(?<!\\S)\\S+://\\S+" );
     private static final Pattern HEADING = Pattern.compile( "^\\s{0,3}#{1,6}\\s.*" );
     private static final Pattern TAG = Pattern.compile( "(?<![^\\s])#([\\p{L}\\p{N}_/-]+)" );
     private static final Pattern NON_DIGIT = Pattern.compile( "[\\p{L}_-]" );

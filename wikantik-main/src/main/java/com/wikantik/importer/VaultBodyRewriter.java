@@ -33,7 +33,8 @@ import com.wikantik.api.parser.CodeMask;
 public final class VaultBodyRewriter {
 
     private static final Pattern COMMENT = Pattern.compile( "%%[\\s\\S]*?%%" );
-    private static final Pattern TRAILING_BLOCK = Pattern.compile( "(?m)[ \\t]+\\^[A-Za-z0-9-]+[ \\t]*$" );
+    /** Anchored at the start of a blank run (same matches as without the look-behind; one attempt per run, not per blank). */
+    private static final Pattern TRAILING_BLOCK = Pattern.compile( "(?m)(?<![ \\t])[ \\t]+\\^[A-Za-z0-9-]+[ \\t]*$" );
     private static final Pattern LINE_BLOCK = Pattern.compile( "(?m)^\\^[A-Za-z0-9-]+[ \\t]*$" );
 
     /** Rewrites {@code body} of the note at {@code fromPath}; link targets are resolved through {@code targets}. */

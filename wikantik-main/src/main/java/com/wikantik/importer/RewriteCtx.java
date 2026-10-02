@@ -27,8 +27,13 @@ final class RewriteCtx {
     final VaultTargets targets;
     int blockRefs;
     int comments;
+    private static final int NONE = -1;
     private String fullBody;
-    private int runStart;
+    private int bodyCursor;
+    private int bodyLineFirst = NONE;
+    private String proseRef;
+    private int proseCursor;
+    private int proseLineFirst = NONE;
     final Set< String > unresolved = new LinkedHashSet<>();
 
     RewriteCtx( final String fromPath, final VaultTargets targets ) {
@@ -58,22 +63,49 @@ final class RewriteCtx {
         return frag;
     }
 
-    /** Records the full body and the offset of the prose run about to be transformed. */
-    void enterRun( final String fullBody, final int runStart ) {
-        this.fullBody = fullBody;
-        this.runStart = runStart;
+    /**
+     * Records the full body and the offset of the prose run about to be transformed. Runs arrive in increasing
+     * offset order, so a forward cursor over the body tracks the current line's first non-blank character without
+     * ever rescanning (a long single line with many runs stays linear).
+     */
+    void enterRun( final String body, final int start ) {
+        if ( body != fullBody || start < bodyCursor ) {
+            fullBody = body;
+            bodyCursor = 0;
+            bodyLineFirst = NONE;
+        }
+        bodyLineFirst = advance( body, bodyCursor, start, bodyLineFirst );
+        bodyCursor = start;
+        proseRef = null;
     }
 
     /**
      * True when the whole original line containing {@code pos} (an offset within the current prose run) starts with a
-     * table pipe, even if the line began in an earlier segment (for example before an inline code span).
+     * table pipe, even if the line began in an earlier segment (for example before an inline code span). Lookups for
+     * one prose string arrive in increasing order, so the scan only moves forward: no substring, no lookback.
      */
     boolean inTableRow( final String prose, final int pos ) {
-        final int nl = prose.lastIndexOf( '\n', pos - 1 );
-        if ( nl >= 0 || fullBody == null ) {
-            return prose.substring( nl + 1 ).stripLeading().startsWith( "|" );
+        if ( prose != proseRef || pos < proseCursor ) {
+            proseRef = prose;
+            proseCursor = 0;
+            proseLineFirst = fullBody == null ? NONE : bodyLineFirst;
         }
-        final int lineStart = fullBody.lastIndexOf( '\n', runStart - 1 ) + 1;
-        return ( fullBody.substring( lineStart, runStart ) + prose ).stripLeading().startsWith( "|" );
+        proseLineFirst = advance( prose, proseCursor, pos, proseLineFirst );
+        proseCursor = pos;
+        return proseLineFirst == '|';
+    }
+
+    /** Scans {@code s[from, to)}: a newline resets the line, otherwise the first non-blank char of the line is kept. */
+    private static int advance( final String s, final int from, final int to, final int lineFirst ) {
+        int first = lineFirst;
+        for ( int i = from; i < to; i++ ) {
+            final char c = s.charAt( i );
+            if ( c == '\n' ) {
+                first = NONE;
+            } else if ( first == NONE && !Character.isWhitespace( c ) ) {
+                first = c;
+            }
+        }
+        return first;
     }
 }

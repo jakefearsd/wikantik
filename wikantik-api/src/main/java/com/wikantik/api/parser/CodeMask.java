@@ -187,39 +187,40 @@ public final class CodeMask {
         }
     }
 
-    /** Masks paired backtick runs (a run of N backticks closed by a run of exactly N). */
+    /**
+     * Masks paired backtick runs (a run of N backticks closed by the next run of exactly N). The partner of every
+     * run is precomputed right-to-left, so a line of many unmatched runs is scanned in linear time instead of each
+     * opener rescanning the rest of the line.
+     */
     private static void maskInlineCode( final boolean[] masked, final String line, final int base ) {
-        int i = 0;
-        while ( i < line.length() ) {
-            if ( line.charAt( i ) != '`' ) {
-                i++;
+        final java.util.List< int[] > runs = backtickRuns( line );
+        final int[] partner = new int[ runs.size() ];
+        final java.util.Map< Integer, Integer > nextOfLength = new java.util.HashMap<>();
+        for ( int r = runs.size() - 1; r >= 0; r-- ) {
+            final Integer next = nextOfLength.put( runs.get( r )[ 1 ], r );
+            partner[ r ] = next == null ? -1 : next;
+        }
+        int r = 0;
+        while ( r < runs.size() ) {
+            final int close = partner[ r ];
+            if ( close < 0 ) {
+                r++;
                 continue;
             }
-            final int runStart = i;
-            final int n = runLength( line, i, '`' );
-            i += n;
-            final int close = findClosingRun( line, i, n );
-            if ( close >= 0 ) {
-                maskRange( masked, base + runStart, base + close + n );
-                i = close + n;
-            }
+            maskRange( masked, base + runs.get( r )[ 0 ], base + runs.get( close )[ 0 ] + runs.get( close )[ 1 ] );
+            r = close + 1;
         }
     }
 
-    /** Index of the next backtick run of exactly {@code n} at or after {@code from}, or -1. */
-    private static int findClosingRun( final String line, final int from, final int n ) {
-        int j = from;
-        while ( j < line.length() ) {
-            if ( line.charAt( j ) != '`' ) {
-                j++;
-                continue;
-            }
-            final int m = runLength( line, j, '`' );
-            if ( m == n ) {
-                return j;
-            }
-            j += m;
+    /** Every maximal backtick run of {@code line} as {@code {start, length}}, in order. */
+    private static java.util.List< int[] > backtickRuns( final String line ) {
+        final java.util.List< int[] > runs = new java.util.ArrayList<>();
+        int i = line.indexOf( '`' );
+        while ( i >= 0 ) {
+            final int n = runLength( line, i, '`' );
+            runs.add( new int[] { i, n } );
+            i = line.indexOf( '`', i + n );
         }
-        return -1;
+        return runs;
     }
 }

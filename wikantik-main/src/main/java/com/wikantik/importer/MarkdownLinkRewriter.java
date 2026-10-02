@@ -30,8 +30,12 @@ import org.apache.logging.log4j.Logger;
 final class MarkdownLinkRewriter {
 
     private static final Logger LOG = LogManager.getLogger( MarkdownLinkRewriter.class );
+    /**
+     * Destinations never contain {@code [} (vault file names cannot either), so a failed attempt stops at the next
+     * possible match start instead of rescanning the rest of a long line — keeps a 256 KB one-line note linear.
+     */
     private static final Pattern LINK = Pattern.compile(
-            "(!?)\\[([^\\[\\]\\n]*)\\]\\((?:<([^>\\n]+)>|([^)\\s]+))(?:\\s+\"[^\"\\n]*\")?\\)" );
+            "(!?)\\[([^\\[\\]\\n]*)\\]\\((?:<([^>\\[\\n]+)>|([^)\\[\\s]+))(?:\\s+\"[^\"\\n]*\")?\\)" );
     private static final Pattern SCHEME = Pattern.compile( "^(?:[A-Za-z][A-Za-z0-9+.-]*:|//|www\\.).*", Pattern.DOTALL );
 
     private MarkdownLinkRewriter() {

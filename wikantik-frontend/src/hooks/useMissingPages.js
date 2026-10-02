@@ -5,6 +5,12 @@ import { collectWikiLinkTargets } from '../utils/wikiLinkTargets';
 
 const CHECK_DELAY_MS = 500;
 
+function sameSet(a, b) {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
 /**
  * Lowercased names of pages linked from `markdown` that do not exist (or that the caller cannot
  * view). Checked in batches through GET /api/pages?names=, 500 ms after the last edit; results are
@@ -26,7 +32,9 @@ export function useMissingPages(markdown) {
           const existing = new Set(results.flatMap((r) => (r.pages || []).map((p) => p.name.toLowerCase())));
           unknown.forEach((t) => known.current.set(t.toLowerCase(), existing.has(t.toLowerCase())));
           if (!cancelled) {
-            setMissing(new Set(targets.map((t) => t.toLowerCase()).filter((t) => known.current.get(t) === false)));
+            const next = new Set(targets.map((t) => t.toLowerCase()).filter((t) => known.current.get(t) === false));
+            // Same contents keep the same Set: consumers (the editor preview's plugin list) re-render on identity.
+            setMissing((prev) => (sameSet(prev, next) ? prev : next));
           }
         })
         .catch((err) => console.warn('[missing-pages] existence check failed', err?.message || err));

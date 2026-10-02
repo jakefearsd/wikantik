@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useNavigationGuard, useGuardedNavigate } from '../navigation/NavigationGuardProvider';
 import { isLeaving } from '../navigation/navigationGuard';
-import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkCallouts from '../utils/remarkCallouts';
@@ -24,6 +23,8 @@ import { remarkMissingLinks } from '../utils/wikiLinkTargets';
 import { useMissingPages } from '../hooks/useMissingPages';
 import { remarkWikiLinks } from '../utils/remarkWikiLinks';
 import { useWikiLinkResolution } from '../hooks/useWikiLinkResolution';
+import { usePreviewSource } from '../hooks/usePreviewSource';
+import EditorPreviewMarkdown from './editor/EditorPreviewMarkdown';
 import { WikiEmbedElement } from './WikiEmbed';
 import { useEmbedCacheLifecycle } from '../hooks/useEmbedCacheLifecycle';
 import { useTagSuggestions } from '../hooks/useTagSuggestions';
@@ -350,6 +351,7 @@ export default function PageEditor() {
   const wikiLinkResolution = useWikiLinkResolution(previewContent);
   const previewComponents = useMemo(() => ({ 'wiki-embed': WikiEmbedElement }), []);
   const lowlight = useLowlight(/(^|\n)(```|~~~)/.test(previewContent));
+  const [previewSource, previewCost] = usePreviewSource(previewContent);
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
@@ -583,6 +585,25 @@ export default function PageEditor() {
     attachments: attachmentNamesKey ? attachmentNamesKey.split('\n') : [],
     loadEmbed: loadEmbedState,
   }), [name, attachmentNamesKey]);
+  // The preview's plugin stack, stable across renders that do not change its inputs (EditorPreviewMarkdown is
+  // memoized on these): only fileName of an attachment is read by the preview plugins.
+  const previewAttachments = useMemo(
+    () => (attachmentNamesKey ? attachmentNamesKey.split('\n').map((fileName) => ({ fileName })) : []),
+    [attachmentNamesKey],
+  );
+  const previewRemarkPlugins = useMemo(() => [
+    remarkGfm,
+    remarkMath,
+    remarkCallouts,
+    remarkWikiMarkup,
+    [remarkWikiLinks, { resolved: wikiLinkResolution, attachments: previewAttachments, pageName: name }],
+    [remarkMissingLinks, { missing: missingPages }],
+    [remarkAttachments, { attachments: previewAttachments, pageName: name }],
+  ], [wikiLinkResolution, previewAttachments, name, missingPages]);
+  const previewRehypePlugins = useMemo(
+    () => [rehypeKatex, [rehypeHighlightCode, { lowlight }], rehypeSourceLine],
+    [lowlight],
+  );
   const slashSource = useMemo(() => createSlashSource(getCommands, (id) => runCommand(id)), [runCommand]);
 
   const handleBold = useCallback(() => applyFormat('bold'), [applyFormat]);
@@ -1010,17 +1031,8 @@ export default function PageEditor() {
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
           <FrontmatterPreview content={fullText} />
           <article className="article-prose" ref={previewArticleRef} onClick={handlePreviewClick}>
-            <ReactMarkdown components={previewComponents} remarkPlugins={[
-              remarkGfm,
-              remarkMath,
-              remarkCallouts,
-              remarkWikiMarkup,
-              [remarkWikiLinks, { resolved: wikiLinkResolution, attachments: attachments.list, pageName: name }],
-              [remarkMissingLinks, { missing: missingPages }],
-              [remarkAttachments, { attachments: attachments.list, pageName: name }],
-            ]} rehypePlugins={[rehypeKatex, [rehypeHighlightCode, { lowlight }], rehypeSourceLine]}>
-              {previewContent}
-            </ReactMarkdown>
+            <EditorPreviewMarkdown content={previewSource} components={previewComponents} costMeter={previewCost}
+              remarkPlugins={previewRemarkPlugins} rehypePlugins={previewRehypePlugins} />
           </article>
           {previewCard}
         </div>

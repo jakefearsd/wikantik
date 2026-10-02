@@ -8,6 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { EditorView } from '@codemirror/view';
+import { StateEffect } from '@codemirror/state';
 import { ensureSyntaxTree, foldable, foldEffect, foldedRanges, syntaxTree } from '@codemirror/language';
 import { undo } from '@codemirror/commands';
 import { linkAt } from '../utils/linkInteraction';
@@ -28,6 +29,23 @@ describe('CodeEditor on real CodeMirror', () => {
     const names = new Set();
     syntaxTree(view.state).iterate({ enter: (n) => { names.add(n.name); } });
     expect([...names]).toEqual(expect.arrayContaining(['Task', 'TaskMarker', 'Strikethrough', 'Table']));
+  });
+
+  it('a re-render with unchanged config props does not reconfigure the editor (no per-keystroke reconfigure)', () => {
+    const onChange = vi.fn();
+    const utils = render(<CodeEditor value="a" onChange={onChange} />);
+    const view = EditorView.findFromDOM(utils.container.querySelector('.cm-editor'));
+    let reconfigures = 0;
+    const dispatch = view.dispatch.bind(view);
+    view.dispatch = (...specs) => {
+      if (specs.some((sp) => [].concat(sp?.effects || []).some((e) => e.is(StateEffect.reconfigure)))) reconfigures += 1;
+      return dispatch(...specs);
+    };
+    utils.rerender(<CodeEditor value="a" onChange={onChange} />);
+    utils.rerender(<CodeEditor value="a" onChange={onChange} />);
+    expect(reconfigures).toBe(0);
+    utils.rerender(<CodeEditor value="a" onChange={onChange} dark />); // a real config change still reconfigures
+    expect(reconfigures).toBe(1);
   });
 
   it('applyEdit applies the text and selection in one normal transaction that fires onChange', () => {

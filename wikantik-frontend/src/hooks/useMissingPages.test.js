@@ -39,6 +39,17 @@ describe('useMissingPages', () => {
     expect(result.current.size).toBe(0);
   });
 
+  it('keeps the same Set when a later check finds the same missing pages (no consumer re-render)', async () => {
+    api.listPages.mockResolvedValue({ pages: [] });
+    const { result, rerender } = renderHook(({ md }) => useMissingPages(md), { initialProps: { md: '[b](Ghost)' } });
+    await flush();
+    const first = result.current;
+    expect([...first]).toEqual(['ghost']);
+    rerender({ md: '[b](Ghost) more text' });
+    await flush();
+    expect(result.current).toBe(first);
+  });
+
   it('chunks more than 50 targets', async () => {
     api.listPages.mockResolvedValue({ pages: [] });
     const md = Array.from({ length: 51 }, (_, i) => `[x](P${i})`).join(' ');

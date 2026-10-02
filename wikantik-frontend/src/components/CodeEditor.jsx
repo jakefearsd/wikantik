@@ -93,6 +93,17 @@ export function minimalChange(prev, next) {
   return { from, to: prev.length - tail, insert: next.slice(from, next.length - tail) };
 }
 
+// Module-level so its identity is stable: react-codemirror re-dispatches a full StateEffect.reconfigure
+// whenever basicSetup (or any other config prop) changes identity — an inline object did so on every render,
+// i.e. on every keystroke.
+const BASIC_SETUP = {
+  lineNumbers: false,
+  foldGutter: true,
+  highlightActiveLine: false,
+  highlightActiveLineGutter: false,
+  autocompletion: false,
+};
+
 const CodeEditor = forwardRef(function CodeEditor(
   { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, livePreview = false, livePreviewContext, className, ...rest },
   ref,
@@ -447,13 +458,7 @@ const CodeEditor = forwardRef(function CodeEditor(
         onCreateEditor={handleCreateEditor}
         extensions={extensions}
         theme={dark ? 'dark' : 'light'}
-        basicSetup={{
-          lineNumbers: false,
-          foldGutter: true,
-          highlightActiveLine: false,
-          highlightActiveLineGutter: false,
-          autocompletion: false,
-        }}
+        basicSetup={BASIC_SETUP}
         height="100%"
         style={{ height: '100%', fontSize: '0.9rem' }}
       />

@@ -13,14 +13,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `[[` targets resolve case-insensitively and by title/alias. The `[[` completion now inserts native syntax.
 - `GET /api/pages/{name}/embed` (rendered embed body, view-gated) and `GET /api/pages?names=…&resolve=true`.
 - Config `wikantik.embed.maxChars` (20000).
+- Page embeds render per view under a budget of 25 per page render (repeats reuse the first render);
+  past the budget, with plugins disabled (`/api/convert`) or for a same-page `![[#H]]`, an embed shows
+  as a plain link. References for pages already using `[[ ]]` are rebuilt once the title index is
+  ready at startup.
+
+### Changed
+- `[{InsertPage}]` now renders the inserted page as its own real page, so plugins and variables inside
+  it (`AliasPlugin`, `{$attr}` fallbacks) see the inserted page, not the host.
 
 ### Fixed
 - `RenderingManager.textToHTML` no longer writes viewer-sensitive renders (ACL-aware plugins, embeds) to the
   shared HTML cache.
 - The legacy-syntax converter emits `\[` for JSPWiki `[[` escapes so its output can never form a wikilink.
+- `disableAccessRules()` / `textToHTML(..., parseAccessRules=false, …)` now takes effect for Markdown pages.
+- Unit tests no longer leak SSO configuration between test classes.
 
 ### Security
 - Pages included with `[{InsertPage}]` (and the new `![[embeds]]`) no longer apply their own `[{ALLOW}]`/`[{DENY}]` rules to the host page; previously an authorised view of a host could restrict it — or, when the included page granted wider access, widen it — for every later reader.
+- `POST /api/convert` renders on a throwaway page; previously `[{ALLOW}]` lines and frontmatter in the
+  converted text could rewrite the live ACL and attributes of a shared page (the front page) until the
+  page cache refreshed.
+- Pages containing `![[embeds]]` or `[{InsertPage}]` are served without an ETag (`private, no-store`), so
+  a browser can no longer revalidate one viewer's rendering for another viewer after a logout.
 
 ## [2.4.29] - 2026-10-01
 

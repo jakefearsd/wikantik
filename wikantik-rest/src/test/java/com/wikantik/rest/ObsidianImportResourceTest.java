@@ -515,4 +515,47 @@ class ObsidianImportResourceTest {
         s.doGet( get( "/jobs/current" ), r2.mock() );
         assertEquals( mine, json( r2 ).get( "jobId" ).getAsString() );
     }
+
+    @Test
+    void slowUploadDoesNotHoldAPlanPermit() throws Exception {
+        loginAdmin();
+        final java.util.concurrent.CountDownLatch never = new java.util.concurrent.CountDownLatch( 0 );
+        final java.util.concurrent.atomic.AtomicInteger plans = new java.util.concurrent.atomic.AtomicInteger();
+        final ObsidianImportResource s = blockingPlanServlet( 1, new java.util.concurrent.CountDownLatch( 1 ), never, plans );
+        final java.util.concurrent.CountDownLatch reading = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch( 1 );
+        final byte[] zip = oneNote();
+        final HttpServletRequest slow = post( "/plan", zip );
+        final java.io.InputStream trickle = new java.io.InputStream() {
+            private final java.io.InputStream in = new ByteArrayInputStream( zip );
+            @Override public int read() throws java.io.IOException {
+                reading.countDown();
+                try {
+                    release.await( 10, java.util.concurrent.TimeUnit.SECONDS );
+                } catch ( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                }
+                return in.read();
+            }
+        };
+        final Part slowPart = slow.getPart( "file" );
+        doReturn( trickle ).when( slowPart ).getInputStream();
+        final Thread uploader = new Thread( () -> {
+            try {
+                s.doPost( slow, resp().mock() );
+            } catch ( final Exception e ) {
+                throw new IllegalStateException( e );
+            }
+        } );
+        uploader.start();
+        try {
+            assertTrue( reading.await( 10, java.util.concurrent.TimeUnit.SECONDS ), "upload never started" );
+            final Resp r = resp();
+            s.doPost( post( "/plan", zip ), r.mock() );
+            assertTrue( json( r ).has( "planHash" ), "a slow upload must not hold the only plan permit: " + r.body() );
+        } finally {
+            release.countDown();
+            uploader.join( 10_000 );
+        }
+    }
 }

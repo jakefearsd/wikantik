@@ -188,8 +188,8 @@ public class ObsidianImportResource extends RestServletBase {
         try {
             final Part part = uploads.filePart( req );
             final ImportOptions options = ImportOptions.parse( req.getParameter( "clusterMode" ), req.getParameter( "cluster" ) );
+            upload = uploads.spool( part );   // before the permit: a slow uploader must not hold a CPU permit
             try ( ImportJobRegistry.PlanPermit permit = registry.acquirePlan() ) {
-                upload = uploads.spool( part );
                 sendJson( resp, importService().plan( upload, options ).plan() );
             }
         } catch ( final ImportUploads.UploadRejected e ) {
@@ -213,9 +213,7 @@ public class ObsidianImportResource extends RestServletBase {
         // The slot is held before re-planning (released on any failure by the try-with-resources), so concurrent
         // applies are refused up front instead of all re-planning; the plan permit is held only while planning.
         try ( ImportJobRegistry.Reservation slot = registry.reserve( owner ) ) {
-            try ( ImportJobRegistry.PlanPermit permit = registry.acquirePlan() ) {
-                planned = spoolAndPlan( req );
-            }
+            planned = spoolAndPlan( req );
             if ( !planned.plan().plan().planHash().equals( req.getParameter( "planHash" ) ) ) {
                 sendError( resp, HttpServletResponse.SC_CONFLICT,
                     "The vault or the wiki changed since the plan was made; review the new plan" );
@@ -240,15 +238,16 @@ public class ObsidianImportResource extends RestServletBase {
         }
     }
 
-    private Planned spoolAndPlan( final HttpServletRequest req )
-            throws IOException, ServletException, ProviderException, VaultArchiveException, ImportLimitException {
+    private Planned spoolAndPlan( final HttpServletRequest req ) throws IOException, ServletException, ProviderException,
+            VaultArchiveException, ImportLimitException, ImportJobConflictException {
         final Part part = uploads.filePart( req );
         final ImportOptions options = ImportOptions.parse( req.getParameter( "clusterMode" ), req.getParameter( "cluster" ) );
         final SpooledUpload upload = uploads.spool( part );
-        try {
+        // The plan permit is taken only after the upload is spooled, so a slow uploader cannot starve permits.
+        try ( ImportJobRegistry.PlanPermit permit = registry.acquirePlan() ) {
             return new Planned( upload, importService().plan( upload, options ) );
         } catch ( final IOException | ProviderException | VaultArchiveException | ImportLimitException
-                       | RuntimeException e ) {
+                       | ImportJobConflictException | RuntimeException e ) {
             upload.delete();
             throw e;
         }

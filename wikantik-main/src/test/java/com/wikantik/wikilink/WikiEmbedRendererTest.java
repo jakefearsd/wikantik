@@ -28,9 +28,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WikiEmbedRendererTest {
@@ -194,5 +196,69 @@ class WikiEmbedRendererTest {
         final var r = renderer( ( c, p ) -> true, 20 ).render( hostContext(), "EmbFenceFirst", null );
         assertTrue( r.truncated() );
         assertTrue( r.bodyHtml().contains( "code line" ), r.bodyHtml() );
+    }
+
+    // ----- F2: per-render budget, memo, plugin-off -----
+
+    private WikiEmbedRenderer counting( final AtomicInteger calls ) {
+        final WikiEmbedRenderer.BodyRenderer real = WikiEmbedRenderer.defaultBodyRenderer( engine );
+        return new WikiEmbedRenderer( WikiLinkResolver.forEngine( engine ), engine.getManager( PageManager.class ),
+                ( c, p ) -> true, ( c, md ) -> {
+                    calls.incrementAndGet();
+                    return real.render( c, md );
+                }, 20000 );
+    }
+
+    @Test void repeatsWithinOneRenderReuseTheFirstBody() throws Exception {
+        engine.saveText( "EmbTarget", "Body text.\n" );
+        final AtomicInteger calls = new AtomicInteger();
+        final WikiEmbedRenderer r = counting( calls );
+        final Context ctx = hostContext();
+        try ( EmbedRenderBudget.Scope scope = EmbedRenderBudget.open( ctx ) ) {
+            for ( int i = 0; i < 3; i++ ) {
+                assertTrue( r.renderBudgeted( ctx, "EmbTarget", null ).orElseThrow().contains( "Body text." ) );
+            }
+        }
+        assertEquals( 1, calls.get() );
+    }
+
+    @Test void theMemoDoesNotOutliveItsRender() throws Exception {
+        engine.saveText( "EmbTarget", "Body text.\n" );
+        final AtomicInteger calls = new AtomicInteger();
+        final WikiEmbedRenderer r = counting( calls );
+        final Context ctx = hostContext();
+        for ( int i = 0; i < 2; i++ ) {
+            try ( EmbedRenderBudget.Scope scope = EmbedRenderBudget.open( ctx ) ) {
+                assertTrue( r.renderBudgeted( ctx, "EmbTarget", null ).isPresent() );
+            }
+        }
+        assertEquals( 2, calls.get() );
+        assertNull( ctx.getVariable( EmbedRenderBudget.ATTR_BUDGET ) );
+    }
+
+    @Test void aRenderEmitsAtMostTwentyFiveEmbeds() throws Exception {
+        final WikiEmbedRenderer r = renderer( ( c, p ) -> true, 20000 );
+        final Context ctx = hostContext();
+        int rendered = 0;
+        try ( EmbedRenderBudget.Scope scope = EmbedRenderBudget.open( ctx );
+              EmbedRenderBudget.Scope nested = EmbedRenderBudget.open( ctx ) ) {
+            for ( int i = 0; i < 30; i++ ) {
+                rendered += r.renderBudgeted( ctx, "NoSuchEmb" + i, null ).isPresent() ? 1 : 0;
+            }
+        }
+        assertEquals( EmbedRenderBudget.MAX_EMBEDS, rendered );
+        try ( EmbedRenderBudget.Scope scope = EmbedRenderBudget.open( ctx ) ) {
+            assertTrue( r.renderBudgeted( ctx, "NoSuchEmb0", null ).isPresent(), "a new render has a fresh budget" );
+        }
+    }
+
+    @Test void withPluginsDisabledNoPageIsLoadedOrRendered() throws Exception {
+        engine.saveText( "EmbTarget", "Body text.\n" );
+        final AtomicInteger calls = new AtomicInteger();
+        final Context ctx = hostContext();
+        ctx.setVariable( Context.VAR_EXECUTE_PLUGINS, Boolean.FALSE );
+        assertTrue( counting( calls ).renderBudgeted( ctx, "EmbTarget", null ).isEmpty() );
+        assertEquals( 0, calls.get() );
+        assertNull( ctx.getVariable( Context.VAR_VIEWER_SENSITIVE ) );
     }
 }

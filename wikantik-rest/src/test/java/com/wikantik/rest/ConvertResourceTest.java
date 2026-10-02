@@ -205,6 +205,28 @@ class ConvertResourceTest {
         assertNotEquals( "Hacked", after.getAttribute( "title" ), "convert must not overwrite front-page attributes" );
     }
 
+    @Test
+    void markdownToHtml_rendersPageEmbedsAsPlainLinks() throws Exception {
+        engine.saveText( "ConvEmbedTarget", "conv-embedded-body\n" );
+        final HttpServletRequest request = createRequest( "markdown-to-html" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "![[ConvEmbedTarget]]\n" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final Session authed = Mockito.mock( com.wikantik.WikiSession.class );
+        Mockito.when( authed.isAuthenticated() ).thenReturn( true );
+        final StringWriter sw = new StringWriter();
+        try ( final MockedStatic< Wiki > wiki = mockWikiSession( authed ) ) {
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+            servlet.doPost( request, response );
+        }
+        final String html = gson.fromJson( sw.toString(), JsonObject.class ).get( "html" ).getAsString();
+        assertFalse( html.contains( "conv-embedded-body" ), "a preview must not load embedded pages: " + html );
+        assertFalse( html.contains( "wiki-embed" ), html );
+        assertTrue( html.contains( "ConvEmbedTarget</a>" ), html );
+    }
+
     private HttpServletRequest createRequest( final String action ) {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/convert/" + action );
         Mockito.doReturn( "/" + action ).when( request ).getPathInfo();

@@ -23,20 +23,37 @@ import com.vladsch.flexmark.util.sequence.BasedSequence;
 
 
 /**
- * A block-level page embed ({@code ![[Page]]} alone in its paragraph). Holds the already-rendered
- * {@code <div class="wiki-embed">} HTML, which the renderer emits raw.
+ * A block-level page embed ({@code ![[Page]]} / {@code ![[Page#Heading]]} alone in its paragraph). A parse-time
+ * placeholder only: it carries the target, never rendered HTML, so parsing loads no page and a parsed document is
+ * viewer-neutral (safe to cache). The renderer transcludes the body per render, with that render's viewer, and
+ * falls back to {@link #fallbackLink()} (the node {@code [[Page#Heading]]} would produce) when it may not.
  */
 public class WikiEmbedBlock extends Block {
 
-    private final String html;
+    private final String target;
+    private final String heading;
+    private final NativeWikiLinkNode fallbackLink;
 
-    public WikiEmbedBlock( final String html ) {
+    public WikiEmbedBlock( final String target, final String heading, final NativeWikiLinkNode fallbackLink ) {
         super( BasedSequence.NULL );
-        this.html = html;
+        this.target = target;
+        this.heading = heading;
+        this.fallbackLink = fallbackLink;
     }
 
-    public String html() {
-        return html;
+    /** The embedded page name as written. */
+    public String target() {
+        return target;
+    }
+
+    /** The embedded section heading, or null for the whole page. */
+    public String heading() {
+        return heading;
+    }
+
+    /** The plain page link rendered in place of the embed (plugins disabled, embed budget spent). */
+    public NativeWikiLinkNode fallbackLink() {
+        return fallbackLink;
     }
 
     @Override

@@ -29,6 +29,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.content.ContentValidationException;
@@ -859,13 +860,27 @@ public class PageResource extends RestServletBase {
         final String section = request.getParameter( "section" );
         final WikiEmbedRenderer.EmbedResult r = WikiEmbedRenderer.forEngine( engine ).render( context, name, section );
         final Map< String, Object > out = new LinkedHashMap<>();
-        out.put( "html", r.bodyHtml() == null ? "" : r.bodyHtml() );
+        out.put( "html", postTranslate( context, name, r.bodyHtml() == null ? "" : r.bodyHtml() ) );
         out.put( "missing", r.missing() );
         out.put( "restricted", r.restricted() );
         out.put( "truncated", r.truncated() );
         // Viewer-dependent and stale after a save: never reusable from the HTTP cache.
         response.setHeader( "Cache-Control", "private, no-cache" );
         sendJson( response, out );
+    }
+
+    /**
+     * Applies the post-translate filters a server-side embed inherits from its host render (e.g. {@code cite://}
+     * href rewriting), so a previewed body matches the rendered one. A failing filter leaves the body unfiltered.
+     */
+    private String postTranslate( final Context context, final String name, final String html ) {
+        try {
+            return getSubsystems().rendering().filterManager().doPostTranslateFiltering( context, html );
+        } catch ( final FilterException e ) {
+            LOG.warn( "Post-translate filtering of the embed preview of '{}' failed; serving it unfiltered: {}",
+                    name, e.getMessage() );
+            return html;
+        }
     }
 
     private static void putIfText( final Map< String, Object > out, final String key, final Object value ) {

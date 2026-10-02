@@ -43,7 +43,7 @@ public class WikantikNodeRendererFactory implements DelegatingNodeRendererFactor
      */
     @Override
     public NodeRenderer apply( final DataHolder options ) {
-        return new WikantikLinkRenderer();
+        return new WikantikLinkRenderer( wikiContext );
     }
 
     /**

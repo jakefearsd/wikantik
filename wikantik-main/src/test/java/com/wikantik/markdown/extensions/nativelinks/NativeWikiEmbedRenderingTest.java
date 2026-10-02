@@ -170,6 +170,140 @@ class NativeWikiEmbedRenderingTest {
                 "an embedded page's ACL must not widen the host's ACL" );
     }
 
+    // ----- F2: render-time embeds, budget, plugin-off, same-page, containers -----
+
+    @Test void parsingAnEmbedRendersNothingAndLeavesTheContextCacheable() throws Exception {
+        engine.saveText( "EmbBody", "x\n" );
+        final Context ctx = hostContext();
+        new MarkdownParser( ctx, new BufferedReader( new StringReader( "![[EmbBody]]\n" ) ) ).parse();
+        assertNull( ctx.getVariable( Context.VAR_VIEWER_SENSITIVE ),
+                "a parse (metadata refresh, reference scan, cached document) must not render the embed" );
+    }
+
+    @Test void aDocumentParsedOnceIsRenderedPerViewer() throws Exception {
+        engine.saveText( "EmbHostShared", "intro\n\n![[EmbSecretShared]]\n" );
+        engine.saveText( "EmbSecretShared", "[{ALLOW view Admin}]\n\nclassified\n" );
+        final Context admin = adminContext( "EmbHostShared" );
+        final com.wikantik.parser.WikiDocument doc = new MarkdownParser( admin, new BufferedReader(
+                new StringReader( engine.getManager( PageManager.class ).getPureText( "EmbHostShared", -1 ) ) ) ).parse();
+
+        final String adminHtml = new MarkdownRenderer( admin, doc ).getString();
+        final String guestHtml = new MarkdownRenderer( guestContext( "EmbHostShared" ), doc ).getString();
+
+        assertTrue( adminHtml.contains( "classified" ), adminHtml );
+        assertFalse( guestHtml.contains( "classified" ), "a cached document must not carry the parser's view: " + guestHtml );
+        assertTrue( guestHtml.contains( "wiki-embed-restricted" ), guestHtml );
+    }
+
+    @Test void thirtySiblingEmbedsRenderTwentyFiveBlocksAndFiveLinks() throws Exception {
+        final StringBuilder src = new StringBuilder();
+        for ( int i = 0; i < 30; i++ ) {
+            engine.saveText( "EmbFan" + i, "fan-body-" + i + "\n" );
+            src.append( "![[EmbFan" ).append( i ).append( "]]\n" );
+        }
+        final String html = translate( src.toString() );
+        assertEquals( 25, count( html, "class=\"wiki-embed\"" ), html );
+        assertEquals( 25, count( html, "fan-body-" ), html );
+        for ( int i = 25; i < 30; i++ ) {
+            assertTrue( html.contains( "<a href=\"/test/wiki/EmbFan" + i + "\" class=\"wikipage\">EmbFan" + i + "</a>" ), html );
+        }
+    }
+
+    @Test void nestedFanOutIsBoundedByTheBudget() throws Exception {
+        engine.saveText( "EmbNestLeaf", "nest-leaf\n" );
+        final StringBuilder host = new StringBuilder();
+        for ( int m = 0; m < 6; m++ ) {
+            engine.saveText( "EmbNestMid" + m, "![[EmbNestLeaf]]\n".repeat( 10 ) );
+            host.append( "![[EmbNestMid" ).append( m ).append( "]]\n" );
+        }
+        assertEquals( 25, count( translate( host.toString() ), "class=\"wiki-embed\"" ) );
+    }
+
+    @Test void repeatedFanOutCannotMultiplyTheOutput() throws Exception {
+        engine.saveText( "EmbBoomR", "boom-leaf\n" );
+        engine.saveText( "EmbBoomQ", "![[EmbBoomR]]\n".repeat( 30 ) );
+        final String html = translate( "![[EmbBoomQ]]\n".repeat( 30 ) );
+        assertEquals( 25, count( html, "class=\"wiki-embed\"" ), html );
+        assertTrue( html.contains( "<a href=\"/test/wiki/EmbBoomQ\" class=\"wikipage\">EmbBoomQ</a>" ), html );
+    }
+
+    @Test void repeatedEmbedsOfOnePageAllRender() throws Exception {
+        engine.saveText( "EmbRepeat", "repeat-body\n" );
+        final String html = translate( "![[EmbRepeat]]\n![[EmbRepeat]]\n![[EmbRepeat]]\n" );
+        assertEquals( 3, count( html, "repeat-body" ), html );
+    }
+
+    @Test void withPluginsDisabledAnEmbedIsAPlainLink() throws Exception {
+        engine.saveText( "EmbBody", "Embedded text.\n" );
+        engine.saveText( HOST, "![[EmbBody]]\n" );
+        final Context ctx = hostContext();
+        ctx.setVariable( Context.VAR_EXECUTE_PLUGINS, Boolean.FALSE );
+        final String html = render( ctx, "![[EmbBody]]\n" );
+        assertFalse( html.contains( "wiki-embed" ), html );
+        assertFalse( html.contains( "Embedded text" ), html );
+        assertTrue( html.contains( "<a href=\"/test/wiki/EmbBody\" class=\"wikipage\">EmbBody</a>" ), html );
+        assertNull( ctx.getVariable( Context.VAR_VIEWER_SENSITIVE ) );
+    }
+
+    @Test void samePageEmbedIsTheSameAnchorLinkAsASamePageLink() throws Exception {
+        final String link = translate( "Intro.\n\n[[#Usage]]\n\n## Usage\n\nRun.\n" );
+        final String embed = translate( "Intro.\n\n![[#Usage]]\n\n## Usage\n\nRun.\n" );
+        assertFalse( embed.contains( "loop" ), embed );
+        assertTrue( embed.contains( "href=\"#usage\"" ), embed );
+        assertEquals( link, embed );
+    }
+
+    @Test void embedInsideACalloutRendersAsABlockInTheCallout() throws Exception {
+        engine.saveText( "EmbBody", "Embedded **text**.\n" );
+        final String html = translate( "> [!note]\n> ![[EmbBody]]\n" );
+        assertTrue( html.contains( "callout" ), html );
+        final int callout = html.indexOf( "callout" );
+        final int block = html.indexOf( "<div class=\"wiki-embed\" data-embed=\"EmbBody\">" );
+        assertTrue( block > callout, html );
+        assertTrue( html.contains( "<strong>text</strong>" ), html );
+        assertFalse( html.contains( "<p><div" ), html );
+    }
+
+    @Test void embedInsideAListItemRendersAsABlockInTheItem() throws Exception {
+        engine.saveText( "EmbBody", "Embedded **text**.\n" );
+        final String html = translate( "- first\n- ![[EmbBody]]\n- last\n" );
+        final int item = html.indexOf( "<li>", html.indexOf( "first" ) );
+        final int block = html.indexOf( "<div class=\"wiki-embed\" data-embed=\"EmbBody\">" );
+        assertTrue( item >= 0 && block > item && block < html.indexOf( "last" ), html );
+        assertTrue( html.contains( "<strong>text</strong>" ), html );
+    }
+
+    private static int count( final String haystack, final String needle ) {
+        int n = 0;
+        for ( int i = haystack.indexOf( needle ); i >= 0; i = haystack.indexOf( needle, i + needle.length() ) ) {
+            n++;
+        }
+        return n;
+    }
+
+    private Context adminContext( final String name ) throws Exception {
+        final HttpServletRequest request = ownSessionRequest( "acl-admin-" );
+        final Session admin = com.wikantik.api.spi.Wiki.session().find( engine, request );
+        engine.getManager( AuthenticationManager.class ).login( admin, request, Users.ADMIN, Users.ADMIN_PASS );
+        assertTrue( admin.isAuthenticated() );
+        return Wiki.context().create( engine, request, engine.getManager( PageManager.class ).getPage( name ) );
+    }
+
+    /** A never-logged-in viewer (the shared mock session is polluted by saveText's login). */
+    private Context guestContext( final String name ) {
+        final HttpServletRequest request = ownSessionRequest( "guest-" );
+        assertFalse( com.wikantik.api.spi.Wiki.session().find( engine, request ).isAuthenticated() );
+        return Wiki.context().create( engine, request, engine.getManager( PageManager.class ).getPage( name ) );
+    }
+
+    private static HttpServletRequest ownSessionRequest( final String idPrefix ) {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final jakarta.servlet.http.HttpSession http = org.mockito.Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        org.mockito.Mockito.doReturn( idPrefix + System.nanoTime() ).when( http ).getId();
+        org.mockito.Mockito.doReturn( http ).when( request ).getSession();
+        return request;
+    }
+
     private String renderHostAsAdmin( final String name ) throws Exception {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest();
         final jakarta.servlet.http.HttpSession http = org.mockito.Mockito.mock( jakarta.servlet.http.HttpSession.class );

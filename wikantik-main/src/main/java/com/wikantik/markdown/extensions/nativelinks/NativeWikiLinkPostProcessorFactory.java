@@ -24,8 +24,10 @@ import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessorFactory;
 import com.vladsch.flexmark.util.ast.Document;
 import com.wikantik.api.core.Context;
+import com.wikantik.markdown.extensions.callouts.CalloutPostProcessor;
 
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 
@@ -46,6 +48,16 @@ public class NativeWikiLinkPostProcessorFactory extends NodePostProcessorFactory
         this.context = context;
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
+    }
+
+    /**
+     * Runs after callouts are built: the callout processor moves a {@code > [!type]} marker line out of the
+     * blockquote's first paragraph, and only then does an embed on the following line stand alone in its
+     * paragraph and become a block.
+     */
+    @Override
+    public Set< Class< ? > > getAfterDependents() {
+        return Set.of( CalloutPostProcessor.Factory.class );
     }
 
     /**

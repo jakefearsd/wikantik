@@ -25,6 +25,7 @@ import com.wikantik.parser.WikiDocument;
 import com.wikantik.parser.markdown.MarkdownDocument;
 import com.wikantik.parser.markdown.WikantikHtmlSanitizer;
 import com.wikantik.render.WikiRenderer;
+import com.wikantik.wikilink.EmbedRenderBudget;
 
 import java.io.IOException;
 
@@ -55,7 +56,12 @@ public class MarkdownRenderer extends WikiRenderer {
 	public String getString() throws IOException {
 		document.setContext( context );
 		if( document instanceof MarkdownDocument markdownDoc ) {
-			final String rendered = renderer.render( markdownDoc.getMarkdownNode() );
+			final String rendered;
+			// The outermost render on a context owns the page-embed budget; embeds rendered inside embedded
+			// bodies (cloned contexts share the variable map) draw on the same one.
+			try( EmbedRenderBudget.Scope embedBudget = EmbedRenderBudget.open( context ) ) {
+				rendered = renderer.render( markdownDoc.getMarkdownNode() );
+			}
 			// When raw HTML is allowed in the source, any <script>, <iframe>, or event-handler
 			// attribute the user typed is about to reach the browser verbatim. Run it through
 			// the OWASP sanitizer to strip dangerous constructs. When allowHTML is false,

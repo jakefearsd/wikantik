@@ -242,6 +242,22 @@ public final class WikiEmbedRenderer {
                 + r.bodyHtml() + "</div></div>";
     }
 
+    /**
+     * The embed block as a render emits it: empty (the caller renders a plain page link instead, loading nothing)
+     * when the context forbids plugin execution or the render's {@link EmbedRenderBudget} is spent; otherwise
+     * the block, reusing an identical earlier embed of the same render.
+     */
+    public Optional< String > renderBudgeted( final Context context, final String target, final String heading ) {
+        if ( Boolean.FALSE.equals( context.getVariable( Context.VAR_EXECUTE_PLUGINS ) ) ) {
+            return Optional.empty();
+        }
+        try ( EmbedRenderBudget.Scope scope = EmbedRenderBudget.open( context ) ) {
+            context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
+            final String key = String.join( "\u0001", currentStack( context ) ) + '\u0000' + target + '\u0000' + heading;
+            return EmbedRenderBudget.current( context ).render( key, () -> renderBlock( context, target, heading ) );
+        }
+    }
+
     private static String editUrl( final Context context, final String name ) {
         return context.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), name );
     }

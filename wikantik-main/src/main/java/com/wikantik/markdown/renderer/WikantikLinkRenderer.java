@@ -24,12 +24,15 @@ import com.vladsch.flexmark.html.renderer.NodeRenderer;
 import com.vladsch.flexmark.html.renderer.NodeRendererContext;
 import com.vladsch.flexmark.html.renderer.NodeRenderingHandler;
 import com.vladsch.flexmark.html.renderer.ResolvedLink;
+import com.wikantik.api.core.Context;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.WikiHtmlInline;
 import com.wikantik.markdown.nodes.NativeWikiLinkNode;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.markdown.nodes.WikiEmbedBlock;
+import com.wikantik.wikilink.WikiEmbedRenderer;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 
@@ -37,6 +40,14 @@ import java.util.Set;
  * Flexmark {@link NodeRenderer} for {@link WikantikLink}s.
  */
 public class WikantikLinkRenderer implements NodeRenderer {
+
+    /** The context of the render this renderer serves (flexmark builds one renderer per render); null when headless. */
+    private final Context wikiContext;
+    private WikiEmbedRenderer embeds;
+
+    public WikantikLinkRenderer( final Context wikiContext ) {
+        this.wikiContext = wikiContext;
+    }
 
     /**
      * {@inheritDoc}
@@ -49,11 +60,7 @@ public class WikantikLinkRenderer implements NodeRenderer {
         set.add( new NodeRenderingHandler<>( WikantikLink.class, WikantikLinkRenderer::renderLink ) );
         // flexmark dispatches by exact node class, so the native [[ ]] subclass needs its own registration
         set.add( new NodeRenderingHandler<>( NativeWikiLinkNode.class, WikantikLinkRenderer::renderLink ) );
-        set.add( new NodeRenderingHandler<>( WikiEmbedBlock.class, ( node, ctx, html ) -> {
-            html.line();
-            html.raw( node.html() );
-            html.line();
-        } ) );
+        set.add( new NodeRenderingHandler<>( WikiEmbedBlock.class, this::renderEmbed ) );
         set.add( new NodeRenderingHandler<>( WikiHtmlInline.class, new NodeRenderingHandler.CustomNodeRenderer<>() {
 
             /**
@@ -65,6 +72,33 @@ public class WikantikLinkRenderer implements NodeRenderer {
             }
         } ) );
         return set;
+    }
+
+    /**
+     * Transcludes the embed now, for this render's viewer (the parsed document holds only a placeholder). When the
+     * render may not transclude (plugins disabled, embed budget spent) the embed is the plain page link instead.
+     */
+    private void renderEmbed( final WikiEmbedBlock node, final NodeRendererContext context, final HtmlWriter html ) {
+        final Optional< String > block = embedHtml( node );
+        html.line();
+        if ( block.isPresent() ) {
+            html.raw( block.get() );
+        } else {
+            html.tag( "p" );
+            context.render( node.fallbackLink() );
+            html.tag( "/p" );
+        }
+        html.line();
+    }
+
+    private Optional< String > embedHtml( final WikiEmbedBlock node ) {
+        if ( wikiContext == null ) {
+            return Optional.empty();
+        }
+        if ( embeds == null ) {
+            embeds = WikiEmbedRenderer.forEngine( wikiContext.getEngine() );
+        }
+        return embeds.renderBudgeted( wikiContext, node.target(), node.heading() );
     }
 
     private static void renderLink( final WikantikLink node, final NodeRendererContext context, final HtmlWriter html ) {

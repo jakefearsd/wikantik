@@ -1077,6 +1077,21 @@ class PageResourceTest {
         Mockito.verify( response ).setHeader( "Cache-Control", "private, no-cache" );
     }
 
+    @Test
+    void embedBodyRunsPostTranslateFilters() throws Exception {
+        // the server-side embed inherits the host page's post-translate filters (e.g. cite:// rewriting);
+        // the preview endpoint must apply them too or previewed bodies keep unrewritten hrefs
+        engine.getManager( com.wikantik.filters.FilterManager.class ).addPageFilter( new com.wikantik.api.filters.PageFilter() {
+            @Override
+            public String postTranslate( final com.wikantik.api.core.Context context, final String html ) {
+                return html.replace( "embed-filter-marker", "embed-filter-applied" );
+            }
+        }, 0 );
+        engine.saveText( "RestEmbedFiltered", "Body embed-filter-marker.\n" );
+        final JsonObject obj = gson.fromJson( doGet( "RestEmbedFiltered/embed" ), JsonObject.class );
+        assertTrue( obj.get( "html" ).getAsString().contains( "embed-filter-applied" ), obj.toString() );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {

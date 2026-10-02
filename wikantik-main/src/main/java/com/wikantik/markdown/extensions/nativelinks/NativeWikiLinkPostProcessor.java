@@ -22,9 +22,9 @@ import com.vladsch.flexmark.ast.HardLineBreak;
 import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.ast.Paragraph;
 import com.vladsch.flexmark.ast.SoftLineBreak;
-import com.vladsch.flexmark.ext.wikilink.WikiLink;
-import com.vladsch.flexmark.ext.wikilink.WikiImage;
 import com.vladsch.flexmark.ast.Text;
+import com.vladsch.flexmark.ext.wikilink.WikiImage;
+import com.vladsch.flexmark.ext.wikilink.WikiLink;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
@@ -43,13 +43,13 @@ import com.wikantik.markdown.nodes.WikiEmbedBlock;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.util.TextUtil;
-import com.wikantik.wikilink.WikiEmbedRenderer;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.wikilink.WikiLinkResolver.Resolution;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -70,7 +70,6 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
     private final boolean isImageInlining;
     private final List< Pattern > inlineImagePatterns;
     private final WikiLinkResolver resolver;
-    private final WikiEmbedRenderer embeds;
 
     public NativeWikiLinkPostProcessor( final Context context,
                                         final boolean isImageInlining,
@@ -80,7 +79,6 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
         this.resolver = WikiLinkResolver.forEngine( context.getEngine() );
-        this.embeds = WikiEmbedRenderer.forEngine( context.getEngine() );
     }
 
     /**
@@ -103,7 +101,7 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
         } else if ( r.embed() && r.isAttachment() ) {
             replace( state, node, WikiHtmlInline.of( "<span class=\"wiki-embed-missing\">"
                     + TextUtil.replaceEntities( r.fileName() ) + "</span>" ) );
-        } else if ( r.embed() && embedOnlyParagraph( node ) ) {
+        } else if ( r.embed() && !r.isSamePage() && embedOnlyParagraph( node ) ) {
             replaceParagraphWithEmbeds( state, ( Paragraph ) node.getParent() );
         } else {
             replace( state, node, pageLink( r ) );
@@ -132,18 +130,22 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
         }
         if ( child instanceof WikiImage || child instanceof WikiLink ) {
             final Optional< WikiLinkRef > ref = WikiLinkSyntax.parse( child.getChars().toString() );
-            return ref.isPresent() && ref.get().embed() && !ref.get().isAttachment() && attachmentName( ref.get() ) == null;
+            return ref.isPresent() && ref.get().embed() && !ref.get().isSamePage() && !ref.get().isAttachment()
+                    && attachmentName( ref.get() ) == null;
         }
         return false;
     }
 
+    /**
+     * Replaces the paragraph with one placeholder block per embed. Nothing is rendered or loaded here: a parse runs
+     * for metadata refreshes and reference scans too, and its document may be cached and rendered for any viewer.
+     */
     private void replaceParagraphWithEmbeds( final NodeTracker state, final Paragraph paragraph ) {
-        final java.util.ArrayList< WikiEmbedBlock > blocks = new java.util.ArrayList<>();
+        final List< WikiEmbedBlock > blocks = new ArrayList<>();
         for ( Node child = paragraph.getFirstChild(); child != null; child = child.getNext() ) {
             if ( child instanceof WikiImage || child instanceof WikiLink ) {
                 final WikiLinkRef r = WikiLinkSyntax.parse( child.getChars().toString() ).orElseThrow();
-                final String target = r.target().isEmpty() ? context.getPage().getName() : r.target();
-                blocks.add( new WikiEmbedBlock( embeds.renderBlock( context, target, r.heading() ) ) );
+                blocks.add( new WikiEmbedBlock( r.target(), r.heading(), pageLink( r ) ) );
             }
         }
         for ( final WikiEmbedBlock block : blocks ) {
@@ -186,7 +188,7 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
         return " width=\"" + size[ 0 ] + "\"" + ( size[ 1 ] >= 0 ? " height=\"" + size[ 1 ] + "\"" : "" );
     }
 
-    private Node pageLink( final WikiLinkRef r ) {
+    private NativeWikiLinkNode pageLink( final WikiLinkRef r ) {
         final String fragment = r.heading() != null ? "#" + HeadingSlugs.slug( r.heading() ) : "";
         if ( r.isSamePage() ) {
             return linkNode( fragment, r.displayText(), Kind.ANCHOR, "" );

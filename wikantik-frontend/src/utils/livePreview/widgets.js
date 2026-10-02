@@ -73,6 +73,19 @@ export class ImageWidget extends WidgetType {
 
 const TASK_AT = /^(?:[-*+]|\d+[.)])[ \t]+\[([ xX])\]/;
 
+/** Flip the task box whose `[ ]`/`[x]` starts at markerFrom, as one isolated undo step. */
+export function toggleTaskBox(view, markerFrom) {
+  const at = markerFrom + 1;
+  const ch = view.state.sliceDoc(at, at + 1);
+  if (ch !== ' ' && ch !== 'x' && ch !== 'X') return false;
+  view.dispatch({
+    changes: { from: at, to: at + 1, insert: ch === ' ' ? 'x' : ' ' },
+    annotations: isolateHistory.of('full'),
+    userEvent: 'input.toggle-task',
+  });
+  return true;
+}
+
 /** Flip the task box of the list item whose marker starts at pos, as one isolated undo step. */
 export function toggleTaskAt(view, pos) {
   const m = TASK_AT.exec(view.state.sliceDoc(pos, view.state.doc.lineAt(pos).to));
@@ -87,8 +100,8 @@ export function toggleTaskAt(view, pos) {
 }
 
 export class CheckboxWidget extends WidgetType {
-  constructor(checked) { super(); this.checked = checked; }
-  eq(other) { return other instanceof CheckboxWidget && other.checked === this.checked; }
+  constructor(checked, markerFrom) { super(); this.checked = checked; this.markerFrom = markerFrom; }
+  eq(other) { return other instanceof CheckboxWidget && other.checked === this.checked && other.markerFrom === this.markerFrom; }
   toDOM(view) {
     const box = el('input', 'cm-lp-task');
     box.type = 'checkbox';
@@ -97,7 +110,8 @@ export class CheckboxWidget extends WidgetType {
     box.addEventListener('mousedown', (e) => {
       e.preventDefault(); // keep editor focus; the document edit re-renders the box
       try {
-        toggleTaskAt(view, view.posAtDOM(box));
+        if (this.markerFrom != null) toggleTaskBox(view, this.markerFrom);
+        else toggleTaskAt(view, view.posAtDOM(box));
       } catch (err) {
         console.warn('[live-preview] task toggle failed', err?.message || err);
       }
@@ -186,7 +200,7 @@ export class EmbedWidget extends WidgetType {
 export function widgetFor(w, context = {}) {
   switch (w.type) {
     case 'bullet': return new BulletWidget();
-    case 'checkbox': return new CheckboxWidget(w.checked);
+    case 'checkbox': return new CheckboxWidget(w.checked, w.markerFrom);
     case 'rule': return new RuleWidget();
     case 'callout-title': return new CalloutTitleWidget(w.style, w.title);
     case 'image': return new ImageWidget(w);

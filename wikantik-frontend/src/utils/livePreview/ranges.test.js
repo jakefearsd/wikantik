@@ -36,7 +36,14 @@ describe('activeLinesOf', () => {
   it('collects every line any selection range touches, for every cursor', () => {
     const doc = 'a\nb\nc\nd\ne\nf';
     const state = stateOf(doc, EditorSelection.create([EditorSelection.cursor(0), EditorSelection.range(4, 8)]));
-    expect([...activeLinesOf(state)].sort()).toEqual([1, 3, 4, 5]);
+    expect([...activeLinesOf(state)].sort((a, b) => a - b)).toEqual([1, 3, 4, 5]);
+  });
+});
+describe('checkbox spec', () => {
+  it('carries markerFrom, the offset of the box', () => {
+    const state = stateOf('- [ ] a\n- [x] b\n\nend');
+    const boxes = livePreviewSpecs(state, new Set([4])).filter((s) => s.widget?.type === 'checkbox');
+    expect(boxes.map((s) => s.widget.markerFrom)).toEqual([2, 10]);
   });
 });
 describe('livePreviewSpecs — inline formatting', () => {
@@ -121,6 +128,7 @@ describe('livePreviewSpecs — blocks', () => {
     const state = stateOf('**a**\n\n**b**\n');
     const third = state.doc.line(3);
     const specs = livePreviewSpecs(state, new Set(), { from: third.from, to: third.to });
+    expect(specs.length).toBeGreaterThan(0);
     expect(specs.every((s) => s.from >= third.from)).toBe(true);
   });
   it('never emits a replacing spec that spans a line break or overlaps another', () => {

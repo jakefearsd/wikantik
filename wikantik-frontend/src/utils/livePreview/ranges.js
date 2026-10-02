@@ -62,6 +62,8 @@ export function blockSpecs(state, activeLines, context = {}) {
     if (node.name !== 'Paragraph' || anyActive(node.from, node.to)) continue;
     const from = doc.lineAt(node.from).from;
     const to = doc.lineAt(node.to).to;
+    const first = doc.sliceString(node.from, Math.min(node.to, node.from + 3));
+    if (!first.startsWith('$$') && !first.startsWith('![')) continue; // cheap prefix test before slicing the paragraph
     const text = doc.sliceString(node.from, node.to);
     if (isBlockMathText(text)) {
       const tex = text.replace(/^\$\$[ \t]*\n/, '').replace(/\n[ \t]*\$\$[ \t]*$/, '');
@@ -159,7 +161,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     const marker = n.getChild('Task')?.getChild('TaskMarker');
     if (marker) {
       const ch = doc.sliceString(marker.from + 1, marker.from + 2);
-      widget(listMark.from, marker.to, { type: 'checkbox', checked: ch === 'x' || ch === 'X' });
+      widget(listMark.from, marker.to, { type: 'checkbox', checked: ch === 'x' || ch === 'X', markerFrom: marker.from });
     } else if (n.parent?.name === 'BulletList') {
       widget(listMark.from, listMark.to, { type: 'bullet' });
     }

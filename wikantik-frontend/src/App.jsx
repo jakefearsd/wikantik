@@ -8,6 +8,7 @@ import { NavigationGuardProvider } from './navigation/NavigationGuardProvider';
 import { NewPageProvider } from './newpage/NewPageProvider';
 import QuickOverlay from './components/QuickOverlay';
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys';
+import { runCommand } from './commands/registry';
 import { useGlobalCommands } from './commands/useGlobalCommands';
 
 // Needs the NavigationGuardProvider context, so it renders inside it rather than in App's own body.
@@ -32,7 +33,8 @@ export default function App() {
 
   // Mod-K/O open the quick overlay on pages, Mod-P on commands, from any route (admin or wiki)
   const openOverlay = useCallback((mode) => setOverlayMode(mode), []);
-  useGlobalHotkeys({ onOpenOverlay: openOverlay });
+  const openDailyNoteCmd = useCallback(() => { runCommand('daily-note'); }, []);
+  useGlobalHotkeys({ onOpenOverlay: openOverlay, onDailyNote: openDailyNoteCmd });
   const toggleSidebar = useCallback(() => setSidebarCollapsed((c) => !c), []);
   const location = useLocation();
   const navigate = useNavigate();

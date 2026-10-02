@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useGlobalHotkeys } from './useGlobalHotkeys';
 
@@ -45,5 +45,14 @@ describe('useGlobalHotkeys', () => {
     unmount();
     press({ key: 'k', ctrlKey: true });
     expect(onOpenOverlay).not.toHaveBeenCalled();
+  });
+
+  it('Mod-Alt-N opens the daily note (matched on the physical key, as macOS Option rewrites e.key)', () => {
+    const onDailyNote = vi.fn();
+    renderHook(() => useGlobalHotkeys({ onOpenOverlay: vi.fn(), onDailyNote }));
+    fireEvent.keyDown(window, { key: '˜', code: 'KeyN', metaKey: true, altKey: true });
+    expect(onDailyNote).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(window, { key: 'n', code: 'KeyN', ctrlKey: true }); // no Alt → not ours
+    expect(onDailyNote).toHaveBeenCalledTimes(1);
   });
 });

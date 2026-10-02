@@ -4,8 +4,13 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { NavigationGuardProvider } from '../navigation/NavigationGuardProvider';
 import { __resetRegistryForTest, getCommands, runCommand } from './registry';
 import { useGlobalCommands } from './useGlobalCommands';
+import { api } from '../api/client';
+import { useNavigationGuard } from '../navigation/NavigationGuardProvider';
+
+vi.mock('../api/client', () => ({ api: { listPages: vi.fn(), listClusters: vi.fn() } }));
 
 function Probe() { return <div data-testid="loc">{useLocation().pathname}</div>; }
+function DirtyHost(props) { useGlobalCommands(props); useNavigationGuard(true); return null; }
 function Host(props) { useGlobalCommands(props); return null; }
 
 function mount(path, props) {
@@ -63,5 +68,23 @@ describe('useGlobalCommands', () => {
     mount('/edit/Beta', { openOverlay: vi.fn(), toggleSidebar: vi.fn() });
     expect(ids()).not.toContain('edit-page');
     expect(ids()).toContain('page-history');
+  });
+
+  it("daily-note is registered everywhere and opens today's note", async () => {
+    api.listPages.mockResolvedValue({ pages: [] });
+    api.listClusters.mockResolvedValue({ clusters: [] });
+    mount('/search', { openOverlay: vi.fn(), toggleSidebar: vi.fn() });
+    expect(getCommands().find((c) => c.id === 'daily-note')).toMatchObject({ section: 'Page', keys: 'Mod-Alt-N' });
+    await act(async () => { await runCommand('daily-note'); });
+    expect(screen.getByTestId('loc').textContent).toMatch(/^\/edit\/\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('daily-note asks first when the current page has unsaved changes', async () => {
+    api.listPages.mockResolvedValue({ pages: [{ name: 'x' }] });
+    render(<MemoryRouter initialEntries={['/edit/Alpha']}><NavigationGuardProvider>
+      <DirtyHost openOverlay={vi.fn()} toggleSidebar={vi.fn()} /><Probe /></NavigationGuardProvider></MemoryRouter>);
+    await act(async () => { await runCommand('daily-note'); });
+    expect(screen.getByTestId('guard-dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('loc')).toHaveTextContent('/edit/Alpha');
   });
 });

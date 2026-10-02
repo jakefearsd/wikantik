@@ -181,19 +181,24 @@ class SSOLoginModuleEdgeCasesTest {
         p.setProperty( SSOConfig.PROP_AUTO_PROVISION, "false" );
         SSOConfigHolder.setConfig( engine, new SSOConfig( p, "http://localhost/sso/callback" ) );
 
-        final CommonProfile profile = new CommonProfile();
-        profile.setId( "ephemeral-user" );
-        profile.addAttribute( "sub", "ephemeral-user" );
+        try {
+            final CommonProfile profile = new CommonProfile();
+            profile.setId( "ephemeral-user" );
+            profile.addAttribute( "sub", "ephemeral-user" );
 
-        final SSOLoginModule module = new SSOLoginModule();
-        final Subject subject = new Subject();
-        module.initialize( subject, new WebContainerCallbackHandler( engine, requestWithProfile( profile ) ),
-                new HashMap<>(), Map.of( SSOLoginModule.OPTION_CLAIM_LOGIN_NAME, "sub" ) );
+            final SSOLoginModule module = new SSOLoginModule();
+            final Subject subject = new Subject();
+            module.initialize( subject, new WebContainerCallbackHandler( engine, requestWithProfile( profile ) ),
+                    new HashMap<>(), Map.of( SSOLoginModule.OPTION_CLAIM_LOGIN_NAME, "sub" ) );
 
-        Assertions.assertTrue( module.login(), "SSO authenticates even when provisioning is disabled." );
-        Assertions.assertThrows( com.wikantik.auth.NoSuchPrincipalException.class,
-            () -> engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase()
-                       .findByLoginName( "ephemeral-user" ),
-            "Disabled provisioning must not create a local profile." );
+            Assertions.assertTrue( module.login(), "SSO authenticates even when provisioning is disabled." );
+            Assertions.assertThrows( com.wikantik.auth.NoSuchPrincipalException.class,
+                () -> engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase()
+                           .findByLoginName( "ephemeral-user" ),
+                "Disabled provisioning must not create a local profile." );
+        } finally {
+            // static holder shared across test classes: never leak this config
+            SSOConfigHolder.removeConfig( engine );
+        }
     }
 }

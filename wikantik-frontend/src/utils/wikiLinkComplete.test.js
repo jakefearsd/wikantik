@@ -50,6 +50,13 @@ describe('createWikiLinkSource', () => {
     expect(res.to).toBe('see [[machine'.length + 2);
   });
 
+  it('stays quiet once an alias is being typed ([[Name|al), so the alias is never overwritten', async () => {
+    const d = deps();
+    expect(await createWikiLinkSource(d)(ctx('see [[MachineLearning|the ml', ']]'))).toBeNull();
+    expect(await createWikiLinkSource(d)(ctx('see [[MachineLearning#Setup|al', ']]'))).toBeNull();
+    expect(d.searchPages).not.toHaveBeenCalled();
+  });
+
   it('[[ without trailing ]] leaves `to` unset', async () => {
     const res = await createWikiLinkSource(deps())(ctx('see [[machine', ' tail'));
     expect(res.to).toBeUndefined();

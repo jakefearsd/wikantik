@@ -9,7 +9,8 @@ import { titleToSlug, isValidSlug } from './slugUtils';
 
 const MAX_OPTIONS = 20;
 const SEARCH_DEBOUNCE_MS = 150;
-const WIKI_TRIGGER = /\[\[([^\]\n#]*)(?:#([^\]\n]*))?$/;
+// `|` is excluded so completion stops once an alias is being typed (`[[Name|al`) and never overwrites it.
+const WIKI_TRIGGER = /\[\[([^\]\n#|]*)(?:#([^\]\n|]*))?$/;
 const TARGET_TRIGGER = /\]\(([^)\s#]*)(?:#([^)\s]*))?$/;
 const HAS_SCHEME_OR_ROOT = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 

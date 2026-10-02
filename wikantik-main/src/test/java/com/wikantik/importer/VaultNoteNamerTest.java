@@ -19,6 +19,7 @@
 package com.wikantik.importer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
@@ -81,5 +82,26 @@ class VaultNoteNamerTest {
         final VaultNoteNamer namer = new VaultNoteNamer( FakeWikiSnapshot.EMPTY );
         namer.assign( List.of( "Hub.md" ) );
         assertEquals( "hub 2", namer.allocateGenerated( "hub" ) );
+    }
+
+    @Test
+    void hugeFolderNamesStillYieldValidNames() {
+        final String folder = "f".repeat( 130 );
+        final String name = "n".repeat( 128 );
+        final Map< String, String > n = new VaultNoteNamer( FakeWikiSnapshot.EMPTY )
+            .assign( List.of( folder + "/" + name + ".md", "Z/" + name + ".md", folder + "/Short.md", "Q/Short.md", "Short.md" ) );
+        for ( final String page : n.values() ) {
+            assertTrue( page.length() <= 128, page );
+            assertTrue( com.wikantik.util.WikiPageNameValidator.isValid( page ), page );
+            assertEquals( page.trim(), page );
+        }
+        assertEquals( 5, Set.copyOf( n.values().stream().map( String::toLowerCase ).toList() ).size() );
+    }
+
+    @Test
+    void nfdNamesKeepTheirAccents() {
+        final String nfd = java.text.Normalizer.normalize( "Caf\u00e9.md", java.text.Normalizer.Form.NFD );
+        final Map< String, String > n = new VaultNoteNamer( FakeWikiSnapshot.EMPTY ).assign( List.of( nfd ) );
+        assertEquals( "Caf\u00e9", n.get( nfd ) );
     }
 }

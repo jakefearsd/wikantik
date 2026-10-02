@@ -29,96 +29,111 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-/** Resolves Obsidian link targets to vault notes and files (case-insensitive, shortest path wins). */
+/**
+ * Resolves Obsidian link targets to vault notes and files (case-insensitive, NFC-normalised, shortest path wins).
+ * Lookups are O(1): a suffix index maps every {@code /}-boundary suffix of each key to its sorted candidates.
+ */
 public final class VaultLinkIndex {
 
     private static final Comparator< String > SHORTEST_THEN_ORDER =
         Comparator.< String >comparingInt( String::length ).thenComparing( VaultPaths.ORDER );
 
-    private final Map< String, String > noteByKey = new HashMap<>();
-    private final Map< String, String > fileByKey = new HashMap<>();
+    private final Index notes;
+    private final Index files;
 
     public VaultLinkIndex( final Collection< String > notePaths, final Collection< String > filePaths ) {
-        index( noteByKey, notePaths, true );
-        index( fileByKey, filePaths, false );
-    }
-
-    private static void index( final Map< String, String > map, final Collection< String > paths, final boolean note ) {
-        final List< String > sorted = new ArrayList<>( paths );
-        sorted.sort( VaultPaths.ORDER );
-        for ( final String path : sorted ) {
-            map.putIfAbsent( key( path, note ), path );
-        }
+        notes = new Index( notePaths, true );
+        files = new Index( filePaths, false );
     }
 
     /** Resolves a link target (no fragment; {@code .md} optional) to a note path. */
     public Optional< String > resolveNote( final String target ) {
-        return resolve( noteByKey, target, true );
+        return notes.resolve( target );
     }
 
     /** Resolves a full file name (with extension) to an attachment path. */
     public Optional< String > resolveFile( final String target ) {
-        return resolve( fileByKey, target, false );
+        return files.resolve( target );
     }
 
-    /** Resolves a markdown-link target relative to the note at {@code fromPath}, then vault-wide. */
+    /** Resolves a markdown-link target relative to the note at {@code fromPath}, then vault-wide by name. */
     public Optional< String > resolveNoteRelative( final String target, final String fromPath ) {
-        return resolveRelative( noteByKey, target, fromPath, true );
+        return notes.resolveRelative( target, fromPath );
     }
 
-    /** Resolves a markdown-link file target relative to the note at {@code fromPath}, then vault-wide. */
+    /** Resolves a markdown-link file target relative to the note at {@code fromPath}, then vault-wide by name. */
     public Optional< String > resolveFileRelative( final String target, final String fromPath ) {
-        return resolveRelative( fileByKey, target, fromPath, false );
+        return files.resolveRelative( target, fromPath );
     }
 
-    private static Optional< String > resolveRelative( final Map< String, String > map, final String target,
-                                                       final String fromPath, final boolean note ) {
-        final String parent = VaultPaths.parentFolder( fromPath );
-        final Optional< String > joined = normalise( parent.isEmpty() ? target : parent + "/" + target );
-        if ( joined.isEmpty() ) {
-            return Optional.empty();
-        }
-        final String hit = map.get( key( joined.get(), note ) );
-        return hit != null ? Optional.of( hit ) : resolve( map, target, note );
-    }
-
-    /** Collapses {@code .} and {@code ..} segments; empty when the path climbs out of the vault root. */
-    private static Optional< String > normalise( final String path ) {
+    /** Collapses {@code .} and {@code ..} segments; a {@code ..} above the root is dropped when {@code lenient}, else yields empty. */
+    private static Optional< String > normalise( final String path, final boolean lenient ) {
         final Deque< String > stack = new ArrayDeque<>();
         for ( final String seg : path.split( "/" ) ) {
             if ( seg.isEmpty() || ".".equals( seg ) ) {
                 continue;
             }
-            if ( "..".equals( seg ) ) {
-                if ( stack.isEmpty() ) {
-                    return Optional.empty();
-                }
-                stack.removeLast();
-            } else {
+            if ( !"..".equals( seg ) ) {
                 stack.addLast( seg );
+            } else if ( !stack.isEmpty() ) {
+                stack.removeLast();
+            } else if ( !lenient ) {
+                return Optional.empty();
             }
         }
         return Optional.of( String.join( "/", stack ) );
     }
 
-    private static Optional< String > resolve( final Map< String, String > map, final String target, final boolean note ) {
-        final String stripped = target.startsWith( "/" ) ? target.substring( 1 ) : target;
-        final String k = key( stripped, note );
-        final String exact = map.get( k );
-        if ( exact != null ) {
-            return Optional.of( exact );
+    private static final class Index {
+        private final boolean note;
+        private final Map< String, String > byKey = new HashMap<>();
+        private final Map< String, List< String > > bySuffix = new HashMap<>();
+
+        Index( final Collection< String > paths, final boolean note ) {
+            this.note = note;
+            final List< String > sorted = new ArrayList<>( paths );
+            sorted.sort( VaultPaths.ORDER );
+            for ( final String path : sorted ) {
+                byKey.putIfAbsent( key( path ), path );
+            }
+            for ( final Map.Entry< String, String > e : byKey.entrySet() ) {
+                final String k = e.getKey();
+                for ( int i = k.indexOf( '/' ); i >= -1; i = k.indexOf( '/', i + 1 ) ) {
+                    bySuffix.computeIfAbsent( k.substring( i + 1 ), x -> new ArrayList<>() ).add( e.getValue() );
+                    if ( i < 0 ) {
+                        break;
+                    }
+                }
+            }
+            bySuffix.values().forEach( l -> l.sort( SHORTEST_THEN_ORDER ) );
         }
-        return map.entrySet().stream()
-            .filter( e -> k.indexOf( '/' ) >= 0 ? e.getKey().endsWith( "/" + k ) : basename( e.getKey() ).equals( k ) )
-            .map( Map.Entry::getValue )
-            .min( SHORTEST_THEN_ORDER );
-    }
 
-    private static String basename( final String key ) {
-        return key.substring( key.lastIndexOf( '/' ) + 1 );
-    }
+        Optional< String > resolve( final String target ) {
+            final String stripped = target.startsWith( "/" ) ? target.substring( 1 ) : target;
+            final String k = key( stripped );
+            final String exact = byKey.get( k );
+            if ( exact != null ) {
+                return Optional.of( exact );
+            }
+            final List< String > hits = bySuffix.get( k );
+            return hits == null ? Optional.empty() : Optional.of( hits.get( 0 ) );
+        }
 
-    private static String key( final String path, final boolean note ) {
-        return ( note ? VaultPaths.withoutMd( path ) : path ).toLowerCase( Locale.ROOT );
+        Optional< String > resolveRelative( final String target, final String fromPath ) {
+            final String parent = VaultPaths.parentFolder( VaultNames.nfc( fromPath ) );
+            final Optional< String > joined = normalise( parent.isEmpty() ? target : parent + "/" + target, false );
+            final String hit = joined.map( j -> byKey.get( key( j ) ) ).orElse( null );
+            if ( hit != null ) {
+                return Optional.of( hit );
+            }
+            final String name = normalise( target, true ).orElse( target );
+            final Optional< String > byPath = resolve( name );
+            return byPath.isPresent() ? byPath : resolve( VaultPaths.basename( name ) );
+        }
+
+        private String key( final String path ) {
+            final String nfc = VaultNames.nfc( path );
+            return ( note ? VaultPaths.withoutMd( nfc ) : nfc ).toLowerCase( Locale.ROOT );
+        }
     }
 }

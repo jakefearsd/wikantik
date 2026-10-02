@@ -20,6 +20,7 @@ package com.wikantik.importer;
 
 import com.wikantik.util.TextUtil;
 import com.wikantik.util.WikiPageNameValidator;
+import java.text.Normalizer;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -38,9 +39,10 @@ public final class VaultNames {
 
     /** A name the wiki accepts: only the cleanLink character set, no {@code ..}, at most 128 chars; "Untitled" if empty. */
     public static String legalPageName( final String raw ) {
-        final StringBuilder sb = new StringBuilder( raw.length() );
-        for ( int i = 0; i < raw.length(); i++ ) {
-            final char c = raw.charAt( i );
+        final String nfc = nfc( raw );
+        final StringBuilder sb = new StringBuilder( nfc.length() );
+        for ( int i = 0; i < nfc.length(); i++ ) {
+            final char c = nfc.charAt( i );
             sb.append( Character.isLetterOrDigit( c ) || TextUtil.PUNCTUATION_CHARS_ALLOWED.indexOf( c ) >= 0 ? c : ' ' );
         }
         String s = WHITESPACE.matcher( DOT_RUNS.matcher( sb ).replaceAll( " " ) ).replaceAll( " " ).trim();
@@ -48,6 +50,11 @@ public final class VaultNames {
             s = s.substring( 0, WikiPageNameValidator.MAX_LENGTH ).trim();
         }
         return s.isEmpty() ? UNTITLED : s;
+    }
+
+    /** Unicode NFC form, so macOS-zipped (NFD) names match typed (NFC) links and keep their accents. */
+    public static String nfc( final String s ) {
+        return Normalizer.normalize( s, Normalizer.Form.NFC );
     }
 
     /** Lowercase {@code a-z0-9} slug with single dashes; empty when nothing survives. */
@@ -58,6 +65,6 @@ public final class VaultNames {
 
     /** Replaces characters that would break an {@code ![[Owner/file]]} reference with {@code -}. */
     public static String attachmentName( final String fileName ) {
-        return ATTACHMENT_ILLEGAL.matcher( fileName ).replaceAll( "-" ).trim();
+        return ATTACHMENT_ILLEGAL.matcher( nfc( fileName ) ).replaceAll( "-" ).trim();
     }
 }

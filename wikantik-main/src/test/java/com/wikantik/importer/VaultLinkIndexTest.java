@@ -49,7 +49,7 @@ class VaultLinkIndexTest {
     void relativeMarkdownLinks() {
         final VaultLinkIndex ix = new VaultLinkIndex( List.of( "Projects/Alpha.md", "Notes/Code.md" ), List.of() );
         assertEquals( Optional.of( "Projects/Alpha.md" ), ix.resolveNoteRelative( "../Projects/Alpha.md", "Notes/Code.md" ) );
-        assertEquals( Optional.empty(), ix.resolveNoteRelative( "../../x.md", "Notes/Code.md" ) );
+        assertEquals( Optional.empty(), ix.resolveNoteRelative( "../../nope.md", "Notes/Code.md" ) );
         assertEquals( Optional.of( "Notes/Code.md" ), ix.resolveNoteRelative( "./Code.md", "Notes/Other.md" ) );
     }
 
@@ -60,5 +60,39 @@ class VaultLinkIndexTest {
         assertEquals( Optional.of( "Projects/Alpha.md" ), ix.resolveNoteRelative( "Alpha.md", "Notes/Code.md" ) );
         assertEquals( Optional.of( "img/pic.png" ), ix.resolveFileRelative( "../img/pic.png", "Notes/Code.md" ) );
         assertEquals( Optional.of( "img/pic.png" ), ix.resolveFileRelative( "pic.png", "Notes/Code.md" ) );
+    }
+
+    @Test
+    void climbingAboveRootFallsBackToNameResolution() {
+        final VaultLinkIndex ix = new VaultLinkIndex( List.of( "Notes/Code.md", "x.md" ), List.of() );
+        assertEquals( Optional.of( "x.md" ), ix.resolveNoteRelative( "../../x.md", "Notes/Code.md" ) );
+    }
+
+    @Test
+    void misDepthRelativeLinkFallsBackToNormalisedTail() {
+        final VaultLinkIndex ix = new VaultLinkIndex( List.of( "Projects/foo/Alpha.md", "Notes/Code.md" ), List.of() );
+        assertEquals( Optional.of( "Projects/foo/Alpha.md" ), ix.resolveNoteRelative( "../foo/Alpha.md", "Notes/Code.md" ) );
+        assertEquals( Optional.of( "Projects/foo/Alpha.md" ), ix.resolveNoteRelative( "../bar/Alpha.md", "Notes/Code.md" ) );
+    }
+
+    @Test
+    void nfdFileNameResolvesFromNfcLink() {
+        final String nfd = java.text.Normalizer.normalize( "Caf\u00e9.md", java.text.Normalizer.Form.NFD );
+        final VaultLinkIndex ix = new VaultLinkIndex( List.of( "Notes/" + nfd ), List.of() );
+        assertEquals( Optional.of( "Notes/" + nfd ), ix.resolveNote( "Caf\u00e9" ) );
+    }
+
+    @Test
+    void largeIndexTieBreaksUnchanged() {
+        final java.util.ArrayList< String > notes = new java.util.ArrayList<>();
+        for ( int i = 0; i < 20000; i++ ) {
+            notes.add( "d" + i + "/n" + ( i % 100 ) + ".md" );
+        }
+        notes.add( "deep/er/est/n7.md" );
+        notes.add( "n7.md" );
+        final VaultLinkIndex ix = new VaultLinkIndex( notes, List.of() );
+        assertEquals( Optional.of( "n7.md" ), ix.resolveNote( "N7" ) );
+        assertEquals( Optional.of( "d7/n7.md" ), ix.resolveNote( "d7/n7" ) );
+        assertEquals( Optional.of( "deep/er/est/n7.md" ), ix.resolveNote( "er/est/n7" ) );
     }
 }

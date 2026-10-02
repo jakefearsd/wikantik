@@ -27,8 +27,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/** Assigns each vault note a unique, legal wiki page name. */
+/** Assigns each vault note a unique, legal wiki page name. Single-use: create one namer per import plan. */
 public final class VaultNoteNamer {
+
+    private static final int MAX_FOLDER_SUFFIX = 40;
 
     private final WikiSnapshot snapshot;
     private final Set< String > taken = new HashSet<>();
@@ -61,7 +63,7 @@ public final class VaultNoteNamer {
         String candidate = VaultNames.legalPageName( VaultPaths.withoutMd( VaultPaths.basename( path ) ) );
         final String folder = VaultPaths.parentFolder( path );
         if ( isTaken( candidate, false ) && !folder.isEmpty() ) {
-            candidate = fit( candidate, " (" + VaultNames.legalPageName( VaultPaths.basename( folder ) ) + ")" );
+            candidate = fit( candidate, " (" + folderLabel( folder ) + ")" );
         }
         return number( candidate, false );
     }
@@ -79,9 +81,14 @@ public final class VaultNoteNamer {
             || checkWiki && snapshot.existingPage( candidate ).isPresent();
     }
 
+    private static String folderLabel( final String folder ) {
+        final String label = VaultNames.legalPageName( VaultPaths.basename( folder ) );
+        return label.length() > MAX_FOLDER_SUFFIX ? label.substring( 0, MAX_FOLDER_SUFFIX ).trim() : label;
+    }
+
     private static String fit( final String base, final String suffix ) {
         final int room = WikiPageNameValidator.MAX_LENGTH - suffix.length();
-        final String head = base.length() > room ? base.substring( 0, room ).trim() : base;
-        return head + suffix;
+        final String head = base.length() > room ? base.substring( 0, Math.max( room, 0 ) ).trim() : base;
+        return head.isEmpty() ? suffix.trim() : head + suffix;
     }
 }

@@ -73,7 +73,19 @@ public class DefaultRenderingManager implements RenderingManager {
     private static final Logger LOG = LogManager.getLogger( DefaultRenderingManager.class );
     private static final String VERSION_DELIMITER = "::";
 
-    record HtmlCacheEntry( String html, String contentHash ) implements Serializable {}
+    /**
+     * A page view's final HTML, valid only for the raw page data whose hash it carries and, when {@code locale} is
+     * set, only for viewers in that locale (create-page tooltips and other bundle strings are localised).
+     */
+    record HtmlCacheEntry( String html, String contentHash, String locale ) implements Serializable {
+        HtmlCacheEntry( final String html, final String contentHash ) {
+            this( html, contentHash, null );
+        }
+
+        boolean matches( final String hash, final String viewerLocale ) {
+            return contentHash.equals( hash ) && ( locale == null || locale.equals( viewerLocale ) );
+        }
+    }
     private static final String DEFAULT_PARSER = "com.wikantik.parser.markdown.MarkdownParser";
     private static final String DEFAULT_RENDERER = "com.wikantik.render.markdown.MarkdownRenderer";
     private static final String DEFAULT_WYSIWYG_RENDERER = "com.wikantik.render.markdown.MarkdownRenderer";
@@ -175,6 +187,8 @@ public class DefaultRenderingManager implements RenderingManager {
         LOG.info( "Rendering content with {}.", renderImplName );
 
         WikiEventManager.addWikiEventListener( this.filterManager, this );
+        // page deletions: a referrer's cached HTML would otherwise keep a live link to the deleted page
+        WikiEventManager.addWikiEventListener( this.pageManager, this );
     }
 
     private Constructor< ? > initRenderer( final String renderImplName, final Class< ? >[] rendererParams ) throws WikiException {
@@ -330,21 +344,6 @@ public class DefaultRenderingManager implements RenderingManager {
     }
 
     /**
-     *  Renders WITHOUT the post-translate filters, so its output must never be cached as a page view's final HTML:
-     *  only {@link #textToHTML(Context, String)} reads and writes {@link CachingManager#CACHE_HTML}. (This override
-     *  used to share that key, letting a page view be served HTML the post-translate filters never saw.)
-     */
-    @Override
-    public String getHTML( final Context context, final String pagedata ) {
-        try {
-            return getHTML( context, getRenderedDocument( context, pagedata ) );
-        } catch( final IOException e ) {
-            LOG.error( "Unable to parse", e );
-        }
-        return null;
-    }
-
-    /**
      *  {@inheritDoc}
      */
     @Override
@@ -392,33 +391,22 @@ public class DefaultRenderingManager implements RenderingManager {
      *  {@inheritDoc}
      */
     @Override
-    public String textToHTML( final Context context, String pagedata ) {
-        String result = "";
-
-        // Try HTML cache first — skip all rendering work on hit
-        if( useHtmlCache( context ) ) {
-            final String cacheId = htmlCacheId( context );
-            final HtmlCacheEntry cached = cachingManager.get( CachingManager.CACHE_HTML, cacheId, () -> null );
-            if( cached != null ) {
-                final String currentHash = WikiDocument.hashPageData( pagedata );
-                if( cached.contentHash().equals( currentHash ) ) {
-                    LOG.debug( "HTML cache hit for {}", cacheId );
-                    return cached.html();
-                }
-            }
+    public String textToHTML( final Context context, final String pagedata ) {
+        // The entry is validated against the RAW page data: the pre-translate filters may rewrite it.
+        final String rawHash = useHtmlCache( context ) ? WikiDocument.hashPageData( pagedata ) : null;
+        final String locale = rawHash != null ? HtmlViewCache.viewerLocale( context ) : null;
+        final String cached = rawHash == null ? null : HtmlViewCache.lookup( cachingManager, htmlCacheId( context ), rawHash, locale );
+        if( cached != null ) {
+            return cached;
         }
 
-        final boolean runFilters = "true".equals( variableManager.getValue( context, VariableManager.VAR_RUNFILTERS, "true" ) );
-
+        final boolean runFilters = HtmlViewCache.runFilters( context, engine );
+        String result = "";
         final StopWatch sw = new StopWatch();
         sw.start();
         try {
-            if( runFilters ) {
-                pagedata = filterManager.doPreTranslateFiltering( context, pagedata );
-            }
-
-            result = getHTML( context, pagedata );
-
+            final String filtered = runFilters ? filterManager.doPreTranslateFiltering( context, pagedata ) : pagedata;
+            result = getHTML( context, filtered );
             if( runFilters ) {
                 result = filterManager.doPostTranslateFiltering( context, result );
             }
@@ -429,13 +417,10 @@ public class DefaultRenderingManager implements RenderingManager {
         sw.stop();
         LOG.debug( "Page {} rendered, took {}", context.getRealPage().getName(), sw );
 
-        // Store in HTML cache (never a viewer-dependent render: embeds / ACL-aware includes)
-        if( useHtmlCache( context ) && !isViewerSensitive( context ) ) {
-            final String cacheId = htmlCacheId( context );
-            final String contentHash = WikiDocument.hashPageData( pagedata );
-            cachingManager.put( CachingManager.CACHE_HTML, cacheId, new HtmlCacheEntry( result, contentHash ) );
+        // Store in HTML cache (never a viewer-dependent or filter-less render)
+        if( rawHash != null && !isViewerSensitive( context ) ) {
+            HtmlViewCache.store( cachingManager, htmlCacheId( context ), new HtmlCacheEntry( result, rawHash, locale ) );
         }
-
         return result;
     }
 
@@ -457,7 +442,7 @@ public class DefaultRenderingManager implements RenderingManager {
             return null;
         }
 
-        final boolean runFilters = "true".equals( variableManager.getValue( context, VariableManager.VAR_RUNFILTERS, "true" ) );
+        final boolean runFilters = HtmlViewCache.runFilters( context, engine );
 
         try {
             final StopWatch sw = new StopWatch();
@@ -547,6 +532,11 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public void actionPerformed( final WikiEvent event ) {
         LOG.debug( "event received: {}", event.toString() );
+        if( event instanceof WikiPageEvent pageEvent && pageEvent.getType() == WikiPageEvent.PAGE_DELETED
+                && pageEvent.getPageName() != null ) {
+            evictRenderCacheAndReferrers( pageEvent.getPageName() );
+            return;
+        }
         if( isBeginningAWikiPagePostSaveEventAndCacheIsEnabled( event ) ) {
             final String pageName = ( ( WikiPageEvent ) event ).getPageName();
             // Evict the saved page itself (text changed, so hash check would catch it,
@@ -560,6 +550,18 @@ public class DefaultRenderingManager implements RenderingManager {
             for( final String page : referringPages ) {
                 LOG.debug( "Flushing cache for referring page {}", page );
                 evictRenderCache( page );
+            }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void evictRenderCacheAndReferrers( final String name ) {
+        evictRenderCache( name );
+        final ReferenceManager refs = getReferenceManager();
+        if( refs != null ) {
+            for( final String referrer : refs.findReferrers( name ) ) {
+                evictRenderCache( referrer );
             }
         }
     }

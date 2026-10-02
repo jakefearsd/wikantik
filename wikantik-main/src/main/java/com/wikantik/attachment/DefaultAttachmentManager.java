@@ -275,6 +275,17 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
         final Page parent = Wiki.contents().page( engine, att.getParentName() );
         PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().updateReferences( parent );
         SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().reindexPage( att );
+        evictRenderCaches( att );
+    }
+
+    /** Attachment existence is baked into cached HTML: evict the parent page and every page linking to the file. */
+    private void evictRenderCaches( final Attachment att ) {
+        final com.wikantik.render.RenderingManager rm =
+                com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
+        if( rm != null ) {
+            rm.evictRenderCacheAndReferrers( att.getParentName() );
+            rm.evictRenderCacheAndReferrers( att.getName() );
+        }
     }
 
     /** {@inheritDoc} */
@@ -334,6 +345,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
 
         provider.deleteAttachment( att );
         SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().pageRemoved( att );
+        evictRenderCaches( att ); // before clearPageEntries forgets who referred to the attachment
         PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().clearPageEntries( att.getName() );
     }
 

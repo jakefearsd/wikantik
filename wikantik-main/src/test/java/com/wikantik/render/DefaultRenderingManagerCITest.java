@@ -96,6 +96,13 @@ class DefaultRenderingManagerCITest {
 
         // CommandResolver must return a valid PageCommand so WikiContext construction works
         when( commandResolver.findCommand( any(), anyString() ) ).thenReturn( GenericCommand.PAGE_VIEW );
+        // pass-through filters: the run-filters switch is no longer read through the VariableManager
+        try {
+            when( filterManager.doPreTranslateFiltering( any(), any() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
+            when( filterManager.doPostTranslateFiltering( any(), any() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
+        } catch ( final com.wikantik.api.exceptions.FilterException e ) {
+            throw new IllegalStateException( e );
+        }
 
         engine = MockEngineBuilder.engine()
                 .with( CachingManager.class, cachingManager )
@@ -215,8 +222,8 @@ class DefaultRenderingManagerCITest {
     void textToHTMLDoesNotCacheAViewerSensitiveRender() {
         when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( true );
         when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( null );
-        when( variableManager.getValue( any( Context.class ), eq( VariableManager.VAR_RUNFILTERS ), eq( "true" ) ) ).thenReturn( "false" );
         final Context ctx = viewContext( "EmbedderPage", 1 );
+        when( ctx.getVariable( VariableManager.VAR_RUNFILTERS ) ).thenReturn( "false" ); // code switch, never a request
         when( ctx.getVariable( com.wikantik.api.core.Context.VAR_VIEWER_SENSITIVE ) ).thenReturn( Boolean.TRUE );
 
         mgr.textToHTML( ctx, "**hi**" );
@@ -351,10 +358,9 @@ class DefaultRenderingManagerCITest {
     @Test
     void textToHTMLSkipsFiltersWhenDisabled() throws FilterException {
         when( cachingManager.enabled( anyString() ) ).thenReturn( false );
-        when( variableManager.getValue( any( Context.class ), eq( VariableManager.VAR_RUNFILTERS ), eq( "true" ) ) )
-                .thenReturn( "false" );
 
         final Context ctx = noneContext( "NoFilterPage", 1 );
+        when( ctx.getVariable( VariableManager.VAR_RUNFILTERS ) ).thenReturn( "false" ); // code switch, never a request
         mgr.textToHTML( ctx, "plain text" );
 
         verify( filterManager, never() ).doPreTranslateFiltering( any(), any() );
@@ -414,10 +420,9 @@ class DefaultRenderingManagerCITest {
     @Test
     void textToHTMLWithHooksSkipsFiltersWhenDisabled() throws FilterException {
         when( cachingManager.enabled( anyString() ) ).thenReturn( false );
-        when( variableManager.getValue( any( Context.class ), eq( VariableManager.VAR_RUNFILTERS ), eq( "true" ) ) )
-                .thenReturn( "false" );
 
         final Context ctx = noneContext( "NoFilterHooksPage", 1 );
+        when( ctx.getVariable( VariableManager.VAR_RUNFILTERS ) ).thenReturn( "false" ); // code switch, never a request
         mgr.textToHTML( ctx, "text", null, null, null, true, false );
 
         verify( filterManager, never() ).doPreTranslateFiltering( any(), any() );
@@ -429,13 +434,12 @@ class DefaultRenderingManagerCITest {
     @Test
     void getHTMLWithContextAndPageDelegatesToPageManager() throws FilterException {
         when( cachingManager.enabled( anyString() ) ).thenReturn( false );
-        when( variableManager.getValue( any( Context.class ), eq( VariableManager.VAR_RUNFILTERS ), eq( "true" ) ) )
-                .thenReturn( "false" );
 
         final Page page = mockPage( "DelegatePage", 2 );
         when( pageManager.getPureText( "DelegatePage", 2 ) ).thenReturn( "page content" );
 
         final Context ctx = noneContext( "DelegatePage", 2 );
+        when( ctx.getVariable( VariableManager.VAR_RUNFILTERS ) ).thenReturn( "false" ); // code switch, never a request
         mgr.getHTML( ctx, page );
 
         verify( pageManager ).getPureText( "DelegatePage", 2 );
@@ -698,16 +702,27 @@ class DefaultRenderingManagerCITest {
         when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( true );
         when( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ).thenReturn( false );
         when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( null );
-        when( variableManager.getValue( any( Context.class ), eq( VariableManager.VAR_RUNFILTERS ), eq( "true" ) ) )
-                .thenReturn( "false" );
 
         final Context ctx = viewContext( "StoreHtmlPage", 1 );
         mgr.textToHTML( ctx, "text to cache" );
 
-        // textToHTML calls getHTML(ctx, pagedata) internally which also stores in HTML cache,
-        // so put may be invoked more than once; verify at least one store occurred
         verify( cachingManager, atLeastOnce() ).put( eq( CachingManager.CACHE_HTML ), anyString(),
                 any( DefaultRenderingManager.HtmlCacheEntry.class ) );
+    }
+
+    @Test
+    void textToHTMLNeverCachesARenderWithTheFiltersSwitchedOff() {
+        when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( true );
+        when( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ).thenReturn( false );
+        when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( null );
+        final Context ctx = viewContext( "UnfilteredPage", 1 );
+        when( ctx.getVariable( VariableManager.VAR_RUNFILTERS ) ).thenReturn( "false" );
+        when( ctx.getVariable( com.wikantik.api.core.Context.VAR_RENDER_UNCACHEABLE ) ).thenReturn( Boolean.TRUE );
+
+        mgr.textToHTML( ctx, "text" );
+
+        verify( ctx ).setVariable( com.wikantik.api.core.Context.VAR_RENDER_UNCACHEABLE, Boolean.TRUE );
+        verify( cachingManager, never() ).put( eq( CachingManager.CACHE_HTML ), anyString(), any() );
     }
 
     // ========== getRenderer / getWysiwygRenderer ==========

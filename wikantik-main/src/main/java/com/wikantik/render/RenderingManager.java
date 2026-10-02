@@ -145,10 +145,10 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
     String getHTML( String pagename, int version );
 
     /**
-     *   Convenience method for rendering, using the default parser and renderer.  Note that you can't use this method
-     *   to do any arbitrary rendering, as the pagedata MUST be the data from the that the WikiContext refers to - this
-     *   method caches the HTML internally, and will return the cached version.  If the pagedata is different from what
-     *   was cached, will re-render and store the pagedata into the internal cache.
+     *   Convenience method for rendering, using the default parser and renderer. The parsed document may come from the
+     *   document cache (validated against {@code pagedata}). The result has NOT been through the post-translate
+     *   filters, so it is never read from or written to the page-view HTML cache, which only
+     *   {@link #textToHTML(Context, String)} uses.
      *
      *   @param context the wiki context
      *   @param pagedata the page data
@@ -237,5 +237,16 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
      * @param pageName the wiki page name whose cache entries should be evicted
      */
     void evictRenderCache( String pageName );
+
+    /**
+     * Evicts the render caches of {@code name} (a page or an attachment's full name) and of every page referring to
+     * it: used when its existence changes without a save of the referrers (delete, rename, attachment upload/delete),
+     * since link existence is baked into the cached HTML.
+     *
+     * @param name the page or attachment name
+     */
+    default void evictRenderCacheAndReferrers( final String name ) {
+        evictRenderCache( name );
+    }
 
 }

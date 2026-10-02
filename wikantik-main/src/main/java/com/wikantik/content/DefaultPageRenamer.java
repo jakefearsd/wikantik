@@ -99,6 +99,7 @@ public class DefaultPageRenamer implements PageRenamer {
         }
         
         final Set< String > referrers = getReferencesToChange( fromPage, engine );
+        final Set< String > newNameReferrers = RenameRenderEviction.referrersOf( engine, renameToClean );
 
         //  Do the actual rename by changing from the frompage to the topage, including all the attachments
         //  Remove references to attachments under old name
@@ -142,6 +143,7 @@ public class DefaultPageRenamer implements PageRenamer {
             com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().reindexPage( att );
         }
 
+        RenameRenderEviction.evict( engine, renameFrom, renameToClean, referrers, newNameReferrers );
         firePageRenameEvent( renameFrom, renameToClean );
 
         //  Done, return the new name.

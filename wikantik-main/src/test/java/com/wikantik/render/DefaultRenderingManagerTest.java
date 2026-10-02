@@ -80,6 +80,8 @@ class DefaultRenderingManagerTest {
 
         context = mock( Context.class );
         when( context.getRealPage() ).thenReturn( realPage );
+        // these fixtures exercise rendering without the (mocked) filter chain; the switch is a context variable
+        when( context.getVariable( VariableManager.VAR_RUNFILTERS ) ).thenReturn( "false" );
     }
 
     private DefaultRenderingManager manager() {

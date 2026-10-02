@@ -689,7 +689,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         pageRemoved( page.getName() );
     }
 
-    private void pageRemoved( final String pageName ) {
+    private synchronized void pageRemoved( final String pageName ) {
         final Collection< String > refTo = refersTo.get( pageName );
         if( refTo != null ) {
             for( final String referredPageName : refTo ) {
@@ -767,7 +767,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      *  @param page Name of the page to update.
      *  @param references A Collection of Strings, each one pointing to a page this page references.
      */
-    private void internalUpdateReferences( String page, final Collection< String > references) {
+    private synchronized void internalUpdateReferences( String page, final Collection< String > references) {
         page = getFinalPageName( page );
 
         // Create a new entry in refersTo.
@@ -905,7 +905,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      * @param pagename  Name of the page to clear references for.
      */
     @Override
-    public void clearPageEntries( String pagename ) {
+    public synchronized void clearPageEntries( String pagename ) {
         pagename = getFinalPageName( pagename );
 
         //  Remove this item from the referredBy list of any page which this item refers to.
@@ -936,7 +936,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      *  @return The Collection of Strings (may be incomplete if called before initialization completes)
      */
     @Override
-    public Collection< String > findUnreferenced() {
+    public synchronized Collection< String > findUnreferenced() {
         warnIfNotInitialized();
         final var unref = new ArrayList< String >();
         for( final String key : referredBy.keySet() ) {
@@ -960,7 +960,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      * @return A Collection of Strings (may be incomplete if called before initialization completes)
      */
     @Override
-    public Collection< String > findUncreated() {
+    public synchronized Collection< String > findUncreated() {
         warnIfNotInitialized();
         final TreeSet< String > uncreated;
 
@@ -995,6 +995,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
             if( refs2 != null ) {
                 if( refs != null ) {
+                    refs = new TreeSet<>( refs ); // merge into a copy: never grow the live set from a read
                     refs.addAll( refs2 );
                 } else {
                     refs = refs2;
@@ -1015,12 +1016,14 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     @Override
     public Set< String > findReferrers( final String pagename ) {
         warnIfNotInitialized();
-        final Set< String > refs = getReferenceList( referredBy, pagename );
-        if( refs == null || refs.isEmpty() ) {
-            return Collections.emptySet();
+        // A snapshot taken under the update lock: the live TreeSets are mutated by saves and the native rescan.
+        synchronized( this ) {
+            final Set< String > refs = getReferenceList( referredBy, pagename );
+            if( refs == null || refs.isEmpty() ) {
+                return Collections.emptySet();
+            }
+            return new TreeSet<>( refs );
         }
-
-        return refs;
     }
 
     /**
@@ -1039,7 +1042,11 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     @Override
     public Set< String > findReferredBy( final String pageName ) {
         warnIfNotInitialized();
-        return unmutableReferredBy.get( getFinalPageName(pageName) );
+        final String finalName = getFinalPageName( pageName );
+        synchronized( this ) {
+            final Set< String > refs = unmutableReferredBy.get( finalName );
+            return refs == null ? null : new TreeSet<>( refs );
+        }
     }
 
     /**
@@ -1060,8 +1067,11 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     @Override
     public Collection< String > findRefersTo( final String pageName ) {
         warnIfNotInitialized();
-        final Collection< String > result = unmutableRefersTo.get( getFinalPageName( pageName ) );
-        return result != null ? result : Collections.emptyList();
+        final String finalName = getFinalPageName( pageName );
+        synchronized( this ) {
+            final Collection< String > result = unmutableRefersTo.get( finalName );
+            return result != null ? new TreeSet<>( result ) : Collections.emptyList();
+        }
     }
 
     /**

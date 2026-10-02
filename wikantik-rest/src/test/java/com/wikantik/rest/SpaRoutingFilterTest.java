@@ -761,6 +761,23 @@ class SpaRoutingFilterTest {
     }
 
     @Test
+    void pageWithInsertKeywordInsertPageIsNeverEtaggedNorServed304() throws Exception {
+        assertViewerDependentPageNotCacheable( "SpaInsertKw", "intro [{INSERT InsertPage page='SpaEmbedRestricted'}]" );
+    }
+
+    @Test
+    void pageWithFullyQualifiedInsertPageIsNeverEtaggedNorServed304() throws Exception {
+        assertViewerDependentPageNotCacheable( "SpaInsertFq",
+                "intro [{com.wikantik.plugin.InsertPage page='SpaEmbedRestricted'}]" );
+    }
+
+    @Test
+    void pageWithInsertKeywordFullyQualifiedInsertPageIsNeverEtaggedNorServed304() throws Exception {
+        assertViewerDependentPageNotCacheable( "SpaInsertKwFq",
+                "intro [{INSERT com.wikantik.plugin.InsertPage page='SpaEmbedRestricted'}]" );
+    }
+
+    @Test
     void pageWithInsertPageIsNeverEtaggedNorServed304() throws Exception {
         assertViewerDependentPageNotCacheable( "SpaInsertPage", "intro [{insertpage page='SpaEmbedRestricted'}]" );
     }

@@ -409,7 +409,7 @@ public class SpaRoutingFilter implements Filter {
     }
 
     private static final java.util.regex.Pattern VIEWER_DEPENDENT_MARKUP =
-            java.util.regex.Pattern.compile( "!\\[\\[|\\[\\{\\s*InsertPage", java.util.regex.Pattern.CASE_INSENSITIVE );
+            java.util.regex.Pattern.compile( "!\\[\\[|\\[\\{\\s*(?:INSERT\\s+)?(?:[\\w.]*\\.)?InsertPage\\b", java.util.regex.Pattern.CASE_INSENSITIVE );
 
     /**
      * Whether the page's raw text transcludes other pages ({@code ![[...]]} native embeds or an

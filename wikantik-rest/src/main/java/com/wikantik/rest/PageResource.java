@@ -838,12 +838,13 @@ public class PageResource extends RestServletBase {
         sendJson( response, out );
     }
 
+    /** Placeholder host page that seeds the embed renderer's loop stack; never a real page name. */
+    private static final String EMBED_HOST_PAGE = "<embed>";
+
     /**
      * Embed body for {@code ![[name]]}: {@code 403} only when the caller cannot view the resolved page; an
      * unresolvable target answers {@code 200 missing:true}. The title is the client's to render (html is body only).
      */
-    private static final String EMBED_HOST_PAGE = "<embed>";
-
     private void handleEmbed( final HttpServletRequest request, final HttpServletResponse response,
                               final String name ) throws IOException {
         final Engine engine = getEngine();

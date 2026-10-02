@@ -104,4 +104,15 @@ class VaultFrontmatterMapperTest {
         assertFalse( m.metadata().containsKey( "tags" ) );
         assertTrue( m.warnings().stream().anyMatch( w -> w.startsWith( "frontmatter:" ) ), m.warnings().toString() );
     }
+
+    @Test
+    void malformedYamlFenceOutrunsBacktickRunsInsideIt() {
+        final MappedNote m = mapper.map( "---\nkey: [unclosed\n```\nmore: ````x\n---\nAfter the block\n",
+            new NoteContext( "N", "N", null, false ) );
+        final String body = m.body();
+        assertTrue( body.startsWith( "`````yaml\n" ), body );
+        final boolean[] code = com.wikantik.api.parser.CodeMask.of( body );
+        assertTrue( code[ body.indexOf( "more:" ) ], "the YAML must stay inside the fence: " + body );
+        assertFalse( code[ body.indexOf( "After the block" ) ], "the note body must not be swallowed by the fence: " + body );
+    }
 }

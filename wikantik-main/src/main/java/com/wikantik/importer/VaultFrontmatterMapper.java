@@ -207,11 +207,23 @@ public final class VaultFrontmatterMapper {
                 if ( "---".equals( text.substring( pos, eol ).trim() ) ) {
                     final String yaml = text.substring( yamlStart, Math.max( yamlStart, pos - 1 ) ).stripTrailing();
                     final String rest = eol < text.length() ? text.substring( eol + 1 ) : "";
-                    return "```yaml\n" + yaml + "\n```\n\n" + rest;
+                    return fenced( yaml ) + rest;
                 }
                 pos = eol + 1;
             }
-            return "```yaml\n" + text.substring( yamlStart ).stripTrailing() + "\n```\n\n";
+            return fenced( text.substring( yamlStart ).stripTrailing() );
+        }
+
+        /** A YAML code block whose fence is longer than any backtick run inside, so the content cannot close it. */
+        private static String fenced( final String yaml ) {
+            int longest = 0;
+            int run = 0;
+            for ( int i = 0; i < yaml.length(); i++ ) {
+                run = yaml.charAt( i ) == '`' ? run + 1 : 0;
+                longest = Math.max( longest, run );
+            }
+            final String fence = "`".repeat( Math.max( 3, longest + 1 ) );
+            return fence + "yaml\n" + yaml + "\n" + fence + "\n\n";
         }
     }
 }

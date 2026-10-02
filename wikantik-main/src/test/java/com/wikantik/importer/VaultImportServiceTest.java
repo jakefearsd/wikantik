@@ -382,4 +382,18 @@ class VaultImportServiceTest {
             assertTrue( offenders.isEmpty(), "ZipFile trusts the central directory; use ZipInputStream: " + offenders );
         }
     }
+
+    @Test
+    void bodyThatLooksLikeFrontmatterIsNotReparsedOnSave() throws Exception {
+        final SpooledUpload up = TestVaults.upload( TestVaults.zipText(
+            Map.of( "Sneaky.md", "---\n---\n---\ntype: hub\ncluster: x\n---\nbody" ) ), "v.zip" );
+        final PlanResult plan = service.plan( up, ImportOptions.parse( "none", null ) );
+        final VaultImportJob job = service.newJob( "j11", "admin", "admin", up, plan, () -> true );
+        job.run();
+        assertEquals( ItemStatus.CREATED, result( job.view(), "Sneaky" ).status(), String.valueOf( job.view().results() ) );
+        final String saved = pm.getPureText( "Sneaky", WikiProvider.LATEST_VERSION );
+        final Map< String, Object > meta = com.wikantik.api.frontmatter.FrontmatterParser.parse( saved ).metadata();
+        assertFalse( meta.containsKey( "type" ) || meta.containsKey( "cluster" ), "body re-read as frontmatter: " + meta );
+        assertTrue( saved.contains( "type: hub" ), "the body text itself is kept: " + saved );
+    }
 }

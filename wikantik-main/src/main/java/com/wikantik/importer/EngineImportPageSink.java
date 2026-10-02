@@ -83,7 +83,7 @@ public final class EngineImportPageSink implements ImportPageSink {
         FrontmatterWarningSink.clear();
         ContentWarningSink.clear();
         try {
-            saveHelper.saveText( name, body, SaveOptions.builder().author( author ).changeNote( changeNote )
+            saveHelper.saveText( name, frontmatterSafe( body, metadata ), SaveOptions.builder().author( author ).changeNote( changeNote )
                 .markupSyntax( "markdown" ).metadata( metadata.isEmpty() ? null : metadata )
                 .replaceMetadata( true ).build() );
             final List< String > warnings = new ArrayList<>();
@@ -102,6 +102,15 @@ public final class EngineImportPageSink implements ImportPageSink {
             FrontmatterWarningSink.clear();
             ContentWarningSink.clear();
         }
+    }
+
+    /**
+     * With no metadata the body is saved as-is, so a body that itself starts with a {@code ---} line would be re-read
+     * as frontmatter on save — bypassing the importer's hub downgrade, cluster replacement and validation. A leading
+     * blank line keeps it body text.
+     */
+    static String frontmatterSafe( final String body, final Map< String, Object > metadata ) {
+        return metadata.isEmpty() && body.startsWith( "---" ) ? "\n" + body : body;
     }
 
     @Override

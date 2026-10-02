@@ -18,6 +18,9 @@
  */
 package com.wikantik.importer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -33,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -41,6 +45,9 @@ import java.util.function.Function;
 public final class ImportJobRegistry implements AutoCloseable {
 
     public static final Duration RETENTION = Duration.ofHours( 1 );
+    /** How long {@link #close()} waits for interrupted jobs to stop. */
+    static final Duration CLOSE_WAIT = Duration.ofSeconds( 10 );
+    private static final Logger LOG = LogManager.getLogger( ImportJobRegistry.class );
 
     private final int maxConcurrent;
     private final Clock clock;
@@ -193,12 +200,27 @@ public final class ImportJobRegistry implements AutoCloseable {
         jobs.values().removeIf( j -> !j.isRunning() && j.finishedAt() != null && j.finishedAt().isBefore( cutoff ) );
     }
 
+    /**
+     * Interrupts running jobs, waits up to {@link #CLOSE_WAIT} for them to stop, then deletes every spooled upload.
+     * The wait happens outside the registry lock: a finishing job takes that lock to evict expired results.
+     */
     @Override
-    public synchronized void close() {
+    public void close() {
         if ( executor instanceof ExecutorService es ) {
             es.shutdownNow();
+            try {
+                if ( !es.awaitTermination( CLOSE_WAIT.toSeconds(), TimeUnit.SECONDS ) ) {
+                    LOG.warn( "Obsidian import jobs still running {} s after shutdown; their uploads are deleted anyway",
+                              CLOSE_WAIT.toSeconds() );
+                }
+            } catch ( final InterruptedException e ) {
+                LOG.warn( "Interrupted while waiting for Obsidian import jobs to stop: {}", e.getMessage(), e );
+                Thread.currentThread().interrupt();
+            }
         }
-        jobs.values().forEach( VaultImportJob::discardUpload );
+        synchronized ( this ) {
+            jobs.values().forEach( VaultImportJob::discardUpload );
+        }
     }
 
     /** One of the {@code wikantik.import.maxConcurrentPlans} permits; closing it more than once releases it once. */

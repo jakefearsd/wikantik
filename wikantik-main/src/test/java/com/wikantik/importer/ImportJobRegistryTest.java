@@ -179,4 +179,27 @@ class ImportJobRegistryTest {
         assertEquals( 0, ( ( Number ) job.view().summary().get( "unreferencedFiles" ) ).intValue() );
         assertEquals( List.of(), job.view().summary().get( "hubs" ) );
     }
+
+    @Test
+    void closeWaitsBoundedlyForRunningJobs() throws Exception {
+        final java.util.concurrent.ExecutorService es = org.mockito.Mockito.mock( java.util.concurrent.ExecutorService.class );
+        org.mockito.Mockito.when( es.awaitTermination( org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any() ) ).thenReturn( false );
+        new ImportJobRegistry( 1, clock, es ).close();
+        org.mockito.Mockito.verify( es ).shutdownNow();
+        org.mockito.Mockito.verify( es ).awaitTermination( 10, java.util.concurrent.TimeUnit.SECONDS );
+    }
+
+    @Test
+    void closeKeepsTheInterruptWhenWaitingIsInterrupted() throws Exception {
+        final java.util.concurrent.ExecutorService es = org.mockito.Mockito.mock( java.util.concurrent.ExecutorService.class );
+        org.mockito.Mockito.when( es.awaitTermination( org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any() ) ).thenThrow( new InterruptedException( "stop" ) );
+        try {
+            new ImportJobRegistry( 1, clock, es ).close();
+            assertTrue( Thread.currentThread().isInterrupted() );
+        } finally {
+            Thread.interrupted();
+        }
+    }
 }

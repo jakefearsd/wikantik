@@ -51,7 +51,21 @@ final class VaultEntryNames {
         if ( name.indexOf( '\\' ) >= 0 || name.indexOf( '\0' ) >= 0 ) {
             return "backslash or NUL in name";
         }
+        if ( hasControlChar( name ) ) {
+            return "control character in name";
+        }
         return badSegment( name.endsWith( "/" ) ? name.substring( 0, name.length() - 1 ) : name );
+    }
+
+    /** C0 controls (tab, CR, LF, ...) and DEL would leak into page titles, generated hub bodies and warnings. */
+    private static boolean hasControlChar( final String name ) {
+        for ( int i = 0; i < name.length(); i++ ) {
+            final char c = name.charAt( i );
+            if ( c < 0x20 || c == 0x7f ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String badSegment( final String trimmed ) {

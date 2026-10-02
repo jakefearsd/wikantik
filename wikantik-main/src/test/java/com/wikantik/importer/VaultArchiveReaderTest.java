@@ -75,6 +75,14 @@ class VaultArchiveReaderTest {
         assertTrue( e.getMessage().contains( name ), e.getMessage() );
     }
 
+    @ParameterizedTest
+    @ValueSource( strings = { "a\tb.md", "line\nbreak.md", "dir\r/x.md", "Folder\u0001/n.md", "x\u001f.png", "del\u007f.md" } )
+    void controlCharacterInNameRejected( final String name ) {
+        final VaultArchiveException e = assertThrows( VaultArchiveException.class,
+            () -> read( TestVaults.zipText( ordered( name, "x" ) ) ) );
+        assertTrue( e.getMessage().contains( "control character" ), e.getMessage() );
+    }
+
     @Test
     void backslashNameRejected() {
         assertThrows( VaultArchiveException.class,

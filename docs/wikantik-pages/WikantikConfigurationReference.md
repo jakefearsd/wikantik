@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-09-30'
+date: '2026-10-01'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -235,6 +235,7 @@ Usability niceties.
 | `wikantik.renderingManager.renderer` | `class` | `com.wikantik.render.markdown.MarkdownRenderer` | `wikantik_renderingManager_renderer` | Wiki renderer that outputs XHTML; it must be a subclass of com.wikantik.render.WikiRenderer |
 | `wikantik.renderingManager.renderer.wysiwyg` | `class` | `com.wikantik.render.markdown.MarkdownRenderer` | `wikantik_renderingManager_renderer_wysiwyg` | WYSIWYG renderer class name used by the editor preview path; it must be a subclass of com.wikantik.render.WikiRenderer. |
 | `wikantik.translatorReader.allowHTML` | `boolean` | `true` | `wikantik_translatorReader_allowHTML` | Allow raw HTML in Markdown page source (needed for <div class="..."> styling blocks). … |
+| `wikantik.embed.maxChars` | `int` | `20000` | `wikantik_embed_maxChars` | Maximum number of characters of Markdown source a `![[Page]]` / `![[Page#Heading]]` embed transcludes. … |
 
 Full descriptions (truncated above to keep the table scannable):
 
@@ -243,6 +244,7 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.translatorReader.camelCaseLinks`** — If you set this to true, the Wiki translator will then also consider "traditional" WikiNames (that is, names of pages JustSmashedTogether without square brackets) as hyperlinks.  This technique is also known as "CamelCase", or "BumpyCase", or "InterCapping".  I personally like CamelCase as a word, which is why this property is named as it is :-). By default, this is false, since traditional WikiLinks may confuse newbies. This option can be overridden on a per-page basis using the SET directive.
 - **`wikantik.frontPage`** — The name of the front page.  This is the page that gets loaded if no other page is loaded.  Up until Wikantik 1.9.28, it was always called "Main", but now you can easily change the default front page here.
 - **`wikantik.translatorReader.allowHTML`** — Allow raw HTML in Markdown page source (needed for <div class="..."> styling blocks). This is not a raw pass-through: when true, MarkdownRenderer runs the rendered output through WikantikHtmlSanitizer (OWASP Java HTML Sanitizer), which drops <script>, <iframe>, <object>, <embed>, <form> and event-handler attributes and restricts URL schemes to http/https/mailto. When false, Flexmark's ESCAPE_HTML neutralises raw markup instead and the sanitizer pass is skipped. The policy is deliberately permissive about presentation - class, id and style attributes are allowed globally - so an editor can still restyle a page, they just cannot execute script.
+- **`wikantik.embed.maxChars`** — Maximum number of characters of Markdown source a `![[Page]]` / `![[Page#Heading]]` embed transcludes. Longer sources are cut at the last block boundary before the limit and followed by a "Continue reading" link to the embedded page.
 
 ## Search & hybrid retrieval
 

@@ -131,19 +131,20 @@ class DefaultVariableManagerCITest3 {
     }
 
     /**
-     * When a session attribute IS a String, resolver 3 must return it directly.
-     * This asserts the happy path of resolver 3 as a baseline.
+     * Session attributes are not page variables any more: a viewer's session must never reach page content (it is
+     * cached for every viewer). See {@link PageVariablesIgnoreTheRequestTest}.
      */
     @Test
-    void sessionStringAttribute_isResolved() throws NoSuchVariableException {
+    void sessionStringAttribute_isNotAPageVariable() {
         final HttpSession session = mock( HttpSession.class );
         final HttpServletRequest req = mock( HttpServletRequest.class );
         when( req.getSession() ).thenReturn( session );
         when( context.getHttpRequest() ).thenReturn( req );
         when( session.getAttribute( "mySessionVar" ) ).thenReturn( "sessionValue" );
+        when( context.getHttpParameter( "mySessionVar" ) ).thenReturn( "requestValue" );
 
-        assertEquals( "sessionValue", variableManager.getValue( context, "mySessionVar" ),
-            "String session attribute must be returned by resolver 3" );
+        org.junit.jupiter.api.Assertions.assertThrows( NoSuchVariableException.class,
+                () -> variableManager.getValue( context, "mySessionVar" ) );
     }
 
     // =========================================================================

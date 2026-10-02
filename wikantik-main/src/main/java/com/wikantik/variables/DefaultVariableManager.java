@@ -34,8 +34,6 @@ import com.wikantik.api.modules.InternalModule;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import java.lang.reflect.Method;
 import java.security.Principal;
 import java.util.Locale;
@@ -95,8 +93,6 @@ public class DefaultVariableManager implements VariableManager {
      * <ol>
      *   <li><b>System variables</b> — reflection on {@link SystemVariables} (getXxx methods)</li>
      *   <li><b>Context variables</b> — {@code context.getVariable(varName)}</li>
-     *   <li><b>Session attributes</b> — {@code session.getAttribute(varName)}</li>
-     *   <li><b>Request parameters</b> — {@code context.getHttpParameter(varName)}</li>
      *   <li><b>Page attributes</b> — {@code context.getPage().getAttribute(varName)}</li>
      *   <li><b>Real page attributes</b> — {@code context.getRealPage().getAttribute(varName)}</li>
      *   <li><b>Wiki properties</b> — {@code engine.getWikiProperties()} (only for "wikantik." prefix)</li>
@@ -159,30 +155,10 @@ public class DefaultVariableManager implements VariableManager {
             return val != null ? val.toString() : null;
         } );
 
-        // 3. Session attributes — session.getAttribute(varName)
-        // 4. Request parameters — context.getHttpParameter(varName)
-        //    These two share a ClassCastException guard so they are combined in one resolver.
-        //    Uses the original name for case-sensitive lookups.
-        chain.add( ( lowerName, originalName, context ) -> {
-            final HttpServletRequest req = context.getHttpRequest();
-            if( req != null && req.getSession() != null ) {
-                final HttpSession session = req.getSession();
-                try {
-                    final String sessionAttribute = ( String ) session.getAttribute( originalName );
-                    if( sessionAttribute != null ) {
-                        return sessionAttribute;
-                    }
-
-                    final String httpParameter = context.getHttpParameter( originalName );
-                    if( httpParameter != null ) {
-                        return httpParameter;
-                    }
-                } catch( final ClassCastException e ) {
-                    LOG.debug( "Not a String: {}", originalName );
-                }
-            }
-            return null;
-        } );
+        // Session attributes and HTTP request parameters are deliberately NOT resolvers. Variables are expanded into
+        // page content at parse time, the result is cached for every viewer, and the value is inserted as HTML: a
+        // request parameter ([{$msg}] with ?msg=<script>…) injected content for everyone, and a session attribute
+        // leaked one viewer's state into the shared render.
 
         // 5. Page attributes — context.getPage().getAttribute(varName).
         //    Uses the original name for case-sensitive attribute lookup.

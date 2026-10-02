@@ -104,6 +104,14 @@ class WikiLinkSyntaxTest {
         assertEquals( List.of( "x" ), targets( "para\n    [[x]]" ) );
     }
 
+    @Test void fencesNestedInListItemsMaskTheirContent() {
+        assertEquals( List.of( "B" ), targets( "- a\n\n    ```\n    [[A]]\n    ```\n\n[[B]]" ) );
+        assertEquals( List.of( "B" ), targets( "1. step\n   ```\n   [[A]]\n   ```\n[[B]]" ) );
+        assertEquals( List.of( "B" ), targets( "- a\n  - b\n\n      ~~~\n      [[A]]\n      ~~~\n[[B]]" ) );
+        // outside a list, a 4-space-indented fence is indented code (still masked) and ends with the code block
+        assertEquals( List.of( "B" ), targets( "text\n\n    ```\n    [[A]]\n    ```\n\n[[B]]" ) );
+    }
+
     @Test void fenceInfoStringAndClosingRules() {
         assertEquals( List.of( "A" ), targets( "```foo``` [[A]]" ) );
         assertEquals( List.of(), targets( "```\n```java\n[[A]]\n```\n" ) );

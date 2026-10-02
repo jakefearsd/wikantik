@@ -34,6 +34,10 @@ final class CodeMask {
     private boolean inIndented;
     private boolean sawBlank;
     private String lastNonBlank;
+    /** Content column of the innermost open list item (0 when not in a list); fences may be indented relative to it. */
+    private int listContentIndent;
+    /** Indent that the open fence's own indent was measured against (0, or the list content column). */
+    private int fenceBase;
 
     private CodeMask( final int length ) {
         this.masked = new boolean[ length ];
@@ -70,10 +74,20 @@ final class CodeMask {
         inIndented = false;
         sawBlank = false;
         lastNonBlank = line;
+        trackListContext( line );
         if ( opensFence( line ) ) {
             maskRange( masked, offset, offset + line.length() );
         } else {
             maskInlineCode( masked, line, offset );
+        }
+    }
+
+    private void trackListContext( final String line ) {
+        final java.util.regex.Matcher m = LIST_ITEM.matcher( line );
+        if ( m.matches() ) {
+            listContentIndent = m.end( 1 ) + 1;
+        } else if ( indent( line ) < listContentIndent ) {
+            listContentIndent = 0;
         }
     }
 
@@ -122,10 +136,11 @@ final class CodeMask {
         return k - from;
     }
 
-    /** Opens a fence when the line is a (max 3-space indented) run of 3+ backticks or tildes. */
+    /** Opens a fence when the line is a (max 3-space indented, relative to the list content column inside a list) run of 3+ backticks or tildes. */
     private boolean opensFence( final String line ) {
         final int ind = leadingSpaces( line );
-        if ( ind > 3 || ind >= line.length() ) {
+        final int base = ind > 3 && listContentIndent > 0 && ind >= listContentIndent ? listContentIndent : 0;
+        if ( ind - base > 3 || ind >= line.length() ) {
             return false;
         }
         final char c = line.charAt( ind );
@@ -138,12 +153,13 @@ final class CodeMask {
         }
         fenceChar = c;
         fenceLen = len;
+        fenceBase = base;
         return true;
     }
 
     private boolean closesFence( final String line ) {
         final int ind = leadingSpaces( line );
-        if ( ind > 3 || ind >= line.length() || line.charAt( ind ) != fenceChar ) {
+        if ( ind - fenceBase > 3 || ind >= line.length() || line.charAt( ind ) != fenceChar ) {
             return false;
         }
         final int len = runLength( line, ind, fenceChar );

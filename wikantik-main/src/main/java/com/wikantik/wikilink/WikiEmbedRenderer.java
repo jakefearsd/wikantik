@@ -148,6 +148,9 @@ public final class WikiEmbedRenderer {
                                     final String title, final String href ) {
         final boolean cut = source.length() > maxChars;
         final String text = cut ? truncate( source, maxChars ) : source;
+        // WikiContext.clone() shares the variable map with the original, so the stack is
+        // set on the passed context and restored in finally rather than relying on the clone.
+        final Object prev = context.getVariable( ATTR_EMBED_STACK );
         try {
             final Context inner = context.clone();
             inner.setPage( page );
@@ -155,10 +158,12 @@ public final class WikiEmbedRenderer {
             next.add( page.getName() );
             inner.setVariable( ATTR_EMBED_STACK, next );
             final String html = bodyRenderer.render( inner, text );
-            final String more = cut ? "<p class=\"wiki-embed-more\"><a href=\"" + attr( href ) + "\">Continue reading →</a></p>" : "";
+            final String more = cut ? "<p class=\"wiki-embed-more\"><a href=\"" + attr( href ) + "\">Continue reading \u2192</a></p>" : "";
             return new EmbedResult( title, href, html + more, false, false, cut );
         } catch ( final IOException | RuntimeException e ) {
             return failed( context, page.getName(), e, title, href );
+        } finally {
+            context.setVariable( ATTR_EMBED_STACK, prev );
         }
     }
 
@@ -199,7 +204,8 @@ public final class WikiEmbedRenderer {
         if ( cut < 0 ) {
             cut = max;
         }
-        return text.substring( 0, openFenceStart( text, cut ) ).stripTrailing();
+        final String head = text.substring( 0, openFenceStart( text, cut ) ).stripTrailing();
+        return head.isEmpty() ? text.substring( 0, max ) : head;
     }
 
     /** Index of the unclosed fence line's start before {@code cut}, or {@code cut} when no fence is open. */

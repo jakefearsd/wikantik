@@ -134,4 +134,65 @@ class WikiEmbedRendererTest {
         final String html = renderer( ( c, p ) -> true, 20000 ).renderBlock( hostContext(), "EmbTarget", "Usage" );
         assertTrue( html.startsWith( "<div class=\"wiki-embed\" data-embed=\"EmbTarget\" data-section=\"Usage\">" ), html );
     }
+
+    /** Body renderer that treats each "EMBED:Name" line as a nested embed, passing the context it was given. */
+    private WikiEmbedRenderer recursive() {
+        final WikiEmbedRenderer[] self = new WikiEmbedRenderer[ 1 ];
+        final WikiEmbedRenderer.BodyRenderer body = ( ctx, md ) -> {
+            final StringBuilder sb = new StringBuilder();
+            for ( final String line : md.split( "\n" ) ) {
+                sb.append( line.startsWith( "EMBED:" ) ? self[ 0 ].render( ctx, line.substring( 6 ), null ).bodyHtml() : line );
+            }
+            return sb.toString();
+        };
+        self[ 0 ] = new WikiEmbedRenderer( WikiLinkResolver.forEngine( engine ), engine.getManager( PageManager.class ),
+                ( c, p ) -> true, body, 20000 );
+        return self[ 0 ];
+    }
+
+    @Test void siblingEmbedsOfTheSamePageAreNotALoop() throws Exception {
+        engine.saveText( "EmbLeaf", "leaf-body\n" );
+        final var r = recursive();
+        final Context ctx = hostContext();
+        for ( int i = 0; i < 2; i++ ) {
+            final String html = r.render( ctx, "EmbLeaf", null ).bodyHtml();
+            assertTrue( html.contains( "leaf-body" ), html );
+            assertFalse( html.contains( "loop" ), html );
+        }
+    }
+
+    @Test void fiveSiblingEmbedsOfDistinctPagesAllRender() throws Exception {
+        final var r = recursive();
+        final Context ctx = hostContext();
+        for ( int i = 0; i < 5; i++ ) {
+            engine.saveText( "EmbSib" + i, "sib-body" + i + "\n" );
+        }
+        for ( int i = 0; i < 5; i++ ) {
+            assertTrue( r.render( ctx, "EmbSib" + i, null ).bodyHtml().contains( "sib-body" + i ) );
+        }
+    }
+
+    @Test void nestedChainStopsAtDepthAndCyclesAreReported() throws Exception {
+        engine.saveText( "EmbA", "a-text EMBED:EmbB\n".replace( " EMBED", "\nEMBED" ) );
+        engine.saveText( "EmbB", "b-text\nEMBED:EmbC\n" );
+        engine.saveText( "EmbC", "c-text\nEMBED:EmbD\n" );
+        engine.saveText( "EmbD", "d-text\nEMBED:EmbE\n" );
+        engine.saveText( "EmbE", "e-text\n" );
+        final String html = recursive().render( hostContext(), "EmbA", null ).bodyHtml();
+        assertTrue( html.contains( "c-text" ), html );
+        assertTrue( html.contains( "Embed loop stopped" ), html );
+        assertFalse( html.contains( "d-text" ), html );
+
+        engine.saveText( "EmbX", "x-text\nEMBED:EmbY\n" );
+        engine.saveText( "EmbY", "y-text\nEMBED:EmbX\n" );
+        final String cyc = recursive().render( hostContext(), "EmbX", null ).bodyHtml();
+        assertTrue( cyc.contains( "y-text" ) && cyc.contains( "Embed loop stopped" ), cyc );
+    }
+
+    @Test void truncationFallsBackToAHardCutWhenTheBoundaryIsAtZero() throws Exception {
+        engine.saveText( "EmbFenceFirst", "```\ncode line one is long enough\n```\n" );
+        final var r = renderer( ( c, p ) -> true, 20 ).render( hostContext(), "EmbFenceFirst", null );
+        assertTrue( r.truncated() );
+        assertTrue( r.bodyHtml().contains( "code line" ), r.bodyHtml() );
+    }
 }

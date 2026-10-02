@@ -46,14 +46,12 @@ public final class VaultArchiveReader {
 
     private static final Logger LOG = LogManager.getLogger( VaultArchiveReader.class );
 
-    private static final long RATIO_FLOOR_BYTES = 1_048_576L;
-    private static final long MAX_RATIO = 100L;
-
     private final ImportLimits limits;
-    private long bufferedNoteBytes;
+    private ArchiveBudget budget;
 
     public VaultArchiveReader( final ImportLimits limits ) {
         this.limits = limits;
+        this.budget = new ArchiveBudget( limits );
     }
 
     /**
@@ -63,10 +61,10 @@ public final class VaultArchiveReader {
      * @throws ImportLimitException  when the entry count or total uncompressed size limit is exceeded
      */
     public VaultArchive read( final Path zip ) throws IOException, VaultArchiveException, ImportLimitException {
-        bufferedNoteBytes = 0;
+        budget = new ArchiveBudget( limits );
         final List< String > names = readNames( zip );
         final String prefix = VaultEntryNames.wrapperPrefix( names );
-        requirePageCap( names.stream().filter( n -> {
+        budget.requirePageCap( names.stream().filter( n -> {
             final String rel = VaultEntryNames.relative( n, prefix );
             return VaultPaths.isNote( rel ) && !VaultEntryNames.ignored( n, rel );
         } ).count() );
@@ -75,7 +73,7 @@ public final class VaultArchiveReader {
 
     /** Total note text bytes buffered by the last {@link #read}; a test seam for the "nothing buffered yet" checks. */
     long bufferedNoteBytes() {
-        return bufferedNoteBytes;
+        return budget.bufferedNoteBytes();
     }
 
     // ---- pass 1 ---------------------------------------------------------------------------------
@@ -91,12 +89,10 @@ public final class VaultArchiveReader {
             while ( entry != null ) {
                 VaultEntryNames.requireSafe( entry.getName() );
                 names.add( entry.getName() );
-                if ( names.size() > limits.maxEntries() ) {
-                    throw new ImportLimitException( ImportLimits.PROP_MAX_ENTRIES, limits.maxEntries(), "zip entry count" );
-                }
+                budget.requireEntryCount( names.size() );
                 // A lower bound (the wrapper folder is not known yet), so stopping here is never a false rejection.
                 if ( VaultEntryNames.surelyImportableNote( entry.getName() ) ) {
-                    requirePageCap( ++notes );
+                    budget.requirePageCap( ++notes );
                 }
                 // Drain under the same caps as pass 2 so a bomb is stopped before it is fully inflated.
                 total += drain( zin, raw, entry.getName(), false, total, buf ).size();
@@ -111,13 +107,6 @@ public final class VaultArchiveReader {
             throw new VaultArchiveException( "not a zip archive" );
         }
         return names;
-    }
-
-    private void requirePageCap( final long notes ) throws ImportLimitException {
-        if ( notes > limits.maxPages() ) {
-            throw new ImportLimitException( ImportLimits.PROP_MAX_PAGES, limits.maxPages(), "more than "
-                                            + limits.maxPages() + " notes" );
-        }
     }
 
     private static boolean startsWithPk( final Path zip ) throws IOException {
@@ -164,7 +153,9 @@ public final class VaultArchiveReader {
                 if ( skip ) {
                     ignoredCount++;
                 } else if ( keepText ) {
-                    retain( d );
+                    if ( d.text() != null ) {   // an oversized (unbuffered) note costs no memory
+                        budget.retainNote( d.size() );
+                    }
                     notes.add( new VaultNote( rel, d.text(), d.size() ) );
                 } else {
                     files.add( new VaultFile( rel, name, d.size() ) );
@@ -184,18 +175,6 @@ public final class VaultArchiveReader {
     private record Drained( long size, String text ) {
     }
 
-    /** Counts a buffered note against {@code wikantik.import.maxNoteTextBytes}; an oversized (unbuffered) note is free. */
-    private void retain( final Drained d ) throws ImportLimitException {
-        if ( d.text() == null ) {
-            return;
-        }
-        bufferedNoteBytes += d.size();
-        if ( bufferedNoteBytes > limits.maxNoteTextBytes() ) {
-            throw new ImportLimitException( ImportLimits.PROP_MAX_NOTE_TEXT_BYTES, limits.maxNoteTextBytes(),
-                                            "total note text" );
-        }
-    }
-
     private Drained drain( final ZipInputStream zin, final CountingInputStream raw, final String name,
                            final boolean keepText, final long totalBefore, final byte[] buf )
             throws IOException, VaultArchiveException, ImportLimitException {
@@ -206,31 +185,14 @@ public final class VaultArchiveReader {
         int n = zin.read( buf );
         while ( n >= 0 ) {
             entryBytes += n;
-            checkLimits( name, entryBytes, totalBefore + entryBytes, raw.count() - rawBefore );
-            buffering = buffering && entryBytes <= limits.maxPageBytes();
+            budget.checkInflation( name, entryBytes, totalBefore + entryBytes, raw.count() - rawBefore );
+            buffering = buffering && budget.bufferable( entryBytes );
             if ( buffering ) {
                 sink.write( buf, 0, n );
             }
             n = zin.read( buf );
         }
         return new Drained( entryBytes, buffering ? decode( sink.toByteArray() ) : null );
-    }
-
-    private void checkLimits( final String name, final long entryBytes, final long total, final long rawBytes )
-            throws VaultArchiveException, ImportLimitException {
-        if ( total > limits.maxUncompressedBytes() ) {
-            throw new ImportLimitException( ImportLimits.PROP_MAX_UNCOMPRESSED_BYTES,
-                                            limits.maxUncompressedBytes(), "uncompressed vault" );
-        }
-        if ( exceedsRatio( entryBytes, rawBytes ) ) {
-            throw new VaultArchiveException( "zip entry '" + name + "' expands more than 100:1 (possible zip bomb; "
-                                              + "very highly compressible files over 1 MiB are rejected)" );
-        }
-    }
-
-    /** The zip-bomb guard: more than 1 MiB inflated at over 100:1 from the compressed bytes actually consumed. */
-    static boolean exceedsRatio( final long entryBytes, final long rawBytes ) {
-        return entryBytes > RATIO_FLOOR_BYTES && entryBytes > MAX_RATIO * Math.max( 1, rawBytes );
     }
 
     private static String decode( final byte[] bytes ) {

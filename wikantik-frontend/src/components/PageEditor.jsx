@@ -351,7 +351,7 @@ export default function PageEditor() {
   const wikiLinkResolution = useWikiLinkResolution(previewContent);
   const previewComponents = useMemo(() => ({ 'wiki-embed': WikiEmbedElement }), []);
   const lowlight = useLowlight(/(^|\n)(```|~~~)/.test(previewContent));
-  const [previewSource, previewCost] = usePreviewSource(previewContent);
+  const [previewSource, previewCost] = usePreviewSource(previewContent, name);
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);

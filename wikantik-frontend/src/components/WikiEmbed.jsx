@@ -1,26 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../api/client';
+import { loadEmbed, clearEmbedCache } from '../utils/embedCache';
 import { slugify } from '../utils/headings';
 
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 
-// Promise cache keyed `${page}#${section}`: dedupes concurrent requests and survives re-renders.
-const cache = new Map();
-
 /** Drop every cached embed so the next render re-fetches (called when the editor preview is reopened). */
 export function clearWikiEmbedCache() {
-  cache.clear();
-}
-
-function fetchEmbed(page, section) {
-  const key = `${page}#${section || ''}`;
-  if (!cache.has(key)) {
-    const p = api.getPageEmbed(page, { section: section || undefined });
-    // A failed fetch must not be cached, or a transient error would stick until the cache is cleared.
-    p.catch(() => { if (cache.get(key) === p) cache.delete(key); });
-    cache.set(key, p);
-  }
-  return cache.get(key);
+  clearEmbedCache();
 }
 
 /**
@@ -34,7 +20,7 @@ export default function WikiEmbed({ page, section = null }) {
 
   useEffect(() => {
     let live = true;
-    fetchEmbed(page, section).then(
+    loadEmbed(page, section).then(
       (r) => { if (live) setResult({ key, state: 'ok', html: r?.html || '' }); },
       (err) => {
         if (!live) return;

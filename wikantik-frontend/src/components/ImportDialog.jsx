@@ -10,6 +10,17 @@ const UNSET = Symbol('unset');
 const ROW_CAP = 200;
 const POLL_MS = 1000;
 const POLL_MAX_MS = 10000;
+const STATUS = {
+  NEW: ['New', ''],
+  CREATED: ['Created', ''],
+  WILL_FAIL: ['Will fail', 'import-dialog-status-bad'],
+  FAILED: ['Failed', 'import-dialog-status-bad'],
+  SKIPPED_EXISTS: ['Already exists', 'import-dialog-status-muted'],
+  SKIPPED_RESERVED: ['Reserved name', 'import-dialog-status-muted'],
+  SKIPPED_UNREFERENCED: ['Not referenced', 'import-dialog-status-muted'],
+};
+const statusInfo = (status) => STATUS[status] || [String(status), ''];
+
 const MODES = [
   ['folders', 'Folders become clusters'],
   ['fixed', 'Put everything in cluster…'],
@@ -60,7 +71,7 @@ function PlanTable({ pages }) {
               <tr key={p.vaultPath}>
                 <td>{p.vaultPath}</td>
                 <td>{p.name}</td>
-                <td className={p.status.startsWith('FAIL') ? 'import-dialog-status-bad' : undefined}>{p.status}</td>
+                <td className={statusInfo(p.status)[1] || undefined}>{statusInfo(p.status)[0]}</td>
                 <td>{p.reason || (p.warnings || []).join('; ')}</td>
               </tr>
             ))}
@@ -72,6 +83,19 @@ function PlanTable({ pages }) {
       )}
       {matches.length === 0 && <EmptyState message="No pages match the filter." />}
     </>
+  );
+}
+
+function Attachments({ attachments }) {
+  const problems = (attachments || []).filter((a) => a.status === 'BLOCKED' || a.status === 'FAILED');
+  if (!problems.length) return null;
+  return (
+    <details className="import-dialog-more" data-testid="import-attachments">
+      <summary>{problems.length} attachments will not be imported</summary>
+      <ul className="import-dialog-warnings">
+        {problems.map((a) => <li key={a.vaultPath}>{a.vaultPath} — {a.reason || a.status}</li>)}
+      </ul>
+    </details>
   );
 }
 
@@ -88,8 +112,8 @@ function Warnings({ groups }) {
 function Progress({ job }) {
   return (
     <div data-testid="import-progress">
-      <progress className="import-dialog-progress" value={job.done || 0} max={job.total || 1} />
-      <div className="import-dialog-progress-label">
+      <progress className="import-dialog-progress" aria-label="Import progress" value={job.done || 0} max={job.total || 1} />
+      <div className="import-dialog-progress-label" role="status" aria-live="polite">
         {job.done || 0} / {job.total || 0}{job.current ? ` — ${job.current}` : ''}
       </div>
       <p className="import-dialog-more">You can close this dialog; the import keeps running.</p>
@@ -105,7 +129,7 @@ function Result({ job }) {
   const results = job.results || [];
   const created = results.filter((r) => r.kind === 'page' && r.status === 'CREATED');
   const skipped = results.filter((r) => String(r.status).startsWith('SKIPPED'));
-  const failed = results.filter((r) => String(r.status).startsWith('FAIL'));
+  const failed = results.filter((r) => r.status === 'FAILED');
   const hub = job.summary?.hubs?.[0];
   return (
     <div data-testid="import-result">
@@ -134,7 +158,10 @@ export default function ImportDialog({ isOpen, onClose }) {
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
   const [clusters, setClusters] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(false);
   const planSeq = useRef(0);
+  const touched = useRef(false);
 
   const [prevIsOpen, setPrevIsOpen] = useState(UNSET);
   if (isOpen !== prevIsOpen) {
@@ -146,6 +173,8 @@ export default function ImportDialog({ isOpen, onClose }) {
       setPlan(null);
       setJob(null);
       setError(null);
+      setLoading(true);
+      setApplying(false);
     }
   }
 
@@ -153,14 +182,19 @@ export default function ImportDialog({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return undefined;
     let cancelled = false;
+    touched.current = false;
     api.importVault.current()
       .then((data) => {
-        if (cancelled || !data) return;
+        if (cancelled) return;
+        setLoading(false);
+        if (!data || touched.current) return;
         setJob(data);
         setPhase(jobPhase(data));
       })
       .catch((err) => {
-        if (cancelled || err?.status === 404) return;
+        if (cancelled) return;
+        setLoading(false);
+        if (err?.status === 404 || touched.current) return;
         console.warn('ImportDialog: failed to load the current import job', err);
         setError(err?.message || 'Failed to load the current import job.');
       });
@@ -190,6 +224,12 @@ export default function ImportDialog({ isOpen, onClose }) {
         })
         .catch((err) => {
           if (cancelled) return;
+          if (err?.status === 404) {
+            console.warn('ImportDialog: job no longer available', err);
+            setError("This import's results are no longer available.");
+            setPhase('choose');
+            return;
+          }
           failures += 1;
           console.warn('ImportDialog: job poll failed', err);
           setError(err?.message || 'Lost contact with the import job; retrying…');
@@ -238,12 +278,14 @@ export default function ImportDialog({ isOpen, onClose }) {
   const onFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    touched.current = true;
     setFile(f);
     if (options.clusterMode === 'fixed' && !options.cluster) { setPlan(null); setPhase('choose'); return; }
     runPlan(f, options);
   };
 
   const changeOptions = (next) => {
+    touched.current = true;
     setOptions(next);
     if (!file) return;
     if (next.clusterMode === 'fixed' && !next.cluster) { planSeq.current++; setPlan(null); setPhase('choose'); return; }
@@ -258,6 +300,8 @@ export default function ImportDialog({ isOpen, onClose }) {
     });
 
   const onApply = () => {
+    if (applying) return;
+    setApplying(true);
     setError(null);
     api.importVault.apply(file, options, plan.planHash)
       .then((res) => {
@@ -266,6 +310,7 @@ export default function ImportDialog({ isOpen, onClose }) {
       })
       .catch((err) => {
         console.warn('ImportDialog: apply failed', err);
+        setApplying(false);
         const msg = err?.message || 'Import failed.';
         if (err?.status === 409 && /changed since/.test(msg)) runPlan(file, options, msg);
         else if (err?.status === 409 && /already running/i.test(msg)) { setError(msg); showCurrent(); }
@@ -281,9 +326,10 @@ export default function ImportDialog({ isOpen, onClose }) {
       <h2 id="import-dialog-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', marginBottom: 'var(--space-lg)', textAlign: 'center' }}>
         Import Obsidian vault
       </h2>
-      {error && <div className="error-banner" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
+      {error && <div className="error-banner" role="alert" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
 
-      {picking && (
+      {loading && <Spinner label="Checking for a running import…" />}
+      {picking && !loading && (
         <>
           <label className="field-label" htmlFor="import-file">Vault (.zip)</label>
           <input id="import-file" type="file" accept=".zip,application/zip" data-testid="import-file" onChange={onFile} style={{ marginBottom: 'var(--space-md)' }} />
@@ -318,6 +364,7 @@ export default function ImportDialog({ isOpen, onClose }) {
         <>
           <Totals totals={plan.totals} />
           <PlanTable pages={plan.pages || []} />
+          <Attachments attachments={plan.attachments} />
           <Warnings groups={plan.warningGroups} />
         </>
       )}
@@ -336,7 +383,7 @@ export default function ImportDialog({ isOpen, onClose }) {
             type="button"
             className="btn btn-primary"
             data-testid="import-apply"
-            disabled={planning || phase !== 'plan' || !plan || plan.totals.pagesNew === 0}
+            disabled={applying || planning || phase !== 'plan' || !plan || plan.totals.pagesNew === 0}
             onClick={onApply}
           >
             Import {plan ? plan.totals.pagesNew : 0} pages

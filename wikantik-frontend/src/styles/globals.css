@@ -2181,6 +2181,10 @@ h3:focus-within .heading-anchor {
   color: var(--danger);
 }
 
+.import-dialog-status-muted {
+  color: var(--text-muted);
+}
+
 .import-dialog-progress {
   width: 100%;
   accent-color: var(--accent);

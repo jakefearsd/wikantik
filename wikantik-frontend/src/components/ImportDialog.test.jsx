@@ -114,4 +114,100 @@ describe('ImportDialog', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
     expect(api.importVault.job).not.toHaveBeenCalled();
   });
+
+  it('labels and tones statuses (WILL_FAIL is bad)', async () => {
+    const pages = [
+      { vaultPath: 'a.md', name: 'A', status: 'WILL_FAIL', reason: 'bad yaml', warnings: [] },
+      { vaultPath: 'b.md', name: 'B', status: 'SKIPPED_RESERVED', warnings: [] },
+    ];
+    api.importVault.plan.mockResolvedValue({ ...PLAN, pages });
+    open();
+    await pick(FILE());
+    const bad = await screen.findByText('Will fail');
+    expect(bad.className).toContain('import-dialog-status-bad');
+    expect(screen.getByText('Reserved name')).toBeInTheDocument();
+  });
+
+  it('exposes progress and error accessibly', async () => {
+    api.importVault.current.mockResolvedValue({ jobId: 'j9', state: 'RUNNING', done: 1, total: 4, current: 'X', results: [], summary: {} });
+    api.importVault.job.mockResolvedValue({ jobId: 'j9', state: 'RUNNING', done: 1, total: 4, results: [], summary: {} });
+    open();
+    const prog = await screen.findByTestId('import-progress');
+    expect(prog.querySelector('progress')).toHaveAttribute('aria-label', 'Import progress');
+    expect(prog.querySelector('[role="status"]')).toHaveTextContent('1 / 4');
+  });
+
+  it('error banner has role alert', async () => {
+    api.importVault.plan.mockRejectedValue(Object.assign(new Error('nope'), { status: 400 }));
+    open();
+    await pick(FILE());
+    expect(await screen.findByRole('alert')).toHaveTextContent('nope');
+  });
+
+  it('double-click Import sends one apply request', async () => {
+    api.importVault.apply.mockReturnValue(new Promise(() => {}));
+    open();
+    await pick(FILE());
+    await screen.findByTestId('import-totals');
+    const btn = screen.getByTestId('import-apply');
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(api.importVault.apply).toHaveBeenCalledTimes(1);
+    expect(btn).toBeDisabled();
+  });
+
+  it('a 404 while polling stops and explains', async () => {
+    api.importVault.current.mockResolvedValue({ jobId: 'j9', state: 'RUNNING', done: 1, total: 4, results: [], summary: {} });
+    api.importVault.job.mockRejectedValue(notFound());
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    open();
+    await screen.findByTestId('import-progress');
+    await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+    expect(await screen.findByText(/no longer available/)).toBeInTheDocument();
+    api.importVault.job.mockClear();
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(api.importVault.job).not.toHaveBeenCalled();
+  });
+
+  it('backs off after poll errors', async () => {
+    api.importVault.current.mockResolvedValue({ jobId: 'j9', state: 'RUNNING', done: 1, total: 4, results: [], summary: {} });
+    api.importVault.job.mockRejectedValue(Object.assign(new Error('boom'), { status: 500 }));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    open();
+    await screen.findByTestId('import-progress');
+    await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+    expect(api.importVault.job).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); }); // next due at +2000
+    expect(api.importVault.job).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(api.importVault.job).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows the message of a FAILED job', async () => {
+    api.importVault.current.mockResolvedValue({ jobId: 'j', state: 'FAILED', message: 'disk full', results: [], summary: {} });
+    open();
+    expect(await screen.findByTestId('import-result')).toHaveTextContent('disk full');
+  });
+
+  it('shows no picker until current() settles, and ignores a late response after a file is picked', async () => {
+    let resolveCurrent;
+    api.importVault.current.mockReturnValue(new Promise((r) => { resolveCurrent = r; }));
+    open();
+    expect(screen.queryByTestId('import-file')).toBeNull();
+    await act(async () => { resolveCurrent(null); });
+    expect(await screen.findByTestId('import-file')).toBeInTheDocument();
+  });
+
+  it('lists blocked attachments with reasons', async () => {
+    api.importVault.plan.mockResolvedValue({ ...PLAN, attachments: [
+      { vaultPath: 'x.exe', status: 'BLOCKED', reason: 'executable type' },
+      { vaultPath: 'ok.png', status: 'IMPORT' },
+    ] });
+    open();
+    await pick(FILE());
+    const list = await screen.findByTestId('import-attachments');
+    expect(list).toHaveTextContent('x.exe');
+    expect(list).toHaveTextContent('executable type');
+    expect(list).not.toHaveTextContent('ok.png');
+  });
 });

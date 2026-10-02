@@ -1,0 +1,32 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.importer;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * A vault note after frontmatter mapping.
+ *
+ * @param metadata the wiki frontmatter (mutable-ordered copy)
+ * @param body     the note body, frontmatter removed
+ * @param warnings category-prefixed warnings, e.g. {@code "type: ..."}
+ */
+public record MappedNote( Map< String, Object > metadata, String body, List< String > warnings ) {
+}

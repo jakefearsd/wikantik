@@ -24,11 +24,13 @@ import java.util.regex.Pattern;
  * Marks the offsets of a Markdown body that fall inside code: fenced and indented code blocks ({@code ```} / {@code ~~~},
  * including {@code ```math}) and inline backtick spans. Port of the math {@code CodeRegions} scan.
  */
-final class CodeMask {
+public final class CodeMask {
 
     private static final Pattern LIST_ITEM = Pattern.compile( "^\\s*([-*+]|\\d{1,9}[.)])\\s.*" );
 
     private final boolean[] masked;
+    /** Offsets inside a fenced block only (fence lines included), a subset of {@link #masked}. */
+    private final boolean[] fenced;
     private char fenceChar;
     private int fenceLen;
     private boolean inIndented;
@@ -41,21 +43,33 @@ final class CodeMask {
 
     private CodeMask( final int length ) {
         this.masked = new boolean[ length ];
+        this.fenced = new boolean[ length ];
     }
 
-    static boolean[] of( final String body ) {
+    /** Marks every offset inside code: fenced blocks, indented code blocks and inline backtick spans. */
+    public static boolean[] of( final String body ) {
+        return scan( body ).masked;
+    }
+
+    /** Marks only the offsets inside fenced code blocks (fence lines included); indented code and inline spans are not marked. */
+    public static boolean[] fenced( final String body ) {
+        return scan( body ).fenced;
+    }
+
+    private static CodeMask scan( final String body ) {
         final CodeMask mask = new CodeMask( body.length() );
         int offset = 0;
         for ( final String line : body.split( "\n", -1 ) ) {
             mask.scanLine( line, offset );
             offset += line.length() + 1;
         }
-        return mask.masked;
+        return mask;
     }
 
     private void scanLine( final String line, final int offset ) {
         if ( fenceLen > 0 ) {
             maskRange( masked, offset, offset + line.length() );
+            maskRange( fenced, offset, offset + line.length() );
             if ( closesFence( line ) ) {
                 fenceLen = 0;
             }
@@ -77,6 +91,7 @@ final class CodeMask {
         trackListContext( line );
         if ( opensFence( line ) ) {
             maskRange( masked, offset, offset + line.length() );
+            maskRange( fenced, offset, offset + line.length() );
         } else {
             maskInlineCode( masked, line, offset );
         }

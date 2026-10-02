@@ -1,0 +1,207 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.importer;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.wikantik.api.frontmatter.FrontmatterParseException;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.frontmatter.schema.FieldSpec;
+import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
+import com.wikantik.api.frontmatter.schema.Widget;
+
+/** Maps an Obsidian note's frontmatter and inline tags onto wiki frontmatter (spec 5.2). */
+public final class VaultFrontmatterMapper {
+
+    private static final Logger LOG = LogManager.getLogger( VaultFrontmatterMapper.class );
+    private static final Set< String > ALWAYS_DROPPED =
+        Set.of( "canonical_id", "wikantik_url", "wikantik_version", "verified_at", "verified_by" );
+    private static final Pattern LIST_SPLIT = Pattern.compile( "[,\\s]+" );
+
+    private final FrontmatterSchema schema;
+
+    public VaultFrontmatterMapper( final FrontmatterSchema schema ) {
+        this.schema = schema;
+    }
+
+    /** Strip a leading {@code #}, turn {@code /} into {@code -}, lowercase. */
+    public static String normaliseTag( final String raw ) {
+        String t = raw.strip();
+        while ( t.startsWith( "#" ) ) {
+            t = t.substring( 1 );
+        }
+        return t.replace( '/', '-' ).toLowerCase( Locale.ROOT );
+    }
+
+    public MappedNote map( final String noteText, final NoteContext ctx ) {
+        final List< String > warnings = new ArrayList<>();
+        final Map< String, Object > meta = new LinkedHashMap<>();
+        final String body = parse( noteText, meta, warnings );
+        dropKeys( meta );
+        mergeTags( meta, body );
+        mergeAliases( meta, ctx );
+        applyTitle( meta, ctx );
+        applyType( meta, ctx, warnings );
+        applyCluster( meta, ctx );
+        return new MappedNote( meta, body, List.copyOf( warnings ) );
+    }
+
+    private static String parse( final String text, final Map< String, Object > meta, final List< String > warnings ) {
+        try {
+            final ParsedPage page = FrontmatterParser.parseStrict( text );
+            meta.putAll( page.metadata() );
+            return page.body();
+        } catch ( final FrontmatterParseException e ) {
+            LOG.warn( "Vault note frontmatter is malformed; keeping it as a code block: {}", e.getMessage() );
+            warnings.add( "frontmatter: malformed YAML kept as a code block (" + e.getMessage() + ")" );
+            return RawFrontmatter.asCodeBlock( text );
+        }
+    }
+
+    private void dropKeys( final Map< String, Object > meta ) {
+        meta.keySet().removeAll( ALWAYS_DROPPED );
+        for ( final FieldSpec f : schema.fields() ) {
+            if ( f.widget() == Widget.READONLY ) {
+                meta.remove( f.key() );
+            }
+        }
+    }
+
+    private static void mergeTags( final Map< String, Object > meta, final String body ) {
+        final Set< String > tags = new LinkedHashSet<>();
+        for ( final String t : listOf( meta.remove( "tags" ) ) ) {
+            final String n = normaliseTag( t );
+            if ( !n.isEmpty() ) {
+                tags.add( n );
+            }
+        }
+        tags.addAll( InlineTags.scan( body ) );
+        if ( !tags.isEmpty() ) {
+            meta.put( "tags", new ArrayList<>( tags ) );
+        }
+    }
+
+    private static void mergeAliases( final Map< String, Object > meta, final NoteContext ctx ) {
+        final Set< String > aliases = new LinkedHashSet<>();
+        aliases.addAll( listOf( meta.remove( "aliases" ) ) );
+        aliases.addAll( listOf( meta.remove( "alias" ) ) );
+        if ( !ctx.pageName().equals( ctx.basename() ) ) {
+            aliases.add( ctx.basename() );
+        }
+        if ( !aliases.isEmpty() ) {
+            meta.put( "aliases", new ArrayList<>( aliases ) );
+        }
+    }
+
+    private static void applyTitle( final Map< String, Object > meta, final NoteContext ctx ) {
+        if ( !ctx.pageName().equals( ctx.basename() ) && !meta.containsKey( "title" ) ) {
+            meta.put( "title", ctx.basename() );
+        }
+    }
+
+    private void applyType( final Map< String, Object > meta, final NoteContext ctx, final List< String > warnings ) {
+        final Object raw = meta.remove( "type" );
+        if ( ctx.hub() ) {
+            meta.put( "type", "hub" );
+            return;
+        }
+        if ( raw == null ) {
+            return;
+        }
+        final String v = String.valueOf( raw );
+        final String lower = v.toLowerCase( Locale.ROOT );
+        if ( "hub".equals( lower ) ) {
+            meta.put( "type", "article" );
+            warnings.add( "type: hub downgraded to article (not this folder's hub)" );
+        } else if ( canonicalTypes().contains( lower ) ) {
+            meta.put( "type", lower );
+        } else {
+            warnings.add( "type: '" + v + "' is not a wiki page type; dropped" );
+        }
+    }
+
+    private List< String > canonicalTypes() {
+        return schema.field( "type" ).map( FieldSpec::canonicalValues ).orElse( List.of() );
+    }
+
+    private static void applyCluster( final Map< String, Object > meta, final NoteContext ctx ) {
+        meta.remove( "cluster" );
+        if ( ctx.cluster() != null ) {
+            meta.put( "cluster", ctx.cluster() );
+        }
+    }
+
+    /** A string (comma or whitespace separated) or a list, flattened to trimmed non-empty strings. */
+    private static List< String > listOf( final Object value ) {
+        final List< String > out = new ArrayList<>();
+        if ( value instanceof Iterable< ? > items ) {
+            for ( final Object o : items ) {
+                if ( o != null && !String.valueOf( o ).isBlank() ) {
+                    out.add( String.valueOf( o ).strip() );
+                }
+            }
+        } else if ( value != null ) {
+            for ( final String part : LIST_SPLIT.split( String.valueOf( value ).strip() ) ) {
+                if ( !part.isEmpty() ) {
+                    out.add( part );
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Renders a malformed frontmatter block as a fenced YAML block ahead of the rest of the note. */
+    private static final class RawFrontmatter {
+
+        private RawFrontmatter() {
+        }
+
+        static String asCodeBlock( final String text ) {
+            if ( !text.startsWith( "---\n" ) && !text.startsWith( "---\r\n" ) ) {
+                return text;
+            }
+            final int yamlStart = text.indexOf( '\n' ) + 1;
+            int pos = yamlStart;
+            while ( pos < text.length() ) {
+                int eol = text.indexOf( '\n', pos );
+                if ( eol < 0 ) {
+                    eol = text.length();
+                }
+                if ( "---".equals( text.substring( pos, eol ).trim() ) ) {
+                    final String yaml = text.substring( yamlStart, Math.max( yamlStart, pos - 1 ) ).stripTrailing();
+                    final String rest = eol < text.length() ? text.substring( eol + 1 ) : "";
+                    return "```yaml\n" + yaml + "\n```\n\n" + rest;
+                }
+                pos = eol + 1;
+            }
+            return "```yaml\n" + text.substring( yamlStart ).stripTrailing() + "\n```\n\n";
+        }
+    }
+}

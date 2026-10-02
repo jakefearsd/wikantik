@@ -72,15 +72,24 @@ export default defineConfig({
     // graph routes, never eagerly with the entry chunk. `test` matches the
     // module's path and is anchored with a trailing slash so the `react` group
     // matches node_modules/react/ but NOT react-markdown/.
+    //
+    // A group also captures its modules' dependencies (includeDependenciesRecursively,
+    // default true), highest priority first. So `react` must outrank `codemirror`:
+    // otherwise @uiw/react-codemirror drags React into the codemirror chunk, the entry
+    // imports React from there, and the whole 630 kB editor chunk loads on every page
+    // (it did until 2026-10). `lowlight` must not capture its shared dependencies
+    // either: the eager `vendor` chunk would import them from — and so eagerly load —
+    // the lowlight chunk. Check `dist/index.html`: its modulepreloads must not list
+    // codemirror, cytoscape or lowlight.
     rolldownOptions: {
       output: {
         codeSplitting: {
           groups: [
             { name: 'codemirror', test: /[\\/]node_modules[\\/](@codemirror[\\/](?!language-data|legacy-modes|lang-(?!markdown))|@uiw[\\/]react-codemirror|@lezer[\\/](common|highlight|lr|markdown)[\\/]|crelt|style-mod|w3c-keyname)/, priority: 30 },
             { name: 'cytoscape', test: /[\\/]node_modules[\\/](cytoscape|cytoscape-cose-bilkent|cose-base|layout-base|react-cytoscapejs)[\\/]/, priority: 30 },
-            { name: 'lowlight', test: /[\\/]node_modules[\\/](lowlight|highlight\.js)[\\/]/, priority: 30 },
+            { name: 'lowlight', test: /[\\/]node_modules[\\/](lowlight|highlight\.js)[\\/]/, priority: 30, includeDependenciesRecursively: false },
             { name: 'katex', test: /[\\/]node_modules[\\/]katex[\\/]/, priority: 20 },
-            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/, priority: 10 },
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/, priority: 40 },
             // Per-language grammars (@codemirror/language-data's dynamic imports, legacy-modes, lezer grammars) are
             // excluded so Rolldown emits them as separate lazy chunks rather than folding them into this eager catch-all.
             { name: 'vendor', test: /[\\/]node_modules[\\/](?!@codemirror[\\/](language-data|legacy-modes|lang-)|@lezer[\\/])/, priority: 1 },

@@ -3,7 +3,7 @@ import { EditorState, EditorSelection } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { editorMarkdownConfig } from '../editorMarkdown';
-import { activeLinesOf, livePreviewSpecs, resolveImageSrc, blockSpecs, parseWikiTarget } from './ranges';
+import { activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
 function stateOf(doc, selection) {
   const state = EditorState.create({
     doc, selection,
@@ -77,6 +77,10 @@ describe('livePreviewSpecs — links and images', () => {
   it('leaves reference, shortcut and callout-marker brackets as source', () => {
     const { state, specs } = specsOf('[x][r] and [y]\n\n[r]: http://a.example\n\nend', [5]);
     expect(visible(state, specs, 1)).toBe('[x][r] and [y]');
+  });
+  it('attachmentUrl encodes each path segment so a # in a file name resolves', () => {
+    expect(attachmentUrl('My Page', 'a#b.png')).toBe('/attach/My%20Page/a%23b.png');
+    expect(attachmentUrl('P', 'sub/a b.png')).toBe('/attach/P/sub/a%20b.png');
   });
   it('replaces an image with an image widget, resolving attachments like remarkAttachments', () => {
     const { specs } = specsOf('![A cat](Cat.PNG)\n\nend', [3], { pageName: 'Pets', attachments: ['cat.png'] });

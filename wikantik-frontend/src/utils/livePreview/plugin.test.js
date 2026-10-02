@@ -106,7 +106,23 @@ describe('live preview extension', () => {
     broken.dispatch({ selection: { anchor: 9 } });
     setLivePreview(broken, true);
     expect(broken.contentDOM.querySelector('.cm-line').textContent).toBe('**a**');
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'boom');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'boom', expect.any(Error));
+  });
+  it('warns once per distinct error message, with the error object', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const throwing = () => { throw new Error('repeat-boom'); };
+    for (let i = 0; i < 3; i++) {
+      const v = new EditorView({
+        parent: document.body,
+        state: EditorState.create({ doc: '**a**\n\nend', extensions: [markdown(editorMarkdownConfig), livePreview({ getContext: throwing })] }),
+      });
+      views.push(v);
+      v.dispatch({ selection: { anchor: 9 } });
+      setLivePreview(v, true);
+    }
+    const hits = warn.mock.calls.filter((c) => c[1] === 'repeat-boom' && c[0].includes('decorations'));
+    expect(hits).toHaveLength(1);
+    expect(hits[0][2]).toBeInstanceOf(Error);
   });
   it('a throwing spec builder (not just context) also fails open to source', async () => {
     const ranges = await import('./ranges');
@@ -114,7 +130,7 @@ describe('live preview extension', () => {
     vi.spyOn(ranges, 'livePreviewSpecs').mockImplementation(() => { throw new Error('spec-boom'); });
     const view = liveView('**a**\n\nend', { caret: 9 });
     expect(view.contentDOM.querySelector('.cm-line').textContent).toBe('**a**');
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'spec-boom');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'spec-boom', expect.any(Error));
   });
   it('a throwing block spec builder (blockField only) fails open to source and warns', async () => {
     const ranges = await import('./ranges');
@@ -122,7 +138,7 @@ describe('live preview extension', () => {
     vi.spyOn(ranges, 'blockSpecs').mockImplementation(() => { throw new Error('block-boom'); });
     const view = liveView('**a**\n\nend', { caret: 9 });
     expect(view.contentDOM.querySelector('.cm-line').textContent).toBe('a'); // inline path is unaffected
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'block-boom');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'block-boom', expect.any(Error));
   });
   it('refreshLivePreview rebuilds decorations from the current context', () => {
     const context = { pageName: 'P', attachments: [] };

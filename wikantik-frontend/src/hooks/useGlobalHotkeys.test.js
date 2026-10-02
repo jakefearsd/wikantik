@@ -55,4 +55,10 @@ describe('useGlobalHotkeys', () => {
     fireEvent.keyDown(window, { key: 'n', code: 'KeyN', ctrlKey: true }); // no Alt → not ours
     expect(onDailyNote).toHaveBeenCalledTimes(1);
   });
+
+  it('Mod-Alt-N is left alone (not preventDefault-ed) when no onDailyNote handler is provided', () => {
+    renderHook(() => useGlobalHotkeys({ onOpenOverlay: vi.fn() }));
+    const notPrevented = fireEvent.keyDown(window, { key: 'n', code: 'KeyN', ctrlKey: true, altKey: true });
+    expect(notPrevented).toBe(true);
+  });
 });

@@ -4,6 +4,15 @@ import { syntaxTree } from '@codemirror/language';
 import { activeLinesOf, livePreviewSpecs, blockSpecs } from './ranges';
 import { widgetFor } from './widgets';
 
+const warned = new Set();
+/** console.warn once per distinct (message, error message): a failing builder runs on every keystroke/scroll. */
+function warnOnce(msg, err) {
+  const key = `${msg}|${err?.message || err}`;
+  if (warned.has(key)) return;
+  warned.add(key);
+  console.warn(msg, err?.message || err, err);
+}
+
 export const setLiveMode = StateEffect.define();
 export const refreshLivePreview = StateEffect.define();
 
@@ -53,7 +62,7 @@ export function buildInline(view) {
     }
     return toDecorations(specs, context);
   } catch (err) {
-    console.warn('[live-preview] could not build decorations; showing source for this update', err?.message || err);
+    warnOnce('[live-preview] could not build decorations; showing source for this update', err);
     return Decoration.none;
   }
 }
@@ -64,7 +73,7 @@ function buildBlocks(state) {
     const context = getContext(state);
     return toDecorations(blockSpecs(state, activeLinesOf(state), context), context);
   } catch (err) {
-    console.warn('[live-preview] could not build block widgets; showing source for this update', err?.message || err);
+    warnOnce('[live-preview] could not build block widgets; showing source for this update', err);
     return Decoration.none;
   }
 }

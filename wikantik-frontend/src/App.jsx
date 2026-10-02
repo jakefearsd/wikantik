@@ -33,7 +33,9 @@ export default function App() {
 
   // Mod-K/O open the quick overlay on pages, Mod-P on commands, from any route (admin or wiki)
   const openOverlay = useCallback((mode) => setOverlayMode(mode), []);
-  const openDailyNoteCmd = useCallback(() => { runCommand('daily-note'); }, []);
+  const openDailyNoteCmd = useCallback(() => {
+    Promise.resolve(runCommand('daily-note')).catch((err) => console.warn('[daily-note] command failed', err?.message || err));
+  }, []);
   useGlobalHotkeys({ onOpenOverlay: openOverlay, onDailyNote: openDailyNoteCmd });
   const toggleSidebar = useCallback(() => setSidebarCollapsed((c) => !c), []);
   const location = useLocation();

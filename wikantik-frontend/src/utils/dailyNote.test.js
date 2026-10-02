@@ -39,13 +39,14 @@ describe('openDailyNote', () => {
     await openDailyNote({ api, go, now: OCT1 });
     expect(go.mock.calls[0][1].state.initialMetadata.cluster).toBeUndefined();
   });
-  it('still opens the note (and warns) when the lookups fail', async () => {
+  it('when the existence lookup fails, opens /edit/<name> WITHOUT new-page state (never seed over a note that may exist)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     api.listPages.mockRejectedValue(new Error('offline'));
     api.listClusters.mockRejectedValue(new Error('offline'));
     await openDailyNote({ api, go, now: OCT1 });
-    expect(go).toHaveBeenCalledWith('/edit/2026-10-01', expect.objectContaining({ state: expect.any(Object) }));
-    expect(warn).toHaveBeenCalledTimes(2);
+    expect(go).toHaveBeenCalledTimes(1);
+    expect(go).toHaveBeenCalledWith('/edit/2026-10-01');
+    expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
   it('does not double-navigate when invoked twice while the lookup is in flight', async () => {

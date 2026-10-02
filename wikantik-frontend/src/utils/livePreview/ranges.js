@@ -20,7 +20,9 @@ export function activeLinesOf(state) {
 }
 /** A paragraph that is display math: `$$` alone on its first and last line. */
 export function isBlockMathText(text) { return BLOCK_MATH.test(text); }
-export function attachmentUrl(owner, file) { return `/attach/${owner}/${file}`; }
+const encodePath = (p) => String(p).split('/').map(encodeURIComponent).join('/');
+/** `/attach/<owner>/<file>` with every path segment percent-encoded (as remarkWikiLinks does). */
+export function attachmentUrl(owner, file) { return `/attach/${encodePath(owner)}/${encodePath(file)}`; }
 /** The image URL the preview would use (remarkAttachments rules); null for a non-http scheme. */
 export function resolveImageSrc(url, { pageName, attachments = [] } = {}) {
   if (/^https?:\/\//i.test(url) || url.startsWith('/')) return url;

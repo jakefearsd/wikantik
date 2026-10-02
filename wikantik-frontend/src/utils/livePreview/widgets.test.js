@@ -87,6 +87,19 @@ describe('widget DOM', () => {
     expect(view.state.doc.toString()).toBe('- [x] a');
     expect(new CheckboxWidget(false).ignoreEvent()).toBe(true);
   });
+  it('checkbox toggles from the keyboard (Space/Enter) via the same transaction', () => {
+    const view = viewOf('- [ ] a');
+    const box = new CheckboxWidget(false).toDOM(view);
+    vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    box.dispatchEvent(space);
+    expect(view.state.doc.toString()).toBe('- [x] a');
+    expect(space.defaultPrevented).toBe(true);
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(view.state.doc.toString()).toBe('- [ ] a');
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+    expect(view.state.doc.toString()).toBe('- [ ] a');
+  });
   it('widgetFor maps every data type and rejects unknown ones', () => {
     for (const w of [{ type: 'bullet' }, { type: 'checkbox', checked: false }, { type: 'rule' },
       { type: 'callout-title', style: 'note', title: '' }, { type: 'image', src: 'a', alt: '' },

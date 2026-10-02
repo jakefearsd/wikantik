@@ -29,11 +29,14 @@ export function openDailyNote(opts) {
 
 async function run({ api, go, now = new Date(), locale }) {
   const name = dailyNoteName(now);
-  let exists = false;
+  let exists;
   try {
     exists = ((await api.listPages({ names: [name], limit: 1 }))?.pages ?? []).some((p) => p.name === name);
   } catch (err) {
+    // Unknown whether the note exists: open the editor plainly, never seed new-page boilerplate over it.
     console.warn('[daily-note] existence check failed for ' + name, err?.message || err);
+    go(`/edit/${name}`);
+    return;
   }
   if (exists) { go(`/edit/${name}`); return; }
   let journal = false;

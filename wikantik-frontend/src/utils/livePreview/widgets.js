@@ -116,6 +116,16 @@ export class CheckboxWidget extends WidgetType {
         console.warn('[live-preview] task toggle failed', err?.message || err);
       }
     });
+    box.addEventListener('keydown', (e) => { // keyboard parity: Space/Enter toggle through the same transaction
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      e.preventDefault();
+      try {
+        if (this.markerFrom != null) toggleTaskBox(view, this.markerFrom);
+        else toggleTaskAt(view, view.posAtDOM(box));
+      } catch (err) {
+        console.warn('[live-preview] task toggle failed', err?.message || err);
+      }
+    });
     box.addEventListener('click', (e) => e.preventDefault()); // the document, not the input, owns the state
     return box;
   }

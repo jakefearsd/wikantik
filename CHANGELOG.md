@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Editor Live Preview: an Obsidian-style editing mode that renders markdown in place (headings, emphasis,
+  links and `[[wikilinks]]`, images and attachment embeds, page embeds `![[Page]]`, quotes and callouts,
+  rules, bullets, KaTeX math) while the lines you are editing show raw source. Task checkboxes are
+  clickable (one undo step). Toggle with the toolbar's **Live** button, `Ctrl/Cmd-E`, or the command palette's
+  "Toggle live preview"; the choice is remembered per browser (default: source). Tables, HTML and plugins stay source.
+- "Open today's daily note" command (palette and `Ctrl/Cmd-Alt-N`): opens or starts `YYYY-MM-DD` as an article
+  tagged `daily-note` (in the `journal` cluster when a hub declares it).
 - Obsidian vault import: upload a zipped vault, review a dry-run plan (new / existing / reserved / failing pages,
   attachments, clusters and hubs to create or join), then import it as a background job with per-page results.
   Folders become clusters (or one chosen cluster, or none); links are kept as native `[[ ]]` and re-targeted only
@@ -25,6 +32,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ready at startup.
 
 ### Changed
+- The editor parses GitHub-flavoured markdown (tables, strikethrough, task lists) in both modes, matching
+  the server and preview.
 - `[{InsertPage}]` now renders the inserted page as its own real page, so plugins and variables inside
   it (`AliasPlugin`, `{$attr}` fallbacks) see the inserted page, not the host.
 

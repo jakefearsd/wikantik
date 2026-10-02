@@ -10,7 +10,8 @@ export function useGlobalHotkeys({ onOpenOverlay, onDailyNote } = {}) {
   useEffect(() => {
     const handler = (e) => {
       if (!e.defaultPrevented && (e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyN') {
-        e.preventDefault(); onDailyNote?.(); return;
+        if (onDailyNote) { e.preventDefault(); onDailyNote(); }
+        return;
       }
       if (e.defaultPrevented || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
       const mode = MODES[e.key?.toLowerCase()];

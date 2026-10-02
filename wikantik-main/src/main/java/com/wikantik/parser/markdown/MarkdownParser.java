@@ -106,6 +106,9 @@ public class MarkdownParser extends MarkupParser {
      * so that ReferenceManager automatically tracks links in Markdown pages.
      */
     private void collectLinks( final String body ) {
+        if( localLinkMutatorChain.isEmpty() && externalLinkMutatorChain.isEmpty() && attachmentLinkMutatorChain.isEmpty() ) {
+            return; // no hook to feed: skip the second full parse (renders and metadata parses register none)
+        }
         final Node root = LINK_SCANNER.parse( body );
 
         new NodeVisitor( new VisitHandler<>( Link.class, link -> {

@@ -58,8 +58,8 @@ class DefaultStructuralIndexServiceTest {
     @Test
     void rebuildListenersRunAfterEachRebuildAndAFailingOneDoesNotStopTheRest() {
         final int[] calls = { 0 };
-        svc.addRebuildListener( () -> { throw new IllegalStateException( "listener boom" ); } );
-        svc.addRebuildListener( () -> calls[ 0 ]++ );
+        svc.rebuildListeners.add( () -> { throw new IllegalStateException( "listener boom" ); } );
+        svc.rebuildListeners.add( () -> calls[ 0 ]++ );
         svc.rebuild();
         svc.rebuild();
         assertEquals( 2, calls[ 0 ] );

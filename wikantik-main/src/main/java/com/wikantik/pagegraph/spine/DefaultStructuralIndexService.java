@@ -116,22 +116,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     /** Title/alias bookkeeping for {@link #titleLookup()}. */
     private final TitleIndexState titles = new TitleIndexState();
 
-    private final java.util.List< Runnable > rebuildListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
-
-    /** Registers a callback run after every completed {@link #rebuild()} (the title index is ready by then). */
-    public void addRebuildListener( final Runnable listener ) {
-        rebuildListeners.add( listener );
-    }
-
-    private void fireRebuilt() {
-        for ( final Runnable l : rebuildListeners ) {
-            try {
-                l.run();
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Structural index rebuild listener failed: {}", e.getMessage(), e );
-            }
-        }
-    }
+    /** Callbacks run after every completed {@link #rebuild()} (the title index is ready by then). */
+    public final RebuildListeners rebuildListeners = new RebuildListeners();
 
     @Override
     public synchronized void rebuild() {
@@ -206,7 +192,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         metrics.recordRebuildMillis( durationMs );
         LOG.info( "Structural index rebuilt: {} pages indexed ({} without canonical_id), in {} ms",
                   indexed, missing, durationMs );
-        fireRebuilt();
+        rebuildListeners.fire();
     }
 
     @Override

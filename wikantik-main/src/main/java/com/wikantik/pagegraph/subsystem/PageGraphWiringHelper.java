@@ -100,7 +100,7 @@ public final class PageGraphWiringHelper {
         // Native [[ ]] links resolve through the title index: once it is ready, refresh the references of pages that
         // were scanned while it was warming (or before native links existed).
         if ( referenceManager instanceof com.wikantik.pagegraph.references.DefaultReferenceManager defaultRefMgr ) {
-            structuralIndex.addRebuildListener( defaultRefMgr::rescanNativeWikiLinks );
+            structuralIndex.rebuildListeners.add( defaultRefMgr::rescanNativeWikiLinks );
         }
         new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
         LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );

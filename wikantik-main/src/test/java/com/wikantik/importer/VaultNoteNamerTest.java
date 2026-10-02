@@ -85,17 +85,22 @@ class VaultNoteNamerTest {
     }
 
     @Test
-    void hugeFolderNamesStillYieldValidNames() {
-        final String folder = "f".repeat( 130 );
+    void collidingNoteInHugeFolderGetsClampedSuffix() {
+        final String folder = "g".repeat( 130 );
         final String name = "n".repeat( 128 );
-        final Map< String, String > n = new VaultNoteNamer( FakeWikiSnapshot.EMPTY )
-            .assign( List.of( folder + "/" + name + ".md", "Z/" + name + ".md", folder + "/Short.md", "Q/Short.md", "Short.md" ) );
+        final Map< String, String > n = new VaultNoteNamer( FakeWikiSnapshot.EMPTY ).assign( List.of(
+            "a/Short.md", folder + "/Short.md", "a/" + name + ".md", folder + "/" + name + ".md" ) );
+        assertEquals( "Short", n.get( "a/Short.md" ) );
+        final String suffixed = n.get( folder + "/Short.md" );
+        assertEquals( "Short (" + "g".repeat( 40 ) + ")", suffixed );
+        final String longSuffixed = n.get( folder + "/" + name + ".md" );
+        assertTrue( longSuffixed.endsWith( " (" + "g".repeat( 40 ) + ")" ), longSuffixed );
         for ( final String page : n.values() ) {
             assertTrue( page.length() <= 128, page );
             assertTrue( com.wikantik.util.WikiPageNameValidator.isValid( page ), page );
             assertEquals( page.trim(), page );
         }
-        assertEquals( 5, Set.copyOf( n.values().stream().map( String::toLowerCase ).toList() ).size() );
+        assertEquals( 4, n.values().stream().map( String::toLowerCase ).distinct().count() );
     }
 
     @Test

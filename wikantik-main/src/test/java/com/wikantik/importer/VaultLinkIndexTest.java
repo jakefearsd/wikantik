@@ -95,4 +95,15 @@ class VaultLinkIndexTest {
         assertEquals( Optional.of( "d7/n7.md" ), ix.resolveNote( "d7/n7" ) );
         assertEquals( Optional.of( "deep/er/est/n7.md" ), ix.resolveNote( "er/est/n7" ) );
     }
+
+    @Test
+    void ambiguousSuffixListPicksShortestThenOrder() {
+        final VaultLinkIndex same = new VaultLinkIndex(
+            List.of( "z/ideas.md", "a/ideas.md", "Archive/ideas.md" ), List.of() );
+        assertEquals( Optional.of( "a/ideas.md" ), same.resolveNote( "ideas" ) );
+        final VaultLinkIndex depths = new VaultLinkIndex(
+            List.of( "a/b/c/ideas.md", "zz/ideas.md", "Archive/Old/ideas.md" ), List.of() );
+        assertEquals( Optional.of( "zz/ideas.md" ), depths.resolveNote( "ideas" ) );
+        assertEquals( Optional.of( "Archive/Old/ideas.md" ), depths.resolveNote( "old/ideas" ) );
+    }
 }

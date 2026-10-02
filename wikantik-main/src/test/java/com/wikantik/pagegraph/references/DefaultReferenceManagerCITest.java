@@ -588,6 +588,7 @@ class DefaultReferenceManagerCITest {
                 () -> ready.get() ? Optional.of( lookup ) : Optional.empty() ) );
         final Page page = mockPage( "Source" );
         when( pageManager.getAllPages() ).thenReturn( List.of( page ) );
+        when( pageManager.getPage( "Source" ) ).thenReturn( page );
         when( pageManager.getPureText( "Source", WikiProvider.LATEST_VERSION ) ).thenReturn( "see [[target page]]" );
         mgr.initialize( List.of() );
 
@@ -605,11 +606,35 @@ class DefaultReferenceManagerCITest {
     void rescanNativeWikiLinksBeforeInitializationIsDeferredToInitialize() throws Exception {
         final Page page = mockPage( "Source" );
         when( pageManager.getAllPages() ).thenReturn( List.of( page ) );
+        when( pageManager.getPage( "Source" ) ).thenReturn( page );
         when( pageManager.getPureText( "Source", WikiProvider.LATEST_VERSION ) ).thenReturn( "see [[Other]]" );
         mgr.rescanNativeWikiLinks();
         assertTrue( mgr.findRefersTo( "Source" ).isEmpty(), "not touched before initialization" );
         mgr.initialize( List.of() );
         assertTrue( mgr.findRefersTo( "Source" ).contains( "Other" ) );
+    }
+
+    @Test
+    void rescanSerialisesOnceForTheWholePassAndSkipsPagesSavedMidPass() throws Exception {
+        mgr.initialize( List.of() );
+        final int before = mgr.serializationCount();
+        final java.util.List< Page > pages = new java.util.ArrayList<>();
+        for ( int i = 0; i < 5; i++ ) {
+            final Page p = mockPage( "P" + i );
+            pages.add( p );
+            when( pageManager.getPage( "P" + i ) ).thenReturn( p );
+            when( pageManager.getPureText( "P" + i, WikiProvider.LATEST_VERSION ) ).thenReturn( "see [[Dest" + i + "]]" );
+        }
+        // P4 is saved while the pass runs: its current copy has a newer modification time
+        final Page newerP4 = mockPage( "P4", new Date( System.currentTimeMillis() + 60_000 ) );
+        when( pageManager.getPage( "P4" ) ).thenReturn( newerP4 );
+        when( pageManager.getAllPages() ).thenReturn( pages );
+
+        mgr.rescanNativeWikiLinks();
+
+        assertEquals( before + 1, mgr.serializationCount(), "one write for the pass" );
+        assertTrue( mgr.findRefersTo( "P0" ).contains( "Dest0" ) );
+        assertTrue( mgr.findRefersTo( "P4" ).isEmpty(), "a page saved mid-pass is left to its own save" );
     }
 
     @Test

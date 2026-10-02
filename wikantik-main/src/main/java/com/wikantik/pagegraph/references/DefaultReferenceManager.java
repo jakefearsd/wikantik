@@ -117,6 +117,12 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
     private transient volatile WikiLinkResolver wikiLinkResolver;
     private transient volatile boolean nativeRescanPending;
+    /** Count of reference-map serialisations; lets tests prove a bulk pass writes once. */
+    private final transient java.util.concurrent.atomic.AtomicInteger serializations = new java.util.concurrent.atomic.AtomicInteger();
+
+    int serializationCount() {
+        return serializations.get();
+    }
 
     /**
      *  Maps page wikiname to a Collection of pages it refers to. The Collection must contain Strings. The Collection may contain
@@ -379,6 +385,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      *  rejects, which silently turned every warm start into a full rebuild.
      */
     private synchronized void serializeToDisk() {
+        serializations.incrementAndGet();
         final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
         try( ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( serializationFile.toPath() ) ) ) ) {
             final StopWatch sw = new StopWatch();
@@ -614,22 +621,44 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     public void rescanNativeWikiLinks() {
         if ( !initialized.get() ) {
             nativeRescanPending = true;
-            return;
+            if ( !initialized.get() ) {
+                return; // initialize() will see the flag
+            }
+            // initialize() finished between the two checks and may have missed the flag: run now
         }
         nativeRescanPending = false;
         int rescanned = 0;
         try {
             for ( final Page page : pageManager.getAllPages() ) {
-                final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
-                if ( text != null && text.contains( "[[" ) ) {
-                    updateReferences( page.getName(), scanWikiLinks( page, text ) );
+                if ( rescanPage( page ) ) {
                     rescanned++;
                 }
             }
         } catch ( final ProviderException | RuntimeException e ) {
             LOG.warn( "Native wikilink rescan stopped after {} pages: {}", rescanned, e.getMessage(), e );
         }
+        if ( rescanned > 0 ) {
+            serializeToDisk(); // once for the whole pass, not per page
+        }
         LOG.info( "Native wikilink rescan refreshed references for {} pages", rescanned );
+    }
+
+    /**
+     * Refreshes one page's references from its current text. A page saved while the pass was running is skipped
+     * (its save already recorded newer references, which an older scan must not overwrite).
+     */
+    private boolean rescanPage( final Page page ) {
+        final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+        if ( text == null || !text.contains( "[[" ) ) {
+            return false;
+        }
+        final Collection< String > links = scanWikiLinks( page, text );
+        final Page current = pageManager.getPage( page.getName() );
+        if ( current == null || !Objects.equals( current.getLastModified(), page.getLastModified() ) ) {
+            return false;
+        }
+        internalUpdateReferences( page.getName(), links );
+        return true;
     }
 
     private WikiLinkResolver resolver() {

@@ -199,7 +199,9 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
             return linkNode( url, r.displayText(), Kind.PAGE, res.pageName() );
         }
         if ( !resolver.indexReady() ) {
-            // The create-page link may be wrong (the title index would have matched it): never cache this render
+            // The create-page link may be wrong (the title index would have matched it): never cache this render.
+            // Fail-soft trade-off: if the structural index is permanently unavailable, a page with an unresolved
+            // [[X]] is re-rendered on every view rather than cached.
             context.setVariable( Context.VAR_RENDER_UNCACHEABLE, Boolean.TRUE );
         }
         final String url = context.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), res.pageName() );

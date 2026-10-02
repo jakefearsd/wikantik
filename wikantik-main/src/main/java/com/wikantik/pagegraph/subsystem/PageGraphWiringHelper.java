@@ -97,12 +97,21 @@ public final class PageGraphWiringHelper {
         structuralIndexListener.register( pageManager, filterManager );
         engine.setManager( StructuralIndexEventListener.class, structuralIndexListener );
 
-        // Native [[ ]] links resolve through the title index: once it is ready, refresh the references of pages that
-        // were scanned while it was warming (or before native links existed).
-        if ( referenceManager instanceof com.wikantik.pagegraph.references.DefaultReferenceManager defaultRefMgr ) {
-            structuralIndex.rebuildListeners.add( defaultRefMgr::rescanNativeWikiLinks );
+        // Native [[ ]] links resolve through the title index. Once the initial rebuild has finished, refresh the
+        // references of pages that were scanned while it was warming (or before native links existed). This runs on
+        // the bootstrap thread after rebuild() has returned, so it never holds the index monitor that save events need.
+        final com.wikantik.pagegraph.references.DefaultReferenceManager nativeRescan =
+            referenceManager instanceof com.wikantik.pagegraph.references.DefaultReferenceManager d ? d : null;
+        if ( nativeRescan == null ) {
+            LOG.info( "ReferenceManager is {}; native wikilink rescan on index readiness is skipped",
+                      referenceManager == null ? "absent" : referenceManager.getClass().getName() );
         }
-        new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
+        new Thread( () -> {
+            structuralIndex.rebuild();
+            if ( nativeRescan != null && structuralIndex.titleLookup().isPresent() ) {
+                nativeRescan.rescanNativeWikiLinks();
+            }
+        }, "structural-index-bootstrap" ).start();
         LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 
         // Page Graph snapshot service — backs the /page-graph React route.

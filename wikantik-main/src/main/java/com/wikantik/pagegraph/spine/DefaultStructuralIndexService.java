@@ -116,9 +116,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     /** Title/alias bookkeeping for {@link #titleLookup()}. */
     private final TitleIndexState titles = new TitleIndexState();
 
-    /** Callbacks run after every completed {@link #rebuild()} (the title index is ready by then). */
-    public final RebuildListeners rebuildListeners = new RebuildListeners();
-
     @Override
     public synchronized void rebuild() {
         final Instant start = Instant.now();
@@ -192,7 +189,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         metrics.recordRebuildMillis( durationMs );
         LOG.info( "Structural index rebuilt: {} pages indexed ({} without canonical_id), in {} ms",
                   indexed, missing, durationMs );
-        rebuildListeners.fire();
     }
 
     @Override

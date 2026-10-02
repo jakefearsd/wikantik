@@ -29,7 +29,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Lightweight utility for extracting Markdown-style links from raw wiki page text
+ * Lightweight utility for extracting Markdown-style links ({@code [text](Page)}) and native wikilinks ({@code [[Page]]}) from raw wiki page text
  * without invoking the full rendering pipeline.
  *
  * <p>Used by the {@link com.wikantik.pagegraph.references.DefaultReferenceManager} for fast
@@ -61,7 +61,7 @@ public final class MarkdownLinkScanner {
      * @param bodyText the Markdown body text to scan
      * @return an ordered set of local page names referenced in the text
      */
-    public static Set< String > findLocalLinks( final String bodyText ) {
+    public static Set< String > findMarkdownLinks( final String bodyText ) {
         if ( bodyText == null || bodyText.isEmpty() ) {
             return Set.of();
         }
@@ -95,6 +95,27 @@ public final class MarkdownLinkScanner {
         // Drop blank/whitespace-only entries — a malformed link such as [ ]( ) (e.g. illustrative
         // syntax inside a code span the regex still matches) would otherwise yield a blank target
         // that becomes an illegal '' page reference downstream.
+        locals.removeIf( s -> s == null || s.isBlank() );
+        return locals;
+    }
+
+    /**
+     * Finds all local wiki page targets, both Markdown links ({@link #findMarkdownLinks}) and native
+     * {@code [[Page]]} / {@code ![[Page]]} wikilinks. Same-page {@code [[#Heading]]} links are excluded.
+     *
+     * @param bodyText the Markdown body text to scan
+     * @return an ordered set of local page names (or {@code Owner/file} attachment targets)
+     */
+    public static Set< String > findLocalLinks( final String bodyText ) {
+        if ( bodyText == null || bodyText.isEmpty() ) {
+            return Set.of();
+        }
+        final Set< String > locals = new LinkedHashSet<>( findMarkdownLinks( bodyText ) );
+        for ( final WikiLinkSyntax.WikiLinkRef ref : WikiLinkSyntax.findAll( bodyText ) ) {
+            if ( !ref.isSamePage() ) {
+                locals.add( ref.target() );
+            }
+        }
         locals.removeIf( s -> s == null || s.isBlank() );
         return locals;
     }

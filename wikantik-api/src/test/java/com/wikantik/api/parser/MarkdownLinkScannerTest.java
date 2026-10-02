@@ -115,4 +115,16 @@ class MarkdownLinkScannerTest {
         assertEquals( "anchor", MarkdownLinkScanner.classifyLink( "#fragment" ) );
         assertEquals( "local", MarkdownLinkScanner.classifyLink( "SomePage" ) );
     }
+
+    @Test
+    void findLocalLinksIncludesNativeWikilinkTargetsButNotSamePageOrCode() {
+        final Set< String > links = MarkdownLinkScanner.findLocalLinks(
+                "[a](Legacy) [[Native|x]] [[Other#H]] ![[Embedded]] ![[Owner/f.png]] [[#Local]] `[[Code]]`" );
+        assertEquals( Set.of( "Legacy", "Native", "Other", "Embedded", "Owner/f.png" ), links );
+    }
+
+    @Test
+    void findMarkdownLinksIgnoresNativeWikilinks() {
+        assertEquals( Set.of( "Legacy" ), MarkdownLinkScanner.findMarkdownLinks( "[a](Legacy) [[Native]]" ) );
+    }
 }

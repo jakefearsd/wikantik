@@ -7,7 +7,7 @@ import { history, undo } from '@codemirror/commands';
 import { fireEvent } from '@testing-library/react';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
-import { livePreviewPlugin } from './plugin';
+import { livePreviewPlugin, refreshLivePreview } from './plugin';
 const views = [];
 function liveView(doc, { context = {}, live = true, caret = doc.length } = {}) {
   const parent = document.createElement('div');
@@ -115,5 +115,21 @@ describe('live preview extension', () => {
     const view = liveView('**a**\n\nend', { caret: 9 });
     expect(view.contentDOM.querySelector('.cm-line').textContent).toBe('**a**');
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'spec-boom');
+  });
+  it('a throwing block spec builder (blockField only) fails open to source and warns', async () => {
+    const ranges = await import('./ranges');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(ranges, 'blockSpecs').mockImplementation(() => { throw new Error('block-boom'); });
+    const view = liveView('**a**\n\nend', { caret: 9 });
+    expect(view.contentDOM.querySelector('.cm-line').textContent).toBe('a'); // inline path is unaffected
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[live-preview]'), 'block-boom');
+  });
+  it('refreshLivePreview rebuilds decorations from the current context', () => {
+    const context = { pageName: 'P', attachments: [] };
+    const view = liveView('![a](pic.png)\n\nend', { context });
+    expect(view.dom.querySelector('img.cm-lp-image').getAttribute('src')).toBe('pic.png');
+    context.attachments = ['pic.png'];
+    view.dispatch({ effects: refreshLivePreview.of(null) });
+    expect(view.dom.querySelector('img.cm-lp-image').getAttribute('src')).toBe('/attach/P/pic.png');
   });
 });

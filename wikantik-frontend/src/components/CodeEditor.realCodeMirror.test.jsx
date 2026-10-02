@@ -8,8 +8,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { EditorView } from '@codemirror/view';
-import { ensureSyntaxTree, foldable, foldedRanges, syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree, foldable, foldEffect, foldedRanges, syntaxTree } from '@codemirror/language';
 import { undo } from '@codemirror/commands';
+import { linkAt } from '../utils/linkInteraction';
 import CodeEditor, { minimalChange } from './CodeEditor';
 
 function mount(value) {
@@ -169,5 +170,71 @@ describe('CodeEditor on real CodeMirror', () => {
     const placeholder = container.querySelector('.cm-foldPlaceholder');
     expect(placeholder).not.toBeNull();
     expect(placeholder.textContent).toBe('⋯');
+  });
+});
+
+describe('CodeEditor live preview', () => {
+  const liveMount = (value, props = {}) => {
+    const ref = createRef();
+    const utils = render(<CodeEditor ref={ref} value={value} onChange={vi.fn()} {...props} />);
+    const view = EditorView.findFromDOM(utils.container.querySelector('.cm-editor'));
+    return { ref, view, ...utils };
+  };
+  const firstLine = (view) => view.contentDOM.querySelector('.cm-line').textContent;
+  it('starts live when mounted with livePreview, and the toggle keeps the same view, doc and selection', () => {
+    const { view, rerender } = liveMount('**a**\n\nend', { livePreview: true });
+    act(() => { view.dispatch({ selection: { anchor: 9 } }); });
+    expect(firstLine(view)).toBe('a');
+    rerender(<CodeEditor value={'**a**\n\nend'} onChange={vi.fn()} livePreview={false} />);
+    expect(EditorView.findFromDOM(document.querySelector('.cm-editor'))).toBe(view);
+    expect(firstLine(view)).toBe('**a**');
+    expect(view.state.doc.toString()).toBe('**a**\n\nend');
+    expect(view.state.selection.main.head).toBe(9);
+  });
+  it('stays live across a re-render that reconfigures the editor (theme change)', () => {
+    const { view, rerender } = liveMount('**a**\n\nend', { livePreview: true });
+    act(() => { view.dispatch({ selection: { anchor: 9 } }); });
+    rerender(<CodeEditor value={'**a**\n\nend'} onChange={vi.fn()} livePreview dark />);
+    expect(view.dom.classList.contains('cm-live-preview')).toBe(true);
+    expect(firstLine(view)).toBe('a');
+  });
+  it('reconfigure while live leaves document, selection and undo history unchanged', () => {
+    const { view, rerender } = liveMount('hello\n\nend', { livePreview: true });
+    act(() => { view.dispatch({ changes: { from: 5, insert: ' world' }, selection: { anchor: 11 }, userEvent: 'input.type' }); });
+    rerender(<CodeEditor value={'hello world\n\nend'} onChange={vi.fn()} livePreview dark />);
+    rerender(<CodeEditor value={'hello world\n\nend'} onChange={vi.fn()} livePreview />);
+    expect(view.state.doc.toString()).toBe('hello world\n\nend');
+    expect(view.state.selection.main.head).toBe(11);
+    expect(view.dom.classList.contains('cm-live-preview')).toBe(true);
+    act(() => { undo(view); });
+    expect(view.state.doc.toString()).toBe('hello\n\nend');
+  });
+  it('undo across a live toggle restores the text and keeps the mode', () => {
+    const { view, rerender } = liveMount('hello\n\nend');
+    act(() => { view.dispatch({ changes: { from: 5, insert: ' world' }, selection: { anchor: 11 }, userEvent: 'input.type' }); });
+    rerender(<CodeEditor value={'hello world\n\nend'} onChange={vi.fn()} livePreview />);
+    act(() => { undo(view); });
+    expect(view.state.doc.toString()).toBe('hello\n\nend');
+    expect(view.dom.classList.contains('cm-live-preview')).toBe(true);
+  });
+  it('keeps folds through a toggle', () => {
+    const { view, rerender } = liveMount('# A\none\ntwo\n# B\nthree');
+    act(() => { view.dispatch({ effects: foldEffect.of({ from: 3, to: 11 }) }); });
+    rerender(<CodeEditor value={'# A\none\ntwo\n# B\nthree'} onChange={vi.fn()} livePreview />);
+    expect(foldedRanges(view.state).size).toBe(1);
+  });
+  it('Ctrl-hover link marks still wrap the visible link text in live mode', () => {
+    const { view } = liveMount('see [the hub](IndexFundsHub) now\n\nend', { livePreview: true });
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.length } }); });
+    expect([...view.contentDOM.querySelectorAll('.cm-link-range')].map((e) => e.textContent).join('')).toBe('the hub');
+    expect(linkAt(view.state, 6).url).toBe('IndexFundsHub');
+  });
+  it('a new livePreviewContext refreshes widgets (attachment list arrives late)', () => {
+    const doc = '![a](pic.png)\n\nend';
+    const { view, rerender } = liveMount(doc, { livePreview: true, livePreviewContext: { pageName: 'P', attachments: [] } });
+    act(() => { view.dispatch({ selection: { anchor: doc.length } }); });
+    expect(view.dom.querySelector('img.cm-lp-image').getAttribute('src')).toBe('pic.png');
+    rerender(<CodeEditor value={doc} onChange={vi.fn()} livePreview livePreviewContext={{ pageName: 'P', attachments: ['pic.png'] }} />);
+    expect(view.dom.querySelector('img.cm-lp-image').getAttribute('src')).toBe('/attach/P/pic.png');
   });
 });

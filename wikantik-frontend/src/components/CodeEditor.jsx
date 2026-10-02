@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useMemo, useCallback } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useMemo, useCallback, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
@@ -14,6 +14,7 @@ import { editorChrome } from '../utils/editorTheme';
 import { createWikiLinkSource } from '../utils/wikiLinkComplete';
 import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
 import { linkInteraction } from '../utils/linkInteraction';
+import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview, liveModeField } from '../utils/livePreview';
 
 /**
  * #19 — CodeMirror 6 markdown source editor.
@@ -49,6 +50,8 @@ import { linkInteraction } from '../utils/linkInteraction';
  *   slashSource (ctx) => CompletionResult|null  slash-command completion source (optional)
  *   linkCompletion { searchPages(q), getHeadings(page|null), getAttachmentNames() }  link autocomplete sources
  *   onFiles     (files, pos, { pasted }) => void   pasted/dropped OS files (e.g. images to upload)
+ *   livePreview boolean           render markdown inline (decorations only; the document text is never changed)
+ *   livePreviewContext { pageName, attachments, loadEmbed }  context for live-preview widgets (read through a ref)
  *   className   string            applied to the wrapping div
  *   'data-testid' string         applied to the wrapping div
  */
@@ -91,7 +94,7 @@ export function minimalChange(prev, next) {
 }
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, livePreview = false, livePreviewContext, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -134,9 +137,28 @@ const CodeEditor = forwardRef(function CodeEditor(
     },
   }), []);
 
+  // Live preview (decorations only). The context (page name, attachment names, embed loader) is read through a ref
+  // so the extension is built once; the mode itself lives in an editor StateField that survives reconfigures.
+  const livePreviewContextRef = useRef(livePreviewContext);
+  livePreviewContextRef.current = livePreviewContext;
+  const livePreviewRef = useRef(livePreview);
+  livePreviewRef.current = livePreview;
+  const liveExtension = useMemo(
+    () => livePreviewExtension({ getContext: () => livePreviewContextRef.current || {} }),
+    [],
+  );
   const handleCreateEditor = useCallback((view) => {
     viewRef.current = view;
+    if (livePreviewRef.current && typeof view.state.field === 'function') setLivePreview(view, true);
   }, []);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view && typeof view.state.field === 'function') setLivePreview(view, !!livePreview); // stub views (tests) have no fields
+  }, [livePreview]);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view && typeof view.state.field === 'function' && view.state.field(liveModeField, false)) view.dispatch({ effects: refreshLivePreview.of(null) });
+  }, [livePreviewContext]);
 
   useImperativeHandle(ref, () => ({
     getText() {
@@ -412,9 +434,9 @@ const CodeEditor = forwardRef(function CodeEditor(
       // Folds: headings, the frontmatter block and fenced code only (editorFoldConfig + frontmatterFold).
       markdown({ ...editorMarkdownConfig, codeLanguages: languages }),
       EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension,
-      frontmatterFold, calloutMarkers, editorChrome,
+      frontmatterFold, calloutMarkers, liveExtension, editorChrome,
     ],
-    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension],
+    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension, liveExtension],
   );
 
   return (

@@ -116,6 +116,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     protected transient Engine engine;
 
     private transient volatile WikiLinkResolver wikiLinkResolver;
+    private transient volatile boolean nativeRescanPending;
 
     /**
      *  Maps page wikiname to a Collection of pages it refers to. The Collection must contain Strings. The Collection may contain
@@ -310,6 +311,9 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         LOG.info( "Cross reference scan done in {} - ReferenceManager is now ready", sw );
 
         WikiEventManager.addWikiEventListener( pageManager, this );
+        if ( nativeRescanPending ) {
+            rescanNativeWikiLinks();
+        }
     }
 
     /**
@@ -548,7 +552,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
         // Extract explicit Markdown links from body via regex (microseconds, not milliseconds)
         final Set< String > links = new LinkedHashSet<>( MarkdownLinkScanner.findMarkdownLinks( parsed.body() ) );
-        addNativeWikiLinks( links, parsed.body() );
+        addNativeWikiLinks( links, page, parsed.body() );
 
         // Also extract "related" links from frontmatter metadata
         final Object related = parsed.metadata().get( "related" );
@@ -565,17 +569,67 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     }
 
     /** Adds the resolved targets of {@code [[ ]]} links and {@code ![[ ]]} embeds found in {@code body}. */
-    private void addNativeWikiLinks( final Set< String > links, final String body ) {
+    private void addNativeWikiLinks( final Set< String > links, final Page page, final String body ) {
+        Set< String > ownAttachments = null;
         for ( final WikiLinkSyntax.WikiLinkRef ref : WikiLinkSyntax.findAll( body ) ) {
             if ( ref.isSamePage() ) {
                 continue;
             }
             if ( ref.isAttachment() ) {
                 links.add( resolver().resolve( ref.pageName() ).pageName() + "/" + ref.fileName() );
+                continue;
+            }
+            if ( ownAttachments == null ) {
+                ownAttachments = attachmentNamesOf( page );
+            }
+            final String own = page.getName() + "/" + ref.target();
+            if ( ownAttachments.contains( own ) ) {
+                links.add( own );
             } else {
                 links.add( resolver().resolve( ref.target() ).pageName() );
             }
         }
+    }
+
+    /** Full names ({@code Owner/file}) of the attachments of {@code page}; empty when they cannot be listed. */
+    private Set< String > attachmentNamesOf( final Page page ) {
+        try {
+            final Set< String > names = new HashSet<>();
+            for ( final Attachment att : attachmentManager.listAttachments( page ) ) {
+                names.add( att.getName() );
+            }
+            return names;
+        } catch ( final ProviderException | RuntimeException e ) {
+            LOG.warn( "Could not list attachments of '{}' while scanning wikilinks: {}", page.getName(), e.getMessage(), e );
+            return Set.of();
+        }
+    }
+
+    /**
+     * Re-scans every page whose text contains a native {@code [[ ]]} link and refreshes its references. Run when the
+     * structural title index becomes ready: pages first scanned while it was warming (or before this feature
+     * existed) recorded fallback names, so backlinks missed them and renames could not follow them. Deferred to the
+     * end of {@link #initialize} when the manager is not yet initialised.
+     */
+    public void rescanNativeWikiLinks() {
+        if ( !initialized.get() ) {
+            nativeRescanPending = true;
+            return;
+        }
+        nativeRescanPending = false;
+        int rescanned = 0;
+        try {
+            for ( final Page page : pageManager.getAllPages() ) {
+                final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+                if ( text != null && text.contains( "[[" ) ) {
+                    updateReferences( page.getName(), scanWikiLinks( page, text ) );
+                    rescanned++;
+                }
+            }
+        } catch ( final ProviderException | RuntimeException e ) {
+            LOG.warn( "Native wikilink rescan stopped after {} pages: {}", rescanned, e.getMessage(), e );
+        }
+        LOG.info( "Native wikilink rescan refreshed references for {} pages", rescanned );
     }
 
     private WikiLinkResolver resolver() {

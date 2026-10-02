@@ -312,9 +312,10 @@ public class DefaultRenderingManager implements RenderingManager {
                && ContextEnum.PAGE_VIEW.getRequestContext().equals( context.getRequestContext() );
     }
 
-    /** True once a render has flagged itself viewer-sensitive (see {@link Context#VAR_VIEWER_SENSITIVE}). */
+    /** True once a render has flagged itself viewer-sensitive or uncacheable (see {@link Context#VAR_VIEWER_SENSITIVE}, {@link Context#VAR_RENDER_UNCACHEABLE}). */
     private static boolean isViewerSensitive( final Context context ) {
-        return Boolean.TRUE.equals( context.getVariable( Context.VAR_VIEWER_SENSITIVE ) );
+        return Boolean.TRUE.equals( context.getVariable( Context.VAR_VIEWER_SENSITIVE ) )
+               || Boolean.TRUE.equals( context.getVariable( Context.VAR_RENDER_UNCACHEABLE ) );
     }
 
     private boolean useHtmlCache( final Context context ) {

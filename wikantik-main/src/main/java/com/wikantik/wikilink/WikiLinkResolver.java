@@ -101,6 +101,19 @@ public final class WikiLinkResolver {
         return byPhrase != null ? new Resolution( byPhrase, true ) : new Resolution( MarkupParser.cleanLink( t ), false );
     }
 
+    /**
+     * True when the title index is available, so a miss from {@link #resolve} is authoritative. While it is warming
+     * the case-insensitive name and title/alias steps are skipped and an unresolved target is only a fallback.
+     */
+    public boolean indexReady() {
+        try {
+            return titles.get().isPresent();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Wikilink title index readiness check failed: {}", e.getMessage(), e );
+            return false;
+        }
+    }
+
     private String exactName( final String t ) {
         try {
             return exact.finalPageName( t );

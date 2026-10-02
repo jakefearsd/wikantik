@@ -132,6 +132,25 @@ class NativeWikiLinkRenderingTest {
         testEngine.getManager( AttachmentManager.class ).storeAttachment( att, testEngine.makeAttachmentFile() );
     }
 
+    @Test void renderThatResolvedWithoutTheTitleIndexIsFlaggedUncacheable() throws Exception {
+        newPage( "WlTarget" );
+        final Context exact = render( "See [[WlTarget]]" );
+        assertFalse( Boolean.TRUE.equals( exact.getVariable( Context.VAR_RENDER_UNCACHEABLE ) ),
+                "an exact hit is authoritative, cacheable" );
+        final Context missing = render( "See [[no such page]]" );
+        final boolean indexReady = com.wikantik.wikilink.WikiLinkResolver.forEngine( testEngine ).indexReady();
+        assertEquals( !indexReady, Boolean.TRUE.equals( missing.getVariable( Context.VAR_RENDER_UNCACHEABLE ) ),
+                "a miss is uncacheable exactly while the title index is not ready" );
+    }
+
+    private Context render( final String src ) throws Exception {
+        testEngine.saveText( HOST, src );
+        final Page p = Wiki.contents().page( testEngine, HOST );
+        final Context context = Wiki.context().create( testEngine, HttpMockFactory.createHttpRequest(), p );
+        new MarkdownRenderer( context, new MarkdownParser( context, new BufferedReader( new StringReader( src ) ) ).parse() ).getString();
+        return context;
+    }
+
     private String translate( final String src ) throws Exception {
         testEngine.saveText( HOST, src );
         final Page p = Wiki.contents().page( testEngine, HOST );

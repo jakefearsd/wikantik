@@ -579,6 +579,55 @@ class DefaultReferenceManagerCITest {
     }
 
     @Test
+    void rescanNativeWikiLinksReplacesFallbackReferencesOnceTheTitleIndexIsReady() throws Exception {
+        final PageTitleLookup lookup = mock( PageTitleLookup.class );
+        when( lookup.entries() ).thenReturn( List.of(
+                new PageTitleLookup.TitleEntry( "TargetPage", "TargetPage", List.of( "Target Page" ) ) ) );
+        final java.util.concurrent.atomic.AtomicBoolean ready = new java.util.concurrent.atomic.AtomicBoolean( false );
+        mgr.setWikiLinkResolver( new WikiLinkResolver( n -> null,
+                () -> ready.get() ? Optional.of( lookup ) : Optional.empty() ) );
+        final Page page = mockPage( "Source" );
+        when( pageManager.getAllPages() ).thenReturn( List.of( page ) );
+        when( pageManager.getPureText( "Source", WikiProvider.LATEST_VERSION ) ).thenReturn( "see [[target page]]" );
+        mgr.initialize( List.of() );
+
+        mgr.updateReferences( page );
+        assertTrue( mgr.findRefersTo( "Source" ).contains( "Target page" ), "fallback while index is warming" );
+
+        ready.set( true );
+        mgr.rescanNativeWikiLinks();
+
+        assertEquals( Set.of( "TargetPage" ), Set.copyOf( mgr.findRefersTo( "Source" ) ) );
+        assertTrue( mgr.findReferrers( "TargetPage" ).contains( "Source" ) );
+    }
+
+    @Test
+    void rescanNativeWikiLinksBeforeInitializationIsDeferredToInitialize() throws Exception {
+        final Page page = mockPage( "Source" );
+        when( pageManager.getAllPages() ).thenReturn( List.of( page ) );
+        when( pageManager.getPureText( "Source", WikiProvider.LATEST_VERSION ) ).thenReturn( "see [[Other]]" );
+        mgr.rescanNativeWikiLinks();
+        assertTrue( mgr.findRefersTo( "Source" ).isEmpty(), "not touched before initialization" );
+        mgr.initialize( List.of() );
+        assertTrue( mgr.findRefersTo( "Source" ).contains( "Other" ) );
+    }
+
+    @Test
+    void scanWikiLinksRecordsBareAttachmentEmbedOfTheScannedPageAsAttachmentReference() throws Exception {
+        final Page page = mockPage( "Gallery" );
+        final Attachment att = mock( Attachment.class );
+        when( att.getName() ).thenReturn( "Gallery/file.png" );
+        when( attachmentManager.listAttachments( page ) ).thenReturn( List.of( att ) );
+        mgr.setWikiLinkResolver( new WikiLinkResolver( n -> n, Optional::empty ) );
+
+        final Collection< String > links = mgr.scanWikiLinks( page, "![[file.png]] and ![[other.png]]" );
+
+        assertTrue( links.contains( "Gallery/file.png" ), links.toString() );
+        assertFalse( links.contains( "File.png" ), links.toString() );
+        assertTrue( links.contains( "other.png" ) || links.contains( "Other.png" ), "non-attachment stays a page ref: " + links );
+    }
+
+    @Test
     void scanWikiLinksWithSectionFragmentsInTarget() {
         final Page page = mockPage( "TestPage" );
         // Use standard Markdown syntax where section fragment is in the target URL

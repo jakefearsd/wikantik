@@ -54,6 +54,12 @@ public interface Context extends Cloneable, Command {
      */
     String VAR_VIEWER_SENSITIVE = "_Render.viewerSensitive";
 
+    /**
+     * Set to {@link Boolean#TRUE} by a render that used a degraded (fail-soft) answer, for example a wikilink resolved
+     * while the title index was still warming. Such a render must not enter the document or HTML caches.
+     */
+    String VAR_RENDER_UNCACHEABLE = "_Render.uncacheable";
+
     /** Name of the variable which is set to Boolean.TRUE or Boolean.FALSE depending on whether WYSIWYG is currently in effect. */
     String VAR_WYSIWYG_EDITOR_MODE = "WYSIWYG_EDITOR_MODE";
 

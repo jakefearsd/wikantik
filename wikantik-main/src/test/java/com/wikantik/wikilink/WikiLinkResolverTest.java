@@ -48,6 +48,13 @@ class WikiLinkResolverTest {
     }
 
     @Test
+    void indexReadyReflectsTitleIndexAvailability() {
+        assertTrue( resolver( Set.of(), lookup( entry( "Alpha" ) ) ).indexReady() );
+        assertFalse( resolver( Set.of(), null ).indexReady() );
+        assertFalse( new WikiLinkResolver( n -> null, () -> { throw new IllegalStateException( "boom" ); } ).indexReady() );
+    }
+
+    @Test
     void exactNameWins() {
         assertEquals( new WikiLinkResolver.Resolution( "Alpha", true ),
                 resolver( Set.of( "Alpha" ), lookup( entry( "Alpha" ) ) ).resolve( "Alpha" ) );

@@ -56,6 +56,17 @@ class DefaultStructuralIndexServiceTest {
     }
 
     @Test
+    void rebuildListenersRunAfterEachRebuildAndAFailingOneDoesNotStopTheRest() {
+        final int[] calls = { 0 };
+        svc.addRebuildListener( () -> { throw new IllegalStateException( "listener boom" ); } );
+        svc.addRebuildListener( () -> calls[ 0 ]++ );
+        svc.rebuild();
+        svc.rebuild();
+        assertEquals( 2, calls[ 0 ] );
+        assertTrue( svc.titleLookup().isPresent(), "title index is ready by the time listeners run" );
+    }
+
+    @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )
     void rebuild_indexes_every_page_returned_by_pageManager() throws Exception {
         final Page a = fakePage( "HybridRetrieval",

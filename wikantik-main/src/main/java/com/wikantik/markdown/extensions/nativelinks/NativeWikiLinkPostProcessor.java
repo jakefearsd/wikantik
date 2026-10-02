@@ -198,6 +198,10 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
             final String url = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), res.pageName() ) + fragment;
             return linkNode( url, r.displayText(), Kind.PAGE, res.pageName() );
         }
+        if ( !resolver.indexReady() ) {
+            // The create-page link may be wrong (the title index would have matched it): never cache this render
+            context.setVariable( Context.VAR_RENDER_UNCACHEABLE, Boolean.TRUE );
+        }
         final String url = context.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), res.pageName() );
         return linkNode( url, r.displayText(), Kind.MISSING, res.pageName() );
     }

@@ -35,7 +35,7 @@ final class WikiLinkRewriter {
         if ( ref.isSamePage() ) {
             return null;
         }
-        final String sep = separator( prose, ref );
+        final String sep = separator( prose, ref, ctx );
         final String t = ref.target();
         final int before = ctx.blockRefs;
         final String frag = ctx.cutBlock( ref.heading() );
@@ -67,11 +67,11 @@ final class WikiLinkRewriter {
     }
 
     /** The separator the token used (decided by the character before its first pipe), else {@code \\|} in a table row. */
-    private static String separator( final String prose, final WikiLinkRef ref ) {
+    private static String separator( final String prose, final WikiLinkRef ref, final RewriteCtx ctx ) {
         final String token = prose.substring( ref.start(), ref.end() );
         final int pipe = token.indexOf( '|' );
         if ( pipe < 0 ) {
-            return RewriteCtx.inTableRow( prose, ref.start() ) ? "\\|" : "|";
+            return ctx.inTableRow( prose, ref.start() ) ? "\\|" : "|";
         }
         return pipe > 0 && token.charAt( pipe - 1 ) == '\\' ? "\\|" : "|";
     }

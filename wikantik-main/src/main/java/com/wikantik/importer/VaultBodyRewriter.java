@@ -40,8 +40,10 @@ public final class VaultBodyRewriter {
     public RewriteResult rewrite( final String body, final String fromPath, final VaultTargets targets ) {
         final RewriteCtx ctx = new RewriteCtx( fromPath, targets );
         final String noComments = CodeSegments.mapProse( body, s -> removeComments( s, ctx ) );
-        final String links = CodeSegments.mapProse( noComments,
-                s -> MarkdownLinkRewriter.rewrite( WikiLinkRewriter.rewrite( s, ctx ), ctx ) );
+        final String links = CodeSegments.mapProseAt( noComments, ( s, start ) -> {
+            ctx.enterRun( noComments, start );
+            return MarkdownLinkRewriter.rewrite( WikiLinkRewriter.rewrite( s, ctx ), ctx );
+        } );
         return new RewriteResult( stripBlockMarkers( links, ctx ), warnings( ctx ) );
     }
 

@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Obsidian vault import: upload a zipped vault, review a dry-run plan (new / existing / reserved / failing pages,
+  attachments, clusters and hubs to create or join), then import it as a background job with per-page results.
+  Folders become clusters (or one chosen cluster, or none); links are kept as native `[[ ]]` and re-targeted only
+  where a page name had to change; referenced attachments are imported, unreferenced and blocked ones reported.
+  `POST /api/import/obsidian/{plan,apply}`, `GET /api/import/obsidian/jobs/{id|current}` (createPages), config
+  `wikantik.import.{maxUploadBytes,maxUncompressedBytes,maxEntries,maxPages,maxConcurrent}`. No schema change.
 - Native Obsidian-style wikilinks and embeds: `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading]]`, `[[#Heading]]`,
   `![[Page]]`, `![[Page#Heading]]`, `![[Owner/file.png|300]]` render in pages and the editor preview and are
   understood by the Page Graph, backlinks, rename, unlinked mentions, `?format=md`, excerpts and Obsidian export.

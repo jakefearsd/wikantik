@@ -27,6 +27,8 @@ final class RewriteCtx {
     final VaultTargets targets;
     int blockRefs;
     int comments;
+    private String fullBody;
+    private int runStart;
     final Set< String > unresolved = new LinkedHashSet<>();
 
     RewriteCtx( final String fromPath, final VaultTargets targets ) {
@@ -56,9 +58,22 @@ final class RewriteCtx {
         return frag;
     }
 
-    /** True when the line containing {@code pos} (within this prose run) starts with a table pipe. */
-    static boolean inTableRow( final String prose, final int pos ) {
-        final int from = prose.lastIndexOf( '\n', pos - 1 ) + 1;
-        return prose.substring( from ).stripLeading().startsWith( "|" );
+    /** Records the full body and the offset of the prose run about to be transformed. */
+    void enterRun( final String fullBody, final int runStart ) {
+        this.fullBody = fullBody;
+        this.runStart = runStart;
+    }
+
+    /**
+     * True when the whole original line containing {@code pos} (an offset within the current prose run) starts with a
+     * table pipe, even if the line began in an earlier segment (for example before an inline code span).
+     */
+    boolean inTableRow( final String prose, final int pos ) {
+        final int nl = prose.lastIndexOf( '\n', pos - 1 );
+        if ( nl >= 0 || fullBody == null ) {
+            return prose.substring( nl + 1 ).stripLeading().startsWith( "|" );
+        }
+        final int lineStart = fullBody.lastIndexOf( '\n', runStart - 1 ) + 1;
+        return ( fullBody.substring( lineStart, runStart ) + prose ).stripLeading().startsWith( "|" );
     }
 }

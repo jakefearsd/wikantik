@@ -19,8 +19,13 @@
 package com.wikantik.rest;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
@@ -60,6 +65,8 @@ import com.wikantik.importer.VaultImportService;
 public class ObsidianImportResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LogManager.getLogger( ObsidianImportResource.class );
+    private static final Duration STALE_SPOOL_AGE = Duration.ofHours( 1 );
     private static final String JOBS_PREFIX = "/jobs/";
 
     private transient ImportJobRegistry registry;
@@ -75,8 +82,22 @@ public class ObsidianImportResource extends RestServletBase {
         if ( getEngine() != null ) {
             limits = ImportLimits.fromProperties( getEngine().getWikiProperties() );
         }
-        uploads = new ImportUploads( limits );
+        final Path dir = spoolDir();
+        sweepStaleSpools( dir );
+        uploads = new ImportUploads( limits, dir );
         registry = newRegistry( limits );
+    }
+
+    /** Test seam: the directory uploads are spooled to (and stale spools are swept from). */
+    protected Path spoolDir() {
+        return SpooledUpload.defaultDir();
+    }
+
+    private static void sweepStaleSpools( final Path dir ) {
+        final int n = SpooledUpload.sweepStale( dir, STALE_SPOOL_AGE );
+        if ( n > 0 ) {
+            LOG.info( "Removed {} stale import spool file(s) from {}", n, dir );
+        }
     }
 
     @Override

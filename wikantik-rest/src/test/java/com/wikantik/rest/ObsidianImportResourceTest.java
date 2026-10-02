@@ -20,6 +20,11 @@ package com.wikantik.rest;
 
 import java.io.ByteArrayInputStream;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
+import java.util.stream.Stream;
 import java.io.StringWriter;
 import java.time.Clock;
 import java.util.Map;
@@ -37,6 +42,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
@@ -60,6 +66,15 @@ import static org.mockito.Mockito.verify;
 class ObsidianImportResourceTest {
 
     private static TestEngine engine;
+
+    @TempDir
+    Path spool;
+
+    private long spoolFileCount() throws Exception {
+        try ( Stream< Path > s = Files.list( spool ) ) {
+            return s.count();
+        }
+    }
 
     @BeforeAll
     static void start() throws Exception {
@@ -95,6 +110,7 @@ class ObsidianImportResourceTest {
             }
             @Override protected boolean canCreatePages( final Session s ) { return canCreate; }
             @Override protected boolean isAdmin( final Session s ) { return admin; }
+            @Override protected Path spoolDir() { return spool; }
         };
         final ServletConfig cfg = mock( ServletConfig.class );
         doReturn( eng.getServletContext() ).when( cfg ).getServletContext();
@@ -183,6 +199,7 @@ class ObsidianImportResourceTest {
         final JsonObject o = json( r );
         assertTrue( o.has( "planHash" ), r.body().toString() );
         assertEquals( 1, o.getAsJsonObject( "totals" ).get( "pagesNew" ).getAsInt() );
+        assertEquals( 0, spoolFileCount(), "the spooled upload must be deleted after a plan" );
     }
 
     @Test
@@ -235,6 +252,7 @@ class ObsidianImportResourceTest {
         s.doPost( post( "/apply", oneNote(), oneNote().length, Map.of( "planHash", "nope" ) ), r.mock() );
         verify( r.mock() ).setStatus( 409 );
         assertTrue( s.registry().current( Users.ADMIN ).isEmpty(), "no job may be registered on a stale hash" );
+        assertEquals( 0, spoolFileCount(), "the spooled upload must be deleted on a stale-hash 409" );
     }
 
     @Test
@@ -299,5 +317,33 @@ class ObsidianImportResourceTest {
         final Resp r = resp();
         servlet().doGet( get( "/jobs/current" ), r.mock() );
         verify( r.mock() ).setStatus( 404 );
+    }
+
+    @Test
+    void anonymousGetIs401() throws Exception {
+        final Resp r = resp();
+        servlet().doGet( get( "/jobs/current" ), r.mock() );
+        verify( r.mock() ).setStatus( 401 );
+    }
+
+    @Test
+    void unknownSubPathIs404() throws Exception {
+        loginAdmin();
+        final Resp g = resp();
+        servlet().doGet( get( "/nope" ), g.mock() );
+        verify( g.mock() ).setStatus( 404 );
+        final Resp p = resp();
+        servlet().doPost( post( "/nope", oneNote() ), p.mock() );
+        verify( p.mock() ).setStatus( 404 );
+    }
+
+    @Test
+    void initSweepsStaleSpoolFilesOnly() throws Exception {
+        final Path old = Files.createFile( spool.resolve( "wikantik-import-crashed.zip" ) );
+        final Path fresh = Files.createFile( spool.resolve( "wikantik-import-live.zip" ) );
+        Files.setLastModifiedTime( old, FileTime.from( Instant.now().minusSeconds( 2 * 3600 ) ) );
+        servlet();
+        assertTrue( Files.notExists( old ), "a spool file older than 1 h must be swept at init" );
+        assertTrue( Files.exists( fresh ), "a recent spool file may belong to a running import" );
     }
 }

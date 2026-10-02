@@ -46,4 +46,17 @@ class ImportLimitsTest {
         assertEquals( 5, ImportLimits.fromProperties( p ).maxPages() );
         assertEquals( 3, ImportLimits.fromProperties( p ).maxConcurrent() );
     }
+
+    @Test
+    void nonPositiveValuesClampToDefault() {
+        for ( final String bad : new String[] { "0", "-5" } ) {
+            final Properties p = new Properties();
+            for ( final String k : new String[] { ImportLimits.PROP_MAX_UPLOAD_BYTES, ImportLimits.PROP_MAX_UNCOMPRESSED_BYTES,
+                    ImportLimits.PROP_MAX_ENTRIES, ImportLimits.PROP_MAX_PAGES, ImportLimits.PROP_MAX_CONCURRENT,
+                    ImportLimits.PROP_MAX_PAGE_BYTES } ) {
+                p.setProperty( k, bad );
+            }
+            assertEquals( ImportLimits.defaults(), ImportLimits.fromProperties( p ), bad );
+        }
+    }
 }

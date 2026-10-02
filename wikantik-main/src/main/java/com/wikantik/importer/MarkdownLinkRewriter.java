@@ -42,7 +42,7 @@ final class MarkdownLinkRewriter {
         final StringBuilder sb = new StringBuilder();
         while ( m.find() ) {
             final String dest = m.group( 3 ) != null ? m.group( 3 ) : m.group( 4 );
-            final String sep = RewriteCtx.inTableRow( prose, m.start() ) ? "\\|" : "|";
+            final String sep = ctx.inTableRow( prose, m.start() ) ? "\\|" : "|";
             final String rep = convert( m.group( 0 ), m.group( 1 ), m.group( 2 ).isEmpty() ? "" : sep + m.group( 2 ), dest, ctx );
             m.appendReplacement( sb, Matcher.quoteReplacement( rep ) );
         }

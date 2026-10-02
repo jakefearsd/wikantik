@@ -44,6 +44,11 @@ public final class CodeSegments {
         return map( md, CodeMask.of( md ), f );
     }
 
+    /** Like {@link #mapProse} but {@code f} also receives the offset of the run within {@code md}. */
+    public static String mapProseAt( final String md, final java.util.function.BiFunction< String, Integer, String > f ) {
+        return mapAt( md, CodeMask.of( md ), f );
+    }
+
     /** Calls {@code c} with each maximal run of prose text, in order. */
     public static void forEachProse( final String md, final Consumer< String > c ) {
         mapProse( md, s -> {
@@ -62,6 +67,11 @@ public final class CodeSegments {
     }
 
     private static String map( final String md, final boolean[] code, final UnaryOperator< String > f ) {
+        return mapAt( md, code, ( run, start ) -> f.apply( run ) );
+    }
+
+    private static String mapAt( final String md, final boolean[] code,
+                                 final java.util.function.BiFunction< String, Integer, String > f ) {
         bridgeLineBreaks( md, code );
         final StringBuilder out = new StringBuilder( md.length() );
         int start = 0;
@@ -72,7 +82,7 @@ public final class CodeSegments {
                 end++;
             }
             final String run = md.substring( start, end );
-            out.append( isCode ? run : f.apply( run ) );
+            out.append( isCode ? run : f.apply( run, start ) );
             start = end;
         }
         return out.toString();

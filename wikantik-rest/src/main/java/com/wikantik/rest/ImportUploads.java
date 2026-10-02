@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,9 +34,15 @@ import com.wikantik.importer.SpooledUpload;
 final class ImportUploads {
 
     private final ImportLimits limits;
+    private final Path spoolDir;
 
     ImportUploads( final ImportLimits limits ) {
+        this( limits, SpooledUpload.defaultDir() );
+    }
+
+    ImportUploads( final ImportLimits limits, final Path spoolDir ) {
         this.limits = limits;
+        this.spoolDir = spoolDir;
     }
 
     /** Validates the multipart envelope and returns the {@code file} part. */
@@ -58,7 +65,7 @@ final class ImportUploads {
 
     /** Copies the part to a temp file, capped at {@code wikantik.import.maxUploadBytes}. */
     SpooledUpload spool( final Part part ) throws IOException, ImportLimitException {
-        return SpooledUpload.spool( part.getInputStream(),
+        return SpooledUpload.spool( spoolDir, part.getInputStream(),
             DerivedIngestResource.sanitizeFilename( part.getSubmittedFileName() ), limits.maxUploadBytes() );
     }
 

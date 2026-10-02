@@ -19,13 +19,15 @@
 package com.wikantik.importer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -36,15 +38,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SpooledUploadTest {
 
-    private static int countSpoolFiles() throws IOException {
-        int n = 0;
-        try ( DirectoryStream< Path > ds = Files.newDirectoryStream(
-                Paths.get( System.getProperty( "java.io.tmpdir" ) ), "wikantik-import-*" ) ) {
-            for ( final Path ignored : ds ) {
-                n++;
-            }
-        }
-        return n;
+    @TempDir
+    Path dir;
+
+    @Test
+    void sweepStaleDeletesOnlyOldSpoolFiles() throws Exception {
+        final Path old = Files.createFile( dir.resolve( "wikantik-import-old.zip" ) );
+        final Path fresh = Files.createFile( dir.resolve( "wikantik-import-fresh.zip" ) );
+        final Path other = Files.createFile( dir.resolve( "unrelated-old.zip" ) );
+        final FileTime twoHoursAgo = FileTime.from( Instant.now().minus( Duration.ofHours( 2 ) ) );
+        Files.setLastModifiedTime( old, twoHoursAgo );
+        Files.setLastModifiedTime( other, twoHoursAgo );
+        assertEquals( 1, SpooledUpload.sweepStale( dir, Duration.ofHours( 1 ) ) );
+        assertFalse( Files.exists( old ) );
+        assertTrue( Files.exists( fresh ) );
+        assertTrue( Files.exists( other ) );
+    }
+
+    @Test
+    void sweepStaleOnMissingDirIsHarmless() {
+        assertEquals( 0, SpooledUpload.sweepStale( dir.resolve( "nope" ), Duration.ofHours( 1 ) ) );
     }
 
     @Test
@@ -63,13 +76,14 @@ class SpooledUploadTest {
 
     @Test
     void overCapThrowsAndLeavesNoTempFile() throws Exception {
-        final int before = countSpoolFiles();
         final ImportLimitException e = assertThrows( ImportLimitException.class,
-            () -> SpooledUpload.spool( new ByteArrayInputStream( new byte[ 11 ] ), "v.zip", 10 ) );
+            () -> SpooledUpload.spool( dir, new ByteArrayInputStream( new byte[ 11 ] ), "v.zip", 10 ) );
         assertEquals( ImportLimits.PROP_MAX_UPLOAD_BYTES, e.limitKey() );
         assertTrue( e.getMessage().contains( "wikantik.import.maxUploadBytes" ) );
         assertEquals( "upload exceeds wikantik.import.maxUploadBytes (10)", e.getMessage() );
-        assertEquals( before, countSpoolFiles() );
+        try ( Stream< Path > left = Files.list( dir ) ) {
+            assertEquals( 0, left.count(), "the spool file for the rejected upload must be removed" );
+        }
     }
 
     @Test

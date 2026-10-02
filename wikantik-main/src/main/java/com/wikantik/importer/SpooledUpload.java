@@ -41,6 +41,51 @@ import java.util.HexFormat;
 public record SpooledUpload( Path file, String sha256, long size, String originalName ) {
 
     private static final Logger LOG = LogManager.getLogger( SpooledUpload.class );
+    private static final String TEMP_PREFIX = "wikantik-import-";
+
+    /** The JVM temp directory, where uploads are spooled unless a directory is given. */
+    public static Path defaultDir() {
+        return Path.of( System.getProperty( "java.io.tmpdir" ) );
+    }
+
+    /**
+     * Deletes {@code wikantik-import-*} spool files in {@code dir} last modified more than {@code maxAge} ago
+     * (left behind when a JVM died mid-import). A file that cannot be deleted is logged and skipped.
+     *
+     * @return the number of files deleted
+     */
+    public static int sweepStale( final Path dir, final java.time.Duration maxAge ) {
+        final java.time.Instant cutoff = java.time.Instant.now().minus( maxAge );
+        int deleted = 0;
+        try ( java.nio.file.DirectoryStream< Path > ds = Files.newDirectoryStream( dir, TEMP_PREFIX + "*" ) ) {
+            for ( final Path p : ds ) {
+                if ( isStale( p, cutoff ) && deleteIfPresent( p ) ) {
+                    deleted++;
+                }
+            }
+        } catch ( final IOException e ) {
+            LOG.warn( "Could not scan {} for stale import spool files: {}", dir, e.getMessage(), e );
+        }
+        return deleted;
+    }
+
+    private static boolean isStale( final Path p, final java.time.Instant cutoff ) {
+        try {
+            return Files.isRegularFile( p ) && Files.getLastModifiedTime( p ).toInstant().isBefore( cutoff );
+        } catch ( final IOException e ) {
+            LOG.warn( "Could not stat import spool file {}: {}", p, e.getMessage(), e );
+            return false;
+        }
+    }
+
+    private static boolean deleteIfPresent( final Path p ) {
+        try {
+            return Files.deleteIfExists( p );
+        } catch ( final IOException e ) {
+            LOG.warn( "Could not delete stale import spool file {}: {}", p, e.getMessage(), e );
+            return false;
+        }
+    }
 
     /**
      * Copies {@code in} to a temp file, refusing more than {@code maxBytes}.
@@ -50,8 +95,14 @@ public record SpooledUpload( Path file, String sha256, long size, String origina
      */
     public static SpooledUpload spool( final InputStream in, final String originalName, final long maxBytes )
             throws IOException, ImportLimitException {
+        return spool( defaultDir(), in, originalName, maxBytes );
+    }
+
+    /** As {@link #spool(InputStream, String, long)} but the temp file is created in {@code dir}. */
+    public static SpooledUpload spool( final Path dir, final InputStream in, final String originalName, final long maxBytes )
+            throws IOException, ImportLimitException {
         final MessageDigest digest = newDigest();
-        final Path tmp = Files.createTempFile( "wikantik-import-", ".zip" );
+        final Path tmp = Files.createTempFile( dir, TEMP_PREFIX, ".zip" );
         try {
             final long count = copyCapped( new DigestInputStream( in, digest ), tmp, maxBytes );
             return new SpooledUpload( tmp, HexFormat.of().formatHex( digest.digest() ), count, originalName );

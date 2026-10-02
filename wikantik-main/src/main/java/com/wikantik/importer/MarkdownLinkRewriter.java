@@ -31,8 +31,8 @@ final class MarkdownLinkRewriter {
 
     private static final Logger LOG = LogManager.getLogger( MarkdownLinkRewriter.class );
     private static final Pattern LINK = Pattern.compile(
-            "(!?)\\[([^\\]\\n]*)\\]\\((?:<([^>\\n]+)>|([^)\\s]+))(?:\\s+\"[^\"\\n]*\")?\\)" );
-    private static final Pattern SCHEME = Pattern.compile( "^[A-Za-z][A-Za-z0-9+.-]*:.*", Pattern.DOTALL );
+            "(!?)\\[([^\\[\\]\\n]*)\\]\\((?:<([^>\\n]+)>|([^)\\s]+))(?:\\s+\"[^\"\\n]*\")?\\)" );
+    private static final Pattern SCHEME = Pattern.compile( "^(?:[A-Za-z][A-Za-z0-9+.-]*:|//|www\\.).*", Pattern.DOTALL );
 
     private MarkdownLinkRewriter() {
     }
@@ -42,15 +42,16 @@ final class MarkdownLinkRewriter {
         final StringBuilder sb = new StringBuilder();
         while ( m.find() ) {
             final String dest = m.group( 3 ) != null ? m.group( 3 ) : m.group( 4 );
-            final String rep = convert( m.group( 0 ), m.group( 1 ), m.group( 2 ), dest, ctx );
+            final String sep = RewriteCtx.inTableRow( prose, m.start() ) ? "\\|" : "|";
+            final String rep = convert( m.group( 0 ), m.group( 1 ), m.group( 2 ).isEmpty() ? "" : sep + m.group( 2 ), dest, ctx );
             m.appendReplacement( sb, Matcher.quoteReplacement( rep ) );
         }
         m.appendTail( sb );
         return sb.toString();
     }
 
-    private static String convert( final String whole, final String bang, final String text, final String dest,
-                                   final RewriteCtx ctx ) {
+    private static String convert( final String whole, final String bang, final String aliasPart,
+                                   final String dest, final RewriteCtx ctx ) {
         if ( SCHEME.matcher( dest ).matches() || dest.startsWith( "#" ) ) {
             return whole;
         }
@@ -65,11 +66,11 @@ final class MarkdownLinkRewriter {
         final String path = hash < 0 ? decoded : decoded.substring( 0, hash );
         final String frag = hash < 0 ? null : ctx.cutBlock( decoded.substring( hash + 1 ) );
         final String out = path.toLowerCase( java.util.Locale.ROOT ).endsWith( ".md" )
-                ? note( bang, text, path, frag, ctx ) : file( bang, text, path, ctx );
+                ? note( bang, aliasPart, path, frag, ctx ) : file( bang, aliasPart, path, frag, ctx );
         return out == null ? whole : out;
     }
 
-    private static String note( final String bang, final String text, final String path, final String frag,
+    private static String note( final String bang, final String aliasPart, final String path, final String frag,
                                 final RewriteCtx ctx ) {
         final String page = path.substring( 0, path.length() - 3 );
         final LinkTarget lt = ctx.targets.page( page, ctx.fromPath, true );
@@ -83,17 +84,16 @@ final class MarkdownLinkRewriter {
             }
         }
         final String target = name + ( frag != null && !frag.isEmpty() ? "#" + frag : "" );
-        return !bang.isEmpty() ? "![[" + target + "]]" : "[[" + target + ( text.isEmpty() ? "" : "|" + text ) + "]]";
+        return !bang.isEmpty() ? "![[" + target + "]]" : "[[" + target + aliasPart + "]]";
     }
 
-    private static String file( final String bang, final String text, final String path, final RewriteCtx ctx ) {
+    private static String file( final String bang, final String aliasPart, final String path, final String frag,
+                               final RewriteCtx ctx ) {
         final LinkTarget lt = ctx.targets.attachment( path, ctx.fromPath, true );
         if ( lt.kind() != LinkTarget.Kind.RENAME ) {
             return null;
         }
-        if ( !bang.isEmpty() ) {
-            return "![[" + lt.value() + "]]";
-        }
-        return "[[" + lt.value() + ( text.isEmpty() ? "" : "|" + text ) + "]]";
+        final String target = lt.value() + ( frag != null && !frag.isEmpty() ? "#" + frag : "" );
+        return !bang.isEmpty() ? "![[" + target + "]]" : "[[" + target + aliasPart + "]]";
     }
 }

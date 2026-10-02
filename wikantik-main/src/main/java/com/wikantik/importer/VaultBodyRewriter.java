@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.wikantik.api.parser.CodeMask;
+
 /**
  * Turns an Obsidian note body into wiki markdown: renamed {@code [[ ]]} targets, attachment references as
  * {@code Owner/file}, markdown links to notes as {@code [[ ]]}, and block references and {@code %% comments %%}
@@ -37,10 +39,10 @@ public final class VaultBodyRewriter {
     /** Rewrites {@code body} of the note at {@code fromPath}; link targets are resolved through {@code targets}. */
     public RewriteResult rewrite( final String body, final String fromPath, final VaultTargets targets ) {
         final RewriteCtx ctx = new RewriteCtx( fromPath, targets );
-        final String noComments = CodeSegments.mapOutsideFences( body, s -> removeComments( s, ctx ) );
-        final String out = CodeSegments.mapProse( noComments,
-                s -> stripBlockMarkers( MarkdownLinkRewriter.rewrite( WikiLinkRewriter.rewrite( s, ctx ), ctx ), ctx ) );
-        return new RewriteResult( out, warnings( ctx ) );
+        final String noComments = CodeSegments.mapProse( body, s -> removeComments( s, ctx ) );
+        final String links = CodeSegments.mapProse( noComments,
+                s -> MarkdownLinkRewriter.rewrite( WikiLinkRewriter.rewrite( s, ctx ), ctx ) );
+        return new RewriteResult( stripBlockMarkers( links, ctx ), warnings( ctx ) );
     }
 
     private static String removeComments( final String s, final RewriteCtx ctx ) {
@@ -59,14 +61,27 @@ public final class VaultBodyRewriter {
     }
 
     private static String strip( final Pattern p, final String s, final RewriteCtx ctx ) {
-        final Matcher m = p.matcher( s );
+        final Matcher m = p.matcher( maskCode( s ) );
         final StringBuilder sb = new StringBuilder();
+        int pos = 0;
         while ( m.find() ) {
             ctx.blockRefs++;
-            m.appendReplacement( sb, "" );
+            sb.append( s, pos, m.start() );
+            pos = m.end();
         }
-        m.appendTail( sb );
-        return sb.toString();
+        return sb.append( s, pos, s.length() ).toString();
+    }
+
+    /** Same length as {@code s}, with every code character (newlines excepted) replaced so patterns anchor at real line ends. */
+    private static String maskCode( final String s ) {
+        final boolean[] code = CodeMask.of( s );
+        final char[] c = s.toCharArray();
+        for ( int i = 0; i < c.length; i++ ) {
+            if ( code[ i ] && c[ i ] != '\n' ) {
+                c[ i ] = 'X';
+            }
+        }
+        return new String( c );
     }
 
     private static List< String > warnings( final RewriteCtx ctx ) {

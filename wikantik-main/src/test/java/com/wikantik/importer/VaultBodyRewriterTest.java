@@ -72,6 +72,20 @@ class VaultBodyRewriterTest {
         { "```\n[[Old name]] %% c %%\n```", "```\n[[Old name]] %% c %%\n```" },
         { "`[[Old name]]`", "`[[Old name]]`" },
         { "[[ -f \"$x\" ]]", "[[ -f \"$x\" ]]" },
+        { "[![img](assets/f.png)](Old name.md)", "[![[Owner/f.png]]](Old name.md)" },
+        { "| [[Old name]] | b |", "| [[New name\\|Old name]] | b |" },
+        { "| [x](Old%20name.md) |", "| [[New name\\|x]] |" },
+        { "[[A|x\\|y]]", "[[A|x\\|y]]" },
+        { "[[Old name|x\\|y]]", "[[New name|x\\|y]]" },
+        { "[[doc.pdf#page=2]]", "[[Owner/doc.pdf#page=2]]" },
+        { "[d](doc.pdf#page=2)", "[[Owner/doc.pdf#page=2|d]]" },
+        { "[x](//cdn/x.md) [y](www.x.com/a.md)", "[x](//cdn/x.md) [y](www.x.com/a.md)" },
+        { "`x`^abc", "`x`^abc" },
+        { "`a %% b` text %% x", "`a %% b` text %% x" },
+        { "![x](Old%20name.md)", "![[New name]]" },
+        { "[x](ghost.md)", "[x](ghost.md)" },
+        { "[x](evil.svg)", "[x](evil.svg)" },
+        { "[x](Old%zzname.md)", "[x](Old%zzname.md)" },
         { "[[#^x]]", "[[#^x]]" },
         { "[[Old name#a#^x]]", "[[New name#a|Old name > a]]" },
     };
@@ -81,6 +95,12 @@ class VaultBodyRewriterTest {
         for ( final String[] row : ROWS ) {
             assertEquals( row[ 1 ], rewriter.rewrite( row[ 0 ], "Notes/Here.md", FAKE ).body(), row[ 0 ] );
         }
+    }
+
+    @Test
+    void unresolvedMarkdownLinkWarns() {
+        assertEquals( java.util.List.of( "link: unresolved [[ghost]]" ),
+                rewriter.rewrite( "[x](ghost.md)", "n.md", FAKE ).warnings() );
     }
 
     @Test

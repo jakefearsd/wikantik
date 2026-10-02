@@ -55,4 +55,10 @@ final class RewriteCtx {
         }
         return frag;
     }
+
+    /** True when the line containing {@code pos} (within this prose run) starts with a table pipe. */
+    static boolean inTableRow( final String prose, final int pos ) {
+        final int from = prose.lastIndexOf( '\n', pos - 1 ) + 1;
+        return prose.substring( from ).stripLeading().startsWith( "|" );
+    }
 }

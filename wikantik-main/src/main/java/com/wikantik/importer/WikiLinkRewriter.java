@@ -35,14 +35,14 @@ final class WikiLinkRewriter {
         if ( ref.isSamePage() ) {
             return null;
         }
-        final String sep = prose.substring( ref.start(), ref.end() ).contains( "\\|" ) ? "\\|" : "|";
+        final String sep = separator( prose, ref );
         final String t = ref.target();
         final int before = ctx.blockRefs;
         final String frag = ctx.cutBlock( ref.heading() );
         if ( hasExtension( t ) ) {
             final LinkTarget att = ctx.targets.attachment( t, ctx.fromPath, false );
             if ( att.kind() == LinkTarget.Kind.RENAME ) {
-                return build( ref, att.value(), null, ref.alias(), sep );
+                return build( ref, att.value(), frag, ref.alias(), sep );
             }
             if ( att.kind() == LinkTarget.Kind.KEEP ) {
                 return null;
@@ -64,6 +64,16 @@ final class WikiLinkRewriter {
             ctx.unresolvedPage( t );
         }
         return blockCut ? build( ref, t, frag, ref.alias(), sep ) : null;
+    }
+
+    /** The separator the token used (decided by the character before its first pipe), else {@code \\|} in a table row. */
+    private static String separator( final String prose, final WikiLinkRef ref ) {
+        final String token = prose.substring( ref.start(), ref.end() );
+        final int pipe = token.indexOf( '|' );
+        if ( pipe < 0 ) {
+            return RewriteCtx.inTableRow( prose, ref.start() ) ? "\\|" : "|";
+        }
+        return pipe > 0 && token.charAt( pipe - 1 ) == '\\' ? "\\|" : "|";
     }
 
     private static String build( final WikiLinkRef ref, final String target, final String frag, final String alias,

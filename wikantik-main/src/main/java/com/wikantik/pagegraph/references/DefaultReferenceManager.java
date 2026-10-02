@@ -50,6 +50,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -122,6 +123,26 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
     int serializationCount() {
         return serializations.get();
+    }
+
+    /**
+     * Minimum spacing between two runtime writes of the whole reference database. A save, rename or delete marks the
+     * database dirty and writes it only when the previous write is at least this old, so a burst (vault import, a
+     * rename rewriting hundreds of referrers) writes a handful of times instead of once per page. The last pending
+     * write is flushed by the next update after the interval or by {@link #destroy(Engine)}. A snapshot that lags is
+     * safe: a warm start re-scans every page modified after the snapshot and drops pages that no longer exist.
+     */
+    static final long DEFAULT_SERIALIZE_INTERVAL_MS = 5_000L;
+
+    private transient volatile long serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( DEFAULT_SERIALIZE_INTERVAL_MS );
+    private final transient AtomicBoolean serializationPending = new AtomicBoolean();
+    /** {@link System#nanoTime()} of the last write; meaningless until {@link #serializedOnce}. */
+    private transient volatile long lastSerializedNanos;
+    private transient volatile boolean serializedOnce;
+
+    /** Test seam: the minimum spacing between runtime writes (0 writes on every update). */
+    void setSerializeIntervalMillis( final long millis ) {
+        this.serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( millis );
     }
 
     /**
@@ -274,6 +295,10 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
                 unserializeAttrsFromDisk( page );
             }
 
+            //  Runtime writes of the database are coalesced, so the snapshot may predate the deletion of a page.
+            //  Changed pages are refreshed below by their modification time; pages that are gone are dropped here.
+            dropVanishedReferrers( pages );
+
             //  Now we must check if any of the pages have been changed while we were in the electronic la-la-land,
             //  and update the references for them. Also add any new pages that weren't in the serialized data.
             for( final Page page : pages ) {
@@ -319,6 +344,24 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         WikiEventManager.addWikiEventListener( pageManager, this );
         if ( nativeRescanPending ) {
             rescanNativeWikiLinks();
+        }
+    }
+
+    /** Removes the outbound references of every snapshot page that is not among {@code pages} (deleted meanwhile). */
+    private void dropVanishedReferrers( final Collection< Page > pages ) {
+        final Set< String > existing = new HashSet<>();
+        for( final Page page : pages ) {
+            existing.add( page.getName() );
+        }
+        for( final String referrer : new ArrayList<>( refersTo.keySet() ) ) {
+            if( !existing.contains( referrer ) ) {
+                LOG.info( "Dropping references of '{}': it no longer exists (deleted after the reference snapshot)", referrer );
+                cleanReferredBy( referrer, refersTo.remove( referrer ) );
+                final Set< String > refBy = referredBy.get( referrer );
+                if( refBy == null || refBy.isEmpty() ) {
+                    referredBy.remove( referrer );
+                }
+            }
         }
     }
 
@@ -378,6 +421,27 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         return saved;
     }
 
+    /** Marks the reference database dirty and writes it now unless the last write is younger than the interval. */
+    private void requestSerialization() {
+        serializationPending.set( true );
+        if ( !serializedOnce || System.nanoTime() - lastSerializedNanos >= serializeIntervalNanos ) {
+            flushSerialization();
+        }
+    }
+
+    /** Writes the reference database if an update is pending. */
+    private void flushSerialization() {
+        if ( serializationPending.getAndSet( false ) ) {
+            serializeToDisk();
+        }
+    }
+
+    /** Flushes a pending write of the reference database when the filter chain is torn down (engine shutdown). */
+    @Override
+    public void destroy( final Engine engine ) {
+        flushSerialization();
+    }
+
     /**
      *  Serializes hashmaps to disk.  The format is private, don't touch it.
      *  The live maps are copied into plain {@link HashMap}s: a {@code ConcurrentHashMap}'s serial
@@ -386,6 +450,9 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      */
     private synchronized void serializeToDisk() {
         serializations.incrementAndGet();
+        serializationPending.set( false );
+        lastSerializedNanos = System.nanoTime();
+        serializedOnce = true;
         final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
         try( ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( serializationFile.toPath() ) ) ) ) {
             final StopWatch sw = new StopWatch();
@@ -718,8 +785,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             referredBy.remove( pageName );
         }
 
-        //  Remove any traces from the disk, too
-        serializeToDisk();
+        //  Remove any traces from the disk, too (coalesced; see DEFAULT_SERIALIZE_INTERVAL_MS)
+        requestSerialization();
 
         final String hashName = getHashFileName( pageName );
         if( hashName != null ) {
@@ -755,7 +822,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     @Override
     public void updateReferences( final String page, final Collection< String > references ) {
         internalUpdateReferences( page, references );
-        serializeToDisk();
+        requestSerialization();
     }
 
     /**

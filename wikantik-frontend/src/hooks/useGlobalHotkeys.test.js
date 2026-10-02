@@ -1,9 +1,11 @@
-import { renderHook, fireEvent } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useGlobalHotkeys } from './useGlobalHotkeys';
 
-const press = (init) => {
+// happy-dom reports AltGraph whenever altKey is set; real browsers only do for an actual AltGr, so pin it.
+const press = ({ altGraph = false, ...init } = {}) => {
   const e = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+  Object.defineProperty(e, 'getModifierState', { value: (k) => k === 'AltGraph' && altGraph });
   window.dispatchEvent(e);
   return e;
 };
@@ -50,15 +52,33 @@ describe('useGlobalHotkeys', () => {
   it('Mod-Alt-N opens the daily note (matched on the physical key, as macOS Option rewrites e.key)', () => {
     const onDailyNote = vi.fn();
     renderHook(() => useGlobalHotkeys({ onOpenOverlay: vi.fn(), onDailyNote }));
-    fireEvent.keyDown(window, { key: '˜', code: 'KeyN', metaKey: true, altKey: true });
+    press({ key: '˜', code: 'KeyN', metaKey: true, altKey: true });
     expect(onDailyNote).toHaveBeenCalledTimes(1);
-    fireEvent.keyDown(window, { key: 'n', code: 'KeyN', ctrlKey: true }); // no Alt → not ours
+    press({ key: 'n', code: 'KeyN', ctrlKey: true }); // no Alt → not ours
+    expect(onDailyNote).toHaveBeenCalledTimes(1);
+  });
+
+  it('Mod-Alt-N ignores AltGr+N (Polish layout types a character with ctrl+alt)', () => {
+    const onDailyNote = vi.fn();
+    renderHook(() => useGlobalHotkeys({ onOpenOverlay: vi.fn(), onDailyNote }));
+    const e = press({ ctrlKey: true, altKey: true, code: 'KeyN', key: 'ń', altGraph: true });
+    expect(onDailyNote).not.toHaveBeenCalled();
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it('Mod-Alt-N on a non-Mac layout also requires the key to be n', () => {
+    const onDailyNote = vi.fn();
+    renderHook(() => useGlobalHotkeys({ onOpenOverlay: vi.fn(), onDailyNote }));
+    const e = press({ ctrlKey: true, altKey: true, code: 'KeyN', key: 'ń' });
+    expect(onDailyNote).not.toHaveBeenCalled();
+    expect(e.defaultPrevented).toBe(false);
+    press({ ctrlKey: true, altKey: true, code: 'KeyN', key: 'n' });
     expect(onDailyNote).toHaveBeenCalledTimes(1);
   });
 
   it('Mod-Alt-N is left alone (not preventDefault-ed) when no onDailyNote handler is provided', () => {
     renderHook(() => useGlobalHotkeys({ onOpenOverlay: vi.fn() }));
-    const notPrevented = fireEvent.keyDown(window, { key: 'n', code: 'KeyN', ctrlKey: true, altKey: true });
+    const notPrevented = press({ key: 'n', code: 'KeyN', ctrlKey: true, altKey: true }).defaultPrevented === false;
     expect(notPrevented).toBe(true);
   });
 });

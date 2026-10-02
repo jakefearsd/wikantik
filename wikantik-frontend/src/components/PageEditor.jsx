@@ -94,6 +94,9 @@ export default function PageEditor() {
   const [cursorStore] = useState(createEditorCursorStore);
   const [railOpen, toggleRail] = useRailOpen();
   const [editorMode, toggleEditorMode] = useEditorMode();
+  // Legacy JSPWiki syntax is not Markdown: never live-render it as such.
+  const isLegacyWiki = markupSyntax === 'wiki' || markupSyntax === 'likely-wiki';
+  const liveActive = editorMode === 'live' && !isLegacyWiki;
   const dropContainerRef = useRef(null);
   const previewRef = useRef(null);
   const syncRafRef = useRef(0);
@@ -965,7 +968,7 @@ export default function PageEditor() {
 
       <MathValidationSummary violations={mathViolations} onJump={jumpToMath} />
 
-      <EditorToolbar onRun={runCommand} liveMode={editorMode === 'live'} />
+      <EditorToolbar onRun={runCommand} liveMode={liveActive} liveDisabled={isLegacyWiki} />
 
       <div className={`editor-layout${railOpen ? ' rail-open' : ''}`}>
       <div className={`editor-container${previewOpen ? '' : ' preview-hidden'}`}>
@@ -990,7 +993,7 @@ export default function PageEditor() {
             value={body}
             onChange={handleBodyChange}
             dark={dark}
-            livePreview={editorMode === 'live'}
+            livePreview={liveActive}
             livePreviewContext={livePreviewContext}
             onBold={handleBold}
             onItalic={handleItalic}

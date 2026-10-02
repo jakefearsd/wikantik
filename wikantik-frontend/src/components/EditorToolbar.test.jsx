@@ -49,10 +49,10 @@ describe('EditorToolbar', () => {
     [/code block/i, 'code-block'],
     [/table/i, 'insert-table'],
     [/link/i, 'insert-link'],
-  ])('mousedown on %s runs %s', (title, id) => {
+  ])('click on %s runs %s', (title, id) => {
     const onRun = vi.fn();
     render(<EditorToolbar onRun={onRun} />);
-    fireEvent.mouseDown(screen.getByTitle(title));
+    fireEvent.click(screen.getByTitle(title));
     expect(onRun).toHaveBeenCalledWith(id);
   });
 
@@ -62,9 +62,26 @@ describe('EditorToolbar', () => {
     const live = screen.getByRole('button', { name: /live preview/i });
     expect(live).toHaveAttribute('aria-pressed', 'false');
     expect(live.textContent).toBe('Live');
-    fireEvent.mouseDown(live);
+    fireEvent.click(live);
     expect(onRun).toHaveBeenCalledWith('toggle-live-preview');
     rerender(<EditorToolbar onRun={onRun} liveMode />);
     expect(screen.getByRole('button', { name: /live preview/i })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('keyboard activation (a click event, as Enter/Space produce) toggles Live', () => {
+    const onRun = vi.fn();
+    render(<EditorToolbar onRun={onRun} />);
+    fireEvent.click(screen.getByRole('button', { name: /live preview/i }));
+    expect(onRun).toHaveBeenCalledTimes(1);
+  });
+
+  it('mousedown keeps the editor focus (default prevented) but does not run the action itself', () => {
+    const onRun = vi.fn();
+    render(<EditorToolbar onRun={onRun} />);
+    for (const btn of screen.getByRole('toolbar').querySelectorAll('button')) {
+      const notPrevented = fireEvent.mouseDown(btn);
+      expect(notPrevented).toBe(false);
+    }
+    expect(onRun).not.toHaveBeenCalled();
   });
 });

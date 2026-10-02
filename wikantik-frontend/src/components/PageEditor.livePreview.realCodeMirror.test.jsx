@@ -64,7 +64,7 @@ describe('live preview mode toggle', () => {
   it('the toolbar button toggles live mode and remembers it', async () => {
     const view = await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
     expect(isLive()).toBe(false);
-    fireEvent.mouseDown(screen.getByRole('button', { name: /live preview/i }));
+    fireEvent.click(screen.getByRole('button', { name: /live preview/i }));
     await until(isLive);
     expect(localStorage.getItem('wikantik.editor.mode')).toBe('live');
     expect(docOf(view)).toBe(INITIAL);
@@ -104,6 +104,28 @@ describe('live preview mode toggle', () => {
     await flush(); // let the rejected first probe settle so the next Ctrl+S is not ignored
     const payload = saveAndExpectVisibleText(api, view);
     expect(payload.content).toContain('- [x] task **b**');
+  });
+
+  it('one undo reverts a checkbox toggle without losing text typed just before it (inside the history window)', async () => {
+    localStorage.setItem('wikantik.editor.mode', 'live');
+    const view = await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
+    placeCaret(view, INITIAL.length);
+    typeAtCaret(view, 'Z');
+    await until(() => document.querySelector('input.cm-lp-task') !== null);
+    fireEvent.mouseDown(document.querySelector('input.cm-lp-task')); // well within the 500 ms grouping window
+    expect(docOf(view)).toBe('# Title\n\n- [x] task **b**\n\nendZ');
+    act(() => { undo(view); });
+    expect(docOf(view)).toBe(`${INITIAL}Z`);
+  });
+
+  it('a legacy-wiki page is never live-rendered, and the Live toggle is disabled with an explanation', async () => {
+    localStorage.setItem('wikantik.editor.mode', 'live');
+    api.getPage.mockResolvedValue({ content: INITIAL, metadata: {}, version: 1, markupSyntax: 'wiki' });
+    await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
+    expect(isLive()).toBe(false);
+    const live = screen.getByRole('button', { name: /live preview/i });
+    expect(live).toBeDisabled();
+    expect(live).toHaveAttribute('title', 'Live preview is available for Markdown pages');
   });
 
   it('Mod-e is ignored while a modal is open, on key auto-repeat, and during IME composition', async () => {

@@ -459,7 +459,7 @@ describe('#18 formatting toolbar', () => {
     editable.focus();
     editable.setSelectionRange(6, 11); // "world"
 
-    fireEvent.mouseDown(screen.getByTitle(/bold/i));
+    fireEvent.click(screen.getByTitle(/bold/i));
 
     await waitFor(() => expect(getEditable().value).toBe('hello **world**'));
   });
@@ -474,7 +474,7 @@ describe('#18 formatting toolbar', () => {
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
     act(() => { setter.call(editable, 'a '); editable.setSelectionRange(2, 2); });
 
-    fireEvent.mouseDown(screen.getByTitle(/heading/i));
+    fireEvent.click(screen.getByTitle(/heading/i));
 
     await waitFor(() => expect(getEditable().value).toBe('## a '));
   });
@@ -486,10 +486,10 @@ describe('#18 formatting toolbar', () => {
     fireEvent.change(editable, { target: { value: 'Title' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.mouseDown(screen.getByTitle('Heading'));
+    fireEvent.click(screen.getByTitle('Heading'));
     await waitFor(() => expect(getEditable().value).toBe('## Title'));
     getEditable().setSelectionRange(4, 4);
-    fireEvent.mouseDown(screen.getByTitle('Heading'));
+    fireEvent.click(screen.getByTitle('Heading'));
     await waitFor(() => expect(getEditable().value).toBe('Title'));
   });
 
@@ -502,7 +502,7 @@ describe('#18 formatting toolbar', () => {
     editable.focus();
     editable.setSelectionRange(4, 8); // "docs"
 
-    fireEvent.mouseDown(screen.getByTitle(/link/i));
+    fireEvent.click(screen.getByTitle(/link/i));
 
     await waitFor(() => expect(getEditable().value).toBe('see [docs](url)'));
   });
@@ -1146,7 +1146,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: 'hello world' } });
     editable.focus();
     editable.setSelectionRange(6, 11);
-    fireEvent.mouseDown(screen.getByTitle(/italic/i));
+    fireEvent.click(screen.getByTitle(/italic/i));
     await waitFor(() => expect(getEditable().value).toBe('hello *world*'));
   });
 
@@ -1157,7 +1157,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: 'Some line' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.mouseDown(screen.getByTitle(/^heading/i));
+    fireEvent.click(screen.getByTitle(/^heading/i));
     await waitFor(() => expect(getEditable().value).toBe('## Some line'));
   });
 
@@ -1168,7 +1168,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: 'Item one' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.mouseDown(screen.getByTitle(/^list/i));
+    fireEvent.click(screen.getByTitle(/^list/i));
     await waitFor(() => expect(getEditable().value).toBe('- Item one'));
   });
 
@@ -1179,7 +1179,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: 'const x = 1' } });
     editable.focus();
     editable.setSelectionRange(0, 11);
-    fireEvent.mouseDown(screen.getByTitle(/inline code/i));
+    fireEvent.click(screen.getByTitle(/inline code/i));
     await waitFor(() => expect(getEditable().value).toBe('`const x = 1`'));
   });
 
@@ -1190,7 +1190,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: '' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.mouseDown(screen.getByTitle(/code block/i));
+    fireEvent.click(screen.getByTitle(/code block/i));
     await waitFor(() => expect(getEditable().value).toContain('```'));
   });
 
@@ -1201,7 +1201,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: '' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.mouseDown(screen.getByTitle(/^table/i));
+    fireEvent.click(screen.getByTitle(/^table/i));
     await waitFor(() => expect(getEditable().value).toContain('|'));
   });
 });

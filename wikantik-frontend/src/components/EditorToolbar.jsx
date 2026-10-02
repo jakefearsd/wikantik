@@ -15,7 +15,7 @@ const LinkGlyph = (
   </svg>
 );
 
-export default function EditorToolbar({ onRun, liveMode = false }) {
+export default function EditorToolbar({ onRun, liveMode = false, liveDisabled = false }) {
   const buttons = [
     { id: 'format-bold',   label: 'B',   title: `Bold (${formatKeys('Mod-B')})`, style: { fontWeight: 'bold' } },
     { id: 'format-italic', label: 'I',   title: `Italic (${formatKeys('Mod-I')})`, style: { fontStyle: 'italic' } },
@@ -37,11 +37,8 @@ export default function EditorToolbar({ onRun, liveMode = false }) {
           title={title}
           aria-label={title}
           style={style}
-          onMouseDown={e => {
-            // Prevent editor focus loss on click
-            e.preventDefault();
-            onRun(id);
-          }}
+          onMouseDown={e => e.preventDefault() /* keep editor focus on click */}
+          onClick={() => onRun(id)}
         >
           {label}
         </button>
@@ -50,13 +47,12 @@ export default function EditorToolbar({ onRun, liveMode = false }) {
         type="button"
         id="toggle-live-preview"
         className="editor-format-btn editor-format-btn-mode"
-        title={`Live preview (${formatKeys('Mod-E')})`}
+        title={liveDisabled ? 'Live preview is available for Markdown pages' : `Live preview (${formatKeys('Mod-E')})`}
         aria-label={`Live preview (${formatKeys('Mod-E')})`}
         aria-pressed={liveMode}
-        onMouseDown={e => {
-          e.preventDefault();
-          onRun('toggle-live-preview');
-        }}
+        onMouseDown={e => e.preventDefault()}
+        onClick={() => onRun('toggle-live-preview')}
+        disabled={liveDisabled}
       >
         Live
       </button>

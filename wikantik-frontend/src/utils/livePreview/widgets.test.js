@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { history, undo } from '@codemirror/commands';
 import {
   BulletWidget, CheckboxWidget, ImageWidget, MathWidget, EmbedWidget, TextWidget, CalloutTitleWidget, RuleWidget,
-  widgetFor, toggleTaskAt,
+  widgetFor, toggleTaskAt, toggleTaskBox,
 } from './widgets';
 
 const views = [];
@@ -99,6 +99,62 @@ describe('widget DOM', () => {
     expect(view.state.doc.toString()).toBe('- [ ] a');
     box.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
     expect(view.state.doc.toString()).toBe('- [ ] a');
+  });
+  it('image: asks the view to re-measure once the image loads', () => {
+    const view = { requestMeasure: vi.fn() };
+    const wrap = new ImageWidget({ src: '/a.png', alt: 'A' }).toDOM(view);
+    expect(view.requestMeasure).not.toHaveBeenCalled();
+    wrap.querySelector('img').dispatchEvent(new Event('load'));
+    expect(view.requestMeasure).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    [{ state: 'ok', html: '<p>B</p>' }],
+    [{ state: 'missing' }],
+    [{ state: 'error' }],
+  ])('embed: asks the view to re-measure after the body is filled (%o)', async (result) => {
+    const view = { requestMeasure: vi.fn(), posAtDOM: () => 0 };
+    new EmbedWidget('Other', null, () => Promise.resolve(result)).toDOM(view);
+    expect(view.requestMeasure).not.toHaveBeenCalled();
+    await flush();
+    expect(view.requestMeasure).toHaveBeenCalledTimes(1);
+  });
+  it('embed: re-measures after a rejected load too', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const view = { requestMeasure: vi.fn(), posAtDOM: () => 0 };
+    new EmbedWidget('Other', null, () => Promise.reject(new Error('down'))).toDOM(view);
+    await flush();
+    expect(view.requestMeasure).toHaveBeenCalledTimes(1);
+  });
+  it('embed Mod-click opens the slugified heading anchor, like a wikilink', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const dom = new EmbedWidget('Other Page', 'Raw Heading', () => Promise.resolve({ state: 'missing' })).toDOM(viewOf('x'));
+    dom.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, ctrlKey: true }));
+    expect(open).toHaveBeenCalledWith('/wiki/Other%20Page#raw-heading', '_blank', 'noopener');
+  });
+  it('checkbox eq ignores the source offset, so typing above does not rebuild every box', () => {
+    expect(new CheckboxWidget(true, 3).eq(new CheckboxWidget(true, 40))).toBe(true);
+  });
+  it('checkbox updateDOM syncs checked + label in place', () => {
+    const view = viewOf('- [ ] write the report');
+    const w = new CheckboxWidget(false, 2, 'write the report');
+    const box = w.toDOM(view);
+    expect(box.getAttribute('aria-label')).toBe('Mark task done: write the report');
+    const next = new CheckboxWidget(true, 2, 'write the report');
+    expect(next.updateDOM(box)).toBe(true);
+    expect(box.checked).toBe(true);
+    expect(box.getAttribute('aria-label')).toBe('Mark task not done: write the report');
+  });
+  it('checkbox toggles at the position at event time, not the stale build-time offset', () => {
+    const view = viewOf('- [ ] a');
+    const box = new CheckboxWidget(false, 999).toDOM(view);
+    vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
+    box.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    expect(view.state.doc.toString()).toBe('- [x] a');
+  });
+  it('toggleTaskBox refuses when the brackets do not surround the box', () => {
+    const view = viewOf('- [ a');
+    expect(toggleTaskBox(view, 2)).toBe(false);
+    expect(view.state.doc.toString()).toBe('- [ a');
   });
   it('widgetFor maps every data type and rejects unknown ones', () => {
     for (const w of [{ type: 'bullet' }, { type: 'checkbox', checked: false }, { type: 'rule' },

@@ -163,7 +163,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     const marker = n.getChild('Task')?.getChild('TaskMarker');
     if (marker) {
       const ch = doc.sliceString(marker.from + 1, marker.from + 2);
-      widget(listMark.from, marker.to, { type: 'checkbox', checked: ch === 'x' || ch === 'X', markerFrom: marker.from });
+      widget(listMark.from, marker.to, { type: 'checkbox', checked: ch === 'x' || ch === 'X', markerFrom: marker.from, text: doc.sliceString(marker.to, doc.lineAt(marker.to).to).trim().slice(0, 40) });
     } else if (n.parent?.name === 'BulletList') {
       widget(listMark.from, listMark.to, { type: 'bullet' });
     }
@@ -172,7 +172,9 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     const first = doc.lineAt(node.from).number;
     const last = doc.lineAt(node.to).number;
     const closed = last > first && CLOSING_FENCE.test(doc.line(last).text);
-    for (let n = first; n <= last; n += 1) {
+    const lo = Math.max(first, doc.lineAt(Math.max(from, node.from)).number);
+    const hi = Math.min(last, doc.lineAt(Math.min(to, node.to)).number);
+    for (let n = lo; n <= hi; n += 1) {
       const line = doc.line(n);
       if (line.to < from || line.from > to) continue;
       addLine(line.from, n === first || (closed && n === last) ? 'cm-lp-fence' : 'cm-lp-codeblock');
@@ -185,7 +187,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
-      if (name === 'Paragraph' && isBlockMathText(doc.sliceString(node.from, node.to))) { excluded.push([node.from, node.to]); return false; }
+      if (name === 'Paragraph' && doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) { excluded.push([node.from, node.to]); return false; }
       if (name === 'Image') { image(node); return false; }
       const h = HEADING.exec(name);
       if (h) { heading(node, h[1]); return undefined; }

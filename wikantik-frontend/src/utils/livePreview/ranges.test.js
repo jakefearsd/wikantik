@@ -123,6 +123,18 @@ describe('livePreviewSpecs — blocks', () => {
     const { state, specs } = specsOf('```js\nconst a = **1**;\n```\n\nend', [5]);
     expect(show(state, specs)).toEqual(['line cm-lp-fence @1', 'line cm-lp-codeblock @2', 'line cm-lp-fence @3']);
   });
+  it('fenced code: only lines inside the viewport range are decorated (huge fence, small range)', () => {
+    const body = Array.from({ length: 2000 }, (_, i) => `line ${i}`).join('\n');
+    const doc = `\`\`\`\n${body}\n\`\`\`\n\nend`;
+    const state = stateOf(doc);
+    const mid = state.doc.line(1000);
+    const specs = livePreviewSpecs(state, new Set([state.doc.lines]), { from: mid.from, to: state.doc.line(1003).to });
+    const lines = specs.filter((s) => s.kind === 'line').map((s) => state.doc.lineAt(s.from).number);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.length).toBeLessThanOrEqual(5);
+    expect(Math.min(...lines)).toBeGreaterThanOrEqual(1000);
+    expect(Math.max(...lines)).toBeLessThanOrEqual(1003);
+  });
   it('tables, HTML and frontmatter stay untouched source', () => {
     const doc = '---\ntitle: x\n---\n\n| a | **b** |\n|---|---|\n| 1 | 2 |\n\n<div>**x**</div>\n\nend';
     const { specs } = specsOf(doc, [11]);

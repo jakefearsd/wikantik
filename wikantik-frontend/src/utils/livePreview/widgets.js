@@ -2,7 +2,7 @@ import { WidgetType } from '@codemirror/view';
 import { isolateHistory } from '@codemirror/commands';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { hrefFor } from '../linkInteraction';
+import { wikiLinkHref } from '../wikiLinkSyntax';
 import { renderMath } from '../math';
 
 const el = (tag, cls, text) => {
@@ -53,17 +53,19 @@ export class ImageWidget extends WidgetType {
     return o instanceof ImageWidget && o.src === this.src && o.alt === this.alt
       && o.width === this.width && o.height === this.height;
   }
-  toDOM() {
+  toDOM(view) {
     const wrap = el('span', 'cm-lp-image-wrap');
     const img = el('img', 'cm-lp-image');
     img.setAttribute('src', this.src);
     img.setAttribute('alt', this.alt);
     if (this.width != null) img.setAttribute('width', String(this.width));
     if (this.height != null) img.setAttribute('height', String(this.height));
+    img.addEventListener('load', () => view?.requestMeasure?.()); // the real height is known now
     img.addEventListener('error', () => {
       console.warn('[live-preview] image failed to load', this.src);
       wrap.classList.add('cm-lp-image-missing');
       wrap.textContent = this.alt || this.src;
+      view?.requestMeasure?.();
     });
     wrap.appendChild(img);
     return wrap;
@@ -77,6 +79,7 @@ const TASK_AT = /^(?:[-*+]|\d+[.)])[ \t]+\[([ xX])\]/;
 export function toggleTaskBox(view, markerFrom) {
   const at = markerFrom + 1;
   const ch = view.state.sliceDoc(at, at + 1);
+  if (view.state.sliceDoc(markerFrom, markerFrom + 1) !== '[' || view.state.sliceDoc(at + 1, at + 2) !== ']') return false;
   if (ch !== ' ' && ch !== 'x' && ch !== 'X') return false;
   view.dispatch({
     changes: { from: at, to: at + 1, insert: ch === ' ' ? 'x' : ' ' },
@@ -99,32 +102,38 @@ export function toggleTaskAt(view, pos) {
   return true;
 }
 
+const taskLabel = (checked, text) => `${checked ? 'Mark task not done' : 'Mark task done'}${text ? `: ${text}` : ''}`;
+
 export class CheckboxWidget extends WidgetType {
-  constructor(checked, markerFrom) { super(); this.checked = checked; this.markerFrom = markerFrom; }
-  eq(other) { return other instanceof CheckboxWidget && other.checked === this.checked && other.markerFrom === this.markerFrom; }
+  // markerFrom is build-time only: the toggle position is resolved from the DOM at event time, so the
+  // widget stays equal (and is not rebuilt) when text above it shifts every offset.
+  constructor(checked, markerFrom, text = '') { super(); this.checked = checked; this.markerFrom = markerFrom; this.text = text; }
+  eq(other) { return other instanceof CheckboxWidget && other.checked === this.checked && other.text === this.text; }
+  updateDOM(dom) { // keeps the same <input> (and its keyboard focus) across a toggle
+    dom.checked = this.checked;
+    dom.setAttribute('aria-label', taskLabel(this.checked, this.text));
+    return true;
+  }
   toDOM(view) {
     const box = el('input', 'cm-lp-task');
     box.type = 'checkbox';
     box.checked = this.checked;
-    box.setAttribute('aria-label', this.checked ? 'Completed task' : 'Task');
-    box.addEventListener('mousedown', (e) => {
-      e.preventDefault(); // keep editor focus; the document edit re-renders the box
+    box.setAttribute('aria-label', taskLabel(this.checked, this.text));
+    const toggle = () => {
       try {
-        if (this.markerFrom != null) toggleTaskBox(view, this.markerFrom);
-        else toggleTaskAt(view, view.posAtDOM(box));
+        toggleTaskAt(view, view.posAtDOM(box));
       } catch (err) {
         console.warn('[live-preview] task toggle failed', err?.message || err);
       }
+    };
+    box.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // keep editor focus; the document edit re-renders the box
+      toggle();
     });
     box.addEventListener('keydown', (e) => { // keyboard parity: Space/Enter toggle through the same transaction
       if (e.key !== ' ' && e.key !== 'Enter') return;
       e.preventDefault();
-      try {
-        if (this.markerFrom != null) toggleTaskBox(view, this.markerFrom);
-        else toggleTaskAt(view, view.posAtDOM(box));
-      } catch (err) {
-        console.warn('[live-preview] task toggle failed', err?.message || err);
-      }
+      toggle();
     });
     box.addEventListener('click', (e) => e.preventDefault()); // the document, not the input, owns the state
     return box;
@@ -190,16 +199,18 @@ export class EmbedWidget extends WidgetType {
       } else if (r?.state === 'missing') show('cm-lp-embed-missing', `"${this.target}" does not exist yet.`);
       else if (r?.state === 'restricted') show('cm-lp-embed-restricted', "You don't have access to this page.");
       else show('cm-lp-embed-error', 'Could not load this embed.');
+      view?.requestMeasure?.();
     }).catch((err) => {
       console.warn('[live-preview] embed failed', this.target, this.section, err?.message || err);
       show('cm-lp-embed-error', 'Could not load this embed.');
+      view?.requestMeasure?.();
     });
     box.addEventListener('mousedown', (e) => { // Ctrl/Cmd-click opens the embedded page, like a link
       if (!(e.ctrlKey || e.metaKey) || e.target.closest?.('a')) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      const href = hrefFor(this.section ? `${this.target}#${this.section}` : this.target);
-      if (href) window.open(href, '_blank', 'noopener');
+      const base = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
+      window.open(`${base}/wiki/${wikiLinkHref({ target: this.target, heading: this.section })}`, '_blank', 'noopener');
     }, true);
     revealOnMouseDown(view, box);
     return box;
@@ -210,7 +221,7 @@ export class EmbedWidget extends WidgetType {
 export function widgetFor(w, context = {}) {
   switch (w.type) {
     case 'bullet': return new BulletWidget();
-    case 'checkbox': return new CheckboxWidget(w.checked, w.markerFrom);
+    case 'checkbox': return new CheckboxWidget(w.checked, w.markerFrom, w.text);
     case 'rule': return new RuleWidget();
     case 'callout-title': return new CalloutTitleWidget(w.style, w.title);
     case 'image': return new ImageWidget(w);

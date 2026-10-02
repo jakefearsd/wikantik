@@ -46,7 +46,10 @@ class DefaultKnowledgeGraphServiceTraverseByCoMentionTest {
     }
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        // The container is shared by every test class in this JVM: a leftover "Alpha" node whose source page another
+        // class excluded from the KG makes upsertNode's filtered read-back return null. Start from clean tables.
+        cleanUp();
         service = DefaultKnowledgeGraphService.builder(
             new KgNodeRepository( dataSource ),
             new KgEdgeRepository( dataSource ),

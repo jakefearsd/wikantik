@@ -112,3 +112,16 @@ Checked and left unchanged (false positives): NetworkSecurityFundamentals, Wikan
 
 **Not yet applied** (the session's permission classifier blocked the batch; the same mechanical `fix_ctrl.py` repair
 is still owed): KnowledgeGraphConstructionPipeline, LeanManufacturingPrinciplesHub, LinearProgrammingSimplex, MarketRecoveryCoefficients, ModernPrepper, PacelcTheorem, PulleySystems, RelationalDatabaseFundamentals, RetrievalAugmentedGeneration, RiskManagement, SelfSovereignIdentity, StochasticProcesses, TokenBudgeting.
+
+## Round 2 — formatting damage left by past automated passes
+
+Re-spacing of glued inline math (`flip$k$bits` → `flip $k$ bits`, `**Size:**$x$` → `**Size:** $x$`; plural/ordinal
+suffixes such as `$n$th` stay glued), list items and headings run into the previous line (`Where:*$S_t$: …` → a
+`Where:` line plus bullets, `…text.## Heading` → its own heading), plus the control-character repair — one
+deterministic pipeline (`fix_ctrl` → `fix_struct` → `fix_glue`) that never touches code or `$$` blocks; every changed
+line was checked to give identical math under the old and the new rule.
+
+- Repo mirror: 102 pages, commit `e83545e804` (one table line in VariablePercentageWithdrawal repaired by hand).
+- Production: **not yet applied** — the session's permission classifier blocked the prod batch. Prepared and checked:
+  87 pages for the pipeline (this includes the 13 control-character pages above) and 7 for a manual pass
+  (RateLimitingAndThrottling, EconomicHistoryOfMetallurgicalCycles, NumberTheory, RealAnalysis, WoodworkingJoineryTechniques, DurableVsPerishableOptimization, RoadmapPackagingAndPricing).

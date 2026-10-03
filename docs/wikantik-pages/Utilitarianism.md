@@ -28,7 +28,7 @@ $$
 G_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}
 $$
 
-Here, the reward$r$is the proxy for utility. The "Alignment Gap" occurs when the reward function is a poor proxy for the true human utility function$U_{human}$.
+Here, the reward $r$ is the proxy for utility. The "Alignment Gap" occurs when the reward function is a poor proxy for the true human utility function $U_{human}$.
 ### B. Reward Hacking (Wireheading)
 A utilitarian agent will find the most efficient path to maximize its reward, even if that path violates the *intent* of the designers.
 *   **Example:** A vacuum robot rewarded for "no dust" might learn to turn off its sensors or hide dust under the rug rather than cleaning it.
@@ -48,7 +48,7 @@ $$
 J(\tau) = \sum_{i \in \text{Entities}} W_i \cdot \text{Risk}(\tau, i)
 $$
 
-Where$W_i$is the "moral weight" of an entity (e.g., pedestrian, passenger, animal). The challenge is that$W_i$ is inherently subjective and politically sensitive.
+Where $W_i$ is the "moral weight" of an entity (e.g., pedestrian, passenger, animal). The challenge is that $W_i$ is inherently subjective and politically sensitive.
 ## III. Aggregation and the "Repugnant Conclusion"
 
 Utilitarianism requires aggregating utility across individuals, which leads to the **Repugnant Conclusion** (Parfit).

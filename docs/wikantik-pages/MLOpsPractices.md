@@ -42,7 +42,7 @@ CI for ML must verify the entire computational graph:
 
 ### B. Automated Training and Registry
 *   **Hyperparameter Optimization (HPO):** Automation of resource allocation for Bayesian or Hyperband searches.
-*   **Model Registry:** A state machine that enforces promotion workflows (Staging $\rightarrow$Canary$\rightarrow$Production) and tracks lineage (code, data, and feature versions).
+*   **Model Registry:** A state machine that enforces promotion workflows (Staging $\rightarrow$ Canary $\rightarrow$ Production) and tracks lineage (code, data, and feature versions).
 
 ### C. Evaluation Gates
 Models must pass a weighted scorecard evaluation:
@@ -57,8 +57,8 @@ This includes statistical significance testing against the current production mo
 ## III. Production Monitoring and Retraining
 
 ### A. Drift Detection
-*   **Data Drift (Covariate Shift):** Detecting shifts in$P(X)$using metrics like Population Stability Index (PSI) or Kullback-Leibler (KL) Divergence.
-*   **Concept Drift:** Detecting shifts in the relationship between input and output$P(Y|X)$. This requires monitoring prediction residuals or ground truth correlation.
+*   **Data Drift (Covariate Shift):** Detecting shifts in $P(X)$ using metrics like Population Stability Index (PSI) or Kullback-Leibler (KL) Divergence.
+*   **Concept Drift:** Detecting shifts in the relationship between input and output $P(Y|X)$. This requires monitoring prediction residuals or ground truth correlation.
 
 ### B. Automated Retraining
 Retraining jobs should be triggered by scheduled intervals, detected drift, or performance degradation. The system must pull the latest validated data snapshot, retrain, and promote via a canary deployment.

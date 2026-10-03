@@ -40,7 +40,7 @@ $$
 m\ddot{x}(t) + c\dot{x}(t) + kx(t) = F(t)
 $$
 
-*   **The Fingerprint Ratio:** Drawing from [Mathematics Hub](MathematicsHub) linear algebra, we define the **Damping Ratio ($\zeta$)** relative to critical damping. In lightly damped systems ($\zeta \ll 1$), the peak amplitude at resonance ($X_{max}$) is inversely proportional to$\zeta$, making the system extremely sensitive to minute changes in material integrity or [Lubrication](BearingMechanics).
+*   **The Fingerprint Ratio:** Drawing from [Mathematics Hub](MathematicsHub) linear algebra, we define the **Damping Ratio ($\zeta$)** relative to critical damping. In lightly damped systems ($\zeta \ll 1$), the peak amplitude at resonance ($X_{max}$) is inversely proportional to $\zeta$, making the system extremely sensitive to minute changes in material integrity or [Lubrication](BearingMechanics).
 ---
 
 ## II. Continuum Modeling: The Eigenvalue Problem
@@ -52,7 +52,8 @@ $$
 ([K] - \omega_n^2 [M]) \{ \phi \} = \{0\}
 $$
 
-Solving this yields the **Natural Frequencies** ($\omega_n$) and the **Mode Shapes** ($\phi$)—the characteristic spatial patterns of deformation associated with each energy state.*   **Mode Coupling:** In high-precision robotics, we must model the non-linear interaction between modes, where high-frequency transients trigger low-frequency structural resonances.
+Solving this yields the **Natural Frequencies** ($\omega_n$) and the **Mode Shapes** ($\phi$)—the characteristic spatial patterns of deformation associated with each energy state.
+*   **Mode Coupling:** In high-precision robotics, we must model the non-linear interaction between modes, where high-frequency transients trigger low-frequency structural resonances.
 
 ---
 

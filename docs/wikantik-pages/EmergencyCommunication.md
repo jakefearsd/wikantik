@@ -23,13 +23,13 @@ tags:
 
 # Emergency Communication: The Architecture of Resilient Signaling
 
-In catastrophic scenarios, the assumption of functional infrastructure (cellular, power, GPS) is a baseline failure. For researchers in [Emergency Prep Hub](EmergencyPrepHub), the Family Emergency Communication Plan (FECP) must move from a simple contact list to a **Distributed, Redundant, Multi-Modal Communication System (DRM$^2$CS)**. This is a resilience engineering problem designed to survive the compound failure of centralized networks.
+In catastrophic scenarios, the assumption of functional infrastructure (cellular, power, GPS) is a baseline failure. For researchers in [Emergency Prep Hub](EmergencyPrepHub), the Family Emergency Communication Plan (FECP) must move from a simple contact list to a **Distributed, Redundant, Multi-Modal Communication System (DRM $^2$ CS)**. This is a resilience engineering problem designed to survive the compound failure of centralized networks.
 
 This treatise explores the foundational principles of threat modeling, the mechanics of decentralized mesh protocols, and the operationalization of **PACE Planning**.
 
 ---
 
-## I. Foundations: The DRM$^2$CS Architecture
+## I. Foundations: The DRM $^2$ CS Architecture
 
 We categorize communication layers by their failure modes, ensuring no single point of failure (SPOF) exists across the stack.
 *   **Infrastructure Layer:** Standard VoIP/SMS. Highly efficient but first to fail in power/grid events.

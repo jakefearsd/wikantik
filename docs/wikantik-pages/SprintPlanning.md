@@ -30,7 +30,8 @@ $$
 \text{Available Capacity} = (\text{Total Dev Hours}) \times \text{Focus Factor}
 $$
 
-1.  **Total Dev Hours:** (Number of Devs$\times$Days in Sprint$\times$Hours per Day).2.  **Focus Factor ($F$):** A value between$0.6$and$0.8$representing the time spent on actual coding/testing after subtracting meetings, email, and context switching.
+1.  **Total Dev Hours:** (Number of Devs $\times$ Days in Sprint $\times$ Hours per Day).
+2.  **Focus Factor ($F$):** A value between $0.6$ and $0.8$ representing the time spent on actual coding/testing after subtracting meetings, email, and context switching.
     *   **Low F (0.4-0.5):** Heavy on-call rotation or fragmented meetings.
     *   **High F (0.8-0.9):** Deep-work environment, minimal overhead.
 
@@ -51,7 +52,8 @@ $$
 \text{Say/Do Ratio} = \frac{\text{Points Completed}}{\text{Points Committed}}
 $$
 
-*   **Target:**$0.9 - 1.1$.*   **Under 0.8:** Indicates over-commitment or "Discovery Debt" (stories were too vague).
+*   **Target:** $0.9 - 1.1$.
+*   **Under 0.8:** Indicates over-commitment or "Discovery Debt" (stories were too vague).
 *   **Over 1.2:** Indicates sandbagging or under-estimation.
 
 ### B. Coefficient of Variation ($CV$)
@@ -61,7 +63,8 @@ $$
 CV = \frac{\sigma(V)}{\bar{V}}
 $$
 
-*   **Stable ($CV < 15\%$):** Use "Yesterday's Weather" (last sprint's velocity) for planning.*   **Volatile ($CV > 20\%$):** Use a 3-sprint moving average and apply a 20% "uncertainty buffer."
+*   **Stable ($CV < 15\%$):** Use "Yesterday's Weather" (last sprint's velocity) for planning.
+*   **Volatile ($CV > 20\%$):** Use a 3-sprint moving average and apply a 20% "uncertainty buffer."
 
 ---
 
@@ -69,7 +72,7 @@ $$
 
 1.  **Verify Definition of Ready (DoR):** Do the top stories have clear Acceptance Criteria?
 2.  **Calculate Capacity:** Subtract PTO, holidays, and scheduled maintenance.
-3.  **Select Stories:** Pull from the backlog based on priority until the sum of points$\approx$ Adjusted Velocity.
+3.  **Select Stories:** Pull from the backlog based on priority until the sum of points $\approx$ Adjusted Velocity.
 4.  **Task Out:** Break stories into sub-tasks (usually 2-6 hours each). If the sum of task hours > Available Capacity, the story must be removed.
 
 ---

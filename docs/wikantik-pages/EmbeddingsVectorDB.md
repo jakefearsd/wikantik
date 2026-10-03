@@ -100,4 +100,4 @@ $$
 \text{Score}(d) = \sum_{r \in R} \frac{1}{k + \text{rank}(d, r)}
 $$
 
-Where$k$is a constant (typically 60) and$R$ is the set of rankings from different search methods. This ensures that a document appearing in the top 10 for *both* keyword and vector search is boosted to the absolute top.
+Where $k$ is a constant (typically 60) and $R$ is the set of rankings from different search methods. This ensures that a document appearing in the top 10 for *both* keyword and vector search is boosted to the absolute top.

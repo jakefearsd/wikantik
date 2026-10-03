@@ -26,7 +26,7 @@ summary: 'Physical principles in complex systems: precision sensor engineering f
 As of 2026, the flagship challenge in physics engineering is the construction of the **Laser Interferometer Space Antenna (LISA)**.
 
 *   **Engineering Challenge**: Measuring distance fluctuations of $\approx 10^{-12}$ meters (the width of a helium atom) over a **2.5 million km** arm length.
-*   **Drag-Free Technology**: Developing propulsion and control systems that maintain spacecraft acceleration noise at **$< 3 \times 10^{-15} \text{ m/s}^2/\sqrt{\text{Hz}}$**, simulating near-perfect free fall.
+*   **Drag-Free Technology**: Developing propulsion and control systems that maintain spacecraft acceleration noise at **$< 3 \times 10^{-15} \text{ m/s}^2/\sqrt{\text{Hz}}$ **, simulating near-perfect free fall.
 *   **Picometer Stability**: 2026 hardware benchmarks for the Zerodur® telescopes require structural stability that allows for laser phase tracking with extreme fidelity.
 
 ## 2. Computational Physics: PINNs and SBI

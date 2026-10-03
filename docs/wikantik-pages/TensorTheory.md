@@ -58,7 +58,7 @@ C = A \otimes B \implies C_{ik} = \sum_{j} A_{ij} B_{jk}
 $$
 
 ### Superoptimization: Mirage (2026)
-Modern GPU compilers like **Mirage** treat entire neural networks as complex tensor contraction graphs ($\mu$Graphs). Mirage navigates the GPU memory hierarchy by automatically discovering optimized contraction sequences that human engineers and standard compilers (Triton) miss.
+Modern GPU compilers like **Mirage** treat entire neural networks as complex tensor contraction graphs ($\mu$ Graphs). Mirage navigates the GPU memory hierarchy by automatically discovering optimized contraction sequences that human engineers and standard compilers (Triton) miss.
 
 ## 4. Quantitative Foundation: Tensor Rank in 2026
 

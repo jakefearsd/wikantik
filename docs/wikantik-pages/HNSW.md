@@ -76,9 +76,9 @@ print(f"Distances: {distances}")
 ```
 
 ## 5. Critical Hyperparameters
-- **$M$**: Number of bidirectional links created for every new element during construction. Range 12–48. Higher $M$ increases recall and memory usage.
-- **$efConstruction$**: The number of neighbors explored during index building. Higher values lead to better graph quality but slower build times.
-- **$efSearch$**: The number of candidates tracked during query time. This can be tuned dynamically to trade off latency for accuracy.
+- **$M$ **: Number of bidirectional links created for every new element during construction. Range 12–48. Higher $M$ increases recall and memory usage.
+- **$efConstruction$ **: The number of neighbors explored during index building. Higher values lead to better graph quality but slower build times.
+- **$efSearch$ **: The number of candidates tracked during query time. This can be tuned dynamically to trade off latency for accuracy.
 
 ## Summary of Technical implementation added
 - Explained the **Small World** and **Skip List** mathematical foundations.

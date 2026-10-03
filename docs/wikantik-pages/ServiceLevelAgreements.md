@@ -49,7 +49,7 @@ An Error Budget is the amount of unreliability you are willing to tolerate in a 
 
 ### Calculation
 For a 99.9% SLO over a 30-day window:
--   **Total Requests:**$1,000,000$-   **Allowed Failures:**$1,000,000 \times (1 - 0.999) = 1,000$If you have used 800 failures, you have **20% of your error budget remaining**.
+-   **Total Requests:** $1,000,000$-   **Allowed Failures:** $1,000,000 \times (1 - 0.999) = 1,000$ If you have used 800 failures, you have **20% of your error budget remaining**.
 
 ## Burn Rate: The Proactive Signal
 

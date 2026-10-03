@@ -65,9 +65,10 @@ $$
 Expected\ Time (T_e) = \frac{O + 4M + P}{6}
 $$
 
-Where:*$O$= Optimistic time
-*$M$= Most likely time
-*$P$ = Pessimistic time
+Where:
+*   $O$= Optimistic time
+*   $M$= Most likely time
+*   $P$ = Pessimistic time
 This provides a more realistic baseline than a single-point estimate.
 
 ## 4. Technical Summary Table

@@ -19,10 +19,10 @@ In distributed systems, physical clocks on independent nodes deviate due to ther
 ## Clock Offset and Delay Estimation (NTP)
 
 The Network Time Protocol (NTP) estimates the offset between a client ($C$) and a server ($S$) using four timestamps:
--$T_1$: Client sends request.
--$T_2$: Server receives request.
--$T_3$: Server sends response.
--$T_4$: Client receives response.
+-   $T_1$: Client sends request.
+-   $T_2$: Server receives request.
+-   $T_3$: Server sends response.
+-   $T_4$: Client receives response.
 
 ### The Math
 **Round-trip delay ($\delta$):**
@@ -37,7 +37,9 @@ $$
 \theta = \frac{(T_2 - T_1) + (T_3 - T_4)}{2}
 $$
 
-This calculation assumes network symmetry ($\text{delay}_{C \to S} \approx \text{delay}_{S \to C}$). Asymmetry is the primary source of error in NTP.## NTP Stratum Hierarchy
+This calculation assumes network symmetry ($\text{delay}_{C \to S} \approx \text{delay}_{S \to C}$). Asymmetry is the primary source of error in NTP.
+
+## NTP Stratum Hierarchy
 
 Trust is organized into strata:
 - **Stratum 0:** Reference clocks (GPS, Atomic clocks).
@@ -46,7 +48,7 @@ Trust is organized into strata:
 
 ### Correction Mechanisms
 1. **Stepping (The Jump):** For large offsets ($>125\text{ms}$), the clock is immediately set. This breaks monotonicity.
-2. **Slewing (The Drift):** For small offsets, the kernel subtly speeds up or slows down the clock (typically at$500\text{ppm}$) to converge without jumps.
+2. **Slewing (The Drift):** For small offsets, the kernel subtly speeds up or slows down the clock (typically at $500\text{ppm}$) to converge without jumps.
 
 ## Precision Time Protocol (PTP / IEEE 1588)
 

@@ -39,14 +39,14 @@ $$
 \text{ERV}_i = V_0 \cdot e^{-\lambda \cdot \Delta t} \cdot (1 - \text{Loss}_{\text{Process}})
 $$
 
-The objective is minimizing the decay constant$\lambda$through high-fidelity, automated triage.
+The objective is minimizing the decay constant $\lambda$ through high-fidelity, automated triage.
 ---
 
 ## II. Methodology: Multi-Modal Automated Triage
 
 Receiving is the point of highest entropy.
 *   **Computer Vision (CV) Grading:** Utilizing Convolutional Neural Networks (CNNs) to perform semantic segmentation of cosmetic vs. structural damage, assigning a probabilistic condition grade (see [Machine Learning](MachineLearning)).
-*   **IoT Condition Monitoring:** For high-value assets (medical/industrial), packages are equipped with sensors to provide an immutable **Environmental Exposure Log** (Shock, Thermal,$\text{O}_2$) that informs the disposition decision before the unit is unsealed.
+*   **IoT Condition Monitoring:** For high-value assets (medical/industrial), packages are equipped with sensors to provide an immutable **Environmental Exposure Log** (Shock, Thermal, $\text{O}_2$) that informs the disposition decision before the unit is unsealed.
 
 ---
 

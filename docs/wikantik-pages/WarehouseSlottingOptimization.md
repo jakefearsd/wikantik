@@ -32,7 +32,7 @@ The **Golden Zone** is the vertical area between a picker's shoulders and mid-th
 To minimize the total travel distance ($D_{total}$), the most active SKUs must be located at the **Center of Gravity** relative to the shipping/receiving docks.
 
 ### Single-Facility COG Formula
-The ideal location$(X, Y)$for a high-velocity cluster is calculated by weighting the coordinates of pick locations by their demand volume:
+The ideal location $(X, Y)$ for a high-velocity cluster is calculated by weighting the coordinates of pick locations by their demand volume:
 
 $$
 X = \frac{\sum (x_i \cdot v_i)}{\sum v_i}
@@ -41,8 +41,9 @@ $$
 Y = \frac{\sum (y_i \cdot v_i)}{\sum v_i}
 $$
 
-Where:*$x_i, y_i$: Coordinates of potential slot$i$.
-*$v_i$: Velocity (picks per period) of the SKU intended for that slot.
+Where:
+*   $x_i, y_i$: Coordinates of potential slot $i$.
+*   $v_i$: Velocity (picks per period) of the SKU intended for that slot.
 
 By centering high-velocity SKUs around the average exit point of the pick path, the "deadhead" travel time is minimized.
 
@@ -54,7 +55,8 @@ $$
 COI = \frac{\text{Storage Space Occupied (Cube)}}{\text{Order Frequency (Picks)}}
 $$
 
-*   **Low COI:** These items are the "Best Candidates" for prime locations (near the dock). They take up little space but are picked often.*   **High COI:** These items are "Space Hogs" with low activity. They should be moved to the back of the warehouse or deep storage.
+*   **Low COI:** These items are the "Best Candidates" for prime locations (near the dock). They take up little space but are picked often.
+*   **High COI:** These items are "Space Hogs" with low activity. They should be moved to the back of the warehouse or deep storage.
 
 ## Slotting Feedback Loop: Check-Act-Verify
 
@@ -62,7 +64,7 @@ $$
 | :--- | :--- | :--- | :--- |
 | **Data Analysis** | Extract SKU velocity and COI from WMS. | Identify "Out-of-Slot" SKUs (A-items in C-slots). | Generate a "Slotting Heatmap." |
 | **Execution** | Check for empty target slots in the Golden Zone. | Issue "Slotting Replenishment" tasks to move SKUs. | Confirm scan-to-scan completion of moves. |
-| **Validation** | Monitor average pick path distance post-move. | Compare$D_{total}$ before and after the slotting change. | Verify a > 5% reduction in total travel time. |
+| **Validation** | Monitor average pick path distance post-move. | Compare $D_{total}$ before and after the slotting change. | Verify a > 5% reduction in total travel time. |
 
 ## Affinity Slotting (SKU Correlation)
 Beyond individual velocity, **Affinity** (Market Basket Analysis) identifies items frequently ordered together (e.g., SKU-A and SKU-B).

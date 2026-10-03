@@ -33,7 +33,7 @@ $$
 E[R_i] = R_f + \sum \beta_{i,j} \lambda_j
 $$
 
-Where$\beta_{i,j}$is the exposure (loading) to factor$j$, and$\lambda_j$is the risk premium for that factor.## 2. The Fama-French 5-Factor Model
+Where $\beta_{i,j}$ is the exposure (loading) to factor $j$, and $\lambda_j$ is the risk premium for that factor.## 2. The Fama-French 5-Factor Model
 
 The foundational model for factor analysis is the Fama-French 5-Factor Model, which expands the original 3-factor model to include profitability and investment:
 
@@ -41,7 +41,8 @@ $$
 R_{it} - R_{ft} = \alpha_i + \beta_{i1}(R_{mt} - R_{ft}) + \beta_{i2}SMB_t + \beta_{i3}HML_t + \beta_{i4}RMW_t + \beta_{i5}CMA_t + \epsilon_{it}
 $$
 
-*   **Market ($R_m - R_f$):** Equity risk premium.*   **SMB (Small Minus Big):** The Size premium. Small-cap stocks tend to outperform large-cap stocks over long horizons.
+*   **Market ($R_m - R_f$):** Equity risk premium.
+*   **SMB (Small Minus Big):** The Size premium. Small-cap stocks tend to outperform large-cap stocks over long horizons.
 *   **HML (High Minus Low):** The Value premium. Stocks with high book-to-market ratios (Value) outperform those with low ratios (Growth).
 *   **RMW (Robust Minus Weak):** Profitability factor. Firms with high operating profitability perform better.
 *   **CMA (Conservative Minus Aggressive):** Investment factor. Firms that invest conservatively outperform those with aggressive investment growth.

@@ -22,13 +22,13 @@ Rotational dynamics describes the motion of rigid bodies about an axis. It is th
 
 ## 1. Kinematics of Rotation
 
-For a point at distance $r$from the axis, the relationship between linear velocity ($v$) and angular velocity ($\omega$) is:
+For a point at distance $r$ from the axis, the relationship between linear velocity ($v$) and angular velocity ($\omega$) is:
 
 $$
 \vec{v} = \vec{\omega} \times \vec{r}
 $$
 
-The angular acceleration is$\vec{\alpha} = d\vec{\omega}/dt$.
+The angular acceleration is $\vec{\alpha} = d\vec{\omega}/dt$.
 ## 2. Moment of Inertia (I)
 
 The Moment of Inertia represents a body's resistance to rotational acceleration. For a discrete system:
@@ -37,7 +37,7 @@ $$
 I = \sum m_i r_i^2
 $$
 
-### 2.1 The Inertia TensorFor a continuous rigid body rotating in 3D space,$I$is a second-rank tensor:
+### 2.1 The Inertia TensorFor a continuous rigid body rotating in 3D space, $I$ is a second-rank tensor:
 
 $$
 \mathbf{I} = \begin{bmatrix} I_{xx} & I_{xy} & I_{xz} \\ I_{yx} & I_{yy} & I_{yz} \\ I_{zx} & I_{zy} & I_{zz} \end{bmatrix}
@@ -55,7 +55,7 @@ $$
 I = I_{cm} + Md^2
 $$
 
-Where$I_{cm}$is the moment of inertia about the center of mass and$d$is the distance to the parallel axis.## 3. Angular Momentum (L)
+Where $I_{cm}$ is the moment of inertia about the center of mass and $d$ is the distance to the parallel axis.## 3. Angular Momentum (L)
 
 Angular momentum is the rotational analogue of linear momentum:
 
@@ -63,7 +63,7 @@ $$
 \vec{L} = \mathbf{I} \vec{\omega}
 $$
 
-For a point mass:$\vec{L} = \vec{r} \times \vec{p}$.
+For a point mass: $\vec{L} = \vec{r} \times \vec{p}$.
 ### 3.1 Conservation of Angular Momentum
 In the absence of an external torque ($\vec{\tau}_{ext} = 0$):
 
@@ -71,7 +71,7 @@ $$
 \frac{d\vec{L}}{dt} = 0 \Rightarrow \vec{L}_{initial} = \vec{L}_{final}
 $$
 
-*Application:* A figure skater pulls their arms in (decreasing$I$), which forces$\omega$to increase to maintain constant$L$.
+*Application:* A figure skater pulls their arms in (decreasing $I$), which forces $\omega$ to increase to maintain constant $L$.
 ## 4. Torque and Euler's Equations
 
 Torque is the rate of change of angular momentum:

@@ -25,7 +25,7 @@ tags:
 
 In geographically dispersed operations, the assumption of proximity—the bedrock of traditional incident command—is a systemic failure. For researchers in [Risk Management](RiskManagement) and telecommunications engineering, the challenge is maintaining operational efficacy across vast distances characterized by high uncertainty and variable infrastructure. The goal is reaching the **Theoretical Limit of Intervention**, where the Information Fidelity Window (IFW) is maximized despite physical isolation.
 
-This treatise explores the architecture of **DRM$^2$CS** communication, the mechanics of AI-driven directed care, and the proactive modeling of the **Digital Twin** for remote regions.
+This treatise explores the architecture of **DRM $^2$ CS** communication, the mechanics of AI-driven directed care, and the proactive modeling of the **Digital Twin** for remote regions.
 
 ---
 
@@ -37,9 +37,9 @@ We replace the "Golden Hour" heuristic with the **IFW**—the maximum time actio
 
 ---
 
-## II. Communication Architecture: DRM$^2$CS
+## II. Communication Architecture: DRM $^2$ CS
 
-Expert-level planning mandates a **Distributed, Redundant, Multi-Modal Communication System (DRM$^2$CS)** to eliminate single points of failure.
+Expert-level planning mandates a **Distributed, Redundant, Multi-Modal Communication System (DRM $^2$ CS)** to eliminate single points of failure.
 *   **Layer 1 (Backbone):** Terrestrial/LEO satellite links (e.g., Starlink) for primary data transit.
 *   **Layer 2 (HAPS):** High Altitude Platform Stations (stratospheric drones) as localized fiber extensions for infrastructure-deprived zones.
 *   **Layer 3 (Mesh):** [Emergency Communication](EmergencyCommunication) mesh networking (LoRa) for peer-to-peer resilience during global grid failure.

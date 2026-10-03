@@ -31,7 +31,7 @@ Refinement is the systematic application of technical and business knowledge to 
 
 ### The Backlog as a Knowledge Graph
 
-In an advanced engineering context, the Product Backlog ($\mathcal{B}$) is modeled as a **Knowledge Graph**$G = (V, E, W)$:
+In an advanced engineering context, the Product Backlog ($\mathcal{B}$) is modeled as a **Knowledge Graph** $G = (V, E, W)$:
 
 *   **Vertices ($V$):** Backlog items (Epics, Features, Stories) with attributes for **Value**, **Effort**, **Risk**, and **Dependencies**.
 *   **Edges ($E$):** Relationships between items, representing **Prerequisites**, **Architectural Enablers**, or **Resource Conflicts**.
@@ -107,7 +107,7 @@ $$
 
 High-risk TD items (e.g., hardcoded credentials, lack of logging) should be prioritized as mandatory enablers for future features.
 ### Quality Gates (NFR Integration)
-Non-Functional Requirements (Security, Scalability, Performance) are modeled as **Quality Gates**. A feature is not "Done" until it passes these gates (e.g., load testing at$X$ TPS). This forces necessary security and performance stories into the critical path.
+Non-Functional Requirements (Security, Scalability, Performance) are modeled as **Quality Gates**. A feature is not "Done" until it passes these gates (e.g., load testing at $X$ TPS). This forces necessary security and performance stories into the critical path.
 
 ---
 

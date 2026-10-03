@@ -23,12 +23,12 @@ Last-mile delivery is the most expensive and complex segment of the supply chain
 
 ### The Traveling Salesperson Problem (TSP)
 The goal is to visit a set of stops ($n$) and return to the depot via the shortest possible route.
-- **Complexity:**$O(n!)$—computationally impossible for large$n$via brute force.
+- **Complexity:** $O(n!)$—computationally impossible for large $n$ via brute force.
 - **Heuristics:** Modern dispatchers use **Christofides Algorithm** (guarantees a solution within 1.5x of optimal) or **Ant Colony Optimization** for real-time routing.
 
 ### The Vehicle Routing Problem (VRP)
-Extends TSP to a fleet of$m$vehicles.
-- **VRP with Time Windows (VRPTW):** Adds the constraint that stop$i$must be reached between times$T_1$and$T_2$.
+Extends TSP to a fleet of $m$ vehicles.
+- **VRP with Time Windows (VRPTW):** Adds the constraint that stop $i$ must be reached between times $T_1$ and $T_2$.
 - **Impact:** Tight time windows (e.g., 1-hour grocery delivery) drastically reduce "Route Density" and increase costs.
 
 ## 2. Route Density Math

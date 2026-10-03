@@ -43,7 +43,7 @@ $$
 ## II. Computational Architecture: From Schema to Ontology
 
 Taxonomy is the "terminological backbone" of an [Ontology](Ontology).
-*   **Description Logics (DLs):** We utilize DLs (e.g.,$\mathcal{ALC}$) to define class hierarchies where membership is determined by necessary and sufficient conditions, allowing for **Automated Classification** via reasoning engines (e.g., Pellet/HermiT).
+*   **Description Logics (DLs):** We utilize DLs (e.g., $\mathcal{ALC}$) to define class hierarchies where membership is determined by necessary and sufficient conditions, allowing for **Automated Classification** via reasoning engines (e.g., Pellet/HermiT).
 *   **The "is-a" vs. "has-part" Distinction:** A robust taxonomy strictly enforces the **SubClassOf** edge. Mixing partonomy (composition) into the taxonomic graph leads to semantic collapse and broken inference loops.
 
 ---

@@ -27,9 +27,10 @@ $$
 \tau = r \cdot F \cdot \sin(\theta)
 $$
 
-Where:*$r$= distance from the fulcrum (lever arm)
-*$F$= applied force
-*$\theta$= angle of force application (typically$90^\circ$, where$\sin(90^\circ) = 1$)
+Where:
+*   $r$= distance from the fulcrum (lever arm)
+*   $F$= applied force
+*   $\theta$= angle of force application (typically $90^\circ$, where $\sin(90^\circ) = 1$)
 
 For a lever to be in equilibrium, the sum of torques must be zero:
 
@@ -44,7 +45,8 @@ $$
 MA = \frac{F_{load}}{F_{effort}} = \frac{d_{effort}}{d_{load}}
 $$
 
-*   **MA > 1:** Force is multiplied (load > effort), but distance is sacrificed.*   **MA < 1:** Distance/Speed is multiplied, but force is sacrificed.
+*   **MA > 1:** Force is multiplied (load > effort), but distance is sacrificed.
+*   **MA < 1:** Distance/Speed is multiplied, but force is sacrificed.
 
 ## 3. The Three Classes of Levers
 
@@ -67,7 +69,7 @@ The class is defined by the relative positions of the Effort ($E$), Load ($L$), 
 
 ## 4. Vector Diagrams and Efficiency
 
-In real-world applications,$AMA$(Actual Mechanical Advantage) is always less than$IMA$(Ideal Mechanical Advantage) due to friction at the fulcrum and the weight of the lever itself.
+In real-world applications, $AMA$ (Actual Mechanical Advantage) is always less than $IMA$ (Ideal Mechanical Advantage) due to friction at the fulcrum and the weight of the lever itself.
 
 $$
 Efficiency (\eta) = \frac{AMA}{IMA} \times 100\%

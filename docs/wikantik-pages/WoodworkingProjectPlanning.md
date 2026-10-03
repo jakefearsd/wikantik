@@ -53,11 +53,12 @@ $$
 \Delta D = D_i \times C_t \times (\Delta MC)
 $$
 
-Where:*   **$D_i$:** Initial width (30")
+Where:
+*   **$D_i$:** Initial width (30")
 *   **$C_t$:** Tangential coefficient (roughly 0.003 for White Oak per 1% MC change)
 *   **$\Delta MC$:** Change in moisture content (6%)
 
-**Result:**$30 \times 0.003 \times 6 = 0.54"$. Your tabletop will grow or shrink by over **half an inch**. If your joinery doesn't allow for this, the top will crack or the base will be torn apart.
+**Result:** $30 \times 0.003 \times 6 = 0.54"$. Your tabletop will grow or shrink by over **half an inch**. If your joinery doesn't allow for this, the top will crack or the base will be torn apart.
 
 ## 3. Designing for Movement
 

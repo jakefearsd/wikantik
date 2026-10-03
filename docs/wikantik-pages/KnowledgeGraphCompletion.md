@@ -33,9 +33,9 @@ A complete KG allows an agent to answer "What is the security posture of the aut
 Link prediction assumes that entities and relations can be mapped to a continuous vector space where the truth of a triple is proportional to a score function $f_r(s, o)$.
 
 ### Translational Distance Models (TransE, RotatE)
-In **TransE**, the relation is a translation vector:$\mathbf{s} + \mathbf{r} \approx \mathbf{o}$.
+In **TransE**, the relation is a translation vector: $\mathbf{s} + \mathbf{r} \approx \mathbf{o}$.
 *   **Failure mode:** Cannot handle 1-to-N relations. If `(USA, has_state, NewYork)` and `(USA, has_state, California)`, TransE forces `NewYork` and `California` to the same vector.
-*   **Production Fix (RotatE):** Maps entities to complex vectors$\mathbb{C}^d$and relations to rotations:$\mathbf{o} = \mathbf{s} \circ \mathbf{r}$, where$|\mathbf{r}_i| = 1$. This handles symmetry, antisymmetry, and inversion.
+*   **Production Fix (RotatE):** Maps entities to complex vectors $\mathbb{C}^d$ and relations to rotations: $\mathbf{o} = \mathbf{s} \circ \mathbf{r}$, where $|\mathbf{r}_i| = 1$. This handles symmetry, antisymmetry, and inversion.
 
 ### Bilinear Models (ComplEx)
 **ComplEx** uses the Hermitian dot product in complex space:

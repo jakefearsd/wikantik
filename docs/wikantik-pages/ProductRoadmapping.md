@@ -47,7 +47,8 @@ $$
 \text{WSJF} = \frac{\text{User-Business Value} + \text{Time Criticality} + \text{Risk Reduction/Opportunity Enablement}}{\text{Job Size (Effort)}}
 $$
 
-#### 2. RICE Scoring*   **Reach:** Number of users affected in a given timeframe.
+#### 2. RICE Scoring
+*   **Reach:** Number of users affected in a given timeframe.
 *   **Impact:** Contribution to the goal (Massive = 3x, High = 2x, Medium = 1x, etc.).
 *   **Confidence:** Data-backed certainty in Reach and Impact estimates.
 *   **Effort:** Total person-months required.

@@ -53,7 +53,7 @@ The value of a wine is defined by its volatile secondary metabolites.
 ## III. Advanced Process Control: Malolactic Synergy
 
 Malolactic Fermentation (MLF) is a secondary, bacterially-mediated biotransformation.
-*   **The MLE Enzyme:** The conversion of Malic Acid to Lactic Acid is modeled as an acid-base neutralization coupled with decarboxylation. Experts utilize [Numerical Methods](NumericalMethods) to track the **pH-Dependent Equilibrium** of$\text{SO}_2$, ensuring that antimicrobial protection does not poison the sensitive malolactic bacteria consortia.
+*   **The MLE Enzyme:** The conversion of Malic Acid to Lactic Acid is modeled as an acid-base neutralization coupled with decarboxylation. Experts utilize [Numerical Methods](NumericalMethods) to track the **pH-Dependent Equilibrium** of $\text{SO}_2$, ensuring that antimicrobial protection does not poison the sensitive malolactic bacteria consortia.
 
 ---
 

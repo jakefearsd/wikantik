@@ -71,8 +71,8 @@ Don't guess. Use the **Bottleneck Capacity** method.
 
 1.  Identify the slowest stage in your process (the bottleneck).
 2.  Calculate its capacity ($C$) in items per week.
-3.  Set the WIP limit for the bottleneck stage to$C$.
-4.  Set upstream stages to$C + 1$(to ensure the bottleneck is never starved).
+3.  Set the WIP limit for the bottleneck stage to $C$.
+4.  Set upstream stages to $C + 1$ (to ensure the bottleneck is never starved).
 
 **Formula for Multi-team Flow:**
 

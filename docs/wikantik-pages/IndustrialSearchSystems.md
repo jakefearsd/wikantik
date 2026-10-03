@@ -50,7 +50,7 @@ $$
 f(d) = \sum_{r \in R} \frac{1}{k + \text{rank}(r, d)}
 $$
 
-*   **The Constant $k$**: (Typically 60) Smoothes the impact of high-ranking results and prevents a single top result from dominating the entire fusion.
+*   **The Constant $k$ **: (Typically 60) Smoothes the impact of high-ranking results and prevents a single top result from dominating the entire fusion.
 
 ## 3. The Lexical-Semantic Gap
 Search systems must bridge two worlds:

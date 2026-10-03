@@ -42,7 +42,7 @@ $$
 (\lambda x. M) N \implies M[x := N]
 $$
 
-The fundamental operation is$\beta$-reduction: the substitution of an argument into a function body. In FP, execution is not a series of state transitions but a series of **term reductions** toward a normal form.
+The fundamental operation is $\beta$-reduction: the substitution of an argument into a function body. In FP, execution is not a series of state transitions but a series of **term reductions** toward a normal form.
 ### The Structural Framework
 **Category Theory** provides the framework for composition and types. In this context, types are **Objects** and functions are **Morphisms** ($f: A \to B$).
 

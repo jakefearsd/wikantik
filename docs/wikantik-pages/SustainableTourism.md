@@ -39,7 +39,8 @@ $$
 PCC = A \times \frac{V}{a} \times Rf
 $$
 
-Where:*   **A:** Total area available for tourism (sq meters).
+Where:
+*   **A:** Total area available for tourism (sq meters).
 *   **V/a:** The amount of space required per person (the "visitor footprint").
 *   **Rf:** The rotation factor (the number of times a site can be visited in a day based on opening hours and average length of stay).
 
@@ -50,7 +51,7 @@ $$
 ECC = PCC \times (1 - C_1) \times (1 - C_2) \dots \times (1 - C_n)
 $$
 
-Where$C$are correction factors (e.g.,$C_1$might be the probability of soil erosion,$C_2$ the lack of waste management infrastructure). If your ECC is lower than your daily visitor count, the site is being degraded.
+Where $C$ are correction factors (e.g., $C_1$ might be the probability of soil erosion, $C_2$ the lack of waste management infrastructure). If your ECC is lower than your daily visitor count, the site is being degraded.
 ## 3. The Limit of Acceptable Change (LAC) Framework
 
 Since "perfect preservation" is impossible, practitioners use the **LAC framework** to define how much change is tolerable.

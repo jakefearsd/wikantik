@@ -36,7 +36,7 @@ $$
 | Feature | 4% Rule (Bengen) | VPW (Bogleheads) |
 | :--- | :--- | :--- |
 | **Withdrawal** |$P_0 \times 4\%$, inflation-adjusted |$P_t \times VPW\%$|
-| **Portfolio Risk** | Can hit\$0$in bad markets | Never hits\$0$(asymptotic) |
+| **Portfolio Risk** | Can hit \$0 in bad markets | Never hits \$0 (asymptotic) |
 | **Income Path** | Constant real income | Volatile (follows market) |
 | **Estate** | High variance in legacy | Generally lower legacy |
 

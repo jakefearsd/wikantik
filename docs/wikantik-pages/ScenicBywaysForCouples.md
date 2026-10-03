@@ -38,7 +38,7 @@ $$
 \text{EDI} = \frac{1}{T} \int_{0}^{T} \left( w_G \cdot \mathcal{G}(t) + w_E \cdot \mathcal{E}(t) + w_C \cdot \mathcal{C}(t) \right) dt
 $$
 
-*   **Heterogeneity Index ($\mathcal{H}$):** Drawing from [Mathematics Hub](MathematicsHub) topography, we measure the rate of change in elevation and biome diversity. A high$\mathcal{H}$signals a corridor capable of sustaining high attention allocation.
+*   **Heterogeneity Index ($\mathcal{H}$):** Drawing from [Mathematics Hub](MathematicsHub) topography, we measure the rate of change in elevation and biome diversity. A high $\mathcal{H}$ signals a corridor capable of sustaining high attention allocation.
 ---
 
 ## II. Cognitive Load and the Pacing Algorithm

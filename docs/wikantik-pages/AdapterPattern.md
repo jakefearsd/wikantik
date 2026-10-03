@@ -60,7 +60,7 @@ The pattern relies on four pillars: the **Target Interface**, the **Client**, th
 Experts prefer **Composition** (the Object Adapter) over Inheritance (the Class Adapter). Composition promotes loose coupling by allowing the Adapter to wrap any instance of the Adaptee, whereas Inheritance creates a rigid dependency on the Adaptee's internal implementation, violating the Principle of Least Knowledge.
 
 ### 4.2 Protocol Translation in API Gateways
-In microservices, the Adapter pattern is the conceptual backbone of the **API Gateway**. It manages the translation between heterogeneous protocols (REST/JSON$\rightarrow$gRPC/Protobuf) and handles error code mapping across service boundaries. For more on these patterns, see [Web Services and APIs Hub](WebServicesAndApisHub).
+In microservices, the Adapter pattern is the conceptual backbone of the **API Gateway**. It manages the translation between heterogeneous protocols (REST/JSON $\rightarrow$ gRPC/Protobuf) and handles error code mapping across service boundaries. For more on these patterns, see [Web Services and APIs Hub](WebServicesAndApisHub).
 
 ---
 

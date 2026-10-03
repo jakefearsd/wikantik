@@ -56,7 +56,7 @@ $$
 COP_{cooling} (EER) = \frac{Q_{cold}}{W_{in}}
 $$
 
-### 3.2 The Carnot Limit (Maximum Theoretical Efficiency)The maximum possible COP is determined by the absolute temperatures ($T$in Kelvin) of the source and sink:
+### 3.2 The Carnot Limit (Maximum Theoretical Efficiency)The maximum possible COP is determined by the absolute temperatures ($T$ in Kelvin) of the source and sink:
 
 $$
 COP_{Carnot, heating} = \frac{T_{hot}}{T_{hot} - T_{cold}}
@@ -66,7 +66,7 @@ $$
 ## 4. Advanced Heat Pump Configurations
 
 ### 4.1 Ground Source (Geothermal)
-Uses the stable temperature of the earth (~10-15°C) as a source. Because$\Delta T$ is minimized year-round, geothermal heat pumps maintain high COPs (3.5–5.0) even in extreme winters.
+Uses the stable temperature of the earth (~10-15°C) as a source. Because $\Delta T$ is minimized year-round, geothermal heat pumps maintain high COPs (3.5–5.0) even in extreme winters.
 
 ### 4.2 Air Source (Cold Climate)
 Modern "Cold Climate" heat pumps use **Inverter-driven compressors** and **Enhanced Vapor Injection (EVI)** to maintain performance down to -25°C, though COP degrades towards 1.5–2.0 at these extremes.

@@ -21,7 +21,7 @@ Effective inventory management balances the cost of carrying stock against the r
 
 ## 1. ABC Analysis (Pareto Principle)
 
-Not all SKUs are created equal. ABC analysis categorizes inventory based on its annual consumption value (Unit Cost $\times$Annual Demand).
+Not all SKUs are created equal. ABC analysis categorizes inventory based on its annual consumption value (Unit Cost $\times$ Annual Demand).
 
 - **Class A (80/20 Rule):** ~20% of SKUs accounting for ~80% of value. Requires tight control, frequent audits, and accurate forecasting.
 - **Class B:** ~30% of SKUs accounting for ~15% of value. Moderate control.
@@ -36,8 +36,8 @@ $$
 $$
 
 Where:-$D$= Annual Demand (units).
--$S$= Setup or Ordering Cost per order (\$).
--$H$= Holding or Carrying Cost per unit per year (\$).
+-   $S$= Setup or Ordering Cost per order (\$).
+-   $H$= Holding or Carrying Cost per unit per year (\$).
 
 ### Concrete Example: Industrial Component Replenishment
 Consider a high-value sensor (Class A):
@@ -60,8 +60,8 @@ $$
 SS = Z \times \sigma_d \times \sqrt{L}
 $$
 
--$Z$= Service level factor (e.g., 1.645 for 95% service).-$\sigma_d$= Std Dev of demand.
--$L$ = Lead time.
+-   $Z$= Service level factor (e.g., 1.645 for 95% service).-$\sigma_d$= Std Dev of demand.
+-   $L$ = Lead time.
 
 ## 4. Inventory Performance Metrics
 

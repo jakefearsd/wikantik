@@ -33,7 +33,7 @@ This treatise explores the kinematics of material removal, the application of **
 ## I. Foundations: Kinematics and Force Vectors
 
 The table saw is a mechanism for controlled material failure (shearing).
-*   **The Cutting Force ($F_c$):** Drawing from [Mathematics Hub](MathematicsHub), we model$F_c$as a function of blade speed ($S$), feed rate ($F$), and material shear strength ($\sigma$):
+*   **The Cutting Force ($F_c$):** Drawing from [Mathematics Hub](MathematicsHub), we model $F_c$ as a function of blade speed ($S$), feed rate ($F$), and material shear strength ($\sigma$):
 
 $$
 F_c = f(S, F, \sigma, \text{Blade Geometry})

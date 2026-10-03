@@ -52,7 +52,7 @@ The total connection capacity is a function of the bottleneck—usually the Post
 
 | Layer | Limit Parameter | Recommended Sizing |
 |---|---|---|
-| **PostgreSQL** | `max_connections` |$\text{Hardware Limit}$(e.g., 500) |
+| **PostgreSQL** | `max_connections` |$\text{Hardware Limit}$ (e.g., 500) |
 | **PgBouncer** | `max_db_conn` |$0.8 \times \text{PostgreSQL Limit}$|
 | **Microservices** |$\sum \text{HikariCP MaxPoolSize}$|$2 \times \text{PgBouncer max\_db\_conn}$ (Oversubscription) |
 

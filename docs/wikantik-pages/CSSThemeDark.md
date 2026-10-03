@@ -86,7 +86,7 @@ a.slimbox-link:after,.slimbox-btn:before,a:visited,a:link { color:var(--link-col
 
 a.createpage { color:var(--error-color);}
 
-.interwiki-raw::after,a.interwiki[[href $="skin=raw"]::after,.interwiki-reader::after,a.interwiki[[href$="skin=reader"]::after,.interwiki-edit::after,a.interwiki[[href*="Edit.jsp?page="]::after,.interwiki-group::after,a.interwiki[[href*="Group.jsp?group="]::after,a.interwiki[[href^="rss.jsp"]::after { background-color:var(--background-lighter); color:var(--accent-color);}
+.interwiki-raw::after,a.interwiki[[href$="skin=raw"]::after,.interwiki-reader::after,a.interwiki[[href$="skin=reader"]::after,.interwiki-edit::after,a.interwiki[[href*="Edit.jsp?page="]::after,.interwiki-group::after,a.interwiki[[href*="Group.jsp?group="]::after,a.interwiki[[href^="rss.jsp"]::after { background-color:var(--background-lighter); color:var(--accent-color);}
 
 .editsection,.hashlink { background-color: var(--background-light); border-color: var(--border-color); color:var(--link-color);}h2 .editsection:hover,h3 .editsection:hover,h4 .editsection:hover,h2 .hashlink:hover,h3 .hashlink:hover,h4 .hashlink:hover { background-color: var(--background-lighter); border-color: var(--border-color); color:var(--link-color); opacity:1;}
 

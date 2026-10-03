@@ -32,7 +32,6 @@ import ExportDialog from './ExportDialog';
 import { useMentionPicker } from '../hooks/useMentionPicker';
 import { captureSelection } from '../utils/commentAnchor';
 import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
-import 'katex/dist/katex.min.css';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -188,10 +187,16 @@ export default function PageView() {
   // effect fires on every refetch — e.g. auth state transitions where
   // dangerouslySetInnerHTML resets the DOM and wipes previously-rendered
   // KaTeX output. renderMath is idempotent (guards with `math-rendered`).
+  // KaTeX loads lazily (only for pages with math), so the render is async: if the page changes or the view
+  // unmounts before it resolves, the cleanup marks the pass stale and renderMath touches nothing.
   useEffect(() => {
     if (articleRef.current && page?.contentHtml) {
-      renderMath(articleRef.current);
+      let stale = false;
+      renderMath(articleRef.current, () => stale)
+        .catch((e) => console.warn('Math rendering failed', e));
+      return () => { stale = true; };
     }
+    return undefined;
   }, [page]);
 
   // Syntax highlighting for fenced code. The highlighter is only downloaded when the page has a

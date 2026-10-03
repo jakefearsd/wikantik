@@ -5,6 +5,7 @@ import { AuthProvider } from '../hooks/useAuth';
 import { ToastProvider } from '../components/ui/ToastProvider';
 import { api } from '../api/client';
 import PageView from './PageView';
+import { renderMath } from '../utils/math';
 
 // ---------------------------------------------------------------------------
 // Determinism strategy (see the note at the bottom for the prior-flake history):
@@ -23,7 +24,7 @@ import PageView from './PageView';
 //   * Stub the browser APIs happy-dom lacks (scrollIntoView,
 //     getBoundingClientRect) and a controllable window.getSelection per-test.
 // ---------------------------------------------------------------------------
-vi.mock('../utils/math', () => ({ renderMath: vi.fn() }));
+vi.mock('../utils/math', () => ({ renderMath: vi.fn(() => Promise.resolve()) }));
 vi.mock('../utils/codeHighlight', async () => {
   const actual = await vi.importActual('../utils/codeHighlight');
   const { createLowlight, common } = await vi.importActual('lowlight');
@@ -175,6 +176,15 @@ describe('PageView comment integration', () => {
     await mountAndSettle();
     expect(screen.getByTestId('page-view')).toBeInTheDocument();
     expect(screen.getByTestId('comments-toggle-button')).toBeInTheDocument();
+  }, TEST_TIMEOUT);
+
+  it('hands renderMath the article and a staleness probe that flips on unmount', async () => {
+    const { unmount } = await mountAndSettle();
+    const call = renderMath.mock.calls.at(-1);
+    expect(call[0]).toBe(screen.getByTestId('page-view').querySelector('article') ?? call[0]);
+    expect(call[1]()).toBe(false);
+    unmount();
+    expect(call[1]()).toBe(true);
   }, TEST_TIMEOUT);
 
   it('anchors the open thread as a <mark> in the rendered article', async () => {

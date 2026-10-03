@@ -136,7 +136,12 @@ line was checked to give identical math under the old and the new rule.
   pre-edit snapshot plus the pipeline (v8, verified).
 - **Fixer defects found mid-run, then fixed:** a space was inserted before a closing `**` (`**$x$ **`), a superscript was split
   from its word (`DRM $^2$ CS`), and `\a`/`\r` decoded into BEL/CR were not restored.
-- **Pending (the permission classifier blocked the corrective push), 23 pages:** AmortizedAnalysis, BiochemicalEngineering, BlackScholesModel, BlockchainMathematics, CSSThemeDark, ClockSynchronization, ColdChainSensorNetworks, CostBenefitAnalysis, CrystallizationTheory, EmbeddingsVectorDB, FactorInvesting, FunctionalAnalysis, FunctionalProgrammingFoundations, GroupTheorySymmetry, InfinityMathematics, InventoryManagementStrategies, PhiAccrualFailureDetector, PhysicsEngineering, PulleySystems, RegressionAnalysis, RelationalDatabaseFundamentals, RemoteGuestEmergencies, TokenBudgeting.
-  Four of these are currently WORSE than before round 2 and should go first: AmortizedAnalysis, PhiAccrualFailureDetector and
-  PhysicsEngineering (bold broken next to a formula), and RemoteGuestEmergencies (`DRM²CS` split). The rest are unchanged
-  from before round 2 or only partly repaired. Each page's final text was generated and checked, and is ready to push.
+- **Corrective push (2026-10-03, done):** 22 pages pushed from the corrected pipeline, including the four the buggy
+  fixer had made worse (AmortizedAnalysis, PhiAccrualFailureDetector, PhysicsEngineering, RemoteGuestEmergencies).
+  Small evident structure fixes were made by hand on BlockchainMathematics, BlackScholesModel, FactorInvesting,
+  InfinityMathematics, InventoryManagementStrategies, RegressionAnalysis and ColdChainSensorNetworks (a heading
+  spliced with a literal `\n`). CSSThemeDark was a false positive (a CSS `[href$=…]` selector) and was not
+  changed; its repo copy was reverted in `00ee50a87d`.
+- **Final verification** (prod re-pulled): 74 pages exactly match the pipeline output, 6 are hand-improved, the
+  hand-repaired pages are intact, and 7 container-owned pages were checked through the public endpoint. None has a
+  control character, the bold-spacing bug, truncation or a front-matter change.

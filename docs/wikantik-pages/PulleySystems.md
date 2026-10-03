@@ -77,7 +77,7 @@ $$
 F_e \cdot d_e = (F_L \cdot d_L) / \eta
 $$
 
-Where$\eta$is the efficiency. To lift a load\$1$meter with an MA of\$4$, you must pull\$4$ meters of rope.
+Where $\eta$ is the efficiency. To lift a load $1$ meter with an MA of $4$, you must pull $4$ meters of rope.
 ## 5. Summary Table
 
 | System | IMA | Effort Required | Rope Pulled |

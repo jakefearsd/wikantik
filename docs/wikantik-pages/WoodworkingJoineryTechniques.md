@@ -33,7 +33,7 @@ This treatise explores the deconstruction of the **Mortise and Tenon (M&T)** joi
 ## I. Foundations: The Anisotropic Shear Stress Tensor
 
 Wood is a fiber-reinforced composite material with three orthogonal axes of symmetry (Longitudinal, Radial, Tangential).
-*   **The M&T Manifold:** Drawing from [Mathematics Hub](MathematicsHub) tensor calculus, we model the stress state at the tenon shoulder. Failure typically occurs via **Parallel-to-Grain Shear** ($ \tau_{\parallel} $) or **Perpendicular-to-Grain Tension** ($ \sigma_{\perp} $).
+*   **The M&T Manifold:** Drawing from [Mathematics Hub](MathematicsHub) tensor calculus, we model the stress state at the tenon shoulder. Failure typically occurs via **Parallel-to-Grain Shear** ($\tau_{\parallel}$) or **Perpendicular-to-Grain Tension** ($\sigma_{\perp}$).
 *   **Tapered Load Introduction:** Experts utilize **Tapered Tenons** to gradually introduce load into the mortise walls, effectively smoothing the stress gradient and preventing the "Stress Riser" effect characteristic of sharp-cornered square joints.
 
 ---

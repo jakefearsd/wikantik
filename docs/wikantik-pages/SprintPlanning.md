@@ -35,8 +35,8 @@ $$
     *   **High F (0.8-0.9):** Deep-work environment, minimal overhead.
 
 ### B. Individual Capacity Worksheet (Example)
-*   **Dev A:** 10 days$\times$6 effective hrs = 60 hrs.
-*   **Dev B:** 8 days (2 days PTO)$\times$6 effective hrs = 48 hrs.
+*   **Dev A:** 10 days $\times$ 6 effective hrs = 60 hrs.
+*   **Dev B:** 8 days (2 days PTO) $\times$ 6 effective hrs = 48 hrs.
 *   **Total Team Capacity:** 108 hours.
 
 ---

@@ -40,8 +40,8 @@ $$
 - **Manual Setup:** 5 Forklifts ($250k) + 10 operators ($600k/year) + 2% error rate ($50k/year).
 - **AS/RS Setup:**$2.5M CapEx. Annual maintenance/electricity$100k/year. Operator count reduced to 1 ($60k/year). Error rate 0.1% ($2k/year).
 
-**Annual Savings:**$(600k + 50k) - (100k + 60k + 2k) = \$488,000$.
-**Payback Period:**$\$2,500,000 / \$488,000 \approx 5.1 \text{ years}$.
+**Annual Savings:** (600k + 50k) − (100k + 60k + 2k) = \$488,000.
+**Payback Period:** \$2,500,000 / \$488,000 ≈ 5.1 years.
 
 ## 3. Hidden ROI Factors
 

@@ -66,7 +66,7 @@ Forward AD evaluates the function and its derivative simultaneously using **Dual
 Reverse AD (the "Backprop" used in PyTorch/TensorFlow) is optimized for functions with many inputs and one output ($f: \mathbb{R}^n \to \mathbb{R}$). 
 *   **The Tape:** It records every operation in a "forward pass."
 *   **The Adjoint:** It traverses the graph backward, applying the Chain Rule to compute gradients with respect to all weights in a single pass.
-*   **Complexity:** The cost of computing the gradient is roughly \$4\times$ the cost of the forward pass, regardless of $n$.
+*   **Complexity:** The cost of computing the gradient is roughly $4\times$ the cost of the forward pass, regardless of $n$.
 
 ---
 
@@ -82,7 +82,7 @@ $$
 $$
 
 *   **Geometric Insight:** Newton's method approximates the surface as a parabola and jumps straight to its vertex.
-*   **Practical Constraint:** Inverting a \$10^9 \times 10^9$ Hessian is impossible. We use **Hessian-free** methods (like L-BFGS or Adam) that approximate $\mathbf{H}^{-1}$ using only recent gradients.
+*   **Practical Constraint:** Inverting a $10^9 \times 10^9$ Hessian is impossible. We use **Hessian-free** methods (like L-BFGS or Adam) that approximate $\mathbf{H}^{-1}$ using only recent gradients.
 
 ---
 

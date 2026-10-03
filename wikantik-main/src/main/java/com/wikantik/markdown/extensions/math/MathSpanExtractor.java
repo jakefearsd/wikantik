@@ -20,19 +20,14 @@ package com.wikantik.markdown.extensions.math;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Extracts recognised math spans from a Markdown body, skipping code regions ({@link CodeRegions}).
  * Recognises: line-isolated {@code $$…$$} display blocks, {@code ```math} fences, and inline
- * {@code $…$}. Deliberately does NOT recognise inline-glued {@code $$} — that is a structure error
+ * {@code $…$} (per {@link InlineMathRule}, mirroring {@link InlineMathParser}). Deliberately does NOT recognise inline-glued {@code $$} — that is a structure error
  * surfaced by {@link MathStructureValidator}, not a span to lint.
  */
 public class MathSpanExtractor {
-
-    /** Mirrors InlineMathParser: non-empty content not starting/ending with a space, no inner '$'. */
-    private static final Pattern INLINE = Pattern.compile("\\$([^ $](?:[^$]*[^ $])?)\\$|\\$([^ $])\\$");
 
     public List<MathSpan> extract(final String body) {
         if (body == null || body.isEmpty()) { return List.of(); }
@@ -101,19 +96,29 @@ public class MathSpanExtractor {
         }
     }
 
+    /** Scans one line for inline spans using {@link InlineMathRule}, the same rule {@link InlineMathParser} renders by. */
     private void extractInline(final String line, final int base, final CodeRegions code,
                                final List<MathSpan> out) {
-        final Matcher m = INLINE.matcher(line);
-        int from = 0;
-        while (m.find(from)) {
-            // Skip a $$ display marker (two adjacent $ at the match start should not be inline)
-            if (m.start() > 0 && line.charAt(m.start() - 1) == '$') { from = m.end(); continue; }
-            if (m.end() < line.length() && line.charAt(m.end()) == '$') { from = m.end(); continue; }
-            final int s = base + m.start();
-            if (code.isMasked(s)) { from = m.end(); continue; }
-            final String c = m.group(1) != null ? m.group(1) : m.group(2);
-            out.add(new MathSpan(MathSpan.Kind.INLINE_DOLLAR, c, rangeIn(line, base, m.start(), m.end())));
-            from = m.end();
+        final int n = line.length();
+        int i = 0;
+        while (i < n) {
+            final char ch = line.charAt(i);
+            if (ch == '\\') {
+                i += 2;
+            } else if (ch != '$') {
+                i++;
+            } else if (i + 1 < n && line.charAt(i + 1) == '$') {
+                i += 2;                                   // $$ is display math, never inline
+            } else {
+                final int end = code.isMasked(base + i) ? -1 : InlineMathRule.matchEnd(line, i);
+                if (end > 0) {
+                    out.add(new MathSpan(MathSpan.Kind.INLINE_DOLLAR, line.substring(i + 1, end - 1),
+                            rangeIn(line, base, i, end)));
+                    i = end;
+                } else {
+                    i++;
+                }
+            }
         }
     }
 

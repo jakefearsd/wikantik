@@ -50,12 +50,16 @@ public final class WikantikHtmlSanitizer {
                     "pre", "code", "kbd", "samp", "var",
                     "ruby", "rt", "rp",
                     "time", "mark", "abbr", "cite", "q", "dfn",
-                    "details", "summary" )
+                    "details", "summary",
+                    "input" )   // input only ever survives as a read-only task-list checkbox (see below)
             .allowAttributes( "href", "title", "target", "rel" ).onElements( "a" )
             .allowAttributes( "src", "alt", "title", "width", "height" ).onElements( "img" )
             .allowAttributes( "align", "valign", "colspan", "rowspan", "scope" ).onElements( "td", "th" )
             .allowAttributes( "data-callout" ).matching( java.util.regex.Pattern.compile( "[a-z]+" ) ).onElements( "div", "details" )
             .allowAttributes( "data-embed", "data-section" ).onElements( "div" )
+            // GFM task-list checkbox: only type=checkbox, and the disabled/checked flags.
+            .allowAttributes( "type" ).matching( java.util.regex.Pattern.compile( "checkbox" ) ).onElements( "input" )
+            .allowAttributes( "disabled", "checked" ).onElements( "input" )
             .allowAttributes( "open" ).onElements( "details" )
             .allowAttributes( "class", "id", "title", "lang", "dir" ).globally()
             .allowAttributes( "style" ).globally()

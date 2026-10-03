@@ -21,6 +21,8 @@ package com.wikantik.parser.markdown;
 import com.vladsch.flexmark.ext.attributes.AttributesExtension;
 import com.vladsch.flexmark.ext.definition.DefinitionExtension;
 import com.vladsch.flexmark.ext.footnotes.FootnoteExtension;
+import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension;
+import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension;
 import com.vladsch.flexmark.ext.gitlab.GitLabExtension;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.ext.toc.TocExtension;
@@ -57,6 +59,9 @@ public class MarkdownDocument extends WikiDocument {
     private static final com.vladsch.flexmark.util.misc.Extension DEFINITION_EXT = DefinitionExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension FOOTNOTE_EXT = FootnoteExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension GITLAB_EXT = GitLabExtension.create();
+    // GFM strikethrough: double tilde only (StrikethroughExtension), so a single "~x~" stays literal prose.
+    private static final com.vladsch.flexmark.util.misc.Extension STRIKETHROUGH_EXT = StrikethroughExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension TASKLIST_EXT = TaskListExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension TABLES_EXT = TablesExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension TOC_EXT = TocExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension WIKILINK_EXT = WikiLinkExtension.create();
@@ -83,7 +88,8 @@ public class MarkdownDocument extends WikiDocument {
         options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
         options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
                                                        ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
-                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT ) );
+                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
+                                                       STRIKETHROUGH_EXT, TASKLIST_EXT ) );
         return options;
     }
 
@@ -118,8 +124,16 @@ public class MarkdownDocument extends WikiDocument {
         options.set( WikiLinkExtension.ALLOW_ANCHORS, true );
         options.set( WikiLinkExtension.ALLOW_PIPE_ESCAPE, true );
         options.set( WikiLinkExtension.IMAGE_LINKS, true );
+        // GFM task lists: read-only checkbox, GitHub class names
+        options.set( TaskListExtension.ITEM_DONE_MARKER,
+                     "<input type=\"checkbox\" class=\"task-list-item-checkbox\" checked=\"\" disabled=\"\" /> " );
+        options.set( TaskListExtension.ITEM_NOT_DONE_MARKER,
+                     "<input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled=\"\" /> " );
+        options.set( TaskListExtension.TIGHT_ITEM_CLASS, "task-list-item" );
+        options.set( TaskListExtension.LOOSE_ITEM_CLASS, "task-list-item" );
         options.set( Parser.EXTENSIONS, Arrays.asList( ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
-                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT ) );
+                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
+                                                       STRIKETHROUGH_EXT, TASKLIST_EXT ) );
         return options;
     }
 

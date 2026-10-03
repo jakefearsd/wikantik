@@ -636,6 +636,59 @@ public class MarkdownRendererTest {
                 "Blockquote structure should be preserved, got: " + result );
     }
 
+    @Test
+    public void testStrikethroughDoubleTilde() throws Exception {
+        Assertions.assertEquals( "<p>x <del>a</del> y</p>\n", translate( "x ~~a~~ y" ) );
+    }
+
+    @Test
+    public void testSingleTildeStaysLiteral() throws Exception {
+        Assertions.assertEquals( "<p>~5 min to ~10 min and ~a~</p>\n", translate( "~5 min to ~10 min and ~a~" ) );
+    }
+
+    @Test
+    public void testWhitespaceFlankedAndLoneDoubleTildeStayLiteral() throws Exception {
+        Assertions.assertEquals( "<p>~~ a ~~</p>\n", translate( "~~ a ~~" ) );
+        final String table = translate( "| a | b |\n|---|---|\n| ~~ | fuzzy |\n" );
+        Assertions.assertTrue( table.contains( "~~" ) && !table.contains( "<del>" ), table );
+    }
+
+    @Test
+    public void testDoubleTildeInCodeStaysLiteral() throws Exception {
+        Assertions.assertEquals( "<p>use <code>~~a~~</code> here</p>\n", translate( "use `~~a~~` here" ) );
+        final String fence = translate( "```\n~~a~~\n```\n" );
+        Assertions.assertTrue( fence.contains( "~~a~~" ) && !fence.contains( "<del>" ), fence );
+    }
+
+    @Test
+    public void testTaskListItems() throws Exception {
+        final String chk = "<input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled=\"\" />";
+        final String done = "<input type=\"checkbox\" class=\"task-list-item-checkbox\" checked=\"\" disabled=\"\" />";
+        Assertions.assertEquals( "<ul><li class=\"task-list-item\">" + chk + " todo</li>"
+                + "<li class=\"task-list-item\">" + done + " done</li></ul>\n",
+                translate( "- [ ] todo\n- [x] done\n" ) );
+        Assertions.assertTrue( translate( "- [X] big" ).contains( "checked=\"\"" ) );
+        final String ol = translate( "1. [ ] first\n2. [x] second\n" );
+        Assertions.assertTrue( ol.startsWith( "<ol>" ) && ol.contains( "<li class=\"task-list-item\">" + chk + " first</li>" ), ol );
+    }
+
+    @Test
+    public void testTaskItemWithNativeWikiLink() throws Exception {
+        newPage( "TaskTarget" );
+        final String result = translate( "- [ ] see [[TaskTarget]]\n" );
+        Assertions.assertTrue( result.contains( "task-list-item-checkbox" ) && result.contains( "class=\"wikipage\"" ), result );
+    }
+
+    @Test
+    public void testDollarEscapeAndCurrencyRendering() throws Exception {
+        final String esc = translate( "\\$5 and $x$" );
+        Assertions.assertTrue( esc.contains( "$5" ) && esc.contains( "<span class=\"math-inline\">x</span>" ), esc );
+        Assertions.assertFalse( translate( "$5 and $10" ).contains( "math-inline" ) );
+        final String co = translate( "$c_o = \\$1.00$" );
+        Assertions.assertEquals( 1, co.split( "math-inline", -1 ).length - 1, co );
+        Assertions.assertTrue( co.contains( "c_o" ) && co.contains( "\\$1.00</span>" ), co );
+    }
+
     @AfterEach
     public void tearDown() {
         created.clear();

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkInlineMath from './remarkInlineMath';
 import { slugify, headingsFromMarkdown, extractHeadings } from './headings';
 
 describe('extractHeadings', () => {
@@ -86,7 +87,7 @@ describe('headingsFromMarkdown', () => {
 
   it('matches extractHeadings ids on the rendered HTML', () => {
     const html = renderToStaticMarkup(
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]}>{md}</ReactMarkdown>,
+      <ReactMarkdown remarkPlugins={[[remarkGfm, { singleTilde: false }], [remarkMath, { singleDollarTextMath: false }], remarkInlineMath]}>{md}</ReactMarkdown>,
     );
     const fromHtml = extractHeadings(html).map((h) => h.id);
     const fromMd = headingsFromMarkdown(md).filter((h) => h.id).map((h) => h.id);

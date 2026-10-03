@@ -210,6 +210,13 @@ describe('livePreviewSpecs — wikilinks', () => {
     expect(visible(state, specs, 1)).toMatch(/^bold P and (\*a B\*c\*|a B\*c)$/);
   });
 });
+describe('livePreviewSpecs — strikethrough', () => {
+  it('styles ~~x~~ but never single-tilde ~x~ (prose like "~5 min to ~10 min")', () => {
+    expect(specsOf('a ~~b~~ c\n\nend', [3]).specs.some((s) => s.cls === 'cm-lp-del')).toBe(true);
+    expect(specsOf('a ~b~ c\n\nend', [3]).specs.some((s) => s.cls === 'cm-lp-del')).toBe(false);
+    expect(specsOf('~5 min to ~10 min\n\nend', [3]).specs.some((s) => s.cls === 'cm-lp-del')).toBe(false);
+  });
+});
 describe('livePreviewSpecs — math and plugins', () => {
   it('renders inline math on inactive lines', () => {
     const { specs } = specsOf('a $x+y$ b\n\nend', [3]);
@@ -219,6 +226,12 @@ describe('livePreviewSpecs — math and plugins', () => {
     const { specs } = specsOf(`${src}\n\nend`, [3]);
     expect(specs.filter((s) => s.widget?.type === 'math' && s.widget.tex !== 'x')).toEqual([]);
     if (src !== '$$x$ y') expect(specs.filter((s) => s.widget?.type === 'math')).toEqual([]);
+  });
+  it('follows the shared rule: currency pairs are not math, escaped dollars stay inside, trailing digit refuses', () => {
+    const math = (src) => specsOf(`${src}\n\nend`, [3]).specs.filter((s) => s.widget?.type === 'math').map((s) => s.widget.tex);
+    expect(math('costs $5 and $10')).toEqual([]);
+    expect(math('$c_o = \\$1.00$')).toEqual(['c_o = \\$1.00']);
+    expect(math('$x$5')).toEqual([]);
   });
   it('does not style emphasis inside math, and math on the active line stays source', () => {
     expect(specsOf('$a*b*c$\n\nend', [3]).specs.filter((s) => s.cls === 'cm-lp-em')).toEqual([]);

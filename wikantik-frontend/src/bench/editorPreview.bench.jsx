@@ -11,6 +11,7 @@ import { StateEffect } from '@codemirror/state';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkInlineMath from '../utils/remarkInlineMath';
 import rehypeKatex from 'rehype-katex';
 import remarkCallouts from '../utils/remarkCallouts';
 import { remarkWikiMarkup } from '../utils/remarkWikiMarkup';
@@ -66,7 +67,7 @@ describe('editor preview pipeline', () => {
   bench('one react-markdown pass, 2,000-line page (editor plugin stack, static render)', () => {
     renderToStaticMarkup(
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath, remarkCallouts, remarkWikiMarkup,
+        remarkPlugins={[[remarkGfm, { singleTilde: false }], [remarkMath, { singleDollarTextMath: false }], remarkInlineMath, remarkCallouts, remarkWikiMarkup,
           [remarkWikiLinks, { resolved: new Map(), attachments: [], pageName: 'Bench' }],
           [remarkMissingLinks, { missing: new Set() }], [remarkAttachments, { attachments: [], pageName: 'Bench' }]]}
         rehypePlugins={[rehypeKatex, rehypeSourceLine]}

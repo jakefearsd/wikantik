@@ -2,6 +2,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkInlineMath from './remarkInlineMath';
 import { toString } from 'mdast-util-to-string';
 import { visit } from 'unist-util-visit';
 
@@ -53,7 +54,7 @@ function uniqueId(baseId, seen) {
 }
 
 // Same syntax extensions as the editor preview, so heading text is extracted the way it renders.
-const markdownParser = unified().use(remarkParse).use(remarkGfm).use(remarkMath);
+const markdownParser = unified().use(remarkParse).use(remarkGfm, { singleTilde: false }).use(remarkMath, { singleDollarTextMath: false }).use(remarkInlineMath);
 
 /**
  * Headings of a markdown body in document order: { level, text, line, id }.

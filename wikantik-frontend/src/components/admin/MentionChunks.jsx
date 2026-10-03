@@ -269,7 +269,7 @@ export function MentionsPanel({ label, node, limit = 3 }) {
             </div>
             <div className="mention-chunk-body">
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
                 rehypePlugins={[makeHighlightRehype(node.name)]}
                 components={CHUNK_COMPONENTS}
               >

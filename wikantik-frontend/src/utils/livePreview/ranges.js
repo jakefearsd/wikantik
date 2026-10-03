@@ -1,5 +1,6 @@
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
+import { matchInlineMath } from '../inlineMath';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
@@ -7,8 +8,6 @@ const HEADING = /^ATXHeading([1-6])$/;
 const BLOCK_MATH = /^\$\$[ \t]*\n[\s\S]*\n[ \t]*\$\$[ \t]*$/;
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const PLUGIN = /\[\{[^\n]*?\}\](?:\(\))?/g;
-// The server's InlineMathParser rule: content neither starts nor ends with a space; `$$` never opens inline math.
-const INLINE_MATH = /\$([^ $\n](?:[^$\n]*[^ $\n])?)\$/y;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 export function activeLinesOf(state) {
   const lines = new Set();
@@ -335,16 +334,15 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     }
     if (text.includes('$')) {
       for (let i = 0; i < text.length; i += 1) {
-        if (text[i] !== '$' || text[i + 1] === '$' || (i > 0 && text[i - 1] === '\\')) continue;
-        INLINE_MATH.lastIndex = i;
-        const m = INLINE_MATH.exec(text);
-        if (!m) continue;
+        if (text[i] !== '$' || (i > 0 && text[i - 1] === '\\')) continue;
+        const end = matchInlineMath(text, i);
+        if (end < 0) continue;
         const a = line.from + i;
-        const b = a + m[0].length;
+        const b = line.from + end;
         if (overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
         claimed.push([a, b]);
-        widget(a, b, { type: 'math', tex: m[1], display: false });
-        i += m[0].length - 1;
+        widget(a, b, { type: 'math', tex: text.slice(i + 1, end - 1), display: false });
+        i = end - 1;
       }
     }
   });

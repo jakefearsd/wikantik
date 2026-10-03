@@ -4,6 +4,7 @@ import { useNavigationGuard, useGuardedNavigate } from '../navigation/Navigation
 import { isLeaving } from '../navigation/navigationGuard';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkInlineMath from '../utils/remarkInlineMath';
 import remarkCallouts from '../utils/remarkCallouts';
 import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
@@ -592,8 +593,9 @@ export default function PageEditor() {
     [attachmentNamesKey],
   );
   const previewRemarkPlugins = useMemo(() => [
-    remarkGfm,
-    remarkMath,
+    [remarkGfm, { singleTilde: false }],
+    [remarkMath, { singleDollarTextMath: false }],
+    remarkInlineMath,
     remarkCallouts,
     remarkWikiMarkup,
     [remarkWikiLinks, { resolved: wikiLinkResolution, attachments: previewAttachments, pageName: name }],

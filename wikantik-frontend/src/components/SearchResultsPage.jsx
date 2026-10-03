@@ -262,7 +262,7 @@ function SearchResultCard({ result, query }) {
             <div key={i} style={{ marginTop: i === 0 ? 0 : 'var(--space-xs)' }}>
               <span className="search-result-snippet-sep">…</span>
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
                 components={SNIPPET_COMPONENTS}
               >
                 {ctx}

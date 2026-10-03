@@ -125,3 +125,18 @@ line was checked to give identical math under the old and the new rule.
 - Production: **not yet applied** — the session's permission classifier blocked the prod batch. Prepared and checked:
   87 pages for the pipeline (this includes the 13 control-character pages above) and 7 for a manual pass
   (RateLimitingAndThrottling, EconomicHistoryOfMetallurgicalCycles, NumberTheory, RealAnalysis, WoodworkingJoineryTechniques, DurableVsPerishableOptimization, RoadmapPackagingAndPricing).
+
+### Round 2 on production (2026-10-03)
+
+- **Applied and verified (63 pages):** after re-pulling prod, each matches the corrected pipeline's output exactly, with front
+  matter unchanged. The edited pages are now stored with LF line endings. Hand repairs applied: RateLimitingAndThrottling,
+  EconomicHistoryOfMetallurgicalCycles, NumberTheory, RealAnalysis, WoodworkingJoineryTechniques, DurableVsPerishableOptimization
+  (RoadmapPackagingAndPricing: false positive).
+- **Incident:** an interrupted `update_page` call left BayesianInference truncated (v7). It was restored the same day from the
+  pre-edit snapshot plus the pipeline (v8, verified).
+- **Fixer defects found mid-run, then fixed:** a space was inserted before a closing `**` (`**$x$ **`), a superscript was split
+  from its word (`DRM $^2$ CS`), and `\a`/`\r` decoded into BEL/CR were not restored.
+- **Pending (the permission classifier blocked the corrective push), 23 pages:** AmortizedAnalysis, BiochemicalEngineering, BlackScholesModel, BlockchainMathematics, CSSThemeDark, ClockSynchronization, ColdChainSensorNetworks, CostBenefitAnalysis, CrystallizationTheory, EmbeddingsVectorDB, FactorInvesting, FunctionalAnalysis, FunctionalProgrammingFoundations, GroupTheorySymmetry, InfinityMathematics, InventoryManagementStrategies, PhiAccrualFailureDetector, PhysicsEngineering, PulleySystems, RegressionAnalysis, RelationalDatabaseFundamentals, RemoteGuestEmergencies, TokenBudgeting.
+  Four of these are currently WORSE than before round 2 and should go first: AmortizedAnalysis, PhiAccrualFailureDetector and
+  PhysicsEngineering (bold broken next to a formula), and RemoteGuestEmergencies (`DRM²CS` split). The rest are unchanged
+  from before round 2 or only partly repaired. Each page's final text was generated and checked, and is ready to push.

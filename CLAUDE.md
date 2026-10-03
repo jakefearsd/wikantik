@@ -585,7 +585,9 @@ When testing the `sparql_query` or any other tool on the `/knowledge-mcp` endpoi
 
 ### Formatting LaTeX Math
 When writing LaTeX formulas in Wikantik:
-- **Inline Math**: Use `$math$` syntax with NO SPACES inside the boundary dollars (e.g. `$x$`, not `$ x $`) — the inline math parser requires content that doesn't start or end with a space, so a spaced form falls back to plain text instead of `<span class="math-inline">`.
+- **Inline Math**: Use `$math$` syntax with NO SPACES inside the boundary dollars (e.g. `$x$`, not `$ x $`) — the inline math parser requires content that doesn't start or end with a space, so a spaced form falls back to plain text instead of `<span class="math-inline">`. The rule is Pandoc's
+  (`InlineMathRule`, mirrored by the frontend `inlineMath.js`): a closing `$` followed by a digit is not math
+  (write `$\times$ 6`, not `$\times$6`), and `\$` inside a formula is a literal dollar sign (`$c = \$1.00$`).
 - **Block Math**: You MUST wrap `$$ ... $$` with blank lines before and after, and never wrap the block in `<div>` or `<center>` tags — either bypasses the markdown parser's block-math conversion (the `.math-display` class never gets assigned) and KaTeX silently ignores it. If you place `$$` adjacent to text without blank lines, the markdown parser will treat it as a standard paragraph. This causes two critical rendering defects:
   1. HTML escaping breaks the operators (`=` becomes `&#61;`).
   2. The parser's attribute extension will silently swallow bracketed letters (e.g., `\mathbb{E}` becomes `\mathbb`), destroying the formula.

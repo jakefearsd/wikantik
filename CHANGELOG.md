@@ -38,7 +38,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   a 2,000-line page ~184 ms → ~1.5 ms per keystroke (large pages refresh the preview after a short pause);
   live preview cost no longer grows with page length; initial JavaScript ~519 → ~258 kB gzip.
 - The editor parses GitHub-flavoured markdown (tables, strikethrough, task lists) in both modes, like the
-  editor preview. (The published page does not yet render strikethrough or task lists.)
+  editor preview.
+- Published pages now render `~~strikethrough~~` and GitHub-style task lists (`- [ ]` / `- [x]` as read-only
+  checkboxes). Strikethrough is double-tilde only everywhere, as in Obsidian, so `~5 min to ~10 min` stays plain text.
+- Inline math follows the Pandoc/Obsidian `$…$` rule on the published page, in the editor preview and in live
+  preview: a closing `$` followed by a digit is not math (`$20,000 and $30,000` is plain text) and `\$` inside a
+  formula is a dollar sign (`$c_o = \$1.00$`). Pages whose math needed it were repaired to keep their intent
+  (audit: `docs/superpowers/specs/2026-10-02-gfm-and-inline-math-alignment.md`).
+- KaTeX loads only for pages that contain math (initial load ~283 → ~198 kB gzip).
 - `[{InsertPage}]` now renders the inserted page as its own real page, so plugins and variables inside
   it (`AliasPlugin`, `{$attr}` fallbacks) see the inserted page, not the host.
 

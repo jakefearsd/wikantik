@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.50] - 2026-10-03
+
 ### Added
 - Editor Live Preview: an Obsidian-style editing mode that renders markdown in place (headings, emphasis,
   links and `[[wikilinks]]`, images and attachment embeds, page embeds `![[Page]]`, quotes and callouts,

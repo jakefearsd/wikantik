@@ -146,7 +146,7 @@
     <sec.okio.version>3.18.2</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
     <sec.httpclient5.version>5.6.4</sec.httpclient5.version>            <!-- via pac4j-saml->opensaml->shib-networking (5.3.1) + selenide-core
                                                                               (5.6.2); GHSA-hjcp-jmpx-g3qm / CVE-2026-64607. -->
-    <sec.httpcore5.version>5.4.3</sec.httpcore5.version>                 <!-- same chain; GHSA-hf6x-8p5f-cgmf / CVE-2026-54399 (httpcore5 5.2.5)
+    <sec.httpcore5.version>5.4.4</sec.httpcore5.version>                 <!-- same chain; GHSA-hf6x-8p5f-cgmf / CVE-2026-54399 (httpcore5 5.2.5)
                                                                               and GHSA-v3jc-474w-2wm6 / CVE-2026-54428 (httpcore5-h2 5.2.4).
                                                                               The 5.6.x client / 5.4.x core pairing is the one selenide already
                                                                               resolves to across the IT modules. -->

@@ -574,3 +574,24 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
 .article-prose .wiki-embed-missing,
 .article-prose .wiki-embed-error,
 .article-prose .wiki-embed-loading { font-style: italic; opacity: 0.75; }
+
+/* Task lists (GitHub style). The server emits li.task-list-item > input.task-list-item-checkbox; remark-gfm
+   (editor preview) emits ul.contains-task-list > li.task-list-item > input[type=checkbox]. */
+.article-prose li.task-list-item,
+.editor-preview li.task-list-item {
+  list-style-type: none;
+}
+
+.article-prose li.task-list-item > input[type="checkbox"],
+.editor-preview li.task-list-item > input[type="checkbox"] {
+  margin: 0 0.35em 0.2em -1.4em;
+  vertical-align: middle;
+}
+
+/* A nested task list keeps its own indent so its checkboxes line up under the parent's text. */
+.article-prose li.task-list-item > ul,
+.article-prose li.task-list-item > ol,
+.editor-preview li.task-list-item > ul,
+.editor-preview li.task-list-item > ol {
+  padding-left: 1.5em;
+}

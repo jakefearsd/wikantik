@@ -21,9 +21,11 @@ package com.wikantik.providers;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
-import com.wikantik.cache.CachingManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.cache.CachingManager;
+import com.wikantik.render.RenderingManager;
 import com.wikantik.util.FileUtil;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
@@ -34,9 +36,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.io.StringReader;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class CachingProviderTest {
 
@@ -685,6 +690,55 @@ class CachingProviderTest {
         // Verify the new page is in the list
         final boolean found = pagesAfterTTL.stream().anyMatch( p -> "ExternalPage".equals( p.getName() ) );
         Assertions.assertTrue( found, "ExternalPage should be in the page list" );
+    }
+
+    /** Engine whose RenderingManager counts the markup parsers it hands out; the provider is returned. */
+    private CachingProvider providerCountingParsers( final AtomicInteger parsers ) {
+        engine = TestEngine.build();
+        final RenderingManager real = engine.getManager( RenderingManager.class );
+        engine.setManager( RenderingManager.class, ( RenderingManager ) Proxy.newProxyInstance(
+                RenderingManager.class.getClassLoader(), new Class< ? >[]{ RenderingManager.class }, ( proxy, m, args ) -> {
+                    if ( "getParser".equals( m.getName() ) ) {
+                        parsers.incrementAndGet();
+                    }
+                    try {
+                        return m.invoke( real, args );
+                    } catch ( final InvocationTargetException e ) {
+                        throw e.getCause();
+                    }
+                } ) );
+        return ( CachingProvider ) engine.getManager( PageManager.class ).getProvider();
+    }
+
+    /** A page whose text has no [{...}] syntax gets its metadata from the frontmatter alone, without a markup parse. */
+    @Test
+    void metadataRefreshWithoutBracketSyntaxSkipsTheMarkupParse() throws Exception {
+        final AtomicInteger parsers = new AtomicInteger();
+        final CachingProvider cp = providerCountingParsers( parsers );
+        cp.putPageText( Wiki.contents().page( engine, "PlainMeta" ),
+                "---\nsummary: from the frontmatter\n---\nBody linking [[SomeTarget]] and [another](OtherPage).\n" );
+        parsers.set( 0 );
+
+        final Page page = cp.getPageInfo( "PlainMeta", PageProvider.LATEST_VERSION );
+
+        Assertions.assertEquals( "from the frontmatter", page.getAttribute( "summary" ) );
+        Assertions.assertTrue( page.hasMetadata() );
+        Assertions.assertEquals( 0, parsers.get() );
+    }
+
+    /** [{ALLOW}] and [{SET}] are only understood by the markup parse, so their pages still get one. */
+    @Test
+    void metadataRefreshWithBracketSyntaxStillParsesAccessRulesAndVariables() throws Exception {
+        final AtomicInteger parsers = new AtomicInteger();
+        final CachingProvider cp = providerCountingParsers( parsers );
+        cp.putPageText( Wiki.contents().page( engine, "RuledMeta" ),
+                "---\nsummary: ruled\n---\n[{ALLOW view Admin}]\n[{SET colour=blue}]\nBody.\n" );
+
+        final Page page = cp.getPageInfo( "RuledMeta", PageProvider.LATEST_VERSION );
+
+        Assertions.assertEquals( "ruled", page.getAttribute( "summary" ) );
+        Assertions.assertEquals( "blue", page.getAttribute( "colour" ) );
+        Assertions.assertNotNull( page.getAcl(), "the ALLOW rule must still produce an ACL" );
     }
 
 }

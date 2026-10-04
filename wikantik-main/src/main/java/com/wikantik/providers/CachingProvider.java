@@ -25,6 +25,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.search.QueryItem;
 import com.wikantik.api.search.SearchResult;
@@ -417,16 +418,26 @@ public class CachingProvider implements PageProvider {
     //  FIXME: Kludge: make sure that the page is also parsed and it gets all the necessary variables.
     private void refreshMetadata( final Page page ) {
         if( page != null && !page.hasMetadata() ) {
-            final RenderingManager mgr = RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
             try {
                 final String data = provider.getPageText( page.getName(), page.getVersion() );
+                if( data == null ) {
+                    return; // no text to read metadata from: the next read tries again
+                }
+                if( !data.contains( "[{" ) ) {
+                    // Only [{ALLOW}]/[{DENY}] and [{SET}] need the markup parse; without them the frontmatter is all
+                    // the metadata there is. Spares every first read of a freshly saved page a render-grade parse.
+                    FrontmatterParser.parse( data ).metadata().forEach( page::setAttribute );
+                    page.setHasMetadata();
+                    return;
+                }
+                final RenderingManager mgr = RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
                 final Context ctx = Wiki.context().create( engine, page );
                 final MarkupParser parser = mgr.getParser( ctx, data );
 
                 parser.parse();
                 page.setHasMetadata();   // mark parsed so the next getPageInfo cache hit short-circuits
             } catch( final Exception ex ) {
-                LOG.debug( "Failed to retrieve variables for wikipage {}", page );
+                LOG.warn( "Failed to read the metadata of wikipage {}: {}", page.getName(), ex.getMessage() );
             }
         }
     }

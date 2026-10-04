@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- jackson-core pinned to 2.22.3 (GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89: two JSON-parsing denial-of-service
+  advisories). Tika's CAD parser module pulled 2.22.1 onto the document-ingestion and extractor-CLI classpaths;
+  the deployed WAR already resolved 2.22.3.
+- brace-expansion 5.0.9 → 5.0.12, a frontend build-time dependency of ESLint (GHSA-6j4f-fj2g-mc7p,
+  GHSA-qhr7-859c-m2p7, GHSA-q2hr-2g5m-vwhr). Not part of the shipped application.
+
 ## [2.4.51] - 2026-10-03
 
 ### Changed

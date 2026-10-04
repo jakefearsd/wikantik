@@ -135,7 +135,7 @@
                                                                                  Castle artifact versions, which upstream advises against. -->
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
     <sec.jackson3.version>3.2.3</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
-    <sec.jackson2.version>2.22.3</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
+    <sec.jackson2.version>2.22.3</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (core 2.22.1); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs fixed by 2.22.1; core GHSA-7hhh-6rmp-j9qf + GHSA-p6pp-m3f8-5c89 by 2.22.3 -->
     <sec.junrar.version>7.6.1</sec.junrar.version>                       <!-- via tika-parsers; CVE-2026-41245 (fixed 7.6.0) + path-traversal
                                                                               fix in 7.6.1 ("prevent directory creation outside target
                                                                               directory") — reachable from POST /api/ingest, which feeds
@@ -832,6 +832,11 @@
         <scope>import</scope>
       </dependency>
 
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>${sec.jackson2.version}</version>
+      </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>

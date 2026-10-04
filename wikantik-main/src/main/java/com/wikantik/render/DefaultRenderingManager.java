@@ -364,6 +364,17 @@ public class DefaultRenderingManager implements RenderingManager {
 
     /**
      *  {@inheritDoc}
+     *
+     *  <p>A body that did not consult the viewer is reused from {@link EmbedBodyCache}.</p>
+     */
+    @Override
+    public String renderEmbedBody( final Context context, final String markdown ) throws IOException {
+        return EmbedBodyCache.render( cachingManager, useHtmlCache( context ), htmlCacheId( context ), context, markdown,
+                () -> getHTML( context, getParser( context, markdown ).parse() ) );
+    }
+
+    /**
+     *  {@inheritDoc}
      */
     @Override
     public String getHTML( final Context context, final Page page ) {
@@ -581,13 +592,14 @@ public class DefaultRenderingManager implements RenderingManager {
 
     /**
      * Removes all plugin-variant cache entries for a given page name and version
-     * from both the document and HTML caches.
+     * from the document and HTML caches, including the page's embed-body slot.
      */
     private void evictCacheKeysForVersion( final String pageName, final int version ) {
-        for ( final String cache : new String[]{ CachingManager.CACHE_DOCUMENTS, CachingManager.CACHE_HTML } ) {
-            cachingManager.remove( cache, pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + Boolean.FALSE );
-            cachingManager.remove( cache, pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + Boolean.TRUE );
-            cachingManager.remove( cache, pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + null );
+        for ( final Boolean executePlugins : new Boolean[]{ Boolean.FALSE, Boolean.TRUE, null } ) {
+            final String id = pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + executePlugins;
+            cachingManager.remove( CachingManager.CACHE_DOCUMENTS, id );
+            cachingManager.remove( CachingManager.CACHE_HTML, id );
+            cachingManager.remove( CachingManager.CACHE_HTML, id + EmbedBodyCache.SLOT_SUFFIX );
         }
     }
 

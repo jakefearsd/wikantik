@@ -28,8 +28,6 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.export.HeadingSlugs;
-import com.wikantik.parser.MarkupParser;
-import com.wikantik.parser.WikiDocument;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
@@ -44,9 +42,9 @@ import java.util.Optional;
 
 /**
  * Renders the transcluded body of an {@code ![[Page]]} / {@code ![[Page#Heading]]} embed with view-ACL,
- * loop, depth and size protections. The body is rendered through the non-caching
- * {@code parse()} + {@code getHTML(Context, WikiDocument)} path so nothing is written to the HTML cache under
- * the outer page's key; every render flags the outer context viewer-sensitive.
+ * loop, depth and size protections. The body is rendered through {@link RenderingManager#renderEmbedBody}, so
+ * nothing is written to the HTML cache under the outer page's key; every render flags the outer context
+ * viewer-sensitive.
  */
 public final class WikiEmbedRenderer {
 
@@ -96,14 +94,9 @@ public final class WikiEmbedRenderer {
                 TextUtil.getIntegerProperty( engine.getWikiProperties(), PROP_MAX_CHARS, DEFAULT_MAX_CHARS ) );
     }
 
-    /** Non-caching renderer: parse then render the document, never touching the HTML cache. */
+    /** The engine's body renderer: {@link RenderingManager#renderEmbedBody}. */
     public static BodyRenderer defaultBodyRenderer( final Engine engine ) {
-        return ( ctx, markdown ) -> {
-            final RenderingManager rm = RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
-            final MarkupParser parser = rm.getParser( ctx, markdown );
-            final WikiDocument doc = parser.parse();
-            return rm.getHTML( ctx, doc );
-        };
+        return ( ctx, markdown ) -> RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().renderEmbedBody( ctx, markdown );
     }
 
     /** Renders the embed; never throws. */

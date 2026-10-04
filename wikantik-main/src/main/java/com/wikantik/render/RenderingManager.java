@@ -126,6 +126,20 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
     String getHTML( Context context, WikiDocument doc ) throws IOException;
 
     /**
+     *  Renders the body of an embedded page ({@code ![[Page]]}) as {@link #getHTML(Context, WikiDocument)} would, the
+     *  body sanitized on its own so it cannot break out of the embed's markup. An implementation may reuse an earlier
+     *  rendering of the same body while it is valid for every viewer; this default always renders.
+     *
+     *  @param context the embedded page's render context
+     *  @param markdown the body source to render
+     *  @return the body HTML
+     *  @throws IOException if the body cannot be parsed or rendered
+     */
+    default String renderEmbedBody( final Context context, final String markdown ) throws IOException {
+        return getHTML( context, getParser( context, markdown ).parse() );
+    }
+
+    /**
      *  Returns the converted HTML of the page using a different context than the default context.
      *
      *  @param  context A WikiContext in which you wish to render this page in.

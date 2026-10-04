@@ -69,6 +69,34 @@ class NativeWikiEmbedRenderingTest {
         assertFalse( html.contains( "<p><div" ), html );
     }
 
+    @Test void hostileHtmlInAnEmbeddedPageIsSanitizedInTheHostPage() throws Exception {
+        engine.saveText( "EmbHostile", "<script>steal()</script>\n\n<p><img src=\"x\" onerror=\"steal()\"> kept</p>\n" );
+        final String html = translate( "![[EmbHostile]]\n" );
+        assertTrue( html.contains( "data-embed=\"EmbHostile\"" ), html );
+        assertTrue( html.contains( "kept" ), html );
+        assertFalse( html.contains( "<script" ), html );
+        assertFalse( html.contains( "onerror" ), html );
+    }
+
+    @Test void strayEndTagsInAnEmbeddedPageCannotCloseTheEmbed() throws Exception {
+        engine.saveText( "EmbStray", "</div></div>\n\n<p>escaped</p>\n" );
+        final String html = translate( "![[EmbStray]]\n\nHost after.\n" );
+        final int body = html.indexOf( "class=\"wiki-embed-body\"" );
+        final int escaped = html.indexOf( "escaped" );
+        assertTrue( body >= 0 && escaped > body, html );
+        assertFalse( html.substring( body, escaped ).contains( "</div>" ), "the body's content must stay inside it: " + html );
+    }
+
+    @Test void anUnclosedElementInAnEmbeddedPageCannotSwallowTheHostPage() throws Exception {
+        engine.saveText( "EmbOpen", "<div class=\"note\">open\n" );
+        final String html = translate( "![[EmbOpen]]\n\nHost after.\n" );
+        final int open = html.indexOf( "open" );
+        final int after = html.indexOf( "Host after." );
+        assertTrue( open >= 0 && after > open, html );
+        // the embedded page's own div, the embed body and the embed block all close before the host continues
+        assertEquals( 3, count( html.substring( open, after ), "</div>" ), html );
+    }
+
     @Test void consecutiveEmbedLinesBecomeConsecutiveBlocks() throws Exception {
         engine.saveText( "EmbA", "aaa\n" );
         engine.saveText( "EmbB", "bbb\n" );

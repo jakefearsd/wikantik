@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.51] - 2026-10-03
+
 ### Changed
 - Performance: the first read of a freshly saved page no longer runs a full render-grade parse just to read its
   metadata when the page has no `[{…}]` markup (most pages) — the frontmatter is all the metadata there is.

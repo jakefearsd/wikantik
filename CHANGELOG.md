@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.52] - 2026-10-04
+
 ### Security
 - jackson-core pinned to 2.22.3 (GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89: two JSON-parsing denial-of-service
   advisories). Tika's CAD parser module pulled 2.22.1 onto the document-ingestion and extractor-CLI classpaths;

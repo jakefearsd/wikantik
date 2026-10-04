@@ -22,6 +22,11 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,6 +38,27 @@ class ContentChunkerTest {
     // Production-like config (floor 24 < mergeForward 150) for the fragment-floor cases.
     private final ContentChunker flooredChunker = new ContentChunker(
         new ContentChunker.Config(512, 150, 24, 0));
+
+    /** The chunker shares one flexmark parser across threads; concurrent chunking must match sequential chunking. */
+    @Test
+    void concurrentChunkingMatchesSequentialChunking() throws Exception {
+        final List<ParsedPage> pages = IntStream.range(0, 40).mapToObj(i -> new ParsedPage(Map.of(),
+                "# Title " + i + "\n\nIntro paragraph " + i + ".\n\n## Section A\n\n- item one\n- item two " + i
+                + "\n\n```java\ncode " + i + "\n```\n\n## Section B\n\n| a | b |\n|---|---|\n| " + i + " | x |\n")).toList();
+        final List<List<Chunk>> expected = pages.stream().map(p -> chunker.chunk("P", p)).toList();
+        final ExecutorService pool = Executors.newFixedThreadPool(8);
+        try {
+            for (int round = 0; round < 5; round++) {
+                final List<Future<List<Chunk>>> futures = pages.stream()
+                        .map(p -> pool.submit(() -> chunker.chunk("P", p))).toList();
+                for (int i = 0; i < pages.size(); i++) {
+                    assertEquals(expected.get(i), futures.get(i).get());
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
 
     @Test
     void emptyBodyProducesZeroChunks() {

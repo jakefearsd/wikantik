@@ -40,6 +40,8 @@ import java.util.List;
 public class ContentChunker {
 
     private static final Logger LOG = LogManager.getLogger(ContentChunker.class);
+    /** Built once: building a flexmark parser costs more than parsing a typical page, and parse() is thread-safe. */
+    private static final Parser PARSER = Parser.builder().build();
 
     /**
      * Flexmark's tables extension is optional — cache the probe so we don't
@@ -104,8 +106,7 @@ public class ContentChunker {
             return out;
         }
 
-        Parser parser = Parser.builder().build();
-        Node root = parser.parse(body);
+        Node root = PARSER.parse(body);
 
         // Within a section, short blocks merge forward into one chunk. Across a
         // heading boundary they MUST NOT — each chunk's heading_path has to match

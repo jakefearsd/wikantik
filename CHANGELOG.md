@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Performance: the first read of a freshly saved page no longer runs a full render-grade parse just to read its
+  metadata when the page has no `[{…}]` markup (most pages) — the frontmatter is all the metadata there is.
+  Renames of widely-linked pages ~55% faster, Obsidian import ~15% faster, the startup link rescan ~13% faster.
+- Performance: embedded page bodies (`![[Page]]`) are reused between page views while they do not depend on the
+  viewer, and refreshed with the embedded page's other render caches (its save, a save of a page it links to,
+  delete, rename, attachment change). A page embedding 25 large pages renders ~5x faster (~55 ms → ~12 ms) and
+  allocates ~83% less per view. The view-permission check still runs for every viewer.
+
 ## [2.4.50] - 2026-10-03
 
 ### Added

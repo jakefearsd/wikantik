@@ -91,7 +91,7 @@ function run(seeds, steps, makeDoc) {
 describe('block-widget field (end to end)', () => {
   it('always shows exactly the from-scratch block specs (200 seeds x 60 random steps)', () => {
     run(200, 60, (rand) => Array.from({ length: 30 }, () => pick(rand, BLOCKS)).join('\n\n'));
-  });
+  }, 30000); // under 1 s alone; the default 5 s is too tight inside the full parallel suite
 
   it('holds on a large page whose parse stays partial', () => {
     const large = () => Array.from({ length: 200 }, (_, i) => `para ${i}\n\n$$\nx_{${i}}\n$$\n\n![[P${i}]]`).join('\n\n');

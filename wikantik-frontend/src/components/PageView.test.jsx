@@ -189,17 +189,18 @@ describe('PageView comment integration', () => {
 
   it('anchors the open thread as a <mark> in the rendered article', async () => {
     const { container } = await mountAndSettle();
-    // The highlight effect wraps the anchor text in a <mark>.
-    const mark = await waitFor(() =>
-      container.querySelector('mark.comment-highlight[data-thread-id="T1"]'));
-    expect(mark).toBeTruthy();
-    expect(mark.textContent).toBe('quick brown');
+    // The highlight effect wraps the anchor text in a <mark>. Query it afresh on each poll: a late re-render
+    // re-anchors, unwrapping (and emptying) the mark an earlier query returned.
+    await waitFor(() => expect(
+      container.querySelector('mark.comment-highlight[data-thread-id="T1"]')?.textContent).toBe('quick brown'));
   }, TEST_TIMEOUT);
 
   it('clicking the highlight mark opens the drawer and focuses the thread (pulse)', async () => {
     const { container } = await mountAndSettle();
-    const mark = await waitFor(() =>
-      container.querySelector('mark.comment-highlight[data-thread-id="T1"]'));
+    const selector = 'mark.comment-highlight[data-thread-id="T1"]';
+    await waitFor(() => expect(container.querySelector(selector)).not.toBeNull());
+    // Query again now rather than keeping the poll's result: a late re-render re-anchors and detaches older marks.
+    const mark = container.querySelector(selector);
 
     await withFakeTimers(async () => {
       fireEvent.click(mark);

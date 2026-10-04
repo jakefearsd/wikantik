@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { ensureSyntaxTree } from '@codemirror/language';
+import { fullyParsed } from '../test/fullParse';
 import { calloutMarkerRanges } from './calloutMarkers';
 
 const DIALECTS = [['CommonMark', {}], ['GFM', { base: markdownLanguage }]];
@@ -9,8 +9,7 @@ const DIALECTS = [['CommonMark', {}], ['GFM', { base: markdownLanguage }]];
 describe.each(DIALECTS)('calloutMarkers (%s)', (_label, base) => {
 function stateOf(doc) {
   const state = EditorState.create({ doc, extensions: [markdown(base)] });
-  ensureSyntaxTree(state, state.doc.length, 5000);
-  return state;
+  return fullyParsed(state);
 }
 
 const text = (state, r) => state.sliceDoc(r.from, r.to);

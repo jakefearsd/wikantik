@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState, EditorSelection } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
-import { ensureSyntaxTree } from '@codemirror/language';
+import { fullyParsed } from '../../test/fullParse';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
 function stateOf(doc, selection) {
@@ -9,8 +9,7 @@ function stateOf(doc, selection) {
     doc, selection,
     extensions: [markdown(editorMarkdownConfig), EditorState.allowMultipleSelections.of(true)],
   });
-  ensureSyntaxTree(state, state.doc.length, 5000);
-  return state;
+  return fullyParsed(state);
 }
 const specsOf = (doc, active, context) => {
   const state = stateOf(doc);

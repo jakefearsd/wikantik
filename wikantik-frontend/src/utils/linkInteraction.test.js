@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { ensureSyntaxTree } from '@codemirror/language';
+import { fullyParsed, parseFully } from '../test/fullParse';
 import { EditorView } from '@codemirror/view';
 import { linkAt, hrefFor, linkInteraction } from './linkInteraction';
 
@@ -10,8 +10,7 @@ const DIALECTS = [['CommonMark', {}], ['GFM', { base: markdownLanguage }]];
 describe.each(DIALECTS)('linkInteraction (%s)', (_label, base) => {
 const at = (doc, pos) => {
   const state = EditorState.create({ doc, extensions: [markdown(base)] });
-  ensureSyntaxTree(state, doc.length, 5000);
-  return linkAt(state, pos);
+  return linkAt(fullyParsed(state), pos);
 };
 
 describe('linkAt', () => {
@@ -73,7 +72,7 @@ describe('linkRanges marks wikilinks', () => {
     document.body.appendChild(parent);
     const doc = '[[A]] and [b](B) and `[[C]]`';
     const view = new EditorView({ parent, doc, extensions: [markdown(base), linkInteraction({ onHover: () => {} })] });
-    ensureSyntaxTree(view.state, doc.length, 5000);
+    parseFully(view);
     view.dispatch({ changes: { from: doc.length, insert: ' ' } });
     const marked = [...view.dom.querySelectorAll('.cm-link-range')].map((e) => e.textContent);
     expect(marked).toContain('[[A]]');
@@ -86,8 +85,7 @@ describe('linkRanges marks wikilinks', () => {
 describe('linkAt / linkInteraction with wikilink resolution', () => {
   const atResolved = (doc, pos, resolve) => {
     const state = EditorState.create({ doc, extensions: [markdown(base)] });
-    ensureSyntaxTree(state, doc.length, 5000);
-    return linkAt(state, pos, resolve);
+    return linkAt(fullyParsed(state), pos, resolve);
   };
   const resolve = (key) => ({ 'my page': 'My Page' })[key];
 
@@ -110,7 +108,7 @@ describe('linkAt / linkInteraction with wikilink resolution', () => {
       parent, doc,
       extensions: [markdown(base), linkInteraction({ onHover, resolve: (k) => lookup.current.get(k) })],
     });
-    ensureSyntaxTree(view.state, doc.length, 5000);
+    parseFully(view);
     vi.spyOn(view, 'posAtCoords').mockReturnValue(8);
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
 

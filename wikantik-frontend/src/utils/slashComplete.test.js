@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { CompletionContext } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
-import { ensureSyntaxTree } from '@codemirror/language';
+import { fullyParsed } from '../test/fullParse';
 import { createSlashSource, slashIconType } from './slashComplete';
 
 const COMMANDS = [
@@ -13,9 +13,8 @@ const COMMANDS = [
 
 function complete(doc, pos = doc.length) {
   const state = EditorState.create({ doc, extensions: [markdown()] });
-  ensureSyntaxTree(state, state.doc.length, 5000);
   const source = createSlashSource(() => COMMANDS, vi.fn());
-  return source(new CompletionContext(state, pos, false));
+  return source(new CompletionContext(fullyParsed(state), pos, false));
 }
 
 describe('slash completion', () => {

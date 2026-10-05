@@ -43,7 +43,7 @@ tools under `/admin/*`. There is no `/Wikantik/` prefix.
 | Node.js + npm | 20.19+ (or 22.12+) | The WAR build runs `npm install` and `vite build` |
 | PostgreSQL | 15+ | Listening on `localhost:5432` |
 | pgvector extension | 0.5+ | Required: the Knowledge Graph and embedding tables use it |
-| Apache Tomcat | 11.0.22 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; downloaded for you |
+| Apache Tomcat | 11.0.26 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; downloaded for you |
 | PostgreSQL JDBC driver | 42.7.4 | Downloaded into `tomcat/tomcat-11/lib/postgresql.jar` by `bin/deploy-local.sh` |
 
 ### Install pgvector
@@ -142,7 +142,7 @@ The script:
 
 1. Checks that `npm` is on `PATH` and that `wikantik-war/target/Wikantik.war` exists.
 2. Sources `.env` and refuses to continue if `POSTGRES_PASSWORD` is unset or `CHANGEME`.
-3. Downloads Tomcat 11.0.22 if `tomcat/tomcat-11/` is missing. Pass `--upgrade-tomcat`
+3. Downloads Tomcat 11.0.26 if `tomcat/tomcat-11/` is missing. Pass `--upgrade-tomcat`
    for an in-place upgrade that preserves managed configs and data.
 4. Downloads the PostgreSQL JDBC driver if it is missing.
 5. Renders the templates described under

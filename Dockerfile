@@ -23,7 +23,7 @@ RUN mvn -B clean package -pl wikantik-war -am -DskipTests
 # Pinned to the same version as bin/deploy-local.sh's TOMCAT_VERSION so the
 # bare-metal and container install paths run on the identical Tomcat patch.
 # Bumping this means bumping deploy-local.sh in lockstep.
-FROM tomcat:11.0.22-jdk25-temurin
+FROM tomcat:11.0.26-jdk25-temurin
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl unzip postgresql-client \
     && rm -rf /var/lib/apt/lists/*

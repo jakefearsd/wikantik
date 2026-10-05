@@ -225,7 +225,7 @@ print_status "WAR file found: ${WAR_SOURCE}"
 
 # Tomcat target version. Bump this and re-run with --upgrade-tomcat to
 # pick up a new release. Fresh-clone installs always pin to this version.
-TOMCAT_VERSION="11.0.22"
+TOMCAT_VERSION="11.0.26"
 
 # Downloads + extracts the requested Tomcat version into ${TOMCAT_DIR}.
 # Tries the live Apache mirror first; falls back to archive.apache.org for
@@ -263,7 +263,7 @@ else
     INSTALLED_VERSION="$(installed_tomcat_version)"
     if [[ -n "${INSTALLED_VERSION}" && "${INSTALLED_VERSION}" != "${TOMCAT_VERSION}.0" \
           && "${INSTALLED_VERSION}" != "${TOMCAT_VERSION}" ]]; then
-        # The .0 suffix in server.number (e.g. 11.0.22.0) is an internal
+        # The .0 suffix in server.number (e.g. 11.0.26.0) is an internal
         # build counter — strip it before display and comparison.
         INSTALLED_DISPLAY="${INSTALLED_VERSION%.0}"
         if [[ "${UPGRADE_MODE}" -eq 1 ]]; then

@@ -25,7 +25,7 @@ to drive them. Do not hand-write compose files.
 - `bin/remote.sh` — ssh-driven remote deploy/admin
 - `bin/cut-release.sh`, `bin/deploy-release.sh` — release/upgrade wrappers
 
-**Base images:** the runtime is `tomcat:11.0.22-jdk25-temurin` (Tomcat 11 /
+**Base images:** the runtime is `tomcat:11.0.26-jdk25-temurin` (Tomcat 11 /
 Java 25); the build stage is `maven:3.9-eclipse-temurin-25`. Both are pinned
 in the top-level `Dockerfile`; the Tomcat tag must stay in lockstep with
 `bin/deploy-local.sh`'s `TOMCAT_VERSION` so the bare-metal and container

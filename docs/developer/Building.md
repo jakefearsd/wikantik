@@ -11,7 +11,7 @@ This page is for developers who build Wikantik from source. It covers the tool v
 | Node.js + npm | 20.19+ (or 22.12+) for Vite 8; CI uses Node 22 for the gates and Node 20 for releases | `.github/workflows/` |
 | PostgreSQL + pgvector | 15+ for local deployment; tests and `docker-compose.yml` use the `pgvector/pgvector:pg18` image | `PostgresTestDb`, `docker-compose.yml` |
 | Docker | any recent version; needed for database-backed unit tests, the IT phase and the embedder | see [Testing.md](Testing.md) |
-| Tomcat | 11.0.22 (pinned in the `Dockerfile`; `bin/deploy-local.sh` downloads it into the gitignored `tomcat/` directory) | `Dockerfile` |
+| Tomcat | 11.0.26 (pinned in the `Dockerfile`; `bin/deploy-local.sh` downloads it into the gitignored `tomcat/` directory) | `Dockerfile` |
 
 ## Build the project
 

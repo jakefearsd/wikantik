@@ -93,7 +93,7 @@ export default function ExistingHubDrilldown({ drilldown, onRemoveMember, removi
           style={{
             marginTop: 'var(--space-md)',
             padding: 'var(--space-sm)',
-            background: 'var(--bg-warning-subtle, #fff7e6)',
+            background: 'var(--warning-bg)',
             border: '1px solid var(--color-warning, #f0b50b)',
             borderRadius: 'var(--radius-sm)',
             fontSize: '0.85rem',

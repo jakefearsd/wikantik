@@ -17,7 +17,7 @@ export default function SimilarPagesPanel({ pageName }) {
   if (similar.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm) var(--space-md)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', fontSize: '0.85em' }}>
+    <div style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm) var(--space-md)', background: 'var(--bg-sidebar)', borderRadius: 'var(--radius-md)', fontSize: '0.85em' }}>
       <strong>Similar pages:</strong>{' '}
       {similar.map((s, i) => (
         <span key={s.name}>

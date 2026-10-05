@@ -28,8 +28,8 @@ function RevealedTokenModal({ token, record, onClose }) {
         <div style={{
           marginTop: 'var(--space-md)',
           padding: 'var(--space-md)',
-          background: 'var(--color-surface-alt, #f5f5f5)',
-          border: '1px solid var(--color-border, #ccc)',
+          background: 'var(--bg-sidebar)',
+          border: '1px solid var(--border)',
           borderRadius: '4px',
           fontFamily: 'monospace',
           fontSize: '0.9em',

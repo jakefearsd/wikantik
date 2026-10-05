@@ -269,7 +269,7 @@ export default function AdminAuditPage() {
       )}
 
       {!fetched && !loading && (
-        <div className="admin-empty-hint" style={{ color: 'var(--color-text-muted)', padding: 'var(--space-lg) 0' }}>
+        <div className="admin-empty-hint" style={{ color: 'var(--text-secondary)', padding: 'var(--space-lg) 0' }}>
           Set filters above and click <strong>Search</strong> to load audit entries.
         </div>
       )}

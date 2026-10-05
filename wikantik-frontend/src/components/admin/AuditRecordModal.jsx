@@ -16,7 +16,7 @@ function Row({ label, value }) {
   if (value === null || value === undefined || value === '') return null;
   return (
     <div className="audit-detail-row" style={{ display: 'flex', gap: 'var(--space-md)', padding: '2px 0' }}>
-      <span style={{ minWidth: '140px', color: 'var(--color-text-muted)' }}>{label}</span>
+      <span style={{ minWidth: '140px', color: 'var(--text-secondary)' }}>{label}</span>
       <span style={{ wordBreak: 'break-word' }}>{String(value)}</span>
     </div>
   );
@@ -25,7 +25,7 @@ function Row({ label, value }) {
 function Section({ title, children }) {
   return (
     <section style={{ marginBottom: 'var(--space-md)' }}>
-      <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)' }}>{title}</h3>
+      <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>{title}</h3>
       {children}
     </section>
   );

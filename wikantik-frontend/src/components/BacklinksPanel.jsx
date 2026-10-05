@@ -34,7 +34,7 @@ export default function BacklinksPanel({ pageName, emptyText }) {
   }
 
   return (
-    <div data-testid="backlinks-panel" style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm) var(--space-md)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', fontSize: '0.85em' }}>
+    <div data-testid="backlinks-panel" style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm) var(--space-md)', background: 'var(--bg-sidebar)', borderRadius: 'var(--radius-md)', fontSize: '0.85em' }}>
       <strong>Referenced by:</strong>{' '}
       {backlinks.map((name, i) => (
         <span key={name}>

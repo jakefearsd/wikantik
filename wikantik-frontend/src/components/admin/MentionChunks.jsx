@@ -136,7 +136,7 @@ const CHUNK_COMPONENTS = {
   mark: ({ children }) => (
     <mark
       style={{
-        background: 'var(--accent-soft, rgba(255, 200, 0, 0.35))',
+        background: 'var(--accent-soft)',
         color: 'inherit',
         padding: '0 2px',
         borderRadius: '2px',
@@ -216,7 +216,7 @@ export function MentionsPanel({ label, node, limit = 3 }) {
             data-testid={isFallback ? 'mention-fallback' : 'mention-attributed'}
             style={{
               padding: 'var(--space-sm)',
-              background: 'var(--bg-base, var(--bg-elevated))',
+              background: 'var(--bg)',
               border: `1px ${isFallback ? 'dashed' : 'solid'} var(--border)`,
               borderRadius: 'var(--radius-sm)',
               marginBottom: 'var(--space-sm)',

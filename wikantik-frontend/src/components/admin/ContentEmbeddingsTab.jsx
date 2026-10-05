@@ -75,7 +75,7 @@ export default function ContentEmbeddingsTab() {
 
   return (
     <div>
-      <div style={{ padding: 'var(--space-sm)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-md)', fontSize: '0.85em' }}>
+      <div style={{ padding: 'var(--space-sm)', background: 'var(--bg-sidebar)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-md)', fontSize: '0.85em' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
           <span><strong>Mention centroid index:</strong> {status?.ready ? 'Ready' : 'Not populated'}</span>
           {status?.ready && (
@@ -97,7 +97,7 @@ export default function ContentEmbeddingsTab() {
               {backfilling ? `Backfilling... ${backfillStatus ? `(${backfillStatus.processed}/${backfillStatus.total})` : ''}` : 'Backfill Frontmatter'}
             </button>
           </div>
-          <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
             <table className="admin-table">
               <thead>
                 <tr>

@@ -271,10 +271,10 @@ function TypePicker({ onSelect }) {
               style={{
                 textAlign: 'left',
                 cursor: 'pointer',
-                border: '1px solid var(--color-border, #ccc)',
+                border: '1px solid var(--border)',
                 borderRadius: '6px',
                 padding: 'var(--space-md)',
-                background: 'var(--color-surface, #fff)',
+                background: 'var(--bg-elevated)',
               }}
             >
               <div style={{ fontSize: '1.5rem' }}>{meta.icon}</div>
@@ -384,7 +384,7 @@ function AuthorizeStep({ type, meta, secretValue, setSecretValue, onBack, onNext
         <div className="form-field" data-testid="gdrive-redirect-uri-block">
           <label>Redirect URI</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <code data-testid="redirect-uri-value" style={{ padding: '4px 8px', background: 'var(--color-surface-alt, #f5f5f5)', borderRadius: '4px' }}>
+            <code data-testid="redirect-uri-value" style={{ padding: '4px 8px', background: 'var(--bg-sidebar)', borderRadius: '4px' }}>
               {redirectUri}
             </code>
             <button type="button" className="btn btn-ghost" data-testid="copy-redirect-uri-button" onClick={copy}>

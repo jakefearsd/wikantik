@@ -135,7 +135,7 @@ export default function HubProposalsTab() {
       {error && <div className="admin-error" style={{ marginBottom: 'var(--space-sm)' }}>{error}</div>}
 
       {/* Top bar */}
-      <div style={{ padding: 'var(--space-sm)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-md)', fontSize: '0.85em' }}>
+      <div style={{ padding: 'var(--space-sm)', background: 'var(--bg-sidebar)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-md)', fontSize: '0.85em' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
           <button className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating}>
             {generating ? 'Generating...' : 'Generate Hub Proposals'}
@@ -172,7 +172,7 @@ export default function HubProposalsTab() {
 
       {/* Reject modal */}
       {showRejectModal && (
-        <div style={{ padding: 'var(--space-sm)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-sm)' }}>
+        <div style={{ padding: 'var(--space-sm)', background: 'var(--bg-sidebar)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-sm)' }}>
           <label>Rejection reason (optional):</label>
           <input type="text" value={rejectReason} onChange={e => setRejectReason(e.target.value)}
             style={{ width: '100%', padding: '4px 8px', marginTop: '4px' }} />

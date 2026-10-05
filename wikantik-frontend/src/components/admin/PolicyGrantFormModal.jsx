@@ -143,13 +143,13 @@ export default function PolicyGrantFormModal({ grant, isOpen, onClose, onSave })
             alignItems: 'center',
             gap: 'var(--space-sm, 8px)',
             padding: 'var(--space-sm, 8px) var(--space-md, 12px)',
-            background: form.allPermission ? 'var(--color-warning-bg, #fce4b8)' : 'var(--color-bg-subtle, #f5f0eb)',
-            borderRadius: 'var(--radius, 6px)',
+            background: form.allPermission ? 'var(--color-warning-bg, #fce4b8)' : 'var(--bg-sidebar)',
+            borderRadius: 'var(--radius-md)',
             cursor: 'pointer',
             fontWeight: form.allPermission ? 600 : 400,
             fontSize: '0.9rem',
             marginBottom: 'var(--space-md, 12px)',
-            border: '1px solid var(--color-border, #d4c9bc)',
+            border: '1px solid var(--border)',
           }}>
             <input
               type="checkbox"

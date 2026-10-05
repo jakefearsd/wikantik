@@ -92,7 +92,7 @@ export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
                   <li key={member} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: 'var(--space-xs) var(--space-sm)',
-                    borderBottom: '1px solid var(--color-border, #e5e7eb)'
+                    borderBottom: '1px solid var(--border)'
                   }}>
                     <span>{member}</span>
                     <button
@@ -106,7 +106,7 @@ export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
                 ))}
               </ul>
             ) : (
-              <p style={{ color: 'var(--color-muted, #888)', margin: '0 0 var(--space-sm) 0' }}>
+              <p style={{ color: 'var(--text-secondary)', margin: '0 0 var(--space-sm) 0' }}>
                 No members yet
               </p>
             )}

@@ -84,7 +84,7 @@ export default function UserFormModal({ user, isOpen, onClose, onSave }) {
               rows={3}
               placeholder="User bio..."
             />
-            <small style={{ color: 'var(--color-muted, #888)', display: 'block', marginTop: '0.25rem' }}>
+            <small style={{ color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
               {form.bio.length} / 1000
             </small>
           </div>
@@ -92,7 +92,7 @@ export default function UserFormModal({ user, isOpen, onClose, onSave }) {
             <label>{isEdit ? 'New Password (leave blank to keep)' : 'Password'}</label>
             <input type="password" value={form.password} onChange={set('password')} required={!isEdit} minLength={8} />
             {(!isEdit || form.password.length > 0) && (
-              <small style={{ color: form.password.length >= 8 ? 'var(--color-success, #22c55e)' : 'var(--color-muted, #888)', marginTop: '0.25rem', display: 'block' }}>
+              <small style={{ color: form.password.length >= 8 ? 'var(--color-success, #22c55e)' : 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>
                 {form.password.length} of 8 minimum characters
               </small>
             )}

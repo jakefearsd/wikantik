@@ -31,6 +31,9 @@
   --overlay: rgba(45, 45, 45, 0.5);
   /* The one highlighted row in a keyboard-driven list (quick overlay). */
   --row-selected-bg: color-mix(in srgb, var(--accent) 11%, transparent);
+  /* Subtle hover wash (distinct from the selected row) and a soft accent highlight. */
+  --bg-hover: color-mix(in srgb, var(--text) 6%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 
   /* Semantic State Colors */
   --success: #2a8d2a;
@@ -46,13 +49,8 @@
      the app, and none of them changed in dark mode. Aliasing here is enough:
      custom properties substitute at computed-value time, so these track the
      dark-theme overrides below without being redeclared there.
-     Only the unambiguous state colours are aliased. The remaining undefined
-     names are structural (--surface, --color-border, --color-muted,
-     --color-accent, --admin-accent, --admin-border, --radius, --bg-hover,
-     --bg-base, --accent-muted, --accent-soft, --color-bg-subtle,
-     --color-surface-alt, --bg-warning-subtle) and their intended shades are not
-     recoverable from the token set, so they are deliberately left resolving to
-     their fallbacks until someone can check them against the rendered UI. */
+     Structural names that used to be undefined (--surface, --color-border, --radius, ...) are no longer
+     read anywhere: consumers use the real tokens, and tokensUsage.test.js fails on any new undeclared var(). */
   --color-danger: var(--danger);
   --color-danger-text: var(--danger);
   --error: var(--danger);
@@ -120,6 +118,9 @@
   --code-bg: #2A2A2E;
   --overlay: rgba(0, 0, 0, 0.6);
   --row-selected-bg: color-mix(in srgb, var(--accent) 20%, transparent);
+  /* Subtle hover wash (distinct from the selected row) and a soft accent highlight. */
+  --bg-hover: color-mix(in srgb, var(--text) 6%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 
   /* Semantic State Colors (dark theme) */
   --success: #4ade80;
@@ -2687,7 +2688,7 @@ h3:focus-within .heading-anchor {
   .editor-layout, .editor-layout.rail-open { grid-template-columns: minmax(0, 1fr); }
   .editor-rail {
     position: fixed; top: 0; right: 0; bottom: 0; width: min(280px, 85vw); height: auto;
-    z-index: 20; box-shadow: var(--shadow-lg, 0 0 24px rgba(0, 0, 0, 0.2));
+    z-index: 20; box-shadow: 0 0 24px var(--shadow-strong);
   }
   .editor-rail.collapsed { display: none; }
 }

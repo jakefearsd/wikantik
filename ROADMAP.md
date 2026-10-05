@@ -4,9 +4,10 @@ This document captures the direction Wikantik is heading. It's not a
 contract — priorities shift as the project gets used, and the canonical
 record of what shipped is [`CHANGELOG.md`](CHANGELOG.md). For why a
 specific past decision was made, see the design specs under
-[`docs/superpowers/specs/`](docs/superpowers/specs/) and the
-[`ArchitectureCritique.md`](docs/archive/ArchitectureCritique.md) for honest
-strengths-and-weaknesses self-review.
+[`docs/superpowers/specs/`](docs/superpowers/specs/). A historical
+strengths-and-weaknesses self-review is kept at
+[`docs/archive/ArchitectureCritique.md`](docs/archive/ArchitectureCritique.md);
+it is not a description of current behaviour.
 
 ## Now (2.4.x — live in production)
 

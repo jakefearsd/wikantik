@@ -1,7 +1,8 @@
 # Integration Tests
 
 The `integration-tests` Maven profile boots a Tomcat 11 instance (via Cargo)
-plus a PostgreSQL 17 + pgvector container (via
+plus a PostgreSQL 18 + pgvector container (the `pgvector/pgvector:pg18` image, set by
+`pgvector.image` in `wikantik-it-tests/pom.xml`, started via
 [`io.fabric8:docker-maven-plugin`](https://dmp.fabric8.io/)) for every IT
 submodule. Schema is applied by the production `migrate.sh` script, and
 `src/main/resources/sql/it-test-seed.sql` adds the test fixtures.

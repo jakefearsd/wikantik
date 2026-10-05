@@ -93,8 +93,12 @@ Behavior:
   `Admin`, or a role or group name) or that equals another account's login name is
   refused with HTTP 409 and `scimType: uniqueness`, on `POST`, `PUT` and `PATCH`. Two
   users may share a name: the second "John Smith" is created normally. Wiki names stay
-  unique, so the second account gets a numbered wiki name (`JohnSmith2`), and that wiki
-  name is kept when the identity provider re-sends the same `displayName` on later syncs.
+  unique, so the second account gets a numbered wiki name: `JohnSmith2` when the name
+  comes from `name.formatted`, `John Smith2` when it comes from `displayName`. The `201`
+  response's `displayName` is that stored wiki name, and it is kept when the identity
+  provider re-sends the same name in a later `PUT` or `PATCH`. A save that still collides
+  with another account's login or wiki name returns `409` `uniqueness` with a generic
+  message.
 - If `active: false` is included in the create body, the account is immediately
   deactivated via `UserLifecycleService` after creation.
 - On success: HTTP 201, `Location` header pointing to the new resource, and the

@@ -14,7 +14,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     their membership. Startup logs a `WARN` listing such members, and an `ERROR` for the `Admin` group;
   - `role`- or `group`-typed policy grants that name a user stop matching that user; re-create them as
     `user` grants with the login name;
-  - `user`-typed grants whose principal is not a login name grant nothing.
+  - `user`-typed grants whose principal is not a login name grant nothing;
+  - page ACL entries that name a shared or unknown display name stop granting. ACLs live in page
+    bodies: search the page store for `[{ALLOW` and use login names.
 - Pages removed from the shipped page set (`LeftMenu`, `LeftMenuFooter`, `MoreMenu`, `TitleBox`,
   `CopyrightNotice`, `InstallationTips`, `ApprovalRequiredForUserProfiles`, `EditFindAndReplaceHelp`,
   `RecentArticlesTemplate`, `Community`, `WikiWiki` and the `CSS*` pages) stay in an existing page store
@@ -25,8 +27,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The bootstrap admin override (`wikantik.admin.bootstrap`) requires an authenticated login session.
 - Database policy grants are matched by principal type: `role` and `group` rows match only roles and
   groups, and `user` rows match only an authenticated session's login name.
-- Group membership and user ACL entries match login names only. ACL names resolve login-first, so a
-  display name can no longer stand in for another account.
+- Group membership matches login names only. A user entry in a page ACL resolves to exactly one
+  account (login name first, then a full or wiki name only one account holds) and matches only that
+  account's login; an ambiguous (shared) or unknown name grants nobody.
+- Numbered wiki names (`JohnSmith2`) are read back from the user store instead of being re-derived from
+  the full name, so a second account sharing a full name can be saved again and its session no longer
+  carries the first account's wiki name. A login or wiki name that collides on save is refused with a
+  generic message (SCIM `409 uniqueness`, admin and self-service `400`).
 - A full or wiki name may not equal a built-in role, `Admin`, a role or group in use, or another
   account's login name. This applies to self-service and admin profile edits, SCIM and SSO provisioning.
 - Self-service API keys are limited to the `tools` and `mcp_read` scopes for non-administrators,

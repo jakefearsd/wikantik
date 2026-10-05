@@ -191,9 +191,11 @@ Identify people by **login name** everywhere access is decided.
   editor (`PUT /admin/groups/{name}`, **Admin → Security → Groups**) rejects any member
   that is not an existing login name with a `400` that names the bad entries. SCIM
   group sync already maps users to login names.
-- **Write page ACLs with login names.** An ACL entry is resolved by login name first and
-  falls back to a full or wiki name only when no account has that login. Do not rely on
-  display names in an ACL; a login name is unique and stable.
+- **Write page ACLs with login names.** A user entry in an ACL must identify exactly one
+  account: it is resolved by login name first, then by a full or wiki name that only one
+  account holds, and it then matches only that account's login. A name that several
+  accounts share (two people called "John Smith") or that no account holds grants nobody.
+  Do not rely on display names in an ACL; a login name is unique and stable.
 - **Display names cannot impersonate a login, role or group.** A full name or wiki name
   that is reserved (it equals a built-in role, `Admin`, a role or group named in a policy
   grant, or an existing group) or that equals another account's login name is refused when
@@ -201,8 +203,10 @@ Identify people by **login name** everywhere access is decided.
   `POST`, `PUT` and `PATCH` on `/scim/v2/Users` return `409` with `scimType` `uniqueness`
   without saving. Two accounts may share a full name ("John Smith"), because access is
   decided by login name only. Wiki names stay unique, so the second account gets a
-  numbered wiki name (`JohnSmith2`); a stored numbered wiki name is kept when an identity
-  provider re-sends the same name. SCIM `POST /Groups` returns `409` for a group name that
+  numbered wiki name (`JohnSmith2`), which is stored and read back as is, and kept when an
+  identity provider re-sends the same name. A save that would still collide with another
+  account's login or wiki name (for example two concurrent writes) is refused with a generic
+  message: `409` `uniqueness` on SCIM, `400` on the profile and admin user endpoints. SCIM `POST /Groups` returns `409` for a group name that
   is an account's login, full or wiki name. SSO auto-provisioning falls back to the login
   name for a reserved name claim and adds a numeric suffix ("jdoe 2") to a claim that
   equals another account's login. Names are re-checked only when they change, so an
@@ -303,6 +307,16 @@ SELECT u.login_name, u.full_name, u.wiki_name
                        UNION SELECT lower(principal_name) FROM policy_grants
                               WHERE lower(trim(principal_type)) IN ('role', 'group')) AS r(n)
                 WHERE r.n IN (lower(trim(u.full_name)), lower(trim(u.wiki_name))));
+```
+
+Page ACLs that name people by display name. ACLs live in page bodies, so no query finds
+them. After the upgrade an ACL user entry grants only when it identifies exactly one
+account, and then only that account's login: an entry naming a full or wiki name that
+several accounts share, or that no account holds, stops granting. Search your page store
+for `[{ALLOW` and replace display names with login names:
+
+```bash
+grep -rn --include='*.md' '\[{ALLOW' /path/to/page-store
 ```
 
 Also review active `mcp` and `all` API keys that users created for themselves, because

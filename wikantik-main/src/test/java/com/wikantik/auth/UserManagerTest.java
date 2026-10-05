@@ -344,6 +344,41 @@ class UserManagerTest {
     }
 
     /**
+     * A full name or derived wiki name that equals a role or group name is rejected.
+     */
+    @Test
+    void testValidateProfileRejectsReservedFullAndWikiName() throws Exception {
+        for ( final String name : new String[] { "Admin", "A dmin", "authenticated" } ) {
+            final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+            final UserProfile profile = m_db.newProfile();
+            profile.setLoginName( "reservedtest" );
+            profile.setFullname( name );
+            profile.setEmail( "reserved@example.com" );
+            profile.setPassword( Users.ADMIN_PASS );
+            m_mgr.validateProfile( context, profile );
+
+            final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+            Assertions.assertTrue( java.util.Arrays.stream( messages ).anyMatch( m -> m.contains( "reserved" ) ),
+                    "Expected a reserved-name error for '" + name + "', got " + java.util.Arrays.toString( messages ) );
+        }
+    }
+
+    @Test
+    void testValidateProfileAcceptsOrdinaryName() throws Exception {
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile profile = m_db.newProfile();
+        profile.setLoginName( "ordinarytest" );
+        profile.setFullname( "Ordinary Person" );
+        profile.setEmail( "ordinary@example.com" );
+        profile.setPassword( Users.ADMIN_PASS );
+        m_mgr.validateProfile( context, profile );
+
+        final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+        Assertions.assertTrue( java.util.Arrays.stream( messages ).noneMatch( m -> m.contains( "reserved" ) ),
+                java.util.Arrays.toString( messages ) );
+    }
+
+    /**
      * Tests that validateProfile catches a missing full name.
      */
     @Test

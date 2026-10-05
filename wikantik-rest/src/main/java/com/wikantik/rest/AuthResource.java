@@ -24,6 +24,7 @@ import com.google.gson.JsonParser;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.ReservedProfileNames;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.AuthenticationManager;
@@ -371,6 +372,13 @@ public class AuthResource extends RestServletBase {
             // Update fullName if provided
             final String fullName = getJsonString( body, "fullName" );
             if ( fullName != null ) {
+                // The wiki name is derived from the full name, so this also keeps the wiki name
+                // clear of role and group names.
+                if ( ReservedProfileNames.isReserved( engine, fullName ) ) {
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                            "The name '" + fullName.trim() + "' is reserved for a role or group; choose a different name" );
+                    return;
+                }
                 profile.setFullname( fullName );
             }
 

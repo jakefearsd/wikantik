@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Database-backed policy provider that loads permission grants from the
@@ -192,6 +193,17 @@ public class DatabasePolicy
             }
         }
         return false;
+    }
+
+    /**
+     * Names that carry a {@code role} or {@code group} grant in the current snapshot. Used to keep
+     * user display names from colliding with a granted role or group name.
+     *
+     * @return an unmodifiable set of role/group principal names
+     */
+    public Set<String> roleAndGroupGrantNames()
+    {
+        return grants.roleGrants().keySet();
     }
 
     private static boolean isDisplayName( final Principal principal )

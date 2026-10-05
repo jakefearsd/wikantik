@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.ReservedProfileNames;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -92,13 +93,7 @@ public class SSOAutoProvisionService {
             final UserProfile profile = userDb.newProfile();
             profile.setLoginName( loginName );
 
-            final String fullName = resolveAttribute( ssoProfile, ssoConfig.getClaimFullName() );
-            if( fullName != null && !fullName.isBlank() ) {
-                profile.setFullname( fullName );
-            } else {
-                // Fall back to login name as full name
-                profile.setFullname( loginName );
-            }
+            profile.setFullname( displayName( loginName, resolveAttribute( ssoProfile, ssoConfig.getClaimFullName() ) ) );
 
             final String email = resolveAttribute( ssoProfile, ssoConfig.getClaimEmail() );
             if( email != null && !email.isBlank() ) {
@@ -133,6 +128,24 @@ public class SSOAutoProvisionService {
     }
 
     /**
+     * Chooses the provisioned full name: the IdP's name claim when present and not reserved, else
+     * the login name, else a prefixed form of the login name. A display name never equals a role
+     * or group name (see {@link ReservedProfileNames}).
+     */
+    private String displayName( final String loginName, final String claimed ) {
+        if( claimed != null && !claimed.isBlank() && !ReservedProfileNames.isReserved( engine, claimed ) ) {
+            return claimed;
+        }
+        if( claimed != null && !claimed.isBlank() ) {
+            LOG.info( "SSO name claim '{}' for {} is a reserved role/group name; using the login name instead", claimed, loginName );
+        }
+        if( !ReservedProfileNames.isReserved( engine, loginName ) ) {
+            return loginName;
+        }
+        return "User " + loginName;
+    }
+
+    /**
      * Resolves an attribute value from the pac4j user profile.
      *
      * @param profile   the pac4j user profile
@@ -159,7 +172,7 @@ public class SSOAutoProvisionService {
         }
         String candidate = base;
         int suffix = 2;
-        while( wikiNameExists( userDb, candidate ) ) {
+        while( wikiNameExists( userDb, candidate ) || ReservedProfileNames.isReserved( engine, candidate ) ) {
             candidate = base + suffix;
             suffix++;
         }

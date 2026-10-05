@@ -124,4 +124,17 @@ class ProfileNamePolicyGrantTest {
         assertFalse( authz.checkPermission( byFullName, WikiPermission.CREATE_GROUPS ),
                 "a user-targeted grant must not match another user's display name" );
     }
+
+    @Test
+    void roleGrantNameFromPolicyTableIsReservedForProfiles() throws Exception {
+        try ( Connection c = PostgresTestDb.createDataSource().getConnection(); Statement st = c.createStatement() ) {
+            st.executeUpdate( "INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions) "
+                    + "VALUES ('role', 'Curators', 'page', '*', 'edit')" );
+        }
+        authz.getDatabasePolicy().refresh();
+        assertTrue( ReservedProfileNames.isReserved( engine, "Curators" ) );
+        assertTrue( ReservedProfileNames.isReserved( engine, "curators" ) );
+        assertFalse( ReservedProfileNames.isReserved( engine, "grantee" ),
+                "a user-grant login name is not a role or group name" );
+    }
 }

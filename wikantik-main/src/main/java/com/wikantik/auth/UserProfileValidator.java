@@ -96,6 +96,17 @@ final class UserProfileValidator {
         validateRequiredFields( context, session, profile, rb );
         validatePassword( context, session, profile, rb );
         validateUniqueness( session, profile, rb );
+        validateReservedNames( session, profile, rb );
+    }
+
+    /** Rejects a full name or wiki name that equals a role or group name (see {@link ReservedProfileNames}). */
+    private void validateReservedNames( final Session session, final UserProfile profile, final ResourceBundle rb ) {
+        for ( final String name : new String[] { profile.getFullname(), profile.getWikiName() } ) {
+            if ( ReservedProfileNames.isReserved( engine, name ) ) {
+                session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.reservedname" ), name ) );
+                return;
+            }
+        }
     }
 
     /** Returns {@code true} if the spam filter rejected the profile (caller should stop further validation). */

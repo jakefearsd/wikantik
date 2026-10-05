@@ -149,6 +149,52 @@ class SSOAutoProvisionServiceTest {
     }
 
     @Test
+    void testProvisionReplacesReservedDisplayName() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
+        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
+        final SSOConfig ssoConfig = new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" );
+        final SSOAutoProvisionService service = new SSOAutoProvisionService( engine, ssoConfig );
+
+        final CommonProfile profile = new CommonProfile();
+        profile.setId( "sso-reserved" );
+        profile.addAttribute( "name", "Admin" );
+        profile.addAttribute( "email", "sso-reserved@example.com" );
+
+        service.provisionIfNeeded( "sso-reserved", "sso-reserved", profile );
+
+        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserProfile created = userDb.findByLoginName( "sso-reserved" );
+        Assertions.assertEquals( "sso-reserved", created.getFullname(),
+                "a reserved display name from the IdP falls back to the login name" );
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> userDb.findByWikiName( "Admin" ) );
+
+        userDb.deleteByLoginName( "sso-reserved" );
+    }
+
+    @Test
+    void testProvisionReservedLoginNameGetsNonReservedDisplayName() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
+        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
+        final SSOConfig ssoConfig = new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" );
+        final SSOAutoProvisionService service = new SSOAutoProvisionService( engine, ssoConfig );
+
+        final CommonProfile profile = new CommonProfile();
+        profile.setId( "authenticated" );
+
+        service.provisionIfNeeded( "authenticated", "authenticated", profile );
+
+        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserProfile created = userDb.findByLoginName( "authenticated" );
+        Assertions.assertFalse( com.wikantik.auth.ReservedProfileNames.isReserved( engine, created.getFullname() ),
+                "provisioned full name must not be reserved: " + created.getFullname() );
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> userDb.findByWikiName( "authenticated" ) );
+
+        userDb.deleteByLoginName( "authenticated" );
+    }
+
+    @Test
     void testProvisionDeduplicatesCollidingWikiName() throws Exception {
         final Properties props = new Properties();
         props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );

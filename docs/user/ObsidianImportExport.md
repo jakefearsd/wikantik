@@ -65,6 +65,7 @@ The plan carries a hash. When you apply, the server plans the vault again and re
 **Removed.** Obsidian `%% comments %%` and `^block-id` markers are stripped, and the number removed is reported in the warnings.
 
 **Frontmatter.**
+- `title` is added (the original file name) when the page name differs from it.
 - `tags` are merged with inline `#tags`, lowercased, with `/` turned into `-`.
 - `alias` and `aliases` are merged into `aliases`, and the original file name is added when the page name differs.
 - `cluster` is set from the option you chose, replacing any `cluster:` in the note.
@@ -72,7 +73,7 @@ The plan carries a hash. When you apply, the server plans the vault again and re
 - `canonical_id`, `wikantik_url`, `wikantik_version`, `verified_at`, `verified_by` and other read-only fields are dropped.
 - Malformed YAML is kept as a code block at the top of the page, with a warning.
 
-**Hubs.** With **Folders become clusters**, a folder note (a note named like its folder) becomes that cluster's hub. A folder without one gets a generated hub page. See [Clusters and hubs](ClustersAndHubs.md).
+**Hubs.** With **Folders become clusters**, a folder note (a note named like its folder) becomes that cluster's hub. A folder without one gets a generated hub page. If a folder's cluster already has a hub declared in the wiki, the import joins that hub and creates no new one. See [Clusters and hubs](ClustersAndHubs.md).
 
 **Attachments.** Files that notes reference are imported as attachments. Unreferenced files are skipped. A file is blocked if its type is on the blocked-upload list, exceeds the attachment size limit, or the upload policy refuses its type.
 
@@ -105,6 +106,7 @@ For `clusterMode=fixed`, also send `cluster=<path>`. The default mode is `folder
 | One page body | 262144 bytes | `wikantik.api.maxPageBytes` |
 | Imports running at once | 1 | `wikantik.import.maxConcurrent` |
 | Plans computed at once | 2 | `wikantik.import.maxConcurrentPlans` |
+| Total note text buffered while planning | 128 MiB (134217728 bytes); refused with 413 | `wikantik.import.maxNoteTextBytes` |
 
 Exceeding a limit is refused with a message naming the key. Ask an administrator to change a limit.
 

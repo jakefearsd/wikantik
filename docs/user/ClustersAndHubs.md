@@ -41,7 +41,7 @@ cluster: [cooking, food-science]
 
 The primary cluster decides where the page is placed: its breadcrumbs, the topic it is filed under in search-engine metadata, its position in the sidebar tree and sitemap, and the context added when the page is indexed for semantic search. The other clusters add membership only: the page is listed under each of those hubs and matches filters for each of them.
 
-A hub must keep `cluster:` as a single value. Saving a hub with a list is rejected as an error. See [Frontmatter](Frontmatter.md) for the full field reference.
+A hub must declare a single cluster. A list with two or more entries on a hub is rejected as an error; a list with exactly one entry is accepted and treated as that single value. See [Frontmatter](Frontmatter.md) for the full field reference.
 
 ## Create a sub-cluster
 

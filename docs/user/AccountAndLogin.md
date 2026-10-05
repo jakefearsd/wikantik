@@ -12,13 +12,15 @@ If your wiki has single sign-on turned on, a **Continue with ...** button appear
 
 1. In the sign-in dialog choose **Forgot your password?** (or go to `/reset-password`).
 2. Enter the email address on your account and submit.
-3. The page always answers "If an account exists with that email, a new password has been sent", whether or not the address is known. Check your inbox, sign in with the new password, and then change it on your profile page.
+3. The page always answers "If an account exists with that email, a new password has been sent", whether or not the address is known. Check your inbox and sign in with the new password. Because the new password was assigned, not chosen, the wiki then sends you to the change-password page (see below).
+
+A single email address can request at most 3 resets per hour. Further requests in that hour get the same message but no email is sent.
 
 This only works if an administrator has configured outgoing mail.
 
-## Change your password on first login
+## Change your password on first login or after a reset
 
-Some accounts are created with an assigned password, for example the first administrator login. For these, the wiki sends you to `/change-password` ("Change Your Password") straight after sign-in, and from any page until you finish. Enter the current password, a new password and the new password again. They must match. When it succeeds you go to the Main page.
+Some accounts have an assigned password: the first administrator login, and any account whose password was just reset by email. For these, the wiki sends you to `/change-password` ("Change Your Password") straight after sign-in, and from any page until you finish. Enter the current password, a new password and the new password again. They must match. When it succeeds you go to the Main page.
 
 ## Edit your profile and password
 

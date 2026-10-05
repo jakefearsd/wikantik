@@ -21,6 +21,8 @@ The parts are:
 | `/Baking/Proofing` | Optional heading path in the target. Each segment is a heading, outermost first, URL-encoded (`%20` for a space). Leave it off to cite the whole page. |
 | `"overnight in the refrigerator"` | Optional span: the exact words you are relying on, in the link title. |
 
+Syntax limits: the span cannot contain a double quote (`"`), and the target and heading path cannot contain `)` or whitespace (URL-encode them, for example `%20`). The claim cannot contain `]`. A citation that breaks these rules is not recognised as a citation.
+
 Whitespace in the span is collapsed when it is compared, and the comparison is case-sensitive.
 
 ## Staleness grades
@@ -49,5 +51,5 @@ To repair one, open the citing page, re-read the target's current section, and u
 
 ## See also
 
-- [Markdown links](MarkdownLinks.md): ordinary wiki and external links.
+- [Links and embeds](Linking.md): ordinary wiki and external links.
 - [Frontmatter](Frontmatter.md): where `canonical_id` is defined.

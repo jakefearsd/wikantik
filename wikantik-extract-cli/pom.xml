@@ -32,7 +32,8 @@
     <name>Wikantik Entity-Extractor CLI</name>
 
     <properties>
-      <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+      <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.90 -->
+      <!-- floor assumes Docker (PostgresTestDb tests); run with -Dtests.requireDocker=true -->
       <wikantik.coverage.line.minimum>0.88</wikantik.coverage.line.minimum>
     </properties>
     <description>

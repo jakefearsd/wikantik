@@ -31,7 +31,7 @@
   <name>Wikantik Knowledge MCP</name>
 
   <properties>
-    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.90 -->
     <wikantik.coverage.line.minimum>0.85</wikantik.coverage.line.minimum>
   </properties>
   <description>Read-only MCP endpoint for knowledge graph consumption by coding agents</description>

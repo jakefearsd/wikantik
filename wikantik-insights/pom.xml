@@ -31,7 +31,7 @@
   <name>Wikantik Content Intelligence</name>
 
   <properties>
-    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.90 -->
     <wikantik.coverage.line.minimum>0.90</wikantik.coverage.line.minimum>
   </properties>
   <description>Search-visibility fact store, content-opportunity rules, and effect measurement</description>

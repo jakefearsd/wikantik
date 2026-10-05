@@ -31,7 +31,7 @@
   <name>Wikantik SCIM 2.0 Provisioning Server</name>
 
   <properties>
-    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.90 -->
     <wikantik.coverage.line.minimum>0.84</wikantik.coverage.line.minimum>
   </properties>
   <description>SCIM 2.0 provisioning surface (/scim/v2/*) for user and group lifecycle management</description>

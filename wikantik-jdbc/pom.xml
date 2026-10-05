@@ -31,7 +31,8 @@
   <name>Wikantik JDBC primitive</name>
 
   <properties>
-    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.90 -->
+    <!-- floor assumes Docker (PostgresTestDb tests); run with -Dtests.requireDocker=true -->
     <wikantik.coverage.line.minimum>0.90</wikantik.coverage.line.minimum>
   </properties>
   <description>The one way production code executes SQL: Jdbc, JdbcSupport, and Transactions</description>

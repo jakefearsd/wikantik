@@ -31,7 +31,7 @@
   <name>Wikantik REST API</name>
 
   <properties>
-    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.90 -->
     <wikantik.coverage.line.minimum>0.86</wikantik.coverage.line.minimum>
   </properties>
   <description>REST/JSON endpoints for the Wikantik wiki engine, enabling alternative frontends and programmatic access</description>

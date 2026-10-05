@@ -19,9 +19,13 @@
 package com.wikantik.scim;
 
 import com.google.gson.JsonObject;
+import com.wikantik.api.core.Engine;
+import com.wikantik.auth.ProfileNameRules;
+import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.sso.SSOAutoProvisionService;
 
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -67,6 +71,36 @@ final class ScimUserFields {
         dirty |= assign( stringOrNull( attrs, "externalId" ),
                 v -> p.getAttributes().put( SSOAutoProvisionService.ATTR_SSO_SUBJECT, v ) );
         return dirty;
+    }
+
+    /**
+     * Display-name check for a create or replace: a changed full name ({@code name.formatted}) or
+     * wiki name ({@code displayName}) must not be reserved or belong to another account.
+     *
+     * @param current the existing profile, or {@code null} on create
+     */
+    static Optional< String > createNameError( final Engine engine, final UserDatabase db, final String login,
+            final UserProfile current, final ScimUserMapper.CreateFields f ) {
+        return nameError( engine, db, login, current, f.fullName(), f.displayName() );
+    }
+
+    /** Display-name check for a PATCH; see {@link #createNameError}. */
+    static Optional< String > patchNameError( final Engine engine, final UserDatabase db, final UserProfile current,
+            final JsonObject attrs ) {
+        return nameError( engine, db, current.getLoginName(), current,
+                stringOrNull( objectOrNull( attrs, "name" ), "formatted" ), stringOrNull( attrs, "displayName" ) );
+    }
+
+    private static Optional< String > nameError( final Engine engine, final UserDatabase db, final String login,
+            final UserProfile current, final String newFull, final String newDisplay ) {
+        final String oldFull = current == null ? null : current.getFullname();
+        final String oldWiki = current == null ? null : current.getWikiName();
+        // Mirrors the profile: setting the full name derives the wiki name, and an explicit
+        // displayName (applied after it) overrides that derived value.
+        final String proposedWiki = newDisplay != null ? newDisplay
+                : newFull != null ? newFull.replaceAll( "\\s", "" ) : oldWiki;
+        final String proposedFull = newFull != null ? newFull : oldFull;
+        return ProfileNameRules.nameChangeError( engine, db, login, oldFull, oldWiki, proposedFull, proposedWiki );
     }
 
     /** Applies {@code value} via {@code setter} when non-null; reports whether it did. */

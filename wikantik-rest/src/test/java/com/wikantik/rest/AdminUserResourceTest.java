@@ -739,6 +739,33 @@ class AdminUserResourceTest {
         assertEquals( "changed@example.com", obj.get( "email" ).getAsString() );
     }
 
+    @Test
+    void testUpdateUserFullNameUsedByAnotherAccountIsRejected() throws Exception {
+        final JsonObject a = new JsonObject();
+        a.addProperty( "loginName", "nameOwner" );
+        a.addProperty( "fullName", "Name Owner" );
+        a.addProperty( "password", "StrongPassword123!" );
+        doPost( null, a );
+        final JsonObject b = new JsonObject();
+        b.addProperty( "loginName", "nameTaker" );
+        b.addProperty( "fullName", "Name Taker" );
+        b.addProperty( "password", "StrongPassword123!" );
+        doPost( null, b );
+
+        final JsonObject update = new JsonObject();
+        update.addProperty( "fullName", "nameOwner" );
+        final JsonObject obj = gson.fromJson( doPut( "nameTaker", update ), JsonObject.class );
+        assertTrue( obj.has( "error" ), "a full name equal to another account's login must be rejected: " + obj );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+
+        final JsonObject create = new JsonObject();
+        create.addProperty( "loginName", "nameTaker2" );
+        create.addProperty( "fullName", "Name Owner" );
+        create.addProperty( "password", "StrongPassword123!" );
+        final JsonObject created = gson.fromJson( doPost( null, create ), JsonObject.class );
+        assertTrue( created.has( "error" ), "a full name equal to another account's full name must be rejected: " + created );
+    }
+
     // ----- Bulk action tests -----
 
     @Test

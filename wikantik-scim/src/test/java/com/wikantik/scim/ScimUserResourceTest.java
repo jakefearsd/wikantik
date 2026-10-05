@@ -857,6 +857,73 @@ class ScimUserResourceTest {
     }
 
     @Test
+    void patchDisplayNameUsedByAnotherAccount_returns409AndDoesNotSave() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/uid-helen" );
+
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "helen" );
+        when( p.getFullname() ).thenReturn( "Helen" );
+        when( p.getWikiName() ).thenReturn( "Helen" );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-helen" ) ).thenReturn( p );
+        final UserProfile boss = mock( UserProfile.class );
+        when( boss.getLoginName() ).thenReturn( "boss" );
+        when( mockDb.findByLoginName( "boss" ) ).thenReturn( boss );
+
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"displayName\",\"value\":\"boss\"}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        assertTrue( sw.toString().contains( "uniqueness" ), sw.toString() );
+        verify( p, never() ).setWikiName( any() );
+        verify( mockDb, never() ).save( any() );
+    }
+
+    @Test
+    void putFullNameUsedByAnotherAccount_returns409AndDoesNotSave() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/uid-ivan" );
+
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "ivan" );
+        when( p.getFullname() ).thenReturn( "Ivan" );
+        when( p.getWikiName() ).thenReturn( "Ivan" );
+        when( p.isLocked() ).thenReturn( false );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-ivan" ) ).thenReturn( p );
+        final UserProfile boss = mock( UserProfile.class );
+        when( boss.getLoginName() ).thenReturn( "boss" );
+        when( mockDb.findByLoginName( "boss" ) ).thenReturn( boss );
+
+        final String body = "{\"userName\":\"ivan\",\"name\":{\"formatted\":\"boss\"}}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        verify( p, never() ).setFullname( any() );
+        verify( mockDb, never() ).save( any() );
+    }
+
+    @Test
+    void createWithDisplayNameUsedByAnotherAccount_returns409() throws Exception {
+        doThrow( new NoSuchPrincipalException( "zed" ) ).when( mockDb ).findByLoginName( "zed" );
+        final UserProfile boss = mock( UserProfile.class );
+        when( boss.getLoginName() ).thenReturn( "boss" );
+        when( mockDb.findByLoginName( "boss" ) ).thenReturn( boss );
+
+        final String body = "{\"userName\":\"zed\",\"displayName\":\"boss\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        verify( mockDb, never() ).save( any() );
+    }
+
+    @Test
     void patchReplaceNameFormatted_updatesFullName() throws Exception {
         // Patch with name.formatted → setFullname
         when( req.getMethod() ).thenReturn( "PATCH" );

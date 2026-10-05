@@ -173,6 +173,34 @@ class SSOAutoProvisionServiceTest {
     }
 
     @Test
+    void testProvisionNameClaimEqualToAnotherAccountIsSuffixed() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
+        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
+        final SSOConfig ssoConfig = new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" );
+        final SSOAutoProvisionService service = new SSOAutoProvisionService( engine, ssoConfig );
+        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
+
+        final UserProfile boss = userDb.newProfile();
+        boss.setLoginName( "ssoboss" );
+        boss.setFullname( "Sso Boss" );
+        boss.setEmail( "ssoboss@example.com" );
+        userDb.save( boss );
+
+        final CommonProfile profile = new CommonProfile();
+        profile.setId( "sso-claimer" );
+        profile.addAttribute( "name", "ssoboss" );
+
+        service.provisionIfNeeded( "sso-claimer", "sso-claimer", profile );
+
+        Assertions.assertEquals( "ssoboss 2", userDb.findByLoginName( "sso-claimer" ).getFullname(),
+                "a name claim equal to another account's login name gets a numeric suffix" );
+
+        userDb.deleteByLoginName( "sso-claimer" );
+        userDb.deleteByLoginName( "ssoboss" );
+    }
+
+    @Test
     void testProvisionReservedLoginNameGetsNonReservedDisplayName() throws Exception {
         final Properties props = new Properties();
         props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
@@ -224,7 +252,8 @@ class SSOAutoProvisionServiceTest {
 
         final UserProfile created = userDb.findByLoginName( "jakefear@simpleagility.com" );
         Assertions.assertNotNull( created, "SSO profile must be persisted despite the wiki-name clash." );
-        Assertions.assertEquals( "Jake Fear", created.getFullname() );
+        // Display names are unique across accounts, so the shared claim gets a numeric suffix.
+        Assertions.assertEquals( "Jake Fear 2", created.getFullname() );
         // The de-duplicated wiki name is what was stored (and what a prod JDBC INSERT
         // would use to satisfy the unique constraint). Assert via a stored-attribute
         // lookup rather than getWikiName(), which re-derives from the full name on read.

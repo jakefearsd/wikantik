@@ -27,6 +27,7 @@ import java.util.Optional;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.audit.AuditService;
+import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
@@ -508,6 +509,12 @@ public class AdminUserResource extends RestServletBase {
 
         try {
             final UserDatabase db = getUserDatabase();
+            final java.util.Optional< String > nameError = ProfileNameRules.nameChangeError( getEngine(), db, loginName,
+                    null, null, fullName, fullName == null ? null : fullName.replaceAll( "\\s", "" ) );
+            if ( nameError.isPresent() ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
+                return;
+            }
             final UserProfile profile = db.newProfile();
             profile.setLoginName( loginName );
             if ( fullName != null ) profile.setFullname( fullName );
@@ -550,7 +557,15 @@ public class AdminUserResource extends RestServletBase {
             final String password = getJsonString( body, "password" );
             final String bio = getJsonString( body, "bio" );
 
-            if ( fullName != null ) profile.setFullname( fullName );
+            if ( fullName != null ) {
+                final java.util.Optional< String > nameError =
+                        ProfileNameRules.fullNameChangeError( getEngine(), db, profile, fullName );
+                if ( nameError.isPresent() ) {
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
+                    return;
+                }
+                profile.setFullname( fullName );
+            }
             if ( email != null ) profile.setEmail( email );
             if ( bio != null ) {
                 if ( bio.length() > 1000 ) {

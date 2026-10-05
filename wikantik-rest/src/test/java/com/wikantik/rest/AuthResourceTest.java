@@ -773,6 +773,52 @@ class AuthResourceTest {
     }
 
     @Test
+    void handleUpdateProfile_rejectsFullNameUsedByAnotherAccount() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserProfile boss = profileFor( "boss", "boss@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.when( db.findByLoginName( "boss" ) ).thenReturn( boss );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "boss" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+            assertEquals( 400, obj.get( "status" ).getAsInt() );
+            assertTrue( obj.get( "message" ).getAsString().contains( "another account" ), obj.toString() );
+        }
+        Mockito.verify( profile, Mockito.never() ).setFullname( any() );
+        Mockito.verify( db, Mockito.never() ).save( any() );
+    }
+
+    @Test
+    void handleUpdateProfile_allowsUnchangedReservedFullName() throws Exception {
+        // The SPA always resends fullName; an unchanged name that later became reserved must not block the save.
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        Mockito.when( profile.getFullname() ).thenReturn( "Admin" );
+        Mockito.when( profile.getWikiName() ).thenReturn( "Admin" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "Admin" );
+        body.addProperty( "bio", "still me" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            doPut( "profile", body );
+        }
+        Mockito.verify( profile ).setBio( "still me" );
+        Mockito.verify( db ).save( profile );
+    }
+
+    @Test
     void handleUpdateProfile_rejectsBioOver1000Chars() throws Exception {
         final UserProfile profile = profileFor( "alice", "a@x" );
         final UserManager um = Mockito.mock( UserManager.class );

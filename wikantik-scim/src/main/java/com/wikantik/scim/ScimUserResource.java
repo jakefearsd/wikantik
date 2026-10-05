@@ -136,6 +136,13 @@ public class ScimUserResource extends AbstractScimServlet {
             // Expected — no existing account; proceed to create
         }
 
+        final java.util.Optional< String > createNameError =
+                ScimUserFields.createNameError( engine, db, f.userName(), null, f );
+        if ( createNameError.isPresent() ) {
+            sendError( resp, 409, "uniqueness", createNameError.get() );
+            return;
+        }
+
         try {
             final UserProfile p = db.newProfile();
             p.setLoginName( f.userName() );
@@ -255,6 +262,12 @@ public class ScimUserResource extends AbstractScimServlet {
         UserProfile p = ctx.profile();
 
         final ScimUserMapper.CreateFields f = ScimUserMapper.readCreate( ctx.body() );
+        final java.util.Optional< String > replaceNameError =
+                ScimUserFields.createNameError( engine, db, p.getLoginName(), p, f );
+        if ( replaceNameError.isPresent() ) {
+            sendError( resp, 409, "uniqueness", replaceNameError.get() );
+            return;
+        }
         try {
             final boolean wasActive = !p.isLocked();
             ScimUserFields.applyCommonCreateFields( p, f );
@@ -315,6 +328,12 @@ public class ScimUserResource extends AbstractScimServlet {
             }
 
             // Apply other simple attributes
+            final java.util.Optional< String > patchNameError =
+                    ScimUserFields.patchNameError( engine, db, p, patch.attributes() );
+            if ( patchNameError.isPresent() ) {
+                sendError( resp, 409, "uniqueness", patchNameError.get() );
+                return;
+            }
             final boolean dirty = ScimUserFields.applyPatchAttributes( p, patch.attributes() );
             if ( dirty ) {
                 db.save( p );

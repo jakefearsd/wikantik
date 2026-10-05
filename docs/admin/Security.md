@@ -43,6 +43,13 @@ matching marker fails closed. Configuration detail is in [SingleSignOn.md](Singl
   withhold the cookie on top-level navigations, so users look randomly logged out.
   `SessionCookiePolicyFilter` logs an `ERROR` (rate-limited) when it sees the broken
   policy; it never changes the response.
+- `web.xml` marks `JSESSIONID` `HttpOnly` and cookie-only (no URL rewriting) but
+  deliberately does **not** set `Secure`, because the right value depends on topology.
+  `Secure` therefore depends on Tomcat knowing the request was HTTPS: either TLS reaches
+  Tomcat directly, or a TLS-terminating proxy sends `X-Forwarded-Proto: https` and the
+  `RemoteIpValve` is configured with `protocolHeader="X-Forwarded-Proto"` (the
+  comment in `web.xml` shows the valve and cookie processor). Without that, the session
+  cookie is issued without `Secure`.
 - `wikantik.cookieAuthentication` (default `false`) turns on remember-me. A successful
   password login then also issues a `WikantikUID` cookie that is `HttpOnly`,
   `SameSite=Lax`, `Secure` on HTTPS, and holds an opaque, server-validated token.
@@ -92,6 +99,17 @@ Permission types are `page`, `wiki`, `group`, `admin` and `all`. Page permission
 grants through the admin UI or `/admin/policy`, because the policy is cached and only
 the API refreshes it. If `policy_grants` is unavailable, the file-based fallback
 `WEB-INF/wikantik.policy` applies.
+
+Two rules in `DatabasePolicy` matter when you edit grants:
+
+- A grant whose `target` is `*` and whose `actions` is `*` is converted to
+  `AllPermission` **whatever its permission type**. A `page` or `wiki` grant of `*`/`*`
+  to a role makes that role a full administrator, so do not create one unless you mean
+  it. Use permission type `all` to say so explicitly. A wildcard action on a specific
+  target is malformed and is skipped with a warning.
+- Grants match on `principal_name` only; `principal_type` is ignored. A grant named
+  `Admin` therefore applies to the `Admin` group, to a container role named `Admin`, and
+  to a user whose login is `Admin`.
 
 ### Who counts as an administrator
 
@@ -169,8 +187,10 @@ authorisation, content and admin events go to a tamper-evident hash-chained log;
 
 ## Bootstrap admin override
 
-`wikantik.admin.bootstrap` names a user who gets `AllPermission` regardless of database
-grants. It exists only to recover access to a fresh or locked-out installation.
+`wikantik.admin.bootstrap` names a login that gets `AllPermission` regardless of database
+grants. It exists only to recover access to a fresh or locked-out installation. The
+override applies only to a session that **authenticated** with that login name. An
+asserted ("remembered name") identity never qualifies, however it was obtained.
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -180,6 +200,16 @@ grants. It exists only to recover access to a fresh or locked-out installation.
 While it is active, startup logs a `CRITICAL: BOOTSTRAP ADMIN OVERRIDE IS ACTIVE` error
 with the expiry. Remove the property once a real administrator works; do not leave it
 set in production.
+
+### Asserted identities
+
+With `wikantik.cookieAssertions` (default `true`), a visitor who has not logged in can
+"assert" a name through a cookie. The session then gets the `Asserted` role instead of
+`Authenticated`. This is the old wiki convenience of remembering who you say you are; it
+is not authentication and the property file itself calls it unsafe. An asserted session
+holds only what the `Asserted` (and `All`) policy grants give it, which by default is
+viewing groups, and it never receives authenticated rights such as the bootstrap
+override. Set `wikantik.cookieAssertions=false` if you do not want the feature.
 
 ## Control agent and API access
 
@@ -219,8 +249,10 @@ authentication filters. It has two tiers:
 
 Exempt from limiting: loopback callers (IPv4 and IPv6), any IPv4 CIDR in the exempt
 list, and the exact path `/api/health`. The client IP is `getRemoteAddr()`, which is
-the real client behind Cloudflare because Tomcat's `RemoteIpValve` reads
-`CF-Connecting-IP`. A rejected request gets `429` with `Retry-After: 1`, a `SecurityLog`
+the real client only if Tomcat's `RemoteIpValve` is configured to read the header your
+proxy sets: `CF-Connecting-IP` behind Cloudflare, the deploy-local template hard-codes it,
+and Docker deployments set it with `PROXY_REMOTE_IP_HEADER` (see
+[DockerDeployment.md](DockerDeployment.md)). A rejected request gets `429` with `Retry-After: 1`, a `SecurityLog`
 line, and an increment of `wikantik_ratelimit.rejected_total{tier=...}`.
 
 Configure it with environment variables, read once at startup. A limit of `0` disables
@@ -233,6 +265,15 @@ that bucket and all zeros disable the filter:
 | `WIKANTIK_RATELIMIT_EXPENSIVE_GLOBAL` | `10` |
 | `WIKANTIK_RATELIMIT_EXPENSIVE_PATHS` | `/api/bundle,/api/search,/sparql` |
 | `WIKANTIK_RATELIMIT_EXEMPT_CIDRS` | empty |
+
+**Get the proxy header right.** If the configured header does not match what your proxy
+sends, every request appears to come from the proxy's own loopback or private address.
+Then loopback is exempt from rate limiting, `InternalNetworkFilter` would let anyone
+reach `/metrics` and `/api/health`, and any `mcp.access.allowedCidrs` or
+`tools.access.allowedCidrs` entry covering that address would trust every caller. The
+reverse is just as dangerous: a proxy that forwards a client-supplied copy of the
+trusted header lets clients spoof `127.0.0.1`. Make the proxy overwrite the header, and
+check the result after any proxy change.
 
 ### Public ontology surfaces
 
@@ -262,9 +303,11 @@ properties-only and cannot be created from the admin UI. See
 
 `JDBCPlugin` runs SQL authored in a page against the wiki's own datasource, using the
 application's database role. It is off by default behind `wikantik.plugin.jdbc.enabled`
-(`false`), checked before anything else, and additionally requires the calling user to
-hold admin permissions. Enable it only if you accept that a high-privilege database
-role executes editor-supplied SQL.
+(`false`), checked before anything else. The additional admin check applies to the
+user **viewing** the page, not to the author, so the real risk is an editor planting SQL
+that runs, with the application's database role, when an administrator views the page.
+Enable it only if you accept that a high-privilege database role executes
+editor-supplied SQL.
 
 ### Render-cache isolation
 
@@ -284,8 +327,8 @@ served to another.
   `ReferrerPolicyFilter`, `COEPFilter`, `CORPFilter`).
 - `/api/health` and `/metrics` are reachable only from loopback and RFC 1918 networks
   (`InternalNetworkFilter`).
-- MCP write tools refuse system pages, which can be unlocked one name at a time with
-  `wikantik.systemPages.mcpEditable`.
+- MCP write tools refuse system pages; `wikantik.systemPages.mcpEditable` (default
+  `About`) lists the exact page names that stay editable.
 
 ## Where to go next
 

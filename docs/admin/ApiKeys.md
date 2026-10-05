@@ -59,7 +59,7 @@ Click **+ Generate Key**. A modal prompts for:
 
 | Field | Required | Notes |
 |---|---|---|
-| Principal (login) | Yes | The Wikantik login name the key runs as. Tool calls inherit this identity — page ACLs and JAAS permissions apply exactly as they would for an interactive session. The principal must exist in the user database; unknown logins are rejected with HTTP 400. |
+| Principal (login) | Yes | The Wikantik login name the key is bound to. It is used for attribution and the audit trail; it does **not** limit what the key can do (see [Scope enforcement](#scope-enforcement)). The principal must exist in the user database; unknown logins are rejected with HTTP 400. |
 | Label | No | Free-form note identifying where the key is used (e.g. "OpenWebUI production"). |
 | Scope | Yes | `tools` (OpenAPI `/tools/*` only), `mcp_read` (read-only, `/knowledge-mcp` only), `mcp` (full admin — covers both MCP endpoints), or `all` (everything). See [Scope enforcement](#scope-enforcement) for the hierarchy. |
 
@@ -122,8 +122,14 @@ Use **Admin → API Keys → + Generate Key** (admin) or **Preferences → API K
 | Reaches every key-protected surface | `all` | `{"principalLogin": "ops", "scope": "all"}` |
 
 If `scope` is omitted from a `POST`, the key is created with scope `all`.
-The key runs as the principal you name, so give a read-only agent an account
-whose page ACLs and policy grants are also read-only.
+The principal you name is recorded for attribution and auditing only. It does not
+narrow the key: authorisation on these surfaces is the scope check in the access
+filter, and the admin MCP tools perform no per-user permission checks. A `mcp` or
+`all` key can read and write every non-system page and curate the Knowledge Graph,
+whichever account it is bound to, so treat those keys as admin credentials. Use
+`mcp_read` for read-only agents. A narrower `mcp_content` tier (page and Knowledge
+Graph read/write without admin tools) is planned in
+[GitHub issue #62](https://github.com/jakefearsd/wikantik/issues/62) but is not shipped.
 
 A key with the wrong scope for the endpoint receives HTTP 403 "Key not
 authorized for MCP" (or the tools-equivalent). The `/api/*` REST surface uses
@@ -139,8 +145,8 @@ Authorization: Bearer <plaintext-token>
 
 The filter SHA-256 hashes the incoming token and looks it up in `api_keys`
 (active rows only). On a match the filter wraps the request with the
-`principal_login` as the request principal, so downstream permission checks see
-that user's identity. `last_used_at` is updated asynchronously (approximately
+`principal_login` as the request principal, which identifies the caller for the filter
+and the audit trail; the access filter's scope check is the authorisation. `last_used_at` is updated asynchronously (approximately
 once per 60-second verify-cache TTL, on a cache miss) so authentication is
 low-latency on repeated calls.
 

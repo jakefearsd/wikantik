@@ -70,9 +70,14 @@ keys, including the self-service surface. The short version:
 | calls only the OpenAPI `/tools/*` endpoints | `tools` |
 | reaches every key-protected surface | `all` |
 
-On `/wikantik-admin-mcp` the key runs as the principal you name, so page ACLs and
-policy grants apply to every tool call; give a curation agent an account with only the
-permissions it needs. `/knowledge-mcp` is different: the MCP transport carries no caller
+`/wikantik-admin-mcp` is **fully privileged**. The principal bound to the key is used
+only for attribution and the audit trail. Authorisation is the scope check in the access
+filter, the admin tools perform no per-user permission checks, and pages are saved
+through a request-less context, so any `mcp` or `all` key can read and write every
+non-system page and curate the Knowledge Graph. Treat `mcp` keys as admin credentials.
+A narrower `mcp_content` tier is planned
+([GitHub issue #62](https://github.com/jakefearsd/wikantik/issues/62)) but not shipped.
+`/knowledge-mcp` is different: the MCP transport carries no caller
 identity, so its read tools enforce page view ACLs as an **anonymous guest** and return
 only publicly viewable pages, whichever principal owns the key. A caller that needs
 restricted content has to use the privileged admin endpoint.
@@ -160,7 +165,7 @@ the environment.
 ## Use /tools/* from non-MCP clients
 
 `/tools/*` is an OpenAPI 3.1 tool server for clients that do not speak MCP, such as
-OpenWebUI. It exposes two operations, both gated by a `tools` (or `all`) key:
+OpenWebUI. It exposes two tools over three HTTP routes, all gated by a `tools` (or `all`) key:
 
 | Operation | Request | Purpose |
 |---|---|---|
@@ -182,7 +187,7 @@ The authoritative per-tool descriptions are in
 `wikantik-admin-mcp/src/main/resources/wikantik-mcp-instructions.txt`, which the server
 returns as its instructions on `initialize`. Every write tool refuses system pages
 (CSS themes, menu fragments, help pages, `Main`) unless the page is listed in
-`wikantik.systemPages.mcpEditable`.
+`wikantik.systemPages.mcpEditable` (default `About`).
 
 | Tool | Purpose | Access |
 |---|---|---|
@@ -220,8 +225,15 @@ returns as its instructions on `initialize`. Every write tool refuses system pag
 
 All 21 are read-only with respect to content. `assemble_bundle` and `get_briefing`
 record query telemetry (`retrieval_query_log`, `briefing_log`), which does not change
-wiki content. Page-returning tools apply the guest view gate described under
-[Get a key](#get-a-key): restricted pages are not returned.
+wiki content. Tools that take the guest view gate described under
+[Get a key](#get-a-key) do not return restricted pages: `assemble_bundle`, `get_briefing`,
+`retrieve_context`, `get_page`, `read_pages`, `get_page_for_agent`, `get_page_by_id`,
+`list_pages`, `list_pages_by_filter`, `list_clusters`, `query_nodes`, `get_node`,
+`traverse`, `search_knowledge` and `find_similar`. These take no gate: `list_tags`,
+`list_metadata_values`, `discover_schema`, `list_stale_citations`, `get_ontology` and
+`sparql_query`; the last two read the ontology, which is already limited to publicly
+viewable content. If the guest session cannot be built at startup, the gate degrades to
+allow-all and logs an `ERROR`.
 
 | Tool | Purpose |
 |---|---|

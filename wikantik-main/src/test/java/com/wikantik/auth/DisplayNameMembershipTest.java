@@ -122,4 +122,27 @@ class DisplayNameMembershipTest {
         assertFalse( authz.checkPermission( login( "mallory3" ), PermissionFactory.getPagePermission( page, "edit" ) ),
                 "an ACL entry resolved to a login name must not match another user's full name" );
     }
+
+    @Test
+    void aclNamingALoginResolvesToTheLoginEvenWhenAnotherFullNameCollides() throws Exception {
+        // The colliding full name exists before the ACL is first parsed, so nothing is cached yet.
+        saveUser( "mallory4", "boss", "MalloryFour" );
+        engine.saveText( "BossOnlyPage2", "[{ALLOW edit boss}]\nsecret" );
+        final Page page = engine.getManager( PageManager.class ).getPage( "BossOnlyPage2" );
+
+        assertFalse( authz.checkPermission( login( "mallory4" ), PermissionFactory.getPagePermission( page, "edit" ) ),
+                "the ACL names the login 'boss', not mallory4's full name" );
+        assertTrue( authz.checkPermission( login( "boss" ), PermissionFactory.getPagePermission( page, "edit" ) ),
+                "the account whose login is 'boss' keeps access" );
+    }
+
+    @Test
+    void sessionProfilePrincipalsComeFromTheLoginNameNotACollidingFullName() throws Exception {
+        saveUser( "mallory5", "boss", "MalloryFive" );
+        final Session boss = login( "boss" );
+        assertTrue( boss.hasPrincipal( new WikiPrincipal( "The Boss", WikiPrincipal.FULL_NAME ) ),
+                "boss's own full name is loaded" );
+        assertFalse( Arrays.stream( boss.getPrincipals() ).anyMatch( p -> p.getName().startsWith( "Mallory" ) ),
+                "another account's profile must never be loaded into boss's session: " + Arrays.toString( boss.getPrincipals() ) );
+    }
 }

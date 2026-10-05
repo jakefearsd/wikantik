@@ -296,7 +296,7 @@ class DefaultAuthorizationManagerCITest {
 
         final UserProfile profile = mock( UserProfile.class );
         when( profile.getLoginName() ).thenReturn( "alice" );
-        when( userDatabase.find( "alice" ) ).thenReturn( profile );
+        when( userDatabase.findByLoginName( "alice" ) ).thenReturn( profile );
 
         final Principal userPrincipal = new WikiPrincipal( "alice" );
         when( userDatabase.getPrincipals( "alice" ) ).thenReturn( new Principal[]{ userPrincipal } );
@@ -306,9 +306,24 @@ class DefaultAuthorizationManagerCITest {
     }
 
     @Test
+    void resolvePrincipalFallsBackToFullOrWikiNameWhenNotALogin() throws Exception {
+        setAuthorizer( mgr );
+        when( groupManager.findRole( "Alice Smith" ) ).thenReturn( null );
+        when( userDatabase.findByLoginName( "Alice Smith" ) ).thenThrow( new NoSuchPrincipalException( "no login" ) );
+        final UserProfile profile = mock( UserProfile.class );
+        when( profile.getLoginName() ).thenReturn( "alice" );
+        when( userDatabase.find( "Alice Smith" ) ).thenReturn( profile );
+        final Principal full = new WikiPrincipal( "Alice Smith", WikiPrincipal.FULL_NAME );
+        when( userDatabase.getPrincipals( "alice" ) ).thenReturn( new Principal[]{ new WikiPrincipal( "alice", WikiPrincipal.LOGIN_NAME ), full } );
+
+        assertEquals( full, mgr.resolvePrincipal( "Alice Smith" ) );
+    }
+
+    @Test
     void resolvePrincipalReturnsUnresolvedWhenNotFound() throws Exception {
         setAuthorizer( mgr );
         when( groupManager.findRole( "unknown" ) ).thenReturn( null );
+        when( userDatabase.findByLoginName( "unknown" ) ).thenThrow( new NoSuchPrincipalException( "not found" ) );
         when( userDatabase.find( "unknown" ) ).thenThrow( new NoSuchPrincipalException( "not found" ) );
 
         final Principal result = mgr.resolvePrincipal( "unknown" );
@@ -700,7 +715,7 @@ class DefaultAuthorizationManagerCITest {
 
         final UserProfile profile = mock( UserProfile.class );
         when( profile.getLoginName() ).thenReturn( "alice" );
-        when( userDatabase.find( "alice" ) ).thenReturn( profile );
+        when( userDatabase.findByLoginName( "alice" ) ).thenReturn( profile );
         // Profile is found, but none of its principals' names equal "alice" exactly.
         when( userDatabase.getPrincipals( "alice" ) ).thenReturn( new Principal[]{ new WikiPrincipal( "SomeoneElse" ) } );
 

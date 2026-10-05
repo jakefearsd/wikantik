@@ -429,7 +429,9 @@ public final class WikiSession implements Session {
             throw new IllegalStateException( "User database cannot be null." );
         }
         try {
-            final UserProfile profile = database.find( searchId );
+            // The login principal carries the login name; look it up as such so another account
+            // whose full or wiki name happens to equal it is never loaded instead.
+            final UserProfile profile = database.findByLoginName( searchId );
             final Principal[] principals = database.getPrincipals( profile.getLoginName() );
             for( final Principal principal : principals ) {
                 // Add the Principal to the Subject

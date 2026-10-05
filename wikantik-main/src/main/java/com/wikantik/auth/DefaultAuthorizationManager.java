@@ -621,10 +621,11 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             return principal;
         }
 
-        // Ok, no luck---this must be a user principal
+        // Ok, no luck---this must be a user principal. A login name wins over another account's
+        // full or wiki name, so an ACL naming a login always resolves to that account.
         final UserDatabase db = userManager().getUserDatabase();
         try {
-            final UserProfile profile = db.find( name );
+            final UserProfile profile = findLoginFirst( db, name );
             final Principal[] principals = db.getPrincipals( profile.getLoginName() );
             return Arrays.stream( principals )
                     .filter( p -> p.getName().equals( name ) )
@@ -637,6 +638,16 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
     }
 
+
+    /** Looks {@code name} up as a login name first, then as a full or wiki name. */
+    private static UserProfile findLoginFirst( final UserDatabase db, final String name ) throws NoSuchPrincipalException {
+        try {
+            return db.findByLoginName( name );
+        } catch ( final NoSuchPrincipalException e ) {
+            LOG.debug( "'{}' is not a login name; trying full and wiki names: {}", name, e.getMessage() );
+            return db.find( name );
+        }
+    }
 
     // --- Lazy accessors for manager dependencies ---
     // In the production SPI path, AuthorizationManager is initialized before

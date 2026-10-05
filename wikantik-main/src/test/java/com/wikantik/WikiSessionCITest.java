@@ -96,7 +96,7 @@ public class WikiSessionCITest {
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         // Simulate no user profile in database → injectUserProfilePrincipals exits via catch
         doThrow( new NoSuchPrincipalException( "no profile" ) )
-                .when( userDatabase ).find( anyString() );
+                .when( userDatabase ).findByLoginName( anyString() );
 
         final WikiPrincipal loginPrincipal = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( loginPrincipal );
@@ -117,7 +117,7 @@ public class WikiSessionCITest {
         when( groupManager.isUserInRole( any( Session.class ), eq( gp ) ) ).thenReturn( false );
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         doThrow( new NoSuchPrincipalException( "no profile" ) )
-                .when( userDatabase ).find( anyString() );
+                .when( userDatabase ).findByLoginName( anyString() );
 
         final WikiPrincipal loginPrincipal = new WikiPrincipal( "guest", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( loginPrincipal );
@@ -138,7 +138,7 @@ public class WikiSessionCITest {
         when( groupManager.getRoles() ).thenReturn( new Principal[0] );
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         doThrow( new NoSuchPrincipalException( "no profile" ) )
-                .when( userDatabase ).find( anyString() );
+                .when( userDatabase ).findByLoginName( anyString() );
 
         final WikiPrincipal loginPrincipal = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( loginPrincipal );
@@ -198,7 +198,7 @@ public class WikiSessionCITest {
         final WikiPrincipal fullNamePrincipal = new WikiPrincipal( "Janne Jalkanen", WikiPrincipal.FULL_NAME );
 
         when( userProfile.getLoginName() ).thenReturn( "janne" );
-        when( userDatabase.find( "janne" ) ).thenReturn( userProfile );
+        when( userDatabase.findByLoginName( "janne" ) ).thenReturn( userProfile );
         when( userDatabase.getPrincipals( "janne" ) )
                 .thenReturn( new Principal[]{ loginPrincipal, fullNamePrincipal } );
 
@@ -219,7 +219,7 @@ public class WikiSessionCITest {
 
         final WikiPrincipal loginPrincipal = new WikiPrincipal( "containerUser", WikiPrincipal.LOGIN_NAME );
         doThrow( new NoSuchPrincipalException( "not in db" ) )
-                .when( userDatabase ).find( "containerUser" );
+                .when( userDatabase ).findByLoginName( "containerUser" );
 
         session.getSubject().getPrincipals().add( loginPrincipal );
 
@@ -338,7 +338,7 @@ public class WikiSessionCITest {
         when( groupManager.getRoles() ).thenReturn( new Principal[0] );
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         doThrow( new NoSuchPrincipalException( "n/a" ) )
-                .when( userDatabase ).find( anyString() );
+                .when( userDatabase ).findByLoginName( anyString() );
         final WikiPrincipal lp = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         final WikiSecurityEvent authEvent = new WikiSecurityEvent(
                 this, WikiSecurityEvent.LOGIN_AUTHENTICATED, lp, session );
@@ -433,7 +433,7 @@ public class WikiSessionCITest {
         when( groupManager.getRoles() ).thenReturn( new Principal[0] );
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         doThrow( new NoSuchPrincipalException( "n/a" ) )
-                .when( userDatabase ).find( anyString() );
+                .when( userDatabase ).findByLoginName( anyString() );
 
         final WikiPrincipal lp = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( lp );
@@ -476,7 +476,7 @@ public class WikiSessionCITest {
 
         final WikiPrincipal fullNamePrincipal = new WikiPrincipal( "Janne Jalkanen", WikiPrincipal.FULL_NAME );
         when( userProfile.getLoginName() ).thenReturn( "janne" );
-        when( userDatabase.find( "janne" ) ).thenReturn( userProfile );
+        when( userDatabase.findByLoginName( "janne" ) ).thenReturn( userProfile );
         when( userDatabase.getPrincipals( "janne" ) )
                 .thenReturn( new Principal[]{ lp, fullNamePrincipal } );
 
@@ -513,7 +513,7 @@ public class WikiSessionCITest {
         when( groupManager.getRoles() ).thenReturn( new Principal[0] );
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         doThrow( new NoSuchPrincipalException( "n/a" ) )
-                .when( userDatabase ).find( anyString() );
+                .when( userDatabase ).findByLoginName( anyString() );
 
         final WikiPrincipal lp = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( lp );
@@ -541,7 +541,7 @@ public class WikiSessionCITest {
         when( groupManager.getRoles() ).thenReturn( new Principal[0] );
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         doThrow( new NoSuchPrincipalException( "n/a" ) )
-                .when( userDatabase ).find( anyString() );
+                .when( userDatabase ).findByLoginName( anyString() );
 
         final WikiPrincipal lp = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( lp );
@@ -557,7 +557,7 @@ public class WikiSessionCITest {
         // profile lookup during name-change — use doReturn/doThrow forms to avoid
         // triggering the existing anyString() throw-stub at the stub setup site.
         when( userProfile.getLoginName() ).thenReturn( "janne_new" );
-        doReturn( userProfile ).when( userDatabase ).find( "janne_new" );
+        doReturn( userProfile ).when( userDatabase ).findByLoginName( "janne_new" );
         doReturn( new Principal[]{ new WikiPrincipal( "janne_new", WikiPrincipal.LOGIN_NAME ) } )
                 .when( userDatabase ).getPrincipals( "janne_new" );
 

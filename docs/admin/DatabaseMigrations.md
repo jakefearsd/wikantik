@@ -160,7 +160,8 @@ The migration directory is the source of truth; this table summarises it through
 | V013 | `page_canonical_ids`, `page_slug_history`: rename-stable identifiers |
 | V014 | `page_verification` and runbook tables |
 | V015 | Deduplicate user profiles (one-time data fix) |
-| V016, V017 | `retrieval_runs`, `retrieval_query_set`: retrieval-quality CI |
+| V016 | `retrieval_query_sets`, `retrieval_queries`, `retrieval_runs`: retrieval-quality CI |
+| V017 | Seeds the default retrieval query set |
 | V018 | `kg_cluster_policy`, `kg_policy_audit`, `kg_excluded_pages`: KG inclusion policy |
 | V019 | Drop the legacy `kg_embeddings` and `kg_content_embeddings` tables |
 | V020 | `kg_proposals.signature`: dedupe column for the entity extractor |

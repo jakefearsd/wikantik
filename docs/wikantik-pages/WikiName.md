@@ -3,10 +3,23 @@ cluster: wikantik-development
 canonical_id: 01KQ0P44Z2KAVGKRS5ZFG27X4E
 ---
 
-[WikiNames](WikiName) are traditionally written using~ InterCapping, also known as~ CamelCase (starting with uppercase letter, and at least another uppercase letter in the wiki link word). This makes the creation of internal hyperlinks really easy.
+# Wiki Names
 
-However, in this [WikiWiki]() the [links]() are written using the [[link] notation, as the original~ InterCapping style of linking is occasionally confusing. The names still conform to the [WikiWiki]() standard, if you look at the URL at the top.
+Every page has a name, which is also the last part of its address (`/wiki/PageName`). Page names in this wiki are CamelCase words made of letters and digits, such as `OneMinuteWiki`. The **New Article** dialog builds one from the title you type and lets you edit it before the page is created. It cannot be changed there once the page exists.
 
-Names are _crushed_, i.e. [[This is a link] becomes [[ThisIsALink]. However, underscores and dots are retained, so you can have a link like this: [[This_is_a_link], or [[This.Is.A.Link]. All non-alphanumeric characters except for '_' and '.' are removed (that is, all characters that are not letters or numbers), so that [[John's page] becomes [[JohnsPage]. This allows you to type normal sentences which are then turned into links, like when talking about [Wiki etiquette](WikiEtiquette).
+## How a link finds its page
 
-A [WikiName]() can not be a number. Numeric names are used for [footnotes](TextFormattingRules).
+Links such as `[[Page Name]]` ignore spaces and case, so `[[one minute wiki]]` finds `OneMinuteWiki`. A link is matched in this order:
+
+1. the exact page name, including plural forms
+2. the page name ignoring case
+3. a page whose `title` or `aliases` entry matches, ignoring case
+
+If two pages tie, the one that sorts first alphabetically wins. To give a page another name, see [PageAlias](PageAlias).
+
+## Good names
+
+* Keep them short and descriptive, like a chapter title.
+* Check for typos before you create the page. Misnamed pages are hard to link to.
+
+See [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md) for every link form, including headings and attachments, and [TextFormattingRules](TextFormattingRules) for the syntax.

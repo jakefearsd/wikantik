@@ -1,12 +1,14 @@
+# One Minute Wiki
 
-#### Hiya! And welcome to Wiki!
+A wiki is a set of web pages that anyone with permission can read and edit. The word comes from the Hawaiian *wiki wiki*, "quick". Pages link to each other, every change is kept as a version, and a mistake can be undone by restoring an older version.
 
-[WikiWiki]() is Hawaiian and means "quick". The original idea of [WikiWiki]() was to create a collaborative, fast environment which would still be persistent.
+## The basics
 
-Anyone can contribute, even anonymously. Yes, you can delete what other people said, and even delete whole pages, but surprisingly, wiki [does work](WikiWikiWeb:WhyWikiWorks).
+* Choose **Edit** on a page, change the Markdown, add a short change note, and save.
+* Link to another page by writing its name in double square brackets, like `[[SandBox]]`. If that page does not exist yet, the link marks it as missing, and following it creates the page.
+* Use [TextFormattingRules](TextFormattingRules) for bold, lists, tables and the rest, and [WikiName](WikiName) to see how page names work.
+* Try it in the [SandBox](SandBox), and read [WikiEtiquette](WikiEtiquette) before editing other people's pages.
 
-When editing, you can easily create (and you should create) hyperlinks by just putting the word in square brackets, [[like this]. If the page you are referring to does not exist, the resulting page will show the name underlined, with a following question mark. Like this: [ThisPageDoesNotExist](). (Please don't foil this example by creating that page...)
+## Why it works
 
-[WikiNames](WikiName) that contain spaces or underscores are crushed together and capitalized, so that [[This is a link] becomes [[ThisIsALink].
-
-Wiki is and should be simple. This is why there is no need for complex HTML. You can get some effects, such as **bold text** and _italics_, but nothing very complex. Layout is the problem of the Wiki itself. There is more information in [TextFormattingRules]().
+Because every version is kept, careless edits are cheap to fix and careful edits build up. The page history shows who changed what, and the sidebar lists recent changes. See [Reading a Page](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Reading.md) and [Editing](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Editing.md).

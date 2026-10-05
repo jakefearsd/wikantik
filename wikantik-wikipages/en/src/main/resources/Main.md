@@ -1,29 +1,27 @@
+# Welcome to Wikantik
 
-## Congratulations!
+This is the front page of a new Wikantik wiki. Use the sidebar to browse, press Ctrl+K (Cmd+K on a Mac) to jump to any page, and choose **Edit** on a page to change it.
 
-You have successfully installed [Wikantik](About).
+## Quick start
 
-You have some pages set up for you:
+* Try things out in the [SandBox](SandBox).
+* For a short tour of what a wiki is, read [OneMinuteWiki](OneMinuteWiki).
+* For house rules on contributing, read [WikiEtiquette](WikiEtiquette).
 
-#### Quick start
+## Help
 
-* For testing things, try the [SandBox]().
-* For a quick look on what Wiki is, check out [OneMinuteWiki]().
-* For a guideline on good working habits with wiki, see [WikiEtiquette]().
+* [TextFormattingRules](TextFormattingRules) lists the Markdown syntax, wikilinks, math and plugins you can use.
+* [EditPageHelp](EditPageHelp) covers the editor, its toolbar and shortcuts.
+* [SearchPageHelp](SearchPageHelp) covers the page switcher and full-text search.
+* [LoginHelp](LoginHelp) covers signing in, password resets and API keys.
+* [WikiName](WikiName) explains how page names and links resolve, and [PageAlias](PageAlias) how to give a page another name.
 
-#### Installation issues
+## This wiki
 
-* If you run Microsoft Windows, or you are having trouble with UTF-8 then you probably want to take a look at [InstallationTips]() for further information.
+* [About](About) says what Wikantik is.
+* [SystemInfo](SystemInfo) shows facts about this installation.
+* [PageIndex](PageIndex) lists every page, and [RecentChanges](RecentChanges) lists what changed lately.
 
-#### Documentation
+## Documentation
 
-* For all of the Wiki markup features, see [TextFormattingRules]().
-* Entry point for full [WikantikDocumentation](Wikantik:WikantikDocumentation)
-    * [Wikantik New Features](Wikantik:NewIn).
-
-#### Miscellaneous
-
-* There are several ways you can get in touch with Wikantik [Community](). Check them out!
-* To see what this particular wiki is about, click on the Wiki name on the top left corner of the browser window, or [click here](SystemInfo).
-
-Good luck, and thanks for choosing Wikantik!
+The user guides are on GitHub: [Editing](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Editing.md), [Finding Pages](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Search.md), [Reading a Page](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Reading.md), [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md) and [Account and Login](https://github.com/jakefearsd/wikantik/blob/main/docs/user/AccountAndLogin.md).

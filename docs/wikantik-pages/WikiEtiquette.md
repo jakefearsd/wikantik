@@ -17,17 +17,17 @@ When [editing pages](TextFormattingRules) just keep the following rules in mind:
 
 ### About comments
 
-* You are free to contribute anonymously, but it is preferred that you sign your comments with your name (or handle). It is common to prepend the signature with '--' like this: _-- [Janne Jalkanen]()_ (While you're at it, you are free to create your own wikipage and tell us about yourself.)
-* A good way is also to put your name first, like this: _[Janne Jalkanen]() : I'd like to say that..._
-* Think before you comment. [WikiWiki]() is not a high-speed conversation board. It's not a news server either. What you say will stay here forever (if you delete your comment, it is still in the previous version of the page) for everyone to see and comment.
+* You are free to contribute anonymously, but it is preferred that you sign your comments with your name (or handle). It is common to prepend the signature with '--' like this: _-- Your Name_ (While you're at it, you are free to create your own page and tell us about yourself.)
+* A good way is also to put your name first, like this: _Your Name: I'd like to say that..._
+* Think before you comment. A wiki is not a high-speed conversation board. It's not a news server either. What you say will stay here forever (if you delete your comment, it is still in the previous version of the page) for everyone to see and comment.
 
-### Creating [WikiNames](WikiName)
+### Choosing page names (see [WikiName](WikiName))
 
-* A good [WikiName]() is short and descriptive. If the name is logical and easy many more people will link to it.
-* Although you can take a whole sentence and crunch it up to make a [WikiName](), it is better style to restrain it to at most 5 words.
-* Instead, try to use [WikiName]()s like you would use as chapter titles in a book.
+* A good page name is short and descriptive. If the name is logical and easy many more people will link to it.
+* Although you can take a whole sentence and crunch it up to make a page name, it is better style to restrain it to at most 5 words.
+* Instead, try to use page names like you would use as chapter titles in a book.
 * This Wiki allows you to create pages with a single word as a name, but try to use at least two words - we don't want to exhaust the name space :-).
-* **Double-check [WikiName]()s for typos** - otherwise someone will create a misnamed page! Misnamed pages are bad, since linking to them requires more effort than to a logical, correct [WikiName]().
+* **Double-check page names for typos** - otherwise someone will create a misnamed page! Misnamed pages are bad, since linking to them requires more effort than to a logical, correct name.
 
 ### Refactoring pages
 

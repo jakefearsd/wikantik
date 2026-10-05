@@ -52,14 +52,16 @@ public class HelloWorld { ... }
 
 ### Mathematical Notation
 *   **Inline:** `$x + y = z$`. Do not include spaces between the delimiters and the content (e.g., use `$x$` not `$ x $`).
-*   **Block:** Use `$$` delimiters on their own lines for display math.
+*   **Block:** Use `$$` delimiters on their own lines, with a blank line before and after the block. See [Mathematical Notation](https://github.com/jakefearsd/wikantik/blob/main/docs/user/MathematicalNotation.md).
 
 ## II. Internal Linking and References
 
 ### Wiki Links
-Internal links use standard Markdown syntax but resolve to page names (slugs) within the wiki:
+Internal links resolve to page names (slugs) within the wiki. Both forms below work:
+*   `[[PageName]]`, `[[PageName|label]]`, `[[PageName#Heading]]` (wikilinks; see [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md))
 *   `[Architecture Guide](ArchitectureCritique)`
-*   `[Page Name]()` (Self-labeling link)
+*   `![[PageName]]` on its own line embeds that page
+*   `[Page Name]()` (legacy self-labeling link)
 
 ### Canonical IDs
 Page slugs can change during refactoring. For permanent references in code, documentation, or runbooks, use the `canonical_id`.
@@ -125,3 +127,4 @@ Stamp pages as reviewed using the `mark_page_verified` tool or manual entry:
 1.  **Summary Quality:** Keep summaries between 50 and 160 characters. They drive search results and agent projections.
 2.  **No HTML:** Wikantik escapes raw HTML by default for security. Use Markdown primitives or plugins for all styling.
 3.  **Frontmatter vs. Body:** Store machine-queryable data (dates, types, relations) in frontmatter; store prose and examples in the body.
+4.  **Authoring help:** See [Editing](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Editing.md) for the editor and [Frontmatter](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Frontmatter.md) for every field.

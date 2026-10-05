@@ -3,40 +3,34 @@ cluster: wikantik-development
 canonical_id: 01KQ0P44S23Z8AMR1MM32NY3J3
 ---
 
-Here's a brief help on how to login to **[{$applicationname}]**. This text is [here](LoginHelp).   
+# Login Help
 
-You can read more about Wikantik's security features on the [documentation pages](Doc:Security).
+How to sign in, recover a password and manage your account. For the full guide, see [Account and Login](https://github.com/jakefearsd/wikantik/blob/main/docs/user/AccountAndLogin.md).
 
-### Login
+## Sign in
 
-Wikantik supports multiple levels of **authentication** and trust. Users can be anonymous, have "asserted" identities using cookies, be authenticated, or be administrators:
+Choose **Sign in** in the sidebar, enter your username and password, and choose **Sign in** again. If your wiki has single sign-on, a **Continue with ...** button appears above the form; use it to sign in at your provider. The first single sign-on login creates your account, and such an account has no wiki password.
 
-| Status | Description | The User greeting Shows..
-| Anonymous | User not logged in, and has not supplied a cookie | "G'day (anonymous guest)"
-| Asserted | User's browser contains a cookie called `~WikantikAssertedName` | "G'day, _username_ (not logged in)"
-| Authenticated | User logged in with a login id and password | "G'day, _username_ (authenticated)"
+You can read pages without signing in. What you may edit depends on your account and on each page's access rules.
 
-Depending on the default security policy and page access controls in place, users may (or may not) be required to authenticate.
+## Forgot your password
 
-When a user decides to log in - or is challenged to do so by a page access control or security policy - he or she sees a standard web form with a username field and a masked password field. After receiving the submitted web form, Wikantik attempts to log the user in.
+1. Choose **Forgot your password?** in the sign-in dialog.
+2. Enter the email address on your account.
+3. Sign in with the new password from the email. A reset password is assigned, not chosen, so the wiki then asks you to set a new one before you continue.
 
-### Lost password
+The page gives the same answer whether or not the address is known, and one address can request a few resets per hour. Resets only work if an administrator has set up outgoing mail.
 
-If you lose your password, you can ask to have a new, random password sent to the mail address stored in your User Profile.
+## Change your password
 
-### Register new user
+The first administrator login and any reset password send you to **Change Your Password** straight after signing in. You can also change it later on your profile page.
 
-Although some wikis are anonymous, many are not. Often, wikis give users the ability to create an identity for the website. Wikantik includes a basic self-registration page that allows users to set up and manage their own wiki profiles.
+## Your profile and API keys
 
-By default, the form asks for:
+Choose **Profile** in the sidebar (or open `/preferences`) to edit your full name, email and bio, change your password, and delete your account.
 
-* A user ID
-* A password
-* The user's desired "wiki name" (e.g., [JanneJalkanen]()). You can use this name in Access Control Lists or Wiki Groups
-* E-mail address. This can be used when you need to reset your password. (see Lost Password)
+The **API Keys** section creates keys for scripts and AI clients. A key acts with your own permissions. A regular account can create keys with the `tools` scope (the `/tools/*` endpoints) or the `mcp_read` scope (read-only knowledge MCP access); keys with wider scope are created by an administrator. The secret is shown once, so copy it when you create it.
 
-If container-managed authentication is used, the user ID will not be editable; the container will supply this value.
+## Sign out
 
-When the user saves the profile, Wikantik checks to make sure that the new user id, wiki name and full name aren't already used by someone else. If so, the user is given the opportunity to choose different values.
-
-After a user creates a wiki profile, he or she may edit it at a later time via the _My Prefs_ link. By default, users must be authenticated to edit their own profiles.
+Choose **Sign out** under your name at the top of the sidebar.

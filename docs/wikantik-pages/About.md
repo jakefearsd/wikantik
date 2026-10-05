@@ -40,9 +40,9 @@ Wikantik is a modern Java 25 / Jakarta EE 10 application built on a decoupled, p
 | **Runtime** | Java 25 LTS |
 | **Servlet Container** | Apache Tomcat 11 |
 | **Search & Retrieval** | Apache Lucene (BM25) + `pgvector` (Dense Embeddings) |
-| **Storage** | Versioned File System (Git-like history) |
+| **Storage** | Versioned file system with per-page history |
 | **Integration** | Model Context Protocol (MCP) |
-| **Frontend** | Vite + React (Modern UI) / Legacy JSP (Admin) |
+| **Frontend** | Vite + React single-page app (reader, editor and admin panel) |
 
 ### Module Structure
 
@@ -90,6 +90,8 @@ While Wikantik is now an agent-first system, it honors its heritage as a descend
 -   **JAAS Security:** Fine-grained, policy-based access control.
 -   **Provider Pattern:** Flexible storage backends (File, Database, S3).
 -   **Plugin & Filter Pipeline:** A battle-tested mechanism for extending the engine without modifying the core.
--   **The JSP Origins:** Some admin and editing surfaces still utilize the original JSP templates, providing a bridge between the classic web and the modern agentic API.
+-   **Markup pipeline:** Pages render through a Markdown parser with the original `[{Plugin}]()` syntax kept for dynamic content.
+
+For hands-on guides, see the user documentation on [GitHub](https://github.com/jakefearsd/wikantik/tree/main/docs/user).
 
 Wikantik is licensed under the **Apache License, Version 2.0**. It is a bridge between the historical stability of Java enterprise software and the future of the Semantic Web.

@@ -1,37 +1,37 @@
+# Edit Page Help
 
-Here's a short reminder on what elements you have at your disposal:
+A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctrl on Windows and Linux and Cmd on a Mac. For the full guide, see [Editing](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Editing.md).
 
-``
-----             Horizontal ruler
-\\               Forced line break
-[link]           Create hyperlink to "link", where "link" can be either an internal 
-                 WikiName or an external link (http://)
-[text|link]      Create a hyperlink where the link text is different from the actual 
-                 hyperlink link.
-[text|wiki:link] Create a hyperlink where the link text is different from the 
-                 actual hyperlink link, and the hyperlink points to a named Wiki. 
-                 This supports interWiki linking.
+## Start and save
 
-*                Make a bulleted list (must be in first column). Use more (**) 
-                 for deeper indentations.
-#                Make a numbered list (must be in first column). Use more (##, ###) 
-                 for deeper indentations.
+* Choose **Edit** on a page to open the editor. You only see it if you have permission to edit.
+* To make a page, use **+ New Article** in the sidebar, or link to a page that does not exist yet.
+* Add a **Change note** to say what you did, then press **Mod+S** or choose **Save**. **Cancel** leaves without saving.
+* The editor keeps a draft in your browser while you type, and offers to restore it if you come back.
 
-!, !!, !!!       Start a line with an exclamation mark (!) to make a heading. 
-                 More exclamation marks mean bigger headings.
+## Toolbar and keys
 
-__text__         Makes text bold.
-''text''         Makes text in italics (notice that these are single quotes ('))
-{{text}}         Makes text in monospaced font.
-;term:def        Defines 'term' with 'def'.  Use this with empty 'term' to make short comments.
+| Action | Key |
+|--------|-----|
+| Bold | Mod+B |
+| Italic | Mod+I |
+| Insert link | Mod+K |
+| Toggle live preview | Mod+E |
+| Save | Mod+S |
 
-|text|more text  Makes a table. Double bars for a table heading.
-``
+The toolbar also has heading, list, inline code, code block and table buttons. Type `/` at the start of a line for a menu of blocks such as tables, callouts and math.
 
-Don't try to use HTML, since it just won't work.
+## Writing
 
-To embed images just put them available on the web using one of the approved formats, and they will get inlined automatically. To see the list of approved formats, go check [SystemInfo]().
+* The editor takes Markdown. See [TextFormattingRules](TextFormattingRules) for the syntax.
+* Type `[[` to search for a page to link, and `[[Page#` to link to one of its headings.
+* Paste or drag an image into the editor to attach it, or use **Attach**.
+* The side rail lists the page outline, backlinks and **Unlinked mentions**, with one-click linking.
 
-To make a code block, use triple {'s to open, and triple }'s to close.
+## Metadata
 
-_(Wondering where this text comes from? It's on a page called [Edit Page Help](EditPageHelp), which you can edit too!)_
+The **Frontmatter** tab edits the page's metadata (type, tags, cluster, summary and more) and checks it as you type. Save is disabled while an error is showing. See [Frontmatter](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Frontmatter.md).
+
+## Conflicts
+
+If someone saved the page after you opened it, you can overwrite their version, discard yours, or copy your text and reload.

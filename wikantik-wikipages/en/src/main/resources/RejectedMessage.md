@@ -1,6 +1,7 @@
+Your edit has been rejected.
 
-Your edit has been rejected for to the following reason:
+The reason, when the wiki records one: [{$msg}]
 
-[{$message}] { style=' padding: 4px; margin: 3em; border: 1px inset; background: #eeeeee;' }
+If you think this is a mistake, change your text and save again, or ask an administrator.
 
 [{ALLOW view All}]()

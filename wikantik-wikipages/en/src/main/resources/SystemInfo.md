@@ -1,36 +1,26 @@
-Here are some strategical figures and other interesting things about this particular Wiki. All this information is available in [WikiVariables](Wikantik:WikiVariables) as well, if you want to use them on some other page.
+# System Info
+
+Facts about this wiki, filled in by wiki variables when the page is shown.
 
 | Property | Value |
 |----------|-------|
 | **Application name** | [{$applicationname}] |
 | **Base address** | [{$baseurl}] |
-| **Wikantik Engine Version** | [{$jspwikiversion}] |
-| **Character Encoding** | [{$encoding}] |
-| **Total Number of Pages** | [{$totalpages}] |
-| **Current Uptime** | [{$uptime}] |
-| **Current Page Provider** | [{$pageprovider}] |
-| **Available [InterWiki]() links** | [{$interwikilinks}] |
-| **Inlined images are** | [{$inlinedimages}] |
-| **Additional Plugin Search Path** | [{$pluginpath}] |
-| **Installed [PageFilters]()** | [{$pagefilters}] |
+| **Engine version** | [{$jspwikiversion}] |
+| **Character encoding** | [{$encoding}] |
+| **Total number of pages** | [{$totalpages}] |
+| **Uptime** | [{$uptime}] |
+| **Page provider** | [{$pageprovider}] |
+| **Attachment provider** | [{$attachmentprovider}] |
+| **Installed page filters** | [{$pagefilters}] |
 
 [{$pageproviderdescription}]
 
-#### Usability
-
-| Property | Value |
-|----------|-------|
-| **Do we beautify titles?** | [{$wikantik.breakTitleWithSpaces}] |
-| **Do we match english plural forms?** | [{$wikantik.translatorReader.matchEnglishPlurals}] |
-| **Is HTML allowed on pages?** | [{$wikantik.translatorReader.allowHTML}] |
-
-#### Personal information
-
-Here is what I know about you currently:
+## About you
 
 | Property | Value |
 |----------|-------|
 | **User name** | [{$username}] |
 | **Login status** | [{$loginstatus}] |
 
-Wikantik home page is at [http://wikantik.com/](). Welcome!
+See [About](About) for what Wikantik is.

@@ -1,15 +1,22 @@
+# About Wikantik
 
-This Wiki is done using [JSP](http://java.sun.com/products/jsp) technology, which hopefully makes it very easy to keep up to date and looking better than most of the Wikis based on the [original one](http://c2.com/cgi/wiki). A custom bean handles the translation of text into HTML.
+Wikantik is a wiki that humans read and edit in the browser, and that AI agents can search, retrieve and cite over the Model Context Protocol. Pages are Markdown files with YAML frontmatter, versioned and permission-checked, and both kinds of reader see the same content.
 
-Most of the [editing markers](TextFormattingRules) have been styled according to the [Sensei's Library](http://senseis.xmp.net), the best Go sites in the Internet. I find their markup very easy, yet clear.
+## What you can do here
 
-This wiki is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0). Pleasesee [http://wikantik.com]() for further information.
+* Read and search pages. Press Ctrl+K (Cmd+K on a Mac) to jump to a page, or see [Finding Pages](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Search.md).
+* Edit pages in the Markdown editor, with live preview, link completion and attachments. See [Editing](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Editing.md).
+* Follow links between pages in the Page Graph (`/page-graph`) and, when it is enabled, the Knowledge Graph.
+* Sign in with a password or single sign-on. See [Account and Login](https://github.com/jakefearsd/wikantik/blob/main/docs/user/AccountAndLogin.md).
 
-If you are interested in the Wikantik development, the home page for Wikantik is at [http://wikantik.com](). Some quick links:
+## Where to start
 
-* [Bug Reports](Wikantik:SubmitBugReport) - or [look at the list of open bugs](Wikantik:OpenBugs).
-* [Contribute new ideas](Wikantik:SubmitNewIdea).
-* Take a look at the most up-to-date [Wikantik FAQ](Wikantik:WikantikFAQ)
-* Look for additional [plugins](Wikantik:ContributedPlugins), [templates](Wikantik:ContributedTemplates), [filters](Wikantik:ContributedFilters), [providers](Wikantik:ContributedProviders), or [other cool stuff](Wikantik:ContributedCode).
+* [Main](Main) is the front page.
+* [TextFormattingRules](TextFormattingRules) lists the Markdown and wiki syntax you can use.
+* [EditPageHelp](EditPageHelp), [SearchPageHelp](SearchPageHelp) and [LoginHelp](LoginHelp) are short help pages.
+* [SystemInfo](SystemInfo) shows facts about this particular wiki.
+* [WikiEtiquette](WikiEtiquette) has house rules for contributors.
 
-Happy hacking, and thanks for choosing Wikantik!
+## More
+
+Full documentation, source code and the issue tracker are on [GitHub](https://github.com/jakefearsd/wikantik). Wikantik descends from Apache JSPWiki and is released under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0).

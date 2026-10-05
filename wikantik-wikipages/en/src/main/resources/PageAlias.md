@@ -1,14 +1,21 @@
+# Page Aliases
 
-Sometimes it's useful to have one page _really_ mean some other page. For example, you might have a page called "Page Aliases", but you would also like people to have it available under "Aliases". In such a case, you can use a "page alias":
+Sometimes one page needs more than one name. For example, a page called `PageAlias` may also be known as "Redirect" or "Alternate names". Add the other names to the page's `aliases` frontmatter list:
 
-Put the following on the "[PageAliases]()" -page: (We have an example page there, so if you click on it, you will be returned back here.)
+```yaml
+---
+aliases:
+  - Redirect
+  - Alternate names
+---
+```
 
-``
-[{SET alias='PageAlias'}]
-``
+Each entry can be up to 100 characters, and blank entries are flagged. The **Frontmatter** tab in the editor has a field for it.
 
-Every time someone views the page "[PageAliases]()", they will be automatically redirected to this page. This is very useful if you want to be able to use the irregular plural forms, for example. Normally, Wikantik does properly recognize English language plural forms of page names, but it's not smart enough to recognize certain forms, such as "aliases".
+## What an alias does
 
-#### Editing the alias/redirect pages
+* The quick switcher (Ctrl+K or Cmd+K) matches aliases as well as page names.
+* A `[[Redirect]]` link resolves to the page when no page has that exact name. See [WikiName](WikiName) for the order.
+* The editor's unlinked-mention scan matches an alias in your text and offers to link it.
 
-Well, obviously you cannot click on the "Edit this page" -link, because you are redirected every time you try to view a page. You can, however, edit the page directly by just writing `Edit.jsp?page=_pagename_` after the base URL. Alternatively, you can use the interWikiRef defined for editing, by default it is set to "Edit" (i.e., [[Edit Aliases Page|Edit:Aliases])
+An alias does not redirect the address bar: `/wiki/Redirect` still looks for a page called `Redirect`. For the field's rules, see [Frontmatter](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Frontmatter.md).

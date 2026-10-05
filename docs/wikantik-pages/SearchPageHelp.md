@@ -3,43 +3,29 @@ cluster: wikantik-development
 canonical_id: 01KQ0P44W4SBY0Z3WXEQWVQ6JY
 ---
 
-This page gives a quick overview of the search engine query syntax.This page is called [Search Page Help](SearchPageHelp).
+# Search Page Help
 
-Use '+' to require a word, '-' to forbid a word. For example:
+There are two ways to find pages: the quick switcher for jumping to a page by name, and full-text search. For the full guide, see [Finding Pages](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Search.md). **Mod** means Ctrl on Windows and Linux and Cmd on a Mac.
 
-``
-          +java -emacs jsp
-``
+## Quick switcher
 
-finds pages that MUST include the word "java", and MAY NOT includethe word "emacs". Also, pages that contain the word "jsp" areranked before the pages that don't.
+| Keys | Opens |
+|------|-------|
+| Mod+K or Mod+O | the switcher, to find a page |
+| Mod+P | the switcher with a list of commands |
+| Mod+Alt+N | today's daily note |
 
-All searches are case insensitive. If a page contains bothforbidden and required keywords, it is not shown.
+Type part of a page name, title or alias, or its initials, and press Enter to open the highlighted page. Ctrl+Enter or Cmd+Enter opens it in a new tab. The switcher also offers **Search full text for...** and, when no page has that name, **Create page...**.
 
-### Query syntax table
+## Full-text search
 
-For more info look at [Lucene's query syntax](http://lucene.apache.org/core/4_4_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description) {.slimbox}.
+Choose **Search full text for...** or open `/search?q=your+words`. Each result shows the page summary, matching snippets, author, date, cluster and tags.
 
-| term | find a single Term is easy | `hello`
-| "..." | find a group of words | `"hello dolly"`
-| ? | any single character (the ? can not be the 1st character of a search) | `te?t`
-| * | any multiple character (the * can not be the 1st character of a search) | `test*`
-| OR | match document if either of the terms exist | `"hello dolly" hello`   
-`"hello dolly" OR hello`
-| AND | match documents where both terms exists | `"hello dolly" AND "dolly lucy"`
-| + | requires that the term after the "+" symbol exist | `+hello dolly`
-| -   
-NOT | exclude documents that contain the term after the "-" symbol   
-exclude also supported with NOT or ! | `"hello dolly" -"dolly lucy"`   
-`"hello dolly" NOT "dolly lucy"`
-| (...) | use parentheses to form sub queries | `(hello OR dolly) AND website`
-| ~~ | _fuzzy_ searchs to match terms similar in spelling | `roam~ `
-| ~n | _proximity_ search, within a distance expressed in number of words | `"hello dolly"~10`
-| ^n | _boost_ factor to increase importance in a search | `"hello dolly"^4 "dolly lucy"`
-| \ | escape special characters: ** + - && ~|~| ! ( ) { } [[ ] ^ " ~ * ? : \ ** | `\(1\+1\)\:2` to find (1+1):2
+* Type plain words. Operators such as `+`, `-`, `AND`, quotes and `field:` prefixes are not interpreted; they are searched as ordinary text.
+* Matches in the page name count most, then summary, tags and cluster, then the body.
+* When semantic search is enabled, a page can match on meaning even if it does not use your exact words.
+* You only see pages you are allowed to view. At most 20 pages come back, so refine your words if the page you want is missing.
 
-You can restrict the search domain by prefixing your query:
+## Filters
 
-| author:_term_ | find pages modified by certain author(s) | `author~:JohnFoo`
-| attachment:_term_ | find pages with certain attachment name | `attachment:brushed*`
-| name:_term_ | find pages with certain page name | `name:Main`
-| content:_term_ | find pages with certain content | `content:jspwiki`
+When a search returns more than one page, a **Filters** panel narrows the results by topic (cluster), author, tag and modified date. Choices inside one filter widen the match; different filters narrow it. **Clear filters** removes them.

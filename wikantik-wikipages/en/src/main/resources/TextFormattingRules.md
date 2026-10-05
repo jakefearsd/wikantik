@@ -1,138 +1,51 @@
+# Text Formatting Rules
 
-This page describes the wiki syntax used by Wikantik. For details about how this differs from the syntax used by Wikipedia, please see [MigratingFromMediaWiki](Wikantik:MigratingFromMediaWiki).
+Pages are written in Markdown (CommonMark with GitHub-style tables, footnotes and a few Wikantik additions). This page is a quick reference; the guides linked at the end go deeper.
 
-[{TableOfContents }]()   
-When you've figured out how the editor works, then you should read [WikiEtiquette]() so that you would know how to use your newly acquired skills. The [SandBox](http://sandbox.jspwiki.org) is a great place to try them out.
+## Text
 
-#### Quick Reference
+| You write | You get |
+|-----------|---------|
+| `**bold**` | **bold** |
+| `*italic*` | *italic* |
+| `~~struck~~` | ~~struck~~ |
+| a word in backticks | inline code |
+| `# Heading` to `###### Heading` | headings (use one `#` heading per page) |
+| `---` on its own line | horizontal rule |
 
-``
-----       = make a horizontal ruler. Extra '-' is ignored.
-\\         = force a line break
+Lists start with `* ` or `1. `; indent by four spaces to nest. A blank line starts a new paragraph. Put code in a fenced block with the language after the opening fence.
 
-[link]     = create a hyperlink to an internal WikiPage called 'Link'.
-[this is also a link] = create a hyperlink to an internal WikiPage called
-             'ThisIsAlsoALink' but show the link as typed with spaces.
-[a sample|link] = create a hyperlink to an internal WikiPage called
-             'Link', but display the text 'a sample' to the
-             user instead of 'Link'.
-~NoLink    = disable link creation for the word in CamelCase.
-[1]        = make a reference to a footnote numbered 1.
-[#1]       = mark the footnote number 1.
-[[link]     = create text '[link]'.
+## Tables
 
-!heading   = small heading with text 'heading'
-!!heading  = medium heading with text 'heading'
-!!!heading = large heading with text 'heading'
+```markdown
+| Name | Value |
+|------|-------|
+| One  | 1     |
+```
 
-''text''   = print 'text' in italic.
-__text__   = print 'text' in bold.
-{{text}}   = print 'text' in monospaced font.
-[text|]    = print 'text' underscored (dummy hyperlink)
-* text     = make a bulleted list item with 'text'
-# text     = make a numbered list item with 'text'
-;term:ex   = make a definition for 'term' with the explanation 'ex'
-``
+## Links
 
-#### Writing text
-You don't need to know anything about the Wiki text formatting rules to use Wiki. Just write normal text, and then use an empty line to mark a paragraph.It's just like writing an email.You can always Edit this page (look at the left sidebar) to see how the differenteffects on this page are used.
-#### Hyperlinks
-The link can also be a direct URL starting with `http:`, `ftp:`, `mailto:`, `https:`, or `news:`, in which case the link points to an external entity. For example, to point at the java.sun.com home page, use `[[http://java.sun.com]`, which becomes [http://java.sun.com/]() or `[[Java home page|[http://java.sun.com]()]`, which becomes [Java home page](http://java.sun.com).If you do not start the link with one of the above "protocols", the wiki assumes a normal link to another page in the wiki space, you need to use a letter as the first character of the page, purely numeric page names are not allowed. If you want to use square brackets (`[[]`) in the page without creating a hyperlink, use two opening square brackets. So the text `[[[Example Non-Link]`, will appear as `[[Example Non-Link]`.To add a new page you just create a link to it from somewhere else. After all, there isn't much point in having a page if you can't access it! You'll then see the page name underlined with a red-dashed line when you return to that page. Then click on it and you have created a new page!It's allowed to use almost any kind of characters inside a [WikiName](Wikantik:WikiName), as longas they are letters or numbers.Note also that this Wiki can be configured to support standard [CamelCase](Wikantik:CamelCase) linking (if it's supported, the word [CamelCase]() should be a link, if it doesn't start with '~~'). It's off by default, but if your friendly administrator has turned it on, then well, [CamelCase]() all you want =).
-#### Footnotes
-These are a special kind of hyperlink. By using nothing but a number insidea hyperlink you create a reference to a footnote, like this `[[1]`, whichcreates a footnote[1](). To make the actual footnote, you just put a `[[#1]`where you want that footnote to point at. Look below to find the footnote.You can also make a named footnote, just as if you were doing a normal hyperlink, such as `[[Footnote name|1]` as another way of referring to the first footnote[Footnote name](1). Or you can put the custom name at the footnote itself[2]().
-#### [InterWiki](Wikantik:InterWiki) links
-You can also do links between different Wikis without knowing the URL. Just use a link in the form `[[Wiki:[WikiPage]()]` and Wikantik will create a link for you. For example, this link points to the [Wikantik TextFormatting rules](Wikantik:TextFormattingRules). Check the [SystemInfo]() page for more information on which Wiki links are available.If an [InterWiki](Wikantik:InterWiki) link is not supported, you'll get a notification of it on the page whenyou save your page.
-#### Adding pictures
-You can embedany image in the wiki code by putting the image available somewhere on the web in one of the allowed formats, and then just linking to it.If you specify a link text (`[[this one here|[http://example.com/example.png]()]`) it becomesthe ALT text for those who either can't or don't want to view images.The list of accepted image types depends on the Wiki. See the [SystemInfo]()page for a list of the different image types.It is also possible to use the [Image plugin](Wikantik:Image) to gain more control over the image placement and attributes.To force a flush after an image, use \ \ \ (that is, three consecutive backslashes instead of two).
-#### Bulleted lists
-Use an asterisk (*) in the first column to make bulleted lists. Use more asterisks for deeper indentation. For example:
-``
-* One \\ one and a half
-* Two
-* Three
-** Three.One``
-creates
-* One   
-one and a half
-* Two
-* Three
-    * Three.One
+| Syntax | Meaning |
+|--------|---------|
+| `[[PageName]]` | link to a page |
+| `[[PageName\|label]]` | link with your own text |
+| `[[PageName#Heading]]` | link to a heading |
+| `[label](PageName)` | Markdown form of a page link |
+| `[label](https://example.com)` | external link |
+| `![[PageName]]` | embed another page (alone on its line) |
 
-#### Numbered lists
-Just like with bulleted lists, but use a hash (#) instead of the asterisk. Like this:
-``
-# One \\ one and a half
-# Two
-# Three
-## Three.One
-``
-creates
-1. One   
-one and a half
-1. Two
-1. Three
-    1. Three.One
+A link to a page that does not exist yet marks the page as missing; follow it to create the page. See [WikiName](WikiName) for how names resolve and [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md) for attachments and embeds.
 
-If you want to write the list item on multiple lines, just add one or more spaces on the next line and the line will be automatically added to theprevious item. For example:
-``
-* This is a single-line item.
-* This is actually a multi-line item.
-  We continue the second sentence on a line on a line of its own.
-  We might as well do a third line while we're at it...
-  Notice, however, as all these sentences get put inside a single item!
-* The third line is again a single-line item for your convenience.
-``
-produces:
-* This is a single-line item.
-* This is actually a multi-line item. We continue the second sentence on a line on a line of its own. We might as well do a third line while we're at it... Notice, however, as all these sentences get put inside a single item!
-* The third line is again a single-line item for your convenience.
+## Math
 
-#### Definition lists and comments
-A simple way to make definition lists is to use the ';:' -construct:
-``
-;__Construct__:''Something you use to do something with''
-``
-is rendered as:
-**Construct**: _Something you use to do something with_
-Another nice use for the ';:' is that you can use it to comment shortly on other people's text, by having an empty 'term' in the definition, like this:
-``
-;:''Comment here.''
-``
-Which would be seen as
-: _Comment here._
+Write inline math as `$x^2$` with no space inside the dollar signs. Write display math with `$$` on its own line before and after the formula, with blank lines around the block. See [Mathematical Notation](https://github.com/jakefearsd/wikantik/blob/main/docs/user/MathematicalNotation.md).
 
-#### Text effects
-You may use **bold** text or _italic_ text, by using two underscores (_) and two single quotes ('), respectively. If you're on a Windows computer, make sure that you are using the correct quote sign, as there is one that looks the same, but really isn't.A <!---->underscore{style:'text-decoration:underline;'} effect can be produced by using a hyperlink to nowhere, [[like this|]
-#### Preformatted text
-If you want to add preformatted text (like code) just use three consecutive braces ({) to open a block, and three consecutive braces (}) to close a block. Edit this page for an example.
-#### Tables
-You can do simple tables by using pipe signs ('|'). Use double pipesigns to start the heading of a table, and single pipe signs to thenwrite the rows of the table. End with a line that is not a table.For example:
-``
-|| Heading 1 || Heading 2
-| ''Gobble'' | Bar \\ foo
-| [Main] | [SandBox]
-``
-gives you the following table. Note how you can use links also inside tables.
-| Heading 1 | Heading 2
-| _Gobble_ | Bar   
-foo
-| [Main]() | [SandBox]()
+## Plugins and page rules
 
-#### CSS styles
-While not in line with the keep it simple principle, CSS styles [can be used inline](Wikantik:CSSInWikipages) for those special occasions when you really need to emphasize part of a page.
-#### Conflicts
-If someone happens to edit the same page as you at the same time, Wikantik will prevent you from doing changes and show a conflict page instead. Sorry to say, but the first one to make changes wins...**A word of warning:** If you use the Back button of your browser to go into the Edit page, you will almost certainly get a conflict. This is because the browser thinks it's still editing an earlier copy of the page.
-#### Deleting pages
-This is not possible. You can, of course, remove all the links to that page, which makes it inaccessible. Or you can email the administrator, and I'll remove the page. You may also add a [DELETEME](Wikantik:DELETEME) link.
-#### Adding new pages
-Create a link that points to a new (not existing) page using its [WikiName](Wikantik:WikiName).Click that new link, which should now have a question mark (?) suffix andyou will get an editor for the new page. -- [Asser](Wikantik:Asser)
-#### Aliasing a Page
-Sometimes you want any link to a wiki page to immediately traverse to a different page. This can be done using a [PageAlias]().
-#### Inserting variables
-There are many possible variables you can insert on a page. The basic form is:` [[{$variablename}], `where _variablename_ is the name of the variable you want to insert. Note that variable names are case-insensitive - that is, "pagename" is the same as "paGeNamE" and "[PageName]()".You can see the list of available of variables at [WikiVariables](Wikantik:WikiVariables).
-#### Inserting plugins
-The basic incantation to insert a plugin looks like this:[[{INSERT <plugin class> WHERE param1=value, param2=value, ...}]There is more information in [WikantikPlugins](Wikantik:WikantikPlugins).
-* * *
-[#1] Here's the footnote I mentioned.[2-The other footnote] The other footnote. Note how its name is different?
-* * *
-Any [ideas](Wikantik:IdeasTextFormattingRules)?Any [questions](Wikantik:TextFormattingRulesDiscussion)?
+* `[{TableOfContents}]()` and other plugins use the `[{Plugin}]()` form. [PageIndex](PageIndex) and [RecentChanges](RecentChanges) are built this way.
+* `[{ALLOW view Admin}]()` restricts who may view a page, and `[{ALLOW edit Alice,Bob}]()` who may edit it.
+* Raw HTML is not rendered.
+
+## Metadata
+
+A page can start with a YAML frontmatter block between two `---` lines holding its type, tags, cluster, summary and aliases. The editor has a form for it. See [Frontmatter](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Frontmatter.md).

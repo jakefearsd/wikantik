@@ -43,8 +43,8 @@ Write inline math as `$x^2$` with no space inside the dollar signs. Write displa
 ## Plugins and page rules
 
 * `[{TableOfContents}]()` and other plugins use the `[{Plugin}]()` form. [PageIndex](PageIndex) and [RecentChanges](RecentChanges) are built this way.
-* `[{ALLOW view Admin}]()` restricts who may view a page, and `[{ALLOW edit Alice,Bob}]()` who may edit it.
-* Raw HTML is not rendered.
+* `[{ALLOW view Admin}]()` restricts who may view a page, and `[{ALLOW edit alice,bob}]()` who may edit it. Name people by their login name.
+* Raw HTML is rendered after it is sanitised: scripts, frames, forms, event-handler attributes and unsafe link schemes are removed. Prefer Markdown and plugins.
 
 ## Metadata
 

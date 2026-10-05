@@ -81,7 +81,7 @@ Bracket syntax `[{ ... }]` is used for dynamic functions and system controls.
 
 ### Access Control Lists (ACLs)
 Place ACLs at the top of the file, before the first heading. Valid permissions include `view`, `edit`, `modify`, `upload`, `rename`, and `delete`.
-*   **Example:** `[{ALLOW edit Admin,Editors}]`
+*   **Example:** `[{ALLOW edit Admin,Editors}]`. Name individual people by their login name.
 
 ## IV. Core Plugins
 
@@ -125,6 +125,6 @@ Stamp pages as reviewed using the `mark_page_verified` tool or manual entry:
 
 ## VI. Best Practices
 1.  **Summary Quality:** Keep summaries between 50 and 160 characters. They drive search results and agent projections.
-2.  **No HTML:** Wikantik escapes raw HTML by default for security. Use Markdown primitives or plugins for all styling.
+2.  **Prefer Markdown to HTML:** Raw HTML is rendered after it is sanitised (scripts, frames, forms, event-handler attributes and unsafe link schemes are removed). Use Markdown primitives or plugins for styling where you can.
 3.  **Frontmatter vs. Body:** Store machine-queryable data (dates, types, relations) in frontmatter; store prose and examples in the body.
 4.  **Authoring help:** See [Editing](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Editing.md) for the editor and [Frontmatter](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Frontmatter.md) for every field.

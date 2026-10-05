@@ -66,9 +66,12 @@ public final class DefaultUserProfile implements UserProfile {
         final DefaultUserProfile c = new DefaultUserProfile();
         c.setUid( src.getUid() );
         c.setLoginName( src.getLoginName() );
-        // setFullname recomputes wikiname from the full name (the source of truth for
-        // the wikiname field), so there is no separate setWikiName accessor to call.
+        // setFullname derives the wiki name; copy the stored one over it, because a shared
+        // full name carries a numbered wiki name (JohnSmith2) that re-deriving would lose.
         c.setFullname( src.getFullname() );
+        if ( src.getWikiName() != null && !src.getWikiName().isBlank() ) {
+            c.setWikiName( src.getWikiName() );
+        }
         c.setEmail( src.getEmail() );
         c.setPassword( src.getPassword() );
         c.setBio( src.getBio() );

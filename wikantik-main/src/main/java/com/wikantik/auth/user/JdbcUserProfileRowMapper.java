@@ -64,6 +64,12 @@ final class JdbcUserProfileRowMapper {
         profile.setCreated( rs.getTimestamp( "created" ) );
         profile.setEmail( rs.getString( "email" ) );
         profile.setFullname( rs.getString( "full_name" ) );
+        // setFullname derives the wiki name; the stored one wins, because a shared full name gets a
+        // numbered wiki name (JohnSmith2) that re-deriving would collapse onto another account's.
+        final String storedWikiName = rs.getString( "wiki_name" );
+        if ( StringUtils.isNotBlank( storedWikiName ) ) {
+            profile.setWikiName( storedWikiName );
+        }
         profile.setLastModified( rs.getTimestamp( "modified" ) );
         profile.setLastLogin( rs.getTimestamp( "last_login" ) );
         final Date lockExpiryDate = rs.getDate( "lock_expiry" );

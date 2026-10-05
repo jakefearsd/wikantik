@@ -1294,6 +1294,31 @@ a[data-attachment-missing] {
   color: var(--text);
 }
 
+/* Helper text under a form field or option. --text-secondary, not --text-muted: small text must keep AA contrast. */
+.form-hint {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* AddConnectorWizard type picker cards. */
+.wizard-type-card {
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--space-md);
+  background: var(--bg-elevated);
+  color: inherit;
+  font: inherit;
+}
+
+.wizard-type-card:hover,
+.wizard-type-card:focus-visible {
+  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
+  border-color: var(--accent);
+}
+
 .attachment-panel-hint {
   font-family: var(--font-ui);
   font-size: 0.75rem;

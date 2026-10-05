@@ -268,14 +268,7 @@ function TypePicker({ onSelect }) {
               key={t}
               data-testid={`type-card-${t}`}
               onClick={() => onSelect(t)}
-              style={{
-                textAlign: 'left',
-                cursor: 'pointer',
-                border: '1px solid var(--border)',
-                borderRadius: '6px',
-                padding: 'var(--space-md)',
-                background: 'var(--bg-elevated)',
-              }}
+              className="wizard-type-card"
             >
               <div style={{ fontSize: '1.5rem' }}>{meta.icon}</div>
               <h3 style={{ margin: '4px 0' }}>{meta.label}</h3>

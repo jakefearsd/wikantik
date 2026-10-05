@@ -31,8 +31,11 @@
   white-space: nowrap;
 }
 
-.graph-toolbar button:hover {
-  background: var(--bg-hover);
+/* Layer the translucent hover tint over the opaque base fill instead of replacing it,
+   so the button gets visibly lighter/darker in both themes rather than see-through. */
+.graph-toolbar button:not(.active):hover {
+  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
+  border-color: var(--border-strong);
 }
 
 .graph-toolbar button.active {

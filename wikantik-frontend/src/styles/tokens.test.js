@@ -70,6 +70,34 @@ describe('globals.css custom properties', () => {
     }
   });
 
+  function rule(text, selector) {
+    const start = text.indexOf(`${selector} {`);
+    return start < 0 ? '' : text.slice(start, text.indexOf('}', start));
+  }
+
+  it('styles .form-hint as small secondary text both themes define (it rendered at full text colour)', () => {
+    const hint = rule(css, '.form-hint');
+    expect(hint).toContain('var(--text-secondary)');
+    expect(hint).not.toContain('--text-muted');
+    expect(hint).toMatch(/font-size:\s*0\.8\d*rem/);
+    expect(block(':root')).toContain('--text-secondary:');
+    expect(block('[data-theme="dark"]')).toContain('--text-secondary:');
+  });
+
+  it('connector wizard type cards have a visible hover state', () => {
+    const hover = rule(css, '.wizard-type-card:hover,\n.wizard-type-card:focus-visible');
+    expect(hover).toContain('var(--bg-hover)');
+    expect(hover).toContain('border-color');
+  });
+
+  it('page-graph toolbar buttons keep their opaque fill on hover and layer the tint over it', () => {
+    const graph = readFileSync(resolve(process.cwd(), 'src/components/pagegraph/graph.css'), 'utf8');
+    const hover = rule(graph, '.graph-toolbar button:not(.active):hover');
+    expect(hover).not.toMatch(/(^|[^-])background:/);
+    expect(hover).toContain('background-image: linear-gradient(var(--bg-hover), var(--bg-hover))');
+    expect(hover).toContain('border-color: var(--border-strong)');
+  });
+
   it('never falls back to the undefined --surface token (it rendered white fields in dark mode)', () => {
     expect(css).not.toMatch(/var\(--surface\b/);
   });

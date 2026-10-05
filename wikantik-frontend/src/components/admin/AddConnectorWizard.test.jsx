@@ -60,6 +60,9 @@ describe('AddConnectorWizard', () => {
     });
 
     const githubCard = screen.getByTestId('type-card-github');
+    // Styled by the .wizard-type-card class, not inline, so its :hover rule can apply.
+    expect(githubCard).toHaveClass('wizard-type-card');
+    expect(githubCard.style.background).toBe('');
     expect(githubCard).toHaveTextContent(CONNECTOR_TYPES.github.blurb);
     expect(githubCard).toHaveTextContent(CONNECTOR_TYPES.github.goodFor);
 

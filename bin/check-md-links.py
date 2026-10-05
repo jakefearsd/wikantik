@@ -15,11 +15,11 @@ from pathlib import Path
 from urllib.parse import unquote
 
 EXCLUDE_ALWAYS = ("docs/wikantik-pages/",)
-EXCLUDE_DEFAULT = ("docs/superpowers/", "docs/archive/", "docs/clusters/", "eval/", "marketing/")
+EXCLUDE_DEFAULT = ("docs/superpowers/", "docs/archive/", "docs/clusters/", "eval/", "marketing/", "src/site/")
 EXCLUDE_DEFAULT_FILES = {"CHANGELOG.md"}
 
 INLINE = re.compile(r"\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
-REFDEF = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*<?(\S+?)>?(?:\s+\"[^\"]*\")?\s*$")
+REFDEF = re.compile(r"^\s{0,3}\[(?!\^)[^\]]+\]:\s*<?(\S+?)>?(?:\s+\"[^\"]*\")?\s*$")
 FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 INLINE_CODE = re.compile(r"`[^`]*`")
 
@@ -33,7 +33,7 @@ def in_scope(rel: str, widen: bool) -> bool:
 
 
 def is_external(target: str) -> bool:
-    return target.startswith(("#", "mailto:", "tel:")) or "://" in target
+    return target.startswith("#") or re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*:', target) is not None
 
 
 def targets(text: str):

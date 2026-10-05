@@ -258,10 +258,12 @@ public class DefaultGroupManagerCITest {
 
         m_groupMgr.actionPerformed( event );
 
-        // The group should now contain the new name
+        // The group lists the member by login name, not by the new display name
         final Group updated = m_groupMgr.getGroup( "CITest" );
-        assertTrue( updated.isMember( new WikiPrincipal( "AliceRenamed" ) ),
-                "Group should reflect the renamed principal" );
+        assertTrue( updated.isMember( new WikiPrincipal( "alice" ) ),
+                "Group should list the renamed member by login name" );
+        assertFalse( updated.isMember( new WikiPrincipal( "AliceRenamed" ) ),
+                "Group must not list the member by display name" );
         assertFalse( updated.isMember( new WikiPrincipal( "Alice" ) ),
                 "Old principal name should have been replaced" );
     }

@@ -238,8 +238,9 @@ public class WikiSessionCITest {
     void actionPerformed_groupAdd_addsGroupPrincipalWhenSessionIsInGroup() {
         // Make the session authenticated so isInGroup can return true
         session.getSubject().getPrincipals().add( Role.AUTHENTICATED );
-        final WikiPrincipal wp = new WikiPrincipal( "janne", WikiPrincipal.FULL_NAME );
+        final WikiPrincipal wp = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( wp );
+        setLoginPrincipal( session, wp );
 
         final GroupPrincipal gp = new GroupPrincipal( "Editors" );
         when( group.getPrincipal() ).thenReturn( gp );
@@ -688,13 +689,39 @@ public class WikiSessionCITest {
 
     @Test
     void isInGroup_returnsTrueWhenAuthenticatedAndMember() {
-        final WikiPrincipal wp = new WikiPrincipal( "janne", WikiPrincipal.FULL_NAME );
+        final WikiPrincipal wp = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
         session.getSubject().getPrincipals().add( wp );
         session.getSubject().getPrincipals().add( Role.AUTHENTICATED );
+        setLoginPrincipal( session, wp );
 
         when( group.isMember( wp ) ).thenReturn( true );
 
         assertTrue( session.isInGroup( group ) );
+    }
+
+    @Test
+    void isInGroup_ignoresDisplayNamePrincipals() {
+        final WikiPrincipal login = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
+        final WikiPrincipal fullName = new WikiPrincipal( "Janne Jalkanen", WikiPrincipal.FULL_NAME );
+        session.getSubject().getPrincipals().add( login );
+        session.getSubject().getPrincipals().add( fullName );
+        session.getSubject().getPrincipals().add( Role.AUTHENTICATED );
+        setLoginPrincipal( session, login );
+
+        lenient().when( group.isMember( fullName ) ).thenReturn( true );
+        when( group.isMember( login ) ).thenReturn( false );
+
+        assertFalse( session.isInGroup( group ), "membership is decided by the login principal only" );
+    }
+
+    private static void setLoginPrincipal( final WikiSession s, final java.security.Principal p ) {
+        try {
+            final java.lang.reflect.Field f = WikiSession.class.getDeclaredField( "loginPrincipal" );
+            f.setAccessible( true );
+            f.set( s, p );
+        } catch ( final ReflectiveOperationException e ) {
+            throw new IllegalStateException( e );
+        }
     }
 
     @Test

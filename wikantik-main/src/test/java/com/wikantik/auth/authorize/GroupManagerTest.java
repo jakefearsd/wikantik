@@ -78,7 +78,7 @@ public class GroupManagerTest
         m_groupMgr.setGroup( m_session, group );
         group = m_groupMgr.parseGroup( "Test2", "Bob", true );
         m_groupMgr.setGroup( m_session, group );
-        group = m_groupMgr.parseGroup( "Test3", "Fred Flintstone", true );
+        group = m_groupMgr.parseGroup( "Test3", "Fred", true );
         m_groupMgr.setGroup( m_session, group );
 
         // We should see 3 events: 1 for each group add
@@ -157,8 +157,16 @@ public class GroupManagerTest
         Assertions.assertFalse( m_groupMgr.isUserInRole( s, new GroupPrincipal( "Test3" ) ) );
         Assertions.assertFalse( m_groupMgr.isUserInRole( s, new GroupPrincipal( "NonExistant" ) ) );
 
-        // Fred is authenticated; should belong to Test3
+        // Fred is authenticated; should belong to Test3 (listed by login name) but not to a group
+        // that lists only his full name, "Fred Flintstone": members are identified by login name.
         s = WikiSessionTest.authenticatedSession( m_engine, Users.FRED, Users.FRED_PASS );
+        final Group byFullName = m_groupMgr.parseGroup( "TestFullName", "Fred Flintstone", true );
+        m_groupMgr.setGroup( m_session, byFullName );
+        try {
+            Assertions.assertFalse( m_groupMgr.isUserInRole( s, new GroupPrincipal( "TestFullName" ) ) );
+        } finally {
+            m_groupMgr.removeGroup( "TestFullName" );
+        }
         Assertions.assertFalse( m_groupMgr.isUserInRole( s, new GroupPrincipal( "Test" ) ) );
         Assertions.assertFalse( m_groupMgr.isUserInRole( s, new GroupPrincipal( "Test2" ) ) );
         Assertions.assertTrue( m_groupMgr.isUserInRole( s, new GroupPrincipal( "Test3" ) ) );

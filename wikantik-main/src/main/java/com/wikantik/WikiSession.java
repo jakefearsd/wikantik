@@ -91,14 +91,15 @@ public final class WikiSession implements Session {
     private Locale cachedLocale      = Locale.getDefault();
 
     /**
-     * Returns <code>true</code> if one of this WikiSession's user Principals can be shown to belong to a particular wiki group. If
-     * the user is not authenticated, this method will always return <code>false</code>.
+     * Returns <code>true</code> if this WikiSession's login Principal belongs to a particular wiki group. Groups list members by
+     * login name; the session's full-name and wiki-name principals never establish membership. If the user is not authenticated,
+     * this method will always return <code>false</code>.
      *
      * @param group the group to test
      * @return the result
      */
     protected boolean isInGroup( final Group group ) {
-        return Arrays.stream(getPrincipals()).anyMatch(principal -> isAuthenticated() && group.isMember(principal));
+        return isAuthenticated() && loginPrincipal != null && group.isMember( loginPrincipal );
     }
 
     /**

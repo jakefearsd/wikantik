@@ -27,7 +27,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.Authorizer;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -42,7 +41,6 @@ import com.wikantik.ui.InputValidator;
 import com.wikantik.util.ClassUtil;
 
 import java.security.Principal;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -179,9 +177,10 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
 
         // Get the group we're examining
         final Group group = groups.get( groupPrincipal );
-        // Check each user principal to see if it belongs to the group
-        return group != null
-                && Arrays.stream(session.getPrincipals()).anyMatch(principal -> AuthenticationManager.isUserPrincipal(principal) && group.isMember(principal));
+        // Members are identified by login name. The session's full-name and wiki-name principals
+        // are editable profile data and never establish membership.
+        final Principal login = session.getLoginPrincipal();
+        return group != null && login != null && group.isMember( login );
     }
 
     /** {@inheritDoc} */
@@ -394,7 +393,8 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             final UserProfile[] profiles = ( UserProfile[] )se.getTarget();
             final Principal[] oldPrincipals = { new WikiPrincipal( profiles[ 0 ].getLoginName() ),
                     new WikiPrincipal( profiles[ 0 ].getFullname() ), new WikiPrincipal( profiles[ 0 ].getWikiName() ) };
-            final Principal newPrincipal = new WikiPrincipal( profiles[ 1 ].getFullname() );
+            // Groups list members by login name, so a renamed member is re-added under its login name.
+            final Principal newPrincipal = new WikiPrincipal( profiles[ 1 ].getLoginName(), WikiPrincipal.LOGIN_NAME );
 
             // Examine each group
             int groupsChanged = 0;

@@ -326,13 +326,34 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             return isUserInRole( session, principal );
         }
 
-        // We must be looking for a user principal, assuming that the user has been properly logged in. So just look for a name match.
+        // We must be looking for a user principal, assuming that the user has been properly logged in.
         if( session.isAuthenticated() && AuthenticationManager.isUserPrincipal( principal ) ) {
-            final String principalName = principal.getName();
-            final Principal[] userPrincipals = session.getPrincipals();
-            return Arrays.stream(userPrincipals).anyMatch(userPrincipal -> userPrincipal.getName().equals(principalName));
+            return matchesUserPrincipal( session, principal );
         }
         return false;
+    }
+
+    /**
+     * Matches a user principal named by an ACL against the session. A principal resolved to a specific
+     * user profile field matches only the same field: a login name matches only the session's login
+     * principal, and a full or wiki name matches only the session principal of that same type. So one
+     * user's display name can never stand in for another user's login name. Any other principal (for
+     * example one that did not resolve to a user) keeps the plain name match.
+     */
+    private static boolean matchesUserPrincipal( final Session session, final Principal principal ) {
+        final String principalName = principal.getName();
+        if ( principal instanceof WikiPrincipal wp ) {
+            final String type = wp.getType();
+            if ( WikiPrincipal.LOGIN_NAME.equals( type ) ) {
+                final Principal login = session.getLoginPrincipal();
+                return login != null && principalName.equals( login.getName() );
+            }
+            if ( WikiPrincipal.FULL_NAME.equals( type ) || WikiPrincipal.WIKI_NAME.equals( type ) ) {
+                return Arrays.stream( session.getPrincipals() ).anyMatch( p -> p instanceof WikiPrincipal sp
+                        && type.equals( sp.getType() ) && principalName.equals( sp.getName() ) );
+            }
+        }
+        return Arrays.stream( session.getPrincipals() ).anyMatch( userPrincipal -> userPrincipal.getName().equals( principalName ) );
     }
 
     /** {@inheritDoc} */

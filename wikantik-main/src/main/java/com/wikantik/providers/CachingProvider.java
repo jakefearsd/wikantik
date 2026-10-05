@@ -412,10 +412,9 @@ public class CachingProvider implements PageProvider {
     public Collection< SearchResult > findPages( final QueryItem[] query ) {
         //  If the provider is a fast searcher, then just pass this request through.
         return provider.findPages( query );
-        // FIXME: Does not implement fast searching
     }
 
-    //  FIXME: Kludge: make sure that the page is also parsed and it gets all the necessary variables.
+    // Parses the page when it has no metadata yet so that its derived attributes are populated.
     private void refreshMetadata( final Page page ) {
         if( page != null && !page.hasMetadata() ) {
             try {

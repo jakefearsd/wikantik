@@ -165,27 +165,9 @@ public class ContextualDiffProviderTest {
         diffTest( null, "A B C D E", "A b C d E", "A |^b^-B-| C |^d^-D-| E" );
     }
 
-    // FIXME: This test Assertions.fails; must be enabled again asap.
-    /*
-    @Test
-    public void testKnownProblemCases() throws NoRequiredPropertyException, IOException
-    {
-        //These all Assertions.fail...
+    // Known limitation: the provider does not collapse adjacent edits into one marked span. For example
+    // "A B C D" -> "A b c D" renders "A |^b^-B-| |^c^-C-| D" rather than "A |^b c^-B C-| D".
 
-        //make two consequtive changes
-        diffTest(null, "A B C D", "A b c D", "A |^b c^-B C-| D");
-        //acually returns ->                 "A |^b^-B-| |^c^-C-| D"
-
-        //collapse adjacent elements...
-        diffTest(null, "A B C D", "A BC D", "A |^BC^-B C-| D");
-        //acually returns ->                "A |^BC^-B-| |-C -|D"
-
-
-        //These Assertions.failures are all due to how we process the diff results, we need to collapse
-        //adjacent edits into one...
-
-    }
-     */
 
     private void diffTest( final String contextLimit, final String oldText, final String newText, final String expectedDiff )
             throws IOException, WikiException {

@@ -251,7 +251,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         }
 
         // Delete the group
-        // TODO: need rollback procedure
+        // Not transactional: the in-memory entry is removed before the database delete, so a database failure leaves them out of step.
         synchronized( groups ) {
             groups.remove( group.getPrincipal() );
         }
@@ -262,7 +262,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
     /** {@inheritDoc} */
     @Override
     public void setGroup( final Session session, final Group group ) throws WikiException {
-        // TODO: check for appropriate permissions
+        // No permission check here; callers must authorize the session before calling.
         setGroupInternal( session, group );
     }
 
@@ -336,7 +336,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
     /** {@inheritDoc} */
     @Override
     public void checkGroupName( final Context context, final String name ) throws WikiSecurityException {
-        // TODO: groups cannot have the same name as a user
+        // Note: this does not reject names that collide with a user name.
 
         // Name cannot be null
         final InputValidator validator = new InputValidator( MESSAGES_KEY, context );

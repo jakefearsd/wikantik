@@ -35,8 +35,6 @@ import java.util.List;
  *  <P>
  *  WikiPageProvider uses Strings and ints to refer to pages.  This may be a bit odd, since WikiAttachmentProviders all use Attachment
  *  instead of name/version.  We will perhaps modify these in the future.  In the mean time, name/version is quite sufficient.
- *  <P>
- *  FIXME: In reality we should have an AbstractWikiPageProvider, which would provide intelligent backups for subclasses.
  */
 public interface PageProvider extends WikiProvider {
 

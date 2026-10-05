@@ -470,7 +470,7 @@ public final class WikiEventManager {
     private static class WikiEventListenerComparator implements Comparator< WikiEventListener >, java.io.Serializable {
         private static final long serialVersionUID = 1L;
 
-        // TODO: This method is a critical performance bottleneck
+        // Called for every listener comparison, so keep it cheap.
         @Override
         public int compare( final WikiEventListener w0, final WikiEventListener w1 ) {
             if( w0.equals( w1 ) ) {

@@ -60,8 +60,8 @@ public class ContextualDiffProvider implements DiffProvider {
      */
     public static final String PROP_UNCHANGED_CONTEXT_LIMIT = "wikantik.contextualDiffProvider.unchangedContextLimit";
 
-    //TODO all of these publics can become wikantik.properties entries...
-    //TODO span title= can be used to get hover info...
+    // These fields are public and configured in code rather than via wikantik.properties.
+    // Spans could carry a title= attribute to give hover info; they currently do not.
 
     public boolean emitChangeNextPreviousHyperlinks = true;
 

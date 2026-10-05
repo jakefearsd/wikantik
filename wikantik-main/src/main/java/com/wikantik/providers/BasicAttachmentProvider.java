@@ -288,7 +288,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
             String author = att.getAuthor();
             if( author == null ) {
-                author = "unknown"; // FIXME: Should be localized, but cannot due to missing WikiContext
+                author = "unknown"; // not localized: no context is available at this layer
             }
             props.setProperty( versionNumber + ".author", author );
 
@@ -421,7 +421,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     /**
      *  {@inheritDoc}
      */
-    // FIXME: Very unoptimized.
+    // Walks every attachment directory on each call; not indexed.
     @Override
     public List< Attachment > listAllChanged( final Date timestamp ) throws ProviderException {
         final File attDir = new File( storageDir );
@@ -495,7 +495,6 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             LOG.error("Can't read page properties", e );
             throw new ProviderException("Cannot read page properties: "+e.getMessage(), e);
         }
-        // FIXME: Check for existence of this particular version.
 
         return att;
     }
@@ -516,7 +515,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             }
         } catch( final ProviderException e ) {
             LOG.error( "Getting version history failed for page: {}", att, e );
-            // FIXME: Should this fail?
+            // The failure is logged and an empty history is returned rather than failing the caller.
         }
 
         return list;

@@ -244,7 +244,7 @@ public class DefaultVariableManager implements VariableManager {
      *  {@inheritDoc}
      */
     @Override
-    // FIXME: somewhat slow.
+    // Scans the source character by character.
     public String expandVariables( final Context context, final String source ) {
         final StringBuilder result = new StringBuilder();
         for( int i = 0; i < source.length(); i++ ) {
@@ -320,7 +320,7 @@ public class DefaultVariableManager implements VariableManager {
 
         for( final String prohibited : THE_BIG_NO_NO_LIST ) {
             if( name.equals( prohibited ) ) {
-                return ""; // FIXME: Should this be something different?
+                return ""; // prohibited variables expand to nothing
             }
         }
 

@@ -25,7 +25,7 @@ import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.Verification;
-import com.wikantik.api.pagegraph.StructuralFilter;
+import com.wikantik.api.pagegraph.Sitemap;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.pagegraph.spine.ConfidenceComputer;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystem;
@@ -65,12 +65,15 @@ class AdminAgentGradeAuditServletTest {
     private HttpServletResponse        resp;
     private StringWriter               body;
 
+    private void seedPages( final List< PageDescriptor > pages ) {
+        when( index.sitemap() ).thenReturn( new Sitemap( pages, pages.size(), Instant.now() ) );
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         index = mock( StructuralIndexService.class );
         refs  = mock( ReferenceManager.class );
-        when( index.listPagesByFilter( any( StructuralFilter.class ) ) )
-                .thenReturn( List.< PageDescriptor >of() );
+        seedPages( List.< PageDescriptor >of() );
 
         engine = mock( WikiEngine.class );
         wire( index, refs );
@@ -164,7 +167,7 @@ class AdminAgentGradeAuditServletTest {
 
         servlet.doGet( req, resp2 );
 
-        verify( index, times( 2 ) ).listPagesByFilter( any( StructuralFilter.class ) );
+        verify( index, times( 2 ) ).sitemap();
         verify( engine, never() ).getPageGraphSubsystem();
     }
 
@@ -242,7 +245,7 @@ class AdminAgentGradeAuditServletTest {
         // honour the ConfidenceComputer handed to it by the subsystem bridge.
         final PageDescriptor p = new PageDescriptor( "p1", "P1", "P1", PageType.UNKNOWN, null,
                 List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), Optional.empty(), false );
-        when( index.listPagesByFilter( any( StructuralFilter.class ) ) ).thenReturn( List.of( p ) );
+        seedPages( List.of( p ) );
         when( index.verificationOf( "p1" ) ).thenReturn( Optional.of(
                 new Verification( Instant.now().minus( Duration.ofDays( 30 ) ), "alice", null, null ) ) );
 

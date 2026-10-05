@@ -626,7 +626,7 @@ public final class WikiSession implements Session {
      *  @param engine Engine for this session
      *  @return A static WikiSession which is shared by all in this same Thread.
      */
-    // FIXME: Should really use WeakReferences to clean away unused sessions.
+    // The guest session is cached per thread and replaced when the caller's engine differs.
     private static Session staticGuestSession( final Engine engine ) {
         Session session = guestSession.get();
         // The cached guest must belong to the CALLER's engine: a thread that has

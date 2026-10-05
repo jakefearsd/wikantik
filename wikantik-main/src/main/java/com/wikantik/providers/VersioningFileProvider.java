@@ -317,7 +317,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
     }
 
 
-    // FIXME: Should this really be here?
+    // Returns null when the file does not exist.
     private String readFile( final File pagedata ) throws ProviderException {
         String result = null;
         if( pagedata.exists() ) {
@@ -333,15 +333,16 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 throw new ProviderException("I cannot read the requested page.");
             }
         } else {
-            // This is okay.
-            // FIXME: is it?
+            // A missing file is the normal case for a page that has not been saved yet.
             LOG.info("New page");
         }
 
         return result;
     }
 
-    // FIXME: This method has no rollback whatsoever.
+    // Not transactional: the previous text is copied into OLD/ first, then the new text is written, then the
+    // version properties are updated, so a failure part-way leaves the earlier steps in place. Writes are
+    // serialised by the write lock.
 
     /*
       This is how the page directory should look like:
@@ -397,7 +398,6 @@ public class VersioningFileProvider extends AbstractFileProvider {
             super.putPageText( page, text );
 
             //  Finally, write page version data.
-            // FIXME: No rollback available.
             final Properties props = getPageProperties( page.getName() );
 
             String authorFirst = null;
@@ -545,7 +545,6 @@ public class VersioningFileProvider extends AbstractFileProvider {
     /**
      *  {@inheritDoc}
      */
-     // FIXME: Does not get user information.
     @Override
     public List< Page > getVersionHistory( final String page ) throws ProviderException {
         final java.util.concurrent.locks.Lock readLock = rwLock.readLock();
@@ -610,7 +609,6 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  @param page {@inheritDoc}
      *  @throws {@inheritDoc}
      */
-    // FIXME: Should log errors.
     @Override
     public void deletePage( final String page ) throws ProviderException {
         final java.util.concurrent.locks.Lock writeLock = rwLock.writeLock();
@@ -621,6 +619,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
             if( dir.exists() && dir.isDirectory() ) {
                 final File[] files = dir.listFiles( new WikiFileFilter() );
                 if( files == null ) {
+                    LOG.warn( "Could not list old version files for deleted page '{}' in {}", page, dir.getAbsolutePath() );
                     return;
                 }
                 for( final File file : files ) {
@@ -710,7 +709,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
     /**
      *  {@inheritDoc}
      */
-    // FIXME: This is kinda slow, we should need to do this only once.
+    // Reads version info for every page individually (one properties lookup per page).
     @Override
     public Collection< Page > getAllPages() throws ProviderException {
         final java.util.concurrent.locks.Lock readLock = rwLock.readLock();

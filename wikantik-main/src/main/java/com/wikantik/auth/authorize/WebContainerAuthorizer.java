@@ -95,7 +95,6 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
         this.engine = engine;
         containerAuthorized = false;
 
-        // FIXME: Error handling here is not very verbose
         try {
             webxml = getWebXml();
             if( webxml != null ) {

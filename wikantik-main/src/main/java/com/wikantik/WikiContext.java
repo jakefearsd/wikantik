@@ -585,7 +585,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public String getURL( final String context, final String page, final String params ) {
-        // FIXME: is rather slow
+        // Delegates to the engine's URL construction, which is not cached.
         return engine.getURL( context, page, params );
     }
 
@@ -684,8 +684,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public Permission requiredPermission() {
-        // TODO: we should really break the contract so that this
-        // method returns null, but until then we will use this hack
+        // Callers rely on a non-null permission, so commands without one get a dummy permission.
         if( command.requiredPermission() == null ) {
             return DUMMY_PERMISSION;
         }

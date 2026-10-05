@@ -54,7 +54,7 @@ import java.util.Map;
  *
  *  @since 2.1.4.
  */
-// FIXME: It is not yet possible to do wiki internal links.  In order to do this cleanly, a TranslatorReader revamp is needed.
+// Note: the src parameter is used as given; wiki-internal link syntax is not resolved.
 public class Image implements Plugin {
 
     /** The parameter name for setting the src.  Value is <tt>{@value}</tt>. */

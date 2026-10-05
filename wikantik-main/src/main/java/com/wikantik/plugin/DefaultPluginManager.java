@@ -398,8 +398,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
             throw new PluginException( MessageFormat.format( rb.getString( "plugin.error.parsingarguments" ), commandline ), e );
         }
 
-        // FIXME: We could either return an empty string "", or the original line.  If we want unsuccessful requests
-        // to be invisible, then we should return an empty string.
+        // A failed plugin request leaves the original command line visible in the output.
         return commandline;
     }
 
@@ -449,8 +448,6 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     /**
      *  Contains information about a bunch of plugins.
      */
-    // FIXME: This class needs a better interface to return all sorts of possible information from the plugin XML.  In fact, it probably
-    //  should have some sort of a superclass system.
     public static final class WikiPluginInfo extends WikiModuleInfo {
 
         private String    className;

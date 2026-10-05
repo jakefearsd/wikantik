@@ -35,8 +35,7 @@ import java.util.Map;
 /**
  *  Simple wrapper class for the Wiki page attributes.  The Wiki page content is moved around in Strings, though.
  */
-// FIXME: We need to rethink how metadata is being used - probably the author, date, etc. should also be part of the metadata.  We also
-//        need to figure out the metadata lifecycle.
+// Note: author and date are first-class fields here, separate from the free-form metadata attributes.
 public class WikiPage implements Page {
 
     private final String     name;

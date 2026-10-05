@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * GET /admin/agent-grade-audit?limit=N&offset=M — paginated weak-signal report
+ * GET /admin/agent-grade-audit?limit=N&offset=M — paginated weak-signal report over the whole corpus
  * helping authors find pages worth manual improvement without imposing a
  * frontmatter schema. Behind {@code AdminAuthFilter} (AllPermission) — no
  * additional auth check inside this resource.
@@ -54,12 +54,6 @@ public final class AgentGradeAuditResource {
     private static final Pattern GENERIC = Pattern.compile(
             "^\\s*(an?\\s+)?index of (pages?|articles?|content)\\s+(on|about|covering|for)\\b",
             Pattern.CASE_INSENSITIVE );
-    /**
-     * Filter limit cap from {@link StructuralFilter}; v1 audit covers up to this many pages.
-     * TODO: if the corpus exceeds 1000 pages, cursor-based pagination will be needed in a follow-up.
-     */
-    private static final int SCAN_LIMIT = 1000;
-
     private final StructuralIndexService index;
     private final ReferenceManager refs;
     private final ConfidenceComputer confidence;
@@ -78,10 +72,9 @@ public final class AgentGradeAuditResource {
         if ( limit > 200 ) limit = 200;
         if ( offset < 0 ) offset = 0;
 
-        final StructuralFilter filter = new StructuralFilter( null, null, null, null, SCAN_LIMIT, null );
-
+        // sitemap() enumerates the whole corpus; listPagesByFilter is capped at 1000 pages.
         final List< Map< String, Object > > weakPages = new ArrayList<>();
-        for ( final PageDescriptor p : index.listPagesByFilter( filter ) ) {
+        for ( final PageDescriptor p : index.sitemap().pages() ) {
             final List< String > flags = collectFlags( p );
             if ( flags.isEmpty() ) continue;
             final Map< String, Object > row = new LinkedHashMap<>();
@@ -101,11 +94,15 @@ public final class AgentGradeAuditResource {
         final int to = Math.min( from + limit, total );
         final List< Map< String, Object > > page = weakPages.subList( from, to );
 
-        return GSON.toJson( Map.of(
-                "total", total,
-                "limit", limit,
-                "offset", offset,
-                "pages", page ) );
+        final Map< String, Object > body = new LinkedHashMap<>();
+        body.put( "total", total );
+        body.put( "limit", limit );
+        body.put( "offset", offset );
+        body.put( "pages", page );
+        if ( to < total ) {
+            body.put( "next", to );   // offset to request for the following page; absent on the last page
+        }
+        return GSON.toJson( body );
     }
 
     private List< String > collectFlags( final PageDescriptor p ) {

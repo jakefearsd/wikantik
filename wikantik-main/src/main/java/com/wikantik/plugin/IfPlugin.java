@@ -235,7 +235,7 @@ public class IfPlugin implements Plugin {
         return matchesAny( user, usr -> usr.equals( context.getCurrentUser().getName() ) );
     }
 
-    // TODO: Add subnetwork matching, e.g. 10.0.0.0/8
+    // Matches exact addresses only; subnet (CIDR) matching is not supported.
     private static boolean checkIP( final Context context, final String ipaddr ) {
         if( ipaddr == null || context.getHttpRequest() == null ) {
             return false;

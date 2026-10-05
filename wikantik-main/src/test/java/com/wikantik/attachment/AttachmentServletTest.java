@@ -750,6 +750,65 @@ class AttachmentServletTest {
         verify( progressManager ).stopProgress( isNull() );
     }
 
+    // ---- upload() cleans up spooled temp files on failure and success ----
+
+    private long spooledFileCount( final java.nio.file.Path dir ) throws IOException {
+        try( java.util.stream.Stream< java.nio.file.Path > s = java.nio.file.Files.list( dir ) ) {
+            return s.count();
+        }
+    }
+
+    private void stubLargeUpload() throws IOException {
+        final String filePart =
+                "Content-Disposition: form-data; name=\"content\"; filename=\"big.txt\"\r\n" +
+                "Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "x".repeat( 64 * 1024 );
+        final String pagePart =
+                "Content-Disposition: form-data; name=\"page\"\r\n" +
+                "\r\n" +
+                "TestPage";
+        stubMultipartRequest( buildMultipartBody( pagePart, filePart ) );
+    }
+
+    @Test
+    void testUploadRemovesSpooledTempFileWhenStoreFails( @org.junit.jupiter.api.io.TempDir final java.nio.file.Path tmp )
+            throws Exception {
+        final String oldTmp = System.getProperty( "java.io.tmpdir" );
+        System.setProperty( "java.io.tmpdir", tmp.toString() );
+        try {
+            stubLargeUpload();
+            doThrow( new ProviderException( "boom" ) ).when( servlet ).executeUpload(
+                    any( Context.class ), any( InputStream.class ),
+                    anyString(), anyString(), anyString(), any(), anyLong() );
+
+            assertThrows( IOException.class, () -> servlet.upload( request ) );
+
+            assertEquals( 0, spooledFileCount( tmp ), "spooled upload temp file must be removed after a failed store" );
+        } finally {
+            System.setProperty( "java.io.tmpdir", oldTmp );
+        }
+    }
+
+    @Test
+    void testUploadRemovesSpooledTempFileOnSuccess( @org.junit.jupiter.api.io.TempDir final java.nio.file.Path tmp )
+            throws Exception {
+        final String oldTmp = System.getProperty( "java.io.tmpdir" );
+        System.setProperty( "java.io.tmpdir", tmp.toString() );
+        try {
+            stubLargeUpload();
+            doReturn( false ).when( servlet ).executeUpload(
+                    any( Context.class ), any( InputStream.class ),
+                    anyString(), anyString(), anyString(), any(), anyLong() );
+
+            servlet.upload( request );
+
+            assertEquals( 0, spooledFileCount( tmp ), "spooled upload temp file must be removed after a successful store" );
+        } finally {
+            System.setProperty( "java.io.tmpdir", oldTmp );
+        }
+    }
+
     // ---- upload() multipart no file part → RedirectException("Broken file upload") ----
 
     @Test

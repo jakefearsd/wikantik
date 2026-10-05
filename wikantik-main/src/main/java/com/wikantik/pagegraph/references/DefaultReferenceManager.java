@@ -109,9 +109,7 @@ import java.util.stream.Collectors;
  *  @since 1.6.1 (as of 2.11.0, moved to com.wikantik.pagegraph.references)
  */
 
-// FIXME: The way that we save attributes is now a major booboo, and must be
-//        replaced forthwith.  However, this is a workaround for the great deal
-//        of problems that occur here...
+// Note: this manager is Serializable; see deepHashCode() for change detection over its maps.
 public class DefaultReferenceManager implements PageFilter, com.wikantik.api.managers.ReferenceManager, Serializable {
 
     protected transient Engine engine;
@@ -1183,7 +1181,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      * @since 2.3.24
      */
     //
-    //   TODO: It is unnecessary to calculate the hashcode; it should be calculated only when the hashmaps are changed.  This is slow.
+    //   The hash code is recomputed on every call rather than cached when the maps change.
     //
     public int deepHashCode() {
         boolean failed = true;

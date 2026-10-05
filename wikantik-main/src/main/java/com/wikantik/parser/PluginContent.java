@@ -140,7 +140,7 @@ public class PluginContent extends Text implements PluginElement {
             //  whether we should execute it.  For some plugins we always execute it,
             //  since they can be edited visually.
             //
-            // FIXME: The plugin name matching should not be done here, but in a per-editor resource
+            // The emittable-plugin list is a fixed pattern, not a per-editor setting.
             if( wysiwygEditorMode && !pluginName.matches( EMITTABLE_PLUGINS ) ) {
                 result = PLUGIN_START + pluginName + SPACE;
 

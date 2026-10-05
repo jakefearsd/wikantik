@@ -365,7 +365,7 @@ public class DefaultPageRepository implements PageRepository {
             getAttachmentManager().deleteVersion( att );
         } else {
             provider.deleteVersion( page.getName(), page.getVersion() );
-            // FIXME: If this was the latest, reindex Lucene, update RefMgr
+            // Note: removing the latest version does not itself reindex search or update references.
         }
     }
 

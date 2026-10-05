@@ -194,7 +194,7 @@ public class AttachmentServlet extends HttpServlet {
      *  of the attachment, 'version' specifying the version indicator.
      *
      */
-    // FIXME: Messages would need to be localized somehow.
+    // Error messages here are English-only.
     @Override
     public void doGet( final HttpServletRequest  req, final HttpServletResponse res ) throws IOException {
         final Context context = createContext( req, ContextEnum.PAGE_ATTACH.getRequestContext() );
@@ -386,6 +386,7 @@ public class AttachmentServlet extends HttpServlet {
         final String errorPage = engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null ); // If something bad happened, Upload should be able to take care of most stuff
         String nextPage = errorPage;
         final String progressId = req.getParameter( "progressid" );
+        List<FileItem> items = List.of();
 
         // Check that we have a file upload request
         if( !JakartaServletFileUpload.isMultipartContent(req) ) {
@@ -408,7 +409,7 @@ public class AttachmentServlet extends HttpServlet {
                 upload.setMaxFileSize( uploadPolicy.maxSize() );
             }
             upload.setProgressListener( pl );
-            final List<FileItem> items = upload.parseRequest( req );
+            items = upload.parseRequest( req );
 
             final UploadFormData form = UploadFormParser.parse( items );
             if ( form.nextPage() != null ) {
@@ -447,10 +448,24 @@ public class AttachmentServlet extends HttpServlet {
             throw e;
         } finally {
             progressManager.stopProgress( progressId );
-            // FIXME: In case of exceptions should absolutely remove the uploaded file.
+            deleteSpooledItems( items );
         }
 
         return nextPage;
+    }
+
+    /**
+     * Removes the temp files Commons FileUpload spooled to disk for large parts. The attachment provider keeps its own
+     * copy once stored, so the spool file is never needed after the request, whether the store succeeded or failed.
+     */
+    private static void deleteSpooledItems( final List<FileItem> items ) {
+        for( final FileItem item : items ) {
+            try {
+                item.delete();
+            } catch( final IOException e ) {
+                LOG.warn( "Could not delete spooled upload temp file for item '{}': {}", item.getFieldName(), e.getMessage(), e );
+            }
+        }
     }
 
     /**
@@ -484,15 +499,11 @@ public class AttachmentServlet extends HttpServlet {
                     .getString( e.getMessage() ), errorPage, e );
         }
 
-        //
-        //  FIXME: This has the unfortunate side effect that it will receive the
-        //  contents.  But we can't figure out the page to redirect to
-        //  before we receive the file, due to the stupid constructor of MultipartRequest.
-        //
+        // The upload has already been received by the time these checks run: the redirect target
+        // is only known once the multipart form has been parsed.
 
         if( !context.hasAdminPermissions() ) {
             if( !uploadPolicy.isSizeAllowed( contentLength ) ) {
-                // FIXME: Does not delete the received files.
                 throw new RedirectException( "File exceeds maximum size (" + uploadPolicy.maxSize() + " bytes)", errorPage );
             }
 

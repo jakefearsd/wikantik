@@ -487,7 +487,7 @@ public abstract class AbstractFileProvider implements PageProvider {
             final Page page = getPageInfo( unmangleName( wikiname.substring( 0, cutpoint ) ), PageProvider.LATEST_VERSION );
             if( page == null ) {
                 // This should not really happen.
-                // FIXME: Should we throw an exception here?
+                // Skipped rather than failing the whole listing.
                 LOG.error( "Page {} was found in directory listing, but could not be located individually.", wikiname );
                 continue;
             }

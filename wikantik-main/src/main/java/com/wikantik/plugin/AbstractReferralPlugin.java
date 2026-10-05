@@ -152,7 +152,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
      * @param params parameters for initializing the plugin
      * @throws PluginException if any of the plugin parameters are malformed
      */
-    // FIXME: The compiled pattern strings should really be cached somehow.
+    // Patterns are compiled on each initialize() call; they are not cached.
     public void initialize( final Context context, final Map< String, String > params ) throws PluginException {
         dateFormat = Preferences.getDateFormat( context, TimeFormat.DATETIME );
         engine = context.getEngine();

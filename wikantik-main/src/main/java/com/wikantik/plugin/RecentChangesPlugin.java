@@ -232,7 +232,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
     }
     
 
-    // TODO: Ideally the default behavior should be to return the default format for the default
+    // Note: the default behavior should be to return the default format for the default
     // locale, but that is at odds with the 1st version of this plugin. We seek to preserve the
     // behaviour of that first version, so to get the default format, the user must explicitly do
     // something like: dateFormat='' timeformat='' which is a odd, but probably okay.

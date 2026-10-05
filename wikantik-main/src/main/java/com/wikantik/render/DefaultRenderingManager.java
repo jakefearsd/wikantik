@@ -424,7 +424,7 @@ public class DefaultRenderingManager implements RenderingManager {
             }
         } catch( final FilterException e ) {
             LOG.error( "page filter threw exception: ", e );
-            // FIXME: Don't yet know what to do
+            // Filter failure is logged; the result computed so far is returned.
         }
         sw.stop();
         LOG.debug( "Page {} rendered, took {}", context.getRealPage().getName(), sw );
@@ -489,7 +489,7 @@ public class DefaultRenderingManager implements RenderingManager {
             LOG.error( "Failed to scan page data: ", e );
         } catch( final FilterException e ) {
             LOG.error( "page filter threw exception: ", e );
-            // FIXME: Don't yet know what to do
+            // Filter failure is logged; the result computed so far is returned.
         }
 
         return result;

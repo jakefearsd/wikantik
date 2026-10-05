@@ -223,7 +223,7 @@ public final class WatchDog {
 
                     LOG.debug( "{}: Exiting state {}", watchable.getName(), st.getState() );
                 } else {
-                    // FIXME: should actually go and fix things for that
+                    // Unbalanced exit is only logged; the state stack is left unchanged.
                     LOG.error( "exitState() called before enterState()" );
                 }
             }
@@ -407,7 +407,7 @@ public final class WatchDog {
 
         @Override
         public void timeoutExceeded( final String state ) {
-            // TODO: Figure out something sane to do here.
+            // Intentionally a no-op: this watcher takes no action when a timeout is exceeded.
         }
 
         @Override

@@ -170,7 +170,6 @@ public final class HttpUtil {
         } catch( final IllegalArgumentException e ) {
             LOG.debug( "Ignoring malformed If-Modified-Since header: {}", e.getMessage() );
             // Illegal date/time header format.  We fail quietly, and return false.
-            // FIXME: Should really move to ETags.
             return false;
         }
 
@@ -242,7 +241,7 @@ public final class HttpUtil {
 
             //
             // Ensure that the 'page=xyz' attribute is removed
-            // FIXME: Is it really the mandate of this routine to do that?
+            // This routine also strips the page parameter from the query string.
             //
             final int pos1 = res.indexOf( "page=" );
             if( pos1 >= 0 ) {

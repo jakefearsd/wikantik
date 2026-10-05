@@ -163,8 +163,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
             currentPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( parentPage );
 
             // Go check for legacy name
-            // FIXME: This should be resolved using CommandResolver, not this adhoc way.  This also assumes that the
-            //        legacy charset is a subset of the full allowed set.
+            // Ad hoc legacy-name resolution (not via CommandResolver); assumes the legacy charset is a subset of the allowed set.
             if( currentPage == null ) {
                 currentPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( MarkupParser.wikifyLink( parentPage ) );
             }
@@ -337,7 +336,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
 
     /** {@inheritDoc} */
     @Override
-    // FIXME: Should also use events!
+    // Note: deletion does not fire a WikiEvent.
     public void deleteAttachment( final Attachment att ) throws ProviderException {
         if( provider == null ) {
             return;

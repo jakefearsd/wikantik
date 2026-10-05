@@ -101,7 +101,6 @@ public class DefaultUserManager implements UserManager {
         getUserDatabase();
 
         // Attach the PageManager as a listener
-        // TODO: it would be better if we did this in PageManager directly
         addWikiEventListener( PageSubsystemBridge.fromLegacyEngine( engine ).pages() );
     }
 

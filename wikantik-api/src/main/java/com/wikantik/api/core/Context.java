@@ -256,7 +256,7 @@ public interface Context extends Cloneable, Command {
      *  @return A URL to the given context and page.
      */
     default String getURL( final String context, final String page, final String params ) {
-        // FIXME: is rather slow
+        // Delegates to the engine's URL construction, which is not cached.
         return getEngine().getURL( context, page, params );
     }
 

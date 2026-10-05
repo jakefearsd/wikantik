@@ -171,7 +171,7 @@ public final class PagePermission extends Permission implements Serializable
         // Parse wiki and page (which may include wiki name and page)
         // Strip out attachment separator; it is irrelevant.
         
-        // FIXME3.0: Assumes attachment separator is "/".
+        // The attachment separator is always "/".
         final String[] pathParams = StringUtils.split( page, WIKI_SEPARATOR );
         final String pageName;
         if ( pathParams.length >= 2 )

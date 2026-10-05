@@ -208,6 +208,54 @@ class DatabasePolicyTest
         );
     }
 
+    // ---- principal-type awareness ----
+
+    @Test
+    void roleGrantMatchesRoleAndGroupPrincipalsOnly() throws Exception
+    {
+        final AllPermission all = new AllPermission( "*" );
+        assertTrue( policy.implies( new Role( "Admin" ), all ) );
+        assertTrue( policy.implies( new GroupPrincipal( "Admin" ), all ), "the wiki group Admin keeps the role grant" );
+        assertFalse( policy.implies( new WikiPrincipal( "Admin", WikiPrincipal.LOGIN_NAME ), all ),
+                "a role grant must not match a user principal of the same name" );
+        assertFalse( policy.implies( new WikiPrincipal( "Admin", WikiPrincipal.FULL_NAME ), all ) );
+        assertFalse( policy.implies( new WikiPrincipal( "Admin", WikiPrincipal.WIKI_NAME ), all ) );
+        assertFalse( policy.implies( new WikiPrincipal( "Admin" ), all ) );
+    }
+
+    @Test
+    void groupGrantMatchesGroupAndRolePrincipals() throws Exception
+    {
+        insertGrant( "group", "Editors", "wiki", "*", "createGroups" );
+        policy.refresh();
+        assertTrue( policy.implies( new GroupPrincipal( "Editors" ), WikiPermission.CREATE_GROUPS ) );
+        assertTrue( policy.implies( new Role( "Editors" ), WikiPermission.CREATE_GROUPS ) );
+        assertFalse( policy.implies( new WikiPrincipal( "Editors", WikiPrincipal.LOGIN_NAME ), WikiPermission.CREATE_GROUPS ) );
+    }
+
+    @Test
+    void userGrantMatchesLoginPrincipalNeverDisplayNamesOrRoles() throws Exception
+    {
+        insertGrant( "user", "carol", "wiki", "*", "createGroups" );
+        policy.refresh();
+        assertTrue( policy.implies( new WikiPrincipal( "carol", WikiPrincipal.LOGIN_NAME ), WikiPermission.CREATE_GROUPS ) );
+        assertTrue( policy.implies( new WikiPrincipal( "carol" ), WikiPermission.CREATE_GROUPS ),
+                "an untyped login principal (as set after a profile rename) still matches" );
+        assertFalse( policy.implies( new WikiPrincipal( "carol", WikiPrincipal.FULL_NAME ), WikiPermission.CREATE_GROUPS ) );
+        assertFalse( policy.implies( new WikiPrincipal( "carol", WikiPrincipal.WIKI_NAME ), WikiPermission.CREATE_GROUPS ) );
+        assertFalse( policy.implies( new Role( "carol" ), WikiPermission.CREATE_GROUPS ) );
+        assertFalse( policy.implies( new GroupPrincipal( "carol" ), WikiPermission.CREATE_GROUPS ) );
+    }
+
+    @Test
+    void unknownPrincipalTypeRowIsIgnored() throws Exception
+    {
+        insertGrant( "robot", "Admin2", "all", "*", "*" );
+        policy.refresh();
+        assertFalse( policy.implies( new Role( "Admin2" ), new AllPermission( "*" ) ) );
+        assertFalse( policy.implies( new WikiPrincipal( "Admin2", WikiPrincipal.LOGIN_NAME ), new AllPermission( "*" ) ) );
+    }
+
     private void insertGrant( final String pt, final String pn, final String permType,
                               final String target, final String actions ) throws Exception
     {

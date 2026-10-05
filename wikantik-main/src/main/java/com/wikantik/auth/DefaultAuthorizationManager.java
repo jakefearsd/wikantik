@@ -558,11 +558,25 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             // User-principal grants apply only to authenticated sessions; an asserted (remembered-name)
             // session is limited to its roles.
             if ( allowedByLocalPolicy( session.getRoles(), permission )
-                    || ( session.isAuthenticated() && allowedByLocalPolicy( session.getPrincipals(), permission ) ) ) {
+                    || ( session.isAuthenticated() && allowedByLocalPolicy( userGrantPrincipals( session ), permission ) ) ) {
                 return Boolean.TRUE;
             }
             return Boolean.FALSE;
         } );
+    }
+
+    /**
+     * The principals a user-targeted policy grant may match. Database grants name a user by login, so
+     * only the session's login principal is offered; the user's full and wiki names are editable
+     * profile data and never identify a grantee. The file-based fallback keeps its Java-policy
+     * semantics (grants are typed by principal class there).
+     */
+    private Principal[] userGrantPrincipals( final Session session ) {
+        if ( databasePolicy == null ) {
+            return session.getPrincipals();
+        }
+        final Principal login = session.getLoginPrincipal();
+        return login == null ? new Principal[ 0 ] : new Principal[] { login };
     }
 
     /** {@inheritDoc} */

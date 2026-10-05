@@ -63,8 +63,21 @@ public class DatabasePolicy
     private final String tableName;
     private final Jdbc jdbc;
 
-    /** Cache: principal name (case-sensitive) to list of granted Permissions. */
-    private volatile Map<String, List<Permission>> grants = Collections.emptyMap();
+    /** {@code principal_type} for a grant to a built-in or container role. */
+    static final String TYPE_ROLE = "role";
+    /** {@code principal_type} for a grant to a wiki group. */
+    static final String TYPE_GROUP = "group";
+    /** {@code principal_type} for a grant to a single user, keyed by login name. */
+    static final String TYPE_USER = "user";
+
+    /**
+     * Immutable snapshot of the grant table, split by principal kind. Role and group rows share one
+     * map because a role-typed grant also covers the wiki group of the same name (and vice versa);
+     * user rows live apart so a user principal can never satisfy a role or group grant.
+     */
+    private record Snapshot( Map<String, List<Permission>> roleGrants, Map<String, List<Permission>> userGrants ) { }
+
+    private volatile Snapshot grants = new Snapshot( Collections.emptyMap(), Collections.emptyMap() );
 
     /**
      * Creates a new DatabasePolicy backed by the given DataSource and table.
@@ -89,17 +102,19 @@ public class DatabasePolicy
      */
     public void refresh()
     {
-        final Map<String, List<Permission>> newGrants = new HashMap<>();
-        final String sql = "SELECT id, principal_name, permission_type, target, actions FROM " + tableName;
+        final Map<String, List<Permission>> roleGrants = new HashMap<>();
+        final Map<String, List<Permission>> userGrants = new HashMap<>();
+        final String sql = "SELECT id, principal_type, principal_name, permission_type, target, actions FROM " + tableName;
 
         try
         {
             for( final PermissionGrant grant : jdbc.query( sql, SqlBinder.NONE, DatabasePolicy::readGrant ) )
             {
-                final Permission perm = buildPermissionOrSkip( grant );
+                final Map<String, List<Permission>> target = mapFor( grant, roleGrants, userGrants );
+                final Permission perm = target == null ? null : buildPermissionOrSkip( grant );
                 if( perm != null )
                 {
-                    newGrants.computeIfAbsent( grant.principalName(), k -> new ArrayList<>() ).add( perm );
+                    target.computeIfAbsent( grant.principalName(), k -> new ArrayList<>() ).add( perm );
                 }
             }
         }
@@ -110,12 +125,40 @@ public class DatabasePolicy
         }
 
         // Publish the new snapshot atomically
-        this.grants = Collections.unmodifiableMap( newGrants );
+        this.grants = new Snapshot( Collections.unmodifiableMap( roleGrants ), Collections.unmodifiableMap( userGrants ) );
+    }
+
+    /**
+     * Picks the grant map for a row by its {@code principal_type}, or returns {@code null} (with a
+     * WARN) for a type this build does not recognise, so such a row grants nothing.
+     */
+    private Map<String, List<Permission>> mapFor( final PermissionGrant grant,
+                                                 final Map<String, List<Permission>> roleGrants,
+                                                 final Map<String, List<Permission>> userGrants )
+    {
+        final String type = grant.principalType() == null ? "" : grant.principalType().trim().toLowerCase( Locale.ROOT );
+        return switch( type )
+        {
+            case TYPE_ROLE, TYPE_GROUP -> roleGrants;
+            case TYPE_USER -> userGrants;
+            default ->
+            {
+                LOG.warn( "Skipping policy grant id={} in table '{}': unknown principal_type '{}' for principal '{}'",
+                        grant.id(), tableName, grant.principalType(), grant.principalName() );
+                yield null;
+            }
+        };
     }
 
     /**
      * Returns {@code true} if the given principal has been granted a
      * permission that implies the requested permission.
+     *
+     * <p>Matching is by principal kind as well as name: a {@link com.wikantik.auth.authorize.Role}
+     * or {@link GroupPrincipal} matches only {@code role}/{@code group} rows, and any other principal
+     * matches only {@code user} rows. A {@link WikiPrincipal} carrying a display name
+     * ({@link WikiPrincipal#FULL_NAME} or {@link WikiPrincipal#WIKI_NAME}) matches nothing, because
+     * those names are user-editable profile data rather than identities.</p>
      *
      * @param principal the principal (typically a {@link com.wikantik.auth.authorize.Role})
      * @param requested the permission being checked
@@ -123,7 +166,20 @@ public class DatabasePolicy
      */
     public boolean implies( final Principal principal, final Permission requested )
     {
-        final List<Permission> granted = grants.get( principal.getName() );
+        final Map<String, List<Permission>> byName;
+        if( AuthenticationManager.isRolePrincipal( principal ) )
+        {
+            byName = grants.roleGrants();
+        }
+        else if( isDisplayName( principal ) )
+        {
+            return false;
+        }
+        else
+        {
+            byName = grants.userGrants();
+        }
+        final List<Permission> granted = byName.get( principal.getName() );
         if( granted == null )
         {
             return false;
@@ -136,6 +192,12 @@ public class DatabasePolicy
             }
         }
         return false;
+    }
+
+    private static boolean isDisplayName( final Principal principal )
+    {
+        return principal instanceof WikiPrincipal wp
+                && ( WikiPrincipal.FULL_NAME.equals( wp.getType() ) || WikiPrincipal.WIKI_NAME.equals( wp.getType() ) );
     }
 
     /**
@@ -242,11 +304,13 @@ public class DatabasePolicy
     }
 
     /** One {@code policy_grants} row's raw columns, read verbatim before {@link #buildPermission} interprets them. */
-    private record PermissionGrant( int id, String principalName, String permissionType, String target, String actions ) { }
+    private record PermissionGrant( int id, String principalType, String principalName, String permissionType,
+                                    String target, String actions ) { }
 
     private static PermissionGrant readGrant( final java.sql.ResultSet rs ) throws SQLException {
         return new PermissionGrant(
                 rs.getInt( "id" ),
+                rs.getString( "principal_type" ),
                 rs.getString( "principal_name" ),
                 rs.getString( "permission_type" ),
                 rs.getString( "target" ),

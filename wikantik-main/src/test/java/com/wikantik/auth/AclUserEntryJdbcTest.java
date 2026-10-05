@@ -142,4 +142,34 @@ class AclUserEntryJdbcTest extends AbstractJdbcUsersEngineTest {
             groups.removeGroup( "SdnEditors" );
         }
     }
+
+    // ---- R28: container-authenticated users with no profile row --------------------------------
+
+    @Test
+    void loginAclGrantsAContainerUserWhoHasNoProfile() throws Exception {
+        engine.saveText( "SdnContainerPage", "[{ALLOW edit " + PREFIX + "bob}]\nsecret" );
+        final Session bob = WikiSessionTest.containerAuthenticatedSession( engine, PREFIX + "bob", new Principal[ 0 ] );
+        assertEquals( PREFIX + "bob", bob.getLoginPrincipal().getName() );
+        assertTrue( canEdit( bob, "SdnContainerPage" ),
+                "an ACL naming a login with no profile row matches that container-authenticated login" );
+    }
+
+    @Test
+    void loginAclForAProfilelessLoginIsNotSatisfiedByAFullName() throws Exception {
+        engine.saveText( "SdnContainerPage2", "[{ALLOW edit " + PREFIX + "bob}]\nsecret" );
+        saveUser( PREFIX + "robert", PREFIX + "bob" );   // full name equals the ACL name; login differs
+        assertFalse( canEdit( login( PREFIX + "robert" ), "SdnContainerPage2" ),
+                "an unresolved ACL name matches only a session login, never a full or wiki name" );
+    }
+
+    @Test
+    void unresolvedNameMatchesOnlyTheSessionLoginPrincipal() throws Exception {
+        final Session bob = WikiSessionTest.containerAuthenticatedSession( engine, PREFIX + "bob", new Principal[ 0 ] );
+        assertTrue( authz.hasRoleOrPrincipal( bob, new UnresolvedPrincipal( PREFIX + "bob" ) ) );
+        final WikiSession session = ( WikiSession ) bob;
+        session.getSubject().getPrincipals().add( new WikiPrincipal( "Bob Fullname", WikiPrincipal.FULL_NAME ) );
+        session.getSubject().getPrincipals().add( new WikiPrincipal( "BobWiki", WikiPrincipal.WIKI_NAME ) );
+        assertFalse( authz.hasRoleOrPrincipal( bob, new UnresolvedPrincipal( "Bob Fullname" ) ) );
+        assertFalse( authz.hasRoleOrPrincipal( bob, new UnresolvedPrincipal( "BobWiki" ) ) );
+    }
 }

@@ -15,7 +15,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `role`- or `group`-typed policy grants that name a user stop matching that user; re-create them as
     `user` grants with the login name;
   - `user`-typed grants whose principal is not a login name grant nothing;
-  - page ACL entries that name a shared or unknown display name stop granting. ACLs live in page
+  - page ACL entries that name a shared display name stop granting. ACLs live in page
     bodies: search the page store for `[{ALLOW` and use login names.
 - Pages removed from the shipped page set (`LeftMenu`, `LeftMenuFooter`, `MoreMenu`, `TitleBox`,
   `CopyrightNotice`, `InstallationTips`, `ApprovalRequiredForUserProfiles`, `EditFindAndReplaceHelp`,
@@ -29,7 +29,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   groups, and `user` rows match only an authenticated session's login name.
 - Group membership matches login names only. A user entry in a page ACL resolves to exactly one
   account (login name first, then a full or wiki name only one account holds) and matches only that
-  account's login; an ambiguous (shared) or unknown name grants nobody.
+  account's login. A shared full or wiki name grants nobody; a name no account holds matches only a
+  session whose login is exactly that name (a container-authenticated user without a wiki profile),
+  never a full or wiki name.
 - Numbered wiki names (`JohnSmith2`) are read back from the user store instead of being re-derived from
   the full name, so a second account sharing a full name can be saved again and its session no longer
   carries the first account's wiki name. A login or wiki name that collides on save is refused with a

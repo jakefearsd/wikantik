@@ -278,7 +278,10 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         for( Principal aclPrincipal : aclPrincipals ) {
             if ( aclPrincipal instanceof UnresolvedPrincipal unresolvedPrincipal ) {
                 final AclEntry aclEntry = acl.getAclEntry( aclPrincipal );
-                aclPrincipal = resolvePrincipal( unresolvedPrincipal.getName() );
+                // A name that named no one when the ACL was read may since have become a role, a
+                // group or an account's login. It is not re-resolved through full or wiki names:
+                // otherwise anyone could take an unused name as their full name and gain the entry.
+                aclPrincipal = resolve( unresolvedPrincipal.getName(), false );
                 if ( aclEntry != null && !( aclPrincipal instanceof UnresolvedPrincipal ) ) {
                     aclEntry.setPrincipal( aclPrincipal );
                 }
@@ -337,20 +340,28 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /**
      * Matches a user principal named by an ACL against the session. An ACL user entry resolves to one
      * account's login principal (see {@link #resolvePrincipal}), so a user principal matches only the
-     * session's login principal, by name. Full and wiki names are editable profile data and never
-     * identify a user, and a name that did not resolve ({@link UnresolvedPrincipal}: unknown or shared
-     * by several accounts) matches nobody.
+     * session's login principal, by exact name. Full and wiki names are editable profile data and
+     * never identify a user. A name that did not resolve ({@link UnresolvedPrincipal}: unknown, or
+     * shared by several accounts) matches only a session whose login is exactly that name, which is
+     * a container-authenticated user with no profile row (an account with that login would have
+     * resolved).
      */
     private static boolean matchesUserPrincipal( final Session session, final Principal principal ) {
-        if ( principal instanceof UnresolvedPrincipal ) {
+        if ( principal instanceof WikiPrincipal wp && !isLoginTyped( wp ) ) {
             return false;
         }
-        if ( principal instanceof WikiPrincipal wp && !WikiPrincipal.LOGIN_NAME.equals( wp.getType() )
-                && !WikiPrincipal.UNSPECIFIED.equals( wp.getType() ) ) {
-            return false;
-        }
+        // An UnresolvedPrincipal names no account, but it may still be the login of a user the web
+        // container authenticated without a profile row; it matches that login and nothing else.
         final Principal login = session.getLoginPrincipal();
-        return login != null && principal.getName().equals( login.getName() );
+        if ( login == null || login instanceof WikiPrincipal lw && !isLoginTyped( lw ) ) {
+            return false;
+        }
+        return principal.getName().equals( login.getName() );
+    }
+
+    /** A login-name principal, or an untyped one (WikiSession sets an untyped login on profile change). */
+    private static boolean isLoginTyped( final WikiPrincipal p ) {
+        return WikiPrincipal.LOGIN_NAME.equals( p.getType() ) || WikiPrincipal.UNSPECIFIED.equals( p.getType() );
     }
 
     /** {@inheritDoc} */
@@ -600,6 +611,14 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public Principal resolvePrincipal( final String name ) {
+        return resolve( name, true );
+    }
+
+    /**
+     * Resolves {@code name} to a role, a group or one account's login principal. With
+     * {@code byDisplayName} false a user is found by login name only.
+     */
+    private Principal resolve( final String name, final boolean byDisplayName ) {
         // Check built-in Roles first
         final Role role = new Role(name);
         if ( Role.isBuiltInRole( role ) ) {
@@ -620,8 +639,13 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
         // Otherwise it names a user. It must identify exactly one account, and it then stands for that
         // account's login name: a login name wins, then a full or wiki name held by one account only.
-        // An ambiguous (shared) or unknown name stays unresolved and so grants nobody.
-        return uniqueAccountLogin( userManager().getUserDatabase(), name )
+        // An ambiguous (shared) or unknown name stays unresolved: it then matches only a session whose
+        // login is exactly that name (a container user with no profile row), see matchesUserPrincipal.
+        final UserDatabase db = userManager().getUserDatabase();
+        final Optional< String > account = byDisplayName ? uniqueAccountLogin( db, name )
+                : ( db == null || name == null || name.isBlank() ) ? Optional.empty()
+                : loginOf( db, name, () -> db.findByLoginName( name ) );
+        return account
                 .map( login -> ( Principal ) new WikiPrincipal( login, WikiPrincipal.LOGIN_NAME ) )
                 .orElseGet( () -> new UnresolvedPrincipal( name ) );
     }

@@ -194,8 +194,12 @@ Identify people by **login name** everywhere access is decided.
 - **Write page ACLs with login names.** A user entry in an ACL must identify exactly one
   account: it is resolved by login name first, then by a full or wiki name that only one
   account holds, and it then matches only that account's login. A name that several
-  accounts share (two people called "John Smith") or that no account holds grants nobody.
-  Do not rely on display names in an ACL; a login name is unique and stable.
+  accounts share (two people called "John Smith") grants nobody. A name that no account
+  holds matches only a session whose login is exactly that name, such as a user your web
+  container authenticates without a wiki profile; it never matches a full or wiki name,
+  and a name unknown when the page's ACL is read is later re-checked against roles,
+  groups and login names only. Do not rely on display names in an ACL; a login name is
+  unique and stable.
 - **Display names cannot impersonate a login, role or group.** A full name or wiki name
   that is reserved (it equals a built-in role, `Admin`, a role or group named in a policy
   grant, or an existing group) or that equals another account's login name is refused when
@@ -312,7 +316,8 @@ SELECT u.login_name, u.full_name, u.wiki_name
 Page ACLs that name people by display name. ACLs live in page bodies, so no query finds
 them. After the upgrade an ACL user entry grants only when it identifies exactly one
 account, and then only that account's login: an entry naming a full or wiki name that
-several accounts share, or that no account holds, stops granting. Search your page store
+several accounts share stops granting, and an entry naming a name no account holds
+matches only a container-authenticated login of exactly that name. Search your page store
 for `[{ALLOW` and replace display names with login names:
 
 ```bash

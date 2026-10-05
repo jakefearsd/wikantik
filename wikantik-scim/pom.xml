@@ -122,6 +122,29 @@
       <artifactId>log4j-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Real PostgreSQL user store for the shared-name tests (PostgresTestDb, @RequiresPostgres). -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-jdbc</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

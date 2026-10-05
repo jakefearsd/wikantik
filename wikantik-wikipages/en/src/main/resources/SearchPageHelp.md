@@ -6,7 +6,7 @@ There are two ways to find pages: the quick switcher for jumping to a page by na
 
 | Keys | Opens |
 |------|-------|
-| Mod+K or Mod+O | the switcher, to find a page |
+| Mod+K or Mod+O (Mod+O inside the editor, where Mod+K inserts a link) | the switcher, to find a page |
 | Mod+P | the switcher with a list of commands |
 | Mod+Alt+N | today's daily note |
 

@@ -316,6 +316,15 @@ public class ScimUserResource extends AbstractScimServlet {
         try {
             final ScimPatchApplier.Result patch = ScimPatchApplier.apply( ctx.body() );
 
+            // Validate names before any change, so a refused PATCH leaves the account untouched
+            // (including its active state).
+            final java.util.Optional< String > patchNameError =
+                    ScimUserFields.patchNameError( engine, db, p, patch.attributes() );
+            if ( patchNameError.isPresent() ) {
+                sendError( resp, 409, "uniqueness", patchNameError.get() );
+                return;
+            }
+
             // Apply active change via lifecycle
             if ( patch.activeChange() != null ) {
                 if ( patch.activeChange() ) {
@@ -328,12 +337,6 @@ public class ScimUserResource extends AbstractScimServlet {
             }
 
             // Apply other simple attributes
-            final java.util.Optional< String > patchNameError =
-                    ScimUserFields.patchNameError( engine, db, p, patch.attributes() );
-            if ( patchNameError.isPresent() ) {
-                sendError( resp, 409, "uniqueness", patchNameError.get() );
-                return;
-            }
             final boolean dirty = ScimUserFields.applyPatchAttributes( p, patch.attributes() );
             if ( dirty ) {
                 db.save( p );

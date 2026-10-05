@@ -883,6 +883,33 @@ class ScimUserResourceTest {
     }
 
     @Test
+    void patchWithTakenNameAndDeactivation_returns409AndLeavesUserActive() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/uid-helen" );
+
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "helen" );
+        when( p.getFullname() ).thenReturn( "Helen" );
+        when( p.getWikiName() ).thenReturn( "Helen" );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-helen" ) ).thenReturn( p );
+        when( mockDb.findByLoginName( "helen" ) ).thenReturn( p );
+        final UserProfile boss = mock( UserProfile.class );
+        when( boss.getLoginName() ).thenReturn( "boss" );
+        when( mockDb.findByLoginName( "boss" ) ).thenReturn( boss );
+
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"active\",\"value\":false},"
+                + "{\"op\":\"replace\",\"path\":\"displayName\",\"value\":\"boss\"}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        verify( p, never() ).setLockExpiry( any() );
+        verify( mockDb, never() ).save( any() );
+    }
+
+    @Test
     void putFullNameUsedByAnotherAccount_returns409AndDoesNotSave() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/uid-ivan" );
 

@@ -72,6 +72,7 @@ final class GroupMemberLoginCheck {
                     + "Replace each with the account's login name; see {}", String.join( ", ", others ), UPGRADE_DOC );
         }
         if ( !admins.isEmpty() ) {
+            // LOG.error justified: the wiki may have no working administrator until an operator fixes the Admin group.
             LOG.error( "Admin group members that are not login names never match, so they have no admin access: {}. "
                     + "Replace each with the account's login name; see {}", String.join( ", ", admins ), UPGRADE_DOC );
         }

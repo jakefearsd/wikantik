@@ -53,14 +53,14 @@ final class ConnectorEndpointBinding {
     static final String ENDPOINT_URL_KEY = "base_url";
 
     static final String MESSAGE =
-        "cannot change the endpoint host while credentials are stored for this connector; "
-      + "delete the stored credentials first, then re-enter them for the new host";
+        "cannot change the endpoint scheme, host or port while credentials are stored for this connector; "
+      + "delete the stored credentials first, then re-enter them for the new endpoint";
 
     private ConnectorEndpointBinding() { }
 
     /**
      * Validation errors for an update that would move a credential-bearing connector to a
-     * different endpoint host; empty when the change is allowed.
+     * different endpoint origin (scheme, host or port); empty when the change is allowed.
      *
      * @param storedConfigJson     the connector's currently-persisted config JSON
      * @param incoming             the proposed replacement config
@@ -69,9 +69,9 @@ final class ConnectorEndpointBinding {
      */
     static Map< String, String > hostChangeErrors( final String storedConfigJson,
             final JsonObject incoming, final BooleanSupplier hasStoredCredentials ) {
-        final String oldHost = hostOf( parse( storedConfigJson ) );
-        final String newHost = hostOf( incoming );
-        if ( oldHost == null || newHost == null || oldHost.equals( newHost ) ) {
+        final String oldOrigin = originOf( parse( storedConfigJson ) );
+        final String newOrigin = originOf( incoming );
+        if ( oldOrigin == null || newOrigin == null || oldOrigin.equals( newOrigin ) ) {
             return Map.of();
         }
         if ( !hasStoredCredentials.getAsBoolean() ) {
@@ -90,8 +90,11 @@ final class ConnectorEndpointBinding {
         }
     }
 
-    /** Lowercased host of the config's endpoint URL, or null when absent/blank/unparseable. */
-    private static String hostOf( final JsonObject config ) {
+    /**
+     * Origin (lowercased scheme, lowercased host, effective port — explicit, else 443/80 by
+     * scheme) of the config's endpoint URL, or null when absent/blank/unparseable.
+     */
+    private static String originOf( final JsonObject config ) {
         if ( config == null ) {
             return null;
         }
@@ -104,8 +107,15 @@ final class ConnectorEndpointBinding {
             if ( raw.isEmpty() ) {
                 return null;
             }
-            final String host = URI.create( raw ).getHost();
-            return host == null ? null : host.toLowerCase( Locale.ROOT );
+            final URI uri = URI.create( raw );
+            final String host = uri.getHost();
+            final String scheme = uri.getScheme();
+            if ( host == null || scheme == null ) {
+                return null;
+            }
+            final String lowerScheme = scheme.toLowerCase( Locale.ROOT );
+            final int port = uri.getPort() >= 0 ? uri.getPort() : "http".equals( lowerScheme ) ? 80 : 443;
+            return lowerScheme + "://" + host.toLowerCase( Locale.ROOT ) + ":" + port;
         } catch ( final RuntimeException e ) {
             LOG.warn( "connector {} unparseable during endpoint-host check: {}",
                 ENDPOINT_URL_KEY, e.getMessage() );

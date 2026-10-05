@@ -240,6 +240,40 @@ class ConnectorConfigServiceTest {
         assertTrue( configStore.get( "conf3" ).orElseThrow().configJson().contains( "other.atlassian.net" ) );
     }
 
+    private ConnectorConfigCodec.Validation updateBaseUrl( final String id, final String newBaseUrl,
+            final boolean withCredentials ) {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        svc.create( id, "confluence", json( CONF_ACME ), true, 0, null, null, null );
+        if ( withCredentials ) {
+            credStore.put( id, "api_token", "shh-real-token" );
+        }
+        return svc.update( id,
+            json( "{\"base_url\":\"" + newBaseUrl + "\",\"space_key\":\"ENG\",\"email\":\"a@b.c\"}" ),
+            true, 0, null, null, null );
+    }
+
+    @Test void updateRefusesSchemeChangeWhileCredentialsExist() {
+        final ConnectorConfigCodec.Validation v = updateBaseUrl( "conf4", "http://acme.atlassian.net", true );
+        assertFalse( v.ok() );
+        assertTrue( v.errors().containsKey( "base_url" ), v.errors().toString() );
+    }
+
+    @Test void updateRefusesPortChangeWhileCredentialsExist() {
+        final ConnectorConfigCodec.Validation v = updateBaseUrl( "conf5", "https://acme.atlassian.net:8443", true );
+        assertFalse( v.ok() );
+        assertTrue( v.errors().containsKey( "base_url" ), v.errors().toString() );
+    }
+
+    @Test void updateAllowsExplicitDefaultPortWhileCredentialsExist() {
+        final ConnectorConfigCodec.Validation v = updateBaseUrl( "conf6", "https://acme.atlassian.net:443", true );
+        assertTrue( v.ok(), v.errors().toString() );
+    }
+
+    @Test void updateAllowsSchemeAndPortChangeWhenNoCredentialsAreStored() {
+        final ConnectorConfigCodec.Validation v = updateBaseUrl( "conf7", "http://acme.atlassian.net:8080", false );
+        assertTrue( v.ok(), v.errors().toString() );
+    }
+
     // ---- enabled/disabled ------------------------------------------------------------------------
 
     @Test void disabledRowIsListedButNotRegistered() {

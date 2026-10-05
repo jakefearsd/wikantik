@@ -1,5 +1,5 @@
 ---
-date: '2026-05-04 inspiried_by: "docs/ci-cd-step-by-step.md"'
+date: '2026-05-04 inspiried_by: "docs/developer/CI.md"'
 summary: An overview of the Wikantik CI pipeline, including automated builds, integration
   tests, and retrieval-quality benchmarking.
 cluster: wikantik-development
@@ -53,7 +53,7 @@ A unique feature of the Wikantik CI is the nightly retrieval-quality run.
 - **Regressions:** If search quality drops below the established baseline, the build is flagged for manual review.
 
 ## CI/CD Stack
-- **Runner:** Self-hosted runner (documented in `docs/ci-cd-step-by-step.md`).
+- **Runner:** Self-hosted runner (documented in `docs/developer/CI.md`).
 - **Environment:** Docker-based execution to ensure parity with production.
 - **Reporting:** Prometheus metrics (`wikantik_retrieval_ndcg_at_5`) are pushed to a central monitoring instance.
 

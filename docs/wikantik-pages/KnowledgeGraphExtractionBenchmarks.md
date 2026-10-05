@@ -283,7 +283,7 @@ Set overlap: **8 of 10** preserved. Top 7 identical. Dropped:
 
 ## Further reading
 
-- [docs/KnowledgeGraphRerank.md](KnowledgeGraphRerank) — historical record of
+- [docs/archive/KnowledgeGraphRerank.md](KnowledgeGraphRerank) — historical record of
   the removed graph rerank.
 - [docs/superpowers/plans/2026-04-22-kg-rag-uplift.md](KgRagUpliftPlan) —
   the original three-phase plan this benchmarks.

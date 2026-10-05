@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Wire-level Cargo IT for {@code GET /api/changes} — the indexing/sync feed
- * documented in {@code IndexingSupport.md}. Previously the resource was
+ * documented in {@code docs/admin/IndexingSupport.md}. Previously the resource was
  * unit-tested only.
  *
  * <p>Each test owns a fresh {@link HttpClient} (no shared cookie jar) — the

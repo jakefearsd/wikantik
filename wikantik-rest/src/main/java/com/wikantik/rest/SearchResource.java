@@ -108,7 +108,8 @@ public class SearchResource extends RestServletBase {
         LOG.debug( "GET search: q={}, limit={}", effectiveQuery, limit );
 
         // Delegate retrieval to ContextRetrievalService. The service owns
-        // BM25 → hybrid rerank → graph rerank → page shaping.
+        // BM25 → hybrid (dense) rerank fused by RRF → page shaping; it falls back
+        // to the BM25 order when the dense side is unavailable.
         final ContextRetrievalService ctxService = retrievalService();
         if ( ctxService == null ) {
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

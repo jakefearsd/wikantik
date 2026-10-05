@@ -223,7 +223,7 @@ nothing silently stops matching. The upgrade changes no data.
 Group members that are not login names. Fix each by replacing the member with the login
 name, using the group editor or `PUT /admin/groups/{name}`. Check the `Admin` group first:
 an administrator listed by full name no longer counts as a member after the upgrade.
-After the upgrade, startup logs one `WARN` from `DefaultGroupManager` listing such members,
+After the upgrade, startup logs one `WARN` (logger `GroupMemberLoginCheck`) listing such members,
 and an `ERROR` naming any in the `Admin` group, until they are fixed.
 
 ```sql

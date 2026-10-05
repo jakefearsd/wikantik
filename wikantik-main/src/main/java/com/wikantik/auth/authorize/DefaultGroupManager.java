@@ -34,7 +34,6 @@ import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
-import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
@@ -44,10 +43,8 @@ import com.wikantik.ui.InputValidator;
 import com.wikantik.util.ClassUtil;
 
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -168,62 +165,10 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         // Make the GroupManager listen for WikiEvents (WikiSecurityEvents for changed user profiles)
         final UserManager users = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).users();
         users.addWikiEventListener( this );
-        reportNonLoginMembers( groups, users );
+        GroupMemberLoginCheck.report( groups, users );
 
         // Success!
         LOG.info( "Authorizer GroupManager initialized successfully; loaded {} group(s).", groups.length );
-    }
-
-    /** Where operators find the queries that fix members stored by full or wiki name. */
-    private static final String UPGRADE_DOC = "docs/admin/Security.md#upgrading-to-2453-authorization-checks";
-
-    /**
-     * Reports, once at startup, group members that are not the login name of an existing account.
-     * Membership is matched by login name only, so such a member (typically a full name stored by an
-     * older release) grants nothing. The {@code Admin} group is reported at ERROR because it can
-     * leave a wiki without a working administrator. This never fails startup.
-     */
-    void reportNonLoginMembers( final Group[] groups, final UserManager users ) {
-        final UserDatabase db = users == null ? null : users.getUserDatabase();
-        if ( db == null ) {
-            LOG.debug( "No user database; skipping the startup check for non-login group members" );
-            return;
-        }
-        final List< String > others = new ArrayList<>();
-        final List< String > admins = new ArrayList<>();
-        for ( final Group group : groups ) {
-            for ( final Principal member : group.members() ) {
-                if ( !isLoginName( db, member.getName() ) ) {
-                    if ( "Admin".equals( group.getName() ) ) {
-                        admins.add( member.getName() );
-                    } else {
-                        others.add( group.getName() + ": " + member.getName() );
-                    }
-                }
-            }
-        }
-        if ( !others.isEmpty() ) {
-            LOG.warn( "Group members that are not login names never match and grant nothing: {}. "
-                    + "Replace each with the account's login name; see {}", String.join( ", ", others ), UPGRADE_DOC );
-        }
-        if ( !admins.isEmpty() ) {
-            LOG.error( "Admin group members that are not login names never match, so they have no admin access: {}. "
-                    + "Replace each with the account's login name; see {}", String.join( ", ", admins ), UPGRADE_DOC );
-        }
-    }
-
-    private static boolean isLoginName( final UserDatabase db, final String name ) {
-        try {
-            return db.findByLoginName( name ) != null;
-        } catch ( final NoSuchPrincipalException e ) {
-            // Expected for a member stored by full or wiki name; reported by the caller.
-            LOG.debug( "Group member '{}' is not a login name: {}", name, e.getMessage() );
-            return false;
-        } catch ( final RuntimeException e ) {
-            // The check is advisory; a failing lookup must not fail startup or be reported as a bad member.
-            LOG.warn( "Could not check whether group member '{}' is a login name: {}", name, e.getMessage() );
-            return true;
-        }
     }
 
     /** {@inheritDoc} */

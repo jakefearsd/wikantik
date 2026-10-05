@@ -72,7 +72,7 @@ class DefaultGroupManagerStartupCheckTest {
         };
         appender.start();
         config.addAppender( appender );
-        final String loggerName = DefaultGroupManager.class.getName();
+        final String loggerName = GroupMemberLoginCheck.class.getName();
         loggerConfig = config.getLoggerConfig( loggerName );
         if ( !loggerConfig.getName().equals( loggerName ) ) {
             loggerConfig = LoggerConfig.newBuilder().setAdditivity( false ).setLevel( Level.WARN )

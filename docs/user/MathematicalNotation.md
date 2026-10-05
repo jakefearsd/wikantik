@@ -1,8 +1,9 @@
 # Mathematical Notation
 
-Wikantik renders LaTeX math inside Markdown pages. Server-side parsing is handled
-by the Flexmark GitLab extension; client-side rendering is handled by
-[KaTeX](https://katex.org/) inside the React SPA.
+Wikantik renders LaTeX math inside Markdown pages. On the server, inline `$...$`
+math is parsed by Wikantik's own `InlineMathParser` and display `$$` blocks are
+rewritten into math blocks that the Flexmark GitLab extension renders; client-side
+rendering is handled by [KaTeX](https://katex.org/) inside the React SPA.
 
 ## Syntax
 

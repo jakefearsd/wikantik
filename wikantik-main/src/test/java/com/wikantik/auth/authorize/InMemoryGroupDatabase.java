@@ -58,7 +58,8 @@ public class InMemoryGroupDatabase implements GroupDatabase {
         addGroup( "TV", "Archie Bunker", "BullwinkleMoose", "Fred Friendly" );
         addGroup( "Literature", "Charles Dickens", "Homer" );
         addGroup( "Art" );
-        addGroup( "Admin", "Administrator" );
+        // Members are listed by login name (the admin user's login is "admin"; "Administrator" is its full name).
+        addGroup( "Admin", "admin" );
     }
 
     private void addGroup( final String name, final String... members ) {

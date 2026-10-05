@@ -10,7 +10,7 @@
 #
 # Environment variables (with defaults):
 #   DB_NAME      wikantik   target database
-#   DB_APP_USER  jspwiki    role granted DML access in each migration
+#   DB_APP_USER  wikantik   role granted DML access in each migration
 #   PGHOST       localhost
 #   PGPORT       5432
 #   PGUSER       migrate    role that runs migrations. Created by

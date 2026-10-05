@@ -51,7 +51,7 @@ tomcat/tomcat-11/bin/startup.sh
 ```
 
 The full guide lives at
-[`docs/PostgreSQLLocalDeployment.md`](docs/PostgreSQLLocalDeployment.md).
+[`docs/admin/PostgreSQLLocalDeployment.md`](docs/admin/PostgreSQLLocalDeployment.md).
 For a container-based dev loop see `bin/container.sh --help`.
 
 ### Tests
@@ -116,8 +116,8 @@ If you're touching a new area:
   [`docs/wikantik-pages/PageGraphVsKnowledgeGraph.md`](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md)
   before working in either.
 - The architectural reviews under
-  [`docs/ArchitectureCritique.md`](docs/ArchitectureCritique.md) and
-  [`docs/ProjectReference.md`](docs/ProjectReference.md) give the long view.
+  [`docs/archive/ArchitectureCritique.md`](docs/archive/ArchitectureCritique.md) and
+  [`docs/developer/ProjectReference.md`](docs/developer/ProjectReference.md) give the long view.
   (The `wikantik-main` decomposition design spec was retired once the work
   landed; its status is tracked in `ProjectReference.md`, and the rules it
   established are enforced mechanically by `DecompositionArchTest` — notably

@@ -5,7 +5,7 @@ endpoint, shipper, and metrics are in `main`; 99,132 rows loaded. Later phases p
 **Date:** 2026-08-16
 **Related:** [HybridRetrieval.md](../../wikantik-pages/HybridRetrieval.md),
 [AgentGradeContentDesign.md](../../wikantik-pages/AgentGradeContentDesign.md),
-[IndexingSupport.md](../../../IndexingSupport.md)
+[IndexingSupport.md](../../admin/IndexingSupport.md)
 
 ---
 

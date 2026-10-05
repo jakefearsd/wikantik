@@ -12,7 +12,7 @@ updates:
     schedule:
       interval: "weekly"
     ignore:
-      # HELD DELIBERATELY — see docs/dependency-upgrade-log.md (2026-08-16).
+      # HELD DELIBERATELY — see docs/developer/dependency-upgrade-log.md (2026-08-16).
       # junrar is a security pin of a Tika transitive (CVE-2026-41245, fixed in
       # 7.6.0). Tika 3.3.2 itself declares junrar 7.6.0, so the pin matches
       # upstream exactly. Forcing an untested major under Tika's RAR parser buys
@@ -33,7 +33,7 @@ updates:
         dependency-type: "development"
         update-types: ["minor", "patch"]
     ignore:
-      # HELD DELIBERATELY — see docs/dependency-upgrade-log.md (2026-08-16).
+      # HELD DELIBERATELY — see docs/developer/dependency-upgrade-log.md (2026-08-16).
       # rehype-katex (latest, 7.0.1) hard-depends on katex ^0.16.0. Taking katex
       # 0.17+ resolves two katex copies into the bundle and splits math rendering
       # between the editor preview and the reader. Revisit when rehype-katex

@@ -9,7 +9,7 @@ defect before repairing it, so we know the test actually detects the issue.
 - Don't use plan mode for trivial tasks (git add, single commands) — just do them directly.
 
 Operational runbooks (container/remote deployment, load testing, entity extractor) and the detailed
-design-doc status blocks live in **[docs/ProjectReference.md](docs/ProjectReference.md)** — kept out
+design-doc status blocks live in **[docs/developer/ProjectReference.md](docs/developer/ProjectReference.md)** — kept out
 of this file so it stays focused on rules + the architecture map.
 
 ## Superpowers skills — when they apply
@@ -292,7 +292,7 @@ High test coverage at the line level, above 90% is a goal for this development t
 and while we recognize it is not a perfect measurement, it is one we choose to pursue.
 
 > Container/remote deployment, load testing, and the entity-extractor runbook moved to
-> [docs/ProjectReference.md](docs/ProjectReference.md).
+> [docs/developer/ProjectReference.md](docs/developer/ProjectReference.md).
 
 ## Architecture Overview
 
@@ -477,7 +477,7 @@ When implementing new features, consider these extension mechanisms:
 ### Active Design Documents
 
 Read the linked design doc before touching the relevant subsystem. Detailed "what shipped" status for
-each is recorded in [docs/ProjectReference.md](docs/ProjectReference.md#active-design-documents--detailed-status).
+each is recorded in [docs/developer/ProjectReference.md](docs/developer/ProjectReference.md#active-design-documents--detailed-status).
 
 - **[StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)** — machine-queryable structural index (a **Page Graph** sub-area). Load-bearing gotchas: `Main.md` is **generated** — edit `docs/wikantik-pages/Main.pins.yaml`, never `Main.md` (CI's `MainPageRegressionTest` will revert hand-edits); save-time `canonical_id` enforcement is **on** (`StructuralSpinePageFilter`). All four phases shipped.
 - **[AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)** — agent-grade content: `type: runbook`, page verification, `/api/pages/for-agent/{id}` projection, derived `agent_hints`, retrieval-quality CI. All six phases shipped 2026-04-25.
@@ -487,7 +487,7 @@ each is recorded in [docs/ProjectReference.md](docs/ProjectReference.md#active-d
   - **Phase 0b — corpus divergence (read before ANY corpus-wide content work):** `docs/wikantik-pages/` and the prod page store are **different corpora, not two copies**. Prod holds pages the repo lacks (e.g. `ProgrammingLanguagesHub`, which declares prod's `computer-science`); planning from the checkout produces a plan that is wrong for prod. `bin/remote.sh pages-pull` **cannot** reconcile them — it fails `Permission denied` on container-owned pages and silently returns a **partial** corpus (1191 of ~1200). **Prod is authoritative for content; the checkout is a mirror.** Derive corpus-wide plans from the live index (`list_clusters` / `list_pages_by_filter`), never from the repo.
 - **[KgInclusionPolicy.md](docs/wikantik-pages/KgInclusionPolicy.md)** — cluster-primary KG inclusion policy (`bin/kg-policy.sh`, default-exclude, `kg_include:` frontmatter override). **Resolution is segment-aware and fail-closed since 2026-08-15 (ClusterDeclarationDesign Phases 1 + 5).** `DefaultKgInclusionPolicy.lookupCluster` now walks ancestors (`a/b/c → a/b → a`, most specific wins), so a `parent/sub` cluster inherits its parent's policy — it used to be exact-match, which silently EXCLUDE'd every sub-cluster from the Knowledge Graph. Across multiple memberships an explicit EXCLUDE on **any** membership wins outright, so adding a second membership can never quietly pull a page into the KG.
 - **[RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — implemented, not yet scheduled.
-- **[IndexingSupport.md](IndexingSupport.md)** — raw content + change feed + sitemap for RAG/SEO.
+- **[IndexingSupport.md](docs/admin/IndexingSupport.md)** — raw content + change feed + sitemap for RAG/SEO.
 - **[2026-06-13-rag-as-a-service-and-knowledge-base-design.md](docs/superpowers/specs/2026-06-13-rag-as-a-service-and-knowledge-base-design.md)** — RAG-as-a-Service: the wiki assembles retrieval into a ranked, de-duplicated, version-pinned-**cited** context **bundle** (NEVER answer synthesis — ADR-0001). Phase 1 shipped: types in `wikantik-api` `com.wikantik.api.bundle.*`, logic in `wikantik-main` `com.wikantik.knowledge.bundle.*` (`DefaultBundleAssemblyService`, `SectionCandidateSource` → `DenseChunkSectionSource`/`RetrievalSectionSource`, `BundleServiceWiring`), surfaces `GET /api/bundle?q=` + `assemble_bundle` MCP. Wiring: `bundleAssemblyService` is derived on `KnowledgeSubsystem.Services` at the `ContextRetrievalService` post-startup seam (`WikiEngine.patchContextRetrievalService`); the dense source is set from `SearchWiringHelper` (plain engine field — keep `BundleServiceWiring` off the `getManager` allow-list, DecompositionArchTest R-2). Config `wikantik.bundle.{dense.enabled,dense.top_k,sections_per_page,reranker.enabled}`. The recall levers that moved it (chunker fix, contextual embeddings) are in the **[HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** entry above + `eval/bundle-corpus/baseline-notes.md`; ADRs `docs/adr/0001`–`0007`, glossary `CONTEXT.md`.
 - **[2026-06-08-structured-page-curation-design.md](docs/superpowers/specs/2026-06-08-structured-page-curation-design.md)** — structured frontmatter editor + page-scoped KG curation panel (shipped 2026-06-09). Server-authoritative `FrontmatterSchema` drives `SchemaDrivenFrontmatterValidator` on every save path (`GET /api/frontmatter-schema`, `POST /api/frontmatter/validate`; `PUT /api/pages` → 422 errors / 200 warnings; MCP parity). **Gotcha:** field-value checks are advisory WARNINGS (only malformed YAML 422s) so corpus pages with non-kebab clusters / non-ISO dates / list-audiences still save; SnakeYAML pre-parses `date`→`Date` and `audience`→`List`, which the validator handles. Page-scoped KG curation is `/api/page-knowledge/*` (NOT `/api/pages/{name}/knowledge` — a servlet can't match a mid-path var); `getPageSlice` UNIONs chunk-mentions + curated `source_page` nodes; curation only surfaces on KG-included pages.
 

@@ -5,7 +5,7 @@ contract — priorities shift as the project gets used, and the canonical
 record of what shipped is [`CHANGELOG.md`](CHANGELOG.md). For why a
 specific past decision was made, see the design specs under
 [`docs/superpowers/specs/`](docs/superpowers/specs/) and the
-[`ArchitectureCritique.md`](docs/ArchitectureCritique.md) for honest
+[`ArchitectureCritique.md`](docs/archive/ArchitectureCritique.md) for honest
 strengths-and-weaknesses self-review.
 
 ## Now (2.4.x — live in production)

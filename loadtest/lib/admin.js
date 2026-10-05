@@ -3,7 +3,7 @@
  *
  * The read/write scenarios in endpoints.js drive reader + agent traffic. This
  * module drives /admin/*, which was previously unrepresented in the harness —
- * so every optimisation arc in docs/ScalingCharacterization.md was measured
+ * so every optimisation arc in docs/developer/ScalingCharacterization.md was measured
  * against a mix that contained zero admin work.
  *
  * Auth: HTTP Basic on every request, and DELIBERATELY STATELESS — no session

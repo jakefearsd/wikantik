@@ -8,7 +8,7 @@
 # container entrypoint applies any new schema migrations on start.
 #
 # This is NOT the first-deploy path. The first deploy initialises the DB and
-# pages (see docs/DockerDeployment.md). deploy-release.sh assumes the remote
+# pages (see docs/admin/DockerDeployment.md). deploy-release.sh assumes the remote
 # has already been bootstrapped and is running a prior version.
 #
 # Usage:

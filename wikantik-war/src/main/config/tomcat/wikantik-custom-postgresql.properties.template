@@ -171,7 +171,7 @@ wikantik.search.embedding.base-url   = @@EMBEDDING_BASE_URL@@
 #
 # These mirror the knobs the container path sets via docker/entrypoint.sh, so a
 # bare-metal deployment can reach the same tuned posture. Full reference:
-# docs/WikantikOperations.md §1.5.
+# docs/admin/WikantikOperations.md §1.5.
 #
 # NOT every perf knob is a property. Three live outside this file and are
 # materialised from their own templates by deploy-local.sh:

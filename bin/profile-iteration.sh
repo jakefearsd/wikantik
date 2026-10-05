@@ -4,7 +4,7 @@
 #
 # Wraps the k6 harness in a JFR recording and reduces the result to a CPU
 # composition table, so two iterations can be diffed frame-by-frame. This is
-# the loop docs/LoadTesting.md describes, packaged so every iteration in a
+# the loop docs/developer/LoadTesting.md describes, packaged so every iteration in a
 # campaign is executed identically (the discipline that matters: change ONE
 # variable, re-run this verbatim, diff the tables).
 #

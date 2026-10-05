@@ -18,7 +18,7 @@ variables assembled in this module's `main.tf`, exactly mirroring how
 `deploy/aws/main.tf` assembles its own AWS-specific values for the same
 template.
 
-> See [docs/CloudDeployment.md](../../docs/CloudDeployment.md) for the
+> See [docs/admin/CloudDeployment.md](../../docs/admin/CloudDeployment.md) for the
 > operator-facing overview tying this module together with the
 > `docker-compose.cloud.yml` overlay, the GenAI cost tiers, and the
 > pull-based update flow. This README is the canonical step-by-step
@@ -51,7 +51,7 @@ template.
 ## Prerequisites
 
 Starting from a **brand-new GCP account**? Work through
-[docs/GcpAccountSetup.md](../../docs/GcpAccountSetup.md) first — it covers
+[docs/admin/GcpAccountSetup.md](../../docs/admin/GcpAccountSetup.md) first — it covers
 account/project creation, billing guardrails, Terraform credentials (ADC),
 and installing the gcloud CLI + Terraform on macOS and Ubuntu.
 

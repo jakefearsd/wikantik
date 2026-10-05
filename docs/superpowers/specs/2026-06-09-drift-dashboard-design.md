@@ -11,7 +11,7 @@ admin dashboard with a burn-down view.
 Companion to:
 - [2026-06-08-structured-page-curation-design.md](2026-06-08-structured-page-curation-design.md) — the validator/schema this sweeps with
 - [2026-06-08-wiki-ontology-design.md](2026-06-08-wiki-ontology-design.md) — the rebuild scheduler + SHACL gate this piggybacks on
-- [docs/OntologyManagement.md](../../OntologyManagement.md) — gets a short "Measuring drift" section when this ships
+- [docs/OntologyManagement.md](../../admin/OntologyManagement.md) — gets a short "Measuring drift" section when this ships
 
 ## Decisions (made with the user)
 

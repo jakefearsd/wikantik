@@ -3255,7 +3255,7 @@ classifying every `/wiki/` page as a **Soft 404**, so none of them ranked.
   served the generic `<title>Wikantik</title>` — pages now emit a unique
   `<title>` from their frontmatter `title:` (falling back to the page name),
   and that readable title also flows into `og:title`/`twitter:title` instead of
-  the raw page slug. Operator guide: [docs/SeoAndCrawling.md](docs/SeoAndCrawling.md).
+  the raw page slug. Operator guide: [docs/SeoAndCrawling.md](docs/admin/SeoAndCrawling.md).
 
 ## [2.0.4] - 2026-05-25
 
@@ -3272,7 +3272,7 @@ classifying every `/wiki/` page as a **Soft 404**, so none of them ranked.
 - **Single Sign-On (OIDC + SAML 2.0 via pac4j).** Google OIDC is live in
   production. Configurable through `wikantik.sso.*` (and `WIKANTIK_SSO_*` env
   vars in containers); full operator reference in
-  [docs/SingleSignOn.md](docs/SingleSignOn.md). Includes a `/login` SPA route
+  [docs/SingleSignOn.md](docs/admin/SingleSignOn.md). Includes a `/login` SPA route
   that surfaces SSO `?error=` codes, and public privacy/terms pages for
   provider onboarding.
 - **Self-service account deletion** — `DELETE /api/auth/profile` with a

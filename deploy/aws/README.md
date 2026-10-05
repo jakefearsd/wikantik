@@ -12,7 +12,7 @@ This module (`deploy/aws/`) pairs with the shared cloud-init template at
 `deploy/cloud-init/cloud-init.yaml.tftpl`, also reused unmodified by
 `deploy/gcp/` — see that module's README for the GCP twin.
 
-> See [docs/CloudDeployment.md](../../docs/CloudDeployment.md) for the
+> See [docs/admin/CloudDeployment.md](../../docs/admin/CloudDeployment.md) for the
 > operator-facing overview tying this module together with the
 > `docker-compose.cloud.yml` overlay, the GenAI cost tiers, and the
 > pull-based update flow. This README is the canonical step-by-step
@@ -33,7 +33,7 @@ This module (`deploy/aws/`) pairs with the shared cloud-init template at
 ## Prerequisites
 
 Starting from a **brand-new AWS account**? Work through
-[docs/AwsAccountSetup.md](../../docs/AwsAccountSetup.md) first — it covers
+[docs/admin/AwsAccountSetup.md](../../docs/admin/AwsAccountSetup.md) first — it covers
 account creation and hardening, an admin identity for the CLI, billing
 guardrails, and installing the AWS CLI + Terraform on macOS and Ubuntu.
 

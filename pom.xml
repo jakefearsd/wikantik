@@ -1390,7 +1390,7 @@
             <configuration>
                 <!-- Stable-only sweeps. Without this every versions:display-*
                      run re-proposes the pre-releases already rejected by name in
-                     docs/dependency-upgrade-log.md. multiModuleProjectDirectory,
+                     docs/developer/dependency-upgrade-log.md. multiModuleProjectDirectory,
                      not project.basedir: the latter re-resolves per module, so
                      child modules would look for the file in their own directory. -->
                 <rulesUri>file://${maven.multiModuleProjectDirectory}/build-support/versions-stable-rules.xml</rulesUri>

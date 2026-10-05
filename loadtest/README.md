@@ -8,7 +8,7 @@ Grafana.
 > **This document is the tactical reference** — install, configure, run.
 > For the methodology — when to run a load test, how to isolate variables,
 > how to pair k6 with JFR to find contention, common patterns and pitfalls —
-> see [`docs/LoadTesting.md`](../docs/LoadTesting.md).
+> see [`docs/developer/LoadTesting.md`](../docs/developer/LoadTesting.md).
 
 ## Prerequisites
 

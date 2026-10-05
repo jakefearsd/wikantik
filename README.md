@@ -29,7 +29,7 @@ for the long form.
 
 Key capabilities:
 
-- **Markdown rendering** with Flexmark — fenced code blocks, tables, footnotes, definition lists, TOC generation, wiki-style internal links, and LaTeX math — validated on save so display-math that the parser would mis-render is blocked before it ships (see [MathematicalNotation.md](docs/MathematicalNotation.md))
+- **Markdown rendering** with Flexmark — fenced code blocks, tables, footnotes, definition lists, TOC generation, wiki-style internal links, and LaTeX math — validated on save so display-math that the parser would mis-render is blocked before it ships (see [MathematicalNotation.md](docs/user/MathematicalNotation.md))
 - **React SPA** served at `/` — editorial magazine aesthetic with dark mode, metadata chips, change history, similar-pages panel, and inline editing
 - **Page Graph** at `/page-graph` — interactive Cytoscape visualisation of the wikilink graph (backlinks, frontmatter, clusters) with semantic zoom, edge-type filtering, and parallel-edge merging
 - **Knowledge Graph viewer** at `/knowledge-graph` — reader-facing visualisation of the LLM-extracted entity graph with tier filter, node-type colours, provenance/status badges, and a large-graph warning gate
@@ -40,25 +40,25 @@ Key capabilities:
 - **Admin MCP server** at `/wikantik-admin-mcp` — 29 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping, bulk cluster renames, query-log reads, content-opportunity listing + snoozing), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
 - **Knowledge MCP server** at `/knowledge-mcp` — 21 read-only tools: the primary answer-grounding `assemble_bundle`, hybrid retrieval (BM25 + dense) via `retrieve_context`, Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, the agent-grade `get_page_for_agent` projection, batched markdown reads via `read_pages`, read-only ontology access (`get_ontology` + `sparql_query`), stale-citation curation (`list_stale_citations`), and session-start context briefings via `get_briefing`. Same auth scheme.
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
-- **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
+- **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](docs/admin/IndexingSupport.md))
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60); fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
-- **External-source connectors** — seven connector types (filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, Confluence) sync external content into first-class **derived pages** riding every existing rail (search, embeddings, Knowledge Graph, citations); six of them are creatable straight from the admin UI, while `filesystem` stays properties-defined by design (it reads arbitrary host paths, so it is deliberately excluded from `ConnectorConfigCodec.UI_TYPES`). DB-backed configs with hot-apply, an encrypted credentials store, a guided Add Connector wizard, dry-run test-connection, and reader-facing provenance badges, managed at `/admin/connectors` (see [Connectors.md](docs/Connectors.md))
-- **Cost-governed LLM usage** — a single `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`) caps embedding and chat-inference spend per deployment; the wiki, hybrid search, and MCP surfaces all run with LLM inference fully off, and `GET /api/capabilities` reports the effective tier so clients — human and agent — can adapt (see [CostTiers.md](docs/CostTiers.md))
+- **External-source connectors** — seven connector types (filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, Confluence) sync external content into first-class **derived pages** riding every existing rail (search, embeddings, Knowledge Graph, citations); six of them are creatable straight from the admin UI, while `filesystem` stays properties-defined by design (it reads arbitrary host paths, so it is deliberately excluded from `ConnectorConfigCodec.UI_TYPES`). DB-backed configs with hot-apply, an encrypted credentials store, a guided Add Connector wizard, dry-run test-connection, and reader-facing provenance badges, managed at `/admin/connectors` (see [Connectors.md](docs/admin/Connectors.md))
+- **Cost-governed LLM usage** — a single `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`) caps embedding and chat-inference spend per deployment; the wiki, hybrid search, and MCP surfaces all run with LLM inference fully off, and `GET /api/capabilities` reports the effective tier so clients — human and agent — can adapt (see [CostTiers.md](docs/admin/CostTiers.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, chunk inspector, index status), security management (groups and policy grants), API keys, page ownership, Knowledge-Graph curation, KG inclusion policy, ontology rebuild, a metadata-drift burn-down dashboard, retrieval-quality dashboard, and a tamper-evident audit log
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
-- **SCIM 2.0 provisioning** at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP-driven onboarding/offboarding (see [ScimProvisioning.md](docs/ScimProvisioning.md))
-- **Programmatic API keys** — issue and revoke bearer tokens for the MCP / OpenAPI / REST surfaces from the admin panel (see [ApiKeys.md](docs/ApiKeys.md))
-- **Tamper-evident audit log** — hash-chained record of administrative and security-relevant actions, queryable / verifiable / exportable at `/admin/audit` (see [AuditLog.md](docs/AuditLog.md))
-- **Comments & @-mentions** — threaded discussion on pages with mention notifications and an unread inbox at `/me/mentions` (see [CommentsAndMentions.md](docs/CommentsAndMentions.md))
+- **SCIM 2.0 provisioning** at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP-driven onboarding/offboarding (see [ScimProvisioning.md](docs/admin/ScimProvisioning.md))
+- **Programmatic API keys** — issue and revoke bearer tokens for the MCP / OpenAPI / REST surfaces from the admin panel (see [ApiKeys.md](docs/admin/ApiKeys.md))
+- **Tamper-evident audit log** — hash-chained record of administrative and security-relevant actions, queryable / verifiable / exportable at `/admin/audit` (see [AuditLog.md](docs/admin/AuditLog.md))
+- **Comments & @-mentions** — threaded discussion on pages with mention notifications and an unread inbox at `/me/mentions` (see [CommentsAndMentions.md](docs/user/CommentsAndMentions.md))
 - **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation; monitoring is handled by the external jakemon stack
 - **Content clusters, declared by their hub page** — a cluster exists if and only if exactly one page carries `type: hub` plus a `cluster: <path>` value, making the hub the authoritative *declaration* rather than a coincidence of metadata ([ADR-0009](docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md)). Non-hub pages may declare **multiple memberships** (`cluster:` is scalar-or-list; the first entry is primary and drives breadcrumbs, JSON-LD `articleSection`, sidebar placement, and the embedding prefix). Sub-clusters are `parent/child`, one level deep, matched segment-aware so `machine-learning-ops` is never mistaken for a child of `machine-learning`. Structural conflicts (duplicate declaration, headless cluster, undeclared cluster, clusterless hub, multi-cluster hub) surface on the `/admin/drift` burn-down, and `POST /admin/clusters/rename` (plus the `rename_cluster` MCP tool) rewrites a cluster across every member in one plan-first operation — the taxonomy is a frontmatter projection, never a filesystem hierarchy
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
-- **Structured frontmatter metadata** — YAML frontmatter (type, tags, summary, cluster, status, runbook blocks, verification, …) edited through a schema-driven form with **live validation and Save-gating**; one block feeds full-text & faceted search, the topical hierarchy, the RDF ontology, SEO structured data, and agent-grade retrieval (see [Frontmatter.md](docs/Frontmatter.md))
+- **Structured frontmatter metadata** — YAML frontmatter (type, tags, summary, cluster, status, runbook blocks, verification, …) edited through a schema-driven form with **live validation and Save-gating**; one block feeds full-text & faceted search, the topical hierarchy, the RDF ontology, SEO structured data, and agent-grade retrieval (see [Frontmatter.md](docs/user/Frontmatter.md))
 
 
 ## Ontology Management
 
-Wikantik layers a queryable `wikantik:` RDF/OWL ontology over the wiki — page concepts, SKOS clusters/tags, and an LLM-extracted Knowledge Graph of typed entities and relations — curated by humans **and** AI agents under one server-authoritative schema and a write-time SHACL gate, and exposed over SPARQL, dereferenceable IRIs, and RDF dumps. For the why and the how (the three layers, the curation surfaces, and evolving the vocabulary), see **[Ontology Management on Wikantik — Why and How](docs/OntologyManagement.md)**.
+Wikantik layers a queryable `wikantik:` RDF/OWL ontology over the wiki — page concepts, SKOS clusters/tags, and an LLM-extracted Knowledge Graph of typed entities and relations — curated by humans **and** AI agents under one server-authoritative schema and a write-time SHACL gate, and exposed over SPARQL, dereferenceable IRIs, and RDF dumps. For the why and the how (the three layers, the curation surfaces, and evolving the vocabulary), see **[Ontology Management on Wikantik — Why and How](docs/admin/OntologyManagement.md)**.
 
 
 ## Why Wikantik?
@@ -90,8 +90,8 @@ Wikantik makes sense for you if:
 - You're using AI assistants (Claude Code, Cursor, OpenWebUI, Open Interpreter) and want them to read and write a real institutional knowledge base without a custom integration per tool.
 - You want to keep your knowledge base on infrastructure you control, with a permissive (Apache 2.0) license that lets you fork or relicense your derivatives.
 - You're comfortable on a JVM stack and want PostgreSQL + pgvector as your single data store rather than running a separate vector database.
-- You need to pull outside content — a shared drive, a GitHub repo, a Confluence space, an RSS feed, a plain web crawl — into the same searchable, agent-queryable page store instead of standing up a separate ingestion pipeline (see [Connectors.md](docs/Connectors.md)).
-- You want LLM spend to be a dial, not an all-or-nothing bet: `wikantik.genai.mode` (`full` / `embeddings-only` / `none`) lets you run the wiki, keyword search, and page CRUD with zero inference cost, then turn on embeddings and chat features per deployment tier (see [CostTiers.md](docs/CostTiers.md)).
+- You need to pull outside content — a shared drive, a GitHub repo, a Confluence space, an RSS feed, a plain web crawl — into the same searchable, agent-queryable page store instead of standing up a separate ingestion pipeline (see [Connectors.md](docs/admin/Connectors.md)).
+- You want LLM spend to be a dial, not an all-or-nothing bet: `wikantik.genai.mode` (`full` / `embeddings-only` / `none`) lets you run the wiki, keyword search, and page CRUD with zero inference cost, then turn on embeddings and chat features per deployment tier (see [CostTiers.md](docs/admin/CostTiers.md)).
 
 Wikantik may **not** be for you if:
 
@@ -171,7 +171,7 @@ and `/sparql` at a tighter "expensive" tier with a single-host global cap),
 with `/api/health` and loopback exempt so monitoring and internal traffic are
 never throttled.
 
-The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. External sources — filesystem trees, crawled web pages, sitemaps, RSS/Atom feeds, Google Drive, GitHub, Confluence — sync into the same page store as derived pages via the `wikantik-connectors` runtime, managed at `/admin/connectors` (see [Connectors.md](docs/Connectors.md)); no separate ingestion pipeline to run. Container deploys bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar — driven by `bin/container.sh` locally and `bin/remote.sh` for an ssh remote host; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL; cloud VM deploys (`deploy/aws`, `deploy/gcp`) provision the same stack via Terraform (see [CloudDeployment.md](docs/CloudDeployment.md)).
+The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. External sources — filesystem trees, crawled web pages, sitemaps, RSS/Atom feeds, Google Drive, GitHub, Confluence — sync into the same page store as derived pages via the `wikantik-connectors` runtime, managed at `/admin/connectors` (see [Connectors.md](docs/admin/Connectors.md)); no separate ingestion pipeline to run. Container deploys bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar — driven by `bin/container.sh` locally and `bin/remote.sh` for an ssh remote host; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL; cloud VM deploys (`deploy/aws`, `deploy/gcp`) provision the same stack via Terraform (see [CloudDeployment.md](docs/admin/CloudDeployment.md)).
 
 ## Prerequisites
 
@@ -338,7 +338,7 @@ Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
-See [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) for the full guide.
+See [PostgreSQLLocalDeployment.md](docs/admin/PostgreSQLLocalDeployment.md) for the full guide.
 
 ## Using Docker
 
@@ -390,10 +390,10 @@ overlay (registry image, `caddy`/`cloudflared`/`ollama-embed` profiles) at a
 chosen GenAI cost tier. Once running, `deploy/bin/wikantik-update.sh` (or
 `bin/remote.sh deploy --pull TAG`) pulls a new image and auto-rolls-back on a
 failed health check — no local build required. See
-[CloudDeployment.md](docs/CloudDeployment.md) for the operator-facing overview
-and [CostTiers.md](docs/CostTiers.md) for the `wikantik.genai.mode` cost tiers.
-Starting from a brand-new cloud account? [AwsAccountSetup.md](docs/AwsAccountSetup.md),
-[GcpAccountSetup.md](docs/GcpAccountSetup.md), and [AzureAccountSetup.md](docs/AzureAccountSetup.md)
+[CloudDeployment.md](docs/admin/CloudDeployment.md) for the operator-facing overview
+and [CostTiers.md](docs/admin/CostTiers.md) for the `wikantik.genai.mode` cost tiers.
+Starting from a brand-new cloud account? [AwsAccountSetup.md](docs/admin/AwsAccountSetup.md),
+[GcpAccountSetup.md](docs/admin/GcpAccountSetup.md), and [AzureAccountSetup.md](docs/admin/AzureAccountSetup.md)
 each cover account creation and hardening, an admin identity for the CLI, billing
 guardrails, and installing that cloud's CLI + Terraform on macOS and Ubuntu
 (Azure has no Terraform module yet — its article maps the reference topology
@@ -403,7 +403,7 @@ Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agen
 
 Every subcommand supports `--help`. The compose files and
 `docker/entrypoint.sh` remain the source of truth — the scripts are
-ergonomic facades. See [DockerDeployment.md](docs/DockerDeployment.md) for
+ergonomic facades. See [DockerDeployment.md](docs/admin/DockerDeployment.md) for
 the full guide: first-deploy procedure, DB initialisation, backups,
 monitoring, and the bare-metal ↔ container migration.
 
@@ -492,8 +492,8 @@ from collapsing at 233 RPS to serving fast under a 3–4× overload — and only
 backend moved to an **in-process Lucene HNSW** index (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`,
 now the docker1 default), replacing the O(N) brute-force scan that had been ~60 %
 of search CPU. Full diagnostic chain in
-[ScalingCharacterization.md](docs/ScalingCharacterization.md); operator config
-reference in [WikantikOperations.md § Performance & concurrency tuning](docs/WikantikOperations.md#15-performance--concurrency-tuning).
+[ScalingCharacterization.md](docs/developer/ScalingCharacterization.md); operator config
+reference in [WikantikOperations.md § Performance & concurrency tuning](docs/admin/WikantikOperations.md#15-performance--concurrency-tuning).
 
 **Graceful degradation past the ceiling:** beyond the sustainable concurrency a
 burst would otherwise queue in the Tomcat accept queue and time out. A
@@ -518,7 +518,7 @@ cache-, I/O-, or pool-bound). To go further, the options are orthogonal:
    ~50/50 wikantik/db. Splitting frees a full machine for each side. Dense
    retrieval already runs in-process via Lucene HNSW
    (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`, the docker1 production default — see
-   [ScalingCharacterization.md](docs/ScalingCharacterization.md));
+   [ScalingCharacterization.md](docs/developer/ScalingCharacterization.md));
    for a split-DB topology the **pgvector** backend (`=pgvector`) keeps the
    index server-side instead.
    For the DB pool itself, **PgBouncer** (transaction pooling) is the lever to
@@ -527,9 +527,9 @@ cache-, I/O-, or pool-bound). To go further, the options are orthogonal:
    w.r.t. the vector index and trivially scales behind a load balancer.
 
 Performance configuration is documented in
-[DockerDeployment.md § Performance / search-backend tuning](docs/DockerDeployment.md#performance--search-backend-tuning-optional).
+[DockerDeployment.md § Performance / search-backend tuning](docs/admin/DockerDeployment.md#performance--search-backend-tuning-optional).
 The full scaling study (methodology, JFR captures, contention analyses) is in
-[ScalingCharacterization.md](docs/ScalingCharacterization.md). Cache effectiveness
+[ScalingCharacterization.md](docs/developer/ScalingCharacterization.md). Cache effectiveness
 is published live to Prometheus as `wikantik_cache.{size,hits,misses,evictions}`
 per cache name.
 
@@ -538,77 +538,77 @@ per cache name.
 For a chronological view of what's shipped see [CHANGELOG.md](CHANGELOG.md);
 for what's coming next see [ROADMAP.md](ROADMAP.md).
 Migrating from a previous Wikantik install? See
-[migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md).
+[migration-1.0-to-1.1.md](docs/archive/migration-1.0-to-1.1.md).
 
 ### Development Setup
 
-- [GettingStartedGuide.md](docs/GettingStartedGuide.md) — **first-time deployer walkthrough**: both the Docker Compose and bare-metal Tomcat paths, the initial `admin` / `admin123` forced-change login, and a first-build pitfalls table
-- [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) — **bare-metal deployment guide** (local PostgreSQL + Tomcat 11): one-time setup, the `migrate` role, deploy/redeploy, performance tuning, troubleshooting
-- [DevelopingWithPostgresql.md](docs/DevelopingWithPostgresql.md) — Full PostgreSQL schema, JDBC, and JNDI configuration
+- [GettingStartedGuide.md](docs/admin/GettingStartedGuide.md) — **first-time deployer walkthrough**: both the Docker Compose and bare-metal Tomcat paths, the initial `admin` / `admin123` forced-change login, and a first-build pitfalls table
+- [PostgreSQLLocalDeployment.md](docs/admin/PostgreSQLLocalDeployment.md) — **bare-metal deployment guide** (local PostgreSQL + Tomcat 11): one-time setup, the `migrate` role, deploy/redeploy, performance tuning, troubleshooting
+- [DevelopingWithPostgresql.md](docs/admin/DevelopingWithPostgresql.md) — Full PostgreSQL schema, JDBC, and JNDI configuration
 - [ConfigurationReference.md](docs/ConfigurationReference.md) — generated reference for every `wikantik.*`/`mcp.*`/`tools.*` property: default, type, and description
-- [MvnCheatSheet.md](docs/MvnCheatSheet.md) — Maven build, test, and debug commands
-- [LoggingConfig.md](docs/LoggingConfig.md) — Log4j2 external configuration
-- [IndexRebuild.md](docs/IndexRebuild.md) — Search index rebuild guide for local and Docker deployments
+- [MvnCheatSheet.md](docs/developer/Building.md) — Maven build, test, and debug commands
+- [LoggingConfig.md](docs/admin/LoggingConfig.md) — Log4j2 external configuration
+- [IndexRebuild.md](docs/admin/IndexRebuild.md) — Search index rebuild guide for local and Docker deployments
 
 ### Deployment & Operations
 
-- [LoadTesting.md](docs/LoadTesting.md) — methodology for the k6 + JFR + Prometheus load-test workflow: when to run, how to isolate variables, how to read results, how to pair k6 with JFR to find contention. (Tactical harness reference lives at [`loadtest/README.md`](loadtest/README.md).)
-- [DockerDeployment.md](docs/DockerDeployment.md) — the container deployment guide: local & remote, first-deploy procedure, the release/upgrade wrappers, DB initialisation, backups, monitoring
-- [CloudDeployment.md](docs/CloudDeployment.md) — **cloud VM deployment** (AWS/GCP): the `deploy/aws` / `deploy/gcp` Terraform reference modules, the `docker-compose.cloud.yml` overlay, and pull-based updates via `wikantik-update.sh`
-- [CostTiers.md](docs/CostTiers.md) — **GenAI cost-tier reference**: the `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`), three named tiers with exact `.env` / properties presets, and how to verify a tier is actually enforced
-- [WikantikOperations.md](docs/WikantikOperations.md) — the **operations handbook**: container topology, admin/maintenance scripts (`bin/kg-*.sh`, `remote.sh` subcommands), index/KG rebuilds, performance & concurrency tuning
-- [production-container-architecture.md](docs/production-container-architecture.md) — production deployment topology: the single-host container stack and the tag-triggered release pipeline
-- [BackupAndRecovery.md](docs/BackupAndRecovery.md) — backup sidecar, off-box NAS pull, audit-archive retention, and the disaster-recovery restore drill
-- [ProductionDBWorkflow.md](docs/ProductionDBWorkflow.md) — the production database workflow: the `migrate` role split, migration safety, and what remains to be hardened
-- [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — the GitHub Actions workflows: tag-triggered `release.yml` plus the manual-only CI workflows
-- [migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md) — historical migration notes for an early Wikantik upgrade
-- [SendingEmailFromTheWiki.md](docs/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
-- [ObservabilityDesign.md](docs/ObservabilityDesign.md) — observability design: request correlation, Prometheus metrics (superseded — monitoring now via jakemon)
+- [LoadTesting.md](docs/developer/LoadTesting.md) — methodology for the k6 + JFR + Prometheus load-test workflow: when to run, how to isolate variables, how to read results, how to pair k6 with JFR to find contention. (Tactical harness reference lives at [`loadtest/README.md`](loadtest/README.md).)
+- [DockerDeployment.md](docs/admin/DockerDeployment.md) — the container deployment guide: local & remote, first-deploy procedure, the release/upgrade wrappers, DB initialisation, backups, monitoring
+- [CloudDeployment.md](docs/admin/CloudDeployment.md) — **cloud VM deployment** (AWS/GCP): the `deploy/aws` / `deploy/gcp` Terraform reference modules, the `docker-compose.cloud.yml` overlay, and pull-based updates via `wikantik-update.sh`
+- [CostTiers.md](docs/admin/CostTiers.md) — **GenAI cost-tier reference**: the `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`), three named tiers with exact `.env` / properties presets, and how to verify a tier is actually enforced
+- [WikantikOperations.md](docs/admin/WikantikOperations.md) — the **operations handbook**: container topology, admin/maintenance scripts (`bin/kg-*.sh`, `remote.sh` subcommands), index/KG rebuilds, performance & concurrency tuning
+- [production-container-architecture.md](docs/admin/production-container-architecture.md) — production deployment topology: the single-host container stack and the tag-triggered release pipeline
+- [BackupAndRecovery.md](docs/admin/BackupAndRecovery.md) — backup sidecar, off-box NAS pull, audit-archive retention, and the disaster-recovery restore drill
+- [ProductionDBWorkflow.md](docs/admin/ProductionDBWorkflow.md) — the production database workflow: the `migrate` role split, migration safety, and what remains to be hardened
+- [ci-cd-step-by-step.md](docs/developer/CI.md) — the GitHub Actions workflows: tag-triggered `release.yml` plus the manual-only CI workflows
+- [migration-1.0-to-1.1.md](docs/archive/migration-1.0-to-1.1.md) — historical migration notes for an early Wikantik upgrade
+- [SendingEmailFromTheWiki.md](docs/admin/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
+- [ObservabilityDesign.md](docs/admin/ObservabilityDesign.md) — observability design: request correlation, Prometheus metrics (superseded — monitoring now via jakemon)
 
 ### Features
 
-- [RagContextBundle.md](docs/RagContextBundle.md) — **RAG context bundle & session briefings**: the `/api/bundle` + `assemble_bundle` context bundle (query params, retrieval modes, the coverage signal), `/api/briefing` + `get_briefing` session briefings, version-pinned `cite://` citations with stale-citation self-healing, and the full `wikantik.bundle.*` config reference
-- [Frontmatter.md](docs/Frontmatter.md) — **structured article metadata**: the full field reference, the schema-driven editor with live validation & Save-gating, the runbook block, validation rules, and how one frontmatter block feeds search / ontology / SEO / agents
-- [OntologyManagement.md](docs/OntologyManagement.md) — **the `wikantik:` RDF/OWL ontology**: the three layers, creating & curating page concepts and the Knowledge Graph, the SHACL write-time gate, the drift burn-down dashboard, the public SPARQL/JSON-LD/dump surface, and evolving the vocabulary
-- [MarkdownLinks.md](docs/MarkdownLinks.md) — Markdown internal and external link syntax
-- [MathematicalNotation.md](docs/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX, plus the save-time validation that blocks un-isolated display math
-- [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, Knowledge Graph viewer)
-- [DatabaseUpdates.md](docs/DatabaseUpdates.md) — Knowledge Graph schema and index layout
-- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration and verification guide for the entity extractor and unified embeddings, plus the historical record of the Knowledge Graph-aware search rerank (removed in 2026-07 after measuring no net ranking lift)
-- [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
-- [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
-- [SeoAndCrawling.md](docs/SeoAndCrawling.md) — SEO and crawler configuration: robots.txt, per-page `<title>`, JSON-LD, AI-crawler policy, and prerendering for bots
-- [SitemapOptimization.md](docs/SitemapOptimization.md) — sitemap tuning notes and rationale
-- [SingleSignOn.md](docs/SingleSignOn.md) — **SSO configuration reference** (OIDC + SAML via pac4j): properties, claim mapping, identity binding, container env vars
-- [OAuthImplementation.md](docs/OAuthImplementation.md) — original OAuth SSO planning notes (superseded by SingleSignOn.md)
-- [FullOAuth.md](docs/FullOAuth.md) — original OAuth/OpenID Connect design exploration (superseded by SingleSignOn.md)
+- [RagContextBundle.md](docs/admin/RagContextBundle.md) — **RAG context bundle & session briefings**: the `/api/bundle` + `assemble_bundle` context bundle (query params, retrieval modes, the coverage signal), `/api/briefing` + `get_briefing` session briefings, version-pinned `cite://` citations with stale-citation self-healing, and the full `wikantik.bundle.*` config reference
+- [Frontmatter.md](docs/user/Frontmatter.md) — **structured article metadata**: the full field reference, the schema-driven editor with live validation & Save-gating, the runbook block, validation rules, and how one frontmatter block feeds search / ontology / SEO / agents
+- [OntologyManagement.md](docs/admin/OntologyManagement.md) — **the `wikantik:` RDF/OWL ontology**: the three layers, creating & curating page concepts and the Knowledge Graph, the SHACL write-time gate, the drift burn-down dashboard, the public SPARQL/JSON-LD/dump surface, and evolving the vocabulary
+- [MarkdownLinks.md](docs/user/MarkdownLinks.md) — Markdown internal and external link syntax
+- [MathematicalNotation.md](docs/user/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX, plus the save-time validation that blocks un-isolated display math
+- [NewUI.md](docs/developer/FrontendArchitecture.md) — React SPA design and architecture (reader, editor, admin, Knowledge Graph viewer)
+- [DatabaseUpdates.md](docs/admin/DatabaseUpdates.md) — Knowledge Graph schema and index layout
+- [KnowledgeGraphRerank.md](docs/archive/KnowledgeGraphRerank.md) — Configuration and verification guide for the entity extractor and unified embeddings, plus the historical record of the Knowledge Graph-aware search rerank (removed in 2026-07 after measuring no net ranking lift)
+- [RelationalUserDatabase.md](docs/admin/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
+- [Sitemap.md](docs/archive/Sitemap.md) — Sitemap.xml and Atom feed servlets
+- [SeoAndCrawling.md](docs/admin/SeoAndCrawling.md) — SEO and crawler configuration: robots.txt, per-page `<title>`, JSON-LD, AI-crawler policy, and prerendering for bots
+- [SitemapOptimization.md](docs/archive/SitemapOptimization.md) — sitemap tuning notes and rationale
+- [SingleSignOn.md](docs/admin/SingleSignOn.md) — **SSO configuration reference** (OIDC + SAML via pac4j): properties, claim mapping, identity binding, container env vars
+- [OAuthImplementation.md](docs/archive/OAuthImplementation.md) — original OAuth SSO planning notes (superseded by SingleSignOn.md)
+- [FullOAuth.md](docs/archive/FullOAuth.md) — original OAuth/OpenID Connect design exploration (superseded by SingleSignOn.md)
 
 ### Administration
 
 Operator-facing guides for the admin panel and integration surfaces. Each covers
 configuration, the relevant admin UI route, REST endpoints, auth model, and troubleshooting.
 
-- [ScimProvisioning.md](docs/ScimProvisioning.md) — **SCIM 2.0 provisioning** (`/scim/v2/*`): IdP-driven user/group onboarding and offboarding, bearer token, discovery endpoints
-- [ApiKeys.md](docs/ApiKeys.md) — **programmatic API keys** (`/admin/apikeys`): issuing, scoping, and revoking bearer tokens for the MCP / OpenAPI / REST surfaces
-- [Connectors.md](docs/Connectors.md) — **external-source connectors** (`/admin/connectors`): the seven connector types (six admin-creatable), the guided Add Connector wizard, DB-backed configs with hot-apply, encrypted credentials, and derived-page provenance marking
-- [AuditLog.md](docs/AuditLog.md) — **tamper-evident audit log** (`/admin/audit`): the hash-chained action record, query/verify/export, and retention
-- [PageOwnership.md](docs/PageOwnership.md) — **page ownership** (`/admin/page-ownership`): the owner model, the seeded `agents` account, and reassignment
-- [KgInclusionPolicy.md](docs/KgInclusionPolicy.md) — **Knowledge-Graph inclusion policy** (`/admin/kg-policy`): the cluster-primary default-exclude policy, `kg_include:` overrides, and `bin/kg-policy.sh`
-- [HubDiscovery.md](docs/HubDiscovery.md) — **hub discovery** (`/admin/knowledge-graph` → Hub Discovery tab): HDBSCAN cluster-based hub proposals, clustering-parameter tuning, the accept/dismiss workflow, and existing-hub health stats
-- [RetrievalQuality.md](docs/RetrievalQuality.md) — **retrieval-quality dashboard** (`/admin/retrieval-quality`): nightly nDCG/Recall/MRR CI and the Prometheus gauges
-- [CommentsAndMentions.md](docs/CommentsAndMentions.md) — **comments & @-mentions**: threaded page discussion, mention notifications, and the `/me/mentions` inbox
-- [PersonalZone.md](docs/PersonalZone.md) — **personal zone** (`/preferences`): user preferences, profile, and notification settings
+- [ScimProvisioning.md](docs/admin/ScimProvisioning.md) — **SCIM 2.0 provisioning** (`/scim/v2/*`): IdP-driven user/group onboarding and offboarding, bearer token, discovery endpoints
+- [ApiKeys.md](docs/admin/ApiKeys.md) — **programmatic API keys** (`/admin/apikeys`): issuing, scoping, and revoking bearer tokens for the MCP / OpenAPI / REST surfaces
+- [Connectors.md](docs/admin/Connectors.md) — **external-source connectors** (`/admin/connectors`): the seven connector types (six admin-creatable), the guided Add Connector wizard, DB-backed configs with hot-apply, encrypted credentials, and derived-page provenance marking
+- [AuditLog.md](docs/admin/AuditLog.md) — **tamper-evident audit log** (`/admin/audit`): the hash-chained action record, query/verify/export, and retention
+- [PageOwnership.md](docs/admin/PageOwnership.md) — **page ownership** (`/admin/page-ownership`): the owner model, the seeded `agents` account, and reassignment
+- [KgInclusionPolicy.md](docs/admin/KgInclusionPolicy.md) — **Knowledge-Graph inclusion policy** (`/admin/kg-policy`): the cluster-primary default-exclude policy, `kg_include:` overrides, and `bin/kg-policy.sh`
+- [HubDiscovery.md](docs/admin/HubDiscovery.md) — **hub discovery** (`/admin/knowledge-graph` → Hub Discovery tab): HDBSCAN cluster-based hub proposals, clustering-parameter tuning, the accept/dismiss workflow, and existing-hub health stats
+- [RetrievalQuality.md](docs/admin/RetrievalQuality.md) — **retrieval-quality dashboard** (`/admin/retrieval-quality`): nightly nDCG/Recall/MRR CI and the Prometheus gauges
+- [CommentsAndMentions.md](docs/user/CommentsAndMentions.md) — **comments & @-mentions**: threaded page discussion, mention notifications, and the `/me/mentions` inbox
+- [PersonalZone.md](docs/user/PersonalZone.md) — **personal zone** (`/preferences`): user preferences, profile, and notification settings
 
 ### Security
 
-- Database-backed authorization — policy grants and groups managed via admin UI (see [RelationalUserDatabase.md](docs/RelationalUserDatabase.md))
+- Database-backed authorization — policy grants and groups managed via admin UI (see [RelationalUserDatabase.md](docs/admin/RelationalUserDatabase.md))
 - Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
 - REST API permission enforcement — all endpoints check ACLs and policy grants
 - NIST 800-63B password validation with common-password blocklist
 - No default credential past first login — a fresh install seeds a single `admin` account that must set a new (NIST-validated) password before `/api/*` or `/admin/*` unlock (`MustChangePasswordFilter`)
 - CSRF protection (synchronizer token pattern for forms, Content-Type protection for REST/admin endpoints)
 - Deserialization filtering — ObjectInputFilter whitelists on all ObjectInputStream usage
-- Two-tier per-IP rate limiting (`RateLimitFilter`) on the public HTTP surface — a generous default tier for `/api/*`, `/id/*`, `/export/*` and a tighter "expensive" tier (per-client **and** single-host global caps) for `/api/bundle`, `/api/search`, `/sparql`; loopback and configured CIDRs exempt, `/api/health` never throttled. Default-on, tunable via `WIKANTIK_RATELIMIT_*` (see [WikantikOperations.md](docs/WikantikOperations.md))
+- Two-tier per-IP rate limiting (`RateLimitFilter`) on the public HTTP surface — a generous default tier for `/api/*`, `/id/*`, `/export/*` and a tighter "expensive" tier (per-client **and** single-host global caps) for `/api/bundle`, `/api/search`, `/sparql`; loopback and configured CIDRs exempt, `/api/health` never throttled. Default-on, tunable via `WIKANTIK_RATELIMIT_*` (see [WikantikOperations.md](docs/admin/WikantikOperations.md))
 - Public RDF surface ACL split — `/sparql`, `/id/*`, and `/export/*` materialize only anonymously-viewable pages/entities, so restricted content can never be reached through the ontology
 - Bootstrap admin override — `wikantik.admin.bootstrap` property guarantees admin access during initial setup
 - Viewer-sensitive renders bypass the shared render cache — a render whose output depends on the caller (ACL-aware plugins, session-scoped variables like `$username`) is skipped by the principal-less document/HTML caches instead of being served to every user; static pages cache as before
@@ -617,18 +617,18 @@ configuration, the relevant admin UI route, REST endpoints, auth model, and trou
 
 ### Architecture & Design
 
-- [ArchitectureCritique.md](docs/ArchitectureCritique.md) — Self-critical architecture review (strengths and weaknesses, no marketing gloss)
+- [ArchitectureCritique.md](docs/archive/ArchitectureCritique.md) — Self-critical architecture review (strengths and weaknesses, no marketing gloss)
 - [PageGraphVsKnowledgeGraph.md](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md) — Engineering rationale for keeping the two graph subsystems distinct
 - [ClusterDeclarationDesign.md](docs/wikantik-pages/ClusterDeclarationDesign.md) — the hub page as the authoritative cluster declaration: multi-membership, segment-aware `ClusterPath` matching, the structural-conflict burn-down, and bulk cluster renames
 - [StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md) — the machine-queryable structural index behind `/api/structure/*` and the spine MCP tools
 - [AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md) — runbook pages, verification metadata, the for-agent projection, and retrieval-quality CI
 - [HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md) — BM25 + dense RRF fusion, the dense-backend choice, and the measured recall levers (plus the ones measured and rejected)
-- [ProjectReference.md](docs/ProjectReference.md) — operational runbooks and the detailed design-doc status blocks (the wikantik-main decomposition and other multi-phase efforts are tracked here)
-- [RefactorToPatterns.md](docs/RefactorToPatterns.md) — GoF design patterns applied across the codebase
-- [PerformanceEvaluation.md](docs/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
-- [complete_markdown_migration.md](docs/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering
-- [semantic_wiki_thoughts.md](docs/semantic_wiki_thoughts.md) — AI-augmented semantic wiki vision
-- [full_rebrand_project.md](docs/full_rebrand_project.md) — Contributor reference for the JSPWiki → Wikantik rebrand and naming conventions
+- [ProjectReference.md](docs/developer/ProjectReference.md) — operational runbooks and the detailed design-doc status blocks (the wikantik-main decomposition and other multi-phase efforts are tracked here)
+- [RefactorToPatterns.md](docs/archive/RefactorToPatterns.md) — GoF design patterns applied across the codebase
+- [PerformanceEvaluation.md](docs/archive/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
+- [complete_markdown_migration.md](docs/archive/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering
+- [semantic_wiki_thoughts.md](docs/archive/semantic_wiki_thoughts.md) — AI-augmented semantic wiki vision
+- [full_rebrand_project.md](docs/archive/full_rebrand_project.md) — Contributor reference for the JSPWiki → Wikantik rebrand and naming conventions
 - **Architecture Decision Records** ([`docs/adr/`](docs/adr/)) — the load-bearing design decisions with their context and consequences: [0001 RAG returns a context bundle, not a synthesized answer](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md), [0002 the Knowledge Graph is a first-class knowledge base](docs/adr/0002-knowledge-graph-is-first-class-knowledge-base.md), [0003 RAG is an in-process module with human/machine parity](docs/adr/0003-rag-in-process-module-human-machine-parity.md), [0004 a derived page's body is machine-owned/regenerable](docs/adr/0004-derived-page-body-is-machine-owned-regenerable.md), [0005 persisted citation edges + stale-citation curation](docs/adr/0005-persisted-citation-edges-and-stale-citation-curation.md), [0006 ontology posture (OWL-RL + event-fresh sync)](docs/adr/0006-ontology-posture-owl-rl-and-event-fresh-entity-sync.md), [0007 LLM model selection is a cost-governed axis](docs/adr/0007-llm-model-selection-is-a-cost-governed-axis.md), [0008 late-bound service registration](docs/adr/0008-late-bound-service-registration.md), [0009 cluster taxonomy is a frontmatter projection, not a filesystem hierarchy](docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md)
 - [ADR-0000: Extract manager interfaces to API](docs/adr/0000-extract-manager-interfaces-to-api.md) — the earlier module-decomposition ADR (legacy, predates the numbered series)
 
@@ -652,12 +652,12 @@ Both MCP endpoints share the same bearer-token / API-key authentication scheme (
 
 ### Research
 
-- [research_history.md](docs/research_history.md) — Log of research sessions and article clusters published to the wiki
+- [research_history.md](docs/archive/research_history.md) — Log of research sessions and article clusters published to the wiki
 
 ### Legal Templates
 
-- [PrivacyPolicy.md](docs/PrivacyPolicy.md) — Privacy policy template
-- [TermsOfService.md](docs/TermsOfService.md) — Terms of service template
+- [PrivacyPolicy.md](docs/admin/templates/PrivacyPolicy.md) — Privacy policy template
+- [TermsOfService.md](docs/admin/templates/TermsOfService.md) — Terms of service template
 
 
 ## Building

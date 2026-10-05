@@ -9,7 +9,7 @@
 #   bin/deploy-marketing.sh              marketing + code-health site (default)
 #   bin/deploy-marketing.sh --site-only  just the code-health site  <- this script
 #
-# Kept because the name is referenced from CLAUDE.md, docs/ProjectReference.md
+# Kept because the name is referenced from CLAUDE.md, docs/developer/ProjectReference.md
 # and src/site/markdown/index.md, and because publishing the code-health site
 # alone is a genuine case (you rebuilt reports without touching marketing).
 # There is no second implementation — everything below is handled by

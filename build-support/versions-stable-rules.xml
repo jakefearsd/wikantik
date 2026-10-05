@@ -4,7 +4,7 @@
 
     Without this, every `versions:display-*` sweep re-proposes the same
     pre-release candidates that have already been rejected by name in
-    docs/dependency-upgrade-log.md — log4j 3.0.0-beta*, slf4j 2.1.0-alpha1,
+    docs/developer/dependency-upgrade-log.md — log4j 3.0.0-beta*, slf4j 2.1.0-alpha1,
     the six maven-* 4.0.0-beta-*, maven-site 4.0.0-M16, the jakarta *-M* APIs,
     httpclient5 5.7-alpha1, httpcore5 5.5-beta2, micrometer 1.18.0-M1.
     That noise is how a rejected alpha eventually gets merged by reflex.

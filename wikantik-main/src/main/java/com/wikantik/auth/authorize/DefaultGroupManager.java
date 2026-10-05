@@ -224,12 +224,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             if( !create ) {
                 throw new NoSuchPrincipalException( "Group '" + name + "' does not exist.", e );
             }
-            // A new group may not take a name an account already uses as its login, full or wiki name.
-            if( ProfileNameRules.usedByAnotherAccount(
-                    com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase(),
-                    null, name ) ) {
-                throw new WikiSecurityException( "The group name '" + name + "' is already used by a user account. Choose another." );
-            }
+            assertNameNotUsedByAccount( name );
         }
 
         // If passed members not empty, overwrite
@@ -242,6 +237,14 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         }
 
         return group;
+    }
+
+    /** A new group may not take a name an account already uses as its login, full or wiki name. */
+    private void assertNameNotUsedByAccount( final String name ) throws WikiSecurityException {
+        final var users = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).users();
+        if( users != null && ProfileNameRules.usedByAnotherAccount( users.getUserDatabase(), null, name ) ) {
+            throw new WikiSecurityException( "The group name '" + name + "' is already used by a user account. Choose another." );
+        }
     }
 
     /** {@inheritDoc} */

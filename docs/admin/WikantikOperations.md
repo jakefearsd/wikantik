@@ -192,7 +192,8 @@ single-host box from compute-amplification abuse. It is distinct from
 backpressure: backpressure sheds by *concurrency* (in-flight threads); this sheds
 by *rate* (requests/second per client IP). The client IP is the real caller —
 Tomcat's `RemoteIpValve` resolves `CF-Connecting-IP` behind Cloudflare. Default-on;
-it disables itself only when **both** per-client limits are set ≤ 0.
+it disables itself only when **all three** limits (default per-client, expensive
+per-client and expensive global) are set ≤ 0.
 
 | Setting (env var) | Default | Applies to | Why |
 |---|---|---|---|

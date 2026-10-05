@@ -62,7 +62,7 @@ Each result card shows:
 - The author (click to search for that name), the last-modified date, the cluster (click to search for it) and a match score such as "87% match".
 - The page's tags (click to search for one).
 
-Words you searched for are highlighted in the title and summary. The server returns at most 20 pages for one search, so refine your words if the page you want is missing; the **Load more** button reveals results 20 at a time but cannot go past what the server returned.
+Words you searched for are highlighted in the title and summary. The server returns at most 20 pages for one search, so refine your words if the page you want is missing; all of them show at once and there is no next page. (The page's **Load more** button, `PAGE_SIZE` = 20, only appears when more than 20 results remain after filtering, which cannot happen.)
 
 ### Narrow the results with filters
 

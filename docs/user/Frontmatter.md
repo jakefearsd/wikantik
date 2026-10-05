@@ -9,7 +9,7 @@ title: Hybrid Retrieval
 type: article
 cluster: retrieval
 tags: [search, embeddings, bm25]
-summary: How Wikantik fuses BM25 and dense vectors with a Knowledge-Graph rerank.
+summary: How Wikantik fuses BM25 and dense vectors with reciprocal-rank fusion.
 status: active
 date: 2026-06-10
 ---

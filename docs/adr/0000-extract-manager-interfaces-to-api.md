@@ -1,4 +1,4 @@
-# ADR-001: Extract Manager Interfaces to wikantik-api
+# ADR-0000: Extract Manager Interfaces to wikantik-api
 
 **Status:** Implemented (Phases 1-5 complete, Phase 6 partially complete)
 **Date:** 2026-03-22 (proposed) → 2026-03-23 (implemented)

@@ -1206,7 +1206,6 @@
             <excludes>
               <exclude>.gitignore</exclude>                                     <!-- git exclusions -->
               <exclude>**/src/main/config/doc/LICENSE.*</exclude>               <!-- 3rd party License files -->
-              <exclude>**/src/main/config/wikipages/**</exclude>                <!-- Default wikipages -->
               <exclude>**/src/main/resources/META-INF/services/*</exclude>      <!-- Java SPI implementations files -->
               <exclude>**/src/test/resources/META-INF/services/*</exclude>      <!-- Java SPI implementations files -->
               <exclude>**/src/test/resources/TextFormattingRules.txt</exclude>  <!-- test input data -->
@@ -1601,34 +1600,6 @@
   </reporting>
 
   <profiles>
-    <profile>
-      <id>build-wikipages-zips</id>
-      <activation>
-        <file>
-          <exists>../assembly/zip.xml</exists>
-        </file>
-      </activation>
-      <build>       <!-- apache-release from project's parent pom enables assembly plugin on all modules, so to build the -->
-        <plugins>   <!-- wikipages zip we must fall back to invoke it on each wikipage submodule. In order to reuse some  -->
-          <plugin>  <!-- build logic, we use a custom profile. Cfr with property on each jspwiki-wikipages submodule.     -->
-            <artifactId>maven-assembly-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>create-wikipages-zip</id>
-                <phase>package</phase>
-                <goals><goal>single</goal></goals>
-                <configuration>
-                  <descriptors>
-                    <descriptor>../assembly/zip.xml</descriptor>
-                  </descriptors>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    
     <profile> <!-- attach additional artifacts to build lifecycle -->
       <id>attach-additional-artifacts</id> 
       

@@ -1,6 +1,0 @@
-
-[Aqu�]()� está el listado de las páginas que aún no han sido creadas. ¿Por qué no vas y creasunas cuantas?
-
-[{com.wikantik.plugin.UndefinedPagesPlugin }]()
-
-(Vuelta a la página [Principal](Main)).

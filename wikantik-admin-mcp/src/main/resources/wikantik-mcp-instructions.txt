@@ -98,13 +98,12 @@ rejected, not saved with empty metadata.
 
 == System pages are read-only via MCP ==
 
-The wiki ships with system pages — CSS theme pages (CSSRibbon, CSSPrettifyTheme*,
-CSSBackgroundGradients, ...), menu fragments (LeftMenu, LeftMenuFooter), help pages
-(EditPageHelp, SearchPageHelp, TextFormattingRules, ...), Main, and any pages
-matched by the operator's wikantik.systemPages.extraPatterns regex. These pages
-underpin the rendering surface of every wiki page; rewriting them via an agent
-would let style or layout drift across the whole site without an admin in the
-loop. Every write tool on this server refuses system-page targets:
+The wiki ships with system pages — help pages (EditPageHelp, SearchPageHelp,
+TextFormattingRules, LoginHelp, ...), index and change-list pages (PageIndex,
+RecentChanges, SystemInfo, ...), About, Main, and any pages matched by the
+operator's wikantik.systemPages.extraPatterns regex. These pages are the wiki's
+own front matter; rewriting them via an agent would let the site's help and
+navigation drift without an admin in the loop. Every write tool on this server refuses system-page targets:
 
   write_pages         → per-page error "system page — refusing to write via MCP"
   update_page         → {updated:false, error:"system page — refusing to edit via MCP"}

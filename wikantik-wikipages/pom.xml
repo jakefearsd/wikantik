@@ -33,8 +33,6 @@
 
   <modules>
     <module>en</module>
-    <module>es</module>
-    <module>ru</module>
   </modules>
   
   <build>

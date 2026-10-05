@@ -1,4 +1,0 @@
-
-[WikiWiki]() 是夏威夷语，意思是“快”。~ViteVite 是法语中的“快快”。Wiki 也有一个�称 -- **W**hat **I** **K**now **I**s（我所知道的是）
-
-在 [原始 Wiki（维基）](http://c2.com/cgi/wiki?WikiEngines)中可以找到由 Ward Cunningham 撰写的一个相当完整的�他各种 Wiki 引擎的列表。

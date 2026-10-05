@@ -128,18 +128,6 @@
         <version>${jspwiki.version}</version>
       </dependency>
 
-      <dependency>
-        <groupId>com.wikantik.wikipages</groupId>
-        <artifactId>wikantik-wikipages-es</artifactId>
-        <version>${jspwiki.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.wikantik.wikipages</groupId>
-        <artifactId>wikantik-wikipages-ru</artifactId>
-        <version>${jspwiki.version}</version>
-      </dependency>
-
       <!-- Canonical page IDs (ULIDs) -->
       <dependency>
         <groupId>com.github.f4b6a3</groupId>

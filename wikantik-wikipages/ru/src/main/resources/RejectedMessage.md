@@ -1,6 +1,0 @@
-
-Ваши исправл[е�]()�ия были от[к�]()�он[е�]()�ы по сл[е�]()�ующ[е�]()� причине:
-
-[{$message}] { style=' padding: 4px; margin: 3em; border: 1px inset; background: #eeeeee;' }
-
-[{ALLOW view All}]()

@@ -51,6 +51,24 @@ public class DefaultRecentArticlesManagerTest {
     }
 
     @Test
+    public void testRenderWithoutTemplatePageFallsBackToDefaultHtml() throws Exception {
+        // The shipped RecentArticlesTemplate page is gone; a store without it must still render.
+        Assertions.assertFalse( m_engine.getManager( PageManager.class ).wikiPageExists( RecentArticlesManager.TEMPLATE_PAGE_NAME ),
+            "precondition: no template page" );
+        Assertions.assertFalse( m_manager.hasTemplatePage() );
+        m_engine.saveText( "NoTemplateArticle", "# No Template\nBody text." );
+        m_manager.clearCache();
+
+        final Context context = createContext();
+        final List<ArticleSummary> articles = m_manager.getRecentArticles( context, new RecentArticlesQuery().count( 10 ) );
+        final String html = Assertions.assertDoesNotThrow( () -> m_manager.renderWithTemplate( context, articles ) );
+
+        Assertions.assertFalse( html.isBlank() );
+        Assertions.assertTrue( html.contains( "recent-articles" ), "default markup expected: " + html );
+        Assertions.assertTrue( html.contains( "NoTemplateArticle" ), "article listed: " + html );
+    }
+
+    @Test
     public void testManagerAvailable() {
         Assertions.assertNotNull( m_manager, "RecentArticlesManager should be available" );
     }

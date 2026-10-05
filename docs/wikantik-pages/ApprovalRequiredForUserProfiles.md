@@ -1,8 +1,0 @@
----
-cluster: wikantik-development
-canonical_id: 01KQ0P44M084DB1NFX0FZ3JACS
----
-
-New user profiles require approval before they become active. Your request has been submitted and will approved or rejected.
-
-If you supplied an e-mail address, one of the wiki administrators will let you know when your account has been approved. Alternatively, you might want to come back later and see if you can log in.

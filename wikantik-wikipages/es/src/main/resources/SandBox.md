@@ -1,8 +1,0 @@
-
-¡Hey!
-
-¡Soy la página de pruebas!
-
-¡Puedes probar lo que quieras aquí!
-
-¡Simplemente haz click en "Editar"!

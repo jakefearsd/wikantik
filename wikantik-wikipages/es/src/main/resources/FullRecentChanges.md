@@ -1,4 +1,0 @@
-
-Estos son todos los cambios hechos a las páginas. Una lista bastante más reducida está disponible en [Cambios Recientes](RecentChanges).
-
-[{com.wikantik.plugin.RecentChangesPlugin }]()

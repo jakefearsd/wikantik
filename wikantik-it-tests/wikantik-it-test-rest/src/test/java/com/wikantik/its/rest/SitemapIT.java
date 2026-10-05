@@ -106,15 +106,13 @@ public class SitemapIT {
     }
 
     @Test
-    void sitemapExcludesMenuPages() throws Exception {
+    void sitemapExcludesSystemPages() throws Exception {
         final String sitemap = fetchSitemap();
 
-        // Menu pages should NOT be in the sitemap
-        // These are template pages used for UI structure, not content pages
-        assertPageNotInSitemap( sitemap, "LeftMenu" );
-        assertPageNotInSitemap( sitemap, "LeftMenuFooter" );
-        assertPageNotInSitemap( sitemap, "TitleBox" );
-        assertPageNotInSitemap( sitemap, "MoreMenu" );
+        // System pages (help and index pages shipped with the wiki) are not content pages
+        assertPageNotInSitemap( sitemap, "TextFormattingRules" );
+        assertPageNotInSitemap( sitemap, "SystemInfo" );
+        assertPageNotInSitemap( sitemap, "PageIndex" );
     }
 
     @Test

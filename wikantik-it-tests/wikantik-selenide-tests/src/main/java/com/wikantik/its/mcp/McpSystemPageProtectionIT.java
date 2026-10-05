@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Wire-level guard that the MCP write surface refuses every system page (CSS theme
- * pages, menu fragments, help pages, anything shipped with the wiki via
- * {@code wikantik-wikipages}). System pages underpin the rendering surface of the
- * whole wiki — letting an agent rewrite {@code CSSRibbon} or {@code LeftMenu} would
- * leak style/layout drift across every page without an admin in the loop.
+ * Wire-level guard that the MCP write surface refuses every system page (help
+ * pages, index pages, anything shipped with the wiki via {@code wikantik-wikipages}).
+ * System pages are the wiki's own front matter — letting an agent rewrite
+ * {@code TextFormattingRules} would let help and navigation drift without an admin
+ * in the loop.
  *
  * <p>All five admin-MCP write tools must refuse:</p>
  * <ul>
@@ -40,7 +40,7 @@ import java.util.Map;
  *   <li>{@code mark_page_verified} — per-page error.</li>
  * </ul>
  *
- * <p>{@code LeftMenu} is a real menu-fragment page shipped in {@code wikantik-wikipages}
+ * <p>{@code TextFormattingRules} is a real help page shipped in {@code wikantik-wikipages}
  * and present in the IT {@code test-repo}, so {@code read_page} can verify the
  * write-only nature of the protection. If the page is ever renamed in the source pages
  * jar, swap the constant for any other page reported by
@@ -50,7 +50,7 @@ import java.util.Map;
 public class McpSystemPageProtectionIT extends WithMcpTestSetup {
 
     /** A real system page that ships with the wiki and is seeded into the IT test-repo. */
-    private static final String SYSTEM_PAGE = "LeftMenu";
+    private static final String SYSTEM_PAGE = "TextFormattingRules";
 
     @Test
     public void updatePageRefusesSystemPage() {

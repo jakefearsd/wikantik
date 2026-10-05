@@ -234,18 +234,42 @@ SELECT gm.name, gm.member, u.login_name
 ```
 
 User-typed policy grants whose principal is not a login name. Such a row grants nothing
-after the upgrade; re-create it with the login name at `/admin/security`. Rows with a
-`principal_type` other than `role`, `group` or `user` are skipped with a warning, so look
-for those too.
+after the upgrade; re-create it with the login name at `/admin/security`. The type is
+read trimmed and case-insensitively; rows with any type other than `role`, `group` or
+`user` are skipped with a warning, so look for those too.
 
 ```sql
 SELECT p.*
   FROM policy_grants p
- WHERE p.principal_type = 'user'
+ WHERE lower(trim(p.principal_type)) = 'user'
    AND NOT EXISTS (SELECT 1 FROM users u WHERE u.login_name = p.principal_name);
 
-SELECT * FROM policy_grants WHERE principal_type NOT IN ('role', 'group', 'user');
+SELECT * FROM policy_grants
+ WHERE lower(trim(principal_type)) NOT IN ('role', 'group', 'user');
 ```
+
+Role- or group-typed grants that name a user. Before 2.4.53 a grant matched on the
+principal name alone, so a `role` or `group` row naming a user's login, full name or
+wiki name granted that user. After the upgrade such a row matches only a role or group
+of that name, so the user loses the permission. `/admin/security` offers `role` as the
+default type, so check for these rows. Change each one to type `user` with the login
+name shown in `grant_to_login`:
+
+```sql
+SELECT p.id, p.principal_type, p.principal_name, p.permission_type, p.target, p.actions,
+       u.login_name AS grant_to_login
+  FROM policy_grants p
+  JOIN users u ON p.principal_name IN (u.login_name, u.full_name, u.wiki_name)
+ WHERE lower(trim(p.principal_type)) IN ('role', 'group')
+   AND p.principal_name NOT IN ('All', 'Anonymous', 'Asserted', 'Authenticated')
+   AND NOT EXISTS (SELECT 1 FROM groups g WHERE g.name = p.principal_name)
+ ORDER BY p.id;
+```
+
+The query cannot see roles that the web container grants (the `<security-role>` names in
+`web.xml`, used with container authentication). If a reported row names such a role, it
+still works for members of that role; leave it, and add a separate `user` row only if the
+named user relied on it.
 
 Display-name collisions. These accounts keep working, and an ACL or session no longer
 resolves through the colliding name, but renaming them removes the ambiguity:
@@ -257,13 +281,20 @@ SELECT a.login_name, a.full_name, a.wiki_name, b.login_name AS shadowed_login
   JOIN users b ON b.login_name IN (a.full_name, a.wiki_name) AND a.login_name <> b.login_name;
 
 -- accounts that share a full name
-SELECT full_name, array_agg(login_name) FROM users GROUP BY full_name HAVING count(*) > 1;
+SELECT full_name, array_agg(login_name)
+  FROM users
+ WHERE full_name IS NOT NULL AND trim(full_name) <> ''
+ GROUP BY full_name HAVING count(*) > 1;
 
--- full or wiki names equal to a built-in role or a group name
-SELECT login_name, full_name, wiki_name FROM users
- WHERE lower(full_name) IN ('admin','all','anonymous','asserted','authenticated')
-    OR lower(wiki_name) IN ('admin','all','anonymous','asserted','authenticated')
-    OR full_name IN (SELECT name FROM groups) OR wiki_name IN (SELECT name FROM groups);
+-- full or wiki names equal (ignoring case) to a built-in role, a group, or a role/group grant
+SELECT u.login_name, u.full_name, u.wiki_name
+  FROM users u
+ WHERE EXISTS (SELECT 1
+                 FROM (VALUES ('admin'), ('all'), ('anonymous'), ('asserted'), ('authenticated')
+                       UNION SELECT lower(name) FROM groups
+                       UNION SELECT lower(principal_name) FROM policy_grants
+                              WHERE lower(trim(principal_type)) IN ('role', 'group')) AS r(n)
+                WHERE r.n IN (lower(trim(u.full_name)), lower(trim(u.wiki_name))));
 ```
 
 Also review active `mcp` and `all` API keys that users created for themselves, because
@@ -323,7 +354,7 @@ API keys are SHA-256 hashed; only the hash is stored and the plaintext is shown 
 | `MCP_READ` | `mcp_read` | `/knowledge-mcp` only (read-only) |
 | `MCP` | `mcp` | `/wikantik-admin-mcp` and `/knowledge-mcp` (full admin) |
 | `TOOLS` | `tools` | `/tools/*` only |
-| `ALL` | `all` | every key-protected surface; the default if a `POST` omits `scope` |
+| `ALL` | `all` | every key-protected surface; the default when an administrator's `POST` omits `scope` (a non-admin self-service `POST` defaults to `mcp_read`) |
 
 The MCP scopes are a rank hierarchy (`mcp_read` is contained in `mcp`); `tools` is
 separate. The `mcp` wire value predates the split, so older keys remain full-admin.

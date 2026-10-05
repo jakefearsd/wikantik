@@ -37,17 +37,21 @@ For agents, retrieval is delivered as a *context bundle*: the wiki ranks, de-dup
 
 ## Why Wikantik?
 
-| Capability | Wikantik | Documented in |
-|---|---|---|
-| License | Apache 2.0 | [LICENSE](LICENSE) |
-| Self-hosted | Yes, container, bare-metal Tomcat, or cloud VM | [GettingStartedGuide](docs/admin/GettingStartedGuide.md) |
-| MCP servers for agents | Separate admin (write) and knowledge (read-only) endpoints | [McpAgents](docs/admin/McpAgents.md) |
-| OpenAPI tool surface | `/tools/*` | [McpAgents](docs/admin/McpAgents.md) |
-| Hybrid retrieval | BM25 + dense (pgvector), falls back to BM25 | [HybridRetrieval](docs/wikantik-pages/HybridRetrieval.md) |
-| Knowledge Graph and ontology | LLM-extracted entities, RDF/SPARQL | [OntologyManagement](docs/admin/OntologyManagement.md) |
-| Token-budgeted agent page projection | `/api/pages/for-agent/{id}` | [McpAgents](docs/admin/McpAgents.md) |
-| Runbook page type and verification | Yes | [Frontmatter](docs/user/Frontmatter.md) |
-| Stack | Java 25, Tomcat 11, PostgreSQL + pgvector, React | [Architecture](docs/developer/Architecture.md) |
+| Capability | Wikantik | BookStack | Outline | Wiki.js | MediaWiki | Confluence | Notion |
+|---|---|---|---|---|---|---|---|
+| **License** | Apache 2.0 | MIT | BSL → Apache | AGPL | GPLv2 | Proprietary | Proprietary |
+| **Self-host** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (paid DC) | ❌ |
+| **MCP server(s) for agents** | Admin and read-only endpoints | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **OpenAPI tool surface** | ✅ (`/tools/*`) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Hybrid retrieval (BM25 + dense)** | ✅ pgvector + Ollama | ❌ | ❌ | ❌ | ❌ | ✅ (recent) | ✅ |
+| **Queryable Knowledge Graph + RDF/SPARQL ontology** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **LLM-extracted Knowledge Graph** | ✅ (with reviewer queue) | ❌ | ❌ | ❌ | ❌ | partial | partial |
+| **Page Graph viewer** (real wikilinks) | ✅ Cytoscape, filterable | partial | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Token-budgeted "for-agent" projection** | ✅ `/api/pages/for-agent/{id}` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Runbook page type + verification metadata** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | partial |
+| **Markdown-native (file-tree authoring)** | ✅ | partial | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Stack** | Java 25 / Tomcat 11 / PostgreSQL + pgvector / React | PHP / Laravel | Node.js | Node.js | PHP | JVM | proprietary |
+| **AGPL-style copyleft** | no (Apache 2.0) | no | no | **yes** | no (GPLv2) | n/a | n/a |
 
 Wikantik may not fit if you need a hosted SaaS (you run it yourself; [CloudDeployment](docs/admin/CloudDeployment.md) provisions a VM on AWS or GCP), or if you need real-time collaborative editing (the editor is single-author per page). Set `wikantik.genai.mode=none` to run without an inference host, at the cost of hybrid search and the Knowledge Graph ([CostTiers](docs/admin/CostTiers.md)).
 
@@ -110,7 +114,8 @@ flowchart LR
     RDF --> PG
     Raw --> Pages
     Changes --> Pages
-    Tools --> REST
+    Tools --> Pages
+    Tools --> Lucene
     Scim --> PG
 
     REST --> Ollama
@@ -126,7 +131,7 @@ You need Docker and a clone of this repository.
 ```bash
 cp .env.example .env             # set POSTGRES_PASSWORD
 bin/container.sh build           # build the wikantik image
-bin/container.sh -e prod up -d   # start Tomcat + PostgreSQL/pgvector
+bin/container.sh -e base up -d   # start Tomcat + PostgreSQL/pgvector
 ```
 
 [GettingStartedGuide](docs/admin/GettingStartedGuide.md) covers the first admin login, the bare-metal path and common pitfalls. For Docker detail see [DockerDeployment](docs/admin/DockerDeployment.md).

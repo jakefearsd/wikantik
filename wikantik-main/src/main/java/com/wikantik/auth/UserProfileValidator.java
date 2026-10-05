@@ -86,6 +86,19 @@ final class UserProfileValidator {
         }
     }
 
+    /** The stored profile for an existing account, or {@code null} for a new one. */
+    private UserProfile storedProfile( final UserProfile profile ) {
+        if ( profile.isNew() || profile.getLoginName() == null ) {
+            return null;
+        }
+        try {
+            return userDatabase.get().findByLoginName( profile.getLoginName() );
+        } catch ( final NoSuchPrincipalException e ) {
+            LOG.debug( "No stored profile for '{}'; validating as new", profile.getLoginName() );
+            return null;
+        }
+    }
+
     void validate( final Context context, final UserProfile profile ) {
         final Session session = context.getWikiSession();
         final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
@@ -99,9 +112,21 @@ final class UserProfileValidator {
         validateReservedNames( session, profile, rb );
     }
 
-    /** Rejects a full name or wiki name that equals a role or group name (see {@link ReservedProfileNames}). */
+    /**
+     * Rejects a full name or wiki name that equals a role or group name (see {@link ReservedProfileNames}).
+     * Only a name that differs from the stored profile is checked, so an existing account is never
+     * locked out by a name that became reserved after it was chosen.
+     */
     private void validateReservedNames( final Session session, final UserProfile profile, final ResourceBundle rb ) {
-        for ( final String name : new String[] { profile.getFullname(), profile.getWikiName() } ) {
+        final UserProfile stored = storedProfile( profile );
+        final String[][] names = {
+            { profile.getFullname(), stored == null ? null : stored.getFullname() },
+            { profile.getWikiName(), stored == null ? null : stored.getWikiName() } };
+        for ( final String[] pair : names ) {
+            final String name = pair[ 0 ];
+            if ( name != null && pair[ 1 ] != null && name.trim().equals( pair[ 1 ].trim() ) ) {
+                continue;
+            }
             if ( ReservedProfileNames.isReserved( engine, name ) ) {
                 session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.reservedname" ), name ) );
                 return;

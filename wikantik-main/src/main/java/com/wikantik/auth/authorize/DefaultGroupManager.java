@@ -30,6 +30,7 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.auth.Authorizer;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserProfile;
@@ -222,6 +223,12 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             // It's a new group.... throw error if we don't create new ones
             if( !create ) {
                 throw new NoSuchPrincipalException( "Group '" + name + "' does not exist.", e );
+            }
+            // A new group may not take a name an account already uses as its login, full or wiki name.
+            if( ProfileNameRules.usedByAnotherAccount(
+                    com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase(),
+                    null, name ) ) {
+                throw new WikiSecurityException( "The group name '" + name + "' is already used by a user account. Choose another." );
             }
         }
 

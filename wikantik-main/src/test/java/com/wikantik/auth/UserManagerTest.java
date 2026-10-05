@@ -364,6 +364,27 @@ class UserManagerTest {
     }
 
     @Test
+    void testValidateProfileAllowsUnchangedReservedName() throws Exception {
+        // An existing account whose name later became reserved can still be saved unchanged.
+        final UserProfile existing = m_db.newProfile();
+        existing.setLoginName( "legacyadminname" );
+        existing.setFullname( "Admin" );
+        existing.setEmail( "legacy@example.com" );
+        existing.setPassword( Users.ADMIN_PASS );
+        m_db.save( existing );
+        try {
+            final UserProfile profile = m_db.findByLoginName( "legacyadminname" );
+            final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+            m_mgr.validateProfile( context, profile );
+            final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+            Assertions.assertTrue( java.util.Arrays.stream( messages ).noneMatch( m -> m.contains( "reserved" ) ),
+                    java.util.Arrays.toString( messages ) );
+        } finally {
+            m_db.deleteByLoginName( "legacyadminname" );
+        }
+    }
+
+    @Test
     void testValidateProfileAcceptsOrdinaryName() throws Exception {
         final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
         final UserProfile profile = m_db.newProfile();

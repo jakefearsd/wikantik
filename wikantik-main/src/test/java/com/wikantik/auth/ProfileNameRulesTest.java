@@ -19,6 +19,9 @@
 package com.wikantik.auth;
 
 import com.wikantik.TestEngine;
+import com.wikantik.WikiSessionTest;
+import com.wikantik.auth.authorize.Group;
+import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProfileNameRulesTest {
@@ -80,5 +84,26 @@ class ProfileNameRulesTest {
         assertTrue( change( "Old Name", "OldName", "mallory", "mallory" ).isEmpty() );
         assertTrue( change( "Old Name", "OldName", "Mallory Jones", "MalloryJones" ).isEmpty() );
         assertTrue( change( "Old Name", "OldName", null, null ).isEmpty() );
+    }
+
+    @Test
+    void newGroupNamedAfterAUserIsRefused() throws Exception {
+        final GroupManager groups = engine.getManager( GroupManager.class );
+        for ( final String name : new String[] { "boss", "The Boss", "TheBoss" } ) {
+            assertThrows( WikiSecurityException.class, () -> groups.parseGroup( name, "", true ), name );
+        }
+    }
+
+    @Test
+    void existingGroupCanStillBeEditedAndOrdinaryGroupCreated() throws Exception {
+        final GroupManager groups = engine.getManager( GroupManager.class );
+        final Group g = groups.parseGroup( "Reviewers", "boss", true );
+        groups.setGroup( WikiSessionTest.adminSession( engine ), g );
+        try {
+            final Group again = groups.parseGroup( "Reviewers", "boss\nmallory", false );
+            assertTrue( again.isMember( new WikiPrincipal( "mallory" ) ) );
+        } finally {
+            groups.removeGroup( "Reviewers" );
+        }
     }
 }

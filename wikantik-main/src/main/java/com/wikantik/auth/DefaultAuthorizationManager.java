@@ -251,17 +251,20 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         return decideByAcl( session, permission, acl );
     }
 
-    /** True when the caller is the time-boxed bootstrap admin override (see {@code wikantik.admin.bootstrap}). */
+    /**
+     * True when the caller is the time-boxed bootstrap admin override (see {@code wikantik.admin.bootstrap}).
+     * The override requires an authenticated session and matches only its login principal; asserted
+     * (remembered-name) principals never qualify.
+     */
     private boolean isBootstrapAdmin( final Session session ) {
         if ( bootstrapAdmin == null || clock.getAsLong() >= bootstrapExpiresAt ) {
             return false;
         }
-        for ( final Principal p : session.getPrincipals() ) {
-            if ( bootstrapAdmin.equals( p.getName() ) ) {
-                return true;
-            }
+        if ( !session.isAuthenticated() ) {
+            return false;
         }
-        return false;
+        final Principal login = session.getLoginPrincipal();
+        return login != null && bootstrapAdmin.equals( login.getName() );
     }
 
     /**
@@ -552,7 +555,10 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             // Check the local policy - check each Role/Group and User Principal
             // Note: JVM-wide security policy via AccessController is deprecated and removed.
             // JSPWiki now relies solely on its local policy for authorization.
-            if ( allowedByLocalPolicy( session.getRoles(), permission ) || allowedByLocalPolicy( session.getPrincipals(), permission ) ) {
+            // User-principal grants apply only to authenticated sessions; an asserted (remembered-name)
+            // session is limited to its roles.
+            if ( allowedByLocalPolicy( session.getRoles(), permission )
+                    || ( session.isAuthenticated() && allowedByLocalPolicy( session.getPrincipals(), permission ) ) ) {
                 return Boolean.TRUE;
             }
             return Boolean.FALSE;

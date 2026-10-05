@@ -32,6 +32,7 @@ import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.acl.UnresolvedPrincipal;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.authorize.Role;
+import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -390,6 +391,53 @@ class DefaultAuthorizationManagerCITest {
         final PagePermission perm = new PagePermission( "test:SomePage", "view" );
 
         assertFalse( spy.checkPermission( session, perm ) );
+    }
+
+    @Test
+    void bootstrapAdminDeniedToAssertedUnauthenticatedSession() {
+        final long[] now = { 1_000_000L };
+        mgr.setClock( () -> now[ 0 ] );
+        mgr.configureBootstrap( "bootadmin", 60L );
+
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).when( spy ).checkStaticPermission( any(), any() );
+
+        // Asserted (remembered-name) session: carries the name but is not authenticated.
+        final Session session = mockSession( false, new WikiPrincipal( "bootadmin" ) );
+        when( session.isAsserted() ).thenReturn( true );
+
+        assertFalse( spy.checkPermission( session, new AllPermission( "*" ) ) );
+        assertFalse( spy.checkPermission( session, new PagePermission( "test:SomePage", "view" ) ) );
+    }
+
+    @Test
+    void bootstrapAdminAppliesToAuthenticatedSessionForAllPermission() {
+        final long[] now = { 1_000_000L };
+        mgr.setClock( () -> now[ 0 ] );
+        mgr.configureBootstrap( "bootadmin", 60L );
+
+        final Session session = mockSession( true, new WikiPrincipal( "bootadmin" ) );
+
+        assertTrue( mgr.checkPermission( session, new AllPermission( "*" ) ) );
+    }
+
+    @Test
+    void userPrincipalPolicyGrantsDoNotApplyToAssertedSession() {
+        final DefaultAuthorizationManager spy = spy( mgr );
+        // A policy grant keyed on the user principal "grantee" (roles grant nothing).
+        doAnswer( inv -> {
+            final Principal[] ps = inv.getArgument( 0 );
+            return java.util.Arrays.stream( ps ).anyMatch( p -> "grantee".equals( p.getName() ) );
+        } ).when( spy ).allowedByLocalPolicy( any( Principal[].class ), any() );
+
+        final PagePermission perm = new PagePermission( "test:SomePage", "view" );
+
+        final Session authenticated = mockSession( true, new WikiPrincipal( "grantee" ) );
+        assertTrue( spy.checkStaticPermission( authenticated, perm ) );
+
+        final Session asserted = mockSession( false, new WikiPrincipal( "grantee" ) );
+        when( asserted.isAsserted() ).thenReturn( true );
+        assertFalse( spy.checkStaticPermission( asserted, perm ) );
     }
 
     @Test

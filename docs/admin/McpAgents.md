@@ -61,7 +61,9 @@ everything wired returns exactly the 21 names in the knowledge catalogue below.
 Both MCP endpoints and `/tools/*` accept a **bearer token** that is a database-minted
 API key. Mint one at **Admin → API Keys** (`/admin/apikeys`); the plaintext is shown
 once. [ApiKeys.md](ApiKeys.md) is the full reference for issuing, scoping and revoking
-keys, including the self-service surface. The short version:
+keys, including the self-service surface. Non-admins can self-mint only `tools` and
+`mcp_read` keys; `mcp` and `all` keys are issued by an administrator at `/admin/apikeys`.
+The short version:
 
 | You want an agent that… | Scope |
 |---|---|

@@ -207,8 +207,9 @@ With `wikantik.cookieAssertions` (default `true`), a visitor who has not logged 
 "assert" a name through a cookie. The session then gets the `Asserted` role instead of
 `Authenticated`. This is the old wiki convenience of remembering who you say you are; it
 is not authentication and the property file itself calls it unsafe. An asserted session
-holds only what the `Asserted` (and `All`) policy grants give it, which by default is
-viewing groups, and it never receives authenticated rights such as the bootstrap
+holds only what the `Asserted` and `All` policy grants give it. By default that is
+viewing groups (`Asserted`) plus the `All` grants: view any page, `editPreferences`,
+`editProfile` and `login` (`V003__policy_grants.sql`). It never receives authenticated rights such as the bootstrap
 override. Set `wikantik.cookieAssertions=false` if you do not want the feature.
 
 ## Control agent and API access
@@ -227,7 +228,8 @@ API keys are SHA-256 hashed; only the hash is stored and the plaintext is shown 
 
 The MCP scopes are a rank hierarchy (`mcp_read` is contained in `mcp`); `tools` is
 separate. The `mcp` wire value predates the split, so older keys remain full-admin.
-Prefer the narrowest scope. The `/api/*` REST surface uses session or Basic
+Prefer the narrowest scope. Non-administrators can self-mint only `tools` and
+`mcp_read` keys; `mcp` and `all` keys are issued by an administrator at `/admin/apikeys`. The `/api/*` REST surface uses session or Basic
 authentication and does not accept API keys.
 
 `/knowledge-mcp` and the other MCP and tools endpoints also fail closed. With no key,
@@ -268,7 +270,9 @@ that bucket and all zeros disable the filter:
 
 **Get the proxy header right.** If the configured header does not match what your proxy
 sends, every request appears to come from the proxy's own loopback or private address.
-Then loopback is exempt from rate limiting, `InternalNetworkFilter` would let anyone
+If the proxy is on loopback, loopback is exempt from rate limiting, so nobody is limited.
+If the proxy is on a private but non-loopback address, every client shares one
+rate-limit bucket. Either way, `InternalNetworkFilter` would let anyone
 reach `/metrics` and `/api/health`, and any `mcp.access.allowedCidrs` or
 `tools.access.allowedCidrs` entry covering that address would trust every caller. The
 reverse is just as dangerous: a proxy that forwards a client-supplied copy of the

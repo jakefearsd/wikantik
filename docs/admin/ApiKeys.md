@@ -110,9 +110,11 @@ never reach the admin write surface (tool lists: [McpAgents.md](McpAgents.md)).
 
 ### Issue a key for each scope
 
-Use **Admin → API Keys → + Generate Key** (admin) or **Preferences → API Keys**
-(self-service) and pick the scope in the dialog, or send `scope` in the
-`POST` body. Choose the narrowest scope that does the job:
+Use **Admin → API Keys → + Generate Key** (admin) and pick the scope in the dialog, or
+send `scope` in the `POST` body. A non-administrator can mint only `tools` and `mcp_read`
+keys through **Preferences → API Keys** (see [Self-service keys](#self-service-keys));
+`mcp` and `all` keys come from an administrator through `/admin/apikeys`. Choose the
+narrowest scope that does the job:
 
 | You want a key that… | Scope | Issue it with |
 |---|---|---|
@@ -121,7 +123,8 @@ Use **Admin → API Keys → + Generate Key** (admin) or **Preferences → API K
 | Calls only the OpenAPI `/tools/*` endpoints (for example OpenWebUI) | `tools` | `{"principalLogin": "owui", "scope": "tools"}` |
 | Reaches every key-protected surface | `all` | `{"principalLogin": "ops", "scope": "all"}` |
 
-If `scope` is omitted from a `POST`, the key is created with scope `all`.
+If `scope` is omitted from an admin `POST`, the key is created with scope `all`. (A
+non-admin self-service `POST` that omits it gets `mcp_read`.)
 The principal you name is recorded for attribution and auditing only. It does not
 narrow the key: authorisation on these surfaces is the scope check in the access
 filter, and the admin MCP tools perform no per-user permission checks. A `mcp` or
@@ -282,8 +285,10 @@ curl -s -X POST https://wiki.example.com/tools/search_wiki \
 
 Alongside the admin-issued surface above, any logged-in user can manage API keys
 bound to their **own** principal — no `Admin` role required. This is the surface
-for a user who wants a personal key for `search_wiki` / an MCP client without
-asking an admin to generate one on their behalf.
+for a user who wants a personal key for `search_wiki` / a read-only MCP client without
+asking an admin to generate one on their behalf. A non-admin can self-mint only the
+`tools` and `mcp_read` scopes; `mcp` and `all` keys must be issued by an administrator
+at `/admin/apikeys`, because they carry full admin privilege.
 
 ### SPA: API Keys panel in user preferences
 
@@ -322,10 +327,8 @@ active keys are returned, so there is no `revokedAt`/`revokedBy`/`active` field
 to show).
 
 **`POST /api/self/apikeys`** — generate a key. Body: `{"label": "...", "scope":
-"tools"}` (`scope` is one of `mcp_read`, `mcp`, `tools`, `all`; omitted defaults
-to `all`). The API's own 400 error text still reads "must be one of mcp, tools, all"
-— it predates the `mcp_read` scope — but `mcp_read` is accepted by
-`ApiKeyService.Scope.fromWire`.
+"tools"}` (a non-admin may choose `tools` or `mcp_read`; omitted defaults to `mcp_read`.
+An administrator may choose any scope, `mcp`, `all` included).
 Response (`201`) includes the transient `token` field, shown exactly once:
 
 ```json
@@ -335,7 +338,8 @@ Response (`201`) includes the transient `token` field, shown exactly once:
 ```
 
 **`POST /api/self/apikeys/{id}/rotate`** — revoke-and-reissue: the old key is
-revoked and a new key with the same `label`/`scope` is generated in one call.
+revoked and a new key with the same `label`/`scope` is generated in one call. A non-admin cannot
+rotate a key whose scope they could not mint (`mcp` or `all`); the call is refused.
 Response shape matches the generate response (new `id`, fresh `token`). `404` if
 `{id}` does not exist, is not owned by the caller, or is already revoked.
 
@@ -379,5 +383,5 @@ handled the revoke; other nodes honour a cached key for up to 60 seconds.
 
 ## Related
 
-- [ScimProvisioning.md](ScimProvisioning.md) — creating the principal accounts that keys run as
+- [ScimProvisioning.md](ScimProvisioning.md) — creating the accounts that keys are bound to (the account is for attribution and audit only)
 - [AuditLog.md](AuditLog.md) — key issuance is recorded as an `apikey.issue` audit event

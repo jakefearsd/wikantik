@@ -1312,7 +1312,7 @@ git commit -m "feat(install): first-login banners, seed-users.local.sql hook, in
 ### Task 9: Docs truth pass
 
 **Files:**
-- Modify: `CLAUDE.md`, `README.md`, `docs/DockerDeployment.md`, `docs/WikantikOperations.md`, `docs/PostgreSQLLocalDeployment.md`
+- Modify: `CLAUDE.md`, `README.md`, `docs/DockerDeployment.md`, `docs/WikantikOperations.md`, `docs/admin/PostgreSQL.md`
 
 - [ ] **Step 1: Apply the corrections**
 
@@ -1322,7 +1322,7 @@ For each, locate by grep and fix:
 2. `README.md` — grep `admin / admin123` and any "edit ROOT.xml" first-time-setup step; align both with the CLAUDE.md wording above (first login forces a password change; .env drives config rendering).
 3. `docs/DockerDeployment.md` (line ~91, the `WIKANTIK_SEED_DEV_USERS` row) — replace `Set true to insert admin/admin123 + testbot dev accounts on start (via bin/db/seed-users.sql). **Never set in production.**` with `Set true to ensure the default admin (admin/admin123, must-change-on-first-login) exists on start (via bin/db/seed-users.sql). Fresh databases get the same flagged admin from migration V002+V039 regardless. **Never set in production.**`. Also add one sentence wherever the doc describes first login: the seeded admin must choose a new password at first login.
 4. `docs/WikantikOperations.md` (line ~256) — same `WIKANTIK_SEED_DEV_USERS` correction as above (no testbot, no second account).
-5. `docs/PostgreSQLLocalDeployment.md` (line ~98) — `Default login: admin / admin123.` → `First login: admin / admin123 — you will be required to choose a new password.`
+5. `docs/admin/PostgreSQL.md` (line ~98) — `Default login: admin / admin123.` → `First login: admin / admin123 — you will be required to choose a new password.`
 
 - [ ] **Step 2: Verify no stale claims remain**
 
@@ -1332,7 +1332,7 @@ Expected: no hits describing seeded credentials that contradict the new behavior
 - [ ] **Step 3: Commit**
 
 ```bash
-git add CLAUDE.md README.md docs/DockerDeployment.md docs/WikantikOperations.md docs/PostgreSQLLocalDeployment.md
+git add CLAUDE.md README.md docs/DockerDeployment.md docs/WikantikOperations.md docs/admin/PostgreSQL.md
 git commit -m "docs: single canonical admin credential story (admin123 + forced first-login change)"
 ```
 

@@ -1,12 +1,14 @@
 # Wikantik Deployment with Docker
 
-How to deploy Wikantik as a Docker Compose stack — locally and on a remote
-host (docker1-style: build locally, push over ssh, host bind mounts) — and
-how to upgrade it for each release.
+This guide is for operators who deploy Wikantik as a Docker Compose stack, locally
+or on a remote host (docker1-style: build locally, push over ssh, host bind mounts).
+It covers the production topology and release pipeline, configuration through `.env`,
+data persistence, first deploys and release upgrades, rollback, backups, disaster
+recovery, security posture, and initialising the database from a dump.
 
 > For the **bare-metal** path (local PostgreSQL + Tomcat 11, used for
 > development and single-host installs), see
-> [PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md) instead.
+> [PostgreSQL.md](PostgreSQL.md) instead.
 > For a **cloud VM** (AWS/GCP, GHCR image pull, Terraform, pull-based
 > updates, cost-bounded GenAI tiers), see
 > [CloudDeployment.md](CloudDeployment.md) instead — it reuses this same
@@ -29,6 +31,107 @@ in the top-level `Dockerfile`; the Tomcat tag must stay in lockstep with
 `bin/deploy-local.sh`'s `TOMCAT_VERSION` so the bare-metal and container
 install paths run the identical Tomcat patch.
 
+## Topology and release pipeline
+
+```
+┌─────────────┐  cut-release.sh   ┌──────────────┐  deploy-release.sh  ┌────────────────────┐
+│  Dev box    │ ───(git tag)────> │   GitHub      │ ──(docker save| ──> │  Production host   │
+│             │                   │  Actions      │     ssh load)       │  (Docker)          │
+│ build+test  │ <───image pull──── │  release.yml  │                     │  runs the stack    │
+└─────────────┘   ghcr.io/...      └──────────────┘                     └────────────────────┘
+```
+
+There is no CI deploy and no self-hosted runner. The developer box cuts a release
+(`release.yml` builds and publishes it to GHCR) and then drives the production host over
+ssh with `bin/remote.sh` and `bin/deploy-release.sh`. The production host only runs
+containers. The CI side is described in [CI.md](../developer/CI.md).
+
+### Services
+
+The production host runs `docker-compose.yml` plus `docker-compose.prod.yml` (compose
+project name `repo` when deployed with `bin/remote.sh`):
+
+| Service | Image | Role |
+|---------|-------|------|
+| `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector: users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
+| `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 25, the wiki application |
+| `backup` | `postgres:18-alpine` | Scheduled `pg_dump` and page-tree tarball |
+| `ollama` | `ollama/ollama:latest` | CPU-only embedding sidecar serving `qwen3-embedding:0.6b` at `http://ollama:11434` (internal only, no host port). `wikantik` does not `depends_on` it, so the query embedder fails closed to BM25 if it is unreachable. |
+
+Monitoring is external: a jakemon Grafana Alloy agent on the host scrapes `/metrics` and
+ships logs to the central stack on host `docker2`. There is no in-repo observability
+stack.
+
+On every start, `docker/entrypoint.sh` renders `wikantik-custom.properties`, `ROOT.xml`
+and `wikantik-mcp.properties` from `.env`, then runs `migrate.sh` (idempotent) before
+starting Tomcat.
+
+### Release and deploy steps
+
+1. `bin/cut-release.sh X.Y.Z` bumps the version, updates the CHANGELOG, tags and pushes.
+2. The `v*.*.*` tag triggers `release.yml`, which builds and publishes
+   `ghcr.io/jakefearsd/wikantik:X.Y.Z` and creates a GitHub Release.
+3. `bin/deploy-release.sh X.Y.Z` pulls that image and runs
+   `bin/remote.sh deploy --skip-build`: it tags the running image `:rollback`, runs
+   `docker save | ssh 'docker load'`, rsyncs the compose files and `.env`, runs `up -d`,
+   and polls `/api/health`.
+
+The entrypoint applies new schema migrations on start, so a routine upgrade needs no
+manual database step. The first deploy is the exception; see
+[Remote host: first deploy](#remote-host--first-deploy).
+
+### Roll back
+
+- **Automatic:** if the post-deploy `/api/health` poll fails, `bin/remote.sh deploy`
+  re-promotes the `:rollback` image and recreates the container. Every deploy re-tags
+  the outgoing image `wikantik:rollback` before swapping.
+- **Manual:** `bin/remote.sh rollback` re-promotes `:rollback` at any time.
+
+### Recover from a lost host
+
+To rebuild on a fresh host, install Docker, run `bin/remote.sh bootstrap`, transfer the
+image, restore the database from the most recent `pg_dump` and the page tree from the
+backup tarball (see [Initialise the database from an existing dump](#6-initialising-the-database-from-an-existing-dump)),
+and `up -d`. The Lucene index rebuilds itself on first start. `bin/dr-restore.sh <host>`
+automates the whole sequence; see [BackupAndRecovery.md](BackupAndRecovery.md).
+
+### Security posture
+
+- **PostgreSQL is published on the docker0 bridge only.** The prod overlay maps
+  `${DB_HOST_BIND:-172.17.0.1}:5432:5432`, so the jakemon postgres-exporter can reach it
+  through `host.docker.internal:5432` and the port is not LAN-exposed unless you
+  override `DB_HOST_BIND`.
+- **`/api/health` and `/metrics`** are restricted to loopback and RFC 1918 clients by
+  `InternalNetworkFilter`; see [WikantikOperations.md](WikantikOperations.md#14-health-metrics-and-request-correlation).
+- **MCP and tools endpoints** require a bearer token that resolves to a database-backed
+  key (minted at `/admin/apikeys`) or a source IP inside a configured CIDR allow-list,
+  and fail closed (503) otherwise. There is no environment-variable key list; see
+  [ApiKeys.md](ApiKeys.md).
+- **Secrets** live only in `.env` / `.env.prod` (gitignored). Back the env file up
+  separately from the repository.
+- **Client IP resolution is parameterised.** `RemoteIpValve` (`docker/config/server.xml`)
+  trusts the header named by `PROXY_REMOTE_IP_HEADER` (default `CF-Connecting-IP`; use
+  `X-Forwarded-For` behind Caddy, nginx, ALB or GCLB). It feeds `RateLimitFilter` and
+  audit logging. See the variable table in section 1.
+
+### Cloud topology
+
+This guide describes the docker1 topology (`docker-compose.prod.yml`, host bind mounts,
+the docker0-bridge database port). The Terraform-driven single-VM topology for AWS and GCP
+swaps the local build for a GHCR image pull, adds Caddy or cloudflared ingress and an
+optional CPU embedding sidecar as compose profiles, and updates through a pull-based
+`wikantik-update` script. See [CloudDeployment.md](CloudDeployment.md).
+
+### Verify a deployment
+
+```bash
+bin/remote.sh status                                  # health, ps, disk
+curl -fsS http://HOST:8080/api/health | jq            # engine + database + searchIndex
+```
+
+The container healthcheck polls `http://localhost:8080/api/health`. A deploy is healthy
+when that returns HTTP 200 with `status` of `UP`.
+
 ## Application Endpoints
 
 | Path | Description |
@@ -40,10 +143,10 @@ install paths run the identical Tomcat patch.
 | `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
 | `/wiki/{slug}?format=md\|json` | Raw content for crawlers and RAG ingestion |
 | `/api/changes?since=…` | Incremental change feed for sync pipelines |
-| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping + cluster renames + content-opportunity backlog) — 29 tools |
-| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection + context bundles/briefings) — 21 tools |
-| `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) — 2 tools |
-| `/api/health` | Application health checks |
+| `/wikantik-admin-mcp` | Admin MCP server (writes, analytics, verification stamping, cluster renames, content-opportunity backlog) |
+| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval, Knowledge Graph, structural spine, agent projection, context bundles and briefings) |
+| `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) |
+| `/api/health` | Application health checks (loopback and private networks only) |
 | `/metrics` | Prometheus-compatible metrics (IP-restricted via `InternalNetworkFilter`) |
 
 **Authorizing an MCP/tools client:** the two MCP endpoints and `/tools/*` share a
@@ -114,7 +217,7 @@ Defaults below are copied from `docs/ConfigurationReference.md`; that page is au
 | `WIKANTIK_GENAI_MODE` | `full` | `wikantik.genai.mode` | GenAI ceiling: `full` \| `embeddings-only` \| `none`. Never turns a feature on — only forces an already-enabled feature off. See [CostTiers.md](CostTiers.md) and [CloudDeployment.md](CloudDeployment.md). |
 | `WIKANTIK_KNOWLEDGE_ENABLED` | `true` | `wikantik.knowledge.enabled` | `false` skips constructing the Knowledge Graph subsystem entirely (no KG services, no KG MCP tools; `/admin/knowledge-graph/*` and `/api/page-knowledge/*` 503). Chunking and the embedding/dense-retrieval pipeline stay independent of it. |
 | `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | `wikantik.search.embedding.base-url` | Dense-retrieval embedding service base URL override, e.g. `http://ollama-embed:11434` for the cloud overlay's sidecar. The docker image points this at its bundled CPU embedder and the docker1 deployment keeps it there deliberately, so the retrieval hot path does not depend on a host outside the stack. Whatever you point it at must serve the model named by `wikantik.search.embedding.model` — the dense index is fixed at that model's dimension. |
-| `WIKANTIK_EMBEDDING_BATCH_SIZE` | `32` | `wikantik.search.embedding.batch-size` | Texts per embedding backend round-trip. **Coupled to `WIKANTIK_EMBEDDING_TIMEOUT_MS` and to the backend's available CPU:** a batch must complete inside the timeout, or the request fails, is treated as transient, and after 3 retries the entire reconcile aborts. Capping the embedder's CPU (a docker `cpus:` limit) multiplies per-batch time — a 32/30000 pair that worked unthrottled times out at 2 CPUs. Lower this, raise the timeout, or both. |
+| `WIKANTIK_EMBEDDING_BATCH_SIZE` | `10` | `wikantik.search.embedding.batch-size` | Texts per embedding backend round-trip. **Coupled to `WIKANTIK_EMBEDDING_TIMEOUT_MS` and to the backend's available CPU:** a batch must complete inside the timeout, or the request fails, is treated as transient, and after 3 retries the entire reconcile aborts. Capping the embedder's CPU (a docker `cpus:` limit) multiplies per-batch time — a 32/30000 pair can time out on a CPU-bound embedder (the default `10` fits the 30 s timeout on the bundled CPU sidecar). Lower this, raise the timeout, or both. |
 | `WIKANTIK_EMBEDDING_TIMEOUT_MS` | `30000` | `wikantik.search.embedding.timeout-ms` | Per-request embedding HTTP timeout in ms. See the coupling note on `WIKANTIK_EMBEDDING_BATCH_SIZE`. On a 2-CPU-capped CPU-only embedder, `8` / `120000` is a working pair. |
 | `WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE` | `256` | `wikantik.search.embedding.commit-batch-size` | Rows committed per transaction during an embedding backfill. A full backfill is hours of CPU inference; this bounds how much of it an interruption discards. Lower it (e.g. `64`) on a host where long runs get interrupted — a commit is sub-millisecond next to seconds-per-chunk inference, so there is no throughput cost. Must be > 0; the app refuses to start on a non-positive value. |
 | `WIKANTIK_EXTRACTOR_BACKEND` | `ollama` | `wikantik.knowledge.extractor.backend` | KG entity-extractor backend: `ollama` \| `claude` \| `disabled`. `claude` also requires `ANTHROPIC_API_KEY` (read directly from the process environment by `EntityExtractorFactory` — never rendered into a properties file). |
@@ -166,11 +269,8 @@ cross-origin callers.
 
 When a burst pushes concurrency past `WIKANTIK_MAX_INFLIGHT_REQUESTS`, the
 `BackpressureFilter` sheds the excess as fast 503s rather than letting requests
-pile up in the queue. This keeps the *admitted* requests responsive (in a
-verification overload at cap=100 / N=650, the served subset held p95 ≈ 625 ms
-— faster than an uncapped run at the same load, because the server stays
-under-subscribed) and keeps `/api/health` answering throughout (200 in ~38 ms
-under full overload).
+pile up in the queue. This keeps the admitted requests responsive and keeps
+`/api/health` answering throughout, because `/api/health` and `/metrics` bypass the cap.
 
 It publishes three Prometheus metrics:
 
@@ -212,7 +312,7 @@ target.
 
 ## 2. Data persistence
 
-Three classes of state, with deliberately different storage:
+State lives in several places, with deliberately different storage:
 
 - **PostgreSQL** (users, groups, policy grants, Knowledge Graph, API keys,
   page metadata, history) — the `db` service, in the named volume
@@ -221,7 +321,13 @@ Three classes of state, with deliberately different storage:
   under the prod overlay, so `rsync` is the source of truth for the page tree
   independent of container lifecycle. Mounted at `/var/wikantik/pages`.
 - **Work + logs** — named volumes (`wikantik-work`, `wikantik-logs`);
-  regeneratable, no operator interest in their contents.
+  regeneratable, not backed up. `wikantik-work` holds the Lucene index (rebuilt at
+  startup) and the ontology TDB2 store; see
+  [WikantikOperations.md](WikantikOperations.md#12-containerized-deployment-recommended-for-production)
+  for the TDB2 growth note.
+- **Embedding model cache** — named volume `ollama-models` (prod overlay), mounted
+  into the `ollama` sidecar. Not backed up; `ollama pull qwen3-embedding:0.6b`
+  re-populates it.
 - **JFR profiling recordings** — named volume `wikantik-profiling` (prod
   overlay only), mounted at `/var/wikantik/profiling`. JFR recordings started
   via `POST /admin/profiling/jfr/start` land here; download them with
@@ -421,9 +527,10 @@ install into a container.
    half-initialised schema: `bin/remote.sh up -d db` (or
    `bin/container.sh -e prod up -d db` locally). Wait for it to report
    healthy.
-3. **Clear the image's seed schema.** `docker/db/001-init.sql` seeds a
-   skeleton `users`/`roles`/`groups` schema on first DB init; drop it so the
-   restore is clean:
+3. **Clear the public schema.** On first init `docker/db/001-init.sql` creates only
+   the `vector` extension (schema comes from migrations, which have not run because
+   only `db` is up); drop the schema so the restore starts clean. The dump recreates
+   the extension:
    ```bash
    docker exec -i <db-container> psql -U $POSTGRES_USER -d $POSTGRES_DB \
      -v ON_ERROR_STOP=1 -c \

@@ -54,7 +54,7 @@ tomcat/tomcat-11/bin/startup.sh
 ```
 
 The full guide lives at
-[`docs/admin/PostgreSQLLocalDeployment.md`](docs/admin/PostgreSQLLocalDeployment.md).
+[`docs/admin/PostgreSQL.md`](docs/admin/PostgreSQL.md).
 For a container-based dev loop see `bin/container.sh --help`.
 
 ### Tests

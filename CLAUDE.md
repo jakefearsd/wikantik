@@ -8,8 +8,9 @@ defect before repairing it, so we know the test actually detects the issue.
 - Never swallow exceptions with empty catch blocks — always log at least a `LOG.warn()` with context and message.
 - Don't use plan mode for trivial tasks (git add, single commands) — just do them directly.
 
-Operational runbooks (container/remote deployment, load testing, entity extractor) and the detailed
-design-doc status blocks live in **[docs/developer/ProjectReference.md](docs/developer/ProjectReference.md)** — kept out
+Operational runbooks (container/remote deployment, load testing, entity extractor) live in
+**[docs/admin/WikantikOperations.md](docs/admin/WikantikOperations.md)**, and the detailed design-doc status
+blocks live in **[docs/developer/ProjectReference.md](docs/developer/ProjectReference.md)** — both kept out
 of this file so it stays focused on rules + the architecture map.
 
 ## Superpowers skills — when they apply
@@ -291,8 +292,8 @@ bin/site.sh                 # -> target/staging/index.html
 High test coverage at the line level, above 90% is a goal for this development team,
 and while we recognize it is not a perfect measurement, it is one we choose to pursue.
 
-> Container/remote deployment, load testing, and the entity-extractor runbook moved to
-> [docs/developer/ProjectReference.md](docs/developer/ProjectReference.md).
+> Container/remote deployment, load testing, and the entity-extractor runbook live in
+> [docs/admin/WikantikOperations.md](docs/admin/WikantikOperations.md).
 
 ## Architecture Overview
 

@@ -1,6 +1,6 @@
 # Wikantik Operations Handbook
 
-This document is the definitive handbook and runbook for Wikantik Administration. It is designed to serve both new and experienced administrators in managing system configuration, deployment strategies, script execution, and knowledge graph operations.
+This handbook is for administrators who run Wikantik. It covers deployment (container, remote and bare metal), tuning, the health and metrics endpoints, backups, the operator scripts under `bin/` (including remote deployment, load testing and the entity extractor), and Knowledge Graph administration.
 
 ---
 
@@ -88,14 +88,14 @@ Deploying to a bare-metal server runs Wikantik as the ROOT context of a local
 Tomcat 11 instance against a local PostgreSQL. It is the path for development,
 manual testing, and single-host installs (production runs the container — §1.2).
 The full step-by-step guide is
-[PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md); the essentials:
+[PostgreSQL.md](PostgreSQL.md); the essentials:
 
 1. **Database** — `sudo -u postgres bin/db/install-fresh.sh` creates the database,
    the `wikantik` app role, and applies every migration. **Set `DB_MIGRATE_PASSWORD`**
    so it also runs `bin/db/create-migrate-user.sh`, which provisions the dedicated
    `migrate` role with the privileges migrations need (`CREATEROLE` + `pg_monitor`
    for V031, plus ownership of the schema). Skipping this leaves migrations to fail
-   later as an under-privileged role — see the troubleshooting in the guide.
+   later as an under-privileged role; see [DatabaseMigrations.md](DatabaseMigrations.md).
 2. **Build** — `mvn clean install -DskipTests -T 1C`.
 3. **Deploy** — `bin/deploy-local.sh` downloads Tomcat (first run), materialises
    config from the templates, deploys the WAR, runs migrations, starts Tomcat.
@@ -110,6 +110,53 @@ existing install automatically.** Apply them by hand to the deployed file, or
 delete the deployed file and re-run `deploy-local.sh` to re-render it. This is
 deliberate (it protects the DB password in `ROOT.xml`), but it means a long-lived
 bare-metal box can silently drift from the tuned defaults.
+
+### 1.4 Health, metrics and request correlation
+
+The `wikantik-observability` module ships three runtime capabilities in every
+environment. Monitoring itself (scraping, dashboards, alerting) belongs to the external
+**jakemon** stack: a Grafana Alloy agent on each host pushes metrics and logs to the
+central Prometheus, Loki and Grafana on host `docker2`. There is no in-repo
+observability stack.
+
+**Health: `GET /api/health`.** `HealthServlet` runs the registered checks and returns
+JSON with an overall `status` and a `checks` map: `EngineHealthCheck` (engine
+initialised), `DatabaseHealthCheck` (the JNDI DataSource is reachable) and
+`SearchIndexHealthCheck` (the Lucene index is available). The overall status is `UP`,
+`DEGRADED` or `DOWN`; the HTTP status is 200 for `UP` and `DEGRADED` and 503 for `DOWN`
+(or when no checks are registered because the engine has not started).
+
+```bash
+curl http://localhost:8080/api/health | jq
+```
+
+**Metrics: `GET /metrics`.** `MetricsServlet` serves Prometheus text format. Both
+`/api/health` and `/metrics` sit behind `InternalNetworkFilter`, which allows only
+loopback (`127.0.0.0/8`, `::1`) and the RFC 1918 ranges (`10.0.0.0/8`, `172.16.0.0/12`,
+`192.168.0.0/16`); any other client gets 403 with `{"error":"Forbidden"}`. The check uses
+`request.getRemoteAddr()`, which in the container is the real client address after
+`RemoteIpValve` has applied `PROXY_REMOTE_IP_HEADER`. The backpressure filter exempts both
+paths and the rate limiter exempts `/api/health`, so monitoring never sees a false outage.
+
+```bash
+curl http://localhost:8080/metrics | grep '^wikantik_'
+```
+
+**Request correlation: `X-Request-Id`.** `RequestCorrelationFilter` reads an incoming
+`X-Request-Id` header (for example from a reverse proxy) or generates a UUID, returns it
+as a response header, and puts `requestId`, `method`, `uri`, `remoteAddr` and `userAgent`
+into the Log4j2 `ThreadContext`, so every log line for the request carries the same key.
+In the container, the console appender (`docker/config/log4j2-docker.xml`) writes
+structured JSON using the ECS template with an added `application=wikantik` field, which
+is what the jakemon agent collects. The cross-product telemetry contract (metric prefix,
+log envelope, `correlation_id`) is documented on the live wiki page `SimpleAgilityTelemetryContract`;
+check a running instance against it with:
+
+```bash
+bin/simple-agility-conformance.sh --base-url http://localhost:8080 --prefix wikantik
+```
+
+Logging configuration is covered in [LoggingConfig.md](LoggingConfig.md).
 
 ### 1.5 Performance & concurrency tuning
 
@@ -130,7 +177,7 @@ dense-retrieval/HNSW knobs in `wikantik-custom-postgresql.properties.template`.
 overwrite a config that already exists, so template changes do **not** reach an
 existing bare-metal install. Apply them to the deployed file by hand, or delete it
 and re-run `deploy-local.sh`. (Full bare-metal guide:
-[PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md).)
+[PostgreSQL.md](PostgreSQL.md).)
 
 **Dense retrieval**
 
@@ -266,6 +313,22 @@ and drives breadcrumbs, JSON-LD placement, and sidebar location.
   before any write. The same operation is available as the `rename_cluster`
   tool on `/wikantik-admin-mcp`.
 
+### 1.9 The checkout and production are different corpora
+
+`docs/wikantik-pages/` in the repository and the production page store are different
+corpora, not two copies of one. Production holds pages the repository lacks.
+`bin/remote.sh pages-push` writes the repository tree onto the remote but does not
+reconcile the two, and `pages-pull` cannot: it fails `Permission denied` on
+container-owned pages and silently returns a partial corpus, which is worse than none
+because every unread page then looks missing from production.
+
+Production is authoritative for content; the checkout is a mirror. Derive corpus-wide
+plans from the live index (the `list_clusters` and `list_pages_by_filter` tools on
+`/knowledge-mcp`), never from the repository, and measure the gap with
+`CorpusDivergenceCli` (in `wikantik-extract-cli`), which compares the repository corpus
+with a live wiki's `/api/structure/sitemap`. It exits 2 when it refuses because the
+snapshot it was given was incomplete, and 1 when divergence is found under `--check`.
+
 ---
 
 ## 2. Backup & Disaster Recovery
@@ -288,6 +351,18 @@ The primary wrapper around `docker compose` for the container stack.
 - `restore PATH`: Restores DB and content from a snapshot path.
 - `psql`: Opens an interactive PostgreSQL shell in the DB container.
 - `smoke-test`: Spins up the test stack (base + `docker-compose.test.yml` overlay, project `wikantik-test`, port 18080) to verify health checks before tear down.
+- `migrate [--status]`: Runs `bin/db/migrate.sh` inside the live `wikantik` container.
+
+Environments are `dev` (default), `prod`, `test` and `base`; each subcommand accepts `--help`.
+
+```bash
+bin/container.sh build                          # build the image
+bin/container.sh up -d                          # start the dev stack
+bin/container.sh logs -f                        # tail wikantik
+bin/container.sh psql -- -c '\dt'               # list DB tables
+bin/container.sh -e prod up -d                  # production stack with backup sidecar
+bin/container.sh smoke-test                     # ephemeral up/health/down on test ports
+```
 
 ### `bin/deploy-local.sh`
 Handles bare-metal Tomcat deployments.
@@ -329,6 +404,106 @@ Admin CLI for managing the Knowledge Graph cluster inclusion/exclusion policies.
 Triggers ad-hoc Knowledge Graph judge runs against the local deployment.
 - `--proposal-id UUID`: Synchronously judge one proposal.
 - `--status`: Evaluate pending queue depth.
+
+### Remote container deployment over ssh
+
+`bin/remote.sh` is the single entry point for deploying and administering Wikantik on a
+remote host. It wraps `bin/container.sh` on the remote and adds image transfer
+(`docker save | ssh 'docker load'`), page rsync and a deploy lock. Configuration lives in
+`remote.env` at the repository root (copy from `remote.env.example`; gitignored); the
+production container config is a gitignored `.env.prod`, which `remote.sh` ships to the
+remote as `.env` in preference to the dev `.env`. Every state-changing subcommand accepts
+`--dry-run`.
+
+```bash
+bin/remote.sh --help                          # subcommand list
+bin/remote.sh bootstrap                       # first-time remote setup
+bin/remote.sh deploy                          # local build, ssh push, up -d, health-poll
+bin/remote.sh status                          # container ps + health + disk
+bin/remote.sh pages-push docs/wikantik-pages  # rsync pages to remote (no --delete by default)
+bin/remote.sh rollback                        # re-promote the :rollback image
+```
+
+**Cut and deploy a release.** Two wrappers capture the routine sequence:
+
+```bash
+bin/cut-release.sh X.Y.Z       # version bump, CHANGELOG, tag, push; the tag triggers release.yml
+bin/deploy-release.sh X.Y.Z    # pull the published image, then bin/remote.sh deploy --skip-build
+```
+
+`cut-release.sh` does not build, so run a green `bin/run-tests.sh --all` first. That is the
+complete gate (unit plus all default IT modules plus the opt-in Authentik SCIM full-loop),
+and a release is that full-loop's checkpoint. When `release.yml` is green,
+`deploy-release.sh` swaps the image. The database volume and the page bind mount persist
+across the swap and the entrypoint applies pending migrations, so an upgrade is an image
+swap. The first deploy is the exception: see [DockerDeployment.md](DockerDeployment.md).
+Production page content lives at `${WIKANTIK_PAGES_DIR}` on the remote as a bind mount, so
+`deploy` never carries content; see [section 1.9](#19-the-checkout-and-production-are-different-corpora).
+For cloud VM targets see [CloudDeployment.md](CloudDeployment.md).
+
+**Gotchas from the first docker1 deploy:**
+
+- The `db` service runs `pgvector/pgvector:pg18`. The pg18+ image stores data under a
+  version-specific subdirectory and needs the volume at `/var/lib/postgresql`; mounting the
+  old `/var/lib/postgresql/data` makes the image refuse to start. Re-check the mount path
+  when you bump the major version, and keep the container's major version level with your
+  local one: `pg_dump` restores forward across versions, not backward.
+- The deploying OS user must be in the `docker` group on the target.
+  `bin/remote.sh bootstrap` checks the binaries and daemon reachability (`docker info`) and
+  prints the fix (`sudo usermod -aG docker <user>`, then a fresh login) if either fails.
+- Initialising the database from a dump is a manual sequence, not something
+  `remote.sh deploy` does (it runs a full `up -d`, and the entrypoint would migrate an empty
+  schema). To stand up a fresh host from a backup, use `bin/dr-restore.sh <host>`, which
+  automates image and snapshot transfer, the database restore and a smoke test; see
+  [BackupAndRecovery.md](BackupAndRecovery.md).
+
+### Load testing: `bin/loadtest.sh`
+
+`bin/loadtest.sh <smoke|load|stress>` runs the k6 harness in `loadtest/` against the
+instrumented endpoints. Install [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)
+and copy `loadtest/loadtest.env.example` to `loadtest/loadtest.env` first.
+
+| Option | Effect |
+|--------|--------|
+| `--verify` | Scrape `/metrics` before and after, and fail if a target dashboard panel did not move. `/metrics` is internal-only, so run it from inside the network or pass `--metrics-url http://localhost:8080/metrics`. |
+| `--writes` | Add the authenticated create/edit/delete and login cycle (`--write-vus N` sets its concurrency). |
+| `--admin`, `--admin-vus N` | Add the administrative-actions scenario over `/admin/*` (needs admin credentials). |
+| `--duration D`, `--vus N` | Override run length and peak VUs (load and stress profiles). |
+| `--dry-run` | Print the k6 command without running it. |
+
+When `K6_PROMETHEUS_RW_SERVER_URL` is set in `loadtest.env`, k6 remote-writes its own
+metrics into jakemon's Prometheus so offered load and host response share a timeline. A
+fresh stack has no `testbot` user or API key, so seed them once with
+`loadtest/seed-loadtest-data.sh` (see `loadtest/README.md`). Methodology is in
+[LoadTesting.md](../developer/LoadTesting.md).
+
+### Run the entity extractor: `bin/kg-extract.sh`
+
+`bin/kg-extract.sh` runs the per-page entity-extraction pipeline against the local
+PostgreSQL, reading the JDBC URL and password from the deployed `ROOT.xml` (or from
+`PG_JDBC_URL`, `PG_USER`, `PG_PASSWORD`). With no flags it uses the Ollama model
+`gemma4-assist:latest` at concurrency 2 with no judge.
+
+```bash
+bin/kg-extract.sh --max-pages 50 --dry-run --report reports/smoke.json   # smoke run
+bin/kg-extract.sh --report reports/extract-$(date +%Y%m%d).json          # full run
+bin/kg-extract.sh --jar-help                                             # the jar's full flag list
+```
+
+If the pending-proposal queue gets unwieldy and a clean restart is the right call,
+snapshot the pending proposals first, then delete them:
+
+```bash
+PGPASSWORD=… pg_dump -h localhost -U wikantik -d wikantik \
+    --data-only --table=kg_proposals --column-inserts \
+    --where="status = 'pending'" \
+    > backups/kg_proposals_pending_$(date +%Y%m%d).sql
+
+PGPASSWORD=… psql -h localhost -U wikantik -d wikantik -c \
+    "DELETE FROM kg_proposals WHERE status = 'pending';"
+```
+
+Wipes like this are never landed in `V*.sql` migrations; they are operator one-shots.
 
 ### `bin/remote.sh` — remote admin subcommands
 

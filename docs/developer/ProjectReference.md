@@ -1,148 +1,14 @@
 # Wikantik Project Reference
 
-Operational runbooks and detailed subsystem status moved out of `CLAUDE.md` to keep that file
-focused on rules + the architecture map. Nothing here is per-turn guidance — consult it when you
-are actually deploying, load-testing, running the entity extractor, or working on one of the
-design-doc subsystems.
+This reference is for developers working on Wikantik. It holds the configuration-surface
+rules, the `bin/` script conventions, the code-health site and static-analysis notes, and the
+detailed "what shipped" status of each design-doc subsystem. It is not per-turn guidance;
+consult it when you touch one of those areas.
 
-## Container deployment
-
-For container-based deployment (recommended for production), use
-`bin/container.sh` — a top-level wrapper around `docker compose` that
-drives build / up / down / logs / shell / psql / migrate / backup /
-restore / smoke-test against the canonical service set:
-
-```bash
-bin/container.sh --help                         # subcommand list
-bin/container.sh build                          # build the image
-bin/container.sh up -d                          # start the dev stack
-bin/container.sh logs -f                        # tail wikantik
-bin/container.sh psql -- -c '\dt'               # list DB tables
-bin/container.sh -e prod up -d                  # production stack with backup sidecar
-bin/container.sh smoke-test                     # ephemeral up/health/down on test ports
-```
-
-Environments: `dev` (default), `prod`, `test`, `base`. Each subcommand
-also accepts `--help`. Underlying compose files at the repo root
-(`docker-compose{,.dev,.prod,.test}.yml`) and the runtime entrypoint at
-`docker/entrypoint.sh` are still the source of truth — `bin/container.sh`
-is just an ergonomic facade.
-
-Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host **docker2**. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
-
-## Load testing
-
-`bin/loadtest.sh <smoke|load|stress>` runs the k6 harness in `loadtest/`
-against an instrumented set of endpoints. `--verify` scrapes `/metrics`
-before and after and fails if a target dashboard panel did not move;
-`--writes` adds an authenticated edit/delete cycle. k6 remote-writes its
-own metrics into jakemon's central Prometheus (`192.168.0.5:9090`) so
-offered load and host response share a timeline. See `loadtest/README.md`.
-
-**Container deployment gotchas** (learned from the first docker1 deploy,
-2026-05-16):
-- **PostgreSQL image major version is coupled to the volume mount path.**
-  The `db` service runs `pgvector/pgvector:pg18`. The pg18+ Docker images
-  store data under a version-specific subdir and require the volume at
-  `/var/lib/postgresql` — mounting the old `/var/lib/postgresql/data`
-  makes the image refuse to start. Bumping the pg major version means
-  re-checking that mount path. Keep the container pg major version in
-  step with the local dev Postgres: a `pg_dump` restores forward across
-  versions, not backward.
-- **The deploying OS user must be in the `docker` group** on the target
-  host. `bin/remote.sh bootstrap` checks both — the `docker`/`docker compose`
-  binaries *and* daemon reachability (`docker info`) as `REMOTE_USER` — and on
-  failure prints the exact remediation (`sudo usermod -aG docker <user>`, then
-  a fresh login session) rather than passing and leaving the real deploy to
-  fail later with a `docker.sock` permission error. This check exists because
-  an earlier version only checked for the binary (fixed in `0564942677`).
-- **Initialising the DB from an existing dump is a manual sequence**, not
-  something `remote.sh deploy` does (it runs a full `up -d`, and the app
-  entrypoint then migrates an empty schema). Bring up `db` alone, restore
-  the dump (`DROP SCHEMA public CASCADE` first to clear the image's seed
-  schema), then start `wikantik`. **To stand a fresh host up *from a backup*,
-  use `bin/dr-restore.sh <host>`** — it automates this whole sequence (image +
-  verified snapshot transfer → `db` → `restore.sh` → `wikantik` → smoke test),
-  pulling the image from GHCR by default so it works even if the prod host is
-  gone. See [docs/admin/BackupAndRecovery.md](../admin/BackupAndRecovery.md) §5.1.
-
-## Remote container deployment over ssh
-
-`bin/remote.sh` is the single entry point for deploying and administering
-Wikantik on a remote host over ssh. It wraps `bin/container.sh` on the
-remote and adds image transfer (`docker save | ssh 'docker load'`), pages
-rsync, and a deploy lock. Configuration lives in `remote.env` at the repo
-root (copy from `remote.env.example`; gitignored). Every state-changing
-subcommand accepts `--dry-run`.
-
-```bash
-bin/remote.sh --help                          # subcommand list
-bin/remote.sh bootstrap                       # first-time remote setup
-bin/remote.sh deploy                          # local build → ssh push → up -d → health-poll
-bin/remote.sh status                          # container ps + health + disk
-bin/remote.sh pages-push docs/wikantik-pages  # rsync pages to remote (no --delete by default)
-bin/remote.sh rollback                        # re-promote :rollback image
-```
-
-**Routine release upgrades** use two wrappers that capture the happy-path
-command sequences as a single `bash` run each:
-
-```bash
-bin/cut-release.sh X.Y.Z       # version bump + CHANGELOG + tag + push → triggers release.yml
-bin/deploy-release.sh X.Y.Z    # pull the published image → bin/remote.sh deploy --skip-build
-```
-
-`cut-release.sh` cuts the release (run a green build first — it does not
-build). Pre-release checklist: a green `bin/run-tests.sh --all` (the full gate —
-unit + all default IT modules — plus the opt-in Authentik SCIM full-loop, which
-lives outside the per-commit gate; the release is its scheduled checkpoint —
-~80s warm, first run per machine pulls the 1.1GB Authentik image).
-Once `release.yml` is green, `deploy-release.sh` swaps the image on
-the remote. The DB (named volume `repo_pgdata`) and pages (host bind mount)
-persist across the swap, and the container entrypoint applies any pending
-schema migrations on start — so an upgrade is just an image swap. The
-**first** deploy is the exception: it initialises the DB (restore from a
-`pg_dump`) and the page tree. Full procedure in
-[docs/admin/DockerDeployment.md](../admin/DockerDeployment.md).
-
-`remote.env` carries the ssh/host config; the prod container config is a
-gitignored `.env.prod` at the repo root (`remote.sh` ships it to the remote
-as `.env`, preferring it over the dev `.env`).
-
-Prod content lives at `${WIKANTIK_PAGES_DIR}` on the remote host as a
-bind mount, independent of container lifecycle — so the page tree
-survives an image swap and `deploy` never carries content.
-
-**The checkout and prod are different corpora, not two copies.** Prod holds
-pages the repo does not have. `pages-push` writes the repo's tree onto the
-remote but does not reconcile the two, and `pages-pull` cannot: it fails
-`Permission denied` on container-owned pages and silently returns a
-*partial* corpus, which is worse than none — every unread page reads as
-"missing from production". **Prod is authoritative for content; the checkout
-is a mirror.** Derive corpus-wide plans from the live index (`list_clusters`,
-`list_pages_by_filter`), never from the repo, and use
-`CorpusDivergenceCli` (`wikantik-extract-cli`) to measure the gap — it exits
-**2** when it refuses because the snapshot it was given was incomplete.
-
-## Cloud deployment (AWS/GCP)
-
-Single-VM Terraform reference deployment per cloud (`deploy/aws/`,
-`deploy/gcp/`), sharing one cloud-init template
-(`deploy/cloud-init/cloud-init.yaml.tftpl`) and the `docker-compose.cloud.yml`
-overlay (GHCR image pull, Caddy/cloudflared ingress profiles, optional CPU
-embedding sidecar, cost-bounded `wikantik.genai.mode` ceiling +
-`wikantik.knowledge.enabled` tiers). Pull-based updates via
-`deploy/bin/wikantik-update.sh` (installed on the VM by cloud-init) or
-`bin/remote.sh deploy --pull TAG` (`REMOTE_ENV_FILE` override for a second
-target). docker1 is untouched by any of this — every new property/env var
-defaults to docker1's current behavior. Operator guide:
-[CloudDeployment.md](../admin/CloudDeployment.md); module READMEs:
-[deploy/aws/README.md](../../deploy/aws/README.md),
-[deploy/gcp/README.md](../../deploy/gcp/README.md); decision record + phased
-plan: [superpowers/plans/2026-07-16-aws-gcp-deployment-readiness.md](../superpowers/plans/2026-07-16-aws-gcp-deployment-readiness.md).
-Shipped 2026-07-16 (2.3.7); a real `terraform apply` against a live
-AWS/GCP account had not been run as of that release — see the module
-READMEs' "Validation status" notes.
+Admin runbooks (container and remote deployment, load testing, the entity extractor, the
+repository-versus-production corpus warning) live in
+[WikantikOperations.md](../admin/WikantikOperations.md); cloud deployment is in
+[CloudDeployment.md](../admin/CloudDeployment.md).
 
 ## Configuration
 
@@ -274,36 +140,7 @@ page.
   `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` (DB password). No
   bin/ script embeds secrets.
 
-## Running the entity extractor
-
-`bin/kg-extract.sh` runs the per-page entity-extraction pipeline against the
-local PostgreSQL via the deployed ROOT.xml. Defaults — `gemma4-assist:latest`
-at concurrency 2, no judge — produce ~200–500 deduplicated, evidence-grounded
-proposals in ~3.6 hours over a 1000-page corpus.
-
-Routine usage:
-```bash
-bin/kg-extract.sh --max-pages 50 --dry-run --report reports/smoke.json   # smoke
-bin/kg-extract.sh --report reports/extract-$(date +%Y%m%d).json          # full run
-```
-
-If the pending-proposal queue gets unwieldy and a clean restart is the right
-call, snapshot pending proposals first, then wipe:
-
-```bash
-PGPASSWORD=… pg_dump -h localhost -U wikantik -d wikantik \
-    --data-only --table=kg_proposals --column-inserts \
-    --where="status = 'pending'" \
-    > backups/kg_proposals_pending_$(date +%Y%m%d).sql
-
-PGPASSWORD=… psql -h localhost -U wikantik -d wikantik -c \
-    "DELETE FROM kg_proposals WHERE status = 'pending';"
-```
-
-Per the no-data-in-migrations rule, wipes are never landed in `Vxxx`
-migrations — they are documented one-shots run by the operator.
-
-### Code-health site
+## Code-health site and static analysis
 
 A published Maven site aggregating coverage (unit+IT), module coupling, PMD/CPD,
 SpotBugs, tests, tech-debt, and dependency health, with per-module drill-down.
@@ -344,7 +181,7 @@ SpotBugs, tests, tech-debt, and dependency health, with per-module drill-down.
   falls back to a linked `.dot`).
 - Design: `docs/superpowers/specs/2026-07-23-code-health-site-design.md`.
 
-#### Ad-hoc PMD/SpotBugs runs: go through Maven
+### Ad-hoc PMD/SpotBugs runs: go through Maven
 
 Run `mvn pmd:pmd` / `mvn spotbugs:spotbugs` (after a build, so `target/classes`
 exists). Do **not** drive the PMD CLI directly unless you also pass
@@ -393,7 +230,7 @@ tool-description examples). All six phases shipped 2026-04-25 — design is comp
 
 **Retrieval-quality CI is in.** `DefaultRetrievalQualityRunner` (in `wikantik-main` under `com.wikantik.knowledge.eval`) executes the curated `core-agent-queries` query set (16 questions seeded from the agent-cookbook runbooks, plus one cross-cluster query) through `BM25`, `HYBRID`, and `HYBRID_GRAPH`, computes per-query nDCG@5/@10 + Recall@20 + MRR, persists aggregates to `retrieval_runs`, and publishes `wikantik_retrieval_ndcg_at_5` / `_at_10` / `_recall_at_20` / `_mrr` gauges keyed by `{set,mode}`. Schedule activates when `wikantik.retrieval.cron.enabled=true` (default; default hour `wikantik.retrieval.cron.hour_utc=3`). Operators triage at `GET /admin/retrieval-quality?limit=N` and trigger ad-hoc runs via `POST /admin/retrieval-quality/run` with `{"query_set_id":"...","mode":"..."}`. The runner depends on narrow `Retriever` / `CanonicalIdResolver` functional seams so `RetrievalQualitySmokeTest` (the pre-merge gate) can drive it deterministically without a live search stack. Threshold tuning is deferred — `nDCG@5 >= 0.5` is the smoke gate; production thresholds calibrate after two weeks of nightly runs.
 
-**Tool-description examples are in.** Every MCP tool on `/wikantik-admin-mcp` (29) and `/knowledge-mcp` (21), plus both OpenAPI tools on `/tools/*` (2), now ships with at least one worked input/output example in its schema. On the MCP servers, examples land per-property on `inputSchema.properties.<name>` and as a top-level `examples` array on `outputSchema` (the SDK's `JsonSchema` record can't carry top-level extras; `outputSchema` is a free Map). On the OpenAPI tool server, examples use OpenAPI 3.1's `example` keyword on request/response content and on parameter objects. The canonical specimen — `search_knowledge` — matches the design doc's hand-written example verbatim. Agents seeing concrete payloads make first-call success more reliable than reasoning from type schemas alone.
+**Tool-description examples are in.** Every MCP tool on `/wikantik-admin-mcp` and `/knowledge-mcp`, plus both OpenAPI tools on `/tools/*`, ships with at least one worked input/output example in its schema. On the MCP servers, examples land per-property on `inputSchema.properties.<name>` and as a top-level `examples` array on `outputSchema` (the SDK's `JsonSchema` record can't carry top-level extras; `outputSchema` is a free Map). On the OpenAPI tool server, examples use OpenAPI 3.1's `example` keyword on request/response content and on parameter objects. The canonical specimen — `search_knowledge` — matches the design doc's hand-written example verbatim. Agents seeing concrete payloads make first-call success more reliable than reasoning from type schemas alone.
 
 ### Hybrid Retrieval — [HybridRetrieval.md](../wikantik-pages/HybridRetrieval.md)
 
@@ -470,7 +307,7 @@ with `related` retained only as a degraded-index fallback.
 
 **Curation tooling.** `ClusterRenameService` behind
 `POST /admin/clusters/rename?from=&to=[&confirm=true]` and the `rename_cluster` MCP
-tool (admin-mcp 26 → **27**). **An unconfirmed call returns the plan — that is
+tool (registered on `/wikantik-admin-mcp`). **An unconfirmed call returns the plan — that is
 success, not an error**: a bulk rewrite is exactly the operation whose blast radius a
 curator should see first, and computing the plan writes nothing. A target another hub
 already declares is refused (409 / MCP error naming the incumbent) *before* any write;
@@ -491,8 +328,9 @@ the presence of `hub_slug`.
 **Corpus divergence.** Phase 0b shipped `CorpusDivergenceCli` (`wikantik-extract-cli`),
 which compares the repo corpus to a live wiki's `/api/structure/sitemap`. **Exit 2 =
 refused because a snapshot was incomplete**; exit 1 = divergence under `--check`. First
-prod run: 240 findings, 163 pages present only in prod. See the corpus warning under
-*Remote container deployment* above before planning any corpus-wide change.
+prod run: 240 findings, 163 pages present only in prod. See the corpus warning in
+[WikantikOperations.md](../admin/WikantikOperations.md#19-the-checkout-and-production-are-different-corpora)
+before planning any corpus-wide change.
 
 ### Other subsystems
 

@@ -80,7 +80,7 @@ See [FrontendArchitecture.md](FrontendArchitecture.md) for the SPA layout.
 
 ## Deploy and iterate locally
 
-`bin/deploy-local.sh` bootstraps the gitignored `tomcat/tomcat-11` directory: it downloads Tomcat if absent, renders `ROOT.xml` and `wikantik-custom.properties` from `.env`, runs `bin/db/migrate.sh`, and deploys the WAR. The first run copies `.env.example` to `.env` and exits so you can set `POSTGRES_PASSWORD`. The database setup is in [PostgreSQLLocalDeployment](../admin/PostgreSQLLocalDeployment.md).
+`bin/deploy-local.sh` bootstraps the gitignored `tomcat/tomcat-11` directory: it downloads Tomcat if absent, renders `ROOT.xml` and `wikantik-custom.properties` from `.env`, runs `bin/db/migrate.sh`, and deploys the WAR. The first run copies `.env.example` to `.env` and exits so you can set `POSTGRES_PASSWORD`. The database setup is in [PostgreSQL](../admin/PostgreSQL.md).
 
 ```bash
 mvn clean install -DskipTests -T 1C

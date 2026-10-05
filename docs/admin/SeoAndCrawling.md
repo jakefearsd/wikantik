@@ -1,131 +1,141 @@
-# SEO & Crawling — getting wiki.wikantik.com indexed
+# SEO and Crawling
 
-Operator guide for the search-visibility work done 2026-05-25. The first section
-records the code changes (already landed); the rest is the manual setup you need
-to do in Google Search Console and the Cloudflare dashboard — Claude can't touch
-those.
+This guide is for operators who want a Wikantik site indexed by search engines. It
+describes what the application serves for crawlers (robots.txt, the sitemap, per-page
+titles and structured data), the configuration that controls it, and the manual setup
+you do outside the application in Google Search Console and the Cloudflare dashboard.
+For raw-content and change-feed endpoints for RAG pipelines, see
+[IndexingSupport.md](IndexingSupport.md).
 
-## 1. What changed in code (ships on next redeploy)
+## What the application serves
 
-| Fix | File | Effect |
-|-----|------|--------|
-| Sitemap directive pointed at the wrong domain (`wiki.jakefear.com`) | `wikantik-war/src/main/webapp/robots.txt` | robots.txt now advertises `https://wiki.wikantik.com/sitemap.xml`, so sitemap autodiscovery works |
-| Every page had the generic `<title>Wikantik</title>` | `SemanticHeadRenderer` (emits `<title>`) + `SpaRoutingFilter.stripShellTitle` (drops the static shell title) | Each page now gets a unique `<title>` from its frontmatter `title:` (falls back to the page name), plus the readable title flows into `og:title`/`twitter:title` |
-| JSON-LD structured data missing on the live site | already in `SemanticHeadRenderer` source | The deployed 2.0.x build predates the JSON-LD work — a redeploy ships Article/CollectionPage + BreadcrumbList structured data |
+### robots.txt
 
-**These are inert until you redeploy docker1.** The sitemap itself (1,167 URLs,
-correct HTTPS hosts, valid `<lastmod>`) was already healthy.
+`wikantik-war/src/main/webapp/robots.txt` allows indexing of public content and
+advertises the sitemap. Edit the `Sitemap:` line when you deploy under a different host:
 
-### Deploy
-
-```bash
-# build a green image, cut + publish a release, then swap the image on docker1
-bin/cut-release.sh X.Y.Z          # then finish the push manually if prompted
-bin/deploy-release.sh X.Y.Z       # pull published image → remote.sh deploy --skip-build
+```
+Sitemap: https://wiki.wikantik.com/sitemap.xml
 ```
 
-### Verify after deploy
+It disallows `/admin/`, `/edit/`, `/diff/`, `/preferences`, `/reset-password`,
+`/page-graph`, `/knowledge-graph`, `/login`, `/me/mentions`, `/api/`, `/mcp`, `/metrics`
+and `/search`, and sets `Crawl-delay: 1`. One exception is deliberate:
+`Allow: /api/pages/` precedes `Disallow: /api/`. The React reader fetches page bodies
+from `/api/pages/{name}?render=true`, and Google's renderer skips robots-disallowed
+resources, so blocking that path made rendered pages look empty and Google reported
+"Soft 404". Keep the `Allow` ahead of the `Disallow`.
+
+### sitemap.xml
+
+`SitemapServlet` (mapped to `/sitemap.xml` in `web.xml`) lists every public page. It
+emits `<loc>` and `<lastmod>` only. It omits `<changefreq>` and `<priority>` on purpose,
+because Google ignores both; `<lastmod>` is the only optional field worth sending, and
+only while it stays accurate. It also adds:
+
+- Google Image sitemap entries for image attachments.
+- A Google News entry for pages modified within the last 2 days that carry frontmatter
+  `tags`.
+
+Menu and system pages (such as `LeftMenu`) are excluded.
+
+The sitemap has one configuration property. Behind an SSL-terminating proxy
+(cloudflared, nginx, a load balancer) the generated URLs can come out as `http://`; set
+the base URL explicitly:
+
+| Property | Default | Effect |
+|----------|---------|--------|
+| `wikantik.sitemap.baseURL` | blank (derive from the request) | Base URL used for sitemap entries, for example `https://wiki.example.com` |
+
+Two sibling properties feed other surfaces with the same reverse-proxy problem and also
+default to deriving the origin from the request: `wikantik.feed.baseURL` (Atom feed
+links) and `wikantik.public.baseURL` (`/tools/*` citation links). There are no
+sitemap properties for change frequency or priority.
+
+### Per-page title and structured data
+
+`SemanticHeadRenderer` emits a unique `<title>` for each page (from the frontmatter
+`title:`, falling back to the page name) along with `og:title`/`twitter:title`, and
+JSON-LD structured data: `Article` or `CollectionPage` (for hubs), `BreadcrumbList` for
+clustered non-hub pages, and `WebSite` with `SearchAction` on the home page.
+`SpaRoutingFilter.stripShellTitle` removes the static SPA shell title so the per-page
+title is the only one in the document; crawlers honour the first `<title>` they see.
+
+Verify a deployment:
 
 ```bash
-# 1. robots.txt advertises the right sitemap, no jakefear leak
+# robots.txt advertises the right sitemap
 curl -s https://wiki.wikantik.com/robots.txt | grep -i sitemap
-#   → Sitemap: https://wiki.wikantik.com/sitemap.xml
 
-# 2. per-page title is unique (not just "Wikantik")
+# the page title is unique, not just "Wikantik"
 curl -s https://wiki.wikantik.com/wiki/TestDrivenDevelopment | grep -oiP '<title>[^<]*</title>'
-#   → <title>Test Driven Development (TDD) - Wikantik</title>
 
-# 3. structured data is present
+# structured data is present
 curl -s https://wiki.wikantik.com/wiki/TestDrivenDevelopment | grep -c 'application/ld+json'
-#   → 1 or 2 (Article + BreadcrumbList on clustered pages)
 ```
 
-## 2. Google Search Console (do this once, after deploy)
+### Notify search engines of changes
 
-Search Console is how Google learns the site exists, where the sitemap is, and
-reports indexing problems. Without it you're waiting on passive discovery.
+The admin MCP tool `ping_search_engines` (`service` of `indexnow`, `google_ping` or
+`all`) submits changed page URLs to IndexNow (Bing, Yandex). It requires an absolute
+`wikantik.baseURL` and `wikantik.indexnow.apiKey` (blank skips IndexNow with an explicit
+"apiKey not configured" error); the same key must be served publicly at
+`<baseURL>/<key>.txt`. Prefer `service=indexnow`: the `google_ping` option calls Google's
+retired sitemap-ping endpoint, so submit the sitemap in Search Console instead (below).
 
-1. Go to https://search.google.com/search-console and sign in with the Google
-   account you want to own the property.
-2. **Add a property → Domain** and enter `wikantik.com` (Domain properties cover
-   every subdomain — `wiki.`, `www.`, apex — in one shot; the URL-prefix type
-   only covers one host).
-3. Google gives you a **TXT record to add to DNS**. Add it in the Cloudflare
-   dashboard:
-   - Cloudflare → select the **wikantik.com** zone → **DNS → Records → Add record**
-   - Type `TXT`, Name `@`, Content = the `google-site-verification=…` string
-   - Save, then back in Search Console click **Verify** (DNS can take a few
-     minutes to propagate).
-4. Once verified: **Sitemaps** (left nav) → enter `https://wiki.wikantik.com/sitemap.xml`
-   → **Submit**. (You enter just the path/URL; Search Console resolves it.)
-5. Spot-check a page: **URL Inspection** → paste
-   `https://wiki.wikantik.com/wiki/TestDrivenDevelopment` → confirm Google can
-   fetch and render it, and that it sees the per-page title. Use **Request
-   indexing** to nudge a few key pages.
+## Set up Google Search Console
 
-**What to watch over the next 2-4 weeks:** the *Pages* report (how many of the
-1,167 are indexed vs. excluded, and why), and *Performance* (impressions/clicks
-once pages rank). New domains ramp slowly — don't expect traffic in week one.
+Search Console is how Google learns the site exists, where the sitemap is, and which
+pages it excludes. Do this once after deploying.
 
-### Optional: Bing Webmaster Tools
+1. Go to <https://search.google.com/search-console> and sign in with the Google account
+   that should own the property.
+2. Choose **Add property**, then **Domain**, and enter your registrable domain (for
+   example `wikantik.com`). A domain property covers every subdomain in one step; the
+   URL-prefix type covers only one host.
+3. Google gives you a TXT record. In the Cloudflare dashboard, open the zone, go to
+   **DNS**, **Records**, **Add record**, type `TXT`, name `@`, and paste the
+   `google-site-verification=…` value. Click **Verify** in Search Console once DNS has
+   propagated (a few minutes).
+4. Open **Sitemaps**, enter `https://<your-host>/sitemap.xml`, and submit.
+5. Spot-check a page with **URL Inspection**: confirm Google can fetch and render it and
+   sees the per-page title. Use **Request indexing** for a few key pages.
 
-Cheap incremental reach (also feeds DuckDuck;go and, increasingly, AI answer
-engines). https://www.bing.com/webmasters → add `https://wiki.wikantik.com` →
-you can **import directly from Google Search Console** in one click, which also
-carries the sitemap over.
+Over the next weeks watch the **Pages** report (indexed versus excluded, and why) and
+**Performance** (impressions and clicks). A new domain ramps slowly.
 
-## 3. Cloudflare changes (a decision, not just a fix)
+Optionally add the site to Bing Webmaster Tools (<https://www.bing.com/webmasters>); you
+can import the property, including its sitemap, directly from Google Search Console.
 
-### 3a. The AI-crawler block — decide deliberately
+## Configure Cloudflare
 
-The live `robots.txt` has a **Cloudflare-managed block prepended** to our own
-(Cloudflare injects it; it is *not* in our repo). It currently sets:
+### Decide on the AI-crawler block
 
-```
-User-agent: *
-Content-Signal: search=yes,ai-train=no
-...
-User-agent: GPTBot      Disallow: /
-User-agent: ClaudeBot   Disallow: /
-User-agent: Google-Extended  Disallow: /
-User-agent: CCBot, Bytespider, meta-externalagent, Applebot-Extended …  Disallow: /
-```
+When Cloudflare fronts the site, its managed robots.txt can prepend a block of its own
+(it is not in the repository). At the last check it set `Content-Signal:
+search=yes,ai-train=no` and disallowed AI crawlers such as `GPTBot`, `ClaudeBot`,
+`Google-Extended`, `CCBot`, `Bytespider`, `meta-externalagent` and `Applebot-Extended`.
 
-- This does **not** hurt classic Google/Bing search — `Googlebot` and `Bingbot`
-  are separate from `Google-Extended`/`GPTBot`, and `search=yes` explicitly
-  allows search indexing. So organic *search* SEO is unaffected.
-- It **does** block AI answer engines (ChatGPT, Claude, Perplexity, Google AI
-  summaries) from reading the wiki. For a product pitched as "the knowledge base
-  for the AI era," letting those engines cite your showcase content may be worth
-  more than blocking training crawlers. **This is your call.**
+- This does not affect classic search. `Googlebot` and `Bingbot` are separate agents
+  from `Google-Extended` and `GPTBot`, and `search=yes` allows search indexing.
+- It does block AI answer engines from reading the wiki. Whether to allow them is a
+  product decision: for a knowledge base meant to be cited by AI tools, allowing them may
+  matter more than blocking training crawlers.
 
-To change it: Cloudflare dashboard → **wikantik.com** zone → **Bots** (or
-**Security → Bots**) → look for **"Block AI bots" / "AI Scrapers and Crawlers"**
-and the **Managed robots.txt** toggle. Turn the managed block off (or switch it
-to "allow") if you want AI engines in. Leave it on if you want them out. After
-changing, re-check `curl -s https://wiki.wikantik.com/robots.txt`.
+To change it, open the Cloudflare dashboard, select the zone, go to **Security** then
+**Bots** (the label varies by plan), and adjust **Block AI bots** or the **Managed
+robots.txt** toggle. Afterwards re-check `curl -s https://<your-host>/robots.txt`.
 
-### 3b. Confirm Googlebot isn't being challenged
+### Confirm Googlebot is not challenged
 
-Make sure no WAF / "Under Attack" / Bot Fight Mode rule is serving Googlebot a
-JS challenge instead of the page (that silently tanks indexing). In Cloudflare →
-**Security → Events**, filter by the Googlebot user-agent and confirm requests
-are *Allowed*, not *Challenged/Blocked*. Cloudflare verified-bot allowlisting
-normally handles this, but worth a 30-second check.
+A WAF rule, "Under Attack" mode or Bot Fight Mode that serves Googlebot a JavaScript
+challenge silently stops indexing. In **Security** then **Events**, filter by the
+Googlebot user agent and confirm requests are *Allowed*, not *Challenged* or *Blocked*.
+Cloudflare's verified-bot handling normally covers this.
 
-### 3c. (Minor) sitemap cache header
+## Set realistic expectations
 
-`/sitemap.xml` responds with `Cache-Control: private`. Harmless — Googlebot
-ignores it for crawl scheduling — so no action needed. If you ever want CDN
-caching of the sitemap, add a Cloudflare Cache Rule for the `/sitemap.xml` path;
-not worth doing now.
-
-## 4. The honest caveat about traffic
-
-A correct sitemap gets pages **crawled**; it doesn't make them **rank**. The
-demo corpus is a topical grab-bag (`ProxyPattern`, `RoadMealPlanning`,
-`MetaheuristicOptimization`…) on a brand-new domain with no inbound links —
-Google has little reason to rank it yet. The code fixes above let the content
-*compete* (unique titles, structured data, discoverable sitemap); durable
-organic traffic still needs topical focus and links, which is a content strategy,
-not a config change.
+A correct sitemap gets pages crawled; it does not make them rank. Unique titles,
+structured data and a discoverable sitemap let the content compete, but durable organic
+traffic on a new domain still depends on topical focus and inbound links, which is a
+content strategy rather than a configuration change.

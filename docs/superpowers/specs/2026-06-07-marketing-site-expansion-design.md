@@ -257,7 +257,7 @@ Deep-dive substance comes from the repo's own docs/code so claims are true:
 `AuditLog.md` + `AuditLogDesign.md`, `HybridRetrieval.md`, `KnowledgeGraphRerank.md`,
 `KgInclusionPolicy.md`, `PageGraphVsKnowledgeGraph.md`, `AgentGradeContentDesign.md`,
 `StructuralSpineDesign.md`, `GoodMcpDesign.md`, `BackupAndRecovery.md`,
-`ObservabilityDesign.md`, and the security model in `CLAUDE.md`. Specific claims
+`docs/admin/WikantikOperations.md`, and the security model in `CLAUDE.md`. Specific claims
 (endpoints, claim config, permission names, tool counts) are verified against code
 while writing — no invented capabilities. Comparison pages stay factual and "sporting"
 in tone (matching the existing site voice); claims about competitors are limited to

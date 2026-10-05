@@ -338,7 +338,7 @@ Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
-See [PostgreSQLLocalDeployment.md](docs/admin/PostgreSQLLocalDeployment.md) for the full guide.
+See [PostgreSQL.md](docs/admin/PostgreSQL.md) for the full guide.
 
 ## Using Docker
 
@@ -543,8 +543,7 @@ Migrating from a previous Wikantik install? See
 ### Development Setup
 
 - [GettingStartedGuide.md](docs/admin/GettingStartedGuide.md) — **first-time deployer walkthrough**: both the Docker Compose and bare-metal Tomcat paths, the initial `admin` / `admin123` forced-change login, and a first-build pitfalls table
-- [PostgreSQLLocalDeployment.md](docs/admin/PostgreSQLLocalDeployment.md) — **bare-metal deployment guide** (local PostgreSQL + Tomcat 11): one-time setup, the `migrate` role, deploy/redeploy, performance tuning, troubleshooting
-- [DevelopingWithPostgresql.md](docs/admin/DevelopingWithPostgresql.md) — Full PostgreSQL schema, JDBC, and JNDI configuration
+- [PostgreSQL.md](docs/admin/PostgreSQL.md) — **PostgreSQL and bare-metal deployment guide** (local PostgreSQL + Tomcat 11): one-time setup, deploy/redeploy, JNDI wiring, the users/groups/policy schema, performance tuning, troubleshooting
 - [ConfigurationReference.md](docs/ConfigurationReference.md) — generated reference for every `wikantik.*`/`mcp.*`/`tools.*` property: default, type, and description
 - [MvnCheatSheet.md](docs/developer/Building.md) — Maven build, test, and debug commands
 - [LoggingConfig.md](docs/admin/LoggingConfig.md) — Log4j2 external configuration
@@ -557,25 +556,21 @@ Migrating from a previous Wikantik install? See
 - [CloudDeployment.md](docs/admin/CloudDeployment.md) — **cloud VM deployment** (AWS/GCP): the `deploy/aws` / `deploy/gcp` Terraform reference modules, the `docker-compose.cloud.yml` overlay, and pull-based updates via `wikantik-update.sh`
 - [CostTiers.md](docs/admin/CostTiers.md) — **GenAI cost-tier reference**: the `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`), three named tiers with exact `.env` / properties presets, and how to verify a tier is actually enforced
 - [WikantikOperations.md](docs/admin/WikantikOperations.md) — the **operations handbook**: container topology, admin/maintenance scripts (`bin/kg-*.sh`, `remote.sh` subcommands), index/KG rebuilds, performance & concurrency tuning
-- [production-container-architecture.md](docs/admin/production-container-architecture.md) — production deployment topology: the single-host container stack and the tag-triggered release pipeline
 - [BackupAndRecovery.md](docs/admin/BackupAndRecovery.md) — backup sidecar, off-box NAS pull, audit-archive retention, and the disaster-recovery restore drill
-- [ProductionDBWorkflow.md](docs/admin/ProductionDBWorkflow.md) — the production database workflow: the `migrate` role split, migration safety, and what remains to be hardened
+- [DatabaseMigrations.md](docs/admin/DatabaseMigrations.md) — database migrations: how `migrate.sh` works, the `migrate` role split, adding a migration, and the migration history
 - [ci-cd-step-by-step.md](docs/developer/CI.md) — the GitHub Actions workflows: tag-triggered `release.yml` plus the manual-only CI workflows
 - [migration-1.0-to-1.1.md](docs/archive/migration-1.0-to-1.1.md) — historical migration notes for an early Wikantik upgrade
 - [SendingEmailFromTheWiki.md](docs/admin/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
-- [ObservabilityDesign.md](docs/admin/ObservabilityDesign.md) — observability design: request correlation, Prometheus metrics (superseded — monitoring now via jakemon)
 
 ### Features
 
 - [RagContextBundle.md](docs/admin/RagContextBundle.md) — **RAG context bundle & session briefings**: the `/api/bundle` + `assemble_bundle` context bundle (query params, retrieval modes, the coverage signal), `/api/briefing` + `get_briefing` session briefings, version-pinned `cite://` citations with stale-citation self-healing, and the full `wikantik.bundle.*` config reference
 - [Frontmatter.md](docs/user/Frontmatter.md) — **structured article metadata**: the full field reference, the schema-driven editor with live validation & Save-gating, the runbook block, validation rules, and how one frontmatter block feeds search / ontology / SEO / agents
 - [OntologyManagement.md](docs/admin/OntologyManagement.md) — **the `wikantik:` RDF/OWL ontology**: the three layers, creating & curating page concepts and the Knowledge Graph, the SHACL write-time gate, the drift burn-down dashboard, the public SPARQL/JSON-LD/dump surface, and evolving the vocabulary
-- [MarkdownLinks.md](docs/user/MarkdownLinks.md) — Markdown internal and external link syntax
+- [Linking.md](docs/user/Linking.md) — page links, wikilinks, embeds and plugin syntax
 - [MathematicalNotation.md](docs/user/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX, plus the save-time validation that blocks un-isolated display math
 - [NewUI.md](docs/developer/FrontendArchitecture.md) — React SPA design and architecture (reader, editor, admin, Knowledge Graph viewer)
-- [DatabaseUpdates.md](docs/admin/DatabaseUpdates.md) — Knowledge Graph schema and index layout
 - [KnowledgeGraphRerank.md](docs/archive/KnowledgeGraphRerank.md) — Configuration and verification guide for the entity extractor and unified embeddings, plus the historical record of the Knowledge Graph-aware search rerank (removed in 2026-07 after measuring no net ranking lift)
-- [RelationalUserDatabase.md](docs/admin/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/archive/Sitemap.md) — Sitemap.xml and Atom feed servlets
 - [SeoAndCrawling.md](docs/admin/SeoAndCrawling.md) — SEO and crawler configuration: robots.txt, per-page `<title>`, JSON-LD, AI-crawler policy, and prerendering for bots
 - [SitemapOptimization.md](docs/archive/SitemapOptimization.md) — sitemap tuning notes and rationale
@@ -601,7 +596,7 @@ configuration, the relevant admin UI route, REST endpoints, auth model, and trou
 
 ### Security
 
-- Database-backed authorization — policy grants and groups managed via admin UI (see [RelationalUserDatabase.md](docs/admin/RelationalUserDatabase.md))
+- Database-backed authorization — policy grants and groups managed via admin UI (see [PostgreSQL.md](docs/admin/PostgreSQL.md))
 - Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
 - REST API permission enforcement — all endpoints check ACLs and policy grants
 - NIST 800-63B password validation with common-password blocklist
@@ -623,7 +618,7 @@ configuration, the relevant admin UI route, REST endpoints, auth model, and trou
 - [StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md) — the machine-queryable structural index behind `/api/structure/*` and the spine MCP tools
 - [AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md) — runbook pages, verification metadata, the for-agent projection, and retrieval-quality CI
 - [HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md) — BM25 + dense RRF fusion, the dense-backend choice, and the measured recall levers (plus the ones measured and rejected)
-- [ProjectReference.md](docs/developer/ProjectReference.md) — operational runbooks and the detailed design-doc status blocks (the wikantik-main decomposition and other multi-phase efforts are tracked here)
+- [ProjectReference.md](docs/developer/ProjectReference.md) — developer reference: the configuration surface, `bin/` script conventions, the code-health site, and the detailed design-doc status blocks (the wikantik-main decomposition and other multi-phase efforts are tracked here)
 - [RefactorToPatterns.md](docs/archive/RefactorToPatterns.md) — GoF design patterns applied across the codebase
 - [PerformanceEvaluation.md](docs/archive/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
 - [complete_markdown_migration.md](docs/archive/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering

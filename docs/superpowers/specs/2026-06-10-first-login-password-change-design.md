@@ -146,7 +146,7 @@ Cleared by:
 
 Align CLAUDE.md (`admin / admin` → `admin / admin123`; retire the stale
 "edit ROOT.xml by hand" step), README, `docs/DockerDeployment.md`,
-`docs/WikantikOperations.md`, `docs/PostgreSQLLocalDeployment.md` with the
+`docs/WikantikOperations.md`, `docs/admin/PostgreSQL.md` with the
 single canonical credential story and the forced-change behavior.
 
 ## 8. Testing (TDD)

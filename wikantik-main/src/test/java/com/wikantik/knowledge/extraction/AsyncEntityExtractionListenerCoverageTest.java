@@ -90,13 +90,13 @@ class AsyncEntityExtractionListenerCoverageTest {
         final Repos r = Repos.empty();
         final EntityExtractorConfig cfg = enabledConfig();
         assertThrows( IllegalArgumentException.class, () -> new AsyncEntityExtractionListener(
-            null, cfg, r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo,
+            null, cfg, new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ),
             new SimpleMeterRegistry() ) );
         assertThrows( IllegalArgumentException.class, () -> new AsyncEntityExtractionListener(
-            mockExtractor(), null, r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo,
+            mockExtractor(), null, new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ),
             new SimpleMeterRegistry() ) );
         assertThrows( IllegalArgumentException.class, () -> new AsyncEntityExtractionListener(
-            mockExtractor(), cfg, null, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo,
+            mockExtractor(), cfg, new AsyncEntityExtractionListener.Repositories( null, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ),
             new SimpleMeterRegistry() ) );
     }
 
@@ -105,7 +105,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         final EntityExtractorConfig cfg = configWith( 42_000L, 0.6, 200, 5_000L );
         final Repos r = Repos.empty();
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                mockExtractor(), cfg, r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo,
+                mockExtractor(), cfg, new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ),
                 new SimpleMeterRegistry() ) ) {
             assertEquals( Duration.ofMillis( 42_000L ), listener.timeout() );
         }
@@ -126,8 +126,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         // No explicit executor -> uses defaultExecutor(), whose ThreadFactory only ever
         // fires once a task is actually submitted (accept(), not runExtractionSync()).
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             listener.accept( List.of( chunkId ) );
             verify( extractor, timeout( 2000 ) ).extract( any(), any() );
         }
@@ -146,8 +145,7 @@ class AsyncEntityExtractionListenerCoverageTest {
             new ContentChunkRepository.MentionableChunk( chunkId, "ExcludedPage", 0, List.of(), "text" ) ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry(), excluded ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry(), excluded ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
             assertEquals( AsyncEntityExtractionListener.RunResult.EMPTY, result );
@@ -176,8 +174,7 @@ class AsyncEntityExtractionListenerCoverageTest {
             new ContentChunkRepository.MentionableChunk( skip, "ExcludedPage", 0, List.of(), "Other prose." ) ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry(), excluded ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry(), excluded ) ) {
             // Filtering (some excluded, some kept) + successful completion debug lines.
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( keep, skip ) );
@@ -204,7 +201,7 @@ class AsyncEntityExtractionListenerCoverageTest {
             /*skipNoProperNoun*/ false, /*skipTooShort*/ true, /*minTokens*/ 10_000 );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, cfg, r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo,
+                extractor, cfg, new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ),
                 new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
@@ -228,8 +225,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         // Only accept() (not runExtractionSync) applies the rate limit.
         final ImmediateExecutorService direct = new ImmediateExecutorService();
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry(), direct ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry(), direct ) ) {
             listener.accept( List.of( chunkId ) );
             listener.accept( List.of( chunkId ) );   // same page, immediately -> rate-limited
             verify( extractor, Mockito.times( 1 ) ).extract( any(), any() );
@@ -251,8 +247,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         final EntityExtractorConfig cfg = configWith( 120_000L, 0.6, 200, /*perPageMinIntervalMs*/ 0L );
         final ImmediateExecutorService direct = new ImmediateExecutorService();
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, cfg, r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry(), direct ) ) {
+                extractor, cfg, new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry(), direct ) ) {
             listener.accept( List.of( chunkId ) );
             listener.accept( List.of( chunkId ) );
             verify( extractor, Mockito.times( 2 ) ).extract( any(), any() );
@@ -268,8 +263,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         when( r.chunkRepo.findByIds( any() ) ).thenThrow( new RuntimeException( "db down" ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( UUID.randomUUID() ) );
             assertEquals( AsyncEntityExtractionListener.RunResult.EMPTY, result );
@@ -294,8 +288,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         when( r.mentionRepo.upsertAll( any() ) ).thenReturn( 1 );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
             assertEquals( 1, result.mentionsWritten() );
@@ -317,8 +310,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         when( r.nodeRepo.getNodeByName( "Alice" ) ).thenThrow( new RuntimeException( "lookup boom" ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
             assertEquals( 0, result.mentionsWritten(), "an unresolvable mention name must be dropped, not thrown" );
@@ -344,8 +336,7 @@ class AsyncEntityExtractionListenerCoverageTest {
         when( r.mentionRepo.upsertAll( any() ) ).thenThrow( new RuntimeException( "insert boom" ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
             assertEquals( 0, result.mentionsWritten() );
@@ -369,8 +360,7 @@ class AsyncEntityExtractionListenerCoverageTest {
             .thenThrow( new RuntimeException( "insert boom" ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
             assertEquals( 0, result.proposalsFiled(), "a failed insert must not count as filed" );
@@ -391,8 +381,7 @@ class AsyncEntityExtractionListenerCoverageTest {
             List.of(), "test", Duration.ZERO ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
             assertEquals( 0, result.proposalsFiled() );
@@ -417,8 +406,7 @@ class AsyncEntityExtractionListenerCoverageTest {
             .thenThrow( new RuntimeException( "insert boom" ) );
 
         try ( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-                r.rejectionRepo, new SimpleMeterRegistry() ) ) {
+                extractor, enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry() ) ) {
             final AsyncEntityExtractionListener.RunResult result =
                 listener.runExtractionSync( List.of( chunkId ) );
             assertEquals( 0, result.proposalsFiled() );
@@ -460,8 +448,8 @@ class AsyncEntityExtractionListenerCoverageTest {
     private static AsyncEntityExtractionListener newListenerWithOwnedExecutor( final ExecutorService pool ) {
         final Repos r = Repos.empty();
         return new AsyncEntityExtractionListener(
-            mockExtractor(), enabledConfig(), r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo,
-            r.rejectionRepo, new SimpleMeterRegistry(), pool, /*ownsExecutor*/ true, /*excludedPages*/ null );
+            mockExtractor(), enabledConfig(), new AsyncEntityExtractionListener.Repositories( r.chunkRepo, r.mentionRepo, r.nodeRepo, r.proposalRepo, r.rejectionRepo ), new SimpleMeterRegistry(),
+            new AsyncEntityExtractionListener.ExecutionSetup( pool, /*ownsExecutor*/ true, /*excludedPages*/ null ) );
     }
 
     // ---- helpers ----

@@ -283,8 +283,10 @@ public final class KnowledgeWiringHelper {
 
         final AsyncEntityExtractionListener listener =
             new AsyncEntityExtractionListener(
-                extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo,
-                kgNodes, kgProposals, kgRejections, meter, excludedPagesRepo );
+                extractorOpt.get(), extractorCfg,
+                new AsyncEntityExtractionListener.Repositories( contentChunkRepo, mentionRepo,
+                    kgNodes, kgProposals, kgRejections ),
+                meter, excludedPagesRepo );
         engine.setManager( ChunkEntityMentionRepository.class, mentionRepo );
         engine.setManager( AsyncEntityExtractionListener.class, listener );
 

@@ -111,7 +111,7 @@ class AsyncEntityExtractionListenerBranchTest {
         final KgRejectionRepository rejectionRepo = Mockito.mock( KgRejectionRepository.class );
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-            extractor, cfg, chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo,
+            extractor, cfg, new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo ),
             new SimpleMeterRegistry(), shuttingDown );
 
         // Must NOT throw — listener catches RejectedExecutionException and logs a warn.
@@ -206,7 +206,7 @@ class AsyncEntityExtractionListenerBranchTest {
         // Use a same-thread executor so tasks run synchronously inside accept().
         final ExecutorService sameThread = java.util.concurrent.Executors.newSingleThreadExecutor();
         try ( final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, cfg, chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo,
+                extractor, cfg, new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo ),
                 new SimpleMeterRegistry(), sameThread ) ) {
 
             // First accept() — passes the rate-limit gate.
@@ -257,7 +257,7 @@ class AsyncEntityExtractionListenerBranchTest {
         final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( p );
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-            extractor, cfg, chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo,
+            extractor, cfg, new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo ),
             new SimpleMeterRegistry() );
 
         // Must NOT throw; should still attempt both chunks.
@@ -300,7 +300,7 @@ class AsyncEntityExtractionListenerBranchTest {
         final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( p );
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-            extractor, cfg, chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo,
+            extractor, cfg, new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo ),
             new SimpleMeterRegistry() );
 
         // Must NOT throw; extraction still proceeds with an empty node dictionary.
@@ -337,8 +337,7 @@ class AsyncEntityExtractionListenerBranchTest {
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
             extractor, EntityExtractorConfig.fromProperties( p ),
-            repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(),
+            new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ),
             new SimpleMeterRegistry() );
 
         final AsyncEntityExtractionListener.RunResult r =
@@ -373,8 +372,7 @@ class AsyncEntityExtractionListenerBranchTest {
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
             extractor, EntityExtractorConfig.fromProperties( p ),
-            repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(),
+            new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ),
             new SimpleMeterRegistry() );
 
         final AsyncEntityExtractionListener.RunResult r =
@@ -413,8 +411,7 @@ class AsyncEntityExtractionListenerBranchTest {
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
             extractor, EntityExtractorConfig.fromProperties( p ),
-            repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(),
+            new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ),
             new SimpleMeterRegistry() );
 
         final AsyncEntityExtractionListener.RunResult r =
@@ -449,8 +446,7 @@ class AsyncEntityExtractionListenerBranchTest {
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
             extractor, EntityExtractorConfig.fromProperties( p ),
-            repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(),
+            new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ),
             new SimpleMeterRegistry() );
 
         final AsyncEntityExtractionListener.RunResult r =
@@ -487,8 +483,7 @@ class AsyncEntityExtractionListenerBranchTest {
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
             extractor, EntityExtractorConfig.fromProperties( p ),
-            repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(),
+            new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ),
             new SimpleMeterRegistry() );
 
         final AsyncEntityExtractionListener.RunResult r =
@@ -529,8 +524,7 @@ class AsyncEntityExtractionListenerBranchTest {
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
             extractor, EntityExtractorConfig.fromProperties( p ),
-            repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(),
+            new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ),
             new SimpleMeterRegistry() );
 
         final AsyncEntityExtractionListener.RunResult r =
@@ -557,8 +551,7 @@ class AsyncEntityExtractionListenerBranchTest {
             final Repos repos = Repos.empty();
             // The 5-arg constructor with an explicit executor sets ownsExecutor=false.
             final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, cfg, repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-                repos.proposalRepo(), repos.rejectionRepo(),
+                extractor, cfg, new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ),
                 new SimpleMeterRegistry(), executor );
             listener.close();
 
@@ -590,8 +583,7 @@ class AsyncEntityExtractionListenerBranchTest {
             final EntityExtractorConfig cfg ) {
         final Repos repos = Repos.empty();
         return new AsyncEntityExtractionListener(
-            extractor, cfg, repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(), new SimpleMeterRegistry() );
+            extractor, cfg, new AsyncEntityExtractionListener.Repositories( repos.chunkRepo(), repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ), new SimpleMeterRegistry() );
     }
 
     private static AsyncEntityExtractionListener buildListenerWithChunkRepo(
@@ -600,8 +592,7 @@ class AsyncEntityExtractionListenerBranchTest {
             final ContentChunkRepository chunkRepo ) {
         final Repos repos = Repos.empty();
         return new AsyncEntityExtractionListener(
-            extractor, cfg, chunkRepo, repos.mentionRepo(), repos.nodeRepo(),
-            repos.proposalRepo(), repos.rejectionRepo(), new SimpleMeterRegistry() );
+            extractor, cfg, new AsyncEntityExtractionListener.Repositories( chunkRepo, repos.mentionRepo(), repos.nodeRepo(), repos.proposalRepo(), repos.rejectionRepo() ), new SimpleMeterRegistry() );
     }
 
     /** Convenience record grouping the five repository mocks. */

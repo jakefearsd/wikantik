@@ -83,8 +83,7 @@ class AsyncEntityExtractionListenerPrefilterTest {
 
         final ExecutorService inline = Executors.newSingleThreadExecutor();
         try( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                 extractor, cfg, chunkRepo, mentionRepo,
-                 nodeRepo, proposalRepo, rejectionRepo,
+                 extractor, cfg, new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo ),
                  new SimpleMeterRegistry(), inline ) ) {
 
             final AsyncEntityExtractionListener.RunResult res =

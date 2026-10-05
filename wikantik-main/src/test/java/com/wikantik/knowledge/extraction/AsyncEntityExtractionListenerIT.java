@@ -198,7 +198,9 @@ class AsyncEntityExtractionListenerIT {
                                                                  final EntityExtractorConfig cfg ) {
         // Listener-owned executor: close() drains it before the test inspects tables.
         return new AsyncEntityExtractionListener(
-            extractor, cfg, chunkRepo, mentionRepo, kgNodes, kgProposals, kgRejections, new SimpleMeterRegistry() );
+            extractor, cfg,
+            new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, kgNodes, kgProposals, kgRejections ),
+            new SimpleMeterRegistry() );
     }
 
     private UUID seedChunk( final String page, final int index, final String text ) throws Exception {

@@ -90,8 +90,7 @@ class AsyncEntityExtractionListenerSkipTest {
         final ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, config, chunkRepo, mentionRepo,
-                nodeRepo, proposalRepo, rejectionRepo,
+                extractor, config, new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo ),
                 new SimpleMeterRegistry(), excluded );
 
             final AsyncEntityExtractionListener.RunResult result =
@@ -137,8 +136,7 @@ class AsyncEntityExtractionListenerSkipTest {
             propertiesFor( "ollama" ) );
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-            extractor, config, chunkRepo, mentionRepo,
-            nodeRepo, proposalRepo, rejectionRepo,
+            extractor, config, new AsyncEntityExtractionListener.Repositories( chunkRepo, mentionRepo, nodeRepo, proposalRepo, rejectionRepo ),
             new SimpleMeterRegistry() );
 
         listener.runExtractionSync( List.of( chunk1, chunk2 ) );

@@ -111,45 +111,49 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
         }
     }
 
-    public AsyncEntityExtractionListener( final EntityExtractor extractor,
-                                          final EntityExtractorConfig config,
-                                          final ContentChunkRepository chunkRepository,
-                                          final ChunkEntityMentionRepository mentionRepository,
-                                          final KgNodeRepository nodeRepository,
-                                          final KgProposalRepository proposalRepository,
-                                          final KgRejectionRepository rejectionRepository,
-                                          final MeterRegistry meterRegistry ) {
-        this( extractor, config, chunkRepository, mentionRepository,
-              nodeRepository, proposalRepository, rejectionRepository,
-              meterRegistry, defaultExecutor(), /*ownsExecutor*/ true, /*excludedPages*/ null );
+    /** Parameter object grouping the five repositories the listener reads and writes. */
+    public record Repositories( ContentChunkRepository chunkRepository,
+                                ChunkEntityMentionRepository mentionRepository,
+                                KgNodeRepository nodeRepository,
+                                KgProposalRepository proposalRepository,
+                                KgRejectionRepository rejectionRepository ) {
+    }
+
+    /**
+     * Parameter object for the executor-related constructor arguments.
+     *
+     * @param executor      executor that runs extraction work
+     * @param ownsExecutor  whether {@link #close()} shuts the executor down
+     * @param excludedPages optional excluded-pages repository (may be null)
+     */
+    record ExecutionSetup( ExecutorService executor, boolean ownsExecutor,
+                           KgExcludedPagesRepository excludedPages ) {
     }
 
     public AsyncEntityExtractionListener( final EntityExtractor extractor,
                                           final EntityExtractorConfig config,
-                                          final ContentChunkRepository chunkRepository,
-                                          final ChunkEntityMentionRepository mentionRepository,
-                                          final KgNodeRepository nodeRepository,
-                                          final KgProposalRepository proposalRepository,
-                                          final KgRejectionRepository rejectionRepository,
+                                          final Repositories repositories,
+                                          final MeterRegistry meterRegistry ) {
+        this( extractor, config, repositories,
+              meterRegistry, new ExecutionSetup( defaultExecutor(), /*ownsExecutor*/ true, /*excludedPages*/ null ) );
+    }
+
+    public AsyncEntityExtractionListener( final EntityExtractor extractor,
+                                          final EntityExtractorConfig config,
+                                          final Repositories repositories,
                                           final MeterRegistry meterRegistry,
                                           final ExecutorService executor ) {
-        this( extractor, config, chunkRepository, mentionRepository,
-              nodeRepository, proposalRepository, rejectionRepository,
-              meterRegistry, executor, /*ownsExecutor*/ false, /*excludedPages*/ null );
+        this( extractor, config, repositories,
+              meterRegistry, new ExecutionSetup( executor, /*ownsExecutor*/ false, /*excludedPages*/ null ) );
     }
 
     public AsyncEntityExtractionListener( final EntityExtractor extractor,
                                           final EntityExtractorConfig config,
-                                          final ContentChunkRepository chunkRepository,
-                                          final ChunkEntityMentionRepository mentionRepository,
-                                          final KgNodeRepository nodeRepository,
-                                          final KgProposalRepository proposalRepository,
-                                          final KgRejectionRepository rejectionRepository,
+                                          final Repositories repositories,
                                           final MeterRegistry meterRegistry,
                                           final KgExcludedPagesRepository excludedPages ) {
-        this( extractor, config, chunkRepository, mentionRepository,
-              nodeRepository, proposalRepository, rejectionRepository,
-              meterRegistry, defaultExecutor(), /*ownsExecutor*/ true, excludedPages );
+        this( extractor, config, repositories,
+              meterRegistry, new ExecutionSetup( defaultExecutor(), /*ownsExecutor*/ true, excludedPages ) );
     }
 
     /**
@@ -162,24 +166,19 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
      */
     AsyncEntityExtractionListener( final EntityExtractor extractor,
                                            final EntityExtractorConfig config,
-                                           final ContentChunkRepository chunkRepository,
-                                           final ChunkEntityMentionRepository mentionRepository,
-                                           final KgNodeRepository nodeRepository,
-                                           final KgProposalRepository proposalRepository,
-                                           final KgRejectionRepository rejectionRepository,
+                                           final Repositories repositories,
                                            final MeterRegistry meterRegistry,
-                                           final ExecutorService executor,
-                                           final boolean ownsExecutor,
-                                           final KgExcludedPagesRepository excludedPages ) {
+                                           final ExecutionSetup setup ) {
         if( extractor == null ) {
             throw new IllegalArgumentException( "extractor must not be null" );
         }
         if( config == null ) {
             throw new IllegalArgumentException( "config must not be null" );
         }
-        if( chunkRepository == null || mentionRepository == null
-                || nodeRepository == null || proposalRepository == null
-                || rejectionRepository == null ) {
+        if( repositories == null || repositories.chunkRepository() == null
+                || repositories.mentionRepository() == null
+                || repositories.nodeRepository() == null || repositories.proposalRepository() == null
+                || repositories.rejectionRepository() == null ) {
             throw new IllegalArgumentException( "repositories must not be null" );
         }
         this.extractor = extractor;
@@ -191,14 +190,14 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             config.prefilterSkipNoProperNoun(),
             config.prefilterSkipTooShort(),
             config.prefilterMinTokens() );
-        this.chunkRepository = chunkRepository;
-        this.mentionRepository = mentionRepository;
-        this.nodeRepository = nodeRepository;
-        this.proposalRepository = proposalRepository;
-        this.rejectionRepository = rejectionRepository;
-        this.executor = executor;
-        this.ownsExecutor = ownsExecutor;
-        this.excludedPages = excludedPages;
+        this.chunkRepository = repositories.chunkRepository();
+        this.mentionRepository = repositories.mentionRepository();
+        this.nodeRepository = repositories.nodeRepository();
+        this.proposalRepository = repositories.proposalRepository();
+        this.rejectionRepository = repositories.rejectionRepository();
+        this.executor = setup.executor();
+        this.ownsExecutor = setup.ownsExecutor();
+        this.excludedPages = setup.excludedPages();
 
         final String code = extractor.code();
         this.requestsCounter = Counter.builder( "wikantik_kg_extractor_requests_total" )

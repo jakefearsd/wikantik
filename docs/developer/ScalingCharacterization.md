@@ -1,5 +1,7 @@
 # Wikantik Scaling Characterization
 
+> **Dated study (2026-05).** The numbers, host sizing and findings below were measured in May 2026 and are not re-measured automatically. Re-run the methodology in [LoadTesting.md](LoadTesting.md) before you rely on them for capacity decisions.
+
 **Study date:** 2026-05-19 / 2026-05-20
 **Host:** docker1 — 16-core, Docker-hosted; wikantik container at 2 GB / db (pgvector pg18) at 2 GB after Phase 0
 **Methodology spec / implementation plan:** retired once the study landed (the

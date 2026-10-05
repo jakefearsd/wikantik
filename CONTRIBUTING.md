@@ -2,8 +2,11 @@
 
 Wikantik is in active development and welcomes contributions — bug reports,
 documentation improvements, code, design feedback. This file is the short
-version; the long-form workflow lives in [`CLAUDE.md`](CLAUDE.md), which
-walks every command needed to build, run, and test the project locally.
+version. For details, see [`docs/developer/Building.md`](docs/developer/Building.md)
+(build and local deploy), [`docs/developer/Testing.md`](docs/developer/Testing.md)
+(unit and integration tests, the pre-commit gate) and
+[`docs/developer/Architecture.md`](docs/developer/Architecture.md) (module map and
+dependency rules). [`CLAUDE.md`](CLAUDE.md) holds the working rules for AI coding agents.
 
 ## Ways to contribute
 
@@ -55,6 +58,8 @@ The full guide lives at
 For a container-based dev loop see `bin/container.sh --help`.
 
 ### Tests
+
+The full test guide is [`docs/developer/Testing.md`](docs/developer/Testing.md).
 
 ```bash
 # Unit tests (parallel, fast)
@@ -110,8 +115,8 @@ onto a raw `mvn clean install -Pintegration-tests` invocation yourself.
 
 If you're touching a new area:
 
-- The high-level module map is in
-  [README.md > Module Structure](README.md#module-structure).
+- The module map and dependency rules are in
+  [`docs/developer/Architecture.md`](docs/developer/Architecture.md).
 - The Page Graph and Knowledge Graph are *separate subsystems*. Read
   [`docs/wikantik-pages/PageGraphVsKnowledgeGraph.md`](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md)
   before working in either.

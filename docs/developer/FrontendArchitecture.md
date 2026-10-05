@@ -28,14 +28,15 @@ viewers.
 | Styling | Hand-written CSS with a token-based design system (no framework) |
 | State | React state + hooks; no external store library |
 
-The build runs automatically during `mvn package` — `frontend-maven-plugin`
-installs Node and npm, runs `npm ci` and `npm run build`, and the resulting
-`dist/` is copied into the WAR.
+The build runs automatically during `mvn package`: `wikantik-war/pom.xml`
+uses `exec-maven-plugin` to run `npm ci --no-audit --no-fund --ignore-scripts`
+and then `npm run build` in `wikantik-frontend` (Node and npm must already be
+installed), and the resulting `dist/` is copied into the WAR.
 
 ## Routing
 
 The SPA uses client-side routing for all interactive views. Deep links are
-handled by `SpaRoutingFilter` (in `wikantik-rest`), which forwards recognised
+handled by `SpaRoutingFilter` (`com.wikantik.rest.SpaRoutingFilter` in `wikantik-rest`), which forwards recognised
 SPA paths to `/index.html` so React Router can take over.
 
 `SpaRoutingFilter` matches two categories of path:
@@ -90,9 +91,10 @@ admin routes use `app-content-wide`; wiki article routes use the narrow reading
 column.
 
 The REST API lives under `/api/` and admin endpoints under `/admin/`. Two MCP
-servers — `/wikantik-admin-mcp` (29 write/analytics tools) and `/knowledge-mcp`
-(21 read-only retrieval + KG tools) — plus the OpenAPI tool server at `/tools/*`
-are all serviced by separate backend modules and are not part of the SPA.
+servers (`/wikantik-admin-mcp` and `/knowledge-mcp`) plus the OpenAPI tool
+server at `/tools/*` are serviced by separate backend modules and are not part
+of the SPA. Servlet counts are in [Architecture.md](Architecture.md); MCP tool
+counts are owned by the admin MCP documentation.
 
 ## Project Layout
 
@@ -128,8 +130,8 @@ wikantik-frontend/
     │   ├── pagegraph/           Page Graph viewer (lazy-loaded)
     │   ├── kgraph/              Knowledge Graph viewer (lazy-loaded)
     │   └── ui/                  Shared primitive components (see below)
-    ├── hooks/                   ~16 custom hooks (see below)
-    ├── utils/                   ~22 utility modules (see below)
+    ├── hooks/                   custom hooks (see below)
+    ├── utils/                   utility modules (see below)
     └── styles/
         ├── globals.css          Reset, CSS variables, theme tokens
         ├── article.css
@@ -370,6 +372,7 @@ A set of reusable primitives used across both the reader and admin panel:
 | `Card.jsx` | Content card container |
 | `Chip.jsx` | Removable filter chip |
 | `Combobox.jsx` | Searchable select with typeahead |
+| `ConfirmDialog.jsx` | Confirmation modal |
 | `EmptyState.jsx` | Zero-results placeholder with icon |
 | `Icon.jsx` | Icon wrapper |
 | `Modal.jsx` | Accessible modal dialog |
@@ -382,7 +385,7 @@ A set of reusable primitives used across both the reader and admin panel:
 
 ## Hooks (`src/hooks/`)
 
-~21 custom hooks (each paired with a `.test` file). Grouped by concern:
+35 hook modules (counted 2026-10-05; most have a `.test` file). The main groups:
 
 - **Auth & session**: `useAuth.jsx` (login state, current user via `AuthProvider` context), `useCapabilities.jsx` (server-advertised feature flags, e.g. `knowledgeGraph`)
 - **Theme**: `useDarkMode.js` (toggle + localStorage persistence)
@@ -395,7 +398,7 @@ A set of reusable primitives used across both the reader and admin panel:
 
 ## Utils (`src/utils/`)
 
-~21 utility modules (each paired with a `.test` file). Grouped by concern:
+54 utility modules (counted 2026-10-05; most have a `.test` file). The main groups:
 
 - **Markdown / rendering**: `remarkAttachments.js` (custom remark plugin for attachment links), `math.js` (LaTeX helpers), `rehypeSourceLine.js`, `headingAnchors.js`, `headings.js`, `codeCopy.js`, `highlight.js`, `markdownFormat.js`
 - **Page / URL**: `pageUrl.js`, `slugUtils.js`, `frontmatterUtils.js`, `readingTime.js`

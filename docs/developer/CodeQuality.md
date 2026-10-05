@@ -1,149 +1,75 @@
-# Code Quality Baseline & Tooling
+# Code Quality Gates and Tooling
 
-Baseline captured **2026-06-06**. This is the standing reference for the three
-quality dimensions we track: **duplication**, **cyclomatic/cognitive complexity**,
-and **line coverage**. Re-run the commands below to refresh the numbers.
+This page is for developers who need to know which quality checks exist, how to run them, and what the current ratchet values are. Numbers that change live in one table below with a measurement date; everything else is stable procedure.
 
-All three tools are opt-in (kept out of the default build so it stays fast).
+## Read the current numbers
 
----
+Measured on 2026-10-05 from the poms and `build-support/`. Coverage floors may rise later; the pom is authoritative.
 
-## How to run each analysis
+| Item | Value | Source |
+|------|-------|--------|
+| Root default line-coverage floor | 0.80 | `wikantik.coverage.line.minimum` in the root `pom.xml` |
+| Floor 0.90 | `wikantik-insights`, `wikantik-main`, `wikantik-ontology` | module poms |
+| Floor 0.89 | `wikantik-observability`, `wikantik-util` | module poms |
+| Floor 0.88 | `wikantik-mcp-core` | module pom |
+| Floor 0.87 | `wikantik-admin-mcp` | module pom |
+| Floor 0.86 | `wikantik-http`, `wikantik-rest` | module poms |
+| Floor 0.85 | `wikantik-cache`, `wikantik-event`, `wikantik-knowledge` | module poms |
+| Floor 0.84 | `wikantik-cache-memcached`, `wikantik-scim`, `wikantik-tools` | module poms |
+| Floor 0.83 | `wikantik-connectors`, `wikantik-extract-cli` | module poms |
+| Floor 0.81 | `wikantik-ingest` | module pom |
+| Floor 0.80 | `wikantik-jdbc` | module pom |
+| Floor 0.71 | `wikantik-api` | module pom |
+| PMD complexity baseline entries | 105 | non-comment `=` lines in `build-support/pmd-complexity-baseline.properties` |
+| `TestSchemaSingleSourceTest` baseline entries | 1 (the `JDBCPluginCITest` carve-out) | `wikantik-war/src/test/resources/test-ddl-baseline.txt` |
+| Frontend (Vitest) thresholds | lines 87, statements 85, functions 85, branches 76 | `wikantik-frontend/vite.config.js` |
+
+`wikantik-bom`, `wikantik-war`, `wikantik-wikipages`, `wikantik-it-tests` and `wikantik-frontend` declare no Java floor of their own.
+
+## Run the ratchets
+
+Floors only go up, are never set above 0.90, and are the measured value rounded down to a whole percent. Baseline entries only ever come out.
+
+```bash
+# Per-module line-coverage floors (JaCoCo check goal, coverage-check execution)
+mvn clean install -Pcoverage -DskipITs
+
+# Complexity ratchet: fails on any NEW PMD design-rule violation not in the baseline
+mvn pmd:check -Pcomplexity-gate
+
+# Persistence ratchets in wikantik-war
+mvn -pl wikantik-war test -Dtest='JdbcAccessArchTest,TestSchemaSingleSourceTest'
+```
+
+The war's classpath resolves sibling modules from `~/.m2`, so after you change a repository run `mvn install -DskipTests` before you trust the architecture tests.
+
+The complexity rules are in `build-support/pmd-complexity-ruleset.xml` (CyclomaticComplexity, CognitiveComplexity, NPathComplexity, NcssCount, ExcessiveParameterList, GodClass, TooManyMethods), with thresholds above PMD defaults. To reduce debt, shrink a class until it clears its rules and delete its line from the baseline. A new baseline line needs a justification in the commit message.
+
+## Run the reports
 
 | Dimension | Command | Output |
-|---|---|---|
-| **Duplication (CPD)** | `mvn -fae org.apache.maven.plugins:maven-pmd-plugin:3.28.0:cpd` | `*/target/cpd.xml` (+ `reports/cpd.html`) |
-| **Complexity (PMD)** | `mvn -fae -Pcomplexity-report org.apache.maven.plugins:maven-pmd-plugin:3.28.0:pmd` | `*/target/pmd.xml` |
-| **Coverage — unit only** | `mvn clean install -Pcoverage -DskipITs -T 1C` | `*/target/site/jacoco/jacoco.csv` |
-| **Coverage — unit + IT (combined)** | unit build above, then run the IT modules with `-Pcoverage` (agent rides the Cargo JVM → `jacoco-it.exec`), then `mvn -Pcoverage org.jacoco:jacoco-maven-plugin:report-aggregate` | `wikantik-coverage-report/target/site/jacoco-aggregate/` |
-| Bug-finding (PMD, existing) | `mvn -fae org.apache.maven.plugins:maven-pmd-plugin:3.28.0:pmd` | uses `build-support/pmd-ruleset.xml` |
+|-----------|---------|--------|
+| Duplication (CPD) | `mvn -fae org.apache.maven.plugins:maven-pmd-plugin:3.28.0:cpd` | `*/target/cpd.xml` |
+| Complexity (PMD, report) | `mvn -fae -Pcomplexity-report org.apache.maven.plugins:maven-pmd-plugin:3.28.0:pmd` | `*/target/pmd.xml` |
+| Bug-finding (PMD) | `mvn -fae org.apache.maven.plugins:maven-pmd-plugin:3.28.0:pmd` | uses `build-support/pmd-ruleset.xml` |
+| Coverage, unit only | `mvn clean install -Pcoverage -DskipITs -T 1C` | `*/target/site/jacoco/jacoco.csv` |
+| Code-health site (coverage, coupling, PMD and more) | `bin/site.sh` (`--unit-only`, `--skip-build`) | `target/staging/index.html` |
 
-- The bug-finding ruleset (`build-support/pmd-ruleset.xml`) is deliberately tuned
-  for real bugs and **excludes complexity/metrics** rules.
-- The complexity ruleset (`build-support/pmd-complexity-ruleset.xml`, run via the
-  `complexity-report` profile) holds the metric rules, with thresholds set
-  **above** PMD defaults to surface only genuine hotspots.
+`bin/site.sh` needs Graphviz (`dot`) for the module-coupling SVG; without it the site links the raw `.dot` file. `wikantik-coverage-report` (added only under the `coverage` profile) aggregates JaCoCo data across modules.
 
----
+## Run SpotBugs
 
-## Baseline (2026-06-06)
+The root pom configures `spotbugs-maven-plugin` with `effort=Max`, `threshold=Low`, `includeTests=false`, and the find-sec-bugs plugin. Reasoned suppressions are in `build-support/spotbugs-exclude.xml`. No workflow runs SpotBugs and it is not in the default build; Run it on demand:
 
-### Duplication — CPD (≥100 tokens)
-- **31 duplicated blocks, 448 duplicated lines** across the tree. Low for the size.
-- Top offenders:
-  - `ScimUserResource` ↔ `ScimGroupResource` (~44 lines, 2 blocks) — **fixed**:
-    extracted into `AbstractScimServlet` (shared `parseBody`/`parseIntParam`/
-    `sendScim`/`sendError` + `CONTENT_TYPE`/`GSON`).
-  - `ExperimentAggSweep`/`FinalSweep`/`GrandFinale` (retrieval research harness) —
-    near-identical sweep scaffolding; low priority (throwaway research scripts).
-  - ~~`GraphRerankConfig` ↔ `HybridConfig` (20 lines)~~ — resolved 2026-07 by
-    deleting `GraphRerankConfig` along with the rest of the KG graph rerank.
-  - Intra-file blocks in `AdminPolicyResource`, `AdminHubDiscoveryResource`,
-    `OllamaEmbeddingClient`.
+```bash
+mvn -fae com.github.spotbugs:spotbugs-maven-plugin:check
+```
 
-### Complexity — PMD (above-default thresholds)
-Violation counts: CyclomaticComplexity **118**, CognitiveComplexity **81**,
-GodClass **71**, NPathComplexity **34**, NcssCount **23**, ExcessiveParameterList **11**.
+## Know the architecture and drift tests
 
-Worst **class** cyclomatic totals (highest single method in parens):
-| Class | total CC | hardest method |
-|---|---|---|
-| `AdminKnowledgeResource` | 303 | 25 |
-| `WikiEngine` | 208 | 13 |
-| `TextUtil` | 154 | 16 |
-| `DefaultContextRetrievalService` | 133 | — |
-| `ScimUserResource` | 125 | 24 |
-| `AdminUserResource` | 119 | 26 |
-| `DefaultKnowledgeGraphService` | 122 | — |
-| `VersioningFileProvider` | 125 | 17 |
-
-Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
-`ExtractionBatchRunner:150` (43), `WikiEngine:1418` (42),
-`KeyFactsExtractor:61` (41), `AdminKnowledgeResource:550` (41).
-
-> Most of the high-CC **classes** are managers/REST resources whose size is
-> structural (many endpoints / branches). These are not a sweep — they want
-> targeted method extraction, tracked in the backlog below. The single hardest
-> *methods* (cognitive ≥40) are the better first targets.
-
-### Coverage — JaCoCo
-- **Unit-only: ~76.8%** line (the SCIM/spam/attachment error-branch tests added below are
-  all unit tests, so the unit number rose ~0.5pp with the combined one).
-- **Combined unit + ALL ITs: 83.1%** (37 605 / 45 229) — measured via the Cargo-JVM agent +
-  `report-aggregate` (rest + sso + custom-jdbc under `-Pcoverage`). **Excluding the
-  research/CLI tooling** (experiment harness + CLI mains, 3 068 lines at ~43%): **86.0%**.
-  Goal: 90%. (+243 lines over the 82.6% baseline from the targeted error-branch tests below.)
-- The unit-only number understates reality because classes exercised **only by
-  integration tests** show 0% there even though they are well-tested:
-  - `ScimUserResource` (329 lines) + `ScimGroupResource` (305) → covered by
-    `ScimUsersIT`/`ScimGroupsIT`.
-  - `AdminAuditResource`, `AdminProfilingServlet`, `AdminFrontmatterIssuesResource`,
-    `AdminAgentGradeAuditServlet` → covered by the REST IT suite.
-- **Research / entry-point code** also depresses the number and isn't meant for
-  unit coverage: the `search.embedding.experiment` package (~900 lines, 8.5%) is
-  the retrieval-experiment harness; `*Cli` / `EmbeddingCli` / `extractcli.*` are
-  CLI mains; `WikiBootstrapServletContextListener` is container bootstrap.
-- Genuine production packages worth raising (below 80%, excluding the above):
-  `search.subsystem` (44%), `audit` (62%), `variables` (72%),
-  `knowledge.extraction` (73%), `auth` (80%-).
-  - **Raised:** `scim` 67.5% → **81.4%** (error-branch tests), `render.subsystem.spam`
-    69% → **78.3%** (pattern-matcher + local external-signals), `attachment` 69% → **79.9%**
-    (`AttachmentServlet` multipart upload path), `mcp.resources` 45% → ~70%.
-
----
-
-## Prioritised remediation backlog
-
-1. ✅ **DONE — Wired JaCoCo into the IT/Cargo runs + measured all ITs.** Agent on the Cargo
-   Tomcat JVM + `wikantik-coverage-report` `report-aggregate` over rest + sso + custom-jdbc.
-   Combined coverage 82.6% (85.5% ex research/CLI); SCIM/admin resources no longer read 0%.
-   (Follow-up: add a coverage mode to `run-tests.sh` so the combined report is one command.)
-2. ✅ **DONE (partial) — Cut the worst cognitive methods.** `ExtractionResponseParser.parse`
-   (52) and `PageExtractionResponseParser.parse` (28) extracted to linear methods, below
-   threshold, behind their tests. `ExtractionBatchRunner` (43) deferred — it has **no test**
-   and is concurrency-orchestration code; write a test first before refactoring.
-3. ✅ **DONE — Raised the lowest genuine packages.** `mcp.resources` 45% → ~70%
-   (`WikiResources` 39 → 80%) and `mcp.prompts` 41% → ~95% (`WikiPrompts` 41 → 100%) via
-   focused handler tests; then the more-involved error/edge-path round: `scim` 67.5% →
-   **81.4%** (`ScimUserResource`/`ScimGroupResource` error branches — 56 tests, reflection
-   engine injection), `render.subsystem.spam` 69% → **78.3%** (`DefaultSpamPatternMatcher`
-   refresh/match paths + `DefaultSpamExternalSignals` `checkBotTrap`/`checkUTF8`; `checkAkismet`
-   left uncovered — needs a live API key), `attachment` 69% → **79.9%** (`AttachmentServlet`
-   real-multipart `upload()`, `doPost` success, `validateNextPage` phishing rewrite, mime
-   fallback). Combined coverage 82.6% → **83.1%** (86.0% ex research/CLI).
-4. ~~**(duplication) Consolidate the config records** (`GraphRerankConfig`/
-   `HybridConfig`)~~ — moot: `GraphRerankConfig` was deleted in 2026-07 with the
-   KG graph rerank (`eval/kg-spike/A1-findings.md`).
-5. **(scope decision) Decide whether to exclude the experiment/CLI research
-   tooling from the coverage denominator** so the metric reflects shippable code.
-   Deferred pending a call on what counts as "production".
-
----
-
-## Done
-- Stood up the complexity tooling (`pmd-complexity-ruleset.xml` + `complexity-report`
-  profile) — previously only bug-finding PMD existed.
-- Captured the baseline above.
-- Removed the top duplication: `AbstractScimServlet` extraction (SCIM Users/Groups).
-- **Wired JaCoCo into the Cargo IT runs** + `wikantik-coverage-report` aggregate →
-  combined unit + IT coverage over all three IT modules (76.3% unit-only → 82.6%
-  combined, 85.5% excluding research/CLI; SCIM/admin no longer 0%).
-- **Cut the two worst response-parser cognitive methods** (52, 28 → below threshold).
-- **Raised the lowest genuine packages** in two rounds: `WikiResources` 39 → 80%,
-  `WikiPrompts` 41 → 100% (MCP handler tests); then `scim` 67.5 → 81.4%, `render.subsystem.spam`
-  69 → 78.3%, `attachment` 69 → 79.9% (101 error-branch / upload-path unit tests). Combined
-  coverage 82.6 → 83.1% (86.0% ex research/CLI), +243 lines.
-
-## Persistence ratchets (2026-08-22)
-
-Two new baseline-and-shrink gates joined the complexity ratchet, both in `wikantik-war`
-(the one module whose test classpath sees every runtime module):
-
-| Gate | What it forbids | State |
-|---|---|---|
-| `JdbcAccessArchTest` (ArchUnit J-1) | `DataSource.getConnection`, `DriverManager.getConnection`, `Connection.{prepareStatement,prepareCall,createStatement,setAutoCommit,commit,rollback}` outside `com.wikantik.jdbc..` (carve-out: `JDBCPlugin`) | **0 violations** — 53 classes at baseline on 2026-08-22, burned down the same day (ADR-0010) |
-| `TestSchemaSingleSourceTest` | `CREATE TABLE` in any `*/src/test` source (the migrations are the only schema; `PostgresTestDb` applies them) | **1 entry** in `test-ddl-baseline.txt` — a permanent carve-out, not a burn-down remainder: `JDBCPluginCITest` mirrors the J-1 `JDBCPlugin` exception above, hand-rolling its own `employees` fixture because that table is arbitrary page-authored-SQL test scaffolding, not product schema with a migration to come from |
-
-Run both with `mvn -pl wikantik-war test -Dtest='JdbcAccessArchTest,TestSchemaSingleSourceTest'`.
-Note the gotcha: the war's classpath resolves sibling modules from `~/.m2`, so after changing a
-repository run `mvn install -DskipTests` (or the full build) before trusting the arch test.
+| Test | Module | Guards |
+|------|--------|--------|
+| `JdbcAccessArchTest` | `wikantik-war` | No JDBC connection or transaction calls outside `com.wikantik.jdbc..` (`JDBCPlugin` excepted); see [ADR-0010](../adr/0010-one-data-access-primitive.md) |
+| `TestSchemaSingleSourceTest` | `wikantik-war` | No hand-written `CREATE TABLE` in tests beyond the baseline file; `JDBCPluginCITest` is the permanent carve-out |
+| `ConfigSurfaceDriftTest` | `wikantik-war` | Every `wikantik.*` key read in code is declared in `ini/wikantik.properties` with a default, description and type |
+| `DecompositionArchTest` | `wikantik-main` | No new `getManager` callers or late-bound service fields on `WikiEngine` |

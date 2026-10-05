@@ -1,56 +1,107 @@
+# Building Wikantik
+
+This page is for developers who build Wikantik from source. It covers the tool versions you need, the Maven build variants, long-build handling for agents and scripts, the frontend build, and the local deploy loop. For the test commands see [Testing.md](Testing.md).
+
+## Check the prerequisites
+
+| Tool | Version | Source |
+|------|---------|--------|
+| Java (JDK) | 25 | `jdk.version` in the root `pom.xml`; the `Dockerfile` builds on `maven:3.9-eclipse-temurin-25` |
+| Maven | 3.9+ recommended; the enforcer floor is 3.5 (`maven.version` in the root `pom.xml`) | `mvn -version` |
+| Node.js + npm | 20.19+ (or 22.12+) for Vite 8; CI uses Node 22 for the gates and Node 20 for releases | `.github/workflows/` |
+| PostgreSQL + pgvector | 15+ for local deployment; tests and `docker-compose.yml` use the `pgvector/pgvector:pg18` image | `PostgresTestDb`, `docker-compose.yml` |
+| Docker | any recent version; needed for database-backed unit tests, the IT phase and the embedder | see [Testing.md](Testing.md) |
+| Tomcat | 11.0.22 (pinned in the `Dockerfile`; `bin/deploy-local.sh` downloads it into the gitignored `tomcat/` directory) | `Dockerfile` |
+
+## Build the project
+
+Run these from the repository root.
+
+```bash
+# Standard build: compiles, runs the unit tests, installs artifacts
+mvn clean install
+
+# Skip running tests but still compile them and build the test-jars
+mvn clean install -DskipTests
+
+# Unit tests only, parallel build (do not use -T for integration tests)
+mvn clean install -T 1C -DskipITs
 ```
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+The root pom's `defaultGoal` is `verify apache-rat:check`, so a bare `mvn` runs `verify` without an implicit `clean`.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+### Use -DskipTests, not -Dmaven.test.skip
+
+Use `-DskipTests`. `-Dmaven.test.skip` also skips building `wikantik-main`'s test-jar, which `wikantik-tools`, `wikantik-admin-mcp`, `wikantik-knowledge` and the IT modules depend on. A full-reactor build then fails with "could not resolve ...:jar:tests", most often right after a version bump when no test-jar is cached in `~/.m2`.
+
+### Control unit-test forking
+
+Unit tests in `wikantik-main` and `wikantik-rest` run across forked JVMs. `wikantik.surefire.forkCount` defaults to `0.5C` in the root pom. Force a sequential run when you suspect a cross-test interaction:
+
+```bash
+mvn test -Dwikantik.surefire.forkCount=1
 ```
 
-# 1. IDE Specific
+### Run a single test
 
-| Maven Command       | Description                                                        |
-|---------------------|--------------------------------------------------------------------|
-| mvn eclipse:eclipse | generates Eclipse project files (alternatively, you could use m2e) |
-| mvn idea:idea       | generates IDEA IntelliJ project files                              |
+```bash
+mvn test -Dtest=MarkdownRendererTest
+mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
+mvn test -pl wikantik-main -Dtest=MarkdownRendererTest -q   # one module only
+```
 
+## Run long builds through agent-build.sh
 
-# 2. Build Specific
+Any Maven run that can exceed about five minutes (the full unit build, the IT reactor) goes through `bin/agent-build.sh`. A bare foreground call is killed at the agent tool's roughly ten-minute cap, and a bare `nohup mvn -q ... &` leaves a log where success and a crash look the same.
 
-| Maven Command (1)                                               | Description                                                                                                                         |
-|-----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| mvn                                                             | performs a default build (root pom `defaultGoal`: `verify apache-rat:check` — note: no implicit `clean`)                            |
-| mvn clean install                                               | performs a build                                                                                                                    |
-| mvn clean install -DskipTests                                   | performs a build, skipping test execution but still compiling tests and building test-jars (preferred — use this instead of `-Dmaven.test.skip`) |
-| mvn clean install -Dmaven.test.skip                             | performs a build, skipping the tests (discouraged — also skips building test-jars, breaking the reactor when other modules depend on them) |
-| mvn clean test                                                  | compiles the source and executes the tests                                                                                          |
-| mvn test -Dtest=WikantikMarkupParserTest                         | run just a single test class                                                                                                        |
-| mvn test -Dtest=WikantikMarkupParserTest#testHeadingHyperlinks3  | run just a single test within a test class                                                                                          |
-| mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug | debug a test in Eclipse or IDEA to see why it's failing (see http://www.jroller.com/gmazza/entry/jpa_and_junit#debugging)           |
-| mvn org.codehaus.cargo:cargo-maven3-plugin:run                  | (from main war module) starts Wikantik on a Cargo-launched Tomcat 11 instance at http://localhost:8080/Wikantik with an attached debugger on port 5005 |
-| mvn clean deploy -Papache-release -Dgpg.passphrase=<passphrase> | deploys generated artifact to a repository. If -Dgpg.passphrase is not given, expects a gpg-agent running                           |
-| mvn clean install -Pintegration-tests                           | runs the full integration-test reactor (single-threaded). This is a slow fallback — the canonical, parallel-safe IT gate is `bin/run-tests.sh --parallel 4` (see CLAUDE.md "Testing Commands"); do not bolt `-T` onto this command directly (2) |
-| mvn test -Dtest=MemoryProfiling                                 | (from wikantik-main module) runs a memory profiling test                                                                             |
+```bash
+bin/agent-build.sh start unit -- mvn clean install -DskipITs
+bin/agent-build.sh status unit      # RUNNING | SUCCESS | FAILED | KILLED
+bin/agent-build.sh wait unit 540    # bounded block; exit 0 = success, 1 = failed/killed, 2 = still running
+bin/agent-build.sh tail unit 30     # last 30 log lines
+```
 
-(1) `-T 1C` can be added to most of these commands in order to run a parallel build, thus decreasing build time, i.e., `mvn clean install -T 1C`.
+The script detaches the build into its own session, writes `.build-logs/<name>.log`, appends an `EXIT=<code>` sentinel, and unsets `WIKANTIK_*` environment variables in the child (the test suite requires them unset). Poll `status` or `wait` until the build ends; nothing resumes an idle agent.
 
-(2) Exception: never add `-T` to a raw `mvn ... -Pintegration-tests` invocation. Only `bin/run-tests.sh --parallel N` gives each IT module a reserved port set and a uniquely-named pgvector container; a bare parallel Maven build corrupts shared IT state.
+## Build the frontend
 
-# 3. Reports Specific
+The WAR build builds the React SPA for you: `wikantik-war/pom.xml` runs `npm ci --no-audit --no-fund --ignore-scripts` and then `npm run build` in `wikantik-frontend` through `exec-maven-plugin`, and bundles `dist/` into the WAR. To work on the SPA alone:
 
-| Maven Command                                           | Description                                                                                         |
-|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| mvn apache-rat:check                                    | creates an Apache RAT report. See: http://creadur.apache.org/rat/apache-rat-plugin/plugin-info.html |
-| mvn clean install -Pcoverage                             | generates the JaCoCo coverage report (aggregated cross-module in `wikantik-coverage-report`) and enforces each module's `wikantik.coverage.line.minimum` floor |
-| mvn javadoc:javadoc                                     | creates javadocs adding some UML class/package level diagrams                                       |
-| mvn sonar:sonar                                         | generates a Sonar report. Expects a Sonar server running at http://localhost:9000/                  |
+```bash
+cd wikantik-frontend
+npm ci
+npm run dev        # Vite dev server on http://localhost:5173/, proxying /api, /attach, /admin to localhost:8080
+npm run build
+npm run lint
+npm run test:coverage
+```
+
+See [FrontendArchitecture.md](FrontendArchitecture.md) for the SPA layout.
+
+## Deploy and iterate locally
+
+`bin/deploy-local.sh` bootstraps the gitignored `tomcat/tomcat-11` directory: it downloads Tomcat if absent, renders `ROOT.xml` and `wikantik-custom.properties` from `.env`, runs `bin/db/migrate.sh`, and deploys the WAR. The first run copies `.env.example` to `.env` and exits so you can set `POSTGRES_PASSWORD`. The database setup is in [PostgreSQLLocalDeployment](../admin/PostgreSQLLocalDeployment.md).
+
+```bash
+mvn clean install -DskipTests -T 1C
+bin/deploy-local.sh                  # first time, Tomcat upgrades, or property/template changes
+tomcat/tomcat-11/bin/startup.sh      # http://localhost:8080/
+```
+
+For the routine loop after the first deploy, `bin/redeploy.sh` shuts Tomcat down, rotates `catalina.out`, swaps the WAR, applies pending migrations and starts Tomcat. It does not re-render templates or validate secrets, so run `bin/deploy-local.sh` when you change `wikantik-custom.properties` or `ROOT.xml`.
+
+```bash
+mvn clean install -DskipTests -T 1C
+bin/redeploy.sh
+```
+
+## Run other build tools
+
+```bash
+mvn clean install -Pcoverage -DskipITs     # JaCoCo report plus the per-module line-coverage floor check
+mvn pmd:check -Pcomplexity-gate            # complexity ratchet (see CodeQuality.md)
+mvn javadoc:javadoc                        # Javadocs
+bin/site.sh                                # code-health site into target/staging/index.html
+```
+
+`mvn apache-rat:check` is informational only; a red result is not a regression to chase.

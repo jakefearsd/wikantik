@@ -520,8 +520,9 @@ public class AuthorizationManagerTest {
             Assertions.fail( "Failed save: " + e.getLocalizedMessage() );
         }
         Assertions.assertEquals( new WikiPrincipal( "authmanagertest",  WikiPrincipal.LOGIN_NAME ), m_auth.resolvePrincipal( "authmanagertest" ) );
-        Assertions.assertEquals( new WikiPrincipal( "AuthorizationManagerTest User", WikiPrincipal.FULL_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTest User" ) );
-        Assertions.assertEquals( new WikiPrincipal( "AuthorizationManagerTestUser", WikiPrincipal.WIKI_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTestUser" ) );
+        // A full or wiki name held by one account resolves to that account's login principal.
+        Assertions.assertEquals( new WikiPrincipal( "authmanagertest", WikiPrincipal.LOGIN_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTest User" ) );
+        Assertions.assertEquals( new WikiPrincipal( "authmanagertest", WikiPrincipal.LOGIN_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTestUser" ) );
         try
         {
             m_engine.getManager( UserManager.class ).getUserDatabase().deleteByLoginName( "authmanagertest" );

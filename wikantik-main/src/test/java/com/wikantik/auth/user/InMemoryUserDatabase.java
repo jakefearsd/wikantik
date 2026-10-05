@@ -169,12 +169,20 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
     private interface Match { boolean matches( UserProfile p ); }
 
     private UserProfile findBy( final Match m, final String index ) throws NoSuchPrincipalException {
+        UserProfile found = null;
         for ( final UserProfile p : byLogin.values() ) {
             if ( m.matches( p ) ) {
-                return copy( p );
+                if ( found != null ) {
+                    // Mirrors JDBCUserDatabase: a shared full name identifies nobody.
+                    throw NoSuchPrincipalException.ambiguous( "More than one profile in database: " + index );
+                }
+                found = p;
             }
         }
-        throw new NoSuchPrincipalException( "Not in database: " + index );
+        if ( found == null ) {
+            throw new NoSuchPrincipalException( "Not in database: " + index );
+        }
+        return copy( found );
     }
 
     @Override

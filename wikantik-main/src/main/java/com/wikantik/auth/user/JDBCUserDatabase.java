@@ -461,7 +461,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             throw new NoSuchPrincipalException( "Could not find profile in database!" );
         }
         if( matches.size() > 1 ) {
-            throw new NoSuchPrincipalException( "More than one profile in database!" );
+            throw NoSuchPrincipalException.ambiguous( "More than one profile in database!" );
         }
         return matches.get( 0 );
     }

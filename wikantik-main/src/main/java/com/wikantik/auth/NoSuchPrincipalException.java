@@ -27,13 +27,43 @@ public final class NoSuchPrincipalException
 {
     private static final long serialVersionUID = 3257849895976186169L;
 
+    /** True when the lookup matched more than one principal rather than none. */
+    private final boolean ambiguous;
+
     /**
      * Constructs a new exception object with a supplied message.
      * @param msg the message
      */
     public NoSuchPrincipalException(final String msg )
     {
-        super(msg);
+        this( msg, false );
+    }
+
+    private NoSuchPrincipalException( final String msg, final boolean ambiguous )
+    {
+        super( msg );
+        this.ambiguous = ambiguous;
+    }
+
+    /**
+     * An exception for a lookup that matched more than one principal, so it identifies none.
+     *
+     * @param msg the message
+     * @return the exception
+     */
+    public static NoSuchPrincipalException ambiguous( final String msg )
+    {
+        return new NoSuchPrincipalException( msg, true );
+    }
+
+    /**
+     * Whether the lookup matched more than one principal (as opposed to none).
+     *
+     * @return {@code true} for an ambiguous lookup
+     */
+    public boolean isAmbiguous()
+    {
+        return ambiguous;
     }
 
     /**
@@ -44,5 +74,6 @@ public final class NoSuchPrincipalException
     public NoSuchPrincipalException(final String msg, final Throwable cause )
     {
         super( msg, cause );
+        this.ambiguous = false;
     }
 }

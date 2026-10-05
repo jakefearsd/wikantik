@@ -67,6 +67,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
@@ -334,26 +335,22 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     }
 
     /**
-     * Matches a user principal named by an ACL against the session. A principal resolved to a specific
-     * user profile field matches only the same field: a login name matches only the session's login
-     * principal, and a full or wiki name matches only the session principal of that same type. So one
-     * user's display name can never stand in for another user's login name. Any other principal (for
-     * example one that did not resolve to a user) keeps the plain name match.
+     * Matches a user principal named by an ACL against the session. An ACL user entry resolves to one
+     * account's login principal (see {@link #resolvePrincipal}), so a user principal matches only the
+     * session's login principal, by name. Full and wiki names are editable profile data and never
+     * identify a user, and a name that did not resolve ({@link UnresolvedPrincipal}: unknown or shared
+     * by several accounts) matches nobody.
      */
     private static boolean matchesUserPrincipal( final Session session, final Principal principal ) {
-        final String principalName = principal.getName();
-        if ( principal instanceof WikiPrincipal wp ) {
-            final String type = wp.getType();
-            if ( WikiPrincipal.LOGIN_NAME.equals( type ) ) {
-                final Principal login = session.getLoginPrincipal();
-                return login != null && principalName.equals( login.getName() );
-            }
-            if ( WikiPrincipal.FULL_NAME.equals( type ) || WikiPrincipal.WIKI_NAME.equals( type ) ) {
-                return Arrays.stream( session.getPrincipals() ).anyMatch( p -> p instanceof WikiPrincipal sp
-                        && type.equals( sp.getType() ) && principalName.equals( sp.getName() ) );
-            }
+        if ( principal instanceof UnresolvedPrincipal ) {
+            return false;
         }
-        return Arrays.stream( session.getPrincipals() ).anyMatch( userPrincipal -> userPrincipal.getName().equals( principalName ) );
+        if ( principal instanceof WikiPrincipal wp && !WikiPrincipal.LOGIN_NAME.equals( wp.getType() )
+                && !WikiPrincipal.UNSPECIFIED.equals( wp.getType() ) ) {
+            return false;
+        }
+        final Principal login = session.getLoginPrincipal();
+        return login != null && principal.getName().equals( login.getName() );
     }
 
     /** {@inheritDoc} */
@@ -621,32 +618,54 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             return principal;
         }
 
-        // Ok, no luck---this must be a user principal. A login name wins over another account's
-        // full or wiki name, so an ACL naming a login always resolves to that account.
-        final UserDatabase db = userManager().getUserDatabase();
+        // Otherwise it names a user. It must identify exactly one account, and it then stands for that
+        // account's login name: a login name wins, then a full or wiki name held by one account only.
+        // An ambiguous (shared) or unknown name stays unresolved and so grants nobody.
+        return uniqueAccountLogin( userManager().getUserDatabase(), name )
+                .map( login -> ( Principal ) new WikiPrincipal( login, WikiPrincipal.LOGIN_NAME ) )
+                .orElseGet( () -> new UnresolvedPrincipal( name ) );
+    }
+
+    /** The login name of the one account that {@code name} identifies, if exactly one does. */
+    private static Optional< String > uniqueAccountLogin( final UserDatabase db, final String name ) {
+        if ( db == null || name == null || name.isBlank() ) {
+            return Optional.empty();
+        }
+        final Optional< String > byLogin = loginOf( db, name, () -> db.findByLoginName( name ) );
+        if ( byLogin.isPresent() ) {
+            return byLogin;
+        }
+        final Set< String > logins = new HashSet<>();
+        for ( final ProfileLookup lookup : new ProfileLookup[] { () -> db.findByFullName( name ), () -> db.findByWikiName( name ) } ) {
+            try {
+                final UserProfile profile = lookup.find();
+                if ( profile != null ) {
+                    logins.add( profile.getLoginName() );
+                }
+            } catch ( final NoSuchPrincipalException e ) {
+                if ( e.isAmbiguous() ) {
+                    LOG.debug( "'{}' is shared by more than one account; it names nobody", name );
+                    return Optional.empty();
+                }
+                LOG.debug( "No account has '{}' as this kind of name: {}", name, e.getMessage() );
+            }
+        }
+        return logins.size() == 1 ? Optional.of( logins.iterator().next() ) : Optional.empty();
+    }
+
+    private static Optional< String > loginOf( final UserDatabase db, final String name, final ProfileLookup lookup ) {
         try {
-            final UserProfile profile = findLoginFirst( db, name );
-            final Principal[] principals = db.getPrincipals( profile.getLoginName() );
-            return Arrays.stream( principals )
-                    .filter( p -> p.getName().equals( name ) )
-                    .findFirst()
-                    .orElseGet( () -> new UnresolvedPrincipal( name ) );
-        } catch( final NoSuchPrincipalException e ) {
-            LOG.debug( "No user profile for '{}'; returning an unresolved principal: {}", name, e.getMessage() );
-            // We couldn't find the user - mark as unresolved
-            return new UnresolvedPrincipal( name );
+            final UserProfile profile = lookup.find();
+            return profile == null ? Optional.empty() : Optional.ofNullable( profile.getLoginName() );
+        } catch ( final NoSuchPrincipalException e ) {
+            LOG.debug( "'{}' is not a login name: {}", name, e.getMessage() );
+            return Optional.empty();
         }
     }
 
-
-    /** Looks {@code name} up as a login name first, then as a full or wiki name. */
-    private static UserProfile findLoginFirst( final UserDatabase db, final String name ) throws NoSuchPrincipalException {
-        try {
-            return db.findByLoginName( name );
-        } catch ( final NoSuchPrincipalException e ) {
-            LOG.debug( "'{}' is not a login name; trying full and wiki names: {}", name, e.getMessage() );
-            return db.find( name );
-        }
+    @FunctionalInterface
+    private interface ProfileLookup {
+        UserProfile find() throws NoSuchPrincipalException;
     }
 
     // --- Lazy accessors for manager dependencies ---

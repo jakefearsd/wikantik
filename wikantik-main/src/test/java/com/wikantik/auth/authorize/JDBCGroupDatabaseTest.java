@@ -104,7 +104,7 @@ public class JDBCGroupDatabaseTest
             stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('Literature', 'Homer')" );
             stmt.executeUpdate( "INSERT INTO groups (name, created, modified) VALUES ('Art', '2006-06-20 14:50:54.00000000', '2006-06-20 14:50:54.00000000')" );
             stmt.executeUpdate( "INSERT INTO groups (name, created, modified) VALUES ('Admin', '2006-06-20 14:50:54.00000000', '2006-06-20 14:50:54.00000000')" );
-            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('Admin', 'Administrator')" );
+            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('Admin', 'admin')" );
         }
         catch( final SQLException e )
         {
@@ -169,11 +169,11 @@ public class JDBCGroupDatabaseTest
         Assertions.assertEquals("Art", group.getName() );
         Assertions.assertEquals( 0, group.members().length );
 
-        // Group Admin has 1 member (Administrator)
+        // Group Admin has 1 member, listed by login name (admin)
         group = backendGroup( "Admin" );
         Assertions.assertEquals("Admin", group.getName() );
         Assertions.assertEquals( 1, group.members().length );
-        Assertions.assertEquals( "Administrator", group.members()[0].getName() );
+        Assertions.assertEquals( "admin", group.members()[0].getName() );
 
         // Group Archaeology doesn't exist
         try

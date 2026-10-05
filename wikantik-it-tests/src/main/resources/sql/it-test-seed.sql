@@ -35,10 +35,10 @@ ON CONFLICT (login_name) DO NOTHING;
 INSERT INTO roles (login_name, role) VALUES ('janne', 'Authenticated')
 ON CONFLICT DO NOTHING;
 
--- Give JanneJalkanen admin group membership so IT suites that need admin
--- can log in as janne. GroupManager.isUserInRole matches by principal name,
--- and after login the session carries the wiki-name WikiPrincipal.
-INSERT INTO group_members (name, member) VALUES ('Admin', 'JanneJalkanen')
+-- Give janne admin group membership so IT suites that need admin can log in
+-- as janne. Group members are listed by login name: GroupManager.isUserInRole
+-- matches only the session's login principal, never the full or wiki name.
+INSERT INTO group_members (name, member) VALUES ('Admin', 'janne')
 ON CONFLICT DO NOTHING;
 
 -- Fixture users carried over from the retired XML user database (userdatabase.xml).

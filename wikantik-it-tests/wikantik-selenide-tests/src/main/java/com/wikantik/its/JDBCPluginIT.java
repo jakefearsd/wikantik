@@ -38,7 +38,7 @@ import static com.codeborne.selenide.Selenide.$$;
  *
  * <p>The JDBC plugin requires {@code AllPermission} (admin) to run arbitrary
  * SQL, so the suite authenticates as janne once per class — the IT seed
- * ({@code it-test-seed.sql}) grants {@code JanneJalkanen} membership in the
+ * ({@code it-test-seed.sql}) lists janne (by login name) as a member of the
  * {@code Admin} group, which in turn grants {@code AllPermission} via the
  * default {@code wikantik.policy}. Logging in per-test would fail because the
  * React SPA preserves the auth cookie across tests in the same class.

@@ -49,9 +49,10 @@ INSERT INTO groups (name, created, modified)
 VALUES ('Art', '2006-06-20 14:50:54', '2006-06-20 14:50:54');
 
 -- 'Admin' the group (as opposed to 'Admin' the role) is already seeded by
--- V002__core_users_groups.sql — same PRIMARY KEY (name), so it is not re-inserted here, only
--- given this fixture's extra member.
-INSERT INTO group_members (name, member) VALUES ('Admin', 'Administrator');
+-- V002__core_users_groups.sql — same PRIMARY KEY (name), so it is not re-inserted here.
+-- Its member is the admin account's login name ('admin'); group members are always
+-- listed by login name, never by full or wiki name ('Administrator').
+INSERT INTO group_members (name, member) VALUES ('Admin', 'admin') ON CONFLICT DO NOTHING;
 
 -- Default policy grants. V003__policy_grants.sql seeds the production baseline
 -- (All/Asserted-group-view/Authenticated/Admin); these additional rows are

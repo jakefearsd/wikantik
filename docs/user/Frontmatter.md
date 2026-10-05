@@ -69,6 +69,7 @@ are preserved verbatim (editable via the Raw-YAML tab).
 |---|---|---|
 | `canonical_id` | read-only ULID | Rename-stable identifier. Becomes the ontology IRI `/id/page/{canonical_id}`, the `for-agent` projection key, and the structural-spine identity. System-managed — assigned on save, never hand-edited. |
 | `title` | text | Human display title. |
+| `aliases` | list of text (each up to 100 characters) | Alternative names for the page. The quick switcher and the editor's unlinked-mention scan match on them. Blank entries and over-long entries warn. |
 | `type` | enum (open) | One of `article`, `hub`, `reference`, `runbook`, `design`. Selects the ontology content class **and** the SEO schema.org `@type`; `runbook` additionally unlocks the runbook block and the agent runbook surface. Off-list values are tolerated with a warning. |
 | `status` | enum (open) | `draft`, `active`, `archived`. Off-list values warn but save. |
 | `summary` | text (50–160) | One-sentence abstract. Indexed for search, used as the SEO meta description, and carried into the agent projection and RDF. Outside 50–160 characters warns. |
@@ -109,7 +110,7 @@ structural spine.
 
 | Key | Type | What it is |
 |---|---|---|
-| `audience` | enum | `humans`, `agents`, or `both`. |
+| `audience` | closed enum | `humans`, `agents`, or `both`; a YAML list such as `[humans, agents]` is also accepted. Any other value is an **error** (`audience.enum.invalid`). |
 | `verified_at` | datetime | When the page was last verified. |
 | `verified_by` | text | Who/what verified it. |
 | `confidence` | read-only | Derived trust signal, surfaced in the agent projection. |
@@ -148,25 +149,28 @@ provenance model and the seven connector types that produce derived pages.
 
 ## The structured editor
 
-When you edit a page, a **Frontmatter** form sits beside the Markdown body (the
-body stays in CodeMirror; the form owns the metadata object).
+When you edit a page, a **Frontmatter** tab sits above the Markdown body (next
+to a **Knowledge** tab for page-scoped Knowledge Graph curation). The body stays
+in CodeMirror; the form owns the metadata object.
 
 - **Schema-driven.** Every field is rendered from `GET /api/frontmatter-schema`
   with the right control: enum dropdowns/comboboxes, tag chips, a related-pages
   picker, a date picker, the runbook sub-form, etc. Read-only fields
   (`canonical_id`, `confidence`, `agent_hints`) are shown but not editable.
 - **Live validation.** As you type, the editor debounces and revalidates against
-  `POST /api/frontmatter/validate` (the *same* rules the save enforces). A summary
-  strip shows **`N errors · M warnings`** with click-to-jump, and each issue
-  renders inline on its field.
-- **Save gating.** **Save is disabled while any ERROR-severity issue exists**;
+  `POST /api/frontmatter/validate` (the *same* rules the save enforces); the
+  debounce is 400 ms (`useFrontmatterValidation.js`). A summary strip shows an
+  error count and a warning count with click-to-jump, and each issue renders
+  inline on its field.
+- **Save gating.** **Save is disabled while any ERROR-severity issue exists**
+  (its tooltip reads "Fix the highlighted errors before saving");
   advisory warnings never block. So you can't accidentally ship malformed
   frontmatter, but a legitimate stylistic warning won't stop a real edit.
 - **One-click suggestions.** Warnings that carry a fix (e.g. a non-canonical
-  `status`) offer a "use this" button.
-- **Raw-YAML break-glass.** A Form ⇄ Raw YAML toggle lets you edit the YAML
-  directly (and is the place to edit non-schema keys); it re-validates on blur via
-  the same dry-run endpoint.
+  `status`) offer a **Use "…"** button.
+- **Raw-YAML break-glass.** The **Form** and **Raw YAML** tabs let you edit the
+  YAML directly (the place to edit non-schema keys such as `image`); it
+  re-validates via the same dry-run endpoint.
 
 ---
 
@@ -180,6 +184,8 @@ surface applies one rule set.
 
 - Malformed YAML (`yaml.parse`).
 - Any **runbook block** violation (see below) — field-addressed and structured.
+- An `audience` value outside `humans`, `agents`, `both` (`audience.enum.invalid`).
+- A list-valued `cluster` on a `type: hub` page (`cluster.hub.multivalued`).
 
 **Warnings — advisory (HTTP 200), with a suggestion, never blocking:**
 
@@ -187,10 +193,14 @@ surface applies one rule set.
 |---|---|
 | `summary.length` | `summary` outside 50–160 characters |
 | `cluster.slug.malformed` | `cluster` isn't a kebab slug |
+| `cluster.undeclared` | the cluster has no hub page declaring it |
 | `tags.kebab` | a tag isn't kebab-case |
 | `type.noncanonical` | `type` outside the canonical set |
 | `status.noncanonical` | `status` outside the canonical set |
-| `date.date.malformed` | `date` not ISO-parseable |
+| `date.date.malformed` | `date` not ISO-parseable (`verified_at.date.malformed` for the timestamp) |
+| `related.unresolved` | a `related` entry doesn't resolve to an existing page |
+| `verified_by.untrusted` | `verified_by` isn't in `wikantik.frontmatter.trustedAuthors` (only checked when that list is set) |
+| `aliases.list`, `aliases.blank`, `aliases.length` | `aliases` isn't a list, has a blank entry, or has an entry over 100 characters |
 
 The philosophy is **convergence under shared control**: a large corpus carries
 legitimate drift (non-kebab clusters, list-valued audiences, odd dates), so
@@ -213,7 +223,7 @@ controls it:
 |---|---|---|
 | `wikantik.frontmatter.enforcement.enabled` | `true` | Master gate. When `true`, ERROR-severity violations (malformed YAML, runbook block violations) reject the save with **422**. Set `false` only while migrating a dirty corpus onto the validator for the first time — every save skips schema enforcement entirely while it's off. |
 | `wikantik.frontmatter.enum.nonCanonical.severity` | `warning` | Severity for the `type.noncanonical` / `status.noncanonical` checks above. Set to `error` once the [drift dashboard](../admin/OntologyManagement.md#measuring-drift-the-burn-down-dashboard) shows zero remaining occurrences, to make the canonical `type`/`status` sets mandatory. |
-| `wikantik.frontmatter.trustedAuthors` | *(empty)* | Comma-separated login names exempt from the `verified_by` advisory check. Empty — the default — trusts every author; set it to restrict the exemption to a specific list of logins. |
+| `wikantik.frontmatter.trustedAuthors` | *(empty)* | Comma-separated author names or logins trusted for the `verified_by` advisory check. Empty — the default — disables the check (every author is trusted). |
 
 Separately, pages saved with **no frontmatter block at all** can be
 auto-scaffolded rather than left bare, via `FrontmatterDefaultsFilter`:
@@ -221,7 +231,7 @@ auto-scaffolded rather than left bare, via `FrontmatterDefaultsFilter`:
 | Property | Default | What it controls |
 |---|---|---|
 | `wikantik.frontmatter.autoDefaults` | `false` | When `true`, a page saved without any frontmatter gets one generated (`title`, `type`, `tags`, `summary`, `auto-generated: true`). System pages are left untouched regardless of this flag. |
-| `wikantik.frontmatter.defaultTags` | `3` | Number of tags the auto-generated block extracts. Only meaningful when `autoDefaults` is enabled. |
+| `wikantik.frontmatter.defaultTags` | *(blank)* | Number of tags the auto-generated block extracts. Only meaningful when `autoDefaults` is enabled. The shipped value is blank, which adds **no** tags; set a number to get tags. |
 
 ### Auditing a corpus before ratcheting severity to `error`
 

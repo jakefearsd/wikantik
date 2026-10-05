@@ -14,13 +14,17 @@ Wrap an expression in single `$` delimiters to render it inline with the
 surrounding text.
 
 ```markdown
-The mass–energy relation is$E = mc^2$, familiar from special relativity.
+The mass–energy relation is $E = mc^2$, familiar from special relativity.
 ```
 
 Rules enforced by the parser:
 
 - The content between the dollars must be non-empty.
-- It must not start or end with a whitespace character.
+- It must not start or end with a whitespace character (`$x$`, not `$ x $`).
+- A closing `$` followed by a digit is not math, so `$\times$6` stays text; write
+  `$\times$ 6`. This is Pandoc's rule (`InlineMathRule`).
+- A backslash-escaped `\$` inside a formula is a literal dollar sign and never
+  closes the span.
 - `$$` is **not** matched as inline math — it's a display-block delimiter (see
   below). This avoids accidental matches when prose contains currency values
   followed by a block expression.
@@ -110,7 +114,7 @@ authors notice the problem.
 Basic inline:
 
 ```markdown
-For a right triangle,$a^2 + b^2 = c^2$.
+For a right triangle, $a^2 + b^2 = c^2$.
 ```
 
 Aligned system:
@@ -149,8 +153,8 @@ Summation inside a list:
 
 Authoring mistakes that *parse* as valid Markdown but render as broken math are
 easy to ship unnoticed, so every page save runs a LaTeX structure check
-(`MathValidationPageFilter`, KaTeX-oracle-derived and false-positive-guarded)
-before the content is stored. Two failure modes are caught:
+(`MathValidationPageFilter`, backed by `MathStructureValidator`) before the
+content is stored. These failure modes are caught:
 
 - **Single-line or text-glued `$$ … $$` display math is a blocking ERROR.** When
   the opening or closing `$$` is not on its own line (e.g. `Then $$E = mc^2$$ follows`),
@@ -159,7 +163,13 @@ before the content is stored. Two failure modes are caught:
   letters (`\mathbb{E}` becomes `\mathbb`). Because the result is always wrong, the
   save is rejected and you must isolate the delimiters on their own lines (or use a
   ```` ```math ```` fence).
-- **Prose inside inline `$…$` is an advisory WARNING.** A common trigger is an
+- **An opening `$$` with no closing `$$` is a blocking ERROR**
+  (`math.display.unterminated`: "Unterminated display-math block: an opening $$ has
+  no matching closing $$.").
+- **An empty `$$ $$` block is an advisory WARNING** (`math.display.empty`).
+- **Prose inside inline `$…$` is an advisory WARNING** (`math.inline.prose`; it
+  fires when the span has no backslash and contains a common word such as "and",
+  "the" or "of"). A common trigger is an
   unescaped currency figure — `it cost $5 and $10` parses the span between the two
   dollars as math. The save still succeeds, but the warning nudges you to escape
   the dollar (`\$5`) so the text isn't typeset as an equation.
@@ -167,8 +177,12 @@ before the content is stored. Two failure modes are caught:
 Violations carry a body-relative line/column and surface everywhere a page is
 written:
 
-- **In the editor** — the `MathValidationSummary` panel lists each violation with
-  click-to-jump; an ERROR disables Save until it is fixed.
+- **In the editor** — the check runs when you press Save, not as you type. The
+  **Math validation** panel (`MathValidationSummary`) then lists each violation
+  with a severity badge, the message, an excerpt with a caret and a **Jump**
+  button. With an ERROR the save is refused ("Fix the highlighted math errors"),
+  and Save stays disabled until your next edit clears the panel. With only
+  warnings the page saves and a "Saved with N math warning(s)" toast appears.
 - **Over REST** — `PUT /api/pages` returns structured `ContentViolation`s (HTTP
   `422` when any are errors, `200` with warnings otherwise).
 - **Over the admin MCP write tools** — `write_pages` / `update_page` enforce the

@@ -16,7 +16,15 @@ authenticated user. It is not shown to anonymous visitors.
 `/preferences`, your role (Admin prefix if applicable), links to **Profile** and
 **Sign out**.
 
-**+ New Article** — a prominent button that opens the new-page composer.
+**+ New Article** — a prominent button that opens the new-page dialog (see
+[Editing.md](Editing.md#create-a-page)).
+
+**Export to Obsidian…** — opens the vault-export dialog (see
+[Reading.md](Reading.md#export-pages-as-an-obsidian-vault)). If your account is
+not allowed to export, the dialog says "Export is disabled for your account."
+
+**Import Obsidian vault…** — shown only when your account can create pages.
+Opens the vault-import dialog (`ImportDialog.jsx`).
 
 **Me collapsible section** — collapsed by default. A notification badge on the
 section header shows the count of unread @-mentions; this badge is visible even
@@ -102,9 +110,10 @@ Account deletion:
 - Does **not** remove your past page contributions — those remain attributed to
   your username.
 
-**Admins cannot self-delete.** If you hold the Admin role the button is accepted
-but the server will reject the request. You must have another administrator remove
-your account, or relinquish the Admin role first.
+**Admins cannot self-delete.** If you hold the Admin role the server refuses the
+request with HTTP 409 ("Administrators cannot delete their own account here…").
+You must have another administrator remove your account, or relinquish the Admin
+role first.
 
 ## REST/endpoint reference
 
@@ -134,8 +143,9 @@ being logged in (useful when you cannot remember your password).
 1. Enter your email address.
 2. Click **Send New Password**.
 3. If an account with that email exists, a new random password is sent to the
-   address and saved on the account. Sign in with that password and then change
-   it immediately at `/preferences`.
+   address and saved on the account, which is flagged so you must change the
+   password after you sign in. Sign in with that password and then change it at
+   `/preferences`.
 
 The response is always the generic "Check your email" confirmation — the page
 never reveals whether a given email address exists in the system (enumeration

@@ -22,11 +22,17 @@ The backing tables are `comment_threads` and `comments` (migration
 2. Select a passage of text with your mouse or keyboard. The selection is used as
    the anchor (`exact`) for the thread; the surrounding text (`prefix`, `suffix`)
    is stored for re-location after edits.
-3. A "Comment" button or tooltip appears next to the selection. Click it to open
-   the new-thread composer.
-4. Type your comment in the text area. You can @-mention any wiki user by typing
-   `@` followed by the start of their login name (see @-mention autocomplete below).
-5. Press **Cmd+Enter** (or **Ctrl+Enter**) or click **Reply** to post.
+3. A floating **Comment** button appears next to the selection. Click it to open
+   the new-thread composer (`CommentComposer` in `PageView.jsx`). Press **Esc**
+   to cancel.
+4. Type your comment in the **Add a comment** box. You can @-mention any wiki user
+   by typing `@` followed by the start of their login name (see @-mention
+   autocomplete below).
+5. Press **Cmd+Enter** (or **Ctrl+Enter**) or click the **Comment** button to post.
+   The Comments drawer opens with your new thread.
+
+You cannot anchor a comment to a math expression. Selecting one shows "Can't
+comment on math expressions — select plain text."
 
 The page must be indexed (have a `canonical_id`). Pages that have never been
 saved or that the structural index has not yet processed return a 404 on the
@@ -35,23 +41,26 @@ after creating a new page.
 
 ## The Comments drawer
 
-Click the **Comments** button in the page toolbar to toggle the `CommentsDrawer`
-sidebar. It shows:
+Once a page has at least one thread, a **Comments (N)** button appears in the page
+header (N is the number of open threads). Click it to toggle the `CommentsDrawer`
+sidebar. A page with no threads has no such button; you open the drawer by posting
+the first comment, or by following a mention link. The drawer shows:
 
 - A status-filter selector: **Open**, **Resolved**, **All**. Defaults to Open.
 - Each thread card showing the anchor excerpt in quotes, all comments in the
   thread with author names and body text, and a reply textarea.
 - A **Resolve** button on open threads. Resolved threads show a **Reopen** button
   instead.
-- Threads whose anchor text no longer appears in the page are marked **Detached**
-  and grouped at the bottom of the drawer. Detached threads are read-only — the
-  reply area is hidden — but they can still be resolved or deleted.
+- Threads whose anchor text no longer appears in the page are grouped under a
+  **Detached** label at the bottom of the drawer. A detached thread has no reply
+  box and no Resolve button; a resolved detached thread can still be reopened, and
+  users with the `delete` permission can delete it.
 
 ### Replying to a thread
 
 1. Click anywhere on a thread card to focus it.
 2. Type in the **Reply…** textarea at the bottom of the card.
-3. Press **Cmd+Enter** or click **Reply**.
+3. Press **Cmd+Enter** (or **Ctrl+Enter**) or click **Reply**.
 
 ### Resolving and reopening
 
@@ -62,21 +71,22 @@ sidebar. It shows:
 ### Deleting a thread
 
 Only users with the page `delete` permission (moderators / admins) see the
-**Delete thread** button. The delete is a two-step confirmation inside the card —
-no native dialog. Deleting a thread cascades to all its comments via `ON DELETE
+**Delete** button on a thread card. Clicking it asks "Delete this thread
+permanently?" inside the card — no native dialog. Deleting a thread cascades to all its comments via `ON DELETE
 CASCADE`.
 
 ## @-mention autocomplete
 
 In any comment or reply textarea, type `@` immediately followed by the start of a
-login name. A popover (`MentionPicker`) appears above the caret showing up to 8
-matching users. Each row shows `@loginName` and, if different, the user's full
+login name. A popover (`MentionPicker`) appears at the caret showing up to 8
+matching users. Mentions work only in comment and reply boxes, not in the page
+editor. Each row shows `@loginName` and, if different, the user's full
 name.
 
 Navigate the popover with the keyboard:
 - **Up/Down arrows** — move selection.
 - **Enter** or **Tab** — accept the highlighted candidate.
-- **Escape** or backspace past `@` — dismiss.
+- **Escape** — dismiss.
 
 Click any candidate with the mouse (uses `onMouseDown` so the textarea does not
 lose focus first).
@@ -85,7 +95,7 @@ Accepted mentions are inserted as `@loginName` in the comment body. `CommentBody
 renders them as clickable chips that link to `/wiki/Users/{loginName}`.
 
 The autocomplete calls `GET /api/users/mentionable?q={prefix}&limit=8` to fetch
-candidates.
+candidates (the server default is 8 and the cap is 10).
 
 ## The unread mentions inbox (`/me/mentions`)
 
@@ -128,16 +138,15 @@ fires only if the commenter is not the owner themselves.
 | Post a new thread | `comment` on the page |
 | Reply to a thread | `comment` on the page |
 | Resolve or reopen a thread | `comment` on the page |
-| Edit your own comment | Author of that comment |
-| Delete your own comment | Author of that comment |
+| Edit your own comment (API only — the drawer has no edit control) | Author of that comment |
+| Delete your own comment (API only — the drawer has no per-comment delete) | Author of that comment |
 | Delete any comment on a page | `delete` on the page (moderators, admins) |
 | Delete an entire thread | `delete` on the page |
 | Read your mention inbox | Authenticated (any role) |
 
 Anonymous users (unauthenticated) cannot comment. The REST layer enforces
 permissions via `RestServletBase.checkPagePermission()`. Default role permissions
-are configured via the admin security panel at `/admin/security` (see
-[docs/admin/ApiKeys.md](../admin/ApiKeys.md) for the permission model).
+are configured via the admin security panel at `/admin/security`.
 
 ## Admin and moderation controls
 

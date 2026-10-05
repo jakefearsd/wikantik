@@ -123,6 +123,9 @@ export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
                 Add
               </button>
             </div>
+            <p className="form-hint">
+              Enter each member&apos;s login name. Full names and wiki names are not accepted.
+            </p>
           </div>
 
           <div className="modal-actions">

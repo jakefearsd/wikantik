@@ -35,6 +35,13 @@ describe('GroupFormModal — gating and modes', () => {
   });
 });
 
+describe('GroupFormModal — member hint', () => {
+  it('tells the admin that members are login names', () => {
+    render(<GroupFormModal isOpen onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.getByText(/login name/i)).toBeTruthy();
+  });
+});
+
 describe('GroupFormModal — member add/remove', () => {
   it('adds a member via the Add button', () => {
     const { container } = render(<GroupFormModal isOpen onClose={vi.fn()} onSave={vi.fn()} />);

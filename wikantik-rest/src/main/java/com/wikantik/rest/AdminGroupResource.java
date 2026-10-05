@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
@@ -61,6 +62,21 @@ public class AdminGroupResource extends RestServletBase {
     @Override
     protected boolean isCrossOriginAllowed() {
         return false;
+    }
+
+    /** True if {@code name} is the login name of an existing account. */
+    private boolean isLoginName( final String name ) {
+        if ( name.isEmpty() ) {
+            return false;
+        }
+        try {
+            getSubsystems().auth().users().getUserDatabase().findByLoginName( name );
+            return true;
+        } catch ( final NoSuchPrincipalException e ) {
+            // Expected for an entry that is not a login name; the caller reports it.
+            LOG.debug( "Group member '{}' is not a login name: {}", name, e.getMessage() );
+            return false;
+        }
     }
 
     private GroupManager getGroupManager() {
@@ -147,12 +163,23 @@ public class AdminGroupResource extends RestServletBase {
             // Build the member line from the JSON array.
             // GroupManager.parseGroup() uses newline as the member separator.
             final StringBuilder memberLine = new StringBuilder();
+            final List< String > notLogins = new ArrayList<>();
             if ( body.has( "members" ) && body.get( "members" ).isJsonArray() ) {
                 final JsonArray membersArray = body.getAsJsonArray( "members" );
                 for ( int i = 0; i < membersArray.size(); i++ ) {
+                    final String member = membersArray.get( i ).getAsString().trim();
+                    if ( !isLoginName( member ) ) {
+                        notLogins.add( member );
+                    }
                     if ( i > 0 ) memberLine.append('\n');
-                    memberLine.append( membersArray.get( i ).getAsString() );
+                    memberLine.append( member );
                 }
+            }
+            // Group membership is resolved by login name only, so any other entry would never match.
+            if ( !notLogins.isEmpty() ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Group members must be existing login names; not a login name: " + String.join( ", ", notLogins ) );
+                return;
             }
 
             // Parse and create/update the group

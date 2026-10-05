@@ -128,8 +128,8 @@ class AdminGroupResourceTest {
     void testCreateGroup() throws Exception {
         final JsonObject body = new JsonObject();
         final JsonArray members = new JsonArray();
-        members.add( "alice" );
-        members.add( "bob" );
+        members.add( "Alice" );
+        members.add( "Bob" );
         body.add( "members", members );
 
         final String json = doPut( "NewGroup", body );
@@ -147,6 +147,25 @@ class AdminGroupResourceTest {
     }
 
     @Test
+    void testPutGroupRejectsMembersThatAreNotLoginNames() throws Exception {
+        final JsonObject body = new JsonObject();
+        final JsonArray members = new JsonArray();
+        members.add( "Alice" );
+        members.add( "No Such Login" );
+        members.add( "Janne Jalkanen" );   // janne's full name, not a login name
+        body.add( "members", members );
+
+        final JsonObject obj = gson.fromJson( doPut( "BadMembers", body ), JsonObject.class );
+
+        assertEquals( 400, obj.get( "status" ).getAsInt(), obj.toString() );
+        final String message = obj.get( "message" ).getAsString();
+        assertTrue( message.contains( "No Such Login" ) && message.contains( "Janne Jalkanen" ), message );
+        assertFalse( message.contains( "Alice" ), "valid members are not reported: " + message );
+        assertThrows( com.wikantik.auth.NoSuchPrincipalException.class,
+                () -> engine.getManager( GroupManager.class ).getGroup( "BadMembers" ) );
+    }
+
+    @Test
     void testUpdateGroupMembers() throws Exception {
         // Create the group first
         final GroupManager gm = engine.getManager( GroupManager.class );
@@ -156,8 +175,8 @@ class AdminGroupResourceTest {
         // Update with new members
         final JsonObject body = new JsonObject();
         final JsonArray members = new JsonArray();
-        members.add( "charlie" );
-        members.add( "diana" );
+        members.add( "Charlie" );
+        members.add( "Fred" );
         body.add( "members", members );
 
         final String json = doPut( "TestGroup", body );
@@ -280,9 +299,9 @@ class AdminGroupResourceTest {
         // Update with completely different members
         final JsonObject body = new JsonObject();
         final JsonArray members = new JsonArray();
-        members.add( "eve" );
-        members.add( "frank" );
-        members.add( "grace" );
+        members.add( "Charlie" );
+        members.add( "Fred" );
+        members.add( "Biff" );
         body.add( "members", members );
 
         final String json = doPut( "TestGroup", body );
@@ -364,7 +383,7 @@ class AdminGroupResourceTest {
         // "Authenticated" is a restricted group name — GroupManager rejects it
         final JsonObject body = new JsonObject();
         final JsonArray members = new JsonArray();
-        members.add( "alice" );
+        members.add( "Alice" );
         body.add( "members", members );
 
         final String json = doPut( "Authenticated", body );

@@ -43,7 +43,7 @@ The **API Keys** section on the profile page creates keys for scripts and AI cli
 2. Copy the secret straight away. It is shown once.
 3. Use **Rotate** to replace a key with a new secret (same label and scope), or **Revoke** to disable it. Anything still using a revoked key gets HTTP 403.
 
-You can create keys with scope `tools` or `mcp_read`. The scope defaults to `mcp_read` when you leave it blank.
+You can create keys with scope `tools` or `mcp_read`. The scope picker starts at `tools` and has no blank option. A direct `POST /api/self/apikeys` call without a `scope` creates an `mcp_read` key.
 
 | Scope | Use |
 |---|---|

@@ -36,7 +36,6 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -339,49 +338,8 @@ public final class McpToolUtils {
             final String defaultAuthor,
             final java.util.function.Function< Map< String, Object >, Map< String, Object > > dispatch,
             final boolean isErrorOnAllFailed ) {
-        if ( !( rawList instanceof List< ? > list ) || list.isEmpty() ) {
-            return errorResult( SHARED_GSON,
-                    "operations is required and must be a non-empty array" );
-        }
-        if ( list.size() > bulkLimit ) {
-            return errorResult( SHARED_GSON,
-                    "bulk limit exceeded: " + list.size() + " > " + bulkLimit );
-        }
-
-        final List< Map< String, Object > > succeeded = new java.util.ArrayList<>();
-        final List< Map< String, Object > > failed = new java.util.ArrayList<>();
-
-        for ( final Object opEl : list ) {
-            if ( !( opEl instanceof Map< ?, ? > opMap ) ) {
-                failed.add( Map.of( "error", "operation must be an object" ) );
-                continue;
-            }
-            final Map< String, Object > op = castStringKey( opMap );
-            final String tag = stringOrNull( op.get( "tag" ) );
-            final String action = stringOrNull( op.get( "action" ) );
-
-            final Map< String, Object > result = dispatch.apply( op );
-            final Map< String, Object > entry = new LinkedHashMap<>();
-            entry.put( "tag", tag );
-            entry.put( "action", action );
-            entry.putAll( result );
-            if ( entry.containsKey( "error" ) ) failed.add( entry );
-            else succeeded.add( entry );
-        }
-
-        McpAudit.logBulkWrite( toolName, list.size(), succeeded.size(), failed.size(), defaultAuthor );
-
-        final boolean allFailed = succeeded.isEmpty() && !failed.isEmpty();
-        final Map< String, Object > out = new LinkedHashMap<>();
-        out.put( "status", allFailed ? "failed" : "completed" );
-        out.put( "succeeded", succeeded );
-        out.put( "failed", failed );
-        out.put( "message", succeeded.size() + " of " + list.size() + " " + entityLabel + " operations applied" );
-        return McpSchema.CallToolResult.builder()
-                .content( List.of( new McpSchema.TextContent( SHARED_GSON.toJson( out ) ) ) )
-                .structuredContent( out )
-                .isError( isErrorOnAllFailed && allFailed )
-                .build();
+        return McpBulkRunner.run( toolName, entityLabel, rawList, bulkLimit, defaultAuthor, dispatch,
+                                  isErrorOnAllFailed );
     }
 
     /**
@@ -394,22 +352,7 @@ public final class McpToolUtils {
     @SuppressWarnings( "unchecked" )
     public static Set< com.wikantik.api.knowledge.Provenance > parseProvenanceFilter(
             final Map< String, Object > arguments ) {
-        final Object raw = arguments.get( "provenance_filter" );
-        if ( !( raw instanceof List< ? > list ) || list.isEmpty() ) {
-            return null;
-        }
-        final Set< com.wikantik.api.knowledge.Provenance > result = new LinkedHashSet<>();
-        for ( final Object item : list ) {
-            if ( item instanceof String s ) {
-                try {
-                    result.add( com.wikantik.api.knowledge.Provenance.fromValue( s ) );
-                } catch ( final IllegalArgumentException ignored ) {
-                    LOG.debug( "Skipping unknown provenance value '{}': {}", s, ignored.getMessage() );
-                    // Unknown provenance strings are skipped (logged at debug above).
-                }
-            }
-        }
-        return result.isEmpty() ? null : result;
+        return McpProvenanceFilter.parse( arguments );
     }
 
     /**

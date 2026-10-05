@@ -48,8 +48,9 @@ import java.util.List;
  * </ul>
  *
  * <p>Uses {@code request.getRemoteAddr()}, which in the Docker deployment reflects the
- * real client IP after Tomcat's {@code RemoteIpValve} processes the {@code CF-Connecting-IP}
- * header from Cloudflare.</p>
+ * real client IP after Tomcat's {@code RemoteIpValve} processes the reverse-proxy header
+ * named by {@code PROXY_REMOTE_IP_HEADER} (default {@code CF-Connecting-IP} for Cloudflare;
+ * e.g. {@code X-Forwarded-For} behind Caddy/nginx/ALB).</p>
  */
 @SuppressWarnings( "PMD.AvoidUsingHardCodedIP" ) // RFC 1918 private ranges are the canonical internal-network allowlist — hardcoding is the point.
 public class InternalNetworkFilter implements Filter {

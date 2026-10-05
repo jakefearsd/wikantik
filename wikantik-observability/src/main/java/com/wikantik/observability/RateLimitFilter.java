@@ -59,8 +59,8 @@ import java.util.List;
  * </ul>
  *
  * <p>Client identity is {@code getRemoteAddr()}, which is the real client IP
- * behind Cloudflare thanks to Tomcat's {@code RemoteIpValve}
- * ({@code remoteIpHeader="CF-Connecting-IP"}). Loopback callers are always
+ * behind a reverse proxy thanks to Tomcat's {@code RemoteIpValve}
+ * (header named by {@code PROXY_REMOTE_IP_HEADER}, default {@code CF-Connecting-IP}). Loopback callers are always
  * exempt — local ops and the eval harness run full-speed — plus an optional
  * IPv4 CIDR allowlist; the exact path {@code /api/health} is skipped so
  * monitoring can never be limited. This is complementary to

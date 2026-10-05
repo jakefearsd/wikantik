@@ -68,7 +68,7 @@
 #                                (default true when unset; the consuming property ships
 #                                with the same release)
 #   WIKANTIK_EMBEDDING_BATCH_SIZE
-#                                texts per embedding backend round-trip (default 32).
+#                                texts per embedding backend round-trip (default 10).
 #   WIKANTIK_EMBEDDING_TIMEOUT_MS
 #                                per-request embedding timeout in ms (default 30000).
 #                                Coupled to the backend's available CPU — capping the
@@ -258,7 +258,7 @@ fi
 
 # Optional: embedding batch size and per-request timeout.
 #   WIKANTIK_EMBEDDING_BATCH_SIZE — texts per backend round-trip (default: ini bundle
-#   default = 32). WIKANTIK_EMBEDDING_TIMEOUT_MS — per-request HTTP timeout in ms
+#   default = 10). WIKANTIK_EMBEDDING_TIMEOUT_MS — per-request HTTP timeout in ms
 #   (default: ini bundle default = 30000).
 #
 #   These two are coupled to how much CPU the embedding backend actually gets. A batch

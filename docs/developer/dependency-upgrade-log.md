@@ -355,3 +355,50 @@ qualifier for a single artifact — check that artifact by hand instead.
    `anthropic-java` and `mcp-core`. Use
    `https://repo1.maven.org/maven2/<path>/maven-metadata.xml` and read
    `<release>` instead — that is authoritative.
+
+---
+
+# Dependency Sweep — 2026-10-05
+
+Patch/minor sweep. Verified with `mvn clean install -DskipITs` (SUCCESS, 6710 wikantik-main
+tests), frontend `npm ci --ignore-scripts`, `npm run build`, `npx vitest run` (2813 tests),
+`npx eslint .` (clean). `npm audit`: 0 vulnerabilities. OSV querybatch over 374 runtime
+Maven artifacts: 0 advisories.
+
+## Applied — Maven
+
+| Property | From | To |
+|---|---|---|
+| `anthropic-java.version` | 2.65.0 | 2.68.0 (`Message` now requires `diagnostics`; test fixture updated) |
+| `archunit.version` | 1.5.0 | 1.5.1 |
+| `commons-lang.version` | 3.20.0 | 3.21.0 |
+| `google-api-services-drive.version` | v3-rev20260901-2.0.0 | v3-rev20260916-2.0.0 |
+| `google-auth-library.version` | 1.52.0 | 1.54.0 |
+| `lucene.version` | 10.5.1 | 10.5.2 |
+| `mockito.version` | 5.23.0 | 5.24.0 |
+| `owasp-html-sanitizer.version` | 20260922.1 | 20260924.2 |
+| `pac4j.version` | 6.5.8 | 6.5.9 |
+| `sec.guava.version` | 33.7.1-jre | 33.7.2-jre |
+| `sec.httpcore5.version` | 5.4.3 | 5.4.4 |
+| `selenium.version` | 4.49.0 | 4.50.0 |
+| h2 (wikantik-jdbc pom) | 2.5.250 | 2.5.252 |
+
+## Applied — frontend
+
+@codemirror/commands 6.10.4 -> 6.11.1, @uiw/react-codemirror 4.25.11 -> 4.25.12,
+@vitejs/plugin-react 6.1.1 -> 6.1.2, eslint 10.11.0 -> 10.12.0, globals 17.12.0 -> 17.13.0,
+vite 8.3.0 -> 8.3.2.
+
+## Tomcat 11.0.22 -> 11.0.26 (separate commit)
+
+11.0.23-11.0.26 fix further CVEs (e.g. CVE-2026-55956, default-servlet security constraints
+ignored method; moderate). Docker tag `tomcat:11.0.26-jdk25-temurin` exists and the Apache
+archive has `apache-tomcat-11.0.26.tar.gz`. Dockerfile, `bin/deploy-local.sh` and the pom move
+together; `bin/tests/test-entrypoint.sh` confirms agreement. An existing install is detected
+via `server.number` and routed through `--upgrade-tomcat`.
+
+## Not taken
+
+- tika 3.3.2 -> 4.1.0 and junrar 7.6.1 -> 8.1.1: majors; see the Tika note above (junrar 8 is forced).
+- vitest / @vitest/coverage-v8 4.1.11 -> 5.0.3, katex 0.16.47 -> 0.19.0: majors (katex also blocked by rehype-katex).
+- libthrift held at 0.23; Apache parent 39 held.

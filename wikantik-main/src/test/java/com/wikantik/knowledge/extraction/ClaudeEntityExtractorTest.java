@@ -97,6 +97,7 @@ class ClaudeEntityExtractorTest {
         return Message.builder()
             .id( "msg_test" )
             .container( Optional.empty() )
+            .diagnostics( Optional.empty() )
             .content( List.of( ContentBlock.ofText( textBlock ) ) )
             .model( Model.CLAUDE_HAIKU_4_5 )
             .role( JsonValue.from( "assistant" ) )

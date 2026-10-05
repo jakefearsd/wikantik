@@ -271,10 +271,8 @@ class SelfApiKeysResourceTest {
         servlet.doPost( request, response );
 
         verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
-        for ( final ApiKeyService.Scope valid : ApiKeyService.Scope.values() ) {
-            assertTrue( out.toString().contains( valid.wire() ),
-                    "400 message must list valid scope " + valid.wire() );
-        }
+        assertTrue( out.toString().contains( ApiKeyService.Scope.validWireNames() ),
+                "400 message must list every valid scope: " + out );
         verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
     }
 
@@ -287,8 +285,10 @@ class SelfApiKeysResourceTest {
         servlet.doPost( postRequest( null, "{\"label\":\"x\",\"scope\":\"mcp\"}" ), response );
 
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
-        assertTrue( out.toString().contains( "tools" ) && out.toString().contains( "mcp_read" ),
-                "403 must name the scopes the caller may mint: " + out );
+        final String message = com.google.gson.JsonParser.parseString( out.toString() )
+                .getAsJsonObject().get( "message" ).getAsString();
+        assertTrue( message.endsWith( "you may create keys with scope mcp_read, tools" ),
+                "403 must name exactly the scopes the caller may mint: " + message );
         verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
     }
 

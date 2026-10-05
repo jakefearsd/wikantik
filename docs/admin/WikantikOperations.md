@@ -18,27 +18,11 @@ reference of every `wikantik.*` property with its default and type, see
 [ConfigurationReference.md](../ConfigurationReference.md).
 
 ### 1.2 Containerized Deployment (Recommended for Production)
-The production Docker environment runs four services defined in `docker-compose.yml` and `docker-compose.prod.yml`:
-1. `wikantik`: The primary application running on Tomcat 11/JDK 25.
-2. `db`: PostgreSQL 18 database (`pgvector/pgvector:pg18` — the `vector` extension is required).
-3. `ollama`: CPU embedding sidecar serving the fixed `qwen3-embedding:0.6b` model (reached only on the compose network at `http://ollama:11434`, no host port). `wikantik` does not `depend_on` it — the query embedder fails closed to BM25 if it's unreachable.
-4. `backup`: An Alpine-based container that executes cron jobs for scheduled backups.
+The production Docker stack (`docker-compose.yml` plus `docker-compose.prod.yml`) and its persistent state are described once, in [DockerDeployment.md](DockerDeployment.md#services) (services) and [DockerDeployment.md](DockerDeployment.md#2-data-persistence) (volumes and bind mounts). Operator notes that are not in that guide:
 
-**Persistent Volumes (prod):**
-- `pgdata`: Named volume holding the PostgreSQL cluster.
-- **Pages + attachments**: Host bind-mount from `WIKANTIK_PAGES_DIR` (e.g. `/srv/wikantik/pages`) — not a named volume; `rsync` is the source of truth for content, independent of container lifecycle.
-- `wikantik-work` & `wikantik-logs`: Named volumes holding the Lucene index and logs. Regeneratable, not backed up.
-  `wikantik-work` also holds the ontology TDB2 store (`${wikantik.workDir}/ontology-tdb2`), which grows
-  unboundedly — copy-on-write B+Trees never shrink on their own, so continuous nightly rebuild +
-  per-save incremental sync only ever adds (measured ~1.35 GB/day in production; it once reached
-  94.6 GB before being cleared). A weekly compaction pass (`wikantik.ontology.compaction.interval.hours`,
-  default 168) reclaims space without a full rebuild. The directory is always safe to delete —
-  `OntologyWiringHelper` calls `coordinator.rebuildIfEmpty()` on every startup, so a missing/empty
-  store self-heals automatically on next boot.
-- `wikantik-profiling`: Named volume (prod overlay) holding JFR profiling recordings at `/var/wikantik/profiling`. Non-critical, not backed up.
+- `wikantik-work` also holds the ontology TDB2 store (`${wikantik.workDir}/ontology-tdb2`), which grows unboundedly: copy-on-write B+Trees never shrink on their own, so the nightly rebuild plus per-save incremental sync only ever add (measured about 1.35 GB/day in production; it once reached 94.6 GB before being cleared). A weekly compaction pass (`wikantik.ontology.compaction.interval.hours`, default 168) reclaims space without a full rebuild. The directory is always safe to delete: `OntologyWiringHelper` calls `coordinator.rebuildIfEmpty()` on every startup, so a missing or empty store rebuilds on the next boot.
 
-**Rollback:**
-Deployments are driven from the developer box via `bin/remote.sh deploy`. Before swapping the image, the script tags the running image as `wikantik:rollback`. If the post-deploy `/api/health` poll (`GET http://<host>:8080/api/health`) does not return 200 within the health timeout, `bin/remote.sh deploy` automatically re-promotes the `:rollback` image and force-recreates the service. Manual rollback at any time: `bin/remote.sh rollback`. There is no CI deploy pipeline — the developer box drives all production changes.
+**Rollback:** `bin/remote.sh deploy` rolls back automatically when the post-deploy health poll fails, and `bin/remote.sh rollback` does it by hand; see [DockerDeployment.md](DockerDeployment.md#roll-back). There is no CI deploy pipeline; the developer box drives all production changes.
 
 ### 1.2.1 Pull-based updates (cloud VM targets)
 
@@ -564,24 +548,30 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 
 ## 5. Knowledge Graph Administration
 
-The Knowledge Graph captures structured entities (nodes) and their relationships (edges). Administered primarily via `/admin/knowledge/` in the UI and supported by Model Context Protocol (MCP) integrations.
+The Knowledge Graph holds LLM-extracted entities (nodes) and typed relations between them (edges). It is administered at `/admin/knowledge-graph` in the UI and through the admin MCP tools (`propose_knowledge`, `list_proposals`, `review_proposals`, `curate_nodes`, `curate_edges`). It is separate from the Page Graph, whose edges are real wikilinks; see [PageGraphVsKnowledgeGraph](../wikantik-pages/PageGraphVsKnowledgeGraph.md).
 
-### 5.1 Provenance & Graph Projector
-Nodes and edges carry a `provenance` label:
-- `human-authored`: Extracted from YAML frontmatter (e.g., `related: [PageName]`) and body links.
-- `ai-inferred`: Suggested by AI but pending admin approval.
-- `ai-reviewed`: AI proposals validated by an administrator.
+### 5.1 How nodes and edges are written
 
-The **Graph Projector** runs on every page save. It parses frontmatter to insert relationship edges and removes stale data. Missing target pages are created as "stub nodes".
+Nothing projects page frontmatter or body links into the Knowledge Graph on save. The old graph projector was retired (migration V012 purged the `links_to` edges it had written). Today there are three write paths:
 
-### 5.2 Proposals & AI Integration
-AI agents connected via MCP submit `new-node`, `new-edge`, `new-property`, or `modify-property` proposals through the `propose_knowledge` tool. 
-- **Approval:** A newly accepted `new-edge` relation is written back to the source page's YAML frontmatter.
-- **Rejection:** Rejections include reasons and prevent agents from submitting the exact same proposal again.
+1. **Extraction proposes.** On page save, `AsyncEntityExtractionListener` runs off the save thread and files entity and relation **proposals** in `kg_proposals` (and chunk mentions). It never writes `kg_nodes` or `kg_edges` itself, skips an edge pairing already recorded in `kg_rejections`, and applies a per-page rate limit. `bin/kg-extract.sh` does the same in batch.
+2. **A judge or a human decides.**
+   - The judge (`JudgeRunner`, on a schedule unless disabled; trigger a run or judge one proposal with `bin/kg-judge.sh`) records a machine verdict. An approved `new-edge` or `new-node` proposal is materialised by `KgMaterializationService` at tier `machine` with provenance `ai-inferred`; a hard rejection of an edge also records it in `kg_rejections`.
+   - A human approves through `tryApprove` (REST `/admin/knowledge-graph` proposal handlers and the `review_proposals` tool). That promotes the rows to tier `human`, and for a `new-edge` also writes the relation back into the source page's frontmatter (the relationship type becomes a frontmatter key listing the target; saved as author "Knowledge Admin").
+   - A human rejection retracts anything the proposal had materialised and records the rejection, so the same proposal is refused when resubmitted (`propose_knowledge` refuses a previously rejected triple).
+3. **Direct curation.** `curate_nodes`, `curate_edges` and the admin UI write nodes and edges immediately with human provenance (`human-authored` for node upserts, `human-curated` for edges). Edge writes pass the write-time SHACL gate, which refuses a non-conformant edge, and mixed page-to-entity edges are refused.
 
-### 5.3 Node & Edge Curation
-- **Stub Nodes:** Frequent review of stub nodes is encouraged. They represent missing pages or potential typos in YAML blocks.
-- **Edge Types:** Standard conventions (e.g., `related`, `depends_on`, `implements`, `supersedes`) should be maintained across the wiki for querying clarity.
+Provenance values are `human-authored`, `human-curated`, `ai-inferred` and `ai-reviewed`.
+
+### 5.2 Proposals
+
+Agents submit `new-node`, `new-edge`, `new-property` or `modify-property` proposals through `propose_knowledge` (`new-edge` data is `{source, target, relationship}`; `new-node` is `{name, node_type, properties}`). Only `new-node` and `new-edge` proposals are materialised into the graph; review them in `/admin/knowledge-graph` or with `list_proposals` / `review_proposals`.
+
+### 5.3 Node and edge curation
+
+- **Edge types** are a closed vocabulary enforced by the `kg_edges_relationship_type_check` constraint (V027, extended by V030): `related_to`, `part_of`, `contains`, `is_a`, `instance_of`, `requires`, `enables`, `uses`, `produces`, `replaces`, `precedes`, `extends`, `implements`, `alternative_to`, `contrasts_with`, `compatible_with`, `mitigates`, `defines`, `applies_to`, `located_in`, `generalizes`. Anything else is rejected by the database.
+- **Which pages feed the graph** is controlled by the cluster inclusion policy; see [KgInclusionPolicy.md](KgInclusionPolicy.md).
+- **Orphans:** `list_orphaned_kg_nodes` finds degree-0 entities.
 
 ### 5.4 Embeddings & Advanced Quality Tools
 Wikantik leverages a unified embedding model for hybrid search and structural similarity.

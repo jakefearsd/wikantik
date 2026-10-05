@@ -153,7 +153,7 @@ The migration directory is the source of truth; this table summarises it through
 | V005 | `hub_centroids`, `hub_proposals` |
 | V006, V007 | `hub_discovery_proposals` and status tracking |
 | V008 | `kg_content_chunks`: page-passage chunking for retrieval |
-| V009 | `content_chunk_embeddings`: Ollama-backed dense embeddings |
+| V009 | `content_chunk_embeddings`: Ollama-backed dense embeddings, stored as `BYTEA` little-endian float32 (V032 later adds the pgvector column alongside it) |
 | V010 | `api_keys`: bearer-token auth for the MCP and tools servers |
 | V011 | `chunk_entity_mentions`: joins KG nodes to chunks |
 | V012 | Retire the legacy graph projector; replaced by direct `kg_edges` writes |
@@ -207,6 +207,10 @@ The migration directory is the source of truth; this table summarises it through
 The other `.sql` files directly under `bin/db/` (`migration-1.0-to-1.1.sql`,
 `cleanup-2026-04-30-stale-canonical-ids.sql`, `normalize-relationship-types.sql`) are
 historical one-offs, not part of the ledger.
+
+## Known unused index
+
+`idx_kg_nodes_properties` (a GIN index on `kg_nodes.properties`, created by V004) is not used by application queries: `KgNodeRepository` searches with `LOWER( n.properties::text ) LIKE ?`, which bypasses a GIN index. Using it would need JSONB containment (`@>`); until then it only costs writes. The other V004 edge indexes are not flagged here: `idx_kg_edges_type` backs the `relationship_type` filter in `KgEdgeRepository`.
 
 ## Troubleshoot
 

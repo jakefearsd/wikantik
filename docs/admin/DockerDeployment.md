@@ -414,7 +414,7 @@ docker save wikantik:latest | ssh REMOTE_HOST 'docker load'
 # 3. Start ONLY the database
 bin/remote.sh up -d db
 
-# 4. Initialise the DB from a dump — see §5
+# 4. Initialise the DB from a dump — see §6
 
 # 5. Push the page tree
 bin/remote.sh pages-push docs/wikantik-pages

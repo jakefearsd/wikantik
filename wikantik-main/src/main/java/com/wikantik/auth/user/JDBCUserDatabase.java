@@ -362,6 +362,37 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
         // A new users row whose role insert failed is an account with no permissions; discard
         // the whole write rather than leave that committed.
+        try {
+            writeProfile( profile, finalExistingProfile, finalPassword, initialRole );
+        } catch( final WikiSecurityException e ) {
+            if( isUniqueViolation( e ) ) {
+                LOG.warn( "Profile save for '{}' rejected: another account holds its login or wiki name", loginName );
+                throw new ProfileConflictException( e );
+            }
+            throw e;
+        }
+
+        // Evict the saved login so the next lookup (e.g. a basic-auth request) sees the
+        // fresh record — critically, an updated password hash on a credential change.
+        if( loginName != null ) {
+            byLoginCache.invalidate( loginName );
+        }
+    }
+
+    /** PostgreSQL / SQL-standard SQLState for a unique-constraint violation. */
+    private static final String UNIQUE_VIOLATION = "23505";
+
+    private static boolean isUniqueViolation( final Throwable t ) {
+        for( Throwable c = t; c != null; c = c.getCause() ) {
+            if( c instanceof SQLException sql && UNIQUE_VIOLATION.equals( sql.getSQLState() ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void writeProfile( final UserProfile profile, final UserProfile finalExistingProfile,
+                               final String finalPassword, final String initialRole ) throws WikiSecurityException {
         AbstractJDBCDatabase.runInTransaction( ds, supportsCommits, conn -> {
             final Timestamp ts = new Timestamp( System.currentTimeMillis() );
             final Date modDate = new Date( ts.getTime() );
@@ -399,12 +430,6 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             profile.setLastModified( modDate );
             return null;
         } );
-
-        // Evict the saved login so the next lookup (e.g. a basic-auth request) sees the
-        // fresh record — critically, an updated password hash on a credential change.
-        if( loginName != null ) {
-            byLoginCache.invalidate( loginName );
-        }
     }
 
     /**

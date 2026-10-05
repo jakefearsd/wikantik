@@ -36,6 +36,7 @@ import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.sso.SSOConfig;
+import com.wikantik.auth.user.ProfileConflictException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.validate.PasswordValidator;
@@ -418,6 +419,9 @@ public class AuthResource extends RestServletBase {
         } catch ( final NoSuchPrincipalException e ) {
             LOG.warn( "Profile not found for authenticated user: {}", session.getLoginPrincipal().getName() );
             sendNotFound( response, "Profile not found" );
+        } catch ( final ProfileConflictException e ) {
+            LOG.warn( "Profile update conflicts with an existing account: {}", e.getMessage() );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, ProfileConflictException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             LOG.error( "Failed to update profile: {}", e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to update profile" );

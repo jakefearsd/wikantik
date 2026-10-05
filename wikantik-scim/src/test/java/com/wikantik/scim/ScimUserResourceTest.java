@@ -298,6 +298,79 @@ class ScimUserResourceTest {
         verify( newProfile ).setFullname( "Helen Smith" );
     }
 
+    private static final String RAW_CONSTRAINT = "ERROR: duplicate key value violates unique constraint \"users_wiki_name_uniq\" Detail: Key (wiki_name)=(OtherPerson)";
+
+    private void assertGenericConflict() {
+        verify( resp ).setStatus( 409 );
+        assertTrue( sw.toString().contains( "uniqueness" ), sw.toString() );
+        assertFalse( sw.toString().contains( "users_wiki_name_uniq" ), sw.toString() );
+        assertFalse( sw.toString().contains( "OtherPerson" ), sw.toString() );
+    }
+
+    @Test
+    void createSaveConflict_returns409UniquenessWithoutStoreDetail() throws Exception {
+        doThrow( new NoSuchPrincipalException( "kim" ) ).when( mockDb ).findByLoginName( "kim" );
+        final UserProfile newProfile = mock( UserProfile.class );
+        when( newProfile.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.newProfile() ).thenReturn( newProfile );
+        doThrow( new com.wikantik.auth.user.ProfileConflictException( new java.sql.SQLException( RAW_CONSTRAINT, "23505" ) ) )
+                .when( mockDb ).save( any() );
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( "{\"userName\":\"kim\"}" ) ) );
+
+        resource.doPost( req, resp );
+
+        assertGenericConflict();
+    }
+
+    @Test
+    void createSaveFailure_doesNotEchoTheStoreMessage() throws Exception {
+        doThrow( new NoSuchPrincipalException( "kim" ) ).when( mockDb ).findByLoginName( "kim" );
+        final UserProfile newProfile = mock( UserProfile.class );
+        when( newProfile.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.newProfile() ).thenReturn( newProfile );
+        doThrow( new WikiSecurityException( "Database operation failed: " + RAW_CONSTRAINT ) ).when( mockDb ).save( any() );
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( "{\"userName\":\"kim\"}" ) ) );
+
+        resource.doPost( req, resp );
+
+        assertFalse( sw.toString().contains( "users_wiki_name_uniq" ), sw.toString() );
+    }
+
+    @Test
+    void putSaveConflict_returns409UniquenessWithoutStoreDetail() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/uid-kim" );
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "kim" );
+        when( p.isLocked() ).thenReturn( false );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-kim" ) ).thenReturn( p );
+        doThrow( new com.wikantik.auth.user.ProfileConflictException( new java.sql.SQLException( RAW_CONSTRAINT, "23505" ) ) )
+                .when( mockDb ).save( any() );
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( "{\"userName\":\"kim\",\"name\":{\"formatted\":\"Kim Lee\"}}" ) ) );
+
+        resource.doPut( req, resp );
+
+        assertGenericConflict();
+    }
+
+    @Test
+    void patchSaveConflict_returns409UniquenessWithoutStoreDetail() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/uid-kim" );
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "kim" );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-kim" ) ).thenReturn( p );
+        doThrow( new com.wikantik.auth.user.ProfileConflictException( new java.sql.SQLException( RAW_CONSTRAINT, "23505" ) ) )
+                .when( mockDb ).save( any() );
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"displayName\",\"value\":\"Kim\"}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        assertGenericConflict();
+    }
+
     @Test
     void createDbSaveThrowsWikiSecurityException_returns409() throws Exception {
         // db.save() throws WikiSecurityException → 409

@@ -775,6 +775,37 @@ class AdminUserResourceTest {
         assertEquals( "NameOwner3", renamed.get( "wikiName" ).getAsString() );
     }
 
+    @Test
+    void testUpdateUserSaveConflictReturns400WithoutStoreDetail() throws Exception {
+        final JsonObject a = new JsonObject();
+        a.addProperty( "loginName", "conflictUser" );
+        a.addProperty( "fullName", "Conflict User" );
+        a.addProperty( "password", "StrongPassword123!" );
+        doPost( null, a );
+
+        final AdminUserResource spy = Mockito.spy( servlet );
+        final com.wikantik.auth.user.UserDatabase real = servlet.getUserDatabase();
+        final com.wikantik.auth.user.UserDatabase userDbMock = Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+        Mockito.doReturn( real.findByLoginName( "conflictUser" ) ).when( userDbMock ).findByLoginName( "conflictUser" );
+        Mockito.doThrow( new com.wikantik.auth.user.ProfileConflictException(
+                new java.sql.SQLException( "duplicate key value violates unique constraint \"users_wiki_name_uniq\"", "23505" ) ) )
+                .when( userDbMock ).save( Mockito.any() );
+        Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
+
+        final JsonObject update = new JsonObject();
+        update.addProperty( "email", "x@example.com" );
+        final HttpServletRequest request = createRequest( "conflictUser" );
+        Mockito.doReturn( new BufferedReader( new StringReader( update.toString() ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        spy.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt(), sw.toString() );
+        assertFalse( sw.toString().contains( "users_wiki_name_uniq" ), sw.toString() );
+    }
+
     // ----- Bulk action tests -----
 
     @Test

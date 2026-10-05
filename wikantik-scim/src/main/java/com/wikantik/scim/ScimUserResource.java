@@ -31,6 +31,7 @@ import com.wikantik.auth.UserLifecycleService;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.sso.SSOAutoProvisionService;
+import com.wikantik.auth.user.ProfileConflictException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import jakarta.servlet.ServletConfig;
@@ -177,9 +178,13 @@ public class ScimUserResource extends AbstractScimServlet {
             resp.setHeader( "Location", usersBaseUrl + "/" + saved.getUid() );
             sendScim( resp, ScimUserMapper.toScim( saved, usersBaseUrl ) );
 
+        } catch ( final ProfileConflictException e ) {
+            LOG.warn( "SCIM create user={} conflicts with an existing account", f.userName(), e );
+            sendError( resp, 409, "uniqueness", ProfileConflictException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
+            // The store's message can carry SQL detail; log it, never echo it.
             LOG.warn( "SCIM create user={} failed: {}", f.userName(), e.getMessage(), e );
-            sendError( resp, 409, "uniqueness", "Failed to create user: " + e.getMessage() );
+            sendError( resp, 409, "uniqueness", "Failed to create user" );
         } catch ( final Exception e ) {
             LOG.warn( "SCIM create user={} unexpected error: {}", f.userName(), e.getMessage(), e );
             sendError( resp, 500, null, "Internal error creating user" );
@@ -301,9 +306,12 @@ public class ScimUserResource extends AbstractScimServlet {
 
         } catch ( final NoSuchPrincipalException e ) {
             sendError( resp, 404, null, "User not found after update: " + id );
+        } catch ( final ProfileConflictException e ) {
+            LOG.warn( "SCIM PUT user uid={} conflicts with an existing account", id, e );
+            sendError( resp, 409, "uniqueness", ProfileConflictException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             LOG.warn( "SCIM PUT user uid={} security error: {}", id, e.getMessage(), e );
-            sendError( resp, 500, null, "Failed to update user: " + e.getMessage() );
+            sendError( resp, 500, null, "Failed to update user" );
         } catch ( final Exception e ) {
             LOG.warn( "SCIM PUT user uid={} error: {}", id, e.getMessage(), e );
             sendError( resp, 500, null, "Internal error updating user" );
@@ -358,9 +366,12 @@ public class ScimUserResource extends AbstractScimServlet {
             sendError( resp, 400, "invalidPath", e.getMessage() );
         } catch ( final NoSuchPrincipalException e ) {
             sendError( resp, 404, null, "User not found after patch: " + id );
+        } catch ( final ProfileConflictException e ) {
+            LOG.warn( "SCIM PATCH user uid={} conflicts with an existing account", id, e );
+            sendError( resp, 409, "uniqueness", ProfileConflictException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             LOG.warn( "SCIM PATCH user uid={} security error: {}", id, e.getMessage(), e );
-            sendError( resp, 500, null, "Failed to patch user: " + e.getMessage() );
+            sendError( resp, 500, null, "Failed to patch user" );
         } catch ( final Exception e ) {
             LOG.warn( "SCIM PATCH user uid={} error: {}", id, e.getMessage(), e );
             sendError( resp, 500, null, "Internal error patching user" );

@@ -33,6 +33,7 @@ import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.validate.PasswordValidator;
+import com.wikantik.auth.user.ProfileConflictException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 
@@ -589,6 +590,9 @@ public class AdminUserResource extends RestServletBase {
             db.save( profile );
             LOG.info( "Updated user: {}", loginName );
             sendJson( response, profileToMap( db.findByLoginName( loginName ) ) );
+        } catch ( final ProfileConflictException e ) {
+            LOG.warn( "Update of user {} conflicts with an existing account", loginName, e );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, ProfileConflictException.MESSAGE );
         } catch ( final Exception e ) {
             LOG.error( "Failed to update user {}: {}", loginName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "User not found: " + loginName );

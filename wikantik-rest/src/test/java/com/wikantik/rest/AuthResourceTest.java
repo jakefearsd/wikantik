@@ -820,6 +820,29 @@ class AuthResourceTest {
     }
 
     @Test
+    void handleUpdateProfile_saveConflictReturns400WithoutStoreDetail() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.doThrow( new com.wikantik.auth.user.ProfileConflictException(
+                new java.sql.SQLException( "duplicate key value violates unique constraint \"users_wiki_name_uniq\"", "23505" ) ) )
+                .when( db ).save( any() );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "bio", "new bio" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final String out = doPut( "profile", body );
+            final JsonObject obj = gson.fromJson( out, JsonObject.class );
+            assertEquals( 400, obj.get( "status" ).getAsInt(), out );
+            assertFalse( out.contains( "users_wiki_name_uniq" ), out );
+        }
+    }
+
+    @Test
     void handleUpdateProfile_allowsUnchangedReservedFullName() throws Exception {
         // The SPA always resends fullName; an unchanged name that later became reserved must not block the save.
         final UserProfile profile = profileFor( "alice", "a@x" );

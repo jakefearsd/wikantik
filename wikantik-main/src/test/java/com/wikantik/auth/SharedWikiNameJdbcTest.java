@@ -97,4 +97,21 @@ class SharedWikiNameJdbcTest extends AbstractJdbcUsersEngineTest {
         assertTrue( Arrays.stream( principals ).anyMatch( p -> p.getName().equals( "JohnSmith2" ) ),
                 Arrays.toString( principals ) );
     }
+
+    @Test
+    void uniqueViolationIsReportedAsAGenericProfileConflict() throws Exception {
+        saveUser( PREFIX + "jsmith", "John Smith" );
+        final UserProfile clash = db.newProfile();
+        clash.setLoginName( PREFIX + "clash" );
+        clash.setFullname( "John Smith" );   // derives JohnSmith, which the first account holds
+        clash.setEmail( "clash@example.test" );
+        clash.setPassword( PASSWORD );
+
+        final com.wikantik.auth.user.ProfileConflictException e =
+                org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.auth.user.ProfileConflictException.class,
+                        () -> db.save( clash ) );
+        assertFalse( e.getMessage().contains( "users_wiki_name_uniq" ), e.getMessage() );
+        assertFalse( e.getMessage().contains( "JohnSmith" ), e.getMessage() );
+        assertFalse( e.getMessage().contains( PREFIX + "jsmith" ), e.getMessage() );
+    }
 }

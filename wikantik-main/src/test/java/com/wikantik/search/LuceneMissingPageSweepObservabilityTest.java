@@ -106,8 +106,9 @@ class LuceneMissingPageSweepObservabilityTest {
         final String loggerName = DefaultLuceneIndexer.class.getName();
         LoggerConfig loggerConfig = config.getLoggerConfig( loggerName );
         if ( !loggerConfig.getName().equals( loggerName ) ) {
-            loggerConfig = LoggerConfig.createLogger( false, Level.INFO, loggerName,
-                    "true", new AppenderRef[ 0 ], null, config, null );
+            loggerConfig = LoggerConfig.newBuilder().setAdditivity( false ).setLevel( Level.INFO )
+                    .setLoggerName( loggerName ).setIncludeLocation( "true" )
+                    .setRefs( new AppenderRef[ 0 ] ).setConfig( config ).build();
             config.addLogger( loggerName, loggerConfig );
         }
         // The suite's log4j config runs this logger above INFO, which would filter the healthy-path

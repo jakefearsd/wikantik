@@ -284,7 +284,7 @@ class SystemPageRegistryTest {
         final Thread currentThread = Thread.currentThread();
         final ClassLoader original = currentThread.getContextClassLoader();
         try {
-            final URL httpUrl = new URL( "http://example.invalid/About.md" );
+            final URL httpUrl = java.net.URI.create( "http://example.invalid/About.md" ).toURL();
             currentThread.setContextClassLoader( new ClassLoader( null ) {
                 @Override
                 public URL getResource( final String name ) {

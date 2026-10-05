@@ -566,7 +566,7 @@ class SecurityVerifierTest {
         // Point to a non-existent policy file. PolicyReader constructor throws
         // IllegalArgumentException for missing files, which is not caught by verifyPolicy(),
         // so the constructor will throw.
-        final URL badUrl = new URL( "file:///nonexistent/path/wikantik.policy" );
+        final URL badUrl = java.net.URI.create( "file:///nonexistent/path/wikantik.policy" ).toURL();
         when( engine.findConfigFile( AuthorizationManager.DEFAULT_POLICY ) ).thenReturn( badUrl );
 
         assertThrows( IllegalArgumentException.class, this::buildVerifier );

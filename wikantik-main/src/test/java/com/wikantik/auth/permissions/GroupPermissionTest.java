@@ -375,7 +375,7 @@ public class GroupPermissionTest
     public final void testImpliesReturnsFalseForNonGroupPermission()
     {
         final GroupPermission p = new GroupPermission( "mywiki:Test", "view,edit,delete" );
-        Assertions.assertFalse( p.implies( new java.io.FilePermission( "/tmp/x", "read" ) ) );
+        Assertions.assertFalse( p.implies( new java.security.BasicPermission( "foreign" ) { } ) );
     }
 
     // -------------------------------------------------------------------------

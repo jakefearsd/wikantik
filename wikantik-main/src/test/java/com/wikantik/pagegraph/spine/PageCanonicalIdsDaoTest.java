@@ -184,7 +184,7 @@ class PageCanonicalIdsDaoTest {
         final Configuration config = ctx.getConfiguration();
 
         final AbstractAppender capturingAppender = new AbstractAppender(
-                "CapturingAppender-" + Thread.currentThread().getId(), null,
+                "CapturingAppender-" + Thread.currentThread().threadId(), null,
                 PatternLayout.createDefaultLayout(), true, null ) {
             @Override
             public void append( final org.apache.logging.log4j.core.LogEvent event ) {
@@ -198,8 +198,9 @@ class PageCanonicalIdsDaoTest {
         LoggerConfig loggerConfig = config.getLoggerConfig( loggerName );
         if ( !loggerConfig.getName().equals( loggerName ) ) {
             // Logger not explicitly configured — add one
-            loggerConfig = LoggerConfig.createLogger( false, Level.WARN, loggerName,
-                    "true", new AppenderRef[0], null, config, null );
+            loggerConfig = LoggerConfig.newBuilder().setAdditivity( false ).setLevel( Level.WARN )
+                    .setLoggerName( loggerName ).setIncludeLocation( "true" )
+                    .setRefs( new AppenderRef[ 0 ] ).setConfig( config ).build();
             config.addLogger( loggerName, loggerConfig );
         }
         loggerConfig.addAppender( capturingAppender, Level.WARN, null );
@@ -238,7 +239,7 @@ class PageCanonicalIdsDaoTest {
                     "WARN must not carry a Throwable (no stacktrace)" );
 
         } finally {
-            loggerConfig.removeAppender( "CapturingAppender-" + Thread.currentThread().getId() );
+            loggerConfig.removeAppender( "CapturingAppender-" + Thread.currentThread().threadId() );
             ctx.updateLoggers();
             capturingAppender.stop();
         }

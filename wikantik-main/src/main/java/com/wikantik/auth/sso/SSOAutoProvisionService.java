@@ -132,12 +132,6 @@ public class SSOAutoProvisionService {
         }
     }
 
-    /** @deprecated use {@link #provisionIfNeeded(String,String,org.pac4j.core.profile.UserProfile)}. */
-    @Deprecated
-    public void provisionIfNeeded( final String loginName, final org.pac4j.core.profile.UserProfile ssoProfile ) {
-        provisionIfNeeded( loginName, loginName, ssoProfile );
-    }
-
     /**
      * Resolves an attribute value from the pac4j user profile.
      *

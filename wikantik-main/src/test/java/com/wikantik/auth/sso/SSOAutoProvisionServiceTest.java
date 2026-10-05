@@ -55,7 +55,7 @@ class SSOAutoProvisionServiceTest {
         profile.addAttribute( "email", "sso-new@example.com" );
 
         // Provision the user
-        service.provisionIfNeeded( "sso-new-user", profile );
+        service.provisionIfNeeded( "sso-new-user", "sso-new-user", profile );
 
         // Verify the user was created
         final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
@@ -93,7 +93,7 @@ class SSOAutoProvisionServiceTest {
         profile.addAttribute( "name", "New SSO Name" );
         profile.addAttribute( "email", "new-sso@example.com" );
 
-        service.provisionIfNeeded( "sso-existing", profile );
+        service.provisionIfNeeded( "sso-existing", "sso-existing", profile );
 
         // Verify the original profile was NOT overwritten
         final UserProfile found = userDb.findByLoginName( "sso-existing" );
@@ -118,7 +118,7 @@ class SSOAutoProvisionServiceTest {
         profile.addAttribute( "preferred_username", "sso-no-provision" );
         profile.addAttribute( "name", "Should Not Be Created" );
 
-        service.provisionIfNeeded( "sso-no-provision", profile );
+        service.provisionIfNeeded( "sso-no-provision", "sso-no-provision", profile );
 
         // Verify no user was created
         final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
@@ -138,7 +138,7 @@ class SSOAutoProvisionServiceTest {
         profile.setId( "sso-noname" );
         // No "name" attribute - should fall back to login name
 
-        service.provisionIfNeeded( "sso-noname", profile );
+        service.provisionIfNeeded( "sso-noname", "sso-noname", profile );
 
         final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
         final UserProfile created = userDb.findByLoginName( "sso-noname" );

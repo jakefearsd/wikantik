@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.53] - 2026-10-05
+
 ### Upgrade notes
 - **Before deploying, run the pre-upgrade authorization checks in
   [docs/admin/Security.md](docs/admin/Security.md#upgrading-to-2453-authorization-checks)

@@ -1,6 +1,6 @@
 # Sending Email from the Wiki
 
-This guide explains how to configure Wikantik to send transactional emails (account verification, password reset, notifications) from a self-hosted installation.
+This guide is for operators of a self-hosted Wikantik who need account verification, password reset and notification mail to be delivered. It explains how to configure Wikantik to send transactional emails (account verification, password reset, notifications) from a self-hosted installation.
 
 ## Why You Need an Email Relay Service
 
@@ -187,7 +187,7 @@ mail.smtp.starttls.enable = true
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mail.from` | `${user.name}@${mail.smtp.host}` | The sender email address |
+| `mail.from` | `Wikantik <Wikantik@localhost>` (shipped in `wikantik.properties`; code fallback `wikantik@localhost`) | The sender email address |
 | `mail.smtp.host` | `127.0.0.1` | SMTP server hostname |
 | `mail.smtp.port` | `25` | SMTP server port |
 | `mail.smtp.account` | (not set) | SMTP username for authentication |
@@ -196,6 +196,12 @@ mail.smtp.starttls.enable = true
 | `mail.smtp.timeout` | `5000` | Socket I/O timeout (ms) |
 | `mail.smtp.connectiontimeout` | `5000` | Connection timeout (ms) |
 | `wikantik.mail.jndiname` | `mail/Session` | JNDI name for container-managed session |
+| `wikantik.admin.notification.email` | blank | When set, an email is sent to this address each time a new user registers. |
+
+For the container, set `MAIL_SMTP_HOST` (required to enable mail), `MAIL_SMTP_PORT`
+(default `587`), `MAIL_SMTP_ACCOUNT`, `MAIL_SMTP_PASSWORD` and `MAIL_FROM` (default
+`wiki@localhost`) in `.env.prod`; `docker/entrypoint.sh` writes them into
+`wikantik-custom.properties`.
 
 > **SSO-provisioned accounts and password reset:** Users who signed in via SSO
 > for the first time (auto-provisioned) have no local password set. The
@@ -236,5 +242,5 @@ mail.smtp.starttls.enable = true
 
 ## Related Documentation
 
-- [PostgreSQL Local Deployment](PostgreSQLLocalDeployment.md) - Local development setup
+- [PostgreSQL](PostgreSQL.md) - Local development setup
 - [Wikantik Properties Reference](https://wiki.wikantik.com/wiki/Documentation) - Full configuration options

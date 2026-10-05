@@ -202,7 +202,7 @@ It rebuilds the jar automatically when source files are newer than the existing 
 **All subcommands:**
 
 ```bash
-# List current policy for all clusters
+# List current policy for all clusters (optionally --filter include|exclude|unset)
 bin/kg-policy.sh list
 
 # Set a cluster policy
@@ -211,19 +211,20 @@ bin/kg-policy.sh set <cluster> include|exclude --reason "reason text"
 # Clear policy (revert to default-exclude)
 bin/kg-policy.sh clear <cluster>
 
-# Explain inclusion decision for a page
-bin/kg-policy.sh explain <cluster-name-or-page-id>
+# Show the policy row for a cluster (cluster-level only; use the REST
+# explain endpoint for a page-level trace)
+bin/kg-policy.sh explain <cluster>
 
 # Show pending-review items
 bin/kg-policy.sh review
 
-# Mark a cluster as reviewed (bumps reviewed_at)
-bin/kg-policy.sh mark-reviewed <cluster>
+# Mark one or more clusters as reviewed (bumps reviewed_at)
+bin/kg-policy.sh mark-reviewed <cluster> [<cluster> ...]
 
 # Show excluded-page snapshot for a cluster
 bin/kg-policy.sh diff <cluster>
 
-# Show excluded counts by reason (informational; does NOT trigger reconciliation)
+# Show excluded-page counts by reason (informational; does NOT trigger reconciliation)
 bin/kg-policy.sh reconcile
 
 # Audit log for a cluster
@@ -286,8 +287,9 @@ Reason precedence: `system_page` > `page_override` > `cluster_policy`.
   admin role). The acting admin's login is captured from `HttpServletRequest.getRemoteUser()`
   and written to `set_by` / `actor` on every mutation.
 - **CLI** — connects directly to PostgreSQL; requires database credentials. The
-  `set_by` / `actor` value is the OS user running the script (or the value passed via
-  `--actor` if supported by the CLI jar — verify with `bin/kg-policy.sh --jar-help`).
+  `set_by` / `actor` value is the OS user running the script (the `user.name` system
+  property); there is no `--actor` flag. `bin/kg-policy.sh --jar-help` prints the
+  CLI jar's own help.
 - **`/knowledge-mcp` agent tools** — the knowledge MCP server keeps the inclusion
   filter active; retrieval tools only surface pages admitted by the policy.
 - **`/wikantik-admin-mcp` tools** — admin-bypass reads (`query_nodes`,
@@ -301,10 +303,10 @@ policy state and gates the extraction pipeline accordingly.
 
 - **Eager reconciliation** (default) — runs automatically after every `PUT` or
   `DELETE` on a cluster policy via REST or the dashboard.
-- **On restart** — reconciliation also runs when Tomcat starts and initialises the
-  Knowledge Graph subsystem.
-- **CLI** — `bin/kg-policy.sh reconcile` is informational (prints counts) but does
-  not itself trigger a job; restart Tomcat or change a policy via REST to force a run.
+- **No startup run** — nothing enqueues reconciliation when Tomcat starts; only a
+  policy change (`setClusterPolicy` / `clearClusterPolicy`) does.
+- **CLI** — `bin/kg-policy.sh reconcile` is informational (prints counts) and never
+  triggers a job; change a policy via REST or the dashboard to force a run.
 - **Progress** — monitor via `GET /admin/kg-policy/reconciliation` or the live panel
   in the admin dashboard.
 
@@ -322,11 +324,11 @@ subsystem failed to initialise. Check `catalina.out` for errors during startup,
 and verify that the `wikantik.datasource` JNDI resource is configured in
 `ROOT.xml`.
 
-**Cluster shows as `unset` even after `set` CLI call**
+**Pages are not reconciled after a `set` CLI call**
 
-The CLI writes directly to PostgreSQL; the running Tomcat holds an in-process cache.
-Trigger a refresh by calling `PUT /admin/kg-policy/clusters/{cluster}` once via
-the dashboard, or restart Tomcat.
+The CLI writes directly to PostgreSQL and cannot reach the running Tomcat's
+reconciliation runner, so `kg_excluded_pages` is not refreshed. Re-save the policy
+with `PUT /admin/kg-policy/clusters/{cluster}` (or Edit in the dashboard) to enqueue a run.
 
 **Bootstrap 409**
 

@@ -42,9 +42,9 @@ from), and the response carries a **coverage signal**.
 | Parameter | Required | Default | Meaning |
 |---|---|---|---|
 | `q` | **yes** | — | The natural-language query. Missing/blank → `400` with `{"error":"q (query) parameter required"}`. |
-| `mode` | no | `hybrid` | Retrieval strategy: `hybrid` (BM25 + dense, RRF-fused), `dense` (vector-only), `lexical` (BM25-only). Case-insensitive; an unknown value returns a clear error listing the valid modes. An unavailable mode degrades to the default with a logged warning. |
-| `k` | no | config | Override the number of sections returned (top-k). |
-| `debug` | no | — | `debug=rankings` includes the per-candidate ranking breakdown for tuning (used by `bin/eval/sweep-bm25-fusion.py`). |
+| `mode` | no | `hybrid` | Retrieval strategy: `hybrid` (BM25 + dense, RRF-fused), `dense` (vector-only), `lexical` (BM25-only). Case-insensitive; an unknown value returns a clear error listing the valid modes.  |
+| `debug` | no | — | `debug=rankings` returns the raw dense + BM25 chunk rankings (id + score) instead of a bundle, for tuning (used by `bin/eval/sweep-bm25-fusion.py`). Requires the chunk-hybrid source (`wikantik.bundle.bm25.enabled`). |
+| `k` | no | `500` | Only read with `debug=rankings`: how many ranked chunks to return. It does not change how many sections a normal bundle holds. |
 
 The `assemble_bundle` MCP tool takes the same `query` and `mode`; the no-`mode`
 path is fully backward compatible with the original `assemble(query)` contract.
@@ -59,15 +59,15 @@ well-grounded an answer will be **before** it composes one:
 | `sectionCount` | Number of sections in the bundle. |
 | `distinctPageCount` | Number of distinct source pages represented. |
 | `topSimilarity` | The best section's **true dense cosine** similarity (not a rank proxy). |
-| `confidence` | `strong` / `partial` / `weak`, derived from `topSimilarity` against the thresholds below. |
+| `confidence` | `strong` / `partial` / `weak`, derived from `topSimilarity` against the thresholds below; `unknown` when no dense similarity is available (`topSimilarity` is `-1.0`). |
 
 Confidence is a **routing tool, not just telemetry**. A `strong` bundle means
 answer from it; a `partial` or `weak` bundle is the agent's cue to widen the
 search, ask a clarifying question, or fall back to a structured query
 (`sparql_query`, the ontology, `list_clusters`) — the MCP tool descriptions
 route count/enumeration questions there rather than at the prose bundle. Coverage
-is **recounted after the ACL view-gate**: if access filtering thins the viewable
-result below the strong floor, `strong` is downgraded to `partial`, so the signal
+is **recounted after the ACL view-gate**: if access filtering thins a `strong` bundle to
+fewer than 3 viewable sections, it is downgraded to `partial`, so the signal
 reflects what the caller can actually see.
 
 Default thresholds (both configurable — see the config table): `topSimilarity ≥
@@ -83,9 +83,13 @@ has its own fusion config (`wikantik.bundle.bm25.*`), independent of the main
 search fusion. Set `wikantik.bundle.dense.enabled=false` to fall back to the
 page-gated retrieval source.
 
-> **Op gotcha:** the `inmemory` dense backend needs a restart after a re-index
-> for the dense-chunk bundle to hydrate; `lucene-hnsw`/`pgvector` read from the
-> DB and don't.
+> **Op gotcha:** only the `pgvector` dense backend (`wikantik.search.dense.backend`)
+> reads through to the database, so its rows are queryable as soon as they commit.
+> `inmemory` and `lucene-hnsw` build a separate index that is refreshed per page
+> save and after a *successful* bootstrap embedding run. If a bootstrap ends in
+> FAILED, the dense index stays stale and the bundle degrades to BM25-only until
+> the next successful run or a restart. A `topSimilarity` of `-1.0` with
+> `confidence: unknown` in the coverage block is the sign.
 
 ---
 
@@ -109,12 +113,16 @@ JSON.
 | `pins` | CSV of page names to pin into the briefing verbatim. |
 | `clusters` | CSV of clusters to draw representative context from. |
 | `prompt` | The task prompt — used to retrieve additionally-relevant sections. |
-| `budget` | Token budget for the assembled briefing (the assembler dedupes and trims to fit). |
-| `scope_mode` | How pins/clusters/prompt are combined into the candidate scope. |
-| `format` | `md` (default — injection-ready Markdown) or `json` (structured). |
+| `budget` | Token budget for the assembled briefing (the assembler dedupes and trims to fit). A non-integer value returns `400`. Default 6000 (`wikantik.briefing.default_budget`), capped at 24000 (`wikantik.briefing.max_budget`). |
+| `scope_mode` | `prefer` (default: the briefing may widen beyond the pins/clusters) or `strict` (stay within them). Any other value returns `400`. |
+| `format` | `md` (default — injection-ready Markdown) or `json` (structured). Any other value returns `400`. |
+
+At least one of `pins`, `clusters` or `prompt` is required, otherwise the
+endpoint returns `400`. Input is capped at 25 pins and 10 clusters (200 members
+per cluster); excess is truncated with a logged warning.
 
 Each assembled briefing is recorded in the `briefing_log` table (migration
-`V044`) for telemetry — what was requested, how large the result was, whether the
+`V044`; toggle with `wikantik.briefing.log.enabled`, default `true`) for telemetry — what was requested, how large the result was, whether the
 budget bound. Portable client shims that wire the briefing into an agent runtime
 (Claude Code, Antigravity) live under [`clients/`](../../clients/).
 
@@ -177,6 +185,8 @@ injection. Defaults shown.
 | `wikantik.bundle.coverage.strong_similarity` | `0.55` | `topSimilarity` at/above which coverage is `strong`. |
 | `wikantik.bundle.coverage.partial_similarity` | `0.40` | `topSimilarity` at/above which coverage is `partial` (else `weak`). |
 | `wikantik.bundle.reranker.enabled` | `false` | LLM listwise reranker. **Default off** — measured to reorder without improving recall (a bad relevance judge under shuffled input). |
+| `wikantik.briefing.default_budget` / `.max_budget` | `6000` / `24000` | Default and maximum token budget for `/api/briefing` (code defaults; not declared in `wikantik.properties`). |
+| `wikantik.briefing.log.enabled` | `true` | Record briefing requests to `briefing_log`. |
 | `wikantik.citations.enabled` | `true` | Gate the `cite://` citation-edge subsystem (unrelated to document ingestion). |
 
 The public-surface rate-limit knobs (`WIKANTIK_RATELIMIT_*`) that guard

@@ -1,6 +1,6 @@
 # Ontology Management on Wikantik — Why and How
 
-Wikantik is a wiki with an ontology layered over it: the prose pages are also a
+This guide is for curators, agent operators and developers who manage the ontology layer. Wikantik is a wiki with an ontology layered over it: the prose pages are also a
 machine-readable, queryable knowledge model. This guide explains **why** that
 exists and **how** to manage it day to day — as a human curator, as an AI agent,
 and as a developer evolving the vocabulary itself.
@@ -201,7 +201,7 @@ grows under both human and AI hands.
 The materialized model is queryable and dereferenceable, read-only and public
 (behind an ACL split so restricted pages/entities never materialize publicly):
 
-- **`GET /sparql`** — read-only `SELECT` / `ASK` / `CONSTRUCT` (updates
+- **`/sparql`** (GET or POST) — read-only `SELECT` / `ASK` / `CONSTRUCT` (updates
   rejected; result cap + timeout).
 - **`GET /id/{type}/{id}`** — per-resource dereferencing as JSON-LD or Turtle
   (e.g. `/id/page/{canonical_id}`, `/id/entity/{uuid}`).
@@ -232,8 +232,11 @@ The RDF model is **projected from PostgreSQL into a Jena TDB2 store** with RDFS
   empty.
 
 Config: `wikantik.ontology.enabled` (default `true`),
-`wikantik.ontology.tdb2.dir` (default `${wikantik.workDir}/ontology-tdb2`),
+`wikantik.ontology.tdb2.dir` (blank by default, which means
+`<wikantik.workDir>/ontology-tdb2`),
 `wikantik.ontology.rebuild.interval.hours` (default `24`, `0` = disabled),
+`wikantik.ontology.compaction.interval.hours` (default `168`, `0` = disabled; the
+TDB2 store only grows between compactions, so keep this on),
 `wikantik.ontology.incremental.enabled` (default `true` — event-incremental
 entity sync; `false` restores nightly-only behavior), and
 `wikantik.ontology.incremental.coalesce.ms` (default `500`). Full
@@ -360,7 +363,7 @@ technologies are typed correctly at the source.
 | KG admin (nodes/edges/proposals) | `/admin/knowledge-graph/*` |
 | Ontology rebuild + status | `/admin/ontology/*` |
 | Drift burn-down (sweep + counts) | `/admin/drift/*` |
-| Public SPARQL | `GET /sparql` |
+| Public SPARQL | `/sparql` (GET or POST) |
 | Resource dereferencing | `GET /id/{type}/{id}` (JSON-LD / Turtle) |
 | RDF dumps | `GET /export/ontology.ttl`, `/export/graph.nt` |
 | Agent tools | `knowledge-mcp` (`get_ontology`, `sparql_query`, retrieval); admin MCP (`curate_nodes`, `curate_edges`) |

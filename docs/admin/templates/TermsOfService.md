@@ -1,5 +1,7 @@
 # Terms of Service
 
+> **Operator template:** replace every bracketed placeholder (for example `[SITE NAME]`, `[URL]`, `[DATE]`) and the sign-in provider list with your own details, and have counsel review it before you publish it.
+
 **Last Updated:** [DATE]
 
 Welcome to [SITE NAME] ("we," "us," or "our"). By accessing or using our website at [URL] (the "Service"), you agree to be bound by these Terms of Service. If you do not agree, please do not use our Service.

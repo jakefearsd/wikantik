@@ -1,6 +1,6 @@
 # Wiki Indexing Support — Implementation Reference
 
-**Status:** Implemented. This document describes the set of endpoints and filters that expose raw wiki content to search-engine crawlers, RAG ingestion pipelines, and other non-SPA consumers. It was originally written as a requirements spec; it is now a reference for the implemented surface.
+This reference is for operators and integrators who feed wiki content to search-engine crawlers, RAG ingestion pipelines, or other non-SPA consumers. It describes the endpoints and filters that expose raw and server-rendered content, and how to call them.
 
 ## Problem it solved
 
@@ -18,7 +18,7 @@ Implemented by **`com.wikantik.rest.WikiPageFormatFilter`** (web.xml-mapped on `
 
 | `format` value | Response `Content-Type` | Response body |
 |---------------|------------------------|---------------|
-| `md` | `text/markdown; charset=UTF-8` | Page body as clean Markdown, H1 at top |
+| `md` | `text/markdown; charset=UTF-8` | Page body as Markdown, H1 at top |
 | `json` | `application/json; charset=UTF-8` | JSON object (see schema below) |
 | *(absent or other)* | passed through to `SpaRoutingFilter` | Normal SPA shell (unchanged) |
 
@@ -36,19 +36,23 @@ Implemented by **`com.wikantik.rest.WikiPageFormatFilter`** (web.xml-mapped on `
 }
 ```
 
-Markdown output invariants:
+Markdown output:
 
-- Page title as H1 at the top
-- Body content only — no navigation, sidebar, footer, "related pages"
-- Internal wiki links preserved as absolute URLs: `[Page Title](https://wiki.wikantik.com/wiki/PageSlug)`
-- Images resolved to absolute URLs
-- No injected boilerplate text
+- The page title is the H1 at the top (a leading H1 in the body is not repeated).
+- Body content only — no navigation, sidebar, footer or related-pages list.
+- Internal wiki links and attachment links are rewritten to absolute URLs under `wikantik.baseURL`.
+
+Behaviour that applies to both formats:
+
+- The view ACL is enforced against the caller's session. An unknown page or one the caller cannot view returns `404`.
+- Responses carry `X-Robots-Tag: noindex` and a `Link: <.../wiki/{slug}>; rel="canonical"` header, so the raw representations do not compete with the HTML page in search results.
+- A raw read counts as a page view in the `wikantik.page.views` metric.
 
 ### 2. Changes feed — `GET /api/changes?since={ISO8601_datetime}`
 
 Implemented by **`com.wikantik.rest.ChangesResource`** (under `/api/`, same auth and ACL rules as other REST resources).
 
-**Response (`application/json`):**
+An invalid `since` value returns `400`. **Response (`application/json`):**
 
 ```json
 {
@@ -64,28 +68,26 @@ Implemented by **`com.wikantik.rest.ChangesResource`** (under `/api/`, same auth
 }
 ```
 
-If `since` is omitted, returns all pages (full-export mode).
+If `since` is omitted, the feed lists every page the page manager reports as changed (full-export mode). `since` is `null` in that response.
 
 ### 3. Crawler-friendly rendering
 
-Implemented via **`com.wikantik.ui.SemanticHeadRenderer`** and **`com.wikantik.rest.SpaRoutingFilter`**. Detection is **`Accept`-header based** (not User-Agent), which is simpler and more robust against UA spoofing:
+Implemented via **`com.wikantik.ui.SemanticHeadRenderer`** and **`com.wikantik.rest.SpaRoutingFilter`**. Every `/wiki/{slug}` request, whatever its `Accept` header, is served the SPA shell with a server-rendered head and body, so crawlers that send `Accept: */*` or no header still get content:
 
-- Requests that accept `text/html` but don't request JS-executing content (i.e. traditional crawler signatures sending `Accept: */*` or omitting the header) receive a server-rendered no-JS HTML fallback with:
-  - `<title>`, `<meta name="description">`, `<link rel="canonical">`
-  - Open Graph (`og:title`, `og:description`, `og:url`, `og:type`)
-  - JSON-LD `schema.org/Article` structured data
-  - Full page body as rendered HTML (headings, paragraphs, lists) — crawlers can index the actual content, not just meta tags
-- Browsers sending modern `Accept` headers continue to receive the SPA shell unchanged
+- `<title>`, `<meta name="description">`, `<link rel="canonical">`
+- Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`)
+- JSON-LD structured data (schema.org `Article`, or another type derived from the page `type`)
+- The rendered page body (headings, paragraphs, lists, tables) inside `#root`
 
-This is a deliberate design choice over the User-Agent sniffing originally sketched — see the crawler-detection comment in `SpaRoutingFilter.java` ("crawlers which send `Accept: */*` or omit the header") for the rationale.
+Other SPA routes (`/search`, `/admin/*`, `/edit/*` and so on) share URL space with JSON APIs, so `SpaRoutingFilter` forwards them to the shell only when the request's `Accept` header contains `text/html`.
 
 ### 4. Sitemap
 
 Implemented by **`com.wikantik.ui.SitemapServlet`** at `/sitemap.xml`:
 
 - `<lastmod>` reflects actual page modification time (not deploy time)
-- All visible pages are enumerated (ACL-filtered)
-- Sitemap is referenced in `/robots.txt`
+- All pages visible to anonymous users are enumerated (ACL-filtered)
+- The sitemap is referenced from `robots.txt` (`wikantik-war/src/main/webapp/robots.txt`)
 
 See [docs/archive/Sitemap.md](../archive/Sitemap.md) and [docs/archive/SitemapOptimization.md](../archive/SitemapOptimization.md) for tuning details.
 

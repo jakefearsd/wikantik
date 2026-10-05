@@ -4,7 +4,7 @@ The retrieval-quality subsystem runs a curated query set against the wiki's sear
 stack nightly, persists aggregate metrics to `retrieval_runs`, and publishes
 Prometheus gauges so regressions are visible before they reach users or agents.
 
-This document covers the operator surface: the admin dashboard, on-demand runs, the
+This document is for operators who watch search quality. It covers the operator surface: the admin dashboard, on-demand runs, the
 metrics that are scraped, and how to read a regression.
 
 For the underlying harness design, query-set construction, and metric interpretation,
@@ -60,7 +60,7 @@ the nightly schedule itself can be turned off entirely with
 to register the runner (so on-demand runs and the dashboard still work) without the
 nightly job.
 
-The nightly job runs every (query_set_id, mode) pair sequentially. The currently
+The nightly job runs every (query_set_id, non-retired mode) pair sequentially. The currently
 scheduled query set is `core-agent-queries` (V017 seed). Additional sets must be
 added to the `runAllForNightly()` method or via a future migration + configuration
 mechanism.
@@ -71,9 +71,10 @@ the next pair.
 
 ## Retrieval modes
 
-Four modes are evaluated (the nightly runner iterates
-`com.wikantik.api.eval.RetrievalMode.values()`), though the two graph-rerank
-variants are retired and both now run as `hybrid` in practice:
+`com.wikantik.api.eval.RetrievalMode` defines four wire names. The nightly runner
+iterates only the two that are not retired (`bm25` and `hybrid`); the two
+graph-rerank variants are retired and degrade to `hybrid` if you request them
+on demand:
 
 | Wire name | Description |
 |-----------|-------------|
@@ -300,7 +301,7 @@ Both endpoints require the `AllPermission` security permission enforced by
 on-demand runs.
 
 The `RetrievalQualityRunner` and its DAO are part of the Knowledge Graph subsystem
-(`wikantik-knowledge` module). If the Knowledge Graph failed to initialise (missing
+(`com.wikantik.knowledge.eval` in `wikantik-main`). If the Knowledge Graph failed to initialise (missing
 JNDI DataSource, pgvector unavailable, etc.), the runner is `null` and all endpoints
 return 503.
 
@@ -326,7 +327,7 @@ return 503.
    data point. Use **Run now** in the UI or:
 
    ```bash
-   curl -u admin:admin -X POST http://localhost:8080/admin/retrieval-quality/run \
+   curl -u <admin-login>:<password> -X POST http://localhost:8080/admin/retrieval-quality/run \
      -H 'Content-Type: application/json' \
      -d '{"query_set_id":"core-agent-queries","mode":"hybrid"}'
    ```

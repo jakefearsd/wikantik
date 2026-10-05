@@ -1,5 +1,7 @@
 # Wikantik Logging Configuration Guide
 
+This guide is for operators who need to change where Wikantik writes logs, how they rotate, or what level each component logs at. It covers the Log4j2 setup, the `wikantik.use.external.logconfig` switch, and the log file locations for bare-metal Tomcat and the container.
+
 ## Understanding `wikantik.use.external.logconfig`
 
 ### The Logging Stack
@@ -23,7 +25,7 @@ versions are pinned in the root `pom.xml`'s `<dependencyManagement>`:
 |-------------|-----------------|
 | Bare-metal local Tomcat | `tomcat/tomcat-11/lib/log4j2.xml` |
 | Container (`${CATALINA_HOME}`) | `/usr/local/tomcat/lib/log4j2.xml` |
-| Container (baked config) | `docker/config/log4j2-docker.xml` |
+| Container (baked config) | `docker/config/log4j2-docker.xml` (copied to `/usr/local/tomcat/lib/log4j2.xml` by the `Dockerfile`) |
 
 For the bare-metal install, `bin/deploy-local.sh` copies
 `wikantik-war/src/main/config/tomcat/log4j2-local.xml.template` to
@@ -32,13 +34,20 @@ subsequent deploys unless you delete it). The template uses a portable path,
 `${sys:catalina.base}/logs/wikantik`, so it works regardless of the absolute
 location of the Tomcat directory.
 
-The container build bakes `docker/config/log4j2-docker.xml` into the image;
-container operators can volume-mount a custom `log4j2.xml` into
-`/usr/local/tomcat/lib/` to override it.
+The container build bakes `docker/config/log4j2-docker.xml` into the image, and
+`docker/entrypoint.sh` writes `wikantik.use.external.logconfig = true` into the
+generated `wikantik-custom.properties`, so the baked file is the active
+configuration. It writes `wikantik.log` and `security.log` to `/var/wikantik/logs`
+and sends ECS-format JSON to the console (`docker logs`). Container operators can
+volume-mount a custom `log4j2.xml` into `/usr/local/tomcat/lib/` to override it.
 
 ### How `wikantik.use.external.logconfig` works
 
-**When `false` (default):**
+**When `false` (default):** the `appender.*`, `logger.*` and `rootLogger.*`
+entries declared in `ini/wikantik.properties` (a console appender plus a rolling
+file under `${sys:java.io.tmpdir}/wikantik.log`) replace whatever `log4j2.xml`
+configured. A `log4j2.xml` in `lib/` is therefore ignored on bare-metal until
+you set the property to `true`.
 1. Wikantik reads all properties from `wikantik.properties` / `wikantik-custom.properties`
 2. It filters properties starting with: `appender`, `logger`, `rootLogger`, `filter`,
    `status`, `dest`, `name`, `properties`, `property`, or `log4j2`
@@ -72,12 +81,12 @@ syntax and will be ignored).
 
 ### Step 2: Override the auto-generated config
 
-`bin/deploy-local.sh` places the auto-generated config at:
-- **Bare-metal:** `tomcat/tomcat-11/lib/log4j2.xml`
-- **Container:** `/usr/local/tomcat/lib/log4j2.xml`
+`bin/deploy-local.sh` copies the template to `tomcat/tomcat-11/lib/log4j2.xml` on
+first deploy only. In the container the active file is
+`/usr/local/tomcat/lib/log4j2.xml` (see above).
 
-To customize logging, edit that file in place (it is not overwritten by subsequent
-`bin/redeploy.sh` runs). If you need to start from the template again, copy it:
+To customize bare-metal logging, edit that file in place (it is not overwritten by
+subsequent `bin/redeploy.sh` or `bin/deploy-local.sh` runs). If you need to start from the template again, copy it:
 
 ```bash
 # Bare-metal: restore from template
@@ -86,7 +95,8 @@ cp wikantik-war/src/main/config/tomcat/log4j2-local.xml.template \
 ```
 
 The template uses `${sys:catalina.base}/logs/wikantik` as the log directory,
-which resolves correctly regardless of the absolute install path.
+which resolves correctly regardless of the absolute install path. It writes
+`wikantik.log`, `security.log` and `access.log` there.
 
 ### Example XML configuration
 
@@ -182,10 +192,10 @@ ls -la tomcat/tomcat-11/logs/wikantik/
 | Environment | Tomcat base | Log directory | Config file |
 |-------------|-------------|---------------|-------------|
 | Bare-metal local | `tomcat/tomcat-11/` | `tomcat/tomcat-11/logs/wikantik/` | `tomcat/tomcat-11/lib/log4j2.xml` |
-| Container | `/usr/local/tomcat/` | `/usr/local/tomcat/logs/wikantik/` (or volume) | `/usr/local/tomcat/lib/log4j2.xml` |
+| Container | `/usr/local/tomcat/` | `/var/wikantik/logs/` (set by `logDir` in `log4j2-docker.xml`) | `/usr/local/tomcat/lib/log4j2.xml` |
 
-The `${sys:catalina.base}` lookup resolves to the Tomcat base directory at runtime,
-so the same config file works in both environments without editing.
+The bare-metal template uses `${sys:catalina.base}`, which resolves to the Tomcat
+base directory at runtime. The container file hard-codes `/var/wikantik/logs`.
 
 ---
 
@@ -247,7 +257,7 @@ automatically.
 | `%L` | Line number |
 | `%m` or `%msg` | Log message |
 | `%n` | Newline |
-| `%X{key}` | Thread context map (MDC) value — used by RequestCorrelationFilter for `X-Request-ID` |
+| `%X{key}` | Thread context map (MDC) value — used by RequestCorrelationFilter for `X-Request-Id` |
 | `%highlight{pattern}` | ANSI color highlighting |
 
 ### Useful Wikantik Logger Names

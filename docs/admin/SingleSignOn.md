@@ -14,7 +14,10 @@ locates the appropriate pac4j client (selected by an optional `client_name`
 query parameter; falls back to the first configured client), requests a
 redirection action from it, and sends the browser to the Identity Provider. If
 SSO is disabled or unconfigured it responds 404; configuration errors respond
-500; any other failure redirects to `/login?error=sso_redirect_failed`.
+500; no matching client redirects to `/login?error=no_sso_client`; any other
+failure redirects to `/login?error=sso_redirect_failed`. **`SSOCallbackServlet`
+(`/sso/callback`)** receives the IdP response; a failure there redirects to
+`/login?error=sso_callback_failed`.
 
 SSO coexists with traditional username/password login — it is purely additive.
 When enabled, the SPA login page shows a provider button alongside the local
@@ -99,9 +102,10 @@ is logged.
 | `wikantik.sso.saml.serviceProviderMetadataPath` | — | Optional writable path where pac4j persists generated SP metadata (incl. the registered ACS URL). Without it pac4j holds SP metadata only in memory, which can break ACS-URL resolution against some IdPs. |
 | `wikantik.sso.saml.authnRequestBindingType` | pac4j default | **Only HTTP-Redirect is supported** (`urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect`). Do not set HTTP-POST — the redirect servlet does not render a form-post AuthnRequest. |
 
-The Assertion Consumer Service (ACS) URL is registered as exactly the
-`/sso/callback` URL (no `client_name` query parameter), so the IdP's assertion
-`Destination` matches the path it posts back to.
+With `type = saml` the Assertion Consumer Service (ACS) URL is registered as
+exactly the `/sso/callback` URL. With `type = both` the OIDC and SAML clients
+share that endpoint, so the ACS URL carries `?client_name=SAML2Client` and you
+register that exact URL with the IdP.
 
 ### Claim mapping
 
@@ -115,12 +119,17 @@ OIDC IdP; Google needs `loginName` remapped to `email` (it sends no
 | `wikantik.sso.claimMapping.fullName` | `name` | Display name |
 | `wikantik.sso.claimMapping.email` | `email` | Email |
 
-These properties (and `identityClaim`) are bridged into the JAAS options that
-`SSOLoginModule` actually reads, by `DefaultAuthenticationManager.initSSOConfig`.
-Configure them once under `wikantik.sso.*` — an explicit
-`wikantik.loginModule.options.*` still takes precedence if present. (Historically,
-omitting this bridge left the configured mappings silently inert, which is how a
-Google login ended up keyed on the numeric `sub` instead of email.)
+`SSOLoginModule` does not read `wikantik.sso.*` itself. It reads JAAS options
+(`sso.claimLoginName`, `sso.claimFullName`, `sso.claimEmail`, `sso.identityClaim`).
+When `wikantik.sso.enabled = true`, `DefaultAuthenticationManager.initSSOConfig`
+copies the `wikantik.sso.claimMapping.*` and `wikantik.sso.identityClaim` values
+into those options at startup, so you set them once under `wikantik.sso.*` and
+need no extra step. If you set an option explicitly as
+`wikantik.loginModule.options.sso.claimLoginName` (or `.sso.claimFullName`,
+`.sso.claimEmail`, `.sso.identityClaim`), your explicit value wins over the
+bridged one. A claim-mapping change takes effect after a restart. The
+`claimMapping.*` keys are read by prefix and are not listed individually in
+`wikantik.properties`; the defaults above are the built-in ones.
 
 Claim values are sanitised before use: multi-valued claims are normalised to
 their first scalar element, and blank / whitespace-only / control-character
@@ -187,5 +196,5 @@ HTTPS origin (Google SSO is live in production behind cloudflared at
 | Login succeeds but the wiki login name is the numeric `sub` | `claimMapping.loginName` not mapped to `email` for a provider (e.g. Google) that omits `preferred_username`. |
 | SSO login refused for a known user | Name collides with a non-SSO local account lacking the `sso.subject` marker — fail-closed by design. Link or rename the local account. |
 | SAML assertion rejected on `Destination` mismatch | ACS URL / `serviceProviderMetadataPath` not aligned with the public callback URL; confirm HTTP-Redirect binding. |
-| Mapped claims appear ignored | Pre-bridge configuration; ensure `wikantik.sso.claimMapping.*` are set (they are bridged into the LoginModule automatically). |
+| Mapped claims appear ignored | `wikantik.sso.enabled` is not `true` (the bridge runs only then), a `wikantik.loginModule.options.sso.*` override is set, or Tomcat was not restarted after the change. |
 | Server starts fine, but every SSO login redirects to `sso_redirect_failed` — and the boot log has a line like `OIDC discovery self-check FAILED for <uri>: ... — the identity provider is UNREACHABLE from this host (check outbound network egress / DNS / TLS)` (or `HTTP <status>` / not-a-discovery-document variants) | `OidcDiscoverySelfCheck` probes the OIDC discovery URL once at startup, on a background thread — it never blocks or fails boot, it only logs. pac4j itself fetches discovery **lazily** on the first `/sso/login` request and caches it, so without this log line a lost egress path (firewall, DNS, proxy) looks like the app started healthy and only breaks when a user actually tries to log in. Fix egress/DNS/TLS to the discovery URL (or correct `wikantik.sso.oidc.discoveryUri`) and restart — a lazy pac4j fetch means a config fix alone, without a restart, may not clear a bad cached state. |

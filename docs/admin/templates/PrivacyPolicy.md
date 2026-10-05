@@ -1,5 +1,7 @@
 # Privacy Policy
 
+> **Operator template:** replace every bracketed placeholder (for example `[SITE NAME]`, `[URL]`, `[DATE]`) and the sign-in provider list with your own details, and have counsel review it before you publish it.
+
 **Last Updated:** [DATE]
 
 [SITE NAME] ("we," "us," or "our") operates [URL] (the "Service"). This Privacy Policy explains how we collect, use, disclose, and protect your personal information when you use our Service.

@@ -15,17 +15,20 @@ password is generated at creation time and never revealed.
 
 ### 1. Set the bearer token
 
-SCIM requests are authenticated by a static bearer token. Set it in
-`wikantik-custom.properties` (or as a JVM system property):
+SCIM requests are authenticated by a static bearer token. `ScimAccessFilter`
+reads it **only** from the `wikantik.scim.token` JVM system property or, failing
+that, the filter's `wikantik.scim.token` init-param in `web.xml`. A value in
+`wikantik-custom.properties` or `wikantik.properties` is never read and has no
+effect.
 
-```properties
-wikantik.scim.token = <a-long-random-secret>
+```bash
+# Tomcat: add to CATALINA_OPTS
+-Dwikantik.scim.token=<a-long-random-secret>
 ```
 
-The token is read by `ScimAccessFilter` at startup — first from the system
-property `wikantik.scim.token`, then from the servlet filter init parameter of
-the same name in `web.xml`. If neither is set, the filter logs a warning and
-denies all SCIM requests with HTTP 401.
+In Docker deployments set `WIKANTIK_SCIM_TOKEN` in `.env.prod`; `docker/entrypoint.sh`
+turns it into the system property. If no token is configured, the filter logs a
+warning and denies all SCIM requests with HTTP 401.
 
 ### 2. No migration prereq
 

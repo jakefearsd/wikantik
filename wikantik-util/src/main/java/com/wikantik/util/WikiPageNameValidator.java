@@ -77,7 +77,7 @@ public final class WikiPageNameValidator {
     public static boolean isValid( final String name ) {
         try { requireValid( name, null ); return true; }
         catch ( final IllegalArgumentException e ) {
-            // IsValid() reports the answer as false.
+            // isValid() reports the answer as false.
             LOG.debug( "'{}' is not a valid page name: {}", name, e.getMessage() );
             return false;
         }

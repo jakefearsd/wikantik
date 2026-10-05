@@ -49,8 +49,8 @@ public record RerankerConfig( String model, String baseUrl, long timeoutMs ) {
             try {
                 timeoutMs = Long.parseLong( raw.trim() );
             } catch ( final NumberFormatException e ) {
-                LOG.debug( "Reranker timeout_ms '{}' is not a long; the default applies: {}", raw, e.getMessage() );
                 // Non-numeric timeout — keep 0L so the compact ctor applies the 30s default.
+                LOG.warn( "Property {}timeout_ms value '{}' is not a long; the 30s default applies: {}", PREFIX, raw, e.getMessage() );
             }
         }
         return new RerankerConfig( model, baseUrl, timeoutMs );

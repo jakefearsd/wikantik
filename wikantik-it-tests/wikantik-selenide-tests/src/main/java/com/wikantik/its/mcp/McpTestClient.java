@@ -184,12 +184,12 @@ public class McpTestClient implements AutoCloseable {
             stream.sorted( Comparator.reverseOrder() ).forEach( p -> {
                 try {
                     Files.deleteIfExists( p );
-                } catch ( final IOException ignored ) {
-                    LOG.warn( "Could not delete {} during test cleanup: {}", p, ignored.getMessage() );
+                } catch ( final IOException e ) {
+                    LOG.warn( "Could not delete {} during test cleanup: {}", p, e.getMessage() );
                 }
             } );
-        } catch ( final IOException ignored ) {
-            LOG.warn( "Could not walk {} during test cleanup: {}", dir, ignored.getMessage() );
+        } catch ( final IOException e ) {
+            LOG.warn( "Could not walk {} during test cleanup: {}", dir, e.getMessage() );
         }
     }
 

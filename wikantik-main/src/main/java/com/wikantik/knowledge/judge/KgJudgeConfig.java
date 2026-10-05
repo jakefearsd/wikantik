@@ -115,8 +115,8 @@ public record KgJudgeConfig(
         final String v = p.getProperty( k );
         try { return ( v == null || v.isBlank() ) ? def : Integer.parseInt( v.trim() ); }
         catch ( final NumberFormatException e ) {
-            // Operator-supplied value; falling back to the default keeps startup alive.
-            LOG.debug( "Judge property '{}' value '{}' is not an int; using default {}: {}", k, v, def, e.getMessage() );
+            // Operator typo in the properties file must be visible; the default keeps startup alive.
+            LOG.warn( "Judge property '{}' value '{}' is not an int; using default {}: {}", k, v, def, e.getMessage() );
             return def;
         }
     }

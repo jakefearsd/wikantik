@@ -158,7 +158,8 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                         return cookieFile.setLastModified( System.currentTimeMillis() );
 
                     } catch( final IOException e ) {
-                        LOG.warn( "Could not touch remember-me cookie file {}; rejecting the cookie login: {}", cookieFile, e.getMessage() );
+                        // The file name is the remember-me bearer token, so log only the directory, never the file path.
+                        LOG.warn( "Could not read remember-me cookie file in directory {}; rejecting the cookie login: {}", cookieFile.getParent(), e.getMessage() );
                         return false;
                     }
                 }

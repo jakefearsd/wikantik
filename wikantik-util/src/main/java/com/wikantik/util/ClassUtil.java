@@ -348,7 +348,7 @@ public final class ClassUtil {
             Class.forName( className, false, ClassUtil.class.getClassLoader() );
             return true;
         } catch( final ClassNotFoundException e ) {
-            // Exists() answers this question; absence is not an error.
+            // exists() answers this question; absence is not an error.
             LOG.debug( "Class {} is not on the classpath: {}", className, e.getMessage() );
             return false;
         }

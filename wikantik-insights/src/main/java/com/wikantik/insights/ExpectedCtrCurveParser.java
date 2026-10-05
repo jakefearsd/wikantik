@@ -133,7 +133,8 @@ public final class ExpectedCtrCurveParser {
         try {
             return LocalDate.parse( o.get( "snapshot_date" ).getAsString() );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "Expected-CTR curve has an unparseable snapshot_date; ignoring it: {}", e.getMessage() );
+            // The curve arrives in an HTTP request body, so a bad date is client input, not a server fault.
+            LOG.debug( "Expected-CTR curve snapshot_date '{}' is unparseable; ignoring it: {}", o.get( "snapshot_date" ), e.getMessage() );
             return null;
         }
     }

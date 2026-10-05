@@ -405,7 +405,7 @@ public final class McpToolUtils {
                     result.add( com.wikantik.api.knowledge.Provenance.fromValue( s ) );
                 } catch ( final IllegalArgumentException ignored ) {
                     LOG.debug( "Skipping unknown provenance value '{}': {}", s, ignored.getMessage() );
-                    // silently skip unknown provenance strings
+                    // Unknown provenance strings are skipped (logged at debug above).
                 }
             }
         }

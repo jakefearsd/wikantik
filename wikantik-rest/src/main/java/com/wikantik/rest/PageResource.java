@@ -64,6 +64,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Map;
 
 /**
@@ -84,6 +85,7 @@ public class PageResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( PageResource.class );
+    private static final AtomicBoolean MAX_PAGE_BYTES_WARNED = new AtomicBoolean();
 
     /**
      *  Builds the derived {@code cluster_status} block for a page, or {@code null} when the
@@ -594,8 +596,12 @@ public class PageResource extends RestServletBase {
             final int v = Integer.parseInt( raw.trim() );
             return v > 0 ? v : DEFAULT_MAX_PAGE_BYTES;
         } catch ( final NumberFormatException nfe ) {
-            // Operator-supplied value; the default keeps the endpoint working.
-            LOG.debug( "Max page bytes '{}' is not an integer; using default {}: {}", raw, DEFAULT_MAX_PAGE_BYTES, nfe.getMessage() );
+            // Operator typo must be visible, but this runs per request: WARN once, then DEBUG.
+            if ( MAX_PAGE_BYTES_WARNED.compareAndSet( false, true ) ) {
+                LOG.warn( "Property {} value '{}' is not an integer; using default {}: {}", PROP_MAX_PAGE_BYTES, raw, DEFAULT_MAX_PAGE_BYTES, nfe.getMessage() );
+            } else {
+                LOG.debug( "Property {} value '{}' is not an integer; using default {}", PROP_MAX_PAGE_BYTES, raw, DEFAULT_MAX_PAGE_BYTES );
+            }
             return DEFAULT_MAX_PAGE_BYTES;
         }
     }

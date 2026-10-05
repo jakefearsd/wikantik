@@ -372,8 +372,8 @@ public final class ConnectorWiringHelper {
     private static int parseInt( final Properties props, final String key, final int def ) {
         try { return Integer.parseInt( props.getProperty( key, String.valueOf( def ) ).trim() ); }
         catch ( final NumberFormatException e ) {
-            // Operator-supplied value; falling back to the default keeps startup alive.
-            LOG.debug( "Connector property '{}' is not an int; using default {}: {}", key, def, e.getMessage() );
+            // Operator typo in the properties file must be visible; the default keeps startup alive.
+            LOG.warn( "Property '{}' value '{}' is not an int; using default {}: {}", key, props.getProperty( key ), def, e.getMessage() );
             return def;
         }
     }
@@ -381,8 +381,8 @@ public final class ConnectorWiringHelper {
     private static long parseLongValue( final Properties props, final String key, final long def ) {
         try { return Long.parseLong( props.getProperty( key, String.valueOf( def ) ).trim() ); }
         catch ( final NumberFormatException e ) {
-            // Operator-supplied value; falling back to the default keeps startup alive.
-            LOG.debug( "Connector property '{}' is not a long; using default {}: {}", key, def, e.getMessage() );
+            // Operator typo in the properties file must be visible; the default keeps startup alive.
+            LOG.warn( "Property '{}' value '{}' is not a long; using default {}: {}", key, props.getProperty( key ), def, e.getMessage() );
             return def;
         }
     }

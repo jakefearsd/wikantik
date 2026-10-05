@@ -155,7 +155,7 @@ public interface UserDatabase {
                     locked++;
                 }
             } catch( final NoSuchPrincipalException e ) {
-                // An interface cannot hold a logger field, so resolve one at the (rare) use site.
+                // A logger field on an interface would become public API, so resolve one at the (rare) use site.
                 org.apache.logging.log4j.LogManager.getLogger( UserDatabase.class ).debug( "Profile for wiki name '{}' vanished between enumeration and lookup; not counting it: {}", wikiName.getName(), e.getMessage() );
                 // Profile disappeared between enumeration and lookup; nothing to count for it.
             }

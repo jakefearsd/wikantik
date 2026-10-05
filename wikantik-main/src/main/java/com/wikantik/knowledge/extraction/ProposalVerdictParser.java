@@ -69,7 +69,7 @@ final class ProposalVerdictParser {
                     "judge_failed: unknown verdict " + verdict );
             };
         } catch( final RuntimeException e ) {
-            LOG.warn( "Judge verdict could not be parsed; accepting the proposal as judge_failed: {}", e.getMessage() );
+            LOG.warn( "Judge verdict for proposal '{}' could not be parsed; accepting it as judge_failed: {}", proposal.signature(), e.getMessage() );
             return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: " + e.getMessage() );
         }
     }

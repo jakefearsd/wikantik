@@ -399,8 +399,8 @@ public final class ConnectorConfigService {
         try {
             return Long.parseLong( props.getProperty( GLOBAL_INTERVAL_PROP, "0" ).trim() );
         } catch ( final NumberFormatException e ) {
-            // Operator-supplied value; falling back to the default keeps startup alive.
-            LOG.debug( "Global connector interval '{}' is not a long; using 0: {}", props.getProperty( GLOBAL_INTERVAL_PROP ), e.getMessage() );
+            // Operator typo in wikantik.properties must be visible; 0 means no global default.
+            LOG.warn( "Property {} value '{}' is not a long; using default 0: {}", GLOBAL_INTERVAL_PROP, props.getProperty( GLOBAL_INTERVAL_PROP ), e.getMessage() );
             return 0L;
         }
     }
@@ -426,7 +426,8 @@ public final class ConnectorConfigService {
         try {
             return config.get( key ).getAsString().isBlank();
         } catch ( final RuntimeException e ) {
-            LOG.warn( "Connector config key '{}' is not a readable string; treating it as absent: {}", key, e.getMessage() );
+            // The config is admin-submitted JSON, so a non-string value is bad input; treating it as absent makes validation report it.
+            LOG.debug( "Connector config key '{}' is not a readable string; treating it as absent: {}", key, e.getMessage() );
             return true;
         }
     }

@@ -70,8 +70,8 @@ public final class DefaultWikiProperties implements WikiProperties {
         try {
             return Long.parseLong( val.trim() );
         } catch ( final NumberFormatException e ) {
-            // Operator-supplied value; falling back to the default keeps startup alive.
-            LOG.debug( "Property '{}' value '{}' is not a long; using default {}: {}", key, val, defaultValue, e.getMessage() );
+            // Operator typo in the properties file must be visible; the default keeps startup alive.
+            LOG.warn( "Property '{}' value '{}' is not a long; using default {}: {}", key, val, defaultValue, e.getMessage() );
             return defaultValue;
         }
     }

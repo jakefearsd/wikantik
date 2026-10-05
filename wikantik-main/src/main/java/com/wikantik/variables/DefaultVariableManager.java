@@ -284,6 +284,7 @@ public class DefaultVariableManager implements VariableManager {
         try {
             return getValue( context, varName );
         } catch( final NoSuchVariableException e ) {
+            // The caller supplied a default precisely for the undefined-variable case.
             LOG.debug( "No variable named '{}'; using the supplied default: {}", varName, e.getMessage() );
             return defValue;
         }

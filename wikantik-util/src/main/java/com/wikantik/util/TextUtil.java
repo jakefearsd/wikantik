@@ -757,7 +757,7 @@ public final class TextUtil {
             final int parsed = Integer.parseInt( value );
             return parsed > 0 ? parsed : defaultValue;
         } catch ( final NumberFormatException e ) {
-            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            // Callers pass request parameters or properties; the documented result of bad input is the default.
             LOG.debug( "'{}' is not an integer; using default {}: {}", value, defaultValue, e.getMessage() );
             return defaultValue;
         }

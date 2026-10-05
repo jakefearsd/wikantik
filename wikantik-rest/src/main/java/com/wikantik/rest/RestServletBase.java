@@ -149,7 +149,7 @@ public abstract class RestServletBase extends HttpServlet {
             ctx = getServletContext();
         } catch ( final IllegalStateException e ) {
             LOG.debug( "No ServletContext (servlet not init()ed); using the legacy engine bridge: {}", e.getMessage() );
-            // intentionally swallowed — see comment above
+            // Expected in that case (see comment above); the bridge below takes over.
         }
         if ( ctx != null ) {
             final com.wikantik.WikiSubsystems direct = ( com.wikantik.WikiSubsystems )

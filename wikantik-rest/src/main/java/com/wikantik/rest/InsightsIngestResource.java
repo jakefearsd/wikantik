@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -77,6 +78,7 @@ public class InsightsIngestResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( InsightsIngestResource.class );
+    private static final AtomicBoolean CONFIGURED_INT_WARNED = new AtomicBoolean();
 
     static final String PROP_MAX_BYTES = "wikantik.insights.ingest.max_bytes";
     static final int DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
@@ -210,8 +212,12 @@ public class InsightsIngestResource extends RestServletBase {
             final int v = Integer.parseInt( raw.trim() );
             return v > 0 ? v : def;
         } catch ( final NumberFormatException nfe ) {
-            // Client-supplied parameter; falling back to the default is the documented behaviour.
-            LOG.debug( "'{}' is not an integer; using default {}: {}", raw, def, nfe.getMessage() );
+            // Operator typo must be visible, but this runs per request: WARN once, then DEBUG.
+            if ( CONFIGURED_INT_WARNED.compareAndSet( false, true ) ) {
+                LOG.warn( "Property {} value '{}' is not an integer; using default {}: {}", key, raw, def, nfe.getMessage() );
+            } else {
+                LOG.debug( "Property {} value '{}' is not an integer; using default {}", key, raw, def );
+            }
             return def;
         }
     }

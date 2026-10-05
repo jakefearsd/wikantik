@@ -18,7 +18,6 @@
  */
 package com.wikantik.search.hybrid;
 
-import com.wikantik.jdbc.Jdbc;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.custom.CustomAnalyzer;
@@ -96,18 +95,11 @@ public final class LuceneBm25ChunkIndex {
     static final String F_TEXT = "text";
     private static final int MAX_QUERY_TERMS = 1024;
 
-    private static final String LOAD_ALL_SQL =
-        "select id, page_name, text from kg_content_chunks";
-    private static final String PAGES_FOR_IDS_SQL =
-        "select distinct page_name from kg_content_chunks where id = any (?)";
-    private static final String LOAD_BY_PAGES_SQL =
-        "select id, page_name, text from kg_content_chunks where page_name = any (?)";
-
     /** Minimal chunk projection the index needs (id, owning page, body). */
     public record IndexedChunk( UUID id, String pageName, String text ) {}
 
     private final Analyzer analyzer;
-    private final Jdbc jdbc;   // null for the in-list (test) constructors
+    private final Bm25ChunkStore store;   // null for the in-list (test) constructors
     private final Directory directory;
     private final IndexWriter writer;
     private final SearcherManager searcherManager;
@@ -129,7 +121,7 @@ public final class LuceneBm25ChunkIndex {
 
     private LuceneBm25ChunkIndex( final Analyzer analyzer, final DataSource dataSource ) {
         this.analyzer = analyzer;
-        this.jdbc = dataSource == null ? null : new Jdbc( dataSource );
+        this.store = dataSource == null ? null : new Bm25ChunkStore( dataSource );
         this.directory = new ByteBuffersDirectory();
         try {
             final IndexWriterConfig cfg = new IndexWriterConfig( analyzer ).setSimilarity( new BM25Similarity() );
@@ -159,7 +151,7 @@ public final class LuceneBm25ChunkIndex {
      */
     public static LuceneBm25ChunkIndex fromDataSource( final DataSource ds, final Analyzer analyzer ) {
         final LuceneBm25ChunkIndex index = new LuceneBm25ChunkIndex( analyzer, ds );
-        index.replaceAll( index.loadAll() );
+        index.replaceAll( index.store.loadAll() );
         return index;
     }
 
@@ -175,11 +167,11 @@ public final class LuceneBm25ChunkIndex {
      * emptying the lexical half of the fusion mid-flight.</p>
      */
     public void upsertChunks( final Collection< UUID > chunkIds ) {
-        if ( jdbc == null || chunkIds == null || chunkIds.isEmpty() ) return;
+        if ( store == null || chunkIds == null || chunkIds.isEmpty() ) return;
         final Set< UUID > targets = new LinkedHashSet<>( chunkIds );
         try {
-            final Set< String > pages = pagesFor( targets );
-            final List< IndexedChunk > current = pages.isEmpty() ? List.of() : loadByPages( pages );
+            final Set< String > pages = store.pagesFor( targets );
+            final List< IndexedChunk > current = pages.isEmpty() ? List.of() : store.loadByPages( pages );
 
             // Rewrite each affected page wholesale: delete every doc carrying its
             // page_name, then re-add the chunks the page currently has.
@@ -206,46 +198,16 @@ public final class LuceneBm25ChunkIndex {
      * a load failure leaves the existing index untouched rather than blanking it.
      */
     public void reload() {
-        if ( jdbc == null ) return;   // in-list (test) instance: nothing to reload from
+        if ( store == null ) return;   // in-list (test) instance: nothing to reload from
         final List< IndexedChunk > chunks;
         try {
-            chunks = loadAll();
+            chunks = store.loadAll();
         } catch ( final IllegalStateException e ) {
             LOG.warn( "BM25 chunk reload failed; prior index contents preserved: {}", e.getMessage(), e );
             return;
         }
         replaceAll( chunks );
         LOG.info( "BM25 chunk index reloaded: chunks={}", cachedSize );
-    }
-
-    private List< IndexedChunk > loadAll() {
-        try {
-            return jdbc.query( LOAD_ALL_SQL, ps -> { }, LuceneBm25ChunkIndex::readChunk );
-        } catch ( final SQLException e ) {
-            throw new IllegalStateException( "Failed to load chunks for BM25 index", e );
-        }
-    }
-
-    private Set< String > pagesFor( final Set< UUID > ids ) throws SQLException {
-        final UUID[] idArr = ids.toArray( new UUID[ 0 ] );
-        return jdbc.withConnection( conn -> {
-            final List< String > pages = jdbc.query( conn, PAGES_FOR_IDS_SQL,
-                ps -> ps.setArray( 1, conn.createArrayOf( "uuid", idArr ) ),
-                rs -> rs.getString( 1 ) );
-            return new LinkedHashSet<>( pages );
-        } );
-    }
-
-    private List< IndexedChunk > loadByPages( final Set< String > pages ) throws SQLException {
-        final String[] pageArr = pages.toArray( new String[ 0 ] );
-        return jdbc.withConnection( conn -> jdbc.query( conn, LOAD_BY_PAGES_SQL,
-            ps -> ps.setArray( 1, conn.createArrayOf( "text", pageArr ) ),
-            LuceneBm25ChunkIndex::readChunk ) );
-    }
-
-    private static IndexedChunk readChunk( final ResultSet rs ) throws SQLException {
-        return new IndexedChunk(
-            UUID.fromString( rs.getString( "id" ) ), rs.getString( "page_name" ), rs.getString( "text" ) );
     }
 
     /** Wipes the index and rebuilds it from {@code chunks}. Used by construction and {@link #reload}. */

@@ -206,7 +206,7 @@ Identify people by **login name** everywhere access is decided.
   numbered wiki name (`JohnSmith2`), which is stored and read back as is, and kept when an
   identity provider re-sends the same name. A save that would still collide with another
   account's login or wiki name (for example two concurrent writes) is refused with a generic
-  message: `409` `uniqueness` on SCIM, `400` on the profile and admin user endpoints. SCIM `POST /Groups` returns `409` for a group name that
+  message: `409` `uniqueness` on SCIM; `400` on admin create/update (`/admin/users`) and self-service (`PUT /api/auth/profile`). SCIM `POST /Groups` returns `409` for a group name that
   is an account's login, full or wiki name. SSO auto-provisioning falls back to the login
   name for a reserved name claim and adds a numeric suffix ("jdoe 2") to a claim that
   equals another account's login. Names are re-checked only when they change, so an

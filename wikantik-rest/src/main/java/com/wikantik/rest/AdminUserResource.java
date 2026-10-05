@@ -535,6 +535,9 @@ public class AdminUserResource extends RestServletBase {
             LOG.info( "Created user: {}", loginName );
             response.setStatus( HttpServletResponse.SC_CREATED );
             sendJson( response, profileToMap( db.findByLoginName( loginName ) ) );
+        } catch ( final ProfileConflictException e ) {
+            LOG.warn( "Creation of user {} conflicts with an existing account", loginName, e );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, ProfileConflictException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             LOG.error( "Failed to create user {}: {}", loginName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_CONFLICT, "Failed to create user" );

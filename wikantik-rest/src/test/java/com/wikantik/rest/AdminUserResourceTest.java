@@ -776,6 +776,33 @@ class AdminUserResourceTest {
     }
 
     @Test
+    void testCreateUserSaveConflictReturns400WithGenericMessage() throws Exception {
+        final AdminUserResource spy = Mockito.spy( servlet );
+        final com.wikantik.auth.user.UserDatabase userDbMock = Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+        Mockito.doReturn( servlet.getUserDatabase().newProfile() ).when( userDbMock ).newProfile();
+        Mockito.doThrow( new com.wikantik.auth.user.ProfileConflictException(
+                new java.sql.SQLException( "duplicate key value violates unique constraint \"users_wiki_name_uniq\"", "23505" ) ) )
+                .when( userDbMock ).save( Mockito.any() );
+        Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
+
+        final JsonObject create = new JsonObject();
+        create.addProperty( "loginName", "createConflict" );
+        create.addProperty( "fullName", "Create Conflict" );
+        create.addProperty( "password", "StrongPassword123!" );
+        final HttpServletRequest request = createRequest( null );
+        Mockito.doReturn( new BufferedReader( new StringReader( create.toString() ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        spy.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt(), sw.toString() );
+        assertEquals( com.wikantik.auth.user.ProfileConflictException.MESSAGE, obj.get( "message" ).getAsString() );
+        assertFalse( sw.toString().contains( "users_wiki_name_uniq" ), sw.toString() );
+    }
+
+    @Test
     void testUpdateUserSaveConflictReturns400WithoutStoreDetail() throws Exception {
         final JsonObject a = new JsonObject();
         a.addProperty( "loginName", "conflictUser" );

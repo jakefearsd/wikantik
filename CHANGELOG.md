@@ -33,7 +33,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Numbered wiki names (`JohnSmith2`) are read back from the user store instead of being re-derived from
   the full name, so a second account sharing a full name can be saved again and its session no longer
   carries the first account's wiki name. A login or wiki name that collides on save is refused with a
-  generic message (SCIM `409 uniqueness`, admin and self-service `400`).
+  generic message (SCIM `409 uniqueness`; admin create/update and self-service `400`).
 - A full or wiki name may not equal a built-in role, `Admin`, a role or group in use, or another
   account's login name. This applies to self-service and admin profile edits, SCIM and SSO provisioning.
 - Self-service API keys are limited to the `tools` and `mcp_read` scopes for non-administrators,

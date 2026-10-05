@@ -295,6 +295,8 @@ public class SpaRoutingFilter implements Filter {
         try {
             return URLDecoder.decode( rest, StandardCharsets.UTF_8 );
         } catch ( final IllegalArgumentException ex ) {
+            // Client-supplied path; the raw path is the best available answer.
+            LOG.debug( "Path '{}' is not valid URL-encoding; using it undecoded: {}", rest, ex.getMessage() );
             return rest;
         }
     }

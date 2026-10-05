@@ -594,6 +594,8 @@ public class PageResource extends RestServletBase {
             final int v = Integer.parseInt( raw.trim() );
             return v > 0 ? v : DEFAULT_MAX_PAGE_BYTES;
         } catch ( final NumberFormatException nfe ) {
+            // Operator-supplied value; the default keeps the endpoint working.
+            LOG.debug( "Max page bytes '{}' is not an integer; using default {}: {}", raw, DEFAULT_MAX_PAGE_BYTES, nfe.getMessage() );
             return DEFAULT_MAX_PAGE_BYTES;
         }
     }

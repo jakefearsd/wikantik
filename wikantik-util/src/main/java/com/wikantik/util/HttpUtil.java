@@ -168,6 +168,7 @@ public final class HttpUtil {
         try {
             ifModifiedSince = req.getDateHeader( "If-Modified-Since" );
         } catch( final IllegalArgumentException e ) {
+            LOG.debug( "Ignoring malformed If-Modified-Since header: {}", e.getMessage() );
             // Illegal date/time header format.  We fail quietly, and return false.
             // FIXME: Should really move to ETags.
             return false;

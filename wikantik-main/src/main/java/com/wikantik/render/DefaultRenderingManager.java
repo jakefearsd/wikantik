@@ -224,6 +224,7 @@ public class DefaultRenderingManager implements RenderingManager {
                 final String parent = TextUtil.beautifyString( att.getParentName() );
                 return parent + "/" + att.getFileName();
             } catch( final ProviderException e ) {
+                LOG.warn( "Could not look up attachment info for '{}'; using the plain title: {}", title, e.getMessage() );
                 return title;
             }
         }

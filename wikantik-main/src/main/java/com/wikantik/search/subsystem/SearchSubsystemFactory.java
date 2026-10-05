@@ -153,6 +153,7 @@ public final class SearchSubsystemFactory {
         try {
             return sm.getSearchEngine();
         } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not obtain the search engine from the SearchManager; continuing without it", e );
             return null;
         }
     }

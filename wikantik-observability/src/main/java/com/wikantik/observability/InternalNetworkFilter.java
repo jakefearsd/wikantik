@@ -117,6 +117,7 @@ public class InternalNetworkFilter implements Filter {
                 }
             }
         } catch ( final UnknownHostException e ) {
+            LOG.warn( "Remote address '{}' is not a valid IP; denying access: {}", ipAddress, e.getMessage() );
             // Malformed IP — deny
             return false;
         }

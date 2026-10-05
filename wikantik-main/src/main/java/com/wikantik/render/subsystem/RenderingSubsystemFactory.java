@@ -30,6 +30,8 @@ import com.wikantik.render.subsystem.spam.SpamPolicy;
 import com.wikantik.render.subsystem.spam.SpamRateLimiter;
 
 import java.util.Objects;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Builds {@link RenderingSubsystem.Services} from {@link RenderingSubsystem.Deps}.
@@ -47,6 +49,8 @@ import java.util.Objects;
  * {@code SpamFilter} instance once it has been decomposed in Ckpt 3.</p>
  */
 public final class RenderingSubsystemFactory {
+    private static final Logger LOG = LogManager.getLogger( RenderingSubsystemFactory.class );
+
 
     private RenderingSubsystemFactory() {}
 
@@ -86,6 +90,7 @@ public final class RenderingSubsystemFactory {
                 .findFirst()
                 .orElse( null );
         } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not read the filter list to find the SpamFilter; continuing without one", e );
             // Test mocks may not stub getFilterList(); fall back to null
             // rather than blowing up subsystem construction.
             return null;

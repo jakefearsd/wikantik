@@ -129,6 +129,8 @@ public class RenameClusterTool extends DefaultAuthorTool {
         try {
             plan = renameService.plan( from, to );
         } catch ( final IllegalArgumentException iae ) {
+            // Client-supplied cluster paths; the caller gets an error result.
+            LOG.debug( "rename_cluster plan rejected for from='{}' to='{}': {}", from, to, iae.getMessage() );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage(),
                     "Provide two different, non-blank cluster paths. Use list_clusters to see what exists." );
         }

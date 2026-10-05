@@ -28,6 +28,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.io.Reader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Common base for the SCIM resource servlets ({@link ScimUserResource},
@@ -42,6 +44,8 @@ import java.io.Reader;
  * actual per-verb business logic.</p>
  */
 abstract class AbstractScimServlet extends HttpServlet {
+    private static final Logger LOG = LogManager.getLogger( AbstractScimServlet.class );
+
 
     private static final long serialVersionUID = 1L;
 
@@ -151,6 +155,8 @@ abstract class AbstractScimServlet extends HttpServlet {
             final int i = Integer.parseInt( v.trim() );
             return i > 0 ? i : defaultVal;
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "Parameter value '{}' is not an integer; using default {}: {}", v, defaultVal, e.getMessage() );
             return defaultVal;
         }
     }

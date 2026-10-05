@@ -107,6 +107,8 @@ public class SparqlQueryTool extends AbstractMcpTool {
         try {
             query = QueryFactory.create( queryString );   // rejects SPARQL UPDATE syntactically
         } catch ( final QueryParseException e ) {
+            // Client-supplied query; the caller gets an error result.
+            LOG.debug( "sparql_query rejected an unparseable query: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "invalid SPARQL query (note: UPDATE is not allowed): " + e.getMessage() );
         }
@@ -115,6 +117,8 @@ public class SparqlQueryTool extends AbstractMcpTool {
         try {
             com.wikantik.ontology.SparqlQueryGuard.rejectUnsafeConstructs( query );
         } catch ( final IllegalArgumentException e ) {
+            // Client-supplied query; the caller gets an error result.
+            LOG.debug( "sparql_query rejected an unsafe construct: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         }
         if ( !query.hasLimit() || query.getLimit() > RESULT_CAP ) {

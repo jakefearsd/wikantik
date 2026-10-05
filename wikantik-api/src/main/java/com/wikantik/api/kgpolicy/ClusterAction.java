@@ -20,15 +20,23 @@ package com.wikantik.api.kgpolicy;
 
 import java.util.Locale;
 import java.util.Optional;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public enum ClusterAction {
     INCLUDE, EXCLUDE;
+
+    private static final Logger LOG = LogManager.getLogger( ClusterAction.class );
 
     public String wire() { return name().toLowerCase( Locale.ROOT ); }
 
     public static Optional< ClusterAction > fromWire( final String s ) {
         if ( s == null ) return Optional.empty();
         try { return Optional.of( ClusterAction.valueOf( s.toUpperCase( Locale.ROOT ) ) ); }
-        catch ( final IllegalArgumentException e ) { return Optional.empty(); }
+        catch ( final IllegalArgumentException e ) {
+            // An unknown wire value maps to Optional.empty by contract.
+            LOG.debug( "'{}' is not a ClusterAction; returning empty: {}", s, e.getMessage() );
+            return Optional.empty();
+        }
     }
 }

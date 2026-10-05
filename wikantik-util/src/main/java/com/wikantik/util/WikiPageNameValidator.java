@@ -18,6 +18,9 @@
  */
 package com.wikantik.util;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /**
  * Strict pre-check for caller-supplied wiki page names — rejects inputs the
  * existing {@link TextUtil#cleanString} would silently normalise into nonsense
@@ -28,6 +31,8 @@ package com.wikantik.util;
  * names continue to work unchanged.</p>
  */
 public final class WikiPageNameValidator {
+    private static final Logger LOG = LogManager.getLogger( WikiPageNameValidator.class );
+
 
     /** Hard cap on a wiki page name. Matches typical filesystem and UI limits. */
     public static final int MAX_LENGTH = 128;
@@ -71,6 +76,10 @@ public final class WikiPageNameValidator {
     /** Convenience: returns true iff {@link #requireValid} would accept {@code name}. */
     public static boolean isValid( final String name ) {
         try { requireValid( name, null ); return true; }
-        catch ( final IllegalArgumentException e ) { return false; }
+        catch ( final IllegalArgumentException e ) {
+            // IsValid() reports the answer as false.
+            LOG.debug( "'{}' is not a valid page name: {}", name, e.getMessage() );
+            return false;
+        }
     }
 }

@@ -590,6 +590,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
                     .findFirst()
                     .orElseGet( () -> new UnresolvedPrincipal( name ) );
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug( "No user profile for '{}'; returning an unresolved principal: {}", name, e.getMessage() );
             // We couldn't find the user - mark as unresolved
             return new UnresolvedPrincipal( name );
         }

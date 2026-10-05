@@ -163,6 +163,8 @@ public final class OidcDiscoverySelfCheck {
             }
             return new Attempt( Outcome.OK, null, null );
         } catch( final Exception e ) {
+            // The exception is carried in the Attempt result and reported once all attempts are exhausted.
+            LOG.debug( "OIDC discovery attempt failed", e );
             return new Attempt( Outcome.UNREACHABLE, e.toString(), e );
         }
     }

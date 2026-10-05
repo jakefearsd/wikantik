@@ -210,6 +210,8 @@ public class InsightsIngestResource extends RestServletBase {
             final int v = Integer.parseInt( raw.trim() );
             return v > 0 ? v : def;
         } catch ( final NumberFormatException nfe ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "'{}' is not an integer; using default {}: {}", raw, def, nfe.getMessage() );
             return def;
         }
     }

@@ -148,6 +148,7 @@ public abstract class RestServletBase extends HttpServlet {
         try {
             ctx = getServletContext();
         } catch ( final IllegalStateException e ) {
+            LOG.debug( "No ServletContext (servlet not init()ed); using the legacy engine bridge: {}", e.getMessage() );
             // intentionally swallowed — see comment above
         }
         if ( ctx != null ) {

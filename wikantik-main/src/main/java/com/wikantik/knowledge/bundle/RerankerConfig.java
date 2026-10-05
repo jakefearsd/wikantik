@@ -18,9 +18,14 @@
  */
 package com.wikantik.knowledge.bundle;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /** Config for the listwise section reranker. Model defaults to the 4B sweet spot from the
  *  2026-06-13 spike sweep; think:false is enforced by OllamaChatRequest. */
 public record RerankerConfig( String model, String baseUrl, long timeoutMs ) {
+    private static final Logger LOG = LogManager.getLogger( RerankerConfig.class );
+
     public static final String PREFIX = "wikantik.bundle.reranker.";
     public RerankerConfig {
         if ( model == null || model.isBlank() ) model = "gemma4:e4b";
@@ -44,6 +49,7 @@ public record RerankerConfig( String model, String baseUrl, long timeoutMs ) {
             try {
                 timeoutMs = Long.parseLong( raw.trim() );
             } catch ( final NumberFormatException e ) {
+                LOG.debug( "Reranker timeout_ms '{}' is not a long; the default applies: {}", raw, e.getMessage() );
                 // Non-numeric timeout — keep 0L so the compact ctor applies the 30s default.
             }
         }

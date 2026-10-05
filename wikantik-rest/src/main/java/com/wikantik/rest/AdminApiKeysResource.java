@@ -300,6 +300,8 @@ public class AdminApiKeysResource extends RestServletBase {
         try {
             return db.findByLoginName( login ) != null;
         } catch ( final NoSuchPrincipalException e ) {
+            // An absent principal is the normal lookup-miss path, not an error.
+            LOG.debug( "No user with login '{}': {}", login, e.getMessage() );
             return false;
         }
     }

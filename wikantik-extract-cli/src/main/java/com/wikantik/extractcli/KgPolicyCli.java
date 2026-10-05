@@ -37,6 +37,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Admin CLI for the KG inclusion / exclusion policy. Mirrors {@code /admin/kg-policy/*}
@@ -58,6 +60,8 @@ import java.util.Set;
  * </pre>
  */
 public final class KgPolicyCli {
+    private static final Logger LOG = LogManager.getLogger( KgPolicyCli.class );
+
 
     public static void main( final String[] args ) {
         final int rc = new KgPolicyCli( System.out, System.err ).run( args );
@@ -386,7 +390,11 @@ public final class KgPolicyCli {
 
     private static int parseIntOr( final String s, final int fallback ) {
         if ( s == null ) return fallback;
-        try { return Integer.parseInt( s ); } catch ( final NumberFormatException e ) { return fallback; }
+        try { return Integer.parseInt( s ); } catch ( final NumberFormatException e ) {
+            // CLI option; the fallback is the documented default.
+            LOG.debug( "'{}' is not an integer; using fallback {}: {}", s, fallback, e.getMessage() );
+            return fallback;
+        }
     }
 
     private static void bindStrings( final PreparedStatement st, final List< String > vals, final int startIdx )

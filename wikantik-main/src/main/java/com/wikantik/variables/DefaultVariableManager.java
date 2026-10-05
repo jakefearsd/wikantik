@@ -141,6 +141,8 @@ public class DefaultVariableManager implements VariableManager {
                 final Method method = sysvars.getClass().getMethod( methodName );
                 return ( String ) method.invoke( sysvars );
             } catch( final NoSuchMethodException e ) {
+                // An unknown variable name is the normal not-a-system-variable path.
+                LOG.debug( "No system variable getter for '{}': {}", lowerName, e.getMessage() );
                 return null;
             } catch( final Exception e ) {
                 LOG.info( "Interesting exception: cannot fetch variable value", e );
@@ -282,6 +284,7 @@ public class DefaultVariableManager implements VariableManager {
         try {
             return getValue( context, varName );
         } catch( final NoSuchVariableException e ) {
+            LOG.debug( "No variable named '{}'; using the supplied default: {}", varName, e.getMessage() );
             return defValue;
         }
     }

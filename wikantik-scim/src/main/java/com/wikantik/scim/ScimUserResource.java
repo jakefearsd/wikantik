@@ -132,6 +132,7 @@ public class ScimUserResource extends AbstractScimServlet {
                     "User '" + f.userName() + "' already exists." );
             return;
         } catch ( final NoSuchPrincipalException ignored ) {
+            LOG.debug( "No existing account for '{}'; proceeding to create it: {}", f.userName(), ignored.getMessage() );
             // Expected — no existing account; proceed to create
         }
 

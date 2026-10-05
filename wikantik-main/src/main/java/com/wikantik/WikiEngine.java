@@ -982,6 +982,8 @@ public class WikiEngine implements Engine {
                     auth.users().getUserDatabase().findByLoginName( login );
                     return true;
                 } catch ( final com.wikantik.auth.NoSuchPrincipalException e ) {
+                    // An absent principal is the normal lookup-miss path, not an error.
+                    LOG.debug( "No user profile for login '{}': {}", login, e.getMessage() );
                     return false;
                 } catch ( final Exception e ) {
                     LOG.warn( "userExistsLookup({}) failed: {}", login, e.getMessage(), e );

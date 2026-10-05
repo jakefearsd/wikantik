@@ -25,6 +25,8 @@ import com.wikantik.api.knowledge.Verdict;
 
 import java.util.Locale;
 import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Parses a judge LLM's JSON verdict into a {@link Verdict}. Shared by the
@@ -35,6 +37,8 @@ import java.util.Set;
  * dropping the proposal.
  */
 final class ProposalVerdictParser {
+    private static final Logger LOG = LogManager.getLogger( ProposalVerdictParser.class );
+
 
     private static final Set< String > ALLOWED_REASONS = Set.of(
         "ungrounded", "redundant_with_existing_node", "wrong_type", "too_generic", "weak_support" );
@@ -65,6 +69,7 @@ final class ProposalVerdictParser {
                     "judge_failed: unknown verdict " + verdict );
             };
         } catch( final RuntimeException e ) {
+            LOG.warn( "Judge verdict could not be parsed; accepting the proposal as judge_failed: {}", e.getMessage() );
             return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: " + e.getMessage() );
         }
     }

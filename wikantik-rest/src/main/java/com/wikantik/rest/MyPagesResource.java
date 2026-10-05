@@ -36,6 +36,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * REST servlet listing the pages the current user authored — i.e. is the
@@ -56,6 +58,8 @@ import java.util.Set;
  * <p>Requires authentication; anonymous callers get a 401.</p>
  */
 public class MyPagesResource extends RestServletBase {
+    private static final Logger LOG = LogManager.getLogger( MyPagesResource.class );
+
 
     private static final long serialVersionUID = 1L;
     private static final int DEFAULT_LIMIT = 15;
@@ -134,6 +138,8 @@ public class MyPagesResource extends RestServletBase {
         try {
             return Math.max( 1, Math.min( MAX_LIMIT, Integer.parseInt( raw ) ) );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "Limit '{}' is not an integer; using default {}: {}", raw, DEFAULT_LIMIT, e.getMessage() );
             return DEFAULT_LIMIT;
         }
     }

@@ -40,11 +40,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper wrapping {@link McpSyncClient} with typed convenience methods for MCP integration tests.
  */
 public class McpTestClient implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger( McpTestClient.class );
+
 
     private static final Gson GSON = new Gson();
 
@@ -181,9 +185,11 @@ public class McpTestClient implements AutoCloseable {
                 try {
                     Files.deleteIfExists( p );
                 } catch ( final IOException ignored ) {
+                    LOG.warn( "Could not delete {} during test cleanup: {}", p, ignored.getMessage() );
                 }
             } );
         } catch ( final IOException ignored ) {
+            LOG.warn( "Could not walk {} during test cleanup: {}", dir, ignored.getMessage() );
         }
     }
 

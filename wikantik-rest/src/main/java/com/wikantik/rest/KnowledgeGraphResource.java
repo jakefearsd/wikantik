@@ -101,6 +101,7 @@ public class KnowledgeGraphResource extends RestServletBase {
                 ? session.getUserPrincipal().getName()
                 : "anonymous";
         } catch ( final Exception e ) {
+            LOG.warn( "Could not read the session principal; treating the caller as anonymous: {}", e.getMessage() );
             return "anonymous";
         }
     }

@@ -287,6 +287,8 @@ public class PingSearchEnginesTool extends AbstractMcpTool {
                     && ( "http".equalsIgnoreCase( uri.getScheme() ) || "https".equalsIgnoreCase( uri.getScheme() ) )
                     && uri.getHost() != null && !uri.getHost().isEmpty();
         } catch ( final IllegalArgumentException e ) {
+            // An unparseable base URL is reported to the caller as not configured.
+            LOG.debug( "Base URL '{}' is not a valid URI; treating the wiki as not publicly configured: {}", baseUrl, e.getMessage() );
             return false;
         }
     }

@@ -116,6 +116,8 @@ public class SnoozeOpportunityTool extends DefaultAuthorTool {
             days = daysArg instanceof Number n ? n.intValue()
                     : Integer.parseInt( String.valueOf( daysArg ).strip() );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied argument; the caller gets an error result.
+            LOG.debug( "'days' value '{}' is not a whole number: {}", daysArg, e.getMessage() );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "'days' must be a whole number",
                     "Pass a value between " + MIN_DAYS + " and " + MAX_DAYS + "." );

@@ -40,12 +40,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Shared utilities for MCP tool implementations, reducing boilerplate
  * around result building and argument extraction.
  */
 public final class McpToolUtils {
+    private static final Logger LOG = LogManager.getLogger( McpToolUtils.class );
+
 
     /** Shared Gson instance — serializes nulls so JSON keys are always present. */
     public static final Gson SHARED_GSON = new GsonBuilder().serializeNulls().create();
@@ -281,6 +285,8 @@ public final class McpToolUtils {
         try {
             return java.util.UUID.fromString( o.toString() );
         } catch ( final IllegalArgumentException e ) {
+            // A malformed id is reported as absent by contract.
+            LOG.debug( "'{}' is not a UUID; returning null: {}", o, e.getMessage() );
             return null;
         }
     }
@@ -398,6 +404,7 @@ public final class McpToolUtils {
                 try {
                     result.add( com.wikantik.api.knowledge.Provenance.fromValue( s ) );
                 } catch ( final IllegalArgumentException ignored ) {
+                    LOG.debug( "Skipping unknown provenance value '{}': {}", s, ignored.getMessage() );
                     // silently skip unknown provenance strings
                 }
             }

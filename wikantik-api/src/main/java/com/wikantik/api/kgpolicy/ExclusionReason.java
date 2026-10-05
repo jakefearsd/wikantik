@@ -20,6 +20,8 @@ package com.wikantik.api.kgpolicy;
 
 import java.util.Locale;
 import java.util.Optional;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Why a page is in {@code kg_excluded_pages}. Strongest first — when more
@@ -30,6 +32,8 @@ public enum ExclusionReason {
     PAGE_OVERRIDE( 20 ),
     CLUSTER_POLICY( 10 );
 
+    private static final Logger LOG = LogManager.getLogger( ExclusionReason.class );
+
     private final int strength;
     ExclusionReason( final int strength ) { this.strength = strength; }
 
@@ -39,7 +43,11 @@ public enum ExclusionReason {
     public static Optional< ExclusionReason > fromWire( final String s ) {
         if ( s == null ) return Optional.empty();
         try { return Optional.of( ExclusionReason.valueOf( s.toUpperCase( Locale.ROOT ) ) ); }
-        catch ( final IllegalArgumentException e ) { return Optional.empty(); }
+        catch ( final IllegalArgumentException e ) {
+            // An unknown wire value maps to Optional.empty by contract.
+            LOG.debug( "'{}' is not an ExclusionReason; returning empty: {}", s, e.getMessage() );
+            return Optional.empty();
+        }
     }
 
     /** Returns the strongest of two reasons (used by reason-precedence logic). */

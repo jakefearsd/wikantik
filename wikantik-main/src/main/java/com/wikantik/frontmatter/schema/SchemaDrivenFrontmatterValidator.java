@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Validates parsed frontmatter against the server-authoritative {@link FrontmatterSchema}, returning
@@ -43,6 +45,8 @@ import java.util.Map;
  * <p>See {@code docs/superpowers/specs/2026-06-08-structured-page-curation-design.md} §4.3.</p>
  */
 public final class SchemaDrivenFrontmatterValidator {
+    private static final Logger LOG = LogManager.getLogger( SchemaDrivenFrontmatterValidator.class );
+
 
     private static final String KEBAB = "^[a-z0-9]+(-[a-z0-9]+)*$";
 
@@ -258,6 +262,7 @@ public final class SchemaDrivenFrontmatterValidator {
             LocalDate.parse( val );
             return true;
         } catch ( final DateTimeParseException notADate ) {
+            LOG.debug( "'{}' is not a plain ISO date: {}", val, notADate.getMessage() );
             // not a plain date; try richer forms below when allowed
         }
         if ( allowInstant ) {
@@ -265,12 +270,14 @@ public final class SchemaDrivenFrontmatterValidator {
                 Instant.parse( val );
                 return true;
             } catch ( final DateTimeParseException notAnInstant ) {
+                LOG.debug( "'{}' is not an ISO instant: {}", val, notAnInstant.getMessage() );
                 // try offset-date-time below
             }
             try {
                 OffsetDateTime.parse( val );
                 return true;
             } catch ( final DateTimeParseException notAnOffsetDateTime ) {
+                LOG.debug( "'{}' is not an ISO offset date-time: {}", val, notAnOffsetDateTime.getMessage() );
                 // falls through to false
             }
         }

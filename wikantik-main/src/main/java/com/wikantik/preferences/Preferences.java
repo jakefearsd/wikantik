@@ -180,6 +180,8 @@ public class Preferences extends HashMap< String,String > {
 
             return fmt;
         } catch( final Exception e ) {
+            // The pattern can come from a user preference; no formatter is the documented result.
+            LOG.debug( "Could not build a date formatter from pattern '{}': {}", prefDateFormat, e.getMessage() );
             return null;
         }
     }

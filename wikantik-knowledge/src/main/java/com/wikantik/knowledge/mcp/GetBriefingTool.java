@@ -39,6 +39,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * MCP tool — assemble a session-start context briefing: prompt-refined wiki sections plus
@@ -48,6 +50,8 @@ import java.util.function.Supplier;
  * (ADR-0001 — never synthesizes an answer).
  */
 public class GetBriefingTool extends AbstractMcpTool {
+    private static final Logger LOG = LogManager.getLogger( GetBriefingTool.class );
+
 
     public static final String TOOL_NAME = "get_briefing";
 
@@ -124,6 +128,8 @@ public class GetBriefingTool extends AbstractMcpTool {
         try {
             scopeMode = ScopeMode.fromWire( McpToolUtils.getString( arguments, "scope_mode" ) );
         } catch ( final IllegalArgumentException e ) {
+            // Client-supplied scope_mode; the caller gets an error result.
+            LOG.debug( "get_briefing rejected an invalid scope_mode: {}", e.getMessage() );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
 

@@ -212,6 +212,8 @@ public class ToolsOpenApiServlet extends HttpServlet {
         try {
             return Integer.parseInt( raw.strip() );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "'{}' is not an integer; using 0: {}", raw, e.getMessage() );
             return 0;
         }
     }

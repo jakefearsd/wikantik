@@ -298,6 +298,7 @@ public class DefaultCommandResolver implements CommandResolver {
             try {
                 version = Integer.parseInt( rev );
             } catch( final NumberFormatException e ) {
+                LOG.debug( "Ignoring non-numeric version parameter '{}': {}", rev, e.getMessage() );
                 // This happens a lot with bots or other guys who are trying to test if we are vulnerable to e.g. XSS attacks.  We catch
                 // it here so that the admin does not get tons of mail.
             }

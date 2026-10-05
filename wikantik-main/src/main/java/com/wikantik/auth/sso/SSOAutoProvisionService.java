@@ -83,6 +83,7 @@ public class SSOAutoProvisionService {
             LOG.debug( "User profile already exists for SSO user: {}", loginName );
             return;
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug( "No user profile for SSO login '{}'; provisioning one: {}", loginName, e.getMessage() );
             // Profile does not exist; proceed with provisioning
         }
 
@@ -177,6 +178,8 @@ public class SSOAutoProvisionService {
             userDb.findByWikiName( wikiName );
             return true;
         } catch( final NoSuchPrincipalException e ) {
+            // An absent principal is the normal lookup-miss path, not an error.
+            LOG.debug( "No user profile with wiki name '{}': {}", wikiName, e.getMessage() );
             return false;
         }
     }

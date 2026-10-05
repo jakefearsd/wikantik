@@ -29,6 +29,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * {@code users} row ↔ {@link UserProfile} mapping for {@link JDBCUserDatabase}: builds a
@@ -40,6 +42,8 @@ import java.util.Map;
  * @see JDBCUserDatabase
  */
 final class JdbcUserProfileRowMapper {
+    private static final Logger LOG = LogManager.getLogger( JdbcUserProfileRowMapper.class );
+
 
     /** Supplies {@link UserDatabase#newProfile()} and, transitively, UID generation. */
     private final UserDatabase owningDatabase;
@@ -96,6 +100,7 @@ final class JdbcUserProfileRowMapper {
             final String loginName = rs.getString( "login_name" );
             return loginName != null ? loginName : "<unknown>";
         } catch ( final SQLException e ) {
+            LOG.warn( "Could not read login_name to describe a user row for logging: {}", e.getMessage() );
             return "<unknown>";
         }
     }

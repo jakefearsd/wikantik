@@ -304,6 +304,8 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         }
         catch( final NoSuchPrincipalException e )
         {
+            // An absent principal is the normal lookup-miss path, not an error.
+            LOG.debug( "No group named '{}' in the database: {}", index, e.getMessage() );
             return false;
         }
     }

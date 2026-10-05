@@ -218,7 +218,11 @@ public class SelfApiKeysResource extends RestServletBase {
         if ( pathInfo == null ) return null;
         final String[] parts = pathInfo.split( "/" );   // "/7/rotate" -> ["", "7", "rotate"]
         if ( parts.length == 3 && "rotate".equals( parts[2] ) ) {
-            try { return Integer.valueOf( parts[1] ); } catch ( final NumberFormatException e ) { return null; }
+            try { return Integer.valueOf( parts[1] ); } catch ( final NumberFormatException e ) {
+                // Client-supplied path; no id means the route does not match.
+                LOG.debug( "Path segment '{}' is not an integer id: {}", parts[1], e.getMessage() );
+                return null;
+            }
         }
         return null;
     }
@@ -228,7 +232,11 @@ public class SelfApiKeysResource extends RestServletBase {
         if ( pathInfo == null ) return null;
         final String[] parts = pathInfo.split( "/" );   // "/7" -> ["", "7"]
         if ( parts.length == 2 && !parts[1].isBlank() ) {
-            try { return Integer.valueOf( parts[1] ); } catch ( final NumberFormatException e ) { return null; }
+            try { return Integer.valueOf( parts[1] ); } catch ( final NumberFormatException e ) {
+                // Client-supplied path; no id means the route does not match.
+                LOG.debug( "Path segment '{}' is not an integer id: {}", parts[1], e.getMessage() );
+                return null;
+            }
         }
         return null;
     }

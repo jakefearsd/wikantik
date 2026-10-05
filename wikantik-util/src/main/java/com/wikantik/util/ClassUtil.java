@@ -113,6 +113,7 @@ public final class ClassUtil {
                 try {
                     return ( Class< T > )loader.loadClass( packageName + "." + className );
                 } catch( final ClassNotFoundException ex ) {
+                    LOG.debug( "Class {} not found in package {}; trying the next package: {}", className, packageName, ex.getMessage() );
                     // This is okay, we go to the next package.
                 }
             }
@@ -170,6 +171,8 @@ public final class ClassUtil {
         try {
             return ( Class< T > )ClassUtil.class.getClassLoader().loadClass( className );
         } catch( final ClassNotFoundException e ) {
+            // The packaged name is the intended second attempt.
+            LOG.debug( "Class {} not found unqualified; trying it in package {}: {}", className, packageName, e.getMessage() );
             return ( Class< T > )ClassUtil.class.getClassLoader().loadClass( packageName + "." + className );
         }
     }
@@ -345,6 +348,8 @@ public final class ClassUtil {
             Class.forName( className, false, ClassUtil.class.getClassLoader() );
             return true;
         } catch( final ClassNotFoundException e ) {
+            // Exists() answers this question; absence is not an error.
+            LOG.debug( "Class {} is not on the classpath: {}", className, e.getMessage() );
             return false;
         }
     }

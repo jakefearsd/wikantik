@@ -116,6 +116,8 @@ public class ListRetrievalQueriesTool extends AbstractMcpTool {
             try {
                 surface = SourceSurface.fromWire( surfaceArg.toString().strip() );
             } catch ( final IllegalArgumentException e ) {
+                // Client-supplied surface; the caller gets an error result.
+                LOG.debug( "Unknown retrieval surface '{}' rejected: {}", surfaceArg, e.getMessage() );
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Unknown surface: " + surfaceArg,
                         "Use one of: api_bundle, api_search, mcp_assemble_bundle, tools_search_wiki." );
@@ -161,6 +163,8 @@ public class ListRetrievalQueriesTool extends AbstractMcpTool {
             try {
                 return Integer.parseInt( v.toString().strip() );
             } catch ( final NumberFormatException e ) {
+                // Client-supplied value; falling back to the default is the documented behaviour.
+                LOG.debug( "Argument value '{}' is not an integer; using default {}: {}", v, dflt, e.getMessage() );
                 return dflt;
             }
         }

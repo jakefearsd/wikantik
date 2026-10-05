@@ -19,10 +19,14 @@
 package com.wikantik.knowledge.eval;
 
 import java.util.Properties;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /** Per-category + overall context-recall floors (from eval/bundle-corpus/thresholds.properties).
  *  A missing floor reads as 0.0 — fail-open, so an unconfigured category never manufactures a regression. */
 public record BundleEvalThresholds( double overall, double similarity, double relational, double boundary ) {
+    private static final Logger LOG = LogManager.getLogger( BundleEvalThresholds.class );
+
 
     public static BundleEvalThresholds fromProperties( final Properties p ) {
         return new BundleEvalThresholds(
@@ -38,6 +42,8 @@ public record BundleEvalThresholds( double overall, double similarity, double re
         try {
             return Double.parseDouble( raw.trim() );
         } catch ( final NumberFormatException e ) {
+            // Operator-supplied value; falling back to the default keeps startup alive.
+            LOG.debug( "Threshold '{}' value '{}' is not a number; using 0.0: {}", key, raw, e.getMessage() );
             return 0.0;
         }
     }

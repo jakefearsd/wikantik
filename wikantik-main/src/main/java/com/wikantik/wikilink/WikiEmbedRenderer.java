@@ -117,6 +117,8 @@ public final class WikiEmbedRenderer {
             }
             return renderPage( context, page, heading, title, href );
         } catch ( final RuntimeException e ) {
+            // The summary is logged by failed().
+            LOG.debug( "Embed failure detail for '{}'", name, e );
             return failed( context, target, e, name, href );
         }
     }
@@ -159,6 +161,8 @@ public final class WikiEmbedRenderer {
             final String more = cut ? "<p class=\"wiki-embed-more\"><a href=\"" + attr( href ) + "\">Continue reading \u2192</a></p>" : "";
             return new EmbedResult( title, href, html + more, false, false, cut );
         } catch ( final IOException | RuntimeException e ) {
+            // The summary is logged by failed().
+            LOG.debug( "Embed failure detail for '{}'", title, e );
             return failed( context, page.getName(), e, title, href );
         } finally {
             context.setVariable( ATTR_EMBED_STACK, prev );

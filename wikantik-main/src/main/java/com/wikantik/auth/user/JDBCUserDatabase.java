@@ -43,6 +43,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * <p>
@@ -86,6 +88,8 @@ import java.util.Set;
  * @since 2.3
  */
 public class JDBCUserDatabase extends AbstractUserDatabase {
+    private static final Logger LOG = LogManager.getLogger( JDBCUserDatabase.class );
+
 
     private static final String NOTHING = "";
 
@@ -286,6 +290,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 throw new DuplicateUserException( "security.error.cannot.rename", newName );
             }
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug( "No existing user '{}'; safe to rename to it: {}", newName, e.getMessage() );
             // Good! That means it's safe to save using the new name
         }
 
@@ -333,6 +338,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             // object the caller just mutated.
             existingProfile = findByPreparedStatement( FIND_BY_LOGIN_NAME, loginName );
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug( "No existing profile for '{}'; treating this as a new profile: {}", loginName, e.getMessage() );
             // Existing profile will be null
         }
         final UserProfile finalExistingProfile = existingProfile;

@@ -29,6 +29,8 @@ import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.util.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * MCP tool that traverses the Knowledge Graph (co-mention graph) from a seed node via BFS.
@@ -36,6 +38,8 @@ import java.util.*;
  * as recorded by the entity extractor.
  */
 public class TraverseTool extends AbstractMcpTool {
+    private static final Logger LOG = LogManager.getLogger( TraverseTool.class );
+
 
     public static final String TOOL_NAME = "traverse";
 
@@ -121,6 +125,8 @@ public class TraverseTool extends AbstractMcpTool {
         try {
             minTier = Tier.fromWire( tierRaw );
         } catch ( final IllegalArgumentException e ) {
+            // Client-supplied tier; the caller gets an error result.
+            LOG.debug( "traverse rejected min_tier '{}': {}", tierRaw, e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                 "min_tier must be 'human' or 'machine'" );
         }

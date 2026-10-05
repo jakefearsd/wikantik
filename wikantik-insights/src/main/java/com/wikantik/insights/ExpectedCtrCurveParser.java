@@ -133,6 +133,7 @@ public final class ExpectedCtrCurveParser {
         try {
             return LocalDate.parse( o.get( "snapshot_date" ).getAsString() );
         } catch ( final RuntimeException e ) {
+            LOG.warn( "Expected-CTR curve has an unparseable snapshot_date; ignoring it: {}", e.getMessage() );
             return null;
         }
     }
@@ -141,6 +142,8 @@ public final class ExpectedCtrCurveParser {
         try {
             return Integer.valueOf( key.trim() );
         } catch ( final NumberFormatException e ) {
+            // A non-numeric position is simply not a curve point.
+            LOG.debug( "Curve position key '{}' is not an integer; skipping it: {}", key, e.getMessage() );
             return null;
         }
     }
@@ -152,6 +155,8 @@ public final class ExpectedCtrCurveParser {
         try {
             return value.getAsDouble();
         } catch ( final NumberFormatException | UnsupportedOperationException e ) {
+            // A non-numeric value is simply not a curve point.
+            LOG.debug( "Curve value is not numeric; skipping it: {}", e.getMessage() );
             return null;
         }
     }

@@ -88,6 +88,8 @@ public class MathValidationPageFilter implements PageFilter {
         try {
             body = FrontmatterParser.parseStrict( content ).body();
         } catch ( final FrontmatterParseException e ) {
+            // The strict frontmatter check already rejected the save, so just pass the content through.
+            LOG.debug( "Page content has unparseable frontmatter; skipping math validation: {}", e.getMessage() );
             return content;
         }
 

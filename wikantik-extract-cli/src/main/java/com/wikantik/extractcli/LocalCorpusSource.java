@@ -32,6 +32,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  *  Reads the repository corpus ({@code docs/wikantik-pages/}) into a {@link CorpusSnapshot}.
@@ -41,6 +43,8 @@ import java.util.stream.Stream;
  *  compare it instead of reporting the unread pages as "missing from production".</p>
  */
 public final class LocalCorpusSource {
+    private static final Logger LOG = LogManager.getLogger( LocalCorpusSource.class );
+
 
     private static final String MARKDOWN_EXT = ".md";
 
@@ -114,6 +118,7 @@ public final class LocalCorpusSource {
         try {
             return URLDecoder.decode( stem, StandardCharsets.UTF_8 );
         } catch ( final IllegalArgumentException e ) {
+            LOG.debug( "File name '{}' is not valid URL-encoding; using the literal name: {}", fileName, e.getMessage() );
             // Not a valid encoding — the literal name is the best available answer.
             return stem;
         }

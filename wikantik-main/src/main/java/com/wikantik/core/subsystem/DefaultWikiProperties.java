@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Default {@link WikiProperties} implementation backed by a
@@ -34,6 +36,8 @@ import java.util.Properties;
  * identical to legacy direct reads.
  */
 public final class DefaultWikiProperties implements WikiProperties {
+    private static final Logger LOG = LogManager.getLogger( DefaultWikiProperties.class );
+
 
     private final Properties delegate;
 
@@ -66,6 +70,8 @@ public final class DefaultWikiProperties implements WikiProperties {
         try {
             return Long.parseLong( val.trim() );
         } catch ( final NumberFormatException e ) {
+            // Operator-supplied value; falling back to the default keeps startup alive.
+            LOG.debug( "Property '{}' value '{}' is not a long; using default {}: {}", key, val, defaultValue, e.getMessage() );
             return defaultValue;
         }
     }

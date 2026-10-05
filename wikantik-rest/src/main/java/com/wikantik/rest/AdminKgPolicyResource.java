@@ -503,6 +503,10 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private static int parseIntOr( final String s, final int fallback ) {
         if ( s == null ) return fallback;
-        try { return Integer.parseInt( s ); } catch ( final NumberFormatException e ) { return fallback; }
+        try { return Integer.parseInt( s ); } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "'{}' is not an integer; using fallback {}: {}", s, fallback, e.getMessage() );
+            return fallback;
+        }
     }
 }

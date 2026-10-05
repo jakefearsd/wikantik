@@ -209,6 +209,7 @@ public class SSOLoginModule extends AbstractLoginModule {
             final Object linked = existing.getAttributes().get( SSOAutoProvisionService.ATTR_SSO_SUBJECT );
             return subject != null && subject.equals( linked );
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug( "No user profile for login '{}'; no SSO identity collision: {}", loginName, e.getMessage() );
             return true; // no collision — fresh SSO identity
         }
     }

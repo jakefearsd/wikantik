@@ -183,6 +183,8 @@ public final class PageExtractionResponseParser {
         try {
             return el.getAsDouble();
         } catch (RuntimeException ex) {
+            // Model output is untrusted; the default confidence is the safe fallback.
+            LOG.debug( "Extraction response field '{}' is not numeric; using default {}: {}", key, def, ex.getMessage() );
             return def;
         }
     }

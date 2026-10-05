@@ -130,6 +130,8 @@ public class RenamePageTool extends AbstractMcpTool implements AuthorConfigurabl
             WikiPageNameValidator.requireValid( oldName, "oldName" );
             WikiPageNameValidator.requireValid( newName, "newName" );
         } catch ( final IllegalArgumentException iae ) {
+            // Client-supplied names; the caller gets an error result.
+            LOG.debug( "rename_page rejected invalid page name(s) oldName='{}' newName='{}': {}", oldName, newName, iae.getMessage() );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage() );
         }
 

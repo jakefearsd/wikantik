@@ -156,7 +156,10 @@ public class BundleResource extends RestServletBase {
         try {
             final String kp = req.getParameter( "k" );
             if ( kp != null && !kp.isBlank() ) k = Integer.parseInt( kp.trim() );
-        } catch ( final NumberFormatException ignored ) { /* keep default */ }
+        } catch ( final NumberFormatException ignored ) {
+            LOG.debug( "Parameter k='{}' is not an integer; keeping default {}: {}", req.getParameter( "k" ), k, ignored.getMessage() );
+            /* keep default */
+        }
         // The chunk-hybrid source exposes dense + bm25 rankings via debugRankings(query, k).
         final Map< String, List< HybridChunkSectionSource.DebugRank > > rankings;
         if ( src instanceof HybridChunkSectionSource hybrid ) {

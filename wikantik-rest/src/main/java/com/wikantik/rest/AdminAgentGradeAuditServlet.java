@@ -122,6 +122,8 @@ public class AdminAgentGradeAuditServlet extends RestServletBase {
         try {
             return Integer.parseInt( raw.trim() );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "'{}' is not an integer; using fallback {}: {}", raw, fallback, e.getMessage() );
             return fallback;
         }
     }

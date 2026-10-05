@@ -199,6 +199,8 @@ public class ListContentOpportunitiesTool extends AbstractMcpTool {
             try {
                 return Integer.parseInt( v.toString().strip() );
             } catch ( final NumberFormatException e ) {
+                // Client-supplied value; falling back to the default is the documented behaviour.
+                LOG.debug( "Argument value '{}' is not an integer; using default {}: {}", v, dflt, e.getMessage() );
                 return dflt;
             }
         }

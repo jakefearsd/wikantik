@@ -166,6 +166,8 @@ public class SearchKnowledgeTool implements McpTool {
             try {
                 minTier = Tier.fromWire( tierRaw );
             } catch ( final IllegalArgumentException e ) {
+                // Client-supplied tier; the caller gets an error result.
+                LOG.debug( "search_knowledge rejected min_tier '{}': {}", tierRaw, e.getMessage() );
                 return McpToolUtils.errorResult( McpToolUtils.KG_GSON,
                     "min_tier must be 'human' or 'machine'" );
             }

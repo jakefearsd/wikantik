@@ -115,6 +115,8 @@ public class MentionableUsersResource extends RestServletBase {
         try {
             return Math.max( 1, Math.min( MAX_LIMIT, Integer.parseInt( raw ) ) );
         } catch ( final NumberFormatException nfe ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "Limit '{}' is not an integer; using default {}: {}", raw, DEFAULT_LIMIT, nfe.getMessage() );
             return DEFAULT_LIMIT;
         }
     }

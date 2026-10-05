@@ -219,6 +219,10 @@ public class StructureResource extends RestServletBase {
 
     private static int parseIntOr( final String raw, final int fallback ) {
         if ( raw == null || raw.isBlank() ) return fallback;
-        try { return Integer.parseInt( raw ); } catch ( final NumberFormatException e ) { return fallback; }
+        try { return Integer.parseInt( raw ); } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "'{}' is not an integer; using fallback {}: {}", raw, fallback, e.getMessage() );
+            return fallback;
+        }
     }
 }

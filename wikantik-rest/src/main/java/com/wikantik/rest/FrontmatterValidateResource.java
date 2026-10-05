@@ -38,6 +38,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * {@code POST /api/frontmatter/validate} — parses YAML (or accepts a metadata object) and runs the
@@ -46,6 +48,8 @@ import java.util.function.Predicate;
  * client YAML parser) and optional pre-save warning preview.
  */
 public class FrontmatterValidateResource extends RestServletBase {
+    private static final Logger LOG = LogManager.getLogger( FrontmatterValidateResource.class );
+
 
     private static final long serialVersionUID = 1L;
 
@@ -69,6 +73,7 @@ public class FrontmatterValidateResource extends RestServletBase {
             try {
                 return getSubsystems().page().pages().wikiPageExists( name );
             } catch ( final RuntimeException e ) {
+                LOG.warn( "Could not check whether page '{}' exists; treating it as resolvable", name, e );
                 return true; // never fail a dry-run on a resolution hiccup
             }
         };

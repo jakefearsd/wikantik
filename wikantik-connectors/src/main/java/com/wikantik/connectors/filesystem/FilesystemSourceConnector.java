@@ -109,9 +109,13 @@ public final class FilesystemSourceConnector implements SourceConnector {
         // greatest last-modified time seen, which is stable and meaningful.
         try ( Stream< Path > walk = Files.walk( root ) ) {
             return walk.filter( Files::isRegularFile )
-                .map( p -> { try { return Files.getLastModifiedTime( p ).toMillis(); } catch ( IOException e ) { return 0L; } } )
+                .map( p -> { try { return Files.getLastModifiedTime( p ).toMillis(); } catch ( IOException e ) {
+                    LOG.warn( "Could not read last-modified time of {}; counting it as 0: {}", p, e.getMessage() );
+                    return 0L;
+                } } )
                 .max( Long::compareTo ).map( String::valueOf ).orElse( "0" );
         } catch ( final IOException e ) {
+            LOG.warn( "Could not walk {} to derive a cursor; using \"0\": {}", root, e.getMessage() );
             return "0";
         }
     }

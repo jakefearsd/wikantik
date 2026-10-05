@@ -318,6 +318,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 final var ci = exchange != null ? exchange.getClientInfo() : null;
                 if ( ci != null && ci.name() != null ) client = ci.name();
             } catch ( final RuntimeException ignored ) {
+                LOG.debug( "Client info unavailable for MCP call telemetry; using '?': {}", ignored.getMessage() );
                 // exchange.getClientInfo can throw before initialize completes
             }
             final boolean isError = result != null && Boolean.TRUE.equals( result.isError() );

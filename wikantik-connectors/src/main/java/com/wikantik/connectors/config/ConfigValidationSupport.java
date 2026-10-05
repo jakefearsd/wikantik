@@ -24,6 +24,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Field-keyed validation helpers shared by the per-type connector config codecs
@@ -34,6 +36,8 @@ import java.util.Map;
  * never throw on any JsonObject input.
  */
 final class ConfigValidationSupport {
+    private static final Logger LOG = LogManager.getLogger( ConfigValidationSupport.class );
+
 
     private ConfigValidationSupport() {}
 
@@ -84,6 +88,8 @@ final class ConfigValidationSupport {
             final String scheme = uri.getScheme();
             return ( "http".equalsIgnoreCase( scheme ) || "https".equalsIgnoreCase( scheme ) ) && uri.getHost() != null;
         } catch ( final URISyntaxException e ) {
+            // The validator reports the bad URL to the caller.
+            LOG.debug( "'{}' is not a valid URI; reporting it as not an http(s) URL: {}", value, e.getMessage() );
             return false;
         }
     }

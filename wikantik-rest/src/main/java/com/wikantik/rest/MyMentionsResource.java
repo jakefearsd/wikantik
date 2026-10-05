@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * REST servlet backing the per-user mention feed and unread tracking.
@@ -52,6 +54,8 @@ import java.util.UUID;
  * All routes require authentication; anonymous callers get a 401.
  */
 public class MyMentionsResource extends RestServletBase {
+    private static final Logger LOG = LogManager.getLogger( MyMentionsResource.class );
+
 
     private static final long serialVersionUID = 1L;
     private static final int DEFAULT_LIMIT = 25;
@@ -189,6 +193,8 @@ public class MyMentionsResource extends RestServletBase {
         try {
             return Math.max( 1, Math.min( MAX_LIMIT, Integer.parseInt( raw ) ) );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "Limit '{}' is not an integer; using default {}: {}", raw, DEFAULT_LIMIT, e.getMessage() );
             return DEFAULT_LIMIT;
         }
     }
@@ -198,6 +204,8 @@ public class MyMentionsResource extends RestServletBase {
         try {
             return Optional.of( Instant.parse( raw ) );
         } catch ( final DateTimeParseException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "'{}' is not an ISO instant; ignoring it: {}", raw, e.getMessage() );
             return Optional.empty();
         }
     }

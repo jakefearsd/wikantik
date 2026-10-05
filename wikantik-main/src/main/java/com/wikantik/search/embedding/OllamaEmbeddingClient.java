@@ -187,6 +187,8 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
         try {
             prefixed = prefixInputs( batch, prefix );
         } catch( final IllegalArgumentException e ) {
+            // The exception is returned to the caller as a failed future.
+            LOG.debug( "Rejected embedding batch before sending", e );
             return CompletableFuture.failedFuture( e );
         }
 

@@ -82,6 +82,8 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             final Group group = getGroup( name );
             return group.getPrincipal();
         } catch( final NoSuchPrincipalException e ) {
+            // An absent principal is the normal lookup-miss path, not an error.
+            LOG.debug( "No group named '{}'; no such role: {}", name, e.getMessage() );
             return null;
         }
     }

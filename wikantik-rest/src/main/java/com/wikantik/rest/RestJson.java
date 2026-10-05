@@ -176,6 +176,8 @@ public final class RestJson {
             try {
                 return obj.get( key ).getAsInt();
             } catch ( final NumberFormatException e ) {
+                // Client-supplied JSON; the default is the documented fallback.
+                LOG.debug( "JSON field '{}' is not an int; using default {}: {}", key, def, e.getMessage() );
                 return def;
             }
         }
@@ -191,6 +193,8 @@ public final class RestJson {
             try {
                 return obj.get( key ).getAsDouble();
             } catch ( final NumberFormatException e ) {
+                // Client-supplied JSON; the default is the documented fallback.
+                LOG.debug( "JSON field '{}' is not a double; using default {}: {}", key, def, e.getMessage() );
                 return def;
             }
         }
@@ -214,6 +218,8 @@ public final class RestJson {
         try {
             return Integer.parseInt( value );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "'{}' is not an integer; using default {}: {}", value, defaultValue, e.getMessage() );
             return defaultValue;
         }
     }

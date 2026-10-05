@@ -124,6 +124,7 @@ public class ScimGroupResource extends AbstractScimServlet {
             sendError( resp, 409, "uniqueness", "Group '" + displayName + "' already exists." );
             return;
         } catch ( final NoSuchPrincipalException ignored ) {
+            LOG.debug( "No group named '{}'; proceeding to create it: {}", displayName, ignored.getMessage() );
             // Expected — group does not exist; proceed to create
         }
 
@@ -205,6 +206,7 @@ public class ScimGroupResource extends AbstractScimServlet {
                         try {
                             byName.add( gm.getGroup( eq0.value() ) );
                         } catch ( final NoSuchPrincipalException e ) {
+                            LOG.debug( "No group named '{}'; filter matches nothing: {}", eq0.value(), e.getMessage() );
                             // no match — empty result
                         }
                         matched = byName;
@@ -382,6 +384,8 @@ public class ScimGroupResource extends AbstractScimServlet {
         try {
             return db.findByLoginName( login ).getUid();
         } catch ( final NoSuchPrincipalException e ) {
+            // The mapper skips nulls by contract.
+            LOG.debug( "No user with login '{}'; no uid: {}", login, e.getMessage() );
             return null;
         }
     }

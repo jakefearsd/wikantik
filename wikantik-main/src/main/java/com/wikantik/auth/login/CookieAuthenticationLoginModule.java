@@ -158,6 +158,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                         return cookieFile.setLastModified( System.currentTimeMillis() );
 
                     } catch( final IOException e ) {
+                        LOG.warn( "Could not touch remember-me cookie file {}; rejecting the cookie login: {}", cookieFile, e.getMessage() );
                         return false;
                     }
                 }

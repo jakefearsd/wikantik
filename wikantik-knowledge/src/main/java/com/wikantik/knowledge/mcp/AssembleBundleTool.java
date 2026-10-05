@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * MCP tool — assemble a RAG-as-a-Service context bundle for a natural-language query.
@@ -41,6 +43,8 @@ import java.util.stream.Collectors;
  * for grounding — it does NOT synthesize an answer (ADR-0001).
  */
 public class AssembleBundleTool extends AbstractMcpTool {
+    private static final Logger LOG = LogManager.getLogger( AssembleBundleTool.class );
+
 
     public static final String TOOL_NAME = "assemble_bundle";
 
@@ -105,6 +109,8 @@ public class AssembleBundleTool extends AbstractMcpTool {
         try {
             mode = RetrievalMode.fromWire( McpToolUtils.getString( arguments, "mode" ) );
         } catch ( final IllegalArgumentException e ) {
+            // Client-supplied mode; the caller gets an error result.
+            LOG.debug( "assemble_bundle rejected an invalid retrieval mode: {}", e.getMessage() );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
         final ContextBundle bundle = service.assemble( query, mode );

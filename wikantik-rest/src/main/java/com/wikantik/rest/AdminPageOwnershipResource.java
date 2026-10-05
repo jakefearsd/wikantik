@@ -110,6 +110,8 @@ public class AdminPageOwnershipResource extends RestServletBase {
             users().findByLoginName( login );
             return true;
         } catch ( final NoSuchPrincipalException e ) {
+            // An absent principal is the normal lookup-miss path, not an error.
+            LOG.debug( "No user with login '{}': {}", login, e.getMessage() );
             return false;
         } catch ( final WikiSecurityException e ) {
             LOG.warn( "userExists({}) WikiSecurityException: {}", login, e.getMessage() );
@@ -254,6 +256,8 @@ public class AdminPageOwnershipResource extends RestServletBase {
             if ( v <= 0 ) return DEFAULT_LIMIT;
             return Math.min( v, MAX_LIMIT );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "Limit '{}' is not an integer; using default {}: {}", raw, DEFAULT_LIMIT, e.getMessage() );
             return DEFAULT_LIMIT;
         }
     }
@@ -264,6 +268,8 @@ public class AdminPageOwnershipResource extends RestServletBase {
             final int v = Integer.parseInt( raw );
             return Math.max( v, 0 );
         } catch ( final NumberFormatException e ) {
+            // Client-supplied parameter; falling back to the default is the documented behaviour.
+            LOG.debug( "Offset '{}' is not an integer; using 0: {}", raw, e.getMessage() );
             return 0;
         }
     }

@@ -589,6 +589,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
                     return getStylesheetText();
                 }
             } catch( final Exception ex ) {
+                LOG.warn( "Could not produce include text of type '{}'", type, ex );
                 // We want to fail gracefully here
                 return ex.getMessage();
             }

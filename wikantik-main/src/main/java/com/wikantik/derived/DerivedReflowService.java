@@ -256,6 +256,7 @@ public class DerivedReflowService {
         try {
             return Integer.parseInt( vObj.toString() ) < DerivedPageIngestionService.CURRENT_EXTRACTOR_VERSION;
         } catch ( final NumberFormatException e ) {
+            LOG.debug( "Extractor version '{}' is not an int; treating the page as stale: {}", vObj, e.getMessage() );
             return true; // unparseable treated as stale
         }
     }

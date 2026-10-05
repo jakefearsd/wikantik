@@ -43,9 +43,16 @@ The **API Keys** section on the profile page creates keys for scripts and AI cli
 2. Copy the secret straight away. It is shown once.
 3. Use **Rotate** to replace a key with a new secret (same label and scope), or **Revoke** to disable it. Anything still using a revoked key gets HTTP 403.
 
-You can create keys with scope `tools` or `mcp_read` (default). The scope defaults to `mcp_read` when you leave it blank.
+You can create keys with scope `tools` or `mcp_read`. The scope defaults to `mcp_read` when you leave it blank.
 
-If you need `mcp` or `all` scope — for admin-level access to the full MCP endpoint or all wiki surfaces — ask an administrator to create those keys for you. For details on other scopes and key management, see [API keys](../admin/ApiKeys.md).
+| Scope | Use |
+|---|---|
+| `tools` | The OpenAPI tool endpoints (`/tools/*`). |
+| `mcp_read` | Read-only access to the knowledge MCP endpoint (`/knowledge-mcp`). |
+
+Administrators see all four scopes in the chooser and can create keys with `mcp` and `all` scope.
+
+If you need `mcp` or `all` scope — for admin-level write access — ask an administrator to create those keys for you. For details on other scopes and key management, see [API keys](../admin/ApiKeys.md).
 
 Administrators manage keys for other users; see [API keys](../admin/ApiKeys.md).
 

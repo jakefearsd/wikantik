@@ -18,28 +18,19 @@
  */
 package com.wikantik.util;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jdom2.Element;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 /**
  * Contains useful utilities for class file manipulation. This is a static class, so there is no need to instantiate it.
@@ -184,78 +175,9 @@ public final class ClassUtil {
      * @return all files entries in classpath under the given package
      */
     public static List< String > classpathEntriesUnder( final String rootPackage ) {
-        final List< String > results = new ArrayList<>();
-        Enumeration< URL > en = null;
-        if( StringUtils.isNotEmpty( rootPackage ) ) {
-            try {
-                en = ClassUtil.class.getClassLoader().getResources( rootPackage );
-            } catch( final IOException e ) {
-                LOG.error( e.getMessage(), e );
-            }
-        }
-        
-        while( en != null && en.hasMoreElements() ) {
-            final URL url = en.nextElement();
-            try {
-                if( "jar".equals( url.getProtocol() ) ) {
-                    jarEntriesUnder( results, ( JarURLConnection )url.openConnection(), rootPackage );
-                } else if( "file".equals( url.getProtocol() ) ) {
-                    fileEntriesUnder( results, new File( url.getFile() ), rootPackage );
-                }
-                
-            } catch( final IOException ioe ) {
-                LOG.error( ioe.getMessage(), ioe );
-            }
-        }
-        return results;
+        return ClasspathScanner.classpathEntriesUnder( rootPackage );
     }
-    
-    /**
-     * Searchs for all the files in classpath under a given package, for a given {@link File}. If the 
-     * {@link File} is a directory all files inside it are stored, otherwise the {@link File} itself is
-     * stored
-     * 
-     * @param results collection in which the found entries are stored
-     * @param file given {@link File} to search in.
-     * @param rootPackage base package.
-     */
-    static void fileEntriesUnder( final List< String > results, final File file, final String rootPackage ) {
-        LOG.debug( "scanning [{}]", file.getName() );
-        if( file.isDirectory() ) {
-            final Iterator< File > files = FileUtils.iterateFiles( file, null, true );
-            while( files.hasNext() ) {
-                final File subfile = files.next();
-                // store an entry similar to the jarSearch(..) below ones
-                final String entry = subfile.getAbsolutePath().replace( file.getAbsolutePath() + File.separatorChar, "" );
-                results.add( rootPackage + "/" + entry );
-            }
-        } else {
-            results.add( file.getName() );
-        }
-    }
-    
-    /**
-     * Searchs for all the files in classpath under a given package, for a given {@link JarURLConnection}.
-     * 
-     * @param results collection in which the found entries are stored
-     * @param jurlcon given {@link JarURLConnection} to search in.
-     * @param rootPackage base package.
-     */
-    static void jarEntriesUnder( final List< String > results, final JarURLConnection jurlcon, final String rootPackage ) {
-        try( JarFile jar = jurlcon.getJarFile() ) {
-            LOG.debug( "scanning [{}]", jar.getName() );
-            final Enumeration< JarEntry > entries = jar.entries();
-            while( entries.hasMoreElements() ) {
-                final JarEntry entry = entries.nextElement();
-                if( entry.getName().startsWith( rootPackage ) && !entry.isDirectory() ) {
-                    results.add( entry.getName() );
-                }
-            }
-        } catch( final IOException ioe ) {
-            LOG.error( ioe.getMessage(), ioe );
-        }
-    }
-    
+
     /**
      *  This method is used to locate and instantiate a mapped class.
      *  You may redefine anything in the resource file which is located in your classpath

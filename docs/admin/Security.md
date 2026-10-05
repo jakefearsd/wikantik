@@ -107,9 +107,12 @@ Two rules in `DatabasePolicy` matter when you edit grants:
   to a role makes that role a full administrator, so do not create one unless you mean
   it. Use permission type `all` to say so explicitly. A wildcard action on a specific
   target is malformed and is skipped with a warning.
-- Grants match on `principal_name` only; `principal_type` is ignored. A grant named
-  `Admin` therefore applies to the `Admin` group, to a container role named `Admin`, and
-  to a user whose login is `Admin`.
+- Grants match by principal **type**. `role` and `group` rows match role and group
+  principals (they are interchangeable, which is how the seeded `role Admin` row applies
+  to the `Admin` wiki group and to a container role named `Admin`). `user` rows match
+  only the session's login name; a full name, wiki name or role never matches a `user`
+  row. A row with any other `principal_type` is skipped with a warning. Enter the login
+  name when you add a user grant.
 
 ### Who counts as an administrator
 
@@ -179,11 +182,107 @@ ACL entry that names one of their principals. REST endpoints under `/api/*` enfo
 ACLs through `RestServletBase.checkPagePermission()`, and `/wiki/{slug}?format=md|json`
 hides restricted pages with a 404.
 
+### Use login names in groups and ACLs
+
+Identify people by **login name** everywhere access is decided.
+
+- **Group members must be login names.** Membership is established only by a session's
+  login name, so a member listed by full name or wiki name never matches. The group
+  editor (`PUT /admin/groups/{name}`, **Admin → Security → Groups**) rejects any member
+  that is not an existing login name with a `400` that names the bad entries. SCIM
+  group sync already maps users to login names.
+- **Write page ACLs with login names.** An ACL entry is resolved by login name first and
+  falls back to a full or wiki name only when no account has that login. Do not rely on
+  display names in an ACL; a login name is unique and stable.
+- **Display names are kept unique.** A full name or wiki name that is reserved (it
+  equals a built-in role, `Admin`, a role or group named in a policy grant, or an
+  existing group) or already used by another account is refused when it is set or
+  changed: `PUT /api/auth/profile` and `/admin/users` return `400`, and SCIM `POST`,
+  `PUT` and `PATCH` on `/scim/v2/Users` return `409` with `scimType` `uniqueness`
+  without saving. SCIM `POST /Groups` returns `409` for a group name an account already
+  uses. SSO auto-provisioning adds a numeric suffix to a taken name ("Jake Fear 2") and
+  falls back to the login name for a reserved one. Names are re-checked only when they
+  change, so an existing account is never blocked by a later collision.
+
 ### Page ownership and the audit trail
 
 Page ownership is covered in [PageOwnership.md](PageOwnership.md). Authentication,
 authorisation, content and admin events go to a tamper-evident hash-chained log; see
 [AuditLog.md](AuditLog.md) and **Admin → Audit** (`/admin/audit`).
+
+## Upgrading to 2.4.53: authorization checks
+
+Release 2.4.53 matches group members, user policy grants and ACL names by login name.
+Run these read-only queries against the wiki database **before** you deploy, so that
+nothing silently stops matching. The upgrade changes no data.
+
+Group members that are not login names. Fix each by replacing the member with the login
+name, using the group editor or `PUT /admin/groups/{name}`. Check the `Admin` group first:
+an administrator listed by full name no longer counts as a member after the upgrade.
+
+```sql
+SELECT gm.name, gm.member
+  FROM group_members gm
+ WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.login_name = gm.member)
+ ORDER BY gm.name, gm.member;
+
+-- the login name each one should become
+SELECT gm.name, gm.member, u.login_name
+  FROM group_members gm
+  JOIN users u ON gm.member IN (u.full_name, u.wiki_name)
+ WHERE gm.member <> u.login_name;
+```
+
+User-typed policy grants whose principal is not a login name. Such a row grants nothing
+after the upgrade; re-create it with the login name at `/admin/security`. Rows with a
+`principal_type` other than `role`, `group` or `user` are skipped with a warning, so look
+for those too.
+
+```sql
+SELECT p.*
+  FROM policy_grants p
+ WHERE p.principal_type = 'user'
+   AND NOT EXISTS (SELECT 1 FROM users u WHERE u.login_name = p.principal_name);
+
+SELECT * FROM policy_grants WHERE principal_type NOT IN ('role', 'group', 'user');
+```
+
+Display-name collisions. These accounts keep working, and an ACL or session no longer
+resolves through the colliding name, but renaming them removes the ambiguity:
+
+```sql
+-- a full or wiki name that equals another account's login name
+SELECT a.login_name, a.full_name, a.wiki_name, b.login_name AS shadowed_login
+  FROM users a
+  JOIN users b ON b.login_name IN (a.full_name, a.wiki_name) AND a.login_name <> b.login_name;
+
+-- accounts that share a full name
+SELECT full_name, array_agg(login_name) FROM users GROUP BY full_name HAVING count(*) > 1;
+
+-- full or wiki names equal to a built-in role or a group name
+SELECT login_name, full_name, wiki_name FROM users
+ WHERE lower(full_name) IN ('admin','all','anonymous','asserted','authenticated')
+    OR lower(wiki_name) IN ('admin','all','anonymous','asserted','authenticated')
+    OR full_name IN (SELECT name FROM groups) OR wiki_name IN (SELECT name FROM groups);
+```
+
+Also review active `mcp` and `all` API keys that users created for themselves, because
+non-administrators can no longer mint them (see [ApiKeys.md](ApiKeys.md)). Revoke any you
+do not want through `/admin/apikeys`:
+
+```sql
+SELECT k.id, k.principal_login, k.label, k.scope, k.created_at, k.last_used_at
+  FROM api_keys k
+ WHERE k.revoked_at IS NULL
+   AND k.scope IN ('mcp', 'all')
+   AND k.created_by = k.principal_login
+   AND NOT EXISTS (SELECT 1 FROM group_members gm
+                    WHERE gm.name = 'Admin' AND gm.member = k.principal_login)
+ ORDER BY k.created_at;
+```
+
+This last query does not see administrators whose rights come from a custom `AllPermission`
+policy grant to some other group, so compare it with `/admin/security`.
 
 ## Bootstrap admin override
 

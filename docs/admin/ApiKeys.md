@@ -228,7 +228,8 @@ time it appears:
 
 Error responses:
 - `400` — `principalLogin` missing or unknown user; invalid `scope` (the error
-  text reads "must be one of mcp, tools, all" but `mcp_read` is accepted).
+  text lists every valid scope, built from `ApiKeyService.Scope.validWireNames()`:
+  `mcp_read, mcp, tools, all`).
 - `503` — no datasource configured.
 
 ### `DELETE /admin/apikeys/{id}`
@@ -328,7 +329,10 @@ to show).
 
 **`POST /api/self/apikeys`** — generate a key. Body: `{"label": "...", "scope":
 "tools"}` (a non-admin may choose `tools` or `mcp_read`; omitted defaults to `mcp_read`.
-An administrator may choose any scope, `mcp`, `all` included).
+An administrator (a caller holding `AllPermission`) may choose any scope, `mcp` and
+`all` included, and defaults to `all`). A non-admin asking for `mcp` or `all` gets `403`
+("Scope 'mcp' requires administrator rights ... you may create keys with scope
+mcp_read, tools"); an unknown scope gets `400` with the list of valid scopes.
 Response (`201`) includes the transient `token` field, shown exactly once:
 
 ```json
@@ -339,7 +343,8 @@ Response (`201`) includes the transient `token` field, shown exactly once:
 
 **`POST /api/self/apikeys/{id}/rotate`** — revoke-and-reissue: the old key is
 revoked and a new key with the same `label`/`scope` is generated in one call. A non-admin cannot
-rotate a key whose scope they could not mint (`mcp` or `all`); the call is refused.
+rotate a key whose scope they could not mint (`mcp` or `all`): the call returns `403`, and
+the existing key is neither revoked nor reissued.
 Response shape matches the generate response (new `id`, fresh `token`). `404` if
 `{id}` does not exist, is not owned by the caller, or is already revoked.
 

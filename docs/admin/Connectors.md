@@ -231,6 +231,15 @@ encrypted `connector_credentials` table (migration `V047`; AES-256-GCM,
 with a field-keyed `422`: *"secret values must be stored via the credentials
 endpoint, not config."* This applies on both `create` and `update`.
 
+Stored credentials are also bound to the endpoint **origin** (scheme, host and port) they
+were entered for. While a connector has stored credentials, an update that changes the
+`base_url` to a different scheme, host or port is refused with a field error on
+`base_url`, because a credential such as a Confluence `api_token` is sent to whatever
+origin the connector names. If the stored origin cannot be determined, the change is also
+refused while credentials exist. To move a connector to a new origin, delete its stored
+credentials first, change the URL, then enter the credentials again. Connectors with no
+caller-set endpoint (`github`, `gdrive`) are unaffected.
+
 ### Credentials API
 
 - `GET /admin/connector-credentials/{id}` — lists stored secret **names** for

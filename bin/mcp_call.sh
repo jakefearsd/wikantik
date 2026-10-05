@@ -1,6 +1,9 @@
 #!/bin/bash
 # Helper to make MCP tool calls.
-# Usage: ./mcp_call.sh <session_id> <tool_name> '<json_args>'
+# Usage: bin/mcp_call.sh <session_id> <tool_name> '<json_args>' [request_id]
+case "${1:-}" in -h|--help|"")
+  sed -n '2,3p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+esac
 SESSION="$1"
 TOOL="$2"
 ARGS="$3"

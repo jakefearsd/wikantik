@@ -109,7 +109,7 @@ fixResults = apply_audit_fixes(fixes=fixes, author="wiki-audit", changeNote="Wee
 
 ### Step 5 — Write report
 
-Write to `audits/YYYY-MM-DD-wiki-audit.md`. Rotate: if >52 files in `audits/`, delete the oldest.
+Write to `docs/audits/YYYY-MM-DD-wiki-audit.md`. Rotate: if >52 files in `docs/audits/`, delete the oldest.
 
 ## Auto-Fix Policy
 

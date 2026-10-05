@@ -1,3 +1,9 @@
+#!/bin/bash
+# Back up the wikantik-data Docker volume to ./wikantik-backup.tar.gz in the current directory.
+# Usage: bin/bkupcmd.sh [-h|--help]
+case "${1:-}" in -h|--help)
+  sed -n '2,3p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+esac
 #docker run --rm \
 #--mount source=<volume-name>,target=<target> \
 #-v $(pwd):/backup \

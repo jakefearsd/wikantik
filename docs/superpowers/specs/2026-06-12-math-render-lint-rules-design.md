@@ -8,7 +8,7 @@
 
 The save-time math validator (`MathValidationPageFilter`, shipped 2.0.16) misses two
 rendering-defect classes that broke ~156 production pages (see
-`audits/2026-06-12-prod-formula-rendering.md`):
+`docs/audits/2026-06-12-prod-formula-rendering.md`):
 
 1. **Standalone single-line display math** — `$$E = mc^2$$` on one line. The renderer's
    `DisplayMathPreProcessor` only recognizes `$$` alone on its own line, so a single-line

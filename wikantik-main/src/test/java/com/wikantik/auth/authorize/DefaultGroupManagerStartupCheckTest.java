@@ -56,6 +56,7 @@ class DefaultGroupManagerStartupCheckTest {
     private AbstractAppender appender;
     private LoggerConfig loggerConfig;
     private Level priorLevel;
+    private boolean addedLoggerConfig;
 
     @BeforeEach
     void setUp() {
@@ -74,7 +75,8 @@ class DefaultGroupManagerStartupCheckTest {
         config.addAppender( appender );
         final String loggerName = GroupMemberLoginCheck.class.getName();
         loggerConfig = config.getLoggerConfig( loggerName );
-        if ( !loggerConfig.getName().equals( loggerName ) ) {
+        addedLoggerConfig = !loggerConfig.getName().equals( loggerName );
+        if ( addedLoggerConfig ) {
             loggerConfig = LoggerConfig.newBuilder().setAdditivity( false ).setLevel( Level.WARN )
                     .setLoggerName( loggerName ).setIncludeLocation( "true" )
                     .setRefs( new AppenderRef[ 0 ] ).setConfig( config ).build();
@@ -88,9 +90,16 @@ class DefaultGroupManagerStartupCheckTest {
 
     @AfterEach
     void tearDown() {
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext( false );
         loggerConfig.removeAppender( appender.getName() );
-        loggerConfig.setLevel( priorLevel );
-        ( (LoggerContext) LogManager.getContext( false ) ).updateLoggers();
+        if ( addedLoggerConfig ) {
+            // Leave the logging configuration exactly as this test found it.
+            ctx.getConfiguration().removeLogger( loggerConfig.getName() );
+        } else {
+            loggerConfig.setLevel( priorLevel );
+        }
+        ctx.getConfiguration().getAppenders().remove( appender.getName() );
+        ctx.updateLoggers();
         appender.stop();
         engine.stop();
     }
@@ -140,6 +149,29 @@ class DefaultGroupManagerStartupCheckTest {
     void loginShapedGroupsLogNothing() throws Exception {
         initializeWith( group( "Admin", "admin" ), group( "Editors", "janne" ) );
 
+        assertTrue( at( Level.WARN ).isEmpty() && at( Level.ERROR ).isEmpty(), "unexpected: " + captured );
+    }
+
+    @Test
+    void aFailingLookupIsLoggedAndNeverFailsStartupOrReportsTheMember() throws Exception {
+        final com.wikantik.auth.UserManager users = mock( com.wikantik.auth.UserManager.class );
+        final com.wikantik.auth.user.UserDatabase db = mock( com.wikantik.auth.user.UserDatabase.class );
+        when( users.getUserDatabase() ).thenReturn( db );
+        when( db.findByLoginName( org.mockito.ArgumentMatchers.anyString() ) )
+                .thenThrow( new IllegalStateException( "user store unavailable" ) );
+
+        assertDoesNotThrow( () -> GroupMemberLoginCheck.report( new Group[] { group( "Admin", "admin" ) }, users ) );
+
+        final List< LogEvent > warns = at( Level.WARN );
+        assertEquals( 1, warns.size(), "one WARN for the failed lookup: " + captured );
+        assertTrue( warns.get( 0 ).getMessage().getFormattedMessage().contains( "Could not check" ),
+                warns.get( 0 ).getMessage().getFormattedMessage() );
+        assertTrue( at( Level.ERROR ).isEmpty(), "a member whose lookup failed is not reported as bad: " + captured );
+    }
+
+    @Test
+    void noUserDatabaseSkipsTheCheck() {
+        assertDoesNotThrow( () -> GroupMemberLoginCheck.report( new Group[] { group( "Admin", "Administrator" ) }, null ) );
         assertTrue( at( Level.WARN ).isEmpty() && at( Level.ERROR ).isEmpty(), "unexpected: " + captured );
     }
 }

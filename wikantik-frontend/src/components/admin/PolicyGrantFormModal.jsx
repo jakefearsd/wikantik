@@ -136,6 +136,11 @@ export default function PolicyGrantFormModal({ grant, isOpen, onClose, onSave })
                 ))}
               </datalist>
             )}
+            {form.principalType === 'user' && (
+              <p className="form-hint">
+                Enter the user&apos;s login name. Full names and wiki names do not match user grants.
+              </p>
+            )}
           </div>
 
           <label style={{

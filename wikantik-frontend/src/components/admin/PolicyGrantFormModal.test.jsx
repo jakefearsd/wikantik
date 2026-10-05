@@ -59,6 +59,15 @@ describe('PolicyGrantFormModal — gating and modes', () => {
   });
 });
 
+describe('PolicyGrantFormModal — principal hints', () => {
+  it('tells the admin that a user principal must be the login name', () => {
+    const { container } = render(<PolicyGrantFormModal isOpen onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.queryByText(/login name/i)).not.toBeInTheDocument();
+    fireEvent.change(container.querySelector('select'), { target: { value: 'user' } });
+    expect(screen.getByText(/login name/i)).toBeInTheDocument();
+  });
+});
+
 describe('PolicyGrantFormModal — interactions', () => {
   it('selecting actions and submitting sends a comma-joined actions payload', async () => {
     const onSave = vi.fn().mockResolvedValue();

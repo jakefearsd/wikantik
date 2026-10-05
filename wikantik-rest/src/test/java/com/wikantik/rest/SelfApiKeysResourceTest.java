@@ -53,12 +53,17 @@ class SelfApiKeysResourceTest {
     private TestEngine engine;
     private ApiKeyService mockService;
     private String stubLogin;            // null => anonymous
+    private boolean stubAdmin;           // true => caller holds AllPermission
 
     private SelfApiKeysResource newServlet() throws Exception {
         final SelfApiKeysResource servlet = new SelfApiKeysResource() {
             @Override
             String authenticatedLogin( final HttpServletRequest request ) {
                 return stubLogin;
+            }
+            @Override
+            boolean callerIsAdmin( final HttpServletRequest request ) {
+                return stubAdmin;
             }
         };
         final ServletConfig config = Mockito.mock( ServletConfig.class );
@@ -86,6 +91,21 @@ class SelfApiKeysResourceTest {
         mockService = mock( ApiKeyService.class );
         ApiKeyServiceHolder.setForTesting( mockService );
         stubLogin = "alice";
+        stubAdmin = false;
+    }
+
+    private HttpServletRequest postRequest( final String pathInfo, final String body ) throws Exception {
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        when( request.getPathInfo() ).thenReturn( pathInfo );
+        if ( body != null ) {
+            when( request.getReader() ).thenReturn( new java.io.BufferedReader( new java.io.StringReader( body ) ) );
+        }
+        return request;
+    }
+
+    private void stubGenerate( final ApiKeyService.Scope scope ) {
+        when( mockService.generate( eq( "alice" ), any(), eq( scope ), eq( "alice" ) ) )
+                .thenReturn( new ApiKeyService.Generated( "wkk_SECRET", rec( 9, "alice", "x", scope ) ) );
     }
 
     @AfterEach
@@ -158,6 +178,7 @@ class SelfApiKeysResourceTest {
 
     @Test
     void postGeneratesKeyBoundToCallerAndReturnsTokenOnce() throws Exception {
+        stubAdmin = true;
         final ApiKeyService.Record r = rec( 7, "alice", "ci", ApiKeyService.Scope.MCP );
         when( mockService.generate( eq( "alice" ), eq( "ci" ), eq( ApiKeyService.Scope.MCP ), eq( "alice" ) ) )
                 .thenReturn( new ApiKeyService.Generated( "wkk_SECRET", r ) );
@@ -176,6 +197,7 @@ class SelfApiKeysResourceTest {
 
     @Test
     void rotateRevokesOwnKeyThenIssuesReplacement() throws Exception {
+        stubAdmin = true;
         when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP ) ) );
         when( mockService.revoke( 7, "alice" ) ).thenReturn( true );
         when( mockService.generate( "alice", "ci", ApiKeyService.Scope.MCP, "alice" ) )
@@ -254,5 +276,102 @@ class SelfApiKeysResourceTest {
                     "400 message must list valid scope " + valid.wire() );
         }
         verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+    }
+
+    @Test
+    void nonAdminCannotMintMcpScope() throws Exception {
+        final SelfApiKeysResource servlet = newServlet();
+        final StringWriter out = new StringWriter();
+        final HttpServletResponse response = mockResponse( out );
+
+        servlet.doPost( postRequest( null, "{\"label\":\"x\",\"scope\":\"mcp\"}" ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        assertTrue( out.toString().contains( "tools" ) && out.toString().contains( "mcp_read" ),
+                "403 must name the scopes the caller may mint: " + out );
+        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+    }
+
+    @Test
+    void nonAdminCannotMintAllScope() throws Exception {
+        final SelfApiKeysResource servlet = newServlet();
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        servlet.doPost( postRequest( null, "{\"label\":\"x\",\"scope\":\"all\"}" ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+    }
+
+    @Test
+    void nonAdminOmittedScopeDefaultsToMcpRead() throws Exception {
+        stubGenerate( ApiKeyService.Scope.MCP_READ );
+        final SelfApiKeysResource servlet = newServlet();
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        servlet.doPost( postRequest( null, "{\"label\":\"x\"}" ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_CREATED );
+        verify( mockService ).generate( "alice", "x", ApiKeyService.Scope.MCP_READ, "alice" );
+        verify( mockService, never() ).generate( anyString(), any(), eq( ApiKeyService.Scope.ALL ), anyString() );
+    }
+
+    @Test
+    void nonAdminMayMintToolsAndMcpRead() throws Exception {
+        stubGenerate( ApiKeyService.Scope.TOOLS );
+        stubGenerate( ApiKeyService.Scope.MCP_READ );
+        final SelfApiKeysResource servlet = newServlet();
+
+        final HttpServletResponse r1 = mockResponse( new StringWriter() );
+        servlet.doPost( postRequest( null, "{\"label\":\"x\",\"scope\":\"tools\"}" ), r1 );
+        verify( r1 ).setStatus( HttpServletResponse.SC_CREATED );
+
+        final HttpServletResponse r2 = mockResponse( new StringWriter() );
+        servlet.doPost( postRequest( null, "{\"label\":\"x\",\"scope\":\"mcp_read\"}" ), r2 );
+        verify( r2 ).setStatus( HttpServletResponse.SC_CREATED );
+
+        verify( mockService ).generate( "alice", "x", ApiKeyService.Scope.TOOLS, "alice" );
+        verify( mockService ).generate( "alice", "x", ApiKeyService.Scope.MCP_READ, "alice" );
+    }
+
+    @Test
+    void adminMayMintAllScope() throws Exception {
+        stubAdmin = true;
+        stubGenerate( ApiKeyService.Scope.ALL );
+        final SelfApiKeysResource servlet = newServlet();
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        servlet.doPost( postRequest( null, "{\"label\":\"x\",\"scope\":\"all\"}" ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_CREATED );
+        verify( mockService ).generate( "alice", "x", ApiKeyService.Scope.ALL, "alice" );
+    }
+
+    @Test
+    void nonAdminRotateOfPrivilegedKeyIsRefusedAndKeyKept() throws Exception {
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP ) ) );
+        final SelfApiKeysResource servlet = newServlet();
+        final StringWriter out = new StringWriter();
+        final HttpServletResponse response = mockResponse( out );
+
+        servlet.doPost( postRequest( "/7/rotate", null ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        verify( mockService, never() ).revoke( anyInt(), anyString() );
+        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+    }
+
+    @Test
+    void nonAdminRotateOfSelfServiceKeySucceeds() throws Exception {
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.TOOLS ) ) );
+        when( mockService.revoke( 7, "alice" ) ).thenReturn( true );
+        stubGenerate( ApiKeyService.Scope.TOOLS );
+        final SelfApiKeysResource servlet = newServlet();
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        servlet.doPost( postRequest( "/7/rotate", null ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_CREATED );
+        verify( mockService ).revoke( 7, "alice" );
     }
 }

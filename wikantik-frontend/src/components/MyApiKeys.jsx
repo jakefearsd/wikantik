@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import RevealedTokenModal from './apikeys/RevealedTokenModal';
+import { useAuth } from '../hooks/useAuth';
 
-const SCOPES = ['tools', 'mcp_read', 'mcp', 'all'];
+// The server lets only administrators self-mint the admin-surface scopes (mcp, all);
+// everyone else may mint tools and mcp_read. Mirror that here so the picker never
+// offers a scope the server will refuse.
+const SELF_SERVICE_SCOPES = ['tools', 'mcp_read'];
+const ADMIN_SCOPES = ['tools', 'mcp_read', 'mcp', 'all'];
 
 export default function MyApiKeys() {
+  const { user } = useAuth();
+  const isAdmin = Boolean(user?.authenticated && user?.roles?.includes('Admin'));
+  const scopes = isAdmin ? ADMIN_SCOPES : SELF_SERVICE_SCOPES;
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -137,7 +145,7 @@ export default function MyApiKeys() {
               </label>
               <label>Scope
                 <select value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })}>
-                  {SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {scopes.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </label>
               <div className="modal-actions">

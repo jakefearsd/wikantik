@@ -24,6 +24,8 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
+import com.wikantik.auth.permissions.AllPermission;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,10 +35,14 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Self-service REST resource: a logged-in user manages API keys bound to their OWN
@@ -45,7 +51,8 @@ import java.util.Optional;
  *
  * <ul>
  *   <li>{@code GET    /api/self/apikeys}            — caller's active keys (metadata only)</li>
- *   <li>{@code POST   /api/self/apikeys}            — generate {label, scope}; token shown once</li>
+ *   <li>{@code POST   /api/self/apikeys}            — generate {label, scope}; token shown once.
+ *       A caller without AllPermission may mint only {@link #SELF_SERVICE_SCOPES}</li>
  *   <li>{@code POST   /api/self/apikeys/{id}/rotate}— revoke + reissue (same label/scope)</li>
  *   <li>{@code DELETE /api/self/apikeys/{id}}       — revoke</li>
  * </ul>
@@ -54,6 +61,16 @@ public class SelfApiKeysResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( SelfApiKeysResource.class );
+
+    /**
+     * Scopes a caller without {@link AllPermission} may mint for themselves. {@code mcp} and
+     * {@code all} reach the admin MCP surface, so only administrators may self-mint them.
+     */
+    static final Set< ApiKeyService.Scope > SELF_SERVICE_SCOPES =
+            Collections.unmodifiableSet( EnumSet.of( ApiKeyService.Scope.TOOLS, ApiKeyService.Scope.MCP_READ ) );
+
+    private static final String SELF_SERVICE_SCOPE_NAMES = SELF_SERVICE_SCOPES.stream()
+            .map( ApiKeyService.Scope::wire ).collect( Collectors.joining( ", " ) );
 
     @Override
     protected boolean isCrossOriginAllowed() {
@@ -78,6 +95,17 @@ public class SelfApiKeysResource extends RestServletBase {
         final Engine engine = getEngine();
         final Session session = Wiki.session().find( engine, request );
         return session.isAuthenticated() ? session.getLoginPrincipal().getName() : null;
+    }
+
+    /**
+     * True when the caller holds {@link AllPermission} (silent check, no audit row). Package-visible
+     * so unit tests can inject the decision without a live session.
+     */
+    boolean callerIsAdmin( final HttpServletRequest request ) {
+        final Engine engine = getEngine();
+        final Session session = Wiki.session().find( engine, request );
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization()
+                .isPermitted( session, new AllPermission( engine.getApplicationName() ) );
     }
 
     @Override
@@ -105,7 +133,7 @@ public class SelfApiKeysResource extends RestServletBase {
 
         final Integer rotateId = parseRotateId( request.getPathInfo() );
         if ( rotateId != null ) {
-            rotate( svc, login, rotateId, response );
+            rotate( svc, login, rotateId, callerIsAdmin( request ), response );
             return;
         }
         if ( request.getPathInfo() != null && !"/".equals( request.getPathInfo() ) ) {
@@ -146,11 +174,20 @@ public class SelfApiKeysResource extends RestServletBase {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;                    // parseJsonBody already sent 400
         final String label = getJsonString( body, "label" );
+        final boolean admin = callerIsAdmin( request );
+        final String scopeWire = getJsonString( body, "scope" );
         final ApiKeyService.Scope scope;
         try {
-            scope = ApiKeyService.Scope.fromWire( getJsonString( body, "scope" ) );
+            // An omitted scope defaults to the broadest scope this caller may mint.
+            scope = ( scopeWire == null || scopeWire.isBlank() )
+                    ? ( admin ? ApiKeyService.Scope.ALL : ApiKeyService.Scope.MCP_READ )
+                    : ApiKeyService.Scope.fromWire( scopeWire );
         } catch ( final IllegalArgumentException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid scope — must be one of " + ApiKeyService.Scope.validWireNames() );
+            return;
+        }
+        if ( !mayMint( admin, scope ) ) {
+            refuseScope( response, login, scope );
             return;
         }
         try {
@@ -166,7 +203,7 @@ public class SelfApiKeysResource extends RestServletBase {
         }
     }
 
-    private void rotate( final ApiKeyService svc, final String login, final int id,
+    private void rotate( final ApiKeyService svc, final String login, final int id, final boolean admin,
             final HttpServletResponse response ) throws IOException {
         final Optional< ApiKeyService.Record > rec = svc.findById( id );
         if ( rec.isEmpty() || !login.equals( rec.get().principalLogin() ) || !rec.get().isActive() ) {
@@ -174,6 +211,12 @@ public class SelfApiKeysResource extends RestServletBase {
             return;
         }
         final ApiKeyService.Record old = rec.get();
+        // Rotation reissues the same scope, so it is held to the same minting rule as generate;
+        // the existing key is left untouched when refused.
+        if ( !mayMint( admin, old.scope() ) ) {
+            refuseScope( response, login, old.scope() );
+            return;
+        }
         if ( !svc.revoke( id, login ) ) {
             sendNotFound( response, "Key not found or already revoked: " + id );
             return;
@@ -187,6 +230,18 @@ public class SelfApiKeysResource extends RestServletBase {
             LOG.error( "Self API key rotate (reissue) failed for {}: {}", login, e.getMessage(), e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Key rotation failed" );
         }
+    }
+
+    /** True if a caller with the given admin standing may hold a self-minted key of {@code scope}. */
+    private static boolean mayMint( final boolean admin, final ApiKeyService.Scope scope ) {
+        return admin || SELF_SERVICE_SCOPES.contains( scope );
+    }
+
+    private void refuseScope( final HttpServletResponse response, final String login,
+            final ApiKeyService.Scope scope ) throws IOException {
+        LOG.info( "Self API key scope '{}' refused for non-admin {}", scope.wire(), login );
+        sendError( response, HttpServletResponse.SC_FORBIDDEN, "Scope '" + scope.wire()
+                + "' requires administrator rights — you may create keys with scope " + SELF_SERVICE_SCOPE_NAMES );
     }
 
     private void respondWithToken( final HttpServletResponse response, final ApiKeyService.Generated g )

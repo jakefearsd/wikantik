@@ -2,6 +2,9 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MyApiKeys from './MyApiKeys';
 import { api } from '../api/client';
+import { useAuth } from '../hooks/useAuth';
+
+vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 
 vi.mock('../api/client', () => ({
   api: { self: {
@@ -20,7 +23,15 @@ const KEYS = [
 beforeEach(() => {
   vi.clearAllMocks();
   api.self.listApiKeys.mockResolvedValue({ keys: KEYS });
+  useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Authenticated'] } });
 });
+
+async function openScopeOptions() {
+  render(<MyApiKeys />);
+  await screen.findByText('laptop');
+  fireEvent.click(screen.getByRole('button', { name: /new key/i }));
+  return within(screen.getByRole('combobox')).getAllByRole('option').map((o) => o.value);
+}
 
 describe('MyApiKeys', () => {
   it('lists the user’s keys', async () => {
@@ -52,5 +63,14 @@ describe('MyApiKeys', () => {
     fireEvent.click(within(row).getByRole('button', { name: /revoke/i }));
     fireEvent.click(await screen.findByRole('button', { name: /revoke key/i }));
     await waitFor(() => expect(api.self.revokeApiKey).toHaveBeenCalledWith(1));
+  });
+
+  it('offers a non-admin only the self-service scopes', async () => {
+    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read']);
+  });
+
+  it('offers an admin every scope', async () => {
+    useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Authenticated', 'Admin'] } });
+    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'mcp', 'all']);
   });
 });

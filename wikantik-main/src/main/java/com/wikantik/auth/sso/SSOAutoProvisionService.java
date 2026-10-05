@@ -109,7 +109,7 @@ public class SSOAutoProvisionService {
             // two users sharing a display name — or a clash with a pre-existing account —
             // would violate the unique wiki_name constraint and abort provisioning. Pick
             // a collision-free wiki name before saving.
-            profile.setWikiName( uniqueWikiName( userDb, profile.getWikiName() ) );
+            profile.setWikiName( ProfileNameRules.availableWikiName( engine, userDb, loginName, profile.getWikiName(), null ) );
 
             userDb.save( profile );
             LOG.info( "Auto-provisioned user profile for SSO user: {} (full name: {})", loginName, profile.getFullname() );
@@ -130,9 +130,9 @@ public class SSOAutoProvisionService {
 
     /**
      * Chooses the provisioned full name. A usable name is neither reserved for a role or group (see
-     * {@link ReservedProfileNames}) nor another account's login, full or wiki name. The IdP's name
-     * claim is used when usable; a claim another account already uses gets a numeric suffix
-     * ("Jake Fear 2"); a reserved or missing claim falls back to the login name.
+     * {@link ReservedProfileNames}) nor another account's login name; another account may share
+     * it. The IdP's name claim is used when usable; a claim equal to another account's login gets a
+     * numeric suffix ("jdoe 2"); a reserved or missing claim falls back to the login name.
      */
     private String displayName( final UserDatabase userDb, final String loginName, final String claimed ) {
         if( claimed != null && !claimed.isBlank() ) {
@@ -160,8 +160,8 @@ public class SSOAutoProvisionService {
 
     private boolean usableName( final UserDatabase userDb, final String loginName, final String name ) {
         return !ReservedProfileNames.isReserved( engine, name )
-                && !ProfileNameRules.usedByAnotherAccount( userDb, loginName, name )
-                && !ProfileNameRules.usedByAnotherAccount( userDb, loginName, name.replaceAll( "\\s", "" ) );
+                && !ProfileNameRules.isAnotherAccountsLogin( userDb, loginName, name )
+                && !ProfileNameRules.isAnotherAccountsLogin( userDb, loginName, ProfileNameRules.derivedWikiName( name ) );
     }
 
     /**
@@ -173,40 +173,5 @@ public class SSOAutoProvisionService {
      */
     private String resolveAttribute( final org.pac4j.core.profile.UserProfile profile, final String claimName ) {
         return SSOLoginModule.firstScalar( profile.getAttribute( claimName ) );
-    }
-
-    /**
-     * Returns a wiki name that is not already taken, starting from {@code base}
-     * and appending an increasing numeric suffix on collision (e.g. JakeFear,
-     * JakeFear2, JakeFear3). A blank base is returned unchanged — the caller's
-     * store decides how to handle it.
-     *
-     * @param userDb the user database to check for existing wiki names
-     * @param base   the preferred wiki name (derived from the full name)
-     * @return a wiki name not currently present in {@code userDb}
-     */
-    private String uniqueWikiName( final UserDatabase userDb, final String base ) {
-        if( base == null || base.isBlank() ) {
-            return base;
-        }
-        String candidate = base;
-        int suffix = 2;
-        while( wikiNameExists( userDb, candidate ) || ReservedProfileNames.isReserved( engine, candidate ) ) {
-            candidate = base + suffix;
-            suffix++;
-        }
-        return candidate;
-    }
-
-    /** @return {@code true} if a profile with this wiki name already exists. */
-    private boolean wikiNameExists( final UserDatabase userDb, final String wikiName ) {
-        try {
-            userDb.findByWikiName( wikiName );
-            return true;
-        } catch( final NoSuchPrincipalException e ) {
-            // An absent principal is the normal lookup-miss path, not an error.
-            LOG.debug( "No user profile with wiki name '{}': {}", wikiName, e.getMessage() );
-            return false;
-        }
     }
 }

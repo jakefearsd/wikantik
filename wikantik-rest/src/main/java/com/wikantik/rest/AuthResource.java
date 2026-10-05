@@ -373,14 +373,15 @@ public class AuthResource extends RestServletBase {
             final String fullName = getJsonString( body, "fullName" );
             if ( fullName != null ) {
                 // A changed full name (and the wiki name derived from it) must not be reserved or
-                // belong to another account; an unchanged name is not re-checked.
+                // be another account's login name; an unchanged name is not re-checked. Another
+                // account may share the full name, so the derived wiki name is kept unique.
                 final java.util.Optional< String > nameError =
                         ProfileNameRules.fullNameChangeError( engine, db, profile, fullName );
                 if ( nameError.isPresent() ) {
                     sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
                     return;
                 }
-                profile.setFullname( fullName );
+                ProfileNameRules.applyFullName( engine, db, profile, fullName );
             }
 
             // Update email if provided

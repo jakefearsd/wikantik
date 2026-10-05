@@ -194,15 +194,19 @@ Identify people by **login name** everywhere access is decided.
 - **Write page ACLs with login names.** An ACL entry is resolved by login name first and
   falls back to a full or wiki name only when no account has that login. Do not rely on
   display names in an ACL; a login name is unique and stable.
-- **Display names are kept unique.** A full name or wiki name that is reserved (it
-  equals a built-in role, `Admin`, a role or group named in a policy grant, or an
-  existing group) or already used by another account is refused when it is set or
-  changed: `PUT /api/auth/profile` and `/admin/users` return `400`, and SCIM `POST`,
-  `PUT` and `PATCH` on `/scim/v2/Users` return `409` with `scimType` `uniqueness`
-  without saving. SCIM `POST /Groups` returns `409` for a group name an account already
-  uses. SSO auto-provisioning adds a numeric suffix to a taken name ("Jake Fear 2") and
-  falls back to the login name for a reserved one. Names are re-checked only when they
-  change, so an existing account is never blocked by a later collision.
+- **Display names cannot impersonate a login, role or group.** A full name or wiki name
+  that is reserved (it equals a built-in role, `Admin`, a role or group named in a policy
+  grant, or an existing group) or that equals another account's login name is refused when
+  it is set or changed: `PUT /api/auth/profile` and `/admin/users` return `400`, and SCIM
+  `POST`, `PUT` and `PATCH` on `/scim/v2/Users` return `409` with `scimType` `uniqueness`
+  without saving. Two accounts may share a full name ("John Smith"), because access is
+  decided by login name only. Wiki names stay unique, so the second account gets a
+  numbered wiki name (`JohnSmith2`); a stored numbered wiki name is kept when an identity
+  provider re-sends the same name. SCIM `POST /Groups` returns `409` for a group name that
+  is an account's login, full or wiki name. SSO auto-provisioning falls back to the login
+  name for a reserved name claim and adds a numeric suffix ("jdoe 2") to a claim that
+  equals another account's login. Names are re-checked only when they change, so an
+  existing account is never blocked by a later collision.
 
 ### Page ownership and the audit trail
 
@@ -272,7 +276,9 @@ still works for members of that role; leave it, and add a separate `user` row on
 named user relied on it.
 
 Display-name collisions. These accounts keep working, and an ACL or session no longer
-resolves through the colliding name, but renaming them removes the ambiguity:
+resolves through the colliding name. Renaming an account whose full or wiki name equals
+another account's login removes the ambiguity; a shared full name is allowed and needs no
+change, but an ACL that names it by full name is ambiguous, so use login names there:
 
 ```sql
 -- a full or wiki name that equals another account's login name

@@ -75,7 +75,8 @@ final class ScimUserFields {
 
     /**
      * Display-name check for a create or replace: a changed full name ({@code name.formatted}) or
-     * wiki name ({@code displayName}) must not be reserved or belong to another account.
+     * wiki name ({@code displayName}) must not be reserved or be another account's login name.
+     * Another account may share the name; see {@link #keepWikiNameUnique}.
      *
      * @param current the existing profile, or {@code null} on create
      */
@@ -97,10 +98,42 @@ final class ScimUserFields {
         final String oldWiki = current == null ? null : current.getWikiName();
         // Mirrors the profile: setting the full name derives the wiki name, and an explicit
         // displayName (applied after it) overrides that derived value.
-        final String proposedWiki = newDisplay != null ? newDisplay
-                : newFull != null ? newFull.replaceAll( "\\s", "" ) : oldWiki;
+        final String proposed = proposedWiki( newFull, newDisplay );
+        final String proposedWiki = proposed != null ? proposed : oldWiki;
         final String proposedFull = newFull != null ? newFull : oldFull;
         return ProfileNameRules.nameChangeError( engine, db, login, oldFull, oldWiki, proposedFull, proposedWiki );
+    }
+
+    /**
+     * The wiki name a write sets: an explicit {@code displayName} wins over the one derived from the
+     * full name; {@code null} when the write sets neither.
+     */
+    static String proposedWiki( final String newFull, final String newDisplay ) {
+        return newDisplay != null ? newDisplay : ProfileNameRules.derivedWikiName( newFull );
+    }
+
+    /** {@link #proposedWiki} for a PATCH's attributes. */
+    static String proposedWiki( final JsonObject attrs ) {
+        return proposedWiki( stringOrNull( objectOrNull( attrs, "name" ), "formatted" ), stringOrNull( attrs, "displayName" ) );
+    }
+
+    /**
+     * Run after the names are applied: wiki names are unique, so when another account already holds
+     * {@code proposedWiki} the profile gets a numbered one ({@link ProfileNameRules#availableWikiName}).
+     * A stored numbered wiki name is kept, so an identity provider re-sending the same name does not
+     * churn it.
+     *
+     * @param previousWiki the wiki name before this write, or {@code null} on create
+     */
+    static void keepWikiNameUnique( final Engine engine, final UserDatabase db, final String login, final UserProfile p,
+            final String previousWiki, final String proposedWiki ) {
+        if ( proposedWiki == null ) {
+            return;
+        }
+        final String wiki = ProfileNameRules.availableWikiName( engine, db, login, proposedWiki, previousWiki );
+        if ( !proposedWiki.equals( wiki ) ) {
+            p.setWikiName( wiki );
+        }
     }
 
     /** Applies {@code value} via {@code setter} when non-null; reports whether it did. */

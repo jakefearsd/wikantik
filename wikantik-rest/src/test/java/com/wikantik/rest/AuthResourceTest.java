@@ -796,6 +796,30 @@ class AuthResourceTest {
     }
 
     @Test
+    void handleUpdateProfile_allowsFullNameSharedWithAnotherAccount() throws Exception {
+        // Two people may share a full name; only the wiki name derived from it must be unique.
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserProfile other = profileFor( "asmith", "s@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.when( db.findByFullName( "Alice Smith" ) ).thenReturn( other );
+        Mockito.when( db.findByWikiName( "AliceSmith" ) ).thenReturn( other );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "Alice Smith" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            doPut( "profile", body );
+        }
+        Mockito.verify( profile ).setFullname( "Alice Smith" );
+        Mockito.verify( profile ).setWikiName( "AliceSmith2" );
+        Mockito.verify( db ).save( profile );
+    }
+
+    @Test
     void handleUpdateProfile_allowsUnchangedReservedFullName() throws Exception {
         // The SPA always resends fullName; an unchanged name that later became reserved must not block the save.
         final UserProfile profile = profileFor( "alice", "a@x" );

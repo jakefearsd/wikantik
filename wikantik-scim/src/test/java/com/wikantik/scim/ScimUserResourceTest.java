@@ -935,6 +935,90 @@ class ScimUserResourceTest {
     }
 
     @Test
+    void createSecondUserWithSameFullName_returns201WithFreeWikiName() throws Exception {
+        // Two people called John Smith are an ordinary IdP case: the second is created with the
+        // same full name, and only the (unique) wiki name gets a numeric suffix.
+        final UserProfile first = mock( UserProfile.class );
+        when( first.getLoginName() ).thenReturn( "jsmith" );
+        when( mockDb.findByFullName( "John Smith" ) ).thenReturn( first );
+        when( mockDb.findByWikiName( "JohnSmith" ) ).thenReturn( first );
+
+        final UserProfile newProfile = mock( UserProfile.class );
+        when( newProfile.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.newProfile() ).thenReturn( newProfile );
+        final UserProfile saved = mock( UserProfile.class );
+        when( saved.getUid() ).thenReturn( "uid-jsmith2" );
+        when( saved.getLoginName() ).thenReturn( "jsmith2" );
+        when( saved.getAttributes() ).thenReturn( new HashMap<>() );
+        doThrow( new NoSuchPrincipalException( "jsmith2" ) ).doReturn( saved ).when( mockDb ).findByLoginName( "jsmith2" );
+
+        final String body = "{\"userName\":\"jsmith2\",\"name\":{\"formatted\":\"John Smith\"}}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 201 );
+        verify( newProfile ).setFullname( "John Smith" );
+        verify( newProfile ).setWikiName( "JohnSmith2" );
+        verify( mockDb ).save( newProfile );
+    }
+
+    @Test
+    void putResendingSharedDisplayName_keepsSuffixedWikiName() throws Exception {
+        // An IdP re-sends the same displayName on every sync; the stored suffixed wiki name must
+        // be kept rather than refused or re-suffixed.
+        when( req.getPathInfo() ).thenReturn( "/uid-jsmith2" );
+        final UserProfile first = mock( UserProfile.class );
+        when( first.getLoginName() ).thenReturn( "jsmith" );
+        when( mockDb.findByWikiName( "John Smith" ) ).thenReturn( first );
+        when( mockDb.findByFullName( "John Smith" ) ).thenReturn( first );
+
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "jsmith2" );
+        when( p.getFullname() ).thenReturn( "John Smith" );
+        when( p.getWikiName() ).thenReturn( "John Smith2" );
+        when( p.isLocked() ).thenReturn( false );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-jsmith2" ) ).thenReturn( p );
+
+        final String body = "{\"userName\":\"jsmith2\",\"displayName\":\"John Smith\",\"name\":{\"formatted\":\"John Smith\"}}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( resp, never() ).setStatus( 409 );
+        verify( p ).setWikiName( "John Smith2" );
+        verify( mockDb ).save( p );
+    }
+
+    @Test
+    void patchFullNameSharedWithAnotherAccount_isSaved() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/uid-helen" );
+        final UserProfile other = mock( UserProfile.class );
+        when( other.getLoginName() ).thenReturn( "hsmith" );
+        when( mockDb.findByFullName( "Helen Smith" ) ).thenReturn( other );
+        when( mockDb.findByWikiName( "HelenSmith" ) ).thenReturn( other );
+
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "helen" );
+        when( p.getFullname() ).thenReturn( "Helen" );
+        when( p.getWikiName() ).thenReturn( "Helen" );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-helen" ) ).thenReturn( p );
+
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"name\",\"value\":{\"formatted\":\"Helen Smith\"}}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        verify( resp, never() ).setStatus( 409 );
+        verify( p ).setFullname( "Helen Smith" );
+        verify( p ).setWikiName( "HelenSmith2" );
+        verify( mockDb ).save( p );
+    }
+
+    @Test
     void createWithDisplayNameUsedByAnotherAccount_returns409() throws Exception {
         doThrow( new NoSuchPrincipalException( "zed" ) ).when( mockDb ).findByLoginName( "zed" );
         final UserProfile boss = mock( UserProfile.class );

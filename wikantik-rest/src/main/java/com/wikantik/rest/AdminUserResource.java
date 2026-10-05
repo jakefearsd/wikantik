@@ -510,14 +510,14 @@ public class AdminUserResource extends RestServletBase {
         try {
             final UserDatabase db = getUserDatabase();
             final java.util.Optional< String > nameError = ProfileNameRules.nameChangeError( getEngine(), db, loginName,
-                    null, null, fullName, fullName == null ? null : fullName.replaceAll( "\\s", "" ) );
+                    null, null, fullName, ProfileNameRules.derivedWikiName( fullName ) );
             if ( nameError.isPresent() ) {
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
                 return;
             }
             final UserProfile profile = db.newProfile();
             profile.setLoginName( loginName );
-            if ( fullName != null ) profile.setFullname( fullName );
+            if ( fullName != null ) ProfileNameRules.applyFullName( getEngine(), db, profile, fullName );
             if ( email != null ) profile.setEmail( email );
             if ( bio != null ) {
                 if ( bio.length() > 1000 ) {
@@ -564,7 +564,7 @@ public class AdminUserResource extends RestServletBase {
                     sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
                     return;
                 }
-                profile.setFullname( fullName );
+                ProfileNameRules.applyFullName( getEngine(), db, profile, fullName );
             }
             if ( email != null ) profile.setEmail( email );
             if ( bio != null ) {

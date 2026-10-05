@@ -89,6 +89,12 @@ Behavior:
 - **SSO fail-closed**: if an account with the given `userName` already exists
   and does not carry an `sso.subject` marker, SCIM returns HTTP 409 with
   `scimType: uniqueness`. SCIM cannot claim a pre-existing local account.
+- **Names**: a `name.formatted` or `displayName` that is reserved (a built-in role,
+  `Admin`, or a role or group name) or that equals another account's login name is
+  refused with HTTP 409 and `scimType: uniqueness`, on `POST`, `PUT` and `PATCH`. Two
+  users may share a name: the second "John Smith" is created normally. Wiki names stay
+  unique, so the second account gets a numbered wiki name (`JohnSmith2`), and that wiki
+  name is kept when the identity provider re-sends the same `displayName` on later syncs.
 - If `active: false` is included in the create body, the account is immediately
   deactivated via `UserLifecycleService` after creation.
 - On success: HTTP 201, `Location` header pointing to the new resource, and the
@@ -245,6 +251,10 @@ The `wikantik.scim.token` property is missing or blank. Check startup logs for
 A local account with that `userName` already exists. If it is an existing local
 account without an SSO link, SCIM cannot claim it — create the account via the
 admin UI instead, or remove it and let SCIM re-provision it.
+
+The same status is returned when `name.formatted` or `displayName` is a reserved name or
+another account's login name; the response `detail` names the value. Change the name in
+the identity provider. A name that another user merely shares is not refused.
 
 **POST /Groups returns 400 invalidValue "No user found for member uid"**
 

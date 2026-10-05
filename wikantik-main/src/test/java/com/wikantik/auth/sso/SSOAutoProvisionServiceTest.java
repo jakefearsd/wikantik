@@ -252,8 +252,8 @@ class SSOAutoProvisionServiceTest {
 
         final UserProfile created = userDb.findByLoginName( "jakefear@simpleagility.com" );
         Assertions.assertNotNull( created, "SSO profile must be persisted despite the wiki-name clash." );
-        // Display names are unique across accounts, so the shared claim gets a numeric suffix.
-        Assertions.assertEquals( "Jake Fear 2", created.getFullname() );
+        // Two accounts may share a full name; only the wiki name must be unique.
+        Assertions.assertEquals( "Jake Fear", created.getFullname() );
         // The de-duplicated wiki name is what was stored (and what a prod JDBC INSERT
         // would use to satisfy the unique constraint). Assert via a stored-attribute
         // lookup rather than getWikiName(), which re-derives from the full name on read.

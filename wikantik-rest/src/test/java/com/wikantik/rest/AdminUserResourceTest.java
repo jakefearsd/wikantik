@@ -763,7 +763,16 @@ class AdminUserResourceTest {
         create.addProperty( "fullName", "Name Owner" );
         create.addProperty( "password", "StrongPassword123!" );
         final JsonObject created = gson.fromJson( doPost( null, create ), JsonObject.class );
-        assertTrue( created.has( "error" ), "a full name equal to another account's full name must be rejected: " + created );
+        assertFalse( created.has( "error" ), "two accounts may share a full name: " + created );
+        assertEquals( "Name Owner", created.get( "fullName" ).getAsString() );
+        assertEquals( "NameOwner2", created.get( "wikiName" ).getAsString(),
+                "the shared full name gets a free wiki name" );
+
+        final JsonObject rename = new JsonObject();
+        rename.addProperty( "fullName", "Name Owner" );
+        final JsonObject renamed = gson.fromJson( doPut( "nameTaker", rename ), JsonObject.class );
+        assertFalse( renamed.has( "error" ), "a full name another account uses is allowed on update: " + renamed );
+        assertEquals( "NameOwner3", renamed.get( "wikiName" ).getAsString() );
     }
 
     // ----- Bulk action tests -----

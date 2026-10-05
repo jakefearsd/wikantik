@@ -148,6 +148,8 @@ public class ScimUserResource extends AbstractScimServlet {
             p.setLoginName( f.userName() );
             // Stamp sso.subject BEFORE save so the identity link is atomic with creation
             ScimUserFields.applyCommonCreateFields( p, f );
+            ScimUserFields.keepWikiNameUnique( engine, db, f.userName(), p, null,
+                    ScimUserFields.proposedWiki( f.fullName(), f.displayName() ) );
             // If no password supplied, generate a random one so the account exists but
             // authenticates only via SSO (the random token is never revealed)
             final String password = ( f.password() != null && !f.password().isBlank() )
@@ -270,7 +272,10 @@ public class ScimUserResource extends AbstractScimServlet {
         }
         try {
             final boolean wasActive = !p.isLocked();
+            final String previousWiki = p.getWikiName();
             ScimUserFields.applyCommonCreateFields( p, f );
+            ScimUserFields.keepWikiNameUnique( engine, db, p.getLoginName(), p, previousWiki,
+                    ScimUserFields.proposedWiki( f.fullName(), f.displayName() ) );
             if ( f.password() != null && !f.password().isBlank() ) {
                 p.setPassword( f.password() );
             }
@@ -337,7 +342,10 @@ public class ScimUserResource extends AbstractScimServlet {
             }
 
             // Apply other simple attributes
+            final String previousWiki = p.getWikiName();
             final boolean dirty = ScimUserFields.applyPatchAttributes( p, patch.attributes() );
+            ScimUserFields.keepWikiNameUnique( engine, db, p.getLoginName(), p, previousWiki,
+                    ScimUserFields.proposedWiki( patch.attributes() ) );
             if ( dirty ) {
                 db.save( p );
                 p = db.findByUid( id );

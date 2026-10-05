@@ -30,6 +30,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,10 +63,48 @@ class ProfileNameRulesTest {
     }
 
     @Test
-    void newNameEqualToAnotherUsersLoginFullOrWikiNameIsRefused() {
-        assertTrue( change( "Mallory", "Mallory", "boss", "boss" ).orElseThrow().contains( "another account" ) );
-        assertTrue( change( "Mallory", "Mallory", "The Boss", "TheBoss" ).isPresent() );
-        assertTrue( change( "Mallory", "Mallory", "Mallory", "TheBoss" ).isPresent(), "wiki name collision" );
+    void newNameEqualToAnotherUsersLoginNameIsRefused() {
+        assertTrue( change( "Mallory", "Mallory", "boss", "boss" ).orElseThrow().contains( "login name" ) );
+        assertTrue( change( "Mallory", "Mallory", "Mallory", "boss" ).isPresent(), "wiki name equal to a login" );
+    }
+
+    @Test
+    void newNameSharedWithAnotherUsersFullOrWikiNameIsAllowed() {
+        // Two people may share a full name; privileges follow the login name only.
+        assertTrue( change( "Mallory", "Mallory", "The Boss", "TheBoss" ).isEmpty() );
+        assertTrue( change( "Mallory", "Mallory", "Mallory", "TheBoss" ).isEmpty(), "shared wiki name" );
+    }
+
+    @Test
+    void availableWikiNameSuffixesOnlyWhenAnotherAccountHoldsIt() {
+        assertEquals( "Mallory", ProfileNameRules.availableWikiName( engine, db, "mallory", "Mallory", null ) );
+        assertEquals( "TheBoss", ProfileNameRules.availableWikiName( engine, db, "boss", "TheBoss", "TheBoss" ),
+                "an account's own wiki name is available to it" );
+        assertEquals( "TheBoss2", ProfileNameRules.availableWikiName( engine, db, "mallory", "TheBoss", null ) );
+        assertEquals( "TheBoss7", ProfileNameRules.availableWikiName( engine, db, "mallory", "TheBoss", "TheBoss7" ),
+                "an existing suffixed wiki name is kept, so a re-sent name does not churn" );
+        assertEquals( "boss2", ProfileNameRules.availableWikiName( engine, db, "mallory", "boss", null ),
+                "another account's login name is not available as a wiki name" );
+        assertEquals( "Admin2", ProfileNameRules.availableWikiName( engine, db, "mallory", "Admin", null ),
+                "a reserved name is not available as a wiki name" );
+        assertNull( ProfileNameRules.availableWikiName( engine, db, "mallory", null, "Old" ) );
+    }
+
+    @Test
+    void secondAccountWithTheSameFullNameCanBeSaved() throws Exception {
+        final UserProfile twin = db.newProfile();
+        twin.setLoginName( "boss-twin" );
+        twin.setFullname( "The Boss" );
+        twin.setWikiName( ProfileNameRules.availableWikiName( engine, db, "boss-twin", twin.getWikiName(), null ) );
+        twin.setEmail( "twin@example.test" );
+        twin.setPassword( "correct-horse-battery-staple-4" );
+        try {
+            db.save( twin );
+            assertEquals( "The Boss", db.findByLoginName( "boss-twin" ).getFullname() );
+            assertEquals( "boss-twin", db.findByWikiName( "TheBoss2" ).getLoginName() );
+        } finally {
+            db.deleteByLoginName( "boss-twin" );
+        }
     }
 
     @Test

@@ -9,18 +9,14 @@ Measured on 2026-10-05 from the poms and `build-support/`. Coverage floors may r
 | Item | Value | Source |
 |------|-------|--------|
 | Root default line-coverage floor | 0.80 | `wikantik.coverage.line.minimum` in the root `pom.xml` |
-| Floor 0.90 | `wikantik-insights`, `wikantik-main`, `wikantik-ontology` | module poms |
+| Floor 0.90 | `wikantik-ingest`, `wikantik-insights`, `wikantik-jdbc`, `wikantik-main`, `wikantik-ontology` | module poms |
 | Floor 0.89 | `wikantik-observability`, `wikantik-util` | module poms |
-| Floor 0.88 | `wikantik-mcp-core` | module pom |
+| Floor 0.88 | `wikantik-api`, `wikantik-connectors`, `wikantik-extract-cli`, `wikantik-mcp-core` | module poms |
 | Floor 0.87 | `wikantik-admin-mcp` | module pom |
 | Floor 0.86 | `wikantik-http`, `wikantik-rest` | module poms |
 | Floor 0.85 | `wikantik-cache`, `wikantik-event`, `wikantik-knowledge` | module poms |
 | Floor 0.84 | `wikantik-cache-memcached`, `wikantik-scim`, `wikantik-tools` | module poms |
-| Floor 0.83 | `wikantik-connectors`, `wikantik-extract-cli` | module poms |
-| Floor 0.81 | `wikantik-ingest` | module pom |
-| Floor 0.80 | `wikantik-jdbc` | module pom |
-| Floor 0.71 | `wikantik-api` | module pom |
-| PMD complexity baseline entries | 105 | non-comment `=` lines in `build-support/pmd-complexity-baseline.properties` |
+| PMD complexity baseline entries | 99 | non-comment `=` lines in `build-support/pmd-complexity-baseline.properties` |
 | `TestSchemaSingleSourceTest` baseline entries | 1 (the `JDBCPluginCITest` carve-out) | `wikantik-war/src/test/resources/test-ddl-baseline.txt` |
 | Frontend (Vitest) thresholds | lines 87, statements 85, functions 85, branches 76 | `wikantik-frontend/vite.config.js` |
 

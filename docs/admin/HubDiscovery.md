@@ -5,7 +5,7 @@ pages to tie them together — a Page-Graph curation aid, not the Knowledge Grap
 itself, though it is built on the same mention-embedding data the Knowledge Graph
 maintains.
 
-This document covers the operator surface: what a discovery run does, how the
+This page is for administrators who curate the wiki's hub pages. It covers the operator surface: what a discovery run does, how the
 clustering parameters shape proposals, the accept/dismiss workflow, and
 troubleshooting.
 
@@ -29,7 +29,7 @@ troubleshooting.
 admin UI — there is no nightly scheduler for this one) that:
 
 1. Loads the **candidate pool**: article-typed Knowledge Graph nodes that are
-   *not* already a `related`-edge target of any hub-typed node, and that have at
+   *not* already a `related_to`-edge target of any hub-typed node, and that have at
    least one mention with a chunk embedding (i.e. something to cluster on).
 2. Retrieves each candidate's centroid vector from the shared mention-embedding
    index (`NodeMentionSimilarity`).
@@ -110,8 +110,9 @@ members is refused (`409` — dismiss/delete the hub itself instead).
 ## Admin UI walkthrough
 
 **Route:** `/admin/knowledge-graph` → **Hub Discovery** tab (`HubDiscoveryTab`),
-alongside Proposals, Extraction, Node/Edge Explorer, Content Embeddings, Hub
-Proposals, and LLM Activity (see [NewUI.md](../developer/FrontendArchitecture.md)).
+alongside Proposals, Extraction, Node Explorer, Edge Explorer, Content Embeddings,
+Hub Proposals, and LLM Activity (tab list in `AdminKnowledgePage.jsx`; see
+[FrontendArchitecture.md](../developer/FrontendArchitecture.md)).
 
 - **Run discovery** — triggers a batch run; the resulting proposal cards appear
   once the run completes (synchronous from the UI's perspective).
@@ -128,7 +129,11 @@ Proposals, and LLM Activity (see [NewUI.md](../developer/FrontendArchitecture.md
 
 Accepting a proposal writes a minimal stub page (`type: hub`, `auto-generated:
 true`, a `related:` list of members) — it is meant as a starting point for a
-human to flesh out, not a finished article.
+human to flesh out, not a finished article. The stub has `title`, `type: hub`,
+`auto-generated: true` and `related:` only (`HubDiscoveryService.renderStub`); it
+does **not** write a `cluster:` field. To make the new hub declare a cluster, add
+a scalar `cluster: <path>` to it and set `cluster:` on the member pages (see
+[ClusterDeclarationDesign](../wikantik-pages/ClusterDeclarationDesign.md)).
 
 ## REST endpoint reference
 
@@ -230,7 +235,7 @@ the only way to re-enable proposing the exact same cluster again.
 
 ## Cross-links
 
-- [NewUI.md](../developer/FrontendArchitecture.md) — the Knowledge Graph admin tab layout (`HubDiscoveryTab` among its siblings).
+- [FrontendArchitecture.md](../developer/FrontendArchitecture.md) — the Knowledge Graph admin tab layout (`HubDiscoveryTab` among its siblings).
 - [KgInclusionPolicy.md](KgInclusionPolicy.md) — which pages feed the Knowledge Graph (and therefore the candidate pool) in the first place.
 - [PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md) — Hub Discovery proposes Page Graph structure (hub pages + `related` links) but is powered by Knowledge Graph mention data; read this if the distinction is unclear.
 - `bin/db/migrations/V006__hub_discovery_proposals.sql` / `V007__hub_discovery_proposal_status.sql` — DDL for `hub_discovery_proposals`.

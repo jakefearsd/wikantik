@@ -1,6 +1,7 @@
 # Setting Up a New AWS Account for Wikantik
 
-How to take a brand-new (or unused) AWS account from zero to ready for the
+This page is for operators who are new to AWS and want to run Wikantik on it. It takes a
+brand-new (or unused) AWS account from zero to ready for the
 [single-VM Terraform reference deployment](../../deploy/aws/README.md): account
 creation and hardening, an admin identity for the CLI, billing guardrails,
 and installation of the required command-line tools on **macOS** and

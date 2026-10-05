@@ -1,19 +1,28 @@
 # Setting Up a New Azure Account for Wikantik
 
-How to take a brand-new (or unused) Microsoft Azure account from zero to
-ready for a Wikantik deployment: account and subscription setup, cost
+This page is for operators who want to run Wikantik on Azure. It takes a
+brand-new (or unused) Microsoft Azure account from zero to ready for a Wikantik
+deployment: account and subscription setup, cost
 guardrails, credentials, and installation of the command-line tools on
 **macOS** and **Ubuntu** — plus how the reference deployment topology maps
 onto Azure resources.
 
-> **There is no `deploy/azure/` Terraform module yet.** Unlike
-> [AWS](AwsAccountSetup.md) ([deploy/aws](../../deploy/aws/README.md)) and
-> [GCP](GcpAccountSetup.md) ([deploy/gcp](../../deploy/gcp/README.md)),
-> deploying on Azure currently means provisioning the VM/disk/firewall
-> yourself and bringing up the same cloud compose overlay by hand —
-> section 8 below maps every piece across. The compose stack itself
-> (`docker-compose.yml` + `docker-compose.cloud.yml`) is cloud-agnostic;
-> see [CloudDeployment.md](CloudDeployment.md) for how it fits together.
+> **There is no `deploy/azure/` directory and no Azure Terraform module.**
+> `deploy/` contains only `aws/`, `gcp/`, `bin/`, `cloud-init/` and `config/`.
+> Nothing in this repository creates Azure resources for you.
+>
+> This page gives you: Azure account, billing and CLI setup (sections 1-7), a
+> table mapping each AWS/GCP reference resource to its Azure equivalent
+> (section 8), and the on-VM steps in the order the shared cloud-init template
+> performs them. You do by hand: create the resource group, VM, data disk,
+> network security group, static public IP, secret storage and DNS record in
+> Azure, then format the disk, install Docker, write `.env` and run the cloud
+> compose overlay on the VM yourself. The compose stack itself
+> (`docker-compose.yml` + `docker-compose.cloud.yml`) is cloud-agnostic; see
+> [CloudDeployment.md](CloudDeployment.md) for how it fits together. For the
+> AWS and GCP equivalents that are automated, see
+> [AwsAccountSetup.md](AwsAccountSetup.md) ([deploy/aws](../../deploy/aws/README.md))
+> and [GcpAccountSetup.md](GcpAccountSetup.md) ([deploy/gcp](../../deploy/gcp/README.md)).
 
 ## 1. Create the account and subscription
 

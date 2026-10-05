@@ -1,7 +1,7 @@
 # Setting Up a New GCP Account for Wikantik
 
-How to take a brand-new (or unused) Google Cloud account from zero to ready
-for the [single-VM Terraform reference deployment](../../deploy/gcp/README.md):
+This page is for operators who are new to Google Cloud and want to run Wikantik on it. It takes a
+brand-new (or unused) Google Cloud account from zero to ready for the [single-VM Terraform reference deployment](../../deploy/gcp/README.md):
 account and project creation, billing guardrails, credentials for
 Terraform, and installation of the required command-line tools on
 **macOS** and **Ubuntu**.

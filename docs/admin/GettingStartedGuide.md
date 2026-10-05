@@ -1,7 +1,8 @@
 # Getting Started with Wikantik
 
-This guide walks a first-time deployer from a fresh clone to a running wiki you
-can log into. It covers two paths:
+This guide is for administrators and developers deploying Wikantik for the first
+time, and is the entry point to the rest of the admin docs. It walks you from a
+fresh clone to a running wiki you can log into, over two paths:
 
 - **[Path A — Docker Compose](#path-a--docker-compose-fastest)** — the fastest way
   to a running instance. One config file, one command. Best for evaluating
@@ -32,8 +33,8 @@ cd wikantik
 
 | Path | You need |
 |------|----------|
-| **A — Docker** | Docker Engine 24+ with the Compose plugin (`docker compose version`). Nothing else. |
-| **B — Bare metal** | Java JDK **25+**, Maven **3.9+**, Node.js **20.19+** (or **22.12+**) + npm, PostgreSQL **15+**. |
+| **A — Docker** | Docker Engine with the Compose plugin (`docker compose version`). Nothing else. |
+| **B — Bare metal** | Java JDK **25+**, Maven **3.9+**, Node.js **20.19+** (or **22.12+**) + npm, PostgreSQL **15+**. Docker is also needed if you want `bin/deploy-local.sh` to start its local embedding container (see step 3). |
 
 Why Node for a Java app? The WAR build compiles the React frontend with Vite;
 `mvn` runs `npm install` + `vite build` automatically, so npm must be on your
@@ -47,10 +48,15 @@ java -version && mvn -version && node --version && npm --version && psql --versi
 
 ## Path A — Docker Compose (fastest)
 
-The stack is two containers: PostgreSQL (with the `pgvector` extension, required
-by search and the knowledge graph) and the Wikantik app. Compose builds the app
-image from the `Dockerfile`, runs database migrations on first start, seeds the
-admin account, and starts Tomcat.
+The stack is two containers: PostgreSQL (the `pgvector/pgvector:pg18` image;
+the `vector` extension is required by search and the Knowledge Graph) and the
+Wikantik app. `bin/container.sh` builds the app image from the `Dockerfile`
+(`bin/container.sh build`), and on first start the app container runs database
+migrations, seeds the admin account, and starts Tomcat. Path A uses the base
+compose file only (`-e base`); the default `dev` environment of
+`bin/container.sh` adds `docker-compose.dev.yml`, which builds `Dockerfile.dev`
+and bind-mounts a prebuilt `wikantik-war/target/Wikantik.war`, so it needs a
+Maven build first.
 
 ### 1. Create your `.env`
 
@@ -78,15 +84,17 @@ unless you have a reason to change them.
 ### 2. Build and start
 
 ```bash
-docker compose up -d --build
+bin/container.sh build
+bin/container.sh -e base up -d
 ```
 
-This builds the image (first time: several minutes — it compiles Java + the React
-frontend), starts PostgreSQL, waits for it to be healthy, runs migrations, seeds
-the admin account, and starts the app. Watch progress with:
+The build (first time: several minutes — it compiles Java + the React frontend)
+tags the image `wikantik:latest`. `up -d` starts PostgreSQL, waits for it to be
+healthy, runs migrations, seeds the admin account, and starts the app. Watch
+progress with:
 
 ```bash
-docker compose logs -f wikantik
+bin/container.sh -e base logs -f wikantik
 ```
 
 On a fresh database the startup log ends with a first-login banner:
@@ -111,14 +119,18 @@ Open **http://localhost:8080/** and continue to
 
 ### Managing the stack
 
-`bin/container.sh` wraps `docker compose` for the canonical service set:
+`bin/container.sh` wraps `docker compose` for the canonical service set. Pass
+`-e base` to every command so it targets the same compose files as step 2:
 
 ```bash
-bin/container.sh ps                 # container status
-bin/container.sh logs -f            # follow app logs
-bin/container.sh down               # stop (keeps data volumes)
-bin/container.sh down --volumes     # stop AND delete the database — full reset
+bin/container.sh -e base ps                 # container status
+bin/container.sh -e base logs -f            # follow app logs
+bin/container.sh -e base down               # stop (keeps data volumes)
+bin/container.sh -e base down --volumes     # stop AND delete the database — full reset
 ```
+
+Run `bin/container.sh --help` for the other subcommands (`restart`, `shell`,
+`psql`, `migrate`, `backup`, `restore`, `smoke-test`).
 
 Running alongside a bare-metal Tomcat already on 8080? Set
 `WIKANTIK_HOST_PORT=18080` in `.env` and the container publishes there instead.
@@ -174,7 +186,11 @@ modules need and breaks the reactor).
 
 `bin/deploy-local.sh` renders the Tomcat config (`ROOT.xml`,
 `wikantik-custom.properties`) from `.env`, downloads Tomcat on first run, deploys
-the WAR, applies migrations, seeds the admin account, and starts Tomcat.
+the WAR, applies migrations, seeds the admin account, and starts Tomcat. Unless
+you set `WIKANTIK_LOCAL_EMBEDDINGS=false` in `.env`, it also starts a local
+Ollama embedding container on port 11434 through Docker. The first run pulls
+the roughly 600 MB `qwen3-embedding:0.6b` model, which is a download, not a
+hang; without an embedder the wiki falls back to BM25-only search.
 
 On the **very first run** with no `.env`, it copies `.env.example` → `.env` and
 stops so you can set the password:
@@ -233,7 +249,7 @@ tail -f tomcat/tomcat-11/logs/catalina.out
 ```
 
 For the deeper reference (config file locations, JNDI, manual migration commands),
-see **[PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md)**.
+see **[PostgreSQL.md](PostgreSQL.md)**.
 
 ---
 
@@ -289,11 +305,14 @@ Now that you're running:
   schedule, with reader-facing provenance. See [Connectors.md](Connectors.md).
 - **Single Sign-On (Google/OIDC/SAML)** — [SingleSignOn.md](SingleSignOn.md).
 - **Backups & disaster recovery** — [BackupAndRecovery.md](BackupAndRecovery.md).
-- **Production database workflow & migrations** — [DatabaseUpdates.md](DatabaseUpdates.md),
-  [ProductionDBWorkflow.md](ProductionDBWorkflow.md).
-- **Agent/AI surfaces** (MCP servers, REST API, SCIM) — the architecture map and
-  endpoint table in [ProjectReference.md](../developer/ProjectReference.md) and the repo
-  `CLAUDE.md`.
+- **Production database workflow & migrations** — [DatabaseMigrations.md](DatabaseMigrations.md),
+  [PostgreSQL.md](PostgreSQL.md).
+- **API keys for agents and tools** — [ApiKeys.md](ApiKeys.md); the MCP tool lists live in
+  [McpAgents.md](McpAgents.md).
+- **Cloud deployment** — [CloudDeployment.md](CloudDeployment.md).
+- **Agent/AI surfaces** (MCP servers, REST API, SCIM) — [McpAgents.md](McpAgents.md),
+  [ScimProvisioning.md](ScimProvisioning.md), and the architecture map in
+  [ProjectReference.md](../developer/ProjectReference.md).
 - **Sending email** (password resets, notifications) — [SendingEmailFromTheWiki.md](SendingEmailFromTheWiki.md).
 
 Welcome to Wikantik.

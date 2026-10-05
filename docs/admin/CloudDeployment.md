@@ -1,6 +1,6 @@
 # Wikantik Deployment on AWS / GCP
 
-How to run Wikantik on a cloud VM — AWS EC2 or GCP Compute Engine — as a
+This guide is for operators deploying Wikantik on a cloud VM. It shows how to run it on a cloud VM — AWS EC2 or GCP Compute Engine — as a
 single-instance Docker Compose stack, with a GHCR-published image, a
 cost-conscious GenAI tier, and pull-based updates. This is the **cloud
 reference deployment**; it reuses the same compose stack and container image
@@ -9,7 +9,7 @@ as the on-prem path.
 > For the **docker1-style** path (build-locally, ssh-push, host bind mounts,
 > jakemon monitoring), see [DockerDeployment.md](DockerDeployment.md) instead.
 > For the **bare-metal** path (local PostgreSQL + Tomcat 11), see
-> [PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md).
+> [PostgreSQL.md](PostgreSQL.md).
 
 This guide is the operator-facing overview tying the pieces together. The
 Terraform modules themselves are the canonical step-by-step procedure — see
@@ -202,7 +202,7 @@ login` if `GHCR_USER`/`GHCR_TOKEN` are set → `docker pull` the target image
 → tag the currently-running image `wikantik:rollback` → back up `.env` to
 `.env.bak` and rewrite `WIKANTIK_IMAGE` → `docker compose up -d` → poll
 `HEALTH_URL` (default `/api/health`) every 3s up to `HEALTH_TIMEOUT`
-(default 180s). On success, exit 0. **On failure**, it restores the
+(default 180s; `HEALTH_URL` defaults to `http://localhost:8080/api/health`). On success, exit 0. **On failure**, it restores the
 previous `WIKANTIK_IMAGE` value in `.env` (captured in memory, not from the
 `.env.bak` file — that file is a manual-recovery convenience only),
 force-recreates just the `wikantik` service, prints the last 50 log lines,
@@ -274,10 +274,10 @@ env-var reference.
 - [docs/admin/CostTiers.md](CostTiers.md) — the GenAI ceiling in full detail.
 - [docs/admin/DockerDeployment.md](DockerDeployment.md) — the docker1-style
   container path and the full entrypoint env-var table.
-- [docs/admin/production-container-architecture.md](production-container-architecture.md) —
-  topology/lifecycle view (docker1-focused, cloud overlay noted).
 - [docs/admin/WikantikOperations.md](WikantikOperations.md) — operator runbooks,
   including the pull-based update flow via `bin/remote.sh --pull`.
+- [docs/admin/BackupAndRecovery.md](BackupAndRecovery.md) — the backup sidecar the
+  cloud overlay includes, and restore to a fresh host.
 - [docs/admin/Connectors.md](Connectors.md) — the connector framework (uses
   `WIKANTIK_CONNECTORS_CRYPTO_KEY` above).
 - [docs/superpowers/plans/2026-07-16-aws-gcp-deployment-readiness.md](../superpowers/plans/2026-07-16-aws-gcp-deployment-readiness.md) —

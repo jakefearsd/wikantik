@@ -1,6 +1,6 @@
 # GenAI Cost Tiers — Operator Reference
 
-Wikantik's LLM/inference spend is bounded by a single ceiling property,
+This page is for operators who run Wikantik and want to cap or verify its LLM/inference spend. Wikantik's LLM/inference spend is bounded by a single ceiling property,
 **`wikantik.genai.mode`** (`com.wikantik.api.config.GenAiMode`), plus a handful
 of independent feature flags it gates. This page gives three named tiers —
 **core**, **search**, **knowledge** — with the exact `.env` preset for the
@@ -8,8 +8,7 @@ Docker/container path and the equivalent `wikantik-custom.properties` lines
 for the bare-metal path, followed by how to verify a tier is actually
 enforced and what it does *not* cover.
 
-Every property and env var named below was checked against the code that
-reads it; none are invented. See the "Verified against" line under each block.
+Each block ends with a "Verified against" line naming the files that define the properties and env vars it uses.
 
 ## How the ceiling works
 
@@ -32,11 +31,11 @@ ceiling. The five call sites that do this today:
 
 | Call site | Flag | Ceiling check | Source |
 |-----------|------|----------------|--------|
-| Embedding client | `wikantik.search.hybrid.enabled` | `mode.allowsEmbeddings()` | `EmbeddingConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java:94-101`) |
-| KG entity extractor | `wikantik.knowledge.extractor.backend` | `mode.allowsChatInference()` | `EntityExtractorConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java:87-95`) |
-| KG proposal judge | `wikantik.kg.judge.enabled` | `mode.allowsChatInference()` | `KgJudgeConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/judge/KgJudgeConfig.java:68-73`) |
-| Bundle LLM reranker | `wikantik.bundle.reranker.enabled` (or an `llm` token in `wikantik.bundle.rerank.chain`) | `mode.allowsChatInference()` | `BundleServiceWiring.rerankerFor`/`buildChain` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleServiceWiring.java:274-323`) |
-| Bundle query-decomposition planner | `wikantik.bundle.decomposition.enabled` | `mode.allowsChatInference()` | `BundleDecompositionConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleDecompositionConfig.java:57-78`) |
+| Embedding client | `wikantik.search.hybrid.enabled` | `mode.allowsEmbeddings()` | `EmbeddingConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java`) |
+| KG entity extractor | `wikantik.knowledge.extractor.backend` | `mode.allowsChatInference()` | `EntityExtractorConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java`) |
+| KG proposal judge | `wikantik.kg.judge.enabled` | `mode.allowsChatInference()` | `KgJudgeConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/judge/KgJudgeConfig.java`) |
+| Bundle LLM reranker | `wikantik.bundle.reranker.enabled` (or an `llm` token in `wikantik.bundle.rerank.chain`) | `mode.allowsChatInference()` | `BundleServiceWiring.rerankerFor`/`buildChain` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleServiceWiring.java`) |
+| Bundle query-decomposition planner | `wikantik.bundle.decomposition.enabled` | `mode.allowsChatInference()` | `BundleDecompositionConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleDecompositionConfig.java`) |
 
 Each of these logs a `WARN` when an explicitly-enabled feature gets
 overridden by the ceiling — see [Verify: warn-log lines](#3-warn-log-lines-when-the-ceiling-suppresses-a-feature) below.
@@ -65,7 +64,7 @@ wikantik.search.hybrid.enabled = false
 
 > **No env passthrough for `wikantik.search.hybrid.enabled`.** `docker/entrypoint.sh`
 > renders an env override for `WIKANTIK_GENAI_MODE` and `WIKANTIK_KNOWLEDGE_ENABLED`
-> (lines 236–255) but has no corresponding block for the hybrid-search flag — it
+> but has no corresponding block for the hybrid-search flag — it
 > isn't in the container env-var surface at all. That's fine for this tier:
 > `mode=none` forces the embedding client disabled at the ceiling
 > (`EmbeddingConfig`: `enabled = rawEnabled && mode.allowsEmbeddings()`), so dense
@@ -74,7 +73,7 @@ wikantik.search.hybrid.enabled = false
 > properties override needed. Setting the raw flag explicitly is only necessary
 > if you want the warn logs quiet about a suppressed-but-enabled feature.
 
-Verified against: `docker/entrypoint.sh:236-255`, `wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java:57,94-101`, `wikantik-main/src/main/resources/ini/wikantik.properties:1062` (default `true`).
+Verified against: `docker/entrypoint.sh`, `wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java`, `wikantik-main/src/main/resources/ini/wikantik.properties` (default `true`).
 
 ---
 
@@ -99,7 +98,7 @@ extractor/judge stay off regardless of this flag; only hand-authored KG
 nodes/edges via `/admin/knowledge-graph/*` or `propose_knowledge` work).
 
 `ollama-embed` is the cloud overlay's CPU-only Ollama sidecar
-(`docker-compose.cloud.yml`, `--profile embeddings`, service block at line 292)
+(`docker-compose.cloud.yml`, `--profile embeddings`)
 — it pulls `WIKANTIK_EMBEDDING_MODEL_TAG` (default `qwen3-embedding:0.6b`) on
 start and serves at `http://ollama-embed:11434` inside the compose network.
 Point `WIKANTIK_EMBEDDING_BASE_URL` at your own reachable host instead if you
@@ -114,9 +113,9 @@ wikantik.search.embedding.base-url = http://<your-embedding-host>:11434
 ```
 
 `wikantik.search.hybrid.enabled` needs no override here — it defaults to
-`true` (`ini/wikantik.properties:1062`) and stays effective under this tier.
+`true` (`ini/wikantik.properties`) and stays effective under this tier.
 
-Verified against: `docker-compose.cloud.yml:31-39,89-98,292,312`, `.env.example:117-130,231-239`, `docker/entrypoint.sh:65-76,236-266`, `wikantik-main/src/main/resources/ini/wikantik.properties:1068,1073` (`wikantik.search.embedding.backend`/`base-url` defaults).
+Verified against: `docker-compose.cloud.yml`, `.env.example`, `docker/entrypoint.sh`, `wikantik-main/src/main/resources/ini/wikantik.properties` (`wikantik.search.embedding.backend`/`base-url` defaults).
 
 ---
 
@@ -171,7 +170,7 @@ wikantik.knowledge.extractor.backend = ollama
 wikantik.knowledge.extractor.ollama.base_url = http://<your-ollama-host>:11434
 ```
 
-Verified against: `docker-compose.cloud.yml:40-48`, `.env.example:117-140`, `docker/entrypoint.sh:73-80,268-278`, `wikantik-main/src/main/resources/ini/wikantik.properties:1147-1157` (extractor backend/model/base_url defaults), `wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java:87-95`.
+Verified against: `docker-compose.cloud.yml`, `.env.example`, `docker/entrypoint.sh`, `wikantik-main/src/main/resources/ini/wikantik.properties` (extractor backend/model/base_url defaults), `wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java`.
 
 ---
 
@@ -180,9 +179,9 @@ Verified against: `docker-compose.cloud.yml:40-48`, `.env.example:117-140`, `doc
 ### 1. `/admin/llm-activity` — proves which subsystems actually called out
 
 `GET /admin/llm-activity` (admin-only, `AdminAuthFilter`) is a live, in-memory
-log of every LLM call — subsystem, backend, model, status, duration. As of
-this change it covers **all five** LLM call sites: `EMBEDDING`,
-`ENTITY_EXTRACTION`, `PROPOSAL_JUDGE`, and (new — Task 1.7) `SECTION_RERANK`
+log of every LLM call — subsystem, backend, model, status, duration. It
+covers **all five** LLM call sites: `EMBEDDING`,
+`ENTITY_EXTRACTION`, `PROPOSAL_JUDGE`, `SECTION_RERANK`
 and `QUERY_DECOMPOSITION` (`wikantik-main/src/main/java/com/wikantik/llm/activity/Subsystem.java`).
 
 Filter with `?subsystem=embedding` (or `entity_extraction`, `proposal_judge`,
@@ -203,13 +202,9 @@ Under the **search** tier, after a few real searches/bundle requests, the log
 should show **only** `EMBEDDING` entries — zero `ENTITY_EXTRACTION`,
 `PROPOSAL_JUDGE`, `SECTION_RERANK`, or `QUERY_DECOMPOSITION` calls, since the
 ceiling forces the reranker/planner back to identity/passthrough and the KG
-extractor/judge off, regardless of their own flags. Before this change, the
-reranker and decomposition planner made real chat calls with **no** visible
-trace in this log — an operator flipping `wikantik.bundle.reranker.enabled=true`
-by mistake under `embeddings-only` would see nothing wrong here even though
-(pre-ceiling-fix) it would have been a real cost leak. The ceiling itself
-already prevented the leak; this change makes that provable from the log
-rather than from reading source.
+extractor/judge off, regardless of their own flags. That makes the ceiling provable from the log rather than from reading source:
+an operator who flips `wikantik.bundle.reranker.enabled=true` by mistake under
+`embeddings-only` sees no `SECTION_RERANK` entries.
 
 Under **core**, the log should show nothing at all (no calls of any
 subsystem). Under **knowledge**, `EMBEDDING`, `ENTITY_EXTRACTION`, and
@@ -219,7 +214,7 @@ appear if you've separately opted into `wikantik.bundle.reranker.enabled` /
 [caveats](#bundle-llm-levers-stay-off-by-default-the-ceiling-guards-against-accidental-re-enable)).
 
 Gating: the log itself is controlled by `wikantik.llm_activity.enabled`
-(default `true`, `ini/wikantik.properties:1259`). It is a **process-wide
+(default `true`, `ini/wikantik.properties`). It is a **process-wide
 singleton** (`LlmActivityLogHolder`) — created once, on first use, from
 whatever properties were live at that moment. Changing the flag requires a
 restart to take effect, and once a call is disabled, no per-call recording
@@ -296,7 +291,7 @@ protects the always-on request path, not one-off operator tooling.
 ### Bundle LLM levers stay off by default; the ceiling guards against accidental re-enable
 
 `wikantik.bundle.reranker.enabled` and `wikantik.bundle.decomposition.enabled`
-both default to `false` (`ini/wikantik.properties:1275,1355`) — the bundle
+both default to `false` (`ini/wikantik.properties`) — the bundle
 ships dense-ordered/single-pass by default regardless of tier, because the
 2026-06-13 measurement showed the LLM reranker is an ordering lever, not a
 recall lever, at real per-request latency/cost. The `wikantik.genai.mode`
@@ -306,8 +301,7 @@ the ceiling silences it rather than letting a stray chat call through.
 
 ### Recording is observational, not a second enforcement mechanism
 
-The `RecordingSectionReranker`/`RecordingQueryPlanner` decorators added in
-Task 1.7 (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/`) only
+The `RecordingSectionReranker`/`RecordingQueryPlanner` decorators (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/`) only
 wrap whatever `BundleServiceWiring.build()` already decided to construct —
 they run strictly *after* the ceiling logic in `rerankerFor`/
 `BundleDecompositionConfig.fromProperties` has already run, and never

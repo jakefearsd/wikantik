@@ -1,6 +1,8 @@
 # External-Source Connectors
 
-Wikantik can pull content in from external systems — websites, RSS/Atom feeds,
+This page is for administrators who connect Wikantik to external sources. It covers
+the connector types, how to define and manage connectors, credentials, sync behaviour,
+and troubleshooting. Wikantik can pull content in from external systems — websites, RSS/Atom feeds,
 sitemaps, Google Drive, GitHub, and Confluence — and keep it synced into wiki
 pages automatically. This is the **connector framework**: `wikantik-connectors`
 (the sync engine and per-type source implementations) plus the admin UI at
@@ -57,20 +59,20 @@ fields are rejected outright — see [Credentials](#credentials) below.
 Declared directly in `wikantik-custom.properties` using the
 `wikantik.connectors.<type>.<id>.<field>` key pattern, wired once at engine
 startup. They appear in the admin UI **read-only**, labeled "config file", with
-a one-click **Import** button that copies them into `connector_configs` — after
+a one-click **Import to database** button that copies them into `connector_configs` — after
 which the DB row shadows the properties definition by id and becomes editable.
 Import is the *only* mutation a properties-origin connector supports directly;
 attempting `PUT`/`DELETE` against an un-imported properties-origin id returns
 `409` ("connector '\<id\>' is defined in wikantik-custom.properties").
 
 Property syntax by type (from
-`wikantik-main/src/main/resources/ini/wikantik.properties`, ~line 1549 on):
+`wikantik-main/src/main/resources/ini/wikantik.properties`, section "Connectors"):
 
 ```properties
 # Kill switch (default true) — see "Kill switch" below.
 #wikantik.connectors.enabled = true
 #wikantik.connectors.sync.interval.hours = 0
-#wikantik.connectors.filesystem.docs.root = /data/docs
+#wikantik.connectors.filesystem.docs.root = /data/docs   # key pattern: filesystem.<id>.root
 
 # Web crawler — each <id> needs at least .seeds
 #wikantik.connectors.webcrawler.<id>.seeds = https://example.com/
@@ -143,7 +145,7 @@ status (relative time + status dot), derived-page count, and a **Sync Now**
 button. An empty state explains what connectors do and points at **+ Add
 Connector**. Two operator banners can appear above the table:
 
-- **Syncing disabled** — `wikantik.connectors.enabled=false` is set; syncs
+- **Syncing disabled** ("Connector syncing is disabled by the operator") — `wikantik.connectors.enabled=false` is set; syncs
   won't run, but configuration stays editable.
 - **Credential storage not configured** — no `wikantik.connectors.crypto.key`
   is set, so GitHub/Confluence/Google Drive connectors can't store secrets
@@ -158,10 +160,10 @@ Connector**. Two operator banners can appear above the table:
   (expandable error text; a stale `running` row renders as "interrupted" — see
   [Sync behavior](#sync-behavior)).
 - **Settings** — the same fields as wizard step 1 (source config + content
-  defaults + interval). Read-only with an **Import** button for
+  defaults + interval). Read-only with an **Import to database** button for
   properties-origin connectors.
 - **Authorization** — secret set/unset rows with replace/delete; for `gdrive`,
-  consent status plus a **Re-authorize** action.
+  consent status ("Authorized" / "Not authorized") plus an **Authorize with Google** link (`ConnectorDetailPage.jsx`).
 - **Pages** — the connector's derived pages, linked into the wiki.
 
 ### Deleting a connector
@@ -300,9 +302,9 @@ derived page removed and their sync-state row cleared), and **cursor-resume**
 the last completed batch on the next run).
 
 Tombstoning only fires for a **fully-drained, full-corpus** sync
-(`SourceConnector.reflectsFullCorpus() == true` — filesystem, crawler, sitemap,
-Drive; feed and confluence's per-item listing are windowed/incremental and
-handle deletions differently). As a safety guard, a full-corpus connector that
+(`SourceConnector.reflectsFullCorpus() == true`, which is the interface default
+in `wikantik-api`; the feed connector overrides it to `false` because a feed is a
+rolling window, so aged-out entries are retained). As a safety guard, a full-corpus connector that
 returns a completely empty snapshot while sync state still knows about prior
 items is treated as a likely upstream outage, not a genuine wipe — no derived
 tombstones are applied that cycle; clear the connector's sync state manually to
@@ -325,8 +327,9 @@ Every sync (manual or scheduled) writes a row to `connector_sync_run`
 (`manual`/`scheduled`), `started`/`finished`, `status`
 (`running`/`ok`/`failed`), the full `SyncReport` breakdown
 (`created`/`updated`/`unchanged`/`deleted`/`failed`), and `error` text on
-failure. A row still in `running` state after the process is known to have
-restarted is rendered by the UI as **"interrupted"** — the JVM died mid-sync.
+failure. A row still in `running` state for more than an hour
+(`RUN_STALE_MS` in `ConnectorDetailPage.jsx`) is rendered by the UI as
+**"interrupted"** — usually the JVM died mid-sync.
 History is available at `GET /admin/connectors/{id}/runs?limit=20` and pruned
 to the newest 100 rows per connector on insert.
 
@@ -433,7 +436,8 @@ webcrawler connector reaching a private wiki mirror) can opt out of the
 private-network check with `-Dwikantik.connectors.egress.allowPrivate=true`
 (`EgressGuard.PROP_ALLOW_PRIVATE`) — the scheme allowlist still applies even
 with this set. This is a JVM system property, not a `wikantik-custom.properties`
-entry.
+entry (the key appears in `ini/wikantik.properties` for the configuration reference,
+but its value there is not consulted).
 
 ---
 
@@ -528,7 +532,7 @@ same as the rest of `/admin/*`.
 - [Frontmatter.md](../user/Frontmatter.md#derived-page-provenance) — the
   `derived_from`/`derived_connector`/`derived_source_url` frontmatter fields
 - [AuditLog.md](AuditLog.md) — connector create/update/delete/import and
-  credential set/delete are recorded under category `connector`
+  credential set/delete are recorded under category `ADMIN` with event types `connector.*`
 - `docs/superpowers/specs/2026-07-15-connector-admin-ui-design.md` — the admin
   UI design doc
 - `docs/superpowers/specs/2026-07-11-connector-framework-phase1-design.md` and

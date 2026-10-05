@@ -1,6 +1,7 @@
 # Audit Log
 
-Wikantik records authentication, authorization, content, and administrative
+This page is for administrators who review the audit log, verify its integrity and
+manage its retention. Wikantik records authentication, authorization, content, and administrative
 events in a tamper-evident audit log. The log is append-only at the database
 level and uses a SHA-256 hash chain so any modification or deletion of committed
 rows is detectable.
@@ -9,7 +10,7 @@ The implementation lives in:
 - `AdminAuditResource` — REST endpoints at `/admin/audit`
 - `AdminAuditPage.jsx` — admin UI
 - `AuditService`, `JdbcAuditRepository`, `AuditChainHasher` — Java tier
-- `V036__audit_log.sql`, `V037__audit_log_detail_text.sql` — schema migrations
+- `V036__audit_log.sql`, `V037__audit_log_detail_text.sql`, `V059__audit_log_partitions_through_2028.sql` — schema migrations
 - `bin/db/audit-retention.sh`, `bin/db/audit-retention-install-timer.sh` — retention tooling
 
 ## What gets logged
@@ -26,8 +27,8 @@ entry lands in one of five categories (`AuditCategory` enum):
 | `AUTHN` | `login.ok`, `login.failed`, `logout`, `session.expired` |
 | `AUTHZ` | `access.denied` |
 | `CONTENT` | `page.save`, `page.delete`, `page.rename` |
-| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (`user.deactivate`, `user.reactivate`), API key issuance/rotation/revocation (`apikey.issue`, `apikey.rotate`, `apikey.revoke`), policy grant changes (`policy.grant.update`, `policy.grant.delete`), connector mutations (`connector.*`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
-| `READ` | `page.read` — opt-in only (default: not recorded); a page must be flagged for read-auditing via the audit read policy for its views to be logged |
+| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (`user.deactivate`, `user.reactivate`), API key issuance/rotation/revocation (`apikey.issue`, `apikey.rotate`, `apikey.revoke`), policy grant changes (`policy.grant.update`, `policy.grant.delete`), connector mutations (`connector.create`, `connector.update`, `connector.delete`, `connector.import`, `connector.credential.set`, `connector.credential.delete`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
+| `READ` | `page.read` — opt-in only (default: not recorded); a page's views are logged when its frontmatter sets `audit_reads: true` or its cluster is listed in `wikantik.audit.readClusters` (blank by default) |
 
 Each audit entry carries: `seq`, `created_at`, `event_time`, `category`,
 `event_type`, `actor_id`, `actor_principal`, `actor_type`, `target_type`,
@@ -69,9 +70,11 @@ from the archived dump files.
 
 The `audit_log` table is partitioned by `created_at` (`RANGE` partitioning,
 monthly partitions). `V036` creates three initial partitions
-(`audit_log_2026_06`, `audit_log_2026_07`, `audit_log_2026_08`). The writer
-also calls `ensurePartition` before every batch insert, so a missing partition
-is created dynamically at runtime as a safety net.
+(`audit_log_2026_06`, `audit_log_2026_07`, `audit_log_2026_08`) and `V059`
+pre-creates every monthly partition from 2026-09 through 2028-12, because the
+application role has no `CREATE` on schema `public`. The writer also calls
+`ensurePartition` before every batch insert as a safety net, but that only
+succeeds on deployments where the application role can create tables.
 
 The monotonic chain order comes from the sequence `audit_log_seq`.
 
@@ -117,6 +120,8 @@ contains all audit entries (no filter applied) in CSV format with columns:
 seq,created_at,event_time,category,event_type,actor,outcome,target,source_ip
 ```
 
+The `actor` column is the actor's principal name.
+
 The file is named `audit-log.csv`.
 
 ## REST endpoint reference
@@ -144,11 +149,11 @@ Response: JSON array of entry objects, newest-first.
 
 ```bash
 # Recent login failures
-curl -u admin:admin \
+curl -u "$ADMIN_LOGIN:$ADMIN_PASSWORD" \
   "https://wiki.example.com/admin/audit?category=AUTHN&outcome=FAILURE&limit=50"
 
 # All admin actions by the SCIM provisioner
-curl -u admin:admin \
+curl -u "$ADMIN_LOGIN:$ADMIN_PASSWORD" \
   "https://wiki.example.com/admin/audit?category=ADMIN&actor=scim"
 ```
 
@@ -189,7 +194,7 @@ complete export.
 
 1. **Pre-creates** partitions for the current month through
    `AUDIT_PARTITION_LOOKAHEAD` months ahead (idempotent `CREATE TABLE IF NOT
-   EXISTS`), so the runtime `ensurePartition` safety net rarely fires.
+   EXISTS`), so the runtime `ensurePartition` safety net is never needed.
 
 2. **Archives then drops** partitions older than `AUDIT_RETENTION_MONTHS`. For
    each over-age partition the script:
@@ -225,7 +230,7 @@ of privilege is preserved.
 
 `bin/db/audit-retention-install-timer.sh` installs a systemd service and timer
 that run `audit-retention.sh` monthly (default schedule: `*-*-01 04:00:00`, the
-first of each month at 04:00 UTC).
+first of each month at 04:00 in the host's local time zone, as systemd interprets `OnCalendar`).
 
 **Prerequisites:**
 1. Create the config file at `/etc/wikantik/audit-retention.env` with the env
@@ -303,11 +308,13 @@ drop phase requires a valid archive directory.
 
 **The partition for the current month is missing**
 
-If `audit-retention.sh` has not yet run and the `V036` initial partitions
-cover only June–August 2026, the runtime `ensurePartition` code in
-`JdbcAuditRepository` creates the missing partition automatically on the first
-write. No manual intervention is required; the retention script's
-pre-creation step will keep this from recurring.
+If `audit-retention.sh` has not yet run and the `V059` pre-created partitions only through December 2028, the runtime
+`ensurePartition` code in `JdbcAuditRepository` tries to create the missing
+partition on the first write. That works only when the application role may
+`CREATE` in schema `public`; under the documented least-privilege posture it
+fails with "permission denied" and audit writes stop. Run
+`bin/db/audit-retention.sh` (or `bin/db/migrate.sh` with a newer migration) as the
+privileged role well before 2029 so the partitions exist ahead of time.
 
 ## Related
 

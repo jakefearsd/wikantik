@@ -10,17 +10,21 @@ an **admin** surface (any key, any principal — this document's main focus) and
 **self-service** surface (a logged-in user managing only their own keys — see
 [Self-service keys](#self-service-keys) below).
 
+This page is for administrators who issue, scope and revoke those keys, and for
+users who mint their own. For the tools each scope can reach, see [McpAgents.md](McpAgents.md).
+
 The implementation lives in:
 - `AdminApiKeysResource` — REST resource at `/admin/apikeys`
 - `SelfApiKeysResource` — REST resource at `/api/self/apikeys`
 - `ApiKeyService` — generation, verification, and revocation logic
-- `V010__api_keys.sql` — the `api_keys` table migration
+- `V010__api_keys.sql` — the `api_keys` table migration; `V058__api_keys_scope_chk_mcp_read.sql` widens its scope CHECK
 - `McpAccessFilter` / `ToolsAccessFilter` — enforce key auth on the respective endpoints
 
 ## Prerequisites
 
-Migration `V010__api_keys.sql` must have been applied (it is idempotent and runs
-automatically on every deploy via `bin/deploy-local.sh` → `bin/db/migrate.sh`).
+Migrations `V010__api_keys.sql` and `V058__api_keys_scope_chk_mcp_read.sql` must
+have been applied. They are idempotent and run automatically on every deploy via
+`bin/deploy-local.sh` and `bin/redeploy.sh` (both call `bin/db/migrate.sh`).
 
 The `api_keys` table:
 
@@ -36,18 +40,12 @@ CREATE TABLE IF NOT EXISTS api_keys (
     last_used_at    TIMESTAMP,
     revoked_at      TIMESTAMP,
     revoked_by      VARCHAR(100),
-    CONSTRAINT api_keys_scope_chk CHECK (scope IN ('mcp', 'tools', 'all'))
+    CONSTRAINT api_keys_scope_chk CHECK (scope IN ('mcp', 'mcp_read', 'tools', 'all'))
 );
 ```
 
-> **Known gap:** as of 2.4.18 this table's `api_keys_scope_chk` CHECK
-> constraint (from `V010__api_keys.sql`, unchanged since) does **not** list
-> the newer `mcp_read` scope value — only `ApiKeyService.Scope` was extended.
-> No later migration widens the constraint. Minting an `mcp_read` key against
-> a real PostgreSQL-backed deployment fails the INSERT at the database layer;
-> unit tests don't catch this because they don't run against the constrained
-> schema. This is a code/migration gap, not a documentation one — flagged
-> here, not worked around.
+The `CHECK` list above is the current form: `V010` created it as
+`('mcp', 'tools', 'all')` and `V058` replaced it so `mcp_read` keys can be stored.
 
 ## Admin UI
 
@@ -80,8 +78,10 @@ Revocation is a soft-delete: `revoked_at` and `revoked_by` are stamped; the row
 is retained for audit. Revoked keys are hidden by default; tick **Show revoked**
 to include them in the table view.
 
-A `revoked_at` key is rejected by the access filters immediately (no token
-cache; the filter calls `ApiKeyService.verify()` which excludes revoked rows).
+A revoked key is rejected on the next request: `ApiKeyService.revoke()` evicts
+that key from the in-process verify cache (60-second TTL) and `verify()` excludes
+revoked rows. The eviction is per JVM, so in a multi-node deployment another node
+can keep accepting the key for up to 60 seconds.
 
 Key issuance is recorded in the tamper-evident audit log (see [AuditLog.md](AuditLog.md))
 under category `ADMIN`, event type `apikey.issue`.
@@ -106,7 +106,24 @@ the MCP family (matches only itself); `ALL` covers everything.
 `"mcp"` so keys minted before the `mcp_read`/`mcp` split remain full-admin
 with no migration needed. `mcp_read` was added in **2.4.18** as a narrower,
 read-only scope confined to `/knowledge-mcp`, for integrations that should
-never reach the 29-tool admin write surface.
+never reach the admin write surface (tool lists: [McpAgents.md](McpAgents.md)).
+
+### Issue a key for each scope
+
+Use **Admin → API Keys → + Generate Key** (admin) or **Preferences → API Keys**
+(self-service) and pick the scope in the dialog, or send `scope` in the
+`POST` body. Choose the narrowest scope that does the job:
+
+| You want a key that… | Scope | Issue it with |
+|---|---|---|
+| Reads and searches content over `/knowledge-mcp` only (a read-only knowledge agent) | `mcp_read` | `{"principalLogin": "agent", "scope": "mcp_read"}` |
+| Uses the full admin MCP surface (`/wikantik-admin-mcp`, and `/knowledge-mcp` too) | `mcp` | `{"principalLogin": "curator", "scope": "mcp"}` |
+| Calls only the OpenAPI `/tools/*` endpoints (for example OpenWebUI) | `tools` | `{"principalLogin": "owui", "scope": "tools"}` |
+| Reaches every key-protected surface | `all` | `{"principalLogin": "ops", "scope": "all"}` |
+
+If `scope` is omitted from a `POST`, the key is created with scope `all`.
+The key runs as the principal you name, so give a read-only agent an account
+whose page ACLs and policy grants are also read-only.
 
 A key with the wrong scope for the endpoint receives HTTP 403 "Key not
 authorized for MCP" (or the tools-equivalent). The `/api/*` REST surface uses
@@ -124,7 +141,8 @@ The filter SHA-256 hashes the incoming token and looks it up in `api_keys`
 (active rows only). On a match the filter wraps the request with the
 `principal_login` as the request principal, so downstream permission checks see
 that user's identity. `last_used_at` is updated asynchronously (approximately
-once per cache TTL period) so authentication is low-latency on repeated calls.
+once per 60-second verify-cache TTL, on a cache miss) so authentication is
+low-latency on repeated calls.
 
 Both `McpAccessFilter` (used by `/wikantik-admin-mcp` and `/knowledge-mcp`) and
 `ToolsAccessFilter` (used by `/tools/*`) apply this logic. Either filter also
@@ -195,12 +213,13 @@ time it appears:
   "revokedAt": null,
   "revokedBy": null,
   "active": true,
-  "token": "wkntk_<plaintext-secret>"
+  "token": "wkk_<plaintext-secret>"
 }
 ```
 
 Error responses:
-- `400` — `principalLogin` missing or unknown user; invalid `scope`.
+- `400` — `principalLogin` missing or unknown user; invalid `scope` (the error
+  text reads "must be one of mcp, tools, all" but `mcp_read` is accepted).
 - `503` — no datasource configured.
 
 ### `DELETE /admin/apikeys/{id}`
@@ -232,27 +251,25 @@ Response:
 }
 ```
 
-## Example: calling an MCP endpoint with a key
+## Example: calling an endpoint with a key
 
 ```bash
-TOKEN="wkntk_<your-plaintext-token>"
+TOKEN="wkk_<your-plaintext-token>"
 
-# List available MCP tools
-curl -s -X POST https://wiki.example.com/wikantik-admin-mcp \
+# Open an MCP session on the Knowledge endpoint (Streamable HTTP). The reply
+# carries an Mcp-Session-Id header that every later call must send, after a
+# notifications/initialized message.
+curl -si -X POST https://wiki.example.com/knowledge-mcp \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
 
-# Call a Knowledge MCP tool
-curl -s -X POST https://wiki.example.com/knowledge-mcp \
+# Call an OpenAPI tool (scope tools or all)
+curl -s -X POST https://wiki.example.com/tools/search_wiki \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_wiki","arguments":{"query":"example"}}}'
-
-# Call an OpenAPI tool
-curl -s https://wiki.example.com/tools/search_wiki \
-  -H "Authorization: Bearer $TOKEN" \
-  -G --data-urlencode "q=example"
+  -d '{"query":"example","maxResults":5}'
 ```
 
 ## Self-service keys
@@ -300,15 +317,15 @@ to show).
 
 **`POST /api/self/apikeys`** — generate a key. Body: `{"label": "...", "scope":
 "tools"}` (`scope` is one of `mcp_read`, `mcp`, `tools`, `all`; omitted defaults
-to `all`). Note the API's own 400 error text still reads "must be one of mcp,
-tools, all" — it predates the `mcp_read` scope and hasn't been updated, but
-`mcp_read` is accepted by `ApiKeyService.Scope.fromWire` regardless.
+to `all`). The API's own 400 error text still reads "must be one of mcp, tools, all"
+— it predates the `mcp_read` scope — but `mcp_read` is accepted by
+`ApiKeyService.Scope.fromWire`.
 Response (`201`) includes the transient `token` field, shown exactly once:
 
 ```json
 { "id": 7, "label": "laptop", "scope": "tools",
   "createdAt": "2026-06-05T10:00:00Z", "lastUsedAt": null,
-  "token": "wkntk_<plaintext-secret>" }
+  "token": "wkk_<plaintext-secret>" }
 ```
 
 **`POST /api/self/apikeys/{id}/rotate`** — revoke-and-reissue: the old key is
@@ -351,9 +368,8 @@ a new key with a covering scope (see [Scope enforcement](#scope-enforcement)).
 
 **Token stops working after revocation**
 
-Expected. The access filter checks `api_keys.revoked_at IS NULL` on every
-request (the service has an in-memory cache, but revocation invalidates the
-cached entry immediately).
+Expected. Revocation evicts the key from the verify cache on the node that
+handled the revoke; other nodes honour a cached key for up to 60 seconds.
 
 ## Related
 

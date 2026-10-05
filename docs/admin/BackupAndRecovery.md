@@ -1,8 +1,11 @@
 # Backup & Recovery
 
-This document covers the full backup and recovery architecture for Wikantik: the 3-2-1
-topology, how to run or verify a restore, and the exact monitoring signals and alert
-expressions to configure in the jakemon repo. It reflects the live docker1 + NAS deployment.
+This document is for operators of the container deployment. It covers the backup and
+recovery architecture for Wikantik: the 3-2-1 topology, how to run or verify a restore, and the
+monitoring signals and alert expressions to configure in the jakemon repo. It describes the live
+docker1 + NAS deployment; the compose files and scripts under `docker/backup/` and `bin/backup/`
+are the source of truth for defaults. For the container stack itself see
+[DockerDeployment.md](DockerDeployment.md).
 
 ---
 
@@ -11,13 +14,14 @@ expressions to configure in the jakemon repo. It reflects the live docker1 + NAS
 Three independent copies of Wikantik's data exist at all times:
 
 - **Copy 1 — live production data on docker1.** The running PostgreSQL database (named volume
-  `repo_pgdata`) and the page tree (bind-mounted from `WIKANTIK_PAGES_DIR`). What the
+  `pgdata`, which compose prefixes with the project name, for example `repo_pgdata` on docker1) and the page tree (bind-mounted from `WIKANTIK_PAGES_DIR`). What the
   application reads and writes every second.
 
 - **Copy 2 — tiered local snapshots on docker1.** The `backup` sidecar (a `postgres:18-alpine`
   container running `crond`) fires `docker/backup/backup.sh` on a three-tier schedule. Each run
-  produces a self-contained timestamped directory under `${BACKUP_DIR}` on the host (default
-  `/home/jakefear/wikantik/backups`) with a full PostgreSQL dump, a page-tree tarball, a SHA-256
+  produces a self-contained timestamped directory under `${BACKUP_DIR}` on the host (`BACKUP_DIR`; the
+  `docker-compose.prod.yml` default is `/srv/wikantik/backups`, and docker1 sets it to
+  `/home/jakefear/wikantik/backups` in its `.env`) with a full PostgreSQL dump, a page-tree tarball, a SHA-256
   checksum manifest, and a JSON status manifest. Retention pruning runs at the end of each run:
   30 days daily, 12 weeks weekly, 12 months monthly.
 
@@ -56,7 +60,7 @@ ransomware defense (see §4 on the NAS-side immutability situation).
 Each `docker/backup/backup.sh` run produces:
 
 ```
-${BACKUP_DIR}/                 # host: /home/jakefear/wikantik/backups
+${BACKUP_DIR}/                 # host: /home/jakefear/wikantik/backups on docker1
   daily/
     2026-05-23/
       db.sql.gz              # gzip-compressed pg_dump --no-owner --no-privileges, full schema
@@ -335,7 +339,7 @@ Restore in place on an existing instance (e.g. roll back bad data on docker1):
 `restore.sh` issues `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` with grants, then ensures
 the `vector` and `pgcrypto` extensions exist before loading. The dump is `--no-owner
 --no-privileges`, so a clean schema load is the safe, complete path — no stale rows in unhandled
-tables. This mirrors the first-deploy init in `docs/admin/DockerDeployment.md §6`.
+tables. This mirrors the first-deploy init in [DockerDeployment.md section 6](DockerDeployment.md#6-initialising-the-database-from-an-existing-dump).
 
 ---
 
@@ -444,52 +448,26 @@ current, off-box archive is intact.
 
 ## Audit log retention
 
-The tamper-evident `audit_log` (month-partitioned) is **keep-forever** until the retention
-job is installed. `bin/db/audit-retention.sh` enforces a window: it pre-creates upcoming
-monthly partitions and **archives-then-drops** partitions older than the window.
-
-**Configure** (`/etc/wikantik/audit-retention.env`, read by the systemd unit):
-
-```sh
-DB_NAME=wikantik
-PGHOST=localhost
-PGPORT=5432
-PGUSER=migrate                 # privileged role (CREATE + owns partitions); NOT the app role
-PGPASSWORD=…
-AUDIT_RETENTION_MONTHS=84      # 7 years (default). Set < 1 to disable the drop phase.
-AUDIT_PARTITION_LOOKAHEAD=3    # months of partitions to pre-create each run
-AUDIT_ARCHIVE_DIR=/var/backups/wikantik/audit-archive   # must be inside DOCKER1_BACKUP_DIR (or widen the NAS pull) — see note below
-```
-
-**Inspect / dry-run** (touches nothing):
-
-```sh
-bin/db/audit-retention.sh --status     # window, cutoff month, existing partitions
-bin/db/audit-retention.sh --dry-run     # the CREATEs and archive+drops it WOULD do
-```
-
-**Install the monthly timer** (docker1, mirrors the NAS-pull timer):
-
-```sh
-bin/db/audit-retention-install-timer.sh           # installs + enables wikantik-audit-retention.timer
-sudo systemctl start wikantik-audit-retention.service   # run once now to test
-```
-
-**Safety:** each over-age partition is `pg_dump`ed to `AUDIT_ARCHIVE_DIR` and verified
-(`pg_restore --list`) **before** it is dropped; a verify failure skips the drop. The audit
-hash chain re-anchors on the oldest surviving row automatically.
+The tamper-evident `audit_log` is month-partitioned and kept indefinitely until you install the
+retention job. The job (`bin/db/audit-retention.sh`, scheduled by
+`bin/db/audit-retention-install-timer.sh`) pre-creates upcoming partitions and archives-then-drops
+partitions older than `AUDIT_RETENTION_MONTHS` (default 84). Configuration, dry-run and timer
+install are in [AuditLog.md](AuditLog.md#retention-and-the-systemd-timer).
 
 > **AUDIT_ARCHIVE_DIR and the NAS pull.** The off-box NAS pull captures everything under
-> `DOCKER1_BACKUP_DIR` (the rrsync-locked root, default `/home/jakefear/wikantik/backups`).
-> For dropped audit partitions to be cold-stored off-box, `AUDIT_ARCHIVE_DIR` **must be
-> a subdirectory of `DOCKER1_BACKUP_DIR`** — for example
-> `/home/jakefear/wikantik/backups/audit-archive`. The default example value
-> (`/var/backups/wikantik/audit-archive`) is outside that tree and is **not** auto-wired
-> to the NAS pull. Either set `AUDIT_ARCHIVE_DIR` to a path under `DOCKER1_BACKUP_DIR`,
-> or explicitly widen the NAS pull's `rrsync` root to include the archive directory.
+> `DOCKER1_BACKUP_DIR` (the rrsync-locked root). For dropped audit partitions to be cold-stored
+> off-box, set `AUDIT_ARCHIVE_DIR` to a subdirectory of that root, for example
+> `/home/jakefear/wikantik/backups/audit`. A path outside that tree is not picked up by the NAS
+> pull unless you also widen the `rrsync` root.
 
-**Restore an archived partition** (manual): `pg_restore -d wikantik <archive-dir>/audit_log_YYYY_MM_<stamp>.dump`
-recreates the dropped partition table; re-attach it with `ALTER TABLE audit_log ATTACH PARTITION audit_log_YYYY_MM FOR VALUES FROM ('YYYY-MM-01') TO ('<next>-01')` if you need it back under the parent.
+Restore an archived partition manually with
+`pg_restore -d wikantik <archive-dir>/audit_log_YYYY_MM_<stamp>.dump`, then re-attach it if you need it
+under the parent table:
+
+```sql
+ALTER TABLE audit_log ATTACH PARTITION audit_log_YYYY_MM
+  FOR VALUES FROM ('YYYY-MM-01') TO ('<next-month>-01');
+```
 
 ---
 

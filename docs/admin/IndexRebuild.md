@@ -1,5 +1,10 @@
 # Search Index Rebuild Guide
 
+This page is for administrators who need to rebuild the Lucene search index, the chunk and
+embedding pipeline behind hybrid retrieval, or the Knowledge Graph extraction that follows
+them. It says when each rebuild is needed, how to run it live, on bare-metal Tomcat or in
+containers, and how to confirm it worked.
+
 ## When You Need to Rebuild
 
 The Lucene search index must be rebuilt when:
@@ -40,8 +45,9 @@ bin/trigger-rebuild-indexes.sh status    # polls /admin/content/index-status
 bin/trigger-rebuild-indexes.sh --help
 ```
 
-It logs in as `testbot` (credentials sourced from `test.properties` —
-see CLAUDE.md > Manual Testing Credentials) and POSTs to
+It logs in with the account named in `test.properties` at the repo root
+(`test.user.login` / `test.user.password`; set `WIKI_URL` to target a host other than
+`http://localhost:8080`) and POSTs to
 `/admin/content/rebuild-indexes`. The rebuild runs in a background
 thread; search returns 0 results while it's in flight.
 
@@ -53,9 +59,9 @@ this rebuild plus `/admin/content/reindex-embeddings` plus
 ### Local (bare-metal Tomcat) — full reset
 
 When the live path isn't enough (e.g. a corrupt index), do a full reset.
-The Lucene index lives under `wikantik.workDir`, which is configured in
-`wikantik-custom.properties` (rendered from the template by
-`bin/deploy-local.sh`) and defaults to:
+The Lucene index lives under `wikantik.workDir`, which `bin/deploy-local.sh` sets in
+`wikantik-custom.properties` (from the `wikantik-custom-postgresql.properties.template`
+config template) to:
 
 ```
 tomcat/tomcat-11/data/workdir/

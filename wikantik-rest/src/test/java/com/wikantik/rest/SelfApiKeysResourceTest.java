@@ -374,4 +374,49 @@ class SelfApiKeysResourceTest {
         verify( response ).setStatus( HttpServletResponse.SC_CREATED );
         verify( mockService ).revoke( 7, "alice" );
     }
+
+    /** A servlet with no test seams overridden: identity and admin standing come from the real session. */
+    private SelfApiKeysResource realServlet() throws Exception {
+        final SelfApiKeysResource servlet = new SelfApiKeysResource();
+        final ServletConfig config = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
+        servlet.init( config );
+        return servlet;
+    }
+
+    private HttpServletRequest loggedInRequest( final String login, final String password, final String body ) throws Exception {
+        final HttpServletRequest request = com.wikantik.HttpMockFactory.createIsolatedHttpRequest( "/api/self/apikeys" );
+        when( request.getPathInfo() ).thenReturn( null );
+        when( request.getReader() ).thenReturn( new java.io.BufferedReader( new java.io.StringReader( body ) ) );
+        final com.wikantik.api.core.Session session = com.wikantik.api.spi.Wiki.session().find( engine, request );
+        engine.getManager( com.wikantik.auth.AuthenticationManager.class ).login( session, request, login, password );
+        assertTrue( session.isAuthenticated(), "test precondition: " + login + " is logged in" );
+        return request;
+    }
+
+    @Test
+    void realNonAdminSessionCannotMintMcpScope() throws Exception {
+        final HttpServletRequest request = loggedInRequest( com.wikantik.auth.Users.JANNE,
+                com.wikantik.auth.Users.JANNE_PASS, "{\"label\":\"x\",\"scope\":\"mcp\"}" );
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        realServlet().doPost( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+    }
+
+    @Test
+    void realAdminSessionMayMintAllScope() throws Exception {
+        when( mockService.generate( eq( "admin" ), any(), eq( ApiKeyService.Scope.ALL ), eq( "admin" ) ) )
+                .thenReturn( new ApiKeyService.Generated( "wkk_ADMIN", rec( 11, "admin", "x", ApiKeyService.Scope.ALL ) ) );
+        final HttpServletRequest request = loggedInRequest( com.wikantik.auth.Users.ADMIN,
+                com.wikantik.auth.Users.ADMIN_PASS, "{\"label\":\"x\",\"scope\":\"all\"}" );
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        realServlet().doPost( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_CREATED );
+        verify( mockService ).generate( "admin", "x", ApiKeyService.Scope.ALL, "admin" );
+    }
 }

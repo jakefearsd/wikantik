@@ -30,13 +30,15 @@ import java.util.Map;
 import java.util.function.BooleanSupplier;
 
 /**
- * Binds a connector's stored credentials to the endpoint host they were issued against.
+ * Binds a connector's stored credentials to the endpoint origin (scheme, host, port) they were
+ * issued against.
  *
  * <p>A stored secret (e.g. a Confluence {@code api_token}) is transmitted as HTTP Basic to
- * whatever host the connector's {@code base_url} names. Left unchecked, a scoped admin could
- * repoint {@code base_url} at a host they control and harvest the token, so moving a
- * credential-bearing connector to a different host is refused: the operator must delete the
- * stored credentials first and re-enter them against the new host.</p>
+ * whatever origin the connector's {@code base_url} names, so moving a credential-bearing
+ * connector to a different origin (scheme, host, port) is refused: the operator must delete the
+ * stored credentials first and re-enter them for the new origin. When the stored origin cannot
+ * be determined (unparseable stored config or URL), the change is refused while credentials
+ * exist.</p>
  *
  * <p>Connectors with no caller-controlled endpoint are unaffected — {@code github} always
  * targets {@code api.github.com} and {@code gdrive} always targets Google, so neither carries
@@ -56,6 +58,9 @@ final class ConnectorEndpointBinding {
         "cannot change the endpoint scheme, host or port while credentials are stored for this connector; "
       + "delete the stored credentials first, then re-enter them for the new endpoint";
 
+    /** Marks an endpoint whose origin cannot be determined; never equal to a real origin. */
+    private static final String UNKNOWN_ORIGIN = "unknown-origin:";
+
     private ConnectorEndpointBinding() { }
 
     /**
@@ -64,14 +69,15 @@ final class ConnectorEndpointBinding {
      *
      * @param storedConfigJson     the connector's currently-persisted config JSON
      * @param incoming             the proposed replacement config
-     * @param hasStoredCredentials consulted ONLY when the host actually changes, so an ordinary
-     *                             update does not pay for a credential lookup
+     * @param hasStoredCredentials consulted ONLY when the origin (scheme, host, port) actually
+     *                             changes, so an ordinary update does not pay for a credential lookup
      */
     static Map< String, String > hostChangeErrors( final String storedConfigJson,
             final JsonObject incoming, final BooleanSupplier hasStoredCredentials ) {
-        final String oldOrigin = originOf( parse( storedConfigJson ) );
+        final JsonObject stored = parse( storedConfigJson );
+        final String oldOrigin = stored == null ? UNKNOWN_ORIGIN : originOf( stored );
         final String newOrigin = originOf( incoming );
-        if ( oldOrigin == null || newOrigin == null || oldOrigin.equals( newOrigin ) ) {
+        if ( newOrigin == null || oldOrigin == null || oldOrigin.equals( newOrigin ) ) {
             return Map.of();
         }
         if ( !hasStoredCredentials.getAsBoolean() ) {
@@ -84,7 +90,7 @@ final class ConnectorEndpointBinding {
         try {
             return JsonParser.parseString( json ).getAsJsonObject();
         } catch ( final RuntimeException e ) {
-            LOG.warn( "stored connector config JSON unparseable during endpoint-host check: {}",
+            LOG.warn( "stored connector config JSON unparseable during endpoint origin (scheme, host, port) check: {}",
                 e.getMessage() );
             return null;
         }
@@ -92,7 +98,8 @@ final class ConnectorEndpointBinding {
 
     /**
      * Origin (lowercased scheme, lowercased host, effective port — explicit, else 443/80 by
-     * scheme) of the config's endpoint URL, or null when absent/blank/unparseable.
+     * scheme) of the config's endpoint URL; null when absent or blank; {@link #UNKNOWN_ORIGIN}
+     * plus the raw value when present but unparseable, so an unchanged value still compares equal.
      */
     private static String originOf( final JsonObject config ) {
         if ( config == null ) {
@@ -111,15 +118,15 @@ final class ConnectorEndpointBinding {
             final String host = uri.getHost();
             final String scheme = uri.getScheme();
             if ( host == null || scheme == null ) {
-                return null;
+                return UNKNOWN_ORIGIN + raw;
             }
             final String lowerScheme = scheme.toLowerCase( Locale.ROOT );
             final int port = uri.getPort() >= 0 ? uri.getPort() : "http".equals( lowerScheme ) ? 80 : 443;
             return lowerScheme + "://" + host.toLowerCase( Locale.ROOT ) + ":" + port;
         } catch ( final RuntimeException e ) {
-            LOG.warn( "connector {} unparseable during endpoint-host check: {}",
+            LOG.warn( "connector {} unparseable during endpoint origin (scheme, host, port) check: {}",
                 ENDPOINT_URL_KEY, e.getMessage() );
-            return null;
+            return UNKNOWN_ORIGIN + element;
         }
     }
 }

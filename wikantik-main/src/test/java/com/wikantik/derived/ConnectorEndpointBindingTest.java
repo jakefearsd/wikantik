@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Unit tests for the credential/endpoint-host binding rule. */
+/** Unit tests for the credential/endpoint-origin (scheme, host, port) binding rule. */
 class ConnectorEndpointBindingTest {
 
     private static final String ACME =
@@ -81,9 +81,40 @@ class ConnectorEndpointBindingTest {
     }
 
     @Test
-    void unparseableStoredConfigDegradesToAllowing() {
+    void unparseableStoredConfigWithStoredCredentialsIsRefused() {
+        // The stored origin cannot be established, so a credential-bearing connector fails closed.
+        final Map< String, String > errors = ConnectorEndpointBinding.hostChangeErrors(
+            "not json at all", json( "{\"base_url\":\"https://other.example.com\"}" ), () -> true );
+        assertEquals( ConnectorEndpointBinding.MESSAGE, errors.get( ConnectorEndpointBinding.ENDPOINT_URL_KEY ) );
+    }
+
+    @Test
+    void unparseableStoredEndpointUrlWithStoredCredentialsIsRefused() {
+        final Map< String, String > errors = ConnectorEndpointBinding.hostChangeErrors(
+            "{\"base_url\":\"http://[not a uri\"}", json( "{\"base_url\":\"https://other.example.com\"}" ), () -> true );
+        assertEquals( ConnectorEndpointBinding.MESSAGE, errors.get( ConnectorEndpointBinding.ENDPOINT_URL_KEY ) );
+    }
+
+    @Test
+    void unparseableStoredConfigWithoutCredentialsIsAllowed() {
         assertTrue( ConnectorEndpointBinding.hostChangeErrors(
-            "not json at all", json( "{\"base_url\":\"https://evil.example.com\"}" ), () -> true ).isEmpty() );
+            "not json at all", json( "{\"base_url\":\"https://other.example.com\"}" ), () -> false ).isEmpty() );
+    }
+
+    @Test
+    void unparseableStoredConfigIsIgnoredWhenTheUpdateHasNoEndpoint() {
+        // github/gdrive updates carry no base_url, so there is nothing to bind.
+        assertTrue( ConnectorEndpointBinding.hostChangeErrors(
+            "not json at all", json( "{\"repo\":\"jake/other\"}" ), () -> true ).isEmpty() );
+    }
+
+    @Test
+    void schemeComparisonIgnoresCase() {
+        assertTrue( ConnectorEndpointBinding.hostChangeErrors(
+            ACME, json( "{\"base_url\":\"HTTPS://acme.atlassian.net\"}" ), () -> true ).isEmpty() );
+        assertTrue( ConnectorEndpointBinding.hostChangeErrors(
+            "{\"base_url\":\"HTTPS://acme.atlassian.net\"}", json( "{\"base_url\":\"https://acme.atlassian.net\"}" ),
+            () -> true ).isEmpty() );
     }
 
     @Test

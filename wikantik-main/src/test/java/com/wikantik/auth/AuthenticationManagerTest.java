@@ -211,7 +211,8 @@ public class AuthenticationManagerTest {
         manager.addWikiEventListener( trap );
 
         // Create two groups; one with Janne in it, and one without
-        Group groupTest1 = m_groupMgr.parseGroup( "Test1", "JanneJalkanen \n Bob \n Charlie", true );
+        // Members are listed by login name ("janne"); Janne's wiki name would not count.
+        Group groupTest1 = m_groupMgr.parseGroup( "Test1", "janne \n Bob \n Charlie", true );
         m_groupMgr.setGroup( m_session, groupTest1 );
         groupTest1 = m_groupMgr.getGroup( "Test1" );
         final Principal principalTest1 = groupTest1.getPrincipal();
@@ -232,15 +233,15 @@ public class AuthenticationManagerTest {
         Assertions.assertFalse( session.hasPrincipal( principalTest1 ) );
         Assertions.assertFalse( session.hasPrincipal( principalTest2 ) );
 
-        // Now, add 'JanneJalkanen' to Test2 group manually; we should see the
+        // Now, add 'janne' (login name) to Test2 group manually; we should see the
         // GroupPrincipal
-        groupTest2.add( new WikiPrincipal( "JanneJalkanen" ) );
+        groupTest2.add( new WikiPrincipal( "janne" ) );
         m_groupMgr.setGroup( session, groupTest2 );
         Assertions.assertFalse( session.hasPrincipal( principalTest1 ) );
         Assertions.assertTrue( session.hasPrincipal( principalTest2 ) );
 
-        // Remove 'JanneJalkenen' manually; the GroupPrincipal should disappear
-        groupTest2.remove( new WikiPrincipal( "JanneJalkanen" ) );
+        // Remove 'janne' manually; the GroupPrincipal should disappear
+        groupTest2.remove( new WikiPrincipal( "janne" ) );
         m_groupMgr.setGroup( session, groupTest2 );
         Assertions.assertFalse( session.hasPrincipal( principalTest1 ) );
         Assertions.assertFalse( session.hasPrincipal( principalTest2 ) );

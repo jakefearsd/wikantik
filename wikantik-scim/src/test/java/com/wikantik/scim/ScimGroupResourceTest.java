@@ -152,6 +152,23 @@ class ScimGroupResourceTest {
     }
 
     @Test
+    void createGroupNamedAfterAnAccount_returns409Uniqueness() throws Exception {
+        when( mockGm.getGroup( "boss" ) ).thenThrow( new NoSuchPrincipalException( "boss" ) );
+        final com.wikantik.auth.user.UserProfile boss = mock( com.wikantik.auth.user.UserProfile.class );
+        when( boss.getLoginName() ).thenReturn( "boss" );
+        when( mockDb.findByLoginName( "boss" ) ).thenReturn( boss );
+
+        final String body = "{\"displayName\":\"boss\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        assertTrue( sw.toString().contains( "uniqueness" ), sw.toString() );
+        verify( mockGm, never() ).setGroup( any(), any() );
+    }
+
+    @Test
     void createNestedGroupMember_returns400() throws Exception {
         when( mockGm.getGroup( "TeamA" ) ).thenThrow( new NoSuchPrincipalException( "TeamA" ) );
 

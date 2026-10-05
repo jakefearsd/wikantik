@@ -28,6 +28,7 @@ import com.wikantik.audit.AuditCategory;
 import com.wikantik.audit.AuditEntry;
 import com.wikantik.audit.AuditOutcome;
 import com.wikantik.audit.AuditService;
+import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.api.exceptions.WikiException;
@@ -126,6 +127,13 @@ public class ScimGroupResource extends AbstractScimServlet {
         } catch ( final NoSuchPrincipalException ignored ) {
             LOG.debug( "No group named '{}'; proceeding to create it: {}", displayName, ignored.getMessage() );
             // Expected — group does not exist; proceed to create
+        }
+
+        // RFC 7644 §3.3: a name already used by an account is a uniqueness conflict.
+        if ( ProfileNameRules.usedByAnotherAccount( db, null, displayName ) ) {
+            sendError( resp, 409, "uniqueness",
+                    "Group name '" + displayName + "' is already used by a user account." );
+            return;
         }
 
         final List<String> memberUids;

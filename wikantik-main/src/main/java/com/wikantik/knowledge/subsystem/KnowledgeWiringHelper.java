@@ -95,6 +95,17 @@ public final class KnowledgeWiringHelper {
     // -----------------------------------------------------------------------
 
     /**
+     * Parameter object bundling the manager collaborators of
+     * {@link #wireKgPolicyAndContent}.
+     */
+    public record ContentManagers( SearchManager searchMgr,
+                                   MeterRegistry meterRegistry,
+                                   PageManager pageManager,
+                                   CachingManager cachingManager,
+                                   ReferenceManager referenceManager ) {
+    }
+
+    /**
      * Wires the KG inclusion policy, {@link ForAgentProjectionService}, and
      * {@link ContentIndexRebuildService}.
      *
@@ -107,12 +118,13 @@ public final class KnowledgeWiringHelper {
             final CoreSubsystem.Services coreSubsystem,
             final PersistenceSubsystem.Services persistenceSubsystem,
             final KnowledgeSubsystem.Services knowledgeSvcs,
-            final SearchManager searchMgr,
-            final MeterRegistry meterRegistry,
-            final PageManager pageManager,
-            final CachingManager cachingManager,
-            final ReferenceManager referenceManager,
+            final ContentManagers managers,
             final WikiEngine engine ) {
+        final SearchManager searchMgr = managers.searchMgr();
+        final MeterRegistry meterRegistry = managers.meterRegistry();
+        final PageManager pageManager = managers.pageManager();
+        final CachingManager cachingManager = managers.cachingManager();
+        final ReferenceManager referenceManager = managers.referenceManager();
 
         // KG inclusion policy — gated by the KG master flag AND its own switch.
         // ForAgentProjectionService + ContentIndexRebuildService below are
@@ -292,8 +304,9 @@ public final class KnowledgeWiringHelper {
 
         if ( EntityExtractorConfig.BACKEND_OLLAMA.equalsIgnoreCase( extractorCfg.backend() )
                 || EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( extractorCfg.backend() ) ) {
-            wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgNodes,
-                excludedPagesRepo, extractorCfg, persistenceSubsystem, engine, getenv );
+            wireBootstrapIndexer( props, ds,
+                new BootstrapRepos( contentChunkRepo, mentionRepo, kgNodes, excludedPagesRepo ),
+                extractorCfg, persistenceSubsystem, engine, getenv );
         } else {
             // Defensive/vestigial: unreachable today. EntityExtractorFactory.create only
             // returns a non-empty extractor for the ollama and claude backends (anything
@@ -322,16 +335,24 @@ public final class KnowledgeWiringHelper {
     // Bootstrap indexer (Ollama or Claude backend)
     // -----------------------------------------------------------------------
 
+    /** Parameter object bundling the repositories {@link #wireBootstrapIndexer} needs. */
+    record BootstrapRepos( ContentChunkRepository chunkRepo,
+                           ChunkEntityMentionRepository mentionRepo,
+                           KgNodeRepository kgNodes,
+                           KgExcludedPagesRepository excludedPagesRepo ) {
+    }
+
     static void wireBootstrapIndexer( final Properties props,
                                        final javax.sql.DataSource ds,
-                                       final ContentChunkRepository chunkRepo,
-                                       final ChunkEntityMentionRepository mentionRepo,
-                                       final KgNodeRepository kgNodes,
-                                       final KgExcludedPagesRepository excludedPagesRepo,
+                                       final BootstrapRepos repos,
                                        final EntityExtractorConfig extractorCfg,
                                        final PersistenceSubsystem.Services persistenceSubsystem,
                                        final WikiEngine engine,
                                        final Function< String, String > getenv ) {
+        final ContentChunkRepository chunkRepo = repos.chunkRepo();
+        final ChunkEntityMentionRepository mentionRepo = repos.mentionRepo();
+        final KgNodeRepository kgNodes = repos.kgNodes();
+        final KgExcludedPagesRepository excludedPagesRepo = repos.excludedPagesRepo();
         final int maxEntitiesPerPage = 12;
         final int maxRelationsPerPage = 8;
         final int dictionaryTopK = 0; // No PageEmbeddingProvider wired — top-K skipped.

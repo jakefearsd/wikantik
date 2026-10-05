@@ -1096,7 +1096,10 @@ public class WikiEngine implements Engine {
             final com.wikantik.admin.ContentIndexRebuildService rebuildService =
                 com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireKgPolicyAndContent(
                     props, structuralIndex, coreSubsystem, persistenceSubsystem,
-                    svcs, searchMgr, meterRegistry, pageManager, cachingManager, referenceManager, this );
+                    svcs,
+                    new com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.ContentManagers(
+                        searchMgr, meterRegistry, pageManager, cachingManager, referenceManager ),
+                    this );
 
             // Wire hybrid retrieval (SearchWiringHelper).
             // Pass a FrontmatterMetadataCache so the embedding indexer can build

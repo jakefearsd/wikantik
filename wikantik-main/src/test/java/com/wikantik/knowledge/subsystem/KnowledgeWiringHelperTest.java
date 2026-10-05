@@ -124,7 +124,8 @@ class KnowledgeWiringHelperTest {
             WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
 
         KnowledgeWiringHelper.wireBootstrapIndexer(
-            new Properties(), ds, chunkRepo, mentionRepo, kgNodes, excludedPagesRepo,
+            new Properties(), ds,
+            new KnowledgeWiringHelper.BootstrapRepos( chunkRepo, mentionRepo, kgNodes, excludedPagesRepo ),
             claudeConfig(), persistence, engine, FAKE_KEY_ENV );
 
         verify( engine ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );

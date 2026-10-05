@@ -130,6 +130,10 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Markdown relative links
+        # Docs moved into docs/{user,admin,developer,archive} on 2026-10-05; this keeps them linked.
+        run: python3 bin/check-md-links.py
+
   osv-scan:
     # Dependency vulnerability scan: Maven tree via a CycloneDX SBOM (Maven has
     # no lockfile) + the frontend npm lockfile, checked against OSV.dev.

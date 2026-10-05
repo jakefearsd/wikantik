@@ -137,4 +137,25 @@ class ProfileNamePolicyGrantTest {
         assertFalse( ReservedProfileNames.isReserved( engine, "grantee" ),
                 "a user-grant login name is not a role or group name" );
     }
+
+    @Test
+    void assertedSessionNamedAfterAdminRoleIsNotAdmin() throws Exception {
+        final Session s = WikiSessionTest.assertedSession( engine, "Admin" );
+        assertTrue( s.isAsserted() );
+        assertFalse( isAdmin( s ) );
+    }
+
+    @Test
+    void assertedSessionNamedAfterBootstrapAdminIsNotAdmin() throws Exception {
+        authz.configureBootstrap( "bootadmin", 3600L );
+        try {
+            final Session s = WikiSessionTest.assertedSession( engine, "bootadmin" );
+            assertTrue( s.isAsserted() );
+            assertFalse( isAdmin( s ) );
+            // Control: the override is live for the authenticated login it names.
+            assertTrue( isAdmin( loginWithNames( "bootadmin", "Boot Admin", "BootAdmin" ) ) );
+        } finally {
+            authz.configureBootstrap( "", 0L );
+        }
+    }
 }

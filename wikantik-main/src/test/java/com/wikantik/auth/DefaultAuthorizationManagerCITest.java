@@ -411,6 +411,22 @@ class DefaultAuthorizationManagerCITest {
     }
 
     @Test
+    void bootstrapAdminDeniedWhenNameIsOnlyADisplayNamePrincipal() {
+        final long[] now = { 1_000_000L };
+        mgr.setClock( () -> now[ 0 ] );
+        mgr.configureBootstrap( "bootadmin", 60L );
+
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).when( spy ).checkStaticPermission( any(), any() );
+
+        // Authenticated as "mallory"; "bootadmin" is only the user's full name.
+        final Session session = mockSession( true, new WikiPrincipal( "mallory" ),
+                new WikiPrincipal( "bootadmin", WikiPrincipal.FULL_NAME ) );
+
+        assertFalse( spy.checkPermission( session, new AllPermission( "*" ) ) );
+    }
+
+    @Test
     void bootstrapAdminAppliesToAuthenticatedSessionForAllPermission() {
         final long[] now = { 1_000_000L };
         mgr.setClock( () -> now[ 0 ] );

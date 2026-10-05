@@ -133,6 +133,12 @@ public class ApiKeyService {
         Scope( final String wire, final int mcpRank ) { this.wire = wire; this.mcpRank = mcpRank; }
         public String wire() { return wire; }
 
+        /** Comma-separated wire names of every valid scope, for error messages. */
+        public static String validWireNames() {
+            return java.util.Arrays.stream( values() ).map( Scope::wire )
+                    .collect( java.util.stream.Collectors.joining( ", " ) );
+        }
+
         private boolean isMcpFamily() { return mcpRank > 0; }
 
         /**

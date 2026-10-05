@@ -129,7 +129,7 @@ public class AdminApiKeysResource extends RestServletBase {
             scope = ApiKeyService.Scope.fromWire( scopeWire );
         } catch ( final IllegalArgumentException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Invalid scope — must be one of mcp, tools, all" );
+                    "Invalid scope — must be one of " + ApiKeyService.Scope.validWireNames() );
             return;
         }
 

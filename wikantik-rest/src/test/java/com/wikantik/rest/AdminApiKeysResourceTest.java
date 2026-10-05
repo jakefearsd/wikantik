@@ -235,6 +235,10 @@ class AdminApiKeysResourceTest {
         final JsonObject obj = gson.fromJson( doPost( body.toString() ), JsonObject.class );
         assertEquals( 400, obj.get( "status" ).getAsInt() );
         assertTrue( obj.get( "message" ).getAsString().toLowerCase().contains( "scope" ) );
+        for ( final ApiKeyService.Scope valid : ApiKeyService.Scope.values() ) {
+            assertTrue( obj.get( "message" ).getAsString().contains( valid.wire() ),
+                    "400 message must list valid scope " + valid.wire() );
+        }
         Mockito.verifyNoInteractions( mockService );
     }
 

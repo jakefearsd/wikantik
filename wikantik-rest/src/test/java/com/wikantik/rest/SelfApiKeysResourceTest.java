@@ -243,11 +243,16 @@ class SelfApiKeysResourceTest {
         when( request.getPathInfo() ).thenReturn( null );
         when( request.getReader() ).thenReturn( new java.io.BufferedReader(
                 new java.io.StringReader( "{\"label\":\"x\",\"scope\":\"bogus\"}" ) ) );
-        final HttpServletResponse response = mockResponse( new StringWriter() );
+        final StringWriter out = new StringWriter();
+        final HttpServletResponse response = mockResponse( out );
 
         servlet.doPost( request, response );
 
         verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        for ( final ApiKeyService.Scope valid : ApiKeyService.Scope.values() ) {
+            assertTrue( out.toString().contains( valid.wire() ),
+                    "400 message must list valid scope " + valid.wire() );
+        }
         verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
     }
 }

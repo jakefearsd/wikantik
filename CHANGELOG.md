@@ -6,6 +6,64 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Upgrade notes
+- **Before deploying, run the pre-upgrade authorization checks in
+  [docs/admin/Security.md](docs/admin/Security.md#upgrading-to-2453-authorization-checks)
+  ("Upgrading to 2.4.53").** The upgrade changes no data, but access is now decided by login name:
+  - group members that are not login names (for example an `Admin` member stored by full name) lose
+    their membership. Startup logs a `WARN` listing such members, and an `ERROR` for the `Admin` group;
+  - `role`- or `group`-typed policy grants that name a user stop matching that user; re-create them as
+    `user` grants with the login name;
+  - `user`-typed grants whose principal is not a login name grant nothing.
+- Pages removed from the shipped page set (`LeftMenu`, `LeftMenuFooter`, `MoreMenu`, `TitleBox`,
+  `CopyrightNotice`, `InstallationTips`, `ApprovalRequiredForUserProfiles`, `EditFindAndReplaceHelp`,
+  `RecentArticlesTemplate`, `Community`, `WikiWiki` and the `CSS*` pages) stay in an existing page store
+  as ordinary pages. Delete them if you do not want them listed in search
+  and the sitemap.
+
+### Security
+- The bootstrap admin override (`wikantik.admin.bootstrap`) requires an authenticated login session.
+- Database policy grants are matched by principal type: `role` and `group` rows match only roles and
+  groups, and `user` rows match only an authenticated session's login name.
+- Group membership and user ACL entries match login names only. ACL names resolve login-first, so a
+  display name can no longer stand in for another account.
+- A full or wiki name may not equal a built-in role, `Admin`, a role or group in use, or another
+  account's login name. This applies to self-service and admin profile edits, SCIM and SSO provisioning.
+- Self-service API keys are limited to the `tools` and `mcp_read` scopes for non-administrators,
+  including on rotation.
+- Connector credentials are bound to the scheme, host and port they were stored for, and the check fails
+  closed when the stored origin is unknown.
+- Tomcat 11.0.22 → 11.0.26 (CVE-2026-55956 and 11 other fixes) in the Dockerfile, `bin/deploy-local.sh`
+  and the root pom (the integration-test container).
+
+### Changed
+- Two accounts may share a full name ("John Smith"). Wiki names stay unique: the second account gets a
+  numbered wiki name (`JohnSmith2`), which is kept when an identity provider re-sends the same name.
+  SCIM returns `409 uniqueness` only for a reserved name or another account's login name.
+- SCIM `POST /Groups` returns `409 uniqueness` for a group name that is an account's login, full or wiki
+  name. The admin group editor accepts only existing login names as members.
+- Documentation reorganised into `docs/user`, `docs/admin`, `docs/developer` and `docs/archive`, verified
+  against the code; the README is rewritten and the shipped help pages describe the React UI.
+- Every caught exception is now logged; `NoSwallowedExceptionsTest` guards against new silent catch blocks.
+- Line-coverage floors raised (`wikantik-api`, `wikantik-connectors`, `wikantik-extract-cli` 0.88;
+  `wikantik-ingest`, `wikantik-jdbc` 0.90); PMD complexity baseline 105 → 99 entries.
+- Dependency updates: anthropic-java 2.68.0, commons-lang3 3.21.0, Lucene 10.5.2, owasp-html-sanitizer
+  20260924.2, pac4j 6.5.9, google-auth-library 1.54.0, Guava 33.7.2, httpcore5 5.4.4, Mockito 5.24.0,
+  Selenium 4.50.0, ArchUnit 1.5.1; frontend CodeMirror commands 6.11.1, Vite 8.3.2, ESLint 10.12.0.
+- UI: form hint text is styled as secondary text; connector-wizard type cards and Page Graph toolbar
+  buttons show a visible hover state in both themes.
+
+### Removed
+- JSPWiki-era default pages and the es, ru and zh_CN page translations.
+- The deprecated `SSOAutoProvisionService.provisionIfNeeded(String, UserProfile)` overload; use the
+  three-argument form with the IdP subject.
+- The SystemInfo page's "Base address" row (it showed the servlet context path, which is blank at ROOT).
+
+### Internal
+- Four intermediate commits of the PMD burn-down (`4e448bd28b`, `6daf357642`, `c26657773b`,
+  `5382865aaf`) do not compile on their own; the extracted classes landed in `28a10ed7f8`. Skip them
+  when bisecting.
+
 ## [2.4.52] - 2026-10-04
 
 ### Security

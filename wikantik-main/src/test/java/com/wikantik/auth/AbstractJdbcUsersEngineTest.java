@@ -118,6 +118,9 @@ abstract class AbstractJdbcUsersEngineTest {
     @AfterAll
     void cleanUp() throws Exception {
         deleteTestUsers();
+        // Unbind the datasource: a later engine test in this JVM would otherwise find it and wire
+        // database-backed subsystems (audit, policy) it does not expect.
+        TestJNDIContext.reset();
     }
 
     private void deleteTestUsers() throws Exception {

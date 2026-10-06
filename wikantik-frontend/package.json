@@ -25,7 +25,7 @@
     "cytoscape": "^3.34.3",
     "cytoscape-cose-bilkent": "^4.1.0",
     "dom-anchor-text-quote": "^4.0.2",
-    "katex": "^0.16.47",
+    "katex": "^0.18.11",
     "lowlight": "^3.3.0",
     "mdast-util-to-string": "^4.0.0",
     "react": "^19.3.0",
@@ -55,6 +55,8 @@
     "vitest": "^4.1.11"
   },
   "overrides": {
-    "nanoid": "^3.3.18"
+    "nanoid": "^3.3.18",
+    "katex": "$katex",
+    "source-map-js": "^1.2.2"
   }
 }

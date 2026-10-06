@@ -115,12 +115,12 @@ class AdminApiKeysResourceTest {
     void listReturnsMaskedRows() throws Exception {
         final ApiKeyService.Record active = new ApiKeyService.Record(
                 1, "abcdef0123456789aa", "alice", "laptop", ApiKeyService.Scope.TOOLS,
-                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null );
+                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, false );
         final ApiKeyService.Record revoked = new ApiKeyService.Record(
                 2, "ffffffffffffffffff", "bob", null, ApiKeyService.Scope.MCP_ADMIN,
                 Instant.parse( "2026-04-02T10:00:00Z" ), "admin",
                 Instant.parse( "2026-04-03T12:00:00Z" ),
-                Instant.parse( "2026-04-04T12:00:00Z" ), "admin" );
+                Instant.parse( "2026-04-04T12:00:00Z" ), "admin", false );
         when( mockService.list() ).thenReturn( List.of( active, revoked ) );
 
         final JsonObject obj = gson.fromJson( doGet(), JsonObject.class );
@@ -160,7 +160,7 @@ class AdminApiKeysResourceTest {
     void createMintsKeyAndReturnsPlaintextOnce() throws Exception {
         final ApiKeyService.Record record = new ApiKeyService.Record(
                 5, "hash-hash-hash-hash", "alice", "laptop", ApiKeyService.Scope.ALL,
-                Instant.parse( "2026-04-19T09:00:00Z" ), "admin", null, null, null );
+                Instant.parse( "2026-04-19T09:00:00Z" ), "admin", null, null, null, false );
         when( mockService.generate( anyString(), any(), any( ApiKeyService.Scope.class ), any() ) )
                 .thenReturn( new ApiKeyService.Generated( "wkk_plaintext-once", record ) );
 
@@ -190,7 +190,7 @@ class AdminApiKeysResourceTest {
                 Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, true );
         final ApiKeyService.Record current = new ApiKeyService.Record(
                 4, "bbbbbbbbbbbbbbbbbb", "alice", "new-harness", ApiKeyService.Scope.MCP_ADMIN,
-                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null );
+                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, false );
         when( mockService.list() ).thenReturn( List.of( legacy, current ) );
 
         final JsonArray keys = gson.fromJson( doGet(), JsonObject.class ).getAsJsonArray( "keys" );
@@ -203,7 +203,7 @@ class AdminApiKeysResourceTest {
     void createWithTheLegacyMcpNameMintsAnMcpAdminKey() throws Exception {
         final ApiKeyService.Record record = new ApiKeyService.Record(
                 6, "hash-hash-hash-hash", "janne", "agent", ApiKeyService.Scope.MCP_ADMIN,
-                Instant.parse( "2026-04-19T09:00:00Z" ), "admin", null, null, null );
+                Instant.parse( "2026-04-19T09:00:00Z" ), "admin", null, null, null, false );
         when( mockService.generate( anyString(), any(), any( ApiKeyService.Scope.class ), any() ) )
                 .thenReturn( new ApiKeyService.Generated( "wkk_plaintext-once", record ) );
         final JsonObject body = new JsonObject();
@@ -279,7 +279,7 @@ class AdminApiKeysResourceTest {
     void createDefaultsScopeToAllWhenOmitted() throws Exception {
         final ApiKeyService.Record record = new ApiKeyService.Record(
                 7, "h", "alice", null, ApiKeyService.Scope.ALL,
-                Instant.now(), "admin", null, null, null );
+                Instant.now(), "admin", null, null, null, false );
         when( mockService.generate( anyString(), any(), any( ApiKeyService.Scope.class ), any() ) )
                 .thenReturn( new ApiKeyService.Generated( "wkk_t", record ) );
 
@@ -326,7 +326,7 @@ class AdminApiKeysResourceTest {
     void createRecordsCurrentUserAsCreatedBy() throws Exception {
         final ApiKeyService.Record record = new ApiKeyService.Record(
                 9, "h", "alice", null, ApiKeyService.Scope.TOOLS,
-                Instant.now(), "ops-user", null, null, null );
+                Instant.now(), "ops-user", null, null, null, false );
         when( mockService.generate( anyString(), any(), any( ApiKeyService.Scope.class ), any() ) )
                 .thenReturn( new ApiKeyService.Generated( "wkk_t", record ) );
 

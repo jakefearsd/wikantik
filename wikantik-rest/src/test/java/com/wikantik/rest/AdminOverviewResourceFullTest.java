@@ -192,10 +192,10 @@ class AdminOverviewResourceFullTest {
         final ApiKeyService apiKeys = mock( ApiKeyService.class );
         final ApiKeyService.Record active = new ApiKeyService.Record(
                 1, "hash1", "alice", "laptop", ApiKeyService.Scope.ALL,
-                Instant.EPOCH, "alice", null, null, null );
+                Instant.EPOCH, "alice", null, null, null, false );
         final ApiKeyService.Record revoked = new ApiKeyService.Record(
                 2, "hash2", "bob", "phone", ApiKeyService.Scope.MCP_ADMIN,
-                Instant.EPOCH, "bob", null, Instant.EPOCH, "admin" );
+                Instant.EPOCH, "bob", null, Instant.EPOCH, "admin", false );
         when( apiKeys.list() ).thenReturn( List.of( active, revoked ) );
         ApiKeyServiceHolder.setForTesting( apiKeys );
 

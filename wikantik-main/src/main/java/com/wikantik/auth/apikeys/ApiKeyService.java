@@ -179,15 +179,9 @@ public class ApiKeyService {
             Instant lastUsedAt,
             Instant revokedAt,
             String revokedBy,
+            /** True when the row stores the scope under its pre-2.4.54 name {@code "mcp"}. */
             boolean legacyScope
     ) {
-        /** A record whose scope is stored under its current name. */
-        public Record( final int id, final String keyHash, final String principalLogin, final String label,
-                       final Scope scope, final Instant createdAt, final String createdBy, final Instant lastUsedAt,
-                       final Instant revokedAt, final String revokedBy ) {
-            this( id, keyHash, principalLogin, label, scope, createdAt, createdBy, lastUsedAt, revokedAt, revokedBy, false );
-        }
-
         public boolean isActive() { return revokedAt == null; }
     }
 
@@ -221,7 +215,7 @@ public class ApiKeyService {
                 ps.setString( 6, createdBy );
             }, rs -> rs.getInt( 1 ) ).orElseThrow( () -> new SQLException( "INSERT yielded no generated key" ) );
             final Record record = new Record( id, hash, principalLogin, label,
-                    scope, createdAt, createdBy, null, null, null );
+                    scope, createdAt, createdBy, null, null, null, false );
             return new Generated( plaintext, record );
         } catch ( final SQLException e ) {
             // LOG.error justified: key generation failure blocks operator admin work and becomes HTTP 500.

@@ -75,7 +75,7 @@ class SelfApiKeysResourceTest {
     private static ApiKeyService.Record rec( final int id, final String principal,
             final String label, final ApiKeyService.Scope scope ) {
         return new ApiKeyService.Record( id, "hash" + id, principal, label, scope,
-                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null );
+                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, false );
     }
 
     private static HttpServletResponse mockResponse( final StringWriter sw ) throws Exception {

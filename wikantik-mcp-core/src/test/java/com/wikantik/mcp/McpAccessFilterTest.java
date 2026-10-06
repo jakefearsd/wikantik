@@ -97,7 +97,7 @@ class McpAccessFilterTest {
                                            final ApiKeyService.Scope scope ) {
         return new ApiKeyService.Record(
                 id, "hash-" + id, principal, "label", scope,
-                Instant.now(), "admin", null, null, null );
+                Instant.now(), "admin", null, null, null, false );
     }
 
     @Test

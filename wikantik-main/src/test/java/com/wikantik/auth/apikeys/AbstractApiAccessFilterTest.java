@@ -76,7 +76,7 @@ class AbstractApiAccessFilterTest {
 
     private ApiKeyService.Record record( final int id, final String principal, final ApiKeyService.Scope scope ) {
         return new ApiKeyService.Record( id, "hash-" + id, principal, "label", scope,
-                Instant.now(), "admin", null, null, null );
+                Instant.now(), "admin", null, null, null, false );
     }
 
     // --- bearer-token accept / reject -----------------------------------------------

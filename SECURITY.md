@@ -98,7 +98,7 @@ For reference, current production defaults include:
   detail.
 - Bearer-token / API-key auth on both MCP servers (`McpAccessFilter`,
   `KnowledgeMcpAccessFilter`), with rank-based scopes — `mcp_read`
-  (read-only, `/knowledge-mcp` only) and `mcp` (full admin,
+  (read-only, `/knowledge-mcp` only) and `mcp_admin` (full admin,
   `/wikantik-admin-mcp`) — so a leaked read-only agent token can't also
   write content or curate the Knowledge Graph.
 - Database-backed policy grants — file-based `wikantik.policy` is a

@@ -10,7 +10,7 @@ instead of repeating the numbers.
 
 | Endpoint | Protocol | Tools | Access | Minimum key scope |
 |---|---|---|---|---|
-| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 29 read and write tools when fully wired | `McpAccessFilter` | `mcp` |
+| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 29 read and write tools when fully wired | `McpAccessFilter` | `mcp_admin` |
 | `/knowledge-mcp` | MCP (Streamable HTTP) | 21 read-only tools when fully wired | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
@@ -62,21 +62,23 @@ Both MCP endpoints and `/tools/*` accept a **bearer token** that is a database-m
 API key. Mint one at **Admin → API Keys** (`/admin/apikeys`); the plaintext is shown
 once. [ApiKeys.md](ApiKeys.md) is the full reference for issuing, scoping and revoking
 keys, including the self-service surface. Non-admins can self-mint only `tools` and
-`mcp_read` keys; `mcp` and `all` keys are issued by an administrator at `/admin/apikeys`.
+`mcp_read` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`.
 The short version:
 
 | You want an agent that… | Scope |
 |---|---|
 | reads and searches content over `/knowledge-mcp` only | `mcp_read` |
-| curates content and the Knowledge Graph over `/wikantik-admin-mcp` (and can also use `/knowledge-mcp`) | `mcp` |
+| curates content and the Knowledge Graph over `/wikantik-admin-mcp` (and can also use `/knowledge-mcp`) | `mcp_admin` |
 | calls only the OpenAPI `/tools/*` endpoints | `tools` |
 | reaches every key-protected surface | `all` |
 
 `/wikantik-admin-mcp` is **fully privileged**. The principal bound to the key is used
 only for attribution and the audit trail. Authorisation is the scope check in the access
 filter, the admin tools perform no per-user permission checks, and pages are saved
-through a request-less context, so any `mcp` or `all` key can read and write every
-non-system page and curate the Knowledge Graph. Treat `mcp` keys as admin credentials.
+through a request-less context, so any `mcp_admin` or `all` key can read and write every
+non-system page and curate the Knowledge Graph. Treat `mcp_admin` keys as admin credentials.
+The scope was named `mcp` before 2.4.54; keys stored under the old name still work and log a
+WARN on each use (see [Legacy `mcp` scope name](ApiKeys.md#legacy-mcp-scope-name)).
 A narrower `mcp_content` tier is planned
 ([GitHub issue #62](https://github.com/jakefearsd/wikantik/issues/62)) but not shipped.
 `/knowledge-mcp` is different: the MCP transport carries no caller
@@ -160,7 +162,7 @@ The `type: "http"` entries use Streamable HTTP and send your key as a bearer hea
 }
 ```
 
-Use an `mcp_read` key for the knowledge entry and an `mcp` key for the admin entry.
+Use an `mcp_read` key for the knowledge entry and an `mcp_admin` key for the admin entry.
 Keep the admin entry out of any shared or checked-in config unless the key comes from
 the environment.
 

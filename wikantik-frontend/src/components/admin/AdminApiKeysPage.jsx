@@ -11,7 +11,7 @@ const UNSET = Symbol('unset');
 const SCOPE_OPTIONS = [
   { value: 'tools', label: 'Tools (OpenAPI)' },
   { value: 'mcp_read', label: 'MCP read (knowledge consumer)' },
-  { value: 'mcp', label: 'MCP admin (full)' },
+  { value: 'mcp_admin', label: 'MCP admin (full)' },
   { value: 'all', label: 'All (MCP admin + Tools)' },
 ];
 
@@ -37,7 +37,16 @@ const BULK_ACTIONS = [
 const COLUMNS = [
   { id: 'principalLogin', label: 'Principal', sortable: true },
   { id: 'label', label: 'Label', render: (k) => k.label || '—' },
-  { id: 'scope', label: 'Scope', render: (k) => <code>{k.scope}</code> },
+  {
+    id: 'scope',
+    label: 'Scope',
+    render: (k) => (
+      <>
+        <code>{k.scope}</code>
+        {k.legacyScope && <span className="form-hint" title="Stored under the old name 'mcp'. Mint a replacement and revoke this key."> legacy 'mcp'</span>}
+      </>
+    ),
+  },
   {
     id: 'fingerprint',
     label: 'Fingerprint',

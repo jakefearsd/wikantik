@@ -7,9 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Upgrade notes
+- The full-admin MCP API-key scope is renamed from `mcp` to `mcp_admin`. Nothing breaks: existing `mcp`
+  keys keep full admin access and `"scope": "mcp"` is still accepted when minting (it mints `mcp_admin`).
+  Each use of a key stored as `mcp` logs a WARN from `com.wikantik.auth.apikeys.LegacyScopeUseLog` with the
+  key id, label, principal, client IP and User-Agent (at most hourly per key and address), and the API-key
+  screens mark such keys "legacy 'mcp'". Re-mint them as `mcp_admin` and update the clients. Migration
+  `V061` allows the new value.
 - Page ACL user entries are login names only. An entry naming a full or wiki name now grants nobody,
   even when one account holds that name. Search the page store for `[{ALLOW` and replace display names
   with login names before deploying.
+
+### Changed
+- API-key scope `mcp` is now `mcp_admin`; `mcp` remains an alias (see Upgrade notes).
 
 ### Security
 - A page ACL user entry is resolved by login name only. Before, a full or wiki name held by one account

@@ -103,7 +103,7 @@ Then edit `.env` with your values:
 **Authorizing an MCP client is not an `.env` setting.** There is no environment
 variable that grants a bearer token — `McpAccessFilter` fails closed (503) unless
 it sees a DB-backed API key or a CIDR allowlist match. Log into the running
-container as an admin and mint a key at `/admin/apikeys` with scope `mcp`,
+container as an admin and mint a key at `/admin/apikeys` with scope `mcp_admin`,
 `mcp_read`, `tools`, or `all`; see [McpIntegration](McpIntegration) for the
 full authentication and authorization mechanism.
 

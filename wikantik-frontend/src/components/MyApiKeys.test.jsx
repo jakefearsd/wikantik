@@ -17,7 +17,7 @@ vi.mock('../api/client', () => ({
 
 const KEYS = [
   { id: 1, label: 'laptop', scope: 'tools', createdAt: '2026-06-01T10:00:00Z', lastUsedAt: '2026-06-18T14:40:00Z' },
-  { id: 2, label: null, scope: 'mcp', createdAt: '2026-06-02T10:00:00Z', lastUsedAt: null },
+  { id: 2, label: null, scope: 'mcp_admin', legacyScope: true, createdAt: '2026-06-02T10:00:00Z', lastUsedAt: null },
 ];
 
 beforeEach(() => {
@@ -65,12 +65,20 @@ describe('MyApiKeys', () => {
     await waitFor(() => expect(api.self.revokeApiKey).toHaveBeenCalledWith(1));
   });
 
+  it('marks a key stored under the legacy mcp scope name', async () => {
+    render(<MyApiKeys />);
+    const cell = (await screen.findByText('mcp_admin')).closest('td');
+    expect(within(cell).getByText(/legacy 'mcp'/)).toBeInTheDocument();
+    const toolsCell = screen.getByText('tools', { selector: 'code' }).closest('td');
+    expect(within(toolsCell).queryByText(/legacy/)).toBeNull();
+  });
+
   it('offers a non-admin only the self-service scopes', async () => {
     expect(await openScopeOptions()).toEqual(['tools', 'mcp_read']);
   });
 
   it('offers an admin every scope', async () => {
     useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Authenticated', 'Admin'] } });
-    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'mcp', 'all']);
+    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'mcp_admin', 'all']);
   });
 });

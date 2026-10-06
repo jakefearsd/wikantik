@@ -23,7 +23,7 @@ stream. The canonical record of what shipped is
   security-hardening wave added an SSRF egress guard on connector
   fetches, `JDBCPlugin` disabled by default, viewer-dependent renders
   excluded from the shared render caches, and the split `mcp_read` /
-  `mcp` API-key scopes.
+  `mcp_admin` API-key scopes.
 - **RAG-as-a-Service** — the wiki assembles a ranked, de-duplicated,
   version-pinned-cited *context bundle* rather than synthesizing an
   answer ([ADR-0001](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md)),
@@ -65,7 +65,7 @@ stream. The canonical record of what shipped is
   but is dense; planned work to surface evidence-side-by-side and
   bulk-action inverses.
 - **Auth modernisation.** OAuth/OIDC via pac4j shipped; a first cut at
-  fine-grained MCP scopes shipped in 2.4.18 (`mcp_read` vs `mcp`, splitting
+  fine-grained MCP scopes shipped in 2.4.18 (`mcp_read` vs the full-admin scope, now named `mcp_admin`, splitting
   read-only knowledge access from full admin). Next is a third,
   intermediate `mcp_content` tier (page/KG read-write, no admin
   capability) — deferred because it needs per-tool enforcement threaded

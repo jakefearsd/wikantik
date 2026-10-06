@@ -130,11 +130,11 @@ or workspace `.agents/mcp_config.json`):
 
 Substitute your real wiki base URL and an MCP access key (minted the same
 way as any other Wikantik MCP client — see the main repo's MCP access-key
-docs). **Mint it with the `mcp_read` scope, not `mcp`.** Since 2.4.18 the two
+docs). **Mint it with the `mcp_read` scope, not `mcp_admin`.** Since 2.4.18 the two
 are distinct: `mcp_read` reaches only the read-only, ACL-gated `/knowledge-mcp`
-surface, while `mcp` additionally grants the 29-tool admin write surface. This
+surface, while `mcp_admin` additionally grants the 29-tool admin write surface. This
 client only ever calls `/knowledge-mcp`, so `mcp_read` is the correct
-least-privilege choice — a leaked `mcp` token would be a full content-write and
+least-privilege choice — a leaked `mcp_admin` token would be a full content-write and
 Knowledge-Graph-curation credential. Once registered, `get_briefing`, `assemble_bundle`, `read_pages`, and
 the rest of the `/knowledge-mcp` tool surface are available to the agent —
 this is the same tool surface the `clients/skills/wiki-context` skill

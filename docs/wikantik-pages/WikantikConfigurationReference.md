@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-10-02'
+date: '2026-10-06'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -978,7 +978,7 @@ Full descriptions (truncated above to keep the table scannable):
 
 Full descriptions (truncated above to keep the table scannable):
 
-- **`mcp.access.allowedCidrs`** — Access control - a request passes if it matches EITHER a DB-minted API key OR a source IP within one of these comma-separated CIDR blocks. Generate DB-backed keys via the admin UI at /admin/apikeys (scope=mcp or scope=all). Those keys are bound to a Wikantik principal so JAAS/ACLs apply to each call exactly as they would for that user's interactive session.
+- **`mcp.access.allowedCidrs`** — Access control - a request passes if it matches EITHER a DB-minted API key OR a source IP within one of these comma-separated CIDR blocks. Generate DB-backed keys via the admin UI at /admin/apikeys (scope=mcp_admin or scope=all). Those keys are bound to a Wikantik principal so JAAS/ACLs apply to each call exactly as they would for that user's interactive session.
 - **`mcp.access.allowUnrestricted`** — *** SECURITY *** When neither a DB-minted API key nor mcp.access.allowedCidrs grants a request, the filter fails closed: every MCP request is rejected with HTTP 503 and a CRITICAL line is logged at startup. Setting this to true disables both checks (for a trusted local deployment) and treats every MCP caller as a superuser. The integration test suite sets this to true; production deployments must leave it false.
 
 ## MCP limits

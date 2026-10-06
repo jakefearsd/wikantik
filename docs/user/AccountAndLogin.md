@@ -50,9 +50,9 @@ You can create keys with scope `tools` or `mcp_read`. The scope picker starts at
 | `tools` | The OpenAPI tool endpoints (`/tools/*`). |
 | `mcp_read` | Read-only access to the knowledge MCP endpoint (`/knowledge-mcp`). |
 
-Administrators see all four scopes in the chooser and can create keys with `mcp` and `all` scope.
+Administrators see all four scopes in the chooser and can create keys with `mcp_admin` and `all` scope.
 
-If you need `mcp` or `all` scope — for admin-level write access — ask an administrator to create those keys for you. For details on other scopes and key management, see [API keys](../admin/ApiKeys.md).
+If you need `mcp_admin` or `all` scope — for admin-level write access — ask an administrator to create those keys for you. For details on other scopes and key management, see [API keys](../admin/ApiKeys.md).
 
 Administrators manage keys for other users; see [API keys](../admin/ApiKeys.md).
 

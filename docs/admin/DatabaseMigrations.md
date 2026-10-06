@@ -142,7 +142,7 @@ Rules that follow from the ledger:
 
 ## Migration history
 
-The migration directory is the source of truth; this table summarises it through V060.
+The migration directory is the source of truth; this table summarises it through V061.
 
 | Migration | What it adds |
 |-----------|--------------|
@@ -204,6 +204,7 @@ The migration directory is the source of truth; this table summarises it through
 | V058 | Widen the `api_keys.scope` CHECK to admit the `mcp_read` scope |
 | V059 | Pre-create `audit_log` monthly partitions through 2028-12, so a least-privilege app role never has to create one |
 | V060 | Add the `export` wiki permission to the `Authenticated` grant (only while that row still holds the stock actions) |
+| V061 | Widen the `api_keys.scope` CHECK to admit `mcp_admin` (the renamed full-admin MCP scope); existing `mcp` rows are kept and read as an alias |
 
 The other `.sql` files directly under `bin/db/` (`migration-1.0-to-1.1.sql`,
 `cleanup-2026-04-30-stale-canonical-ids.sql`, `normalize-relationship-types.sql`) are

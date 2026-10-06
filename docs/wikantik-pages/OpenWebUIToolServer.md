@@ -49,7 +49,7 @@ Navigate to **Administration → API Keys** and click **Generate Key**. Pick:
 - **Principal** — the login that the tool server should impersonate when running
   calls. Page ACLs and JAAS permissions are evaluated against this user.
 - **Label** — freeform note (e.g. `OpenWebUI production`) to identify the key later.
-- **Scope** — `tools` (OpenAPI only), `mcp` (MCP server only), or `all` (both).
+- **Scope** — `tools` (OpenAPI only), `mcp_read` or `mcp_admin` (MCP servers only), or `all` (both).
 
 The plaintext token (`wkk_…`) is shown once at creation time and only the SHA-256
 hash is persisted. Revoking a key is a single click; any client using the revoked

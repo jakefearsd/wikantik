@@ -31,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -77,6 +78,7 @@ public abstract class AbstractApiAccessFilter implements Filter {
     private final boolean failClosed;
     private final Predicate< String > rateLimiter;
     private final ApiKeyService apiKeyService;
+    private final LegacyScopeUseLog legacyScopeUseLog = new LegacyScopeUseLog( Clock.systemUTC() );
 
     /** One parsed CIDR allowlist entry (network bytes + prefix length). */
     public record CidrEntry( byte[] network, int prefixLen ) { }
@@ -192,6 +194,7 @@ public abstract class AbstractApiAccessFilter implements Filter {
         final Optional< ApiKeyService.Record > dbKey = checkDbKey( httpReq );
         if ( dbKey.isPresent() ) {
             final ApiKeyService.Record record = dbKey.get();
+            legacyScopeUseLog.keyUsed( surface.name(), record, httpReq );
             if ( !record.scope().matches( surface.requiredScope() ) ) {
                 SECURITY.warn( "{} access denied: key id={} scope={} does not cover {}, ip={}",
                         surface.name(), record.id(), record.scope().wire(),

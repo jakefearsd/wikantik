@@ -56,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -116,7 +117,7 @@ class AdminApiKeysResourceTest {
                 1, "abcdef0123456789aa", "alice", "laptop", ApiKeyService.Scope.TOOLS,
                 Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null );
         final ApiKeyService.Record revoked = new ApiKeyService.Record(
-                2, "ffffffffffffffffff", "bob", null, ApiKeyService.Scope.MCP,
+                2, "ffffffffffffffffff", "bob", null, ApiKeyService.Scope.MCP_ADMIN,
                 Instant.parse( "2026-04-02T10:00:00Z" ), "admin",
                 Instant.parse( "2026-04-03T12:00:00Z" ),
                 Instant.parse( "2026-04-04T12:00:00Z" ), "admin" );
@@ -180,6 +181,40 @@ class AdminApiKeysResourceTest {
                 "Plaintext token must appear once on create" );
         assertEquals( 5, payload.get( "id" ).getAsInt() );
         assertEquals( "all", payload.get( "scope" ).getAsString() );
+    }
+
+    @Test
+    void listFlagsAKeyStoredUnderTheLegacyMcpScope() throws Exception {
+        final ApiKeyService.Record legacy = new ApiKeyService.Record(
+                3, "abcdef0123456789aa", "alice", "old-harness", ApiKeyService.Scope.MCP_ADMIN,
+                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, true );
+        final ApiKeyService.Record current = new ApiKeyService.Record(
+                4, "bbbbbbbbbbbbbbbbbb", "alice", "new-harness", ApiKeyService.Scope.MCP_ADMIN,
+                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null );
+        when( mockService.list() ).thenReturn( List.of( legacy, current ) );
+
+        final JsonArray keys = gson.fromJson( doGet(), JsonObject.class ).getAsJsonArray( "keys" );
+        assertEquals( "mcp_admin", keys.get( 0 ).getAsJsonObject().get( "scope" ).getAsString() );
+        assertTrue( keys.get( 0 ).getAsJsonObject().get( "legacyScope" ).getAsBoolean() );
+        assertFalse( keys.get( 1 ).getAsJsonObject().get( "legacyScope" ).getAsBoolean() );
+    }
+
+    @Test
+    void createWithTheLegacyMcpNameMintsAnMcpAdminKey() throws Exception {
+        final ApiKeyService.Record record = new ApiKeyService.Record(
+                6, "hash-hash-hash-hash", "janne", "agent", ApiKeyService.Scope.MCP_ADMIN,
+                Instant.parse( "2026-04-19T09:00:00Z" ), "admin", null, null, null );
+        when( mockService.generate( anyString(), any(), any( ApiKeyService.Scope.class ), any() ) )
+                .thenReturn( new ApiKeyService.Generated( "wkk_plaintext-once", record ) );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalLogin", "janne" );
+        body.addProperty( "label", "agent" );
+        body.addProperty( "scope", "mcp" );
+
+        final JsonObject payload = gson.fromJson( doPost( body.toString() ), JsonObject.class );
+
+        verify( mockService ).generate( eq( "janne" ), eq( "agent" ), eq( ApiKeyService.Scope.MCP_ADMIN ), any() );
+        assertEquals( "mcp_admin", payload.get( "scope" ).getAsString() );
     }
 
     @Test

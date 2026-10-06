@@ -209,7 +209,7 @@ class McpAccessFilterTest {
     @Test
     void dbKeyVerifiedAndInstallsPrincipalOnRequest() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
-        final ApiKeyService.Record record = dbRecord( 1, "alice", ApiKeyService.Scope.MCP );
+        final ApiKeyService.Record record = dbRecord( 1, "alice", ApiKeyService.Scope.MCP_ADMIN );
         when( svc.verify( "wkk_good" ) ).thenReturn( Optional.of( record ) );
         final McpAccessFilter filter = createFilterWithDbService( svc, null );
         when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_good" );

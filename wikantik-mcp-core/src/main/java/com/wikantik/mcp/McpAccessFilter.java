@@ -61,12 +61,12 @@ public class McpAccessFilter extends AbstractApiAccessFilter {
     }
 
     public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter ) {
-        this( config, rateLimiter, null, ApiKeyService.Scope.MCP );
+        this( config, rateLimiter, null, ApiKeyService.Scope.MCP_ADMIN );
     }
 
     public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter,
                             final ApiKeyService apiKeyService ) {
-        this( config, rateLimiter, apiKeyService, ApiKeyService.Scope.MCP );
+        this( config, rateLimiter, apiKeyService, ApiKeyService.Scope.MCP_ADMIN );
     }
 
     public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter,

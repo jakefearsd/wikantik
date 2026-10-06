@@ -179,8 +179,8 @@ class SelfApiKeysResourceTest {
     @Test
     void postGeneratesKeyBoundToCallerAndReturnsTokenOnce() throws Exception {
         stubAdmin = true;
-        final ApiKeyService.Record r = rec( 7, "alice", "ci", ApiKeyService.Scope.MCP );
-        when( mockService.generate( eq( "alice" ), eq( "ci" ), eq( ApiKeyService.Scope.MCP ), eq( "alice" ) ) )
+        final ApiKeyService.Record r = rec( 7, "alice", "ci", ApiKeyService.Scope.MCP_ADMIN );
+        when( mockService.generate( eq( "alice" ), eq( "ci" ), eq( ApiKeyService.Scope.MCP_ADMIN ), eq( "alice" ) ) )
                 .thenReturn( new ApiKeyService.Generated( "wkk_SECRET", r ) );
         final SelfApiKeysResource servlet = newServlet();
         final HttpServletRequest request = mock( HttpServletRequest.class );
@@ -191,17 +191,17 @@ class SelfApiKeysResourceTest {
 
         servlet.doPost( request, mockResponse( sw ) );
 
-        verify( mockService ).generate( "alice", "ci", ApiKeyService.Scope.MCP, "alice" );
+        verify( mockService ).generate( "alice", "ci", ApiKeyService.Scope.MCP_ADMIN, "alice" );
         assertTrue( sw.toString().contains( "wkk_SECRET" ) );
     }
 
     @Test
     void rotateRevokesOwnKeyThenIssuesReplacement() throws Exception {
         stubAdmin = true;
-        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP ) ) );
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
         when( mockService.revoke( 7, "alice" ) ).thenReturn( true );
-        when( mockService.generate( "alice", "ci", ApiKeyService.Scope.MCP, "alice" ) )
-                .thenReturn( new ApiKeyService.Generated( "wkk_NEW", rec( 8, "alice", "ci", ApiKeyService.Scope.MCP ) ) );
+        when( mockService.generate( "alice", "ci", ApiKeyService.Scope.MCP_ADMIN, "alice" ) )
+                .thenReturn( new ApiKeyService.Generated( "wkk_NEW", rec( 8, "alice", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
         final SelfApiKeysResource servlet = newServlet();
         final HttpServletRequest request = mock( HttpServletRequest.class );
         when( request.getPathInfo() ).thenReturn( "/7/rotate" );
@@ -210,13 +210,13 @@ class SelfApiKeysResourceTest {
         servlet.doPost( request, mockResponse( sw ) );
 
         verify( mockService ).revoke( 7, "alice" );
-        verify( mockService ).generate( "alice", "ci", ApiKeyService.Scope.MCP, "alice" );
+        verify( mockService ).generate( "alice", "ci", ApiKeyService.Scope.MCP_ADMIN, "alice" );
         assertTrue( sw.toString().contains( "wkk_NEW" ) );
     }
 
     @Test
     void rotateOfAnotherUsersKeyReturns404AndDoesNotRevoke() throws Exception {
-        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "bob", "ci", ApiKeyService.Scope.MCP ) ) );
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "bob", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
         final SelfApiKeysResource servlet = newServlet();
         final HttpServletRequest request = mock( HttpServletRequest.class );
         when( request.getPathInfo() ).thenReturn( "/7/rotate" );
@@ -231,7 +231,7 @@ class SelfApiKeysResourceTest {
 
     @Test
     void deleteRevokesOwnKey() throws Exception {
-        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP ) ) );
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
         when( mockService.revoke( 7, "alice" ) ).thenReturn( true );
         final SelfApiKeysResource servlet = newServlet();
         final HttpServletRequest request = mock( HttpServletRequest.class );
@@ -246,7 +246,7 @@ class SelfApiKeysResourceTest {
 
     @Test
     void deleteOfAnotherUsersKeyReturns404() throws Exception {
-        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "bob", "ci", ApiKeyService.Scope.MCP ) ) );
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "bob", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
         final SelfApiKeysResource servlet = newServlet();
         final HttpServletRequest request = mock( HttpServletRequest.class );
         when( request.getPathInfo() ).thenReturn( "/7" );
@@ -349,7 +349,7 @@ class SelfApiKeysResourceTest {
 
     @Test
     void nonAdminRotateOfPrivilegedKeyIsRefusedAndKeyKept() throws Exception {
-        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP ) ) );
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
         final SelfApiKeysResource servlet = newServlet();
         final StringWriter out = new StringWriter();
         final HttpServletResponse response = mockResponse( out );

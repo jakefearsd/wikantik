@@ -62,7 +62,7 @@ class AbstractApiAccessFilterTest {
 
         TestAccessFilter( final String allowedCidrs, final boolean allowUnrestricted,
                           final Predicate< String > rateLimiter, final ApiKeyService apiKeyService ) {
-            this( allowedCidrs, allowUnrestricted, rateLimiter, apiKeyService, ApiKeyService.Scope.MCP );
+            this( allowedCidrs, allowUnrestricted, rateLimiter, apiKeyService, ApiKeyService.Scope.MCP_ADMIN );
         }
 
         TestAccessFilter( final String allowedCidrs, final boolean allowUnrestricted,
@@ -84,7 +84,7 @@ class AbstractApiAccessFilterTest {
     @Test
     void validBearerTokenAllowsAndWrapsPrincipal() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
-        when( svc.verify( "wkk_good" ) ).thenReturn( Optional.of( record( 1, "alice", ApiKeyService.Scope.MCP ) ) );
+        when( svc.verify( "wkk_good" ) ).thenReturn( Optional.of( record( 1, "alice", ApiKeyService.Scope.MCP_ADMIN ) ) );
         final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc );
         final HttpServletRequest req = mock( HttpServletRequest.class );
         when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_good" );
@@ -153,7 +153,7 @@ class AbstractApiAccessFilterTest {
         // mcp_read (rank 1) must not satisfy a surface requiring mcp (rank 3).
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( "wkk_read" ) ).thenReturn( Optional.of( record( 2, "reader", ApiKeyService.Scope.MCP_READ ) ) );
-        final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc, ApiKeyService.Scope.MCP );
+        final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc, ApiKeyService.Scope.MCP_ADMIN );
         final HttpServletRequest req = mock( HttpServletRequest.class );
         when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_read" );
         when( req.getRemoteAddr() ).thenReturn( "10.0.0.1" );
@@ -170,7 +170,7 @@ class AbstractApiAccessFilterTest {
     void higherRankKeySatisfiesLowerRankRequiredScope() {
         // mcp (rank 3) satisfies a surface requiring mcp_read (rank 1).
         final ApiKeyService svc = mock( ApiKeyService.class );
-        when( svc.verify( "wkk_full" ) ).thenReturn( Optional.of( record( 3, "admin-key", ApiKeyService.Scope.MCP ) ) );
+        when( svc.verify( "wkk_full" ) ).thenReturn( Optional.of( record( 3, "admin-key", ApiKeyService.Scope.MCP_ADMIN ) ) );
         final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc, ApiKeyService.Scope.MCP_READ );
         final HttpServletRequest req = mock( HttpServletRequest.class );
         when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_full" );
@@ -185,7 +185,7 @@ class AbstractApiAccessFilterTest {
     void allScopeKeyMatchesAnyRequiredScope() {
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( "wkk_all" ) ).thenReturn( Optional.of( record( 4, "super", ApiKeyService.Scope.ALL ) ) );
-        final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc, ApiKeyService.Scope.MCP );
+        final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc, ApiKeyService.Scope.MCP_ADMIN );
         final HttpServletRequest req = mock( HttpServletRequest.class );
         when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_all" );
         when( req.getRemoteAddr() ).thenReturn( "10.0.0.1" );

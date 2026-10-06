@@ -34,17 +34,17 @@ Wikantik exposes three separate agent-facing surfaces. Each is a distinct servle
 
 | Path | Module | Protocol | Tools | Capabilities | Auth filter | Default scope |
 |---|---|---|---|---|---|---|
-| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 27 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp` (or `all`) |
-| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 21 read-only retrieval + KG + spine + projection | tools | `KnowledgeMcpAccessFilter` | `mcp` (or `all`) |
+| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 27 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp_admin` (or `all`) |
+| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 21 read-only retrieval + KG + spine + projection | tools | `KnowledgeMcpAccessFilter` | `mcp_read` (or `mcp_admin`, `all`) |
 | `/tools/*` | `wikantik-tools` | OpenAPI 3.1 | 2 (`search_wiki`, `get_page`) | OpenAPI document at `/tools/openapi.json` | `ToolsAccessFilter` | `tools` (or `all`) |
 
-The two MCP endpoints share the same access-filter implementation and the same `wikantik-mcp.properties`, so a legacy property-file key (or a DB-backed `mcp` key) authorises both. The OpenAPI endpoint is independent: it has its own properties file and key scope.
+The two MCP endpoints share the same access-filter implementation and the same `wikantik-mcp.properties`, so a legacy property-file key (or a DB-backed `mcp_read` or `mcp_admin` key) authorises both. The OpenAPI endpoint is independent: it has its own properties file and key scope.
 
 Default to giving an agent **`/knowledge-mcp` only**. Authoring (`/wikantik-admin-mcp`) is a separate trust decision — grant it once you have decided that the agent should be allowed to write pages, mark them verified, propose KG entries, or rename/delete content. The OpenAPI surface exists for clients that cannot speak MCP at all (OpenWebUI, custom HTTP integrations, ChatGPT-style "Custom GPT" tools).
 
 ## Quickstart (5 minutes)
 
-1. **Mint a key.** Log into the wiki as an admin, open the admin panel and go to API Keys (`/admin/apikeys`). Create a key bound to a real principal (e.g. your account or a dedicated service user) with scope `mcp`. Copy the plaintext token — it is shown once.
+1. **Mint a key.** Log into the wiki as an admin, open the admin panel and go to API Keys (`/admin/apikeys`). Create a key bound to a real principal (e.g. your account or a dedicated service user) with scope `mcp_admin` (or `mcp_read` for `/knowledge-mcp` only). Copy the plaintext token — it is shown once.
 
 2. **Smoke-test the endpoint** with `curl`:
 
@@ -83,7 +83,7 @@ Available scopes (`ApiKeyService.Scope`):
 | Scope | Wire string | Covers |
 |---|---|---|
 | `MCP_READ` | `mcp_read` | `/knowledge-mcp` only (read-only) |
-| `MCP` | `mcp` | `/wikantik-admin-mcp`, `/knowledge-mcp` (historical broad-admin scope; pre-2.4.18 keys stay full-admin) |
+| `MCP_ADMIN` | `mcp_admin` | `/wikantik-admin-mcp`, `/knowledge-mcp` (full admin; renamed from `mcp` in 2.4.54 — the old name is still accepted as an alias and pre-existing `mcp` keys stay full-admin) |
 | `TOOLS` | `tools` | `/tools/*` |
 | `ALL` | `all` | All three |
 
@@ -526,7 +526,7 @@ Log streams worth tailing:
 ## Safety checklist before pointing an agent at production
 
 1. Mint a DB-backed key bound to a real principal — never share legacy property-file keys across agents.
-2. Use `scope=mcp` for read-only research agents. Reserve `scope=all` for human-supervised authoring, never automation.
+2. Use `scope=mcp_read` for read-only research agents. Reserve `scope=all` for human-supervised authoring, never automation.
 3. Set `mcp.access.allowedCidrs` to the intended source range; do not rely on bearer tokens alone for agents on shared networks.
 4. Confirm `mcp.access.allowUnrestricted` is unset (or `false`) in production. The fail-closed default is what you want.
 5. Confirm rate limits are enforced (`mcp.ratelimit.global > 0`).
@@ -545,7 +545,7 @@ Log streams worth tailing:
 |---|---|
 | `503 MCP not configured` | Filter is fail-closed — no API keys, no CIDRs, `allowUnrestricted` not set. Set one. |
 | `403 Access denied` | Bearer token unknown / revoked, or scope insufficient (`tools` key against `/wikantik-admin-mcp` will 403). |
-| `403 Key not authorized for MCP` | A DB-backed key with `scope=tools` was presented at an MCP endpoint. Mint a key with `scope=mcp` or `scope=all`. |
+| `403 Key not authorized for MCP` | A DB-backed key with `scope=tools` was presented at an MCP endpoint. Mint a key with `scope=mcp_read` (knowledge endpoint), `scope=mcp_admin` or `scope=all`. |
 | `429 Rate limit exceeded` | Rate-limit knobs too tight, or runaway agent. Inspect `SecurityLog`. |
 | MCP tools list empty on `/knowledge-mcp` | None of `KnowledgeGraphService`, `ContextRetrievalService`, `StructuralIndexService`, `ForAgentProjectionService` are configured — check `wikantik.datasource` and the embeddings setup. |
 | `get_page_for_agent` returns `degraded: true` | One of the four extractors failed; the named field appears in `missing_fields`. Check log for the underlying exception. |

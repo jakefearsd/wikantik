@@ -89,7 +89,7 @@ class ApiKeyServiceTest {
     @Test
     void revokeIsIdempotent() {
         final ApiKeyService.Generated g = service.generate(
-                "alice", null, ApiKeyService.Scope.MCP, "admin" );
+                "alice", null, ApiKeyService.Scope.MCP_ADMIN, "admin" );
         assertTrue( service.revoke( g.record().id(), "admin" ) );
         assertFalse( service.revoke( g.record().id(), "admin" ),
                 "Second revoke must report no-op" );
@@ -103,7 +103,7 @@ class ApiKeyServiceTest {
         // Small delay so created_at ordering is deterministic.
         Thread.sleep( 10 );
         final ApiKeyService.Generated newer = service.generate(
-                "bob", "new", ApiKeyService.Scope.MCP, "admin" );
+                "bob", "new", ApiKeyService.Scope.MCP_ADMIN, "admin" );
 
         service.revoke( older.record().id(), "admin" );
 
@@ -126,16 +126,16 @@ class ApiKeyServiceTest {
     @Test
     void scopeMatchingAllowsAllForAnyRequired() {
         assertTrue( ApiKeyService.Scope.ALL.matches( ApiKeyService.Scope.TOOLS ) );
-        assertTrue( ApiKeyService.Scope.ALL.matches( ApiKeyService.Scope.MCP ) );
+        assertTrue( ApiKeyService.Scope.ALL.matches( ApiKeyService.Scope.MCP_ADMIN ) );
         assertTrue( ApiKeyService.Scope.TOOLS.matches( ApiKeyService.Scope.TOOLS ) );
-        assertFalse( ApiKeyService.Scope.TOOLS.matches( ApiKeyService.Scope.MCP ) );
-        assertFalse( ApiKeyService.Scope.MCP.matches( ApiKeyService.Scope.TOOLS ) );
+        assertFalse( ApiKeyService.Scope.TOOLS.matches( ApiKeyService.Scope.MCP_ADMIN ) );
+        assertFalse( ApiKeyService.Scope.MCP_ADMIN.matches( ApiKeyService.Scope.TOOLS ) );
     }
 
     @Test
     void scopeFromWireAcceptsKnownValuesAndRejectsGarbage() {
         assertEquals( ApiKeyService.Scope.TOOLS, ApiKeyService.Scope.fromWire( "tools" ) );
-        assertEquals( ApiKeyService.Scope.MCP, ApiKeyService.Scope.fromWire( "MCP" ) );
+        assertEquals( ApiKeyService.Scope.MCP_ADMIN, ApiKeyService.Scope.fromWire( "MCP" ) );
         assertEquals( ApiKeyService.Scope.ALL, ApiKeyService.Scope.fromWire( null ) );
         assertThrows( IllegalArgumentException.class,
                 () -> ApiKeyService.Scope.fromWire( "bogus" ) );
@@ -256,7 +256,7 @@ class ApiKeyServiceTest {
     @Test
     void revokeAllForPrincipal_revokesAllActiveKeysForThatPrincipal() {
         final ApiKeyService.Generated g1 = service.generate( "bob", "key1", ApiKeyService.Scope.ALL, "admin" );
-        final ApiKeyService.Generated g2 = service.generate( "bob", "key2", ApiKeyService.Scope.MCP, "admin" );
+        final ApiKeyService.Generated g2 = service.generate( "bob", "key2", ApiKeyService.Scope.MCP_ADMIN, "admin" );
         // A key for a different user — must NOT be revoked.
         final ApiKeyService.Generated g3 = service.generate( "carol", "key3", ApiKeyService.Scope.ALL, "admin" );
 
@@ -292,7 +292,7 @@ class ApiKeyServiceTest {
     @Test
     void listByPrincipalReturnsOnlyThatPrincipalsActiveKeysNewestFirst() {
         final ApiKeyService.Generated bob1 = service.generate( "bob", "k1", ApiKeyService.Scope.ALL, "admin" );
-        service.generate( "bob", "k2", ApiKeyService.Scope.MCP, "admin" );
+        service.generate( "bob", "k2", ApiKeyService.Scope.MCP_ADMIN, "admin" );
         service.generate( "carol", "k3", ApiKeyService.Scope.ALL, "admin" );
         service.revoke( bob1.record().id(), "admin" );            // k1 now revoked
 
@@ -330,5 +330,27 @@ class ApiKeyServiceTest {
         final Optional< ApiKeyService.Record > verified = service.verify( g.plaintext() );
         assertTrue( verified.isPresent(), "key minted with scope " + scope.wire() + " must verify" );
         assertEquals( scope, verified.get().scope() );
+    }
+
+    @Test
+    void adminKeysAreStoredAsMcpAdminAndAreNotLegacy() throws SQLException {
+        final ApiKeyService.Generated g = service.generate( "erin", "agent", ApiKeyService.Scope.MCP_ADMIN, "admin" );
+        final String stored = new com.wikantik.jdbc.Jdbc( dataSource ).queryOne(
+                "SELECT scope FROM api_keys WHERE id = ?", ps -> ps.setInt( 1, g.record().id() ),
+                rs -> rs.getString( 1 ) ).orElseThrow();
+        assertEquals( "mcp_admin", stored );
+        assertFalse( service.verify( g.plaintext() ).orElseThrow().legacyScope() );
+    }
+
+    @Test
+    void aKeyStoredWithTheLegacyMcpScopeIsAdminAndFlaggedLegacy() throws SQLException {
+        final ApiKeyService.Generated g = service.generate( "erin", "old-harness", ApiKeyService.Scope.MCP_ADMIN, "admin" );
+        new com.wikantik.jdbc.Jdbc( dataSource ).update(
+                "UPDATE api_keys SET scope = 'mcp' WHERE id = ?", ps -> ps.setInt( 1, g.record().id() ) );
+
+        final ApiKeyService.Record rec = new ApiKeyService( dataSource ).verify( g.plaintext() ).orElseThrow();
+        assertEquals( ApiKeyService.Scope.MCP_ADMIN, rec.scope() );
+        assertTrue( rec.legacyScope(), "a row stored as 'mcp' is reported as legacy" );
+        assertTrue( service.findById( g.record().id() ).orElseThrow().legacyScope() );
     }
 }

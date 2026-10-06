@@ -176,7 +176,7 @@ class ToolsAccessFilterTest {
     void dbKeyWithMcpScopeRejectedForToolsWith403() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( "wkk_mcp" ) )
-                .thenReturn( Optional.of( dbRecord( 3, "carol", ApiKeyService.Scope.MCP ) ) );
+                .thenReturn( Optional.of( dbRecord( 3, "carol", ApiKeyService.Scope.MCP_ADMIN ) ) );
 
         final ToolsAccessFilter filter = new ToolsAccessFilter(
                 new ToolsConfig( new Properties() ), new ToolsRateLimiter( 0, 0 ), svc );

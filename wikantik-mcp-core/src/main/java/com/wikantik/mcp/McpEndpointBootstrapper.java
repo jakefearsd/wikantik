@@ -139,7 +139,7 @@ public final class McpEndpointBootstrapper {
         private int loadOnStartup = 2;
         private Engine engine;
         private com.wikantik.auth.apikeys.ApiKeyService.Scope requiredScope =
-                com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP;
+                com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP_ADMIN;
 
         private Builder() { }
 

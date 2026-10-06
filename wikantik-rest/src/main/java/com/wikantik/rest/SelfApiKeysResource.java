@@ -23,6 +23,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.apikeys.ApiKeyService;
+import com.wikantik.auth.apikeys.LegacyScopeUseLog;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -63,7 +64,7 @@ public class SelfApiKeysResource extends RestServletBase {
     private static final Logger LOG = LogManager.getLogger( SelfApiKeysResource.class );
 
     /**
-     * Scopes a caller without {@link AllPermission} may mint for themselves. {@code mcp} and
+     * Scopes a caller without {@link AllPermission} may mint for themselves. {@code mcp_admin} and
      * {@code all} reach the admin MCP surface, so only administrators may self-mint them.
      */
     static final Set< ApiKeyService.Scope > SELF_SERVICE_SCOPES =
@@ -192,6 +193,9 @@ public class SelfApiKeysResource extends RestServletBase {
         }
         try {
             final ApiKeyService.Generated g = svc.generate( login, label, scope, login );
+            if ( ApiKeyService.Scope.isLegacyWire( scopeWire ) ) {
+                LegacyScopeUseLog.mintRequested( "/api/self/apikeys", login, request );
+            }
             audit( "apikey.issue", g.record().id(), g.record().label(), login );
             LOG.info( "Self API key generated: id={}, by={}, scope={}", g.record().id(), login, scope.wire() );
             respondWithToken( response, g );
@@ -258,6 +262,7 @@ public class SelfApiKeysResource extends RestServletBase {
         m.put( "id", r.id() );
         m.put( "label", r.label() );
         m.put( "scope", r.scope().wire() );
+        m.put( "legacyScope", r.legacyScope() );
         m.put( "createdAt", toIso( r.createdAt() ) );
         m.put( "lastUsedAt", toIso( r.lastUsedAt() ) );
         return m;

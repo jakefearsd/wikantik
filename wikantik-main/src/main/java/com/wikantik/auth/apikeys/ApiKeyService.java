@@ -104,27 +104,24 @@ public class ApiKeyService {
      * Scopes a generated key can be restricted to.
      *
      * <p>The MCP scopes form a hierarchy (via {@link #mcpRank}) so a higher-privilege
-     * key satisfies a lower-privilege requirement: {@code MCP_READ ⊂ MCP}. {@code MCP}
-     * is the historical broad admin scope; its wire value stays {@code "mcp"} so keys
-     * minted before the split remain full-admin. {@code MCP_READ} is confined to the
-     * read-only, ACL-gated {@code /knowledge-mcp} endpoint. {@code TOOLS} (the OpenAPI
-     * {@code /tools/*} surface) is orthogonal and matches only itself; {@code ALL}
-     * matches everything.</p>
-     *
-     * <p>A third, intermediate {@code MCP_CONTENT} tier (page + KG-curation read/write,
-     * no destructive/admin capability) is designed but not yet added: it requires
-     * <em>per-tool</em> enforcement on the shared admin endpoint, which cannot ride a
-     * request-thread ThreadLocal because the MCP SDK dispatches tool calls on a
-     * separate scheduler thread — the scope must be propagated through the MCP session
-     * instead. See the security-audit memory for the full spec.</p>
+     * key satisfies a lower-privilege requirement: {@code MCP_READ ⊂ MCP_ADMIN}.
+     * {@code MCP_ADMIN} is the full admin scope. Its wire value was {@code "mcp"} until
+     * 2.4.54; that name is still accepted as an alias (see {@link #isLegacyWire}) so keys
+     * minted earlier keep full admin access, and each use of one is reported by
+     * {@link LegacyScopeUseLog}. {@code MCP_READ} is confined to the read-only, ACL-gated
+     * {@code /knowledge-mcp} endpoint. {@code TOOLS} (the OpenAPI {@code /tools/*} surface)
+     * is orthogonal and matches only itself; {@code ALL} matches everything.</p>
      */
     public enum Scope {
         /** Knowledge consumer: read + search over ACL-gated content ({@code /knowledge-mcp}). */
         MCP_READ( "mcp_read", 1 ),
-        /** Full admin MCP surface (historical {@code "mcp"} wire value; pre-split keys stay here). */
-        MCP( "mcp", 3 ),
+        /** Full admin MCP surface ({@code /wikantik-admin-mcp}); legacy wire value {@code "mcp"}. */
+        MCP_ADMIN( "mcp_admin", 3 ),
         TOOLS( "tools", 0 ),
         ALL( "all", 0 );
+
+        /** The name {@link #MCP_ADMIN} had before 2.4.54; still accepted. */
+        private static final String LEGACY_MCP_ADMIN_WIRE = "mcp";
 
         private final String wire;
         /** Rank within the MCP family (1..3); {@code 0} for non-MCP scopes. */
@@ -157,10 +154,16 @@ public class ApiKeyService {
         }
         public static Scope fromWire( final String wire ) {
             if ( wire == null ) return ALL;
+            if ( isLegacyWire( wire ) ) return MCP_ADMIN;
             for ( final Scope s : values() ) {
-                if ( s.wire.equalsIgnoreCase( wire ) ) return s;
+                if ( s.wire.equalsIgnoreCase( wire.trim() ) ) return s;
             }
             throw new IllegalArgumentException( "Unknown scope: " + wire );
+        }
+
+        /** True for the pre-2.4.54 name of {@link #MCP_ADMIN}, {@code "mcp"}. */
+        public static boolean isLegacyWire( final String wire ) {
+            return wire != null && LEGACY_MCP_ADMIN_WIRE.equalsIgnoreCase( wire.trim() );
         }
     }
 
@@ -175,8 +178,16 @@ public class ApiKeyService {
             String createdBy,
             Instant lastUsedAt,
             Instant revokedAt,
-            String revokedBy
+            String revokedBy,
+            boolean legacyScope
     ) {
+        /** A record whose scope is stored under its current name. */
+        public Record( final int id, final String keyHash, final String principalLogin, final String label,
+                       final Scope scope, final Instant createdAt, final String createdBy, final Instant lastUsedAt,
+                       final Instant revokedAt, final String revokedBy ) {
+            this( id, keyHash, principalLogin, label, scope, createdAt, createdBy, lastUsedAt, revokedAt, revokedBy, false );
+        }
+
         public boolean isActive() { return revokedAt == null; }
     }
 
@@ -367,17 +378,19 @@ public class ApiKeyService {
     }
 
     private static Record readRow( final ResultSet rs ) throws SQLException {
+        final String scope = rs.getString( "scope" );
         return new Record(
                 rs.getInt( "id" ),
                 rs.getString( "key_hash" ),
                 rs.getString( "principal_login" ),
                 rs.getString( "label" ),
-                Scope.fromWire( rs.getString( "scope" ) ),
+                Scope.fromWire( scope ),
                 rs.getTimestamp( "created_at" ).toInstant(),
                 rs.getString( "created_by" ),
                 toInstant( rs.getTimestamp( "last_used_at" ) ),
                 toInstant( rs.getTimestamp( "revoked_at" ) ),
-                rs.getString( "revoked_by" )
+                rs.getString( "revoked_by" ),
+                Scope.isLegacyWire( scope )
         );
     }
 

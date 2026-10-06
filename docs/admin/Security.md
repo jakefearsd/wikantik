@@ -321,7 +321,7 @@ for `[{ALLOW` and replace display names with login names:
 grep -rn --include='*.md' '\[{ALLOW' /path/to/page-store
 ```
 
-Also review active `mcp` and `all` API keys that users created for themselves, because
+Also review active `mcp`, `mcp_admin` and `all` API keys that users created for themselves, because
 non-administrators can no longer mint them (see [ApiKeys.md](ApiKeys.md)). Revoke any you
 do not want through `/admin/apikeys`:
 
@@ -329,7 +329,7 @@ do not want through `/admin/apikeys`:
 SELECT k.id, k.principal_login, k.label, k.scope, k.created_at, k.last_used_at
   FROM api_keys k
  WHERE k.revoked_at IS NULL
-   AND k.scope IN ('mcp', 'all')
+   AND k.scope IN ('mcp', 'mcp_admin', 'all')
    AND k.created_by = k.principal_login
    AND NOT EXISTS (SELECT 1 FROM group_members gm
                     WHERE gm.name = 'Admin' AND gm.member = k.principal_login)
@@ -376,14 +376,16 @@ API keys are SHA-256 hashed; only the hash is stored and the plaintext is shown 
 | Scope | Wire value | Reaches |
 |---|---|---|
 | `MCP_READ` | `mcp_read` | `/knowledge-mcp` only (read-only) |
-| `MCP` | `mcp` | `/wikantik-admin-mcp` and `/knowledge-mcp` (full admin) |
+| `MCP_ADMIN` | `mcp_admin` | `/wikantik-admin-mcp` and `/knowledge-mcp` (full admin) |
 | `TOOLS` | `tools` | `/tools/*` only |
 | `ALL` | `all` | every key-protected surface; the default when an administrator's `POST` omits `scope` (a non-admin self-service `POST` defaults to `mcp_read`) |
 
-The MCP scopes are a rank hierarchy (`mcp_read` is contained in `mcp`); `tools` is
-separate. The `mcp` wire value predates the split, so older keys remain full-admin.
+The MCP scopes are a rank hierarchy (`mcp_read` is contained in `mcp_admin`); `tools` is
+separate. Before 2.4.54 the full-admin scope was named `mcp`; that name is still accepted as an
+alias and keys stored under it remain full-admin (see
+[Legacy `mcp` scope name](ApiKeys.md#legacy-mcp-scope-name)).
 Prefer the narrowest scope. Non-administrators can self-mint only `tools` and
-`mcp_read` keys; `mcp` and `all` keys are issued by an administrator at `/admin/apikeys`. The `/api/*` REST surface uses session or Basic
+`mcp_read` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. The `/api/*` REST surface uses session or Basic
 authentication and does not accept API keys.
 
 `/knowledge-mcp` and the other MCP and tools endpoints also fail closed. With no key,

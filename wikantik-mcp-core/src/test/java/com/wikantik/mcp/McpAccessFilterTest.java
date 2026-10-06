@@ -103,7 +103,7 @@ class McpAccessFilterTest {
     @Test
     void dbKeyVerifiedAndInstallsPrincipalOnRequest() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
-        final ApiKeyService.Record record = dbRecord( 1, "alice", ApiKeyService.Scope.MCP );
+        final ApiKeyService.Record record = dbRecord( 1, "alice", ApiKeyService.Scope.MCP_ADMIN );
         when( svc.verify( "wkk_good" ) ).thenReturn( Optional.of( record ) );
         // 3-arg constructor overload (defaults requiredScope to MCP).
         final McpAccessFilter filter = new McpAccessFilter(
@@ -125,7 +125,7 @@ class McpAccessFilterTest {
         // 4-arg constructor overload with an explicit non-default requiredScope.
         final McpAccessFilter filter = new McpAccessFilter(
                 new McpConfig( new Properties() ), new SlidingWindowRateLimiter( 0, 0 ), svc,
-                ApiKeyService.Scope.MCP );
+                ApiKeyService.Scope.MCP_ADMIN );
         when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_read_only" );
         when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
         final StringWriter body = new StringWriter();

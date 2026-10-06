@@ -152,7 +152,7 @@ when that returns HTTP 200 with `status` of `UP`.
 **Authorizing an MCP/tools client:** the two MCP endpoints and `/tools/*` share a
 fail-closed access filter (`McpAccessFilter` / `ToolsAccessFilter`) — there is no
 environment variable that authorizes a client. Log into the deployed container as
-an admin and mint a DB-backed key at `/admin/apikeys` with scope `mcp`, `mcp_read`,
+an admin and mint a DB-backed key at `/admin/apikeys` with scope `mcp_admin`, `mcp_read`,
 `tools`, or `all` (see [ApiKeys.md](ApiKeys.md)); alternatively configure
 `mcp.access.allowedCidrs` / `tools.access.allowedCidrs` in
 `wikantik-mcp.properties` / `wikantik-tools.properties`, or set

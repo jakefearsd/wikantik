@@ -21,7 +21,8 @@ const activeKey2 = {
     id: 3,
     principalLogin: 'charlie',
     label: 'ci-runner',
-    scope: 'mcp',
+    scope: 'mcp_admin',
+    legacyScope: true,
     fingerprint: 'deadbeef1234',
     createdAt: '2026-04-05T10:00:00Z',
     createdBy: 'admin',
@@ -35,7 +36,7 @@ const revokedKey = {
     id: 2,
     principalLogin: 'bob',
     label: null,
-    scope: 'mcp',
+    scope: 'mcp_admin',
     fingerprint: 'ffffffffffff',
     createdAt: '2026-04-02T10:00:00Z',
     createdBy: 'admin',
@@ -64,6 +65,14 @@ describe('AdminApiKeysPage', () => {
 
         fireEvent.click(screen.getByLabelText(/Show revoked/i));
         expect(screen.getByText('bob')).toBeInTheDocument();
+    });
+
+    it('marks a key stored under the legacy mcp scope name', async () => {
+        api.admin.listApiKeys.mockResolvedValue({ keys: [activeKey, activeKey2] });
+        render(<AdminApiKeysPage />);
+        const row = (await screen.findByText('charlie')).closest('tr');
+        expect(row.textContent).toContain("legacy 'mcp'");
+        expect(screen.getByText('alice').closest('tr').textContent).not.toContain('legacy');
     });
 
     it('renders fingerprint but never the full hash', async () => {

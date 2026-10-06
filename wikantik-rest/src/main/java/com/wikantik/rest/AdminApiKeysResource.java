@@ -25,6 +25,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
+import com.wikantik.auth.apikeys.LegacyScopeUseLog;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.user.UserDatabase;
 
@@ -138,6 +139,9 @@ public class AdminApiKeysResource extends RestServletBase {
             final ApiKeyService.Generated generated = svc.generate( principal, label, scope, createdBy );
             LOG.info( "API key generated: id={}, principal={}, scope={}, by={}",
                     generated.record().id(), principal, scope.wire(), createdBy );
+            if ( ApiKeyService.Scope.isLegacyWire( scopeWire ) ) {
+                LegacyScopeUseLog.mintRequested( "/admin/apikeys", createdBy, request );
+            }
 
             final String keyId = String.valueOf( generated.record().id() );
             final String keyLabel = generated.record().label() != null ? generated.record().label() : keyId;
@@ -313,6 +317,7 @@ public class AdminApiKeysResource extends RestServletBase {
         m.put( "principalLogin", r.principalLogin() );
         m.put( "label", r.label() );
         m.put( "scope", r.scope().wire() );
+        m.put( "legacyScope", r.legacyScope() );
         m.put( "fingerprint", fingerprint( r.keyHash() ) );
         m.put( "createdAt", toIso( r.createdAt() ) );
         m.put( "createdBy", r.createdBy() );

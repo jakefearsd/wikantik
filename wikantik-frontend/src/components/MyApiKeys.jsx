@@ -3,11 +3,11 @@ import { api } from '../api/client';
 import RevealedTokenModal from './apikeys/RevealedTokenModal';
 import { useAuth } from '../hooks/useAuth';
 
-// The server lets only administrators self-mint the admin-surface scopes (mcp, all);
+// The server lets only administrators self-mint the admin-surface scopes (mcp_admin, all);
 // everyone else may mint tools and mcp_read. Mirror that here so the picker never
 // offers a scope the server will refuse.
 const SELF_SERVICE_SCOPES = ['tools', 'mcp_read'];
-const ADMIN_SCOPES = ['tools', 'mcp_read', 'mcp', 'all'];
+const ADMIN_SCOPES = ['tools', 'mcp_read', 'mcp_admin', 'all'];
 
 export default function MyApiKeys() {
   const { user } = useAuth();
@@ -121,7 +121,7 @@ export default function MyApiKeys() {
             {keys.map((k) => (
               <tr key={k.id}>
                 <td>{k.label || <em>—</em>}</td>
-                <td><code>{k.scope}</code></td>
+                <td><code>{k.scope}</code>{k.legacyScope && <span className="form-hint" title="Stored under the old name 'mcp'. Mint a replacement and revoke this key."> legacy 'mcp'</span>}</td>
                 <td>{fmt(k.createdAt)}</td>
                 <td>{fmt(k.lastUsedAt)}</td>
                 <td>

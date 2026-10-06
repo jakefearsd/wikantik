@@ -31,14 +31,14 @@ class ApiKeyScopeTest {
     @Test
     void mcpFamilyIsHierarchical() {
         // A higher-privilege key satisfies a lower-privilege requirement.
-        assertTrue( Scope.MCP.matches( Scope.MCP_READ ) );
-        assertTrue( Scope.MCP.matches( Scope.MCP ) );
+        assertTrue( Scope.MCP_ADMIN.matches( Scope.MCP_READ ) );
+        assertTrue( Scope.MCP_ADMIN.matches( Scope.MCP_ADMIN ) );
         assertTrue( Scope.MCP_READ.matches( Scope.MCP_READ ) );
     }
 
     @Test
     void lowerScopeDoesNotSatisfyHigher() {
-        assertFalse( Scope.MCP_READ.matches( Scope.MCP ), "read key must not reach the admin endpoint/tools" );
+        assertFalse( Scope.MCP_READ.matches( Scope.MCP_ADMIN ), "read key must not reach the admin endpoint/tools" );
     }
 
     @Test
@@ -49,16 +49,28 @@ class ApiKeyScopeTest {
         // TOOLS (OpenAPI /tools/*) is a separate surface: neither direction crosses into MCP.
         assertTrue( Scope.TOOLS.matches( Scope.TOOLS ) );
         assertFalse( Scope.TOOLS.matches( Scope.MCP_READ ) );
-        assertFalse( Scope.MCP.matches( Scope.TOOLS ) );
+        assertFalse( Scope.MCP_ADMIN.matches( Scope.TOOLS ) );
         assertFalse( Scope.MCP_READ.matches( Scope.TOOLS ) );
     }
 
     @Test
     void wireValuesRoundTripAndPreServeLegacyMcp() {
-        assertEquals( Scope.MCP, Scope.fromWire( "mcp" ), "legacy 'mcp' keys stay full-admin" );
+        assertEquals( Scope.MCP_ADMIN, Scope.fromWire( "mcp" ), "legacy 'mcp' keys stay full-admin" );
         assertEquals( Scope.MCP_READ, Scope.fromWire( "mcp_read" ) );
         assertEquals( Scope.TOOLS, Scope.fromWire( "tools" ) );
         assertEquals( Scope.ALL, Scope.fromWire( "all" ) );
         assertEquals( Scope.ALL, Scope.fromWire( null ) );
+    }
+
+    @Test
+    void adminScopeWireIsMcpAdminAndMcpIsALegacyAlias() {
+        assertEquals( "mcp_admin", Scope.MCP_ADMIN.wire() );
+        assertEquals( Scope.MCP_ADMIN, Scope.fromWire( "mcp_admin" ) );
+        assertTrue( Scope.isLegacyWire( "mcp" ) );
+        assertTrue( Scope.isLegacyWire( " MCP " ) );
+        assertFalse( Scope.isLegacyWire( "mcp_admin" ) );
+        assertFalse( Scope.isLegacyWire( null ) );
+        assertEquals( "mcp_read, mcp_admin, tools, all", Scope.validWireNames(),
+                "error messages advertise only the current names" );
     }
 }

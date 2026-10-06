@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.54] - 2026-10-06
+
 ### Upgrade notes
 - The full-admin MCP API-key scope is renamed from `mcp` to `mcp_admin`. Nothing breaks: existing `mcp`
   keys keep full admin access and `"scope": "mcp"` is still accepted when minting (it mints `mcp_admin`).

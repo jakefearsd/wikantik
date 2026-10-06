@@ -58,48 +58,51 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Ruling R25: an ACL user entry resolves to exactly one account and matches only that account's
- * login principal. A name shared by several accounts, or held by none, grants nobody; login, group
- * and role entries keep working.
+ * An ACL user entry is a login name and matches only that account's login principal. Full and wiki
+ * names are editable profile data and name nobody; login, group and role entries keep working.
  */
 class AclUserEntryJdbcTest extends AbstractJdbcUsersEngineTest {
 
     // ---- I-1: an ACL user entry resolves to one account and matches its login --------------------
 
     @Test
-    void fullNameAclGrantsTheOwnerOnlyAndNotAnImpersonator() throws Exception {
+    void fullNameAclGrantsNobodyNotEvenItsHolder() throws Exception {
         saveUser( PREFIX + "olive", "Olive Owner" );
         saveUser( PREFIX + "mallory", "Mallory Mal" );
         engine.saveText( "SdnOlivePage", "[{ALLOW edit Olive Owner}]\nsecret" );
 
-        assertTrue( canEdit( login( PREFIX + "olive" ), "SdnOlivePage" ) );
-        assertFalse( canEdit( login( PREFIX + "mallory" ), "SdnOlivePage" ) );
-
+        assertFalse( canEdit( login( PREFIX + "olive" ), "SdnOlivePage" ),
+                "an ACL user entry is a login name; a full name names nobody" );
         renameFullName( PREFIX + "mallory", "Olive Owner" );
-        assertFalse( canEdit( login( PREFIX + "mallory" ), "SdnOlivePage" ),
-                "taking the owner's full name must not grant the owner's access" );
+        assertFalse( canEdit( login( PREFIX + "mallory" ), "SdnOlivePage" ) );
     }
 
     @Test
-    void ambiguousFullNameAclGrantsNobody() throws Exception {
-        saveUser( PREFIX + "sam1", "Sam Same" );
-        saveUser( PREFIX + "sam2", "Sam Same" );
-        engine.saveText( "SdnSamPage", "[{ALLOW edit Sam Same}]\nsecret" );
-
-        assertFalse( canEdit( login( PREFIX + "sam1" ), "SdnSamPage" ), "an ambiguous name names nobody" );
-        assertFalse( canEdit( login( PREFIX + "sam2" ), "SdnSamPage" ), "an ambiguous name names nobody" );
-    }
-
-    @Test
-    void resolvedUserEntryIsTheAccountsLoginPrincipal() throws Exception {
+    void wikiNameAclGrantsNobody() throws Exception {
         saveUser( PREFIX + "olive", "Olive Owner" );
-        saveUser( PREFIX + "sam1", "Sam Same" );
-        saveUser( PREFIX + "sam2", "Sam Same" );
+        engine.saveText( "SdnOliveWikiPage", "[{ALLOW edit OliveOwner}]\nsecret" );
+        assertFalse( canEdit( login( PREFIX + "olive" ), "SdnOliveWikiPage" ) );
+    }
 
-        assertEquals( new WikiPrincipal( PREFIX + "olive", WikiPrincipal.LOGIN_NAME ), authz.resolvePrincipal( "Olive Owner" ) );
-        assertEquals( new WikiPrincipal( PREFIX + "olive", WikiPrincipal.LOGIN_NAME ), authz.resolvePrincipal( "OliveOwner" ) );
+    @Test
+    void anUnclaimedNameCannotBeClaimedThroughAFullNameAfterReparse() throws Exception {
+        // R27: an ACL names a person who has no account yet; someone then takes that name as their
+        // full name. A fresh parse of the ACL (cache expiry, restart) must not hand them the entry.
+        engine.saveText( "SdnClaimPage", "[{ALLOW edit Carol Claimed}]\nsecret" );
+        saveUser( PREFIX + "mallory", "Carol Claimed" );
+        assertTrue( authz.resolvePrincipal( "Carol Claimed" ) instanceof UnresolvedPrincipal );
+        engine.saveText( "SdnClaimPage2", "[{ALLOW edit Carol Claimed}]\nsecret" );
+        assertFalse( canEdit( login( PREFIX + "mallory" ), "SdnClaimPage" ) );
+        assertFalse( canEdit( login( PREFIX + "mallory" ), "SdnClaimPage2" ) );
+    }
+
+    @Test
+    void userEntryResolvesByLoginNameOnly() throws Exception {
+        saveUser( PREFIX + "olive", "Olive Owner" );
+
         assertEquals( new WikiPrincipal( PREFIX + "olive", WikiPrincipal.LOGIN_NAME ), authz.resolvePrincipal( PREFIX + "olive" ) );
-        assertTrue( authz.resolvePrincipal( "Sam Same" ) instanceof UnresolvedPrincipal, "ambiguous" );
+        assertTrue( authz.resolvePrincipal( "Olive Owner" ) instanceof UnresolvedPrincipal, "full name" );
+        assertTrue( authz.resolvePrincipal( "OliveOwner" ) instanceof UnresolvedPrincipal, "wiki name" );
         assertTrue( authz.resolvePrincipal( "Nobody Here" ) instanceof UnresolvedPrincipal, "unknown" );
     }
 

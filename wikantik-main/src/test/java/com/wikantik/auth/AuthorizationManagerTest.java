@@ -506,7 +506,7 @@ public class AuthorizationManagerTest {
     @Test
     public void testResolveUsers() throws WikiException
     {
-        // We should be able to resolve a user by login, user, or wiki name
+        // A user is resolved by login name only
         final UserProfile profile = m_engine.getManager( UserManager.class ).getUserDatabase().newProfile();
         profile.setEmail( "authmanagertest@tester.net" );
         profile.setFullname( "AuthorizationManagerTest User" );
@@ -520,9 +520,9 @@ public class AuthorizationManagerTest {
             Assertions.fail( "Failed save: " + e.getLocalizedMessage() );
         }
         Assertions.assertEquals( new WikiPrincipal( "authmanagertest",  WikiPrincipal.LOGIN_NAME ), m_auth.resolvePrincipal( "authmanagertest" ) );
-        // A full or wiki name held by one account resolves to that account's login principal.
-        Assertions.assertEquals( new WikiPrincipal( "authmanagertest", WikiPrincipal.LOGIN_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTest User" ) );
-        Assertions.assertEquals( new WikiPrincipal( "authmanagertest", WikiPrincipal.LOGIN_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTestUser" ) );
+        // Full and wiki names are editable profile data: they name nobody.
+        Assertions.assertEquals( new UnresolvedPrincipal( "AuthorizationManagerTest User" ), m_auth.resolvePrincipal( "AuthorizationManagerTest User" ) );
+        Assertions.assertEquals( new UnresolvedPrincipal( "AuthorizationManagerTestUser" ), m_auth.resolvePrincipal( "AuthorizationManagerTestUser" ) );
         try
         {
             m_engine.getManager( UserManager.class ).getUserDatabase().deleteByLoginName( "authmanagertest" );

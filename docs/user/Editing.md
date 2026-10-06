@@ -157,7 +157,7 @@ A page's access rules are plain text inside the page body, written as `[{ALLOW a
 [{ALLOW edit Alice,Bob}]
 ```
 
-The action is a page permission such as `view`, `edit`, `comment`, `upload`, `rename` or `delete`; the principals are user names, group names or roles, separated by commas. A directive inside a code span or fenced code block is documentation and is ignored. Once a page has an `ALLOW` rule, only the principals it names get that action. Wiki-wide default permissions are set by an administrator, not in the page.
+The action is a page permission such as `view`, `edit`, `comment`, `upload`, `rename` or `delete`; the principals are login names, group names or roles, separated by commas. Name a person by their login name; a full name or wiki name grants nobody. A directive inside a code span or fenced code block is documentation and is ignored. Once a page has an `ALLOW` rule, only the principals it names get that action. Wiki-wide default permissions are set by an administrator, not in the page.
 
 ## Mention people
 

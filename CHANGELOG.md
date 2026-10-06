@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Upgrade notes
+- Page ACL user entries are login names only. An entry naming a full or wiki name now grants nobody,
+  even when one account holds that name. Search the page store for `[{ALLOW` and replace display names
+  with login names before deploying.
+
+### Security
+- A page ACL user entry is resolved by login name only. Before, a full or wiki name held by one account
+  resolved to that account, so an entry naming someone who had no account yet could be claimed by
+  taking that name as a full name, once the ACL was next read.
+
 ## [2.4.53] - 2026-10-05
 
 ### Upgrade notes

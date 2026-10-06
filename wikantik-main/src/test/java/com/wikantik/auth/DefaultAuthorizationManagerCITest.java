@@ -306,16 +306,16 @@ class DefaultAuthorizationManagerCITest {
     }
 
     @Test
-    void resolvePrincipalResolvesAUniqueFullNameToThatAccountsLogin() throws Exception {
+    void resolvePrincipalNeverResolvesAFullOrWikiName() throws Exception {
         setAuthorizer( mgr );
         when( groupManager.findRole( "Alice Smith" ) ).thenReturn( null );
         when( userDatabase.findByLoginName( "Alice Smith" ) ).thenThrow( new NoSuchPrincipalException( "no login" ) );
         final UserProfile profile = mock( UserProfile.class );
         when( profile.getLoginName() ).thenReturn( "alice" );
         when( userDatabase.findByFullName( "Alice Smith" ) ).thenReturn( profile );
-        when( userDatabase.findByWikiName( "Alice Smith" ) ).thenThrow( new NoSuchPrincipalException( "no wiki name" ) );
+        when( userDatabase.findByWikiName( "Alice Smith" ) ).thenReturn( profile );
 
-        assertEquals( new WikiPrincipal( "alice", WikiPrincipal.LOGIN_NAME ), mgr.resolvePrincipal( "Alice Smith" ) );
+        assertEquals( new UnresolvedPrincipal( "Alice Smith" ), mgr.resolvePrincipal( "Alice Smith" ) );
     }
 
     @Test
@@ -705,33 +705,6 @@ class DefaultAuthorizationManagerCITest {
 
         final Principal result = mgr.resolvePrincipal( "CustomAuthorizerRole" );
         assertEquals( authorizerRole, result );
-    }
-
-    @Test
-    void resolvePrincipalLeavesASharedFullNameUnresolved() throws Exception {
-        setAuthorizer( mgr );
-        when( groupManager.findRole( "John Smith" ) ).thenReturn( null );
-        when( userDatabase.findByLoginName( "John Smith" ) ).thenThrow( new NoSuchPrincipalException( "no login" ) );
-        when( userDatabase.findByFullName( "John Smith" ) ).thenThrow( NoSuchPrincipalException.ambiguous( "two" ) );
-
-        final Principal result = mgr.resolvePrincipal( "John Smith" );
-        assertInstanceOf( UnresolvedPrincipal.class, result );
-        assertEquals( "John Smith", result.getName() );
-    }
-
-    @Test
-    void resolvePrincipalLeavesANameHeldByTwoAccountsAsFullAndWikiNameUnresolved() throws Exception {
-        setAuthorizer( mgr );
-        when( groupManager.findRole( "Pat" ) ).thenReturn( null );
-        when( userDatabase.findByLoginName( "Pat" ) ).thenThrow( new NoSuchPrincipalException( "no login" ) );
-        final UserProfile a = mock( UserProfile.class );
-        when( a.getLoginName() ).thenReturn( "pat-a" );
-        final UserProfile b = mock( UserProfile.class );
-        when( b.getLoginName() ).thenReturn( "pat-b" );
-        when( userDatabase.findByFullName( "Pat" ) ).thenReturn( a );
-        when( userDatabase.findByWikiName( "Pat" ) ).thenReturn( b );
-
-        assertInstanceOf( UnresolvedPrincipal.class, mgr.resolvePrincipal( "Pat" ) );
     }
 
     // ==================== getDatabasePolicy / removeWikiEventListener ====================

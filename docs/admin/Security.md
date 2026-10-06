@@ -191,15 +191,12 @@ Identify people by **login name** everywhere access is decided.
   editor (`PUT /admin/groups/{name}`, **Admin → Security → Groups**) rejects any member
   that is not an existing login name with a `400` that names the bad entries. SCIM
   group sync already maps users to login names.
-- **Write page ACLs with login names.** A user entry in an ACL must identify exactly one
-  account: it is resolved by login name first, then by a full or wiki name that only one
-  account holds, and it then matches only that account's login. A name that several
-  accounts share (two people called "John Smith") grants nobody. A name that no account
-  holds matches only a session whose login is exactly that name, such as a user your web
-  container authenticates without a wiki profile; it never matches a full or wiki name,
-  and a name unknown when the page's ACL is read is later re-checked against roles,
-  groups and login names only. Do not rely on display names in an ACL; a login name is
-  unique and stable.
+- **Write page ACLs with login names.** A user entry in an ACL is a login name and matches
+  only the session whose login is exactly that name. Full and wiki names are editable
+  profile data, so an entry naming one grants nobody, not even its holder: otherwise anyone
+  could take the name and gain the entry. A name that no account has as its login still
+  matches a user your web container authenticates under exactly that login without a wiki
+  profile. Roles and groups are matched by name as before.
 - **Display names cannot impersonate a login, role or group.** A full name or wiki name
   that is reserved (it equals a built-in role, `Admin`, a role or group named in a policy
   grant, or an existing group) or that equals another account's login name is refused when

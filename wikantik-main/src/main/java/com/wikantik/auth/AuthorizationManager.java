@@ -263,9 +263,10 @@ public interface AuthorizationManager extends Initializable {
      * <li>If the name matches one of the built-in {@link com.wikantik.auth.authorize.Role} names, return that built-in Role</li>
      * <li>If the name matches one supplied by the current {@link com.wikantik.auth.Authorizer}, return that Role</li>
      * <li>If the name matches a group managed by the current {@link com.wikantik.auth.authorize.GroupManager}, return that Group</li>
-     * <li>Otherwise, assume that the name represents a user principal. Using the current {@link com.wikantik.auth.user.UserDatabase},
-     * find the first user who matches the supplied name by calling {@link com.wikantik.auth.user.UserDatabase#find(String)}.</li>
-     * <li>Finally, if a user cannot be found, manufacture and return a generic {@link com.wikantik.auth.acl.UnresolvedPrincipal}</li>
+     * <li>Otherwise, assume that the name is a user's login name. If the current {@link com.wikantik.auth.user.UserDatabase} has an
+     * account with that login name, return that account's login principal. Full and wiki names are editable profile data and are
+     * never resolved.</li>
+     * <li>Finally, if no account has that login name, manufacture and return a generic {@link com.wikantik.auth.acl.UnresolvedPrincipal}</li>
      * </ol>
      *
      * @param name the name of the Principal to resolve

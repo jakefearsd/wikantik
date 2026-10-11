@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `WIKANTIK_JVM_MAX_RAM_PERCENTAGE` container variable: the Java heap's share of the container memory limit
+  (1–99). It overrides the image default of 70%, so a deployment can raise its memory limit for off-heap
+  headroom without the heap taking most of it. A malformed value stops the container at startup.
+
+### Changed
+- docker1 production (`docker-compose.prod.yml`): the wiki container's memory limit rises from 2G to 3G and
+  its heap share falls to 50%, so the heap stays at about 1.5G and the extra gigabyte goes to off-heap
+  memory and cached index pages.
+
+### Security
+- Frontend: KaTeX 0.18.11 (GHSA-238p-pmpm-9mq7) and source-map-js 1.2.2 (GHSA-68fv-2mgg-jv7q).
+
 ## [2.4.54] - 2026-10-06
 
 ### Upgrade notes

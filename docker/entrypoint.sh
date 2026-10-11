@@ -118,6 +118,11 @@
 #                                name, silently breaking client-IP resolution. Must match
 #                                [A-Za-z0-9-]+ (a valid HTTP header-name token); the script
 #                                refuses to boot (exit 1) on a violating value.
+#   WIKANTIK_JVM_MAX_RAM_PERCENTAGE  Java heap share of the container memory limit (1-99,
+#                                decimals allowed). Overrides the image default of 70 by
+#                                appending -XX:MaxRAMPercentage=... to CATALINA_OPTS; set it
+#                                lower when raising the memory limit for off-heap headroom.
+#                                The script refuses to boot (exit 1) on a malformed value.
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail
@@ -402,6 +407,23 @@ case "${PROXY_REMOTE_IP_HEADER_VALUE}" in
     ;;
 esac
 export CATALINA_OPTS="${CATALINA_OPTS:-} -Dwikantik.proxy.remoteIpHeader=${PROXY_REMOTE_IP_HEADER_VALUE}"
+
+# Optional: JVM heap share of the container memory limit.
+#   WIKANTIK_JVM_MAX_RAM_PERCENTAGE — replaces the image default (-XX:MaxRAMPercentage=70.0 in
+#   the Dockerfile's CATALINA_OPTS). Appended last, and HotSpot applies the last occurrence of a
+#   -XX flag, so this wins. Lets a deployment raise its memory limit for off-heap headroom
+#   (metaspace, thread stacks, cached Lucene/TDB2 index pages) without the heap absorbing most
+#   of it. Absent ⇒ the image default stands.
+#   Charset guard: catalina.sh word-splits CATALINA_OPTS, so the value must be a plain number
+#   from 1 to 99 (decimals allowed) — the script refuses to boot (exit 1) otherwise.
+if [ -n "${WIKANTIK_JVM_MAX_RAM_PERCENTAGE:-}" ]; then
+  if ! [[ "${WIKANTIK_JVM_MAX_RAM_PERCENTAGE}" =~ ^[1-9][0-9]?(\.[0-9]+)?$ ]]; then
+    echo "ERROR: WIKANTIK_JVM_MAX_RAM_PERCENTAGE ('${WIKANTIK_JVM_MAX_RAM_PERCENTAGE}') must be a number from 1 to 99," >&2
+    echo "       e.g. 50 or 62.5 — the share of the container memory limit given to the Java heap." >&2
+    exit 1
+  fi
+  export CATALINA_OPTS="${CATALINA_OPTS:-} -XX:MaxRAMPercentage=${WIKANTIK_JVM_MAX_RAM_PERCENTAGE}"
+fi
 
 # Optional: Single Sign-On (OIDC/SAML via pac4j).
 #   WIKANTIK_SSO_ENABLED            "true" to turn SSO on (default off; block skipped when unset/false).

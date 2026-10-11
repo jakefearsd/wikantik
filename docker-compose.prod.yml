@@ -47,10 +47,18 @@ services:
     # Build context is inherited from the base docker-compose.yml.
     restart: always
     logging: *default-logging
+    # 3G with a 50% heap (2026-10-11). At 2G with the image's 70% heap the
+    # container sat at 94% of its limit and had hit the ceiling 42,450 times
+    # in four days, each time evicting cached Lucene/TDB2 index pages, while
+    # the heap used ~850M of a 1.43G maximum. 50% of 3G keeps the heap at
+    # ~1.5G and gives the whole extra gigabyte to off-heap memory and page
+    # cache.
+    environment:
+      WIKANTIK_JVM_MAX_RAM_PERCENTAGE: "50"
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 3G
     volumes:
       # Pages live on the host so they can be moved with rsync independently
       # of the container lifecycle. wikantik-work / wikantik-logs stay as

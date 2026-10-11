@@ -61,3 +61,37 @@ POM_V="$(sed -n 's#.*<tomcat.version>\(.*\)</tomcat.version>.*#\1#p' "${REPO_ROO
 [[ -n "${DOCKER_V}" && "${DOCKER_V}" == "${LOCAL_V}" && "${LOCAL_V}" == "${POM_V}" ]] \
     || fail "Tomcat drift: Dockerfile=${DOCKER_V} deploy-local=${LOCAL_V} pom=${POM_V}"
 ok "Tomcat pinned consistently at ${POM_V}"
+
+# JVM heap sizing: WIKANTIK_JVM_MAX_RAM_PERCENTAGE is appended to CATALINA_OPTS
+# after the image default (Dockerfile ENV CATALINA_OPTS), and HotSpot takes the
+# last occurrence of a -XX flag — so the override must land last, and must leave
+# the image default untouched when unset or empty.
+IMAGE_OPTS="$(sed -n 's/^ENV CATALINA_OPTS="\(.*\)"$/\1/p' "${REPO_ROOT}/Dockerfile")"
+[[ "${IMAGE_OPTS}" == *-XX:MaxRAMPercentage=* ]] || fail "Dockerfile CATALINA_OPTS lost its MaxRAMPercentage default"
+heap_pct() { # heap_pct <outdir> [VAR=val ...] — the MaxRAMPercentage the JVM would apply
+    local out="$1"; shift
+    mkdir -p "${out}/lib" "${out}/conf" "${out}/webapps"
+    env -i PATH="${PATH}" CATALINA_HOME="${out}" CATALINA_OPTS="${IMAGE_OPTS}" \
+        POSTGRES_HOST=db POSTGRES_DB=w POSTGRES_USER=u POSTGRES_PASSWORD=p "$@" \
+        bash "${ENTRYPOINT}" bash -c 'printf "%s" "${CATALINA_OPTS}" > "$1"' _ "${out}/opts" \
+        >/dev/null 2>"${out}/stderr" || return 1
+    grep -o -- '-XX:MaxRAMPercentage=[^ ]*' "${out}/opts" | tail -1 | cut -d= -f2
+}
+DEFAULT_PCT="$(heap_pct "${TMP}/heap-unset")" || fail "entrypoint failed: $(cat "${TMP}/heap-unset/stderr")"
+[[ "${DEFAULT_PCT}" == "70.0" ]] || fail "unset override changed the heap percentage to '${DEFAULT_PCT}'"
+EMPTY_PCT="$(heap_pct "${TMP}/heap-empty" WIKANTIK_JVM_MAX_RAM_PERCENTAGE=)" || fail "empty override failed to boot"
+[[ "${EMPTY_PCT}" == "70.0" ]] || fail "empty override changed the heap percentage to '${EMPTY_PCT}'"
+SET_PCT="$(heap_pct "${TMP}/heap-set" WIKANTIK_JVM_MAX_RAM_PERCENTAGE=50)" || fail "override 50 failed to boot"
+[[ "${SET_PCT}" == "50" ]] || fail "WIKANTIK_JVM_MAX_RAM_PERCENTAGE=50 did not win; JVM would apply '${SET_PCT}'"
+ok "WIKANTIK_JVM_MAX_RAM_PERCENTAGE overrides the image heap default and is inert when unset/empty"
+
+i=0
+for bad in abc 0 100 150 '50 -Dx=y' '5.' '.5' '50%'; do
+    i=$((i + 1))
+    if heap_pct "${TMP}/heap-bad-${i}" "WIKANTIK_JVM_MAX_RAM_PERCENTAGE=${bad}" >/dev/null; then
+        fail "entrypoint booted with WIKANTIK_JVM_MAX_RAM_PERCENTAGE='${bad}'"
+    fi
+    grep -q 'WIKANTIK_JVM_MAX_RAM_PERCENTAGE' "${TMP}/heap-bad-${i}/stderr" \
+        || fail "rejection of '${bad}' did not name the variable: $(cat "${TMP}/heap-bad-${i}/stderr")"
+done
+ok "malformed WIKANTIK_JVM_MAX_RAM_PERCENTAGE values refuse to boot"

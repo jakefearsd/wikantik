@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.55] - 2026-10-11
+
 ### Added
 - `WIKANTIK_JVM_MAX_RAM_PERCENTAGE` container variable: the Java heap's share of the container memory limit
   (1–99). It overrides the image default of 70%, so a deployment can raise its memory limit for off-heap

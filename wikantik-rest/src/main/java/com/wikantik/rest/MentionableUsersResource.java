@@ -22,6 +22,8 @@ import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.Wiki;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -40,10 +42,10 @@ import java.util.Map;
  * REST servlet backing the @-mention autocomplete picker in the comment
  * composer. Mapped to {@code /api/users/mentionable}.
  * <p>
- * Open to anonymous users — if a page allows anonymous comments/edits,
- * commenters should be able to mention real users. The user list is not
- * sensitive (login names already appear in page authorship throughout the wiki).
- * Locked accounts are filtered out so muted users cannot be summoned.
+ * Requires a signed-in (authenticated) session; anonymous and cookie-asserted
+ * callers get a {@code 401}. The response carries login names, and under SSO a
+ * login name is the user's email address, so the endpoint must not be a public
+ * directory. Locked accounts are filtered out so muted users cannot be summoned.
  * <p>
  * Matching rules:
  * <ul>
@@ -68,9 +70,21 @@ public class MentionableUsersResource extends RestServletBase {
         return getSubsystems().auth().users().getUserDatabase();
     }
 
+    /** Seam — auth gate, overridable for unit tests. */
+    protected boolean isAuthenticated( final HttpServletRequest request ) {
+        final Session s = Wiki.session().find( getEngine(), request );
+        return s != null && s.isAuthenticated();
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
+        // Gate before touching the user database: login names are email addresses under
+        // SSO, so an unauthenticated caller must not be able to enumerate them.
+        if ( !isAuthenticated( request ) ) {
+            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Login required" );
+            return;
+        }
         final String qRaw = request.getParameter( "q" );
         final String q = qRaw == null ? "" : qRaw.trim().toLowerCase( Locale.ROOT );
         final int limit = clampLimit( request.getParameter( "limit" ) );

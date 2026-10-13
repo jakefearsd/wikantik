@@ -95,7 +95,10 @@ Accepted mentions are inserted as `@loginName` in the comment body. `CommentBody
 renders them as clickable chips that link to `/wiki/Users/{loginName}`.
 
 The autocomplete calls `GET /api/users/mentionable?q={prefix}&limit=8` to fetch
-candidates (the server default is 8 and the cap is 10).
+candidates (the server default is 8 and the cap is 10). The endpoint requires a
+signed-in session: anonymous callers receive `401`, because under SSO a login
+name is the user's email address and the endpoint must not be a public directory.
+The comment boxes simply offer no suggestions while signed out.
 
 ## The unread mentions inbox (`/me/mentions`)
 
@@ -188,6 +191,12 @@ authenticated session.
 |--------|------|-------------|
 | `POST` | `/api/comment-threads/{threadId}/resolve` | Resolve a thread. |
 | `POST` | `/api/comment-threads/{threadId}/reopen` | Reopen a resolved thread. |
+
+### Mention autocomplete
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/users/mentionable?q={prefix}[&limit=N]` | Up to `limit` (default 8, max 10) unlocked users whose login name starts with, or full name contains, `q`. Returns `{users: [{loginName, fullName}]}`. Requires an authenticated session; anonymous callers receive 401. |
 
 ### Mention feed
 

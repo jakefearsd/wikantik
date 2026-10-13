@@ -1,6 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import CommentsDrawer from './CommentsDrawer';
+import { api } from '../api/client';
+
+vi.mock('../api/client', () => ({
+  api: { listMentionableUsers: vi.fn() },
+}));
+vi.mock('../utils/caretCoords', () => ({ getCaretCoordinates: vi.fn(() => ({ top: 1, left: 2 })) }));
 
 const threads = [
   { id: 'T1', status: 'open', anchor: { exact: 'alpha' }, createdBy: 'alice',
@@ -120,5 +126,36 @@ describe('CommentsDrawer', () => {
     // Only open threads exist; filter is resolved → nothing visible.
     setup({ statusFilter: 'resolved', threads: [threads[0]] }); // only the open thread (T1)
     expect(screen.getByText('No comments yet.')).toBeTruthy();
+  });
+
+  describe('@-mention autocomplete (signed-in only)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.resetAllMocks();
+    });
+
+    // Types "hi @al" with the caret at the end into the reply box, then lets the
+    // picker's 150 ms debounce elapse so any candidate fetch would have fired.
+    async function typeMention() {
+      vi.useFakeTimers();
+      api.listMentionableUsers.mockResolvedValue({ users: [{ loginName: 'alice', fullName: 'Alice A' }] });
+      const reply = screen.getByPlaceholderText(/reply/i);
+      fireEvent.change(reply, { target: { value: 'hi @al', selectionStart: 6, selectionEnd: 6 } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    }
+
+    it('queries the mentionable-users endpoint when the viewer is signed in', async () => {
+      setup({ statusFilter: 'open', canMention: true });
+      await typeMention();
+      expect(api.listMentionableUsers).toHaveBeenCalledWith('al');
+    });
+
+    it('never calls the mentionable-users endpoint for an anonymous viewer', async () => {
+      // The endpoint answers 401 to anonymous callers (login names are email addresses
+      // under SSO); a 401 would also fire the global wikantik:auth-required re-auth event.
+      setup({ statusFilter: 'open' });
+      await typeMention();
+      expect(api.listMentionableUsers).not.toHaveBeenCalled();
+    });
   });
 });

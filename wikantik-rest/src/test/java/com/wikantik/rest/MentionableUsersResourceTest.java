@@ -73,6 +73,8 @@ class MentionableUsersResourceTest {
 
         servlet = Mockito.spy( new MentionableUsersResource() );
         Mockito.doReturn( db ).when( servlet ).users();
+        // Signed-in by default; the anonymous/asserted cases override this explicitly.
+        Mockito.doReturn( true ).when( servlet ).isAuthenticated( Mockito.any() );
     }
 
     private static UserProfile profile( final String login, final String full, final boolean locked ) {
@@ -84,12 +86,29 @@ class MentionableUsersResourceTest {
     }
 
     @Test
-    void anonymous_access_returns_users() throws Exception {
-        // No isAuthenticated stub — the endpoint is open by design.
+    void authenticated_access_returns_users() throws Exception {
         final JsonObject res = invoke( "?q=ali" );
-        assertFalse( res.has( "error" ), "anonymous access should succeed: " + res );
+        assertFalse( res.has( "error" ), "signed-in access should succeed: " + res );
         assertTrue( res.has( "users" ) );
         assertTrue( res.getAsJsonArray( "users" ).size() >= 1 );
+        final JsonObject first = res.getAsJsonArray( "users" ).get( 0 ).getAsJsonObject();
+        assertEquals( "alice", first.get( "loginName" ).getAsString() );
+        assertEquals( "Alice Anderson", first.get( "fullName" ).getAsString() );
+    }
+
+    @Test
+    void anonymous_access_is_rejected_with_401_and_never_touches_the_user_database() throws Exception {
+        // Login names are email addresses under SSO (login-name claim = email), so the
+        // directory must not be enumerable by callers who are not signed in. This also
+        // covers cookie-"asserted" sessions: Session.isAuthenticated() is false for them.
+        Mockito.doReturn( false ).when( servlet ).isAuthenticated( Mockito.any() );
+        final JsonObject res = invoke( "?q=ali" );
+        assertFalse( res.has( "users" ), "no user rows may leak to an anonymous caller: " + res );
+        assertTrue( res.has( "error" ) && res.get( "error" ).getAsBoolean(),
+                "anonymous caller must get the JSON error envelope: " + res );
+        assertEquals( 401, res.get( "status" ).getAsInt() );
+        Mockito.verify( servlet, Mockito.never() ).users();
+        Mockito.verifyNoInteractions( db );
     }
 
     @Test

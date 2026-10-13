@@ -39,7 +39,7 @@ import '../styles/admin.css';
  *  so the affordance flows with the page (theme-aware, multi-line, no native
  *  "localhost:8080 says" chrome). Local state for the draft text keeps PageView
  *  re-renders cheap while typing. */
-function CommentComposer({ rect, quote, onSubmit, onCancel }) {
+function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }) {
   const [text, setText] = useState('');
   const taRef = useRef(null);
   useEffect(() => { taRef.current?.focus(); }, []);
@@ -51,6 +51,8 @@ function CommentComposer({ rect, quote, onSubmit, onCancel }) {
   const picker = useMentionPicker({
     textareaRef: taRef,
     fetchCandidates: async (q) => {
+      // The directory is for signed-in users only (the server answers 401 to anonymous callers).
+      if (!canMention) return [];
       try { const r = await api.listMentionableUsers(q); return r.users || []; }
       catch { return []; }
     },
@@ -621,6 +623,7 @@ export default function PageView() {
         detachedIds={detachedIds}
         statusFilter={statusFilter}
         canModerate={!!page.permissions?.delete}
+        canMention={!!user?.authenticated}
         focusedThreadId={focusedThreadId}
         onStatusFilter={setStatusFilter}
         onReply={async (threadId, text) => {
@@ -701,6 +704,7 @@ export default function PageView() {
           rect={selection.rect}
           quote={selection.selector.exact}
           onSubmit={createThread}
+          canMention={!!user?.authenticated}
           onCancel={() => {
             if (articleRef.current) clearPendingHighlight(articleRef.current);
             setComposerOpen(false);

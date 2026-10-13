@@ -7,7 +7,7 @@ import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
 
 function ThreadCard({
-  thread, detached, canModerate, focusedThreadId,
+  thread, detached, canModerate, canMention, focusedThreadId,
   onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
 }) {
   const [reply, setReply] = useState('');
@@ -30,6 +30,8 @@ function ThreadCard({
   const picker = useMentionPicker({
     textareaRef: replyRef,
     fetchCandidates: async (q) => {
+      // The directory is for signed-in users only (the server answers 401 to anonymous callers).
+      if (!canMention) return [];
       try { const r = await api.listMentionableUsers(q); return r.users || []; }
       catch { return []; }
     },
@@ -134,7 +136,7 @@ function ThreadCard({
 
 export default function CommentsDrawer({
   open, threads, detachedIds = [], statusFilter, canModerate = false,
-  focusedThreadId = null,
+  canMention = false, focusedThreadId = null,
   onStatusFilter, onReply, onResolve, onReopen, onDeleteThread = () => {},
   onFocusThread, onClose,
 }) {
@@ -148,7 +150,7 @@ export default function CommentsDrawer({
   const attached = visible.filter((t) => !isDetached(t.id));
   const detached = visible.filter((t) => isDetached(t.id));
   const cardProps = {
-    canModerate, focusedThreadId, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
+    canModerate, canMention, focusedThreadId, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
   };
 
   return (

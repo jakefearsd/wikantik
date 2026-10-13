@@ -40,6 +40,7 @@ vi.mock('./SimilarPagesPanel', () => ({ default: () => null }));
 vi.mock('./BacklinksPanel', () => ({ default: () => null }));
 vi.mock('./ChangeNotesPanel', () => ({ default: () => null }));
 vi.mock('./PageMeta', () => ({ default: () => null }));
+vi.mock('../utils/caretCoords', () => ({ getCaretCoordinates: vi.fn(() => ({ top: 1, left: 2 })) }));
 
 const PAGE = {
   name: 'Foo',
@@ -848,5 +849,47 @@ describe('PageView link previews', () => {
       vi.useRealTimers();
     }
     expect(screen.getByTestId('link-preview-card')).toHaveTextContent('About the hub.');
+  }, TEST_TIMEOUT);
+});
+
+describe('PageView comment composer @-mention autocomplete', () => {
+  // Opens the inline composer over the word "fox", types "hi @al" with the caret
+  // at the end, and returns once the picker's 150 ms debounce has comfortably elapsed.
+  async function typeMentionInComposer(container) {
+    const article = container.querySelector('article.article-prose');
+    const p = article.querySelector('p');
+    const foxNode = Array.from(p.childNodes).find(
+      (n) => n.nodeType === Node.TEXT_NODE && n.data.includes('fox'));
+    const foxStart = foxNode.data.indexOf('fox');
+    const range = document.createRange();
+    range.setStart(foxNode, foxStart);
+    range.setEnd(foxNode, foxStart + 3);
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      rangeCount: 1, isCollapsed: false, getRangeAt: () => range, removeAllRanges: vi.fn(),
+    });
+    fireEvent.mouseUp(article);
+    fireEvent.click(await screen.findByTestId('comment-add-floating'));
+    const textarea = await screen.findByPlaceholderText('Add a comment');
+    fireEvent.change(textarea, { target: { value: 'hi @al', selectionStart: 6, selectionEnd: 6 } });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 400)); });
+  }
+
+  it('signed-in viewer: typing @al queries the mentionable-users endpoint', async () => {
+    const { container } = await mountAndSettle();
+    await typeMentionInComposer(container);
+    expect(api.listMentionableUsers).toHaveBeenCalledWith('al');
+  }, TEST_TIMEOUT);
+
+  it('anonymous viewer: typing @al never queries the mentionable-users endpoint', async () => {
+    // /api/users/mentionable answers 401 to anonymous callers (login names are email
+    // addresses under SSO), and a 401 would fire the global re-auth event on every keystroke.
+    api.getUser.mockResolvedValue({ authenticated: false, roles: [] });
+    const { container } = renderPageView();
+    await waitFor(() => {
+      expect(screen.getByTestId('page-view')).toBeInTheDocument();
+      expect(screen.getByTestId('comments-toggle-button')).toBeInTheDocument();
+    });
+    await typeMentionInComposer(container);
+    expect(api.listMentionableUsers).not.toHaveBeenCalled();
   }, TEST_TIMEOUT);
 });

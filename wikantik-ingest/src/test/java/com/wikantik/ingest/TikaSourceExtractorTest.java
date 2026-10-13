@@ -633,8 +633,13 @@ class TikaSourceExtractorTest {
 
     @Test
     void interruptedWhileWaitingIsWrappedAndInterruptStatusRestored() throws Exception {
-        final TikaSourceExtractor extractor =
-            new InjectableExtractor( new ImmediateParser(), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        // The parse must still be running when the caller waits: Future.get() on an already-completed
+        // task returns without checking the interrupt flag, so an instantly-finishing parser made this
+        // test race the worker thread (it failed whenever the parse won). The gate holds the parse open.
+        final CountDownLatch started = new CountDownLatch( 1 );
+        final CountDownLatch gate = new CountDownLatch( 1 );
+        final TikaSourceExtractor extractor = new InjectableExtractor(
+            new LatchGatedParser( started, gate ), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
         Thread.currentThread().interrupt();
         try {
             final ExtractionException thrown = assertThrows( ExtractionException.class, () -> {
@@ -647,8 +652,10 @@ class TikaSourceExtractorTest {
             assertTrue( Thread.currentThread().isInterrupted(),
                 "Thread.interrupt() must be re-asserted on the caller, never silently swallowed" );
         } finally {
-            // Clear the flag so it can't leak into later tests (surefire reuses the JVM thread).
+            // Clear the flag so it can't leak into later tests (surefire reuses the JVM thread),
+            // then let the still-running parse finish so its worker does not outlive the test.
             Thread.interrupted();
+            gate.countDown();
         }
     }
 

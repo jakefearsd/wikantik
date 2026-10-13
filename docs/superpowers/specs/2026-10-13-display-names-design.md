@@ -51,9 +51,11 @@ Decisions taken with the owner:
 - **Display name = `users.full_name`**, relabelled "Display name" in the UI and API docs. No new column.
 - **Rules** (one place: `ProfileNameRules`), applied on every write path — self profile update,
   admin user edit, SSO provisioning, SCIM (`name.formatted`), and the legacy `UserManager` path:
-  - required; trimmed; 2–64 characters; no control characters; no `@`;
+  - required; trimmed; 2–64 characters; no control characters; no invisible formatting characters
+    (Unicode format, private-use or unassigned code points, e.g. zero-width spaces); no `@`;
   - not a reserved name (`ReservedProfileNames`); not equal (case-insensitively) to any account's login;
-  - **unique, case-insensitive and trimmed**, among all accounts other than the one being saved.
+  - **unique** among all accounts other than the one being saved, compared after NFKC normalisation,
+    trimming, collapsing runs of whitespace and lower-casing (so look-alikes cannot impersonate).
   Violations are reported as a field error (REST `400`/`409` with the reason; SCIM `409 uniqueness`).
   Uniqueness is enforced in the application, not by a database index: migrations run automatically
   at container start, and an index would fail there on the existing duplicates.
@@ -112,6 +114,8 @@ Fixed while here, because they are leaks on the same surfaces:
   restricted pages' titles, excerpts and authors can appear; filter by anonymous view permission.
 - `MyMentionsResource` returns a comment snippet without checking that the recipient can view the
   page; omit the snippet when they cannot.
+- `/tools/search_wiki` returns results without a view-permission check, and `RecentChangesPlugin` lists
+  restricted pages to any viewer; filter both by the caller's view permission (found while planning).
 
 ### 4. Mentions
 
@@ -131,6 +135,10 @@ Fixed while here, because they are leaks on the same surfaces:
   `read_pages` / `get_page`, `/tools/get_page`, and the Obsidian export.
 - Applied unconditionally at index time: chunking (bundle, retrieval, dense embeddings) and the Lucene
   content field — so search snippets and bundles never carry them. One index rebuild after deploy.
+- Also stripped (found while planning): the server-rendered `/wiki/*` page (JSON data island, head and
+  no-JS fallback — stripped for everyone, the editor refetches through the API), briefings, the agent
+  projection's `key_facts`, and the `contentHash` a reader receives (hash of the text they can see, so a
+  guessed directive cannot be confirmed).
 - ACL evaluation is unchanged (still login-based); editors and admins see the directives as today.
   Docs recommend naming groups rather than people in ACLs.
 

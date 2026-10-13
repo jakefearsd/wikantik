@@ -66,13 +66,25 @@ import java.util.List;
  *
  * <p><strong>Admin-role invariant:</strong> this resource only calls {@link GroupManager} and
  * {@link UserDatabase}. It never writes the {@code roles} table or invokes any role-management API.
- * A SCIM group named "Admin" creates a group only — it does not grant any role.</p>
+ * But administrator access <em>is</em> membership of the wiki group named {@code Admin} (the default
+ * policy grants that group {@code AllPermission}), so writing that group over SCIM would let an IdP
+ * (or anyone holding the SCIM token) replace the administrators or delete the group. SCIM therefore
+ * never writes it: {@code POST} with displayName {@code Admin}, and {@code PUT}, {@code PATCH} and
+ * {@code DELETE} on {@code /Groups/Admin}, are refused with {@code 403} before any
+ * {@link GroupManager} call, the name matched case-insensitively. The refusal is logged at WARN and
+ * audited as {@link AuditOutcome#DENIED} under the usual {@code scim.group.*} event type. Reads
+ * ({@code GET} and list/filter) are unaffected. The Admin group is changed in the wiki's admin UI.</p>
  */
 public class ScimGroupResource extends AbstractScimServlet {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( ScimGroupResource.class );
     private static final String SCIM_ACTOR = "scim";
+    /** The wiki group whose membership carries AllPermission; never written over SCIM. */
+    private static final String ADMIN_GROUP = "Admin";
+    private static final String EVENT_CREATE = "scim.group.create";
+    private static final String EVENT_UPDATE = "scim.group.update";
+    private static final String EVENT_DELETE = "scim.group.delete";
     // CONTENT_TYPE, GSON, and the parse/send helpers are inherited from AbstractScimServlet.
 
     private transient Engine engine;
@@ -113,6 +125,7 @@ public class ScimGroupResource extends AbstractScimServlet {
             sendError( resp, 400, "invalidValue", "displayName is required" );
             return;
         }
+        if ( refuseAdminGroupWrite( "POST", EVENT_CREATE, displayName, resp ) ) return;
 
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
@@ -146,7 +159,7 @@ public class ScimGroupResource extends AbstractScimServlet {
 
         try {
             saveGroupWithMembers( displayName, memberUids, gm, db );
-            auditRecord( "scim.group.create", displayName );
+            auditRecord( EVENT_CREATE, displayName );
 
             final Group saved = gm.getGroup( displayName );
             final String usersBase = usersBaseUrl( req );
@@ -243,6 +256,7 @@ public class ScimGroupResource extends AbstractScimServlet {
     @Override
     protected void handleReplace( final String name, final HttpServletRequest req,
                                   final HttpServletResponse resp ) throws IOException {
+        if ( refuseAdminGroupWrite( "PUT", EVENT_UPDATE, name, resp ) ) return;
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
         final UserDatabase db = getUserDatabase();
@@ -261,7 +275,7 @@ public class ScimGroupResource extends AbstractScimServlet {
 
         try {
             saveGroupWithMembers( name, memberUids, gm, db );
-            auditRecord( "scim.group.update", name );
+            auditRecord( EVENT_UPDATE, name );
 
             final Group saved = gm.getGroup( name );
             sendScim( resp, ScimGroupMapper.toScim( saved, usersBaseUrl( req ), groupsBaseUrl( req ),
@@ -282,6 +296,7 @@ public class ScimGroupResource extends AbstractScimServlet {
     @Override
     protected void handlePatch( final String name, final HttpServletRequest req,
                                 final HttpServletResponse resp ) throws IOException {
+        if ( refuseAdminGroupWrite( "PATCH", EVENT_UPDATE, name, resp ) ) return;
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
         final UserDatabase db = getUserDatabase();
@@ -308,7 +323,7 @@ public class ScimGroupResource extends AbstractScimServlet {
         try {
             final LinkedHashSet<String> newUids = ScimGroupPatchApplier.apply( currentUids, body );
             saveGroupWithMembers( name, new ArrayList<>( newUids ), gm, db );
-            auditRecord( "scim.group.update", name );
+            auditRecord( EVENT_UPDATE, name );
 
             final Group saved = gm.getGroup( name );
             sendScim( resp, ScimGroupMapper.toScim( saved, usersBaseUrl( req ), groupsBaseUrl( req ),
@@ -331,12 +346,13 @@ public class ScimGroupResource extends AbstractScimServlet {
     @Override
     protected void handleDelete( final String name, final HttpServletResponse resp )
             throws IOException {
+        if ( refuseAdminGroupWrite( "DELETE", EVENT_DELETE, name, resp ) ) return;
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
 
         try {
             gm.removeGroup( name );
-            auditRecord( "scim.group.delete", name );
+            auditRecord( EVENT_DELETE, name );
             resp.setStatus( 204 );
         } catch ( final NoSuchPrincipalException e ) {
             sendError( resp, 404, null, "Group not found: " + name );
@@ -461,7 +477,28 @@ public class ScimGroupResource extends AbstractScimServlet {
         return ( engine instanceof WikiEngine we ) ? we.getAuditService() : null;
     }
 
+    /**
+     * Refuses a SCIM write to the {@code Admin} group. Membership of that group is administrator
+     * access (AllPermission), so it is changed only in the wiki's admin UI, never by an IdP.
+     *
+     * @return {@code true} if the request targeted the Admin group and a 403 has been written (the
+     *         caller must return without touching any group); {@code false} for any other group
+     */
+    private boolean refuseAdminGroupWrite( final String method, final String eventType, final String name,
+                                           final HttpServletResponse resp ) throws IOException {
+        if ( name == null || !ADMIN_GROUP.equalsIgnoreCase( name.strip() ) ) return false;
+        LOG.warn( "SCIM {} refused: group '{}' is the Admin group and is not managed over SCIM", method, name );
+        auditRecord( eventType, name, AuditOutcome.DENIED );
+        sendError( resp, 403, null, "The Admin group is not managed over SCIM; "
+                + "change its membership in the wiki's admin UI." );
+        return true;
+    }
+
     private void auditRecord( final String eventType, final String name ) {
+        auditRecord( eventType, name, AuditOutcome.SUCCESS );
+    }
+
+    private void auditRecord( final String eventType, final String name, final AuditOutcome outcome ) {
         final AuditService audit = getAuditService();
         if ( audit == null ) return;
         try {
@@ -469,7 +506,7 @@ public class ScimGroupResource extends AbstractScimServlet {
                     .eventTime( Instant.now() )
                     .category( AuditCategory.ADMIN )
                     .eventType( eventType )
-                    .outcome( AuditOutcome.SUCCESS )
+                    .outcome( outcome )
                     .actorPrincipal( SCIM_ACTOR )
                     .actorType( "system" )
                     .targetType( "group" )

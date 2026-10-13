@@ -27,8 +27,13 @@ effect.
 ```
 
 In Docker deployments set `WIKANTIK_SCIM_TOKEN` in `.env.prod`; `docker/entrypoint.sh`
-turns it into the system property. If no token is configured, the filter logs a
-warning and denies all SCIM requests with HTTP 401.
+turns it into the system property (and refuses to start if the token contains characters
+outside `[A-Za-z0-9+/=_-]`; `openssl rand -hex 32` produces a valid one). If no token is
+configured, the filter logs a warning and denies all SCIM requests with HTTP 401.
+
+The token is a powerful credential. It can create accounts and, through the Groups
+endpoints, change the membership of any group, including `Admin` (see
+[Groups](#groups-scimv2groups)).
 
 ### 2. No migration prereq
 
@@ -120,8 +125,8 @@ parameters. Supported filter attributes:
 
 Filtering on any other attribute returns HTTP 400 `invalidFilter`.
 
-Default page size is 100; the maximum the SCIM server advertises is 1000
-(see `ServiceProviderConfig`).
+Default page size (`count`) is 100. `ServiceProviderConfig` advertises a `maxResults` of
+1000, but the server does not enforce a cap on `count`.
 
 ### Replace — `PUT /scim/v2/Users/{uid}`
 
@@ -132,9 +137,14 @@ replaced by PUT. Active/inactive transitions are routed through
 
 ### Partial update — `PATCH /scim/v2/Users/{uid}`
 
-Supported PATCH operations: `Replace` on `active`, `displayName`,
-`name.formatted`, `emails[0].value`, and `externalId`. Active/inactive
-changes go through `UserLifecycleService` (deactivate / reactivate).
+Supported PATCH operations: `Replace` (and `Add`, treated the same) on `active`,
+`displayName`, `externalId`, `name` (a `{"formatted": …}` object) and `emails` (an array
+whose first `value` is the address), and `Remove` on any of those except `active`. A
+path-less operation whose `value` is an object carrying these attributes (the Entra ID
+style) is also accepted. Indexed or filtered paths such as `emails[0].value` or
+`emails[type eq "work"].value` are refused with HTTP 400 `invalidPath`; send `emails`
+with an array value instead, and do not use dotted paths such as `name.formatted`.
+Active/inactive changes go through `UserLifecycleService` (deactivate / reactivate).
 
 ```json
 {
@@ -149,15 +159,29 @@ Does **not** remove the database row. Calls
 `UserLifecycleService.deactivate(userName, "scim", "scim/delete")`, which locks
 the account. The account survives audit history and can be reactivated.
 
-All SCIM user operations are recorded in the tamper-evident audit log
+SCIM user writes are recorded in the tamper-evident audit log
 (see [AuditLog.md](AuditLog.md)) under category `ADMIN` with event types
-`scim.user.create`, `scim.user.update`.
+`scim.user.create` and `scim.user.update` (actor `scim`). Deactivation and
+reactivation (an `active` change, `active: false` on create, and `DELETE`) also record
+`user.deactivate` / `user.reactivate` through `UserLifecycleService`; `DELETE` records
+only the `user.deactivate` event.
 
 ## Groups (`/scim/v2/Groups`)
 
-Groups route exclusively through `GroupManager` and `UserDatabase`. The
-`roles` table is never touched. **A SCIM group named "Admin" creates a group
-only — it does not grant the Admin role** to any of its members.
+Groups route exclusively through `GroupManager` and `UserDatabase`, the same
+`groups` / `group_members` store behind **Admin → Security**. The `roles` table is
+never touched.
+
+**SCIM never writes the `Admin` group.** Administrator access comes from membership of
+the `Admin` group (see [Security.md](Security.md#who-counts-as-an-administrator)), so
+SCIM refuses every write to it: `POST` with `displayName` `Admin`, and `PUT`, `PATCH` and
+`DELETE` on `/scim/v2/Groups/Admin`, return `403` before anything is changed (the name is
+matched case-insensitively). Each refusal is logged at WARN and audited as `DENIED` under
+the usual `scim.group.*` event type. Reading the group (`GET`, list, filter) still works.
+Change administrators in **Admin → Security → Groups** instead. Releases up to and
+including 2.4.56 did not have this guard: there, `PUT`/`PATCH` on the Admin group rewrote
+its membership and `DELETE` removed it, so on those versions treat the SCIM token as an
+administrator-equivalent credential and do not map an IdP group onto `Admin`.
 
 ### Create — `POST /scim/v2/Groups`
 

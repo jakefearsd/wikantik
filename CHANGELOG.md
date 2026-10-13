@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- The generated configuration reference (`docs/ConfigurationReference.md` and the wiki page
+  `WikantikConfigurationReference`) escapes a bare `$` in descriptions. Two of them paired into one inline-math
+  span and rendered about 20 lines of the wiki page as a formula.
+
+### Security
+- SCIM no longer writes the `Admin` group. Membership of that group is administrator access, but
+  `PUT`/`PATCH /scim/v2/Groups/Admin` rewrote its membership and `DELETE` removed it, so anyone holding the
+  SCIM bearer token could make an account an administrator or remove every administrator. `POST`, `PUT`,
+  `PATCH` and `DELETE` on the Admin group (any letter case) now return `403` without changing it, logged at
+  WARN and audited as `DENIED`. Change administrators in **Admin → Security → Groups**.
+
 ## [2.4.56] - 2026-10-12
 
 ### Upgrade notes

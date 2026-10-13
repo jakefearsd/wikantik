@@ -18,7 +18,7 @@ checks the supplied password against the PostgreSQL-backed user database (see
 |---|---|---|
 | Database accounts (default) | `UserDatabaseLoginModule` against the `users` table; the React login page posts credentials | [PostgreSQL.md](PostgreSQL.md) |
 | HTTP Basic | `BasicAuthFilter` turns an `Authorization: Basic` header on `/api/*` and `/admin/*` into a real login, for scripts and CI | this page |
-| Servlet-container auth | credentials supplied by the container (`getUserPrincipal`) are always picked up; to make users log in through the container, uncomment the `<security-constraint>` elements in `web.xml` | `wikantik.properties` (authentication section) |
+| Servlet-container auth | credentials supplied by the container (`getUserPrincipal`) are always picked up; to make users log in through the container, add your own `<security-constraint>` (with an `<auth-constraint>` role), `<login-config>` and `<security-role>` elements to `web.xml`. The shipped file has no commented-out block to enable: its only `<security-constraint>` is the TLS `transport-guarantee` (`NONE`; set `CONFIDENTIAL` for production) | `wikantik.properties` (authentication section) |
 | Single sign-on | OpenID Connect and SAML 2.0 through pac4j, alongside local login | [SingleSignOn.md](SingleSignOn.md) |
 | IdP provisioning | SCIM 2.0 server at `/scim/v2/*` for onboarding and offboarding | [ScimProvisioning.md](ScimProvisioning.md) |
 | Custom JAAS module | set `wikantik.loginModule.class` to your own `LoginModule` (zero-argument constructor); options go in `wikantik.loginModule.options.*` | `wikantik.properties` |
@@ -97,8 +97,10 @@ Permission types are `page`, `wiki`, `group`, `admin` and `all`. Page permission
 `view`, `comment`, `edit`, `modify`, `upload`, `rename`, `delete`; wiki permissions are
 `createPages`, `createGroups`, `export`, `editPreferences`, `editProfile`, `login`. Always change
 grants through the admin UI or `/admin/policy`, because the policy is cached and only
-the API refreshes it. If `policy_grants` is unavailable, the file-based fallback
-`WEB-INF/wikantik.policy` applies.
+the API refreshes it. The file-based `WEB-INF/wikantik.policy` applies only when no
+`wikantik.datasource` is configured; if a datasource is configured but the database policy
+cannot be initialised, startup fails with a `WikiException` rather than falling back to the
+file.
 
 Two rules in `DatabasePolicy` matter when you edit grants:
 
@@ -132,6 +134,12 @@ curl -u admin:... -X PUT -H 'Content-Type: application/json' \
      -d '{"members":["existing1","existing2","new-admin"]}' \
      http://localhost:8080/admin/groups/Admin
 ```
+
+Whatever can write the `Admin` group can create administrators: the group editor and
+`PUT /admin/groups/Admin` above. SCIM cannot — it refuses every write to the `Admin` group
+with `403` (see [ScimProvisioning.md](ScimProvisioning.md)). Releases up to and including
+2.4.56 lacked that guard, so on those versions the SCIM bearer token is an
+administrator-equivalent credential.
 
 Other behaviour of `AdminAuthFilter`:
 
@@ -388,11 +396,13 @@ Prefer the narrowest scope. Non-administrators can self-mint only `tools` and
 `mcp_read` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. The `/api/*` REST surface uses session or Basic
 authentication and does not accept API keys.
 
-`/knowledge-mcp` and the other MCP and tools endpoints also fail closed. With no key,
-CIDR allowlist (`mcp.access.allowedCidrs`, `tools.access.allowedCidrs`) or explicit
-`allowUnrestricted=true`, they answer 503. Each has its own per-client limiter
-(`mcp.ratelimit.*`, `tools.ratelimit.*`). Details: [ApiKeys.md](ApiKeys.md),
-[McpAgents.md](McpAgents.md).
+`/knowledge-mcp` and the other MCP and tools endpoints also fail closed. If there is no
+DB-backed API key service (no datasource), no CIDR allowlist (`mcp.access.allowedCidrs`,
+`tools.access.allowedCidrs`) and `allowUnrestricted` is not `true`, they answer 503 to
+everything. Otherwise a request needs a key whose scope covers the endpoint (a key with
+the wrong scope, or no valid key, gets 403) or a source address inside the allowlist. Each
+has its own per-client limiter (`mcp.ratelimit.*`, `tools.ratelimit.*`). Details:
+[ApiKeys.md](ApiKeys.md), [McpAgents.md](McpAgents.md).
 
 ### Rate limiting
 
@@ -481,8 +491,9 @@ served to another.
 - Deserialization uses `ObjectInputFilter` allow-lists wherever an
   `ObjectInputStream` is used.
 - Responses carry `Content-Security-Policy`, `Strict-Transport-Security`,
-  `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a restrictive referrer
-  policy and cross-origin isolation headers, applied by the filters in `web.xml`
+  `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: no-referrer-when-downgrade`, `Cross-Origin-Embedder-Policy: require-corp`
+  and `Cross-Origin-Resource-Policy: same-origin`, applied by the filters in `web.xml`
   (`CSPFilter`, `STSFilter`, `ClickJackFilter`, `ContentTypeOptionsFilter`,
   `ReferrerPolicyFilter`, `COEPFilter`, `CORPFilter`).
 - `/api/health` and `/metrics` are reachable only from loopback and RFC 1918 networks

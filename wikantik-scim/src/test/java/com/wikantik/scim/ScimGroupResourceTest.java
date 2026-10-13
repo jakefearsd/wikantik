@@ -19,6 +19,10 @@
 package com.wikantik.scim;
 
 import com.wikantik.WikiEngine;
+import com.wikantik.WikiSession;
+import com.wikantik.api.core.Session;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
 import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
@@ -29,8 +33,13 @@ import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
@@ -39,6 +48,7 @@ import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.security.Principal;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -884,5 +894,199 @@ class ScimGroupResourceTest {
         verify( resp ).setStatus( 204 );
         // Audit record was attempted (verify auditService.record was called)
         verify( auditService ).record( any() );
+    }
+
+    // -----------------------------------------------------------------------
+    // The Admin group is not managed over SCIM: membership of the wiki group
+    // "Admin" carries AllPermission, so every SCIM write to it is refused (403)
+    // and leaves the group untouched. Reads keep working.
+    // -----------------------------------------------------------------------
+
+    private static final String ESCALATION_MEMBER = "{\"value\":\"uid-mallory\"}";
+
+    private MockedStatic< WikiSession > wikiSessionStatic;
+
+    @AfterEach
+    void closeStaticMocks() {
+        if ( wikiSessionStatic != null ) {
+            wikiSessionStatic.close();
+            wikiSessionStatic = null;
+        }
+    }
+
+    /**
+     * Seeds the real Admin group with one administrator, so an overwrite would be observable. Also gives
+     * the resource a system session, so an unguarded write path genuinely reaches {@code setGroup} /
+     * {@code removeGroup} instead of dying in the bare-mock engine.
+     */
+    private Group seedAdminGroup() throws Exception {
+        wikiSessionStatic = mockStatic( WikiSession.class );
+        wikiSessionStatic.when( () -> WikiSession.getWikiSession( any(), any() ) ).thenReturn( mock( Session.class ) );
+        final Principal alice = mock( Principal.class );
+        when( alice.getName() ).thenReturn( "alice" );
+        final Group admin = mock( Group.class );
+        when( admin.getName() ).thenReturn( "Admin" );
+        when( admin.members() ).thenReturn( new Principal[]{ alice } );
+        // A case-insensitive group store resolves every casing to the one Admin group.
+        for ( final String casing : new String[]{ "Admin", "admin", "ADMIN" } ) {
+            when( mockGm.getGroup( casing ) ).thenReturn( admin );
+        }
+
+        final UserProfile aliceProfile = mock( UserProfile.class );
+        when( aliceProfile.getUid() ).thenReturn( "uid-alice" );
+        when( aliceProfile.getLoginName() ).thenReturn( "alice" );
+        when( mockDb.findByLoginName( "alice" ) ).thenReturn( aliceProfile );
+        when( mockDb.findByUid( "uid-alice" ) ).thenReturn( aliceProfile );
+        final UserProfile mallory = mock( UserProfile.class );
+        when( mallory.getLoginName() ).thenReturn( "mallory" );
+        when( mockDb.findByUid( "uid-mallory" ) ).thenReturn( mallory );
+        return admin;
+    }
+
+    private void assertAdminWriteRefused() throws Exception {
+        verify( resp ).setStatus( 403 );
+        final String out = sw.toString();
+        assertTrue( out.contains( "urn:ietf:params:scim:api:messages:2.0:Error" ), out );
+        assertTrue( out.contains( "\"status\":\"403\"" ), out );
+        assertTrue( out.contains( "Admin group is not managed over SCIM" ), out );
+        assertTrue( out.contains( "admin UI" ), out );
+        // Group untouched: nothing was parsed into a replacement, saved, or removed.
+        verify( mockGm, never() ).parseGroup( anyString(), anyString(), anyBoolean() );
+        verify( mockGm, never() ).setGroup( any(), any() );
+        verify( mockGm, never() ).removeGroup( anyString() );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "Admin", "admin", "ADMIN" } )
+    void createAdminGroup_whenItExists_returns403NotConflict( final String displayName ) throws Exception {
+        seedAdminGroup();
+        final String body = "{\"displayName\":\"" + displayName + "\",\"members\":[" + ESCALATION_MEMBER + "]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        assertAdminWriteRefused();
+        verify( resp, never() ).setStatus( 409 );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "Admin", "admin", "ADMIN" } )
+    void createAdminGroup_whenItWasDeleted_isNotRecreated( final String displayName ) throws Exception {
+        seedAdminGroup();
+        when( mockGm.getGroup( displayName ) ).thenThrow( new NoSuchPrincipalException( displayName ) );
+        final String body = "{\"displayName\":\"" + displayName + "\",\"members\":[" + ESCALATION_MEMBER + "]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        assertAdminWriteRefused();
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "Admin", "admin", "ADMIN" } )
+    void putAdminGroup_returns403AndLeavesMembershipUntouched( final String name ) throws Exception {
+        final Group admin = seedAdminGroup();
+        when( req.getPathInfo() ).thenReturn( "/" + name );
+        final String body = "{\"displayName\":\"" + name + "\",\"members\":[" + ESCALATION_MEMBER + "]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPut( req, resp );
+
+        assertAdminWriteRefused();
+        assertEquals( "alice", admin.members()[ 0 ].getName() );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "Admin", "admin", "ADMIN" } )
+    void patchAdminGroup_returns403AndLeavesMembershipUntouched( final String name ) throws Exception {
+        final Group admin = seedAdminGroup();
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/" + name );
+        final String body = "{\"Operations\":[{\"op\":\"add\",\"path\":\"members\",\"value\":["
+                + ESCALATION_MEMBER + "]}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        assertAdminWriteRefused();
+        assertEquals( "alice", admin.members()[ 0 ].getName() );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "Admin", "admin", "ADMIN" } )
+    void deleteAdminGroup_returns403AndKeepsTheGroup( final String name ) throws Exception {
+        seedAdminGroup();
+        when( req.getPathInfo() ).thenReturn( "/" + name );
+
+        resource.doDelete( req, resp );
+
+        assertAdminWriteRefused();
+        verify( resp, never() ).setStatus( 204 );
+    }
+
+    @Test
+    void adminGroupRefusal_isRefusedEvenWhenManagersAreUnavailable() throws Exception {
+        // Fail closed: the guard must not depend on the group manager being reachable.
+        when( mockEngine.getManager( GroupManager.class ) ).thenReturn( null );
+        when( req.getPathInfo() ).thenReturn( "/Admin" );
+
+        resource.doDelete( req, resp );
+
+        verify( resp ).setStatus( 403 );
+        verify( resp, never() ).setStatus( 503 );
+    }
+
+    @Test
+    void getAdminGroup_stillReturnsIt() throws Exception {
+        final Group admin = seedAdminGroup();
+        when( req.getPathInfo() ).thenReturn( "/Admin" );
+
+        resource.doGet( req, resp );
+
+        verify( resp, never() ).setStatus( anyInt() );
+        final String out = sw.toString();
+        assertTrue( out.contains( "\"displayName\":\"Admin\"" ), out );
+        assertEquals( 1, admin.members().length );
+    }
+
+    @Test
+    void listFilteredToAdminGroup_stillReturnsIt() throws Exception {
+        seedAdminGroup();
+        when( req.getParameter( "filter" ) ).thenReturn( "displayName eq \"Admin\"" );
+
+        resource.doGet( req, resp );
+
+        verify( resp, never() ).setStatus( anyInt() );
+        assertTrue( sw.toString().contains( "\"totalResults\":1" ), sw.toString() );
+    }
+
+    @Test
+    void groupsMerelyNamedLikeAdmin_areStillManageable() throws Exception {
+        // Exact (case-insensitive) match only - not a prefix/contains test.
+        when( req.getPathInfo() ).thenReturn( "/Administrators" );
+        doNothing().when( mockGm ).removeGroup( "Administrators" );
+
+        resource.doDelete( req, resp );
+
+        verify( resp ).setStatus( 204 );
+        verify( mockGm ).removeGroup( "Administrators" );
+    }
+
+    @Test
+    void refusedAdminWrite_isAuditedAsDeniedUnderTheExistingEventType() throws Exception {
+        final AuditService auditService = mock( AuditService.class );
+        when( mockEngine.getAuditService() ).thenReturn( auditService );
+        seedAdminGroup();
+        when( req.getPathInfo() ).thenReturn( "/Admin" );
+
+        resource.doDelete( req, resp );
+
+        final ArgumentCaptor< AuditEntry > captor = ArgumentCaptor.forClass( AuditEntry.class );
+        verify( auditService ).record( captor.capture() );
+        final AuditEntry entry = captor.getValue();
+        assertEquals( "scim.group.delete", entry.eventType() );
+        assertEquals( AuditOutcome.DENIED, entry.outcome() );
+        assertEquals( "Admin", entry.targetId() );
+        verify( mockGm, never() ).removeGroup( anyString() );
     }
 }

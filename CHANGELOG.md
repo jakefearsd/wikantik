@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.57] - 2026-10-13
+
 ### Upgrade notes
 - Approving a Knowledge Graph `new-node` proposal is now first-writer-wins: when a node with that name already
   exists it is left unchanged (logged at INFO), instead of having its type, provenance and properties replaced.

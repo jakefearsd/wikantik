@@ -48,8 +48,7 @@ import java.util.Set;
  *
  * <p>The only mutation exposed is per-member removal: it parses the hub page's
  * frontmatter, drops the named member from {@code related:}, and saves the page back
- * via the injected {@code PageWriter}. The existing {@code HubSyncFilter} reconciles
- * the {@code kg_edges} table on save.
+ * via the injected {@code PageWriter}.
  *
  * <p><b>Phase 11 Ckpt 6:</b> heavy internals delegated to
  * {@link HubMemberLoader} (hub/member loading from KG + frontmatter) and

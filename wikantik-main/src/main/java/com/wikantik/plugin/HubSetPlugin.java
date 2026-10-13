@@ -42,7 +42,7 @@ import java.util.Map;
  * </ul>
  * Plus all parameters inherited from {@link AbstractReferralPlugin}.
  *
- * <p>Usage: {@code [{HubSet hub='Technology' max='10' detail='cards'}]}</p>
+ * <p>Usage: {@code [{HubSetPlugin hub='Technology' max='10' detail='cards'}]}</p>
  */
 public class HubSetPlugin extends AbstractReferralPlugin {
 

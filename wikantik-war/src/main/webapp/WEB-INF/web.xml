@@ -74,8 +74,8 @@
    </filter-mapping>
 
    <!-- Concurrency-bounded admission control. Capped at WIKANTIK_MAX_INFLIGHT_REQUESTS
-        permits (default 700, one notch above the measured-comfortable N=650 sustained
-        ceiling). Requests over the cap get an immediate 503 + Retry-After:1 instead
+        permits (default 390 - the cap must sit below Tomcat's maxThreads=400 or it can never
+        fire; see BackpressureFilter.DEFAULT_MAX_INFLIGHT). Requests over the cap get an immediate 503 + Retry-After:1 instead
         of queueing for up to 60 s. /api/health and /metrics are exempted internally
         in the filter so jakemon never sees a 503 for those. Ordered after correlation
         (so rejected requests still get a request-id in the access log) but before any

@@ -13,7 +13,7 @@
 #
 # Environment variables (with defaults):
 #   DB_NAME              wikantik        target database
-#   DB_APP_USER          jspwiki         application role (created if absent)
+#   DB_APP_USER          wikantik        application role (created if absent)
 #   DB_APP_PASSWORD      (required)      password set on the application role
 #                                        (no default — must be specified before creating the role)
 #   DB_MIGRATE_USER      migrate         migration role (created if absent)

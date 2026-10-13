@@ -430,7 +430,7 @@ For authentication, Wikantik uses JAAS (Java Authentication and Authorization Se
 
 You must choose either (A) Container or (B) Custom authentication. (B) is the default.
 
-A) CONTAINER AUTHENTICATION Wikantik will always (passively) collect credentials supplied by your servlet container, via HttpServletRequest.getUserPrincipal/getRemote user. You do not need to do anything to enable this. In addition, you can cause Wikantik users to log in to the web container by uncommenting the the <security-constraint> elements in WEB-INF/web.xml.
+A) CONTAINER AUTHENTICATION Wikantik will always (passively) collect credentials supplied by your servlet container, via HttpServletRequest.getUserPrincipal/getRemote user. You do not need to do anything to enable this. In addition, you can cause Wikantik users to log in to the web container by adding <security-constraint> and <login-config> elements to WEB-INF/web.xml (none ship; its only constraint is the TLS one).
 
 B) CUSTOM AUTHENTICATION If you do not wish to use container-managed authentication, you can use Wikantik's own custom authentication system. This uses a JAAS LoginModule (supplied below) to log in the user. You can use any JAAS LoginModule you want. The default class is com.wikantik.auth.login.UserDatabaseLoginModule, which compares the supplied username and hashed password with the values stored in the configured UserDatabase (see USER DATABASE below).
 

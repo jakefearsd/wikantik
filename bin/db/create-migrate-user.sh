@@ -27,7 +27,7 @@
 #   DB_NAME              wikantik     target database (must already exist)
 #   DB_MIGRATE_USER      migrate      role to create
 #   DB_MIGRATE_PASSWORD               REQUIRED — password to set on the role
-#   DB_APP_USER          jspwiki      app role granted via default privileges
+#   DB_APP_USER          wikantik     app role granted via default privileges
 #   PGHOST               localhost
 #   PGPORT               5432
 #   PGUSER               postgres     superuser running this script
@@ -46,7 +46,7 @@
 #   - create the database itself. install-fresh.sh still owns that.
 #
 # This script DOES transfer ownership of existing user tables and sequences
-# in the public schema from their current owner (postgres or jspwiki) to
+# in the public schema from their current owner (postgres or the app role) to
 # the migrate role, so that ALTER TABLE statements in later migrations
 # succeed. Without this, an ALTER in a migration will fail with
 # "must be owner of table X" when the table was originally created by a

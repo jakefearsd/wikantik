@@ -58,7 +58,7 @@ final class DescriptionRenderer {
         for ( final String line : lines ) {
             if ( EXAMPLE_LINE.matcher( line ).matches() ) {
                 if ( !prose.isEmpty() ) {
-                    segments.add( new Segment( false, String.join( " ", prose ) ) );
+                    segments.add( new Segment( false, escapeProseDollars( String.join( " ", prose ) ) ) );
                     prose.clear();
                 }
                 segments.add( new Segment( true, line ) );
@@ -67,9 +67,30 @@ final class DescriptionRenderer {
             }
         }
         if ( !prose.isEmpty() ) {
-            segments.add( new Segment( false, String.join( " ", prose ) ) );
+            segments.add( new Segment( false, escapeProseDollars( String.join( " ", prose ) ) ) );
         }
         return segments;
+    }
+
+    /**
+     * A bare {@code $} in prose opens inline math on the wiki (and on GitHub): two of them anywhere
+     * in the page pair up into one math span that swallows everything between them. Escapes each
+     * one outside a code span; inside backticks a {@code $} is already literal and a backslash
+     * would be displayed.
+     */
+    static String escapeProseDollars( final String prose ) {
+        final StringBuilder out = new StringBuilder( prose.length() + 8 );
+        boolean inCode = false;
+        for ( int i = 0; i < prose.length(); i++ ) {
+            final char c = prose.charAt( i );
+            if ( c == '`' ) {
+                inCode = !inCode;
+            } else if ( c == '$' && !inCode && ( i == 0 || prose.charAt( i - 1 ) != '\\' ) ) {
+                out.append( '\\' );
+            }
+            out.append( c );
+        }
+        return out.toString();
     }
 
     /** Joins {@code lines} into the entry's full text: prose flows normally, each

@@ -68,6 +68,15 @@ class GenerateConfigReferenceCliTest {
         "wikantik.example.piped = a"
     ), "wikantik." );
 
+    /** Two prose `$` signs (real ini text: wikantik.auth.masterpassword + the cookie-store key)
+     *  pair up into one KaTeX inline-math span on the wiki page unless escaped. */
+    private static final ConfigReference.Parsed DOLLAR_DESCRIPTION = ConfigReference.parse( List.of(
+        "# [Misc]",
+        "#  Never resolves via the [{$var}] syntax; files go in $wikantik.workDir/cookies. Code `${x}` stays.",
+        "#  Type: string",
+        "wikantik.example.dollar = a"
+    ), "wikantik." );
+
     /** Two `# [Ontology]` markers in one file, entries appended between/after them (Task 12 addendum). */
     private static final ConfigReference.Parsed DUPLICATE_SECTION = ConfigReference.parse( List.of(
         "# [Ontology]",
@@ -138,6 +147,18 @@ class GenerateConfigReferenceCliTest {
                 "the primary settings surface described above", PIPE_DESCRIPTION ) );
         final String md = cli.render( sources, "ConfigurationReference.md.mustache" );
         assertTrue( md.contains( "Accepts a\\|b\\|c style values, pipe-separated." ), md );
+    }
+
+    @Test
+    void prose_dollar_signs_are_escaped_so_they_never_open_inline_math() {
+        final GenerateConfigReferenceCli cli = new GenerateConfigReferenceCli();
+        final List<GenerateConfigReferenceCli.SourceFile> sources = List.of(
+            new GenerateConfigReferenceCli.SourceFile( "Wikantik core settings", "path", "note", DOLLAR_DESCRIPTION ) );
+        for ( final String template : List.of( "ConfigurationReference.md.mustache", "WikantikConfigurationReference.md.mustache" ) ) {
+            final String md = cli.render( sources, template );
+            assertTrue( md.contains( "the [{\\$var}] syntax; files go in \\$wikantik.workDir/cookies." ), md );
+            assertTrue( md.contains( "Code `${x}` stays." ), "a $ inside a code span must not gain a backslash: " + md );
+        }
     }
 
     @Test

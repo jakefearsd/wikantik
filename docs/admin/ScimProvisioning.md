@@ -31,9 +31,9 @@ turns it into the system property (and refuses to start if the token contains ch
 outside `[A-Za-z0-9+/=_-]`; `openssl rand -hex 32` produces a valid one). If no token is
 configured, the filter logs a warning and denies all SCIM requests with HTTP 401.
 
-The token is a powerful credential. It can create accounts and, through the Groups
-endpoints, change the membership of any group, including `Admin` (see
-[Groups](#groups-scimv2groups)).
+The token is a powerful credential. It can create and deactivate accounts and, through the
+Groups endpoints, change the membership of any group except `Admin`, which SCIM refuses to
+write from 2.4.57 on (see [Groups](#groups-scimv2groups)).
 
 ### 2. No migration prereq
 

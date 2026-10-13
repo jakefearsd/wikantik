@@ -217,6 +217,9 @@ public final class MailUtil {
 
     static final String DEFAULT_MAIL_CONN_TIMEOUT    = "5000";
 
+    /** STARTTLS is only an opportunistic upgrade ({@code starttls.enable}, not {@code .required}), so on by default is safe. */
+    static final String DEFAULT_MAIL_STARTTLS        = "true";
+
     static final String DEFAULT_SENDER               = "wikantik@localhost";
 
     static final String PROP_MAIL_JNDI_NAME          = "wikantik.mail.jndiname";
@@ -239,14 +242,12 @@ public final class MailUtil {
     static final String PROP_MAILS_TIMEOUT           = "mail.smtps.timeout";
 
     static final String PROP_MAIL_CONNECTION_TIMEOUT = "mail.smtp.connectiontimeout";
-    static final String PROP_MAILS_CONNECTION_TIMEOUT= "mail.smtps.connectiontimeout";
 
     static final String PROP_MAIL_TRANSPORT          = "smtp";
 
     static final String PROP_MAIL_SENDER             = "mail.from";
 
     static final String PROP_MAIL_STARTTLS           = "mail.smtp.starttls.enable";
-    static final String PROP_MAILS_STARTTLS          = "mail.smtps.starttls.enable";
 
     private static String c_fromAddress;
 
@@ -381,6 +382,12 @@ public final class MailUtil {
      * non-<code>null</code> and of non-zero length, the Session will be initialized with an instance of
      * {@link jakarta.mail.Authenticator}.
      *
+     * <p>Every {@code mail.smtp*} key in {@code props} is copied onto the Session verbatim. For the
+     * three settings whose JavaMail defaults are unsafe &mdash; {@value #PROP_MAIL_TIMEOUT},
+     * {@value #PROP_MAIL_CONNECTION_TIMEOUT} (both default to 5000 ms) and {@value #PROP_MAIL_STARTTLS}
+     * (defaults to {@code true}) &mdash; the documented default is applied when the key is absent or
+     * blank; an explicitly configured value, including {@code 0} or {@code false}, always wins.</p>
+     *
      * @param props the properties that contain mail session properties.
      * @return the initialized JavaMail Session.
      *
@@ -393,9 +400,6 @@ public final class MailUtil {
         final String port     = Objects.toString( props.getProperty( PROP_MAIL_PORT, props.getProperty( PROP_MAILS_PORT, DEFAULT_MAIL_PORT ) ) );
         final String account  = Objects.toString( props.getProperty( PROP_MAIL_ACCOUNT ), props.getProperty( PROP_MAILS_ACCOUNT ) );
         final String password = Objects.toString( props.getProperty( PROP_MAIL_PASSWORD ),props.getProperty( PROP_MAILS_PASSWORD ) );
-        final String timeout  = Objects.toString( props.getProperty( PROP_MAIL_TIMEOUT, props.getProperty( PROP_MAILS_TIMEOUT, DEFAULT_MAIL_TIMEOUT ) ) );
-        final String conntimeout = Objects.toString( props.getProperty( PROP_MAIL_CONNECTION_TIMEOUT, props.getProperty( PROP_MAILS_CONNECTION_TIMEOUT, DEFAULT_MAIL_CONN_TIMEOUT ) ) );
-        final String starttls = Boolean.toString( TextUtil.getBooleanProperty( props, PROP_MAIL_STARTTLS, TextUtil.getBooleanProperty( props, PROP_MAILS_STARTTLS, true ) ) );
         final boolean useAuthentication = account != null && !account.isEmpty();
 
         // Set JavaMail properties
@@ -406,6 +410,16 @@ public final class MailUtil {
                 mailProps.setProperty( key, props.getProperty( key ) );
             }
         }
+
+        // The documented defaults (ini/wikantik.properties) must reach the Session itself: JavaMail's
+        // own defaults are "no STARTTLS" and "wait forever", and a hung relay would block the sending
+        // thread indefinitely. Explicitly configured values (copied above) always win.
+        applyDefault( mailProps, PROP_MAIL_TIMEOUT, DEFAULT_MAIL_TIMEOUT );
+        applyDefault( mailProps, PROP_MAIL_CONNECTION_TIMEOUT, DEFAULT_MAIL_CONN_TIMEOUT );
+        applyDefault( mailProps, PROP_MAIL_STARTTLS, DEFAULT_MAIL_STARTTLS );
+        final String timeout     = mailProps.getProperty( PROP_MAIL_TIMEOUT );
+        final String conntimeout = mailProps.getProperty( PROP_MAIL_CONNECTION_TIMEOUT );
+        final String starttls    = mailProps.getProperty( PROP_MAIL_STARTTLS );
 
         // Add SMTP authentication if required
         final Session session;
@@ -424,6 +438,18 @@ public final class MailUtil {
                                   ", use authentication=" + ( useAuthentication ? TRUE : FALSE );
         LOG.debug( "JavaMail session obtained from standalone mail factory: {}", mailServer );
         return session;
+    }
+
+    /**
+     * Sets {@code key} to {@code defaultValue} unless the caller configured a non-blank value for it.
+     * A blank value ({@code mail.smtp.timeout =} in a properties file) counts as unset: JavaMail
+     * silently turns an unparseable timeout into "infinite", which is exactly what the default prevents.
+     */
+    private static void applyDefault( final Properties mailProps, final String key, final String defaultValue ) {
+        final String configured = mailProps.getProperty( key );
+        if( configured == null || configured.isBlank() ) {
+            mailProps.setProperty( key, defaultValue );
+        }
     }
 
     /**

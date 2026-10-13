@@ -185,23 +185,71 @@ class MailUtilSendTest {
         assertEquals( "2525", session.getProperty( MailUtil.PROP_MAIL_PORT ) );
         assertEquals( "9000", session.getProperty( MailUtil.PROP_MAIL_TIMEOUT ) );
         assertEquals( "8000", session.getProperty( MailUtil.PROP_MAIL_CONNECTION_TIMEOUT ) );
-        // starttls wasn't supplied by the caller, so — unlike the computed-default local variable
-        // that only feeds the debug log line — the Session's own property table has nothing set.
-        assertNull( session.getProperty( MailUtil.PROP_MAIL_STARTTLS ) );
+        // starttls wasn't supplied by the caller, so the documented default (true) applies.
+        assertEquals( "true", session.getProperty( MailUtil.PROP_MAIL_STARTTLS ) );
         // no account -> no auth requested
         assertNull( session.getProperty( "mail.smtp.auth" ) );
     }
 
     @Test
-    void getStandaloneMailSessionResolvesDefaultsForLoggingButLeavesUnsuppliedSessionPropertiesUnset() {
-        // MailUtil still computes host/port/timeout/starttls defaults for its debug log line even
-        // when nothing is configured, but only caller-supplied "mail.smtp*" keys get copied onto
-        // the actual JavaMail Session — so an empty Properties yields an empty Session.
+    void getStandaloneMailSessionAppliesDocumentedDefaultsToTheSessionWhenNothingIsConfigured() {
+        // ini/wikantik.properties documents "mail.smtp.timeout = 5000", "mail.smtp.connectiontimeout =
+        // 5000" and "mail.smtp.starttls.enable = true" as the defaults. They must reach the JavaMail
+        // Session itself — a default that is only logged leaves the socket timeouts infinite (a hung
+        // relay then blocks the sending thread forever) and never upgrades to TLS.
         final Session session = MailUtil.getStandaloneMailSession( new Properties() );
 
         assertNotNull( session );
+        assertEquals( "5000", session.getProperty( MailUtil.PROP_MAIL_TIMEOUT ) );
+        assertEquals( "5000", session.getProperty( MailUtil.PROP_MAIL_CONNECTION_TIMEOUT ) );
+        assertEquals( "true", session.getProperty( MailUtil.PROP_MAIL_STARTTLS ) );
+        // host/port are deliberately left to JavaMail's own identical defaults (localhost:25)
         assertNull( session.getProperty( MailUtil.PROP_MAIL_HOST ) );
         assertNull( session.getProperty( "mail.smtp.auth" ) );
+    }
+
+    @Test
+    void getStandaloneMailSessionKeepsExplicitTimeoutAndStarttlsValuesIncludingZeroAndFalse() {
+        final Properties props = new Properties();
+        props.setProperty( MailUtil.PROP_MAIL_TIMEOUT, "0" );             // deliberate "no timeout"
+        props.setProperty( MailUtil.PROP_MAIL_CONNECTION_TIMEOUT, "123" );
+        props.setProperty( MailUtil.PROP_MAIL_STARTTLS, "false" );
+
+        final Session session = MailUtil.getStandaloneMailSession( props );
+
+        assertEquals( "0", session.getProperty( MailUtil.PROP_MAIL_TIMEOUT ) );
+        assertEquals( "123", session.getProperty( MailUtil.PROP_MAIL_CONNECTION_TIMEOUT ) );
+        assertEquals( "false", session.getProperty( MailUtil.PROP_MAIL_STARTTLS ) );
+    }
+
+    @Test
+    void getStandaloneMailSessionTreatsBlankValuesAsUnsetAndAppliesTheDefaults() {
+        // "mail.smtp.timeout =" in a properties file yields "" — JavaMail silently turns an
+        // unparseable timeout into "infinite", so a blank must fall back to the default, not pass through.
+        final Properties props = new Properties();
+        props.setProperty( MailUtil.PROP_MAIL_TIMEOUT, "" );
+        props.setProperty( MailUtil.PROP_MAIL_CONNECTION_TIMEOUT, "   " );
+        props.setProperty( MailUtil.PROP_MAIL_STARTTLS, "" );
+
+        final Session session = MailUtil.getStandaloneMailSession( props );
+
+        assertEquals( "5000", session.getProperty( MailUtil.PROP_MAIL_TIMEOUT ) );
+        assertEquals( "5000", session.getProperty( MailUtil.PROP_MAIL_CONNECTION_TIMEOUT ) );
+        assertEquals( "true", session.getProperty( MailUtil.PROP_MAIL_STARTTLS ) );
+    }
+
+    @Test
+    void getStandaloneMailSessionDefaultsTheSmtpKeysEvenWhenOnlySmtpsKeysAreSupplied() {
+        // The smtp transport (what Transport.send uses) reads only "mail.smtp.*"; "mail.smtps.*" values
+        // are copied verbatim for an smtps transport and must neither satisfy nor be overwritten by
+        // the smtp defaults.
+        final Properties props = new Properties();
+        props.setProperty( MailUtil.PROP_MAILS_TIMEOUT, "20000" );
+
+        final Session session = MailUtil.getStandaloneMailSession( props );
+
+        assertEquals( "20000", session.getProperty( MailUtil.PROP_MAILS_TIMEOUT ) );
+        assertEquals( "5000", session.getProperty( MailUtil.PROP_MAIL_TIMEOUT ) );
     }
 
     @Test

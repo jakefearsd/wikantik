@@ -143,6 +143,17 @@ class InstructionsRegistryDriftTest {
                 "write_pages is mentioned, so the registered set must come back clean" );
     }
 
+    @Test
+    void anActionValueThatLooksLikeAToolNameIsNotFlagged() {
+        // curate_edges' compound action is literally named delete_and_reject. The instructions
+        // must be able to spell it out without the detector mistaking it for a retired tool.
+        final Set< String > mentioned = McpServerInitializer.extractToolLikeNames(
+                "curate_edges  action: upsert | confirm | delete | delete_and_reject" );
+        assertTrue( mentioned.contains( "curate_edges" ), "curate_edges is a tool and must be extracted" );
+        assertTrue( !mentioned.contains( "delete_and_reject" ),
+                "delete_and_reject is an action value, not a tool: " + mentioned );
+    }
+
     private Set< String > expectedToolNames() {
         final Set< String > names = new LinkedHashSet<>();
         for ( final McpTool tool : registry.readOnlyTools() ) {

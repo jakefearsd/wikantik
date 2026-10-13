@@ -139,7 +139,7 @@ get_page_history  Version history of a page, newest first. Returns
 
 diff_page         Diff between two versions of a page. Returns
                   {pageName, version1, version2, diff} where diff is plain text.
-                  Required: pageName, version1, version2.
+                  Required: slug, version1 (older), version2 (newer).
 
 get_backlinks     Pages that link to a given page.
                   Returns {pageName, backlinks: [...]} sorted alphabetically.
@@ -160,14 +160,18 @@ get_wiki_stats    Quick dashboard: {totalPages, brokenLinkCount,
 
 Write tools
 
-write_pages       Batch-create new wiki pages. Each item: {pageName, content,
-                  metadata?}. Pages that already exist are failed individually
-                  (use update_page to edit those). Returns
+write_pages       Batch-create new wiki pages. Argument: pages, a non-empty
+                  array whose items are {slug, content, metadata?} (slug and
+                  content required). Pages that already exist are failed
+                  individually (use update_page to edit those). Returns
                   {results: [{pageName, created, error?}], summary}.
 
 update_page       Edit an existing page with optimistic locking. Required:
-                  pageName, content, expectedContentHash (the contentHash from
-                  the most recent read_page on this page). Optional metadata
+                  slug, expectedContentHash (the contentHash from the most
+                  recent read_page on this page). content is optional: it is
+                  the new body, and omitting it edits metadata only, leaving
+                  the body unchanged (provide at least one of content,
+                  metadata, removeKeys). Optional metadata
                   is merged into frontmatter — listed fields are added or
                   overwritten, every other existing field is preserved, so a
                   one-field edit cannot drop the rest. Because the merge only
@@ -180,7 +184,8 @@ update_page       Edit an existing page with optimistic locking. Required:
                   updated:false, error:"hash mismatch", currentHash} if another
                   writer changed the page first — re-fetch and retry.
 
-delete_pages      Batch-delete wiki pages. Required: pageNames, confirm=true.
+delete_pages      Batch-delete wiki pages. Required: slugs, confirm=true.
+                  Optional: allowWithBacklinks, changeNote (audit log only).
                   System pages are refused. Pages with inbound backlinks are
                   skipped unless allowWithBacklinks=true. Returns
                   {results: [{pageName, deleted, error?, backlinks?}], summary}.
@@ -203,24 +208,32 @@ rename_cluster    Rename a cluster across every page whose frontmatter names it,
                   {applied, from, to, pageCount, changes|renamed, conflicts,
                   failures, complete}.
 
-mark_page_verified  Stamp pages as verified. Writes verified_at = NOW() and
-                  verified_by = <verifier> into frontmatter. The structural
-                  index recomputes confidence on the next save; verifiers in
-                  the trusted-authors registry get confidence: authoritative.
+mark_page_verified  Stamp pages as verified. Required: slugs. Writes
+                  verified_at = NOW() and verified_by = <verifier> into
+                  frontmatter. The structural index recomputes confidence on
+                  the next save; verifiers in the trusted-authors registry
+                  get confidence: authoritative.
                   Optional: pin confidence (authoritative | provisional |
-                  stale). Returns {results: [{pageName, ok, verifiedAt?,
-                  verifiedBy?, confidence?, error?}], succeeded, total}.
+                  stale), verifier (login name; defaults to the MCP author)
+                  and changeNote (recorded in the page's version history;
+                  defaults to "verified by <verifier>"). Returns
+                  {results: [{pageName, ok, verifiedAt?, verifiedBy?,
+                  confidence?, error?}], succeeded, total}.
 
 Verification & SEO tools
 
-verify_pages      Compound check across multiple pages in one call. Default
-                  checks: existence, broken_links, backlinks, outbound_links,
-                  metadata_completeness. Pass checks=["seo_readiness"] (opt-in)
-                  to also run summary length, tag presence, hub/related, and
-                  date checks. Returns {pages: [{pageName, exists, version?,
-                  outboundLinks?, brokenLinks?, backlinks?, metadata?,
-                  missingMetadata?, seoWarnings?}], summary}. Use after
-                  creating or updating pages to confirm integrity.
+verify_pages      Compound check across multiple pages in one call. Required:
+                  slugs. Default checks: existence, broken_links, backlinks,
+                  outbound_links, metadata_completeness. The optional checks
+                  argument REPLACES that default set rather than adding to it:
+                  checks=["seo_readiness"] (opt-in) runs only the summary
+                  length, tag presence, hub/related, and date checks; list
+                  every check you want (valid: the five defaults plus
+                  seo_readiness and retrieval_readiness). Returns
+                  {pages: [{pageName, exists, version?, outboundLinks?,
+                  brokenLinks?, backlinks?, metadata?, missingMetadata?,
+                  seoWarnings?}], summary}. Use after creating or updating
+                  pages to confirm integrity.
 
 preview_structured_data  Show what frontmatter produces in the HTML layer:
                   meta description, Open Graph, JSON-LD, breadcrumb, Atom
@@ -265,16 +278,24 @@ review_proposals  Bulk approve / reject / judge of 1..50 KG proposals.
                   but echo a warnings_by_proposal entry.
 
 curate_edges      Heterogeneous bulk edge ops (1..50). Required: operations[]
-                  where each op has action (upsert | confirm | delete |
-                  delete-and-reject), tag, and an edge id (or source/target/
-                  relationship for upsert). upsert stamps HUMAN_CURATED;
+                  where each op is a flat object with action (upsert | confirm
+                  | delete | delete_and_reject), an
+                  optional tag (echoed back to correlate results), and
+                  action-specific top-level fields: upsert takes source_id,
+                  target_id, relationship_type (all required) and optional
+                  properties; confirm and delete take the edge id; delete_and_reject takes the edge id and a
+                  required reason. upsert stamps HUMAN_CURATED;
                   confirm elevates an existing edge to human-curated;
-                  delete-and-reject deletes and writes a rejection record so
-                  the edge cannot be re-proposed.
+                  delete_and_reject deletes the edge and writes a
+                  rejection record so the edge cannot be re-proposed.
 
 curate_nodes      Heterogeneous bulk node ops (1..50). Required: operations[]
-                  where each op has action (upsert | delete | merge), tag,
-                  and a node id (or name/node_type for upsert). upsert stamps
+                  where each op is a flat object with action (upsert | delete
+                  | merge), an optional tag (echoed back to correlate
+                  results), and action-specific top-level fields: upsert takes
+                  name (required), node_type, source_page and optional
+                  properties; delete takes the node id; merge takes source_id
+                  and target_id. upsert stamps
                   HUMAN_AUTHORED; merge collapses source into target (pre-merge
                   frontmatter rewrite is handled by the REST surface only).
 
@@ -294,7 +315,10 @@ list_orphaned_kg_nodes
                   source_page, source_page_excluded (three-state — true /
                   false / omitted distinguishes policy-hidden from truly
                   disconnected). Replaces the sample-and-walk workaround
-                  for finding orphans at scale.
+                  for finding orphans at scale. The filters go inside a
+                  single optional filters object (not as top-level
+                  arguments); limit (default 50) and offset (default 0)
+                  paginate.
 
 list_retrieval_queries
                   Read-only. Lists real retrieval queries from the query
@@ -401,8 +425,10 @@ server suggests matching pages.
 
 == Tips ==
 
-- Always include a meaningful changeNote on writes (write_pages, update_page,
-  delete_pages) so version history stays useful.
+- write_pages and update_page take no changeNote argument; their version
+  history entry is the tool name. mark_page_verified accepts an optional
+  changeNote for the page's version history, and delete_pages accepts one that
+  is recorded in the audit log only — use them to explain the change.
 - For edits, fetch with read_page first, edit, then update_page with
   expectedContentHash. The hash is your concurrency guard.
 - Use write_pages to create many pages in one call. Per-page results let you

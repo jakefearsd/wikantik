@@ -206,6 +206,13 @@ public class McpServerInitializer implements ServletContextListener {
             "inspect_", "review_", "curate_" );
 
     /**
+     * Tokens that match a tool prefix but are argument values, not tools — e.g. curate_edges'
+     * compound {@code delete_and_reject} action. Without this the instructions could not name
+     * them, because the drift check would report each one as a retired tool.
+     */
+    static final java.util.Set< String > NON_TOOL_TOKENS = java.util.Set.of( "delete_and_reject" );
+
+    /**
      * Snapshot of how the static instructions text and the live tool registry agree.
      * Both sets are empty when the file is in sync.
      */
@@ -227,7 +234,7 @@ public class McpServerInitializer implements ServletContextListener {
         final java.util.Set< String > result = new java.util.LinkedHashSet<>();
         while ( m.find() ) {
             final String tok = m.group();
-            if ( tok.indexOf( '_' ) < 0 ) {
+            if ( tok.indexOf( '_' ) < 0 || NON_TOOL_TOKENS.contains( tok ) ) {
                 continue;
             }
             for ( final String prefix : TOOL_NAME_PREFIXES ) {

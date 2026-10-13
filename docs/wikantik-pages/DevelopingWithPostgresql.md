@@ -99,7 +99,7 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 | PostgreSQL | 12.0 | 15.0+ |
 | Java JDK | 11 | 17+ |
 | Apache Tomcat | 9.0 | 11.0 |
-| PostgreSQL JDBC Driver | 42.2.x | 42.7.x |
+| PostgreSQL JDBC Driver | 42.7.14 | 42.7.14 (pinned in the root `pom.xml`) |
 
 ### Required Knowledge
 
@@ -277,34 +277,35 @@ SELECT * FROM group_members;
 
 ## 5. JDBC Driver Installation
 
-### 5.1 Download the PostgreSQL JDBC Driver
+The WAR declares the PostgreSQL JDBC driver `provided`, so Wikantik runs whichever driver jar is in Tomcat's `lib/` directory. Use **42.7.14**: it is the `<postgresql-jdbc.version>` pinned in the root `pom.xml`, the version every unit and integration test runs against, and it fixes CVE-2026-107314 and CVE-2026-107315.
 
-Download the PostgreSQL JDBC driver from the official website:
-- https://jdbc.postgresql.org/download/
+### 5.1 Local Development Tomcat
 
-Choose the JDBC 4.2 driver (for Java 8+) or JDBC 4.3 driver (for Java 11+).
+`bin/deploy-local.sh` installs the driver as `tomcat/tomcat-11/lib/postgresql.jar`. On every run it reads the installed jar's version and, when it differs from the pinned one, downloads the pinned version from Maven Central, so re-running the script is all an upgrade needs. If the download fails or is not the expected driver, the script exits with an error and leaves the existing jar in place.
 
-Example download using curl:
+The container images (`Dockerfile`, `Dockerfile.dev`) install the same version at build time. `bin/tests/test-entrypoint.sh` fails CI if the pom, either Dockerfile, or `deploy-local.sh` names a different version.
 
-```bash
-# Download PostgreSQL JDBC Driver 42.7.4 (check for latest version)
-curl -L -o postgresql-42.7.4.jar \
-    https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
-```
-
-### 5.2 Install in Tomcat
-
-Copy the JDBC driver to Tomcat's lib directory:
+Check the installed version:
 
 ```bash
-# For the project's bundled Tomcat
-cp postgresql-42.7.4.jar /home/jakefear/source/jspwiki/tomcat/tomcat-11/lib/
-
-# For a system Tomcat installation
-cp postgresql-42.7.4.jar $CATALINA_HOME/lib/
+unzip -p tomcat/tomcat-11/lib/postgresql.jar META-INF/MANIFEST.MF | grep Implementation-Version
 ```
 
-**Important:** Restart Tomcat after adding the driver.
+### 5.2 Other Tomcat Installations
+
+Download the driver from Maven Central (the same artifact the test suites resolve) and copy it into Tomcat's `lib/` directory:
+
+```bash
+JDBC_VERSION=42.7.14
+curl -fL -o postgresql-${JDBC_VERSION}.jar \
+    https://repo1.maven.org/maven2/org/postgresql/postgresql/${JDBC_VERSION}/postgresql-${JDBC_VERSION}.jar
+
+# Remove any older driver first: with two on the classpath, either one may load
+rm -f $CATALINA_HOME/lib/postgresql*.jar
+cp postgresql-${JDBC_VERSION}.jar $CATALINA_HOME/lib/
+```
+
+**Important:** Restart Tomcat after installing or replacing the driver.
 
 ---
 
@@ -895,6 +896,8 @@ WHERE login_name = 'username';
 |---------|------|--------|---------|
 | 1.0 | 2025-11-30 | Claude | Initial comprehensive PostgreSQL setup guide |
 | 1.1 | 2026-04-17 | Claude | Repaired heading/list markup damage; fixed ToC anchors; corrected DB/user naming to wikantik/jspwiki |
+| 1.2 | 2026-09-14 | Claude | Schema comes from `bin/db/migrations`; passwords are bcrypt ({SSHA} removed) |
+| 1.3 | 2026-10-13 | Claude | JDBC driver 42.7.14 from Maven Central; `bin/deploy-local.sh` installs and upgrades it |
 
 ---
 

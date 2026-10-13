@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.56] - 2026-10-12
+
 ### Upgrade notes
 - The container image and `bin/deploy-local.sh` now install PostgreSQL JDBC driver 42.7.14, replacing 42.7.4.
   The driver is fixed to the version the test suites run against, and `bin/tests/test-entrypoint.sh` fails

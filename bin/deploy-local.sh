@@ -33,7 +33,11 @@ TOMCAT_CONTEXT_DEST="${TOMCAT_DIR}/conf/context.xml"
 TOMCAT_SERVER_DEST="${TOMCAT_DIR}/conf/server.xml"
 LOG_DIR="${TOMCAT_DIR}/logs/wikantik"
 JDBC_DRIVER="${TOMCAT_DIR}/lib/postgresql.jar"
-JDBC_URL="https://jdbc.postgresql.org/download/postgresql-42.7.4.jar"
+# Must equal <postgresql-jdbc.version> in the root pom and the Dockerfiles'
+# POSTGRES_JDBC_VERSION (bin/tests/test-entrypoint.sh fails on drift): the WAR
+# declares the driver `provided`, so this jar is the driver the app runs.
+JDBC_VERSION="42.7.14"
+JDBC_URL="https://repo1.maven.org/maven2/org/postgresql/postgresql/${JDBC_VERSION}/postgresql-${JDBC_VERSION}.jar"
 
 # Files preserved across an --upgrade-tomcat run. The list is the contract
 # between this script and the operator: any path here survives a Tomcat
@@ -81,6 +85,17 @@ installed_tomcat_version() {
     [[ -f "${cat_jar}" ]] || return 0
     unzip -p "${cat_jar}" org/apache/catalina/util/ServerInfo.properties 2>/dev/null \
         | awk -F'=' '/^server\.number=/ { print $2 }' \
+        | head -1
+}
+
+# Reads the version of a JDBC driver jar (default: the installed one) from its
+# manifest. Returns empty if the jar is absent, is not a jar, or carries no
+# Implementation-Version.
+installed_jdbc_version() {
+    local jar="${1:-${JDBC_DRIVER}}"
+    [[ -f "${jar}" ]] || return 0
+    unzip -p "${jar}" META-INF/MANIFEST.MF 2>/dev/null \
+        | awk -F': *' '/^Implementation-Version:/ { sub(/\r$/, "", $2); print $2 }' \
         | head -1
 }
 
@@ -278,14 +293,32 @@ else
 fi
 print_status "Tomcat directory found: ${TOMCAT_DIR}"
 
-# Download PostgreSQL JDBC driver if not present
-if [[ ! -f "${JDBC_DRIVER}" ]]; then
+# Install the PostgreSQL JDBC driver, or replace one at any other version. The
+# jar survives --upgrade-tomcat (PRESERVED_PATHS), so checking presence alone
+# would keep an old driver forever. Download to a temp file and rename: a
+# running Tomcat keeps the old inode open, and the new driver loads on restart.
+INSTALLED_JDBC="$(installed_jdbc_version)"
+if [[ "${INSTALLED_JDBC}" != "${JDBC_VERSION}" ]]; then
     echo ""
-    echo "Downloading PostgreSQL JDBC driver..."
-    curl -fL -o "${JDBC_DRIVER}" "${JDBC_URL}"
-    print_status "PostgreSQL JDBC driver downloaded"
+    echo "Downloading PostgreSQL JDBC driver ${JDBC_VERSION} (installed: ${INSTALLED_JDBC:-none})..."
+    JDBC_TMP="$(mktemp "${JDBC_DRIVER}.download-XXXXXX")"  # not *.jar: Tomcat loads lib/*.jar
+    if ! curl -fL -o "${JDBC_TMP}" "${JDBC_URL}"; then
+        rm -f "${JDBC_TMP}"
+        print_error "Failed to download ${JDBC_URL}"
+        exit 1
+    fi
+    # A proxy or captive portal can answer 200 with an HTML page; never let that
+    # replace a working driver.
+    if [[ "$(installed_jdbc_version "${JDBC_TMP}")" != "${JDBC_VERSION}" ]]; then
+        rm -f "${JDBC_TMP}"
+        print_error "Download from ${JDBC_URL} is not PostgreSQL JDBC driver ${JDBC_VERSION}"
+        exit 1
+    fi
+    chmod 644 "${JDBC_TMP}"
+    mv -f "${JDBC_TMP}" "${JDBC_DRIVER}"
+    print_status "PostgreSQL JDBC driver ${JDBC_VERSION} installed"
 else
-    print_status "PostgreSQL JDBC driver already present"
+    print_status "PostgreSQL JDBC driver ${JDBC_VERSION} already present"
 fi
 
 # Remove stale versioned copies of the JDBC driver (e.g. postgresql-42.7.4.jar).

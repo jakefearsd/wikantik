@@ -40,3 +40,10 @@ updates:
       # widens its range; security patches within 0.16.x still come through.
       - dependency-name: "katex"
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      # HELD — see docs/developer/dependency-upgrade-log.md (2026-10-12). 6.43.14's
+      # DOMObserver.flush calls view.update([]) on any selection change; happy-dom
+      # dispatches selectionchange synchronously from Selection.collapse (browsers
+      # queue it), so the update re-enters itself and PageEditor.realCodeMirror.test
+      # fails. Only this version is ignored, so 6.43.15+ still surfaces for review.
+      - dependency-name: "@codemirror/view"
+        versions: ["6.43.14"]

@@ -62,6 +62,18 @@ POM_V="$(sed -n 's#.*<tomcat.version>\(.*\)</tomcat.version>.*#\1#p' "${REPO_ROO
     || fail "Tomcat drift: Dockerfile=${DOCKER_V} deploy-local=${LOCAL_V} pom=${POM_V}"
 ok "Tomcat pinned consistently at ${POM_V}"
 
+# JDBC driver pin agreement. The WAR declares the driver `provided`, so the jar in
+# Tomcat's lib/ is the one production runs; it must be the version the unit and IT
+# suites resolve from the pom, or the tested driver is not the shipped driver.
+POM_JDBC="$(sed -n 's#.*<postgresql-jdbc.version>\(.*\)</postgresql-jdbc.version>.*#\1#p' "${REPO_ROOT}/pom.xml")"
+DOCKER_JDBC="$(sed -n 's/^ARG POSTGRES_JDBC_VERSION=\([0-9.]*\)$/\1/p' "${REPO_ROOT}/Dockerfile")"
+DEV_JDBC="$(sed -n 's/^ARG POSTGRES_JDBC_VERSION=\([0-9.]*\)$/\1/p' "${REPO_ROOT}/Dockerfile.dev")"
+LOCAL_JDBC="$(sed -n 's/^JDBC_VERSION="\([0-9.]*\)"$/\1/p' "${REPO_ROOT}/bin/deploy-local.sh")"
+[[ -n "${POM_JDBC}" && "${DOCKER_JDBC}" == "${POM_JDBC}" && "${DEV_JDBC}" == "${POM_JDBC}" \
+    && "${LOCAL_JDBC}" == "${POM_JDBC}" ]] \
+    || fail "JDBC driver drift: pom=${POM_JDBC} Dockerfile=${DOCKER_JDBC} Dockerfile.dev=${DEV_JDBC} deploy-local=${LOCAL_JDBC}"
+ok "PostgreSQL JDBC driver pinned consistently at ${POM_JDBC}"
+
 # JVM heap sizing: WIKANTIK_JVM_MAX_RAM_PERCENTAGE is appended to CATALINA_OPTS
 # after the image default (Dockerfile ENV CATALINA_OPTS), and HotSpot takes the
 # last occurrence of a -XX flag — so the override must land last, and must leave

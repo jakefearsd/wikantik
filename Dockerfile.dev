@@ -10,9 +10,14 @@ RUN rm -rf ${CATALINA_HOME}/webapps/* ${CATALINA_HOME}/bin/*.bat
 # Create Wikantik directories
 RUN mkdir -p /var/wikantik/pages /var/wikantik/work /var/wikantik/logs
 
-# Download PostgreSQL JDBC driver
-RUN curl -fsSL -o ${CATALINA_HOME}/lib/postgresql-42.7.4.jar \
-    https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+# PostgreSQL JDBC driver. The WAR declares it `provided`, so this jar is the
+# driver production runs. It must equal <postgresql-jdbc.version> in the root
+# pom (the version every unit and IT test runs against) and deploy-local.sh's
+# JDBC_VERSION; bin/tests/test-entrypoint.sh fails on drift. Fetched from Maven
+# Central so it is byte-identical to the artifact the test suites resolve.
+ARG POSTGRES_JDBC_VERSION=42.7.14
+RUN curl -fsSL -o ${CATALINA_HOME}/lib/postgresql-${POSTGRES_JDBC_VERSION}.jar \
+    https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRES_JDBC_VERSION}/postgresql-${POSTGRES_JDBC_VERSION}.jar
 
 # Copy Tomcat configuration
 COPY docker/config/server.xml ${CATALINA_HOME}/conf/server.xml

@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Upgrade notes
+- The container image and `bin/deploy-local.sh` now install PostgreSQL JDBC driver 42.7.14, replacing 42.7.4.
+  The driver is fixed to the version the test suites run against, and `bin/tests/test-entrypoint.sh` fails
+  if the two diverge. Re-run `bin/deploy-local.sh` and restart Tomcat to replace the driver in a bare-metal
+  install. Earlier versions of the script only downloaded a driver when none was present, so they never
+  replaced an old one. A JDBC URL whose `requireAuth` excludes every authentication method, or names none,
+  is now refused rather than ignored (see Security).
+
+### Changed
+- Dependencies: anthropic-java 2.71.0, Caffeine 3.3.1, HttpClient 5.6.5, OWASP Java HTML Sanitizer
+  20261011.1; test and build tooling Selenide 7.19.0, Selenium 4.51.0, SpotBugs 4.10.5, versions-maven-plugin
+  2.23.0. Frontend: @codemirror/language 6.13.1, Vite 8.3.4, happy-dom 20.14.6.
+
+### Security
+- PostgreSQL JDBC driver 42.7.14 (CVE-2026-107314, CVE-2026-107315). Production loads the driver from
+  Tomcat's `lib/`, which held 42.7.4, a version in the affected range of CVE-2026-107315: a value shorter
+  than its declared length could be padded with bytes from earlier statements on the same connection.
+
 ## [2.4.55] - 2026-10-11
 
 ### Added

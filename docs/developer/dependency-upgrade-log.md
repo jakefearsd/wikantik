@@ -402,3 +402,78 @@ via `server.number` and routed through `--upgrade-tomcat`.
 - tika 3.3.2 -> 4.1.0 and junrar 7.6.1 -> 8.1.1: majors; see the Tika note above (junrar 8 is forced).
 - vitest / @vitest/coverage-v8 4.1.11 -> 5.0.3, katex 0.16.47 -> 0.19.0: majors (katex also blocked by rehype-katex).
 - libthrift held at 0.23; Apache parent 39 held.
+
+---
+
+# Dependency Sweep — 2026-10-12
+
+Patch/minor sweep, released as 2.4.56. Scans: `versions:display-{property,dependency,plugin}-updates`
+(recursive, stable-only ruleset), `npm outdated`, `npm audit`, and an OSV.dev batch over the CI-equivalent
+CycloneDX SBOM (380 Maven components incl. test scope, after removing duplicates) plus the npm lockfile (438). OSV returned **0** advisories.
+The query was checked against known-bad versions first: log4j-core 2.14.1 returned 7 and vite 8.0.0 returned 5.
+
+## Applied — Maven
+
+| Property | From | To |
+|---|---|---|
+| `postgresql-jdbc.version` | 42.7.13 | 42.7.14 (**security**, see below) |
+| `anthropic-java.version` | 2.68.0 | 2.71.0 |
+| `caffeine.version` | 3.3.0 | 3.3.1 |
+| `owasp-html-sanitizer.version` | 20260924.2 | 20261011.1 (packaging only: Java 10 shim in `META-INF/versions/10`) |
+| `sec.httpclient5.version` | 5.6.4 | 5.6.5 (pool leak in `ResponseEntityProxy#cleanup`, HTTP/2 body replay) |
+| `selenide.version` | 7.18.2 | 7.19.0 |
+| `selenium.version` | 4.50.0 | 4.51.0 (selenide 7.19.0 is built against it) |
+| `plugin.spotbugs.version` / `spotbugs-annotations.version` | 4.10.4.1 / 4.10.4 | 4.10.5.0 / 4.10.5 |
+| `plugin.versions.version` | 2.22.0 | 2.23.0 |
+
+## Applied — frontend
+
+@codemirror/language 6.12.4 -> 6.13.1 (pulls in the new `@codemirror/streamparser` 6.0.0, published by the
+CodeMirror maintainer), vite 8.3.2 -> 8.3.4 (postcss 8.5.30, nanoid 3.3.20), happy-dom 20.14.5 -> 20.14.6.
+Every candidate was at least four days old. `npm audit signatures`: 415/415 verified.
+
+## OSV missed two pgjdbc CVEs, and production was not running the driver the tests used
+
+OSV reported 42.7.13 clean, but the 42.7.14 release notes carry **CVE-2026-107314** (a `requireAuth`
+value that excludes every method, or names none, was ignored in 42.7.11-42.7.13, so any method including
+cleartext `password` was accepted) and **CVE-2026-107315** (42.7.4-42.7.13 padded a short value with
+leftover bytes from earlier messages on the same connection). That is the second OSV false negative after
+the 2026-09-22 sanitizer case. Read upstream release notes for security-relevant dependencies.
+
+Checking where the driver ships turned up a larger gap. `wikantik-war` declares the driver `provided`,
+so the jar in Tomcat's `lib/` is the one that runs. `Dockerfile`, `Dockerfile.dev` and `bin/deploy-local.sh`
+all downloaded **42.7.4** from jdbc.postgresql.org, while every unit and IT suite ran on the pom's 42.7.13. So
+production ran a driver no test exercised, inside CVE-2026-107315's range, and the CycloneDX/OSV gate cannot
+see it because it is not a Maven dependency of any module. Fixed:
+
+- All three now take the version from one variable (`ARG POSTGRES_JDBC_VERSION` / `JDBC_VERSION`) and fetch
+  it from Maven Central, so the jar is byte-identical to the one Maven resolves for the tests.
+- `bin/tests/test-entrypoint.sh` fails unless the pom, both Dockerfiles and `deploy-local.sh` agree. It
+  sits next to the existing Tomcat pin check and runs in CI's shell-tests job.
+- `deploy-local.sh` used to download the driver only when none was present. Because the jar survives
+  `--upgrade-tomcat`, an old driver stayed forever. It now reads the installed jar's
+  `Implementation-Version` and replaces a mismatch through a temp file plus rename. The temp name does not
+  end in `.jar`, because Tomcat's common loader picks up every `lib/*.jar`.
+
+## Held — @codemirror/view stays at 6.43.13
+
+6.43.14 fails `PageEditor.realCodeMirror.test.jsx` ("Bold right after a keystroke…") deterministically with
+`Calls to EditorView.update are not allowed while an update is in progress`. Bisected, with each package
+reverted alone: reverting happy-dom to 20.14.5 still fails, and reverting only view to 6.43.13 passes.
+Root cause: 6.43.14 changed `DOMObserver.flush()` to call `view.update([])` on *any* observed selection
+change (before, only when the DOM selection differed from the state, `sameSelPos`). happy-dom dispatches
+`selectionchange` **synchronously** from `Selection.collapse()`. Browsers queue it as a task, as the spec
+requires. So CodeMirror setting the DOM selection inside an update re-enters the update. This is a
+test-environment fidelity problem, not a production one. None of 6.43.14's fixes reach us: iOS main-range
+drawing, `scrollbar-gutter` tooltip placement, and composition over a selection in a read-only editor.
+Its dist also comes from a new build toolchain (`1e4` literals) that constant-folds `attrsEq`'s
+ignore-key length check to `keysA.length - (0)`. Held via a version-specific Dependabot ignore, so 6.43.15+
+still surfaces. Taking it means making happy-dom's `selectionchange` asynchronous in `setupTests.js`, as
+its own change.
+
+## Not taken
+
+- tika 3.3.2 -> 4.1.0 and junrar 7.6.1 -> 8.1.2: majors (junrar 8 is forced by Tika 4; see 2026-09-22).
+- vitest / @vitest/coverage-v8 4.1.11 -> 5.0.4, happy-dom 20 -> 21, katex 0.18.11 -> 0.19.0: majors.
+- `commons-lang3` 3.20.0 -> 3.21.0 shown under *pluginManagement*: a dependency the Apache parent POM adds
+  to apache-rat-plugin, not ours (our `commons-lang.version` is already 3.21.0). RAT is informational only.

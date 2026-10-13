@@ -44,7 +44,7 @@ tools under `/admin/*`. There is no `/Wikantik/` prefix.
 | PostgreSQL | 15+ | Listening on `localhost:5432` |
 | pgvector extension | 0.5+ | Required: the Knowledge Graph and embedding tables use it |
 | Apache Tomcat | 11.0.26 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; downloaded for you |
-| PostgreSQL JDBC driver | 42.7.4 | Downloaded into `tomcat/tomcat-11/lib/postgresql.jar` by `bin/deploy-local.sh` |
+| PostgreSQL JDBC driver | 42.7.14 | Pinned to `<postgresql-jdbc.version>` in the root pom, as `JDBC_VERSION` in `bin/deploy-local.sh` and in both Dockerfiles. `deploy-local.sh` downloads it into `tomcat/tomcat-11/lib/postgresql.jar` and replaces a jar at any other version |
 
 ### Install pgvector
 

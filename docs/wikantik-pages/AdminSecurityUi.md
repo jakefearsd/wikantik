@@ -1,9 +1,4 @@
 ---
-audience:
-- humans
-depends-on:
-- DatabaseBackedPermissions
-- JspToReactMigration
 status: active
 title: 'Admin Security UI: Groups and Policy Grants'
 type: article
@@ -26,6 +21,11 @@ related:
 summary: 'Admin Security screen at /admin/security: manage wiki groups and the database-backed
   policy grants that decide what each role may do.'
 cluster: wikantik-development
+audience:
+- humans
+depends-on:
+- DatabaseBackedPermissions
+- JspToReactMigration
 ---
 # Admin Security UI
 

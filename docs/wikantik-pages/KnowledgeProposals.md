@@ -1,9 +1,4 @@
 ---
-title: Knowledge Proposals
-date: '2026-04-04'
-cluster: wikantik-development
-part-of:
-- KnowledgeGraphCore
 status: active
 type: article
 depends-on:
@@ -16,6 +11,11 @@ tags:
 - knowledge-graph
 - ai
 - workflow
+title: Knowledge Proposals
+date: '2026-04-04'
+cluster: wikantik-development
+part-of:
+- KnowledgeGraphCore
 ---
 # Knowledge Proposals
 
@@ -35,7 +35,7 @@ Only `new-node` and `new-edge` proposals are materialized into `kg_nodes` / `kg_
 1. **Submit** — The chunk-level and page-level entity extractors file proposals automatically (inside the wiki, or offline with `bin/kg-extract.sh`). AI agents file them with the admin-MCP `propose_knowledge` tool, supplying `proposal_type`, `proposed_data`, `source_page`, a `confidence` between 0.0 and 1.0, and `reasoning`. There is no REST endpoint for submitting a proposal.
 2. **Pending** — The proposal appears in the admin panel's Proposals tab. The machine judge picks up pending proposals that have no machine verdict yet (`wikantik.kg.judge.*`: a pass every 5 minutes, 50 proposals per pass by default).
 3. **Machine verdict** — The judge returns `approved`, `rejected` or `abstain`. An approval materializes the proposal at tier `machine` while it stays pending for a person; a rejection marks the proposal rejected (and, for an edge, records the triple in `kg_rejections`); an abstention leaves it pending and unmaterialized.
-4. **Approve** — A reviewer approves in the Proposals tab or with the admin-MCP `review_proposals` tool. Approval marks the proposal approved, promotes the materialized rows to tier `human` (creating them first if the judge had not), clears any earlier rejection of the same triple, and — for `new-edge` — writes the relationship back to the source page's frontmatter. The rows keep `ai-inferred` provenance; see [ProvenanceModel](ProvenanceModel).
+4. **Approve** — A reviewer approves in the Proposals tab or with the admin-MCP `review_proposals` tool. Approval marks the proposal approved, promotes the materialized rows to tier `human` (creating them first if the judge had not), clears any earlier rejection of the same triple, and — for `new-edge` — writes the relationship back to the source page's frontmatter. The rows keep `ai-inferred` provenance; see [ProvenanceModel](ProvenanceModel). Materialization is first-writer-wins: it only creates a node that is missing and leaves one that already exists under that name completely unchanged (releases up to 2.4.56 overwrote an existing node's type, provenance and properties when a `new-node` proposal was approved).
 5. **Reject** — A reviewer rejects with a reason. Any rows the judge had materialized for the proposal are retracted, and a `new-edge` rejection is stored in `kg_rejections` so the same triple is not proposed again.
 
 Reviewers can also force a judge run on chosen proposals (`review_proposals` with `verdict: judge`, or "Judge now" in the Proposals tab), and `bin/kg-judge.sh` triggers a runner pass or judges a single proposal from the command line. Proposals whose judge call keeps timing out are listed at `GET /admin/knowledge-graph/judge-timeouts`. Admin-MCP triage tools are `list_proposals` (filters plus `node_exists` and `edge_previously_rejected` conflict flags), `inspect_proposals` (bulk read with prior reviews) and `review_proposals` (bulk `approve`, `reject` or `judge`, up to 50 per call; `reject` requires a `reason`).

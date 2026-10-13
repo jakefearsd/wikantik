@@ -1,6 +1,4 @@
 ---
-date: '2026-05-04'
-status: active
 title: Sending Email from the Wiki
 related:
 - PostgreSQLLocalDeployment
@@ -16,6 +14,8 @@ tags:
 - transactional-email
 summary: 'Configure Wikantik transactional email (welcome, password reset, admin notices)
   via SMTP relay: Brevo, SendGrid, Mailjet, Amazon SES, and JNDI session setup.'
+date: '2026-05-04'
+status: active
 ---
 # Sending Email from the Wiki
 
@@ -132,6 +132,8 @@ mail.smtp.timeout = 5000
 mail.smtp.connectiontimeout = 5000
 ```
 
+The last three lines restate the defaults, which a standalone session applies whenever the keys are unset (see the properties reference below); releases up to 2.4.56 did not apply them, so on those versions set all three explicitly.
+
 **In the container stack** you do not edit the properties file: set `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT` (default 587), `MAIL_SMTP_ACCOUNT`, `MAIL_SMTP_PASSWORD` and `MAIL_FROM` in `.env`. Whenever `MAIL_SMTP_HOST` is non-empty, `docker/entrypoint.sh` writes the matching `mail.*` properties (including `mail.smtp.starttls.enable = true`) into the generated `wikantik-custom.properties` on every start. Leave `MAIL_SMTP_HOST` empty to leave mail unconfigured. See [Wikantik on Docker](WikantikOnDocker).
 
 ### Step 6: Test Email
@@ -158,12 +160,17 @@ Add to your Tomcat context file `conf/Catalina/localhost/ROOT.xml` (Wikantik is 
           mail.smtp.port="587"
           mail.smtp.auth="true"
           mail.smtp.starttls.enable="true"
+          mail.smtp.timeout="5000"
+          mail.smtp.connectiontimeout="5000"
           mail.smtp.user="your-login@email.com"
           password="your-smtp-key-here"
           mail.from="wiki@yourdomain.com"/>
 ```
 
-Wikantik will automatically use the JNDI session `mail/Session` when available.
+Wikantik will automatically use the JNDI session `mail/Session` when available. Wikantik's
+built-in timeout and STARTTLS defaults apply only to the standalone session, not to a JNDI one,
+so declare `mail.smtp.timeout`, `mail.smtp.connectiontimeout` and `mail.smtp.starttls.enable`
+in the `<Resource>` as shown or the container's (usually unbounded) defaults apply.
 
 ---
 
@@ -214,11 +221,27 @@ mail.smtp.starttls.enable = true
 | `mail.smtp.port` | `25` | SMTP server port |
 | `mail.smtp.account` | (not set) | SMTP username for authentication; setting it turns SMTP authentication on |
 | `mail.smtp.password` | (not set) | SMTP password for authentication |
-| `mail.smtp.starttls.enable` | not applied unless set | Enable TLS encryption. The shipped ini lists `true` as the default, but the standalone session passes only the `mail.smtp.*` keys you actually set to JavaMail (whose own default is off), so set it to `true` explicitly for a port-587 relay |
-| `mail.smtp.timeout` | not applied unless set | Socket I/O timeout (ms); the ini lists 5000 but it only takes effect when set |
-| `mail.smtp.connectiontimeout` | not applied unless set | Connection timeout (ms); the ini lists 5000 but it only takes effect when set |
+| `mail.smtp.starttls.enable` | `true` | Enable TLS encryption (opportunistic, see below) |
+| `mail.smtp.timeout` | `5000` | Socket I/O timeout (ms) |
+| `mail.smtp.connectiontimeout` | `5000` | Connection timeout (ms) |
 | `wikantik.mail.jndiname` | `mail/Session` | JNDI name for container-managed session; Wikantik tries it first and falls back to the `mail.*` properties if the lookup fails |
 | `wikantik.admin.notification.email` | (blank) | When set, an email is sent to this address each time a new user profile is created |
+
+**Standalone-session defaults.** When Wikantik builds its own mail session from
+`wikantik-custom.properties` (the path used when no JNDI `mail/Session` exists), it applies
+the defaults in the table above to the session itself whenever a key is unset:
+`mail.smtp.starttls.enable = true`, `mail.smtp.timeout = 5000` and
+`mail.smtp.connectiontimeout = 5000`. Without them JavaMail would never negotiate STARTTLS and
+would wait forever on an unresponsive relay, blocking the sending thread. STARTTLS is
+opportunistic (`starttls.enable`, not `starttls.required`): the connection is upgraded only if the
+server offers it, so a relay without TLS still works. An explicit value always wins, including
+`mail.smtp.starttls.enable = false` and `mail.smtp.timeout = 0` (no timeout); a blank value
+(`mail.smtp.timeout =`) counts as unset and gets the default. `mail.smtps.*` keys are passed to
+JavaMail as written and do not stand in for the `mail.smtp.*` ones. A JNDI session is used exactly
+as the container defines it — Wikantik adds no defaults to it, so set the timeouts and STARTTLS in
+the `<Resource>` (see above). Releases up to 2.4.56 passed only the `mail.smtp.*` keys you had set
+to JavaMail, whose own defaults are no STARTTLS and no timeout, so on those versions set all three
+keys explicitly.
 
 ---
 
@@ -248,7 +271,8 @@ mail.smtp.starttls.enable = true
 
 1. Try port 465 (SSL) instead of 587 (TLS)
 2. Check if your ISP blocks outbound SMTP ports
-3. Increase timeout values in configuration
+3. A standalone session gives up after 5 seconds by default (`mail.smtp.connectiontimeout` to connect,
+   `mail.smtp.timeout` per read); raise either in `wikantik-custom.properties` for a slow relay
 
 ---
 

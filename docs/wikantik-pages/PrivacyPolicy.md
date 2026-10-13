@@ -1,6 +1,4 @@
 ---
-type: reference
-cluster: wikantik-development
 tags:
 - privacy
 - policy
@@ -12,6 +10,8 @@ summary: 'How wiki.wikantik.com handles your data: what it collects, which cooki
 canonical_id: 01KQ0P44TRZS26YNJNHK32EFF1
 status: active
 date: '2026-10-13'
+type: reference
+cluster: wikantik-development
 ---
 # Privacy Policy
 
@@ -37,7 +37,7 @@ This is the privacy policy for **wiki.wikantik.com**, the public Wikantik wiki. 
 
 **What you write.** Page edits, comments and file attachments are stored with the name they were made under: page history shows your display name, and comments show your login name. Most pages are public, so anyone can read them and their history. Comments and attachments are visible to whoever can see the page.
 
-**Your names are not secret.** Active accounts can be looked up by login name or display name through the @mention box in comments, and that lookup works without signing in. If you sign in with Google, your login name is your Google email address, so your email address can appear in comments and in that lookup. If that is a problem for you, write to me before you create an account. Reading the wiki never needs one.
+**Your names are not secret.** Signed-in users can look up active accounts by login name or display name through the @mention box in comments; that lookup is not available to visitors who are not signed in. Your names also stay visible wherever your content is attributed, as described under "What you write". If you sign in with Google, your login name is your Google email address, so your email address can appear in comments and in that lookup. If that is a problem for you, write to me before you create an account. Reading the wiki never needs one.
 
 **An audit log.** The wiki keeps an append-only record of security-relevant events: sign-ins and sign-outs (successful and failed), access denied, page saves, deletes and renames, group and profile changes, and API key events. Each entry records who did it, what happened, the IP address and the browser's user-agent. Page reads are not recorded unless a page is specifically flagged for it. Entries are not edited or removed when an account is deleted.
 

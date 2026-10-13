@@ -1,7 +1,4 @@
 ---
-title: Search Index and Knowledge Graph Rebuild
-date: '2026-04-26'
-cluster: wikantik-development
 status: active
 type: article
 canonical_id: 01KQE8VJHXHV6AGEBV8934FX6F
@@ -19,6 +16,9 @@ tags:
 - embeddings
 - chunking
 - entity-extraction
+title: Search Index and Knowledge Graph Rebuild
+date: '2026-04-26'
+cluster: wikantik-development
 ---
 # Search Index and Knowledge Graph Rebuild
 
@@ -40,7 +40,7 @@ The pipeline touches four derived data layers, in order:
 
 1. **Chunks** (`kg_content_chunks`) and **Lucene full-text index** — wiped and rebuilt from page markdown on disk by `ContentIndexRebuildService`.
 2. **Chunk embeddings** (`content_chunk_embeddings`) — wiped (via `ON DELETE CASCADE` from phase 1) and repopulated by `BootstrapEmbeddingIndexer` against the configured embedder model.
-3. **Knowledge graph** (`kg_nodes`, `kg_edges`, `kg_proposals`) — *optional, opt-in only*. Removes pending proposals and AI-inferred nodes; keeps `human-authored` and `ai-reviewed` rows. Skipped by default.
+3. **Knowledge graph** (`kg_nodes`, `kg_edges`, `kg_proposals`) — *optional, opt-in only*. Removes pending proposals and machine-tier AI-inferred nodes; keeps everything a person wrote or approved (tier `human`). Skipped by default.
 4. **Proposals and entity mentions** (`kg_proposals`, `chunk_entity_mentions`) — repopulated by `bin/kg-extract.sh`, which runs the per-page entity-extraction pipeline: one LLM extraction call per page, consolidated into proposals, then mention attribution for accepted names that already exist as Knowledge Graph nodes.
 
 Source-of-truth markdown in `docs/wikantik-pages/` is never touched. Page metadata (frontmatter, canonical IDs, structural spine) is preserved.
@@ -78,7 +78,7 @@ bin/kg-rebuild.sh -- \
     --ollama-model qwen2.5:1.5b-instruct \
     --concurrency 6
 
-# Tabula rasa: also wipes pending proposals and ai-inferred KG nodes
+# Tabula rasa: also wipes pending proposals and machine-tier ai-inferred KG nodes
 # before re-extracting. Use when comparing two models on the same pages
 # and you want a guaranteed clean baseline.
 bin/kg-rebuild.sh --reset-kg -- \
@@ -218,17 +218,32 @@ Skipped by default. Enable with **either** `--reset-kg` (selective prune) or `--
 
 Prompts for `[y/N]` confirmation unless `--yes` is also passed.
 
-What it does:
+What it does: runs `bin/db/kg-reset-machine-tier.sql` as one transaction (`psql --single-transaction`, so both statements apply together or not at all):
 
 ```sql
-DELETE FROM kg_proposals WHERE status='pending';
-DELETE FROM kg_nodes     WHERE provenance='ai-inferred';
+DELETE FROM kg_proposals
+ WHERE status = 'pending';
+
+DELETE FROM kg_nodes n
+ WHERE n.provenance = 'ai-inferred'
+   AND n.tier = 'machine'
+   AND NOT EXISTS ( SELECT 1
+                      FROM kg_edges e
+                     WHERE e.tier = 'human'
+                       AND ( e.source_id = n.id OR e.target_id = n.id ) );
 ```
 
-The `ai-inferred` deletion cascades to `kg_edges` and (already-empty post-phase-1) `chunk_entity_mentions`. Two provenance classes are preserved:
+Tier, not provenance, says who vouches for a row. `kg_nodes.provenance` records where a row came from (`human-authored`, `human-curated`, `ai-inferred`, `ai-reviewed`); `kg_nodes.tier` is `machine` or `human`. When a person approves a proposal its nodes and edges move to tier `human`, but they **keep provenance `ai-inferred`**, so the reset selects on both:
 
-- `human-authored` — manually curated entities and edges.
-- `ai-reviewed` — AI-proposed entities that a human has approved (status moves through `kg_proposals` and the surviving rows get re-tagged).
+| Deleted | Kept |
+|---|---|
+| every `pending` proposal (and its machine reviews) | approved and rejected proposals (human verdicts) |
+| nodes with provenance `ai-inferred` **and** tier `machine`, with the machine-tier edges, chunk mentions and node embeddings that cascade from them | every tier `human` node — human-authored, human-curated and human-approved (`ai-inferred` provenance, tier `human`) — and every tier `human` edge |
+| | a machine-tier `ai-inferred` node that is an endpoint of a tier `human` edge (deleting it would cascade-delete that human-approved edge) |
+
+The prompt, the "Before"/"After" counts (`tier, provenance, COUNT(*)`) and the SQL all use the same rule. Run `SELECT tier, provenance, COUNT(*) FROM kg_nodes GROUP BY 1, 2` first to see exactly what a reset would remove: the `machine` / `ai-inferred` row is the deletable set. Releases up to 2.4.56 selected on provenance alone and so also deleted human-approved nodes (and their edges); `--purge-kg` is unchanged and still wipes everything.
+
+Re-extraction after a reset (phase 4) re-proposes the deleted entities. Approving a `new-node` proposal is **first-writer-wins**: it creates the node only when no node of that name exists, and leaves an existing node (including every row the reset kept) completely unchanged, logging the skipped write at INFO.
 
 Use the reset variant when you want to compare two extraction runs against a clean automation baseline while keeping your manual curation work intact.
 
@@ -472,7 +487,7 @@ CLI flags on `bin/kg-extract.sh` override these settings for a single run, which
 
 | Flag | Effect |
 |---|---|
-| `--reset-kg` | Enable phase 3 in **selective-prune mode** — deletes pending proposals and `ai-inferred` nodes, preserves `human-authored` and `ai-reviewed`. `[y/N]` prompt unless `--yes`. |
+| `--reset-kg` | Enable phase 3 in **selective-prune mode** — deletes pending proposals and machine-tier `ai-inferred` nodes (`bin/db/kg-reset-machine-tier.sql`); every tier `human` row, including human-approved nodes, is kept. `[y/N]` prompt unless `--yes`. |
 | `--purge-kg` | Enable phase 3 in **full-purge mode** — TRUNCATEs every kg_*/hub_* table including human-authored content. Requires typing `PURGE` exactly to confirm; `--yes` bypasses. Wins over `--reset-kg` if both passed. |
 | `--skip-chunks` | Skip phase 1 |
 | `--skip-embeddings` | Skip phase 2 |

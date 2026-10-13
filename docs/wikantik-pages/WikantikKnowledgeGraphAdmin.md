@@ -1,13 +1,4 @@
 ---
-canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
-contrasts_with:
-- related
-date: '2026-04-08'
-related:
-- ArtificialIntelligence
-- AiAugmentedWorkflows
-summary: Comprehensive step-by-step guide for administering the Wikantik knowledge
-  graph to maximize its value for AI agents and human users supporting business...
 enables:
 - AI agents
 cluster: wikantik-development
@@ -40,6 +31,15 @@ uses:
 - rejection history
 - Ollama
 - AI proposals
+canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
+contrasts_with:
+- related
+date: '2026-04-08'
+related:
+- ArtificialIntelligence
+- AiAugmentedWorkflows
+summary: Comprehensive step-by-step guide for administering the Wikantik knowledge
+  graph to maximize its value for AI agents and human users supporting business...
 ---
 # Wikantik Knowledge Graph Administration
 
@@ -81,7 +81,7 @@ Page frontmatter is **not** projected into the graph; the GraphProjector that on
 1. **Chunk.** When a page is saved, the chunker splits it into passages (`kg_content_chunks`).
 2. **Gate.** The [inclusion policy](KgInclusionPolicy) decides whether the page may contribute entities at all. The default is exclude.
 3. **Extract.** The entity extractor (Ollama by default) reads each chunk and proposes entities and relations; they are filed in `kg_proposals`. This happens off the save thread, per page and rate-limited, and as a batch run from the Extraction tab or `bin/kg-extract.sh`.
-4. **Judge.** An asynchronous judge LLM screens pending proposals. Approved ones are materialized into `kg_nodes` / `kg_edges` at tier `machine`.
+4. **Judge.** An asynchronous judge LLM screens pending proposals. Approved ones are materialized into `kg_nodes` / `kg_edges` at tier `machine`. Materialization only ever creates a missing node; a node that already exists under that name is left unchanged (first-writer-wins).
 5. **Review.** A person approves (tier `human`, and a `new-edge` is written back to the source page's frontmatter) or rejects (the rows are retracted and the triple is remembered in `kg_rejections`).
 
 System pages (CSS themes, navigation fragments, etc.) never contribute entities.
@@ -201,6 +201,8 @@ Click **Approve** to accept a proposal (or select several rows for a bulk approv
 2. for `new-edge` proposals, writes the relationship back into the source page's frontmatter, creating a durable record that persists even if the knowledge graph is rebuilt.
 
 The rows keep `ai-inferred` provenance; the tier records that a person approved them.
+
+Approving a proposal never overwrites an existing node. Materialization is first-writer-wins: when a node with the proposal's name already exists (curated by a person, extracted earlier or created by another proposal), it is left completely unchanged — type, provenance, properties and tier — and the skipped write is logged at INFO. A `new-edge` proposal likewise creates a missing endpoint as a `concept` node but leaves an existing endpoint alone. Releases up to 2.4.56 replaced an existing node's type, provenance and properties when a `new-node` proposal was approved.
 
 ### 3.5 Rejecting Proposals
 
@@ -362,7 +364,7 @@ Extraction runs incrementally on save, so the graph stays current. A full re-ext
 - You change the extractor model, prompts or chunker settings
 - A cluster is newly included and you do not want to wait for its pages to be edited
 
-`bin/kg-rebuild.sh --reset-kg` first deletes pending proposals and every node whose provenance is `ai-inferred` (cascading to their edges), and `--purge-kg` truncates the whole KG layer including human-authored data and requires typing PURGE; both are covered in [SearchIndexAndKnowledgeGraphRebuild](SearchIndexAndKnowledgeGraphRebuild). Because rows a person approved keep `ai-inferred` provenance (only their tier changes), `--reset-kg` also removes approved nodes, so count them first with `SELECT tier, provenance, COUNT(*) FROM kg_nodes GROUP BY 1, 2`.
+`bin/kg-rebuild.sh --reset-kg` first deletes pending proposals and every machine-tier node whose provenance is `ai-inferred` (cascading to their machine-tier edges), and `--purge-kg` truncates the whole KG layer including human-authored data and requires typing PURGE; both are covered in [SearchIndexAndKnowledgeGraphRebuild](SearchIndexAndKnowledgeGraphRebuild). Rows a person approved keep `ai-inferred` provenance and only change tier, so `--reset-kg` selects on tier as well (`bin/db/kg-reset-machine-tier.sql`): approved nodes, every other tier `human` row, and a machine node that anchors a human-tier edge all survive. To see what a reset would remove, run `SELECT tier, provenance, COUNT(*) FROM kg_nodes GROUP BY 1, 2`; the `machine` / `ai-inferred` row is the deletable set. Releases up to 2.4.56 deleted every `ai-inferred` node, approved ones included, so on those versions count them first.
 
 ## Step 9: Optimizing the Graph for AI Agents
 
@@ -424,7 +426,7 @@ The entity classes (`EntityTypeVocabulary`), the relationship predicates (`Relat
 | `bin/kg-rebuild.sh` | Chunk + Lucene rebuild, embedding reindex, optional KG reset or purge, then extraction; `--skip-chunks`, `--skip-embeddings`, `--skip-extract`, `--dry-run` |
 | `bin/kg-judge.sh` | Trigger a judge pass, judge one proposal, or show the queue |
 | `bin/kg-judge-experiment.sh` | Compare judge models on a sample of pending proposals; see [RunningTheJudgeExperimentHarness](RunningTheJudgeExperimentHarness) |
-| `bin/kg-materialize-approved.sh` | Replay machine-approved `new-node` proposals into `kg_nodes` (`--dry-run`, `--limit N`); needs no LLM |
+| `bin/kg-materialize-approved.sh` | Replay machine-approved `new-node` proposals into `kg_nodes` (`--dry-run`, `--limit N`); needs no LLM. First-writer-wins and safe to re-run: it creates only missing nodes. Run it on 2.4.57 or later, because earlier versions overwrote an existing node |
 | `bin/kg-policy.sh` | Inclusion policy CLI; see [KgInclusionPolicy](KgInclusionPolicy) |
 | `bin/kg-cleanup-node-types.sh` | Interactive one-shot to rename or delete `node_type` values that fail the `^[a-z][a-z0-9_-]{0,30}$` format |
 | `bin/kg-chunker-stats.sh` | Offline chunk-size statistics for tuning the chunker |

@@ -1,8 +1,4 @@
 ---
-verified_by: gemini-cli-mcp-client
-type: article
-summary: 'Wikantik platform development: architecture decisions, TDD mandate, CI pipeline,
-  Maven module structure, and the feature timeline through 2.4.x.'
 related:
 - WikantikArchitecture
 - WikantikKnowledgeGraph
@@ -20,13 +16,17 @@ tags:
 - ci
 - history
 verified_at: '2026-05-04T21:10:44.598011331Z'
-status: active
+verified_by: gemini-cli-mcp-client
 canonical_id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
+status: active
 date: '2026-06-20'
+type: article
+summary: 'Wikantik platform development: architecture decisions, TDD mandate, CI pipeline,
+  Maven module structure, and the feature timeline through 2.4.x.'
 ---
 # Wikantik Development
 
-This cluster documents the development history of the Wikantik platform itself — the architecture decisions, feature implementations, and engineering patterns that have shaped the system over time. The current release is 2.4.56; `CHANGELOG.md` in the repository is the authoritative record of what shipped when.
+This cluster documents the development history of the Wikantik platform itself — the architecture decisions, feature implementations, and engineering patterns that have shaped the system over time. The current release is 2.4.57; `CHANGELOG.md` in the repository is the authoritative record of what shipped when.
 
 ## Core Engineering Pillars
 
@@ -131,7 +131,8 @@ Wikantik began as a fork of Apache JSPWiki. Through a sustained modernization ef
 | 2026-10-01 | Editor workspace — quick switcher, command palette, live link completion, paste/drop uploads; `GET /api/export` Obsidian vault zip (2.4.29) |
 | 2026-10-03 | Obsidian-style Live Preview editor, daily notes, zipped-vault import, native `[[wikilinks]]` and `![[embeds]]` (2.4.50) |
 | 2026-10-05 | Login-only authorization — the bootstrap admin override requires a login session, policy grants match by principal type, ACL user entries resolve by login name; JSPWiki-era default pages removed (2.4.53) |
-| 2026-10-12 | PostgreSQL JDBC driver 42.7.14 (2.4.56, the current release) |
+| 2026-10-12 | PostgreSQL JDBC driver 42.7.14 (2.4.56) |
+| 2026-10-13 | SCIM refuses every write to the `Admin` group; `/api/users/mentionable` needs a sign-in; the audit Actor filter works and admin API-key revocations are audited; KG `new-node` approval is first-writer-wins and `--reset-kg` spares human-approved nodes; the standalone mail session applies STARTTLS and 5 s timeouts; privacy policy rewritten (2.4.57, the current release) |
 
 ## See Also
 

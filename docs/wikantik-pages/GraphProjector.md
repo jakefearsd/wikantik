@@ -1,40 +1,52 @@
 ---
-depends-on:
-- FrontmatterConventions
 status: active
 type: article
-part-of:
-- KnowledgeGraphCore
-date: '2026-04-04'
-cluster: wikantik-development
-title: Graph Projector
 tags:
 - development
 - knowledge-graph
-- synchronization
-summary: PageFilter that synchronizes YAML frontmatter to the knowledge graph on every
-  page save
+- graph-projector
+- ontology
+- apache-jena
 canonical_id: 01KQ0P44QRKREJBW4VZ326B1F7
+kg_include: true
+date: '2026-04-04'
+depends-on:
+- FrontmatterConventions
+audience:
+- humans
+cluster: wikantik-development
+part-of:
+- KnowledgeGraphCore
+title: Graph Projector (Retired) and the Ontology Projectors
+summary: The retired GraphProjector PageFilter (frontmatter to kg_nodes/kg_edges,
+  removed 2026-04) and the Postgres-to-RDF ontology projectors of today.
 ---
-# Graph Projector
+# Graph Projector (Retired) and the Ontology Projectors
 
-The GraphProjector is a PageFilter registered with the WikiEngine that fires on every page save. It bridges the gap between human-authored wiki content and the knowledge graph by automatically projecting YAML frontmatter into graph nodes and edges.
+> **Status (2026-10-13):** The GraphProjector described in the first section was **retired and deleted on 2026-04-24** (agent-MCP redesign, cycle 6). Page frontmatter and body links no longer create Knowledge Graph nodes or edges, and the "Project All Pages" admin button is gone. The components that project data today are the four ontology projectors described below. This page keeps the slug so older links still land somewhere accurate.
 
-## How It Works
+## What the GraphProjector was
 
-1. **Parse** — Extracts YAML frontmatter from the saved page via FrontmatterParser
-2. **Detect** — Passes frontmatter to FrontmatterRelationshipDetector, which separates properties from relationships
-3. **Upsert node** — Creates or updates the page's node in `kg_nodes` with detected properties, node type from the `type` field, and `human-authored` provenance
-4. **Upsert edges** — For each detected relationship, resolves the target node by name (creating a stub if it doesn't exist) and upserts the edge
-5. **Diff and remove** — Compares current edges against what was just projected and removes stale `human-authored` edges that no longer appear in frontmatter
-6. **Preserve AI edges** — Stale-edge removal skips `ai-inferred` and `ai-reviewed` edges so approved proposals survive frontmatter edits
+The GraphProjector was a PageFilter registered with the WikiEngine that fired on every page save and projected a page's YAML frontmatter into the Knowledge Graph (`kg_nodes` / `kg_edges`). In outline it:
 
-## Idempotency
+1. parsed the saved page's frontmatter;
+2. separated list-valued relationship keys from plain property keys with a `FrontmatterRelationshipDetector`;
+3. upserted the page's own node (node type from the `type` field, `human-authored` provenance);
+4. upserted an edge to each relationship target, creating a stub node when the target had no page;
+5. added `links_to` edges for body links; and
+6. removed stale `human-authored` edges while leaving `ai-inferred` and `ai-reviewed` edges alone.
 
-Re-saving a page with unchanged frontmatter is a no-op — the upsert logic uses `ON CONFLICT` (PostgreSQL) or `MERGE INTO` (H2) to update timestamps without creating duplicates.
+It was unwired from the engine and its code deleted on 2026-04-24. Migration V012 (`retire_graph_projector_links_to_edges`) then purged every `links_to` edge it had written, and later migrations (V027, extended by V030) closed `kg_edges.relationship_type` to a vocabulary of 21 predicates, which excludes `links_to`. Wikilink structure now belongs to the Page Graph (see [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)); the Knowledge Graph holds LLM-extracted entities (see [KnowledgeGraphCore](KnowledgeGraphCore)).
 
-## Bulk Projection
+## What projects data today
 
-The admin panel provides a "Project All Pages" button that iterates every wiki page and runs the projector. This is used to seed the graph after initial deployment or schema changes.
+The `wikantik-ontology` module (Apache Jena) contains four projectors. They read page metadata and PostgreSQL rows and write RDF into per-resource named graphs of a TDB2 store; they do not parse markdown bodies, and the public `/sparql` endpoint is read-only.
 
-[{Relationships}]
+| Projector | Input | RDF it writes |
+|-----------|-------|---------------|
+| `PageProjector` | A page record (`canonical_id` plus frontmatter) | A page resource at `/id/page/{canonical_id}` typed `wk:Hub`, `wk:Article`, `wk:Reference`, `wk:Runbook` or `wk:DesignDoc`, with `dct:title`, `schema:url`, `dct:description`, `dct:created`, `dct:creator`, and one `dct:subject` for each tag and each cluster membership |
+| `ConceptProjector` | The distinct tags and clusters across all pages | One `skos:Concept` per tag or cluster (with `skos:prefLabel`, in the `wk:WikiConcepts` scheme); a sub-cluster `parent/sub` gets `skos:broader` pointing at its parent |
+| `EntityProjector` | A `kg_nodes` row and its outgoing edges | An entity resource at `/id/entity/{uuid}` typed by its entity class, with `rdfs:label`, `prov:wasAttributedTo` (`wk:MachineAgent` or `wk:HumanAgent` by tier) and `prov:wasDerivedFrom` the source page |
+| `EdgeProjector` | A `kg_edges` row | One `wk:` predicate statement between two entity resources; an edge whose relationship type is outside the 21-predicate vocabulary is skipped and logged |
+
+Each page, concept and entity graph is re-projected incrementally (`OntologyEventListener` on page save, rename and delete; `OntologyEntitySync` on Knowledge Graph changes), and a nightly rebuild from PostgreSQL acts as a reconciliation backstop. The operator guide is `docs/admin/OntologyManagement.md`; the layer is summarized in [WikantikKnowledgeGraph](WikantikKnowledgeGraph).

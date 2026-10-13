@@ -1,22 +1,15 @@
 ---
 canonical_id: 01KQ0P44QHCCMJHPMCQ195JNVW
-type: design
+cluster: wikantik-development
+summary: Complete OAuth SSO Implementation Plan for Wikantik
 tags:
 - system
 - authorization
-summary: Complete OAuth SSO Implementation Plan for Wikantik
-cluster: wikantik-development
+type: design
 ---
-
-
-
 # Complete OAuth SSO Implementation Plan for Wikantik
 
-> **Status: SUPERSEDED.** SSO shipped using pac4j (not the hand-rolled
-> JAAS scaffolding sketched in this plan). The implementation lives in
-> `wikantik-main/src/main/java/com/wikantik/auth/sso/` with end-to-end
-> coverage in `wikantik-it-tests/wikantik-it-test-sso/`. This document
-> is retained as a historical reference for the design exploration.
+> **Status (2026-10-13):** Superseded by the shipped implementation. Single sign-on was built on [pac4j](https://www.pac4j.org/) (OpenID Connect and SAML 2.0), not the `google-api-client` / `java-jwt` stack sketched below, and it is configured with `wikantik.sso.*` properties, not the `jspwiki.oauth.*` names proposed here. Google OIDC sign-in is live on wiki.wikantik.com. The code is in `wikantik-main/src/main/java/com/wikantik/auth/sso/` with end-to-end tests in `wikantik-it-tests/wikantik-it-test-sso/`; to operate it, use `docs/admin/SingleSignOn.md` in the repository. The text below is the original design exploration and is kept unchanged.
 
 ## Table of Contents
 

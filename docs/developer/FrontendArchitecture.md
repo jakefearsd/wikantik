@@ -22,7 +22,8 @@ viewers.
 | Routing | React Router v7 (`react-router-dom ^7.18`) |
 | Build | Vite 8 (Rolldown) (`@vitejs/plugin-react ^6`) |
 | Editor | CodeMirror 6 (`@uiw/react-codemirror` + `@codemirror/lang-markdown`) |
-| Markdown rendering | `react-markdown` + `remark-gfm`, `remark-math`, `rehype-katex`, `rehype-highlight` |
+| Article rendering | Server-rendered HTML (`contentHtml`) decorated client-side; `react-markdown` + `remark-gfm`, `remark-math`, `rehype-katex` for the editor preview (see [Rendering Pipeline](#markdown-rendering-pipeline)) |
+| Math and code highlighting | `katex` and `lowlight` (highlight.js "common" grammars), each code-split and loaded only for pages that need it |
 | Graph visualisation | `cytoscape` + `cytoscape-cose-bilkent` via `react-cytoscapejs` |
 | Testing | Vitest + Testing Library + `happy-dom` |
 | Styling | Hand-written CSS with a token-based design system (no framework) |
@@ -83,8 +84,11 @@ The full route table from `main.jsx`:
 | `/admin/connectors/new` | `AddConnectorWizard` | Guided add-connector wizard |
 | `/admin/connectors/:id` | `ConnectorDetailPage` | Single connector detail |
 
-All `/admin/*` routes are nested under `AdminLayout` (lazy-loaded) and guarded
-server-side by `AdminAuthFilter` (requires `AllPermission`).
+All `/admin/*` routes are nested under `AdminLayout` (lazy-loaded), which sends anyone
+without the Admin role back to the wiki. The data behind them is protected
+server-side: `AdminAuthFilter` requires `AllPermission` for every `/admin/*` API
+call (a browser navigation that asks for HTML gets the SPA shell, which carries no
+admin data).
 
 Graph viewer routes get a full-bleed `app-content-full` layout; editor and
 admin routes use `app-content-wide`; wiki article routes use the narrow reading
@@ -110,10 +114,10 @@ wikantik-frontend/
     ├── api/
     │   └── client.js            Fetch wrapper for /api/*; dispatches wikantik:version-mismatch
     ├── components/
-    │   ├── PageView.jsx         Article rendering (react-markdown pipeline)
+    │   ├── PageView.jsx         Article rendering (server HTML + client DOM passes)
     │   ├── PageEditor.jsx       Inline editor (CodeMirror 6)
     │   ├── Sidebar.jsx          Cluster-grouped navigation (reader)
-    │   ├── SearchOverlay.jsx    Cmd+K search
+    │   ├── QuickOverlay.jsx     Quick switcher (Mod-K / Mod-O) and command palette (Mod-P)
     │   ├── MetadataPanel.jsx    Frontmatter chips
     │   ├── ChangeNotesPanel.jsx History + diffs
     │   ├── SimilarPagesPanel.jsx
@@ -130,6 +134,9 @@ wikantik-frontend/
     │   ├── pagegraph/           Page Graph viewer (lazy-loaded)
     │   ├── kgraph/              Knowledge Graph viewer (lazy-loaded)
     │   └── ui/                  Shared primitive components (see below)
+    ├── commands/                Command registry shared by the overlay, slash menu, toolbar and key bindings
+    ├── navigation/              NavigationGuardProvider: confirm-before-leaving dialog while a guard is registered
+    ├── newpage/                 NewPageProvider: the New page dialog and its command
     ├── hooks/                   custom hooks (see below)
     ├── utils/                   utility modules (see below)
     └── styles/
@@ -140,16 +147,42 @@ wikantik-frontend/
 
 ## Markdown Rendering Pipeline
 
-Article bodies are rendered client-side with `react-markdown` and the
-following plugin chain:
+There are two rendering paths, and the reader does not use `react-markdown`.
+
+**Reader (`PageView`).** The server renders the page (Flexmark `MarkdownRenderer`)
+and `GET /api/pages/{name}` returns the result as `contentHtml`; a `/wiki/{name}`
+navigation also embeds the same data in the served `index.html`
+(`window.__WIKANTIK_PAGE__`), so the client can seed its state without a render-critical
+fetch. `PageView` injects that HTML and then runs idempotent client-side DOM passes over it:
+
+- `renderMath` — typesets the server-emitted `.math-inline` / `.math-display`
+  elements with KaTeX. KaTeX (CSS and fonts bundled from the npm package, not a CDN)
+  is fetched only for a page that contains math.
+- `highlightCodeBlocks` — syntax-highlights `language-*` code blocks with `lowlight`,
+  loaded lazily and only when the HTML contains such a block.
+- `addCopyButtons` and `addHeadingAnchors` — copy buttons on code blocks and
+  hover-reveal anchor links on `h2`/`h3` headings.
+- Comment-thread anchoring (`commentHighlight`) — marks the text ranges that
+  comment threads are attached to.
+
+**Editor preview, search snippets and KG chunk views.** These render markdown in the
+browser with `react-markdown`. The editor preview (`EditorPreviewMarkdown`, fed by
+`PageEditor`) uses this plugin chain:
 
 - `remark-gfm` — tables, strikethrough, task lists
-- `remark-math` — recognise `$…$` and `$$…$$`
-- `rehype-katex` — typeset math via KaTeX (CSS and fonts bundled from the
-  npm package, not a CDN)
-- `rehype-highlight` — syntax-highlight fenced code blocks
-- A custom `remarkAttachments` plugin — rewrites attachment links so they
-  resolve relative to the current page
+- `remark-math` plus the custom `remarkInlineMath` — `$…$` and `$$…$$`, with
+  Pandoc's inline-math rule
+- `remarkCallouts` — Obsidian-style callouts, mirroring the server's `CalloutExtension`
+- `remarkWikiMarkup` — `[{…}]` plugin and directive markup that remark would
+  otherwise leave as literal text
+- `remarkWikiLinks` and `remarkMissingLinks` — native `[[wikilinks]]` and `![[embeds]]`
+  (mirroring the server's native-links extension), and links to pages that do not exist
+- `remarkAttachments` — rewrites attachment links so they resolve relative to the
+  current page
+- `rehype-katex` — typesets math
+- `rehypeHighlightCode` (lowlight) — code highlighting
+- `rehypeSourceLine` — stamps each element with `data-line` so a click in the preview
+  jumps the editor caret to that source line
 
 See [MathematicalNotation.md](../user/MathematicalNotation.md) for the full math
 syntax reference.
@@ -293,14 +326,16 @@ dispatched by `api/client.js` when the server's `X-Build-Version` response
 header (set by `BuildVersionFilter` in `wikantik-rest`) differs from the
 embedded `__BUILD_VERSION__` constant (stamped at Vite build time via
 `vite.config.js`'s `buildVersionPlugin`). When a mismatch is detected the app
-renders a non-blocking "A new version is available — Reload" toast. The toast
-can be dismissed per session; the session flag is cleared once the new bundle
-loads successfully.
+renders a non-blocking "A new version is available." toast with a Reload button.
+Dismissing the toast is remembered for the browser session, per server version
+(`sessionStorage`), so a later deploy shows it again. Separately, the stale-asset
+recovery script in `index.html` sets a `__wikantik_reload` retry flag, which
+`main.jsx` clears once the app has rendered.
 
 ## Admin Panel
 
-Accessed at `/admin` and protected server-side by `AdminAuthFilter` (requires
-`AllPermission`). `AdminSidebar` replaces the reader `Sidebar` via a context
+Accessed at `/admin`; its `/admin/*` API calls are protected server-side by
+`AdminAuthFilter` (requires `AllPermission`). `AdminSidebar` replaces the reader `Sidebar` via a context
 swap in `App.jsx` whenever `location.pathname.startsWith('/admin')`.
 
 ### AdminSidebar navigation
@@ -392,15 +427,15 @@ A set of reusable primitives used across both the reader and admin panel:
 - **API / data fetching**: `useApi.js` (fetch + auth header plumbing), `useAttachments.js`, `useMyPages.js`
 - **Editor**: `useEditorDrop.js` (drag-and-drop into editor), `useDraft.js` / `useDrafts.js` (auto-save draft management), `useFrontmatterValidation.js` (debounced live frontmatter validation)
 - **Comments / mentions**: `useMentionPicker.js` (debounced `@`-mention autocomplete with caret tracking), `useUnreadMentions.js`
-- **Navigation / UX**: `useGlobalHotkeys.js` (Cmd+K search trigger), `useScrollSpy.js` (ToC active heading), `useScrollLock.js` (modal body lock), `useFocusTrap.js` (modal focus management), `useDocumentTitle.js`, `usePageTrail.js` (per-tab reader breadcrumb trail)
+- **Navigation / UX**: `useGlobalHotkeys.js` (Mod-K / Mod-O open the quick overlay on pages, Mod-P on commands, Mod-Alt-N today's daily note), `useScrollSpy.js` (ToC active heading), `useScrollLock.js` (modal body lock), `useFocusTrap.js` (modal focus management), `useDocumentTitle.js`, `usePageTrail.js` (per-tab reader breadcrumb trail)
 - **History**: `useRecentSearches.js`, `useRecentlyViewed.js`
 - **Toast**: `useToast.js` (consumes `ToastProvider` context)
 
 ## Utils (`src/utils/`)
 
-54 utility modules (counted 2026-10-05; most have a `.test` file). The main groups:
+57 utility modules, five of them under `utils/livePreview/` (counted 2026-10-13; most have a `.test` file). The main groups:
 
-- **Markdown / rendering**: `remarkAttachments.js` (custom remark plugin for attachment links), `math.js` (LaTeX helpers), `rehypeSourceLine.js`, `headingAnchors.js`, `headings.js`, `codeCopy.js`, `highlight.js`, `markdownFormat.js`
+- **Markdown / rendering**: `remarkAttachments.js` (custom remark plugin for attachment links), `math.js` (lazy KaTeX renderer for the server-emitted math elements), `rehypeSourceLine.js`, `headingAnchors.js`, `headings.js`, `codeCopy.js`, `highlight.js`, `markdownFormat.js`
 - **Page / URL**: `pageUrl.js`, `slugUtils.js`, `frontmatterUtils.js`, `readingTime.js`
 - **Comments**: `commentAnchor.js`, `commentHighlight.js`, `caretCoords.js`
 - **Search**: `searchFacets.js`

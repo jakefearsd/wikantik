@@ -151,14 +151,14 @@ subsystem is enabled but a specific dependency failed to wire.
 |---|---|
 | `POST /run` | Trigger a discovery run. Returns the `RunSummary` (`proposalsCreated`, `candidatePoolSize`, `noisePages`, `skippedDismissed`, `durationMs`). `500` on an unexpected clustering failure. |
 | `GET /proposals?limit=&offset=` | List pending proposals, newest-first. `limit` defaults to 50, clamped to 1–200. |
-| `POST /proposals/{id}/accept` | Body `{"name": "...", "members": ["A","B"]}`. Writes the hub stub page and deletes the proposal row. `404` unknown id, `409` on name collision with an existing page, `400` on an empty name or a member not in the original proposal. |
+| `POST /proposals/{id}/accept` | Body `{"name": "...", "members": ["A","B"]}`. Writes the hub stub page and deletes the proposal row; returns `{"createdPage": ..., "members": N}`. `404` unknown id, `409` on name collision with an existing page (and also on other accept failures such as too few surviving members, see Troubleshooting), `400` on an empty name, empty members list or a member not in the original proposal. |
 | `POST /proposals/{id}/dismiss` | Marks the proposal `dismissed`. `204` on success, `404` if not pending (unknown or already dismissed). |
 | `GET /proposals/dismissed?limit=&offset=` | List dismissed proposals with `reviewedBy`/`reviewedAt`. |
 | `DELETE /proposals/dismissed/{id}` | Permanently delete one dismissed row (re-enables rediscovery of that exact cluster). `204` / `404`. |
 | `POST /proposals/dismissed/bulk-delete` | Body `{"ids": [1,2,3]}`, up to 500 ids. Returns `{"deleted": N}`. |
 | `GET /hubs` | List existing (already-accepted) hubs with health stats — the Hub Overview panel's data source. |
 | `GET /hubs/{name}` | Drilldown for one hub: members, near-miss/MoreLikeThis candidates, overlapping hubs. URL-decoded name; `404` if not found. |
-| `POST /hubs/{name}/remove-member` | Body `{"member": "PageName"}`. `400` bad request, `404` hub/member not found, `409` if fewer than 2 members would remain. |
+| `POST /hubs/{name}/remove-member` | Body `{"member": "PageName"}`. Returns `{"removed": ..., "remainingMemberCount": N}`. `400` bad request, `404` hub/member not found, `409` if fewer than 2 members would remain. |
 
 `POST /proposals/seed` exists for integration tests only — it is gated behind
 `-Dwikantik.test.fixture-seam.enabled=true` and returns `403` in any other
@@ -220,10 +220,12 @@ Check the run summary's other fields:
 
 **Accepting a proposal returns `409`**
 
-The edited hub name collides with an existing wiki page — pick a different
-name. (This is a name collision, not a member-count problem; a
-too-few-surviving-members failure is a distinct `HubDiscoveryException`, not
-this exception type.)
+Read the error message. Most often the edited hub name collides with an
+existing wiki page (`Hub name collides with existing page: ...`) — pick a
+different name. But `409` is also what any other `HubDiscoveryException` that
+is not a "not found" maps to, including `too few surviving members for
+proposal ... dismiss instead` (fewer than 2 members left after you dropped
+some) — restore members or dismiss the proposal instead.
 
 **A discovery run keeps re-proposing a cluster I already dismissed**
 

@@ -23,7 +23,7 @@ status: active
 
 # Text Formatting Rules
 
-Wikantik pages use CommonMark-flavored Markdown stored as `.md` files. The rendering engine is based on [Flexmark](https://github.com/vsch/flexmark-java), extended with Wikantik-specific syntax for plugins, access control, and metadata. Every page must start with a YAML frontmatter block for structured data.
+Wikantik pages use CommonMark-flavored Markdown stored as `.md` files. The rendering engine is based on [Flexmark](https://github.com/vsch/flexmark-java), extended with Wikantik-specific syntax for plugins, access control, and metadata. A page can start with a YAML frontmatter block for structured data; the wiki adds a `canonical_id` to it on save.
 
 ## I. Markdown Core
 
@@ -36,11 +36,14 @@ Wikantik supports standard CommonMark with the following active extensions:
 | **Definitions** | `Term\n: Def` | Structural glossaries. |
 | **Attributes** | `{.class}` | Appending CSS classes/IDs to blocks. |
 | **Math** | `$E=mc^2$` | LaTeX-style inline and block math. |
+| **Strikethrough** | `~~struck~~` | Double tilde only; a single `~x~` stays literal. |
+| **Task lists** | `- [ ] to do`, `- [x] done` | Read-only checkboxes. |
+| **Callouts** | `> [!note] Title` | Obsidian-style callout blockquote (`tip`, `warning`, `danger` and others). |
 
 ### Headings
 Use ATX-style headings (`#` through `######`). 
 *   **Recommendation:** Use exactly one `# Level 1` heading per page, mirroring the `title` field in the frontmatter.
-*   **Avoid:** Setext headings (`===` or `---` underlines) as they conflict with frontmatter delimiters.
+*   **Avoid:** Setext headings (`===` or `---` underlines). A `---` directly under a line of text turns that line into a heading, so leave a blank line before a horizontal rule.
 
 ### Code Blocks
 Prefer fenced code blocks with language hints for syntax highlighting:
@@ -65,7 +68,7 @@ Internal links resolve to page names (slugs) within the wiki. Both forms below w
 
 ### Canonical IDs
 Page slugs can change during refactoring. For permanent references in code, documentation, or runbooks, use the `canonical_id`.
-*   **Resolution:** The structural index resolves ULIDs to current slugs automatically.
+*   **Resolution:** `GET /api/pages/by-id/{canonical_id}` and the `get_page_by_id` MCP tool resolve a ULID to the page's current name. Wiki links in a page body name pages, not IDs.
 *   **Syntax:** Links to sections use the heading slug: `[Security](#security-patterns)`.
 
 ## III. Wikantik Bracket Syntax
@@ -80,18 +83,18 @@ Bracket syntax `[{ ... }]` is used for dynamic functions and system controls.
 | **Setters** | `[{SET key=val}]` | Define a page-scoped variable. |
 
 ### Access Control Lists (ACLs)
-Place ACLs at the top of the file, before the first heading. Valid permissions include `view`, `edit`, `modify`, `upload`, `rename`, and `delete`.
+An ACL can sit anywhere in the page text outside a code span or code block. Valid permissions are `view`, `comment`, `edit`, `modify`, `upload`, `rename`, and `delete`; principals are login names, group names or roles, separated by commas.
 *   **Example:** `[{ALLOW edit Admin,Editors}]`. Name individual people by their login name.
 
 ## IV. Core Plugins
 
 Plugins extend the static Markdown with dynamic content.
 
-*   **`TableOfContents`**: Generates a linked TOC from headings.
+*   **Table of contents:** there is no TOC plugin. The reader builds a contents rail from the page's `##` and `###` headings automatically.
 *   **`Image`**: Provides fine-grained control over images (width, alignment, captions).
     *   `[{Image src='diagram.png' width='400' caption='System Flow'}]`
-*   **`HubSet`**: Lists all pages belonging to a specific cluster hub.
-    *   `[{HubSet hub='JavaHub'}]`
+*   **`HubSetPlugin`**: Lists all pages belonging to a specific cluster hub. A plugin is named by its class, so `HubSet` alone does not resolve.
+    *   `[{HubSetPlugin hub='JavaHub'}]()`
 *   **`RecentArticles`**: Renders a list of the most recently modified pages with excerpts.
 *   **`ReferringPagesPlugin`**: Displays a "backlinks" list for the current page.
 
@@ -105,7 +108,7 @@ canonical_id: 01H8G3... (Auto-injected on save)
 title: Page Title
 type: article | hub | runbook | design | reference
 cluster: thematic-grouping
-status: active | draft | deprecated
+status: draft | active | archived
 date: YYYY-MM-DD
 summary: A one-sentence description.
 tags: [tag1, tag2]
@@ -115,7 +118,7 @@ related: [PageSlug1, PageSlug2]
 
 ### Type-Specific Requirements
 *   **`type: hub`**: Must include a `cluster` name. Hubs serve as the primary index for a topic.
-*   **`type: runbook`**: Requires a structured `runbook:` block containing `when_to_use`, `inputs`, `steps`, `pitfalls`, and `references`.
+*   **`type: runbook`**: Requires a structured `runbook:` block with at least one `when_to_use` entry, at least two `steps` and at least one `pitfalls` entry; `inputs`, `related_tools` and `references` are optional. A save that breaks these rules is refused.
 
 ### Verification Metadata
 Stamp pages as reviewed using the `mark_page_verified` tool or manual entry:

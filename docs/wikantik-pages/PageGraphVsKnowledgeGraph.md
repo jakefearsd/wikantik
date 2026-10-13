@@ -1,26 +1,25 @@
 ---
-title: Page Graph vs Knowledge Graph
-type: article
-cluster: wikantik-development
 date: '2026-05-02'
-audience:
-- humans
-- agents
-summary: 'Canonical explainer of two distinct subsystems: the Page Graph (wikilink
-  edges) vs. the Knowledge Graph (LLM-extracted entities) and why not to conflate
-  them.'
-canonical_id: 01KTGSV428AK6A68N69X235ZHT
+title: Page Graph vs Knowledge Graph
 related:
 - ClusterDeclarationDesign
 - StructuralSpineDesign
 - HybridRetrieval
+audience:
+- humans
+- agents
+canonical_id: 01KTGSV428AK6A68N69X235ZHT
+cluster: wikantik-development
+type: article
 tags:
 - page-graph
 - knowledge-graph
 - wikantik-development
 - architecture
+summary: 'Canonical explainer of two distinct subsystems: the Page Graph (wikilink
+  edges) vs. the Knowledge Graph (LLM-extracted entities) and why not to conflate
+  them.'
 ---
-
 <!-- canonical_id is omitted intentionally — StructuralSpinePageFilter
      auto-assigns a ULID on first save and writes it back into the
      frontmatter. -->
@@ -38,8 +37,8 @@ on retrieval, navigation, or admin tooling. Use the right name.
 
 **A graph whose edges are real page-to-page wikilinks.**
 
-- **Sources.** Wikilinks parsed from page bodies (`[OtherPage](OtherPage)`,
-  `[OtherPage]`, etc.). Period.
+- **Sources.** Wikilinks parsed from page bodies: markdown links
+  (`[text](OtherPage)`) and native `[[OtherPage]]` wikilinks. Period.
 - **Companion structure** (not edges of the Page Graph itself, but
   co-resident in the same subsystem): the `canonical_id` field in
   frontmatter (the rename-stable identifier) and the `cluster:` field
@@ -58,15 +57,20 @@ on retrieval, navigation, or admin tooling. Use the right name.
 **A graph whose nodes are LLM-extracted entities and whose edges are
 co-mention or typed-relation predicates between them.**
 
-- **Sources.** The entity-extraction pipeline (`bin/kg-extract.sh`)
-  reads page text and proposes nodes and edges; admins approve them.
-- **Purpose.** Semantic retrieval, hub discovery, agent-facing
-  question answering.
+- **Sources.** The entity-extraction pipeline reads page text (inside
+  the wiki on save and from the admin panel, or offline with
+  `bin/kg-extract.sh`) and proposes nodes and edges; an LLM judge and
+  admins approve them, and curators and agents can add entities and
+  relations directly. Page frontmatter is not a source.
+- **Purpose.** Entity lookup and traversal for agents, hub discovery,
+  and a curated map of the entities the wiki discusses. It is not a
+  retrieval-ranking signal: the Knowledge Graph rerank was removed in
+  2026-07.
 - **Audience.** Agents and admins.
 - **Code.** `com.wikantik.knowledge.*` (in `wikantik-main`),
   `wikantik-knowledge` module, `kg_*` tables.
-- **UI.** `/admin/knowledge-graph/*` (operator); `/knowledge-mcp` MCP
-  tool surface (agents).
+- **UI.** `/admin/knowledge-graph` (operator), `/knowledge-graph`
+  (reader viewer); `/knowledge-mcp` MCP tool surface (agents).
 
 ## How to tell them apart
 
@@ -77,6 +81,17 @@ co-mention or typed-relation predicates between them.**
 | Who curates it? | Authors (by writing links) | Extraction pipeline (with admin review) |
 | Where does it live in code? | `pagegraph.*` | `knowledge.*`, `kg_*` |
 
+## A third, derived edge type: citations
+
+Citation edges are neither Page Graph nor Knowledge Graph edges. An
+author writes inline `cite://` markup in a page body; at save it is
+parsed into the `citations` table (code in `com.wikantik.citation.*`),
+pinned to the target page's version and a hash of the cited span, and
+graded for staleness. They surface in `GET /admin/drift/citations` and
+the `list_stale_citations` tool on `/knowledge-mcp`; see
+[WikantikKnowledgeGraph](WikantikKnowledgeGraph) and
+`docs/user/Citations.md`.
+
 ## What was removed (2026-05-02)
 
 The frontmatter `relations:` mechanism — a third concept that let
@@ -86,6 +101,9 @@ load-bearing depended on it. After removal, the Page Graph is
 strictly the wikilinks graph. If curated typed edges between concepts
 need to come back later, they belong on the Knowledge Graph as
 admin-approved edges, not in page frontmatter.
+
+The GraphProjector, which projected page frontmatter into Knowledge
+Graph edges, was retired on 2026-04-24; see [GraphProjector](GraphProjector).
 
 The `hubs:` frontmatter field and hub `related:`-as-membership are
 retired on the same principle — one authoritative mechanism per
@@ -105,5 +123,7 @@ Code that reads wikilink or cluster data from the Page Graph subsystem:
 - [StructuralSpineDesign](StructuralSpineDesign) — the canonical-id
   and cluster machinery that lives inside the Page Graph subsystem.
 - [HybridRetrieval](HybridRetrieval) — the hybrid retrieval stack that serves queries (the KG graph rerank was removed in 2026-07).
+- [WikantikKnowledgeGraph](WikantikKnowledgeGraph) — how the Knowledge
+  Graph works end to end.
 - `docs/superpowers/specs/2026-05-02-page-graph-vs-knowledge-graph-design.md`
-  — the spec that drove this separation.
+  — the spec that drove this separation (no longer in the repository).

@@ -1,16 +1,15 @@
 ---
+type: reference
 tags:
 - ops
 - integration
 - openwebui
 - llm
-type: reference
-summary: Configure and operate the Wikantik OpenAPI tool server for LLM integrations.
-title: OpenWebUI Tool Server
 canonical_id: 01KQ0P44TCX937ZGDWMJFPZ7JV
 cluster: generative-ai
+title: OpenWebUI Tool Server
+summary: Configure and operate the Wikantik OpenAPI tool server for LLM integrations.
 ---
-
 # OpenWebUI Tool Server
 
 Wikantik ships an OpenAPI 3.1 tool server under `/tools/` that exposes hybrid search and
@@ -94,7 +93,7 @@ Response:
 }
 ```
 
-`maxResults` is clamped to `[1, 25]`; values outside the range snap to the default of 10.
+`maxResults` defaults to 10 when omitted or not positive, and is capped at 25.
 
 ### `get_page`
 
@@ -105,16 +104,21 @@ curl -H "Authorization: Bearer $TOOLS_KEY" \
 
 The response strips YAML frontmatter from `text`, includes `summary`/`tags` from
 frontmatter as top-level fields, and reports truncation via `truncated`/`totalChars`/
-`truncatedAt` when the body exceeds the limit (default 6000 chars, hard cap 20000).
+`truncatedAt` when the body exceeds the limit (default 6000 chars, hard cap 20000;
+a missing or non-positive `maxChars` uses the default). A page that does not exist
+returns 404, and a page the key's principal may not view returns 403 before any body
+is loaded.
 
 ## Observability
 
-The tool server publishes to the process-wide Micrometer registry (scraped at
-`/observability/metrics`). All meters are prefixed `wikantik.tools`:
+The tool server publishes to the process-wide Micrometer registry, scraped at `/metrics`
+(Prometheus text format; `InternalNetworkFilter` limits it to loopback and RFC 1918
+clients). Prometheus renders the dots as underscores. All meters are prefixed
+`wikantik.tools`:
 
 | Meter                                         | Type     | Notes |
 |-----------------------------------------------|----------|-------|
-| `wikantik.tools.requests{endpoint,status}`    | counter  | endpoint ∈ {search_wiki, get_page, openapi}; status ∈ {success, error, not_found} |
+| `wikantik.tools.requests{endpoint,status}`    | counter  | endpoint ∈ {search_wiki, get_page, openapi}; status ∈ {success, error, not_found, forbidden} (`not_found` and `forbidden` occur only for get_page) |
 | `wikantik.tools.search.results_returned`      | counter  | total result rows emitted |
 | `wikantik.tools.get_page.truncated`           | counter  | get_page responses that hit the truncation cap |
 
@@ -134,8 +138,8 @@ In OpenWebUI:
   session. Pick the principal deliberately — the tool caller inherits their view
   permissions, so grant narrowly.
 - The legacy `tools.access.keys` / `mcp.access.keys` config-file token lists were
-  removed in 2.4.18 and are no longer read by anything. Setting either is a silent
-  no-op; database-backed keys minted at `/admin/apikeys` are the only token
+  removed in 2.0.21 (June 2026) and are no longer read by anything. Setting either is
+  a silent no-op; database-backed keys minted at `/admin/apikeys` are the only token
   mechanism.
 - Rate limits are sliding-window, 1-second buckets; the `Retry-After: 1` header is
   returned with every 429.

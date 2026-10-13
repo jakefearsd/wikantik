@@ -82,7 +82,7 @@ reindex, reindex embeddings).
 
 ### Page Ownership
 
-`/admin/page-ownership`. Two tabs: **Orphaned** (pages whose owner was deleted) and
+`/admin/page-ownership`. Two tabs: **Orphaned** (pages with no owner, for example because the owner's account was deleted) and
 **By Owner**. Reassign one page, or reassign every page of a user.
 
 - Backed by: `/admin/page-ownership` and `/admin/page-ownership/reassign`,
@@ -204,5 +204,6 @@ Call them with `curl` as an administrator.
 | `/admin/drift/citations` | `AdminDriftResource` | citation status counts and per-page citation lists; see [DriftDashboard.md](DriftDashboard.md#stale-citations) |
 | `/admin/insights/ingest` | `InsightsIngestResource` | search-visibility snapshot upload |
 
-For how many servlets and URL patterns exist in total, see the module and servlet
-counts in [the architecture overview](../developer/Architecture.md).
+In total `web.xml` maps 29 `/admin/*` servlets under 37 URL patterns, and every one of
+them is covered on this page. The module and servlet counts for the rest of the system
+are in [the architecture overview](../developer/Architecture.md).

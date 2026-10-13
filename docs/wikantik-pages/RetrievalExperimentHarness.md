@@ -1,4 +1,5 @@
 ---
+type: article
 tags:
 - search
 - retrieval
@@ -8,15 +9,15 @@ tags:
 - evaluation
 - lucene
 - information-retreival
-type: article
-summary: How to run the offline harness that compares BM25, dense, and hybrid retrieval
-  across three candidate embedding models.
-title: Retrieval Experiment Harness
 cluster: wikantik-development
 canonical_id: 01KQ0P44VRJJ07S7EPD99G8CBA
+title: Retrieval Experiment Harness
+summary: How to run the offline harness that compares BM25, dense, and hybrid retrieval
+  across three candidate embedding models.
 ---
-
 # Retrieval Experiment Harness
+
+> **Status (2026-10-13):** Sections 1–6 are the operating manual for the offline experiment harness and are kept current. Sections 7–10 are a dated lab notebook and are left as written. Since they were written, the production defaults they describe changed — page aggregation is now `mean_top_3` and the BM25 fusion weight 1.5 (2.4.23), the default dense backend is `lucene-hnsw`, document embeddings are contextual — and the Knowledge Graph graph-rerank mentioned in sections 9–10 was deleted in 2026-07 (see [KnowledgeGraphRerank](KnowledgeGraphRerank)). Current configuration: [HybridRetrieval](HybridRetrieval). To track quality on the live wiki use `bin/search-eval` ([WikantikSearchRefinement](WikantikSearchRefinement)) or the nightly runner ([RunningTheRetrievalQualityHarness](RunningTheRetrievalQualityHarness)).
 
 The harness at `com.wikantik.search.embedding.experiment` scores three candidate
 embedding models against a page-level ground-truth CSV, so we can pick a winner
@@ -35,7 +36,7 @@ chunk-level dense with max-score-per-page, why sandbox BYTEA instead of
 
 | Retriever | Source | Notes |
 |---|---|---|
-| **BM25-only** | `GET /api/search?q=…` on the running wiki | Lucene lexical baseline |
+| **BM25-only** | `GET /api/search?q=…` on the running wiki | Lucene lexical baseline — but `/api/search` returns the *hybrid* order whenever `wikantik.search.hybrid.enabled` is true on that wiki, so run it against a wiki with the flag off for a true BM25 arm |
 | **Dense-only** | Cosine similarity over per-chunk vectors, aggregated to pages by max-score | One run per candidate model |
 | **Hybrid** | Reciprocal Rank Fusion (k=60) of the two rankings above | |
 
@@ -59,7 +60,10 @@ a side-by-side table across all three reports.
    ```
    curl -s http://inference.jakefear.com:11434/api/tags | jq '.models[].name'
    ```
-   All three tags above must be present.
+   All three tags above must be present. The indexer reads the host from
+   `wikantik.search.embedding.base-url` in `ini/wikantik.properties`; override it
+   with `-Dwikantik.search.embedding.base-url=…` (for example the dev embedder on
+   `http://localhost:11434` that `bin/deploy-local.sh` starts).
 
 2. **Wiki running locally** at `http://localhost:8080`. `/api/health` should
    show `engine: UP`.
@@ -69,11 +73,12 @@ a side-by-side table across all three reports.
    ```
    bin/trigger-rebuild-indexes.sh
    ```
-   This posts to `/admin/content/rebuild-indexes` with the `testbot`
-   credentials embedded in the (gitignored) script. Rebuild is async; poll
-   until chunking finishes:
+   This logs in with the account named in `test.properties` at the repo root
+   (`test.user.login` / `test.user.password`) and POSTs to
+   `/admin/content/rebuild-indexes`. Rebuild is async; poll until chunking
+   finishes:
    ```
-   curl -s -u testbot:<pw> http://localhost:8080/admin/content/index-status | jq
+   bin/trigger-rebuild-indexes.sh status      # GET /admin/content/index-status
    ```
    Expect ~1K chunks from ~1K markdown pages after a few minutes.
 
@@ -103,7 +108,8 @@ Optional env:
 | Var | Default | Purpose |
 |---|---|---|
 | `MODELS` | all three codes | Space-separated subset to test |
-| `DB_HOST` / `DB_NAME` / `DB_USER` | `localhost` / `jspwiki` / `jspwiki` | |
+| `DB_HOST` / `DB_NAME` / `DB_USER` | `localhost` / `wikantik` / `jspwiki` | `DB_USER` still defaults to the legacy `jspwiki` role — set `DB_USER=wikantik` for a database created by `bin/db/install-fresh.sh` |
+| `EMBED_TIMEOUT_MS` / `EMBED_BATCH_SIZE` | `120000` / `16` | Passed to the indexer as `wikantik.search.embedding.timeout-ms` / `.batch-size` |
 | `WIKI_URL` | `http://localhost:8080` | |
 | `OUTPUT_DIR` | `eval` | Where reports land |
 | `SKIP_DDL=1` | off | Skip the DDL step |
@@ -118,19 +124,23 @@ you'll see it immediately rather than after a silent 0-row run.
 ## 4. Running pieces individually
 
 Each stage is a `main()` reachable via `mvn exec:java`. The runner script is
-just shorthand for these.
+just shorthand for these. The harness lives in test scope, so `wikantik-main`'s
+dependencies must already be installed (`mvn install -DskipTests`) and its test
+classes compiled; `bin/run-embedding-experiment.sh` runs `exec:java` against
+`wikantik-main/pom.xml` directly (`mvn -f wikantik-main/pom.xml`) because
+`-pl … -am` would also try to run the main class in the root reactor.
 
 ### Apply the sandbox DDL
 
 ```
-PGPASSWORD='<pw>' psql -h localhost -U jspwiki -d jspwiki \
+PGPASSWORD='<pw>' psql -h localhost -U <db-user> -d wikantik \
     -f eval/experiment-embeddings.sql
 ```
 
 ### Indexer (once per model)
 
 ```
-mvn -pl wikantik-main -am -q exec:java -Dexec.classpathScope=test \
+mvn -f wikantik-main/pom.xml -q exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentIndexer \
     -Dexec.args="nomic-embed-v1.5" \
     -Dwikantik.experiment.db.password='<pw>'
@@ -142,7 +152,7 @@ so reruns only top up what's missing. Batches of 32 chunks per HTTP call.
 ### Evaluator (once per model)
 
 ```
-mvn -pl wikantik-main -am -q exec:java -Dexec.classpathScope=test \
+mvn -f wikantik-main/pom.xml -q exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentEvaluator \
     -Dexec.args="nomic-embed-v1.5 eval/retrieval-queries.csv eval/report-nomic.txt" \
     -Dwikantik.experiment.db.password='<pw>' \
@@ -153,7 +163,7 @@ mvn -pl wikantik-main -am -q exec:java -Dexec.classpathScope=test \
 ### Side-by-side comparison
 
 ```
-mvn -pl wikantik-main -am -q exec:java -Dexec.classpathScope=test \
+mvn -f wikantik-main/pom.xml -q exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentCompare \
     -Dexec.args="eval/report-nomic-embed-v1.5.txt eval/report-bge-m3.txt eval/report-qwen3-embedding-0.6b.txt"
 ```
@@ -210,12 +220,13 @@ in Section 7 below.
 
 | Path | Purpose |
 |---|---|
-| `bin/trigger-rebuild-indexes.sh` | Populate `kg_content_chunks` (gitignored — embeds testbot creds) |
+| `bin/trigger-rebuild-indexes.sh` | Populate `kg_content_chunks` (tracked; reads credentials from `test.properties`; `status` subcommand polls progress) |
+| `bin/search-eval` | Live-wiki recall@5 / recall@20 / MRR over `eval/retrieval-queries.csv` — see [WikantikSearchRefinement](WikantikSearchRefinement) |
 | `bin/run-embedding-experiment.sh` | End-to-end driver |
 | `eval/experiment-embeddings.sql` | Sandbox DDL (not a migration) |
 | `eval/retrieval-queries.csv` | 40-query, 7-category ground truth |
 | `wikantik-main/src/test/java/com/wikantik/search/embedding/experiment/` (test scope — deliberately excluded from the production WAR) | `ExperimentIndexer`, `ExperimentEvaluator`, `ExperimentCompare`, `ExperimentAggSweep`, `ExperimentRrfSweep`, `ExperimentFinalSweep`, `ExperimentGrandFinale`, `ExperimentHarness`, `Bm25Client`, `ExperimentDb`, `QueryCorpus`, `ReciprocalRankFusion`, `CosineSimilarity`, `VectorCodec` |
-| `wikantik-main/src/main/java/com/wikantik/search/embedding/` | Production-side client + config (now `enabled=true` by default; feature-flag remains as the kill switch) |
+| `wikantik-main/src/main/java/com/wikantik/search/embedding/` | Production-side client + config (`wikantik.search.hybrid.enabled` is `true` in the shipped properties; the flag remains as the kill switch) |
 
 The experiment code stays in place after each decision so regression runs
 stay one Maven command away.
@@ -322,6 +333,8 @@ DEFAULT_RRF_TRUNCATE     = 20;
 DEFAULT_DENSE_CHUNK_TOP  = 500;
 DEFAULT_DENSE_PAGE_TOP   = 100;
 ```
+
+*Superseded (2.4.23):* the code defaults are now `MEAN_TOP_3` and `DEFAULT_BM25_WEIGHT = 1.5` — `SUM_TOP_3` made chunk count a score multiplier, so short pages were unreachable (see [HybridRetrieval](HybridRetrieval)).
 
 Dense is weighted 1.5× vs BM25 in the RRF fusion because the grand
 finale shows dense-leaning hybrids consistently within 0.05 of the

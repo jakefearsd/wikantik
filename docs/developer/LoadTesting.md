@@ -52,9 +52,10 @@ The three built-in profiles and when to use each — copied from
 | `load` | ramps to `--vus`, sustains for `--duration`, ramps down | finding steady-state at a target VU |
 | `stress` | staged ramp: 25 % → 50 % → 100 % → 0 % over 8 min | finding the knee / capacity ceiling |
 
-All three remote-write k6's own metrics into jakemon's Prometheus on host
-`docker2` (`192.168.0.5:9090`), so offered load and host response share a
-timeline in Grafana.
+When `K6_PROMETHEUS_RW_SERVER_URL` is set in `loadtest/loadtest.env` (the
+`loadtest.env.example` template points it at jakemon's Prometheus on host
+`docker2`, `192.168.0.5:9090`), all three profiles remote-write k6's own metrics
+there, so offered load and host response share a timeline in Grafana.
 
 ## Reading the k6 output
 

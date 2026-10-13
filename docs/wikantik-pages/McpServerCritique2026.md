@@ -1,19 +1,27 @@
 ---
+type: article
 tags:
 - mcp
 - architecture
 - critique
 - security
 - penetration-testing
-type: article
-summary: A technical critique of the Wikantik MCP servers (Admin and Knowledge) based
-  on active usage and aggressive robustness/security testing.
-title: McpServerCritique2026
 canonical_id: 01KQP52GP5G3HH1PC62KQRDFBC
 cluster: wikantik-development
+title: McpServerCritique2026
+summary: A technical critique of the Wikantik MCP servers (Admin and Knowledge) based
+  on active usage and aggressive robustness/security testing.
 ---
 
 # MCP Server Critique: Architectural Friction and Security Vulnerabilities
+
+> **Status (2026-10-13):** Items 1 to 3 below were fixed shortly after this critique; items 4 and 5 remain open. The critique text and the audit table are left as written.
+>
+> - **Item 1 (page names):** since 2026-05-03 `WikiPageNameValidator` (`wikantik-util`) is called by `write_pages`, `update_page`, `rename_page` and `delete_pages`. It rejects blank names, names over 128 characters, control characters including the null byte, `/` and `\`, and `..`. It is a deny-list, not the strict CamelCase allow-list the critique proposed.
+> - **Item 2 (resource exhaustion):** the same change hardened the frontmatter YAML loader (`FrontmatterParser`): alias fan-out capped at 50, nesting depth 50, 1 MB per frontmatter block, duplicate keys refused. No overall request-size limit on `write_pages` or `update_page` content was found in the MCP tools.
+> - **Item 3 (stale hash):** since 2026-05-03 a `hash mismatch` from `update_page` carries `currentHash`, `currentVersion` and `latestContent`, so the agent can rebase without another read.
+> - **Item 4 (broken-link suggestions):** `get_broken_links` still returns only the referenced and referencing pages, with no similarity-based fix suggestions.
+> - **Item 5 (silos):** the two endpoints remain separate. The admin server gained admin-bypass copies of `query_nodes` and `search_knowledge` for curators, but there is no merged tool. See [MCP Integration](McpIntegration) for the current surface.
 
 This report outlines an engineering and security critique of the `wikantik-admin` and `wikantik-knowledge` MCP servers, derived from a session involving large-scale refactoring and aggressive robustness testing ("face-punching").
 

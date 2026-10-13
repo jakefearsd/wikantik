@@ -1,14 +1,14 @@
 ---
-cluster: wikantik-platform
 title: 'Wikantik: Critique and Market Position'
-summary: Candid assessment of Wikantik's strengths, architectural weaknesses, and
-  competitive position vs MediaWiki, Confluence, BookStack, Outline, and Notion.
+cluster: wikantik-platform
+date: '2026-06-20'
+verified_at: '2026-05-04T21:10:44.598011331Z'
 type: article
 status: active
 verified_by: gemini-cli-mcp-client
 canonical_id: 01KQTCCQ3H9K0M9E95ZCK3KHN5
-date: '2026-06-20'
-verified_at: '2026-05-04T21:10:44.598011331Z'
+summary: Candid assessment of Wikantik's strengths, architectural weaknesses, and
+  competitive position vs MediaWiki, Confluence, BookStack, Outline, and Notion.
 tags:
 - market-position
 - architecture
@@ -19,11 +19,18 @@ tags:
 ---
 # Wikantik: Critique and Market Position
 
-As a platform born from a rapid modernization of Apache JSPWiki, Wikantik has unique strengths but also carries genuine technical debt. This page provides a candid assessment of the system as of 2.0.x and where it must go next.
+As a platform born from a rapid modernization of Apache JSPWiki, Wikantik has unique strengths but also carries genuine technical debt. This page provides a candid assessment of the system as of 2.4.x and where it must go next.
+
+> **Status (2026-10-13), current release 2.4.56:** where the assessment below has moved on:
+>
+> - **God module:** partly addressed. Several concerns now live in their own modules (`wikantik-jdbc`, `wikantik-ingest`, `wikantik-connectors`, `wikantik-insights`, `wikantik-ontology`, `wikantik-mcp-core`), and ADR-0008 cut `WikiEngine` coupling (CBO 143 to 86). Rendering, auth and search still live in `wikantik-main`, so there is no `wikantik-renderer` module yet.
+> - **KG rerank:** deleted in 2026-07 as described below; the deprecated `HybridSearchService.rerank()` forwarder was removed in 2.4.26.
+> - **Frontmatter maintenance:** `FrontmatterDefaultsFilter` now generates a default block for a page saved with none; richer enrichment is still curator work.
+> - **Competitor columns** in the comparison table were not re-verified against the vendors' current releases.
 
 ## Strengths: The Competitive Edge
 
-1. **Agent-Centric Architecture:** Wikantik ships two production MCP servers — `/wikantik-admin-mcp` (27 write/analytics tools) and `/knowledge-mcp` (21 read-only retrieval + ontology tools when fully wired) — plus an OpenAPI 3.1 tool server at `/tools/*` for non-MCP clients. No other self-hosted wiki ships an agent surface at this depth.
+1. **Agent-Centric Architecture:** Wikantik ships two production MCP servers — `/wikantik-admin-mcp` (29 write/analytics tools) and `/knowledge-mcp` (21 read-only retrieval + ontology tools when fully wired) — plus an OpenAPI 3.1 tool server at `/tools/*` for non-MCP clients. No other self-hosted wiki ships an agent surface at this depth.
 
 2. **Hybrid Retrieval:** BM25 (Lucene) + dense vector (Lucene HNSW in-process or pgvector) fused via Reciprocal Rank Fusion (k=60), with fail-closed BM25 fallback when Ollama is unavailable. Section recall@12 improved from 0.60 to 0.74 after chunker heading-fidelity fixes and contextual document embeddings.
 
@@ -35,7 +42,7 @@ As a platform born from a rapid modernization of Apache JSPWiki, Wikantik has un
 
 6. **SCIM 2.0 Provisioning:** IdP-driven user and group onboarding/offboarding at `/scim/v2/*`. Most competing self-hosted wikis lack SCIM support.
 
-7. **Performance:** Measured at 480 RPS sustained (p95 1.25 s) on a 16-core host under a search-heavy workload; degrades gracefully under overload via `BackpressureFilter` (503 + `Retry-After: 1`).
+7. **Performance:** Load-tested with the k6 harness (`bin/loadtest.sh`; method and results in `docs/developer/LoadTesting.md` and `ScalingCharacterization.md`). The 2.0.2 changelog records a 1,200-VU search-heavy run moving from congestion collapse (233 RPS, p95 11 s) to healthy (825 RPS, p95 361 ms) after the connection-pool and hot-path fixes. Under overload the `BackpressureFilter` sheds excess concurrency with 503 + `Retry-After: 1` rather than queueing it.
 
 ## Weaknesses: The Technical Debt
 
@@ -88,5 +95,6 @@ Wikantik occupies a distinct niche: an open-source, self-hosted knowledge base t
 ## See Also
 
 - [WikantikPlatformHub](WikantikPlatformHub) — platform cluster hub
+- [RagServiceRoadmapHub](RagServiceRoadmapHub) — the RAG-as-a-service capability roadmap extending this assessment
 - [WikantikArchitecture](WikantikArchitecture) — detailed module and system architecture
 - [WikantikEvolutionFromJSPWiki](WikantikEvolutionFromJSPWiki) — how Wikantik got here

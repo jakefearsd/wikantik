@@ -6,7 +6,7 @@ How to sign in, recover a password and manage your account. For the full guide, 
 
 Choose **Sign in** in the sidebar, enter your username and password, and choose **Sign in** again. If your wiki has single sign-on, a **Continue with ...** button appears above the form; use it to sign in at your provider. The first single sign-on login creates your account, and such an account has no wiki password.
 
-You can read pages without signing in. What you may edit depends on your account and on each page's access rules.
+You can read pages without signing in. What you may edit depends on your account and on each page's access rules. If an administrator has turned on remember-me, a password sign-in also lasts across browser restarts (14 days by default), and **Sign out** ends it.
 
 ## Forgot your password
 

@@ -1,21 +1,21 @@
 ---
-canonical_id: 01KQ0P44Z3K0P2E7GKKQ4MJJ5M
-title: Wiki Performance Tuning
-type: article
-cluster: wikantik-development
 status: active
 date: '2026-04-26'
-summary: Where wikis get slow — rendering, search, large pages, plugin overhead —
-  and the patterns for keeping wiki performance acceptable as content grows.
+title: Wiki Performance Tuning
+related:
+- WikiSearchOptimization
+- WikiPluginDevelopment
+- DatabasePerformanceMonitoringHub
+canonical_id: 01KQ0P44Z3K0P2E7GKKQ4MJJ5M
+cluster: wikantik-development
+type: article
 tags:
 - wiki
 - performance
 - caching
 - wikantik-development
-related:
-- WikiSearchOptimization
-- WikiPluginDevelopment
-- DatabasePerformanceMonitoringHub
+summary: Where wikis get slow — rendering, search, large pages, plugin overhead —
+  and the patterns for keeping wiki performance acceptable as content grows.
 ---
 # Wiki Performance Tuning
 
@@ -217,10 +217,12 @@ Performance degrades over time. Periodic review catches drift.
 
 ### Wikantik
 
-- EhCache for render caches (1-hour TTL, 10K entries)
-- Memcached adapter for distributed
-- BM25 + dense (RRF fusion) for search
-- pgvector embeddings
+- **Render caches.** EhCache, configured in `ehcache-wikantik.xml` in the `wikantik-cache` module: the rendering and HTML caches hold up to 10K entries with a 1-hour TTL, the page, page-text and page-history caches 10K entries with a 60-second TTL, and the attachment and attachment-collection caches 1K entries. `wikantik.cache.enable` (default `true`) is the master switch. Metrics for every cache, including hit rates, appear on the Prometheus `/metrics` endpoint.
+- **Plugins bypass the shared caches.** A page that runs any plugin is marked viewer-sensitive and is kept out of the principal-less render caches, so plugin-heavy pages are re-rendered more often than plain ones. See [WikiPluginDevelopment](WikiPluginDevelopment).
+- **Distributed caching.** `wikantik-cache-memcached` is an opt-in Memcached adapter for multi-node deployments. It is not wired into the WAR: override the `CachingManager` mapping in `classmappings.xml`, put the jar on the container classpath, and set `wikantik.cache.memcached.servers`.
+- **Search.** BM25 (Lucene) plus dense vectors, fused by reciprocal rank fusion. `wikantik.search.dense.backend` defaults to `lucene-hnsw`, an in-process index; `pgvector` reads through to the database, and `inmemory` is the older brute-force index. See [HybridRetrieval](HybridRetrieval).
+- **Overload protection.** `BackpressureFilter` caps in-flight requests at `WIKANTIK_MAX_INFLIGHT_REQUESTS` (default 390, deliberately just under Tomcat's `maxThreads`, which is 400 on the docker1 deployment) and answers the excess with `503` and `Retry-After: 1` instead of queueing; `/api/health` and `/metrics` are exempt. `RateLimitFilter` adds per-client-IP limits: 25 requests per second by default, and a tighter tier (3 per client, 10 global) for the embedding-heavy `/api/bundle`, `/api/search` and `/sparql`. Loopback callers are never limited. The limits are set with the `WIKANTIK_RATELIMIT_*` environment variables.
+- **Measuring it.** The k6 harness is `bin/loadtest.sh smoke|load|stress`, and `docs/developer/LoadTesting.md` in the repository covers pairing a run with JFR recordings, Prometheus and thread dumps. `docs/developer/ScalingCharacterization.md` records a sweep that found the knee for a single 16-core host.
 
 ## Common failure patterns
 

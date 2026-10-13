@@ -438,7 +438,7 @@ Hosts without a producer harmlessly report `node_textfile_scrape_error=1` until 
 | `wikantik_backup_duration_seconds` | gauge | `tier` | Wall-clock seconds the backup took |
 | `wikantik_backup_db_bytes` | gauge | `tier` | Bytes in `db.sql.gz` (compressed) for the last run |
 | `wikantik_backup_pages_bytes` | gauge | `tier` | Bytes in `pages.tar.gz` for the last run |
-| `wikantik_backup_last_exit_status` | gauge | `tier` | Exit status of the last run (0 = success) |
+| `wikantik_backup_last_exit_status` | gauge | `tier` | Written only at the end of a successful run, so it is always `0` when present; a failed run exits before the metrics block and leaves the previous file untouched |
 
 `tier` ∈ {`daily`, `weekly`, `monthly`}.
 
@@ -467,6 +467,10 @@ time() - max(wikantik_backup_last_success_timestamp_seconds{tier="daily"}) > 26*
 max(wikantik_backup_last_exit_status) != 0
 ```
 
+The sidecar only ever writes `0` here today, so this expression is a guard for a future
+failure-reporting path, not a live failure detector. A failed local backup is caught by
+the missed-backup expression above: its success timestamp stops advancing.
+
 **Off-box pull missed:**
 ```promql
 time() - wikantik_backup_offsite_last_success_timestamp_seconds > 26*3600
@@ -477,8 +481,10 @@ time() - wikantik_backup_offsite_last_success_timestamp_seconds > 26*3600
 wikantik_backup_offsite_last_exit_status != 0
 ```
 
-Together these cover the full chain: local backup ran, local backup succeeded, off-box archive is
-current, off-box archive is intact.
+Together these cover the full chain: the daily local backup is current (a run that never fired
+and a run that failed both stop the success timestamp), the off-box archive is current, and the
+off-box archive is intact. The missed-backup expression watches the `daily` tier only; add the same
+shape for `weekly` and `monthly` if you want those watched too.
 
 ---
 

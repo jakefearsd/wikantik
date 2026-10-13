@@ -156,9 +156,9 @@ The migration directory is the source of truth; this table summarises it through
 | V009 | `content_chunk_embeddings`: Ollama-backed dense embeddings, stored as `BYTEA` little-endian float32 (V032 later adds the pgvector column alongside it) |
 | V010 | `api_keys`: bearer-token auth for the MCP and tools servers |
 | V011 | `chunk_entity_mentions`: joins KG nodes to chunks |
-| V012 | Retire the legacy graph projector; replaced by direct `kg_edges` writes |
+| V012 | Purge the `links_to` edges written by the retired graph projector |
 | V013 | `page_canonical_ids`, `page_slug_history`: rename-stable identifiers |
-| V014 | `page_verification` and runbook tables |
+| V014 | `page_verification` and `trusted_authors`: page verification and the trusted-author registry |
 | V015 | Deduplicate user profiles (one-time data fix) |
 | V016 | `retrieval_query_sets`, `retrieval_queries`, `retrieval_runs`: retrieval-quality CI |
 | V017 | Seeds the default retrieval query set |

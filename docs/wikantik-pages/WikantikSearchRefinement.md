@@ -1,10 +1,16 @@
 ---
+uses_query_set:
+- eval/retrieval-queries.csv
+kg_include: true
+title: 'Wikantik Search Refinement: Architecture, Implementation, and Best Practices'
 related:
 - WikantikDevelopment
 - LocalRAG
 - RagImplementationPatterns
 - LlmEvaluationMetrics
-title: Wikantik Search Refinement
+canonical_id: 01KQ0P44YYYXZBBJ5Q22N8Q0VD
+cluster: wikantik-development
+type: article
 tags:
 - search
 - retrieval
@@ -14,18 +20,14 @@ tags:
 - tooling
 summary: How to iterate on the retrieval evaluation query set, run the standalone
   search-eval tool against a running wiki, and interpret the report.
-canonical_id: 01KQ0P44YYYXZBBJ5Q22N8Q0VD
-type: article
-cluster: wikantik-development
-uses_query_set:
-- eval/retrieval-queries.csv
 ---
-
 # Wikantik Search Refinement
 
 Retrieval quality — "did search put the right page in the top 5?" — is measured here by a seed set of `(query, ideal_page)` pairs run through the live wiki via `bin/search-eval`, reported as `recall@5`, `recall@20`, and `MRR`. Improvements (synonym handling, dense embeddings, rerankers) are validated against this set; without it, every future retrieval change is a vibe check.
 
 The tool talks to whatever wiki you point it at — local dev, staging, production. It tests the *deployed* retriever, not an isolated in-process copy, so it picks up ACL filtering, index state, middleware, and any retrieval change that lands without needing code changes to the tool itself.
+
+Two other evaluation surfaces complement it. The nightly runner scores the `core-agent-queries` set (nDCG@5/10, Recall@20, MRR) and publishes Prometheus gauges plus an admin dashboard — see [RunningTheRetrievalQualityHarness](RunningTheRetrievalQualityHarness). The context bundle has its own section-recall corpus (`eval/bundle-corpus/`, scored by `bin/eval/run-baseline.py`) — see [HybridRetrieval](HybridRetrieval).
 
 ## The three locations
 
@@ -34,11 +36,10 @@ The tool talks to whatever wiki you point it at — local dev, staging, producti
   Three columns: `query, ideal_page, notes`. Add, remove, or remap queries in your editor. The `notes` column carries a category label (`synonym-drift`, `indirect`, `multi-word-concept`, `specific`, `general`, `business-process`, `hard`) so the per-category breakdown in the report is meaningful.
 
 - **Rolling output — regenerated each run:**
-  Whatever you pass to `--out`, or just stdout. Not committed; throwaway.
+  Whatever you pass to `--out`, or just stdout. Not committed; throwaway. The tool writes the file with a plain `write_text`, so the parent directory must already exist (`eval/reports/` is not in the repo — `mkdir -p eval/reports` first).
 
 - **Frozen checkpoint — commit when it matters:**
-  `docs/superpowers/specs/2026-04-17-retrieval-eval-baseline.md`
-  A snapshot of the report at a known point in time. Update it when the query set is finalized, a new retriever lands, or you want a before-and-after reference to cite.
+  A dated report committed under `eval/` — the existing ones (for example `eval/2026-06-03/report-qwen3-embedding-0.6b.txt` and `eval/report-qwen3-embedding-0.6b-2026-06-03-current-corpus.txt`) come from the offline experiment harness ([RetrievalExperimentHarness](RetrievalExperimentHarness)) and report the same recall@5 / recall@20 / MRR metrics. Commit a new one when the query set is finalized, a new retriever lands, or you want a before-and-after reference to cite. (The original `2026-04-17-retrieval-eval-baseline.md` spec was archived out of the tree.)
 
 ## Running the tool
 
@@ -72,18 +73,34 @@ bin/search-eval --help
 
 No Python dependencies — standard library only. Just `python3`.
 
+All flags:
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--base-url` | `$WIKANTIK_BASE_URL`, else `http://localhost:8080` | Wiki to test |
+| `--queries` | `eval/retrieval-queries.csv` | Query CSV (relative paths resolve against the repo root) |
+| `--user` / `--password` | from `test.properties` | Credentials, overriding the file |
+| `--test-properties` | `<repo>/test.properties` | Alternate credentials file |
+| `--anonymous` | off | Skip authentication |
+| `--limit` | `200` | Max hits requested per query (`limit=` on `/api/search`) |
+| `--out` | — | Also write the report to this path |
+| `--json` | off | JSON instead of the text report |
+| `--quiet` | off | Omit the per-query table in text mode |
+| `--no-progress` | off | Suppress the stderr progress line (it only shows on a TTY anyway) |
+| `--timeout` | `30` | Per-request timeout, seconds |
+
 **Exit codes:** `0` clean run, `1` at least one query produced an HTTP/network error (report enumerates them), `2` configuration error (missing queries file, unreachable endpoint).
 
 ## The typical loop
 
 1. Edit `eval/retrieval-queries.csv`. Fix a bad `ideal_page`, add a query your team actually asks, drop one that turned out to have no good answer in the corpus.
 2. Run `bin/search-eval --out eval/reports/try-N.txt`.
-3. Read the report. Compare the summary line (recall@5, recall@20, MRR) and the missed-query list against the baseline doc.
+3. Read the report. Compare the summary line (recall@5, recall@20, MRR) and the missed-query list against your last committed report.
 4. Decide per query:
    - If a query moved from rank 193 to rank 4 — curation win.
    - If recall@5 dropped — is the query actually harder than you thought, is the `ideal_page` wrong, or did retrieval regress?
    - If a query always misses despite clearly having a good page — worth a bug.
-5. Commit the CSV when satisfied. Update the baseline doc at natural milestones: end of a curation session, before swapping BM25 for hybrid retrieval, after a reranker lands.
+5. Commit the CSV when satisfied. Commit a fresh report under `eval/` at natural milestones: end of a curation session, before swapping retrievers, after a reranker lands.
 
 ## What the tool does
 
@@ -128,6 +145,8 @@ The report groups recall by the `notes` label. Categories tell you *where* retri
 Track the categories over time. A retrieval change that lifts `specific` from 0.9 to 1.0 while dragging `synonym-drift` from 0.4 to 0.2 is a regression worth rolling back.
 
 ## Next step: hybrid BM25 + dense retrieval
+
+> **Status (2026-10-13):** Shipped — this section is the original design exploration and is kept as written. What Wikantik actually runs: Ollama is the **only** embedding backend (`wikantik.search.embedding.backend = ollama`; Hugging Face TEI is not supported), the model is `qwen3-embedding-0.6b` (1024 dimensions, chosen by the 2026-04-18 experiment — see [RetrievalExperimentHarness](RetrievalExperimentHarness)), vectors live in `content_chunk_embeddings` (V009, plus a pgvector `vector(1024)` HNSW column from V032), the client is `TextEmbeddingClient`, and the serving index is `lucene-hnsw` by default (pgvector and in-memory are alternatives). The TEI / GPU / mini-PC sizing below is background reading, not a supported Wikantik configuration. Current wiring, flags and metrics: [HybridRetrieval](HybridRetrieval).
 
 The baseline report makes the gap visible: BM25 is already near-ceiling on `specific` and `multi-word-concept` (recall@5 ≈ 0.80, recall@20 = 1.00) and weak on `indirect` (0.50), `general` (0.20), and `business-process` (0.40). The standard move here is a second retriever that reads meaning rather than surface tokens, fused with BM25 by Reciprocal Rank Fusion (RRF) — no tuning, no threshold, just interleaved ranks. Any query where one retriever nails it carries the fused result; queries where both fail stay failed and surface in the eval as genuine gaps.
 
@@ -258,7 +277,7 @@ The wiki and PostgreSQL stay where they live today. Only the embedding transform
 
 ### Gating the change on the eval
 
-Any dense / hybrid rollout commits to re-running `bin/search-eval` and diffing against the baseline in `docs/superpowers/specs/2026-04-17-retrieval-eval-baseline.md`. The merge criterion is **`indirect` and `general` recall@5 lift without regression on `specific` or `multi-word-concept`**. If `specific` drops more than ~0.05 while `indirect` lifts, the fusion weighting is wrong (or BM25 is being overridden) and the change isn't ready.
+Any dense / hybrid rollout commits to re-running `bin/search-eval` and diffing against the last committed report (the original baseline spec has since been archived out of the tree). The merge criterion is **`indirect` and `general` recall@5 lift without regression on `specific` or `multi-word-concept`**. If `specific` drops more than ~0.05 while `indirect` lifts, the fusion weighting is wrong (or BM25 is being overridden) and the change isn't ready.
 
 ## Why a standalone tool (not a JUnit test)
 
@@ -276,15 +295,16 @@ Previous versions of this harness lived inside `wikantik-main` as a `@Disabled` 
 - Is a direct command, not a testing gymnastics invocation.
 - Requires no Maven, no JVM — just `python3`.
 
-The `eval/retrieval-queries.csv` file is the same format as before; moving from test-classpath resources to a top-level `eval/` directory was purely a home-finding exercise. The committed baseline in `docs/superpowers/specs/2026-04-17-retrieval-eval-baseline.md` is still valid as a reference point — the numbers it reports came from the same underlying Lucene BM25, produced by the JUnit harness at the time.
+The `eval/retrieval-queries.csv` file is the same format as before; moving from test-classpath resources to a top-level `eval/` directory was purely a home-finding exercise. The numbers in the original baseline report came from the same underlying Lucene BM25, produced by the JUnit harness at the time.
 
 ## See also
 
-- The baseline numbers and missed-query list:
-  `docs/superpowers/specs/2026-04-17-retrieval-eval-baseline.md`
+- Committed reports with recall@5 / recall@20 / MRR and missed-query lists:
+  `eval/` (for example `eval/2026-06-03/`)
 - The tool:
   `bin/search-eval`
 - Seed query set:
   `eval/retrieval-queries.csv`
+- The nightly quality runner and dashboard: [RunningTheRetrievalQualityHarness](RunningTheRetrievalQualityHarness)
 - The search endpoint it calls:
   `wikantik-rest/src/main/java/com/wikantik/rest/SearchResource.java` → `GET /api/search?q=…&limit=…`

@@ -3,42 +3,48 @@ date: '2026-04-04'
 part-of:
 - KnowledgeGraphCore
 status: active
-summary: Three-tier trust model tracking the origin and review status of knowledge
-  graph content
+title: Provenance Model
+cluster: wikantik-development
+canonical_id: 01KQ0P44TZMB0TWR020ASY4NP5
+type: article
 tags:
 - development
 - knowledge-graph
 - provenance
 - trust
-type: article
-cluster: wikantik-development
-canonical_id: 01KQ0P44TZMB0TWR020ASY4NP5
-title: Provenance Model
+summary: 'How the Knowledge Graph records trust: four provenance values plus a machine/human
+  review tier on every node and edge.'
 ---
 # Provenance Model
 
-Every node and edge in the knowledge graph carries a provenance value that tracks its origin and trust level. This three-tier model ensures that AI-generated content is clearly distinguished from human-authored content.
+Every node and edge in the Knowledge Graph carries two independent trust markers: a **provenance** value recording how it entered the graph, and a review **tier** recording how far it has been vetted. Both are columns on `kg_nodes` and `kg_edges` (provenance since V004, tier since V024). This keeps AI-generated content clearly distinguished from human-curated content.
 
-## Provenance Tiers
+## Provenance values
 
-| Tier | Value | Meaning |
-|------|-------|---------|
-| 1 | `human-authored` | Originated in page YAML frontmatter, written by a human |
-| 2 | `ai-inferred` | Proposed by an AI agent, awaiting human review |
-| 3 | `ai-reviewed` | Proposed by AI, approved by a human, written back to frontmatter |
+| Value | Meaning | Written by |
+|-------|---------|------------|
+| `human-authored` | A person authored or confirmed the entity | Node upserts from the admin REST surface and `curate_nodes`; confirming an AI-inferred entity in the page editor's Knowledge panel |
+| `human-curated` | An admin explicitly curated or confirmed the edge | Edge upserts and `confirm` from the admin REST surface, `curate_edges`, and the page Knowledge panel |
+| `ai-inferred` | Produced by the extraction and proposal pipeline | Every row materialized from a proposal, whether judge-approved (tier `machine`) or later human-approved (tier `human`) |
+| `ai-reviewed` | Judge-approved AI content awaiting human curation (the label the admin UI badge describes) | No current write path assigns it; it remains a valid value for provenance filters and legacy rows, and the review state now lives in the tier |
 
-## Upgrade Path
+## Review tiers
 
-Content moves through provenance tiers in one direction:
-- `ai-inferred` → `ai-reviewed` (on proposal approval)
-- `human-authored` is the terminal state for content created directly in frontmatter
+| Tier | Meaning |
+|------|---------|
+| `machine` | Materialized after the asynchronous judge LLM approved the proposal; not yet confirmed by a person |
+| `human` | Authored, confirmed or approved by a person. This is also the column default, so rows curators write directly start here |
 
-## Consumption Filtering
+A tier moves in one direction. A judge approval materializes rows at `machine`; a human approval of the same proposal promotes them to `human` without changing their provenance; a human rejection retracts them. A curator can also elevate an edge in place (`curate_edges` `confirm`, or the Edge Explorer's confirm action), which sets tier `human` and provenance `human-curated` and writes an audit row to `kg_edge_audit`.
 
-The read-only consumption MCP endpoint (`/knowledge-mcp`) defaults to showing only `human-authored` and `ai-reviewed` content. Agents must explicitly opt in to see `ai-inferred` (speculative) content. This ensures agents querying the graph for grounded knowledge are not misled by unreviewed proposals.
+## Consumption filtering
 
-## Write-Back Semantics
+- **Tier:** `min_tier` is `machine` by default, which shows both tiers; `human` gives the strict, person-vetted-only view. The `traverse` and `search_knowledge` tools on `/knowledge-mcp` accept `min_tier`, and so does `GET /api/knowledge/graph`, whose default comes from `wikantik.kg.read.default_min_tier` (`machine` unless changed).
+- **Provenance:** `query_nodes` and `search_knowledge` take an optional `provenance_filter` list; omitting it applies no provenance filter.
+- **Inclusion:** independently of provenance and tier, the agent-facing `/knowledge-mcp` hides entities whose source page the [KgInclusionPolicy](KgInclusionPolicy) excludes. Admin-MCP reads bypass that filter.
 
-When an `ai-inferred` proposal is approved, it becomes `ai-reviewed`. The frontmatter write-back adds the relationship to the source page. If the source page is re-saved, the GraphProjector recognizes the existing `ai-reviewed` edge and does not downgrade it to `human-authored`.
+## Write-back and the ontology
+
+Approving a `new-edge` proposal also writes the relationship into the source page's frontmatter (see [KnowledgeProposals](KnowledgeProposals)); the edge keeps its `ai-inferred` provenance. In the RDF ontology the tier surfaces as `prov:wasAttributedTo` (`wk:MachineAgent` or `wk:HumanAgent`) on each entity.
 
 [{Relationships}]

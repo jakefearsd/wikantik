@@ -1,39 +1,67 @@
 ---
+cluster: wikantik-development
+type: article
+title: Logging Configuration
 tags:
 - uncategorized
-type: article
-summary: Wikantik Logging Configuration Guide
-title: Logging Configuration
+date: ''
 canonical_id: 01KQ0P44S2640FJ3Y6X8GVDBY9
-cluster: wikantik-development
+summary: Wikantik Logging Configuration Guide Technical architecture and implementation
+  guide for logging configuration.
 ---
 # Wikantik Logging Configuration Guide
 
-## Understanding `jspwiki.use.external.logconfig`
+This guide is for operators who need to change where Wikantik writes logs, how they rotate, or what level each component logs at. It covers the Log4j2 setup, the `wikantik.use.external.logconfig` switch, and the log file locations for bare-metal Tomcat and the container.
+
+## Understanding `wikantik.use.external.logconfig`
 
 ### The Logging Stack
 
-Your Wikantik 3.0.2 uses this logging architecture:
+Wikantik routes all logging through Log4j2:
+
 ```
-Application Code → SLF4J API → log4j-slf4j-impl → Log4j2 Core
-                              ↑
-                   log4j-1.2-api (legacy bridge)
+Application Code → SLF4J API → log4j-slf4j2-impl → Log4j2 Core
 ```
 
-The JARs in your `/opt/tomcat/webapps/ROOT/WEB-INF/lib/`:
-- `slf4j-api-2.0.17.jar` - Facade API
-- `log4j-slf4j-impl-2.25.2.jar` - Routes SLF4J to Log4j2
-- `log4j-api-2.25.2.jar` - Log4j2 API
-- `log4j-core-2.25.2.jar` - Log4j2 implementation
-- `log4j-1.2-api-2.25.2.jar` - Bridges old Log4j 1.x calls
+The relevant JARs ship in `WEB-INF/lib/` of the deployed WAR; exact
+versions are pinned in the root `pom.xml`'s `<dependencyManagement>`:
 
-### How `jspwiki.use.external.logconfig` Works
+- `slf4j-api` — Facade API
+- `log4j-slf4j2-impl` — Routes SLF4J 2.x to Log4j2
+- `log4j-api`, `log4j-core` — Log4j2 API + implementation
 
-When Wikantik starts, `WikiBootstrapServletContextListener.initWikiLoggingFramework()` reads this property:
+### Log4j2 configuration file locations
 
-**When `false` (default):**
+| Environment | Config file path |
+|-------------|-----------------|
+| Bare-metal local Tomcat | `tomcat/tomcat-11/lib/log4j2.xml` |
+| Container (`${CATALINA_HOME}`) | `/usr/local/tomcat/lib/log4j2.xml` |
+| Container (baked config) | `docker/config/log4j2-docker.xml` (copied to `/usr/local/tomcat/lib/log4j2.xml` by the `Dockerfile`) |
+
+For the bare-metal install, `bin/deploy-local.sh` copies
+`wikantik-war/src/main/config/tomcat/log4j2-local.xml.template` to
+`tomcat/tomcat-11/lib/log4j2.xml` on first deploy (the file is preserved on
+subsequent deploys unless you delete it). The template uses a portable path,
+`${sys:catalina.base}/logs/wikantik`, so it works regardless of the absolute
+location of the Tomcat directory.
+
+The container build bakes `docker/config/log4j2-docker.xml` into the image, and
+`docker/entrypoint.sh` writes `wikantik.use.external.logconfig = true` into the
+generated `wikantik-custom.properties`, so the baked file is the active
+configuration. It writes `wikantik.log` and `security.log` to `/var/wikantik/logs`
+and sends ECS-format JSON to the console (`docker logs`). Container operators can
+volume-mount a custom `log4j2.xml` into `/usr/local/tomcat/lib/` to override it.
+
+### How `wikantik.use.external.logconfig` works
+
+**When `false` (default):** the `appender.*`, `logger.*` and `rootLogger.*`
+entries declared in `ini/wikantik.properties` (a console appender plus a rolling
+file under `${sys:java.io.tmpdir}/wikantik.log`) replace whatever `log4j2.xml`
+configured. A `log4j2.xml` in `lib/` is therefore ignored on bare-metal until
+you set the property to `true`.
 1. Wikantik reads all properties from `wikantik.properties` / `wikantik-custom.properties`
-2. It filters properties starting with: `appender`, `logger`, `rootLogger`, `filter`, `status`, `dest`, `name`, `properties`, `property`, or `log4j2`
+2. It filters properties starting with: `appender`, `logger`, `rootLogger`, `filter`,
+   `status`, `dest`, `name`, `properties`, `property`, or `log4j2`
 3. These are fed into Log4j2's `PropertiesConfigurationFactory`
 4. Log4j2 is reconfigured programmatically
 
@@ -42,6 +70,10 @@ When Wikantik starts, `WikiBootstrapServletContextListener.initWikiLoggingFramew
 2. Log4j2 uses its standard automatic configuration mechanism
 3. It searches the classpath for: `log4j2-test.xml`, `log4j2.xml`, `log4j2.properties`
 4. Or you can specify `-Dlog4j2.configurationFile=/path/to/config.xml`
+
+Because `log4j2.xml` is placed in `tomcat/tomcat-11/lib/` (bare-metal) or
+`/usr/local/tomcat/lib/` (container), it is on the server classloader path and
+Log4j2 picks it up automatically when `wikantik.use.external.logconfig = true`.
 
 ---
 
@@ -52,18 +84,39 @@ Use a separate `log4j2.xml` file with full Log4j2 capabilities.
 ### Step 1: Set in wikantik-custom.properties
 
 ```properties
-jspwiki.use.external.logconfig = true
+wikantik.use.external.logconfig = true
 ```
 
-Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x syntax and will be ignored).
+Also remove any existing broken logging lines (`log4j.*` properties are Log4j 1.x
+syntax and will be ignored).
 
-### Step 2: Create /opt/tomcat/lib/log4j2.xml
+### Step 2: Override the auto-generated config
+
+`bin/deploy-local.sh` copies the template to `tomcat/tomcat-11/lib/log4j2.xml` on
+first deploy only. In the container the active file is
+`/usr/local/tomcat/lib/log4j2.xml` (see above).
+
+To customize bare-metal logging, edit that file in place (it is not overwritten by
+subsequent `bin/redeploy.sh` or `bin/deploy-local.sh` runs). If you need to start from the template again, copy it:
+
+```bash
+# Bare-metal: restore from template
+cp wikantik-war/src/main/config/tomcat/log4j2-local.xml.template \
+   tomcat/tomcat-11/lib/log4j2.xml
+```
+
+The template uses `${sys:catalina.base}/logs/wikantik` as the log directory,
+which resolves correctly regardless of the absolute install path. It writes
+`wikantik.log`, `security.log` and `access.log` there.
+
+### Example XML configuration
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="WARN" name="Wikantik-Production">
+<Configuration status="WARN" name="Wikantik-Production" monitorInterval="30">
     <Properties>
-        <Property name="logDir">/var/log/jspwiki</Property>
+        <!-- Portable path — resolves to tomcat/tomcat-11/logs/wikantik on bare-metal -->
+        <Property name="logDir">${sys:catalina.base}/logs/wikantik</Property>
         <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
     </Properties>
 
@@ -74,7 +127,9 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
         </Console>
 
         <!-- Main application log with daily rotation -->
-        <RollingFile name="AppLog" fileName="${logDir}/jspwiki.log" filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz">
+        <RollingFile name="AppLog"
+                     fileName="${logDir}/wikantik.log"
+                     filePattern="${logDir}/wikantik-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout pattern="${pattern}"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
@@ -84,20 +139,14 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
         </RollingFile>
 
         <!-- Security audit log -->
-        <RollingFile name="SecurityLog" fileName="${logDir}/security.log" filePattern="${logDir}/security-%d{yyyy-MM-dd}.log.gz">
+        <RollingFile name="SecurityLog"
+                     fileName="${logDir}/security.log"
+                     filePattern="${logDir}/security-%d{yyyy-MM-dd}.log.gz">
             <PatternLayout pattern="%d{ISO8601} %level %msg%n"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
             </Policies>
             <DefaultRolloverStrategy max="90"/>
-        </RollingFile>
-
-        <!-- Access log for page views -->
-        <RollingFile name="AccessLog" fileName="${logDir}/access.log" filePattern="${logDir}/access-%d{yyyy-MM-dd}.log.gz">
-            <PatternLayout pattern="%d{ISO8601} %msg%n"/>
-            <Policies>
-                <TimeBasedTriggeringPolicy interval="1"/>
-            </Policies>
         </RollingFile>
     </Appenders>
 
@@ -111,12 +160,6 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
         <!-- Security events (login, logout, access denied) -->
         <Logger name="SecurityLog" level="INFO" additivity="false">
             <AppenderRef ref="SecurityLog"/>
-        </Logger>
-
-        <!-- Page access tracking via WikiServlet -->
-        <Logger name="com.wikantik.WikiServlet" level="INFO" additivity="false">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="AccessLog"/>
         </Logger>
 
         <!-- Database connection issues -->
@@ -133,100 +176,69 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
 </Configuration>
 ```
 
-### Step 3: Create the log directory
+### Step 3: Restart Tomcat
 
 ```bash
-sudo mkdir -p /var/log/jspwiki
-sudo chown tomcat:tomcat /var/log/jspwiki
+# Bare-metal
+tomcat/tomcat-11/bin/shutdown.sh && tomcat/tomcat-11/bin/startup.sh
+
+# Or use the fast redeploy path (also rotates catalina.out)
+bin/redeploy.sh
 ```
 
-### Step 4: Restart Tomcat
+### Step 4: Verify
 
 ```bash
-sudo systemctl restart tomcat
-```
-
-### Step 5: Verify
-
-```bash
-# Check catalina.out for startup messages
-tail -f /opt/tomcat/logs/catalina.out
+# Check catalina.out for startup messages (bare-metal)
+tail -f tomcat/tomcat-11/logs/catalina.out
 
 # Check new log files are created
-ls -la /var/log/jspwiki/
+ls -la tomcat/tomcat-11/logs/wikantik/
 ```
 
 ---
 
-## Customizing the Log Directory for Different Environments
+## Path reference by environment
 
-The log directory is defined in the `<Properties>` section at the top of the XML file:
+| Environment | Tomcat base | Log directory | Config file |
+|-------------|-------------|---------------|-------------|
+| Bare-metal local | `tomcat/tomcat-11/` | `tomcat/tomcat-11/logs/wikantik/` | `tomcat/tomcat-11/lib/log4j2.xml` |
+| Container | `/usr/local/tomcat/` | `/var/wikantik/logs/` (set by `logDir` in `log4j2-docker.xml`) | `/usr/local/tomcat/lib/log4j2.xml` |
+
+The bare-metal template uses `${sys:catalina.base}`, which resolves to the Tomcat
+base directory at runtime. The container file hard-codes `/var/wikantik/logs`.
+
+---
+
+## Customizing the log directory
+
+The `logDir` property is referenced throughout the config as `${logDir}`, so changing
+it in one place updates all appenders:
 
 ```xml
 <Properties>
-    <Property name="logDir">/var/log/jspwiki</Property>  <!-- Change this path -->
-    <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+    <!-- Options: -->
+    <!-- Portable (recommended): -->
+    <Property name="logDir">${sys:catalina.base}/logs/wikantik</Property>
+    <!-- Standard Linux system log location: -->
+    <!-- <Property name="logDir">/var/log/wikantik</Property> -->
+    <!-- Environment variable with fallback: -->
+    <!-- <Property name="logDir">${env:WIKANTIK_LOG_DIR:-/var/log/wikantik}</Property> -->
 </Properties>
 ```
 
-The `logDir` property is referenced throughout the config as `${logDir}`, so changing it in one place updates all appenders:
+### System property lookups
 
-```xml
-fileName="${logDir}/jspwiki.log"
-filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz"
-```
-
-### Recommended Paths by Environment
-
-| Environment | Path | Notes |
-|-------------|------|-------|
-| Production | `/var/log/jspwiki` | Standard Linux log location |
-| Development | `/tmp/jspwiki-logs` | Easy access, cleared on reboot |
-| Testing | `/opt/tomcat/logs/jspwiki` | Keeps logs with Tomcat |
-| Portable | `${sys:catalina.base}/logs/jspwiki` | Relative to Tomcat install |
-| Java temp | `${sys:java.io.tmpdir}/jspwiki` | Uses Java's temp directory |
-
-### Using System Property Lookups
-
-The `${sys:...}` syntax references Java system properties, making configs portable across environments:
-
-| Lookup | Description | Example Value |
-|--------|-------------|---------------|
-| `${sys:catalina.base}` | Tomcat base directory | `/opt/tomcat` |
-| `${sys:catalina.home}` | Tomcat home directory | `/opt/tomcat` |
+| Lookup | Description | Example (bare-metal local) |
+|--------|-------------|---------------------------|
+| `${sys:catalina.base}` | Tomcat base directory | `<repo>/tomcat/tomcat-11` |
+| `${sys:catalina.home}` | Tomcat home directory | `<repo>/tomcat/tomcat-11` |
 | `${sys:java.io.tmpdir}` | Java temp directory | `/tmp` |
-| `${sys:user.home}` | User home directory | `/home/tomcat` |
+| `${sys:user.home}` | User home directory | `/home/jakefear` |
 
-**Example for development/testing:**
-
-```xml
-<Properties>
-    <Property name="logDir">${sys:catalina.base}/logs/jspwiki</Property>
-    <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
-</Properties>
-```
-
-### Environment Variables
-
-You can also use environment variables with the `${env:...}` syntax:
-
-```xml
-<Property name="logDir">${env:JSPWIKI_LOG_DIR:-/var/log/jspwiki}</Property>
-```
-
-This uses `$JSPWIKI_LOG_DIR` if set, otherwise falls back to `/var/log/jspwiki`.
-
-### Important Reminders
-
-1. **Permissions**: Ensure the `tomcat` user has write permission to the chosen directory
-2. **Create directory**: The directory must exist before Tomcat starts (Log4j2 won't create parent directories)
-3. **Disk space**: Choose a location with adequate space for log rotation
-
-```bash
-# Example setup for testing environment
-sudo mkdir -p /opt/tomcat/logs/jspwiki
-sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
-```
+**Important:** Ensure the Tomcat process has write permission to the chosen log
+directory. `bin/deploy-local.sh` creates `tomcat/tomcat-11/logs/wikantik/`
+automatically.
 
 ---
 
@@ -256,8 +268,7 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 | `%L` | Line number |
 | `%m` or `%msg` | Log message |
 | `%n` | Newline |
-| `%x` | Thread context (NDC) |
-| `%X{key}` | Thread context map (MDC) value |
+| `%X{key}` | Thread context map (MDC) value — used by RequestCorrelationFilter for `X-Request-Id` |
 | `%highlight{pattern}` | ANSI color highlighting |
 
 ### Useful Wikantik Logger Names
@@ -265,7 +276,7 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 | Logger | Purpose |
 |--------|---------|
 | `com.wikantik` | All Wikantik classes |
-| `com.wikantik.WikiServlet` | Page request handling |
+| `com.wikantik.ui.WikiServletFilter` | Page request handling |
 | `com.wikantik.auth` | Authentication/authorization |
 | `com.wikantik.search` | Lucene search indexing |
 | `com.wikantik.providers` | Page/attachment providers |
@@ -278,7 +289,7 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 
 ### Hot Reload Configuration
 
-Add `monitorInterval` to automatically reload config changes:
+Add `monitorInterval` to automatically reload config changes (value in seconds):
 
 ```xml
 <Configuration status="WARN" monitorInterval="30">
@@ -305,7 +316,7 @@ Wrap appenders for non-blocking logging:
         port="514"
         protocol="UDP"
         facility="LOCAL0"
-        appName="jspwiki"/>
+        appName="wikantik"/>
 ```
 
 ### Filter Sensitive Data
@@ -321,8 +332,10 @@ Wrap appenders for non-blocking logging:
 
 ## Sources
 
-- [Wikantik Releases - Log4j2 configuration notes](https://github.com/apache/jspwiki/releases)
-- [Wikantik Dockerfile - External log config setup](https://github.com/apache/jspwiki/blob/master/Dockerfile)
+- The `log4j2.xml` template deployed by `bin/deploy-local.sh`:
+  `wikantik-war/src/main/config/tomcat/log4j2-local.xml.template`
+- The container baked config:
+  `docker/config/log4j2-docker.xml`
+- The canonical `wikantik.properties` defaults:
+  `wikantik-main/src/main/resources/ini/wikantik.properties`
 - [Log4j2 Configuration Manual](https://logging.apache.org/log4j/2.x/manual/configuration.html)
-- [External Log4j2 Configuration](https://gangmax.me/blog/2024/11/15/use-external-log4j2-configuration-file/)
-- [Wikantik wikantik.properties defaults](https://github.com/apache/jspwiki/blob/master/wikantik-main/src/main/resources/ini/wikantik.properties)

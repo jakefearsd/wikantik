@@ -4,7 +4,7 @@ This page is for developers who need to know which quality checks exist, how to 
 
 ## Read the current numbers
 
-Measured on 2026-10-05 from the poms and `build-support/`. Coverage floors may rise later; the pom is authoritative.
+Last checked against the poms and `build-support/` on 2026-10-13. Coverage floors may rise later; the pom is authoritative.
 
 | Item | Value | Source |
 |------|-------|--------|

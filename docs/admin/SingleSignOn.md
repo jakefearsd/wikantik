@@ -132,8 +132,10 @@ bridged one. A claim-mapping change takes effect after a restart. The
 `wikantik.properties`; the defaults above are the built-in ones.
 
 Claim values are sanitised before use: multi-valued claims are normalised to
-their first scalar element, and blank / whitespace-only / control-character
-login names from the IdP are rejected.
+their first scalar element, and a login name from the IdP is rejected when it is
+blank, longer than 100 characters, or contains whitespace or control characters.
+If the mapped claim is absent, the login name falls back to the profile's username
+and then its id (for Google, the numeric `sub`).
 
 ## Identity binding and account linking
 
@@ -197,4 +199,4 @@ HTTPS origin (Google SSO is live in production behind cloudflared at
 | SSO login refused for a known user | Name collides with a non-SSO local account lacking the `sso.subject` marker — fail-closed by design. Link or rename the local account. |
 | SAML assertion rejected on `Destination` mismatch | ACS URL / `serviceProviderMetadataPath` not aligned with the public callback URL; confirm HTTP-Redirect binding. |
 | Mapped claims appear ignored | `wikantik.sso.enabled` is not `true` (the bridge runs only then), a `wikantik.loginModule.options.sso.*` override is set, or Tomcat was not restarted after the change. |
-| Server starts fine, but every SSO login redirects to `sso_redirect_failed` — and the boot log has a line like `OIDC discovery self-check FAILED for <uri>: ... — the identity provider is UNREACHABLE from this host (check outbound network egress / DNS / TLS)` (or `HTTP <status>` / not-a-discovery-document variants) | `OidcDiscoverySelfCheck` probes the OIDC discovery URL once at startup, on a background thread — it never blocks or fails boot, it only logs. pac4j itself fetches discovery **lazily** on the first `/sso/login` request and caches it, so without this log line a lost egress path (firewall, DNS, proxy) looks like the app started healthy and only breaks when a user actually tries to log in. Fix egress/DNS/TLS to the discovery URL (or correct `wikantik.sso.oidc.discoveryUri`) and restart — a lazy pac4j fetch means a config fix alone, without a restart, may not clear a bad cached state. |
+| Server starts fine, but every SSO login redirects to `sso_redirect_failed` — and the boot log has a line like `OIDC discovery self-check FAILED for <uri> after 3 attempts: ... — the identity provider was UNREACHABLE from this host on every attempt (check outbound network egress / DNS / TLS)` (or the "reachable but did not return its discovery document" / "not a valid OIDC discovery document" variants) | `OidcDiscoverySelfCheck` probes the OIDC discovery URL at startup, on a background daemon thread (up to 3 attempts, 2 seconds apart, 10-second timeout each) — it never blocks or fails boot, it only logs, and only when every attempt has failed. pac4j itself fetches discovery **lazily** on the first `/sso/login` request and caches it, so without this log line a lost egress path (firewall, DNS, proxy) looks like the app started healthy and only breaks when a user actually tries to log in. Fix egress/DNS/TLS to the discovery URL (or correct `wikantik.sso.oidc.discoveryUri`) and restart — a lazy pac4j fetch means a config fix alone, without a restart, may not clear a bad cached state. |

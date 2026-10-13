@@ -103,8 +103,9 @@ one at session start and injects the result as opening context.
 
 `GET /api/briefing` (and the `get_briefing` MCP tool) assembles a budgeted,
 de-duplicated, injection-ready briefing from any combination of pinned pages,
-clusters, and the task prompt, and returns it as Markdown (default) or structured
-JSON.
+clusters, and the task prompt. `GET /api/briefing` returns structured JSON by
+default and injection-ready Markdown with `format=md`; the `get_briefing` MCP tool
+always returns Markdown.
 
 ### Query parameters (`/api/briefing`)
 
@@ -115,7 +116,9 @@ JSON.
 | `prompt` | The task prompt — used to retrieve additionally-relevant sections. |
 | `budget` | Token budget for the assembled briefing (the assembler dedupes and trims to fit). A non-integer value returns `400`. Default 6000 (`wikantik.briefing.default_budget`), capped at 24000 (`wikantik.briefing.max_budget`). |
 | `scope_mode` | `prefer` (default: the briefing may widen beyond the pins/clusters) or `strict` (stay within them). Any other value returns `400`. |
-| `format` | `md` (default — injection-ready Markdown) or `json` (structured). Any other value returns `400`. |
+| `format` | `json` (default — structured) or `md` (injection-ready Markdown, `text/markdown`). Any other value returns `400`. Session hooks pass `format=md`. |
+
+The `get_briefing` MCP tool takes `pins`, `clusters`, `prompt`, `budget` and `scope_mode` (no `format`) and returns Markdown.
 
 At least one of `pins`, `clusters` or `prompt` is required, otherwise the
 endpoint returns `400`. Input is capped at 25 pins and 10 clusters (200 members
@@ -185,6 +188,7 @@ injection. Defaults shown.
 | `wikantik.bundle.coverage.strong_similarity` | `0.55` | `topSimilarity` at/above which coverage is `strong`. |
 | `wikantik.bundle.coverage.partial_similarity` | `0.40` | `topSimilarity` at/above which coverage is `partial` (else `weak`). |
 | `wikantik.bundle.reranker.enabled` | `false` | LLM listwise reranker. **Default off** — measured to reorder without improving recall (a bad relevance judge under shuffled input). |
+| `wikantik.briefing.enabled` | `true` | Kill switch for the briefing service; when `false` it is not wired (code default; not declared in `wikantik.properties`). |
 | `wikantik.briefing.default_budget` / `.max_budget` | `6000` / `24000` | Default and maximum token budget for `/api/briefing` (code defaults; not declared in `wikantik.properties`). |
 | `wikantik.briefing.log.enabled` | `true` | Record briefing requests to `briefing_log`. |
 | `wikantik.citations.enabled` | `true` | Gate the `cite://` citation-edge subsystem (unrelated to document ingestion). |

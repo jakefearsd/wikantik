@@ -1,170 +1,131 @@
 ---
-title: Docker Deployment
 type: article
-cluster:
-- cloud-platforms
-- security/container-security
-summary: 'Deploy Wikantik with Docker: environment variables, volume-backed data persistence,
-  daily backup container, and docker-compose example.'
-canonical_id: 01KQ0P44PWCCMS8D7BBBM6HEZ5
 tags:
 - docker
 - deployment
 - cloud-platforms
 - backup
 - self-hosting
+canonical_id: 01KQ0P44PWCCMS8D7BBBM6HEZ5
+cluster:
+- cloud-platforms
+- security/container-security
+title: Docker Deployment
+summary: 'Deploy Wikantik with Docker Compose: PostgreSQL + pgvector, .env configuration,
+  volumes, the tiered backup sidecar, and restore.'
 ---
-# Professional Wikantik Deployment with Docker
+# Deploying Wikantik with Docker
 
 > 🌐 **Product overview:** [Self-hosting & backup on wikantik.com](https://www.wikantik.com/enterprise/self-hosting-and-backup.html) — a plain-language walkthrough for readers and AI agents.
 
+Wikantik is deployed as a Docker Compose stack: PostgreSQL with pgvector, the Wikantik application on Tomcat 11, and, in the production overlay, a backup sidecar and a CPU embedding sidecar. The repository ships the real artifacts (`Dockerfile`, `docker-compose*.yml`, `docker/`), so do not hand-write compose files. This page is a summary; the operator reference is `docs/admin/DockerDeployment.md` in the repository, with `docs/admin/BackupAndRecovery.md` for backups and `docs/admin/CloudDeployment.md` for the AWS/GCP VM overlay.
 
-This guide provides a comprehensive walkthrough for deploying a production-ready Wikantik instance using Docker, with a focus on configuration, data persistence, and automated backups.
+## 1. What Ships
 
-## 1. Configuration
+**The image.** The `Dockerfile` is multi-stage. It builds the WAR (including the React frontend) in `maven:3.9-eclipse-temurin-25`, then runs it on `tomcat:11.0.26-jdk25-temurin` (Tomcat 11, Java 25). The WAR is unzipped as the ROOT context, so the wiki answers at `http://host:8080/`. The PostgreSQL JDBC driver is downloaded from Maven Central at build time (`ARG POSTGRES_JDBC_VERSION`, currently 42.7.14, which must match `<postgresql-jdbc.version>` in the root `pom.xml`). The image also carries the database migrations (`bin/db/`) and the default pages from `docs/wikantik-pages/`. Defaults: `CATALINA_OPTS="-Djava.security.egd=file:/dev/./urandom -XX:MaxRAMPercentage=70.0 --add-modules=jdk.incubator.vector"` and `LANG=en_US.UTF-8`. The container healthcheck is `curl -fsS http://localhost:8080/api/health`.
 
-Wikantik's Docker container is highly configurable through environment variables. This allows you to customize your installation without modifying the core application files.
+**The services.**
 
-### Environment Variables
+| Service | Image | Role |
+|---------|-------|------|
+| `db` | `pgvector/pgvector:pg18` | PostgreSQL with the `vector` extension: users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
+| `wikantik` | `wikantik:latest` | Tomcat 11 / JDK 25 running the wiki |
+| `backup` | `postgres:18-alpine` | Scheduled `pg_dump` and page-tree tarball (production overlay) |
+| `ollama` | `ollama/ollama:latest` | CPU embedding sidecar serving `qwen3-embedding:0.6b` (production overlay); `wikantik` does not depend on it, so retrieval falls back to BM25 if it is unreachable |
 
-The following environment variables are available to configure your Wikantik instance. You can set them in your `docker-compose.yml` file or directly with the `docker run` command.
+**The compose files.** `docker-compose.yml` defines `db` and `wikantik`; `docker-compose.dev.yml`, `docker-compose.prod.yml` and `docker-compose.test.yml` are overlays, and `docker-compose.cloud.yml` is the cloud overlay. `bin/container.sh -e dev|prod|test|base` wraps `docker compose` over them (`build`, `up -d`, `logs -f`, `psql`, `migrate`, `backup`, `restore`), and `bin/remote.sh` drives a remote host over ssh.
 
-- `CATALINA_OPTS`: Additional options for the Tomcat server. The default value, `-Djava.security.egd=file:/dev/./urandom`, is recommended for better performance on systems with low entropy.
-- `LANG`: Sets the language for the container. Defaults to `en_US.UTF-8`.
-- `jspwiki_basicAttachmentProvider_storageDir`: The directory where attachments are stored. Defaults to `/var/jspwiki/pages`.
-- `jspwiki_fileSystemProvider_pageDir`: The directory where wiki pages are stored. Defaults to `/var/jspwiki/pages`.
-- `jspwiki_frontPage`: The name of the wiki's front page. Defaults to `Main`.
-- `jspwiki_pageProvider`: The page provider to use. Defaults to `VersioningFileProvider`.
-- `jspwiki_use_external_logconfig`: Set to `true` to use an external Log4j2 configuration file. Defaults to `true`.
-- `jspwiki_workDir`: The working directory for Wikantik. Defaults to `/var/jspwiki/work`.
-- User and group accounts are stored in PostgreSQL (the `JDBCUserDatabase` / `JDBCGroupDatabase` providers), accessed through the `jdbc/WikiDatabase` JNDI datasource — there are no XML user/group database files to configure.
-
-## 2. Data Persistence and Backup Strategy
-
-To ensure that your wiki's data persists across container restarts and to facilitate backups, it is crucial to use Docker volumes.
-
-### Critical Data Directories
-
-The following directories contain all of Wikantik's critical data and should be mounted as volumes:
-
-- `/var/jspwiki/pages`: Contains the wiki pages and attachments.
-- `/var/jspwiki/etc`: Contains the user and group databases.
-- `/var/jspwiki/logs`: Contains the application logs.
-- `/var/jspwiki/work`: The working directory for Wikantik.
-
-### Automated Backups
-
-Our recommended backup strategy involves a dedicated backup container that has read-only access to the Wikantik data volume. This container runs a cron job to create compressed archives of the data at regular intervals.
-
-## 3. Example Docker Compose Deployment
-
-This example uses `docker-compose` to define and run a multi-container Wikantik application with an automated backup service.
-
-### Project Structure
-
-```
-.
-├── docker-compose.yml
-└── backup/
-    ├── backup.sh
-    └── crontab
-```
-
-### `docker-compose.yml`
-
-```yaml
-version: '3.7'
-
-services:
-  jspwiki:
-    build: .
-    container_name: jspwiki
-    restart: always
-    ports:
-      - "8080:8080"
-    volumes:
-      - jspwiki-data:/var/jspwiki
-
-  backup:
-    image: alpine
-    container_name: jspwiki-backup
-    restart: always
-    volumes:
-      - jspwiki-data:/var/jspwiki:ro
-      - ./backups:/backups
-      - ./backup:/etc/periodic/daily
-    command: ["crond", "-f", "-d", "8"]
-
-volumes:
-  jspwiki-data:
-```
-
-### `backup/backup.sh`
+**Quick start.**
 
 ```bash
-#!/bin/sh
-
-set -e
-
-# Create a compressed archive of the wikantik data
-TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-BACKUP_FILE="/backups/jspwiki-backup-${TIMESTAMP}.tar.gz"
-
-tar -czf "${BACKUP_FILE}" -C /var/jspwiki .
-
-# Prune old backups (keep the last 7)
-find /backups -name "jspwiki-backup-*.tar.gz" -type f -mtime +7 -delete
+cp .env.example .env                  # set POSTGRES_PASSWORD (never leave CHANGEME) and WIKANTIK_BASE_URL
+bin/container.sh -e base build        # db + wikantik only, named volumes
+bin/container.sh -e base up -d
+curl -fsS http://localhost:8080/api/health
 ```
 
-### `backup/crontab`
+Use `-e prod` for a real host: it adds the backup and embedding sidecars, resource limits and the host bind mounts, so set `WIKANTIK_PAGES_DIR` and `BACKUP_DIR` first. `bin/container.sh smoke-test` brings up a throwaway test stack on port 18080 and checks `/api/health`.
 
+On a fresh database the entrypoint prints the first-login banner: log in as `admin` / `admin123` and you are required to choose a new password.
+
+## 2. Configuration
+
+There are no `jspwiki_*` environment variables any more. Compose passes `.env` to the `wikantik` service, and on every start `docker/entrypoint.sh` renders three files from the container environment: `wikantik-custom.properties` (in Tomcat's `lib/`), `conf/Catalina/localhost/ROOT.xml` (the JNDI DataSource `jdbc/WikiDatabase`) and `wikantik-mcp.properties`. It then applies any pending database migrations and starts Tomcat. To change configuration, edit `.env` and redeploy; never edit files inside a running container.
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | `wikantik`, `wikantik`, `CHANGEME` | Database credentials (`POSTGRES_HOST` is `db` and `POSTGRES_PORT` is `5432` inside the stack) |
+| `WIKANTIK_BASE_URL` | `http://localhost:8080/` | External URL: sitemap, canonical links, SSO callback |
+| `WIKANTIK_PAGE_DIR`, `WIKANTIK_WORK_DIR`, `WIKANTIK_ATTACHMENT_DIR` | `/var/wikantik/pages`, `/var/wikantik/work`, `/var/wikantik/pages` | Page tree, work directory (search index), attachment store |
+| `WIKANTIK_COOKIE_AUTHENTICATION` | `false` | Remember-me re-authentication across restarts |
+| `WIKANTIK_SSO_ENABLED` and the other `WIKANTIK_SSO_*` | off | OIDC single sign-on; see [Google SSO](GoogleSSO) |
+| `WIKANTIK_GENAI_MODE` | `full` | GenAI ceiling: `full`, `embeddings-only` or `none` |
+| `WIKANTIK_KNOWLEDGE_ENABLED` | `true` | `false` skips the Knowledge Graph subsystem |
+| `WIKANTIK_DENSE_BACKEND` | `lucene-hnsw` | Dense retrieval backend: `lucene-hnsw`, `inmemory` or `pgvector` |
+| `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | Embedding service; point it at the `ollama` sidecar (`http://ollama:11434`) |
+| `WIKANTIK_EXTRACTOR_BACKEND` | `ollama` | Knowledge Graph extractor: `ollama`, `claude` (needs `ANTHROPIC_API_KEY`) or `disabled` |
+| `WIKANTIK_MAX_INFLIGHT_REQUESTS` | `390` | Concurrency cap; excess requests get 503 with `Retry-After: 1` |
+| `WIKANTIK_JVM_MAX_RAM_PERCENTAGE` | image default 70 | Heap share of the container memory limit (the production overlay sets 50 with a 3G limit) |
+| `PROXY_REMOTE_IP_HEADER` | `CF-Connecting-IP` | Header carrying the real client IP; use `X-Forwarded-For` behind Caddy, nginx or a cloud load balancer |
+| `MAIL_SMTP_HOST` (and `MAIL_SMTP_PORT`, `MAIL_SMTP_ACCOUNT`, `MAIL_SMTP_PASSWORD`, `MAIL_FROM`) | empty | Email is off until the host is set |
+| `WIKANTIK_SCIM_TOKEN` | unset | SCIM bearer token; SCIM denies everything without it |
+| `WIKANTIK_SEED_DEV_USERS` | `false` | Seeds the default admin; never set it in production |
+
+MCP and `/tools/*` clients are authorized with database-backed API keys minted at `/admin/apikeys`; there is no environment variable that grants access. See [OpenWebUI Tool Server](OpenWebUIToolServer). The full variable list, with every default, is in `docs/admin/DockerDeployment.md`.
+
+## 3. Data Persistence
+
+User accounts and groups live in PostgreSQL (see [Relational User Database](RelationalUserDatabase)), not in files. Mount these so state survives container replacement:
+
+- **PostgreSQL data:** the named volume `pgdata`, mounted at `/var/lib/postgresql` (the pg18 image layout).
+- **Pages and attachments:** `/var/wikantik/pages`. The base compose uses the named volume `wikantik-pages`; the production overlay bind-mounts the host directory `WIKANTIK_PAGES_DIR` (default `/srv/wikantik/pages`).
+- **Work and logs:** `wikantik-work` (`/var/wikantik/work`: the Lucene index, rebuilt at startup, and the ontology store) and `wikantik-logs` (`/var/wikantik/logs`). Both are regenerable and are not backed up.
+
+## 4. Automated Backups
+
+The production overlay runs a `postgres:18-alpine` sidecar with BusyBox `crond`. Its schedule is `docker/backup/crontab`, and each entry runs `docker/backup/backup.sh <tier>`:
+
+| Tier | Schedule | Retention |
+|------|----------|-----------|
+| daily | 02:00 every day | 30 days (`BACKUP_RETENTION_DAYS`) |
+| weekly | 03:00 on Sundays | 12 weeks |
+| monthly | 04:00 on the 1st | 12 months |
+
+Each run writes `${BACKUP_DIR}/<tier>/YYYY-MM-DD/` containing `db.sql.gz` (a `pg_dump` of the whole database), `pages.tar.gz`, `checksums.sha256` and `backup-status.json`, and updates a `LATEST` pointer. It also writes Prometheus textfile metrics such as `wikantik_backup_last_success_timestamp_seconds{tier}` into `BACKUP_METRICS_DIR`; those gauges are what the jakemon alerts watch (see [IncidentWikantikBackupStale](IncidentWikantikBackupStale)).
+
+```bash
+bin/container.sh -e prod backup weekly     # run a tier now
+bin/remote.sh backup-trigger daily         # the same, on the remote host
+bin/remote.sh backup-pull                  # fetch the newest daily snapshot
 ```
-# Run the backup script daily at 2:00 AM
-0 2 * * * /etc/periodic/daily/backup.sh
-```
 
-### Deployment Steps
+An off-box copy is pulled by `bin/backup/nas-pull.sh` on a separate host (a daily systemd timer); the full 3-2-1 design is in `docs/admin/BackupAndRecovery.md`.
 
-1.  **Create the necessary files and directories** as shown in the project structure above.
-2.  **Make the `backup.sh` script executable**:
+## 5. Restoring from a Backup
 
-    ```bash
-    chmod +x backup/backup.sh
-    ```
+1. Stop the application so nothing writes during the restore:
 
-3.  **Start the application**:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml stop wikantik
+   ```
 
-    ```bash
-    docker-compose up -d
-    ```
+2. Run `restore.sh` in the backup sidecar. It verifies the checksums first and aborts on a mismatch, drops and rebuilds the `public` schema, loads `db.sql.gz`, and restores the page tree:
 
-4.  **Verify the deployment**:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+       exec backup /usr/local/bin/restore.sh /backups/daily/<YYYY-MM-DD>
+   ```
 
-    *   Access Wikantik at `http://localhost:8080`.
-    *   Check the logs of the backup container to ensure that the cron job is running:
+3. Start the application again; the search index rebuilds on startup:
 
-        ```bash
-        docker logs jspwiki-backup
-        ```
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
+   ```
 
-### Restoring from a Backup
+`bin/container.sh -e prod restore /backups/daily/<YYYY-MM-DD>` runs step 2 only; stopping and starting the application stays with you. To stand up a whole new host from a snapshot use `bin/dr-restore.sh`, and to prove a snapshot restores cleanly without touching production use `bin/backup/verify-restore.sh`.
 
-To restore your Wikantik instance from a backup:
+## 6. Releases and Rollback
 
-1.  **Stop the `jspwiki` container**:
+Release images are published to GHCR as `ghcr.io/jakefearsd/wikantik:X.Y.Z`. `bin/deploy-release.sh X.Y.Z` pulls an image and runs `bin/remote.sh deploy --skip-build`, which tags the running image `:rollback`, ships the new one over ssh, runs `up -d`, polls `/api/health`, and re-promotes `:rollback` automatically if the poll fails. Schema migrations run on container start, so an upgrade is an image swap; only a PostgreSQL major-version change needs a dump and restore.
 
-    ```bash
-    docker-compose stop jspwiki
-    ```
-
-2.  **Extract the backup archive** to the `jspwiki-data` volume:
-
-    ```bash
-    docker run --rm -v jspwiki-data:/var/jspwiki -v $(pwd)/backups:/backups alpine tar -xzf /backups/jspwiki-backup-<TIMESTAMP>.tar.gz -C /var/jspwiki
-    ```
-
-3.  **Restart the `jspwiki` container**:
-
-    ```bash
-    docker-compose start jspwiki
-    ```
+PostgreSQL is published only on the docker0 bridge in the production overlay (`DB_HOST_BIND`, default `172.17.0.1`), and `/api/health` and `/metrics` answer only to loopback and private-network clients.

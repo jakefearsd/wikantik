@@ -1,21 +1,21 @@
 ---
-canonical_id: 01KQ0P44Z4JH82M2KYBEME5M2H
-title: Wiki Permission Model Guide
-type: article
-cluster: wikantik-development
 status: active
 date: '2026-04-26'
-summary: How wiki permission models work — role-based, ACL-based, group-based — and
-  the patterns for managing access at scale without making every page require approval.
+title: Wiki Permission Model Guide
+related:
+- WikiContentManagementWorkflow
+- NetworkSecurityFundamentals
+- CloudSecurityFundamentals
+canonical_id: 01KQ0P44Z4JH82M2KYBEME5M2H
+cluster: wikantik-development
+type: article
 tags:
 - wiki
 - permissions
 - access-control
 - wikantik-development
-related:
-- WikiContentManagementWorkflow
-- NetworkSecurityFundamentals
-- CloudSecurityFundamentals
+summary: How wiki permission models work — role-based, ACL-based, group-based — and
+  the patterns for managing access at scale without making every page require approval.
 ---
 # Wiki Permission Model Guide
 
@@ -165,13 +165,29 @@ For regulated environments, required. For others, valuable.
 ## Wikantik-specific notes
 
 The Wikantik project uses:
-- Database-backed policy grants for default role permissions (via `/admin/security` UI)
-- Database-backed groups via `/admin/groups`
-- Page-level ACLs via inline `[{ALLOW view Admin}]` syntax
+- Database-backed policy grants for default role permissions (the `policy_grants` table, edited under **Admin → Security → Policy Grants** at `/admin/security`; see [Database-Backed Permissions](DatabaseBackedPermissions))
+- Database-backed groups (the `groups` and `group_members` tables), edited under **Admin → Security → Groups** or through `/admin/groups`
+- Page-level ACLs via inline `[{ALLOW view Admin}]` syntax; list several principals with commas, for example `[{ALLOW edit Admin,Editors}]`
 - REST API permission enforcement via `RestServletBase.checkPagePermission()`
-- Bootstrap admin override for initial setup
+- Bootstrap admin override (`wikantik.admin.bootstrap`) for initial setup or recovery; it applies only to an authenticated session of that login name and lapses after `wikantik.admin.bootstrap.maxAgeSeconds` (24 hours by default)
 
-The model is hybrid — role-based default with per-page ACL override.
+The model is hybrid: role-based defaults from the policy grants, narrowed by per-page ACLs. A page ACL cannot grant more than the policy allows. When a page carries one, a user needs both the matching role or group grant *and* an ACL entry that names one of their principals. `AllPermission` (held through membership of the `Admin` group) bypasses page ACLs.
+
+### Identify people by login name
+
+Group members, `user`-type policy grants and user entries in page ACLs all match by **login name**. A full name or wiki name is editable profile data and never matches. The group editor rejects any member that is not an existing login name with HTTP 400, and a user entry in an ACL matches only an authenticated session whose login is exactly that name. Role and group entries in an ACL are matched by name.
+
+### Who counts as an administrator
+
+Administrators are the members of the `Admin` group. A row in the `roles` table alone is not enough: the account authenticates, but `/admin/*` answers 403. To give someone one admin area without full rights, add a scoped `admin` policy grant instead of putting them in the `Admin` group.
+
+### Authentication
+
+Local accounts live in PostgreSQL and are verified through the JAAS `UserDatabaseLoginModule`, with bcrypt hashes and a NIST 800-63B-style length and blocklist policy. Single sign-on is optional and additive: OpenID Connect or SAML 2.0 through pac4j, configured with `wikantik.sso.*`, linking accounts on the immutable `sub` claim by default (`wikantik.sso.identityClaim`). SCIM 2.0 at `/scim/v2/*` lets an identity provider create and deactivate accounts. Wikantik ships no LDAP login module; put an LDAP-capable identity provider in front and use SSO, or supply your own JAAS module through `wikantik.loginModule.class`.
+
+### Agents and API keys
+
+Programmatic clients use database-backed bearer API keys. A key has a scope rather than page permissions: `mcp_read` (the read-only `/knowledge-mcp` endpoint), `mcp_admin` (the fully privileged `/wikantik-admin-mcp` endpoint as well), `tools` (`/tools/*`) or `all`. Any logged-in user can mint their own `mcp_read` or `tools` key under **Preferences → API Keys**; `mcp_admin` and `all` keys come from an administrator at `/admin/apikeys`. Key issuance, grant changes and sign-ins are recorded in the hash-chained audit log at `/admin/audit`. See [Connecting Claude Code to the Wikantik MCP Servers](ConnectingClaudeCodeToWikantikMcp) for the agent-side setup.
 
 ### View ACLs on the agent read path
 
@@ -189,6 +205,8 @@ surface runs its candidate pages through a session **view gate**
 So restricted content cannot leak into search, retrieval, or a context bundle
 through the agent interface. (The public RDF/SPARQL surface applies the same
 guest-view ACL split — only anonymously-viewable pages are materialized.)
+
+On `/knowledge-mcp` the MCP transport carries no caller identity, so the gate evaluates view ACLs as an anonymous guest: only publicly viewable pages are returned, whichever account owns the key. An agent that must read restricted content has to use the privileged admin endpoint.
 
 **Not to be confused with KG Inclusion Policy.** View-ACL read-path enforcement
 is the *security* boundary and is always on. [KG Inclusion Policy](KgInclusionPolicy)

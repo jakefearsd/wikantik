@@ -1,47 +1,49 @@
 ---
-summary: Complete guide to deploying Wikantik with Docker Compose, including production
-  setup, automated backups, restore procedures, and migration from bare-metal Tomcat
-title: Wikantik on Docker
-tags:
-- operations
-- docker
-- deployment
-- backup
 type: article
 related:
 - About
 - GoodMcpDesign
 cluster: wikantik-development
-status: active
+tags:
+- operations
+- docker
+- deployment
+- backup
+title: Wikantik on Docker
+summary: Guide to deploying Wikantik with Docker Compose, including production setup,
+  automated backups, restore procedures, and migration from bare-metal Tomcat
 canonical_id: 01KQ0P44YXNZNQZDD0MBEJ5KYH
+status: active
 ---
 
 # Wikantik on Docker
 
-This guide covers everything you need to deploy Wikantik using Docker Compose, from initial setup through production operations and disaster recovery.
+This guide covers everything you need to deploy Wikantik using Docker Compose, from initial setup through production operations and disaster recovery. The repository ships the real artifacts (compose files, `docker/entrypoint.sh`, `bin/container.sh`, `bin/remote.sh`); this page explains how to drive them. Two companion pages go deeper: [Docker Deployment](DockerDeployment) (the full variable reference) and [Wikantik Backup and Recovery](WikantikBackupAndRecovery) (the 3-2-1 backup model and restore drill). The configuration keys are generated into [Wikantik Configuration Reference](WikantikConfigurationReference), and a cloud VM (AWS or GCP) is covered by [Wikantik Cloud Deployment](WikantikCloudDeployment). For the production host and the release pipeline, see [Host: docker1 — Wikantik Production](HostDocker1) and [Wikantik Release and Deploy Process](WikantikReleaseAndDeployProcess).
 
 ## Architecture Overview
 
-The containerized deployment runs three services orchestrated by Docker Compose:
+The production stack (`docker-compose.yml` plus `docker-compose.prod.yml`) runs four services:
 
 | Service | Image | Purpose |
 |---------|-------|---------|
-| **db** | `postgres:17-alpine` | Stores users, groups, and roles |
-| **wikantik** | Custom (Tomcat 11 / JDK 25) | Runs the wiki application |
-| **backup** | `postgres:17-alpine` | Automated database dumps and page file archives (production only) |
+| **db** | `pgvector/pgvector:pg18` | PostgreSQL with the pgvector extension: users, groups, policy grants, API keys, the Knowledge Graph, embeddings, page metadata, and the `schema_migrations` ledger |
+| **wikantik** | `wikantik:latest` (built from the `Dockerfile`, or the released `ghcr.io/jakefearsd/wikantik:X.Y.Z` image; Tomcat 11.0.26 / JDK 25) | Runs the wiki application |
+| **backup** | `postgres:18-alpine` | Automated database dumps and page file archives (production overlay only) |
+| **ollama** | `ollama/ollama:latest` | CPU-only embedding sidecar serving `qwen3-embedding:0.6b` for dense retrieval (production overlay only; internal network, no host port) |
 
-All three services share a private Docker network. The `wikantik` container connects to `db` by hostname. The `backup` container connects to `db` for `pg_dump` and mounts the same pages volume as `wikantik` to archive page files. Only port 8080 is exposed to the host.
+The base file alone starts only `db` and `wikantik`. All services share the compose project's private network, and `wikantik` connects to `db` by hostname. The `backup` container connects to `db` for `pg_dump` and mounts the same pages directory as `wikantik` to archive page files. `wikantik` does not depend on `ollama`: if the embedder is unreachable, retrieval falls back to BM25. Port 8080 is the wiki's published port (`WIKANTIK_HOST_PORT`, default 8080). The production overlay also publishes PostgreSQL on `${DB_HOST_BIND:-172.17.0.1}:5432` (the docker0 bridge, so it is not LAN-exposed) for the external metrics exporter, and the dev overlay publishes the database on 15432 and a debug port on 5005.
 
 ### What lives where
 
-| Data | Container path | Docker volume | Can rebuild? | Backed up? |
-|------|---------------|---------------|-------------|------------|
-| Wiki pages (.md + .properties) | `/var/wikantik/pages` | `wikantik-pages` | **NO** | **YES** |
-| File attachments | `/var/wikantik/pages` | `wikantik-pages` | **NO** | **YES** |
-| PostgreSQL data | `/var/lib/postgresql/data` | `pgdata` | **NO** | **YES** |
-| Lucene search index | `/var/wikantik/work` | `wikantik-work` | YES (auto-rebuilds on startup) | No |
-| Reference manager cache | `/var/wikantik/work` | `wikantik-work` | YES (auto-rebuilds on startup) | No |
-| Application logs | `/var/wikantik/logs` | `wikantik-logs` | N/A | No |
+| Data | Container path | Storage | Can rebuild? | Backed up? |
+|------|---------------|---------|-------------|------------|
+| Wiki pages (.md + .properties) | `/var/wikantik/pages` | Prod overlay: host directory `WIKANTIK_PAGES_DIR` (default `/srv/wikantik/pages`); base file: volume `wikantik-pages` | **NO** | **YES** |
+| File attachments | `/var/wikantik/pages` | same as pages | **NO** | **YES** |
+| PostgreSQL data | `/var/lib/postgresql` (the pg18 image keeps its data under a version-specific subdirectory here) | volume `pgdata` (compose prefixes the project name, for example `repo_pgdata`) | **NO** | **YES** |
+| Lucene search index | `/var/wikantik/work` | volume `wikantik-work` | YES (auto-rebuilds on startup) | No |
+| Ontology TDB2 store | `/var/wikantik/work` | volume `wikantik-work` | YES (rebuilds on startup) | No |
+| Embedding model cache | `/root/.ollama` in the `ollama` container | volume `ollama-models` | YES (`ollama pull qwen3-embedding:0.6b`) | No |
+| Application logs | `/var/wikantik/logs` | volume `wikantik-logs` | N/A | No |
 
 The three items that cannot be rebuilt (pages, attachments, database) are all covered by the automated backup system.
 
@@ -50,23 +52,27 @@ The three items that cannot be rebuilt (pages, attachments, database) are all co
 ```
 docker/
   config/
-    server.xml              Tomcat HTTP connector, Cloudflare RemoteIpValve
+    server.xml              Tomcat HTTP connector, RemoteIpValve, access log
     catalina.properties     Tomcat classpath and security settings
-    log4j2-docker.xml       Console + rolling file logging for Docker
+    log4j2-docker.xml       Console (ECS JSON) + rolling file logging for Docker
   db/
-    001-init.sql            Creates tables and seeds admin user (first startup only)
+    001-init.sql            Creates the pgvector extension (first startup only); schema comes from migrations
   backup/
     backup.sh               Runs pg_dump + tar with tiered retention
     restore.sh              Guided restore with checksum verification
     crontab                 Schedules daily/weekly/monthly backups
-  entrypoint.sh             Generates config files from environment variables
+  docker-compose.embeddings.yml   Standalone CPU embedder used by bin/deploy-local.sh and the IT phase
+  entrypoint.sh             Generates config files from environment variables, runs migrations
 docker-compose.yml          Base services: db + wikantik
 docker-compose.dev.yml      Dev overrides: bind mounts, debug port, no backup
-docker-compose.prod.yml     Prod overrides: resource limits, backup service
+docker-compose.prod.yml     Prod overrides: resource limits, backup and ollama services
+docker-compose.test.yml     Test overrides: alternate ports, namespaced volumes
+docker-compose.cloud.yml    Cloud-VM overlay (see Wikantik Cloud Deployment)
 Dockerfile                  Production: multi-stage Maven build inside container
 Dockerfile.dev              Dev: Tomcat only, WAR bind-mounted from host
 .env.example                Template for all environment variables
-.dockerignore               Keeps build context small
+bin/container.sh            Local docker compose wrapper (-e dev|prod|test|base)
+bin/remote.sh               ssh-driven remote deploy and administration
 ```
 
 ## Environment Variables
@@ -77,7 +83,7 @@ All configuration is driven by environment variables in a `.env` file. Copy the 
 cp .env.example .env
 ```
 
-Then edit `.env` with your values:
+Then edit `.env` with your values. The most important ones:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -85,20 +91,24 @@ Then edit `.env` with your values:
 | `POSTGRES_USER` | `wikantik` | Database user |
 | `POSTGRES_PASSWORD` | `CHANGEME` | **Change this!** Database password |
 | `WIKANTIK_BASE_URL` | `http://localhost:8080/` | Public URL of the wiki |
-| `WIKANTIK_PAGE_DIR` | `/var/wikantik/pages` | Page storage path inside container |
+| `WIKANTIK_PAGES_DIR` | `/srv/wikantik/pages` | **Host** directory bind-mounted as the page tree (production overlay) |
+| `WIKANTIK_PAGE_DIR` | `/var/wikantik/pages` | Page storage path inside the container |
 | `WIKANTIK_WORK_DIR` | `/var/wikantik/work` | Work directory (Lucene index, caches) |
 | `WIKANTIK_ATTACHMENT_DIR` | `/var/wikantik/pages` | Attachment storage path |
-| `MCP_RATE_LIMIT_GLOBAL` | `100` | MCP requests/second (all clients) |
-| `MCP_RATE_LIMIT_PER_CLIENT` | `10` | MCP requests/second (per client) |
-| `MAIL_SMTP_HOST` | (empty) | SMTP server for email notifications |
+| `WIKANTIK_HOST_PORT` | `8080` | Published host port |
+| `MCP_RATE_LIMIT_GLOBAL` | `500` | MCP requests/second (all clients) |
+| `MCP_RATE_LIMIT_PER_CLIENT` | `50` | MCP requests/second (per client) |
+| `MAIL_SMTP_HOST` | (empty) | SMTP server for email notifications; leave empty to disable email |
 | `MAIL_SMTP_PORT` | `587` | SMTP port |
 | `MAIL_SMTP_ACCOUNT` | (empty) | SMTP username |
 | `MAIL_SMTP_PASSWORD` | (empty) | SMTP password |
 | `MAIL_FROM` | (empty) | From address for emails |
 | `BACKUP_RETENTION_DAYS` | `30` | Days to keep daily backups |
-| `BACKUP_DIR` | `./backups` | Host path for backup files |
+| `BACKUP_DIR` | `./backups` | Host path for backup files (the value in `.env.example`; the production overlay's own fallback is `/srv/wikantik/backups`) |
 
-**Important:** The `.env` file contains secrets (database password, SMTP credentials). It is excluded from Git by `.gitignore`. Keep a copy of this file somewhere safe outside the repository.
+The container also reads the performance, search-backend, SSO, GenAI-mode and proxy variables (`WIKANTIK_MAX_INFLIGHT_REQUESTS`, `WIKANTIK_DENSE_BACKEND`, `WIKANTIK_SSO_*`, `WIKANTIK_GENAI_MODE`, `PROXY_REMOTE_IP_HEADER`, and others); they are tabulated in section 1 of [Docker Deployment](DockerDeployment).
+
+**Important:** The `.env` file contains secrets (database password, SMTP credentials). It is excluded from Git by `.gitignore`. Keep a copy of this file somewhere safe outside the repository. For a remote deploy driven by `bin/remote.sh`, keep the production values in a gitignored `.env.prod`; `remote.sh` ships it to the host as `.env`, preferring it over the local dev `.env`.
 
 **Authorizing an MCP client is not an `.env` setting.** There is no environment
 variable that grants a bearer token — `McpAccessFilter` fails closed (503) unless
@@ -109,13 +119,15 @@ full authentication and authorization mechanism.
 
 ## How the Entrypoint Works
 
-The `docker/entrypoint.sh` script runs every time the wikantik container starts. It generates three configuration files from environment variables:
+The `docker/entrypoint.sh` script runs every time the wikantik container starts. It generates three configuration files from environment variables and then applies database migrations:
 
-1. **`wikantik-custom.properties`** — Wiki settings: base URL, page directory, PostgreSQL JDBC datasource name, SMTP config
+1. **`wikantik-custom.properties`** — Wiki settings: base URL, page directory, PostgreSQL JDBC datasource name, SMTP config, and `wikantik.use.external.logconfig = true` so the baked `log4j2-docker.xml` is active
 2. **`ROOT.xml`** — Tomcat context with a single JNDI DataSource (`jdbc/WikiDatabase`) pointing to the PostgreSQL container
 3. **`wikantik-mcp.properties`** — MCP server name/title/version and rate limits. This single properties file configures **both** MCP endpoints (`/wikantik-admin-mcp` and `/knowledge-mcp`); the filename is retained from the original module name for backward compatibility. It does not carry access keys — MCP authorization is DB-backed (see above), not entrypoint-generated.
 
-This means you never edit config files inside the container. Change an environment variable, restart the container, and the new config takes effect.
+Then it runs `migrate.sh` (idempotent) before starting Tomcat, so a new release applies its schema migrations on start with no manual database step.
+
+This means you never edit config files inside the container. Change an environment variable, restart the container, and the new config takes effect. Because `ROOT.xml` is regenerated on every start, anything you add to it by hand (for example a JNDI mail session) is lost; use the `MAIL_SMTP_*` variables instead (see [Sending Email from the Wiki](SendingEmailFromTheWiki)).
 
 ## Production Deployment
 
@@ -126,7 +138,10 @@ This means you never edit config files inside the container. Change an environme
 cp .env.example .env
 # Edit .env — at minimum, change POSTGRES_PASSWORD and WIKANTIK_BASE_URL
 
-# 2. Create the backups directory
+# 2. Create the host directories for pages and backups
+#    (pages default to /srv/wikantik/pages; override with WIKANTIK_PAGES_DIR.
+#    Backups go to BACKUP_DIR, ./backups as set in .env.example)
+sudo mkdir -p /srv/wikantik/pages
 mkdir -p backups
 
 # 3. Build and start everything
@@ -134,55 +149,57 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 This will:
-- Pull the `postgres:17-alpine` image
+- Pull the `pgvector/pgvector:pg18` image and start PostgreSQL; `docker/db/001-init.sql` creates the pgvector extension
 - Build the Wikantik image (multi-stage Maven build, takes a few minutes the first time)
-- Start PostgreSQL and run `docker/db/001-init.sql` to create tables and a default admin user
-- Start Wikantik, which connects to PostgreSQL and begins serving pages
-- Start the backup container with cron scheduling
+- Start Wikantik, whose entrypoint applies every migration from `bin/db/migrations/` (this creates the schema and the default `admin` account) and then begins serving
+- Start the backup container with cron scheduling, and the CPU embedding sidecar
+
+Two follow-ups are needed on a fresh host. The page directory starts empty, so push your page tree into it (`bin/remote.sh pages-push docs/wikantik-pages` from a workstation, or copy the files in). And pull the embedding model once: `docker compose -f docker-compose.yml -f docker-compose.prod.yml exec ollama ollama pull qwen3-embedding:0.6b`.
+
+For a remote host the supported path is `bin/remote.sh bootstrap` followed by the manual first-deploy sequence in [Docker Deployment](DockerDeployment) ("Remote host — first deploy"), not `remote.sh deploy`, which would migrate an empty schema.
 
 ### Verifying it works
 
 ```bash
-# Check all three services are running and healthy
+# Check all services are running and healthy
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
-# Check the wiki responds
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/wiki/Main
-# Should print: 200
+# Check the application health endpoint (engine, database, search index).
+# It answers only to loopback and private-network clients.
+curl -fsS http://localhost:8080/api/health
 
 # Check PostgreSQL has the admin user
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec db psql -U wikantik -d wikantik -c "SELECT login_name FROM users;"
 
-# Check the MCP endpoint
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/mcp
-# Should print: 400 (expected — MCP uses Streamable HTTP, not plain GET)
-
 # View wikantik startup logs
 docker compose -f docker-compose.yml -f docker-compose.prod.yml logs wikantik
 ```
 
+The MCP endpoints (`/wikantik-admin-mcp` and `/knowledge-mcp`) use Streamable HTTP and require an API key, so a plain unauthenticated `curl` is not a useful check.
+
 ### Default admin login
 
-The init script creates an admin user. Log in at `http://your-host:8080/Login.jsp`:
+Migration V002 creates an admin user, and migration V039 flags it so the first login forces a new password. Open `http://your-host:8080/` and log in:
 
 - **Username:** `admin`
-- **Password:** `admin`
+- **Password:** `admin123`
 
-**Change this password immediately** after first login via the user preferences page.
+You are required to choose a new password at first login. Do that before the deployment is reachable by anyone else.
 
 ### Deploying updates
 
-When you pull new code and want to deploy:
+The routine path is a release image swap, driven from the developer box: `bin/cut-release.sh X.Y.Z` then `bin/deploy-release.sh X.Y.Z` (see [Wikantik Release and Deploy Process](WikantikReleaseAndDeployProcess)). The database volume and the page directory persist, and the entrypoint applies any new migrations on start.
+
+On a single host that builds from source, rebuild only the wikantik image and restart it:
 
 ```bash
-# Rebuild only the wikantik image and restart it
 # PostgreSQL and backup keep running — no data loss
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build wikantik
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps wikantik
 ```
 
-Downtime is roughly 10-20 seconds while the container restarts. If you have Cloudflare in front, it serves cached content during the gap.
+Downtime is roughly 30 seconds while the container restarts; the production healthcheck allows 90 seconds on a cold start to cover migrations. If you have Cloudflare in front, it serves cached content during the gap.
 
 ### Stopping everything
 
@@ -190,13 +207,13 @@ Downtime is roughly 10-20 seconds while the container restarts. If you have Clou
 docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 ```
 
-This stops all containers but **preserves all Docker volumes** (database, pages, logs). Your data is safe. To start again:
+This stops all containers but **preserves all Docker volumes** (database, logs, search index) and the page directory. Your data is safe. To start again:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-**Warning:** `docker compose down -v` deletes all volumes and destroys all data. Never use `-v` unless you intentionally want to start from scratch.
+**Warning:** `docker compose down -v` deletes all volumes and destroys the database. Never use `-v` unless you intentionally want to start from scratch.
 
 ## Backup System
 
@@ -206,22 +223,22 @@ The backup system is the most important part of the production deployment. It pr
 
 Every backup captures **two things**:
 
-1. **PostgreSQL database** — `pg_dump` creates a complete SQL dump of all tables (users, roles, groups, group members). This file can restore the database to any PostgreSQL 15+ server.
+1. **The PostgreSQL database** — `pg_dump` creates a complete SQL dump of the whole database (users, roles, groups, policy grants, API keys, the Knowledge Graph, embeddings, page metadata, and the `schema_migrations` ledger), gzip-compressed as `db.sql.gz`. It restores to a PostgreSQL server of the same major version or newer.
 
 2. **Wiki page files** — `tar` archives the entire `/var/wikantik/pages` directory, which contains:
    - `.md` files (the actual article content in Markdown)
    - `.properties` files (page metadata: author, change notes, timestamps)
    - Attachment files (anything uploaded to wiki pages)
 
-Both are essential. Without the database, you lose all user accounts and group memberships. Without the page files, you lose all wiki content. The backup system captures both in every run.
+Both are essential. Without the database, you lose all user accounts, groups, and the Knowledge Graph. Without the page files, you lose all wiki content. The backup system captures both in every run.
 
 ### Backup schedule and retention
 
-The cron schedule runs three tiers of backups:
+The cron schedule (`docker/backup/crontab`, container time) runs three tiers of backups:
 
 | Tier | Schedule | Retention | Purpose |
 |------|----------|-----------|---------|
-| **Daily** | 2:00 AM every day | 30 days (configurable) | Recover from recent mistakes |
+| **Daily** | 2:00 AM every day | 30 days (`BACKUP_RETENTION_DAYS`) | Recover from recent mistakes |
 | **Weekly** | 3:00 AM every Sunday | 12 weeks | Recover from issues noticed late |
 | **Monthly** | 4:00 AM on the 1st | 12 months | Long-term recovery point |
 
@@ -230,10 +247,12 @@ Each backup creates a directory like `backups/daily/2026-03-21/` containing:
 ```
 backups/
   daily/
+    LATEST                  name of the newest snapshot
     2026-03-21/
-      db.sql              PostgreSQL dump (all users, groups, roles)
-      pages.tar.gz        All wiki pages, properties, and attachments
-      checksums.sha256    SHA-256 hashes for integrity verification
+      db.sql.gz             PostgreSQL dump (the whole database), gzip-compressed
+      pages.tar.gz          All wiki pages, properties, and attachments
+      checksums.sha256      SHA-256 hashes for integrity verification
+      backup-status.json    Status manifest for the run
     2026-03-20/
       ...
   weekly/
@@ -251,26 +270,9 @@ You can trigger a backup at any time without waiting for cron:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec backup /usr/local/bin/backup.sh daily
-```
 
-The output shows exactly what was captured:
-
-```
-================================================================
-[Fri Mar 21 02:00:01 UTC 2026] Starting daily backup
-================================================================
-Dumping PostgreSQL database wikantik...
-  db.sql: 4523 bytes
-Archiving wiki pages...
-  pages.tar.gz: 189234 bytes (47 .md files)
-  checksums.sha256 written
-
-Backup written to /backups/daily/2026-03-21
-total 192K
--rw-r--r--  1 root root 4.5K Mar 21 02:00 db.sql
--rw-r--r--  1 root root 185K Mar 21 02:00 pages.tar.gz
--rw-r--r--  1 root root  142 Mar 21 02:00 checksums.sha256
-================================================================
+# From a workstation, against a remote host:
+bin/remote.sh backup-trigger daily
 ```
 
 **Always run a manual backup before deploying updates or making major changes.**
@@ -293,7 +295,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 
 ### Changing the backup directory
 
-By default, backups go to `./backups/` relative to the docker-compose files. To use a different location (like an external drive or NFS mount), set `BACKUP_DIR` in your `.env`:
+By default, backups go to `./backups` on the host (relative to the compose files). To use a different location (like an external drive or NFS mount), set `BACKUP_DIR` in your `.env`:
 
 ```bash
 BACKUP_DIR=/mnt/external-backup/wikantik
@@ -312,6 +314,10 @@ Then restart the backup container:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps backup
 ```
+
+### Off-box copies
+
+The sidecar's snapshots live on the same host as the data, so a host loss takes them too. The production deployment adds a second host that pulls every snapshot over read-only rsync (`bin/backup/nas-pull.sh`), so a compromised app host cannot reach the off-box archive; see [Wikantik Backup and Recovery](WikantikBackupAndRecovery) and [NAS and Offsite Backups](NasAndOffsiteBackups). `bin/remote.sh backup-pull [DATE]` fetches a snapshot to your workstation.
 
 ## Restore Procedure
 
@@ -336,26 +342,31 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
 
 The restore script will:
 1. Verify SHA-256 checksums to confirm the backup is not corrupted
-2. Drop and recreate the PostgreSQL tables from the backup dump
+2. Drop and rebuild the whole `public` schema from the dump, then check that `users`, `kg_nodes` and `page_canonical_ids` loaded and that `users` is not empty
 3. Clear the current pages directory and extract the backup archive
-4. Report how many users and pages were restored
+4. Report how many pages were restored
 
-After starting the wiki, the Lucene search index rebuilds automatically from the restored page files. This takes 30-60 seconds depending on the number of pages.
+After starting the wiki, the Lucene search index rebuilds automatically from the restored page files. This takes 30-60 seconds depending on the number of pages. The entrypoint also applies any migrations newer than the restored dump. From a workstation, `bin/remote.sh restore REMOTE_PATH` runs the sidecar restore and restarts the stack.
 
 ### Restoring only the database (keeping current pages)
 
-If you only need to restore user accounts without touching page content:
+`restore.sh` always restores both parts. To restore only the database, repeat its database step by hand:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml stop wikantik
 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-  exec backup sh -c "
-    psql -h db -U \${POSTGRES_USER} -d \${POSTGRES_DB} \
-      -c 'DROP TABLE IF EXISTS group_members, groups, roles, users CASCADE;'
-    psql -h db -U \${POSTGRES_USER} -d \${POSTGRES_DB} \
-      < /backups/daily/2026-03-21/db.sql
-  "
+  exec backup sh -c '
+    psql -h db -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 \
+      -c "DROP SCHEMA IF EXISTS public CASCADE;" \
+      -c "CREATE SCHEMA public;" \
+      -c "GRANT ALL ON SCHEMA public TO \"$POSTGRES_USER\";" \
+      -c "GRANT ALL ON SCHEMA public TO public;" \
+      -c "CREATE EXTENSION IF NOT EXISTS vector;" \
+      -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+    gunzip -c /backups/daily/2026-03-21/db.sql.gz \
+      | psql -h db -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -q
+  '
 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
 ```
@@ -378,11 +389,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
 
 ### Disaster recovery: restoring to a fresh machine
 
-If the original server is gone and you are starting from a new machine with only the backup files:
+If the original server is gone and you are starting from a new machine with only the backup files, `bin/dr-restore.sh TARGET_HOST` automates the whole sequence from a workstation (it stages the compose stack, ships the image, transfers a verified snapshot, runs the real `restore.sh`, starts the app and smoke-tests it; see [Wikantik Backup and Recovery](WikantikBackupAndRecovery)). The manual equivalent:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-repo/wikantik.git
+git clone <your-wikantik-repository-url> wikantik
 cd wikantik
 
 # 2. Create .env with your production values
@@ -396,35 +407,36 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
 # 4. Copy your backup files to the backups directory
 mkdir -p backups/daily/2026-03-21
-cp /path/to/your/backup/db.sql backups/daily/2026-03-21/
+cp /path/to/your/backup/db.sql.gz backups/daily/2026-03-21/
 cp /path/to/your/backup/pages.tar.gz backups/daily/2026-03-21/
 cp /path/to/your/backup/checksums.sha256 backups/daily/2026-03-21/
 
-# 5. Build and start wikantik (this creates the pages volume)
+# 5. Build and start wikantik (this runs the migrations on the empty database)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build wikantik
 
 # 6. Start the backup container
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d backup
 
-# 7. Run the restore (replaces init data with your real data)
+# 7. Run the restore (replaces the freshly migrated schema with your real data)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml stop wikantik
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec backup /usr/local/bin/restore.sh /backups/daily/2026-03-21
 
-# 8. Restart wikantik to pick up the restored content
-docker compose -f docker-compose.yml -f docker-compose.prod.yml restart wikantik
+# 8. Start wikantik to pick up the restored content
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
 ```
 
 ## Migrating from Bare-Metal Tomcat
 
-If you are currently running Wikantik on a bare-metal Tomcat with a local PostgreSQL database, follow these steps to migrate to containers.
+If you are currently running Wikantik on a bare-metal Tomcat with a local PostgreSQL database, follow these steps to migrate to containers. The container database must be the same PostgreSQL major version as the source or newer: dumps restore forward, not backward.
 
 ### Before you start
 
-Make a safety backup of your current system:
+Make a safety backup of your current system. Use your own database name and role (a standard install uses `wikantik` for both):
 
 ```bash
 # Dump the existing database
-pg_dump -U jspwiki -d jspwiki --no-owner --no-privileges > pre-migration.sql
+pg_dump -U <db-user> -d <db-name> --no-owner --no-privileges > pre-migration.sql
 
 # Archive the current pages
 tar -czf pre-migration-pages.tar.gz -C /path/to/your/wikantik-pages .
@@ -440,20 +452,25 @@ Keep these files safe. They are your rollback path.
 
 # 2. Create .env with production values
 cp .env.example .env
-# Set POSTGRES_PASSWORD, WIKANTIK_BASE_URL, SMTP settings, MCP keys, etc.
+# Set POSTGRES_PASSWORD, WIKANTIK_BASE_URL, SMTP settings, etc.
 
 # 3. Start only PostgreSQL
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d db
 # Wait for healthy...
 
-# 4. Replace the auto-created tables with your real data
+# 4. Clear the public schema, then load the dump. (The schema comes from the
+#    migrations, which have not run because only db is up; the dump recreates
+#    the pgvector extension, all tables, data, and schema_migrations.)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-  exec -T db psql -U wikantik -d wikantik < pre-migration.sql
+  exec -T db psql -U wikantik -d wikantik -v ON_ERROR_STOP=1 \
+    -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO wikantik; GRANT ALL ON SCHEMA public TO public;"
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  exec -T db psql -U wikantik -d wikantik -v ON_ERROR_STOP=1 -q < pre-migration.sql
 
-# 5. Build and start wikantik
+# 5. Build and start wikantik (the entrypoint applies only genuinely new migrations)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build wikantik
 
-# 6. Copy your existing pages into the Docker volume
+# 6. Copy your existing pages into the page directory
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec -T wikantik sh -c "rm -rf /var/wikantik/pages/*"
 docker cp pre-migration-pages.tar.gz \
@@ -498,8 +515,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 The dev setup skips the production build and backup service. It bind-mounts your local files so changes appear immediately.
 
 ```bash
-# Build the WAR on your host (uses your local Maven cache — fast)
-mvn clean install -Dmaven.test.skip -T 1C
+# Build the WAR on your host (uses your local Maven cache — fast).
+# Use -DskipTests, not -Dmaven.test.skip (which breaks the reactor).
+mvn clean install -DskipTests -T 1C
 
 # Start the dev environment
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
@@ -514,14 +532,16 @@ Key differences from production:
 - **WAR is bind-mounted** from `wikantik-war/target/` — rebuild the WAR and restart the container to pick up changes
 - **Debug port 5005** is exposed for remote JVM debugging
 - **PostgreSQL port 15432** is exposed (not 5432, to avoid conflicting with a local PostgreSQL)
-- **MCP has no access keys** (open for local testing)
-- **No backup service** runs
+- **No backup or embedding sidecar** runs
+- **MCP authorization is still DB-backed**: mint a key at `/admin/apikeys` after logging in (the access filter fails closed otherwise)
+
+`bin/container.sh -e dev up -d` is the shorthand for the same thing. For bare-metal development (local PostgreSQL and Tomcat), see [PostgreSQL Local Deployment](PostgreSQLLocalDeployment).
 
 ## Cloudflare Integration
 
 The Tomcat `server.xml` includes two settings for running behind Cloudflare:
 
-1. **`RemoteIpValve`** — Extracts the real client IP from the `CF-Connecting-IP` header. Without this, all requests appear to come from Cloudflare's IPs.
+1. **`RemoteIpValve`** — Extracts the real client IP from the header named by `PROXY_REMOTE_IP_HEADER` (default `CF-Connecting-IP`; use `X-Forwarded-For` behind Caddy, nginx or a cloud load balancer). Without this, all requests appear to come from the proxy's IPs, which also breaks per-client rate limiting and audit logging.
 
 2. **`AccessLogValve`** — Logs the `CF-IPCountry` header for geographic insight.
 
@@ -538,7 +558,7 @@ If you are using `WIKANTIK_BASE_URL=https://wiki.example.com/`, the wiki generat
 docker compose -f docker-compose.yml -f docker-compose.prod.yml logs wikantik
 
 # Common issues:
-# - "Connection refused" to db → PostgreSQL isn't healthy yet, wikantik will retry
+# - "Connection refused" to db → PostgreSQL isn't healthy yet; wikantik waits for the db healthcheck
 # - "CHANGEME" in logs → You didn't set POSTGRES_PASSWORD in .env
 # - Port 8080 already in use → Stop your bare-metal Tomcat first
 ```
@@ -556,15 +576,15 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 
 ### Pages not showing up
 
-If the wiki starts but pages are missing, the pages volume may be empty:
+If the wiki starts but pages are missing, the pages directory may be empty:
 
 ```bash
-# Check how many pages are in the volume
+# Check how many pages are in the directory
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec wikantik find /var/wikantik/pages -name '*.md' | wc -l
 ```
 
-If zero, the volume was created empty. Restore from backup or copy pages in (see migration steps).
+If zero, the directory was created empty. Restore from backup or copy pages in (see the migration steps, or `bin/remote.sh pages-push`).
 
 ### Backup container not running
 
@@ -608,7 +628,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
 docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 # === Development ===
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 ```

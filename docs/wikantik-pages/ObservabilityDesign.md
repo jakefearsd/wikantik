@@ -1,20 +1,29 @@
 ---
-date: '2026-05-15'
-status: active
-summary: Open-source observability stack for Wikantik — Log4j2 JSON logs shipped via
-  Promtail to Loki, Prometheus metrics, and Grafana dashboards.
+cluster: devops-sre
+type: article
 tags:
 - observability
 - monitoring
 - prometheus
 - grafana
 - loki
-type: article
-canonical_id: 01KQ0P44T771NATW10QVZEVR5Y
-cluster: devops-sre
 title: 'Wikantik Observability Stack: Loki, Prometheus, Grafana'
+canonical_id: 01KQ0P44T771NATW10QVZEVR5Y
+summary: Historical design (May 2026) for a Loki, Prometheus and Grafana stack for
+  Wikantik; superseded by the external jakemon observability plane.
+status: active
+date: '2026-05-15'
 ---
 # Wikantik Observability System Design
+
+> **Status (2026-10-13):** Historical design, not the current setup. Wikantik no longer carries its own observability stack. The Prometheus, Grafana and exporter overlay that was briefly in this repository (`docker-compose.observability.yml`) was removed on 2026-05-19, and the Promtail and Loki parts described below never shipped from here. Monitoring now belongs to the external jakemon observability plane (see [Simple Agility Observability Plane](SimpleAgilityObservabilityPlane) and [JakemonHub](JakemonHub)): a Grafana Alloy agent on each host scrapes Wikantik and ships its logs to a central Prometheus, Loki, Grafana and Alertmanager. What Wikantik itself provides for that plane:
+>
+> - **Metrics:** `GET /metrics` serves Prometheus text format from a Micrometer registry, with Wikantik meters prefixed `wikantik_` (for example `wikantik_backpressure_inflight`).
+> - **Health:** `GET /api/health` returns JSON with an overall `status` (`UP`, `DEGRADED` or `DOWN`) and engine, database and search-index checks, with HTTP 503 when `DOWN`.
+> - Both endpoints answer only to loopback and private-network (RFC 1918) clients, enforced by `InternalNetworkFilter`.
+> - **Logs:** in the container, `docker/config/log4j2-docker.xml` writes JSON to stdout using Log4j2's `EcsLayout.json` template with an added `application=wikantik` field, and `RequestCorrelationFilter` adds `requestId` (also returned as the `X-Request-Id` response header), `method`, `uri`, `remoteAddr` and `userAgent` to each line. Adopting the Simple Agility contract's ECS field names (`service.name`, `trace.id`, `transaction.id`) is still open; see [Simple Agility Telemetry Contract](SimpleAgilityTelemetryContract).
+> - The log paths and the Log4j2 file in the configuration steps below (`/var/jspwiki/...`) describe the design only. The container logs under `/var/wikantik/logs`, and its Tomcat access log is configured in `docker/config/server.xml`.
+> - The operator reference is `docs/admin/WikantikOperations.md` in the repository.
 
 ## Overview
 

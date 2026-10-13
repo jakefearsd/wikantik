@@ -116,12 +116,15 @@ To recreate it after a database reset, run:
 
 ```bash
 PASSWORD=$(grep test.user.password test.properties | cut -d= -f2)
-HASH=$(java -cp wikantik-util/target/wikantik-util-*.jar \
+# The wikantik-util jar alone lacks the bcrypt classes (NoClassDefFoundError) — use the deployed WAR's lib.
+HASH=$(java -cp 'tomcat/tomcat-11/webapps/ROOT/WEB-INF/lib/*' \
        com.wikantik.util.CryptoUtil --hash "$PASSWORD")
 PGPASSWORD="<db-password>" psql -h localhost -U wikantik -d wikantik <<SQL
 INSERT INTO users (uid, email, full_name, login_name, password, wiki_name, created, modified)
 VALUES ('testbot','testbot@localhost','Test Automation Bot','testbot','$HASH','TestBot',NOW(),NOW());
 INSERT INTO roles (login_name, role) VALUES ('testbot', 'Admin');
+-- /admin/* needs membership of the Admin GROUP (AllPermission); the roles row alone gets 403.
+INSERT INTO group_members (name, member) VALUES ('Admin', 'testbot');
 SQL
 ```
 

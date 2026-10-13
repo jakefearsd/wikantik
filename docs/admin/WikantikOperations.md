@@ -22,7 +22,7 @@ The production Docker stack (`docker-compose.yml` plus `docker-compose.prod.yml`
 
 - `wikantik-work` also holds the ontology TDB2 store (`${wikantik.workDir}/ontology-tdb2`), which grows unboundedly: copy-on-write B+Trees never shrink on their own, so the nightly rebuild plus per-save incremental sync only ever add (measured about 1.35 GB/day in production; it once reached 94.6 GB before being cleared). A weekly compaction pass (`wikantik.ontology.compaction.interval.hours`, default 168) reclaims space without a full rebuild. The directory is always safe to delete: `OntologyWiringHelper` calls `coordinator.rebuildIfEmpty()` on every startup, so a missing or empty store rebuilds on the next boot.
 
-**Rollback:** `bin/remote.sh deploy` rolls back automatically when the post-deploy health poll fails, and `bin/remote.sh rollback` does it by hand; see [DockerDeployment.md](DockerDeployment.md#roll-back). There is no CI deploy pipeline; the developer box drives all production changes.
+**Rollback:** `bin/remote.sh deploy` rolls back automatically when the post-deploy health poll fails, and `bin/remote.sh rollback` does it by hand; see [DockerDeployment.md](DockerDeployment.md#roll-back). There is no live CI deploy pipeline: the developer box drives all production changes (the legacy `ci-cd.yml` and `staging-deploy.yml` workflows are manual-dispatch only and dormant, with no self-hosted runner registered; see [CI.md](../developer/CI.md)).
 
 ### 1.2.1 Pull-based updates (cloud VM targets)
 
@@ -81,13 +81,14 @@ The full step-by-step guide is
    for V031, plus ownership of the schema). Skipping this leaves migrations to fail
    later as an under-privileged role; see [DatabaseMigrations.md](DatabaseMigrations.md).
 2. **Build** — `mvn clean install -DskipTests -T 1C`.
-3. **Deploy** — `bin/deploy-local.sh` downloads Tomcat (first run), materialises
-   config from the templates, deploys the WAR, runs migrations, starts Tomcat.
+3. **Deploy** — `bin/deploy-local.sh` downloads Tomcat and the PostgreSQL JDBC driver
+   (42.7.14, from Maven Central) on the first run, materialises config from the
+   templates, deploys the WAR, runs migrations, starts Tomcat.
 4. **Iterate** — `bin/redeploy.sh` is the fast path (swap WAR + restart only).
 
 **Config is write-once.** `deploy-local.sh` materialises each templated config
-file (`ROOT.xml`, `wikantik-custom.properties`, `setenv.sh`, `conf/server.xml`,
-`conf/context.xml`) on first deploy and **does not overwrite it afterward** (the
+file (`ROOT.xml`, `wikantik-custom.properties`, `wikantik-mcp.properties`, `log4j2.xml`,
+`setenv.sh`, `conf/server.xml`, `conf/context.xml`) on first deploy and **does not overwrite it afterward** (the
 server/context guards overwrite only while the file is still stock). So changes to
 the git-tracked templates — including the perf knobs in §1.5 — **do not reach an
 existing install automatically.** Apply them by hand to the deployed file, or
@@ -204,7 +205,7 @@ per-client and expensive global) are set ≤ 0.
 | `WIKANTIK_RATELIMIT_EXEMPT_CIDRS` | *(empty)* | — | CSV IPv4 CIDRs exempt from all limits. Loopback is **always** exempt, and the exact path `/api/health` is never limited. |
 
 On a limit hit the filter returns `429` + `Retry-After: 1`, emits a `SecurityLog`
-line, and increments `wikantik_ratelimit.rejected_total{tier=default|expensive}`.
+line, and increments `wikantik_ratelimit_rejected_total{tier="default"|"expensive"}`.
 The filter is ordered **after** `RequestMetricsFilter`, so rejected requests are
 still counted in the request metrics.
 
@@ -383,7 +384,7 @@ Fires the standalone entity-extractor CLI against the database to generate Knowl
 ### `bin/kg-policy.sh`
 Admin CLI for managing the Knowledge Graph cluster inclusion/exclusion policies.
 - Controls what namespaces are analyzed by the extractor (system pages are automatically excluded).
-- Commands include `list`, `set`, `explain`, and `purge`.
+- Subcommands: `list`, `set`, `clear`, `explain`, `review`, `mark-reviewed`, `diff`, `reconcile`, `purge` and `audit`.
 
 ### `bin/kg-judge.sh`
 Triggers ad-hoc Knowledge Graph judge runs against the local deployment.
@@ -532,10 +533,10 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 | `bin/smoke-wiki.sh [BASE_URL]` | Functional smoke test: health UP, a page renders, changes feed populated, search returns a hit. Called by `bin/dr-restore.sh` on DR completion. Exit 0 = all checks passed. | Read-only. |
 | `bin/curl-probe.sh <duration> <prefix>` | External real-user latency probe: samples three endpoints once per second, logs `(timestamp, endpoint, HTTP code, latency)` to `<prefix>.log`. | Read-only. |
 | `bin/trigger-rebuild-indexes.sh [status]` | Kick off the async Lucene + `kg_content_chunks` rebuild via the admin API. Prerequisite for `run-embedding-experiment.sh`. | Triggers a rebuild; idempotent (409 if already running). |
-| `bin/deploy-marketing.sh [--dry-run]` | Publish the static marketing site (`marketing/`) to the nginx docroot on the `cloudflare` host. Prompts for sudo password interactively. | Requires manual confirmation for the privileged copy step. |
+| `bin/deploy-marketing.sh [--dry-run] [--marketing-only] [--site-only] [--build-site]` | Publish the static marketing site (`marketing/`) and, if it has been built by `bin/site.sh`, the generated code-health site (under `/site`) to the nginx docroot on the `cloudflare` host. `bin/deploy-site.sh` is a thin shim for `--site-only`. Prompts for the sudo password interactively. | Requires manual confirmation for the privileged copy step; `--dry-run` changes nothing. |
 | `bin/db/audit-retention.sh [--status\|--dry-run]` | Enforce `audit_log` retention: pre-create upcoming monthly partitions; archive-then-drop partitions older than `AUDIT_RETENTION_MONTHS` (default 84 = 7 years). | `--dry-run` touches nothing. The drop phase requires `AUDIT_ARCHIVE_DIR` to be set. |
 | `bin/db/audit-retention-install-timer.sh` | Install and enable the `wikantik-audit-retention.timer` systemd timer (monthly). | Idempotent; prompts for sudo. |
-| `bin/db/one-shots/` | Environment-specific one-off data fixups. Each file is a standalone script or SQL file intended to be run once per environment (not migrations). Current scripts: `2026-05-20-backfill-chunk-embeddings.sh` (backfill `content_chunk_embeddings`), `2026-06-08-normalize-kg-node-types.sql` (normalize `kg_nodes.node_type` onto the 9-class entity vocabulary), `reconcile_page_canonical_ids.sh` (reconcile `page_canonical_ids`), `reset_judge_timeout_abstains.sh`, `reset_node_judge_verdicts.sh`, `backfill-agent-default-owner.sql`. | Review individually before running; most are idempotent but data-modifying. |
+| `bin/db/one-shots/` | Environment-specific one-off data fixups. Each file is a standalone script or SQL file intended to be run once per environment (not migrations). Current scripts: `2026-05-20-backfill-chunk-embeddings.sh` (backfill `content_chunk_embeddings`), `2026-06-08-normalize-kg-node-types.sql` (normalize `kg_nodes.node_type` onto the 9-class entity vocabulary), `reconcile_page_canonical_ids.sh` (reconcile `page_canonical_ids`), `reset_judge_timeout_abstains.sh`, `reset_node_judge_verdicts.sh`, `backfill-agent-default-owner.sql`, `null_out_empty_user_attributes.sh` (null out `users.attributes` where it is the empty string). | Review individually before running; most are idempotent but data-modifying. |
 | `bin/tests/test-audit-retention.sh` | Pure-filesystem unit tests for `audit-retention.sh` using stubbed `psql`/`pg_dump`/`pg_restore`. No real PostgreSQL required. | Read-only test harness. |
 | `bin/tests/test-backup.sh` | Tests for `backup.sh` and `nas-pull.sh` manifest + metrics emission. Stubbed `pg_dump`/`psql`/`rsync`/`curl` — no real PG or ssh. | Read-only test harness. |
 | `bin/tests/test-remote.sh` | Smoke tests for `bin/remote.sh` in `--dry-run` mode with a fake `remote.env`. No real ssh or docker. | Read-only test harness. |

@@ -1,8 +1,15 @@
 ---
 status: active
 date: '2026-05-15'
-summary: How graph-proximity reranking worked — multi-source BFS over a co-mention
-  graph, max-proximity scoring, stable-sort boost. Removed from Wikantik in 2026-07.
+title: Graph-Aware Reranking and Semantic Proximity
+canonical_id: 01KRQJ845TTE8DNKNVWC8EBVN3
+cluster: wikantik-platform
+relations:
+- type: component_of
+  target_id: WikantikSearchAndRetrieval
+- type: extension_of
+  target_id: SpectralGraphTheoryConceptual
+type: article
 tags:
 - search
 - graph-theory
@@ -10,17 +17,9 @@ tags:
 - proximity-search
 - bfs
 - algorithms
-type: article
-relations:
-- type: component_of
-  target_id: WikantikSearchAndRetrieval
-- type: extension_of
-  target_id: SpectralGraphTheoryConceptual
-canonical_id: 01KRQJ845TTE8DNKNVWC8EBVN3
-cluster: wikantik-platform
-title: Graph-Aware Reranking and Semantic Proximity
+summary: How graph-proximity reranking worked — multi-source BFS over a co-mention
+  graph, max-proximity scoring, stable-sort boost. Removed from Wikantik in 2026-07.
 ---
-
 # Graph-Aware Reranking and Semantic Proximity
 
 > **Removed from Wikantik (2026-07).** This page documents an algorithm that
@@ -73,7 +72,7 @@ The implementation was built for high performance and **graceful degradation**.
 The reranker was a non-critical enhancement, wrapped in fail-closed logic:
 *   **Disabled**: with the feature off, returned the input list verbatim.
 *   **Index Not Ready**: if the `kg_edges` table was being rebuilt or exceeded memory caps, returned the input list.
-*   **Zero Matches**: if no query entities resolved, or no candidate mentioned the graph neighbourhood, every proximity score was \$0.0$ and the RRF order was preserved bit-identically.
+*   **Zero Matches**: if no query entities resolved, or no candidate mentioned the graph neighbourhood, every proximity score was `0.0` and the RRF order was preserved bit-identically.
 
 ## 4. Why it did not survive
 
@@ -87,7 +86,7 @@ relate*; it does not answer *which passage answers the question*.
 
 ---
 **See Also:**
-- [Wikantik Search and Retrieval](WikantikSearchAndRetrieval) — The 4-phase overview.
+- [Wikantik Search and Retrieval](WikantikSearchAndRetrieval) — The retrieval pipeline overview (BM25, dense, RRF).
 - [Spectral Graph Theory](SpectralGraphTheoryConceptual) — The theory of graph shape.
 - [Knowledge Graph Extraction](WikantikKnowledgeGraph) — Generating the co-mention edges.
 - [Knowledge Graph Rerank](KnowledgeGraphRerank) — The measured verdict and the removal.

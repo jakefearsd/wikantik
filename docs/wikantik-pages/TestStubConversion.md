@@ -1,22 +1,24 @@
 ---
+title: Test Stub Conversion
+date: '2026-05-04'
+cluster: wikantik-development
 status: active
 verified_at: '2026-05-04T21:10:44.598011331Z'
 type: article
-date: '2026-05-04'
-cluster: wikantik-development
-title: Test Stub Conversion
+verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD3JX009JJ9H5GWBV50BCW
+summary: A technical retrospective on the March 2026 effort to decouple MCP tests
+  using lightweight in-memory stubs.
 tags:
 - testing
 - mcp
 - test-stubs
 - refactoring
 - wikantik-development
-summary: A technical retrospective on the March 2026 effort to decouple MCP tests
-  using lightweight in-memory stubs.
-verified_by: gemini-cli-mcp-client
-canonical_id: 01KQTD3JX009JJ9H5GWBV50BCW
 ---
 # Test Stub Conversion
+
+> **Status (2026-10-13):** The stubs described below still exist, but they live in `wikantik-main`'s test sources (`wikantik-main/src/test/java/com/wikantik/test/StubPageManager.java` and `StubReferenceManager.java`) and reach the MCP modules through `wikantik-main`'s `test-jar`; `wikantik-api` does not publish a `test-jar`. The figures under Impact are the March 2026 snapshot: the admin MCP server now registers up to 29 tools and the knowledge MCP server up to 21 (see [MCP Integration](McpIntegration)). In the repository the decision record is `docs/adr/0000-extract-manager-interfaces-to-api.md`.
 
 The Test Stub Conversion was a critical modernization effort completed on **March 23, 2026**. Its goal was to decouple the Model Context Protocol (MCP) server tests from the heavyweight `WikiEngine` and `TestEngine`, enabling faster, more isolated, and more reliable testing.
 

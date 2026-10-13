@@ -2,7 +2,6 @@
 cluster: wikantik-development
 canonical_id: 01KQ0P44Q1A992BXEZWGVTFYH4
 ---
-
 # Edit Page Help
 
 A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctrl on Windows and Linux and Cmd on a Mac. For the full guide, see [Editing](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Editing.md).
@@ -10,7 +9,7 @@ A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctr
 ## Start and save
 
 * Choose **Edit** on a page to open the editor. You only see it if you have permission to edit.
-* To make a page, use **+ New Article** in the sidebar, or link to a page that does not exist yet.
+* To make a page, use **+ New Article** in the sidebar (shown when you are signed in), or link to a page that does not exist yet.
 * Add a **Change note** to say what you did, then press **Mod+S** or choose **Save**. **Cancel** leaves without saving.
 * The editor keeps a draft in your browser while you type, and offers to restore it if you come back.
 

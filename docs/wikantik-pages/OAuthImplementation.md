@@ -1,18 +1,20 @@
 ---
+type: article
 tags:
 - oauth
 - sso
 - authentication
 - jaas
 - security
-type: article
-summary: Design guide for adding OAuth SSO (Google/GitHub) via JAAS LoginModule +
-  callback servlet, covering token exchange, user provisioning, and session wiring.
-title: OAuth Implementation
 canonical_id: 01KQ0P44T600RKB0SF6RN6QBR8
 cluster: security
+title: OAuth Implementation
+summary: Design guide for adding OAuth SSO (Google/GitHub) via JAAS LoginModule +
+  callback servlet, covering token exchange, user provisioning, and session wiring.
 ---
 # OAuth SSO Implementation Plan for Google/GitHub Logins
+
+> **Status (2026-10-13):** This is the pre-implementation design, written before the rebrand and kept for context. It was superseded by single sign-on built on [pac4j](https://www.pac4j.org/), which shipped in 2.0.3 (May 2026). What exists today lives in `wikantik-main/src/main/java/com/wikantik/auth/sso/`: `SSOConfig`, `SSOLoginModule`, `SSORedirectServlet` (`/sso/login`), `SSOCallbackServlet` (`/sso/callback`) and `SSOAutoProvisionService`. It speaks OpenID Connect and SAML 2.0 and is configured with `wikantik.sso.*` keys, not the `jspwiki.oauth.*` keys proposed below. There are no Google- or GitHub-specific provider classes: any OIDC provider works, and a GitHub login is not implemented. Accounts are linked on the IdP's immutable `sub` claim by default (`wikantik.sso.identityClaim`), not by e-mail. The JSP login pages named below no longer exist; the React SPA's `/login` route shows the provider button. The operator reference is `docs/admin/SingleSignOn.md` in the repository, and [Google SSO](GoogleSSO) covers the Google OIDC specifics.
 
 ## Executive Summary
 

@@ -26,7 +26,7 @@ Run this before you commit:
 bin/run-tests.sh --parallel 4
 ```
 
-Phase 1 runs every unit test once (`-T 1C -DskipITs`) and installs the artifacts, including the WAR and the `wikantik-selenide-tests` test-jar. Phase 2 runs the five default IT modules in one `-T 4` reactor with per-module reserved ports and uniquely named pgvector containers. The IT phase does not re-run the unit tests. The script takes a per-checkout run lock (`.run.lock`) and writes a summary to `target/test-suite-report.txt`. Parallel IT runs are supported only through this script; do not add `-T` to a raw `mvn ... -Pintegration-tests` command.
+Phase 1 runs every unit test once (`-T 1C -DskipITs`) and installs the artifacts, including the WAR and the `wikantik-selenide-tests` test-jar. Phase 2 runs the five default IT modules in one `-T 4` reactor with per-module reserved ports and uniquely named pgvector containers. The IT phase does not re-run the unit tests. The script takes a per-checkout run lock (`.run.lock`) and writes a summary to `.test-suite-logs/report.txt`. Parallel IT runs are supported only through this script; do not add `-T` to a raw `mvn ... -Pintegration-tests` command.
 
 Other modes from `bin/run-tests.sh --help`:
 

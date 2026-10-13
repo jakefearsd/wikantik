@@ -1,7 +1,10 @@
 ---
-canonical_id: 01KQ0P44RJB1S0M1ZPBSYKQ7KT
-title: Knowledge-Graph Extraction Benchmarks — April 2026
 cluster: wikantik-development
+related:
+- KnowledgeGraphCore
+- HybridRetrieval
+- GraphRAG
+- KnowledgeGraphsAndGenAIWorkflows
 type: article
 tags:
 - knowledge-graph
@@ -10,15 +13,15 @@ tags:
 - embeddings
 - operations
 - models
-summary: Seven-run benchmark comparing entity-extractor models (gemma4-assist, qwen2.5:7b, gemma4:e2b) at concurrency 1–4 against the Wikantik corpus, plus a before/after look at search ranking impact from the save-time chunker rebuild that consolidated 39k chunks into 23k. Captures the data behind the shipping defaults and the rejected alternatives.
-related:
-- KnowledgeGraphCore
-- HybridRetrieval
-- GraphRAG
-- KnowledgeGraphsAndGenAIWorkflows
+title: Knowledge-Graph Extraction Benchmarks — April 2026
+canonical_id: 01KQ0P44RJB1S0M1ZPBSYKQ7KT
+summary: Seven-run benchmark comparing entity-extractor models (gemma4-assist, qwen2.5:7b,
+  gemma4:e2b) at concurrency 1–4 against the Wikantik corpus, plus a...
+date: ''
 ---
-
 # Knowledge-Graph Extraction Benchmarks — April 2026
+
+> **Status (2026-10-13):** This is a dated record of the April 2026 runs; the numbers below have not been re-measured. What has changed since: the in-wiki extractor default is now `gemma4-graph:12b` (`wikantik.knowledge.extractor.ollama.model`), called with `think: false`, while the extract CLI's `--ollama-model` still defaults to `gemma4-assist:latest`; extractor concurrency still defaults to 2 and the chunker merge-forward floor to 150 tokens, but the chunker has since gained a fragment floor (`wikantik.chunker.fragment_floor_tokens`, 24) and overlap (`wikantik.chunker.overlap_tokens`, 40) that change chunk counts; proposals now pass an asynchronous judge (`wikantik.kg.judge.*`) before reaching the review queue; and the graph rerank mentioned below was removed. Current settings: [WikantikKnowledgeGraphAdmin](WikantikKnowledgeGraphAdmin) (Step 10).
 
 This page records the benchmark runs performed on 2026-04-23 while choosing
 the shipping configuration for the Phase 2 entity extractor and the
@@ -278,7 +281,7 @@ Set overlap: **8 of 10** preserved. Top 7 identical. Dropped:
    a 41 % reduction in extraction RPCs for ~0 search-quality cost,
    against a configuration change that took seconds.
 5. **Claude Haiku 4.5 remains the "definitely finishes in a workday"
-   fallback** at ≈ $75 and ≈ 25 h for the full corpus, if the ~82 h
+   fallback** at ≈ \$75 and ≈ 25 h for the full corpus, if the ~82 h
    local-only projection ever becomes operationally unacceptable.
 
 ## Further reading

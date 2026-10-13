@@ -157,7 +157,7 @@ Arguments after `--` are forwarded to `bin/kg-extract.sh`:
 ```bash
 bin/kg-rebuild.sh --reset-kg -- \
     --ollama-model qwen2.5:1.5b-instruct \
-    --concurrency 6 --prefilter --force
+    --concurrency 6
 ```
 
 ### Polling interval env vars

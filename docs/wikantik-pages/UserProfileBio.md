@@ -1,41 +1,44 @@
 ---
+title: User Profile Bio
+date: '2026-05-04'
+cluster: wikantik-development
 status: active
 verified_at: '2026-05-04T21:10:44.598011331Z'
 type: article
-date: '2026-05-04'
-cluster: wikantik-development
-title: User Profile Bio
-tags:
-- user-profile
-- markdown
-- feature
-- wikantik-development
-summary: A feature overview of the Markdown-enabled user biography system in Wikantik.
 verified_by: gemini-cli-mcp-client
 canonical_id: 01KQTD4FHACTTQ9QSQ699X37ZM
+summary: 'Optional plain-text user bio (max 1000 characters): where it is stored,
+  how users and admins edit it, and which endpoints carry it.'
+tags:
+- user-profile
+- feature
+- wikantik-development
 ---
 # User Profile Bio
 
-Introduced on **April 3, 2026**, the User Profile Bio feature allows users to provide a rich-text self-description that is displayed on their profile page and accompanying their contributions.
+Introduced on **April 3, 2026**, the User Profile Bio is an optional free-text self-description stored on a user's profile.
 
-## Purpose
-The bio serves to:
-- **Build Trust:** In a collaborative wiki, knowing the expertise and background of an author helps readers evaluate the content.
-- **Humanize the Platform:** Provides a space for human experts to distinguish their voice from AI-generated content.
-- **Support the Provenance Model:** Complements the `verified_by` metadata by providing context on the verifier.
+## Behavior
+
+- **Plain text, at most 1000 characters.** The server rejects a longer value with HTTP 400 ("Bio must be 1000 characters or fewer"). The text is stored and returned as typed; it is not parsed as Markdown.
+- **Users edit their own bio** on the **Preferences** page (`/preferences`): a "Bio" text area with a live `n / 1000` counter, saved together with full name and email.
+- **Administrators** can set or change any user's bio in the create/edit dialog on **Admin → Users** (`/admin/users`).
+- **Visibility today:** only the account owner and administrators see a bio. The reader UI does not display it: there is no public profile page, no author hover-card and no Markdown rendering of bios.
 
 ## Implementation Detail
 
 ### Storage
-User bios are stored in the `users` table within the PostgreSQL database. The schema includes a `bio` column (TEXT) that supports CommonMark Markdown.
+The bio is the `bio` column of the `users` table in PostgreSQL, declared `VARCHAR(1000)` in `bin/db/migrations/V002__core_users_groups.sql`. In Java it is `UserProfile.getBio()` / `setBio()` (`DefaultUserProfile`).
 
 ### API Access
-The bio is exposed through the following endpoints:
-- `GET /api/user/profile/{username}`: Returns the full user profile, including the rendered bio.
-- `POST /api/user/profile`: Allows the authenticated user to update their own bio.
+- `GET /api/auth/profile`: returns the signed-in user's own profile, including `bio` (`AuthResource`).
+- `PUT /api/auth/profile`: updates the caller's own `fullName`, `email` and `bio` (and, when requested, the password).
+- `/admin/users` and `/admin/users/{login}` accept and return `bio` for administrators (`AdminUserResource`).
+
+No other endpoint returns a user's bio to anyone but its owner or an administrator.
 
 ### UI Integration
-In the React SPA (`wikantik-frontend`), the bio is rendered using the standard wiki Markdown components, ensuring consistent styling with the rest of the wiki content. It appears in the **User Profile** view and as a hover-card on author links in page footers.
+`UserPreferencesPage.jsx` renders the owner's form and `admin/UserFormModal.jsx` the administrator's, both in the React SPA (`wikantik-frontend`).
 
 ## See Also
 - [Relational User Database](RelationalUserDatabase) — The underlying PostgreSQL schema for users and groups.

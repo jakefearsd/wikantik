@@ -1,9 +1,18 @@
 ---
-type: design
-status: active
+title: Structural Spine Design
 cluster: wikantik-development
 date: '2026-04-24'
-title: Structural Spine Design
+type: design
+status: active
+canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
+author: claude-opus
+related:
+- AgentGradeContentDesign
+- HybridRetrieval
+- GoodMcpDesign
+- WikantikDevelopment
+summary: Detailed design for a machine-queryable structural index (clusters, tags,
+  canonical IDs, typed cross-references) exposed via /api/structure/* and...
 tags:
 - design
 - agent-context
@@ -11,20 +20,7 @@ tags:
 - structural-index
 - canonical-id
 - typed-relations
-summary: Detailed design for a machine-queryable structural index (clusters, tags,
-  canonical IDs, typed cross-references) exposed via /api/structure/* and matching
-  MCP tools, with a generated Main.md and stable page identity across renames. Addresses
-  the "structural blindness" problem that forces agents to rediscover wiki shape via
-  full-text search.
-author: claude-opus
-related:
-- AgentGradeContentDesign
-- HybridRetrieval
-- GoodMcpDesign
-- WikantikDevelopment
-canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
 ---
-
 > **Note (2026-05-02).** The Structural Spine is now a sub-area of the
 > **Page Graph** subsystem. The typed-relation grammar (`relations:`
 > frontmatter, `related_to`, `part_of`, etc.) was removed in this
@@ -34,6 +30,8 @@ canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
 > `Main.md` projection. Page Graph edges are now strictly real wiki
 > links.
 
+> **Status (2026-10-13).** All phases shipped: canonical IDs, `Main.md` generation and save-time enforcement. `StructuralSpinePageFilter` auto-assigns a missing `canonical_id` on save (flag `wikantik.structural_spine.enforcement.enabled`, default true). A hub page now declares each cluster and the `hubs:` field is gone (see [ClusterDeclarationDesign](ClusterDeclarationDesign)). `Main.md` is generated from `docs/wikantik-pages/Main.pins.yaml` by `GenerateMainPageCli` (`wikantik-extract-cli`), and CI's `MainPageRegressionTest` fails on a hand edit; there is no `bin/generate-main-page.sh`. The sections below are the original design and are left as written, apart from open question 2, which now records its resolution.
+
 # Structural Spine Design
 
 > 🌐 **Product overview:** [The structural spine on wikantik.com](https://www.wikantik.com/platform/structural-spine.html) — a plain-language walkthrough for readers and AI agents.
@@ -41,7 +39,7 @@ canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
 
 ## Problem
 
-Wikantik exposes 1000+ pages through two MCP servers (`/wikantik-admin-mcp`, `/knowledge-mcp`), 33 REST resources, and full-text search. None of them let an agent ask **"what does this wiki contain?"** without first paying the cost of full-text search. The taxonomy that exists — cluster membership, tag assignments, type declarations, page-to-page relationships — is encoded in human-readable places (YAML frontmatter, `Main.md` prose) but never exposed as structured data that agents can query.
+Wikantik exposes 1000+ pages through two MCP servers (`/wikantik-admin-mcp`, `/knowledge-mcp`), 23 REST resources, and full-text search. None of them let an agent ask **"what does this wiki contain?"** without first paying the cost of full-text search. The taxonomy that exists — cluster membership, tag assignments, type declarations, page-to-page relationships — is encoded in human-readable places (YAML frontmatter, `Main.md` prose) but never exposed as structured data that agents can query.
 
 Concrete consequences today:
 

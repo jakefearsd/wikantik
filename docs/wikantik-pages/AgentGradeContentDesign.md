@@ -1,23 +1,23 @@
 ---
 status: active
 date: '2025-05-15'
-summary: The definitive standard for "Agent-Grade" content in Wikantik. Defines the
-  Structural Spine, verification metadata, and requirements for RAG-ready technical
-  documentation.
+author: gemini-cli
+title: Agent-Grade Content Design
+cluster: wikantik-development
+canonical_id: 01KQ0P60JSKT204TXF6BTNEDDE
+type: design
 tags:
 - design
 - structural-spine
 - rag
 - agent-context
 - metadata
-type: design
-cluster: wikantik-development
-canonical_id: 01KQ0P60JSKT204TXF6BTNEDDE
-title: Agent-Grade Content Design
-author: gemini-cli
+summary: The definitive standard for "Agent-Grade" content in Wikantik. Defines the
+  Structural Spine, verification metadata, and requirements for RAG-ready...
 ---
-
 # Agent-Grade Content Design: The Structural Spine
+
+> **Status (2026-10-13).** Shipped: the six core phases on 2026-04-25, and Phase 7 (derived agent hints, `read_pages`, the weak-signal audit) on 2026-05-10. Three things below predate later changes. "Typed Relations" were removed on 2026-05-02: Page Graph edges are now real wikilinks only (see [StructuralSpineDesign](StructuralSpineDesign)). `confidence` is derived rather than authored: `stale` when `verified_at` is absent or older than `wikantik.verification.stale_days` (default 90, not 180), `authoritative` when a trusted author verified the page inside that window, otherwise `provisional`. And the "mandatory" frontmatter list in section II is a convention, not an enforced rule: the server schema ([FrontmatterConventions](FrontmatterConventions)) makes no field mandatory and auto-assigns `canonical_id` on save.
 
 > 🌐 **Product overview:** [Agent-grade content on wikantik.com](https://www.wikantik.com/platform/agent-grade-content.html) — a plain-language walkthrough for readers and AI agents.
 
@@ -74,7 +74,7 @@ To be "RAG-ready," content must be optimized for chunking and embedding.
 Use descriptive, noun-heavy headers (e.g., "II. The Multivariable Calculus of Backpropagation" instead of "How it works"). This provides clear semantic signals to the embedding model.
 
 ### B. Explicit Citations
-When referencing other pages, use the format `[LinkText](PageName)`. For external authoritative sources, provide full URLs and context. Agents use these links to build the "Knowledge Graph" during traversal.
+When referencing other pages, use a standard Markdown link whose label is the link text and whose target is the page name (see [Markdown Links in Wikantik](MarkdownLinks)). For external authoritative sources, provide full URLs and context. Agents use these links to build the "Knowledge Graph" during traversal.
 
 ### C. The `runbook` Page Type
 Runbooks are a specialized type for procedural content. They must include a `runbook:` block in the frontmatter:

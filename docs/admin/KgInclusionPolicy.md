@@ -221,7 +221,8 @@ bin/kg-policy.sh review
 # Mark one or more clusters as reviewed (bumps reviewed_at)
 bin/kg-policy.sh mark-reviewed <cluster> [<cluster> ...]
 
-# Show excluded-page snapshot for a cluster
+# Show the excluded-page snapshot (NOT cluster-scoped: lists every page excluded
+# under the cluster_policy reason, whatever <cluster> is)
 bin/kg-policy.sh diff <cluster>
 
 # Show excluded-page counts by reason (informational; does NOT trigger reconciliation)
@@ -230,7 +231,7 @@ bin/kg-policy.sh reconcile
 # Audit log for a cluster
 bin/kg-policy.sh audit --cluster <cluster> --limit 50
 
-# Dry-run purge (prints row counts that would be deleted)
+# Dry-run purge (lists the pages that would be purged; exits 1 until --confirm is passed)
 bin/kg-policy.sh purge <cluster>
 
 # DESTRUCTIVE: hard-delete kg_nodes, kg_edges, chunk_entity_mentions for excluded pages
@@ -243,6 +244,15 @@ bin/kg-policy.sh purge --reason system_page --confirm
 **Important:** `purge --confirm` permanently deletes KG data. Recovery requires
 re-running entity extraction. Use only when you want storage back and are certain
 you will not re-include the cluster.
+
+**Warning — `purge <cluster> --confirm` is not scoped to `<cluster>`.** The CLI has no
+cluster-to-page mapping, so it purges **every** page currently excluded under the
+`cluster_policy` reason (`KgPolicyCli.purgeByCluster` passes the whole
+`listByReason(CLUSTER_POLICY)` set to the purge; `<cluster>` only labels the audit
+row). Purging one cluster therefore also destroys the KG data of every other page that
+reconciliation has recorded as excluded under `cluster_policy`. Run the dry run first and
+read the page list it prints; if it contains anything you want to keep, do not pass
+`--confirm`.
 
 ## Database tables
 

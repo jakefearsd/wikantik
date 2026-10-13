@@ -3,8 +3,8 @@
 This page is for administrators who review the audit log, verify its integrity and
 manage its retention. Wikantik records authentication, authorization, content, and administrative
 events in a tamper-evident audit log. The log is append-only at the database
-level and uses a SHA-256 hash chain so any modification or deletion of committed
-rows is detectable.
+level and uses a SHA-256 hash chain, so changing or removing a row inside the log
+is detectable (see [what verification cannot see](#hash-chain-integrity-model)).
 
 The implementation lives in:
 - `AdminAuditResource` — REST endpoints at `/admin/audit`
@@ -27,8 +27,16 @@ entry lands in one of five categories (`AuditCategory` enum):
 | `AUTHN` | `login.ok`, `login.failed`, `logout`, `session.expired` |
 | `AUTHZ` | `access.denied` |
 | `CONTENT` | `page.save`, `page.delete`, `page.rename` |
-| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (`user.deactivate`, `user.reactivate`), API key issuance/rotation/revocation (`apikey.issue`, `apikey.rotate`, `apikey.revoke`), policy grant changes (`policy.grant.update`, `policy.grant.delete`), connector mutations (`connector.create`, `connector.update`, `connector.delete`, `connector.import`, `connector.credential.set`, `connector.credential.delete`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
+| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (`user.deactivate`, `user.reactivate`), API key events (`apikey.issue` from both the admin and self-service surfaces; `apikey.rotate` and `apikey.revoke` from the self-service surface only), policy grant changes (`policy.grant.update`, which is also what a grant *creation* records, and `policy.grant.delete`), connector mutations (`connector.create`, `connector.update`, `connector.delete`, `connector.import`, `connector.credential.set`, `connector.credential.delete`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
 | `READ` | `page.read` — opt-in only (default: not recorded); a page's views are logged when its frontmatter sets `audit_reads: true` or its cluster is listed in `wikantik.audit.readClusters` (blank by default) |
+
+Entries are not written inline. `AuditService.record()` puts each one on an in-memory
+queue (capacity 10,000) and a single background thread, `audit-writer`, persists them in
+batches of up to 256. If the queue is full the entry is dropped and the application log
+shows `Audit queue full; dropped audit entry`; if a batch fails to persist (for example
+the month's partition is missing and the application role cannot create it), that batch
+is lost and the log shows `Audit writer failed to persist a batch`. Watch for both
+messages: a lost entry leaves no gap in the chain, so verification cannot reveal it.
 
 Each audit entry carries: `seq`, `created_at`, `event_time`, `category`,
 `event_type`, `actor_id`, `actor_principal`, `actor_type`, `target_type`,
@@ -47,6 +55,11 @@ Each row carries two hash fields:
 This forms a linked chain: modifying any row changes its `row_hash`, which
 invalidates every subsequent `prev_hash`, making tampering immediately detectable
 on the next verify run.
+
+What verification cannot see: it recomputes each surviving row from its predecessor,
+starting from the oldest row it finds, and nothing anchors the newest row. Rows removed
+from the very beginning or the very end of the log, and entries that were never written
+(see the queue behaviour above), leave a chain that still verifies.
 
 Writes are serialized by a PostgreSQL advisory transaction lock
 (`pg_advisory_xact_lock`) to prevent concurrent inserts from breaking the chain
@@ -96,9 +109,9 @@ Set one or more filters and click **Search**:
 | Outcome | `success`, `failure`, or `denied` |
 | From / To | Date-time range filter on `created_at` |
 
-Results are returned newest-first, up to 1000 entries per page (default 100).
-Use the `beforeSeq` cursor parameter in the REST API for pagination beyond the
-default limit.
+Results are returned newest-first. The screen requests the default 100 entries and has
+no paging control, so it shows only the newest 100 matches; narrow the filters, or call
+the REST API (`limit` up to 1000 and the `beforeSeq` cursor) to go further back.
 
 ### Verify integrity
 
@@ -114,7 +127,8 @@ sequence number on failure.
 ### Export CSV
 
 Click **Export CSV** or call `GET /admin/audit/export` directly. The download
-contains all audit entries (no filter applied) in CSV format with columns:
+contains the newest 1000 audit entries (no filter applied; the export is capped at 1000
+rows, not the whole log) in CSV format with columns:
 
 ```
 seq,created_at,event_time,category,event_type,actor,outcome,target,source_ip
@@ -135,7 +149,7 @@ Query audit entries. All parameters are optional.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `actor` | string | Filter by `actor_id` (exact match) |
+| `actor` | string | Exact match on the `actor_id` column. The current writers record the acting login in `actor_principal` and leave `actor_id` empty, so this filter returns nothing for entries written by this code. To follow one account, filter by category, event type or target and read `actorPrincipal` from the result, or use the export's `actor` column |
 | `category` | string | `AUTHN`, `AUTHZ`, `CONTENT`, `ADMIN`, or `READ` (case-insensitive) |
 | `eventType` | string | Exact `event_type` match |
 | `target` | string | Exact `target_id` match |
@@ -152,9 +166,9 @@ Response: JSON array of entry objects, newest-first.
 curl -u "$ADMIN_LOGIN:$ADMIN_PASSWORD" \
   "https://wiki.example.com/admin/audit?category=AUTHN&outcome=FAILURE&limit=50"
 
-# All admin actions by the SCIM provisioner
+# All SCIM user-create events (the actor is recorded as actorPrincipal "scim")
 curl -u "$ADMIN_LOGIN:$ADMIN_PASSWORD" \
-  "https://wiki.example.com/admin/audit?category=ADMIN&actor=scim"
+  "https://wiki.example.com/admin/audit?category=ADMIN&eventType=scim.user.create"
 ```
 
 ### `GET /admin/audit/verify`
@@ -173,9 +187,10 @@ or:
 
 ### `GET /admin/audit/export`
 
-Streams all audit entries as a CSV file (`Content-Disposition: attachment;
-filename=audit-log.csv`). No filter parameters are applied — this is a
-complete export.
+Streams the newest 1000 audit entries as a CSV file (`Content-Disposition: attachment;
+filename=audit-log.csv`). No filter parameters are applied, and the export stops at
+1000 rows, so it is not a complete archive of a larger log; the retention job's
+partition dumps are the full record.
 
 ## Retention and the systemd timer
 
@@ -218,7 +233,7 @@ AUDIT_RETENTION_MONTHS=84 AUDIT_ARCHIVE_DIR=/path/to/archive \
   PGPASSWORD=<pw> bin/db/audit-retention.sh --dry-run
 
 # Run for real
-AUDIT_RETENTION_MONTHS=84 AUDIT_ARCHIVE_DIR=/home/jakefear/wikantik/backups/audit \
+AUDIT_RETENTION_MONTHS=84 AUDIT_ARCHIVE_DIR=/srv/wikantik/backups/audit \
   PGPASSWORD=<pw> bin/db/audit-retention.sh
 ```
 
@@ -262,13 +277,14 @@ ON_CALENDAR="*-*-01 03:00:00" ./bin/db/audit-retention-install-timer.sh
 
 ### AUDIT_ARCHIVE_DIR and backups
 
-`AUDIT_ARCHIVE_DIR` must point to a directory within `${BACKUP_DIR}` on docker1
-(default `/home/jakefear/wikantik/backups`) so that the NAS pull picks up the
-archived partition dumps automatically.
+`AUDIT_ARCHIVE_DIR` must point to a directory within `${BACKUP_DIR}` on the Docker
+host (the `docker-compose.prod.yml` default is `/srv/wikantik/backups`; set `BACKUP_DIR`
+in `.env` to change it) so that the NAS pull picks up the archived partition dumps
+automatically.
 
-The NAS pulls docker1's backup directory daily via rsync (see
-[BackupAndRecovery.md](BackupAndRecovery.md)). Setting
-`AUDIT_ARCHIVE_DIR=/home/jakefear/wikantik/backups/audit` ensures purged history
+The NAS pulls the host's backup directory daily via rsync (see
+[BackupAndRecovery.md](BackupAndRecovery.md)). With the default backup directory,
+setting `AUDIT_ARCHIVE_DIR=/srv/wikantik/backups/audit` ensures purged history
 is cold-stored off-box rather than lost — matching the design intent in the audit
 retention design document.
 
@@ -282,7 +298,7 @@ PGUSER=migrate
 PGPASSWORD=<migrate-role-password>
 AUDIT_RETENTION_MONTHS=84
 AUDIT_PARTITION_LOOKAHEAD=3
-AUDIT_ARCHIVE_DIR=/home/jakefear/wikantik/backups/audit
+AUDIT_ARCHIVE_DIR=/srv/wikantik/backups/audit
 ```
 
 ## Troubleshooting
@@ -308,9 +324,9 @@ drop phase requires a valid archive directory.
 
 **The partition for the current month is missing**
 
-If `audit-retention.sh` has not yet run and the `V059` pre-created partitions only through December 2028, the runtime
-`ensurePartition` code in `JdbcAuditRepository` tries to create the missing
-partition on the first write. That works only when the application role may
+`V059` pre-created monthly partitions only through December 2028. For any later month
+that `audit-retention.sh` has not yet pre-created, the runtime `ensurePartition` code
+in `JdbcAuditRepository` tries to create the missing partition on the first write. That works only when the application role may
 `CREATE` in schema `public`; under the documented least-privilege posture it
 fails with "permission denied" and audit writes stop. Run
 `bin/db/audit-retention.sh` (or `bin/db/migrate.sh` with a newer migration) as the

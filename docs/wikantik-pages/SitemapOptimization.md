@@ -1,13 +1,15 @@
 ---
+type: article
 tags:
 - uncategorized
-type: article
-summary: 'Sitemap.xml Optimization Research: The Ideal Output for Google Search'
-title: Sitemap Optimization
 canonical_id: 01KQ0P44WFWKB7GVY1A337VH0Z
 cluster: wikantik-development
+title: Sitemap Optimization
+summary: 'Sitemap.xml Optimization Research: The Ideal Output for Google Search'
 ---
 # Sitemap.xml Optimization Research: The Ideal Output for Google Search
+
+> **Status (2026-10-13):** This is research dated November 2024, and Part 5 describes `SitemapServlet` as it stood then. The servlet has since been brought in line with it. `wikantik-main/src/main/java/com/wikantik/ui/SitemapServlet.java`, served at `/sitemap.xml`, emits only `<loc>` and `<lastmod>`, adds Google image entries for image attachments, adds Google News entries for pages modified in the last 2 days that have frontmatter (their `tags` become the news keywords), and skips system and menu pages. It does not emit video entries, `hreflang` alternates or a sitemap index. The only sitemap property is `wikantik.sitemap.baseURL`, a base-URL override for reverse proxies. The `org/apache/wiki/ui` path quoted in Part 5 is the pre-rename package. Google's sitemap ping URL in section 4.5 has been retired: submit the sitemap in Search Console instead. The `ping_search_engines` MCP tool sends changed URLs to IndexNow, so use `service=indexnow`. See also [Implementing a Sitemap.xml Servlet](Sitemap).
 
 ## Executive Summary
 

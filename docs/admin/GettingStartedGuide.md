@@ -185,8 +185,8 @@ modules need and breaks the reactor).
 ### 3. Configure and deploy
 
 `bin/deploy-local.sh` renders the Tomcat config (`ROOT.xml`,
-`wikantik-custom.properties`) from `.env`, downloads Tomcat on first run, deploys
-the WAR, applies migrations, seeds the admin account, and starts Tomcat. Unless
+`wikantik-custom.properties`) from `.env`, downloads Tomcat and the PostgreSQL JDBC
+driver (42.7.14, from Maven Central) on first run, deploys the WAR, applies migrations, seeds the admin account, and starts Tomcat. Unless
 you set `WIKANTIK_LOCAL_EMBEDDINGS=false` in `.env`, it also starts a local
 Ollama embedding container on port 11434 through Docker. The first run pulls
 the roughly 600 MB `qwen3-embedding:0.6b` model, which is a download, not a

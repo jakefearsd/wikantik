@@ -1,22 +1,22 @@
 ---
-canonical_id: 01KQ0P44Z0MP877C2FD1NT8HNK
-title: Wiki Content Management Workflow
-type: article
-cluster: wikantik-development
 status: active
 date: '2026-04-26'
-summary: How to run editorial workflows on a wiki — review processes, draft states,
-  ownership, and the patterns that maintain quality without making contribution painful.
+title: Wiki Content Management Workflow
+related:
+- WikiAnalyticsAndEngagement
+- WikiPageTemplates
+- WikiPermissionModelGuide
+canonical_id: 01KQ0P44Z0MP877C2FD1NT8HNK
+cluster: wikantik-development
+type: article
 tags:
 - wiki
 - editorial
 - workflow
 - content-management
 - wikantik-development
-related:
-- WikiAnalyticsAndEngagement
-- WikiPageTemplates
-- WikiPermissionModelGuide
+summary: How to run editorial workflows on a wiki — review processes, draft states,
+  ownership, and the patterns that maintain quality without making...
 ---
 # Wiki Content Management Workflow
 
@@ -215,6 +215,17 @@ For most internal wikis:
 5. Deprecation rather than deletion for old content
 6. Page templates for common types
 7. Stale-page detection
+
+## How Wikantik implements these patterns
+
+The patterns above are generic. Wikantik is a Markdown wiki with a PostgreSQL-backed page store and structured frontmatter, and it builds several of them in:
+
+- **Publishing.** Saving a page publishes it; the server has no draft or review gate. The project's own content policy is publish-direct, in tranches of 6 to 10 pages so per-page verification stays honest (see [Wiki Content Program Policy](ContentProgramPolicy)). Concurrent edits are protected by optimistic locking: the admin MCP `update_page` tool takes the `expectedContentHash` returned by `read_page`, and a stale hash returns the latest content to rebase against.
+- **Status.** The canonical values are `draft`, `active` and `archived`; `archived` is Wikantik's deprecation marker. Other values such as `published` or `deprecated` are tolerated with a warning that suggests a canonical one. The field is a label: the server does not hide or gate a `draft` page (see [Frontmatter Conventions](FrontmatterConventions)).
+- **Review dates.** There is no `last_reviewed` or `reviewed_by` field. Use `verified_at` and `verified_by`, stamped by the `mark_page_verified` MCP tool. Wikantik derives a `confidence` from them: `stale` when `verified_at` is absent or older than `wikantik.verification.stale_days` (default 90 days).
+- **Stale-page detection.** `GET /admin/agent-grade-audit` lists pages with no `verified_at` or a stale verification. The [Wiki Audit Skill](WikiAuditSkill) and the [Wiki Audit Demand and Freshness Loop](WikiAuditDemandLoop) add a sweep of tool-practice clusters for pages unverified for 12 months.
+- **Ownership.** Each page has one owner, recorded against its `canonical_id` so a rename keeps it. On first save the owner is the `author` frontmatter value when it names a real login, otherwise the `agents` service account (`wikantik.page_ownership.default_owner`); administrators reassign owners at `/admin/page-ownership`. Ownership records accountability only. Who may view or edit a page is decided by permissions and page ACLs such as `[{ALLOW edit Admin}]`.
+- **Bulk edits.** `rename_page` (with link rewriting) and `rename_cluster` (returns a plan until `confirm=true`) cover systematic changes, and every page keeps a version history (`get_page_history`, `diff_page`).
 
 ## Further Reading
 

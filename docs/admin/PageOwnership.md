@@ -38,7 +38,9 @@ Key invariants:
 - **Keyed on `canonical_id`**, not on the mutable page slug. A page rename does not
   change ownership.
 - **`owner_login IS NULL` means orphaned.** The admin UI surfaces these in the
-  "Orphaned" tab.
+  "Orphaned" tab. Deleting a user account (`/admin/users`, single or bulk) orphans
+  every page that user owned, stamping `assigned_by` with
+  `system:user-deleted:<login>`.
 - **Read-time fallback.** When `PageOwnerService.getOwner()` resolves an owner, it
   applies an `admin` fallback: if the stored `owner_login` is `NULL`, blank, or no
   longer a real user, the returned value is `admin`. This means callers always get a
@@ -61,8 +63,9 @@ V035 seeds this account:
 | Roles        | none (non-loginable)              |
 
 Because agent-authored pages default to this owner, **the Orphaned tab is empty by
-design** on a well-configured deployment — there are no truly ownerless pages; they
-belong to `agents`.
+design** on a well-configured deployment — pages do not become ownerless at save time;
+they belong to `agents`. Pages become orphaned only when their owner's account is
+deleted or an admin orphans them on purpose.
 
 The property that names this default:
 
@@ -258,8 +261,10 @@ also added in V034). See [CommentsAndMentions.md](../user/CommentsAndMentions.md
 
 **Orphaned tab is unexpectedly full**
 
-The `agents` service account was probably not seeded (V035 may not have run, or the
-DB was reset). Check:
+Either the owner accounts were deleted (look at `assigned_by`: a value of
+`system:user-deleted:<login>` names the deleted account; reassign those pages from the
+Orphaned tab), or the `agents` service account was not seeded (V035 may not have run,
+or the DB was reset). For the second case, check:
 
 ```bash
 psql -h localhost -U wikantik -d wikantik -c "SELECT login_name FROM users WHERE login_name = 'agents';"

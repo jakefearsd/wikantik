@@ -19,7 +19,7 @@ A few rules for `[[ ]]` links (`WikiLinkSyntax`):
 
 - The text between the brackets cannot start with a space and cannot span a line.
 - A `[[ ]]` inside a code span or fenced code block, or with a backslash before the opening bracket, is plain text.
-- To put a literal `|` in a target, write `\|`.
+- `|` always separates the target from the label. Inside a Markdown table cell write it as `\|` (as in the table above); the link splits exactly as it does with a plain `|`. A target cannot contain a literal `|`.
 - A target is matched in this order: the exact page name (including plural forms), then the page name ignoring case, then the page `title` or an entry in `aliases` ignoring case (`WikiLinkResolver`). If two pages tie, the one that sorts first alphabetically wins.
 
 ### Complete a link while you type

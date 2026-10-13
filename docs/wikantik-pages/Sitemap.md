@@ -1,10 +1,12 @@
 ---
-cluster: wikantik-development
-canonical_id: 01KQ0P44WFPC18ECZQ35YW101P
+date: ''
 type: article
 tags:
 - uncategorized
-summary: Implementing a Sitemap.xml Servlet for Wikantik
+cluster: wikantik-development
+canonical_id: 01KQ0P44WFPC18ECZQ35YW101P
+summary: Implementing a Sitemap.xml Servlet for Wikantik Technical architecture and
+  implementation guide for sitemap.
 ---
 # Implementing a Sitemap.xml Servlet for Wikantik
 
@@ -15,7 +17,9 @@ summary: Implementing a Sitemap.xml Servlet for Wikantik
 > at `com.wikantik.content.AtomFeedServlet`.
 > This document is preserved as the implementation specification it
 > was written against; treat it as design-of-record rather than a
-> to-do list.
+> to-do list. As shipped, the servlet emits only `<loc>` and `<lastmod>`
+> plus Google image and news entries; the `changefreq` and `priority` code
+> below was dropped (see [Sitemap Optimization](SitemapOptimization)).
 >
 > **Note on configuration:** The `jspwiki.sitemap.*` properties described
 > in Phase 2 below (enabled, includeAttachments, cacheTimeout, etc.) were

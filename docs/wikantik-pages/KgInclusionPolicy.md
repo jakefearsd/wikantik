@@ -1,8 +1,21 @@
 ---
-date: '2026-04-27'
+audience:
+- humans
+- agents
+type: runbook
+summary: Which pages contribute entities to the Knowledge Graph by default, and how
+  a page overrides inclusion with kg_include.
 related:
 - WikantikKnowledgeGraphAdmin
 - StructuralSpineDesign
+title: KG Inclusion Policy
+cluster: wikantik-development
+tags:
+- kg-policy
+- knowledge-graph
+- administration
+- runbook
+date: '2026-04-27'
 runbook:
   when_to_use:
   - When deciding whether a cluster of pages should contribute to the knowledge graph
@@ -13,13 +26,16 @@ runbook:
   - access to bin/kg-policy.sh OR the /admin/kg-policy dashboard
   steps:
   - 'Check current state: open /admin/kg-policy or run bin/kg-policy.sh list'
-  - Set a cluster policy via the dashboard or CLI
+  - Set a cluster policy on the dashboard (a CLI set writes the row but does not start
+    reconciliation)
   - Wait for eager reconciliation to complete (status visible in dashboard)
-  - Verify with bin/kg-policy.sh explain <page-id>
+  - Verify with the Explain tab (GET /admin/kg-policy/explain/{idOrName}); bin/kg-policy.sh
+    explain <cluster> shows only the cluster's policy row
   pitfalls:
   - Default-exclude means new clusters are silently kept out of the KG until you act
     on them — check the pending-review queue weekly
-  - Hard purges via 'kg-policy purge --confirm' delete kg_nodes/kg_edges rows; recovery
+  - Hard purges via 'kg-policy purge --confirm' delete kg_nodes/kg_edges rows for
+    ALL pages excluded under cluster_policy, not just the named cluster; recovery
     requires re-extraction
   - 'Frontmatter kg_include: false beats cluster: include — useful for WIP, but easy
     to forget'
@@ -30,22 +46,8 @@ runbook:
   - WikantikKnowledgeGraphAdmin
   - StructuralSpineDesign
 canonical_id: 01KQEDYJR57WYQCV645PKSDBMQ
-tags:
-- kg-policy
-- knowledge-graph
-- administration
-- runbook
-type: runbook
 status: active
-summary: Which pages contribute entities to the Knowledge Graph by default, and how
-  a page overrides inclusion with kg_include.
-title: KG Inclusion Policy
-cluster: wikantik-development
-audience:
-- humans
-- agents
 ---
-
 # KG Inclusion Policy
 
 The knowledge graph (KG) is built from a subset of wiki pages. This page is
@@ -60,19 +62,35 @@ one that applies:
 1. **System page?** Sandbox, Main, navigation pages, etc. Always excluded.
 2. **`kg_include: false` in frontmatter?** Excluded, regardless of cluster.
 3. **`kg_include: true` in frontmatter?** Included, regardless of cluster.
-4. **Cluster policy.** Each of the page's `cluster:` memberships (primary
-   plus any secondary memberships) is resolved against `kg_cluster_policy`,
-   walking up to the parent cluster when a sub-cluster (`parent/child`) has
-   no policy row of its own — most-specific row wins. Across memberships, an
-   explicit `exclude` on *any* membership wins outright (fail-closed);
-   otherwise an `include` on any membership carries. Otherwise excluded.
+4. **Cluster policy.** If the page's cluster has an `include` row in
+   `kg_cluster_policy`, the page is included. Otherwise excluded.
 
 The default is **exclude** — a cluster you haven't touched contributes nothing
 to the KG. This is deliberate: imports of new content can't sneak into agent
 retrieval before you've reviewed them.
 
-The page's cluster is read from frontmatter (`cluster: <name>`); see
-[StructuralSpineDesign](StructuralSpineDesign).
+### How the cluster lookup actually resolves
+
+Two properties of step 4 matter in practice:
+
+- **Ancestor walk (segment-aware).** A sub-cluster inherits its parent's policy:
+  the lookup tries `a/b/c`, then `a/b`, then `a`, and the most specific row wins.
+  This was previously an exact match, which silently excluded *every* sub-cluster
+  from the KG because no row ever matched `parent/child`. Matching is segment-aware,
+  never a string prefix — `machine-learning-ops` is not a descendant of
+  `machine-learning`.
+- **Fail-closed across memberships.** A non-hub page may declare several clusters
+  (`cluster:` is scalar-or-list). If *any* membership resolves to an explicit
+  EXCLUDE, the page is excluded outright. Inclusion is the one place cluster is
+  authoritative rather than advisory — anything weaker would let a second
+  membership quietly undo a curator's deliberate exclusion.
+
+The page's cluster is read from frontmatter (`cluster:` — a single value, or a
+list where the first entry is the primary); see
+[StructuralSpineDesign](StructuralSpineDesign) and
+[ClusterDeclarationDesign](ClusterDeclarationDesign). A page's own `kg_include`
+override (steps 2 and 3) is checked first, so it beats an `exclude` on any of its
+memberships.
 
 ## The dashboard
 
@@ -99,9 +117,9 @@ One transaction inserts all rows, and the eager reconciliation kicks off.
 
 ### Page lookup ("Why is this page in/out?")
 
-`/admin/kg-policy/explain` takes a title or canonical_id and prints the
-four-step trace showing exactly why a page is included or excluded. Use
-this when:
+`/admin/kg-policy/explain` takes a page title or canonical_id and prints the
+four-step trace showing exactly why a page is included or excluded (the same
+trace is `GET /admin/kg-policy/explain/{idOrName}`). Use this when:
 
 - A page is showing up in retrieval and shouldn't be
 - You're confirming that a frontmatter override took effect
@@ -117,8 +135,6 @@ this when:
   (or null). Possible drift since you last looked.
 - **Recent page-count changes** — placeholder; the threshold logic will
   populate this once we capture cluster-size history.
-
-Empty most days; non-empty triggers a 5-minute review session.
 
 ## The CLI
 
@@ -136,13 +152,23 @@ bin/kg-policy.sh reconcile                     # show excluded counts by reason
 bin/kg-policy.sh audit --cluster java --limit 50
 ```
 
-`reconcile` from the CLI is informational. Full reconciliation runs
-automatically when you change policy via REST or the dashboard, or you can
-restart Tomcat — both routes invoke `ReconciliationJobRunner`.
+The CLI talks to PostgreSQL directly and has no handle on the running wiki, so
+**`set` and `clear` write the policy row and the audit entry but do not start a
+reconciliation run**, and `reconcile` is informational (it prints the
+`kg_excluded_pages` counts by reason and never starts a job). Reconciliation
+(`ReconciliationJobRunner`) is enqueued only when a policy is changed through
+the REST API or the dashboard — nothing runs it at Tomcat startup. After a CLI
+`set`, re-save the cluster from the dashboard (Edit, confirm) to enqueue the run.
+Likewise `bin/kg-policy.sh explain <cluster>` shows only that cluster's policy
+row; for the page-level trace use the Explain tab above.
 
 `purge` is destructive — it hard-deletes `kg_nodes`, `kg_edges`, and
-`chunk_entity_mentions` rows for excluded pages. Use only when you want
-storage back and won't be re-including the cluster soon.
+`chunk_entity_mentions` rows (and the `kg_excluded_pages` rows) for excluded
+pages. Use only when you want storage back and won't be re-including the
+cluster soon. **It is not cluster-scoped:** the CLI has no page-to-cluster
+mapping, so `purge <cluster> --confirm` deletes the KG data for *every* page
+currently excluded under the `cluster_policy` reason, whatever its cluster. The
+dry run (no `--confirm`) lists the first 25 affected pages — read it.
 
 ```bash
 bin/kg-policy.sh purge personal-finance              # dry-run, prints counts
@@ -163,18 +189,20 @@ exclude with a one-line reason. Eager reconciliation runs immediately.
 
 ### "Why is this content showing up in retrieval?"
 
-Run `kg-policy explain <page-name>` (or use the Explain tab). One of two
-things shows up: the page's cluster is included (the design intent), or the
-page has `kg_include: true` in frontmatter. Adjust whichever is wrong.
+Use the Explain tab (or `GET /admin/kg-policy/explain/{idOrName}`); the CLI's
+`explain` only reads a cluster row. One of two things shows up: the page's
+cluster is included (the design intent), or the page has `kg_include: true` in
+frontmatter. Adjust whichever is wrong.
 
 ### "I want to test what happens if I exclude `warehouse-automation`"
 
-Toggle the cluster in the dashboard or run `kg-policy set warehouse-automation
-exclude`. Eager reconciliation soft-excludes the pages — entities and edges
-remain in the KG tables, just hidden from queries. Re-include with `set
-warehouse-automation include` and the rows reappear, no LLM cost. If the
-experiment shows you don't want them, run `kg-policy purge
-warehouse-automation --confirm` to reclaim storage.
+Toggle the cluster in the dashboard (a CLI `set` does not start reconciliation).
+Eager reconciliation soft-excludes the pages — entities and edges remain in the
+KG tables, just hidden from queries. Re-include the cluster and the rows
+reappear, no LLM cost. If the experiment shows you don't want them, `kg-policy
+purge --confirm` reclaims the storage, but it covers *all* cluster-policy
+exclusions, not just this cluster (see the CLI section) — review the dry run
+before confirming.
 
 ### "I'm shipping a new content type that shouldn't be in the KG yet"
 
@@ -185,9 +213,14 @@ the override.
 ## Operations
 
 - **Database:** `kg_cluster_policy`, `kg_policy_audit`, `kg_excluded_pages`
-- **Master switch:** `wikantik.kg_policy.enabled` in `wikantik.properties`
-  (default `true`). Setting `false` reverts to legacy behaviour (no policy
-  filtering).
+- **Master switch:** `wikantik.kg_policy.enabled` (default `true`; override it in
+  `wikantik-custom.properties`). Setting `false` reverts to legacy behaviour (no
+  policy filtering). The whole Knowledge Graph subsystem has its own switch,
+  `wikantik.knowledge.enabled`.
+- **REST surface (all under `/admin/kg-policy/`, Admin only):**
+  `GET clusters`, `GET clusters/{cluster}`, `PUT`/`DELETE clusters/{cluster}`,
+  `POST clusters/{cluster}/review`, `GET explain/{idOrName}`, `GET pending`,
+  `GET audit`, `GET reconciliation`, `GET estimate`, `POST bootstrap`.
 - **Audit log:** every change is recorded in `kg_policy_audit` with `actor`
   and timestamp. Append-only.
 - **Permissions:** `/admin/kg-policy` and `bin/kg-policy.sh` both require
@@ -208,8 +241,8 @@ than the REST surface:
   requires a top-level `reason`)
 - `curate_edges` / `curate_nodes` — heterogeneous bulk ops (1..50 ops)
 
-See `docs/superpowers/specs/2026-05-13-kg-curation-mcp-design.md` for the full
-envelope and error contract.
+Bulk calls are capped at `wikantik.mcp.kg_curation.bulk_limit` ids/ops (default
+50). The tool list and contracts are in `docs/admin/McpAgents.md`.
 
 ### Admin-bypass on read paths
 
@@ -219,13 +252,11 @@ cluster policy yet. The bypass applies to:
 
 - REST `/admin/knowledge-graph/*` reads (already gated by `AdminAuthFilter`).
 - The MCP tools registered on `/wikantik-admin-mcp` — `list_proposals`,
-  `inspect_proposals`, and the admin-bypass copies of `query_nodes`
-  and `search_knowledge` (29 tools total).
+  `inspect_proposals`, `list_orphaned_kg_nodes`, and the admin-bypass copies
+  of `query_nodes` and `search_knowledge` (29 tools on that server in total).
 
 The agent-facing `/knowledge-mcp` server keeps the filter on, so retrieval
-quality is unchanged. See
-`docs/superpowers/specs/2026-05-14-kg-curation-operability-design.md`
-for the full contract.
+quality is unchanged.
 
 ## Further Reading
 

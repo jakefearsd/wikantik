@@ -1,23 +1,29 @@
 ---
-depends-on:
-- KnowledgeAdminUi
-- FrontmatterConventions
 status: active
 type: article
-date: '2026-04-05'
-cluster: wikantik-development
-title: Knowledge Graph Dogfooding
 tags:
 - development
 - knowledge-graph
 - dogfooding
-summary: Using the wiki's own knowledge graph to document and drive its development
+canonical_id: 01KQ0P44RJAHVGMNSEMFWA09NY
 related:
 - KnowledgeGraphCore
 - WikantikDevelopment
-canonical_id: 01KQ0P44RJAHVGMNSEMFWA09NY
+kg_include: true
+date: '2026-04-05'
+depends-on:
+- KnowledgeAdminUi
+- FrontmatterConventions
+audience:
+- humans
+cluster: wikantik-development
+title: Knowledge Graph Dogfooding
+summary: April 2026 initiative to document Wikantik's own features as wiki pages with
+  rich frontmatter, with a 2026-10 status note on what changed.
 ---
 # Knowledge Graph Dogfooding
+
+> **Status (2026-10-13):** Partly shipped, partly superseded. The sub-feature pages exist ([GraphProjector](GraphProjector), [KnowledgeProposals](KnowledgeProposals), [KnowledgeAdminUi](KnowledgeAdminUi), [ProvenanceModel](ProvenanceModel), [FrontmatterConventions](FrontmatterConventions)), the Relationships plugin exists, and the Node Explorer has a status filter. The mechanism the plan rested on did not survive: the GraphProjector, which turned frontmatter relationships into Knowledge Graph edges, was retired on 2026-04-24, and `kg_edges.relationship_type` is now a closed vocabulary of 21 predicates. Frontmatter keys such as `part-of`, `enables` or `supersedes` are ordinary page metadata today, not graph edges, and the Relationships plugin renders edges only for a Knowledge Graph node whose name matches the page. The Knowledge Graph is now LLM-extracted entities ([WikantikKnowledgeGraph](WikantikKnowledgeGraph)); machine-queryable structure over the wiki's own pages comes from the structural index, the Page Graph ([PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)) and the ontology. The text below is the original April 2026 plan.
 
 This initiative makes the wiki the source of truth for its own development by documenting all features as wiki pages with rich frontmatter relationships. The knowledge graph then becomes a queryable map of the system — what exists, what depends on what, and what's been designed but not yet built.
 
@@ -36,6 +42,6 @@ Rich frontmatter relationships create a navigable graph that reduces the need fo
 
 ## Design Spec
 
-Full design: `docs/superpowers/specs/2026-04-05-kg-dogfooding-design.md`
+Full design: `docs/superpowers/specs/2026-04-05-kg-dogfooding-design.md` (no longer in the repository)
 
 [{Relationships}]

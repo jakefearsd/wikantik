@@ -1,160 +1,100 @@
 ---
+type: reference
 tags:
 - uncategorized
-type: reference
-summary: Configuring Wikantik to store users and groups in a relational database via
-  JNDI — schema, JDBC setup, Tomcat DataSource config, and permission grants.
-title: Relational User Database
 canonical_id: 01KQ0P44VDF3BAZ7T7KC5T0QS6
 cluster: databases
+title: Relational User Database
+summary: 'How Wikantik stores users and groups in PostgreSQL via JNDI: DataSource
+  config, JDBC user/group databases, schema from migrations, password hashing.'
 ---
 # Using a Relational Database for User Management
 
-This guide provides a detailed walkthrough for configuring Wikantik to use a relational database for storing user and group information, with a specific focus on MySQL.
+This guide explains how Wikantik stores user accounts and groups in a relational database, and what has to be in place for that to work. In Wikantik the relational database is not an option you switch on: it is **PostgreSQL**, it is the only supported user and group store, and the XML user and group files of the JSPWiki era are gone.
 
 ## 1. Overview
 
-Wikantik can be configured to use a relational database for user and group management instead of the default XML files. This is highly recommended for production environments as it offers better performance, scalability, and security.
+User profiles, password hashes, roles, wiki groups, database-backed policy grants, API keys and the rest of the application state all live in one PostgreSQL database, reached through a single JNDI `DataSource`. Three properties wire it up, and the defaults in `ini/wikantik.properties` already point at the JDBC implementations:
 
-Wikantik uses JNDI (Java Naming and Directory Interface) to look up the database connection, which means you'll need to configure a JNDI `DataSource` in your application server (e.g., Tomcat).
+```properties
+wikantik.userdatabase  = com.wikantik.auth.user.JDBCUserDatabase
+wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
+wikantik.datasource    = jdbc/WikiDatabase
+```
+
+You only need to set these in `wikantik-custom.properties` if you are replacing an implementation or renaming the JNDI resource. There is no supported deployment without a datasource. MySQL and other databases are not supported: no other JDBC driver ships in any module, and the schema uses PostgreSQL features such as the pgvector extension.
 
 ## 2. Prerequisites
 
-- A running MySQL or PostgreSQL server.
-- The appropriate JDBC driver for your database.
+- **PostgreSQL 15 or later with the pgvector extension.** Migration V004 runs `CREATE EXTENSION vector`, which succeeds only if the pgvector binaries are installed on the server.
+- **Java 25 or later and Tomcat 11** (the project pins Tomcat 11.0.26 in `bin/deploy-local.sh` and in the `Dockerfile`).
+- **The PostgreSQL JDBC driver, version 42.7.14** (`<postgresql-jdbc.version>` in the root `pom.xml`). The WAR declares the driver `provided`, so the container must supply it.
 
 ## 3. Configuration Steps
 
-### Step 1: Add the JDBC Driver
+Most installs never do these by hand. `bin/db/install-fresh.sh` creates the database, the application role and the full schema; `bin/deploy-local.sh` downloads Tomcat and the driver, renders the DataSource and properties from `.env`, deploys the WAR and applies pending migrations; and the Docker image's `docker/entrypoint.sh` does the same rendering on every start. The steps below describe what those scripts produce, for anyone wiring up their own Tomcat. For a full walkthrough see [Developing with PostgreSQL](DevelopingWithPostgresql).
 
-Download the appropriate JDBC driver for your database and place it in the `lib` directory of your Tomcat installation (`$CATALINA_HOME/lib`).
+### Step 1: Add the JDBC driver
 
-- **MySQL:** [MySQL Connector/J](https://dev.mysql.com/downloads/connector/j/)
-- **PostgreSQL:** [PostgreSQL JDBC Driver](https://jdbc.postgresql.org/)
+Put `postgresql-42.7.14.jar` in `$CATALINA_HOME/lib`. `bin/deploy-local.sh` installs it as `tomcat/tomcat-11/lib/postgresql.jar` and replaces a jar at any other version; the Docker image downloads the same version from Maven Central at build time (`ARG POSTGRES_JDBC_VERSION`).
 
 ### Step 2: Configure the JNDI DataSource in Tomcat
 
-To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to your Tomcat's `conf/context.xml` file.
-
-#### MySQL Example
+Wikantik is deployed as the ROOT context, so the resource goes in `conf/Catalina/localhost/ROOT.xml`. This is the shape `deploy-local.sh` and the Docker entrypoint render:
 
 ```xml
 <Context>
-  ...
-  <Resource name="jdbc/WikiDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="30" maxIdle="30"
-            maxWaitMillis="10000" username="your_username" password="your_password"
-            driverClassName="com.mysql.cj.jdbc.Driver"
-            url="jdbc:mysql://localhost:3306/jspwiki?useSSL=false"/>
-  ...
-</Context>
-```
-
-#### PostgreSQL Example
-
-```xml
-<Context>
-  ...
-  <Resource name="jdbc/WikiDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="30" maxIdle="30"
-            maxWaitMillis="10000" username="your_username" password="your_password"
+  <Resource name="jdbc/WikiDatabase"
+            auth="Container"
+            type="javax.sql.DataSource"
+            factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
             driverClassName="org.postgresql.Driver"
-            url="jdbc:postgresql://localhost:5432/jspwiki"/>
-  ...
+            url="jdbc:postgresql://localhost:5432/wikantik"
+            username="wikantik"
+            password="your_password"
+            maxTotal="90"
+            maxIdle="30"
+            maxWaitMillis="5000"
+            validationQuery="SELECT 1"
+            testOnBorrow="true"/>
 </Context>
 ```
 
-**Note:**
+`maxTotal` is pressed just under PostgreSQL's default `max_connections` of 100, and `maxWaitMillis` is 5 seconds so a request fails fast instead of parking a worker thread when the pool is exhausted. Replace the URL, username and password with your own; in the local and Docker paths they come from `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` and `POSTGRES_PORT` in `.env`.
 
-- Replace `your_username` and `your_password` with your database credentials.
-- The `url` parameter should point to your database server and database name.
+### Step 3: Wikantik properties
 
-### Step 3: Configure Wikantik
+Nothing is required: the defaults shown in the overview apply. Put `wikantik-custom.properties` in `$CATALINA_HOME/lib` (on the container classpath, not inside `WEB-INF`) if you need any override.
 
-Update your `wikantik-custom.properties` file to use the `JDBCUserDatabase` and `JDBCGroupDatabase`.
+### Step 4: Create the schema with migrations
 
-```properties
-# Use the JDBC user and group databases
-jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
-jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
+Do not create the tables by hand. The numbered files in `bin/db/migrations/` (`V001` onward) are the only schema definition, and `bin/db/migrate.sh` applies the pending ones and records them in `schema_migrations`. `bin/db/install-fresh.sh` does this for a new database, `bin/deploy-local.sh` and `bin/redeploy.sh` run it on every deploy, and the Docker entrypoint runs it before Tomcat starts. Hand-written DDL would leave the ledger out of step and make the next migration fail. See [Developing with PostgreSQL](DevelopingWithPostgresql) for the surrounding setup.
 
-# Shared JNDI DataSource name
-wikantik.datasource = jdbc/WikiDatabase
+## 4. What the Schema Contains
+
+The user and group tables come from `V002__core_users_groups.sql`, with later columns added by V039 and V042.
+
+| Table | Columns and notes |
+|-------|-------------------|
+| `users` | `login_name` (primary key), `uid`, `email`, `full_name`, `password`, `wiki_name` (unique, V015), `created`, `modified`, `lock_expiry`, `bio`, `attributes` (Base64-serialized custom profile attributes), `password_must_change` (V039), `last_login` (V042). SSO-provisioned accounts have a `NULL` password. |
+| `roles` | `login_name`, `role` — one row per login and role, with no foreign key to `users`; the application keeps the two consistent. |
+| `groups` | `name` (primary key), `creator`, `created`, `modifier`, `modified`. |
+| `group_members` | `name`, `member`, with a composite primary key on `(name, member)`. |
+
+A fresh database is seeded with an `admin` account in the built-in `Admin` group. Its password is flagged `password_must_change`, so the first login forces a new password. Note that `/admin/*` access requires membership of the `Admin` **group**; an account that only has a row in `roles` can authenticate but is refused admin pages with a 403.
+
+## 5. Password Hashing
+
+New and re-hashed passwords are stored as bcrypt with a `{bcrypt}` prefix. Legacy salted SHA-256 (`{SHA-256}`) hashes still verify and are re-hashed to bcrypt on the owner's next successful login. The SHA-1 formats `{SHA}` and `{SSHA}` were removed in 2.4.24 and never verify, so an account still holding one has to reset its password.
+
+## 6. Verifying the Wiring
+
+On startup the Tomcat log confirms both databases bound to the DataSource:
+
+```bash
+grep -E "JDBC(User|Group)Database" tomcat/tomcat-11/logs/catalina.out
+# JDBCUserDatabase initialized from JNDI DataSource: jdbc/WikiDatabase
+# JDBCGroupDatabase initialized from JNDI DataSource: jdbc/WikiDatabase
 ```
 
-### Step 4: Create the Database Tables
-
-Wikantik does not automatically create the necessary tables in the database. You'll need to create them manually.
-
-#### MySQL
-
-```sql
-CREATE TABLE users (
-    uid VARCHAR(255) NOT NULL,
-    login_name VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255),
-    password VARCHAR(255),
-    email VARCHAR(255),
-    created DATETIME,
-    attributes TEXT,
-    PRIMARY KEY (uid)
-);
-
-CREATE TABLE groups (
-    id INT NOT NULL AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    creator VARCHAR(255),
-    created DATETIME,
-    modifier VARCHAR(255),
-    modified DATETIME,
-    PRIMARY KEY (id)
-);
-
-CREATE TABLE group_members (
-    group_id INT NOT NULL,
-    user_id VARCHAR(255) NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES groups(id),
-    FOREIGN KEY (user_id) REFERENCES users(uid)
-);
-```
-
-#### PostgreSQL
-
-```sql
-CREATE TABLE users (
-    uid VARCHAR(255) NOT NULL,
-    login_name VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255),
-    password VARCHAR(255),
-    email VARCHAR(255),
-    created TIMESTAMP,
-    attributes TEXT,
-    PRIMARY KEY (uid)
-);
-
-CREATE TABLE groups (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    creator VARCHAR(255),
-    created TIMESTAMP,
-    modifier VARCHAR(255),
-    modified TIMESTAMP
-);
-
-CREATE TABLE group_members (
-    group_id INT NOT NULL,
-    user_id VARCHAR(255) NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES groups(id),
-    FOREIGN KEY (user_id) REFERENCES users(uid)
-);
-```
-
-## 4. Differences Between MySQL and PostgreSQL
-
-While the configuration is similar for both databases, there are a few key differences to be aware of:
-
-- **JDBC Driver:** Use the appropriate JDBC driver for your database.
-- **JDBC URL:** The JDBC URL format is different for each database.
-- **SQL Dialect:** The SQL syntax for creating tables is slightly different (e.g., `AUTO_INCREMENT` in MySQL vs. `SERIAL` in PostgreSQL).
-
-By following these steps, you can successfully configure Wikantik to use a relational database for user and group management, providing a more robust and scalable solution for your wiki.
+Users, groups, roles and policy grants are then managed from the admin panel (`/admin/users`, `/admin/security`) or provisioned by an identity provider over SCIM (`/scim/v2/*`).

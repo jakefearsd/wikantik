@@ -1,14 +1,16 @@
 ---
-canonical_id: 01KQKEA11ARM1J4YGVF1BXME9R
-title: Running the Judge Experiment Harness
+type: runbook
+cluster: agent-cookbook
 tags:
 - extraction
 - evaluation
 - knowledge-graph
 - runbook
 - agent-context
-type: runbook
-cluster: agent-cookbook
+title: Running the Judge Experiment Harness
+canonical_id: 01KQKEA11ARM1J4YGVF1BXME9R
+summary: Invoke `bin/kg-judge-experiment.sh` to sample `kg_proposals`, compare judge
+  models, and check calibration before flipping the production `--judge` default.
 audience:
 - agents
 - humans
@@ -24,9 +26,10 @@ runbook:
     below)
   inputs:
   - The judge backend — `ollama` (cheap, local) or `claude` (gated, billed)
-  - The judge model tag — defaults to `gemma4-assist:latest` for ollama (chosen 2026-05-02
-    over `qwen3.5:9b` after the latter timed out on 19/30 calls; see Observed model
-    behaviour below) and `claude-haiku-4-5` for claude; pass `--judge-model` to override
+  - The judge model tag — defaults to `gemma4-assist:latest` whichever backend is
+    chosen (chosen 2026-05-02 over `qwen3.5:9b` after the latter timed out on 19/30
+    calls; see Observed model behaviour below), so a `--judge claude` run must pass
+    a Claude id such as `claude-haiku-4-5` explicitly
   - Sample size — `--sample N` (default 100; use 25–50 for fast spot-checks, 100+
     for calibration)
   - Output path — `--output reports/judge-<tag>.json` (required)
@@ -82,10 +85,7 @@ runbook:
   references:
   - AgentGradeContentDesign
   - KnowledgeExtractionFromText
-summary: Invoke `bin/kg-judge-experiment.sh` to sample `kg_proposals`, compare judge
-  models, and check calibration before flipping the production `--judge` default.
 ---
-
 # Running the Judge Experiment Harness
 
 Phase 6 of the KG-extraction redesign added an opt-in proposal-judge
@@ -93,6 +93,17 @@ stage that runs after `ProposalConsolidator` and before the
 `kg_proposals` upsert. The harness in this runbook lets you preview
 what enabling the judge would actually do to the queue — without
 flipping the production default.
+
+> **Scope (2026-10-13):** this harness exercises the extractor-side
+> judges, `OllamaProposalJudge` and `ClaudeProposalJudge`, which are the
+> ones behind `bin/kg-extract.sh --judge`. The running wiki also has its
+> own asynchronous judge, `DefaultKgProposalJudgeService`, enabled by
+> default (`wikantik.kg.judge.enabled`), which works through pending
+> proposals every few minutes and uses the extractor's Ollama model
+> unless `wikantik.kg.judge.model` is set. It is a separate class, so
+> the numbers here are a proxy for it, not a replay. See
+> [WikantikKnowledgeGraphAdmin](WikantikKnowledgeGraphAdmin) (Step 3.2)
+> for the in-wiki judge.
 
 ## When to use this runbook
 
@@ -124,6 +135,10 @@ bin/kg-judge-experiment.sh \
     --sample 30 \
     --output reports/judge-claude.json
 ```
+
+`--judge-model` defaults to `gemma4-assist:latest` for both backends, so
+a `--judge claude` run must be given a Claude model id explicitly, as
+above.
 
 The script:
 

@@ -22,8 +22,9 @@ The implementation lives in:
 
 ## Prerequisites
 
-Migrations `V010__api_keys.sql` and `V058__api_keys_scope_chk_mcp_read.sql` must
-have been applied. They are idempotent and run automatically on every deploy via
+Migrations `V010__api_keys.sql`, `V058__api_keys_scope_chk_mcp_read.sql` and
+`V061__api_keys_scope_mcp_admin.sql` must have been applied (without `V061` the database
+rejects a new `mcp_admin` key). They are idempotent and run automatically on every deploy via
 `bin/deploy-local.sh` and `bin/redeploy.sh` (both call `bin/db/migrate.sh`).
 
 The `api_keys` table:
@@ -86,7 +87,10 @@ revoked rows. The eviction is per JVM, so in a multi-node deployment another nod
 can keep accepting the key for up to 60 seconds.
 
 Key issuance is recorded in the tamper-evident audit log (see [AuditLog.md](AuditLog.md))
-under category `ADMIN`, event type `apikey.issue`.
+under category `ADMIN`, event type `apikey.issue`. Revocation through `/admin/apikeys`
+(single or bulk) is written to the application log (`API key revoked: id=…, by=…`) but
+not to the audit log; only revocations made through the self-service surface produce an
+`apikey.revoke` audit event.
 
 ## Scope enforcement
 
@@ -176,7 +180,9 @@ Both `McpAccessFilter` (used by `/wikantik-admin-mcp` and `/knowledge-mcp`) and
 `ToolsAccessFilter` (used by `/tools/*`) apply this logic. Either filter also
 accepts a source IP inside a configured CIDR allowlist entry
 (`mcp.access.allowedCidrs` in `wikantik-mcp.properties` / `tools.access.allowedCidrs`
-in `wikantik-tools.properties`) as a fallback to a DB-backed key. There is no
+in `wikantik-tools.properties`) as a fallback to a DB-backed key. A request admitted by
+address has no key, so no scope check applies to it: an allowlisted address reaches the
+whole endpoint, including `/wikantik-admin-mcp`. There is no
 property-file bearer-token list — DB-backed API keys are the only bearer-token
 mechanism.
 
@@ -339,14 +345,14 @@ the endpoint gives no oracle for enumerating other users' key ids.
 ```json
 {
   "keys": [
-    { "id": 7, "label": "laptop", "scope": "tools",
+    { "id": 7, "label": "laptop", "scope": "tools", "legacyScope": false,
       "createdAt": "2026-06-05T10:00:00Z", "lastUsedAt": "2026-06-06T08:30:00Z" }
   ]
 }
 ```
 
 Note the shape is intentionally thinner than the admin listing — no
-`principalLogin` (always the caller), no `fingerprint`, and no revoked rows (only
+`principalLogin` (always the caller), no `fingerprint`, no `createdBy`, and no revoked rows (only
 active keys are returned, so there is no `revokedAt`/`revokedBy`/`active` field
 to show).
 
@@ -360,7 +366,7 @@ mcp_read, tools"); an unknown scope gets `400` with the list of valid scopes.
 Response (`201`) includes the transient `token` field, shown exactly once:
 
 ```json
-{ "id": 7, "label": "laptop", "scope": "tools",
+{ "id": 7, "label": "laptop", "scope": "tools", "legacyScope": false,
   "createdAt": "2026-06-05T10:00:00Z", "lastUsedAt": null,
   "token": "wkk_<plaintext-secret>" }
 ```
@@ -378,8 +384,8 @@ ownership gate as rotate.
 
 Every self-service issue/rotate/revoke is recorded in the audit log (see
 [AuditLog.md](AuditLog.md)) under category `ADMIN`, event types `apikey.issue` /
-`apikey.rotate` / `apikey.revoke` — same event types as the admin surface, actor
-is the caller's own login rather than an admin's.
+`apikey.rotate` / `apikey.revoke`; the actor is the caller's own login. (The admin
+surface records only `apikey.issue`.)
 
 Error responses:
 - `401` — not authenticated.
@@ -413,4 +419,4 @@ handled the revoke; other nodes honour a cached key for up to 60 seconds.
 ## Related
 
 - [ScimProvisioning.md](ScimProvisioning.md) — creating the accounts that keys are bound to (the account is for attribution and audit only)
-- [AuditLog.md](AuditLog.md) — key issuance is recorded as an `apikey.issue` audit event
+- [AuditLog.md](AuditLog.md) — key issuance is recorded as an `apikey.issue` audit event (self-service rotate and revoke also record `apikey.rotate` / `apikey.revoke`)

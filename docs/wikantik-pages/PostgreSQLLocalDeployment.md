@@ -1,9 +1,16 @@
 ---
 status: active
-type: article
 date: '2026-05-15'
-cluster: wikantik-development
 title: PostgreSQL Local Deployment
+related:
+- DevelopingWithPostgresql
+- DockerDeployment
+- ObservabilityDesign
+canonical_id: 01KQ0P44TNFQMPBHGY5R4G4A4F
+cluster:
+- wikantik-development
+- devops-sre
+type: article
 tags:
 - postgresql
 - deployment
@@ -12,11 +19,6 @@ tags:
 - pgvector
 summary: 'End-to-end guide for a fresh Wikantik PostgreSQL deployment: database bootstrap,
   WAR build, Tomcat setup, legacy JSPWiki corpus import, and index rebuild.'
-related:
-- DevelopingWithPostgresql
-- DockerDeployment
-- ObservabilityDesign
-canonical_id: 01KQ0P44TNFQMPBHGY5R4G4A4F
 ---
 # Fresh Deployment & Legacy Article Import
 
@@ -32,7 +34,7 @@ A complete deployment touches five things:
 | Tomcat 11 | Servlet container + JNDI DataSource | Downloaded automatically by `bin/deploy-local.sh` |
 | Page corpus | Markdown files under `docs/wikantik-pages/` | Version-controlled; no per-instance copy step |
 | Search indexes | Lucene (in `workDir`) + `content_chunk_embeddings` (Postgres) | Built on startup + async bootstrap |
-| Embedding backend | Ollama HTTP endpoint (optional) | External service; URL configured in properties |
+| Embedding backend | Ollama HTTP endpoint (optional) | `bin/deploy-local.sh` starts a CPU embeddings container on `localhost:11434` through Docker (opt out with `WIKANTIK_LOCAL_EMBEDDINGS=false` in `.env`); the URL is set by `wikantik.search.embedding.base-url` |
 
 ---
 
@@ -40,11 +42,12 @@ A complete deployment touches five things:
 
 | Tool | Version | Check |
 |------|---------|-------|
-| Java (JDK) | 21+ | `java -version` |
+| Java (JDK) | 25+ | `java -version` (the WAR is Java 25 bytecode; `deploy-local.sh` and `redeploy.sh` refuse an older runtime) |
 | Maven | 3.9+ | `mvn -version` |
-| Node.js + npm | 18+ | Required — the WAR build runs `npm install` + `vite build` automatically |
-| PostgreSQL | 15+ (with `pgvector`) | `psql --version`; pgvector is installed by `V004` |
-| `curl`, `tar` | — | Used by `deploy-local.sh` to fetch Tomcat |
+| Node.js + npm | 20.19+ (or 22.12+) | Required — the WAR build runs `npm install` + `vite build` automatically |
+| PostgreSQL | 15+ (with `pgvector` 0.5+) | `psql --version`; install the pgvector OS package first, then migration `V004` runs `CREATE EXTENSION vector` |
+| Docker | any recent | `deploy-local.sh` starts the local CPU embeddings container with it (the first run downloads a ~600 MB model); database unit tests also use pgvector containers |
+| `curl`, `tar` | — | Used by `deploy-local.sh` to fetch Tomcat and the JDBC driver |
 
 PostgreSQL must be reachable on `localhost:5432` (or override `PGHOST`/`PGPORT`).
 
@@ -59,29 +62,42 @@ PostgreSQL must be reachable on `localhost:5432` (or override `PGHOST`/`PGPORT`)
 ```bash
 sudo -u postgres \
     DB_NAME=wikantik \
-    DB_APP_USER=jspwiki \
-    DB_APP_PASSWORD='ChangeMe123!' \
-    bin/db/install-fresh.sh
+    DB_APP_USER=wikantik \
+    DB_APP_PASSWORD='choose-a-real-password' \
+    bin/db/install-fresh.sh --no-migrate-role
 ```
+
+`DB_APP_USER` / `DB_APP_PASSWORD` must match `POSTGRES_USER` / `POSTGRES_PASSWORD` in `.env` (step 3), or the application cannot connect. Without `--no-migrate-role` the script refuses to run unless `DB_MIGRATE_PASSWORD` is set.
 
 This creates:
 
 - Database `wikantik` with the `pgvector` extension installed
-- Application role `jspwiki` with `CONNECT` + `USAGE` on `public`
-- All tables from `bin/db/migrations/V001`–`V010` (users/roles/groups, policy grants, knowledge graph, content chunks + embeddings, API keys)
+- Application role `wikantik` with `CONNECT` + `USAGE` on `public`; each migration grants it DML on the tables it creates
+- Every table from the `bin/db/migrations/V*.sql` migrations (users/roles/groups, policy grants, knowledge graph, content chunks + embeddings, API keys, and the rest), plus the initial `admin` account
 - A `schema_migrations` table so `migrate.sh` knows what has been applied
 
-To bootstrap a dedicated migration role (recommended for production so `ALTER` migrations don't run as `postgres`), also set `DB_MIGRATE_PASSWORD` and the script will call `create-migrate-user.sh` and transfer ownership.
+`--no-migrate-role` runs the migrations as the superuser, which is the simplest local setup. To bootstrap a dedicated migration role instead (recommended for production so `ALTER` migrations don't run as `postgres`), omit the flag and set `DB_MIGRATE_PASSWORD`; the script will call `create-migrate-user.sh` and transfer ownership. See [Developing with PostgreSQL](DevelopingWithPostgresql) for the full database setup.
 
 ### 2. Build the WAR
 
 ```bash
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 ```
 
-This compiles all modules, builds the React frontend, and produces `wikantik-war/target/Wikantik.war`. Use a full `mvn clean install` (without `-Dmaven.test.skip`) before any production cutover to make sure the test suite is green.
+This compiles all modules, builds the React frontend, and produces `wikantik-war/target/Wikantik.war`. Use `-DskipTests`, not `-Dmaven.test.skip`: the latter also skips building `wikantik-main`'s test-jar, which other modules need, and breaks the full-reactor build. Run the full gate (`bin/run-tests.sh --parallel 4`) before any production cutover to make sure the test suite is green.
 
-### 3. Deploy to Tomcat
+### 3. Configure secrets
+
+`bin/deploy-local.sh` renders the Tomcat context file from a gitignored `.env` at the repository root. Create it from the template and set `POSTGRES_PASSWORD` to the same value you gave `DB_APP_PASSWORD`:
+
+```bash
+cp .env.example .env
+$EDITOR .env      # POSTGRES_PASSWORD=choose-a-real-password
+```
+
+If `.env` is missing, the first `deploy-local.sh` run copies `.env.example` to `.env` and then stops because `POSTGRES_PASSWORD` is still the `CHANGEME` placeholder; edit it and re-run. There is no hand-edit step for `ROOT.xml`.
+
+### 4. Deploy to Tomcat
 
 ```bash
 bin/deploy-local.sh
@@ -89,38 +105,25 @@ bin/deploy-local.sh
 
 The script is self-assembling. On first run it will:
 
-1. Download Tomcat 11 into `tomcat/tomcat-11/` (gitignored)
-2. Download the PostgreSQL JDBC driver to `tomcat/tomcat-11/lib/`
-3. Copy the context template to `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` with a `YOUR_SECURE_PASSWORD_HERE` placeholder
-4. Copy the properties template to `tomcat/tomcat-11/lib/wikantik-custom.properties`, substituting `@@REPO_ROOT@@` for the repo path
-5. Copy the Log4j config to `tomcat/tomcat-11/lib/log4j2.xml`
-6. Deploy `Wikantik.war` as `webapps/ROOT.war`
-7. Run `migrate.sh` against the target database (no-op on fresh install, applies any new migrations on subsequent runs)
-8. Run `bin/db/seed-users.sql` — upserts the `admin` / `admin123` and `jakefear@gmail.com` / `passw0rd` dev accounts
-9. Start Tomcat
+1. Check that `npm` and `wikantik-war/target/Wikantik.war` exist and that the Java runtime is 25+
+2. Source `.env` and refuse to continue if `POSTGRES_PASSWORD` is unset or `CHANGEME`
+3. Download Tomcat 11 into `tomcat/tomcat-11/` (gitignored)
+4. Download the PostgreSQL JDBC driver to `tomcat/tomcat-11/lib/postgresql.jar`
+5. Start the local CPU embeddings container (needs Docker; skipped with `WIKANTIK_LOCAL_EMBEDDINGS=false`)
+6. Render the config templates from `wikantik-war/src/main/config/tomcat/`: `conf/Catalina/localhost/ROOT.xml` (host, port, database, user and password from `.env`), `lib/wikantik-custom.properties` (substituting `@@REPO_ROOT@@` and the embedding URL), `lib/log4j2.xml`, `lib/wikantik-mcp.properties` and `bin/setenv.sh`, and patch `conf/context.xml` and `conf/server.xml`
+7. Deploy `Wikantik.war` as `webapps/ROOT.war`
+8. Run `migrate.sh` against the target database (no-op on fresh install, applies any new migrations on subsequent runs)
+9. Run `bin/db/seed-users.sql`, which ensures the `admin` / `admin123` account exists (insert-if-absent, so an existing account is never overwritten; the first login forces a new password), then `bin/db/seed-users.local.sql` if you have that gitignored file
+10. Start Tomcat
 
-### 4. Set the database password
-
-Edit the context file to replace the placeholder:
-
-```bash
-$EDITOR tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml
-# username="wikantik" → username="jspwiki"
-# password="YOUR_SECURE_PASSWORD_HERE" → password="ChangeMe123!" (or whatever you set)
-```
-
-Restart Tomcat so the DataSource picks up the new password:
-
-```bash
-tomcat/tomcat-11/bin/shutdown.sh
-tomcat/tomcat-11/bin/startup.sh
-```
+Templated config is write-once: each file is rendered on the first deploy and never overwritten, so your edits survive redeploys, but later changes to the templates do not reach an existing install. Edit the deployed file by hand, or delete it and re-run `deploy-local.sh`.
 
 ### 5. Verify the Deployment
 
 - Browse http://localhost:8080/ — the React SPA should load.
-- Log in as `admin` / `admin123` (change this immediately if the instance is anything more than local scratch).
-- Visit `/admin/content/stats` from the admin UI — confirm page count and index status.
+- Log in as `admin` / `admin123`; you are asked to choose a new password on first login (change it immediately if the instance is anything more than local scratch).
+- Open Admin > Content (`/admin/content`) — the Dashboard shows the page count and the Index Status tab shows the search-index state.
+- `curl -s http://localhost:8080/api/health` reports engine, database and search-index health (it answers only to loopback and private-network clients).
 - Tail `tomcat/tomcat-11/logs/catalina.out` for any DataSource errors.
 
 For automated testing, `test.properties` (gitignored) holds a dedicated `testbot` admin account — see `CLAUDE.md` for how to recreate it after a database reset.
@@ -164,14 +167,14 @@ Drop the `OLD/` hierarchy if you do not want to preserve old revisions as separa
 
 ### 3. Convert wiki syntax to Markdown
 
-The `scripts/wiki2markdown.py` converter is a faithful port of `WikiToMarkdownConverter.java`. It scans a directory for `.txt` files, scores each against a wiki-syntax heuristic, converts if the score is above threshold, renames straight to `.md` if the file is already Markdown, and deletes the source `.txt`.
+The `bin/wiki2markdown.py` converter is a faithful port of `WikiToMarkdownConverter.java`. It scans a directory for `.txt` files, scores each against a wiki-syntax heuristic, converts if the score is above threshold, renames straight to `.md` if the file is already Markdown, and deletes the source `.txt`.
 
 ```bash
 # Dry-run first — prints every planned action with per-file warnings
-python3 scripts/wiki2markdown.py /tmp/wikantik-import --dry-run
+python3 bin/wiki2markdown.py /tmp/wikantik-import --dry-run
 
 # Commit the conversion
-python3 scripts/wiki2markdown.py /tmp/wikantik-import
+python3 bin/wiki2markdown.py /tmp/wikantik-import
 ```
 
 Conversions performed:
@@ -182,7 +185,7 @@ Conversions performed:
 | `__bold__` | `**bold**` |
 | `''italic''` | `*italic*` |
 | `{{inline code}}` | `` `inline code` `` |
-| `[PageName]` | `[PageName]()` (Flexmark plugin syntax — Wikantik resolves the empty URL on render) |
+| ``[PageName]`` | ``[PageName]`()` (Flexmark plugin syntax — Wikantik resolves the empty URL on render) |
 | `[text|url]` | `[text](http://example.com)` |
 | `[{Plugin args}]` | `[{Plugin args}]()` |
 | `{{{ code block }}}` | triple-backtick fenced block |
@@ -199,13 +202,16 @@ cp /tmp/wikantik-import/*.md       docs/wikantik-pages/
 cp /tmp/wikantik-import/*.properties docs/wikantik-pages/ 2>/dev/null || true
 ```
 
-Attachments are not yet version-controlled in `docs/wikantik-pages/`. If the legacy corpus uses them:
+Attachments are not version-controlled in `docs/wikantik-pages/`. They live in the directory named by `wikantik.basicAttachmentProvider.storageDir`, which is blank by default (meaning a `wikantik-files` directory in the user's home folder) and is not set by the local template. If the legacy corpus uses attachments, point that property at a directory in `wikantik-custom.properties` and copy them there:
 
 ```bash
-# Attachments live under the wiki workDir, referenced by wikantik.basicAttachmentProvider.storageDir
-mkdir -p tomcat/tomcat-11/data/attachments
-cp -R /tmp/wikantik-import/attachments/* tomcat/tomcat-11/data/attachments/
+# In tomcat/tomcat-11/lib/wikantik-custom.properties:
+#   wikantik.basicAttachmentProvider.storageDir = /path/to/attachments
+mkdir -p /path/to/attachments
+cp -R /tmp/wikantik-import/attachments/* /path/to/attachments/
 ```
+
+(A Markdown or Obsidian vault does not need this conversion route: see `docs/user/ObsidianImportExport.md` for the vault importer.)
 
 ### 5. Backfill frontmatter (optional)
 
@@ -220,7 +226,7 @@ summary: One-line summary for search and link previews.
 ---
 ```
 
-Run a small script over the staging directory to inject this block on every `.md` file that does not already have one — the import script at `scripts/wiki2markdown.py` does **not** do this for you.
+Run a small script over the staging directory to inject this block on every `.md` file that does not already have one — the import script at `bin/wiki2markdown.py` does **not** do this for you.
 
 ### 6. Commit and redeploy
 
@@ -234,11 +240,14 @@ bin/deploy-local.sh
 
 ### 7. Rebuild Lucene and Embedding Indexes
 
-**Lucene + chunks** — via admin UI at `/admin/index-status`, or via REST:
+**Lucene + chunks** — via the admin UI (Admin > Content > Index Status), the helper script, or REST:
 
 ```bash
-source <(grep -v '^#' test.properties | sed 's/test.user.//' | sed 's/= /="/' | sed 's/$/"/')
+bin/trigger-rebuild-indexes.sh            # kicks off the rebuild (logs in with test.properties)
+bin/trigger-rebuild-indexes.sh status     # polls /admin/content/index-status
 
+# or directly, as the testbot admin account from test.properties:
+source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')
 curl -u "${login}:${password}" -X POST \
      http://localhost:8080/admin/content/rebuild-indexes
 ```
@@ -264,19 +273,16 @@ After the one-time setup, redeploying is a single command:
 bin/deploy-local.sh
 ```
 
-The script is safe to re-run: it preserves the context file (and therefore the DB password), reapplies any new migrations, re-seeds users, and restarts Tomcat. Rebuild the project first with `mvn clean install -Dmaven.test.skip -T 1C` if you have source changes.
+The script is safe to re-run: it preserves the rendered config files (and therefore the DB password), reapplies any new migrations, ensures the admin account exists, and restarts Tomcat. Rebuild the project first with `mvn clean install -DskipTests -T 1C` if you have source changes.
 
-For a faster iteration when only the WAR has changed:
+For faster iteration when only the code has changed, use the fast path:
 
 ```bash
-mvn clean install -Dmaven.test.skip -T 1C -pl wikantik-war -am
-tomcat/tomcat-11/bin/shutdown.sh
-rm -rf tomcat/tomcat-11/webapps/ROOT tomcat/tomcat-11/webapps/ROOT.war \
-       tomcat/tomcat-11/data/workdir tomcat/tomcat-11/logs/wikantik
-
-cp wikantik-war/target/Wikantik.war tomcat/tomcat-11/webapps/ROOT.war
-tomcat/tomcat-11/bin/startup.sh
+mvn clean install -DskipTests -T 1C
+bin/redeploy.sh    # stop Tomcat, rotate catalina.out, swap the WAR, apply pending migrations, start
 ```
+
+`redeploy.sh` does not re-render templates, validate secrets or seed users; use `deploy-local.sh` for anything that touches those. It keeps `tomcat/tomcat-11/data/workdir`, so the Lucene index survives; delete that directory yourself if you want a clean index rebuild.
 
 ---
 
@@ -290,7 +296,10 @@ Located in `wikantik-war/src/main/config/tomcat/`:
 |------|--------------|---------|
 | `Wikantik-context.xml.template` | `conf/Catalina/localhost/ROOT.xml` | JNDI DataSource for PostgreSQL |
 | `wikantik-custom-postgresql.properties.template` | `lib/wikantik-custom.properties` | Wiki settings (page dir, workDir, admin bootstrap, hybrid search, CORS) |
-| `log4j2-local.xml.template` | `lib/log4j2.xml` | Logging config pointed at `${catalina.base}/logs/wikantik` |
+| `wikantik-mcp.properties.template` | `lib/wikantik-mcp.properties` | MCP server settings (both MCP endpoints) |
+| `log4j2-local.xml.template` | `lib/log4j2.xml` | Logging config pointed at `${catalina.base}/logs/wikantik` (honored once `wikantik.use.external.logconfig = true`; see [Logging Configuration](LoggingConfig)) |
+| `Tomcat-context.xml.template`, `Tomcat-server.xml.template` | patched into `conf/context.xml` and `conf/server.xml` | Session-cookie SameSite policy; reverse-proxy and access-log valves |
+| `setenv.sh.template` | `bin/setenv.sh` | Tomcat launch environment (Vector API flags, request backpressure cap) |
 
 ### Key properties
 
@@ -304,7 +313,7 @@ Located in `wikantik-war/src/main/config/tomcat/`:
 | `wikantik.admin.bootstrap` | _unset_ | Set to a login name on first deploy to guarantee admin access; remove after |
 | `wikantik.frontmatter.autoDefaults` | `true` | Generates minimal frontmatter on save for pages without it |
 | `wikantik.search.hybrid.enabled` | `true` | Toggle dense retrieval; falls back to BM25 if off |
-| `wikantik.search.embedding.base-url` | `http://inference.jakefear.com:11434` | Ollama endpoint |
+| `wikantik.search.embedding.base-url` | ini default `http://inference.jakefear.com:11434` (a decommissioned host); `deploy-local.sh` renders `http://localhost:11434` from `WIKANTIK_EMBEDDING_BASE_URL` | Ollama endpoint |
 | `wikantik.search.embedding.model` | `qwen3-embedding-0.6b` | Also supports `nomic-embed-v1.5`, `bge-m3` |
 | `wikantik.cors.allowedOrigins` | _unset_ | Comma list; supports `https://*.example.com` wildcards |
 
@@ -317,19 +326,19 @@ Located in `wikantik-war/src/main/config/tomcat/`:
 | Symptom | Cause | Resolution |
 |---------|-------|------------|
 | `Connection refused` in `catalina.out` | PostgreSQL not running | `sudo systemctl start postgresql` |
-| `Password authentication failed for user "jspwiki"` | Password mismatch between `ROOT.xml` and role | Edit `ROOT.xml`; restart Tomcat |
+| `Password authentication failed for user "wikantik"` | Password mismatch between `ROOT.xml` and role | Edit `ROOT.xml` (or delete it and re-run `deploy-local.sh` after fixing `.env`); restart Tomcat |
 | `relation "users" does not exist` | Migrations never ran | `DB_NAME=wikantik bin/db/migrate.sh --status` to check state; then run without `--status` to apply |
 | `must be owner of table X` during migrate | Tables owned by `postgres`, running as `migrate` | Re-run `bin/db/create-migrate-user.sh` to transfer ownership |
-| `extension "vector" is not available` | pgvector not installed on server | `sudo apt install postgresql-15-pgvector` (or the distro equivalent) |
+| `extension "vector" is not available` | pgvector not installed on server | `sudo apt install postgresql-<version>-pgvector` (or the distro equivalent), then restart PostgreSQL |
 
 ### Deployment Errors
 
 | Symptom | Cause | Resolution |
 |---------|-------|------------|
-| `WAR file not found` | Build not run | `mvn clean install -Dmaven.test.skip -T 1C` |
-| `npm not found` | Node.js missing | Install Node 18+; the WAR build depends on `vite` |
+| `WAR file not found` | Build not run | `mvn clean install -DskipTests -T 1C` |
+| `npm not found` | Node.js missing | Install Node 20.19+ (or 22.12+); the WAR build depends on `vite` |
 | `JNDI name not found` | Context file not loaded | Confirm `ROOT.xml` exists in `conf/Catalina/localhost/` |
-| Login fails with seeded password | Schema mismatch after a reset | Re-run `psql -d wikantik -f bin/db/seed-users.sql` |
+| Login fails with seeded password | The admin password was already changed, or the admin row is missing | `seed-users.sql` is insert-if-absent: re-run `deploy-local.sh` to re-create a missing admin, or use the `UPDATE` in the header of `bin/db/seed-users.sql` to reset it to `admin123` |
 | 500 on admin API after DB restart | Expected: fail-soft for reads, hard-fail for writes | Connection pool reheats on next request; admin writes need the DB back |
 
 ### Index Errors
@@ -367,8 +376,8 @@ rm -rf tomcat/tomcat-11/webapps/ROOT tomcat/tomcat-11/webapps/ROOT.war \
 
 # Database
 sudo -u postgres psql -c 'DROP DATABASE wikantik;'
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
-     DB_APP_PASSWORD='ChangeMe123!' bin/db/install-fresh.sh
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
+     DB_APP_PASSWORD='choose-a-real-password' bin/db/install-fresh.sh --no-migrate-role
 
 # Redeploy
 bin/deploy-local.sh
@@ -379,8 +388,8 @@ bin/deploy-local.sh
 ## Related Documentation
 
 - [Developing with PostgreSQL](DevelopingWithPostgresql) — JDBC and JNDI configuration reference
-- [Docker Deployment](DockerDeployment) — containerized production deployment
+- [Docker Deployment](DockerDeployment) and [Wikantik on Docker](WikantikOnDocker) — containerized production deployment
 - [Observability Design](ObservabilityDesign) — health checks, Prometheus metrics, request correlation
-- [Index Rebuild](IndexRebuild) — deeper dive on Lucene + embedding rebuild internals
+- [Search Index and Knowledge Graph Rebuild](SearchIndexAndKnowledgeGraphRebuild) — Lucene, chunk, embedding and Knowledge Graph rebuild runbook
 - `bin/db/migrations/README.md` — migration conventions for schema changes
 - `CLAUDE.md` — sole-developer workflow notes, test credentials, and dev shortcuts

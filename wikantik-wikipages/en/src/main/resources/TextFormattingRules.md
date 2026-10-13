@@ -11,9 +11,11 @@ Pages are written in Markdown (CommonMark with GitHub-style tables, footnotes an
 | `~~struck~~` | ~~struck~~ |
 | a word in backticks | inline code |
 | `# Heading` to `###### Heading` | headings (use one `#` heading per page) |
-| `---` on its own line | horizontal rule |
+| `---` on its own line, after a blank line | horizontal rule |
 
 Lists start with `* ` or `1. `; indent by four spaces to nest. A blank line starts a new paragraph. Put code in a fenced block with the language after the opening fence.
+
+Task lists (`- [ ] to do`, `- [x] done`), footnotes (`[^1]` in the text and a `[^1]: note` line), definition lists (a term, then `: definition` on the next line) and Obsidian-style callouts (a blockquote whose first line is `> [!note] Title`; `tip`, `warning` and `danger` also work) are supported too.
 
 ## Tables
 
@@ -34,7 +36,7 @@ Lists start with `* ` or `1. `; indent by four spaces to nest. A blank line star
 | `[label](https://example.com)` | external link |
 | `![[PageName]]` | embed another page (alone on its line) |
 
-A link to a page that does not exist yet marks the page as missing; follow it to create the page. See [WikiName](WikiName) for how names resolve and [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md) for attachments and embeds.
+The backslash in `\|` is only needed inside a table cell; elsewhere write `[[PageName|label]]`. A link to a page that does not exist yet marks the page as missing; follow it to create the page. See [WikiName](WikiName) for how names resolve and [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md) for attachments and embeds.
 
 ## Math
 
@@ -42,7 +44,7 @@ Write inline math as `$x^2$` with no space inside the dollar signs. Write displa
 
 ## Plugins and page rules
 
-* `[{TableOfContents}]()` and other plugins use the `[{Plugin}]()` form. [PageIndex](PageIndex) and [RecentChanges](RecentChanges) are built this way.
+* `[{TableOfContents}]()` and other plugins use the `[{Plugin}]()` form. A plugin is named by its class, for example `[{RecentChangesPlugin}]()` or `[{ReferringPagesPlugin}]()`; [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md) lists the ones that ship. [PageIndex](PageIndex) and [RecentChanges](RecentChanges) are built this way.
 * `[{ALLOW view Admin}]()` restricts who may view a page, and `[{ALLOW edit alice,bob}]()` who may edit it. Name people by their login name.
 * Raw HTML is rendered after it is sanitised: scripts, frames, forms, event-handler attributes and unsafe link schemes are removed. Prefer Markdown and plugins.
 

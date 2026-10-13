@@ -413,7 +413,8 @@ value never verifies.
 no flag to emit bcrypt directly.
 
 ```bash
-java -cp wikantik-util/target/wikantik-util-*.jar \
+# The wikantik-util jar alone lacks the bcrypt classes; the deployed WAR's lib has everything.
+java -cp 'tomcat/tomcat-11/webapps/ROOT/WEB-INF/lib/*' \
     com.wikantik.util.CryptoUtil --hash "mypassword"
 ```
 

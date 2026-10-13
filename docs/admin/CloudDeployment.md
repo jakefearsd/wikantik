@@ -139,9 +139,13 @@ by hand if you're pointing at RDS/Cloud SQL.
 
 `.github/workflows/release.yml` publishes
 `ghcr.io/jakefearsd/wikantik:{version,latest}` on every tag push (multi-arch).
-The image is **private** — set `GHCR_USER`/`GHCR_TOKEN` (a GitHub PAT with
-`read:packages`, or a fine-grained token scoped to the package) so
-cloud-init's `docker login ghcr.io` can pull it. Pin an explicit tag in
+The Terraform modules treat the image as **private**: `ghcr_user`/`ghcr_token`
+(a GitHub PAT with `read:packages`, or a fine-grained token scoped to the
+package) are required inputs, and cloud-init's `docker login ghcr.io` uses
+them to pull it. When this guide was last verified (2026-10-13) the
+`ghcr.io/jakefearsd/wikantik` package also answered anonymous pulls, so the
+login only matters while the package stays private; check the package's
+visibility before relying on either behaviour. Pin an explicit tag in
 `WIKANTIK_IMAGE`/`wikantik_image` (e.g. `ghcr.io/jakefearsd/wikantik:2.3.7`)
 rather than `:latest`, so `terraform apply` stays reproducible.
 

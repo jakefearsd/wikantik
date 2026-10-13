@@ -1,6 +1,6 @@
 # Wiki Names
 
-Every page has a name, which is also the last part of its address (`/wiki/PageName`). Page names in this wiki are CamelCase words made of letters and digits, such as `OneMinuteWiki`. The **New Article** dialog builds one from the title you type and lets you edit it before the page is created. It cannot be changed there once the page exists.
+Every page has a name, which is also the last part of its address (`/wiki/PageName`). Page names in this wiki are CamelCase words made of letters and digits, such as `OneMinuteWiki`. The **New Article** dialog builds one from the title you type and lets you edit it before the page is created; it accepts only letters and digits, up to 100 characters. It cannot be changed there once the page exists, but a user with the rename permission can use **Rename** on the page, and links from other pages are updated.
 
 ## How a link finds its page
 

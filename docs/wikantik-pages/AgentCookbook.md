@@ -1,21 +1,24 @@
 ---
-canonical_id: 01KQ44QTJGS34S8VKGDMPTK9TC
+date: ''
 title: Agent Cookbook
-type: hub
-cluster: agent-cookbook
-audience: [agents, humans]
-summary: "Hub of scenario-keyed runbooks for AI coding agents working with this wiki and codebase. Each entry is a `type: runbook` page whose schema-validated frontmatter answers a specific recurring question."
-tags:
-  - agent-context
-  - runbook
-  - cookbook
 related:
-  - AgentGradeContentDesign
-  - StructuralSpineDesign
-  - HybridRetrieval
-  - GoodMcpDesign
+- AgentGradeContentDesign
+- StructuralSpineDesign
+- HybridRetrieval
+- GoodMcpDesign
+audience:
+- agents
+- humans
+canonical_id: 01KQ44QTJGS34S8VKGDMPTK9TC
+cluster: agent-cookbook
+type: hub
+tags:
+- agent-context
+- runbook
+- cookbook
+summary: 'Scenario-keyed runbooks for AI coding agents working with this wiki and
+  codebase: retrieval, authoring, tooling, setup and maintenance.'
 ---
-
 # Agent Cookbook
 
 Scenario-keyed reference for AI coding agents that need to *do* something
@@ -37,6 +40,10 @@ agent thrashing in MCP transcripts can be summarised in two-to-five
 imperative steps. Topic-keyed how-tos go in narrative articles instead.
 
 ## Members
+
+### Setup
+
+- [ConnectingClaudeCodeToWikantikMcp](ConnectingClaudeCodeToWikantikMcp) — which URL and API key go in which file when wiring Claude Code to the read-only and admin MCP servers.
 
 ### Retrieval and citation
 
@@ -61,6 +68,12 @@ imperative steps. Topic-keyed how-tos go in narrative articles instead.
 - [PlanningAMigrationChange](PlanningAMigrationChange) — what tables, files, and tests to touch.
 - [DebuggingFailingIntegrationTests](DebuggingFailingIntegrationTests) — port conflicts, Cargo, pgvector.
 - [BuildingAndDeployingLocally](BuildingAndDeployingLocally) — one-screen canonical flow.
+- [RunningTheJudgeExperimentHarness](RunningTheJudgeExperimentHarness) — `bin/kg-judge-experiment.sh`: compare Knowledge Graph proposal-judge models before changing the extractor's `--judge` default.
+
+### Wiki maintenance and content strategy
+
+- [WikiAuditDemandLoop](WikiAuditDemandLoop) — the recurring audit loop: sweep under-served queries with `list_retrieval_queries`, confirm with `assemble_bundle`, flag stale pages.
+- [ContentFeedbackLoopFocus](ContentFeedbackLoopFocus) — what content agents should work on, and what to avoid, derived from measured search data (see [ContentIntelligenceDesign](ContentIntelligenceDesign)).
 
 ## Authoring a new runbook
 
@@ -81,9 +94,11 @@ pass — both grow over time as the project evolves.
 
 ### Cookbook expansion
 
-The 15 seed runbooks listed under [Members](#members) cover the
-scenarios that were obvious at launch (2026-04-25). New runbooks land
-when one of three triggers fires:
+The 15 seed runbooks listed under [Members](#members) (everything
+except the Setup and Wiki maintenance groups and
+RunningTheJudgeExperimentHarness) cover the scenarios that were obvious
+at launch (2026-04-25). New runbooks land when one of three triggers
+fires:
 
 - **Observed agent thrashing.** An MCP transcript shows an agent
   retrying the same operation 3+ times with different phrasings, or
@@ -102,10 +117,11 @@ What does NOT belong as a runbook:
 - Speculative procedures with no observed need.
 
 The validator (`FrontmatterRunbookValidator`) enforces structural rules
-at save time: ≥1 `when_to_use`, ≥2 `steps`, ≥1 `pitfalls`,
-`related_tools` matching `/api|knowledge-mcp|wikantik-admin-mcp|tools/*`
-or bare snake_case names, `references` resolving to canonical_ids or
-page titles. A save that violates any of these returns
+at save time: ≥1 `when_to_use`, ≥2 `steps`, ≥1 `pitfalls`;
+`related_tools` entries that are either a path under `/api/`, `/admin/`,
+`/knowledge-mcp/`, `/wikantik-admin-mcp/` or `/tools/`, or a bare
+snake_case or kebab-case tool name; and `references` that resolve to
+canonical_ids or page titles. A save that violates any of these returns
 `FilterException` naming the issue kind.
 
 ### Trusted-authors registry growth
@@ -121,6 +137,10 @@ table:
 - No verification, or verification older than 90 days →
   `confidence: stale`.
 
+The 90-day window is `wikantik.verification.stale_days` (default 90),
+and a page can pin its own `confidence:` in frontmatter, which
+overrides the computed value.
+
 The wiki currently runs single-developer, so `trusted_authors` has one
 row (`jakefear`). Adding contributors is a one-line `INSERT` per
 person:
@@ -131,9 +151,11 @@ VALUES ('alice', 'primary maintainer, security')
 ON CONFLICT (login_name) DO NOTHING;
 ```
 
-The cache (`TrustedAuthorsDao`) refreshes on the next save event, so
-the new author's verifications start producing `authoritative` results
-immediately.
+`TrustedAuthorsDao` loads the table once at startup and caches it; the
+cache refreshes only on writes made through that class, and nothing in
+the application writes to it. A row added with SQL is therefore not
+seen until the wiki restarts; after the restart the new author's
+verifications start producing `authoritative` results.
 
 When to add a new trusted author:
 

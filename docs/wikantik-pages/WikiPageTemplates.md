@@ -1,21 +1,20 @@
 ---
-canonical_id: 01KQ0P44Z2HDXRY0F7FHWRHSYJ
-title: Wiki Page Templates
-type: article
-cluster: wikantik-development
 status: active
 date: '2026-04-26'
-summary: How to design page templates that make wiki content consistent — common
-  page types, structural patterns, and the trade-offs between rigid templates and
-  free-form pages.
+title: Wiki Page Templates
+related:
+- WikiContentManagementWorkflow
+- WikiSearchOptimization
+canonical_id: 01KQ0P44Z2HDXRY0F7FHWRHSYJ
+cluster: wikantik-development
+type: article
 tags:
 - wiki
 - templates
 - consistency
 - wikantik-development
-related:
-- WikiContentManagementWorkflow
-- WikiSearchOptimization
+summary: How to design page templates that make wiki content consistent — common page
+  types, structural patterns, and the trade-offs between rigid templates and...
 ---
 # Wiki Page Templates
 
@@ -306,6 +305,20 @@ For new wikis:
 5. Periodic review and update
 
 For existing wikis without templates: extract patterns from existing high-quality pages; codify.
+
+## Page templates in Wikantik
+
+The sections above are generic and use example `type` values (`concept`, `howto`, `adr`, `meeting`) that Wikantik does not define. Wikantik ships its own built-in, type-aware templates:
+
+- **Where they come from.** `GET /api/page-templates` returns them (read-only, cacheable for five minutes). The New Article dialog fetches that list, offers a type picker, and starts the new page from the chosen template. They are defined in `PageTemplates` (`wikantik-api`), versioned with the frontmatter schema, and a test pins each one as valid against the schema validator.
+- **One template per canonical `type`.** The five types are `article`, `reference`, `design`, `runbook` and `hub`:
+  - `article` is just the title heading.
+  - `reference` adds Summary, Details and See also.
+  - `design` adds Context, Goals, Non-goals, Design, Alternatives considered and Status.
+  - `runbook` adds a Notes section and a pre-filled `runbook:` frontmatter block (`when_to_use`, `steps`, `pitfalls`), which the validator requires on runbook pages.
+  - `hub` is the entry page that declares and introduces a cluster (Overview, Start here).
+- **What the dialog fills in.** Each template sets `type` and `status: active`; the dialog replaces the `{{title}}` placeholder and adds `date` and `cluster`.
+- **Frontmatter vocabulary.** Use the canonical `type` values above and the `status` values `draft`, `active` and `archived`, not the generic example in this page. Validation is server-authoritative and mostly advisory; see [Frontmatter Conventions](FrontmatterConventions).
 
 ## Further Reading
 

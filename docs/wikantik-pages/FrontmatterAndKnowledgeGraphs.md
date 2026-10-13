@@ -1,28 +1,29 @@
 ---
-canonical_id: 01KQ0P44QG244NCE3SC0M5EM18
-title: Frontmatter and Knowledge Graphs
-type: article
-cluster: wikantik-development
 status: active
 date: '2026-04-26'
-summary: How structured frontmatter feeds knowledge graphs — entities, relationships,
-  metadata as first-class data — and the patterns that turn a wiki into a queryable
-  knowledge base.
+title: Frontmatter and Knowledge Graphs
+related:
+- WikiPageTemplates
+- WikiSearchOptimization
+- PropertyGraphModel
+canonical_id: 01KQ0P44QG244NCE3SC0M5EM18
+cluster: wikantik-development
+type: article
 tags:
 - frontmatter
 - knowledge-graph
 - structured-data
 - wikantik-development
-related:
-- WikiPageTemplates
-- WikiSearchOptimization
-- PropertyGraphModel
+summary: How structured frontmatter feeds knowledge graphs — entities, relationships,
+  metadata as first-class data — and the patterns that turn a wiki into a...
 ---
 # Frontmatter and Knowledge Graphs
 
 A wiki page is text. With frontmatter, it's also structured data. With consistent frontmatter conventions, the wiki becomes a queryable knowledge graph.
 
 This page covers how frontmatter feeds knowledge graphs and the patterns for designing useful schema.
+
+> **In Wikantik (2026-10-13):** page frontmatter does **not** populate the Knowledge Graph. The Knowledge Graph (`kg_*` tables) holds LLM-extracted entities built from page text; the projector that once turned frontmatter into graph nodes and edges was retired in April 2026 (see [GraphProjector](GraphProjector) and [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)). Frontmatter instead drives the structural index (clusters, tags, canonical ids), the RDF ontology's page and concept graphs, the agent projection at `/api/pages/for-agent/{id}`, and one Knowledge Graph control, `kg_include`. The generic sections below describe the general model; read "edges" there as links between pages, not Knowledge Graph edges.
 
 ## What frontmatter is
 
@@ -79,7 +80,7 @@ date: ...
 type: article | hub | runbook | ...
 ```
 
-Validation enforces presence.
+Validation enforces presence. (In Wikantik the frontmatter schema has no required fields: `canonical_id` is assigned automatically on first save, and field-value checks are advisory.)
 
 ### Optional fields
 
@@ -108,7 +109,7 @@ A page with `type: article` doesn't need that.
 
 The Wikantik agent-cookbook uses this pattern.
 
-## Knowledge graph mechanics
+## Knowledge graph mechanics (the generic model)
 
 ### Nodes
 
@@ -137,23 +138,24 @@ This is a structured query; doesn't require text search.
 
 ## Wikantik specifics
 
-Per CLAUDE.md, Wikantik's structural spine + agent-grade content design uses frontmatter heavily:
+Wikantik's structural spine + agent-grade content design uses frontmatter heavily:
 
-- `canonical_id`: stable identifier (ULID)
-- `cluster`: thematic grouping
+- `canonical_id`: stable identifier (ULID), assigned on first save and kept across renames
+- `cluster`: thematic grouping; a scalar, or a list on non-hub pages. The one page with `type: hub` and a `cluster:` value declares that cluster (see [ClusterDeclarationDesign](ClusterDeclarationDesign))
 - `tags`: topic tags
 - `related`: cross-references
-- `hubs`: hub page memberships
-- `type`: page type (article, hub, runbook)
-- `status`: lifecycle state
+- `type`: page type (article, hub, reference, runbook, design)
+- `status`: lifecycle state (draft, active, archived)
 - `verified_at`, `verified_by`, `confidence`: verification metadata
 - `audience`: humans / agents / both
+- `kg_include`: per-page override of Knowledge Graph inclusion (see [KgInclusionPolicy](KgInclusionPolicy))
 
 These feed:
 - The structural-spine index
-- Knowledge-graph traversal
+- The RDF ontology's page and concept graphs (tags and clusters become SKOS concepts)
 - Agent-grade content projection (`/api/pages/for-agent/{id}`)
 - Verification dashboards
+- Knowledge Graph inclusion (`cluster` and `kg_include`), but not Knowledge Graph content
 
 ## Design principles
 
@@ -167,7 +169,7 @@ Without schema, frontmatter is inconsistent; queries don't work.
 
 Tools validate frontmatter at save time. Pages with invalid schema reject (or warn).
 
-Wikantik uses save-time enforcement via `StructuralSpinePageFilter` and `RunbookValidationPageFilter`.
+Wikantik uses save-time enforcement via `StructuralSpinePageFilter` (it assigns a missing `canonical_id` and rejects an invalid `kg_include`) and `RunbookValidationPageFilter`. The schema-driven field checks (non-canonical `type` or `status`, odd dates, non-kebab clusters) are advisory warnings, and malformed YAML is rejected.
 
 ### Consistency
 
@@ -200,9 +202,7 @@ Tools surface broken cross-references.
 
 ### Hub pages
 
-Hub pages have `type: hub` and list cluster members. The cluster's pages reference back via `hubs:` field.
-
-Bidirectional links: hub lists members; members reference hub.
+In Wikantik, a hub page has `type: hub` and a scalar `cluster:` value that declares the cluster; member pages join it by carrying the same `cluster:` value. The earlier `hubs:` membership field is retired (see [ClusterDeclarationDesign](ClusterDeclarationDesign)), so there is one authoritative mechanism rather than two lists to keep in step.
 
 ### Confidence and verification
 
@@ -269,7 +269,7 @@ For wikis using frontmatter for knowledge graphs:
 1. Define schema explicitly
 2. Validate on save
 3. Tags from controlled vocabulary
-4. Bidirectional cross-references (hubs ↔ members)
+4. One authoritative membership mechanism (in Wikantik, the hub declares the cluster and members carry `cluster:`)
 5. Periodic graph audit
 6. Tool-supported updates (don't expect humans to maintain manually)
 

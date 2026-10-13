@@ -1,7 +1,6 @@
 ---
-summary: Unified production monitoring standard for Wikantik — OpenTelemetry instrumentation,
-  Prometheus metrics naming, and Grafana dashboard patterns.
-title: Observability and Monitoring Blueprint
+cluster: devops-sre
+type: reference
 tags:
 - observability
 - monitoring
@@ -11,14 +10,16 @@ tags:
 - metrics
 - health-checks
 - sre
-cluster: devops-sre
-type: reference
-date: 2026-05-03T00:00:00Z
-status: active
+title: Observability and Monitoring Blueprint
+summary: Target monitoring standard (RED/USE, OpenTelemetry, Prometheus naming, health
+  probes) for several projects; Wikantik's actual setup is in the status note.
 canonical_id: 01KQRPCRTW9GSE359WVS9FJQRM
+status: active
+date: '2026-05-03'
 ---
-
 # Observability & Monitoring: The Unified Blueprint
+
+> **Status (2026-10-13):** This blueprint is a target standard, and Wikantik does not follow it literally. Wikantik is instrumented with Micrometer, not the OpenTelemetry SDK (the codebase has no OpenTelemetry dependency). `GET /metrics` serves Prometheus text with `wikantik_`-prefixed meters, and there is one health endpoint, `GET /api/health` (JSON status `UP`, `DEGRADED` or `DOWN`, HTTP 503 when `DOWN`), rather than the startup/readiness/liveness triad in section 3. Both endpoints answer only to loopback and private-network clients. Wikantik ships no Grafana dashboards of its own: its self-hosted observability overlay was removed on 2026-05-19, and dashboards and alert rules now live in the jakemon observability plane (see [JakemonHub](JakemonHub) and [Simple Agility Observability Plane](SimpleAgilityObservabilityPlane)). The cross-product rules actually in force are in the [Simple Agility Telemetry Contract](SimpleAgilityTelemetryContract): a product-prefixed `/metrics` endpoint, ECS-style JSON logs on stdout, and one unauthenticated liveness endpoint whose path the product chooses (Wikantik's is `/api/health`). The plane attaches the `service` and `service_instance` labels; the product does not emit them itself.
 
 To ensure consistent operational visibility across `wealthview`, `hud`, `operatorvoice`, and `Wikantik`, all services must adhere to this unified monitoring standard. We prioritize **OpenTelemetry (OTel)** for instrumentation and **Prometheus/Grafana** for collection and visualization.
 
@@ -83,6 +84,7 @@ For an agent instrumenting a new service (e.g., **operatorvoice**), the prompt s
 > "Following the `ObservabilityAndMonitoringBlueprint`, instrument this Python service with OpenTelemetry to track RED metrics for the voice-interaction loops and expose a `/health/ready` endpoint that verifies the STT and TTS service connectivity."
 
 ## See Also
+- [WealthViewArchitectureBaseline](WealthViewArchitectureBaseline) — Architecture baseline for the wealthview project.
 - [HealthCheckPatterns](HealthCheckPatterns) — Deep-dive on probe implementation.
 - [CloudMonitoring](CloudMonitoring) — Survey of available cloud tools.
 - [AiObservabilityInProduction](AiObservabilityInProduction) — Specific metrics for LLM and Agentic systems.

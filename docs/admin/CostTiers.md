@@ -21,9 +21,9 @@ has three values, read from `wikantik.genai.mode`:
 | `embeddings-only` | yes | no |
 | `none` | no | no |
 
-An absent, blank, or unrecognized value silently falls back to `full` (fail
-open, never fail closed on a typo) — but a bad value still logs a warning
-naming it, so an operator who *wanted* enforcement can see the miss.
+An absent value falls back to `full` silently. A blank or unrecognized value
+also falls back to `full` (fail open, never fail closed on a typo) but logs a
+warning naming it, so an operator who *wanted* enforcement can see the miss.
 
 The mode is a **ceiling**, not a switch: it never turns a feature *on*. Every
 LLM-using call site reads its own enable flag first, then ANDs it with the

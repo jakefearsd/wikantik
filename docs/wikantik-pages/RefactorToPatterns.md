@@ -1,19 +1,27 @@
 ---
+type: article
 tags:
 - design-patterns
 - refactoring
 - gof
 - software-architecture
-type: article
-summary: 'Six GoF refactoring opportunities for Wikantik: Decorator, Abstract Factory,
-  Builder, Strategy, sealed-type events, and Template Method for provider lifecycle.'
-title: Refactoring to GoF Patterns
 canonical_id: 01KQ0P44V9JQGB0CNVF9B3EM3N
 cluster: design-patterns
+title: Refactoring to GoF Patterns
+summary: 'Six GoF refactoring opportunities for Wikantik: Decorator, Abstract Factory,
+  Builder, Strategy, sealed-type events, and Template Method for provider lifecycle.'
 ---
 # Gang of Four Design Pattern Refactoring Opportunities
 
 This document outlines practical refactoring opportunities to apply well-known Gang of Four design patterns to improve the Wikantik codebase architecture.
+
+> **Status (2026-10-13):** This is a December 2025 assessment, and the six items have fared unevenly since.
+>
+> - **Shipped:** Priority 4. `PropertyCacheStrategy` with `SingleEntryPropertyCache`, `LruPropertyCache` and `NoOpPropertyCache` exists, and `VersioningFileProvider` picks one from `wikantik.versioningFileProvider.cacheSize` (default `100`; `0` means single entry; a negative value disables property caching).
+> - **Partly shipped:** Priority 1 has `PageProviderDecorator` and `LoggingPageProviderDecorator`, but `CachingProvider` and `CachingAttachmentProvider` are still standalone classes rather than decorators, and the `MetricsPageProviderDecorator` that was built alongside them was deleted as unreferenced in August 2026. Priority 5: `WikiEvent` is now a `sealed` class, but event types are still `int` constants, with no visitor, records or typed listeners.
+> - **Not done:** Priority 2 (there is no `StorageBackendFactory`), Priority 3 (`WikiEngine` still makes about 20 sequential `initComponent` calls and has no builder) and Priority 6 (`WikiProvider` declares `initialize()` only; there is no shutdown or reload hook and no `AbstractWikiProvider`).
+> - Source paths below predate the package rename. The classes now live under `wikantik-main/src/main/java/com/wikantik/` (`providers/`, `WikiEngine.java`) and `wikantik-event/src/main/java/com/wikantik/event/`.
+> - A separate Gang-of-Four pass in July 2026 (releases 2.3.9 and 2.3.12) targeted other sites: builders for the entity-extraction indexer, `DefaultKnowledgeGraphService` and `RetrievedPage`; a Template Method base for token-authenticated connectors (`TokenAuthenticatedSourceConnector`); a shared `AbstractMcpTool` base for MCP tools in `wikantik-mcp-core`; a `RouteTable` dispatcher in `wikantik-rest`; and shared JDBC support (`KgJdbcSupport`). None of those is one of the six items below.
 
 ## Overview
 
@@ -53,16 +61,16 @@ public abstract class PageProviderDecorator implements PageProvider {
     // ... delegate all other methods by default
 }
 
-// A concrete decorator — the one subclass that actually shipped from this
-// proposal. PageProviderDecorator itself is the surviving base class;
-// CachingProvider is a separate, non-decorator wrapper around FileSystemProvider.
+// Specific decorators
+public class CachingPageProviderDecorator extends PageProviderDecorator { ... }
+public class MetricsPageProviderDecorator extends PageProviderDecorator { ... }
 public class LoggingPageProviderDecorator extends PageProviderDecorator { ... }
 ```
 
 ### Benefits
 
 - Single Responsibility Principle - each decorator handles one concern
-- Easy to compose decorators: `new LoggingPageProviderDecorator(new FileSystemProvider())`
+- Easy to compose decorators: `new Caching(new Logging(new FileSystem()))`
 - Same pattern applies to AttachmentProvider
 
 **Effort:** Medium | **Impact:** High

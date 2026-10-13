@@ -1,19 +1,21 @@
 ---
-summary: Wikantik Reader UI - Implementation Plan for a modern, React-based reading
-  experience.
-title: Reader UI Redesign
+cluster: wikantik-development
+type: article
 tags:
 - frontend
 - development
 - ui-ux
 - react
-cluster: wikantik-development
-type: article
-date: '2026-05-15'
-status: active
+title: Reader UI Redesign
+summary: Wikantik Reader UI - Implementation Plan for a modern, React-based reading
+  experience.
 canonical_id: 01KQ0P44T1NDZ71D6WFZZKPQ3A
+status: active
+date: '2026-05-15'
 ---
 # Wikantik Reader UI - Implementation Plan
+
+> **Status (2026-10-13):** Implemented, and the plan's premise has been superseded. The reader is not a separate app beside JSP templates: the JSP templates are gone and one React SPA serves reading, editing and the admin panel from `/` (see [RemoveJspAndAppPrefix](RemoveJspAndAppPrefix)). The shipped stack differs from the table below: React 19, plain JavaScript (JSX, no TypeScript), React Router 7, Vite 8, hand-written token-based CSS, and React state and hooks with no Zustand or TanStack Query. `docs/developer/FrontendArchitecture.md` in the repository describes the current frontend.
 
 A modern, Medium-inspired reading experience built with React.
 
@@ -64,5 +66,5 @@ To bridge the gap between static HTML and a dynamic React app, the parser must:
 
 ---
 **See Also:**
-- [REST API Reference](README)
+- [Finding the right REST endpoint](AnsweringRestApiQuestions) — how to locate the `/api/*` endpoint behind a question.
 - [McpIntegration](McpIntegration) — For the agent-grade tool layer.

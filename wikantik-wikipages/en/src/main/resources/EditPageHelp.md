@@ -5,7 +5,7 @@ A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctr
 ## Start and save
 
 * Choose **Edit** on a page to open the editor. You only see it if you have permission to edit.
-* To make a page, use **+ New Article** in the sidebar, or link to a page that does not exist yet.
+* To make a page, use **+ New Article** in the sidebar (shown when you are signed in), or link to a page that does not exist yet.
 * Add a **Change note** to say what you did, then press **Mod+S** or choose **Save**. **Cancel** leaves without saving.
 * The editor keeps a draft in your browser while you type, and offers to restore it if you come back.
 

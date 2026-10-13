@@ -1,21 +1,21 @@
 ---
-canonical_id: 01KQ0P44Z46M6NDJJNCJVF2B8N
-title: Wiki Plugin Development
-type: article
-cluster: wikantik-development
 status: active
 date: '2026-04-26'
-summary: How to develop wiki plugins — extension points, plugin architectures, the
-  patterns that produce maintainable plugins vs. fragile ones.
+title: Wiki Plugin Development
+related:
+- WikiPerformanceTuning
+- WikiContentManagementWorkflow
+- CleanCodePrinciples
+canonical_id: 01KQ0P44Z46M6NDJJNCJVF2B8N
+cluster: wikantik-development
+type: article
 tags:
 - wiki
 - plugins
 - extensions
 - wikantik-development
-related:
-- WikiPerformanceTuning
-- WikiContentManagementWorkflow
-- CleanCodePrinciples
+summary: How to develop wiki plugins — extension points, plugin architectures, the
+  patterns that produce maintainable plugins vs. fragile ones.
 ---
 # Wiki Plugin Development
 
@@ -67,12 +67,47 @@ Action plugins, syntax plugins, helper plugins. Object-oriented.
 
 ### Wikantik plugins
 
-Multiple extension mechanisms (per CLAUDE.md):
-- **Plugins**: dynamic content via `[{Plugin}]` syntax
-- **Filters**: content pre/post-processing
-- **Providers**: storage backends
-- **Modules**: larger feature additions
-- **Templates**: UI customization
+Wikantik keeps JSPWiki's extension model, minus the JSP-era pieces:
+
+- **Plugins**: Java classes implementing `com.wikantik.api.plugin.Plugin`, invoked from a page as `[{PluginName param=value}]`. See "Writing a Wikantik plugin" below.
+- **Page filters**: `com.wikantik.api.filters.PageFilter` hooks (`initialize`, `preTranslate`, `postTranslate`, `preSave`, `postSave`, `destroy`).
+- **Providers**: `PageProvider` and `AttachmentProvider` in `com.wikantik.api.providers`, selected by `wikantik.pageProvider` and `wikantik.attachment.provider`. `SearchProvider` lives in `wikantik-main`.
+- **Events**: listeners on the `wikantik-event` bus (page saved, user logged in, and so on).
+- **MCP tools**: agent-facing tools are `McpTool` implementations; see [WritingANewMcpTool](WritingANewMcpTool).
+- **Modules**: larger features are Maven modules wired into the WAR by `wikantik-war`.
+
+There is no template layer to customize any more: the JSP templates are gone and the UI is a React SPA.
+
+## Writing a Wikantik plugin
+
+A plugin is one class. The page syntax is `[{HelloPlugin name=Ada}]`; the Markdown pipeline rewrites `[{Plugin}]` to `[{Plugin}]()` so Flexmark parses it as a link node, and `PluginManager` then runs the class.
+
+```java
+package com.example.wiki;
+
+import com.wikantik.api.core.Context;
+import com.wikantik.api.exceptions.PluginException;
+import com.wikantik.api.plugin.Plugin;
+import com.wikantik.util.TextUtil;
+
+import java.util.Map;
+
+public class HelloPlugin implements Plugin {
+    @Override
+    public String execute( final Context context, final Map< String, String > params ) throws PluginException {
+        final String who = params.getOrDefault( "name", "world" );
+        // The return value is inserted into the page as HTML, so escape anything user-supplied.
+        return "<span>Hello, " + TextUtil.escapeHtml( who ) + "</span>";
+    }
+}
+```
+
+- **Parameters.** `params` holds the `key=value` pairs from the page. Special keys are `_body` (the text after an empty line), `_cmdline`, `_bounds` and `debug` (constants on `PluginManager`).
+- **Discovery.** Use a fully qualified class name in the page, or add your package to `wikantik.plugin.searchPath` (comma-separated; `com.wikantik.plugin` is always searched last, so you can override a built-in). Jars outside `WEB-INF/lib` go in `wikantik.plugin.externalJars`. To give a plugin a short alias, declare it in a `wikantik_module.xml` inside your jar, as the core plugins are in `wikantik-main/src/main/resources/ini/wikantik_module.xml`.
+- **Initialization.** Implement `InitializablePlugin.initialize( Engine )` for one-time setup. It runs once before the first `execute`: at startup if the plugin has a `wikantik_module.xml` declaration, otherwise on first use.
+- **Failures.** An exception is logged at WARN and the reader sees an inline error message in place of the plugin; the rest of the page still renders.
+- **Caching.** Every plugin execution marks the render viewer-sensitive (`Context.VAR_VIEWER_SENSITIVE`), which keeps that render out of the shared, principal-less render caches. A plugin-heavy page therefore costs more to serve, so keep plugin code fast.
+- **Security.** A plugin runs with the viewing user's `Context`; check permissions before doing anything privileged. `JDBCPlugin` shows the other end of the scale: it runs page-authored SQL and ships disabled behind `wikantik.plugin.jdbc.enabled`.
 
 ## Design principles
 
@@ -144,7 +179,7 @@ For widely-distributed plugins, version compatibility matrices.
 
 Unit tests for plugin logic; integration tests against the wiki platform.
 
-For complex plugins, automated testing is essential. For simple, smoke tests may suffice.
+For complex plugins, automated testing is essential. For simple, smoke tests may suffice. In Wikantik, plugin tests in `wikantik-main` build an engine with `TestEngine`; see `CurrentTimePluginTest` and `DefaultPluginManagerTest` under `wikantik-main/src/test/java/com/wikantik/plugin/`, and run one with `mvn test -pl wikantik-main -Dtest=CurrentTimePluginTest`.
 
 ## Performance considerations
 
@@ -205,13 +240,11 @@ Clone from source; build; install. Common for custom plugins.
 
 ## Specific Wikantik plugin examples
 
-Per the codebase context:
-- **Dynamic content via `[{Plugin}]` syntax**: e.g., a `[{TableOfContents}]` plugin auto-generates a TOC
-- **Filters**: e.g., `StructuralSpinePageFilter` enforces structural-spine schema at save time
-- **Providers**: e.g., `FileSystemProvider` for page storage
-- **Custom rendering**: Markdown via Flexmark with custom extensions
-
-The Wikantik plugin pattern uses standard interfaces; implementations registered via configuration or auto-discovery.
+- **Built-in plugins** in `com.wikantik.plugin`: `InsertPage`, `Search`, `Image`, `IndexPlugin`, `RecentChangesPlugin`, `RecentArticles`, `ReferringPagesPlugin`, `ReferredPagesPlugin`, `ReferringUndefinedPagesPlugin`, `UndefinedPagesPlugin`, `UnusedPagesPlugin`, `CurrentTimePlugin`, `IfPlugin`, `AliasPlugin`, `RelationshipsPlugin`, `HubSetPlugin` and `JDBCPlugin` (disabled by default).
+- **`[{TableOfContents}]` is not a `Plugin` class.** The Flexmark link post-processor (`PluginLinkNodePostProcessorState`) renders it directly.
+- **Filters**: `StructuralSpinePageFilter` enforces the structural-spine rules (canonical IDs, clusters) at save time; `SchemaValidationPageFilter` validates frontmatter; `MathValidationPageFilter` flags suspect math; `FrontmatterDefaultsFilter` adds a default block to a page saved without one; `SpamFilter` and `ProfanityFilter` are the classic content filters. Core filters are registered in code with `FilterManager.addPageFilter( filter, priority )`; add-on filters are listed in `WEB-INF/filters.xml` (or the file named by `wikantik.filterConfig`).
+- **Providers**: `FileSystemProvider` (plain files), `VersioningFileProvider` (files with history, the default) and `CachingProvider` (a decorator) for page storage.
+- **Custom rendering**: Markdown via Flexmark with custom extensions (wikilinks, math, and others).
 
 ## Common failure patterns
 

@@ -77,7 +77,8 @@ curl -s https://wiki.wikantik.com/wiki/TestDrivenDevelopment | grep -c 'applicat
 ### Notify search engines of changes
 
 The admin MCP tool `ping_search_engines` (`service` of `indexnow`, `google_ping` or
-`all`) submits changed page URLs to IndexNow (Bing, Yandex). It requires an absolute
+`all`) submits URLs to IndexNow (Bing, Yandex): the page URLs you pass in `urls`
+(each must sit under `wikantik.baseURL`), or the sitemap URL when you pass none. It requires an absolute
 `wikantik.baseURL` and `wikantik.indexnow.apiKey` (blank skips IndexNow with an explicit
 "apiKey not configured" error); the same key must be served publicly at
 `<baseURL>/<key>.txt`. Prefer `service=indexnow`: the `google_ping` option calls Google's

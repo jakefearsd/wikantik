@@ -36,6 +36,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -196,6 +197,20 @@ class KgPolicyCliTest {
         final String text = stdoutOf( "reconcile" );
         assertTrue( text.contains( "cluster_policy" ) && text.contains( "2 pages" ), text );
         assertTrue( text.contains( "system_page" ) && text.contains( "1 pages" ), text );
+    }
+
+    /**
+     * Nothing enqueues reconciliation at Tomcat startup — only {@code setClusterPolicy} /
+     * {@code clearClusterPolicy} (via {@code ReconciliationHook}) do — so the CLI must never tell
+     * an operator that restarting Tomcat will re-run it. It must point at the REST endpoint that
+     * actually triggers a run.
+     */
+    @Test
+    void reconcile_points_at_the_rest_endpoint_not_a_tomcat_restart() {
+        final String text = stdoutOf( "reconcile" );
+        assertFalse( text.toLowerCase( Locale.ROOT ).contains( "restart" ),
+                "a restart does not re-run reconciliation; output was: " + text );
+        assertTrue( text.contains( "PUT /admin/kg-policy/clusters/" ), text );
     }
 
     @Test

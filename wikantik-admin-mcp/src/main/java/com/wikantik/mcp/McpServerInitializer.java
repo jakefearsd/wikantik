@@ -208,7 +208,8 @@ public class McpServerInitializer implements ServletContextListener {
     /**
      * Tokens that match a tool prefix but are argument values, not tools — e.g. curate_edges'
      * compound {@code delete_and_reject} action. Without this the instructions could not name
-     * them, because the drift check would report each one as a retired tool.
+     * them, because the drift check would report each one as a retired tool. Mirrored in
+     * {@code McpInstructionsDriftIT} (wikantik-it-tests), which cannot depend on this module.
      */
     static final java.util.Set< String > NON_TOOL_TOKENS = java.util.Set.of( "delete_and_reject" );
 

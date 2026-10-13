@@ -33,7 +33,8 @@
 #
 # Exit code: 0 only if every phase/module that ran reached BUILD SUCCESS with no
 # test failures; non-zero otherwise. A per-run summary is written to
-# target/test-suite-report.txt and printed at the end.
+# .test-suite-logs/report.txt (WIKANTIK_TEST_SUITE_LOG_DIR overrides the directory)
+# and printed at the end.
 set -uo pipefail   # NOT -e: we want to run every module and aggregate, not bail early.
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

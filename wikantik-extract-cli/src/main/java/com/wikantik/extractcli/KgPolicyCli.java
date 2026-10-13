@@ -53,8 +53,8 @@ import org.apache.logging.log4j.Logger;
  *   review                                  (list pending-review items)
  *   mark-reviewed &lt;cluster&gt; [&lt;cluster&gt; ...]
  *   diff &lt;cluster&gt;                       (pages excluded vs the current policy)
- *   reconcile [&lt;cluster&gt; ...]            (re-evaluate all pages in cluster)
- *   purge &lt;cluster&gt; [--confirm]          (HARD-delete all KG data for excluded pages)
+ *   reconcile                               (informational: excluded-page counts by reason; does not run reconciliation)
+ *   purge &lt;cluster&gt; [--confirm]          (HARD-delete all KG data for ALL cluster_policy-excluded pages — NOT scoped to &lt;cluster&gt;)
  *   purge --reason &lt;reason&gt; [--confirm]
  *   audit [--cluster X] [--limit N]
  * </pre>
@@ -210,9 +210,14 @@ public final class KgPolicyCli {
     private int doReconcile( final DataSource ds, final String[] args ) {
         // The CLI doesn't have access to the StructuralIndexService (no WikiEngine
         // here), so reconciliation reduces to "show what's in kg_excluded_pages by
-        // reason." For full reconciliation, the operator hits the REST endpoint
-        // POST /admin/kg-policy/clusters/{c} (or PUT) which re-queues the runner.
-        out.println( "CLI reconcile: see /admin/kg-policy or restart Tomcat to re-run." );
+        // reason." Full reconciliation is enqueued only when a cluster policy changes
+        // (DefaultKgInclusionPolicy -> ReconciliationHook): the operator re-saves the policy
+        // via PUT /admin/kg-policy/clusters/{c} (or DELETE to clear), which re-queues the
+        // runner. Nothing enqueues it at Tomcat startup, so a restart does not re-run it.
+        out.println( "CLI reconcile is informational only; it does not run reconciliation." );
+        out.println( "Reconciliation runs only when a cluster policy changes (nothing runs at startup);"
+                + " re-save the policy via PUT /admin/kg-policy/clusters/{cluster}"
+                + " (or Edit in the /admin/kg-policy dashboard) to re-run it." );
         out.println( "Excluded by reason:" );
         final KgExcludedPagesRepository repo = new KgExcludedPagesRepository( ds );
         for ( final ExclusionReason r : ExclusionReason.values() ) {

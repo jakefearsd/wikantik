@@ -38,7 +38,7 @@ elif find "${ROOT_DIR}/wikantik-extract-cli/src" -name '*.java' -newer "${JAR}" 
     needs_build=1
 fi
 if [[ ${needs_build} -eq 1 ]]; then
-    (cd "${ROOT_DIR}" && mvn install -pl wikantik-extract-cli -am -Dmaven.test.skip -q)
+    (cd "${ROOT_DIR}" && mvn install -pl wikantik-extract-cli -am -DskipTests -q)
 fi
 
 java -cp "${JAR}" com.wikantik.extractcli.ChunkerStatsCli "$@"

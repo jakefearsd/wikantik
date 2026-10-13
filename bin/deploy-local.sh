@@ -7,7 +7,10 @@
 #      -Dmaven.test.skip, which omits wikantik-main's test-jar and breaks the
 #      full-reactor build) first
 #   2. PostgreSQL running with 'wikantik' database created (use bin/db/install-fresh.sh)
-#   3. Edit tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml to set your password
+#   3. Set POSTGRES_PASSWORD in .env (first run copies .env.example to .env, then
+#      exits until the CHANGEME placeholder is replaced);
+#      this script renders tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml from it
+#      when ROOT.xml does not already exist — no hand edit of ROOT.xml
 #
 # Usage:
 #   bin/deploy-local.sh                     # Deploy WAR + configure Tomcat

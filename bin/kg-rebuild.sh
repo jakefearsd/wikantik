@@ -18,7 +18,7 @@
 #
 #   bin/kg-rebuild.sh --reset-kg -- \
 #       --ollama-model qwen2.5:1.5b-instruct \
-#       --concurrency 6 --prefilter --force
+#       --concurrency 6
 #
 # Pre-flight requirements:
 #   - Tomcat running on $TOMCAT_URL (default http://localhost:8080)
@@ -368,7 +368,7 @@ if [[ $SKIP_EXTRACT -eq 0 ]]; then
     phase "Phase 4 — entity extraction"
     if [[ ${#EXTRACTOR_ARGS[@]} -eq 0 ]]; then
         info "No extra extractor args supplied — running with CLI defaults"
-        info "(tip: pass after --, e.g. --reset-kg -- --ollama-model qwen2.5:1.5b-instruct --concurrency 6 --prefilter)"
+        info "(tip: pass after --, e.g. --reset-kg -- --ollama-model qwen2.5:1.5b-instruct --concurrency 6)"
         "$SCRIPT_DIR/kg-extract.sh"
     else
         info "Forwarding to bin/kg-extract.sh ${EXTRACTOR_ARGS[*]}"

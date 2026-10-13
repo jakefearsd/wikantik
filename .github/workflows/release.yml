@@ -46,7 +46,9 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build WAR (skip running tests — we test on every push to main)
+      - name: Build WAR (skip running tests)
+        # Tests are not run here: quality-gates.yml runs only the static gates on push
+        # to main, and the full Java unit suite runs weekly (Mondays) and on manual dispatch.
         # -DskipTests, not -Dmaven.test.skip: test sources must still compile so
         # wikantik-main's test-jar is produced. wikantik-admin-mcp / wikantik-tools /
         # wikantik-knowledge declare a test-scoped dependency on it; skipping test

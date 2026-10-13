@@ -409,7 +409,7 @@ class AdminAuditResourceTest {
         verify( resp ).setContentType( "application/json" );
         final ArgumentCaptor<AuditQuery> captor = ArgumentCaptor.forClass( AuditQuery.class );
         verify( auditService ).query( captor.capture() );
-        assertEquals( "bob", captor.getValue().actorId() );
+        assertEquals( "bob", captor.getValue().actor() );
         assertEquals( "MainPage", captor.getValue().targetId() );
         assertEquals( "page.delete", captor.getValue().eventType() );
     }

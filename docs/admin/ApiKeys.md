@@ -86,11 +86,16 @@ that key from the in-process verify cache (60-second TTL) and `verify()` exclude
 revoked rows. The eviction is per JVM, so in a multi-node deployment another node
 can keep accepting the key for up to 60 seconds.
 
-Key issuance is recorded in the tamper-evident audit log (see [AuditLog.md](AuditLog.md))
-under category `ADMIN`, event type `apikey.issue`. Revocation through `/admin/apikeys`
-(single or bulk) is written to the application log (`API key revoked: id=…, by=…`) but
-not to the audit log; only revocations made through the self-service surface produce an
-`apikey.revoke` audit event.
+Key issuance and revocation are recorded in the tamper-evident audit log (see
+[AuditLog.md](AuditLog.md)) under category `ADMIN`, event types `apikey.issue` and
+`apikey.revoke`. A revocation through `/admin/apikeys` — single `DELETE` or bulk action —
+writes the same `apikey.revoke` event the self-service surface writes, with the revoking
+admin as the actor and the key's id as the target (label: the key's label, or the id when
+it has none). A bulk revoke writes one entry per key actually revoked; ids that were not
+found, were already revoked or failed produce no entry. (Each revoke is also written to
+the application log, `API key revoked: id=…, by=…`.) The owner of a revoked key is not
+carried in the audit entry; look the key id up in the key table, where revoked rows are
+retained.
 
 ## Scope enforcement
 
@@ -263,7 +268,8 @@ Error responses:
 
 ### `DELETE /admin/apikeys/{id}`
 
-Soft-revokes the key with the given numeric `id`. Returns:
+Soft-revokes the key with the given numeric `id` and records an `apikey.revoke` audit
+event. Returns:
 
 ```json
 { "success": true, "id": 1 }
@@ -273,7 +279,8 @@ Soft-revokes the key with the given numeric `id`. Returns:
 
 ### `POST /admin/apikeys/bulk-action`
 
-Revokes multiple keys in one call. Continues past individual failures.
+Revokes multiple keys in one call. Continues past individual failures. Each key actually
+revoked gets its own `apikey.revoke` audit event.
 
 ```json
 { "action": "revoke", "ids": ["1", "2", "3"] }
@@ -385,7 +392,8 @@ ownership gate as rotate.
 Every self-service issue/rotate/revoke is recorded in the audit log (see
 [AuditLog.md](AuditLog.md)) under category `ADMIN`, event types `apikey.issue` /
 `apikey.rotate` / `apikey.revoke`; the actor is the caller's own login. (The admin
-surface records only `apikey.issue`.)
+surface records `apikey.issue` and `apikey.revoke`, with the admin as actor; it has no
+rotate action.)
 
 Error responses:
 - `401` — not authenticated.
@@ -419,4 +427,4 @@ handled the revoke; other nodes honour a cached key for up to 60 seconds.
 ## Related
 
 - [ScimProvisioning.md](ScimProvisioning.md) — creating the accounts that keys are bound to (the account is for attribution and audit only)
-- [AuditLog.md](AuditLog.md) — key issuance is recorded as an `apikey.issue` audit event (self-service rotate and revoke also record `apikey.rotate` / `apikey.revoke`)
+- [AuditLog.md](AuditLog.md) — key issuance and revocation are recorded as `apikey.issue` / `apikey.revoke` audit events (self-service rotate also records `apikey.rotate`)

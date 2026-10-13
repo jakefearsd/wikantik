@@ -63,7 +63,7 @@ These sit beside Security in the admin sidebar and cover the rest of the access 
 | API Keys | `/admin/apikeys` | issue, scope (`mcp_read`, `mcp_admin`, `tools`, `all`) and revoke the bearer keys used by MCP and `/tools/*` clients; the plaintext token is shown once |
 | Audit | `/admin/audit` | search the tamper-evident, hash-chained audit log, verify its chain, export CSV |
 
-Group-membership changes are audited as `group.member.add` and `group.member.remove`, and grant changes as `policy.grant.update` and `policy.grant.delete`. Issuing a key is audited as `apikey.issue`; rotating or revoking a key through the self-service Preferences page is audited as `apikey.rotate` and `apikey.revoke`, whereas a revoke made on `/admin/apikeys` is written only to the application log.
+Group-membership changes are audited as `group.member.add` and `group.member.remove`, and grant changes as `policy.grant.update` and `policy.grant.delete`. Issuing a key is audited as `apikey.issue` and revoking one as `apikey.revoke`, whether done on `/admin/apikeys` (single or bulk, one entry per key) or through the self-service Preferences page; rotating a key (self-service only) is audited as `apikey.rotate`.
 
 ## What it does not have
 

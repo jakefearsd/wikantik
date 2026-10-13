@@ -176,7 +176,13 @@ public final class JdbcAuditRepository implements AuditRepository {
           + "correlation_id, detail, prev_hash, row_hash FROM audit_log WHERE seq < ?" );
         final List<Object> params = new ArrayList<>();
         params.add( q.beforeSeq() );
-        if ( q.actorId() != null )   { sql.append( " AND actor_id = ?" );   params.add( q.actorId() ); }
+        if ( q.actor() != null ) {
+            // Production writers set only actor_principal (the login); actor_id is matched too so a
+            // writer that does populate it is still findable.
+            sql.append( " AND ( actor_principal = ? OR actor_id = ? )" );
+            params.add( q.actor() );
+            params.add( q.actor() );
+        }
         if ( q.category() != null )  { sql.append( " AND category = ?" );   params.add( q.category().name() ); }
         if ( q.eventType() != null ) { sql.append( " AND event_type = ?" ); params.add( q.eventType() ); }
         if ( q.targetId() != null )  { sql.append( " AND target_id = ?" );  params.add( q.targetId() ); }

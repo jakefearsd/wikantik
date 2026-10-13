@@ -115,6 +115,62 @@ class JdbcAuditRepositoryQueryTest {
         assertEquals( "delete", byOutcome.get( 0 ).entry().eventType() );
     }
 
+    /** Builds an entry the way every production writer does: only {@code actorPrincipal} is set,
+     *  {@code actorId} is left null (see AuditEventListener, RestAuditSupport, PageResource, SCIM). */
+    private static AuditEntry principalOnly( final String eventType, final String principal, final String targetId ) {
+        return AuditEntry.builder()
+                .eventTime( Instant.now().truncatedTo( ChronoUnit.MICROS ) )
+                .category( AuditCategory.ADMIN )
+                .eventType( eventType )
+                .actorType( "user" )
+                .actorPrincipal( principal )
+                .targetType( "page" )
+                .targetId( targetId )
+                .outcome( AuditOutcome.SUCCESS )
+                .detail( "{}" )
+                .build();
+    }
+
+    @Test
+    void query_actorFilterMatchesActorPrincipalOfEntriesWrittenWithoutActorId() {
+        repo.append( List.of(
+                principalOnly( "page.save", "alice", "PageA" ),
+                principalOnly( "page.save", "bob", "PageB" ),
+                principalOnly( "page.delete", "alice", "PageC" ) ) );
+
+        final List< PersistedAuditEntry > byAlice = repo.query(
+                new AuditQuery( "alice", null, null, null, null, null, null, 1000, Long.MAX_VALUE ) );
+
+        assertEquals( 2, byAlice.size(), "actor filter must find entries by their actor_principal" );
+        assertTrue( byAlice.stream().allMatch( r -> "alice".equals( r.entry().actorPrincipal() ) ) );
+    }
+
+    @Test
+    void query_actorFilterIsExactMatchOnPrincipal() {
+        repo.append( List.of(
+                principalOnly( "page.save", "alice", "PageA" ),
+                principalOnly( "page.save", "alice2", "PageB" ),
+                principalOnly( "page.save", "Alice", "PageC" ) ) );
+
+        final List< PersistedAuditEntry > hits = repo.query(
+                new AuditQuery( "alice", null, null, null, null, null, null, 1000, Long.MAX_VALUE ) );
+
+        assertEquals( 1, hits.size(), "exact match only: no prefix, no case folding" );
+        assertEquals( "PageA", hits.get( 0 ).entry().targetId() );
+    }
+
+    @Test
+    void query_actorFilterAlsoMatchesActorIdWhenPresent() {
+        repo.append( List.of(
+                entry( AuditCategory.ADMIN, "e1", "uid-42", "PageA", AuditOutcome.SUCCESS ),
+                principalOnly( "e2", "carol", "PageB" ) ) );
+
+        final List< PersistedAuditEntry > byId = repo.query(
+                new AuditQuery( "uid-42", null, null, null, null, null, null, 1000, Long.MAX_VALUE ) );
+        assertEquals( 1, byId.size(), "a populated actor_id still matches the actor filter" );
+        assertEquals( "e1", byId.get( 0 ).entry().eventType() );
+    }
+
     @Test
     void query_respectsBeforeSeqAndLimitAndOrdersDescending() {
         repo.append( List.of(

@@ -27,7 +27,7 @@ entry lands in one of five categories (`AuditCategory` enum):
 | `AUTHN` | `login.ok`, `login.failed`, `logout`, `session.expired` |
 | `AUTHZ` | `access.denied` |
 | `CONTENT` | `page.save`, `page.delete`, `page.rename` |
-| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (`user.deactivate`, `user.reactivate`), API key events (`apikey.issue` from both the admin and self-service surfaces; `apikey.rotate` and `apikey.revoke` from the self-service surface only), policy grant changes (`policy.grant.update`, which is also what a grant *creation* records, and `policy.grant.delete`), connector mutations (`connector.create`, `connector.update`, `connector.delete`, `connector.import`, `connector.credential.set`, `connector.credential.delete`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
+| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (`user.deactivate`, `user.reactivate`), API key events (`apikey.issue` and `apikey.revoke` from both the admin and self-service surfaces — a bulk revoke writes one `apikey.revoke` per key actually revoked; `apikey.rotate` from the self-service surface only, since the admin surface has no rotate action), policy grant changes (`policy.grant.update`, which is also what a grant *creation* records, and `policy.grant.delete`), connector mutations (`connector.create`, `connector.update`, `connector.delete`, `connector.import`, `connector.credential.set`, `connector.credential.delete`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
 | `READ` | `page.read` — opt-in only (default: not recorded); a page's views are logged when its frontmatter sets `audit_reads: true` or its cluster is listed in `wikantik.audit.readClusters` (blank by default) |
 
 Entries are not written inline. `AuditService.record()` puts each one on an in-memory
@@ -102,7 +102,7 @@ Set one or more filters and click **Search**:
 
 | Filter | Description |
 |---|---|
-| Actor | Login name of the acting user or system (e.g. `admin`, `scim`) |
+| Actor | Login name of the acting user or system (e.g. `admin`, `scim`); exact, case-sensitive match |
 | Category | `authn`, `authz`, `content`, `admin`, `read`, or blank for all |
 | Event type | Exact event type string (e.g. `login.failed`, `apikey.issue`) |
 | Target | Target entity id (e.g. a page name or user login) |
@@ -149,7 +149,7 @@ Query audit entries. All parameters are optional.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `actor` | string | Exact match on the `actor_id` column. The current writers record the acting login in `actor_principal` and leave `actor_id` empty, so this filter returns nothing for entries written by this code. To follow one account, filter by category, event type or target and read `actorPrincipal` from the result, or use the export's `actor` column |
+| `actor` | string | Exact, case-sensitive match on the actor's login (`actor_principal`), which is what every current writer records. An entry whose `actor_id` is populated also matches on that value; the current writers leave `actor_id` empty |
 | `category` | string | `AUTHN`, `AUTHZ`, `CONTENT`, `ADMIN`, or `READ` (case-insensitive) |
 | `eventType` | string | Exact `event_type` match |
 | `target` | string | Exact `target_id` match |
@@ -334,6 +334,6 @@ privileged role well before 2029 so the partitions exist ahead of time.
 
 ## Related
 
-- [ApiKeys.md](ApiKeys.md) — API key issuance is recorded as `ADMIN / apikey.issue`
+- [ApiKeys.md](ApiKeys.md) — API key issuance and revocation are recorded as `ADMIN / apikey.issue` and `ADMIN / apikey.revoke`
 - [ScimProvisioning.md](ScimProvisioning.md) — SCIM operations are recorded as `ADMIN` events
 - [BackupAndRecovery.md](BackupAndRecovery.md) — `AUDIT_ARCHIVE_DIR` must live under the NAS-pulled backup tree

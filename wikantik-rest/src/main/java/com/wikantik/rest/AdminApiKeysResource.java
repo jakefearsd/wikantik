@@ -143,10 +143,8 @@ public class AdminApiKeysResource extends RestServletBase {
                 LegacyScopeUseLog.mintRequested( "/admin/apikeys", createdBy, request );
             }
 
-            final String keyId = String.valueOf( generated.record().id() );
-            final String keyLabel = generated.record().label() != null ? generated.record().label() : keyId;
-            RestAuditSupport.recordAdminAudit( getEngine(), "apikey.issue", createdBy,
-                "apikey", keyId, keyLabel );
+            RestAuditSupport.recordApiKeyAudit( getEngine(), "apikey.issue", createdBy,
+                generated.record().id(), generated.record().label() );
 
             final Map< String, Object > payload = new LinkedHashMap<>( toJsonRow( generated.record() ) );
             payload.put( "token", generated.plaintext() );
@@ -182,11 +180,13 @@ public class AdminApiKeysResource extends RestServletBase {
             return;
         }
         final String revokedBy = currentLogin( request );
+        final String label = labelOf( svc, id );
         final boolean revoked = svc.revoke( id, revokedBy );
         if ( !revoked ) {
             sendNotFound( response, "Key not found or already revoked: " + id );
             return;
         }
+        RestAuditSupport.recordApiKeyAudit( getEngine(), "apikey.revoke", revokedBy, id, label );
         LOG.info( "API key revoked: id={}, by={}", id, revokedBy );
         sendJson( response, Map.of( "success", true, "id", id ) );
     }
@@ -202,7 +202,9 @@ public class AdminApiKeysResource extends RestServletBase {
      * {@code { "succeeded": [...], "failed": [...], "status": "completed",
      * "message": "N of M keys revoked" }}.
      *
-     * <p>Emits a single audit log entry per call.
+     * <p>Emits one {@code apikey.revoke} audit entry per key actually revoked (the same event the
+     * single-key {@code DELETE} and the self-service surface write); keys that were not found,
+     * were already revoked, or failed to revoke produce no entry.
      */
     private void doBulkAction( final HttpServletRequest request,
             final HttpServletResponse response, final ApiKeyService svc )
@@ -264,8 +266,10 @@ public class AdminApiKeysResource extends RestServletBase {
             return;
         }
         try {
+            final String label = labelOf( svc, id );
             final boolean revoked = svc.revoke( id, actor );
             if ( revoked ) {
+                RestAuditSupport.recordApiKeyAudit( getEngine(), "apikey.revoke", actor, id, label );
                 result.succeed( idStr );
             } else {
                 result.fail( idStr, "Key not found or already revoked" );
@@ -275,6 +279,11 @@ public class AdminApiKeysResource extends RestServletBase {
                     id, actor, e.getMessage(), e );
             result.fail( idStr, e.getMessage() != null ? e.getMessage() : "Internal error" );
         }
+    }
+
+    /** The key's label for the audit entry (looked up before the revoke), or {@code null} if it has none. */
+    private static String labelOf( final ApiKeyService svc, final int id ) {
+        return svc.findById( id ).map( ApiKeyService.Record::label ).orElse( null );
     }
 
     private static String currentLogin( final HttpServletRequest request ) {

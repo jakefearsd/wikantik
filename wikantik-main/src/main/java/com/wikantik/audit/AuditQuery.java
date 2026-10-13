@@ -20,8 +20,16 @@ package com.wikantik.audit;
 
 import java.time.Instant;
 
+/**
+ * Filter for {@link AuditRepository#query(AuditQuery)}. Every component is optional ({@code null} = no
+ * constraint).
+ *
+ * <p>{@code actor} is the value an operator types into the Actor filter: a login name / principal.
+ * It matches {@code actor_principal} exactly (that is the column every production writer populates) and
+ * also {@code actor_id} when a writer has set one.</p>
+ */
 public record AuditQuery(
-        String actorId, AuditCategory category, String eventType, String targetId,
+        String actor, AuditCategory category, String eventType, String targetId,
         Instant from, Instant to, AuditOutcome outcome, int limit, long beforeSeq ) {
 
     public static AuditQuery all() {

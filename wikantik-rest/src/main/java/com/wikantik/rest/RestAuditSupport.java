@@ -106,6 +106,25 @@ final class RestAuditSupport {
         }
     }
 
+    /**
+     * Record an API-key lifecycle event ({@code apikey.issue}, {@code apikey.revoke},
+     * {@code apikey.rotate}) with the one target convention shared by the self-service and admin
+     * surfaces: target type {@code "apikey"}, target id the numeric key id, target label the key's
+     * label (or the id when it has none). Keeping it in one place is what makes an admin revocation
+     * and a self-service revocation indistinguishable in the log apart from the actor.
+     *
+     * @param engine     the resource's engine (from {@code getEngine()})
+     * @param eventType  audit event type, e.g. {@code "apikey.revoke"}
+     * @param actorLogin acting user login, or {@code null}
+     * @param keyId      the key the event concerns
+     * @param label      the key's label, or {@code null} to fall back to the id
+     */
+    static void recordApiKeyAudit( final Engine engine, final String eventType, final String actorLogin,
+                                   final int keyId, final String label ) {
+        final String id = String.valueOf( keyId );
+        recordAdminAudit( engine, eventType, actorLogin, "apikey", id, label != null ? label : id );
+    }
+
     /** The acting user's login for {@code request}, or {@code null} if unauthenticated. */
     static String currentLogin( final HttpServletRequest request ) {
         final Principal p = request.getUserPrincipal();

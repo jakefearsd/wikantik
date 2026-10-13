@@ -269,8 +269,7 @@ public class SelfApiKeysResource extends RestServletBase {
     }
 
     private void audit( final String eventType, final int keyId, final String label, final String actor ) {
-        RestAuditSupport.recordAdminAudit( getEngine(), eventType, actor, "apikey",
-            String.valueOf( keyId ), label != null ? label : String.valueOf( keyId ) );
+        RestAuditSupport.recordApiKeyAudit( getEngine(), eventType, actor, keyId, label );
     }
 
     /** Returns the id from a "/{id}/rotate" pathInfo, or null if it isn't a rotate path. */

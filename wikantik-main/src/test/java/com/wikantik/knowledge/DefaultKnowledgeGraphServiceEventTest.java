@@ -210,9 +210,9 @@ class DefaultKnowledgeGraphServiceEventTest {
         final UUID proposalId = UUID.randomUUID();
         final KgNodeRepository nodeRepo = new KgNodeRepository( dataSource );
         final KgEdgeRepository edgeRepo = new KgEdgeRepository( dataSource );
-        final KgNode s = nodeRepo.upsertNodeWithProvenance( "EvProvS", "concept", null,
+        final KgNode s = nodeRepo.ensureNodeWithProvenance( "EvProvS", "concept", null,
             Provenance.AI_INFERRED, Map.of(), "machine", proposalId );
-        final KgNode t = nodeRepo.upsertNodeWithProvenance( "EvProvT", "concept", null,
+        final KgNode t = nodeRepo.ensureNodeWithProvenance( "EvProvT", "concept", null,
             Provenance.AI_INFERRED, Map.of(), "machine", proposalId );
         edgeRepo.upsertEdgeWithProvenance( s.id(), t.id(), "related_to",
             Provenance.AI_INFERRED, Map.of(), "machine", proposalId );

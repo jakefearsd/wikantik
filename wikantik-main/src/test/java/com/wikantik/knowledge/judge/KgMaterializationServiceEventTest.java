@@ -270,7 +270,7 @@ class KgMaterializationServiceEventTest {
         final UUID xId = provenanceEdges.get( 0 ).sourceId(); // ExtSrc's node id
 
         // External node E, created under a DIFFERENT proposal id — it must survive retract(proposal).
-        final KgNode external = kgNodes.upsertNodeWithProvenance( "ExtNode", "concept", null,
+        final KgNode external = kgNodes.ensureNodeWithProvenance( "ExtNode", "concept", null,
             Provenance.AI_INFERRED, Map.of(), "machine", UUID.randomUUID() );
         // An edge E -> X that (unusually) carries THIS proposal's provenance, e.g. co-created by
         // the same extraction pass. It is deleted by retract(proposal), so E's touched (not removed).

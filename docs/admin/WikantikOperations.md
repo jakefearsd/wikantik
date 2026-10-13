@@ -359,7 +359,7 @@ Handles bare-metal Tomcat deployments.
 Orchestrates the full content and Knowledge Graph rebuild pipeline across multiple phases.
 - Phase 1: Rebuild chunks and Lucene index.
 - Phase 2: Reindex embeddings.
-- Phase 3: Optional reset (`--reset-kg`) to prune AI-inferred states or a complete destructive wipe (`--purge-kg`).
+- Phase 3: Optional reset (`--reset-kg`) to prune machine-tier AI-inferred nodes and pending proposals (rows a person wrote or approved — tier `human` — are kept; see [IndexRebuild](IndexRebuild.md#what---reset-kg-deletes)) or a complete destructive wipe (`--purge-kg`).
 - Phase 4: Forward requests to `bin/kg-extract.sh` to extract mentions and proposals.
 
 **Resume flags** (skip completed phases when resuming mid-pipeline):
@@ -558,7 +558,7 @@ Nothing projects page frontmatter or body links into the Knowledge Graph on save
 
 1. **Extraction proposes.** On page save, `AsyncEntityExtractionListener` runs off the save thread and files entity and relation **proposals** in `kg_proposals` (and chunk mentions). It never writes `kg_nodes` or `kg_edges` itself, skips an edge pairing already recorded in `kg_rejections`, and applies a per-page rate limit. `bin/kg-extract.sh` does the same in batch.
 2. **A judge or a human decides.**
-   - The judge (`JudgeRunner`, on a schedule unless disabled; trigger a run or judge one proposal with `bin/kg-judge.sh`) records a machine verdict. An approved `new-edge` or `new-node` proposal is materialised by `KgMaterializationService` at tier `machine` with provenance `ai-inferred`; a hard rejection of an edge also records it in `kg_rejections`.
+   - The judge (`JudgeRunner`, on a schedule unless disabled; trigger a run or judge one proposal with `bin/kg-judge.sh`) records a machine verdict. An approved `new-edge` or `new-node` proposal is materialised by `KgMaterializationService` at tier `machine` with provenance `ai-inferred`. Materialisation is **first-writer-wins**: it only creates a node that does not exist yet (a `new-edge`'s missing endpoints, a `new-node`'s subject) and leaves an existing node completely unchanged — type, provenance, properties and tier — logging the skipped write at INFO, so approving a proposal can never overwrite curated data. A hard rejection of an edge also records it in `kg_rejections`.
    - A human approves through `tryApprove` (REST `/admin/knowledge-graph` proposal handlers and the `review_proposals` tool). That promotes the rows to tier `human`, and for a `new-edge` also writes the relation back into the source page's frontmatter (the relationship type becomes a frontmatter key listing the target; saved as author "Knowledge Admin").
    - A human rejection retracts anything the proposal had materialised and records the rejection, so the same proposal is refused when resubmitted (`propose_knowledge` refuses a previously rejected triple).
 3. **Direct curation.** `curate_nodes`, `curate_edges` and the admin UI write nodes and edges immediately with human provenance (`human-authored` for node upserts, `human-curated` for edges). Edge writes pass the write-time SHACL gate, which refuses a non-conformant edge, and mixed page-to-entity edges are refused.

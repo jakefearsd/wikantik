@@ -4,7 +4,11 @@
 # Phases (each polls to completion before the next starts):
 #   1. POST /admin/content/rebuild-indexes  — wipe + re-chunk + Lucene
 #   2. POST /admin/content/reindex-embeddings — re-embed every chunk
-#   3. (optional, --reset-kg)  DELETE pending proposals + ai-inferred nodes
+#   3. (optional, --reset-kg)  DELETE pending proposals + MACHINE-TIER ai-inferred
+#                              nodes (tier='machine'; bin/db/kg-reset-machine-tier.sql).
+#                              Anything a person wrote or approved (tier='human')
+#                              is preserved, even though an approved node keeps
+#                              provenance 'ai-inferred'.
 #      (optional, --purge-kg)  TRUNCATE the entire KG layer including
 #                              human-authored nodes, edges, embeddings,
 #                              rejections, hub tables. Mutually exclusive
@@ -123,7 +127,7 @@ if [[ $PURGE_KG -eq 1 ]]; then
         warn "     (--reset-kg overridden by --purge-kg)"
     fi
 elif [[ $RESET_KG -eq 1 ]]; then
-    warn "  3. KG reset (DELETE pending proposals + ai-inferred nodes)"
+    warn "  3. KG reset (DELETE pending proposals + machine-tier ai-inferred nodes; human-tier rows kept)"
 else
     info "  3. KG reset — DISABLED (--reset-kg or --purge-kg to enable)"
 fi
@@ -150,9 +154,12 @@ if [[ $PURGE_KG -eq 1 && $ASSUME_YES -eq 0 ]]; then
     [[ "$confirm" == "PURGE" ]] || die "aborted by operator (confirmation did not match)"
 elif [[ $RESET_KG -eq 1 && $PURGE_KG -eq 0 && $ASSUME_YES -eq 0 ]]; then
     echo
-    echo -e "${YELLOW}--reset-kg will DELETE all pending proposals AND every kg_node with"
-    echo -e "provenance='ai-inferred' (cascading to their edges). Human-authored and"
-    echo -e "AI-reviewed nodes are preserved.${NC}"
+    echo -e "${YELLOW}--reset-kg will DELETE all pending proposals AND every kg_node that is"
+    echo -e "provenance='ai-inferred' AND tier='machine' (cascading to its machine-tier edges,"
+    echo -e "chunk mentions and embeddings). Nothing a person wrote or approved (tier='human')"
+    echo -e "is touched: approving a proposal moves its nodes to tier='human' while they keep"
+    echo -e "provenance='ai-inferred', so approved nodes, and any machine node that is an"
+    echo -e "endpoint of a human-tier edge, are preserved.${NC}"
     read -r -p "Proceed? [y/N] " yn
     [[ "$yn" =~ ^[Yy]$ ]] || die "aborted by operator"
 fi
@@ -303,7 +310,7 @@ fi
 # ---- Phase 3 (optional): KG reset or full purge ----
 #
 # --purge-kg overrides --reset-kg if both are set. Purge TRUNCATEs every
-# table in the KG layer; reset prunes only ai-inferred state. The two are
+# table in the KG layer; reset prunes only MACHINE-TIER ai-inferred state. The two are
 # mutually exclusive in practice but the conditional ordering makes that
 # explicit.
 
@@ -346,19 +353,23 @@ if [[ $PURGE_KG -eq 1 ]]; then
         SELECT 'hub_discovery_proposals', COUNT(*) FROM hub_discovery_proposals
         ORDER BY 1;" || true
 elif [[ $RESET_KG -eq 1 ]]; then
-    phase "Phase 3 — KG reset (ai-inferred prune)"
+    phase "Phase 3 — KG reset (machine-tier ai-inferred prune)"
 
+    KG_RESET_SQL="${SCRIPT_DIR}/db/kg-reset-machine-tier.sql"
+    [[ -r "$KG_RESET_SQL" ]] || die "missing $KG_RESET_SQL"
+
+    # Tier, not provenance, says who vouches for a row: approving a proposal flips
+    # tier to 'human' but leaves provenance 'ai-inferred'. Show both.
     info "Before:"
-    "${PSQL[@]}" -c "SELECT provenance, COUNT(*) FROM kg_nodes GROUP BY provenance ORDER BY 1;" || true
+    "${PSQL[@]}" -c "SELECT tier, provenance, COUNT(*) FROM kg_nodes GROUP BY tier, provenance ORDER BY 1, 2;" || true
     "${PSQL[@]}" -c "SELECT status, COUNT(*) FROM kg_proposals GROUP BY status ORDER BY 1;" || true
 
-    info "Deleting pending proposals…"
-    "${PSQL[@]}" -c "DELETE FROM kg_proposals WHERE status='pending';"
-    info "Deleting ai-inferred nodes (cascades to mentions and edges)…"
-    "${PSQL[@]}" -c "DELETE FROM kg_nodes WHERE provenance='ai-inferred';"
+    info "Deleting pending proposals + machine-tier ai-inferred nodes (cascades to their mentions and edges)…"
+    # One transaction: both deletes apply or neither does. The SQL carries the tier guard.
+    "${PSQL[@]}" -v ON_ERROR_STOP=1 --single-transaction -f "$KG_RESET_SQL"
 
-    info "After:"
-    "${PSQL[@]}" -c "SELECT provenance, COUNT(*) FROM kg_nodes GROUP BY provenance ORDER BY 1;" || true
+    info "After (tier='human' rows must be unchanged):"
+    "${PSQL[@]}" -c "SELECT tier, provenance, COUNT(*) FROM kg_nodes GROUP BY tier, provenance ORDER BY 1, 2;" || true
     "${PSQL[@]}" -c "SELECT status, COUNT(*) FROM kg_proposals GROUP BY status ORDER BY 1;" || true
 fi
 

@@ -19,7 +19,13 @@
 #   bin/kg-materialize-approved.sh --limit 100      # materialise the first 100 only
 #   bin/kg-materialize-approved.sh                  # replay everything in scope
 #
-# Safe to re-run: the node upsert is ON CONFLICT ( name ), pinned by
+# Safe to re-run, and safe against nodes that already exist: node materialisation is
+# FIRST-WRITER-WINS (INSERT ... ON CONFLICT ( name ) DO NOTHING). A proposal naming a
+# node that is not there yet creates it; one naming a node that already exists (curated
+# by a human, extracted earlier, or created by a previous run of this replay) leaves it
+# completely unchanged — type, provenance, properties and tier — and logs the skipped
+# write at INFO. The proposal still counts as materialised. Pinned by
+# KgMaterializationServiceNewNodeFirstWriterWinsTest and
 # KgMaterializationServiceMaterializeTest.materializeMachine_new_node_is_idempotent.
 #
 # Build behaviour: rebuilds wikantik-extract-cli if the jar is missing or stale.

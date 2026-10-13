@@ -45,8 +45,14 @@ import java.util.List;
  * human verdicts authoritative: proposals a human has since <i>rejected</i> are excluded
  * by construction, even though the machine approved them.</p>
  *
- * <p>Safe to re-run: {@code upsertNodeWithProvenance} is {@code ON CONFLICT ( name )},
- * pinned by {@code KgMaterializationServiceMaterializeTest.materializeMachine_new_node_is_idempotent}.</p>
+ * <p>Safe to re-run, and safe against nodes that already exist: node materialisation is
+ * <b>first-writer-wins</b> ({@code ensureNodeWithProvenance}, {@code INSERT ... ON CONFLICT
+ * ( name ) DO NOTHING}). A proposal naming a node that is not yet there creates it; one naming a
+ * node that already exists — curated by a human, extracted earlier, or materialised by a previous
+ * run of this replay — leaves that node completely unchanged (type, provenance, properties, tier)
+ * and logs the skipped write at INFO. The proposal is still counted as materialised. Pinned by
+ * {@code KgMaterializationServiceNewNodeFirstWriterWinsTest} and
+ * {@code KgMaterializationServiceMaterializeTest.materializeMachine_new_node_is_idempotent}.</p>
  */
 public final class MaterializeApprovedProposalsCli {
 

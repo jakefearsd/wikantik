@@ -101,7 +101,7 @@ class KgNodeRepositoryEnsureNodeTest {
         }
 
         assertNull( nodes.ensureNodeWithProvenance( "Hidden", "concept", "P", Provenance.AI_INFERRED,
-            Map.of(), "machine", null ), "same null-on-filtered contract as upsertNodeWithProvenance" );
+            Map.of(), "machine", null ), "null-on-filtered: the row is written but hidden by the KG inclusion policy" );
         assertEquals( "technology", nodes.getNodeByName( "Hidden", true ).nodeType() );
     }
 

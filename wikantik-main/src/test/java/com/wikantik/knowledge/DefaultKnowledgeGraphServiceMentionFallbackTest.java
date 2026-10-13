@@ -139,7 +139,7 @@ class DefaultKnowledgeGraphServiceMentionFallbackTest {
             Map.of( "source", "Eastern Philosophy", "target", "Confucianism",
                     "relationship", "contains" ),
             1.0, "" );
-        final KgNode node = kgNodes.upsertNodeWithProvenance(
+        final KgNode node = kgNodes.ensureNodeWithProvenance(
             "Confucianism", "concept", null, Provenance.AI_INFERRED, Map.of(),
             "machine", proposal.id() );
         seedChunk( "PhilosophyHub", 0, List.of( "Schools" ),
@@ -184,7 +184,7 @@ class DefaultKnowledgeGraphServiceMentionFallbackTest {
         final KgProposal proposal = kgProposals.insertProposal( "new-edge", null,
             Map.of( "source", "X", "target", "Y", "relationship", "related_to" ),
             1.0, "" );
-        final KgNode node = kgNodes.upsertNodeWithProvenance(
+        final KgNode node = kgNodes.ensureNodeWithProvenance(
             "Y", "concept", null, Provenance.AI_INFERRED, Map.of(),
             "machine", proposal.id() );
         assertTrue( svc.getMentionsForNode( node.id(), 5 ).isEmpty() );

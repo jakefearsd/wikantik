@@ -148,9 +148,9 @@ Each phase polls to completion before the next starts.
 | `--skip-embeddings` | Skip phase 2 (embedding reindex) |
 | `--skip-extract` | Skip phase 4 (entity extraction) |
 | `--dry-run` | Print the plan and exit without executing |
-| `--reset-kg` | Before phase 4: delete pending proposals + ai-inferred KG nodes |
+| `--reset-kg` | Before phase 4: delete pending proposals + **machine-tier** ai-inferred KG nodes (human-approved and human-authored rows are kept — see [What `--reset-kg` deletes](#what---reset-kg-deletes)) |
 | `--purge-kg` | Before phase 4: TRUNCATE all KG-layer tables (destructive, requires confirmation) |
-| `--yes` / `-y` | Skip interactive confirmation for `--purge-kg` |
+| `--yes` / `-y` | Skip the interactive confirmation for `--reset-kg` and `--purge-kg` |
 
 Arguments after `--` are forwarded to `bin/kg-extract.sh`:
 
@@ -159,6 +159,29 @@ bin/kg-rebuild.sh --reset-kg -- \
     --ollama-model qwen2.5:1.5b-instruct \
     --concurrency 6
 ```
+
+### What `--reset-kg` deletes
+
+Tier, not provenance, says who vouches for a Knowledge Graph row. `kg_nodes.provenance` records where a
+row came from (`human-authored`, `human-curated`, `ai-inferred`, `ai-reviewed`); `kg_nodes.tier` is
+`machine` or `human`. When a person approves a proposal its nodes and edges move to tier `human`, but they
+**keep provenance `ai-inferred`**. `--reset-kg` therefore selects on both, via
+`bin/db/kg-reset-machine-tier.sql`, run as one transaction:
+
+| Deleted | Kept |
+|---------|------|
+| every `pending` proposal (and its machine reviews) | approved and rejected proposals (human verdicts) |
+| nodes with provenance `ai-inferred` **and** tier `machine`, with the machine-tier edges, chunk mentions and node embeddings that cascade from them | every tier `human` node — human-authored, human-curated and human-approved (`ai-inferred` provenance, tier `human`) — and every tier `human` edge |
+| | a machine-tier `ai-inferred` node that is an endpoint of a tier `human` edge (deleting it would cascade-delete that human-approved edge) |
+
+The prompt, the "Before"/"After" counts (`tier, provenance, COUNT(*)`) and the SQL all use the same rule. Run
+`SELECT tier, provenance, COUNT(*) FROM kg_nodes GROUP BY 1, 2` first to see exactly what a reset would
+remove: the `machine` / `ai-inferred` row is the deletable set. Earlier versions selected on provenance
+alone and so also deleted human-approved nodes; `--purge-kg` is unchanged and still wipes everything.
+
+Re-extraction after a reset (phase 4) re-proposes the deleted entities. Approving a `new-node` proposal is
+**first-writer-wins**: it creates the node only when no node of that name exists, and leaves an existing
+node (including every row the reset kept) completely unchanged, logging the skipped write at INFO.
 
 ### Polling interval env vars
 

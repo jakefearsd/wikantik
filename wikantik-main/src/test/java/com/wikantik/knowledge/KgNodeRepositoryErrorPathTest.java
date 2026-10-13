@@ -103,14 +103,6 @@ class KgNodeRepositoryErrorPathTest {
     }
 
     @Test
-    void upsertNodeWithProvenanceWrapsFailure() {
-        final RuntimeException ex = assertThrows( RuntimeException.class,
-                () -> nodes.upsertNodeWithProvenance( "X", "concept", "P", Provenance.AI_INFERRED,
-                        Map.of(), "machine", null ) );
-        assertTrue( ex.getMessage().contains( "Failed to upsertNodeWithProvenance" ) );
-    }
-
-    @Test
     void ensureNodeWithProvenanceWrapsFailure() {
         final RuntimeException ex = assertThrows( RuntimeException.class,
                 () -> nodes.ensureNodeWithProvenance( "X", "concept", "P", Provenance.AI_INFERRED,

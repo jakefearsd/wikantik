@@ -163,7 +163,7 @@ class KgMaterializationServiceMaterializeTest {
      * Replaying a {@code new-node} proposal must not duplicate the node row.
      *
      * <p><b>Characterization test, not a red-green cycle.</b>
-     * {@code upsertNodeWithProvenance} uses {@code ON CONFLICT ( name )}, so this passed
+     * {@code ensureNodeWithProvenance} uses {@code ON CONFLICT ( name ) DO NOTHING}, so this passed
      * the first time it was run. It earns its place because the planned backfill replays
      * 19,603 already machine-approved proposals that were never materialised, and any of
      * them may be materialised more than once — idempotency is precisely the property

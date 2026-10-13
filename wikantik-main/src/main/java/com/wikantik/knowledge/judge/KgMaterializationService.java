@@ -42,9 +42,17 @@ import java.util.UUID;
  * Single owner of proposal-driven writes to kg_nodes and kg_edges. Closes the
  * historical gap where approveProposal only flipped a status column.
  *
- * <p>Operations are idempotent: re-running on the same proposal is a no-op
- * thanks to ON CONFLICT in the underlying inserts. A {@code new-edge} proposal never
- * rewrites an endpoint node that already exists; it only creates a missing one.</p>
+ * <p><b>Node writes are first-writer-wins.</b> Both proposal types only ever <em>create</em> a
+ * missing node ({@code INSERT ... ON CONFLICT ( name ) DO NOTHING}); a node that already exists
+ * under that name is left completely unchanged — type, provenance, properties, tier, source page
+ * and {@code modified} stamp included. A {@code new-edge} proposal's endpoints and a
+ * {@code new-node} proposal's subject follow the same rule, so approving a proposal can never
+ * overwrite curated or previously extracted node data. A {@code new-node} proposal that names an
+ * existing node is still approved (the proposal's own status is owned by the callers and is
+ * unaffected); the skipped write is logged at INFO so the replay is auditable.</p>
+ *
+ * <p>Operations are idempotent: re-running on the same proposal is a no-op — the node is already
+ * there so the insert does nothing, and the edge insert is {@code ON CONFLICT} too.</p>
  */
 public class KgMaterializationService {
 
@@ -135,13 +143,19 @@ public class KgMaterializationService {
     }
 
     /**
-     * Materialise a {@code new-node} proposal as a single {@code kg_nodes} row.
+     * Materialise a {@code new-node} proposal as a single {@code kg_nodes} row — <b>first writer wins</b>.
      *
      * <p>Until 2026-09-26 {@link #materialize} handled only {@code new-edge}, so nodes
      * existed solely as a side effect of edge materialisation and every {@code new-node}
      * proposal was discarded. That left 30,121 such proposals in production — 73% of the
      * proposal corpus, 19,603 machine-approved and 148 human-approved — producing zero
      * nodes.</p>
+     *
+     * <p>A missing node is created from the proposal. A node that already exists under the same
+     * name is left completely unchanged (an overwriting upsert here used to reset a curator's
+     * {@code node_type}, {@code provenance} and {@code properties} to the proposal's values); the
+     * skipped write is logged at INFO with the name and proposal id. The proposal still counts as
+     * materialised — its approval state is owned by the callers, not by this write.</p>
      *
      * <p>A blank {@code name} is a no-op rather than a failed insert: the extractor is the
      * only producer of these proposals and always supplies one, so a missing name means
@@ -164,15 +178,24 @@ public class KgMaterializationService {
             ? ( Map< String, Object > ) rawProps
             : Map.of();
 
-        final KgNode node = nodes.upsertNodeWithProvenance( name, nodeType, proposal.sourcePage(),
+        final KgNode node = nodes.ensureNodeWithProvenance( name, nodeType, proposal.sourcePage(),
             Provenance.AI_INFERRED, properties, tier, proposal.id() );
-        // Null read-back means the row IS written but the KG inclusion policy filters it
-        // (its source-page cluster is excluded). Not an error — surface it for auditing.
+        // Null read-back means the row is not visible after the write: the KG inclusion policy
+        // filters it (its source-page cluster is excluded). Not an error — surface it for auditing.
         // Nothing is announced because no id came back, mirroring the edge path, which
         // fires only for the endpoint nodes it actually received.
         if ( node == null ) {
-            LOG.info( "materialize: new-node '{}' written but filtered by KG inclusion policy "
-                + "(sourcePage='{}')", name, proposal.sourcePage() );
+            LOG.info( "materialize: new-node '{}' (proposal {}) not visible after write — filtered by "
+                + "KG inclusion policy (sourcePage='{}')", name, proposal.id(), proposal.sourcePage() );
+            return;
+        }
+        // A row that does not carry THIS proposal's id was written by someone else first (a curator,
+        // an earlier extraction, another proposal). First writer wins, so nothing was changed here
+        // and there is nothing to announce.
+        if ( !proposal.id().equals( node.provenanceProposalId() ) ) {
+            LOG.info( "materialize: new-node '{}' (proposal {}) already exists as a '{}' node "
+                + "(provenance={}, tier={}); first writer wins, existing node left unchanged",
+                name, proposal.id(), node.nodeType(), node.provenance(), node.tier() );
             return;
         }
         // KgChangeEventListener is the sole consumer; it feeds OntologyEntitySync, which

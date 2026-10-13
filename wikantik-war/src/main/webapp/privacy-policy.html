@@ -9,50 +9,116 @@
     body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #222; }
     h1 { font-size: 1.8rem; } h2 { font-size: 1.2rem; margin-top: 2rem; }
     a { color: #15803d; }
+    code { font-family: ui-monospace, monospace; font-size: 0.9em; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; }
   </style>
 </head>
 <body>
   <h1>Privacy Policy</h1>
-  <p><strong>Wikantik</strong>, operated by Jacob Fear. Effective 2026-05-24.
-     Questions or requests: <a href="mailto:jakefear@gmail.com">jakefear@gmail.com</a>.</p>
+  <p><strong>Effective:</strong> 2026-10-13</p>
+  <p>This is the same policy as the <a href="/wiki/PrivacyPolicy">wiki version</a>.</p>
 
-  <h2>What we collect</h2>
-  <p>When you sign in with Google or Facebook, we receive your account identifier,
-     name, and email address from that provider, and store a user profile (login
-     name, full name, email). We set only essential cookies: a session cookie and
-     an optional "remember me" sign-in cookie. We do not use tracking or
-     advertising cookies.</p>
+  <p>This is the privacy policy for <strong>wiki.wikantik.com</strong>, the public Wikantik wiki. I run it: Jacob Fear, <a href="mailto:jakefear@gmail.com">jakefear@gmail.com</a>. Wikantik is the wiki software; this policy covers this site and the contact form on the www.wikantik.com marketing site. If you run your own copy of Wikantik, this policy says nothing about your copy.</p>
 
-  <h2>How we use your information</h2>
-  <p>Solely to sign you in and to create and maintain your wiki account. Pages you
-     edit are attributed to your username in the wiki's page history.</p>
+  <h2>The short version</h2>
+  <ul>
+    <li>I do not sell your data. The wiki shows no ads and loads no analytics or advertising code.</li>
+    <li>You can read most of the wiki without an account. Even then, your IP address and browser details pass through Cloudflare and are written to server logs.</li>
+    <li>An account holds the basics: login name, email address, display name and, for password accounts, a hashed password.</li>
+    <li>Edits and comments are public, along with the name they were made under. Page history is kept.</li>
+    <li>You can delete your own account. Your past contributions stay in the page history.</li>
+  </ul>
 
-  <h2>What we do not do</h2>
-  <p>We do not sell or share your personal information, and we use no third-party
-     analytics or advertising.</p>
+  <h2>What the wiki collects</h2>
+  <p><strong>Visiting.</strong> Every request reaches the wiki through Cloudflare, which sees your IP address and request headers. The wiki server then keeps ordinary logs: your IP address (as Cloudflare reports it), the time, the address you asked for, the response status and size, the country Cloudflare reports for the connection, and your browser's user-agent string. Application log lines written while handling your request can carry the same details plus a random request ID.</p>
 
-  <h2>Data sharing</h2>
-  <p>We share no personal data beyond the identity provider you choose to sign in
-     with.</p>
+  <p><strong>Searching.</strong> When you submit a search, the wiki saves the query text, whether it looks like a person or an automated agent, which search feature was used, how many results came back, and the time. It does not store your login name, IP address or cookie with the query. I read these to see what people look for and what the wiki is missing. The as-you-type suggestions in the quick-search box are not saved; only searches you submit are.</p>
 
-  <h2>Retention and deleting your account</h2>
-  <p>You can delete your account at any time from your user preferences. Deletion
-     removes your profile, your group memberships, and any API keys you own, and
-     signs you out. Your past page contributions remain in the wiki's page history,
-     attributed to your username. If you sign in again with Google or Facebook, a
-     new account is created. You may also email
-     <a href="mailto:jakefear@gmail.com">jakefear@gmail.com</a> for help with your
-     data.</p>
+  <p><strong>An account.</strong> The wiki stores your login name, email address, display (full) name, a wiki name, when the account was created and last changed, and when you last signed in. You can add a short bio (up to 1,000 characters), which only you and administrators can see. A password account stores a bcrypt hash of the password, never the password itself. An account created through Google sign-in has no password. If you create an API key, the wiki stores only a hash of the key, plus its label and the dates it was created and last used.</p>
+
+  <p><strong>What you write.</strong> Page edits, comments and file attachments are stored with the name they were made under: page history shows your display name, and comments show your login name. Most pages are public, so anyone can read them and their history. Comments and attachments are visible to whoever can see the page.</p>
+
+  <p><strong>Your names are not secret.</strong> Signed-in users can look up active accounts by login name or display name through the @mention box in comments; that lookup is not available to visitors who are not signed in. Your names also stay visible wherever your content is attributed, as described under &ldquo;What you write&rdquo;. If you sign in with Google, your login name is your Google email address, so your email address can appear in comments and in that lookup. If that is a problem for you, write to me before you create an account. Reading the wiki never needs one.</p>
+
+  <p><strong>An audit log.</strong> The wiki keeps an append-only record of security-relevant events: sign-ins and sign-outs (successful and failed), access denied, page saves, deletes and renames, group and profile changes, and API key events. Each entry records who did it, what happened, the IP address and the browser's user-agent. Page reads are not recorded unless a page is specifically flagged for it. Entries are not edited or removed when an account is deleted.</p>
+
+  <h2>Cookies and browser storage</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Set when</th><th>What it does</th><th>Lifetime</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>JSESSIONID</code></td>
+          <td>You load a wiki page or sign in</td>
+          <td>Keeps your session, including being signed in</td>
+          <td>Until you close the browser; the server drops an idle session after 60 minutes. Secure, HttpOnly, SameSite=Lax</td>
+        </tr>
+        <tr>
+          <td><code>WikantikUID</code></td>
+          <td>You sign in with a password (not with Google)</td>
+          <td>The "stay signed in" cookie: a random ID, with the server remembering which login name it belongs to, so you are signed back in after a server restart or a session timeout</td>
+          <td>14 days, or until you sign out. Secure, HttpOnly, SameSite=Lax</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>This site has the "stay signed in" feature turned on, so <code>WikantikUID</code> is set every time you sign in with a password.</p>
+
+  <p>There are no analytics, advertising or cross-site tracking cookies. The site also keeps a few things in your browser's own storage, which is not sent to the server: your theme and editor settings, which panels are open, your recent searches and recently viewed pages, unsaved editor drafts, and whether Google sign-in is offered. Your browser's settings let you clear all of it.</p>
+
+  <h2>Who else gets your data</h2>
+  <p><strong>Cloudflare.</strong> The wiki runs on a server I operate myself, and public traffic reaches it through a Cloudflare tunnel. Cloudflare therefore processes every request, including your IP address and headers. Its practices are in <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a>.</p>
+
+  <p><strong>Google Fonts.</strong> The page design uses fonts that your browser downloads from Google (fonts.googleapis.com and fonts.gstatic.com) after the page has loaded. Google receives your IP address, your browser details and the address of the page you are on. If you block those requests, the wiki still works, with your browser's fallback fonts. See <a href="https://policies.google.com/privacy">Google's privacy policy</a>.</p>
+
+  <p><strong>Google sign-in (only if you choose it).</strong> The wiki asks Google for your basic profile and email address. It reads three things from the answer: your Google account's unique ID (to recognise you next time), your email address and your name. It creates your account from them: login name and email are your email address, and display name is your Google name. It does not read your contacts, mail, calendar or files, and I use the information only to sign you in and run your account. Google learns that you signed in to this wiki. If you never choose Google sign-in, nothing is sent to Google except the fonts above.</p>
+
+  <p><strong>Email.</strong> The only email the wiki can send is a password-reset message to the address on the account. The production wiki currently has no outgoing mail service configured, so it sends no email at all. If I turn that on, mail will go through an outside mail provider and I will name it here.</p>
+
+  <p><strong>Search engines and crawlers.</strong> Public pages are meant to be found. I publish a sitemap and can tell search engines about new or changed public page addresses through the IndexNow service (addresses only, nothing personal). Search engines and other crawlers can copy anything that is public, including page history with the names on edits, and I cannot recall those copies.</p>
+
+  <p><strong>AI models.</strong> The wiki uses AI models to build its search index and to pull a topic graph out of page text. Those models run on computers I own. Page text is not sent to an outside AI service.</p>
+
+  <p><strong>Backups.</strong> Backups contain a copy of the whole database and all pages, so they hold everything described on this page. Copies are kept on the wiki server, on a separate storage device at my home, and in a folder on that device that syncs to my personal Google Drive.</p>
+
+  <p><strong>Other websites.</strong> Pages can link to, and embed images from, other websites. When a page embeds an image, your browser fetches it from that site directly. Their privacy practices are theirs.</p>
+
+  <p><strong>The www.wikantik.com contact form.</strong> The form asks for your name, email address and what you would use Wikantik for. Submitting it sends those to a Google Apps Script that adds a row to a Google Sheet in my Google account. I use it only to reply to you.</p>
+
+  <h2>How long things are kept</h2>
+  <ul>
+    <li><strong>Logs:</strong> weeks, not years. The central log store deletes entries after 30 days, the security log keeps at most 90 daily files, and the web server's own access log lives inside the application container and goes away when a new release replaces that container.</li>
+    <li><strong>Audit log:</strong> up to seven years.</li>
+    <li><strong>Search queries:</strong> no automatic deletion.</li>
+    <li><strong>Account details:</strong> until you delete the account.</li>
+    <li><strong>Page history, comments and attachments:</strong> kept indefinitely.</li>
+    <li><strong>Backups:</strong> daily copies for 30 days, weekly for 12 weeks and monthly for 12 months on the wiki server. The home storage device keeps them longer, up to about a year. Deleted data therefore remains in older backups until they age out.</li>
+  </ul>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li><strong>Change your details.</strong> Sign in and open <a href="https://wiki.wikantik.com/preferences">your preferences</a> to change your display name, email address, bio or password. Login name and wiki name are fixed once the account exists.</li>
+    <li><strong>Delete your account.</strong> The Danger Zone at the bottom of the same page deletes it after you type your login name to confirm. That removes your profile (login name, email, names, bio and password hash) and your group memberships, revokes your API keys and signs you out. If you later sign in with Google again, a new account is created.</li>
+    <li><strong>What deletion does not remove.</strong> Your past edits and comments stay in the wiki, under the name they were made with. Audit log entries stay. Backups keep the old data until they age out, and anything search engines or others have already copied stays copied.</li>
+    <li><strong>Ask me.</strong> Write to me for a copy of what your account holds, to correct something, or to ask about removing your name from old contributions. I will look at each request and tell you what can be done.</li>
+  </ul>
+
+  <h2>Security</h2>
+  <p>The site is served over HTTPS only. Passwords and API keys are stored only as hashes. The server accepts no inbound connections from the internet; traffic arrives through the Cloudflare tunnel. No system is perfectly secure, and I cannot promise otherwise.</p>
 
   <h2>Children</h2>
-  <p>This site is not directed to children under 13, and we do not knowingly
-     collect their information.</p>
+  <p>This site is not directed at children under 13, and I do not knowingly collect their information. If you think a child has an account, write to me and I will remove it.</p>
 
-  <h2>Changes to this policy</h2>
-  <p>We may update this policy; material changes will be reflected by a new
-     effective date above.</p>
+  <h2>Changes</h2>
+  <p>When I change this policy I will update the effective date at the top, and the page history is public. 2026-10-13: rewritten from a generic template to describe what the wiki actually does.</p>
 
   <h2>Contact</h2>
-  <p>Jacob Fear — <a href="mailto:jakefear@gmail.com">jakefear@gmail.com</a>.</p>
+  <p>Jacob Fear, <a href="mailto:jakefear@gmail.com">jakefear@gmail.com</a>.</p>
 </body>
 </html>

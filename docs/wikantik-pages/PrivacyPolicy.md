@@ -1,136 +1,105 @@
 ---
-type: article
-canonical_id: 01KQ0P44TRZS26YNJNHK32EFF1
+type: reference
 cluster: wikantik-development
-summary: This Privacy Policy explains how [Site Name] collects, uses, discloses, and
-  protects your personal information when you use our Service.
 tags:
-- uncategorized
+- privacy
+- policy
+- legal
+- wikantik
+title: Privacy Policy
+summary: 'How wiki.wikantik.com handles your data: what it collects, which cookies
+  it sets, who else sees it, and how to delete your account.'
+canonical_id: 01KQ0P44TRZS26YNJNHK32EFF1
+status: active
+date: '2026-10-13'
 ---
 # Privacy Policy
 
-**Last Updated:** May 3, 2026
+**Effective:** 2026-10-13
 
-**[Site Name]** ("we," "us," or "our") operates **[Site URL]** (the "Service"). This Privacy Policy explains how we collect, use, disclose, and protect your personal information when you use our Service.
+This is the privacy policy for **wiki.wikantik.com**, the public Wikantik wiki. I run it: Jacob Fear, [jakefear@gmail.com](mailto:jakefear@gmail.com). Wikantik is the wiki software; this policy covers this site and the contact form on the www.wikantik.com marketing site. If you run your own copy of Wikantik, this policy says nothing about your copy.
 
-By using the Service, you consent to the practices described in this policy. If you do not agree, please do not use our Service.
+## The short version
 
-## 1. Information We Collect
+- I do not sell your data. The wiki shows no ads and loads no analytics or advertising code.
+- You can read most of the wiki without an account. Even then, your IP address and browser details pass through Cloudflare and are written to server logs.
+- An account holds the basics: login name, email address, display name and, for password accounts, a hashed password.
+- Edits and comments are public, along with the name they were made under. Page history is kept.
+- You can delete your own account. Your past contributions stay in the page history.
 
-### 1.1 Information You Provide
-- **Account Information:** Name, email address, username, and password when you register directly
-- **Profile Information:** Optional details you add to your profile (bio, avatar, preferences)
-- **Content:** Articles, comments, edits, and other content you submit
-- **Communications:** Messages you send to us or other users
+## What the wiki collects
 
-### 1.2 Information from Social Login (OAuth)
-When you sign in using a third-party provider (Google, GitHub, Facebook, etc.), we receive:
-- Your name and email address
-- Profile picture (if available)
-- Unique identifier from the provider
+**Visiting.** Every request reaches the wiki through Cloudflare, which sees your IP address and request headers. The wiki server then keeps ordinary logs: your IP address (as Cloudflare reports it), the time, the address you asked for, the response status and size, the country Cloudflare reports for the connection, and your browser's user-agent string. Application log lines written while handling your request can carry the same details plus a random request ID.
 
-We do **not** receive or store your third-party account password. The information shared depends on your privacy settings with that provider. Please review their privacy policies:
-- [Google Privacy Policy](https://policies.google.com/privacy)
-- [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)
-- [Facebook Privacy Policy](https://www.facebook.com/privacy/policy/)
+**Searching.** When you submit a search, the wiki saves the query text, whether it looks like a person or an automated agent, which search feature was used, how many results came back, and the time. It does not store your login name, IP address or cookie with the query. I read these to see what people look for and what the wiki is missing. The as-you-type suggestions in the quick-search box are not saved; only searches you submit are.
 
-### 1.3 Information Collected Automatically
-- **Log Data:** IP address, browser type, operating system, referring URLs, pages visited, timestamps
-- **Cookies:** See Section 5 below
-- **Device Information:** Device type and unique identifiers
+**An account.** The wiki stores your login name, email address, display (full) name, a wiki name, when the account was created and last changed, and when you last signed in. You can add a short bio (up to 1,000 characters), which only you and administrators can see. A password account stores a bcrypt hash of the password, never the password itself. An account created through Google sign-in has no password. If you create an API key, the wiki stores only a hash of the key, plus its label and the dates it was created and last used.
 
-## 2. How We Use Your Information
+**What you write.** Page edits, comments and file attachments are stored with the name they were made under: page history shows your display name, and comments show your login name. Most pages are public, so anyone can read them and their history. Comments and attachments are visible to whoever can see the page.
 
-We use your information to:
-- Provide, maintain, and improve the Service
-- Create and manage your account
-- Enable you to contribute and interact with content
-- Send service-related notifications (account verification, security alerts)
-- Respond to your inquiries and support requests
-- Detect and prevent fraud, abuse, and security issues
-- Comply with legal obligations
+**Your names are not secret.** Active accounts can be looked up by login name or display name through the @mention box in comments, and that lookup works without signing in. If you sign in with Google, your login name is your Google email address, so your email address can appear in comments and in that lookup. If that is a problem for you, write to me before you create an account. Reading the wiki never needs one.
 
-We do **not** sell your personal information.
+**An audit log.** The wiki keeps an append-only record of security-relevant events: sign-ins and sign-outs (successful and failed), access denied, page saves, deletes and renames, group and profile changes, and API key events. Each entry records who did it, what happened, the IP address and the browser's user-agent. Page reads are not recorded unless a page is specifically flagged for it. Entries are not edited or removed when an account is deleted.
 
-## 3. How We Share Your Information
+## Cookies and browser storage
 
-We may share your information with:
-- **Service Providers:** Hosting, analytics, and email services that help us operate the Service
-- **Legal Requirements:** When required by law, court order, or government request
-- **Safety:** To protect the rights, safety, or property of **[Site Name]**, our users, or the public
-- **Business Transfers:** In connection with a merger, acquisition, or sale of assets
+| Name | Set when | What it does | Lifetime |
+|---|---|---|---|
+| `JSESSIONID` | You load a wiki page or sign in | Keeps your session, including being signed in | Until you close the browser; the server drops an idle session after 60 minutes. Secure, HttpOnly, SameSite=Lax |
+| `WikantikUID` | You sign in with a password (not with Google) | The "stay signed in" cookie: a random ID, with the server remembering which login name it belongs to, so you are signed back in after a server restart or a session timeout | 14 days, or until you sign out. Secure, HttpOnly, SameSite=Lax |
 
-Your public profile and content contributions are visible to other users and may be indexed by search engines.
+This site has the "stay signed in" feature turned on, so `WikantikUID` is set every time you sign in with a password.
 
-## 4. Data Retention
+There are no analytics, advertising or cross-site tracking cookies. The site also keeps a few things in your browser's own storage, which is not sent to the server: your theme and editor settings, which panels are open, your recent searches and recently viewed pages, unsaved editor drafts, and whether Google sign-in is offered. Your browser's settings let you clear all of it.
 
-We retain your personal information for as long as your account is active or as needed to provide the Service. You may request deletion of your account and associated data (see Section 7). We may retain certain information as required by law or for legitimate business purposes.
+## Who else gets your data
 
-## 5. Cookies and Tracking Technologies
+**Cloudflare.** The wiki runs on a server I operate myself, and public traffic reaches it through a Cloudflare tunnel. Cloudflare therefore processes every request, including your IP address and headers. Its practices are in [Cloudflare's privacy policy](https://www.cloudflare.com/privacypolicy/).
 
-### 5.1 What Are Cookies
-Cookies are small text files stored on your device that help us provide and improve the Service.
+**Google Fonts.** The page design uses fonts that your browser downloads from Google (fonts.googleapis.com and fonts.gstatic.com) after the page has loaded. Google receives your IP address, your browser details and the address of the page you are on. If you block those requests, the wiki still works, with your browser's fallback fonts. See [Google's privacy policy](https://policies.google.com/privacy).
 
-### 5.2 Types of Cookies We Use
-| Cookie Type | Purpose |
-|-------------|---------|
-| **Essential** | Required for login, security, and basic functionality |
-| **Preferences** | Remember your settings and preferences |
-| **Analytics** | Help us understand how visitors use the Service |
+**Google sign-in (only if you choose it).** The wiki asks Google for your basic profile and email address. It reads three things from the answer: your Google account's unique ID (to recognise you next time), your email address and your name. It creates your account from them: login name and email are your email address, and display name is your Google name. It does not read your contacts, mail, calendar or files, and I use the information only to sign you in and run your account. Google learns that you signed in to this wiki. If you never choose Google sign-in, nothing is sent to Google except the fonts above.
 
-### 5.3 Your Cookie Choices
-You can control cookies through your browser settings. Disabling essential cookies may affect Service functionality. For analytics cookies, we will request your consent where required by law.
+**Email.** The only email the wiki can send is a password-reset message to the address on the account. The production wiki currently has no outgoing mail service configured, so it sends no email at all. If I turn that on, mail will go through an outside mail provider and I will name it here.
 
-### 5.4 Do Not Track
-We currently do not respond to "Do Not Track" browser signals.
+**Search engines and crawlers.** Public pages are meant to be found. I publish a sitemap and can tell search engines about new or changed public page addresses through the IndexNow service (addresses only, nothing personal). Search engines and other crawlers can copy anything that is public, including page history with the names on edits, and I cannot recall those copies.
 
-## 6. Data Security
+**AI models.** The wiki uses AI models to build its search index and to pull a topic graph out of page text. Those models run on computers I own. Page text is not sent to an outside AI service.
 
-We implement appropriate technical and organizational measures to protect your information, including encryption in transit (HTTPS) and secure storage. However, no method of transmission or storage is 100% secure, and we cannot guarantee absolute security.
+**Backups.** Backups contain a copy of the whole database and all pages, so they hold everything described on this page. Copies are kept on the wiki server, on a separate storage device at my home, and in a folder on that device that syncs to my personal Google Drive.
 
-## 7. Your Rights
+**Other websites.** Pages can link to, and embed images from, other websites. When a page embeds an image, your browser fetches it from that site directly. Their privacy practices are theirs.
 
-Depending on your location, you may have the following rights:
+**The www.wikantik.com contact form.** The form asks for your name, email address and what you would use Wikantik for. Submitting it sends those to a Google Apps Script that adds a row to a Google Sheet in my Google account. I use it only to reply to you.
 
-- **Access:** Request a copy of your personal data
-- **Correction:** Request correction of inaccurate data
-- **Deletion:** Request deletion of your data ("right to be forgotten")
-- **Portability:** Request your data in a portable format
-- **Restriction:** Request we limit processing of your data
-- **Objection:** Object to certain processing activities
-- **Withdraw Consent:** Withdraw consent at any time where processing is based on consent
+## How long things are kept
 
-To exercise these rights, contact us at **[Email Address]**. We will respond within 30 days (or as required by applicable law).
+- **Logs:** weeks, not years. The central log store deletes entries after 30 days, the security log keeps at most 90 daily files, and the web server's own access log lives inside the application container and goes away when a new release replaces that container.
+- **Audit log:** up to seven years.
+- **Search queries:** no automatic deletion.
+- **Account details:** until you delete the account.
+- **Page history, comments and attachments:** kept indefinitely.
+- **Backups:** daily copies for 30 days, weekly for 12 weeks and monthly for 12 months on the wiki server. The home storage device keeps them longer, up to about a year. Deleted data therefore remains in older backups until they age out.
 
-**EU/EEA Residents:** You have the right to lodge a complaint with your local data protection authority.
+## Your choices
 
-**California Residents:** Under the CCPA/CPRA, you have additional rights including the right to know what personal information is collected and the right to opt out of sales (we do not sell personal data).
+- **Change your details.** Sign in and open [your preferences](https://wiki.wikantik.com/preferences) to change your display name, email address, bio or password. Login name and wiki name are fixed once the account exists.
+- **Delete your account.** The Danger Zone at the bottom of the same page deletes it after you type your login name to confirm. That removes your profile (login name, email, names, bio and password hash) and your group memberships, revokes your API keys and signs you out. If you later sign in with Google again, a new account is created.
+- **What deletion does not remove.** Your past edits and comments stay in the wiki, under the name they were made with. Audit log entries stay. Backups keep the old data until they age out, and anything search engines or others have already copied stays copied.
+- **Ask me.** Write to me for a copy of what your account holds, to correct something, or to ask about removing your name from old contributions. I will look at each request and tell you what can be done.
 
-## 8. International Data Transfers
+## Security
 
-Your information may be transferred to and processed in countries other than your own. We ensure appropriate safeguards are in place for such transfers in compliance with applicable data protection laws.
+The site is served over HTTPS only. Passwords and API keys are stored only as hashes. The server accepts no inbound connections from the internet; traffic arrives through the Cloudflare tunnel. No system is perfectly secure, and I cannot promise otherwise.
 
-## 9. Children's Privacy
+## Children
 
-The Service is not intended for children under 13 (or 16 in the EU). We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will delete it.
+This site is not directed at children under 13, and I do not knowingly collect their information. If you think a child has an account, write to me and I will remove it.
 
-## 10. Third-Party Links
+## Changes
 
-The Service may contain links to third-party websites. We are not responsible for their privacy practices. Please review their privacy policies before providing any information.
+When I change this policy I will update the effective date at the top, and the page history is public. 2026-10-13: rewritten from a generic template to describe what the wiki actually does.
 
-## 11. Changes to This Policy
+## Contact
 
-We may update this Privacy Policy from time to time. We will notify you of material changes by posting the new policy on this page and updating the "Last Updated" date. Your continued use after changes constitutes acceptance.
-
-## 12. Contact Us
-
-For questions, concerns, or to exercise your rights:
-
-**Email:** **[Email Address]**
-**Address:** **[Mailing Address]**
-
-For EU residents, our data protection contact is: **[DPO Contact Info]**
-
----
-
-*This document is provided as a template and should be reviewed by legal counsel before use to ensure compliance with applicable laws in your jurisdiction.*
+Jacob Fear, [jakefear@gmail.com](mailto:jakefear@gmail.com).

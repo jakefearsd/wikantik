@@ -6,7 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Upgrade notes
+- Approving a Knowledge Graph `new-node` proposal is now first-writer-wins: when a node with that name already
+  exists it is left unchanged (logged at INFO), instead of having its type, provenance and properties replaced.
+  Run the pending approved-proposal replay (`bin/kg-materialize-approved.sh`) only on 2.4.57 or later.
+- `bin/kg-rebuild.sh --reset-kg` deletes only machine-tier `ai-inferred` nodes (SQL in
+  `bin/db/kg-reset-machine-tier.sql`); human-approved nodes, and machine nodes that anchor a human-tier edge,
+  survive. It used to delete every `ai-inferred` node, including approved ones.
+- A standalone (non-JNDI) mail session now applies the documented defaults when the keys are unset:
+  `mail.smtp.starttls.enable=true` and 5-second connect/read timeouts. Set a key explicitly to override.
+
 ### Fixed
+- The audit log's Actor filter (`GET /admin/audit?actor=`, Admin → Audit) matched only `actor_id`, which no
+  writer sets, so it never found anything. It now matches the actor principal (and `actor_id` when present).
+- Admin-side API-key revocation (`DELETE /admin/apikeys/{id}` and bulk revoke) is now audited as
+  `apikey.revoke`, one entry per revoked key, like the self-service path.
 - Approving a Knowledge Graph `new-edge` proposal no longer rewrites an endpoint node that already exists.
   Both endpoints were upserted as placeholder `concept` nodes, which reset an existing node's `node_type`,
   provenance and properties (a `technology` node became a `concept`, so valid `implements` edges then failed
@@ -21,6 +35,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   SCIM bearer token could make an account an administrator or remove every administrator. `POST`, `PUT`,
   `PATCH` and `DELETE` on the Admin group (any letter case) now return `403` without changing it, logged at
   WARN and audited as `DENIED`. Change administrators in **Admin → Security → Groups**.
+- `GET /api/users/mentionable` (the @-mention autocomplete) answered anonymous callers with login and display
+  names for every active account — with Google sign-in, login names are email addresses. It now requires a
+  signed-in session (401 otherwise), and the comment UI no longer calls it for signed-out visitors.
+- The privacy policy (`/privacy-policy.html` and the wiki page `PrivacyPolicy`) is rewritten to match what the
+  site actually collects and shares (Cloudflare, Google Fonts, Google sign-in, cookies, logs, retention); the
+  terms no longer mention Facebook sign-in.
 
 ## [2.4.56] - 2026-10-12
 

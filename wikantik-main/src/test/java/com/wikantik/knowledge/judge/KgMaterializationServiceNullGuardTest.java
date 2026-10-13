@@ -43,7 +43,7 @@ import static org.mockito.Mockito.when;
  * Unit-level coverage for the policy-exclusion null-guard in
  * {@link KgMaterializationService#materialize}.
  *
- * <p>{@code upsertNodeWithProvenance} writes the row, then reads it back
+ * <p>{@code ensureNodeWithProvenance} writes the row (if absent), then reads it back
  * through the inclusion-policy filter. When the source page is excluded
  * from the KG, the read-back returns null. Materialise must skip the
  * edge (no NPE, no edge insert) and log the reason.
@@ -56,9 +56,9 @@ class KgMaterializationServiceNullGuardTest {
         final KgEdgeRepository edges = mock( KgEdgeRepository.class );
         final KgNode src = new KgNode( UUID.randomUUID(), "Alpha", "concept", null,
             Provenance.AI_INFERRED, Map.of(), Instant.now(), Instant.now(), "machine", null );
-        when( nodes.upsertNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.ensureNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( src );
-        when( nodes.upsertNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.ensureNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( null );
 
         final KgProposal proposal = new KgProposal(
@@ -93,9 +93,9 @@ class KgMaterializationServiceNullGuardTest {
         final KgEdgeRepository edges = mock( KgEdgeRepository.class );
         final KgNode tgt = new KgNode( UUID.randomUUID(), "Beta", "concept", null,
             Provenance.AI_INFERRED, Map.of(), Instant.now(), Instant.now(), "machine", null );
-        when( nodes.upsertNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.ensureNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( null );
-        when( nodes.upsertNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.ensureNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( tgt );
 
         final KgProposal proposal = new KgProposal(

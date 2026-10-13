@@ -214,15 +214,15 @@ class KgMaterializationServiceEventTest {
     @Test
     void policyExclusionFiresOnlyWrittenNodeId() {
         // Mirrors KgMaterializationServiceNullGuardTest's exclusion setup exactly: mocked repos
-        // where upsertNodeWithProvenance's post-write read-back returns null for the excluded
+        // where ensureNodeWithProvenance's post-write read-back returns null for the excluded
         // node only (the other endpoint is genuinely written and must still be reported).
         final KgNodeRepository mockedNodes = mock( KgNodeRepository.class );
         final KgEdgeRepository mockedEdges = mock( KgEdgeRepository.class );
         final KgNode src = new KgNode( UUID.randomUUID(), "Alpha", "concept", null,
             Provenance.AI_INFERRED, Map.of(), java.time.Instant.now(), java.time.Instant.now(), "machine", null );
-        when( mockedNodes.upsertNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
+        when( mockedNodes.ensureNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( src );
-        when( mockedNodes.upsertNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
+        when( mockedNodes.ensureNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( null );
 
         final KgProposal proposal = new KgProposal(

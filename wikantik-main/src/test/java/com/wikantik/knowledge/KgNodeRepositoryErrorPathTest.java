@@ -111,6 +111,14 @@ class KgNodeRepositoryErrorPathTest {
     }
 
     @Test
+    void ensureNodeWithProvenanceWrapsFailure() {
+        final RuntimeException ex = assertThrows( RuntimeException.class,
+                () -> nodes.ensureNodeWithProvenance( "X", "concept", "P", Provenance.AI_INFERRED,
+                        Map.of(), "machine", null ) );
+        assertTrue( ex.getMessage().contains( "Failed to ensureNodeWithProvenance" ) );
+    }
+
+    @Test
     void findNodeIdsByProvenanceWrapsFailure() {
         assertThrows( RuntimeException.class, () -> nodes.findNodeIdsByProvenance( UUID.randomUUID() ) );
     }

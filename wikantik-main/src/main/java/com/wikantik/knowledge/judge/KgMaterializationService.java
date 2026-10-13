@@ -43,7 +43,8 @@ import java.util.UUID;
  * historical gap where approveProposal only flipped a status column.
  *
  * <p>Operations are idempotent: re-running on the same proposal is a no-op
- * thanks to ON CONFLICT in the underlying upserts.</p>
+ * thanks to ON CONFLICT in the underlying inserts. A {@code new-edge} proposal never
+ * rewrites an endpoint node that already exists; it only creates a missing one.</p>
  */
 public class KgMaterializationService {
 
@@ -198,11 +199,14 @@ public class KgMaterializationService {
             return;
         }
 
-        final KgNode src = nodes.upsertNodeWithProvenance( source, "concept", proposal.sourcePage(),
+        // An edge endpoint only has to EXIST. A missing one is created as a placeholder 'concept';
+        // one that already exists is left completely unchanged — an overwriting upsert here would
+        // reset its curated/extracted node_type, provenance and properties to the placeholder's.
+        final KgNode src = nodes.ensureNodeWithProvenance( source, "concept", proposal.sourcePage(),
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
-        final KgNode tgt = nodes.upsertNodeWithProvenance( target, "concept", proposal.sourcePage(),
+        final KgNode tgt = nodes.ensureNodeWithProvenance( target, "concept", proposal.sourcePage(),
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
-        // upsertNodeWithProvenance returns null when the post-INSERT read-back
+        // ensureNodeWithProvenance returns null when the post-INSERT read-back
         // is filtered out by the KG inclusion policy (the row IS in kg_nodes,
         // but its source-page cluster is excluded). Materialisation is a no-op
         // in that case — leave the edge unwritten and surface the reason so

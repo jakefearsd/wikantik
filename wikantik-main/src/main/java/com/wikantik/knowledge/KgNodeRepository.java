@@ -336,32 +336,84 @@ public final class KgNodeRepository extends KgJdbcSupport {
         }
     }
 
+    private static final String INSERT_NODE_WITH_PROVENANCE_SQL =
+        "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, "
+        + "tier, provenance_proposal_id, modified ) "
+        + "VALUES ( ?, ?, ?, ?, ?::jsonb, ?, ?, CURRENT_TIMESTAMP ) ";
+
+    /**
+     * Insert-or-overwrite: a node that already exists under {@code name} has its {@code node_type},
+     * {@code provenance} and {@code properties} replaced with the arguments (and {@code source_page}
+     * replaced when a non-null one is supplied). {@code tier} and {@code provenance_proposal_id}
+     * are never changed on conflict.
+     *
+     * <p>That overwrite is only right for a caller that <em>owns</em> the node's content. A caller
+     * that merely needs the node to <em>exist</em> — such as an edge endpoint — must use
+     * {@link #ensureNodeWithProvenance} instead, or it will reset curated type and property data.</p>
+     *
+     * @return the row as read back through the KG inclusion filter, or {@code null} when that filter hides it
+     */
     public KgNode upsertNodeWithProvenance( final String name, final String nodeType,
                                             final String sourcePage, final Provenance provenance,
                                             final Map< String, Object > properties,
                                             final String tier, final UUID provenanceProposalId ) {
+        return writeNodeWithProvenance( "upsertNodeWithProvenance",
+            INSERT_NODE_WITH_PROVENANCE_SQL
+                + "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, "
+                + "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), "
+                + "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, "
+                + "modified = CURRENT_TIMESTAMP",
+            name, nodeBinder( name, nodeType, sourcePage, provenance, properties, tier, provenanceProposalId ) );
+    }
+
+    /**
+     * Insert-if-absent: creates the node when no node is named {@code name}, and otherwise leaves
+     * the existing row <b>completely unchanged</b> (type, provenance, properties, tier,
+     * source page, proposal link and {@code modified} stamp all included).
+     *
+     * <p>Used for edge endpoints, where the caller needs the node to exist but has no authority
+     * over its content: the arguments are only a placeholder for a node that has to be invented.
+     * Race-safe — {@code INSERT ... ON CONFLICT ( name ) DO NOTHING} waits out a concurrent insert
+     * of the same name and then does nothing, so two callers creating the same missing node both
+     * succeed and the first writer's row survives.</p>
+     *
+     * @return the row (new or pre-existing) as read back through the KG inclusion filter, or
+     *         {@code null} when that filter hides it — the same contract as
+     *         {@link #upsertNodeWithProvenance}
+     */
+    public KgNode ensureNodeWithProvenance( final String name, final String nodeType,
+                                            final String sourcePage, final Provenance provenance,
+                                            final Map< String, Object > properties,
+                                            final String tier, final UUID provenanceProposalId ) {
+        return writeNodeWithProvenance( "ensureNodeWithProvenance",
+            INSERT_NODE_WITH_PROVENANCE_SQL + "ON CONFLICT ( name ) DO NOTHING",
+            name, nodeBinder( name, nodeType, sourcePage, provenance, properties, tier, provenanceProposalId ) );
+    }
+
+    /** Binds the seven {@code ?} placeholders of {@link #INSERT_NODE_WITH_PROVENANCE_SQL}. */
+    private static SqlBinder nodeBinder( final String name, final String nodeType, final String sourcePage,
+                                         final Provenance provenance, final Map< String, Object > properties,
+                                         final String tier, final UUID provenanceProposalId ) {
         final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
-        final String sql = "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, " +
-            "tier, provenance_proposal_id, modified ) " +
-            "VALUES ( ?, ?, ?, ?, ?::jsonb, ?, ?, CURRENT_TIMESTAMP ) " +
-            "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, " +
-            "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), " +
-            "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, " +
-            "modified = CURRENT_TIMESTAMP";
+        return ps -> {
+            ps.setString( 1, name );
+            ps.setString( 2, nodeType );
+            ps.setString( 3, sourcePage );
+            ps.setString( 4, provenance.value() );
+            ps.setString( 5, propsJson );
+            ps.setString( 6, tier );
+            if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
+            else ps.setObject( 7, provenanceProposalId );
+        };
+    }
+
+    private KgNode writeNodeWithProvenance( final String operation, final String sql, final String name,
+                                            final SqlBinder binder ) {
         try {
-            update( sql, ps -> {
-                ps.setString( 1, name );
-                ps.setString( 2, nodeType );
-                ps.setString( 3, sourcePage );
-                ps.setString( 4, provenance.value() );
-                ps.setString( 5, propsJson );
-                ps.setString( 6, tier );
-                if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
-                else ps.setObject( 7, provenanceProposalId );
-            } );
+            update( sql, binder );
         } catch ( final SQLException e ) {
-            LOG.warn( "Failed to upsertNodeWithProvenance '{}': {}", name, e.getMessage(), e );
-            throw new RuntimeException( "Failed to upsertNodeWithProvenance: " + e.getMessage(), e );
+            LOG.warn( "Failed to {} '{}': {}", operation, name, e.getMessage(), e );
+            throw new RuntimeException( "Failed to " + operation + ": " + e.getMessage(), e );
         }
         return getNodeByName( name );
     }

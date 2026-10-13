@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- Approving a Knowledge Graph `new-edge` proposal no longer rewrites an endpoint node that already exists.
+  Both endpoints were upserted as placeholder `concept` nodes, which reset an existing node's `node_type`,
+  provenance and properties (a `technology` node became a `concept`, so valid `implements` edges then failed
+  the SHACL gate). A missing endpoint is still created as `concept`; an existing one is left unchanged.
 - The generated configuration reference (`docs/ConfigurationReference.md` and the wiki page
   `WikantikConfigurationReference`) escapes a bare `$` in descriptions. Two of them paired into one inline-math
   span and rendered about 20 lines of the wiki page as a formula.

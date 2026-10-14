@@ -21,6 +21,7 @@ package com.wikantik.scim;
 import com.wikantik.WikiEngine;
 import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileChangeNotifier;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserDatabase;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedStatic;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
@@ -45,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -371,6 +374,84 @@ class ScimUserResourceTest {
         resource.service( req, resp );
 
         assertGenericConflict();
+    }
+
+    @Test
+    void patchName_refreshesTheUsersLiveSessions() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/uid-ivy" );
+
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "ivy" );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-ivy" ) ).thenReturn( p );
+        doNothing().when( mockDb ).save( any() );
+
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"name\",\"value\":{\"formatted\":\"Ivy Jones\"}}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        try ( MockedStatic< ProfileChangeNotifier > notifier = mockStatic( ProfileChangeNotifier.class ) ) {
+            resource.service( req, resp );
+            notifier.verify( () -> ProfileChangeNotifier.profileSaved( any(), eq( "ivy" ) ) );
+        }
+    }
+
+    @Test
+    void patchSaveConflict_doesNotNotifyTheProfileChange() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/uid-kim" );
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "kim" );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-kim" ) ).thenReturn( p );
+        doThrow( new com.wikantik.auth.user.ProfileConflictException( new java.sql.SQLException( RAW_CONSTRAINT, "23505" ) ) )
+                .when( mockDb ).save( any() );
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"displayName\",\"value\":\"Kim\"}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        try ( MockedStatic< ProfileChangeNotifier > notifier = mockStatic( ProfileChangeNotifier.class ) ) {
+            resource.service( req, resp );
+            notifier.verifyNoInteractions();
+        }
+    }
+
+    @Test
+    void putSuccess_refreshesTheUsersLiveSessions() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/uid-ivan" );
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "ivan" );
+        when( p.isLocked() ).thenReturn( false );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-ivan" ) ).thenReturn( p );
+        doNothing().when( mockDb ).save( any() );
+        final String body = "{\"userName\":\"ivan\",\"displayName\":\"Ivan Updated\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        try ( MockedStatic< ProfileChangeNotifier > notifier = mockStatic( ProfileChangeNotifier.class ) ) {
+            resource.doPut( req, resp );
+            notifier.verify( () -> ProfileChangeNotifier.profileSaved( any(), eq( "ivan" ) ) );
+        }
+    }
+
+    @Test
+    void createSuccess_notifiesTheProfileChange() throws Exception {
+        final UserProfile newProfile = mock( UserProfile.class );
+        when( newProfile.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.newProfile() ).thenReturn( newProfile );
+        final UserProfile saved = mock( UserProfile.class );
+        when( saved.getUid() ).thenReturn( "uid-dave" );
+        when( saved.getLoginName() ).thenReturn( "dave" );
+        when( saved.getAttributes() ).thenReturn( new HashMap<>() );
+        doThrow( new NoSuchPrincipalException( "dave" ) )
+                .doReturn( saved )
+                .when( mockDb ).findByLoginName( "dave" );
+        final String body = "{\"userName\":\"dave\",\"displayName\":\"Dave User\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        try ( MockedStatic< ProfileChangeNotifier > notifier = mockStatic( ProfileChangeNotifier.class ) ) {
+            resource.doPost( req, resp );
+            notifier.verify( () -> ProfileChangeNotifier.profileSaved( any(), eq( "dave" ) ) );
+        }
     }
 
     @Test

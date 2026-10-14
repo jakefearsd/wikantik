@@ -453,6 +453,26 @@ public final class WikiSession implements Session {
         }
     }
 
+    /**
+     * Re-reads this authenticated session's full-name and wiki-name principals after the user's profile was saved
+     * <em>outside</em> this session (self-service REST edit, admin edit, SCIM): the stale name principals are dropped, the user
+     * principal is reset to the login principal and the profile is re-injected, so {@link #getUserPrincipal()} reports the new
+     * display name at once. The login principal, roles and group principals are untouched. No-op unless authenticated.
+     */
+    public void refreshUserProfile() {
+        if ( !isAuthenticated() || loginPrincipal == null ) {
+            return;
+        }
+        subject.getPrincipals().removeIf( WikiSession::isProfileNamePrincipal );
+        userPrincipal = loginPrincipal;
+        injectUserProfilePrincipals();
+    }
+
+    private static boolean isProfileNamePrincipal( final Principal principal ) {
+        return principal instanceof WikiPrincipal wp
+                && ( WikiPrincipal.FULL_NAME.equals( wp.getType() ) || WikiPrincipal.WIKI_NAME.equals( wp.getType() ) );
+    }
+
     /** {@inheritDoc} */
     @Override
     public String getStatus() {

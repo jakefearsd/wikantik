@@ -24,6 +24,7 @@ import com.google.gson.JsonParser;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.ProfileChangeNotifier;
 import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -409,6 +410,7 @@ public class AuthResource extends RestServletBase {
             }
 
             db.save( profile );
+            ProfileChangeNotifier.profileSaved( engine, loginName );
             if ( newPassword != null && !newPassword.isBlank() ) {
                 PasswordChangeGate.cache( request, false );
             }

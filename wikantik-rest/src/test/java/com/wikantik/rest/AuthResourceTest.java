@@ -750,6 +750,26 @@ class AuthResourceTest {
     }
 
     @Test
+    void handleUpdateProfile_refreshesTheCallersLiveSessions() throws Exception {
+        final UserProfile profile = profileFor( "alice", "alice@x.com" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "Alice Smith" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) );
+              MockedStatic< com.wikantik.auth.ProfileChangeNotifier > notifier =
+                      Mockito.mockStatic( com.wikantik.auth.ProfileChangeNotifier.class ) ) {
+            doPut( "profile", body );
+            notifier.verify( () -> com.wikantik.auth.ProfileChangeNotifier.profileSaved( any(), Mockito.eq( "alice" ) ) );
+        }
+    }
+
+    @Test
     void handleUpdateProfile_rejectsReservedFullName() throws Exception {
         for ( final String name : new String[] { "Admin", "A dmin", "authenticated" } ) {
             final UserProfile profile = profileFor( "alice", "a@x" );

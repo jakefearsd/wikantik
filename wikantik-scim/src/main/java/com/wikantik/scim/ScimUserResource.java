@@ -27,6 +27,7 @@ import com.wikantik.audit.AuditEntry;
 import com.wikantik.audit.AuditOutcome;
 import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileChangeNotifier;
 import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.UserLifecycleService;
 import com.wikantik.auth.WikiSecurityException;
@@ -160,6 +161,7 @@ public class ScimUserResource extends AbstractScimServlet {
                     ? f.password() : UUID.randomUUID().toString();
             p.setPassword( password );
             db.save( p );
+            ProfileChangeNotifier.profileSaved( engine, f.userName() );
 
             // Reload to get server-assigned uid
             final UserProfile saved = db.findByLoginName( f.userName() );
@@ -301,6 +303,7 @@ public class ScimUserResource extends AbstractScimServlet {
             } else {
                 db.save( p );
             }
+            ProfileChangeNotifier.profileSaved( engine, p.getLoginName() );
 
             // Reload after potential lifecycle ops
             p = db.findByUid( id );
@@ -359,6 +362,7 @@ public class ScimUserResource extends AbstractScimServlet {
                     ScimUserFields.proposedWiki( patch.attributes() ) );
             if ( dirty ) {
                 db.save( p );
+                ProfileChangeNotifier.profileSaved( engine, p.getLoginName() );
                 p = db.findByUid( id );
             }
 

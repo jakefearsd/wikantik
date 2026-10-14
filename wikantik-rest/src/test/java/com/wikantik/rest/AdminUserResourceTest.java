@@ -24,6 +24,10 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.WikiSession;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.SessionMonitor;
+import com.wikantik.auth.Users;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -846,6 +850,27 @@ class AdminUserResourceTest {
         final JsonObject obj = gson.fromJson( doPut( "blankNameUser", update ), JsonObject.class );
         assertEquals( 400, obj.get( "status" ).getAsInt(), obj.toString() );
         assertTrue( obj.get( "message" ).getAsString().contains( "required" ), obj.toString() );
+    }
+
+    @Test
+    void testAdminEditOfADisplayNameRefreshesTheUsersLiveSession() throws Exception {
+        final HttpServletRequest loginRequest = HttpMockFactory.createHttpRequest();
+        final com.wikantik.api.core.Session fred = WikiSession.getWikiSession( engine, loginRequest );
+        engine.getManager( AuthenticationManager.class ).login( fred, loginRequest, Users.FRED, Users.FRED_PASS );
+        try {
+            assertEquals( "Fred Flintstone", fred.getUserPrincipal().getName() );
+            final JsonObject update = new JsonObject();
+            update.addProperty( "fullName", "Fred Astaire" );
+            final JsonObject obj = gson.fromJson( doPut( Users.FRED, update ), JsonObject.class );
+            assertFalse( obj.has( "error" ), obj.toString() );
+            assertEquals( "Fred Astaire", fred.getUserPrincipal().getName(), "applies immediately, no re-login" );
+            assertEquals( Users.FRED, fred.getLoginPrincipal().getName() );
+        } finally {
+            final JsonObject back = new JsonObject();
+            back.addProperty( "fullName", "Fred Flintstone" );
+            doPut( Users.FRED, back );
+            SessionMonitor.getInstance( engine ).remove( HttpMockFactory.SHARED_SESSION_ID );   // later tests start anonymous
+        }
     }
 
     @Test

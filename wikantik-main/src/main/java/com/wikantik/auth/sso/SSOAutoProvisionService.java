@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileChangeNotifier;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -114,6 +115,7 @@ public class SSOAutoProvisionService {
             profile.setWikiName( ProfileNameRules.availableWikiName( engine, userDb, loginName, profile.getWikiName(), null ) );
 
             userDb.save( profile );
+            ProfileChangeNotifier.profileSaved( engine, loginName );
             LOG.info( "Auto-provisioned user profile for SSO user: {} (full name: {})", loginName, profile.getFullname() );
         } catch( final WikiSecurityException e ) {
             // A concurrent first-login may have created the row between our

@@ -27,6 +27,7 @@ import java.util.Optional;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.audit.AuditService;
+import com.wikantik.auth.ProfileChangeNotifier;
 import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
@@ -533,6 +534,7 @@ public class AdminUserResource extends RestServletBase {
             profile.setPassword( password );
             profile.setPasswordMustChange( true );
             db.save( profile );
+            ProfileChangeNotifier.profileSaved( getEngine(), loginName );
 
             LOG.info( "Created user: {}", loginName );
             response.setStatus( HttpServletResponse.SC_CREATED );
@@ -593,6 +595,7 @@ public class AdminUserResource extends RestServletBase {
             }
 
             db.save( profile );
+            ProfileChangeNotifier.profileSaved( getEngine(), loginName );
             LOG.info( "Updated user: {}", loginName );
             sendJson( response, profileToMap( db.findByLoginName( loginName ) ) );
         } catch ( final ProfileConflictException e ) {

@@ -20,6 +20,7 @@ package com.wikantik.auth;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.wikantik.WikiSession;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
@@ -213,6 +214,32 @@ public class SessionMonitor implements HttpSessionListener {
                 .toArray( Principal[]::new );
         Arrays.sort( p, comparator );
         return p;
+    }
+
+    /**
+     * Re-reads the profile-derived principals (full and wiki name) of every live authenticated session that belongs to
+     * {@code loginName}, after that profile was saved outside those sessions. One failing session never stops the others.
+     *
+     * @param loginName the account whose profile changed
+     * @return how many sessions were refreshed
+     */
+    public final int refreshProfile( final String loginName ) {
+        if ( loginName == null ) {
+            return 0;
+        }
+        int refreshed = 0;
+        for ( final Session s : sessions.values() ) {
+            try {
+                if ( s instanceof WikiSession ws && ws.isAuthenticated()
+                        && ws.getLoginPrincipal() != null && loginName.equals( ws.getLoginPrincipal().getName() ) ) {
+                    ws.refreshUserProfile();
+                    refreshed++;
+                }
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Could not refresh the profile principals of one live session of '{}': {}", loginName, e.getMessage(), e );
+            }
+        }
+        return refreshed;
     }
 
     /**

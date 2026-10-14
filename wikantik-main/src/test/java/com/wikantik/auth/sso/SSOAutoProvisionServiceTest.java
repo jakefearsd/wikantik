@@ -20,12 +20,15 @@ package com.wikantik.auth.sso;
 
 import com.wikantik.TestEngine;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileChangeNotifier;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.pac4j.core.profile.CommonProfile;
 
 import java.util.Properties;
@@ -97,6 +100,22 @@ class SSOAutoProvisionServiceTest {
 
         // Clean up
         userDb.deleteByLoginName( "sso-new-user" );
+    }
+
+    @Test
+    void testProvisionNotifiesTheProfileChangeOnlyWhenItCreatesTheAccount() throws Exception {
+        final CommonProfile profile = new CommonProfile();
+        profile.setId( "sso-notify" );
+        profile.addAttribute( "name", "SSO Notify" );
+        try ( MockedStatic< ProfileChangeNotifier > notifier = Mockito.mockStatic( ProfileChangeNotifier.class ) ) {
+            service().provisionIfNeeded( "sso-notify", "sso-notify", profile );
+            notifier.verify( () -> ProfileChangeNotifier.profileSaved( engine, "sso-notify" ) );
+
+            service().provisionIfNeeded( "sso-notify", "sso-notify", profile );   // already exists: nothing saved
+            notifier.verify( () -> ProfileChangeNotifier.profileSaved( Mockito.any(), Mockito.any() ), Mockito.times( 1 ) );
+        } finally {
+            userDb().deleteByLoginName( "sso-notify" );
+        }
     }
 
     @Test

@@ -732,43 +732,6 @@ class DefaultPageManagerCITest {
     }
 
     @Test
-    void actionPerformedLoadsAPagesAclFromItsTextBeforeRewritingIt() throws Exception {
-        // No render or metadata parse sets a page's ACL any more: an instance from getAllPages() carries none until the
-        // ACL manager reads it from the page text, so the rename must ask for it rather than read page.getAcl().
-        final UserProfile oldProfile = mock( UserProfile.class );
-        when( oldProfile.getLoginName() ).thenReturn( "oldlogin" );
-        when( oldProfile.getFullname() ).thenReturn( "Old Name" );
-        when( oldProfile.getWikiName() ).thenReturn( "OldName" );
-        final UserProfile newProfile = mock( UserProfile.class );
-        when( newProfile.getFullname() ).thenReturn( "New Name" );
-        final WikiSecurityEvent event = mock( WikiSecurityEvent.class );
-        when( event.getType() ).thenReturn( WikiSecurityEvent.PROFILE_NAME_CHANGED );
-        when( event.getTarget() ).thenReturn( new UserProfile[] { oldProfile, newProfile } );
-
-        final Page page = mockPage( "UnloadedAclPage" );
-        final Acl acl = mock( Acl.class );
-        final java.util.concurrent.atomic.AtomicReference< Acl > loaded = new java.util.concurrent.atomic.AtomicReference<>();
-        when( page.getAcl() ).thenAnswer( inv -> loaded.get() );
-        when( aclManager.getPermissions( page ) ).thenAnswer( inv -> {
-            loaded.set( acl );
-            return acl;
-        } );
-        final AclEntry entry = mock( AclEntry.class );
-        when( entry.getPrincipal() ).thenReturn( new WikiPrincipal( "oldlogin" ) );
-        final Vector< Permission > perms = new Vector<>();
-        perms.add( mock( Permission.class ) );
-        when( entry.permissions() ).thenReturn( perms.elements() );
-        final Vector< AclEntry > entries = new Vector<>();
-        entries.add( entry );
-        when( acl.aclEntries() ).thenReturn( entries.elements() );
-        when( pageProvider.getAllPages() ).thenReturn( List.of( page ) );
-
-        mgr.actionPerformed( event );
-
-        verify( aclManager ).setPermissions( eq( page ), eq( acl ) );
-    }
-
-    @Test
     void actionPerformedHandlesAclManagerException() throws Exception {
         final UserProfile oldProfile = mock( UserProfile.class );
         when( oldProfile.getLoginName() ).thenReturn( "old" );

@@ -20,6 +20,7 @@ package com.wikantik.auth.acl;
 
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.parser.markdown.RenderPathAccessRules;
 import com.wikantik.util.AclDirectiveScanner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -78,7 +79,8 @@ class AclDirectiveTextTest {
 
     @Test
     void anEnforcedDirectiveGoesWithItsEmptyParenthesesAndNothingElseMoves() {
-        assertEquals( "\n# T\r\n", AclDirectiveText.strip( "[{ALLOW view All}]()\n# T\r\n" ) );
+        // Alone on its line, the rule goes with the line's terminator: no blank line is left behind.
+        assertEquals( "# T\r\n", AclDirectiveText.strip( "[{ALLOW view All}]()\n# T\r\n" ) );
         assertEquals( "a b", AclDirectiveText.strip( "a[{ALLOW view All}]()b", " " ) );
     }
 
@@ -160,17 +162,17 @@ class AclDirectiveTextTest {
         assertTrue( page.metadata().isEmpty() );
     }
 
-    // ---- the renderer reads a directive wrapped over several lines, so the ACL manager enforces it too
+    // ---- the renderer reads a directive wrapped over several lines; the enforcement scanner does not
 
     @Test
-    void aMultiLineDirectiveIsEnforcedAndRemoved() {
+    void aMultiLineDirectiveIsRemovedAlthoughTheAclManagerDoesNotEnforceItInText() {
         final String text = "[{ALLOW view All}]\n[{ALLOW edit Admin,alice@example.test,\n bob@example.test}]\nBody.";
-        assertEquals( List.of( "[{ALLOW view All}]", "[{ALLOW edit Admin,alice@example.test,\n bob@example.test}]" ),
-                DefaultAclManager.aclDirectives( text ), "premise: the wrapped rule is enforced as the render path reads it" );
+        assertEquals( List.of( "[{ALLOW view All}]" ), DefaultAclManager.aclDirectives( text ),
+                "premise: only the one-line rule is enforced from the text" );
 
         final String out = AclDirectiveText.strip( text );
 
-        assertEquals( "\n\nBody.", out );
+        assertEquals( "Body.", out );
     }
 
     @Test
@@ -301,7 +303,7 @@ class AclDirectiveTextTest {
         final String principals = ( "someone.with.a.long.name@example.test," ).repeat( 20_000 ) + "last@example.test";
         final String body = "[{ALLOW view " + principals + "}]\nBody.";
         assertEquals( 1, DefaultAclManager.aclDirectives( body ).size() );
-        assertEquals( "\nBody.", AclDirectiveText.strip( body ) );
+        assertEquals( "Body.", AclDirectiveText.strip( body ) );
     }
 
     // ---- every shape the ACL manager enforces (the render path's included) goes, and the frontmatter survives
@@ -312,11 +314,11 @@ class AclDirectiveTextTest {
 
     @ParameterizedTest( name = "{0}" )
     @MethodSource( "enforcementFixtures" )
-    void nothingTheAclManagerEnforcesSurvivesAndTheFrontmatterStaysWhole( final AclDirectiveFixtures.Fixture f ) {
+    void nothingEitherReadingFindsSurvivesAndTheFrontmatterStaysWhole( final AclDirectiveFixtures.Fixture f ) {
         final String out = AclDirectiveText.strip( f.text() );
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), out );
-        if ( !f.acl().isEmpty() ) {
-            assertFalse( out.contains( "example.test" ), "an enforced rule's principals reached the reader: " + out );
+        assertNothingReadable( out );
+        if ( f.loginHidden() ) {
+            assertFalse( out.contains( "example.test" ), "a rule's principals reached the reader: " + out );
         }
         assertTrue( out.contains( AclDirectiveFixtures.BODY ), out );
         assertEquals( FrontmatterParser.parse( f.text() ).metadata(), FrontmatterParser.parse( out ).metadata(),
@@ -358,5 +360,51 @@ class AclDirectiveTextTest {
         assertFalse( FrontmatterParser.parse( out ).body().contains( "alice-login" ), out );
         assertFalse( out.contains( "[{ALLOW" ), out );
         assertTrue( FrontmatterParser.parse( out ).body().contains( "Body." ), out );
+    }
+
+    /** Neither the ACL manager's text scan nor the render path reads any rule in {@code out}. */
+    static void assertNothingReadable( final String out ) {
+        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), "the text scan still reads a rule: " + out );
+        assertEquals( List.of(), RenderPathAccessRules.find( out ), "the render path still reads a rule: " + out );
+    }
+
+    static Stream< AclDirectiveFixtures.Fixture > enforcementRepros() {
+        return AclDirectiveFixtures.ENFORCEMENT_REPROS.stream();
+    }
+
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "enforcementRepros" )
+    void theReviewsReprosAreStrippedOfEveryRuleWithoutThrowing( final AclDirectiveFixtures.Fixture f ) {
+        final String out = AclDirectiveText.strip( f.text() );
+        assertNothingReadable( out );
+        assertFalse( out.contains( "ALLOW view Admin" ) || out.contains( "ALLOW edit alice" ), out );
+    }
+
+    @Test
+    void aRuleInADisplayMathBlockThatAFenceBreaksIsStripped() {
+        // Round 1 mapped this rule's span to nothing: the render path read (and enforced) it, nothing removed it.
+        final String out = AclDirectiveText.strip( AclDirectiveFixtures.MATH_FENCE.text() );
+        assertNothingReadable( out );
+        assertFalse( out.contains( LOGIN ), out );
+    }
+
+    // ---- a rule alone on its line goes with the line's terminator, so no blank line changes the page's structure
+
+    @Test
+    void aRuleAloneOnItsLineInsideAnHtmlBlockLeavesTheBlockWhole() {
+        final String text = "<details>\n```\n[{ALLOW edit Admin," + LOGIN + "}]\n```\n</details>\n\nBody.\n";
+        assertEquals( "<details>\n```\n```\n</details>\n\nBody.\n", AclDirectiveText.strip( text ) );
+    }
+
+    @Test
+    void aRuleAloneOnItsLineKeepsItsParagraphOneParagraph() {
+        assertEquals( "Intro\nMore", AclDirectiveText.strip( "Intro\n  [{ALLOW view All}]  \nMore" ) );
+        assertEquals( "a\r\nb", AclDirectiveText.strip( "a\r\n[{ALLOW view All}]\r\nb" ) );
+        assertEquals( "Body", AclDirectiveText.strip( "Body\n[{ALLOW view All}]" ), "on the last line the line end before it goes" );
+        assertEquals( "Body", AclDirectiveText.strip( "[{ALLOW view All}] [{ALLOW edit " + LOGIN + "}]\nBody" ),
+                "two rules that are all a line holds go with it" );
+        assertEquals( "Intro  more", AclDirectiveText.strip( "Intro [{ALLOW view All}] more" ), "a rule inside a line leaves the line" );
+        assertEquals( "Intro\nmore", AclDirectiveText.strip( "Intro\n[{ALLOW view All}]\nmore", " " ),
+                "the replacement is not needed where the line end keeps the words apart" );
     }
 }

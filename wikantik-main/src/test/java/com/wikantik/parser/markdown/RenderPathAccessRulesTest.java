@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -174,20 +175,44 @@ class RenderPathAccessRulesTest {
     }
 
     @Test
-    void aPageBuiltToBlowUpTheAttributesExpressionIsReadClosedAndQuickly() {
-        // The renderer's attributes expression is quadratic on "{" + word + a long whitespace run.
+    void aPageBuiltToBlowUpTheAttributesExpressionIsUnreadableQuickly() {
+        // The renderer's attributes expression is quadratic on "{" + word + a long whitespace run: the read is cut off
+        // and says so, rather than guessing (the facade then fails closed).
         final String text = "[{ALLOW edit" + " ".repeat( 200_000 ) + "x\n\nsee [{ALLOW view bob}] here";
-        assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> {
-            final List< String > lines = lines( text );
-            assertTrue( lines.contains( "ALLOW view bob" ), lines.toString() );
-        } );
+        assertTimeoutPreemptively( Duration.ofSeconds( 5 ),
+                () -> assertThrows( RenderPathAccessRules.Unreadable.class, () -> RenderPathAccessRules.find( text ) ) );
     }
 
     @Test
-    void theFailClosedReadingPairsEachCloserWithTheNearestOpener() {
-        final List< RenderPathAccessRules.Rule > rules = RenderPathAccessRules.ruleShapedSpans(
-                "[{ALLOW edit a [{ALLOW view b}] `[{DENY edit c}]()` x\n\n[{ALLOW view d\n\ne}]", 0 );
-        assertEquals( List.of( "ALLOW view b", "DENY edit c" ), rules.stream().map( RenderPathAccessRules.Rule::ruleLine ).toList() );
+    void aTextThatMakesTheParseThrowIsUnreadable() {
+        // flexmark's attributes post-processor throws on this footnote ("... is not tracked").
+        assertThrows( RenderPathAccessRules.Unreadable.class,
+                () -> RenderPathAccessRules.find( "[{ALLOW view Admin}]\n\nSecret text.\n\n[^1]: [[^1]\\[{y}]\n" ) );
+    }
+
+    private static final String[] MATH_FRAGMENTS = { "[{ALLOW view a}]", "[{ALLOW edit b,\n c}]", "[{DENY view d}]()",
+            "\n$$\n", "$$", "\n$$\nx = 1\n$$\n", "  $$\n", "```\n", "\n```\n", "<div>\n", "\n</div>\n", "\n\n", "\n",
+            " ", "x", "> ", "- ", "`", "$", "\r\n", "[{ALLOW VIEW e}]", "]()", "[", "]" };
+
+    @Test
+    void everyRuleMapsToItsOwnLinkOnSeededSoupsWithDisplayMath() {
+        // Round 1 mapped a rule inside a rewritten $$ block to an empty span: it was read but never removed.
+        final Random random = new Random( 0x3A7L );
+        int rules = 0;
+        for ( int i = 0; i < 20_000; i++ ) {
+            final StringBuilder sb = new StringBuilder();
+            for ( int p = random.nextInt( 14 ); p >= 0; p-- ) {
+                sb.append( MATH_FRAGMENTS[ random.nextInt( MATH_FRAGMENTS.length ) ] );
+            }
+            final String text = sb.toString();
+            for ( final RenderPathAccessRules.Rule rule : RenderPathAccessRules.find( text ) ) {
+                rules++;
+                assertTrue( rule.start() < rule.end() && text.charAt( rule.start() ) == '[', "input #" + i + " " + rule + ": " + text );
+                final String keyword = rule.ruleLine().split( "\\s", 2 )[ 0 ];
+                assertTrue( text.substring( rule.start(), rule.end() ).contains( "{" + keyword ), "input #" + i + " " + rule + ": " + text );
+            }
+        }
+        assertTrue( rules > 5_000, "too few rules read: " + rules );
     }
 
     private static List< String > lines( final String text ) {

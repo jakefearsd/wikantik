@@ -264,7 +264,7 @@ public class DefaultRenderingManager implements RenderingManager {
     public WikiDocument getRenderedDocument( final Context context, final String pagedata ) {
         final String pageid = context.getRealPage().getName() + VERSION_DELIMITER +
                               context.getRealPage().getVersion() + VERSION_DELIMITER +
-                              context.getVariable( Context.VAR_EXECUTE_PLUGINS );
+                              context.getVariable( Context.VAR_EXECUTE_PLUGINS ) + DisplayText.cacheKeySuffix( context );
 
         if( useCache( context ) ) {
             final WikiDocument doc = cachingManager.get( CachingManager.CACHE_DOCUMENTS, pageid, () -> null );
@@ -282,8 +282,9 @@ public class DefaultRenderingManager implements RenderingManager {
 
         // Refresh the data content
         try {
-            final MarkupParser parser = getParser( context, DisplayText.of( context, pagedata ) );
-            final WikiDocument doc = parser.parse();
+            final String display = DisplayText.of( context, pagedata );
+            final WikiDocument doc = getParser( context, display ).parse();
+            DisplayText.keepRawAccessRules( this, context, pagedata, display, true );
             doc.setPageData( pagedata );
             // Skip the SHARED document cache when this render depended on the viewer
             // (a plugin executed or a session-dependent variable resolved) — plugin
@@ -464,7 +465,8 @@ public class DefaultRenderingManager implements RenderingManager {
                 pagedata = filterManager.doPreTranslateFiltering( context, pagedata );
             }
 
-            final MarkupParser mp = getParser( context, DisplayText.forParse( context, pagedata, justParse ) );
+            final String parsed = DisplayText.forParse( context, pagedata, justParse );
+            final MarkupParser mp = getParser( context, parsed );
             mp.addLocalLinkHook( localLinkHook );
             mp.addExternalLinkHook( extLinkHook );
             mp.addAttachmentLinkHook( attLinkHook );
@@ -474,6 +476,7 @@ public class DefaultRenderingManager implements RenderingManager {
             }
 
             final WikiDocument doc = mp.parse();
+            DisplayText.keepRawAccessRules( this, context, pagedata, parsed, parseAccessRules );
             //  In some cases it's better just to parse, not to render
             if( !justParse ) {
                 result = getHTML( context, doc );
@@ -599,6 +602,7 @@ public class DefaultRenderingManager implements RenderingManager {
         for ( final Boolean executePlugins : new Boolean[]{ Boolean.FALSE, Boolean.TRUE, null } ) {
             final String id = pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + executePlugins;
             cachingManager.remove( CachingManager.CACHE_DOCUMENTS, id );
+            cachingManager.remove( CachingManager.CACHE_DOCUMENTS, id + DisplayText.WYSIWYG_KEY );
             cachingManager.remove( CachingManager.CACHE_HTML, id );
             cachingManager.remove( CachingManager.CACHE_HTML, id + EmbedBodyCache.SLOT_SUFFIX );
         }

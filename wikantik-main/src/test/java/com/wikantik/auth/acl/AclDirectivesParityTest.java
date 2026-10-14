@@ -19,6 +19,7 @@
 package com.wikantik.auth.acl;
 
 import org.junit.jupiter.api.Assumptions;
+import com.wikantik.util.AclDirectives;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -100,14 +101,16 @@ class AclDirectivesParityTest {
     @MethodSource( "bodiesWithEnforcedDirectives" )
     void strippingTouchesNothingExceptDirectives( final String body ) {
         // Rebuild the expected text by deleting only the directives the ACL manager reported (plus an
-        // immediately trailing "()"); every fixture gives its directives distinct text from any code
-        // sample beside them, so the first occurrence is the enforced one.
+        // immediately trailing "()", and the line's terminator when the directive is all its line holds); every
+        // fixture gives its directives distinct text from any code sample beside them, so the first occurrence is
+        // the enforced one.
         String expected = body;
         for ( final String directive : DefaultAclManager.aclDirectives( body ) ) {
             final int at = expected.indexOf( directive );
             final int end = at + directive.length();
             final int withParens = TRAILING_EMPTY_PARENS.matcher( expected.substring( end ) ).find() ? end + 2 : end;
-            expected = expected.substring( 0, at ) + expected.substring( withParens );
+            final AclDirectives.Removal cut = AclDirectives.removal( expected, at, withParens, 0, expected.length() );
+            expected = expected.substring( 0, cut.start() ) + expected.substring( cut.end() );
         }
         assertEquals( expected, AclDirectiveText.strip( body ) );
     }
@@ -121,7 +124,7 @@ class AclDirectivesParityTest {
     void anUnclosedFenceIsHiddenEvenThoughTheAclManagerIgnoresIt() {
         final String body = "```\ncode\n[{ALLOW edit " + LOGIN + "}]\nan unclosed fence";
         assertEquals( List.of(), DefaultAclManager.aclDirectives( body ) );
-        assertEquals( "```\ncode\n\nan unclosed fence", AclDirectiveText.strip( body ) );
+        assertEquals( "```\ncode\nan unclosed fence", AclDirectiveText.strip( body ) );
     }
 
     /** Removing the inner directive joins "[{ALLOW vi" and "ew a}]" into another one, which must go too. */

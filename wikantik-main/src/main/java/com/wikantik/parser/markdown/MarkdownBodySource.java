@@ -56,12 +56,17 @@ final class MarkdownBodySource {
      */
     record Prepared( String text, int[] insertions, List< DisplayMathPreProcessor.Edit > mathEdits ) {
 
-        /** The body offset that {@code pos} (a position in {@link #text}) came from; inserted text maps to its insertion point. */
+        /**
+         * The body offset that {@code pos} (a position in {@link #text}) came from: inserted {@code ()} maps to its
+         * insertion point and display-math content to its own character; a position inside generated math-fence markup
+         * has no source and maps to {@code -1}.
+         */
         int toBody( final int pos ) {
-            return fromNormalized( fromMath( pos ) );
+            final int normalized = fromMath( pos );
+            return normalized < 0 ? -1 : fromNormalized( normalized );
         }
 
-        /** Binary search: the last edit that starts at or before {@code pos} decides. */
+        /** Binary search: the last edit that starts at or before {@code pos} decides; generated markup gives -1. */
         private int fromMath( final int pos ) {
             int lo = 0;
             int hi = mathEdits.size() - 1;
@@ -79,7 +84,11 @@ final class MarkdownBodySource {
                 return pos;
             }
             final DisplayMathPreProcessor.Edit edit = mathEdits.get( last );
-            return pos < edit.targetEnd() ? edit.sourceStart() : pos - ( edit.targetEnd() - edit.sourceEnd() );
+            if ( pos >= edit.targetEnd() ) {
+                return pos - ( edit.targetEnd() - edit.sourceEnd() );
+            }
+            final int inContent = pos - edit.targetContent();
+            return inContent >= 0 && inContent <= edit.contentLength() ? edit.sourceContent() + inContent : -1;
         }
 
         /** Binary search: insertion k sits at {@code insertions[k] + 2k} in the normalised text. */

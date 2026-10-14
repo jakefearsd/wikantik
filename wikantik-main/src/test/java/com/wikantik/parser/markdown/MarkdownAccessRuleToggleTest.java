@@ -30,11 +30,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * {@code textToHTML(..., parseAccessRules=false, ...)} must be honoured by the Markdown parser. The toggle matters for a
- * bare parse ({@code justParse}); a render parses the text without the rules the ACL manager enforces, so it never sets
- * the ACL either way.
- */
+/** {@code textToHTML(..., parseAccessRules=false, ...)} must be honoured by the Markdown parser. */
 class MarkdownAccessRuleToggleTest {
 
     private final TestEngine engine = TestEngine.build(
@@ -46,35 +42,26 @@ class MarkdownAccessRuleToggleTest {
         engine.stop();
     }
 
-    private Page render( final boolean parseAccessRules, final boolean justParse ) throws Exception {
+    private Page render( final boolean parseAccessRules ) throws Exception {
         final Page page = Wiki.contents().page( engine, "AclToggleScratch" );
         final Context ctx = Wiki.context().create( engine, page );
         ctx.setPage( page );
         ctx.setRealPage( page );
         engine.getManager( RenderingManager.class )
-              .textToHTML( ctx, "[{ALLOW view Admin}]\n\nx", null, null, null, parseAccessRules, justParse );
+              .textToHTML( ctx, "[{ALLOW view Admin}]\n\nx", null, null, null, parseAccessRules, false );
         return page;
     }
 
     @Test
     void parseAccessRulesFalseLeavesAclUntouched() throws Exception {
-        final Page page = render( false, true );
+        final Page page = render( false );
         assertTrue( page.getAcl() == null || page.getAcl().isEmpty(),
                 "access rules were disabled; the ACL must not be applied" );
     }
 
     @Test
     void parseAccessRulesTrueAppliesAcl() throws Exception {
-        final Page page = render( true, true );
+        final Page page = render( true );
         assertFalse( page.getAcl() == null || page.getAcl().isEmpty(), "ACL line is applied when enabled" );
-    }
-
-    @Test
-    void aRenderNeverAppliesAnAclWhateverTheToggle() throws Exception {
-        for ( final boolean parseAccessRules : new boolean[]{ true, false } ) {
-            final Page page = render( parseAccessRules, false );
-            assertTrue( page.getAcl() == null || page.getAcl().isEmpty(),
-                    "a render parses the text without enforced rules (parseAccessRules=" + parseAccessRules + ")" );
-        }
     }
 }

@@ -72,8 +72,8 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
     /**
      * {@inheritDoc}
      *
-     * <p>Display renders never reach this with a rule the ACL manager enforces — they parse the text with those removed
-     * ({@code AclDirectiveText}) — so the ACL a page carries comes from {@code DefaultAclManager}'s text scan alone.
+     * <p>A display render shows text with the rules removed ({@code AclDirectiveText}), and parses the raw text as well,
+     * so that this still sets the rendered page's ACL as it always did (enforcement is unchanged).
      *
      * @see NodePostProcessorState#process(NodeTracker, Node)
      */

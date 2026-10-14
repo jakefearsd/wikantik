@@ -73,14 +73,20 @@ public final class DisplayMathPreProcessor {
 
     /**
      * One rewritten {@code $$...$$} block: {@code source[sourceStart, sourceEnd)} became
-     * {@code text[targetStart, targetEnd)}. Text outside the edits is copied unchanged.
+     * {@code text[targetStart, targetEnd)}. The math content is copied verbatim:
+     * {@code source[sourceContent, sourceContent + contentLength)} is {@code text[targetContent, targetContent +
+     * contentLength)}; everything else in the edit is generated fence markup. Text outside the edits is copied unchanged.
      *
-     * @param sourceStart start of the block in the source
-     * @param sourceEnd   end of the block in the source
-     * @param targetStart start of its replacement in the transformed text
-     * @param targetEnd   end of its replacement in the transformed text
+     * @param sourceStart   start of the block in the source
+     * @param sourceEnd     end of the block in the source
+     * @param targetStart   start of its replacement in the transformed text
+     * @param targetEnd     end of its replacement in the transformed text
+     * @param sourceContent where the copied content starts in the source
+     * @param targetContent where it starts in the transformed text
+     * @param contentLength its length
      */
-    public record Edit( int sourceStart, int sourceEnd, int targetStart, int targetEnd ) {
+    public record Edit( int sourceStart, int sourceEnd, int targetStart, int targetEnd,
+                        int sourceContent, int targetContent, int contentLength ) {
     }
 
     /**
@@ -114,8 +120,11 @@ public final class DisplayMathPreProcessor {
         while ( matcher.find() ) {
             result.append( source, copied, matcher.start() );
             final int targetStart = result.length();
-            result.append( replacement( matcher.group( 1 ), matcher.group( 2 ) ) );
-            edits.add( new Edit( matcher.start(), matcher.end(), targetStart, result.length() ) );
+            final String indent = matcher.group( 1 );
+            final String content = content( matcher.group( 2 ) );
+            result.append( replacement( indent, content ) );
+            edits.add( new Edit( matcher.start(), matcher.end(), targetStart, result.length(),
+                    matcher.start( 2 ), targetStart + indent.length() + MATH_OPEN.length(), content.length() ) );
             copied = matcher.end();
         }
         if ( edits.isEmpty() ) {
@@ -125,21 +134,27 @@ public final class DisplayMathPreProcessor {
         return new Tracked( result.toString(), List.copyOf( edits ) );
     }
 
-    /** The {@code ```math} fence that replaces one block. */
-    private static String replacement( final String indent, final String captured ) {
-        String content = captured;
-        // Strip trailing line break — the regex captures it because (.*?) extends
-        // to the line before the closing $$ delimiter. Handle both \n and \r\n.
-        if ( content.endsWith( "\r\n" ) ) {
-            content = content.substring( 0, content.length() - 2 );
-        } else if ( content.endsWith( "\n" ) ) {
-            content = content.substring( 0, content.length() - 1 );
+    /** The opening fence written in place of the opening {@code $$} line (after its indent). */
+    private static final String MATH_OPEN = "```math\n";
+
+    /**
+     * The captured math content less its trailing line break — the regex captures it because (.*?) extends to the
+     * line before the closing $$ delimiter. Handles both \n and \r\n.
+     */
+    private static String content( final String captured ) {
+        if ( captured.endsWith( "\r\n" ) ) {
+            return captured.substring( 0, captured.length() - 2 );
         }
+        return captured.endsWith( "\n" ) ? captured.substring( 0, captured.length() - 1 ) : captured;
+    }
+
+    /** The {@code ```math} fence that replaces one block. */
+    private static String replacement( final String indent, final String content ) {
         // Preserve the opening delimiter's indent on both fences so math blocks
         // inside list items keep the list's continuation indent intact.
         return content.isEmpty()
-                ? indent + "```math\n" + indent + "```"
-                : indent + "```math\n" + content + "\n" + indent + "```";
+                ? indent + MATH_OPEN + indent + "```"
+                : indent + MATH_OPEN + content + "\n" + indent + "```";
     }
 
 }

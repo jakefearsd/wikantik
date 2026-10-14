@@ -27,36 +27,34 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
 /**
  * Removes access-rule directives ({@code [{ALLOW edit alice@example.test}]}) from page text shown to someone who may not
- * edit the page — raw page reads, diffs, exports, agent context, search snippets, retrieval chunks. Directives name
- * people by login, so they must not leave the building through any of those.
+ * edit the page — raw page reads, diffs, exports, agent context, search snippets, retrieval chunks, and (through display
+ * rendering) every rendered surface. Directives name people by login, so they must not leave the building.
  *
- * <p><b>The guarantee, by construction.</b> Whatever {@link DefaultAclManager} <em>enforces</em> in a text — every
- * {@code [{ALLOW …}]} that does not start inside Markdown code, as judged by the same scanner and the same Markdown
- * parser the ACL manager uses, and every rule the render path reads ({@code RenderPathAccessRules}: wrapped over
- * lines, {@code DENY}, …) — is removed. Each round first removes exactly those spans ({@link EnforcedAclDirectives}),
- * then runs the conservative {@link AclDirectives} pass (which also removes {@code DENY} and hides a documentation
- * example it cannot be sure is code), and the loop only ends on a round that changes nothing: so in the result the ACL
- * manager enforces nothing, and {@code DefaultAclManager.aclDirectives( result )} is empty. {@link AclDirectives} alone
- * cannot promise that — its small code scanner and a real Markdown parser disagree in places — which is why every
- * caller uses this class. A documentation example in genuine code (<code>`[{ALLOW edit Bob}]`</code>, a closed fence)
- * is kept whenever both agree it is code. Display rendering parses the text this class returns, so no rendered page
- * shows an enforced rule either.
+ * <p><b>The guarantee, by construction.</b> In the result, neither reading of access rules finds one: not the ACL
+ * manager's text scan ({@link EnforcedAclDirectives}: single-line {@code [{ALLOW …}]} outside Markdown code, what it
+ * enforces) and not the render path ({@link RenderPathAccessRules}: what rendering hands the ACL parser — rules wrapped
+ * over lines, {@code DENY}, any permission case, {@code ALLOWED}, …). Each round removes exactly the spans both find,
+ * then runs the conservative {@link AclDirectives} pass, and the loop only ends on a round that changes nothing, so both
+ * readings find nothing in what is returned. A documentation example in genuine code (<code>`[{ALLOW edit Bob}]`</code>,
+ * a closed fence) is kept whenever both agree it is code. (Enforcement is not this class's business and is unchanged:
+ * the two readings disagree on several shapes, a pre-existing matter with its own issue.)
  *
- * <p><b>Frontmatter stays whole.</b> The frontmatter and the body are handled apart: the util pass reads frontmatter in
- * one-line mode (the renderer never reads it, so the wrapped shape does not apply there and a stray opener in a value
- * cannot run to a closer in the body), the closing delimiter is never removed, and a removal that would splice an
- * earlier closing delimiter drops the frontmatter rather than letting its remaining lines be read as body.
+ * <p><b>Fail closed.</b> When the render path's reading cannot be had ({@link RenderPathAccessRules.Unreadable}: a
+ * parse that throws, a rule with no source span, a page built to blow up the parse) or the rounds do not settle, every
+ * directive-shaped span is removed, code or not, whatever the case of its keyword or permission and, in the body, wrapped
+ * or not; if anything either reading could still take for a rule is left, the result is empty.
  *
- * <p>Removing a span can splice the text either side into a new directive, so rounds repeat. The loop is bounded
- * ({@value #MAX_ROUNDS}); text that is still reshaping after that is adversarial, and fails <em>closed</em>: every
- * directive-shaped span is removed, code or not, up to {@value #DRASTIC_ROUNDS} more times, and if the text still keeps
- * re-forming one the result is empty. The length of a directive is never bounded — a bound would silently stop
- * enforcing (and hiding) a long access list.
+ * <p><b>Layout stays.</b> A directive that is all its line holds goes with that line's terminator, so no blank line is
+ * left to end the paragraph or HTML block it sat in. The frontmatter and the body are handled apart: the util pass reads
+ * frontmatter in one-line mode (the renderer never reads it, so the wrapped shape does not apply there and a stray opener
+ * in a value cannot run to a closer in the body), the closing delimiter is never removed, and a removal that would splice
+ * an earlier closing delimiter drops the frontmatter rather than letting its remaining lines be read as body.
  *
  * <p>Everything else is returned byte for byte, and the very same instance when there is nothing to remove. A text with
  * no directive-shaped span is never even parsed as Markdown.
@@ -102,6 +100,16 @@ public final class AclDirectiveText {
         if ( text == null || text.indexOf( "[{" ) < 0 && !RenderPathAccessRules.mayHoldRule( text ) ) {
             return text;
         }
+        try {
+            return toFixedPoint( text, replacement );
+        } catch ( final RenderPathAccessRules.Unreadable e ) {
+            LOG.warn( "The access rules in a text of {} characters could not be read the way the renderer reads them ({}); "
+                    + "removing every directive-shaped span, code or not", text.length(), e.getMessage() );
+            return failClosed( text, replacement );
+        }
+    }
+
+    private static String toFixedPoint( final String text, final String replacement ) {
         String current = text;
         for ( int round = 0; round < MAX_ROUNDS; round++ ) {
             final String next = oneRound( current, replacement );
@@ -110,6 +118,8 @@ public final class AclDirectiveText {
             }
             current = next;
         }
+        LOG.warn( "Access-rule directive stripping did not settle after {} rounds on a text of {} characters; "
+                + "removing every directive-shaped span, code or not", MAX_ROUNDS, text.length() );
         return failClosed( current, replacement );
     }
 
@@ -153,9 +163,16 @@ public final class AclDirectiveText {
         return FrontmatterParser.parse( strip( fullText == null ? "" : fullText, replacement ) );
     }
 
-    /** Removes what the ACL manager enforces, then runs the conservative util pass. */
+    /** Removes what the text scan enforces and what the render path reads, then runs the conservative util pass. */
     private static String oneRound( final String text, final String replacement ) {
-        return without( text, EnforcedAclDirectives.removalRanges( text ), replacement, true );
+        final List< int[] > ranges = new ArrayList<>();
+        for ( final AclDirectiveScanner.Span span : EnforcedAclDirectives.spans( text ) ) {
+            ranges.add( new int[]{ span.start(), AclDirectiveScanner.endWithEmptyParentheses( text, span ) } );
+        }
+        for ( final RenderPathAccessRules.Rule rule : RenderPathAccessRules.find( text ) ) {
+            ranges.add( new int[]{ rule.start(), rule.end() } );
+        }
+        return without( text, merged( text, ranges ), replacement, true );
     }
 
     /**
@@ -210,31 +227,33 @@ public final class AclDirectiveText {
     }
 
     /**
-     * The bound was hit, so the text keeps re-forming directives. Remove every directive-shaped span — code or not — and
-     * look again; if even that does not settle, return nothing.
+     * Removes every directive-shaped span ({@link #directiveShaped}), code or not, until none is left; if either reading
+     * could still take anything for a rule, returns nothing.
      */
-    private static String failClosed( final String text, final String replacement ) {
-        LOG.warn( "Access-rule directive stripping did not settle after {} rounds on a text of {} characters; "
-                + "removing every directive-shaped span, code or not", MAX_ROUNDS, text.length() );
+    static String failClosed( final String text, final String replacement ) {
         String current = text;
         for ( int round = 0; round < DRASTIC_ROUNDS; round++ ) {
-            final List< int[] > any = anyDirective( current );
+            final List< int[] > any = directiveShaped( current );
             if ( any.isEmpty() ) {
-                return current;
+                break;
             }
             current = without( current, any, replacement, false );
         }
-        LOG.warn( "Access-rule directive stripping still found directives after {} more rounds on a text of {} characters; "
-                + "returning an empty text", DRASTIC_ROUNDS, text.length() );
-        return "";
+        if ( stillReadable( current ) ) {
+            LOG.warn( "Access-rule directive stripping still found directive-shaped text in a text of {} characters; "
+                    + "returning an empty text", text.length() );
+            return "";
+        }
+        return current;
     }
 
     /**
      * Every directive-shaped span, code or not, each with an empty {@code ()} after it: one-line {@code ALLOW}/{@code DENY}
-     * spans anywhere (a superset of the text scan), wrapped ones in the body, and the render path's rules. When none is
-     * left, nothing is enforced.
+     * spans anywhere (a superset of the text scan) and, in the body, wrapped ones and every <code>[{</code> whose keyword
+     * starts {@code allow} or {@code deny} in any case, up to the first <code>}]</code> with no blank line between (a
+     * superset of the render path's link-text rules, whatever the permission's spelling).
      */
-    private static List< int[] > anyDirective( final String text ) {
+    static List< int[] > directiveShaped( final String text ) {
         final List< int[] > ranges = new ArrayList<>();
         for ( final AclDirectiveScanner.Span span : AclDirectiveScanner.findAll( text, true, false ) ) {
             ranges.add( new int[]{ span.start(), AclDirectiveScanner.endWithEmptyParentheses( text, span ) } );
@@ -244,27 +263,135 @@ public final class AclDirectiveText {
         for ( final AclDirectiveScanner.Span span : AclDirectiveScanner.findAll( body, true, true ) ) {
             ranges.add( new int[]{ bodyStart + span.start(), bodyStart + AclDirectiveScanner.endWithEmptyParentheses( body, span ) } );
         }
-        for ( final RenderPathAccessRules.Rule rule : RenderPathAccessRules.find( text ) ) {
-            ranges.add( new int[]{ rule.start(), rule.end() } );
+        ruleShaped( body, bodyStart, ranges );
+        return merged( text, ranges );
+    }
+
+    /**
+     * For each <code>}]</code> in {@code body}, the nearest <code>[{</code> before it (after the previous one paired, with
+     * no blank line between) whose keyword — after any spaces — starts {@code allow} or {@code deny} in any case: the
+     * renderer's own pairing (a closing {@code ]} takes the nearest open {@code [}), less its knowledge of code, HTML and
+     * math. One linear pass.
+     */
+    private static void ruleShaped( final String body, final int offset, final List< int[] > out ) {
+        int opener = -1;
+        int i = 0;
+        while ( i < body.length() ) {
+            if ( body.startsWith( "[{", i ) && keywordShaped( body, i + 2 ) ) {
+                opener = i;
+                i += 2;
+            } else if ( body.startsWith( "}]", i ) && opener >= 0 ) {
+                final int end = body.startsWith( "()", i + 2 ) ? i + 4 : i + 2;
+                out.add( new int[]{ offset + opener, offset + end } );
+                opener = -1;
+                i = end;
+            } else {
+                if ( blankLineStartsAt( body, i ) ) {
+                    opener = -1;
+                }
+                i++;
+            }
         }
-        return EnforcedAclDirectives.merged( ranges );
+    }
+
+    private static boolean keywordShaped( final String text, final int from ) {
+        int i = from;
+        while ( i < text.length() && Character.isWhitespace( text.charAt( i ) ) ) {
+            i++;
+        }
+        return text.regionMatches( true, i, "ALLOW", 0, 5 ) || text.regionMatches( true, i, "DENY", 0, 4 );
+    }
+
+    /** Whether a line ending at {@code i} begins a blank line (only spaces and tabs before the next line ending). */
+    private static boolean blankLineStartsAt( final String text, final int i ) {
+        final char c = text.charAt( i );
+        if ( c != '\n' && c != '\r' ) {
+            return false;
+        }
+        int j = c == '\r' && i + 1 < text.length() && text.charAt( i + 1 ) == '\n' ? i + 2 : i + 1;
+        while ( j < text.length() && ( text.charAt( j ) == ' ' || text.charAt( j ) == '\t' ) ) {
+            j++;
+        }
+        return j < text.length() && ( text.charAt( j ) == '\n' || text.charAt( j ) == '\r' );
+    }
+
+    /**
+     * Whether either reading could still find a rule, decided without the render path's parse: a one-line
+     * {@code ALLOW}/{@code DENY} span anywhere, or a <code>{ALLOW</code> / <code>{DENY</code> in the body with a {@code ]},
+     * {@code )} or {@code >} somewhere after it. Every rule the render path reads is a link whose target starts so, and a
+     * link's text or destination is closed by one of those.
+     */
+    private static boolean stillReadable( final String text ) {
+        if ( !AclDirectiveScanner.findAll( text, true, false ).isEmpty() ) {
+            return true;
+        }
+        final String body = text.substring( FrontmatterParser.bodyOffset( text ) );
+        final int first = firstOf( body, body.indexOf( "{ALLOW" ), body.indexOf( "{DENY" ) );
+        return first >= 0 && Math.max( body.lastIndexOf( ']' ), Math.max( body.lastIndexOf( ')' ), body.lastIndexOf( '>' ) ) ) > first;
+    }
+
+    private static int firstOf( final String body, final int a, final int b ) {
+        if ( a < 0 ) {
+            return b;
+        }
+        return b < 0 ? a : Math.min( a, b );
+    }
+
+    /**
+     * {@code ranges} sorted by start; overlapping ones joined, and so are ones with nothing but spaces and tabs between
+     * them (two rules that are all their line holds then go with the line, see {@link AclDirectives#removal}).
+     */
+    static List< int[] > merged( final String text, final List< int[] > ranges ) {
+        if ( ranges.size() < 2 ) {
+            return ranges;
+        }
+        ranges.sort( Comparator.comparingInt( r -> r[ 0 ] ) );
+        final List< int[] > out = new ArrayList<>( ranges.size() );
+        int[] current = ranges.get( 0 ).clone();
+        for ( int i = 1; i < ranges.size(); i++ ) {
+            final int[] next = ranges.get( i );
+            if ( next[ 0 ] <= current[ 1 ] || onlyBlanks( text, current[ 1 ], next[ 0 ] ) ) {
+                current[ 1 ] = Math.max( current[ 1 ], next[ 1 ] );
+            } else {
+                out.add( current );
+                current = next.clone();
+            }
+        }
+        out.add( current );
+        return out;
+    }
+
+    private static boolean onlyBlanks( final String text, final int from, final int to ) {
+        for ( int i = from; i < to; i++ ) {
+            if ( text.charAt( i ) != ' ' && text.charAt( i ) != '\t' ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
      * {@code text[from, to)} with the part of each range inside it replaced: by {@code replacement} where the range
-     * starts, by nothing for the tail of a range that began before {@code from}. Ranges are in order and disjoint.
+     * starts (by nothing when the range is all its line holds: the line goes, see {@link AclDirectives#removal}), by
+     * nothing for the tail of a range that began before {@code from}. Ranges are in order and disjoint.
      */
     private static String remove( final String text, final List< int[] > ranges, final int from, final int to,
                                   final String replacement ) {
         final StringBuilder out = new StringBuilder( to - from );
         int copiedTo = from;
         for ( final int[] range : ranges ) {
-            final int start = Math.max( range[ 0 ], from );
+            final int start = Math.max( range[ 0 ], copiedTo );
             final int end = Math.min( range[ 1 ], to );
-            if ( start < end ) {
-                out.append( text, copiedTo, start ).append( range[ 0 ] >= from ? replacement : "" );
-                copiedTo = end;
+            if ( start >= end ) {
+                continue;
             }
+            if ( range[ 0 ] < from ) {          // the tail of a range that began before this region: its start was replaced there
+                copiedTo = end;
+                continue;
+            }
+            final AclDirectives.Removal cut = AclDirectives.removal( text, start, end, copiedTo, to );
+            out.append( text, copiedTo, cut.start() ).append( cut.wholeLine() ? "" : replacement );
+            copiedTo = cut.end();
         }
         return out.append( text, copiedTo, to ).toString();
     }

@@ -630,7 +630,7 @@ class DefaultRenderingManagerCITest {
         mgr.actionPerformed( event );
 
         // Only the saved page itself should be removed (compound keys, no referrer flushes).
-        // evictRenderCache removes 9 entries: 3 plugin variants × (document, HTML and embed-body slot).
+        // evictRenderCache removes 12 entries: 3 plugin variants × (document, WYSIWYG document, HTML and embed-body slot).
         for( final String cache : new String[]{ CachingManager.CACHE_DOCUMENTS, CachingManager.CACHE_HTML } ) {
             verify( cachingManager ).remove( cache,
                     "LonelyPage::" + PageProvider.LATEST_VERSION + "::" + Boolean.FALSE );
@@ -642,8 +642,10 @@ class DefaultRenderingManagerCITest {
         for( final Boolean executePlugins : new Boolean[]{ Boolean.FALSE, Boolean.TRUE, null } ) {
             verify( cachingManager ).remove( CachingManager.CACHE_HTML,
                     "LonelyPage::" + PageProvider.LATEST_VERSION + "::" + executePlugins + "::embed" );
+            verify( cachingManager ).remove( CachingManager.CACHE_DOCUMENTS,
+                    "LonelyPage::" + PageProvider.LATEST_VERSION + "::" + executePlugins + DisplayText.WYSIWYG_KEY );
         }
-        verify( cachingManager, times( 9 ) ).remove( anyString(), any() );
+        verify( cachingManager, times( 12 ) ).remove( anyString(), any() );
     }
 
     // ========== HTML cache: getHTML(context, pagedata) never touches it ==========

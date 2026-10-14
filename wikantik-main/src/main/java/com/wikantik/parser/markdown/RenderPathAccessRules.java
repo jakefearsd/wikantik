@@ -27,8 +27,6 @@ import com.wikantik.markdown.extensions.math.InlineMathParser;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.AccessRuleLinkNodePostProcessorState;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.parser.LinkParsingOperations;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,8 +34,10 @@ import java.util.List;
 /**
  * The access rules the wiki's <em>render path</em> reads in a page text — what {@link MarkdownParser} and its
  * access-rule post-processor would hand {@code AclManager.parseAcl} — found without a wiki context, with each rule's
- * span in the text. The ACL manager enforces these in addition to its own text scan, so that rendering can never
- * enforce something the text scan does not.
+ * span in the text. Used for <b>hiding only</b>: {@code AclDirectiveText} removes these spans as well as the ones the
+ * ACL manager's text scan enforces, so that nothing either reading turns into a rule reaches a reader who may not edit.
+ * Enforcement does not use this class (the ACL manager's text scan and the render path disagree on several shapes; that
+ * is pre-existing and has its own issue).
  *
  * <p>Exactly the render path's shapes, because it runs the render path's own steps: the body only (the frontmatter is
  * never rendered); the same preparation ({@link MarkdownBodySource}: plugin syntax <code>[{…}]</code> becomes the
@@ -55,26 +55,22 @@ import java.util.List;
  * </ul>
  * Parsing is skipped outright for a text with no {@code {ALLOW} and no {@code {DENY}.
  *
- * <p><b>Bounded cost.</b> This runs on every read of a page that holds a rule, so it may not cost what a render can: the
- * renderer's attributes extension matches <code>{…}</code> with a backtracking expression that is quadratic on, for
- * example, <code>[{ALLOW edit</code> followed by a long run of spaces, and overflows the stack on a long run of
- * attribute-like words. The parse therefore reads its input through a counter and is cut off at
- * {@value #BUDGET_PER_CHAR} character reads per character (the whole page corpus needs at most about 7); a cut-off
- * parse, or a stack overflow, fails <em>closed</em>: the body is then read by bracket pairing alone
- * ({@link #ruleShapedSpans}), code or not — at least the rules the renderer reads, so enforcement and hiding only
- * tighten on such a page.
+ * <p><b>Bounded cost, and no guessing.</b> This runs on every read of a page that holds a rule, so it may not cost what
+ * a render can: the renderer's attributes extension matches <code>{…}</code> with a backtracking expression that is
+ * quadratic on, for example, <code>{edit</code> followed by a long run of spaces, and overflows the stack on a long run
+ * of attribute-like words. The parse therefore reads its input through a counter and is cut off at
+ * {@value #BUDGET_PER_CHAR} character reads per character plus {@value #BUDGET_BASE} (the page corpus needs at most about
+ * 7 per character). A cut-off parse, a
+ * stack overflow, any other exception from the parse, and a rule that maps to no source text all end in
+ * {@link Unreadable}: the caller then fails closed; it never gets a partial answer.
  */
 public final class RenderPathAccessRules {
-
-    private static final Logger LOG = LogManager.getLogger( RenderPathAccessRules.class );
 
     /** Character reads allowed per character of the prepared body, plus {@link #BUDGET_BASE}. */
     static final int BUDGET_PER_CHAR = 128;
 
-    /** Character reads every parse may make whatever the length. */
-    static final int BUDGET_BASE = 65_536;
-
-    private static final String CLOSER = "}]";
+    /** Character reads every parse may make whatever the length (a few milliseconds of parsing). */
+    static final int BUDGET_BASE = 4_000_000;
 
     /**
      * One rule: {@code ruleLine} is what the render path hands the ACL parser; {@code text.substring( start, end )} is
@@ -98,6 +94,7 @@ public final class RenderPathAccessRules {
     /**
      * @param fullText raw page text, frontmatter included; may be {@code null}
      * @return the render path's access rules, in document order; never {@code null}
+     * @throws Unreadable when the text cannot be read the way the renderer reads it (see the class comment)
      */
     public static List< Rule > find( final String fullText ) {
         if ( !mayHoldRule( fullText ) ) {
@@ -108,18 +105,16 @@ public final class RenderPathAccessRules {
         if ( !mayHoldRule( body ) ) {
             return List.of();
         }
-        final MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( body );
         try {
-            return parsedRules( prepared, bodyStart );
-        } catch ( final BudgetExceeded | StackOverflowError e ) {
-            LOG.warn( "Reading the access rules of a text of {} characters as the renderer would was cut off ({}); every "
-                    + "[{ALLOW / [{DENY span in its body, code or not, counts as a rule instead", fullText.length(),
-                    e.getClass().getSimpleName() );
-            return ruleShapedSpans( body, bodyStart );
+            return parsedRules( MarkdownBodySource.prepare( body ), bodyStart, body.length() );
+        } catch ( final Unreadable e ) {
+            throw e;
+        } catch ( final RuntimeException | StackOverflowError e ) {
+            throw new Unreadable( "the parse of a body of " + body.length() + " characters failed: " + e, e );
         }
     }
 
-    private static List< Rule > parsedRules( final MarkdownBodySource.Prepared prepared, final int bodyStart ) {
+    private static List< Rule > parsedRules( final MarkdownBodySource.Prepared prepared, final int bodyStart, final int bodyLength ) {
         final String text = prepared.text();
         final long budget = BUDGET_BASE + ( long ) BUDGET_PER_CHAR * text.length();
         final List< Rule > rules = new ArrayList<>();
@@ -128,56 +123,25 @@ public final class RenderPathAccessRules {
             if ( node instanceof Link link ) {
                 final String target = WikantikLink.wikiLinkOf( link );
                 if ( LinkParsingOperations.isAccessRuleLink( target ) ) {
-                    rules.add( new Rule( bodyStart + prepared.toBody( link.getStartOffset() ),
-                            bodyStart + prepared.toBody( link.getEndOffset() ),
-                            AccessRuleLinkNodePostProcessorState.ruleLineOf( target ) ) );
+                    final int start = prepared.toBody( link.getStartOffset() );
+                    final int end = prepared.toBody( link.getEndOffset() );
+                    if ( start < 0 || end <= start || end > bodyLength ) {
+                        throw new Unreadable( "a rule the renderer reads maps to no source text (" + start + ", " + end + ")", null );
+                    }
+                    rules.add( new Rule( bodyStart + start, bodyStart + end, AccessRuleLinkNodePostProcessorState.ruleLineOf( target ) ) );
                 }
             }
         }
         return rules;
     }
 
-    /**
-     * The fail-closed reading: for each <code>}]</code>, the nearest <code>[{ALLOW</code> or <code>[{DENY</code> before it
-     * (after the previous rule, with no blank line between) opens a rule — the renderer's own pairing (a closing
-     * {@code ]} takes the nearest open {@code [}), less its knowledge of code, HTML blocks and math, so it reads at least
-     * the rules the renderer reads. The rule line is the text between <code>[{</code> and <code>}]</code>; an empty
-     * {@code ()} after the closer goes with the rule. One linear pass.
-     */
-    static List< Rule > ruleShapedSpans( final String body, final int bodyStart ) {
-        final List< Rule > rules = new ArrayList<>();
-        int opener = -1;
-        int i = 0;
-        while ( i < body.length() ) {
-            if ( body.startsWith( "[{ALLOW", i ) || body.startsWith( "[{DENY", i ) ) {
-                opener = i;
-                i += 2;
-            } else if ( body.startsWith( CLOSER, i ) && opener >= 0 ) {
-                final int end = body.startsWith( "()", i + 2 ) ? i + 4 : i + 2;
-                rules.add( new Rule( bodyStart + opener, bodyStart + end, body.substring( opener + 2, i ) ) );
-                opener = -1;
-                i = end;
-            } else {
-                if ( blankLineStartsAt( body, i ) ) {
-                    opener = -1;
-                }
-                i++;
-            }
-        }
-        return rules;
-    }
+    /** The text could not be read the way the renderer reads it; the caller must fail closed. */
+    public static final class Unreadable extends RuntimeException {
+        private static final long serialVersionUID = 1L;
 
-    /** Whether a line ending at {@code i} begins a blank line (only spaces and tabs before the next line ending). */
-    private static boolean blankLineStartsAt( final String text, final int i ) {
-        final char c = text.charAt( i );
-        if ( c != '\n' && c != '\r' ) {
-            return false;
+        Unreadable( final String message, final Throwable cause ) {
+            super( message, cause );
         }
-        int j = c == '\r' && i + 1 < text.length() && text.charAt( i + 1 ) == '\n' ? i + 2 : i + 1;
-        while ( j < text.length() && ( text.charAt( j ) == ' ' || text.charAt( j ) == '\t' ) ) {
-            j++;
-        }
-        return j < text.length() && ( text.charAt( j ) == '\n' || text.charAt( j ) == '\r' );
     }
 
     /** Thrown when a parse has read its budget of characters. */

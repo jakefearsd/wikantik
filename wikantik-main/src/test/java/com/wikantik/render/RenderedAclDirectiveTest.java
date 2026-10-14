@@ -27,6 +27,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.acl.AclDirectiveFixtures;
 import com.wikantik.auth.acl.AclDirectiveFixtures.Fixture;
+import com.wikantik.parser.WikiDocument;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -89,11 +90,11 @@ class RenderedAclDirectiveTest {
     /** What a reader of the rendered page may and may not see. */
     private static void assertReaderSafe( final Fixture f, final String html ) {
         final String lower = html.toLowerCase( Locale.ROOT );
-        if ( !f.acl().isEmpty() || f == AclDirectiveFixtures.FRONTMATTER_OPENER ) {
+        if ( f.loginHidden() || f == AclDirectiveFixtures.FRONTMATTER_OPENER ) {
             assertFalse( lower.contains( "example.test" ), "a login reached the rendered page: " + html );
         }
-        if ( !f.acl().isEmpty() ) {
-            assertFalse( html.contains( "ALLOW" ) || html.contains( "DENY" ), "an enforced rule was rendered: " + html );
+        if ( f.loginHidden() ) {
+            assertFalse( html.contains( "ALLOW" ) || html.contains( "DENY" ), "a rule was rendered: " + html );
         }
         assertFalse( lower.contains( "verified_by" ), "frontmatter must never be rendered: " + html );
         assertTrue( html.contains( AclDirectiveFixtures.BODY ), "the page itself is rendered: " + html );
@@ -128,6 +129,20 @@ class RenderedAclDirectiveTest {
     void anEmbedBodyShowsNoEnforcedRule( final Fixture f ) throws Exception {
         final String body = FrontmatterParser.parse( f.text() ).body();
         assertReaderSafe( f, rm().renderEmbedBody( viewContext( page( f ) ), body ) );
+    }
+
+    @Test
+    void aWysiwygRenderNeverSharesTheCachedDisplayDocument() throws Exception {
+        // The WYSIWYG editor mode renders the markup back, rules included; a reader's render must never be served that
+        // document from the shared document cache (nor the other way round).
+        final Fixture f = AclDirectiveFixtures.HTML_BLOCK;
+        final Page page = page( f );
+        final Context wysiwyg = viewContext( page );
+        wysiwyg.setVariable( Context.VAR_WYSIWYG_EDITOR_MODE, Boolean.TRUE );
+        final WikiDocument editorDoc = rm().getRenderedDocument( wysiwyg, f.text() );
+        assertTrue( rm().getHTML( wysiwyg, editorDoc ).contains( "ALLOW" ), "the editor gets the markup, rules included" );
+        final String readerHtml = rm().getHTML( viewContext( page ), rm().getRenderedDocument( viewContext( page ), f.text() ) );
+        assertReaderSafe( f, readerHtml );
     }
 
     @Test

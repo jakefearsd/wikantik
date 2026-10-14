@@ -23,7 +23,6 @@ import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.AclEntry;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.acl.AclDirectiveFixtures.Fixture;
 import com.wikantik.parser.markdown.MarkdownParser;
@@ -44,42 +43,47 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * One ACL per page, whoever asks first. The ACL manager's text scan is the only enforcement: it covers what it always
- * did plus every shape the render path turns into an access rule (so enforcement only ever tightens), and no render,
- * metadata read or render order changes what {@code getPermissions} answers.
+ * Enforcement is exactly what it was in 2.4.57 (display-names work changes what readers SEE, never who may do what):
+ * <ul>
+ *   <li>the ACL manager's text scan — single-line {@code [{ALLOW …}]} outside code — gives the same ACL for every
+ *       fixture and for the round-1 review's repros (a page whose render parse throws still enforces its rule);</li>
+ *   <li>a display render still sets the page's ACL from the RAW text, as the render path always did, although the HTML
+ *       it shows is built from the text without the rules;</li>
+ * </ul>
+ * (The metadata parse behind {@code PageManager.getPage} is the 2.4.57 code again, so a page read that way carries what
+ * it carried before.) The disagreement between the two readings (wrapped, DENY, upper-case, ALLOWED, HTML-block and math rules) is
+ * pre-existing and is left to its own issue; this test pins it so that nothing here changes it by accident.
  */
-class AclEnforcementConsistencyTest {
-
-    /** Fixtures where the text scan already enforced more than the render path ever did. */
-    private static final Set< Fixture > TEXT_SCAN_ENFORCES_MORE =
-            Set.of( AclDirectiveFixtures.HTML_BLOCK, AclDirectiveFixtures.INLINE_MATH );
+class AclEnforcementUnchangedTest {
 
     private static TestEngine engine;
 
     @BeforeAll
     static void start() throws Exception {
         engine = TestEngine.build();
-        for ( final Fixture f : AclDirectiveFixtures.ALL ) {
+        for ( final Fixture f : all().toList() ) {
             engine.saveText( pageName( f ), f.text() );
         }
     }
 
     @AfterAll
     static void stop() {
-        engine.deleteQuietly( AclDirectiveFixtures.ALL.stream().map( AclEnforcementConsistencyTest::pageName ).toArray( String[]::new ) );
+        engine.deleteQuietly( all().map( AclEnforcementUnchangedTest::pageName ).toArray( String[]::new ) );
         engine.stop();
     }
 
-    static Stream< Fixture > fixtures() {
+    static Stream< Fixture > all() {
+        return Stream.concat( AclDirectiveFixtures.ALL.stream(), AclDirectiveFixtures.ENFORCEMENT_REPROS.stream() );
+    }
+
+    static Stream< Fixture > rendered() {
         return AclDirectiveFixtures.ALL.stream();
     }
 
     private static String pageName( final Fixture f ) {
-        return "AclConsistency" + AclDirectiveFixtures.ALL.indexOf( f );
+        return "AclUnchanged" + all().toList().indexOf( f );
     }
 
     private static AclManager acls() {
@@ -87,7 +91,7 @@ class AclEnforcementConsistencyTest {
     }
 
     /** Distinct modification stamps keep each fresh instance out of the ACL manager's parsed-ACL cache. */
-    private static final AtomicLong STAMP = new AtomicLong( 1_000_000L );
+    private static final AtomicLong STAMP = new AtomicLong( 2_000_000L );
 
     /** A Page instance nobody has rendered or asked about yet, and that no cached ACL answers for. */
     private static Page freshPage( final Fixture f ) {
@@ -96,7 +100,6 @@ class AclEnforcementConsistencyTest {
         return page;
     }
 
-    /** {@code principal:action} for every grant in {@code acl}. */
     static Set< String > pairs( final Acl acl ) {
         final Set< String > out = new HashSet<>();
         if ( acl == null ) {
@@ -111,66 +114,32 @@ class AclEnforcementConsistencyTest {
         return out;
     }
 
-    /** The ACL the render path sets on a page from the RAW text: the markup parser and its access-rule post-processor. */
-    private static Set< String > renderPathAcl( final Fixture f ) throws Exception {
-        final Page scratch = Wiki.contents().page( engine, "RenderPathProbe" );
+    /** The ACL the render path sets from the RAW text: the markup parser and its access-rule post-processor. */
+    private static Set< String > rawRenderAcl( final Fixture f ) throws Exception {
+        final Page scratch = Wiki.contents().page( engine, "RawRenderProbe" );
         final Context ctx = Wiki.context().create( engine, scratch );
         new MarkdownParser( ctx, new StringReader( f.text() ) ).parse();
         return pairs( scratch.getAcl() );
     }
 
-    private static void render( final Page page, final Fixture f ) {
-        final Context ctx = Wiki.context().create( engine, page );
-        engine.getManager( RenderingManager.class ).textToHTML( ctx, f.text() );
-    }
-
     @ParameterizedTest( name = "{0}" )
-    @MethodSource( "fixtures" )
-    void theTextScanEnforcesTheFixturesAcl( final Fixture f ) {
+    @MethodSource( "all" )
+    void theTextScanEnforcesWhatItEnforcedBefore( final Fixture f ) {
         assertEquals( f.acl(), pairs( acls().getPermissions( freshPage( f ) ) ) );
     }
 
     @ParameterizedTest( name = "{0}" )
-    @MethodSource( "fixtures" )
-    void theTextScanCoversEverythingTheRenderPathWouldEnforce( final Fixture f ) throws Exception {
-        final Set< String > render = renderPathAcl( f );
-        assertTrue( f.acl().containsAll( render ), "render path " + render + " vs fixture " + f.acl() );
-        if ( TEXT_SCAN_ENFORCES_MORE.contains( f ) ) {
-            assertNotEquals( f.acl(), render, "premise: the render path enforces less here" );
-        } else {
-            assertEquals( f.acl(), render, "where the text scan enforced no more, the union is the render path's ACL" );
-        }
-    }
-
-    @ParameterizedTest( name = "{0}" )
-    @MethodSource( "fixtures" )
-    void aPageReadThroughThePageManagerCarriesTheSameAcl( final Fixture f ) {
-        final Page page = engine.getManager( PageManager.class ).getPage( pageName( f ) );
-        assertEquals( f.acl(), pairs( acls().getPermissions( page ) ) );
-    }
-
-    @ParameterizedTest( name = "{0}" )
-    @MethodSource( "fixtures" )
-    void renderingFirstDoesNotDecideTheAcl( final Fixture f ) {
-        final Page page = freshPage( f );
-        render( page, f );
-        assertEquals( f.acl(), pairs( acls().getPermissions( page ) ) );
-    }
-
-    @ParameterizedTest( name = "{0}" )
-    @MethodSource( "fixtures" )
-    void renderingAfterwardsDoesNotChangeTheAcl( final Fixture f ) {
-        final Page page = freshPage( f );
-        final Set< String > before = pairs( acls().getPermissions( page ) );
-        render( page, f );
-        assertEquals( before, pairs( acls().getPermissions( page ) ) );
-        assertEquals( f.acl(), before );
-    }
-
-    @ParameterizedTest( name = "{0}" )
-    @MethodSource( "fixtures" )
-    void theEnforcedDirectivesAreTheOnesTheAclIsBuiltFrom( final Fixture f ) {
+    @MethodSource( "all" )
+    void theEnforcedDirectivesAreTheTextScansOnly( final Fixture f ) {
         final List< String > enforced = DefaultAclManager.aclDirectives( f.text() );
         assertEquals( f.acl().isEmpty(), enforced.isEmpty(), "enforced: " + enforced );
+    }
+
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "rendered" )
+    void aDisplayRenderStillSetsTheAclTheRawRenderPathSets( final Fixture f ) throws Exception {
+        final Page page = freshPage( f );
+        engine.getManager( RenderingManager.class ).textToHTML( Wiki.context().create( engine, page ), f.text() );
+        assertEquals( rawRenderAcl( f ), pairs( page.getAcl() ) );
     }
 }

@@ -23,6 +23,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorKeys;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -31,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,12 +48,13 @@ import org.apache.logging.log4j.Logger;
  *   <li>{@code GET /api/me/pages?limit=N} — {@code {pages:[{slug,title,lastModified}]}}.</li>
  * </ul>
  *
- * <p>"Authored" means {@link Page#getAuthor()} matches the caller's login. This
- * is the author of the current version (the last person to save), so a page
- * someone else last edited will not appear; full version history is not walked.
- * Backed by {@link PageManager#getRecentChanges()}, which already returns pages
- * ordered most-recently-modified-first and carries author + last-modified on
- * each {@link Page} (the same scan that powers {@code /api/recent-changes}).</p>
+ * <p>"Authored" means {@link Page#getAuthor()} <em>equals</em> the caller's login — the value every writer
+ * records via {@link AuthorKeys#authorKeyFor}. Full names (legacy authorship) and other spellings of the login
+ * never match, so users who share a display name no longer see each other's pages. This is the author of the
+ * current version (the last person to save), so a page someone else last edited will not appear; full version
+ * history is not walked. Backed by {@link PageManager#getRecentChanges()}, which already returns pages ordered
+ * most-recently-modified-first and carries author + last-modified on each {@link Page} (the same scan that
+ * powers {@code /api/recent-changes}).</p>
  *
  * <p>Requires authentication; anonymous callers get a 401.</p>
  */
@@ -71,23 +72,16 @@ public class MyPagesResource extends RestServletBase {
     }
 
     /**
-     * Seam — the set of identity names that count as "me", overridable for unit
-     * tests. A page is mine when its {@link Page#getAuthor()} matches any of
-     * these. We include both the user principal (wiki name — this is what
-     * {@code PageResource} stores as the author on save) and the login principal,
-     * so authorship recorded under either representation is matched.
+     * Seam — the stored author strings that count as "me", overridable for unit tests: exactly the caller's
+     * login, i.e. what {@link AuthorKeys#authorKeyFor} records when this caller saves a page.
      */
     protected Set< String > currentUserIdentities( final HttpServletRequest request ) {
-        final Engine engine = getEngine();
-        final Session s = Wiki.session().find( engine, request );
-        final Set< String > ids = new HashSet<>();
-        if ( s.getUserPrincipal() != null && s.getUserPrincipal().getName() != null ) {
-            ids.add( s.getUserPrincipal().getName() );
+        final Session s = Wiki.session().find( getEngine(), request );
+        if ( s == null || !s.isAuthenticated() ) {
+            return Set.of();
         }
-        if ( s.getLoginPrincipal() != null && s.getLoginPrincipal().getName() != null ) {
-            ids.add( s.getLoginPrincipal().getName() );
-        }
-        return ids;
+        final String key = AuthorKeys.authorKeyFor( s );
+        return key == null ? Set.of() : Set.of( key );
     }
 
     /** Seam — auth gate, overridable for unit tests. */
@@ -110,7 +104,7 @@ public class MyPagesResource extends RestServletBase {
         final List< Page > mine = new ArrayList<>();
         for ( final Page p : candidatePages() ) {
             final String author = p.getAuthor();
-            if ( author != null && me.stream().anyMatch( author::equalsIgnoreCase ) ) {
+            if ( author != null && me.contains( author ) ) {
                 mine.add( p );
             }
         }

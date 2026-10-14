@@ -32,6 +32,7 @@ import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
@@ -50,7 +51,9 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -63,6 +66,10 @@ import java.util.Map;
  *  <li><b>timeFormat</b> - the time format to use, the default is "HH:mm:ss"</li>
  *  <li><b>dateFormat</b> - the date format to use, the default is "dd.MM.yyyy"</li>
  *  </ul>
+ *
+ *  <p>Only pages the viewer of the hosting page may <em>view</em> are listed (an attachment follows its parent page's ACL).
+ *  Because the listing therefore depends on who is looking, the render is flagged
+ *  {@link Context#VAR_VIEWER_SENSITIVE} and is never stored in the shared render caches.</p>
  */
 public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugin {
 	
@@ -95,6 +102,11 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
         final Engine engine = context.getEngine();
         final PublicIdentity identity = AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
 
+        // The listing is filtered by the viewer's view permission, so it differs per viewer; keep it out of the
+        // shared, principal-less render caches (PluginContent also flags every executed plugin; this keeps the
+        // guarantee local to the plugin for callers that reach it by another route).
+        context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
+
         //
         //  Which format we want to see?
         //
@@ -113,6 +125,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
         Collection< Page > changes = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getRecentChanges( sincedate.getTime() );
         super.initialize( context, params );
         changes = filterWikiPageCollection( changes );
+        changes = filterViewable( context, changes );
 
         final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         if ( systemPageRegistry != null ) {
@@ -225,6 +238,18 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
     }
 
     
+    /**
+     *  Drops every entry the viewer of this render may not view. The check is silent (no {@code access.denied}
+     *  audit rows): hiding restricted entries from a bulk listing is a visibility concern, not an enforcement
+     *  denial. Attachments need no special case: the permission check resolves an attachment name to the
+     *  attachment and takes its ACL from the parent page.
+     */
+    private static List< Page > filterViewable( final Context context, final Collection< Page > pages ) {
+        final Set< String > viewable = new PermissionFilter( context.getEngine() ).filterViewableQuietly(
+                context.getWikiSession(), pages.stream().map( Page::getName ).toList() );
+        return pages.stream().filter( p -> viewable.contains( p.getName() ) ).toList();
+    }
+
     private boolean isSameDay( final Date a, final Date b ) {
         final Calendar aa = Calendar.getInstance(); aa.setTime( a );
         final Calendar bb = Calendar.getInstance(); bb.setTime( b );

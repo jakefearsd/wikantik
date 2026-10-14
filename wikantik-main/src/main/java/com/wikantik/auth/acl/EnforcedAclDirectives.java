@@ -26,6 +26,7 @@ import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
 import com.vladsch.flexmark.util.ast.VisitHandler;
 import com.wikantik.util.AclDirectiveScanner;
+import com.wikantik.util.OffsetRanges;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -85,10 +86,10 @@ final class EnforcedAclDirectives {
         if ( candidates.isEmpty() ) {
             return List.of();
         }
-        final List< int[] > codeRanges = codeRegions( pageText );
+        final OffsetRanges code = OffsetRanges.of( codeRegions( pageText ) );
         final List< AclDirectiveScanner.Span > enforced = new ArrayList<>( candidates.size() );
         for ( final AclDirectiveScanner.Span candidate : candidates ) {
-            if ( !isInsideCode( codeRanges, candidate.start() ) ) {
+            if ( !code.contains( candidate.start() ) ) {
                 enforced.add( candidate );
             }
         }
@@ -131,15 +132,5 @@ final class EnforcedAclDirectives {
         );
         visitor.visit( doc );
         return ranges;
-    }
-
-    /** True if {@code offset} falls within any of the {@code [start, end)} code ranges. */
-    private static boolean isInsideCode( final List< int[] > ranges, final int offset ) {
-        for ( final int[] range : ranges ) {
-            if ( offset >= range[ 0 ] && offset < range[ 1 ] ) {
-                return true;
-            }
-        }
-        return false;
     }
 }

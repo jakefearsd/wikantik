@@ -18,8 +18,8 @@
  */
 package com.wikantik.extractcli;
 
-import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.knowledge.chunking.Chunk;
 import com.wikantik.knowledge.chunking.ContentChunker;
 import com.wikantik.knowledge.extraction.ChunkExtractionPrefilter;
@@ -146,7 +146,7 @@ public final class ChunkerStatsCli {
                     LOG.warn( "Skipping {}: read failed: {}", p, ioe.getMessage() );
                     continue;
                 }
-                final ParsedPage parsed = FrontmatterParser.parse( text );
+                final ParsedPage parsed = AclDirectiveText.parseStripped( text );
                 final String pageName = name.substring( 0, name.length() - 3 );
                 final List< Chunk > chunks = chunker.chunk( pageName, parsed );
                 pages++;

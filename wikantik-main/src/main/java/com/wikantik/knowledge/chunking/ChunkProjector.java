@@ -20,8 +20,8 @@ package com.wikantik.knowledge.chunking;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.filters.PageFilter;
-import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.auth.acl.AclDirectiveText;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -158,7 +158,9 @@ public class ChunkProjector implements PageFilter {
         }
         final String pageName = context.getPage().getName();
         try {
-            final ParsedPage parsed = FrontmatterParser.parse( content );
+            // Strip the FULL text and take the body of that (see AclDirectiveText.parseStripped): the chunker only sees
+            // a body, and stripping a body alone can misjudge which regions are code.
+            final ParsedPage parsed = AclDirectiveText.parseStripped( content );
             projectPage( pageName, parsed.metadata(), parsed.body() );
         } catch( final Exception e ) {
             LOG.warn( "Content chunking failed for page '{}' during postSave: {}",

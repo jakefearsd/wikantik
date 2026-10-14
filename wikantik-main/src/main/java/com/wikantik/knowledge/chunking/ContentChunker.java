@@ -102,7 +102,10 @@ public class ContentChunker {
 
     public List<Chunk> chunk(String pageName, ParsedPage page) {
         // Access-rule directives name people by login and are not content: they never reach a chunk, so
-        // never a search hit, a bundle section, an embedding or an extraction prompt.
+        // never a search hit, a bundle section, an embedding or an extraction prompt. Producers hand over the body of
+        // the stripped FULL text (AclDirectiveText.parseStripped), because enforcement is judged on the full text and
+        // frontmatter can change which body regions are code; stripping the body again here is a last line of defence
+        // for a producer that did not, and cannot bring a directive back.
         final String withoutRules = AclDirectiveText.strip(page.body());
         String body = withoutRules == null ? "" : withoutRules.strip();
         List<Chunk> out = new ArrayList<>();

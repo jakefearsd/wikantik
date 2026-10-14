@@ -101,4 +101,21 @@ class FrontmatterDefaultsFilterTest {
         assertNotNull( tags, "tags key should still be present" );
         assertTrue( tags.isEmpty(), "A blank wikantik.frontmatter.defaultTags must mean no tags are added" );
     }
+
+    /**
+     * The generated tags and summary are published in the page's frontmatter, so they come from the text a reader may
+     * see: the words of an access rule ("admin", "alic", "allow") are not tags, and the login is not in the summary. The
+     * stored body keeps its rules.
+     */
+    @Test
+    void generatedTagsAndSummaryAreDerivedWithoutTheAccessRules() {
+        final String rules = "[{ALLOW view All}]\n[{ALLOW edit Admin,alice@example.test}]\n";
+        final String result = filterWithDefaults().applyDefaults( "RuledPage", rules + BODY );
+
+        final Map< String, Object > meta = FrontmatterParser.parse( result ).metadata();
+        assertFalse( meta.get( "tags" ).toString().contains( "alic" ), meta.get( "tags" ).toString() );
+        assertFalse( meta.get( "tags" ).toString().contains( "admin" ), meta.get( "tags" ).toString() );
+        assertFalse( meta.get( "summary" ).toString().contains( "alice" ), meta.get( "summary" ).toString() );
+        assertTrue( result.contains( rules ), "the stored body keeps its access rules" );
+    }
 }

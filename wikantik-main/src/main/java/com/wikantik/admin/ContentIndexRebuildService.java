@@ -20,8 +20,8 @@ package com.wikantik.admin;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
-import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.knowledge.chunking.Chunk;
@@ -349,8 +349,8 @@ public class ContentIndexRebuildService {
                 } else {
                     try {
                         final String content = pages.getPureText( page );
-                        final ParsedPage parsed = FrontmatterParser.parse(
-                            content == null ? "" : content );
+                        // Full text stripped first, then parsed: see AclDirectiveText.parseStripped
+                        final ParsedPage parsed = AclDirectiveText.parseStripped( content );
                         final List< Chunk > produced = chunker.chunk( name, parsed );
                         final List< ChunkDiff.Stored > existing = chunkRepo.findByPage( name );
                         final ChunkDiff.Diff diff = ChunkDiff.compute( existing, produced );

@@ -18,6 +18,8 @@
  */
 package com.wikantik.auth.acl;
 
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.util.AclDirectiveScanner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -121,6 +123,70 @@ class AclDirectiveTextTest {
                 "the ACL manager still finds a directive in the output: " + out );
     }
 
+    // ---- frontmatter changes which body regions are code: strip the FULL text, never a body alone
+
+    private static Stream< Arguments > frontmatterThatChangesWhatIsCode() {
+        return Stream.of(
+                // a YAML block-scalar line opens a fence that runs past the closing --- in the full-text parse
+                Arguments.of( "an opening fence inside a YAML block scalar",
+                        "---\ntitle: X\nnotes: |\n  ```\n---\nIntro paragraph.\n\n```\n" + D + "\n```\n\nBody prose.\n" ),
+                // the same with an HTML comment that is still open past the closing ---
+                Arguments.of( "an HTML comment opened inside a YAML block scalar",
+                        "---\ntitle: X\nnotes: |\n  <!--\n---\nIntro paragraph.\n\n```\n" + D + "\n```\n\nBody prose.\n" ) );
+    }
+
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "frontmatterThatChangesWhatIsCode" )
+    void theBodyOfTheStrippedFullTextLosesWhatTheFullTextEnforcesEvenThoughTheBodyAloneLooksLikeDocumentation(
+            final String label, final String full ) {
+        final String bodyAlone = FrontmatterParser.parse( full ).body();
+        assertTrue( DefaultAclManager.aclDirectives( full ).contains( D ), "premise: the full text enforces the rule" );
+        assertEquals( List.of(), DefaultAclManager.aclDirectives( bodyAlone ),
+                "premise: judged on its own, the body shows the rule inside a code fence" );
+        assertTrue( AclDirectiveText.strip( bodyAlone ).contains( LOGIN ),
+                "premise: stripping the body alone therefore keeps the login" );
+
+        final ParsedPage page = AclDirectiveText.parseStripped( full );
+
+        assertFalse( page.body().contains( LOGIN ), page.body() );
+        assertTrue( page.body().contains( "Body prose." ), page.body() );
+        assertEquals( "X", page.metadata().get( "title" ), "the frontmatter is parsed as before" );
+    }
+
+    @Test
+    void parseStrippedReadsNullAsAnEmptyPage() {
+        final ParsedPage page = AclDirectiveText.parseStripped( null );
+        assertEquals( "", page.body() );
+        assertTrue( page.metadata().isEmpty() );
+    }
+
+    // ---- the renderer reads a directive wrapped over several lines; the enforcement scanner does not
+
+    @Test
+    void aMultiLineDirectiveIsRemovedAlthoughTheAclManagerDoesNotEnforceItInText() {
+        final String text = "[{ALLOW view All}]\n[{ALLOW edit Admin,alice@example.test,\n bob@example.test}]\nBody.";
+        assertEquals( List.of( "[{ALLOW view All}]" ), DefaultAclManager.aclDirectives( text ),
+                "premise: only the one-line rule is enforced from the text" );
+
+        final String out = AclDirectiveText.strip( text );
+
+        assertEquals( "\n\nBody.", out );
+    }
+
+    @Test
+    void aMultiLineDirectiveInDocumentationCodeIsKept() {
+        final String text = "Example:\n\n```\n[{ALLOW edit alice@example.test,\n bob@example.test}]\n```\n";
+        assertSame( text, AclDirectiveText.strip( text ) );
+    }
+
+    // ---- running time on a page with very many code spans and candidates
+
+    @Test
+    void aPageWithManyCodeSpansAndManyCandidatesIsStrippedInReasonableTime() {
+        final String text = "`x` [{ALLOW view a}] ".repeat( 150_000 );
+        assertTimeoutPreemptively( Duration.ofSeconds( 15 ), () -> assertEquals( "`x`  ".repeat( 150_000 ), AclDirectiveText.strip( text ) ) );
+    }
+
     // ---- seeded differential: token soup against the real ACL manager
 
     private static final long SEED = 0xAC1D1EC7L;
@@ -221,7 +287,8 @@ class AclDirectiveTextTest {
         final String openers = "[{ALLOW edit alice ".repeat( 40_000 ) + "\nx}]";
         assertTimeoutPreemptively( Duration.ofSeconds( 10 ), () -> {
             assertSame( spaces, AclDirectiveText.strip( spaces ) );
-            assertSame( openers, AclDirectiveText.strip( openers ) );
+            // The first opener runs (as the renderer would read it) to the only closer, at the very end.
+            assertEquals( "", AclDirectiveText.strip( openers ) );
         } );
     }
 

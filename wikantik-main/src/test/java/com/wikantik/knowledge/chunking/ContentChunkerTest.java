@@ -397,4 +397,19 @@ class ContentChunkerTest {
         assertEquals(chunker.chunk("P", new ParsedPage(Map.of(), clean)),
                      chunker.chunk("P", new ParsedPage(Map.of(), withRules)));
     }
+
+    @Test
+    void aDirectiveWrappedOverSeveralLinesNeverReachesChunkText() {
+        // The renderer reads a link label that spans lines; the enforcement scanner does not match it. Hide it anyway.
+        final String body = "[{ALLOW view All}]\n[{ALLOW edit alice@example.test,\n bob@example.test}]\n\n# Title\n\n"
+                + "Public prose about the topic.\n";
+        final List<Chunk> chunks = chunker.chunk("WrappedAclPage", new ParsedPage(Map.of(), body));
+
+        assertFalse(chunks.isEmpty());
+        for (final Chunk c : chunks) {
+            assertFalse(c.text().contains("alice@example.test"), c.text());
+            assertFalse(c.text().contains("bob@example.test"), c.text());
+        }
+        assertTrue(chunks.stream().anyMatch(c -> c.text().contains("Public prose")));
+    }
 }

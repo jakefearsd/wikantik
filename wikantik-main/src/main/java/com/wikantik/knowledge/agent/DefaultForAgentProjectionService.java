@@ -27,7 +27,6 @@ import com.wikantik.api.agent.McpToolHint;
 import com.wikantik.api.agent.RecentChange;
 import com.wikantik.api.citation.CitationRef;
 import com.wikantik.api.citation.CitationStatus;
-import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.WikiProvider;
@@ -219,11 +218,12 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         try {
             final String raw = pageManager.getPureText( d.slug(), WikiProvider.LATEST_VERSION );
             if ( raw != null && !raw.isEmpty() ) {
-                final ParsedPage parsed = FrontmatterParser.parse( raw );
-                frontmatter = parsed.metadata();
                 // key_facts and the heading outline are derived from the body's first paragraphs, so a directive
                 // on its first lines would surface in them: access rules (people, by login) never enter the body.
-                body = AclDirectiveText.strip( parsed.body() );
+                // Strip the FULL text and take the body of that: enforcement is judged on the full text.
+                final ParsedPage parsed = AclDirectiveText.parseStripped( raw );
+                frontmatter = parsed.metadata();
+                body = parsed.body();
             }
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: getPureText({}) failed — body & key_facts & headings will degrade: {}",

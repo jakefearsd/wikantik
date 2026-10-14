@@ -24,6 +24,7 @@ import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.auth.acl.AclDirectiveText;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -113,12 +114,15 @@ public class FrontmatterDefaultsFilter implements PageFilter {
         }
 
         final String body = parsed.body();
+        // The generated tags and summary are published in the page's frontmatter, so they are derived from the text a
+        // reader may see (the stored body, which keeps its access rules, is what is written back below).
+        final String visibleBody = AclDirectiveText.parseStripped( content ).body();
         final Map< String, Object > metadata = new LinkedHashMap<>();
         metadata.put( "title", TitleDeriver.derive( pageName ) );
         metadata.put( "type", "article" );
-        final List< String > tags = TagExtractor.extract( body, tagCount );
+        final List< String > tags = TagExtractor.extract( visibleBody, tagCount );
         metadata.put( "tags", tags );
-        metadata.put( "summary", SummaryExtractor.extract( body ) );
+        metadata.put( "summary", SummaryExtractor.extract( visibleBody ) );
         metadata.put( "auto-generated", Boolean.TRUE );
 
         LOG.info( "Generated default frontmatter for page '{}'", pageName );

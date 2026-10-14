@@ -69,4 +69,34 @@ class DefaultForAgentProjectionServiceAclDirectiveTest {
         assertEquals( "The service restarts nightly at 02:00 and retains 7 backups.", p.keyFacts().get( 0 ).text() );
         assertTrue( p.headingsOutline().stream().anyMatch( h -> "Steps".equals( h.text() ) ), "headings are untouched" );
     }
+
+    /**
+     * The ACL manager enforces on the full text, and a YAML block scalar can open a fence that runs past the closing
+     * {@code ---}: stripping the body alone would take the rule for documentation and keep it. The projection strips
+     * the full text and takes the body of that.
+     */
+    @Test
+    void aRuleThatOnlyTheFullTextEnforcesNeverReachesTheBodyDerivedFields() {
+        final StructuralIndexService idx = mock( StructuralIndexService.class );
+        final PageManager pm = mock( PageManager.class );
+        final CachingManager cache = mock( CachingManager.class );
+        when( cache.enabled( anyString() ) ).thenReturn( false );
+        final DefaultForAgentProjectionService svc =
+                new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), null, null, null );
+
+        final PageDescriptor d = new PageDescriptor( "01FMFLIP", "FlippedOps", "Flipped Ops", PageType.ARTICLE,
+                "ops", List.of( "ops" ), "Operator notes.",
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+        when( idx.getByCanonicalId( "01FMFLIP" ) ).thenReturn( Optional.of( d ) );
+        when( pm.getPureText( "FlippedOps", -1 ) ).thenReturn(
+                "---\ntitle: Flipped Ops\nsummary: Operator notes.\nnotes: |\n  ```\n---\n"
+                + "The service restarts nightly at 02:00 and retains 7 backups.\n\n```\n"
+                + "[{ALLOW edit leak-probe@example.test}]\n```\n\n## Steps\n\nRun the restart script.\n" );
+
+        final ForAgentProjection p = svc.project( "01FMFLIP" ).orElseThrow();
+
+        assertFalse( p.keyFacts().isEmpty(), "the body still yields key facts" );
+        p.keyFacts().forEach( f -> assertFalse( f.text().contains( "leak-probe@example.test" ), f.text() ) );
+        assertTrue( p.headingsOutline().stream().anyMatch( h -> "Steps".equals( h.text() ) ), "headings are untouched" );
+    }
 }

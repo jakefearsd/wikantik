@@ -61,7 +61,8 @@ public final class SummaryExtractor {
         if( body == null || body.isBlank() ) return "";
 
         // Access-rule directives first, through the one place that knows their syntax (and keeps the words
-        // either side of one apart), then every other plugin call, before markdown stripping
+        // either side of one apart), then every other plugin call, before markdown stripping. Callers pass the body
+        // of the stripped FULL text (AclDirectiveText.parseStripped); this strip is the last line of defence.
         String text = PLUGIN_CALL.matcher( AclDirectiveText.strip( body, " " ) ).replaceAll( " " );
 
         // Strip markdown (also strips frontmatter, headings, links, emphasis, etc.)

@@ -18,6 +18,8 @@
  */
 package com.wikantik.auth.acl;
 
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.util.AclDirectiveScanner;
 import com.wikantik.util.AclDirectives;
 import org.apache.logging.log4j.LogManager;
@@ -108,6 +110,22 @@ public final class AclDirectiveText {
         return canEdit ? text : strip( text );
     }
 
+    /**
+     * The frontmatter and body of {@link #strip(String) stripped} <em>full</em> page text — the way to hand a body to
+     * anything that works on a body only (the chunker, summary and excerpt builders, the agent projection).
+     *
+     * <p>Strip the whole text, never the body alone: {@code DefaultAclManager} enforces on the full text, frontmatter
+     * included, and frontmatter can change which body regions are code (a YAML block scalar that opens a fence, or a
+     * {@code <!--} that runs past the closing {@code ---}). A rule enforced in the full text can look like
+     * documentation in the body on its own, and be kept.
+     *
+     * @param fullText raw page text including frontmatter, may be {@code null} (read as empty)
+     * @return the parsed stripped text; never {@code null}
+     */
+    public static ParsedPage parseStripped( final String fullText ) {
+        return FrontmatterParser.parse( strip( fullText == null ? "" : fullText ) );
+    }
+
     /** Removes what the ACL manager enforces, then runs the conservative util pass. */
     private static String oneRound( final String text, final String replacement ) {
         final List< AclDirectiveScanner.Span > enforced = EnforcedAclDirectives.spans( text );
@@ -124,7 +142,7 @@ public final class AclDirectiveText {
                 + "removing every directive-shaped span, code or not", MAX_ROUNDS, text.length() );
         String current = text;
         for ( int round = 0; round < DRASTIC_ROUNDS; round++ ) {
-            final List< AclDirectiveScanner.Span > any = AclDirectiveScanner.findAll( current, true );
+            final List< AclDirectiveScanner.Span > any = AclDirectiveScanner.findAll( current, true, true );
             if ( any.isEmpty() ) {
                 return current;
             }

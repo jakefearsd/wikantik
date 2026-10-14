@@ -23,6 +23,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -278,11 +279,13 @@ public final class KgMaintenanceAdminHandlers {
                     }
 
                     final String body = parsed.body();
+                    // Published frontmatter is derived from the text a reader may see; the stored body keeps its rules.
+                    final String visibleBody = AclDirectiveText.parseStripped( content ).body();
                     final Map< String, Object > metadata = new LinkedHashMap<>();
                     metadata.put( "title", TitleDeriver.derive( page.getName() ) );
                     metadata.put( "type", "article" );
-                    metadata.put( "tags", TagExtractor.extract( body, 3 ) );
-                    metadata.put( "summary", SummaryExtractor.extract( body ) );
+                    metadata.put( "tags", TagExtractor.extract( visibleBody, 3 ) );
+                    metadata.put( "summary", SummaryExtractor.extract( visibleBody ) );
                     metadata.put( "auto-generated", Boolean.TRUE );
 
                     final String updated = FrontmatterWriter.write( metadata, body );

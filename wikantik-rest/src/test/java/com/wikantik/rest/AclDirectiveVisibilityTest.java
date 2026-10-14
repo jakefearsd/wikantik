@@ -88,6 +88,10 @@ class AclDirectiveVisibilityTest {
         // second, so the rule is plain text), but a scanner that only looks at one line at a time would call it code.
         engine.saveText( "AclTrickyPage",
                 "[{ALLOW view All}]\na `b\nc` [{ALLOW edit Admin," + LOGIN + "}] `d\n\nPublic prose.\n" );
+        // A long principal list wrapped over two lines: the renderer reads this link label, the enforcement scanner
+        // does not match it, and a reader must not be shown either login all the same.
+        engine.saveText( "AclWrappedPage", "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n"
+                + "[{ALLOW comment " + LOGIN + ",\n other-" + LOGIN + "}]\nPublic prose.\n" );
         engine.saveText( "AclDiffPage", RULES + "First revision.\n" );
         engine.saveText( "AclDiffPage",
                 "[{ALLOW view All}]\n[{ALLOW edit Admin,other-" + LOGIN + "}]\nSecond revision.\n" );
@@ -101,7 +105,7 @@ class AclDirectiveVisibilityTest {
     @AfterAll
     static void stopEngine() {
         if ( engine != null ) {
-            engine.deleteQuietly( "AclVisibilityPage", "AclDiffPage", "AclVersionedPage", "AclTrickyPage" );
+            engine.deleteQuietly( "AclVisibilityPage", "AclDiffPage", "AclVersionedPage", "AclTrickyPage", "AclWrappedPage" );
             engine.stop();
         }
     }
@@ -148,6 +152,23 @@ class AclDirectiveVisibilityTest {
                 "fixture is vacuous: the edit rule is not enforced, so the reader can edit" );
         assertFalse( content.contains( LOGIN ), content );
         assertTrue( content.contains( "Public prose." ), content );
+    }
+
+    @Test
+    void readerGetsNoLoginFromADirectiveWrappedOverSeveralLinesAndTheEditorGetsItVerbatim() throws Exception {
+        final JsonObject asReader = getPage( reader( "/api/pages/AclWrappedPage" ), "AclWrappedPage" );
+        final String readerContent = asReader.get( "content" ).getAsString();
+        assertFalse( asReader.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean(),
+                "fixture is vacuous: the reader can edit the page" );
+        assertFalse( readerContent.contains( LOGIN ), readerContent );
+        assertFalse( readerContent.contains( "ALLOW comment" ), readerContent );
+        assertTrue( readerContent.contains( "Public prose." ), readerContent );
+
+        final String stored = FrontmatterParser.parse( engine.getManager( PageManager.class )
+                .getPureText( "AclWrappedPage", PageProvider.LATEST_VERSION ) ).body();
+        assertTrue( stored.contains( "other-" + LOGIN + "}]" ), "fixture is vacuous: the wrapped directive is not stored" );
+        assertEquals( stored, getPage( editor( "/api/pages/AclWrappedPage" ), "AclWrappedPage" ).get( "content" ).getAsString(),
+                "an editor gets the stored text byte for byte" );
     }
 
     @Test

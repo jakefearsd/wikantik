@@ -40,10 +40,14 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,11 +65,25 @@ class SearchWikiToolTest {
     @Mock ContextRetrievalService ctxService;
     @Mock HttpServletRequest request;
 
+    /**
+     * Builds a tool whose view gate admits every page, so the shaping assertions below need no
+     * real engine wiring (mirrors {@code GetPageToolTest#allowingTool}). The real gate is covered
+     * end to end, against real ACLs and sessions, by {@link SearchWikiToolViewPermissionTest}.
+     */
+    private SearchWikiTool allowingTool( final ToolsConfig config ) {
+        return new SearchWikiTool( engine, config ) {
+            @Override
+            Set< String > viewableNames( final HttpServletRequest req, final Collection< String > pageNames ) {
+                return new HashSet<>( pageNames );
+            }
+        };
+    }
+
     @Test
     void returnsErrorPayloadWhenServiceNotConfigured() {
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( null );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > result = tool.execute( "hello", 10, request );
 
         assertEquals( "hello", result.get( "query" ) );
@@ -81,7 +99,7 @@ class SearchWikiToolTest {
         final QueryLogService qlog = mock( QueryLogService.class );
         when( engine.queryLogService() ).thenReturn( qlog );
 
-        new SearchWikiTool( engine, new ToolsConfig( new Properties() ) ).execute( "hello", 10, request );
+        allowingTool( new ToolsConfig( new Properties() ) ).execute( "hello", 10, request );
 
         // /tools is agent-by-construction; result_count = retrieved page count (0 here = zero-result signal)
         verify( qlog ).log( "hello", ActorType.AGENT, SourceSurface.TOOLS_SEARCH_WIKI, 0 );
@@ -92,7 +110,7 @@ class SearchWikiToolTest {
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
         when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenThrow( new RuntimeException( "boom" ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > result = tool.execute( "hello", 10, request );
 
         assertEquals( "hello", result.get( "query" ) );
@@ -115,7 +133,7 @@ class SearchWikiToolTest {
 
         final Properties props = new Properties();
         props.setProperty( "wikantik.public.baseURL", "https://wiki.example.com" );
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( props ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( props ) );
 
         final Map< String, Object > out = tool.execute( "hello", 5, request );
 
@@ -145,7 +163,7 @@ class SearchWikiToolTest {
                 .build()
             ), 1 ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "q", 5, request );
 
         final List< ? > results = ( List< ? > ) out.get( "results" );
@@ -171,7 +189,7 @@ class SearchWikiToolTest {
                 .build()
             ), 1 ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "hello", 5, request );
 
         final List< ? > results = ( List< ? > ) out.get( "results" );
@@ -186,7 +204,7 @@ class SearchWikiToolTest {
         when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
             new RetrievalResult( "q", List.of(), 0 ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         // limit <= 0 must not throw and must fall back to the default cap rather than 0.
         final Map< String, Object > out = tool.execute( "q", 0, request );
 
@@ -211,7 +229,7 @@ class SearchWikiToolTest {
         when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
             new RetrievalResult( "q", manyPages, 20 ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "q", 100, request );
 
         // clamped to 25, but service returned 20 — total should be 20
@@ -235,7 +253,7 @@ class SearchWikiToolTest {
                     .build() ),
                 1 ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > result = tool.execute( "q", 10, request );
         @SuppressWarnings( "unchecked" )
         final List< Map< String, Object > > results =
@@ -268,7 +286,7 @@ class SearchWikiToolTest {
                     .build() ),
                 1 ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > result = tool.execute( "q", 10, request );
         @SuppressWarnings( "unchecked" )
         final List< Map< String, Object > > results =
@@ -297,7 +315,7 @@ class SearchWikiToolTest {
                     .build() ),
                 1 ) );
 
-        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
         final Map< String, Object > result = tool.execute( "q", 10, request );
         @SuppressWarnings( "unchecked" )
         final List< Map< String, Object > > results =
@@ -308,5 +326,58 @@ class SearchWikiToolTest {
             "empty related should be omitted, not serialized as []" );
         assertFalse( results.get( 0 ).containsKey( "snippet" ),
             "no snippet when no chunks to source from" );
+    }
+
+    @Test
+    void viewGateFailureFailsTheRequestInsteadOfReturningUnfilteredResults() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "q", List.of( RetrievedPage.builder( "Secret", 1.0 )
+                .url( "" )
+                .summary( "classified" )
+                .tags( List.of() )
+                .contributingChunks( List.of() )
+                .relatedPages( List.of() )
+                .build() ), 1 ) );
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) ) {
+            @Override
+            Set< String > viewableNames( final HttpServletRequest req, final Collection< String > pageNames ) {
+                throw new IllegalStateException( "authorization subsystem unavailable" );
+            }
+        };
+
+        // The servlet turns this into a 500; the point is that nothing unfiltered is returned.
+        assertThrows( IllegalStateException.class, () -> tool.execute( "q", 10, request ) );
+    }
+
+    @Test
+    void viewGateIsAskedAboutTheCallersRequestAndEveryNameTheResponseCouldMention() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "q", List.of(
+                RetrievedPage.builder( "Alpha", 2.0 )
+                    .url( "" ).summary( "" ).tags( List.of() ).contributingChunks( List.of() )
+                    .relatedPages( List.of( new RelatedPage( "Beta", "shared entities: x" ) ) )
+                    .build(),
+                RetrievedPage.builder( "Gamma", 1.0 )
+                    .url( "" ).summary( "" ).tags( List.of() ).contributingChunks( List.of() )
+                    .relatedPages( List.of() )
+                    .build() ), 2 ) );
+        final AtomicReference< HttpServletRequest > seenRequest = new AtomicReference<>();
+        final AtomicReference< Collection< String > > seenNames = new AtomicReference<>();
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) ) {
+            @Override
+            Set< String > viewableNames( final HttpServletRequest req, final Collection< String > pageNames ) {
+                seenRequest.set( req );
+                seenNames.set( pageNames );
+                return new HashSet<>( pageNames );
+            }
+        };
+
+        tool.execute( "q", 10, request );
+
+        assertSame( request, seenRequest.get(), "the gate must evaluate the caller's own request" );
+        assertEquals( Set.of( "Alpha", "Beta", "Gamma" ), new HashSet<>( seenNames.get() ),
+            "result names and related-page names are all checked, once each" );
     }
 }

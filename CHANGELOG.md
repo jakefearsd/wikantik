@@ -25,6 +25,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
      display names.
 - Roll forward rather than back: once 2.4.58 has saved a page, running 2.4.57 again would show that author's
   login in page history.
+- Comments written before this release can contain legacy `@login` text, because the old mention picker inserted
+  `@<login>` (an email address under Google sign-in) and comment bodies are returned as written. To see whether
+  yours do, run this read-only count (it names no one) through the same psql route as step 1 (for production,
+  `bin/remote.sh psql -- -Atc "<the query>"`); zero means there is nothing to do:
+  `SELECT count(*) FROM comments WHERE regexp_replace(body, '@\[[^]\n]{1,64}\]\(user:[A-Za-z0-9-]{1,64}\)', ' ', 'g') ~ '(^|[^A-Za-z0-9_])@[A-Za-z0-9._-]+';`
+  It counts bodies containing an `@word` that is not a new-style mention token. A non-zero count means some
+  bodies may carry a login (or just a word after an `@`): look at those rows and edit or delete the ones that do,
+  since the wiki does not rewrite them.
 - Page history written before this release is not rewritten. Authorship is stored as the login from now on and
   resolved to the account's current display name when read. Older entries hold the name their author had then
   and are shown as written, except an email address, which is shown as "unknown contributor".
@@ -32,7 +40,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Client-visible API changes: `GET /api/users/mentionable` returns `{users: [{id, displayName}]}` (no
   `loginName` or `fullName`); `GET /api/comment-threads` returns display names and adds `createdById`,
   `resolvedById`, `comments[].authorId` and a `mentions` map from user id to display name; `GET /api/auth/user`
-  adds `userId` (absent when signed out); `mentionedBy` on `GET /api/me/mentions` is a display name. Mentions are stored as
+  adds `userId` (absent when signed out); `mentionedBy` on `GET /api/me/mentions` is a display name. In
+  `GET /api/pages/{name}`, `metadata.author` and `metadata.verified_by` that are logins come back as display names,
+  except for a caller who can edit the page, who gets the stored frontmatter so the editor never saves a display
+  name over a login; the server-rendered page's data island always carries the display names. Mentions are stored as
   `@[Display Name](user:<id>)`; a hand-typed `@login` still notifies but is shown as typed.
 
 ### Added

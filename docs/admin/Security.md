@@ -250,14 +250,16 @@ Identify people by **login name** everywhere access is decided.
 People are shown to each other by **display name**. A login name is private: with Google
 sign-in it is the user's email address. Only three things see one: the account's owner (on
 the Preferences page), administrators on `/admin/*`, and the admin MCP server, which is
-administrator-equivalent.
+administrator-equivalent. The one exception is a login written into a page's access rules:
+anyone who can edit that page sees those lines (see [Page ACLs](#page-acls)), which is why
+you should name groups there instead of people.
 
 - **Stored by login, shown by name.** Version authors, comments, mentions, page owners,
   group members and ACLs are stored by login, which never changes. Every other surface
   resolves the stored value through `PublicIdentity` as it answers: the page, list, history,
   recent-changes and search APIs, the for-agent projection, comment threads, mentions and the
-  mention picker, `/feed.xml` and `/api/recent-articles`, the knowledge MCP, `/tools/*`, and
-  the public ontology (`dct:creator`). A rename therefore applies to every attribution at
+  mention picker, `/feed.xml` and `/api/recent-articles`, the knowledge MCP, `/tools/*`, the
+  server-rendered page and its data island, and the public ontology (`dct:creator`). A rename therefore applies to every attribution at
   once: saving a profile drops the cached name, and `PublicIdentity` expires its cache after
   60 seconds anyway. Two values are copied when a page is indexed or projected, so they follow a
   rename only when the page is next saved or the indexes and the ontology are rebuilt: the
@@ -341,8 +343,11 @@ named user relied on it.
 
 Display-name collisions. These accounts keep working, and an ACL or session no longer
 resolves through the colliding name. Renaming an account whose full or wiki name equals
-another account's login removes the ambiguity; a shared full name is allowed and needs no
-change, but an ACL that names it by full name is ambiguous, so use login names there:
+another account's login removes the ambiguity. In 2.4.53 a shared full name was allowed and
+needed no change, but an ACL that names it by full name is ambiguous, so use login names
+there. (Since 2.4.58 display names are unique: a shared one is refused on save, and
+`bin/db/one-shots/dedupe_display_names.sh` renames the existing duplicates once; see
+[Use login names in groups and ACLs](#use-login-names-in-groups-and-acls).)
 
 ```sql
 -- a full or wiki name that equals another account's login name

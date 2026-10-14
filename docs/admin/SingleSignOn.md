@@ -146,11 +146,11 @@ People are shown to each other by display name, never by login (with
 invisible formatting characters, not reserved, not another account's login, and not already
 another account's display name (ignoring case). If the claim is taken, because another account
 already has that display name or login, a number is added: `Jane Doe 2`, `Jane Doe 3`. If the
-claim is missing or unusable (it is reserved, contains `@`, as an email address does, or is
-too short or too long) the account gets the placeholder `Member N`, the lowest free N. The
-login or email is never used. SSO provisioning does not fail on a name conflict; it logs the
-choice at INFO. The name is not refreshed from the IdP on later sign-ins, so
-users change it themselves under **Preferences**.
+claim is missing or unusable (it is reserved, contains `@`, as an email address does, contains
+a control or invisible formatting character, or is too short or too long) the account gets
+the placeholder `Member N`, the lowest free N. The login or email is never used. SSO
+provisioning does not fail on a name conflict; it logs the choice at INFO. The name is not
+refreshed from the IdP on later sign-ins, so users change it themselves under **Preferences**.
 
 ## Identity binding and account linking
 

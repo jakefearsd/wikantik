@@ -30,7 +30,7 @@ Choose **Profile** in the sidebar (or open `/preferences`) to edit your display 
 
 Your **display name** is what other people see on your edits, comments and mentions. It must be unique (case is ignored), 2 to 64 characters, and cannot contain `@`. Your login name stays private: only you and administrators can see it.
 
-The **API Keys** section creates keys for scripts and AI clients. A key acts with your own permissions. A regular account can create keys with the `tools` scope (the `/tools/*` endpoints) or the `mcp_read` scope (read-only knowledge MCP access); keys with wider scope are created by an administrator. The secret is shown once, so copy it when you create it.
+The **API Keys** section creates keys for scripts and AI clients. A key is recorded against your account for attribution and auditing, but it does not use your page permissions: with the `tools` or `mcp_read` scope it reads the wiki as a signed-out visitor would. A regular account can create keys with the `tools` scope (the `/tools/*` endpoints) or the `mcp_read` scope (read-only knowledge MCP access); keys with wider scope are created by an administrator. The secret is shown once, so copy it when you create it.
 
 ## Sign out
 

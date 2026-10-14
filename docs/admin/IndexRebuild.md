@@ -120,9 +120,9 @@ For ~200 pages, the rebuild takes 1-3 seconds. For 1000+ pages, expect 10-30 sec
 | Lucene Field | Source | Searchable |
 |-------------|--------|------------|
 | `id` | Page name (exact) | Exact match only |
-| `contents` | Full page body text | Full-text |
+| `contents` | Full page body text, without `[{ALLOW}]` / `[{DENY}]` access-rule directives (they name people by login) | Full-text |
 | `name` | Page name (beautified + raw) | Full-text |
-| `author` | Page author | Full-text |
+| `author` | The author's display name as of indexing (a stored legacy name is indexed as written). It follows a rename only after the page is saved again or the index is rebuilt | Full-text |
 | `attachment` | Attachment filenames | Full-text |
 | `keywords` | Page keywords attribute | Full-text |
 | `tags` | Frontmatter `tags` field (space-separated) | Full-text |

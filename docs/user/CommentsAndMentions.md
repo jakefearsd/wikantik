@@ -191,8 +191,8 @@ Thread responses carry display names, never logins. `createdBy`, `resolvedBy` an
 are opaque user ids, absent for an author with no account (a name recorded by an older
 version, or an agent); a client compares them with `userId` from `GET /api/auth/user` (absent
 when signed out) to find the caller's own comments. In the list response the top-level
-`mentions` object maps every user id mentioned in the returned bodies to that person's
-current display name.
+`mentions` object maps every user id mentioned in the returned bodies that still resolves to
+an account (a deleted account is left out) to that person's current display name.
 
 ### Comments within a thread
 

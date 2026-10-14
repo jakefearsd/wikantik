@@ -157,7 +157,7 @@ A page's access rules are plain text inside the page body, written as `[{ALLOW a
 [{ALLOW edit Alice,Bob}]
 ```
 
-The action is a page permission such as `view`, `edit`, `comment`, `upload`, `rename` or `delete`; the principals are login names, group names or roles, separated by commas. Name a person by their login name; a full name or wiki name grants nobody. A directive inside a code span or fenced code block is documentation and is ignored. Once a page has an `ALLOW` rule, only the principals it names get that action. Wiki-wide default permissions are set by an administrator, not in the page.
+The action is a page permission such as `view`, `edit`, `comment`, `upload`, `rename` or `delete`; the principals are login names, group names or roles, separated by commas. Prefer naming a group or role. Name a person by their login name; a full name or wiki name grants nobody. The directive lines are shown only to people who can edit the page (everyone else, and search, exports and agents, get the page without them), but anyone who can edit the page sees every login written in them. A directive inside a code span or fenced code block is documentation and is ignored. Once a page has an `ALLOW` rule, only the principals it names get that action. Wiki-wide default permissions are set by an administrator, not in the page.
 
 ## Mention people
 

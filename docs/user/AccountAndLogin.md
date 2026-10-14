@@ -38,7 +38,7 @@ At the bottom, the **Danger Zone** deletes your account. It is permanent, and yo
 
 ## Create a personal API key
 
-The **API Keys** section on the profile page creates keys for scripts and AI clients. A key acts with your own permissions, so it can never do more than you can.
+The **API Keys** section on the profile page creates keys for scripts and AI clients. A key is recorded against your account for attribution and auditing, but it does not use your page permissions: with the `tools` or `mcp_read` scope it reads the wiki as a signed-out visitor would, so it can never see more than that.
 
 1. Enter an optional label, pick a scope, and choose to generate the key.
 2. Copy the secret straight away. It is shown once.

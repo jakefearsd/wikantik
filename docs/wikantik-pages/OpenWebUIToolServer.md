@@ -26,9 +26,10 @@ tool runtime; the OpenAPI document at `/tools/openapi.json` advertises two opera
 Tool-server access has two layers:
 
 1. **DB-backed API keys** (recommended) — generated via the admin UI at
-   `/admin/apikeys`, bound to a Wikantik principal, and stored SHA-256 hashed. Each
-   call runs under the key's principal, so page ACLs and JAAS permissions apply
-   exactly as they would for that user's interactive session.
+   `/admin/apikeys`, bound to a Wikantik principal, and stored SHA-256 hashed. The
+   principal is recorded for attribution and the audit trail only: every call reads the
+   wiki as an anonymous visitor would, so page ACLs are evaluated against a signed-out
+   reader and the tools return only pages that reader may view.
 2. **Transport-layer guards** — CIDR allowlist, rate limits, and the "no config =
    fail closed" safety net live in `wikantik-tools.properties`. Defaults ship inside
    the module JAR; overrides go in `tomcat/lib/wikantik-tools.properties`.
@@ -45,8 +46,8 @@ Tool-server access has two layers:
 
 Navigate to **Administration → API Keys** and click **Generate Key**. Pick:
 
-- **Principal** — the login that the tool server should impersonate when running
-  calls. Page ACLs and JAAS permissions are evaluated against this user.
+- **Principal** — the login the key is attributed to in the audit trail. It does not
+  change what the key can read: page ACLs are evaluated as for an anonymous visitor.
 - **Label** — freeform note (e.g. `OpenWebUI production`) to identify the key later.
 - **Scope** — `tools` (OpenAPI only), `mcp_read` or `mcp_admin` (MCP servers only), or `all` (both).
 
@@ -133,10 +134,10 @@ In OpenWebUI:
 
 ## Security notes
 
-- DB-backed keys are bound to a Wikantik principal; each call runs as that user so
-  page ACLs and JAAS permissions apply exactly as they would for an interactive
-  session. Pick the principal deliberately — the tool caller inherits their view
-  permissions, so grant narrowly.
+- DB-backed keys are bound to a Wikantik principal for attribution and auditing only;
+  each call reads the wiki as an anonymous visitor, so page ACLs hide every page a
+  signed-out reader cannot view, whichever principal the key is bound to. The principal
+  does not widen or narrow what the tools return.
 - The legacy `tools.access.keys` / `mcp.access.keys` config-file token lists were
   removed in 2.0.21 (June 2026) and are no longer read by anything. Setting either is
   a silent no-op; database-backed keys minted at `/admin/apikeys` are the only token

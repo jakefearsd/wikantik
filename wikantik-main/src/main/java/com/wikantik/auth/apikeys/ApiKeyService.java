@@ -51,8 +51,11 @@ import java.util.concurrent.Executors;
  * <p>Each key is bound to a Wikantik principal ({@code login_name}). The
  * access filters resolve an incoming Bearer token by SHA-256 hashing it and
  * looking it up in {@code api_keys}; on match they install that principal on
- * the request so JAAS/ACL enforcement downstream behaves exactly as it would
- * for that user's interactive session.
+ * the request for attribution and the audit trail. They do not open a wiki
+ * session for it: the session of such a stateless request is the anonymous
+ * guest, so {@code /tools/*} and the knowledge MCP evaluate page view ACLs as for
+ * a signed-out reader (not as that principal), and the admin MCP performs no
+ * per-user page checks.
  *
  * <p>Tokens are generated as {@code wkk_} + 32 random bytes, base64url
  * encoded. Plaintext is shown to the operator once at creation time and is

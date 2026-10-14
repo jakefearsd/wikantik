@@ -127,6 +127,13 @@ class IdentityDisplayTest {
     }
 
     @Test
+    void changeNote_resolvesAVerifierWrittenWithExtraLeadingWhitespace() {
+        assertEquals( "verified by Sso User", IdentityDisplay.changeNote( identity, "verified by  sso.user@example.test" ) );
+        assertEquals( "verified by Janne Jalkanen", IdentityDisplay.changeNote( identity, "verified by \tjanne" ) );
+        assertEquals( "verified by unknown contributor", IdentityDisplay.changeNote( identity, "verified by   gone.user@example.test" ) );
+    }
+
+    @Test
     void changeNote_masksAVerifierThatIsAnEmailButNoAccount() {
         assertEquals( "verified by unknown contributor", IdentityDisplay.changeNote( identity, "verified by gone.user@example.test" ) );
     }

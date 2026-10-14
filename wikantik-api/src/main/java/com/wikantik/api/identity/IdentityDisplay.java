@@ -90,7 +90,8 @@ public final class IdentityDisplay {
         if ( identity == null || note == null || !note.startsWith( VERIFIED_BY ) ) {
             return note;
         }
-        final String rest = note.substring( VERIFIED_BY.length() );
+        // Extra whitespace before the verifier must not let a login slip past (the tool did not trim its argument).
+        final String rest = note.substring( VERIFIED_BY.length() ).stripLeading();
         if ( rest.indexOf( '@' ) < 0 ) {
             final String whole = ofLoginOrText( identity, rest );
             if ( !whole.equals( rest ) ) {

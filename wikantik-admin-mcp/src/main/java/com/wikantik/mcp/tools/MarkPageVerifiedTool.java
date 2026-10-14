@@ -144,7 +144,7 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool {
         }
         final String verifierArg = McpToolUtils.getString( arguments, "verifier" );
         final String verifier = verifierArg != null && !verifierArg.isBlank()
-                ? verifierArg : getDefaultAuthor();
+                ? verifierArg.strip() : getDefaultAuthor();
         if ( verifier == null || verifier.isBlank() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                 "verifier could not be resolved — pass {verifier: <login_name>} or configure default_author" );

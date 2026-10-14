@@ -15,7 +15,10 @@
 #     no-break/fullwidth spacing all ignored), so "jake   FEAR" and "Jake Fear" are the same name.
 #   * Gives every account with a NULL or blank users.uid a new random uid (the uid keys @-mentions; a
 #     missing one is otherwise invented afresh on every read). A stored uid is never replaced; one that
-#     cannot appear in a mention token (outside [A-Za-z0-9-]{1,64}) is only reported.
+#     cannot appear in a mention token (outside [A-Za-z0-9-]{1,64}) is only reported, as is a display
+#     name that equals another account's login (a count; nothing is renamed for it).
+#   * Treats an account with no created timestamp as the oldest (it keeps a contested name).
+#   * Runs psql with VERBOSITY=terse: an error prints its one-line message, never the failing row.
 #   * Leaves users.wiki_name alone.
 #
 # Dry run by default: the changes are made inside a transaction that is ROLLED BACK, so the report
@@ -74,8 +77,9 @@ if [ -n "$PSQL_COMMAND" ]; then
     TARGET="via: ${PSQL_COMMAND}"
     run_psql() {
         # Word-splitting of PSQL_COMMAND is intended (it is a command plus its leading arguments).
+        # VERBOSITY=terse: a constraint error otherwise prints the whole failing users row (uid, email, login).
         # shellcheck disable=SC2086
-        $PSQL_COMMAND -X -q -v ON_ERROR_STOP=1 "$@"
+        $PSQL_COMMAND -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=terse "$@"
     }
 else
     PGHOST="${PGHOST:-localhost}"
@@ -95,7 +99,7 @@ else
     export PGPASSWORD PGHOST PGPORT PGUSER
     TARGET="${PGUSER}@${PGHOST}:${PGPORT}/${DB_NAME}"
     run_psql() {
-        psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$DB_NAME" -X -q -v ON_ERROR_STOP=1 "$@"
+        psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$DB_NAME" -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=terse "$@"
     }
 fi
 
@@ -113,8 +117,9 @@ echo "Mode: ${MODE}"
 echo ""
 echo "--- Report 1: changes (reason | old display name | new display name)."
 echo "    A uid backfill appears as one row giving a count, never an account."
-echo "--- Report 2: stored uids that cannot appear in a mention token (display name | problem)."
-echo "    Reported only: the uid itself is not changed and not printed."
+echo "--- Report 2: findings reported only, nothing changed (display name or count | problem):"
+echo "    stored uids that cannot appear in a mention token, and display names that equal another"
+echo "    account's login. Never a login or a uid."
 echo ""
 
 # One psql session so the transaction, the SET LOCAL and the temp report table all share a connection.
@@ -124,7 +129,7 @@ run_psql \
     -c "SET LOCAL wikantik.dedupe_apply = 'on'" \
     -c "$SQL_ONE_LINE" \
     -c "SELECT reason, old_display AS \"old display name\", new_display AS \"new display name\" FROM dedupe_display_names_report ORDER BY seq" \
-    -c "SELECT display_name AS \"display name\", problem FROM dedupe_display_names_uid_report ORDER BY seq" \
+    -c "SELECT subject, problem FROM dedupe_display_names_findings ORDER BY seq" \
     -c "$END_TRANSACTION"
 
 echo ""

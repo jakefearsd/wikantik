@@ -283,12 +283,12 @@ class DedupeDisplayNamesSqlTest {
         assertEquals( "Dup Name", displayNames().get( "refuse-b" ), "nothing was changed" );
     }
 
-    /** The uid findings as "display name|problem" lines, in the order the script found them. */
-    private List< String > uidReport() throws SQLException {
+    /** The reported-only findings as "subject|problem" lines, in the order the script found them. */
+    private List< String > findings() throws SQLException {
         final List< String > out = new ArrayList<>();
         try ( Statement s = conn.createStatement();
               ResultSet rs = s.executeQuery(
-                  "SELECT display_name, problem FROM dedupe_display_names_uid_report ORDER BY seq" ) ) {
+                  "SELECT subject, problem FROM dedupe_display_names_findings ORDER BY seq" ) ) {
             while ( rs.next() ) {
                 out.add( rs.getString( 1 ) + "|" + rs.getString( 2 ) );
             }
@@ -358,7 +358,7 @@ class DedupeDisplayNamesSqlTest {
         assertEquals( List.of(
                 "Odd Alpha|characters other than letters, digits and hyphen",
                 "Odd Beta|characters other than letters, digits and hyphen",
-                "Odd Gamma|longer than 64 characters" ), uidReport(),
+                "Odd Gamma|longer than 64 characters" ), findings(),
             "display names only; a negative numeric uid (the V002 admin seed) is a valid shape" );
         assertEquals( "has space", scalar( "SELECT uid FROM users WHERE login_name = 'odd-a'" ), "reported, not changed" );
         assertEquals( List.of(), report(), "the name report is not mixed with uid findings" );
@@ -399,5 +399,67 @@ class DedupeDisplayNamesSqlTest {
         runScript();
 
         assertEquals( "c".repeat( 61 ) + " 2", scalar( "SELECT full_name FROM users WHERE login_name = 'cut-b'" ) );
+    }
+
+    @Test
+    void anAccountWithNoCreatedTimestampPredatesTheOthersAndKeepsTheName() throws SQLException {
+        // V002 seeds 'admin' with created NULL: a missing timestamp means "before timestamping began", i.e. oldest.
+        insertUser( "seed", "Administrator", "AdminSeed", "2026-01-01" );
+        insertUser( "newer", "Administrator", "AdminNewer", "2020-01-01" );
+        try ( Statement s = conn.createStatement() ) {
+            s.executeUpdate( "UPDATE users SET created = NULL WHERE login_name = 'seed'" );
+        }
+
+        runScript();
+
+        assertEquals( "Administrator", scalar( "SELECT full_name FROM users WHERE login_name = 'seed'" ),
+            "the account with no created timestamp keeps the name" );
+        assertEquals( "Administrator 2", scalar( "SELECT full_name FROM users WHERE login_name = 'newer'" ) );
+    }
+
+    @Test
+    void accountsWithNoCreatedTimestampAreOrderedByLoginAmongThemselvesAndBeforeTheRest() throws SQLException {
+        insertUser( "n-b", "", "NB", "2026-01-01" );
+        insertUser( "n-a", "", "NA", "2026-01-01" );
+        insertUser( "dated", "", "Dated", "2020-01-01" );
+        try ( Statement s = conn.createStatement() ) {
+            s.executeUpdate( "UPDATE users SET created = NULL WHERE login_name IN ( 'n-a', 'n-b' )" );
+        }
+
+        runScript();
+
+        assertEquals( Map.of( "n-a", "Member 1", "n-b", "Member 2", "dated", "Member 3" ), displayNames(),
+            "NULL created first (tie-break: login), then the dated account" );
+    }
+
+    @Test
+    void displayNamesEqualToAnotherAccountsLoginAreCountedAndLeftAlone() throws SQLException {
+        insertUser( "taylor", "Casey", "Taylor", "2026-01-01" );
+        insertUser( "Casey", "Taylor", "CaseyAcct", "2026-02-01" );     // this display name is the first account's login
+        insertUser( "CASEY2", "Quinn", "Quinn", "2026-03-01" );
+        insertUser( "quinn2", "casey2", "Quinn2", "2026-04-01" );       // equals another login, ignoring case
+        insertUser( "Selfsame", "Selfsame", "SelfSame", "2026-05-01" ); // its own login: allowed, not counted
+
+        runScript();
+
+        assertEquals( "Taylor", scalar( "SELECT full_name FROM users WHERE login_name = 'Casey'" ), "reported, not renamed" );
+        assertEquals( List.of( "3 account(s)|display name equals another account's login (left unchanged)" ), findings(),
+            "a count only: no login, uid or name" );
+        assertEquals( List.of(), report() );
+    }
+
+    @Test
+    void theFindingsCarryNoLoginsOrUidsEvenWhenTheyArePresent() throws SQLException {
+        insertUser( "secret-login@example.test", "Odd One", "OddOne", "2026-01-01" );
+        insertUser( "other", "Plain Name", "PlainName", "2026-02-01" );
+        try ( Statement s = conn.createStatement() ) {
+            s.executeUpdate( "UPDATE users SET uid = 'secret uid' WHERE login_name = 'secret-login@example.test'" );
+        }
+
+        runScript();
+
+        final String everything = String.join( "\n", findings() );
+        assertFalse( everything.contains( "secret" ), "no login or uid in the findings: " + everything );
+        assertEquals( List.of( "Odd One|characters other than letters, digits and hyphen" ), findings() );
     }
 }

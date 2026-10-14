@@ -38,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * REST servlet backing the @-mention autocomplete picker in the comment
@@ -58,7 +59,8 @@ import java.util.Map;
  * Matching on the login would let any signed-in member probe which logins
  * exist ({@code q=jake@} returning a row confirms an address), so the login is
  * never consulted. A member with no display name (or one that is email-shaped, which
- * {@code PublicIdentity} also refuses to show) or no <em>stored</em> uid cannot be shown and is skipped.
+ * {@code PublicIdentity} also refuses to show) or no <em>stored</em> uid (or one outside {@code [A-Za-z0-9-]{1,64}},
+ * which a mention token cannot carry) cannot be shown and is skipped.
  * <p>
  * Default page size {@value #DEFAULT_LIMIT}; hard cap {@value #MAX_LIMIT} —
  * the picker is a typeahead, not a directory browser, so unbounded responses
@@ -70,6 +72,9 @@ public class MentionableUsersResource extends RestServletBase {
     private static final Logger LOG = LogManager.getLogger( MentionableUsersResource.class );
     private static final int DEFAULT_LIMIT = 8;
     private static final int MAX_LIMIT = 10;
+
+    /** What a mention token can carry as its key ({@code user:<uid>}); a uid outside it could never be resolved. */
+    private static final Pattern MENTIONABLE_UID = Pattern.compile( "[A-Za-z0-9-]{1,64}" );
 
     /** Seam — the user database lookup, overridable for unit tests. */
     protected UserDatabase users() {
@@ -142,7 +147,8 @@ public class MentionableUsersResource extends RestServletBase {
     }
 
     /**
-     * The uid <em>stored</em> for the account, or {@code ""} when the row has none. Deliberately not
+     * The uid <em>stored</em> for the account, or {@code ""} when the row has none or one that a mention token cannot
+     * carry ({@code [A-Za-z0-9-]{1,64}}). Deliberately not
      * {@code p.getUid()}: for a row whose {@code users.uid} is NULL the profile mapper invents a fresh random value on
      * every load, which no later lookup would resolve, so a mention keyed on it would silently notify nobody.
      * {@link PublicIdentity#userIdForLogin} reads the stored column.
@@ -152,7 +158,7 @@ public class MentionableUsersResource extends RestServletBase {
         if ( login == null || login.isBlank() ) {
             return "";
         }
-        return identity.userIdForLogin( login ).filter( uid -> !uid.isBlank() ).orElse( "" );
+        return identity.userIdForLogin( login ).filter( uid -> MENTIONABLE_UID.matcher( uid ).matches() ).orElse( "" );
     }
 
     /**

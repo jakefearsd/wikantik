@@ -313,6 +313,37 @@ class MentionableUsersResourceTest {
     }
 
     @Test
+    void an_account_whose_stored_uid_could_not_be_carried_by_a_mention_token_is_absent() throws Exception {
+        // The token pattern is user:([A-Za-z0-9-]{1,64}); a uid outside it can never be resolved from a comment.
+        final String[][] odd = {
+                { "uid-space", "bad uid",                  "Space Sam"  },
+                { "uid-underscore", "bad_uid",             "Under Una"  },
+                { "uid-colon", "bad:uid",                  "Colon Cal"  },
+                { "uid-long", "x".repeat( 65 ),            "Long Lena"  },
+                { "uid-paren", "bad)uid",                  "Paren Pat"  } };
+        final String[][] fine = {
+                { "uid-negative", "-6852820166199419346",  "Negative Nan" },
+                { "uid-slug", "agents-service-account",    "Slug Sid"     },
+                { "uid-max", "y".repeat( 64 ),             "Max Mia"      } };
+        final java.util.List< Principal > names = new java.util.ArrayList<>();
+        for ( final String[][] group : new String[][][] { odd, fine } ) {
+            for ( final String[] row : group ) {
+                final UserProfile p = profile( row[ 1 ], row[ 0 ], row[ 2 ], false );
+                Mockito.when( db.findByWikiName( row[ 0 ] ) ).thenReturn( p );
+                names.add( new WikiPrincipal( row[ 0 ], WikiPrincipal.WIKI_NAME ) );
+            }
+        }
+        Mockito.when( db.getWikiNames() ).thenReturn( names.toArray( new Principal[ 0 ] ) );
+
+        final JsonArray users = invoke( "?limit=10" ).getAsJsonArray( "users" );
+
+        final java.util.Set< String > shown = new java.util.TreeSet<>();
+        users.forEach( u -> shown.add( u.getAsJsonObject().get( "displayName" ).getAsString() ) );
+        assertEquals( java.util.Set.of( "Negative Nan", "Slug Sid", "Max Mia" ), shown,
+            "only uids a mention token can carry are offered: " + users );
+    }
+
+    @Test
     void publicIdentityDelegatesToAuthSubsystem() {
         final PublicIdentity expected = Mockito.mock( PublicIdentity.class );
         final AuthSubsystem.Services auth = Mockito.mock( AuthSubsystem.Services.class );

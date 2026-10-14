@@ -21,7 +21,8 @@
 #   * the data-changing SQL cannot run before the dedupe_apply setting is switched on;
 #   * the SQL collapses to one line (no trailing "--" comment) and its report never selects a login
 #     name or an email address;
-#   * PSQL_COMMAND routes psql through a wrapper (the production path is `bin/remote.sh psql --`).
+#   * PSQL_COMMAND routes psql through a wrapper (the production path is `bin/remote.sh psql --`);
+#   * psql runs with VERBOSITY=terse on both paths, so an error never prints the failing account row.
 # The behavioural proof against a real PostgreSQL is wikantik-main DedupeDisplayNamesSqlTest.
 set -euo pipefail
 
@@ -133,6 +134,17 @@ test_psql_command_wrapper_is_used() {
     ok "PSQL_COMMAND routes psql through the wrapper"
 }
 
+test_psql_runs_with_terse_verbosity() {
+    # A constraint error otherwise prints "DETAIL: Failing row contains (...)": a whole account row (uid,
+    # email, login name). VERBOSITY=terse keeps only the ERROR line. Both ways of reaching psql must set it.
+    local sb; sb="$(make_sandbox)"
+    run_script "$sb" > "${sb}/out"
+    grep -qx 'ARG:VERBOSITY=terse' "${sb}/cmdlog" || fail "direct psql is not run with -v VERBOSITY=terse"
+    PSQL_COMMAND="${sb}/stubs/fake-remote psql --" run_script "$sb" > "${sb}/out"
+    grep -qx 'ARG:VERBOSITY=terse' "${sb}/cmdlog" || fail "psql via PSQL_COMMAND is not run with -v VERBOSITY=terse"
+    ok "psql runs with VERBOSITY=terse on both paths"
+}
+
 test_unknown_argument_and_help() {
     local sb; sb="$(make_sandbox)"
     local rc=0
@@ -159,7 +171,8 @@ test_apply_commits
 test_setting_is_switched_on_before_the_sql
 test_psql_failure_fails_the_script
 test_psql_command_wrapper_is_used
+test_psql_runs_with_terse_verbosity
 test_unknown_argument_and_help
 test_missing_password_is_refused_without_calling_psql
 
-echo "PASS: test-dedupe-display-names.sh (9 cases)"
+echo "PASS: test-dedupe-display-names.sh (10 cases)"

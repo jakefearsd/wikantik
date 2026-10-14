@@ -22,11 +22,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
+import com.wikantik.auth.subsystem.AuthSubsystem;
+import com.wikantik.WikiSubsystems;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,20 +41,24 @@ import java.io.StringWriter;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MentionableUsersResourceTest {
 
     private final Gson gson = new Gson();
     private UserDatabase db;
+    private PublicIdentity identity;
     private MentionableUsersResource servlet;
 
     @BeforeEach
     void setUp() throws Exception {
         db = Mockito.mock( UserDatabase.class );
+        identity = Mockito.mock( PublicIdentity.class );
         final Map< String, UserProfile > byWikiName = new HashMap<>();
         // uids deliberately do not contain the login, so a leaked login is detectable in the JSON.
         byWikiName.put( "alice",  profile( "uid-0001", "alice",  "Alice Anderson",   false ) );
@@ -77,13 +84,19 @@ class MentionableUsersResourceTest {
 
         servlet = Mockito.spy( new MentionableUsersResource() );
         Mockito.doReturn( db ).when( servlet ).users();
+        Mockito.doReturn( identity ).when( servlet ).publicIdentity();
         // Signed-in by default; the anonymous/asserted cases override this explicitly.
         Mockito.doReturn( true ).when( servlet ).isAuthenticated( Mockito.any() );
     }
 
-    private static UserProfile profile( final String uid, final String login, final String full,
-                                        final boolean locked ) {
+    /**
+     * A profile whose <em>stored</em> uid is {@code uid} ({@code null} = the row has none). The picker must key on
+     * what {@link PublicIdentity} reports for the login, which is the stored value; {@code getUid()} on a profile is
+     * not trustworthy for a row without one (the row mapper invents a fresh random value on every load).
+     */
+    private UserProfile profile( final String uid, final String login, final String full, final boolean locked ) {
         final UserProfile p = Mockito.mock( UserProfile.class );
+        Mockito.when( identity.userIdForLogin( login ) ).thenReturn( Optional.ofNullable( uid ) );
         Mockito.when( p.getUid() ).thenReturn( uid );
         Mockito.when( p.getLoginName() ).thenReturn( login );
         Mockito.when( p.getFullname() ).thenReturn( full );
@@ -261,6 +274,58 @@ class MentionableUsersResourceTest {
         assertEquals( 1, res.getAsJsonArray( "users" ).size(), res.toString() );
         assertFalse( res.toString().contains( "example.test" ), "no address in the body: " + res );
         assertEquals( 0, invoke( "?q=legacy" ).getAsJsonArray( "users" ).size() );
+    }
+
+    @Test
+    void the_picker_keys_on_the_stored_uid_from_public_identity_not_on_the_profile_uid() throws Exception {
+        // The profile's own uid disagrees with the stored one (as it would for any generated value).
+        final UserProfile drifting = profile( "stored-uid-1", "drift", "Dana Drift", false );
+        Mockito.when( drifting.getUid() ).thenReturn( "some-other-uid" );
+        Mockito.when( db.findByWikiName( "drift" ) ).thenReturn( drifting );
+        Mockito.when( db.getWikiNames() ).thenReturn( new Principal[] {
+                new WikiPrincipal( "drift", WikiPrincipal.WIKI_NAME ) } );
+
+        final JsonArray users = invoke( "" ).getAsJsonArray( "users" );
+
+        assertEquals( 1, users.size() );
+        assertEquals( "stored-uid-1", users.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+    }
+
+    @Test
+    void an_account_with_no_stored_uid_is_absent_even_though_the_row_mapper_invented_one() throws Exception {
+        // JdbcUserProfileRowMapper gives a NULL-uid row a fresh random UUID on every load; that value
+        // resolves to nobody, so the picker must not offer it. PublicIdentity reports the stored uid: none.
+        final UserProfile unstored = profile( null, "unstored", "Una Unstored", false );
+        Mockito.when( unstored.getUid() ).thenReturn( "11111111-2222-3333-4444-555555555555" );
+        Mockito.when( db.findByWikiName( "unstored" ) ).thenReturn( unstored );
+        Mockito.when( db.getWikiNames() ).thenReturn( new Principal[] {
+                new WikiPrincipal( "alice",    WikiPrincipal.WIKI_NAME ),
+                new WikiPrincipal( "unstored", WikiPrincipal.WIKI_NAME ) } );
+
+        final JsonObject res = invoke( "" );
+
+        assertFalse( res.has( "error" ), res.toString() );
+        final JsonArray users = res.getAsJsonArray( "users" );
+        assertEquals( 1, users.size(), "only alice has a stored uid: " + res );
+        assertEquals( "uid-0001", users.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+        assertFalse( res.toString().contains( "11111111" ), "the invented uid is never published: " + res );
+        assertEquals( 0, invoke( "?q=una" ).getAsJsonArray( "users" ).size() );
+    }
+
+    @Test
+    void publicIdentityDelegatesToAuthSubsystem() {
+        final PublicIdentity expected = Mockito.mock( PublicIdentity.class );
+        final AuthSubsystem.Services auth = Mockito.mock( AuthSubsystem.Services.class );
+        Mockito.when( auth.publicIdentity() ).thenReturn( expected );
+        final MentionableUsersResource plain = new MentionableUsersResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.auth() ).thenReturn( auth );
+                return subs;
+            }
+        };
+
+        assertSame( expected, plain.publicIdentity() );
     }
 
     // ---- helpers ----

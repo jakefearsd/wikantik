@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserDatabase;
@@ -47,7 +48,8 @@ import java.util.Map;
  * cannot be summoned.
  * <p>
  * Members are shown to each other by <em>display name</em> only. Each row is
- * {@code {"id": "<users.uid>", "displayName": "<name>"}}: no login name (under
+ * {@code {"id": "<users.uid>", "displayName": "<name>"}} (the id is the <em>stored</em> uid, read through
+ * {@link PublicIdentity#userIdForLogin}): no login name (under
  * SSO it is the member's email address) and no other profile field. The
  * picker inserts {@code @[<displayName>](user:<id>)}; the id is the key.
  * <p>
@@ -56,7 +58,7 @@ import java.util.Map;
  * Matching on the login would let any signed-in member probe which logins
  * exist ({@code q=jake@} returning a row confirms an address), so the login is
  * never consulted. A member with no display name (or one that is email-shaped, which
- * {@code PublicIdentity} also refuses to show) or no uid cannot be shown and is skipped.
+ * {@code PublicIdentity} also refuses to show) or no <em>stored</em> uid cannot be shown and is skipped.
  * <p>
  * Default page size {@value #DEFAULT_LIMIT}; hard cap {@value #MAX_LIMIT} —
  * the picker is a typeahead, not a directory browser, so unbounded responses
@@ -72,6 +74,11 @@ public class MentionableUsersResource extends RestServletBase {
     /** Seam — the user database lookup, overridable for unit tests. */
     protected UserDatabase users() {
         return getSubsystems().auth().users().getUserDatabase();
+    }
+
+    /** Seam — the stored-uid lookup, overridable for unit tests. */
+    protected PublicIdentity publicIdentity() {
+        return getSubsystems().auth().publicIdentity();
     }
 
     /** Seam — auth gate, overridable for unit tests. */
@@ -96,6 +103,7 @@ public class MentionableUsersResource extends RestServletBase {
         final List< Map< String, Object > > out = new ArrayList<>();
         try {
             final UserDatabase db = users();
+            final PublicIdentity identity = publicIdentity();
             final Principal[] wikiNames = db.getWikiNames();
             for ( final Principal wikiName : wikiNames ) {
                 final UserProfile p;
@@ -107,11 +115,11 @@ public class MentionableUsersResource extends RestServletBase {
                     continue;
                 }
                 if ( p == null || p.isLocked() ) continue;
-                final String uid = p.getUid();
+                final String uid = storedUid( identity, p );
                 final String displayName = usableDisplayName( p );
-                if ( uid == null || uid.isBlank() || displayName.isEmpty() ) {
+                if ( uid.isEmpty() || displayName.isEmpty() ) {
                     // Nothing safe to show or key a mention on; never fall back to the login.
-                    LOG.debug( "mentionable: skipping an account with no uid or no display name" );
+                    LOG.debug( "mentionable: skipping an account with no stored uid or no display name" );
                     continue;
                 }
                 if ( q.isEmpty() || displayName.toLowerCase( Locale.ROOT ).contains( q ) ) {
@@ -131,6 +139,20 @@ public class MentionableUsersResource extends RestServletBase {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "users", out );
         sendJson( response, body );
+    }
+
+    /**
+     * The uid <em>stored</em> for the account, or {@code ""} when the row has none. Deliberately not
+     * {@code p.getUid()}: for a row whose {@code users.uid} is NULL the profile mapper invents a fresh random value on
+     * every load, which no later lookup would resolve, so a mention keyed on it would silently notify nobody.
+     * {@link PublicIdentity#userIdForLogin} reads the stored column.
+     */
+    private static String storedUid( final PublicIdentity identity, final UserProfile p ) {
+        final String login = p.getLoginName();
+        if ( login == null || login.isBlank() ) {
+            return "";
+        }
+        return identity.userIdForLogin( login ).filter( uid -> !uid.isBlank() ).orElse( "" );
     }
 
     /**

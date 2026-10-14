@@ -261,11 +261,16 @@ public class AuthResource extends RestServletBase {
         if ( session.isAuthenticated() ) {
             result.put( "username", session.getUserPrincipal().getName() );
             result.put( "loginPrincipal", session.getLoginPrincipal().getName() );
+            // The caller's own opaque uid. Clients compare it with the authorId on shared content
+            // (comments, ...) to recognise "mine" without any login name being published.
+            result.put( "userId", getSubsystems().auth().publicIdentity()
+                    .userIdForLogin( session.getLoginPrincipal().getName() ).orElse( null ) );
             result.put( "mustChangePassword",
                     PasswordChangeGate.mustChangePassword( engine, request, session.getLoginPrincipal().getName() ) );
         } else {
             result.put( "username", "anonymous" );
             result.put( "loginPrincipal", session.getLoginPrincipal().getName() );
+            result.put( "userId", null );
         }
 
         final List< String > roles = Arrays.stream( session.getRoles() )

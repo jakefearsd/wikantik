@@ -23,6 +23,7 @@ import com.wikantik.api.comments.Comment;
 import com.wikantik.api.comments.CommentThread;
 import com.wikantik.api.comments.TextQuoteSelector;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.comments.CommentStore;
 import com.wikantik.comments.PageOwnerService;
@@ -34,18 +35,36 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * REST servlet for anchored comment threads. Mapped to {@code /api/comment-threads/*}.
  * Replaces the legacy {@code CommentResource}.
+ *
+ * <p><b>Names on the wire.</b> Comments, threads and mentions are <em>stored</em> against the
+ * author's login (it is the stable key, and under SSO it is an email address), but this
+ * resource is readable by anyone who may view the page, so every author field in a response is
+ * the member's current display name, resolved through {@link PublicIdentity}. The opaque
+ * {@code users.uid} rides along as {@code createdById} / {@code resolvedById} /
+ * {@code comments[].authorId} so a client can recognise its own comments
+ * ({@code authorId === user.userId}) without ever seeing a login. Authorisation in this class
+ * (who may edit or delete a comment) keeps comparing <em>logins</em> — display names are unique
+ * but mutable, so they are never an access-control key.</p>
  */
 public class CommentThreadResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
+
+    // @[Display Name](user:<uid>) — keep in step with MentionExtractor's token pattern.
+    private static final Pattern MENTION_TOKEN =
+            Pattern.compile( "@\\[([^\\]\\n]{1,64})\\]\\(user:([A-Za-z0-9-]{1,64})\\)" );
 
     protected CommentStore commentStore() {
         return getSubsystems().persistence().comments();
@@ -57,6 +76,11 @@ public class CommentThreadResource extends RestServletBase {
 
     protected PageOwnerService pageOwnerService() {
         return getSubsystems().persistence().pageOwners();
+    }
+
+    /** Seam — turns stored logins into display names and uids; overridable for unit tests. */
+    protected PublicIdentity publicIdentity() {
+        return getSubsystems().auth().publicIdentity();
     }
 
     protected Optional< String > resolveCanonicalId( final String slug ) {
@@ -104,10 +128,12 @@ public class CommentThreadResource extends RestServletBase {
         }
         final String status = normalizeStatus( request.getParameter( "status" ) );
         final List< CommentThread > threads = commentStore().listByCanonicalId( canonicalId.get(), status );
+        final PublicIdentity identity = publicIdentity();
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "page", pageName );
-        result.put( "threads", threads.stream().map( CommentThreadResource::threadToMap ).toList() );
+        result.put( "threads", threads.stream().map( t -> threadToMap( t, identity ) ).toList() );
+        result.put( "mentions", mentionNames( threads, identity ) );
         sendJson( response, result );
     }
 
@@ -199,7 +225,7 @@ public class CommentThreadResource extends RestServletBase {
                 owner.equals( user ) ? Optional.empty() : Optional.of( owner );
         final CommentThread t = commentStore().createThread(
                 canonical, anchor, user, text, mentionService(), ownerForMention );
-        sendJson( response, threadToMap( t ) );
+        sendJson( response, threadToMap( t, publicIdentity() ) );
     }
 
     private void addReply( final HttpServletRequest request, final HttpServletResponse response,
@@ -215,7 +241,7 @@ public class CommentThreadResource extends RestServletBase {
         }
         final Comment c = commentStore().addComment(
                 ctx.threadId, currentUser( request ), text, mentionService() );
-        sendJson( response, commentToMap( c ) );
+        sendJson( response, commentToMap( c, publicIdentity() ) );
     }
 
     private void setStatus( final HttpServletRequest request, final HttpServletResponse response,
@@ -252,7 +278,7 @@ public class CommentThreadResource extends RestServletBase {
                 cc.commentId(), cc.comment().body(), text, currentUser( request ), mentionService() )
                 .orElse( null );
         if ( updated == null ) { sendNotFound( response, "Comment not found" ); return; }
-        sendJson( response, commentToMap( updated ) );
+        sendJson( response, commentToMap( updated, publicIdentity() ) );
     }
 
     private void deleteComment( final HttpServletRequest request, final HttpServletResponse response,
@@ -332,7 +358,48 @@ public class CommentThreadResource extends RestServletBase {
         return trimmed.split( "/" );
     }
 
-    private static Map< String, Object > threadToMap( final CommentThread t ) {
+    /**
+     * {@code uid -> current display name} for every mention token in the returned comment bodies,
+     * so a client can show the member's present name rather than the snapshot typed into the
+     * comment. A uid that no longer resolves is left out (the client falls back to the snapshot).
+     */
+    private static Map< String, String > mentionNames( final List< CommentThread > threads,
+                                                       final PublicIdentity identity ) {
+        final Map< String, String > names = new LinkedHashMap<>();
+        final Set< String > seen = new LinkedHashSet<>();
+        for ( final CommentThread t : threads ) {
+            for ( final Comment c : t.comments() ) {
+                for ( final String uid : mentionUserIds( c.body() ) ) {
+                    if ( !seen.add( uid ) ) continue;
+                    identity.loginForUserId( uid )
+                            .ifPresent( login -> names.put( uid, identity.displayName( login ) ) );
+                }
+            }
+        }
+        return names;
+    }
+
+    /** Distinct uids named by {@code @[..](user:<uid>)} tokens in {@code body}. */
+    private static Set< String > mentionUserIds( final String body ) {
+        final Set< String > uids = new LinkedHashSet<>();
+        if ( body == null || body.isEmpty() ) return uids;
+        final Matcher m = MENTION_TOKEN.matcher( body );
+        while ( m.find() ) uids.add( m.group( 2 ) );
+        return uids;
+    }
+
+    /** Display name for a stored principal; {@code null} when the field is unset (e.g. {@code resolvedBy} on an open thread). */
+    private static String shownName( final PublicIdentity identity, final String storedPrincipal ) {
+        return storedPrincipal == null ? null : identity.displayName( storedPrincipal );
+    }
+
+    /** The member's uid, or {@code null} for a stored principal that is not a member (legacy name, agent label). */
+    private static String uidOf( final PublicIdentity identity, final String storedPrincipal ) {
+        if ( storedPrincipal == null || storedPrincipal.isBlank() ) return null;
+        return identity.userIdForLogin( storedPrincipal ).orElse( null );
+    }
+
+    private static Map< String, Object > threadToMap( final CommentThread t, final PublicIdentity identity ) {
         final Map< String, Object > m = new LinkedHashMap<>();
         m.put( "id", t.id().toString() );
         m.put( "status", t.status() );
@@ -341,21 +408,24 @@ public class CommentThreadResource extends RestServletBase {
         anchor.put( "prefix", t.anchor().prefix() );
         anchor.put( "suffix", t.anchor().suffix() );
         m.put( "anchor", anchor );
-        m.put( "createdBy", t.createdBy() );
+        m.put( "createdBy", shownName( identity, t.createdBy() ) );
+        m.put( "createdById", uidOf( identity, t.createdBy() ) );
         m.put( "createdAt", t.createdAt() == null ? null : t.createdAt().toString() );
-        m.put( "resolvedBy", t.resolvedBy() );
+        m.put( "resolvedBy", shownName( identity, t.resolvedBy() ) );
+        m.put( "resolvedById", uidOf( identity, t.resolvedBy() ) );
         m.put( "resolvedAt", t.resolvedAt() == null ? null : t.resolvedAt().toString() );
         final List< Map< String, Object > > comments = new ArrayList<>();
-        for ( final Comment c : t.comments() ) comments.add( commentToMap( c ) );
+        for ( final Comment c : t.comments() ) comments.add( commentToMap( c, identity ) );
         m.put( "comments", comments );
         return m;
     }
 
-    private static Map< String, Object > commentToMap( final Comment c ) {
+    private static Map< String, Object > commentToMap( final Comment c, final PublicIdentity identity ) {
         final Map< String, Object > m = new LinkedHashMap<>();
         m.put( "id", c.id().toString() );
         m.put( "threadId", c.threadId().toString() );
-        m.put( "author", c.author() );
+        m.put( "author", shownName( identity, c.author() ) );
+        m.put( "authorId", uidOf( identity, c.author() ) );
         m.put( "body", c.body() );
         m.put( "createdAt", c.createdAt() == null ? null : c.createdAt().toString() );
         m.put( "editedAt", c.editedAt() == null ? null : c.editedAt().toString() );

@@ -111,6 +111,33 @@ class AuthResourceTest {
     }
 
     @Test
+    void testGetUserAnonymousHasNoUserId() throws Exception {
+        // Gson omits nulls, so "null for anonymous" means the key is absent (or an explicit JSON null).
+        final JsonObject obj = gson.fromJson( doGetUser(), JsonObject.class );
+        assertTrue( !obj.has( "userId" ) || obj.get( "userId" ).isJsonNull(),
+                "an anonymous caller has no uid: " + obj );
+    }
+
+    @Test
+    void testGetUserCarriesTheCallersOwnUserId() throws Exception {
+        final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "useridgetuser" );
+        profile.setFullname( "User Id Get User" );
+        profile.setEmail( "useridget@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        db.save( profile );
+        final String expectedUid = db.findByLoginName( "useridgetuser" ).getUid();
+        assertNotNull( expectedUid, "the saved account must have a uid" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "useridgetuser" ) ) ) {
+            final JsonObject obj = gson.fromJson( doGetUser(), JsonObject.class );
+            assertEquals( expectedUid, obj.get( "userId" ).getAsString(),
+                    "GET /api/auth/user must carry the caller's own uid" );
+        }
+    }
+
+    @Test
     void testGetUserHasLoginPrincipal() throws Exception {
         final String json = doGetUser();
         final JsonObject obj = gson.fromJson( json, JsonObject.class );

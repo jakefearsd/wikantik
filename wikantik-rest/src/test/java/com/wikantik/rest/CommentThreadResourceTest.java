@@ -23,6 +23,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.WikiSubsystems;
+import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.comments.CommentStore;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.comments.mentions.MentionService;
@@ -55,6 +57,7 @@ class CommentThreadResourceTest {
     private CommentStore store;
     MentionService mentionService;
     private PageOwnerService pageOwnerSvc;
+    private PublicIdentity identity;
     private CommentThreadResource servlet;
 
     @BeforeEach
@@ -78,6 +81,168 @@ class CommentThreadResourceTest {
         Mockito.doReturn( true ).when( servlet ).checkPagePermission(
                 Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.anyString() );
         Mockito.doReturn( "alice" ).when( servlet ).currentUser( Mockito.any() );
+
+        // Identity defaults: a stored principal is shown as itself and nobody has a uid. Individual tests
+        // override the logins they care about (a later stubbing wins).
+        this.identity = Mockito.mock( PublicIdentity.class );
+        Mockito.when( identity.displayName( Mockito.any() ) ).thenAnswer( inv -> inv.getArgument( 0 ) );
+        Mockito.when( identity.userIdForLogin( Mockito.any() ) ).thenReturn( Optional.empty() );
+        Mockito.when( identity.loginForUserId( Mockito.any() ) ).thenReturn( Optional.empty() );
+        Mockito.doReturn( identity ).when( servlet ).publicIdentity();
+    }
+
+    // ---- display names on the wire (logins stay in storage) ----
+
+    /** alice's login is "alice"; everyone else sees "Alice A" and the opaque uid "uid-0001". */
+    private void aliceIsShownAsAliceA() {
+        Mockito.when( identity.displayName( "alice" ) ).thenReturn( "Alice A" );
+        Mockito.when( identity.userIdForLogin( "alice" ) ).thenReturn( Optional.of( "uid-0001" ) );
+    }
+
+    @Test
+    void get_returns_display_names_and_uids_never_the_login() throws Exception {
+        aliceIsShownAsAliceA();
+        final String threadId = createThread();
+        post( null, "/" + threadId + "/comments", textBody( "a reply" ) );
+        post( null, "/" + threadId + "/resolve", new JsonObject() );
+
+        final JsonObject list = get( "?page=PageOne&status=all" );
+        final JsonObject thread = list.getAsJsonArray( "threads" ).get( 0 ).getAsJsonObject();
+        assertEquals( "Alice A", thread.get( "createdBy" ).getAsString() );
+        assertEquals( "uid-0001", thread.get( "createdById" ).getAsString() );
+        assertEquals( "Alice A", thread.get( "resolvedBy" ).getAsString() );
+        assertEquals( "uid-0001", thread.get( "resolvedById" ).getAsString() );
+        final JsonArray comments = thread.getAsJsonArray( "comments" );
+        assertEquals( 2, comments.size() );
+        for ( int i = 0; i < comments.size(); i++ ) {
+            final JsonObject c = comments.get( i ).getAsJsonObject();
+            assertEquals( "Alice A", c.get( "author" ).getAsString() );
+            assertEquals( "uid-0001", c.get( "authorId" ).getAsString() );
+        }
+        assertFalse( list.toString().contains( "\"alice\"" ), "the login must not appear anywhere: " + list );
+    }
+
+    @Test
+    void an_author_who_is_not_a_member_has_no_authorId_and_keeps_the_stored_label() throws Exception {
+        // A legacy comment whose author was a plain name rather than a login.
+        store.createThread( "CID1", new com.wikantik.api.comments.TextQuoteSelector( "hello", null, null ),
+                "Legacy Name", "old comment", mentionService, Optional.empty() );
+
+        final JsonObject c = get( "?page=PageOne&status=all" ).getAsJsonArray( "threads" ).get( 0 )
+                .getAsJsonObject().getAsJsonArray( "comments" ).get( 0 ).getAsJsonObject();
+        assertEquals( "Legacy Name", c.get( "author" ).getAsString() );
+        assertFalse( c.has( "authorId" ), "no uid for a non-member: " + c );
+    }
+
+    @Test
+    void an_unresolved_thread_has_no_resolvedBy_fields() throws Exception {
+        aliceIsShownAsAliceA();
+        createThread();
+        final JsonObject thread = get( "?page=PageOne&status=all" ).getAsJsonArray( "threads" ).get( 0 )
+                .getAsJsonObject();
+        assertFalse( thread.has( "resolvedBy" ), thread.toString() );
+        assertFalse( thread.has( "resolvedById" ), thread.toString() );
+    }
+
+    @Test
+    void mutation_responses_use_display_names_too() throws Exception {
+        aliceIsShownAsAliceA();
+        final JsonObject created = post( "?page=PageOne", null, createBody( "first" ) );
+        assertEquals( "Alice A", created.get( "createdBy" ).getAsString() );
+        assertEquals( "uid-0001", created.get( "createdById" ).getAsString() );
+        assertEquals( "Alice A", created.getAsJsonArray( "comments" ).get( 0 ).getAsJsonObject()
+                .get( "author" ).getAsString() );
+
+        final JsonObject reply = post( null, "/" + created.get( "id" ).getAsString() + "/comments",
+                textBody( "a reply" ) );
+        assertEquals( "Alice A", reply.get( "author" ).getAsString() );
+        assertEquals( "uid-0001", reply.get( "authorId" ).getAsString() );
+    }
+
+    @Test
+    void get_carries_a_mentions_map_covering_every_token_in_the_returned_bodies() throws Exception {
+        Mockito.when( identity.loginForUserId( "uid-bob" ) ).thenReturn( Optional.of( "bob" ) );
+        Mockito.when( identity.displayName( "bob" ) ).thenReturn( "Bob B" );
+        Mockito.when( identity.loginForUserId( "uid-carol" ) ).thenReturn( Optional.of( "carol" ) );
+        Mockito.when( identity.displayName( "carol" ) ).thenReturn( "Carol C" );
+
+        final String threadId = post( "?page=PageOne", null,
+                createBody( "ping @[Bobby](user:uid-bob) and @[Ghost](user:uid-gone)" ) ).get( "id" ).getAsString();
+        assertFalse( post( null, "/" + threadId + "/comments", textBody( "cc @[Carol](user:uid-carol)" ) )
+                .has( "error" ) );
+
+        final JsonObject mentions = get( "?page=PageOne&status=all" ).getAsJsonObject( "mentions" );
+        assertEquals( "Bob B", mentions.get( "uid-bob" ).getAsString(), "current name, not the 'Bobby' snapshot" );
+        assertEquals( "Carol C", mentions.get( "uid-carol" ).getAsString() );
+        assertFalse( mentions.has( "uid-gone" ), "an unknown uid is left out; the client falls back to the snapshot" );
+        assertEquals( 2, mentions.size() );
+    }
+
+    @Test
+    void mentions_map_is_present_and_empty_when_no_body_has_a_token() throws Exception {
+        createThread();
+        final JsonObject res = get( "?page=PageOne&status=all" );
+        assertTrue( res.has( "mentions" ), res.toString() );
+        assertEquals( 0, res.getAsJsonObject( "mentions" ).size() );
+    }
+
+    @Test
+    void mentions_map_ignores_legacy_at_logins_and_malformed_tokens() throws Exception {
+        Mockito.when( identity.loginForUserId( Mockito.any() ) ).thenReturn( Optional.of( "bob" ) );
+        post( "?page=PageOne", null, createBody( "legacy @bob and malformed @[Bob](user:) and @[](user:u1)" ) );
+        assertEquals( 0, get( "?page=PageOne&status=all" ).getAsJsonObject( "mentions" ).size() );
+        Mockito.verify( identity, Mockito.never() ).loginForUserId( Mockito.any() );
+    }
+
+    @Test
+    void edit_and_delete_authorisation_still_compare_logins_not_display_names() throws Exception {
+        // mallory and alice share the display name "Alice A" (legacy duplicates exist). Authorship is
+        // decided on the stored login, so mallory must be refused although the names match.
+        Mockito.when( identity.displayName( "alice" ) ).thenReturn( "Alice A" );
+        Mockito.when( identity.displayName( "mallory" ) ).thenReturn( "Alice A" );
+        final String threadId = createThread();
+        final String commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id().toString();
+        Mockito.doReturn( "mallory" ).when( servlet ).currentUser( Mockito.any() );
+        Mockito.doReturn( false ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+
+        final JsonObject edit = patch( "/" + threadId + "/comments/" + commentId, textBody( "hijack" ) );
+        assertEquals( 403, edit.get( "status" ).getAsInt(), edit.toString() );
+        final JsonObject delete = del( "/" + threadId + "/comments/" + commentId );
+        assertEquals( 403, delete.get( "status" ).getAsInt(), delete.toString() );
+        assertTrue( store.findComment( java.util.UUID.fromString( commentId ) ).isPresent() );
+
+        // The real author, still identified by login, may edit.
+        Mockito.doReturn( "alice" ).when( servlet ).currentUser( Mockito.any() );
+        final JsonObject ok = patch( "/" + threadId + "/comments/" + commentId, textBody( "corrected" ) );
+        assertFalse( ok.has( "error" ), ok.toString() );
+        assertEquals( "alice", store.findComment( java.util.UUID.fromString( commentId ) ).orElseThrow().author(),
+                "storage keeps the login" );
+    }
+
+    @Test
+    void new_comments_and_resolutions_are_stored_under_the_login() throws Exception {
+        aliceIsShownAsAliceA();
+        final String threadId = createThread();
+        post( null, "/" + threadId + "/resolve", new JsonObject() );
+        final var stored = store.findThread( java.util.UUID.fromString( threadId ) ).orElseThrow();
+        assertEquals( "alice", stored.createdBy() );
+        assertEquals( "alice", stored.resolvedBy() );
+        assertEquals( "alice", stored.comments().get( 0 ).author() );
+    }
+
+    private static JsonObject textBody( final String text ) {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "text", text );
+        return body;
+    }
+
+    private static JsonObject createBody( final String text ) {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "exact", "hello" );
+        body.addProperty( "text", text );
+        return body;
     }
 
     @Test
@@ -589,6 +754,22 @@ class CommentThreadResourceTest {
         };
 
         assertSame( expected, plain.mentionService() );
+    }
+
+    @Test
+    void publicIdentityDelegatesToAuthSubsystem() {
+        final PublicIdentity expected = Mockito.mock( PublicIdentity.class );
+        final AuthSubsystem.Services auth = Mockito.mock( AuthSubsystem.Services.class );
+        Mockito.when( auth.publicIdentity() ).thenReturn( expected );
+        final CommentThreadResource plain = new CommentThreadResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.auth() ).thenReturn( auth );
+                return subs;
+            }
+        };
+
+        assertSame( expected, plain.publicIdentity() );
     }
 
     @Test

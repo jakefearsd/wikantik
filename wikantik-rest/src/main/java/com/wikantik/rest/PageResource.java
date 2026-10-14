@@ -297,9 +297,11 @@ public class PageResource extends RestServletBase {
         }
 
         // Readers see display names, never stored logins. Frontmatter author/verified_by are editor-typed text:
-        // they are replaced only when they happen to be a login.
+        // they are replaced only when they happen to be a login. The editor SPA writes this metadata back verbatim
+        // (replaceMetadata), so a caller who can edit the page gets it exactly as stored.
         final PublicIdentity identity = getSubsystems().auth().publicIdentity();
-        result.put( "metadata", IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
+        final boolean canEdit = hasPagePermission( request, pageName, "edit" );
+        result.put( "metadata", canEdit ? parsed.metadata() : IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
         result.put( "version", Math.max( page.getVersion(), 1 ) );
         result.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
         result.put( "lastModified", page.getLastModified() );
@@ -327,7 +329,7 @@ public class PageResource extends RestServletBase {
 
         // Include the current user's effective permissions for this page
         final Map< String, Boolean > permissions = new LinkedHashMap<>();
-        permissions.put( "edit", hasPagePermission( request, pageName, "edit" ) );
+        permissions.put( "edit", canEdit );
         permissions.put( "comment", hasPagePermission( request, pageName, "comment" ) );
         permissions.put( "upload", hasPagePermission( request, pageName, "upload" ) );
         permissions.put( "rename", hasPagePermission( request, pageName, "rename" ) );
@@ -735,7 +737,8 @@ public class PageResource extends RestServletBase {
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
             final PublicIdentity identity = getSubsystems().auth().publicIdentity();
             result.put( "author", IdentityDisplay.ofAuthor( identity, saved.getAuthor() ) ); // D7
-            result.put( "metadata", IdentityDisplay.frontmatter( identity, newMetadata ) );
+            // Edit permission was enforced above, so the caller is an editor: stored frontmatter, exactly as written.
+            result.put( "metadata", newMetadata );
 
             sendJson( response, result );
 

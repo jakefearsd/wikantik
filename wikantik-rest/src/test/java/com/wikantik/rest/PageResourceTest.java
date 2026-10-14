@@ -1136,24 +1136,43 @@ class PageResourceTest {
         assertFalse( json.contains( "gone.user@example.test" ), "an email-shaped author must never be served" );
     }
 
+    /** Public to read, editable by Admin only; the frontmatter names the seeded account {@code janne} three times. */
+    private static final String LOGIN_FRONTMATTER_PAGE =
+            "---\nauthor: janne\nverified_by: janne\nreviewer: janne\n---\n[{ALLOW view All}]\n[{ALLOW edit Admin}]\nBody.";
+
     @Test
-    void testGetPage_frontmatterAuthorAndVerifiedByResolveOnlyWhenTheyAreLogins() throws Exception {
-        engine.saveText( "RestAuthorFrontmatterPage",
-                "---\nauthor: janne\nverified_by: janne\nreviewer: janne\n---\nBody." );
+    void testGetPage_viewerWithoutEditSeesFrontmatterAuthorAndVerifiedByAsDisplayNamesOnlyWhenTheyAreLogins() throws Exception {
+        engine.saveText( "RestAuthorFrontmatterPage", LOGIN_FRONTMATTER_PAGE );
 
-        final JsonObject meta = gson.fromJson( doGet( "RestAuthorFrontmatterPage" ), JsonObject.class )
-                .getAsJsonObject( "metadata" );
+        final JsonObject page = gson.fromJson( doGetAnonymously( "RestAuthorFrontmatterPage" ), JsonObject.class );
+        final JsonObject meta = page.getAsJsonObject( "metadata" );
 
+        assertFalse( page.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean(), "PRECONDITION: the viewer cannot edit" );
         assertEquals( "Janne Jalkanen", meta.get( "author" ).getAsString() );
         assertEquals( "Janne Jalkanen", meta.get( "verified_by" ).getAsString() );
         assertEquals( "janne", meta.get( "reviewer" ).getAsString(), "only author and verified_by name a principal" );
     }
 
     @Test
-    void testGetPage_frontmatterFreeTextAuthorIsShownAsWritten() throws Exception {
-        engine.saveText( "RestAuthorFrontmatterPage", "---\nauthor: claude-code-researcher\n---\nBody." );
+    void testGetPage_editorGetsFrontmatterExactlyAsStoredSoASaveCannotRewriteALoginToAName() throws Exception {
+        engine.saveText( "RestAuthorFrontmatterPage", LOGIN_FRONTMATTER_PAGE );
 
-        final JsonObject meta = gson.fromJson( doGet( "RestAuthorFrontmatterPage" ), JsonObject.class )
+        final JsonObject page = gson.fromJson( doGet( "RestAuthorFrontmatterPage" ), JsonObject.class );
+        final JsonObject meta = page.getAsJsonObject( "metadata" );
+
+        assertTrue( page.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean(), "PRECONDITION: the caller can edit" );
+        assertEquals( "janne", meta.get( "author" ).getAsString() );
+        assertEquals( "janne", meta.get( "verified_by" ).getAsString() );
+        assertEquals( "janne", meta.get( "reviewer" ).getAsString() );
+        assertEquals( "Administrator", page.get( "author" ).getAsString(), "the top-level author stays resolved for everyone" );
+    }
+
+    @Test
+    void testGetPage_frontmatterFreeTextAuthorIsShownAsWritten() throws Exception {
+        engine.saveText( "RestAuthorFrontmatterPage",
+                "---\nauthor: claude-code-researcher\n---\n[{ALLOW view All}]\n[{ALLOW edit Admin}]\nBody." );
+
+        final JsonObject meta = gson.fromJson( doGetAnonymously( "RestAuthorFrontmatterPage" ), JsonObject.class )
                 .getAsJsonObject( "metadata" );
 
         assertEquals( "claude-code-researcher", meta.get( "author" ).getAsString() );
@@ -1164,16 +1183,45 @@ class PageResourceTest {
         engine.adminSession();   // authenticates the shared mock session as login "admin" (display name "Administrator")
         engine.saveText( "RestAuthorPatchPage", "---\ntype: article\n---\nBody." );
 
-        final JsonObject patchBody = new JsonObject();
-        final JsonObject meta = new JsonObject();
-        meta.addProperty( "category", "new-category" );
-        patchBody.add( "metadata", meta );
-        patchBody.addProperty( "action", "merge" );
-
-        final JsonObject obj = gson.fromJson( doPatch( "RestAuthorPatchPage", patchBody ), JsonObject.class );
+        final JsonObject obj = gson.fromJson( doPatch( "RestAuthorPatchPage", mergeBody( "category", "new-category" ) ),
+                JsonObject.class );
 
         assertTrue( obj.get( "success" ).getAsBoolean() );
         assertEquals( "Administrator", obj.get( "author" ).getAsString() );
+    }
+
+    @Test
+    void testPatchPage_editorsResponseCarriesFrontmatterExactlyAsStored() throws Exception {
+        engine.adminSession();
+        engine.saveText( "RestAuthorPatchPage", "---\nauthor: janne\nverified_by: janne\n---\nBody." );
+
+        final JsonObject obj = gson.fromJson( doPatch( "RestAuthorPatchPage", mergeBody( "category", "new-category" ) ),
+                JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        final JsonObject meta = obj.getAsJsonObject( "metadata" );
+        assertEquals( "janne", meta.get( "author" ).getAsString() );
+        assertEquals( "janne", meta.get( "verified_by" ).getAsString() );
+        assertEquals( "Administrator", obj.get( "author" ).getAsString(), "the top-level author stays resolved" );
+    }
+
+    @Test
+    void testPatchPage_viewerWithoutEditIsRefusedSoItNeverReceivesSubstitutedFrontmatter() throws Exception {
+        engine.saveText( "RestAuthorPatchPage", LOGIN_FRONTMATTER_PAGE );
+
+        final String json = doPatchAnonymously( "RestAuthorPatchPage", mergeBody( "category", "new-category" ) );
+
+        assertEquals( 403, gson.fromJson( json, JsonObject.class ).get( "status" ).getAsInt(), json );
+        assertFalse( json.contains( "metadata" ), "a refused PATCH carries no frontmatter: " + json );
+    }
+
+    private static JsonObject mergeBody( final String key, final String value ) {
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( key, value );
+        patchBody.add( "metadata", meta );
+        patchBody.addProperty( "action", "merge" );
+        return patchBody;
     }
 
     // ----- Helper methods -----
@@ -1185,6 +1233,30 @@ class PageResourceTest {
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
         servlet.doGet( request, response );
+        return sw.toString();
+    }
+
+    /** A GET from a fresh guest session: it can view the fixture pages but holds no edit permission on them. */
+    private String doGetAnonymously( final String pageName ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/api/pages/" + pageName );
+        Mockito.doReturn( "/" + pageName ).when( request ).getPathInfo();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        return sw.toString();
+    }
+
+    private String doPatchAnonymously( final String pageName, final JsonObject body ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/api/pages/" + pageName );
+        Mockito.doReturn( "/" + pageName ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPatch( request, response );
         return sw.toString();
     }
 

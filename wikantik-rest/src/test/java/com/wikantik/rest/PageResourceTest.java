@@ -24,6 +24,9 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.core.Session;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.Users;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
@@ -59,9 +62,8 @@ class PageResourceTest {
     // from the old per-test tearDown, minus engine.stop()); "RestBadVersionPage"
     // added below — it was an untracked leak even under the old per-test engine,
     // harmless there only because the whole engine was discarded every test. Only
-    // testPutPage_authenticatedSession_bodyAuthorIgnored calls engine.adminSession(),
-    // which authenticates the shared HttpMockFactory session id for the rest of the
-    // class — audited: no other test here asserts on identity-dependent response
+    // the authorship tests (loginAs) authenticate the shared HttpMockFactory session id
+    // for the rest of the class — audited: no other test here asserts on identity-dependent response
     // content (permission checks assert key presence, not values; rename/delete
     // tests bypass auth via spies or PageManager directly), so this doesn't change
     // any assertion's outcome. The CORS tests mutate wikantik.cors.allowedOrigins
@@ -701,40 +703,48 @@ class PageResourceTest {
         assertEquals( "RestPutPage", obj.get( "name" ).getAsString() );
     }
 
+    /** Logs the shared mock session in as the given account, re-logging whoever was on it (TestEngine#adminSession is one-shot). */
+    private void loginAs( final String login, final String password ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final Session session = SessionMonitor.getInstance( engine ).find( request.getSession() );
+        engine.getManager( AuthenticationManager.class ).login( session, request, login, password );
+    }
+
     /**
-     * Security: when an authenticated session is active, the body {@code author} field
-     * must be ignored in favour of the session principal.
-     *
-     * <p>Registers an admin WikiSession for the shared "mock-session" id so that the
-     * PUT request resolves as authenticated. Then sends {@code author="evil"} in the
-     * body and verifies the saved page's author is the session principal ("admin"),
-     * not the caller-supplied value.
+     * Security: when an authenticated session is active, the body {@code author} field must be ignored in favour of the
+     * session — and what is recorded is the session's LOGIN ("admin"), not its full name ("Administrator").
      */
     @Test
     void testPutPage_authenticatedSession_bodyAuthorIgnored() throws Exception {
-        // Register the admin session under the shared "mock-session" HTTP session id
-        // so the servlet can resolve it via Wiki.session().find(engine, request).
-        engine.adminSession();
+        engine.saveTextAsJanne( "RestPutPage", "first version" );      // the previous version's author is "janne"
+        loginAs( Users.ADMIN, Users.ADMIN_PASS );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "content", "Spoofed author page content" );
         body.addProperty( "author", "evil" );  // caller attempts to spoof author
 
-        final String json = doPut( "RestPutPage", body );
-        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonObject obj = gson.fromJson( doPut( "RestPutPage", body ), JsonObject.class );
+        assertTrue( obj.get( "success" ).getAsBoolean(), "PUT should succeed: " + obj );
 
-        assertTrue( obj.get( "success" ).getAsBoolean(), "PUT should succeed: " + json );
+        assertEquals( Users.ADMIN, engine.getManager( PageManager.class ).getPage( "RestPutPage" ).getAuthor(),
+                "the stored author is the login, never the caller-supplied 'evil' nor the full name" );
+    }
 
-        // Verify the saved page author is the session principal, not "evil"
-        final String readJson = doGet( "RestPutPage" );
-        final JsonObject readObj = gson.fromJson( readJson, JsonObject.class );
-        assertTrue( readObj.has( "author" ), "GET response must include 'author'" );
-        final String savedAuthor = readObj.get( "author" ).getAsString();
-        // The session principal is the user's full name ("Administrator"), not the login ("admin").
-        // What matters is that the caller-supplied "evil" is NOT recorded.
-        assertNotNull( savedAuthor, "Saved author must not be null when authenticated" );
-        assertNotEquals( "evil", savedAuthor,
-                "Caller-supplied author 'evil' must NOT be recorded; got: " + savedAuthor );
+    @Test
+    void testPatchPage_authenticatedSession_recordsTheLogin() throws Exception {
+        engine.saveTextAsJanne( "RestPatchMergePage", "---\ntype: article\n---\nBody." );
+        loginAs( Users.ADMIN, Users.ADMIN_PASS );
+
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "category", "authorship" );
+        patchBody.add( "metadata", meta );
+        patchBody.addProperty( "action", "merge" );
+
+        final JsonObject obj = gson.fromJson( doPatch( "RestPatchMergePage", patchBody ), JsonObject.class );
+        assertTrue( obj.get( "success" ).getAsBoolean(), "PATCH should succeed: " + obj );
+
+        assertEquals( Users.ADMIN, engine.getManager( PageManager.class ).getPage( "RestPatchMergePage" ).getAuthor() );
     }
 
     @Test

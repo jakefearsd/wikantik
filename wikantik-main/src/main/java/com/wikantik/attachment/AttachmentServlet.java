@@ -25,7 +25,6 @@ import java.io.OutputStream;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.security.Permission;
-import java.security.Principal;
 import java.util.List;
 import java.util.Properties;
 
@@ -50,6 +49,7 @@ import com.wikantik.api.exceptions.RedirectException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -512,7 +512,7 @@ public class AttachmentServlet extends HttpServlet {
             }
         }
 
-        final Principal user    = context.getCurrentUser();
+        final String author = AuthorKeys.authorKeyFor( context.getWikiSession() );
         final AttachmentManager mgr = attachmentManager;
 
         LOG.debug("file={}", filename);
@@ -536,8 +536,8 @@ public class AttachmentServlet extends HttpServlet {
         //  Check if we're allowed to do this?
         final Permission permission = PermissionFactory.getPagePermission( att, "upload" );
         if( authorizationManager.checkPermission( context.getWikiSession(), permission ) ) {
-            if( user != null ) {
-                att.setAuthor( user.getName() );
+            if( author != null ) {
+                att.setAuthor( author );
             }
 
             if( changenote != null && !changenote.isEmpty() ) {
@@ -552,7 +552,7 @@ public class AttachmentServlet extends HttpServlet {
                 throw new ProviderException( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE ).getString( pe.getMessage() ), pe );
             }
 
-            LOG.info( "User {} uploaded attachment to {} called {}, size {}", user, parentPage, filename, att.getSize() );
+            LOG.info( "User {} uploaded attachment to {} called {}, size {}", author, parentPage, filename, att.getSize() );
         } else {
             throw new RedirectException( "No permission to upload a file", errorPage );
         }

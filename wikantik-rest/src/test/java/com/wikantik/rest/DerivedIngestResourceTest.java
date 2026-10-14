@@ -388,11 +388,9 @@ class DerivedIngestResourceTest {
         stub.doPost( request, response );
 
         assertNotNull( capturedOpts.get(), "IngestOptions must have been captured" );
-        // The session principal is the user's full name ("Administrator"), not the login ("admin").
-        // What matters is that the caller-supplied "evil" is NOT recorded.
-        assertNotNull( capturedOpts.get().author(), "Author must not be null when authenticated" );
-        assertNotEquals( "evil", capturedOpts.get().author(),
-                "Caller-supplied author 'evil' must not be recorded; got: " + capturedOpts.get().author() );
+        // What is recorded is the session's LOGIN ("admin"), not its full name ("Administrator"), and never the spoofed "evil".
+        assertEquals( "admin", capturedOpts.get().author(),
+                "Author must be the login; got: " + capturedOpts.get().author() );
     }
 
     @Test

@@ -23,6 +23,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.pagegraph.spine.ClusterRenamePlan;
 import com.wikantik.pagegraph.spine.ClusterRenameResult;
 import com.wikantik.pagegraph.spine.ClusterRenameService;
@@ -151,7 +152,7 @@ public class AdminClusterResource extends RestServletBase {
      */
     protected String resolveAdminAuthor( final HttpServletRequest request ) {
         final Session session = Wiki.session().find( getEngine(), request );
-        return session.isAuthenticated() ? session.getUserPrincipal().getName() : "system";
+        return session.isAuthenticated() ? AuthorKeys.authorKeyFor( session ) : "system";
     }
 
     /**

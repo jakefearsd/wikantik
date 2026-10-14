@@ -25,6 +25,7 @@ import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
@@ -650,12 +651,15 @@ class DefaultPageManagerCITest {
         when( commandResolver.getSpecialPageReference( anyString() ) ).thenReturn( null );
         when( engine.getFinalPageName( anyString() ) ).thenReturn( "New" );
 
-        final Principal user = mock( Principal.class );
-        when( user.getName() ).thenReturn( "testuser" );
+        // The author recorded is the saver's LOGIN, never the session's full name.
+        final Session session = mock( Session.class );
+        when( session.isAuthenticated() ).thenReturn( true );
+        when( session.getLoginPrincipal() ).thenReturn( new WikiPrincipal( "testuser" ) );
+        when( session.getUserPrincipal() ).thenReturn( new WikiPrincipal( "Test User" ) );
 
         final Context context = mock( Context.class );
         when( context.getPage() ).thenReturn( page );
-        when( context.getCurrentUser() ).thenReturn( user );
+        when( context.getWikiSession() ).thenReturn( session );
 
         when( filterManager.doPreSaveFiltering( any(), anyString() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
 

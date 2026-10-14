@@ -22,6 +22,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.search.SearchManager;
@@ -82,10 +83,12 @@ public class DefaultPageLifecycle implements PageLifecycle {
             return;
         }
 
-        // Set the page author
+        // Set the page author: the login (the stable storage key), never the session's full name; PublicIdentity turns it
+        // into the current display name when it is shown.
         final Page page2 = context.getPage();
-        if ( page2.getAuthor() == null && context.getCurrentUser() != null ) {
-            page2.setAuthor( context.getCurrentUser().getName() );
+        final String authorKey = AuthorKeys.authorKeyFor( context.getWikiSession() );
+        if ( page2.getAuthor() == null && authorKey != null ) {
+            page2.setAuthor( authorKey );
         }
 
         // Run pre-save filters

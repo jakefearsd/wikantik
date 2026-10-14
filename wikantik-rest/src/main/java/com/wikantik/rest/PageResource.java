@@ -44,6 +44,7 @@ import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.wikilink.WikiEmbedRenderer;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.content.PageRenamer;
@@ -459,12 +460,12 @@ public class PageResource extends RestServletBase {
         try {
             final Engine engine = getEngine();
 
-            // Resolve the author: when the session is authenticated, the session principal
-            // is authoritative (ignore any caller-supplied body author to prevent spoofing).
-            // Fall back to the body author only for the unauthenticated/headless case.
+            // Resolve the author: when the session is authenticated, the session's LOGIN is authoritative
+            // (ignore any caller-supplied body author to prevent spoofing). Fall back to the body author
+            // only for the unauthenticated/headless case.
             final Session wikiSession = Wiki.session().find( engine, request );
             final String effectiveAuthor = wikiSession.isAuthenticated()
-                    ? wikiSession.getUserPrincipal().getName()
+                    ? AuthorKeys.authorKeyFor( wikiSession )
                     : author;
             optionsBuilder.author( effectiveAuthor );
 
@@ -710,12 +711,12 @@ public class PageResource extends RestServletBase {
         try {
             final PageSaveHelper helper = new PageSaveHelper( engine, pm );
             // D7: the PageSaveHelper builds a headless context so the author would
-            // otherwise default to "Guest". Resolve it from the authenticated session
+            // otherwise default to "Guest". Resolve it from the authenticated session's login
             // the same way doPut does.
             String effectiveAuthor = null;
             final Session wikiSession = Wiki.session().find( engine, request );
             if ( wikiSession.isAuthenticated() ) {
-                effectiveAuthor = wikiSession.getUserPrincipal().getName();
+                effectiveAuthor = AuthorKeys.authorKeyFor( wikiSession );
             }
             final SaveOptions options = SaveOptions.builder()
                     .changeNote( "Metadata " + action + " via REST PATCH" )

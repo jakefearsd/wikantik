@@ -36,6 +36,7 @@ import jakarta.servlet.http.Part;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.WikiPermission;
@@ -207,7 +208,7 @@ public class ObsidianImportResource extends RestServletBase {
     private void apply( final HttpServletRequest req, final HttpServletResponse resp, final Session session )
             throws IOException {
         final String owner = session.getLoginPrincipal().getName();
-        final String author = session.getUserPrincipal().getName();
+        final String author = AuthorKeys.authorKeyFor( session );
         Planned planned = null;
         boolean started = false;
         // The slot is held before re-planning (released on any failure by the try-with-resources), so concurrent

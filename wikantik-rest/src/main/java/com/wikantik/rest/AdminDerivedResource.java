@@ -26,6 +26,7 @@ import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.derived.DerivedPageIngestionService;
 import com.wikantik.derived.DerivedReflowService;
 import com.wikantik.derived.IngestResult;
@@ -199,7 +200,7 @@ public class AdminDerivedResource extends RestServletBase {
      */
     protected String resolveAdminAuthor( final HttpServletRequest request ) {
         final Session session = Wiki.session().find( getEngine(), request );
-        return session.isAuthenticated() ? session.getUserPrincipal().getName() : "system";
+        return session.isAuthenticated() ? AuthorKeys.authorKeyFor( session ) : "system";
     }
 
     // -------------------------------------------------------------------------

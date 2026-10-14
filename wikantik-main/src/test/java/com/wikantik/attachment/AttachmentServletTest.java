@@ -29,6 +29,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.RedirectException;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.ui.progress.ProgressManager;
 import jakarta.servlet.ReadListener;
@@ -41,6 +42,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -614,6 +616,22 @@ class AttachmentServletTest {
 
         assertFalse( created, "Should return false when updating existing attachment" );
         verify( attachmentManager ).storeAttachment( eq( existingAtt ), eq( data ) );
+    }
+
+    @Test
+    void testExecuteUploadRecordsTheLoginNotTheFullName() throws Exception {
+        final InputStream data = new ByteArrayInputStream( "file data".getBytes( StandardCharsets.UTF_8 ) );
+        when( session.isAuthenticated() ).thenReturn( true );
+        when( session.getLoginPrincipal() ).thenReturn( new WikiPrincipal( "jane@example.com" ) );
+        when( session.getUserPrincipal() ).thenReturn( new WikiPrincipal( "Jane Doe" ) );
+        when( attachmentManager.getAttachmentInfo( "TestPage/test.png" ) ).thenReturn( null );
+        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
+
+        servlet.executeUpload( context, data, "test.txt", "http://localhost:8080/error", "TestPage", null, 9 );
+
+        final ArgumentCaptor< Attachment > stored = ArgumentCaptor.forClass( Attachment.class );
+        verify( attachmentManager ).storeAttachment( stored.capture(), eq( data ) );
+        assertEquals( "jane@example.com", stored.getValue().getAuthor() );
     }
 
     // ---- sendError tests ----

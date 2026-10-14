@@ -27,6 +27,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -120,7 +121,7 @@ public class DefaultPageRenamer implements PageRenamer {
             throw new ProviderException( "Rename seems to have failed for some strange reason - please check logs!" );
         }
         toPage.setAttribute( Page.CHANGENOTE, fromPage.getName() + " ==> " + toPage.getName() );
-        toPage.setAuthor( context.getCurrentUser().getName() );
+        toPage.setAuthor( AuthorKeys.authorKeyFor( context.getWikiSession() ) );
         PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( toPage, PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( toPage ) );
 
         //  Update the references
@@ -197,7 +198,7 @@ public class DefaultPageRenamer implements PageRenamer {
             
             if( !sourceText.equals( newText ) ) {
                 referrerPage.setAttribute( Page.CHANGENOTE, fromPage.getName()+" ==> "+toPage.getName() );
-                referrerPage.setAuthor( context.getCurrentUser().getName() );
+                referrerPage.setAuthor( AuthorKeys.authorKeyFor( context.getWikiSession() ) );
 
                 try {
                     PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( referrerPage, newText );

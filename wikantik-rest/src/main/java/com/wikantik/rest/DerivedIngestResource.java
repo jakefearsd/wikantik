@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -108,7 +109,7 @@ public class DerivedIngestResource extends RestServletBase {
 
         final boolean force  = "true".equalsIgnoreCase( request.getParameter( "force" ) );
         final Session session = Wiki.session().find( getEngine(), request );
-        final String  author  = session.isAuthenticated() ? session.getUserPrincipal().getName() : null;
+        final String  author  = session.isAuthenticated() ? AuthorKeys.authorKeyFor( session ) : null;
 
         final DerivedPageIngestionService service = buildService();
         ingest( bytes, filename, fileMime, service, response, new IngestOptions( force, author ) );

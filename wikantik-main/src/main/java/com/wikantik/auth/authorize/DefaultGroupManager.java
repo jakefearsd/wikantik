@@ -27,6 +27,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.Authorizer;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -242,6 +243,12 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         return group;
     }
 
+    /** The principal recorded as the group's creator/modifier: the saving user's login (see {@link AuthorKeys}). */
+    private static Principal groupModifier( final Session session ) {
+        final String key = AuthorKeys.authorKeyFor( session );
+        return key == null ? session.getUserPrincipal() : new WikiPrincipal( key );
+    }
+
     /** A new group may not take a name an account already uses as its login, full or wiki name. */
     private void assertNameNotUsedByAccount( final String name ) throws WikiSecurityException {
         final var users = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).users();
@@ -307,7 +314,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         // Save the group to back-end database; if it fails, roll back to previous state. Note that the back-end
         // MUST timestammp the create/modify fields in the Group.
         try {
-            groupDatabase.save( group, session.getUserPrincipal() );
+            groupDatabase.save( group, groupModifier( session ) );
         }
 
         // We got an exception! Roll back...

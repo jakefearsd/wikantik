@@ -269,6 +269,50 @@ class ObsidianImportResourceTest {
     }
 
     @Test
+    void applyRecordsTheCallersLoginAsTheAuthorOfImportedPages() throws Exception {
+        loginAdmin();   // login "admin"; the session's user principal is the full name "Administrator"
+        final java.util.concurrent.atomic.AtomicReference< String > recordedAuthor = new java.util.concurrent.atomic.AtomicReference<>();
+        final com.wikantik.importer.ImportPageSink sink = new com.wikantik.importer.ImportPageSink() {
+            @Override public boolean pageExists( final String name ) {
+                return false;
+            }
+            @Override public java.util.List< String > savePage( final String name, final String body,
+                    final Map< String, Object > metadata, final String author, final String changeNote ) {
+                recordedAuthor.set( author );
+                return java.util.List.of();
+            }
+            @Override public void storeAttachment( final String page, final String fileName,
+                    final java.io.InputStream in, final String author ) {
+                // this vault has no attachments
+            }
+        };
+        final ObsidianImportResource s = new ObsidianImportResource() {
+            @Override protected ImportJobRegistry newRegistry( final ImportLimits l ) {
+                return new ImportJobRegistry( l.maxConcurrent(), Clock.systemUTC(), Runnable::run );   // run the job inline
+            }
+            @Override protected com.wikantik.importer.VaultImportService importService() {
+                final ImportLimits limits = ImportLimits.defaults();
+                return new com.wikantik.importer.VaultImportService( limits,
+                    new com.wikantik.importer.VaultImportPlanner( com.wikantik.api.frontmatter.schema.FrontmatterSchema.defaultSchema(),
+                        com.wikantik.importer.AttachmentGate.fromProperties( new java.util.Properties() ), limits.maxPages() ),
+                    () -> com.wikantik.importer.FakeWikiSnapshot.EMPTY, sink );
+            }
+            @Override protected boolean canCreatePages( final Session ss ) { return true; }
+            @Override protected boolean isAdmin( final Session ss ) { return true; }
+            @Override protected Path spoolDir() { return spool; }
+        };
+        final ServletConfig cfg = mock( ServletConfig.class );
+        doReturn( engine.getServletContext() ).when( cfg ).getServletContext();
+        s.init( cfg );
+
+        final byte[] zip = oneNote();
+        final String hash = planHash( s, zip );
+        s.doPost( post( "/apply", zip, zip.length, Map.of( "planHash", hash ) ), resp().mock() );
+
+        assertEquals( Users.ADMIN, recordedAuthor.get() );
+    }
+
+    @Test
     void secondApplyWhileRunningIs409() throws Exception {
         loginAdmin();
         final ObsidianImportResource s = servlet();

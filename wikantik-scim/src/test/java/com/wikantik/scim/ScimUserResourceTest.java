@@ -29,6 +29,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
@@ -1008,12 +1010,28 @@ class ScimUserResourceTest {
     }
 
     @Test
-    void createSecondUserWithSameFullName_returns201WithFreeWikiName() throws Exception {
-        // Two people called John Smith are an ordinary IdP case: the second is created with the
-        // same full name, and only the (unique) wiki name gets a numeric suffix.
+    void createSecondUserWithSameFullName_returns409Uniqueness() throws Exception {
+        // Display names are unique (case-insensitive); the IdP must send a distinct name.
+        doThrow( new NoSuchPrincipalException( "jsmith2" ) ).when( mockDb ).findByLoginName( "jsmith2" );
+        when( mockDb.isFullNameTakenIgnoreCase( "John Smith", "jsmith2" ) ).thenReturn( true );
+
+        final String body = "{\"userName\":\"jsmith2\",\"name\":{\"formatted\":\"John Smith\"}}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        assertTrue( sw.toString().contains( "uniqueness" ), sw.toString() );
+        assertTrue( sw.toString().contains( "already in use" ), sw.toString() );
+        verify( mockDb, never() ).save( any() );
+    }
+
+    @Test
+    void createSecondUserWhoseFullNameOnlyDerivesTheSameWikiName_returns201WithFreeWikiName() throws Exception {
+        // "JohnSmith" is a different display name from "John Smith" (the unique key only normalises case and whitespace
+        // runs, it does not strip them) but derives the same wiki name: the wiki name is numbered, the account is created.
         final UserProfile first = mock( UserProfile.class );
         when( first.getLoginName() ).thenReturn( "jsmith" );
-        when( mockDb.findByFullName( "John Smith" ) ).thenReturn( first );
         when( mockDb.findByWikiName( "JohnSmith" ) ).thenReturn( first );
 
         final UserProfile newProfile = mock( UserProfile.class );
@@ -1025,13 +1043,13 @@ class ScimUserResourceTest {
         when( saved.getAttributes() ).thenReturn( new HashMap<>() );
         doThrow( new NoSuchPrincipalException( "jsmith2" ) ).doReturn( saved ).when( mockDb ).findByLoginName( "jsmith2" );
 
-        final String body = "{\"userName\":\"jsmith2\",\"name\":{\"formatted\":\"John Smith\"}}";
+        final String body = "{\"userName\":\"jsmith2\",\"name\":{\"formatted\":\"JohnSmith\"}}";
         when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
 
         resource.doPost( req, resp );
 
         verify( resp ).setStatus( 201 );
-        verify( newProfile ).setFullname( "John Smith" );
+        verify( newProfile ).setFullname( "JohnSmith" );
         verify( newProfile ).setWikiName( "JohnSmith2" );
         verify( mockDb ).save( newProfile );
     }
@@ -1045,6 +1063,8 @@ class ScimUserResourceTest {
         when( first.getLoginName() ).thenReturn( "jsmith" );
         when( mockDb.findByWikiName( "John Smith" ) ).thenReturn( first );
         when( mockDb.findByFullName( "John Smith" ) ).thenReturn( first );
+        // The stored name is unchanged, so an IdP re-sync must succeed even though the name is (legacy-)shared.
+        when( mockDb.isFullNameTakenIgnoreCase( "John Smith", "jsmith2" ) ).thenReturn( true );
 
         final UserProfile p = mock( UserProfile.class );
         when( p.getLoginName() ).thenReturn( "jsmith2" );
@@ -1065,13 +1085,10 @@ class ScimUserResourceTest {
     }
 
     @Test
-    void patchFullNameSharedWithAnotherAccount_isSaved() throws Exception {
+    void patchFullNameTakenByAnotherAccount_returns409AndDoesNotSave() throws Exception {
         when( req.getMethod() ).thenReturn( "PATCH" );
         when( req.getPathInfo() ).thenReturn( "/uid-helen" );
-        final UserProfile other = mock( UserProfile.class );
-        when( other.getLoginName() ).thenReturn( "hsmith" );
-        when( mockDb.findByFullName( "Helen Smith" ) ).thenReturn( other );
-        when( mockDb.findByWikiName( "HelenSmith" ) ).thenReturn( other );
+        when( mockDb.isFullNameTakenIgnoreCase( "Helen Smith", "helen" ) ).thenReturn( true );
 
         final UserProfile p = mock( UserProfile.class );
         when( p.getLoginName() ).thenReturn( "helen" );
@@ -1085,10 +1102,107 @@ class ScimUserResourceTest {
 
         resource.service( req, resp );
 
-        verify( resp, never() ).setStatus( 409 );
-        verify( p ).setFullname( "Helen Smith" );
-        verify( p ).setWikiName( "HelenSmith2" );
+        verify( resp ).setStatus( 409 );
+        assertTrue( sw.toString().contains( "uniqueness" ), sw.toString() );
+        verify( p, never() ).setFullname( any() );
+        verify( mockDb, never() ).save( any() );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "x", "mallory@example.com" } )
+    void createWithMalformedName_returns400InvalidValue( final String formatted ) throws Exception {
+        doThrow( new NoSuchPrincipalException( "malformed" ) ).when( mockDb ).findByLoginName( "malformed" );
+
+        final String body = "{\"userName\":\"malformed\",\"name\":{\"formatted\":\"" + formatted + "\"}}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 400 );
+        assertTrue( sw.toString().contains( "invalidValue" ), sw.toString() );
+        verify( mockDb, never() ).save( any() );
+    }
+
+    @Test
+    void createWithoutAName_getsTheMemberPlaceholder() throws Exception {
+        final UserProfile newProfile = mock( UserProfile.class );
+        when( newProfile.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.newProfile() ).thenReturn( newProfile );
+        final UserProfile saved = mock( UserProfile.class );
+        when( saved.getUid() ).thenReturn( "uid-nameless" );
+        when( saved.getLoginName() ).thenReturn( "nameless" );
+        when( saved.getAttributes() ).thenReturn( new HashMap<>() );
+        doThrow( new NoSuchPrincipalException( "nameless" ) ).doReturn( saved ).when( mockDb ).findByLoginName( "nameless" );
+
+        final String body = "{\"userName\":\"nameless\",\"emails\":[{\"value\":\"nameless@example.test\"}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 201 );
+        verify( newProfile ).setFullname( "Member 1" );
+    }
+
+    @Test
+    void createStoresTheFullNameTrimmed() throws Exception {
+        final UserProfile newProfile = mock( UserProfile.class );
+        when( newProfile.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.newProfile() ).thenReturn( newProfile );
+        final UserProfile saved = mock( UserProfile.class );
+        when( saved.getUid() ).thenReturn( "uid-padded" );
+        when( saved.getLoginName() ).thenReturn( "padded" );
+        when( saved.getAttributes() ).thenReturn( new HashMap<>() );
+        doThrow( new NoSuchPrincipalException( "padded" ) ).doReturn( saved ).when( mockDb ).findByLoginName( "padded" );
+
+        final String body = "{\"userName\":\"padded\",\"name\":{\"formatted\":\"  Pat Lee \"}}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 201 );
+        verify( newProfile ).setFullname( "Pat Lee" );
+    }
+
+    @Test
+    void patchStoresTheFullNameTrimmed() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/uid-pat" );
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "pat" );
+        when( p.getFullname() ).thenReturn( "Pat" );
+        when( p.getWikiName() ).thenReturn( "Pat" );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-pat" ) ).thenReturn( p );
+
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"name\",\"value\":{\"formatted\":\" Pat Lee  \"}}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        verify( resp, never() ).setStatus( 400 );
+        verify( p ).setFullname( "Pat Lee" );
         verify( mockDb ).save( p );
+    }
+
+    @Test
+    void putBlankNameWhenOneIsStored_returns400Required() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/uid-ivan" );
+        final UserProfile p = mock( UserProfile.class );
+        when( p.getLoginName() ).thenReturn( "ivan" );
+        when( p.getFullname() ).thenReturn( "Ivan Real" );
+        when( p.getWikiName() ).thenReturn( "IvanReal" );
+        when( p.isLocked() ).thenReturn( false );
+        when( p.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.findByUid( "uid-ivan" ) ).thenReturn( p );
+
+        final String body = "{\"userName\":\"ivan\",\"name\":{\"formatted\":\"   \"}}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( resp ).setStatus( 400 );
+        assertTrue( sw.toString().contains( "required" ), sw.toString() );
+        verify( mockDb, never() ).save( any() );
     }
 
     @Test

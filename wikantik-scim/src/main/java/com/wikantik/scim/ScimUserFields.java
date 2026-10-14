@@ -24,7 +24,9 @@ import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.sso.SSOAutoProvisionService;
+import jakarta.servlet.http.HttpServletResponse;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -46,7 +48,7 @@ final class ScimUserFields {
      * Each field is optional; a {@code null} leaves the existing profile value untouched.
      */
     static void applyCommonCreateFields( final UserProfile p, final ScimUserMapper.CreateFields f ) {
-        if ( f.fullName() != null ) p.setFullname( f.fullName() );
+        if ( f.fullName() != null ) p.setFullname( f.fullName().trim() );
         if ( f.email() != null ) p.setEmail( f.email() );
         if ( f.displayName() != null ) p.setWikiName( f.displayName() );
         if ( f.externalId() != null ) {
@@ -66,7 +68,7 @@ final class ScimUserFields {
     static boolean applyPatchAttributes( final UserProfile p, final JsonObject attrs ) {
         boolean dirty = false;
         dirty |= assign( stringOrNull( attrs, "displayName" ), p::setWikiName );
-        dirty |= assign( stringOrNull( objectOrNull( attrs, "name" ), "formatted" ), p::setFullname );
+        dirty |= assign( stringOrNull( objectOrNull( attrs, "name" ), "formatted" ), v -> p.setFullname( v.trim() ) );
         dirty |= assign( firstEmail( attrs ), p::setEmail );
         dirty |= assign( stringOrNull( attrs, "externalId" ),
                 v -> p.getAttributes().put( SSOAutoProvisionService.ATTR_SSO_SUBJECT, v ) );
@@ -74,26 +76,27 @@ final class ScimUserFields {
     }
 
     /**
-     * Display-name check for a create or replace: a changed full name ({@code name.formatted}) or
-     * wiki name ({@code displayName}) must not be reserved or be another account's login name.
-     * Another account may share the name; see {@link #keepWikiNameUnique}.
+     * Name check for a create or replace: a changed full name ({@code name.formatted}) must satisfy the display-name rules
+     * and a changed wiki name ({@code displayName}) must not be reserved or be another account's login name. An unchanged
+     * name is not re-checked, so an identity provider that re-sends the same name on every sync is never refused. Another
+     * account may still share the <em>wiki</em> name; see {@link #keepWikiNameUnique}.
      *
      * @param current the existing profile, or {@code null} on create
      */
-    static Optional< String > createNameError( final Engine engine, final UserDatabase db, final String login,
-            final UserProfile current, final ScimUserMapper.CreateFields f ) {
-        return nameError( engine, db, login, current, f.fullName(), f.displayName() );
+    static Optional< ProfileNameRules.NameViolation > createNameViolation( final Engine engine, final UserDatabase db,
+            final String login, final UserProfile current, final ScimUserMapper.CreateFields f ) {
+        return nameViolation( engine, db, login, current, f.fullName(), f.displayName() );
     }
 
-    /** Display-name check for a PATCH; see {@link #createNameError}. */
-    static Optional< String > patchNameError( final Engine engine, final UserDatabase db, final UserProfile current,
-            final JsonObject attrs ) {
-        return nameError( engine, db, current.getLoginName(), current,
+    /** Name check for a PATCH; see {@link #createNameViolation}. */
+    static Optional< ProfileNameRules.NameViolation > patchNameViolation( final Engine engine, final UserDatabase db,
+            final UserProfile current, final JsonObject attrs ) {
+        return nameViolation( engine, db, current.getLoginName(), current,
                 stringOrNull( objectOrNull( attrs, "name" ), "formatted" ), stringOrNull( attrs, "displayName" ) );
     }
 
-    private static Optional< String > nameError( final Engine engine, final UserDatabase db, final String login,
-            final UserProfile current, final String newFull, final String newDisplay ) {
+    private static Optional< ProfileNameRules.NameViolation > nameViolation( final Engine engine, final UserDatabase db,
+            final String login, final UserProfile current, final String newFull, final String newDisplay ) {
         final String oldFull = current == null ? null : current.getFullname();
         final String oldWiki = current == null ? null : current.getWikiName();
         // Mirrors the profile: setting the full name derives the wiki name, and an explicit
@@ -101,7 +104,35 @@ final class ScimUserFields {
         final String proposed = proposedWiki( newFull, newDisplay );
         final String proposedWiki = proposed != null ? proposed : oldWiki;
         final String proposedFull = newFull != null ? newFull : oldFull;
-        return ProfileNameRules.nameChangeError( engine, db, login, oldFull, oldWiki, proposedFull, proposedWiki );
+        return ProfileNameRules.nameChangeViolation( engine, db, login, oldFull, oldWiki, proposedFull, proposedWiki );
+    }
+
+    /**
+     * On create, an absent or blank {@code name.formatted} gets the neutral {@code Member N} display name (never the
+     * {@code userName}, which is usually an email), so no SCIM-provisioned account is left without one. Any supplied name
+     * is returned untouched and validated by {@link #createNameViolation}.
+     */
+    static ScimUserMapper.CreateFields withProvisionedName( final Engine engine, final UserDatabase db, final String login,
+            final ScimUserMapper.CreateFields f ) {
+        if ( f.fullName() != null && !f.fullName().isBlank() ) {
+            return f;
+        }
+        return new ScimUserMapper.CreateFields( f.userName(), f.externalId(),
+                ProfileNameRules.availableDisplayName( engine, db, login, null ),
+                f.email(), f.displayName(), f.active(), f.password() );
+    }
+
+    /**
+     * A refused name: a collision with another account (login or display name) is SCIM {@code uniqueness} (409); a
+     * malformed or reserved one is {@code invalidValue} (400).
+     */
+    static void sendNameViolation( final HttpServletResponse resp, final ProfileNameRules.NameViolation violation )
+            throws IOException {
+        if ( violation.isConflict() ) {
+            AbstractScimServlet.sendError( resp, 409, "uniqueness", violation.message() );
+        } else {
+            AbstractScimServlet.sendError( resp, 400, "invalidValue", violation.message() );
+        }
     }
 
     /**

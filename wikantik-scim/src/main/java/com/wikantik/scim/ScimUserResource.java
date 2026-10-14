@@ -27,6 +27,7 @@ import com.wikantik.audit.AuditEntry;
 import com.wikantik.audit.AuditOutcome;
 import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.UserLifecycleService;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.UserManager;
@@ -105,8 +106,8 @@ public class ScimUserResource extends AbstractScimServlet {
         final JsonObject body = parseBody( req, resp );
         if ( body == null ) return;
 
-        final ScimUserMapper.CreateFields f = ScimUserMapper.readCreate( body );
-        if ( f.userName() == null || f.userName().isBlank() ) {
+        final ScimUserMapper.CreateFields requested = ScimUserMapper.readCreate( body );
+        if ( requested.userName() == null || requested.userName().isBlank() ) {
             sendError( resp, 400, "invalidValue", "userName is required" );
             return;
         }
@@ -119,28 +120,30 @@ public class ScimUserResource extends AbstractScimServlet {
 
         // SSO fail-closed: if a profile exists for this userName AND it lacks sso.subject → 409
         try {
-            final UserProfile existing = db.findByLoginName( f.userName() );
+            final UserProfile existing = db.findByLoginName( requested.userName() );
             final Object linked = existing.getAttributes() == null ? null
                     : existing.getAttributes().get( SSOAutoProvisionService.ATTR_SSO_SUBJECT );
             if ( linked == null ) {
                 sendError( resp, 409, "uniqueness",
-                        "A local account with userName '" + f.userName()
+                        "A local account with userName '" + requested.userName()
                                 + "' already exists and is not SSO-linked; SCIM cannot claim it." );
                 return;
             }
             // Already exists and is SSO-linked — treat as idempotent conflict too (caller should PUT/PATCH)
             sendError( resp, 409, "uniqueness",
-                    "User '" + f.userName() + "' already exists." );
+                    "User '" + requested.userName() + "' already exists." );
             return;
         } catch ( final NoSuchPrincipalException ignored ) {
-            LOG.debug( "No existing account for '{}'; proceeding to create it: {}", f.userName(), ignored.getMessage() );
+            LOG.debug( "No existing account for '{}'; proceeding to create it: {}", requested.userName(), ignored.getMessage() );
             // Expected — no existing account; proceed to create
         }
 
-        final java.util.Optional< String > createNameError =
-                ScimUserFields.createNameError( engine, db, f.userName(), null, f );
-        if ( createNameError.isPresent() ) {
-            sendError( resp, 409, "uniqueness", createNameError.get() );
+        // An absent/blank name gets the "Member N" placeholder; a supplied one is validated below.
+        final ScimUserMapper.CreateFields f = ScimUserFields.withProvisionedName( engine, db, requested.userName(), requested );
+        final java.util.Optional< ProfileNameRules.NameViolation > createNameViolation =
+                ScimUserFields.createNameViolation( engine, db, f.userName(), null, f );
+        if ( createNameViolation.isPresent() ) {
+            ScimUserFields.sendNameViolation( resp, createNameViolation.get() );
             return;
         }
 
@@ -269,10 +272,10 @@ public class ScimUserResource extends AbstractScimServlet {
         UserProfile p = ctx.profile();
 
         final ScimUserMapper.CreateFields f = ScimUserMapper.readCreate( ctx.body() );
-        final java.util.Optional< String > replaceNameError =
-                ScimUserFields.createNameError( engine, db, p.getLoginName(), p, f );
-        if ( replaceNameError.isPresent() ) {
-            sendError( resp, 409, "uniqueness", replaceNameError.get() );
+        final java.util.Optional< ProfileNameRules.NameViolation > replaceNameViolation =
+                ScimUserFields.createNameViolation( engine, db, p.getLoginName(), p, f );
+        if ( replaceNameViolation.isPresent() ) {
+            ScimUserFields.sendNameViolation( resp, replaceNameViolation.get() );
             return;
         }
         try {
@@ -331,10 +334,10 @@ public class ScimUserResource extends AbstractScimServlet {
 
             // Validate names before any change, so a refused PATCH leaves the account untouched
             // (including its active state).
-            final java.util.Optional< String > patchNameError =
-                    ScimUserFields.patchNameError( engine, db, p, patch.attributes() );
-            if ( patchNameError.isPresent() ) {
-                sendError( resp, 409, "uniqueness", patchNameError.get() );
+            final java.util.Optional< ProfileNameRules.NameViolation > patchNameViolation =
+                    ScimUserFields.patchNameViolation( engine, db, p, patch.attributes() );
+            if ( patchNameViolation.isPresent() ) {
+                ScimUserFields.sendNameViolation( resp, patchNameViolation.get() );
                 return;
             }
 

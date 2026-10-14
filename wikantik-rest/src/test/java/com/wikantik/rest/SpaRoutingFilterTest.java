@@ -835,6 +835,31 @@ class SpaRoutingFilterTest {
     }
 
     /**
+     * The server-rendered document carries page text in three places besides the rendered body — the semantic head,
+     * the no-JS fallback and the {@code window.__WIKANTIK_PAGE__} data island, whose {@code content} is the raw body.
+     * Access-rule directives name people by login and must be in none of them.
+     */
+    @Test
+    void ssrCarriesNoAccessRuleDirectives() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            engine.saveText( "SpaRuledPage",
+                    "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}]\nPUBLIC_RULED_MARKER is freely readable." );
+            filter.setEngineForTest( engine );
+
+            filter.doFilter( mockRequest( "/wiki/SpaRuledPage" ), response, chain );
+
+            final String html = capturedOutput.asString();
+            assertTrue( html.contains( "PUBLIC_RULED_MARKER" ), "the page is still server-rendered" );
+            assertTrue( html.contains( "__WIKANTIK_PAGE__" ), "the data island is present" );
+            assertFalse( html.contains( "leak-probe@example.test" ),
+                    "no login may appear in the head, the fallback body or the data island" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    /**
      * Guards the fix from over-correcting into "never server-render": an unrestricted
      * page must still get its body injected, which is the whole point of the SSR path.
      */

@@ -31,6 +31,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.ui.SemanticHeadRenderer;
+import com.wikantik.util.AclDirectives;
 import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.api.pagegraph.PageType;
 import jakarta.servlet.Filter;
@@ -533,7 +534,12 @@ public class SpaRoutingFilter implements Filter {
         }
         // Parsed once and threaded through the head, body-fallback, and data-island
         // derivations below — those used to each re-parse the same frontmatter.
-        final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
+        final ParsedPage fullPage = FrontmatterParser.parse( rawText == null ? "" : rawText );
+        // The head, the no-JS body fallback and the JSON data island all carry page text, and access-rule
+        // directives name people by login. None of them needs the directives (the SPA's editor re-fetches the
+        // raw text through GET /api/pages, which keeps them for editors), so none gets them. The render below
+        // still starts from rawText: the renderer consumes the directives itself.
+        final ParsedPage parsed = new ParsedPage( fullPage.metadata(), AclDirectives.strip( fullPage.body() ) );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();
         final String head = SemanticHeadRenderer.renderHead( pageName, parsed, baseUrl, appName, modified,

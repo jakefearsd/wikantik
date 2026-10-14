@@ -24,6 +24,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.diff.DifferenceManager;
+import com.wikantik.util.AclDirectives;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -96,8 +97,10 @@ public class DiffResource extends RestServletBase {
         }
 
         try {
-            final String fromText = pm.getPureText( pageName, fromVersion );
-            final String toText = pm.getPureText( pageName, toVersion );
+            // Access-rule directives name people by login: only someone who may edit the page sees them in a diff.
+            final boolean canEdit = hasPagePermission( request, pageName, "edit" );
+            final String fromText = forReader( canEdit, pm.getPureText( pageName, fromVersion ) );
+            final String toText = forReader( canEdit, pm.getPureText( pageName, toVersion ) );
 
             // D31: structured diff format. The legacy DifferenceManager renders an HTML
             // table which is hostile to JSON consumers. Default to the structured form;
@@ -131,6 +134,11 @@ public class DiffResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error computing diff: " + e.getMessage() );
         }
+    }
+
+    /** Page text as the caller may see it: with access-rule directives (people, by login) only if they can edit. */
+    private static String forReader( final boolean canEdit, final String text ) {
+        return canEdit ? text : AclDirectives.strip( text );
     }
 
     /**

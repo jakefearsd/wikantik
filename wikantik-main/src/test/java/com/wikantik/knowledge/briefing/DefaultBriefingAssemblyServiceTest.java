@@ -187,6 +187,24 @@ class DefaultBriefingAssemblyServiceTest {
     }
 
     @Test
+    void pinnedBodyCarriesNoAccessRuleDirectives() {
+        final PageManager pm = pageManagerFixture();
+        stub( pm, "RuledPage", "---\ntitle: Ruled\nsummary: Ruled summary.\n---\n"
+            + "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}]\nBody of the ruled page.\n" );
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), new StubIndex(), pm, DEFAULT_BUDGET, MAX_BUDGET );
+
+        final ContextBriefing b = svc.assemble(
+            new BriefingRequest( List.of( "RuledPage" ), null, null, null, null ) );
+
+        final BriefingItem it = itemBySlug( b, "RuledPage" );
+        assertTrue( it != null && it.included(), "the pin is included" );
+        assertFalse( it.content().contains( "leak-probe@example.test" ), it.content() );
+        assertTrue( it.content().contains( "Body of the ruled page." ) );
+        assertEquals( "Ruled", it.title(), "frontmatter is still read" );
+    }
+
+    @Test
     void pinDegradesToPointerWhenBudgetExhausted() {
         final PageManager pm = pageManagerFixture();
         stub( pm, "BigPage", page( "Big Page", "Big summary.", 2000 ) );  // ~500 tokens

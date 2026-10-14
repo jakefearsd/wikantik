@@ -23,10 +23,11 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.permissions.PermissionFilter;
+import com.wikantik.util.AclDirectives;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -95,7 +96,8 @@ class GetPageTool {
             return null;
         }
 
-        final String body = ResultShaper.bodyOnly( raw );
+        // Access-rule directives name people by login: only a caller who may edit the page gets them.
+        final String body = ResultShaper.bodyOnly( canEdit( request, resolvedName ) ? raw : AclDirectives.strip( raw ) );
         final int limit = resolveLimit( maxChars );
         final boolean truncated = ResultShaper.wasTruncated( body, limit );
         final String shown = ResultShaper.truncateBody( body, limit );
@@ -130,11 +132,20 @@ class GetPageTool {
     }
 
     /**
+     * Whether the principal bound to {@code request} may {@code edit} {@code pageName}. Package-visible so tests
+     * can stub it, like {@link #canView}.
+     */
+    boolean canEdit( final HttpServletRequest request, final String pageName ) {
+        final Session session = Wiki.session().find( engine, request );
+        return new PermissionFilter( engine ).canAccessQuietly( session, pageName, "edit" );
+    }
+
+    /**
      * The identity service that turns a stored author into the display name shown to callers.
      * Package-visible so tests can substitute it; evaluated only when a page has an author.
      */
     PublicIdentity publicIdentity() {
-        return AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
+        return PublicIdentities.forEngine( engine );
     }
 
     private static int resolveLimit( final int requested ) {

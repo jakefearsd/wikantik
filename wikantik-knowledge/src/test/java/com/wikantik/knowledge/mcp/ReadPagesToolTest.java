@@ -167,4 +167,18 @@ class ReadPagesToolTest {
         verify( pageManager ).getPageWithoutMetadata( eq( "PageA" ), anyInt() );
         verify( pageManager, never() ).getPage( eq( "PageA" ), anyInt() );
     }
+
+    @Test
+    void accessRuleDirectivesAreNotReturnedToTheGuestCaller() throws Exception {
+        when( pageManager.getPageWithoutMetadata( eq( "RuledPage" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPureText( eq( "RuledPage" ), anyInt() ) ).thenReturn(
+                "---\ntitle: Ruled\n---\n[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}]\nBody of ruled page." );
+
+        final var result = tool.execute( Map.of( "slugs", List.of( "RuledPage" ) ) );
+
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertFalse( json.contains( "leak-probe@example.test" ), json );
+        assertTrue( json.contains( "Body of ruled page." ), json );
+        assertTrue( json.contains( "title: Ruled" ), "the frontmatter is still returned" );
+    }
 }

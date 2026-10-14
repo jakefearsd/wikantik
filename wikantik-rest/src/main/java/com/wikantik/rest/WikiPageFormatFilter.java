@@ -32,6 +32,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
+import com.wikantik.util.AclDirectives;
 import com.wikantik.util.BaseUrlResolver;
 
 import jakarta.servlet.Filter;
@@ -180,7 +181,8 @@ public class WikiPageFormatFilter implements Filter {
         firePageRequested( eng, page.getName() );
 
         final String rawText = pm.getPureText( page );
-        final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
+        final ParsedPage parsed = readableBy( eng, session, pageName,
+                FrontmatterParser.parse( rawText == null ? "" : rawText ) );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
 
         if ( "md".equalsIgnoreCase( format ) ) {
@@ -188,6 +190,18 @@ public class WikiPageFormatFilter implements Filter {
         } else {
             writeJson( resp, page, parsed, baseUrl );
         }
+    }
+
+    /**
+     * The page as this caller may read it. Access-rule directives name people by login, so only a caller who may
+     * edit the page gets them in the raw text — the summary derived from the body included.
+     */
+    private static ParsedPage readableBy( final Engine eng, final com.wikantik.api.core.Session session,
+                                          final String pageName, final ParsedPage full ) {
+        if ( new com.wikantik.auth.permissions.PermissionFilter( eng ).canAccessQuietly( session, pageName, "edit" ) ) {
+            return full;
+        }
+        return new ParsedPage( full.metadata(), AclDirectives.strip( full.body() ) );
     }
 
     /**

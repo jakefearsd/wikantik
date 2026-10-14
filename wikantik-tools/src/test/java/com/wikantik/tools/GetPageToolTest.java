@@ -61,6 +61,31 @@ class GetPageToolTest {
             }
 
             @Override
+            boolean canEdit( final HttpServletRequest request, final String pageName ) {
+                return false;
+            }
+
+            @Override
+            PublicIdentity publicIdentity() {
+                return identity;
+            }
+        };
+    }
+
+    /** Like {@link #allowingTool}, but the caller may also edit every page. */
+    private GetPageTool editingTool( final WikiEngine engine, final ToolsConfig config ) {
+        return new GetPageTool( engine, config ) {
+            @Override
+            boolean canView( final HttpServletRequest request, final String pageName ) {
+                return true;
+            }
+
+            @Override
+            boolean canEdit( final HttpServletRequest request, final String pageName ) {
+                return true;
+            }
+
+            @Override
             PublicIdentity publicIdentity() {
                 return identity;
             }
@@ -222,5 +247,63 @@ class GetPageToolTest {
         assertTrue( calledWithCanonical.get(),
                 "ACL check should run against the resolved page name, not the request alias, "
                         + "so rename aliases can't bypass ACLs." );
+    }
+
+    @Test
+    void accessRuleDirectivesAreHiddenFromACallerWhoCannotEdit() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Ruled" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Ruled" );
+        when( pageManager.getPureText( "Ruled", -1 ) ).thenReturn(
+                "---\nsummary: S\n---\n[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}]\nRuled body." );
+
+        final Map< String, Object > out = allowingTool( engine, new ToolsConfig( new Properties() ) )
+                .execute( "Ruled", 0, request );
+
+        assertFalse( out.get( "text" ).toString().contains( "leak-probe@example.test" ), out.toString() );
+        assertTrue( out.get( "text" ).toString().contains( "Ruled body." ) );
+    }
+
+    @Test
+    void accessRuleDirectivesAreKeptForACallerWhoCanEdit() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Ruled" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Ruled" );
+        when( pageManager.getPureText( "Ruled", -1 ) ).thenReturn(
+                "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}]\nRuled body." );
+
+        final Map< String, Object > out = editingTool( engine, new ToolsConfig( new Properties() ) )
+                .execute( "Ruled", 0, request );
+
+        assertTrue( out.get( "text" ).toString().contains( "leak-probe@example.test" ), out.toString() );
+    }
+
+    /**
+     * The identity service is optional until the auth subsystem is wired (and absent on a bare or mocked engine);
+     * a page with an author must still come back, with an email-shaped author masked rather than a null-dereference.
+     */
+    @Test
+    void anAuthorIsMaskedNotFatalWhenTheIdentityServiceIsNotWired() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Authored" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Authored" );
+        when( pageManager.getPureText( "Authored", -1 ) ).thenReturn( "Body content" );
+        when( page.getAuthor() ).thenReturn( "alice@example.test" );
+
+        final GetPageTool unwired = new GetPageTool( engine, new ToolsConfig( new Properties() ) ) {
+            @Override
+            boolean canView( final HttpServletRequest request, final String pageName ) {
+                return true;
+            }
+
+            @Override
+            boolean canEdit( final HttpServletRequest request, final String pageName ) {
+                return false;
+            }
+        };
+
+        final Map< String, Object > out = unwired.execute( "Authored", 0, request );
+
+        assertFalse( out.get( "author" ).toString().contains( "alice@example.test" ), out.toString() );
     }
 }

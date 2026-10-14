@@ -38,6 +38,7 @@ import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.citation.CitationRepository;
 import com.wikantik.citation.CitationRow;
+import com.wikantik.util.AclDirectives;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -220,7 +221,9 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             if ( raw != null && !raw.isEmpty() ) {
                 final ParsedPage parsed = FrontmatterParser.parse( raw );
                 frontmatter = parsed.metadata();
-                body = parsed.body();
+                // key_facts and the heading outline are derived from the body's first paragraphs, so a directive
+                // on its first lines would surface in them: access rules (people, by login) never enter the body.
+                body = AclDirectives.strip( parsed.body() );
             }
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: getPureText({}) failed — body & key_facts & headings will degrade: {}",

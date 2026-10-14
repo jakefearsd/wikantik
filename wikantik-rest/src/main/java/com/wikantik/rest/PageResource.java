@@ -52,6 +52,7 @@ import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.export.HeadingSlugs;
 import com.wikantik.preview.PageExcerpts;
+import com.wikantik.util.AclDirectives;
 import com.wikantik.util.TextUtil;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.content.WikiToMarkdownConverter;
@@ -271,9 +272,14 @@ public class PageResource extends RestServletBase {
 
         final ParsedPage parsed = FrontmatterParser.parse( rawText );
 
+        // Access-rule directives ([{ALLOW edit alice@…}]) name people by login. Whoever may edit the page
+        // gets its text verbatim — the editor round-trips this very field — everyone else reads it without them.
+        final boolean canEdit = hasPagePermission( request, pageName, "edit" );
+        final String visibleBody = canEdit ? parsed.body() : AclDirectives.strip( parsed.body() );
+
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "name", page.getName() );
-        result.put( "content", parsed.body() );
+        result.put( "content", visibleBody );
 
         // Rendered HTML option
         if ( render ) {
@@ -300,7 +306,6 @@ public class PageResource extends RestServletBase {
         // they are replaced only when they happen to be a login. The editor SPA writes this metadata back verbatim
         // (replaceMetadata), so a caller who can edit the page gets it exactly as stored.
         final PublicIdentity identity = getSubsystems().auth().publicIdentity();
-        final boolean canEdit = hasPagePermission( request, pageName, "edit" );
         result.put( "metadata", canEdit ? parsed.metadata() : IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
         result.put( "version", Math.max( page.getVersion(), 1 ) );
         result.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
@@ -309,8 +314,11 @@ public class PageResource extends RestServletBase {
 
         // D19: surface the content hash so clients can round-trip GET → PUT with
         // expectedContentHash without computing the digest themselves.
-        final String contentHash =
-                com.wikantik.api.pages.PageSaveHelper.computeContentHash( rawText );
+        // An editor round-trips GET → PUT with the hash of the full text. A reader never PUTs, and the hash of the
+        // full text would let them confirm a guess at a hidden directive by hashing candidate texts — so they get
+        // the hash of what they can see.
+        final String contentHash = com.wikantik.api.pages.PageSaveHelper.computeContentHash(
+                canEdit ? rawText : AclDirectives.strip( rawText ) );
         result.put( "contentHash", contentHash );
 
         // Include markup syntax — "wiki" for legacy .txt pages, "markdown" for .md pages,
@@ -322,7 +330,7 @@ public class PageResource extends RestServletBase {
             markupSyntax = "markdown";
         }
         if( "markdown".equals( markupSyntax )
-                && WikiToMarkdownConverter.isLikelyWikiSyntax( contentHash, parsed.body() ) ) {
+                && WikiToMarkdownConverter.isLikelyWikiSyntax( contentHash, visibleBody ) ) {
             markupSyntax = "likely-wiki";
         }
         result.put( "markupSyntax", markupSyntax );

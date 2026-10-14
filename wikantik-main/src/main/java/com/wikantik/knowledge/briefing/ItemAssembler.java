@@ -27,6 +27,7 @@ import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.util.AclDirectives;
 import com.wikantik.util.TokenEstimator;
 
 import org.apache.logging.log4j.Logger;
@@ -207,8 +208,9 @@ final class ItemAssembler {
         if ( fits ) ledger.used += est;
     }
 
+    /** Page text for injection into an agent's context — access-rule directives (people, by login) are left out. */
     private String bodyOf( final String slug ) {
-        return pageManager.getPureText( slug, PageProvider.LATEST_VERSION );
+        return AclDirectives.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) );
     }
 
     private String canonicalIdOf( final String slug ) {

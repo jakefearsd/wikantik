@@ -169,6 +169,23 @@ class ExportServiceTest {
         return new String( bytes, StandardCharsets.UTF_8 );
     }
 
+    /**
+     * The converter drops ALLOW/DENY spans with a narrower pattern than the ACL manager's (it stops at the first
+     * closing brace, whereas the manager reads "[{ALLOW edit Admin,x}y}]" as one rule), and its failure fallback
+     * writes raw text. A caller who cannot edit a page therefore never gets the directives to convert at all.
+     */
+    @Test
+    void exportOmitsAccessRuleDirectivesTheConverterDoesNotRecognise() throws Exception {
+        engine.saveText( "FinanceRuled", "---\ntype: article\ncluster: finance\n---\n"
+                + "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}x}]\n# Ruled\n\nOpen prose.\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+
+        final String page = exportedPage( finance( 0 ), "finance/FinanceRuled.md" );
+
+        assertTrue( page.contains( "Open prose." ), page );
+        assertFalse( page.contains( "leak-probe@example.test" ), page );
+    }
+
     @Test
     void liveUrlUsesPathSegmentEncoding() throws Exception {
         engine.saveText( "FinanceSpaceLink", "---\ntype: article\ncluster: finance\n---\n"

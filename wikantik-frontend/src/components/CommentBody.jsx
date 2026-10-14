@@ -1,4 +1,4 @@
-import { splitMentions } from '../utils/mentionTokens';
+import { resolvedMentionName, splitMentions } from '../utils/mentionTokens';
 
 /**
  * Renders a comment body. A mention token (`@[Display Name](user:<uid>)`) becomes a
@@ -14,7 +14,7 @@ export default function CommentBody({ body, mentionNames = {} }) {
   if (!body) return null;
   const parts = splitMentions(body).map((segment, i) => {
     if (segment.type === 'text') return segment.text;
-    const currentName = mentionNames[segment.uid];
+    const currentName = resolvedMentionName(mentionNames, segment.uid);
     if (!currentName) return `@${segment.snapshot}`;
     return (
       <span key={`m-${i}-${segment.uid}`} className="comment-mention-chip" data-user-id={segment.uid}>

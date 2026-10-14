@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import CommentBody from '../components/CommentBody';
-import { splitMentions, buildMentionToken, flattenMentions } from './mentionTokens';
+import { splitMentions, buildMentionToken, flattenMentions, resolvedMentionName } from './mentionTokens';
 
 describe('splitMentions', () => {
   it('returns no segments for an empty body', () => {
@@ -133,5 +133,54 @@ describe('forged or stale mention tokens', () => {
     const { container } = render(createElement(CommentBody, { body: 'hi @[Jake Fear](user:nope)', mentionNames: {} }));
     expect(container.querySelector('.comment-mention-chip')).toBeNull();
     expect(container.textContent).toContain('@Jake Fear');
+  });
+});
+
+// uid is attacker-controlled and `constructor`, `toString`, `__proto__`... all satisfy the uid pattern;
+// a plain-object lookup would find them on the prototype chain and call them "resolved".
+describe('resolvedMentionName', () => {
+  it('returns the name for an own string entry', () => {
+    expect(resolvedMentionName({ 'u-1': 'Alice A' }, 'u-1')).toBe('Alice A');
+  });
+
+  it('returns null for a missing uid or a missing map', () => {
+    expect(resolvedMentionName({}, 'u-1')).toBeNull();
+    expect(resolvedMentionName(undefined, 'u-1')).toBeNull();
+    expect(resolvedMentionName(null, 'u-1')).toBeNull();
+  });
+
+  it('returns null for an empty or non-string value', () => {
+    expect(resolvedMentionName({ 'u-1': '' }, 'u-1')).toBeNull();
+    expect(resolvedMentionName({ 'u-1': 7 }, 'u-1')).toBeNull();
+    expect(resolvedMentionName({ 'u-1': { name: 'x' } }, 'u-1')).toBeNull();
+  });
+
+  it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'])(
+    'never resolves the inherited property %s',
+    (uid) => {
+      expect(resolvedMentionName({}, uid)).toBeNull();
+      expect(resolvedMentionName({ 'u-1': 'Alice A' }, uid)).toBeNull();
+    },
+  );
+});
+
+describe('forged uids named after Object.prototype members', () => {
+  it.each(['constructor', 'toString'])('flattenMentions shows @snapshot for user:%s', (uid) => {
+    expect(flattenMentions(`hi @[Mallory](user:${uid})!`)).toBe('hi @Mallory!');
+    expect(flattenMentions(`hi @[Mallory](user:${uid})!`, { 'u-1': 'Alice A' })).toBe('hi @Mallory!');
+  });
+
+  it.each(['constructor', 'toString'])('CommentBody renders user:%s as plain text, not a chip', (uid) => {
+    const { container } = render(
+      createElement(CommentBody, { body: `hi @[Mallory](user:${uid})`, mentionNames: {} }),
+    );
+    expect(container.querySelector('.comment-mention-chip')).toBeNull();
+    expect(container.textContent).toBe('hi @Mallory');
+  });
+
+  it('CommentBody falls back to plain text when no mentionNames are passed at all', () => {
+    const { container } = render(createElement(CommentBody, { body: 'hi @[Mallory](user:constructor)' }));
+    expect(container.querySelector('.comment-mention-chip')).toBeNull();
+    expect(container.textContent).toBe('hi @Mallory');
   });
 });

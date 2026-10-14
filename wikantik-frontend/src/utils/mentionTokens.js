@@ -40,6 +40,20 @@ export function buildMentionToken(uid, displayName) {
   return `@[${snapshot}](user:${uid})`;
 }
 
+/**
+ * The current display name the server resolved for `uid`, or null when it did not.
+ *
+ * A token's uid is attacker-controlled text and `constructor`, `toString`, `valueOf`... all satisfy the
+ * uid pattern, so a bare `names[uid]` would find them on the prototype chain. Only an own entry whose
+ * value is a non-empty string counts as resolved. Every renderer that shows a current name goes
+ * through here.
+ */
+export function resolvedMentionName(names, uid) {
+  if (!names || !Object.hasOwn(names, uid)) return null;
+  const name = names[uid];
+  return typeof name === 'string' && name ? name : null;
+}
+
 // A token the server's snippet length cut off: `@[Na`, `@[Name]`, `@[Name](`, `@[Name](user:u-`.
 const PARTIAL_TAIL = /@\[[^\]\n]*(?:\](?:\([A-Za-z0-9:-]*)?)?$/;
 
@@ -51,6 +65,6 @@ const PARTIAL_TAIL = /@\[[^\]\n]*(?:\](?:\([A-Za-z0-9:-]*)?)?$/;
 export function flattenMentions(text, names = {}) {
   if (!text) return '';
   return splitMentions(text.replace(PARTIAL_TAIL, '…'))
-    .map((s) => (s.type === 'text' ? s.text : `@${names[s.uid] || s.snapshot}`))
+    .map((s) => (s.type === 'text' ? s.text : `@${resolvedMentionName(names, s.uid) ?? s.snapshot}`))
     .join('');
 }

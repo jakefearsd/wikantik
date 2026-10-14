@@ -124,6 +124,19 @@ describe('useMentionPicker', () => {
     expect(result.current.query).toBe('Zoë');
   });
 
+  it.each([
+    ['a decomposed (NFD) Latin name', 'Jose\u0301'],
+    ['a Devanagari name with vowel signs', 'अनुराग'],
+  ])('stays open while the fragment contains combining marks: %s', async (_label, fragment) => {
+    const value = `hi @${fragment}`;
+    textareaRef.current = makeTextarea(value, value.length);
+    const { result } = renderHook(() => useMentionPicker({ textareaRef, fetchCandidates }));
+    await act(async () => { result.current.onChange({ target: textareaRef.current }); });
+    await act(async () => { await vi.runAllTimersAsync(); });
+    expect(result.current.open).toBe(true);
+    expect(result.current.query).toBe(fragment);
+  });
+
   it('closes when the caret rests inside an already-inserted token', async () => {
     const value = 'hi @[Alice A](user:u-alice)';
     textareaRef.current = makeTextarea(value, value.length);

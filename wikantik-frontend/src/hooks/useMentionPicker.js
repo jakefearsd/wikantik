@@ -26,10 +26,11 @@ import { buildMentionToken } from '../utils/mentionTokens';
  *   close():        void — manually close (e.g., on blur)
  */
 
-// What a member may have typed after the '@': part of a display name. Letters and digits of
-// any script, plus the punctuation names commonly carry. Brackets, parentheses and colons are
-// excluded so a caret resting inside an already-inserted `@[Name](user:id)` token closes the picker.
-const TOKEN_RE = /^[\p{L}\p{N}._'’-]*$/u;
+// What a member may have typed after the '@': part of a display name. Letters and digits of any
+// script, combining marks (decomposed accents, Indic vowel signs), and the punctuation names commonly
+// carry. Brackets, parentheses and colons are excluded so a caret resting inside an already-inserted
+// `@[Name](user:id)` token closes the picker.
+const TOKEN_RE = /^[\p{L}\p{M}\p{N}._'’-]*$/u;
 
 export function useMentionPicker({ textareaRef, fetchCandidates }) {
   const [state, setState] = useState({

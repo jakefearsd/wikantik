@@ -51,6 +51,15 @@ describe('CommentBody', () => {
     expect(chips[1].textContent).toBe('@B');
   });
 
+  it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty'])(
+    'renders a forged user:%s token as plain @snapshot text, not an empty chip',
+    (uid) => {
+      const { container } = render(<CommentBody body={`hi @[Mallory](user:${uid})`} mentionNames={{}} />);
+      expect(container.querySelector('.comment-mention-chip')).toBeNull();
+      expect(container.textContent).toBe('hi @Mallory');
+    },
+  );
+
   it('never renders a chip as a link', () => {
     render(<CommentBody body="@[Alice A](user:u-1)" mentionNames={{ 'u-1': 'Alice A' }} />);
     expect(screen.queryByRole('link')).toBeNull();

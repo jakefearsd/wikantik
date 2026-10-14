@@ -123,6 +123,24 @@ describe('UserFormModal — cancel and error', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('shows the server reason from a 400 on create in the banner, not under the field, and stays open', async () => {
+    // Task 1 refuses an admin-created account without an acceptable display name with a 400.
+    const err = Object.assign(new Error('Display name is required'), { status: 400 });
+    const onSave = vi.fn().mockRejectedValue(err);
+    const onClose = vi.fn();
+    const { container } = render(<UserFormModal isOpen onClose={onClose} onSave={onSave} />);
+    const f = fields(container);
+    fireEvent.change(f.login, { target: { value: 'u' } });
+    fireEvent.change(f.fullName, { target: { value: 'Valid Name' } });
+    fireEvent.change(f.password, { target: { value: 'longenough' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create User' }));
+
+    expect(await screen.findByText('Display name is required')).toBeTruthy();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('display-name-error')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('shows the session-expired message on a 403 error', async () => {
     const err = new Error('forbidden');
     err.status = 403;

@@ -87,6 +87,18 @@ describe('MentionsPage', () => {
     expect(await screen.findByText(/see @Alice A and …/)).toBeTruthy();
   });
 
+  it.each(['constructor', 'toString'])(
+    'shows a forged user:%s token as @snapshot, never as a stringified function',
+    async (uid) => {
+      api.listMyMentions.mockResolvedValue({ mentions: [{
+        ...SAMPLE[0], snippet: `cc @[Mallory](user:${uid}) now`,
+      }] });
+      renderPage();
+      const snippet = await screen.findByText(/cc @Mallory now/);
+      expect(snippet.textContent).not.toContain('function');
+    },
+  );
+
   it('shows a notice instead of a snippet when the server omitted it', async () => {
     api.listMyMentions.mockResolvedValue({ mentions: [{ ...SAMPLE[0], snippet: undefined }] });
     renderPage();

@@ -25,9 +25,12 @@ import com.wikantik.api.core.Session;
 import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.ui.SemanticHeadRenderer;
@@ -578,7 +581,7 @@ public class SpaRoutingFilter implements Filter {
         // "Loading…" DOM that Google classifies as Soft 404. Seeding from the
         // island keeps content on screen for the first paint and for crawlers.
         // See PageView.jsx + useApi.js (initialData).
-        final String island = buildPageIsland( pageName, parsed, contentHtml );
+        final String island = buildPageIsland( pageName, parsed, contentHtml, PublicIdentities.forEngine( eng ) );
         if ( island != null ) {
             final int bodyClose = out.lastIndexOf( "</body>" );
             if ( bodyClose >= 0 ) {
@@ -614,15 +617,19 @@ public class SpaRoutingFilter implements Filter {
      * {@code contentHtml} (name, content, contentHtml, metadata) so the client can
      * seed its initial state without a render-critical network fetch. Returns
      * {@code null} on failure (the SPA then falls back to its normal fetch).
+     *
+     * <p>The island is served before the SPA knows who is viewing, so its {@code metadata} is what a reader who cannot
+     * edit would get from {@code GET /api/pages}: {@code author} and {@code verified_by} that are logins become display
+     * names. An editor re-fetches the raw metadata through the API, which is what the editor round-trips.
      */
     private static String buildPageIsland( final String pageName, final ParsedPage parsed,
-                                           final String contentHtml ) {
+                                           final String contentHtml, final PublicIdentity identity ) {
         try {
             final java.util.Map< String, Object > island = new java.util.LinkedHashMap<>();
             island.put( "name", pageName );
             island.put( "content", parsed.body() );
             island.put( "contentHtml", contentHtml );
-            island.put( "metadata", parsed.metadata() );
+            island.put( "metadata", IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
             island.put( "exists", true );
             return "<script>window.__WIKANTIK_PAGE__=" + ISLAND_GSON.toJson( island ) + ";</script>";
         } catch ( final RuntimeException ex ) {

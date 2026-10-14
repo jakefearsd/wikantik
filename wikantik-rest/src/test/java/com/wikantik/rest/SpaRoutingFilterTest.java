@@ -860,6 +860,38 @@ class SpaRoutingFilterTest {
     }
 
     /**
+     * The data island seeds the reader view before the SPA knows who is viewing, so its {@code metadata} is served
+     * as a non-editor sees it: {@code author} and {@code verified_by} that are logins appear as display names, never
+     * as the stored login (an editor re-fetches the raw metadata through {@code GET /api/pages}). Free text, and any
+     * other key, passes through untouched. The seeded account {@code janne} has the display name "Janne Jalkanen".
+     */
+    @Test
+    void ssrDataIslandMetadataShowsDisplayNamesNotLogins() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            engine.saveText( "SpaVerifiedPage",
+                    "---\nauthor: janne\nverified_by: janne\nreviewer: janne\n---\nVERIFIED_ISLAND_MARKER body." );
+            filter.setEngineForTest( engine );
+
+            filter.doFilter( mockRequest( "/wiki/SpaVerifiedPage" ), response, chain );
+
+            final String html = capturedOutput.asString();
+            final String prefix = "window.__WIKANTIK_PAGE__=";
+            final int start = html.indexOf( prefix );
+            assertTrue( start >= 0, "the data island is present" );
+            final String json = html.substring( start + prefix.length(), html.indexOf( ";</script>", start ) );
+            final com.google.gson.JsonObject metadata = com.google.gson.JsonParser.parseString( json )
+                    .getAsJsonObject().getAsJsonObject( "metadata" );
+
+            assertEquals( "Janne Jalkanen", metadata.get( "verified_by" ).getAsString() );
+            assertEquals( "Janne Jalkanen", metadata.get( "author" ).getAsString() );
+            assertEquals( "janne", metadata.get( "reviewer" ).getAsString(), "only author and verified_by name a principal" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    /**
      * Guards the fix from over-correcting into "never server-render": an unrestricted
      * page must still get its body injected, which is the whole point of the SSR path.
      */

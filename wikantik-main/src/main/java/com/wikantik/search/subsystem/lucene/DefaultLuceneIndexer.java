@@ -46,7 +46,7 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.util.AclDirectives;
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.util.FileUtil;
 import com.wikantik.util.TextUtil;
 
@@ -573,7 +573,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         // Access-rule directives name people by login and are not searchable content; indexing the text
         // without them keeps them out of hits and highlighted snippets. The frontmatter parse below still
         // reads the original text.
-        final String indexedText = AclDirectives.strip( text )
+        final String indexedText = AclDirectiveText.strip( text )
                 .replace( "__", " " ); // be nice to Language Analyzers - cfr. JSPWIKI-893
 
         Field field = new Field( LUCENE_ID, page.getName(), StringField.TYPE_STORED );

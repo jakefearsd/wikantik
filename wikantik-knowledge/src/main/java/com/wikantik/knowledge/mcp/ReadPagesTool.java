@@ -24,7 +24,7 @@ import com.wikantik.api.providers.PageProvider;
 import com.google.gson.Gson;
 import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
-import com.wikantik.util.AclDirectives;
+import com.wikantik.auth.acl.AclDirectiveText;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -166,7 +166,7 @@ public class ReadPagesTool extends AbstractMcpTool {
                 } else {
                     // Every caller here is a guest (see PageViewGate), so access-rule directives — which name people
                     // by login — are never returned.
-                    final String text = AclDirectives.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) );
+                    final String text = AclDirectiveText.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) );
                     entry.put( "content", text == null ? "" : text );
                 }
             } catch ( final Exception e ) {

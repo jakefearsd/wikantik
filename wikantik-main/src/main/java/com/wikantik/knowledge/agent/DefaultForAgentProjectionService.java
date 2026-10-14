@@ -38,7 +38,7 @@ import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.citation.CitationRepository;
 import com.wikantik.citation.CitationRow;
-import com.wikantik.util.AclDirectives;
+import com.wikantik.auth.acl.AclDirectiveText;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -223,7 +223,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 frontmatter = parsed.metadata();
                 // key_facts and the heading outline are derived from the body's first paragraphs, so a directive
                 // on its first lines would surface in them: access rules (people, by login) never enter the body.
-                body = AclDirectives.strip( parsed.body() );
+                body = AclDirectiveText.strip( parsed.body() );
             }
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: getPureText({}) failed — body & key_facts & headings will degrade: {}",

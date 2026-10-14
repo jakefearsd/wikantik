@@ -52,7 +52,7 @@ import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.export.HeadingSlugs;
 import com.wikantik.preview.PageExcerpts;
-import com.wikantik.util.AclDirectives;
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.util.TextUtil;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.content.WikiToMarkdownConverter;
@@ -270,16 +270,17 @@ public class PageResource extends RestServletBase {
             }
         }
 
-        final ParsedPage parsed = FrontmatterParser.parse( rawText );
-
         // Access-rule directives ([{ALLOW edit alice@…}]) name people by login. Whoever may edit the page
         // gets its text verbatim — the editor round-trips this very field — everyone else reads it without them.
+        // The text is stripped once, here, and everything a reader is shown (body, frontmatter, hash) derives from it;
+        // the rendered HTML below starts from rawText because the renderer consumes the directives itself.
         final boolean canEdit = hasPagePermission( request, pageName, "edit" );
-        final String visibleBody = canEdit ? parsed.body() : AclDirectives.strip( parsed.body() );
+        final String visibleText = AclDirectiveText.forViewer( canEdit, rawText );
+        final ParsedPage parsed = FrontmatterParser.parse( visibleText );
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "name", page.getName() );
-        result.put( "content", visibleBody );
+        result.put( "content", parsed.body() );
 
         // Rendered HTML option
         if ( render ) {
@@ -317,8 +318,7 @@ public class PageResource extends RestServletBase {
         // An editor round-trips GET → PUT with the hash of the full text. A reader never PUTs, and the hash of the
         // full text would let them confirm a guess at a hidden directive by hashing candidate texts — so they get
         // the hash of what they can see.
-        final String contentHash = com.wikantik.api.pages.PageSaveHelper.computeContentHash(
-                canEdit ? rawText : AclDirectives.strip( rawText ) );
+        final String contentHash = com.wikantik.api.pages.PageSaveHelper.computeContentHash( visibleText );
         result.put( "contentHash", contentHash );
 
         // Include markup syntax — "wiki" for legacy .txt pages, "markdown" for .md pages,
@@ -330,7 +330,7 @@ public class PageResource extends RestServletBase {
             markupSyntax = "markdown";
         }
         if( "markdown".equals( markupSyntax )
-                && WikiToMarkdownConverter.isLikelyWikiSyntax( contentHash, visibleBody ) ) {
+                && WikiToMarkdownConverter.isLikelyWikiSyntax( contentHash, parsed.body() ) ) {
             markupSyntax = "likely-wiki";
         }
         result.put( "markupSyntax", markupSyntax );

@@ -162,8 +162,12 @@ class ExportServiceTest {
     }
 
     private String exportedPage( final ExportSelection selection, final String path ) throws Exception {
+        return exportedPageAs( guest(), selection, path );
+    }
+
+    private String exportedPageAs( final Session session, final ExportSelection selection, final String path ) throws Exception {
         final ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        service.stream( service.prepare( guest(), selection ), bos );
+        service.stream( service.prepare( session, selection ), bos );
         final byte[] bytes = ObsidianVaultWriterTest.unzip( bos.toByteArray() ).get( path );
         assertTrue( bytes != null, "missing zip entry " + path );
         return new String( bytes, StandardCharsets.UTF_8 );
@@ -184,6 +188,24 @@ class ExportServiceTest {
 
         assertTrue( page.contains( "Open prose." ), page );
         assertFalse( page.contains( "leak-probe@example.test" ), page );
+    }
+
+    /**
+     * The other branch of the same rule: someone who may edit a page is handed its stored text — including a
+     * directive the converter's narrow pattern leaves alone — because they could read it in the editor anyway.
+     */
+    @Test
+    void anEditorsExportIsGivenTheStoredTextUnstripped() throws Exception {
+        engine.saveText( "FinanceRuledForEditor", "---\ntype: article\ncluster: finance\n---\n"
+                + "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}x}]\n# Ruled\n\nOpen prose.\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+        assertTrue( new PermissionFilter( engine ).canAccessQuietly( engine.adminSession(), "FinanceRuledForEditor", "edit" ),
+                "fixture is vacuous: the exporting session cannot edit the page" );
+
+        final String page = exportedPageAs( engine.adminSession(), finance( 0 ), "finance/FinanceRuledForEditor.md" );
+
+        assertTrue( page.contains( "Open prose." ), page );
+        assertTrue( page.contains( "leak-probe@example.test" ), "the editor branch must not strip: " + page );
     }
 
     @Test

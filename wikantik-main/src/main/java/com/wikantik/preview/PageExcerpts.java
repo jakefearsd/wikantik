@@ -29,7 +29,7 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
 
 import com.wikantik.api.parser.WikiLinkSyntax;
-import com.wikantik.util.AclDirectives;
+import com.wikantik.auth.acl.AclDirectiveText;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +53,7 @@ public final class PageExcerpts {
             return "";
         }
         // Access rules go first, through the one place that knows their syntax; PLUGIN then drops every other span.
-        final String withoutRules = AclDirectives.strip( markdownBody, " " );
+        final String withoutRules = AclDirectiveText.strip( markdownBody, " " );
         final String masked = WikiLinkSyntax.toPlainText(
                 CALLOUT_MARKER.matcher( PLUGIN.matcher( withoutRules ).replaceAll( " " ) ).replaceAll( "$1" ) );
         final StringBuilder text = new StringBuilder();

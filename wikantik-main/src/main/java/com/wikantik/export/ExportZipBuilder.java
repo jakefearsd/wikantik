@@ -48,7 +48,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.auth.permissions.PermissionFilter;
-import com.wikantik.util.AclDirectives;
+import com.wikantik.auth.acl.AclDirectiveText;
 
 /**
  * Does the actual work of {@link ExportService#stream}: plans the vault layout, converts every
@@ -164,7 +164,7 @@ final class ExportZipBuilder {
             // and the fallback below writes the text it was given — so a caller who may not edit the page never has
             // the directives in hand at all.
             final String fetched = pages.getPureText( page );
-            raw = permissions.canAccessQuietly( session, d.slug(), "edit" ) ? fetched : AclDirectives.strip( fetched );
+            raw = AclDirectiveText.forViewer( permissions.canAccessQuietly( session, d.slug(), "edit" ), fetched );
             final Map< String, Object > extra = extraFrontmatter( d, page, raw, layout );
             return CONVERTER.convert( d.slug(), raw, extra, ctx );
         } catch ( final RuntimeException e ) {

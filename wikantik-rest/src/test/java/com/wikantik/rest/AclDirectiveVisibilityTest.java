@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
@@ -83,6 +84,10 @@ class AclDirectiveVisibilityTest {
 
         engine.saveText( "AclVisibilityPage",
                 "---\ntitle: Acl Visibility\n---\n" + RULES + "# Heading\n\nPublic prose.\n" );
+        // The ACL manager enforces the edit rule (a lone backtick on the first line pairs with the first one on the
+        // second, so the rule is plain text), but a scanner that only looks at one line at a time would call it code.
+        engine.saveText( "AclTrickyPage",
+                "[{ALLOW view All}]\na `b\nc` [{ALLOW edit Admin," + LOGIN + "}] `d\n\nPublic prose.\n" );
         engine.saveText( "AclDiffPage", RULES + "First revision.\n" );
         engine.saveText( "AclDiffPage",
                 "[{ALLOW view All}]\n[{ALLOW edit Admin,other-" + LOGIN + "}]\nSecond revision.\n" );
@@ -96,7 +101,7 @@ class AclDirectiveVisibilityTest {
     @AfterAll
     static void stopEngine() {
         if ( engine != null ) {
-            engine.deleteQuietly( "AclVisibilityPage", "AclDiffPage", "AclVersionedPage" );
+            engine.deleteQuietly( "AclVisibilityPage", "AclDiffPage", "AclVersionedPage", "AclTrickyPage" );
             engine.stop();
         }
     }
@@ -135,12 +140,25 @@ class AclDirectiveVisibilityTest {
     }
 
     @Test
+    void readerGetsNoEnforcedDirectiveEvenWhereACodeScannerAndTheMarkdownParserDisagree() throws Exception {
+        final JsonObject page = getPage( reader( "/api/pages/AclTrickyPage" ), "AclTrickyPage" );
+
+        final String content = page.get( "content" ).getAsString();
+        assertFalse( page.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean(),
+                "fixture is vacuous: the edit rule is not enforced, so the reader can edit" );
+        assertFalse( content.contains( LOGIN ), content );
+        assertTrue( content.contains( "Public prose." ), content );
+    }
+
+    @Test
     void editorGetsPageContentWithDirectives() throws Exception {
         final JsonObject page = getPage( editor( "/api/pages/AclVisibilityPage" ), "AclVisibilityPage" );
 
-        final String content = page.get( "content" ).getAsString();
-        assertTrue( content.contains( "[{ALLOW edit Admin," + LOGIN + "}]" ),
-                "an editor round-trips this text, so it must be verbatim: " + content );
+        final String stored = FrontmatterParser.parse( engine.getManager( PageManager.class )
+                .getPureText( "AclVisibilityPage", PageProvider.LATEST_VERSION ) ).body();
+        assertTrue( stored.contains( "[{ALLOW edit Admin," + LOGIN + "}]" ), "fixture is vacuous: no directive is stored" );
+        assertEquals( stored, page.get( "content" ).getAsString(),
+                "an editor round-trips this text, so it must be byte-identical to what is stored" );
         assertTrue( page.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean() );
     }
 
@@ -194,8 +212,11 @@ class AclDirectiveVisibilityTest {
         Mockito.doReturn( "1" ).when( editorRequest ).getParameter( "version" );
         final String editorContent = getPage( editorRequest, "AclVersionedPage" ).get( "content" ).getAsString();
 
-        assertTrue( editorContent.contains( "[{ALLOW view All}]" ), editorContent );
-        assertTrue( editorContent.contains( "[{ALLOW edit Admin," + VERSION_LOGIN + "}]" ), editorContent );
+        final String storedVersionOne = FrontmatterParser.parse(
+                engine.getManager( PageManager.class ).getPureText( "AclVersionedPage", 1 ) ).body();
+        assertTrue( storedVersionOne.contains( "[{ALLOW edit Admin," + VERSION_LOGIN + "}]" ),
+                "fixture is vacuous: version 1 stores no directive" );
+        assertEquals( storedVersionOne, editorContent, "the editor gets version 1 byte for byte" );
     }
 
     // ---- GET /api/diff/{name}

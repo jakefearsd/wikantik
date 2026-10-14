@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 
@@ -125,6 +126,29 @@ class RecentChangesResourceTest {
         assertFalse( obj.has( "error" ), "Invalid limit should not cause an error" );
         assertTrue( obj.has( "changes" ) );
         assertTrue( obj.get( "changes" ).isJsonArray() );
+    }
+
+    @Test
+    void testRecentChangesAuthorsAreDisplayNames() throws Exception {
+        AuthoredPages.save( engine, "RestRecentByLogin", "Body.", "janne" );
+        AuthoredPages.save( engine, "RestRecentByLegacy", "Body.", "Legacy Person" );
+        try {
+            final JsonArray changes = gson.fromJson( doGet( null ), JsonObject.class ).getAsJsonArray( "changes" );
+
+            assertEquals( "Janne Jalkanen", authorOf( changes, "RestRecentByLogin" ) );
+            assertEquals( "Legacy Person", authorOf( changes, "RestRecentByLegacy" ) );
+        } finally {
+            engine.deleteQuietly( "RestRecentByLogin", "RestRecentByLegacy" );
+        }
+    }
+
+    private static String authorOf( final JsonArray changes, final String pageName ) {
+        for ( final com.google.gson.JsonElement e : changes ) {
+            if ( pageName.equals( e.getAsJsonObject().get( "name" ).getAsString() ) ) {
+                return e.getAsJsonObject().get( "author" ).getAsString();
+            }
+        }
+        return fail( pageName + " is missing from the recent changes: " + changes );
     }
 
     // ----- Helper methods -----

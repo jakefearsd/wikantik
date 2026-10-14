@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 
@@ -64,7 +65,7 @@ class PageListResourceTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            engine.deleteQuietly( "RestListAlpha", "RestListBeta", "RestListGamma" );
+            engine.deleteQuietly( "RestListAlpha", "RestListBeta", "RestListGamma", "RestListByLogin", "RestListByLegacy" );
             engine.stop();
         }
     }
@@ -438,6 +439,20 @@ class PageListResourceTest {
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         target.doGet( request, response );
         return sw.toString();
+    }
+
+    @Test
+    void testListPages_authorsAreDisplayNames() throws Exception {
+        AuthoredPages.save( engine, "RestListByLogin", "Body.", "janne" );
+        AuthoredPages.save( engine, "RestListByLegacy", "Body.", "Legacy Person" );
+
+        final JsonArray pages = gson.fromJson( doGetParams( java.util.Map.of( "prefix", "RestListBy" ) ),
+                JsonObject.class ).getAsJsonArray( "pages" );
+
+        assertEquals( 2, pages.size() );
+        // alphabetical: RestListByLegacy, RestListByLogin
+        assertEquals( "Legacy Person", pages.get( 0 ).getAsJsonObject().get( "author" ).getAsString() );
+        assertEquals( "Janne Jalkanen", pages.get( 1 ).getAsJsonObject().get( "author" ).getAsString() );
     }
 
     // ----- Helper methods -----

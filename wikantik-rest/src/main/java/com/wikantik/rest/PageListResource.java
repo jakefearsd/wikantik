@@ -24,6 +24,8 @@ import com.google.gson.JsonPrimitive;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.pagegraph.PageDescriptor;
@@ -109,6 +111,7 @@ public class PageListResource extends RestServletBase {
         }
 
         final PageManager pm = getSubsystems().page().pages();
+        final PublicIdentity identity = getSubsystems().auth().publicIdentity();
 
         final Collection< Page > candidates;
         try {
@@ -153,7 +156,7 @@ public class PageListResource extends RestServletBase {
         final SpineMeta spineMeta = loadSpineMeta( sliceNames );
 
         final List< Map< String, Object > > pageList = filtered.stream()
-                .map( page -> toEntry( page, spineMeta ) )
+                .map( page -> toEntry( page, spineMeta, identity ) )
                 .toList();
 
         final Map< String, Object > result = new LinkedHashMap<>();
@@ -194,12 +197,13 @@ public class PageListResource extends RestServletBase {
     }
 
     /** One {@code pages[]} entry; the structural-index fields are present only when the index knows them. */
-    private static Map< String, Object > toEntry( final Page page, final SpineMeta spineMeta ) {
+    private static Map< String, Object > toEntry( final Page page, final SpineMeta spineMeta,
+                                                  final PublicIdentity identity ) {
         final Map< String, Object > entry = new LinkedHashMap<>();
         entry.put( "name", page.getName() );
         entry.put( "lastModified", page.getLastModified() );
         entry.put( "version", Math.max( page.getVersion(), 1 ) );
-        entry.put( "author", page.getAuthor() );
+        entry.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
         putIfPresent( entry, "cluster", spineMeta.clusterBySlug().get( page.getName() ) );
         if ( spineMeta.derivedSlugs().contains( page.getName() ) ) {
             entry.put( "derived", true );

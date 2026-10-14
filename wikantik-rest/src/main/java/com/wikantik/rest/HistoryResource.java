@@ -19,6 +19,8 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletException;
@@ -59,6 +61,7 @@ public class HistoryResource extends RestServletBase {
         LOG.debug( "GET history: {}", pageName );
 
         final PageManager pm = getSubsystems().page().pages();
+        final PublicIdentity identity = getSubsystems().auth().publicIdentity();
 
         // Check if the page exists
         final Page page = pm.getPage( pageName );
@@ -80,7 +83,7 @@ public class HistoryResource extends RestServletBase {
             // Page exists but no version history — return the current page as the sole version
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "version", Math.max( page.getVersion(), 1 ) );
-            entry.put( "author", page.getAuthor() );
+            entry.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
             entry.put( "lastModified", page.getLastModified() );
             entry.put( "changeNote", page.getAttribute( Page.CHANGENOTE ) );
             versionList = List.of( entry );
@@ -89,7 +92,7 @@ public class HistoryResource extends RestServletBase {
                     .map( v -> {
                         final Map< String, Object > entry = new LinkedHashMap<>();
                         entry.put( "version", Math.max( v.getVersion(), 1 ) );
-                        entry.put( "author", v.getAuthor() );
+                        entry.put( "author", IdentityDisplay.ofAuthor( identity, v.getAuthor() ) );
                         entry.put( "lastModified", v.getLastModified() );
                         entry.put( "changeNote", v.getAttribute( Page.CHANGENOTE ) );
                         return entry;

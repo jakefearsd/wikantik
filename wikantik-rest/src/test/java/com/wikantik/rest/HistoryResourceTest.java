@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 
@@ -144,6 +145,22 @@ class HistoryResourceTest {
         assertTrue( firstVersion.has( "author" ) );
         assertTrue( firstVersion.has( "lastModified" ) );
         assertTrue( firstVersion.get( "version" ).getAsInt() >= 1 );
+    }
+
+    @Test
+    void testVersionAuthorsAreDisplayNamesAndLegacyStringsPassThrough() throws Exception {
+        AuthoredPages.save( engine, "RestHistoryAuthors", "First version.", "Legacy Person" );
+        AuthoredPages.save( engine, "RestHistoryAuthors", "Second version.", "janne" );
+        try {
+            final JsonArray versions = gson.fromJson( doGet( "RestHistoryAuthors" ), JsonObject.class )
+                    .getAsJsonArray( "versions" );
+            final java.util.Set< String > authors = new java.util.HashSet<>();
+            versions.forEach( v -> authors.add( v.getAsJsonObject().get( "author" ).getAsString() ) );
+
+            assertEquals( java.util.Set.of( "Legacy Person", "Janne Jalkanen" ), authors );
+        } finally {
+            engine.deleteQuietly( "RestHistoryAuthors" );
+        }
     }
 
     // ----- Helper methods -----

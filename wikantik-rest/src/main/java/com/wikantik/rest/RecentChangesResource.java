@@ -19,6 +19,8 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletException;
@@ -61,6 +63,7 @@ public class RecentChangesResource extends RestServletBase {
         limit = Math.max( limit, 1 );
 
         final PageManager pm = getSubsystems().page().pages();
+        final PublicIdentity identity = getSubsystems().auth().publicIdentity();
 
         final Set< Page > recentChanges = pm.getRecentChanges();
 
@@ -75,7 +78,7 @@ public class RecentChangesResource extends RestServletBase {
                 .map( page -> {
                     final Map< String, Object > entry = new LinkedHashMap<>();
                     entry.put( "name", page.getName() );
-                    entry.put( "author", page.getAuthor() );
+                    entry.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
                     entry.put( "lastModified", page.getLastModified() );
                     entry.put( "version", Math.max( page.getVersion(), 1 ) );
                     return entry;

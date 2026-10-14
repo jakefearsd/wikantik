@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Session;
@@ -87,7 +88,9 @@ class PageResourceTest {
                 "RestDeletePage", "RestRenderPage", "RestPluginPage", "RestPluginLinkPage", "RestEditLinkPage",
                 "RestVersionPage", "RestPatchMergePage", "RestPatchReplacePage", "RestRenameSource",
                 "RestRenameTarget", "RestRenameExisting", "RestBadVersionPage",
-                "RestNoParsePage", "RestRenderMetaPage", "RestPreviewPage", "RestPreviewBare" );
+                "RestNoParsePage", "RestRenderMetaPage", "RestPreviewPage", "RestPreviewBare",
+                "RestAuthorLoginPage", "RestAuthorLegacyPage", "RestAuthorEmailPage", "RestAuthorFrontmatterPage",
+                "RestAuthorPatchPage" );
         engine.getWikiProperties().remove( "wikantik.cors.allowedOrigins" );
     }
 
@@ -1100,6 +1103,77 @@ class PageResourceTest {
         engine.saveText( "RestEmbedFiltered", "Body embed-filter-marker.\n" );
         final JsonObject obj = gson.fromJson( doGet( "RestEmbedFiltered/embed" ), JsonObject.class );
         assertTrue( obj.get( "html" ).getAsString().contains( "embed-filter-applied" ), obj.toString() );
+    }
+
+    // ----- Display names instead of logins -----
+
+    @Test
+    void testGetPage_authorStoredAsLoginIsReturnedAsDisplayName() throws Exception {
+        AuthoredPages.save( engine, "RestAuthorLoginPage", "Body.", "janne" );
+
+        final JsonObject obj = gson.fromJson( doGet( "RestAuthorLoginPage" ), JsonObject.class );
+
+        assertEquals( "Janne Jalkanen", obj.get( "author" ).getAsString() );
+    }
+
+    @Test
+    void testGetPage_legacyAuthorStringPassesThroughUnchanged() throws Exception {
+        AuthoredPages.save( engine, "RestAuthorLegacyPage", "Body.", "Legacy Person" );
+
+        final JsonObject obj = gson.fromJson( doGet( "RestAuthorLegacyPage" ), JsonObject.class );
+
+        assertEquals( "Legacy Person", obj.get( "author" ).getAsString() );
+    }
+
+    @Test
+    void testGetPage_emailShapedAuthorOfNoAccountIsMasked() throws Exception {
+        AuthoredPages.save( engine, "RestAuthorEmailPage", "Body.", "gone.user@example.test" );
+
+        final String json = doGet( "RestAuthorEmailPage" );
+
+        assertEquals( "unknown contributor",
+                gson.fromJson( json, JsonObject.class ).get( "author" ).getAsString() );
+        assertFalse( json.contains( "gone.user@example.test" ), "an email-shaped author must never be served" );
+    }
+
+    @Test
+    void testGetPage_frontmatterAuthorAndVerifiedByResolveOnlyWhenTheyAreLogins() throws Exception {
+        engine.saveText( "RestAuthorFrontmatterPage",
+                "---\nauthor: janne\nverified_by: janne\nreviewer: janne\n---\nBody." );
+
+        final JsonObject meta = gson.fromJson( doGet( "RestAuthorFrontmatterPage" ), JsonObject.class )
+                .getAsJsonObject( "metadata" );
+
+        assertEquals( "Janne Jalkanen", meta.get( "author" ).getAsString() );
+        assertEquals( "Janne Jalkanen", meta.get( "verified_by" ).getAsString() );
+        assertEquals( "janne", meta.get( "reviewer" ).getAsString(), "only author and verified_by name a principal" );
+    }
+
+    @Test
+    void testGetPage_frontmatterFreeTextAuthorIsShownAsWritten() throws Exception {
+        engine.saveText( "RestAuthorFrontmatterPage", "---\nauthor: claude-code-researcher\n---\nBody." );
+
+        final JsonObject meta = gson.fromJson( doGet( "RestAuthorFrontmatterPage" ), JsonObject.class )
+                .getAsJsonObject( "metadata" );
+
+        assertEquals( "claude-code-researcher", meta.get( "author" ).getAsString() );
+    }
+
+    @Test
+    void testPatchPage_responseAuthorIsADisplayName() throws Exception {
+        engine.adminSession();   // authenticates the shared mock session as login "admin" (display name "Administrator")
+        engine.saveText( "RestAuthorPatchPage", "---\ntype: article\n---\nBody." );
+
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "category", "new-category" );
+        patchBody.add( "metadata", meta );
+        patchBody.addProperty( "action", "merge" );
+
+        final JsonObject obj = gson.fromJson( doPatch( "RestAuthorPatchPage", patchBody ), JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        assertEquals( "Administrator", obj.get( "author" ).getAsString() );
     }
 
     // ----- Helper methods -----

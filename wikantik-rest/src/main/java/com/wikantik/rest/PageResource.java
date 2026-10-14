@@ -38,6 +38,8 @@ import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
@@ -294,9 +296,12 @@ public class PageResource extends RestServletBase {
             }
         }
 
-        result.put( "metadata", parsed.metadata() );
+        // Readers see display names, never stored logins. Frontmatter author/verified_by are editor-typed text:
+        // they are replaced only when they happen to be a login.
+        final PublicIdentity identity = getSubsystems().auth().publicIdentity();
+        result.put( "metadata", IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
         result.put( "version", Math.max( page.getVersion(), 1 ) );
-        result.put( "author", page.getAuthor() );
+        result.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
         result.put( "lastModified", page.getLastModified() );
         result.put( "exists", true );
 
@@ -728,8 +733,9 @@ public class PageResource extends RestServletBase {
             result.put( "success", true );
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
-            result.put( "author", saved.getAuthor() ); // D7
-            result.put( "metadata", newMetadata );
+            final PublicIdentity identity = getSubsystems().auth().publicIdentity();
+            result.put( "author", IdentityDisplay.ofAuthor( identity, saved.getAuthor() ) ); // D7
+            result.put( "metadata", IdentityDisplay.frontmatter( identity, newMetadata ) );
 
             sendJson( response, result );
 

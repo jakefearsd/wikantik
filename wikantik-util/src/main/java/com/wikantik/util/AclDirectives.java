@@ -43,8 +43,10 @@ import java.util.Objects;
  * is documentation, not a rule, and is kept.
  *
  * <p>Everything else is returned byte-for-byte: other {@code [{Plugin}]} spans, line endings, whitespace around a
- * removed directive. Only the directive itself (plus an immediately trailing {@code ()}) is removed — a directive on
- * its own line leaves an empty line behind.
+ * removed directive. Only the directive itself (plus an immediately trailing {@code ()}) is removed — except that a
+ * directive that is all its line holds (spaces and tabs aside) goes with that line's terminator (on the last line,
+ * with the terminator before it), so no blank line is left behind: a blank line would end the paragraph or the HTML
+ * block the directive sat in and change how the rest of the page renders ({@link #removal}).
  *
  * <p><b>Fail-closed bias, not a promise.</b> Code detection is a small purpose-built scanner (this module carries no
  * Markdown parser) that only trusts what it can be certain of: a <em>closed</em> fenced block whose fences have at
@@ -138,16 +140,96 @@ public final class AclDirectives {
                 span = scanner.next( span.start() + 1 );
                 continue;
             }
-            final int end = AclDirectiveScanner.endWithEmptyParentheses( text, span );
-            out.append( text, copiedTo, span.start() ).append( replacement );
-            copiedTo = end;
+            final Removal removal = removal( text, span.start(), AclDirectiveScanner.endWithEmptyParentheses( text, span ),
+                    copiedTo, text.length() );
+            out.append( text, copiedTo, removal.start() ).append( removal.wholeLine() ? "" : replacement );
+            copiedTo = removal.end();
             changed = true;
-            span = scanner.next( end );
+            span = scanner.next( copiedTo );
         }
         if ( !changed ) {
             return null;
         }
         return out.append( text, copiedTo, text.length() ).toString();
+    }
+
+    /**
+     * What to cut for a directive at {@code [start, end)}: the directive itself, or, when it is all its line holds
+     * (spaces and tabs aside), the whole line with its terminator — on the last line of the region, with the terminator
+     * before it.
+     * The cut never reaches below {@code floor} or beyond {@code ceiling} (the edges of the region being rewritten).
+     *
+     * @param start     where the directive starts
+     * @param end       where it ends (with any empty {@code ()} after it)
+     * @param wholeLine whether the line went with it; the caller then puts no replacement in its place, as the line end
+     *                  before it already keeps the words either side apart
+     */
+    public record Removal( int start, int end, boolean wholeLine ) {
+    }
+
+    /**
+     * @param text    the text
+     * @param start   the directive's start
+     * @param end     the directive's end (with any empty {@code ()} after it)
+     * @param floor   the lowest offset the cut may reach (a line start, or text already handled)
+     * @param ceiling the highest offset the cut may reach (a line end)
+     * @return the range to cut
+     */
+    public static Removal removal( final String text, final int start, final int end, final int floor, final int ceiling ) {
+        final int lineStart = skipBlanksBack( text, start, floor );
+        final int lineEnd = skipBlanks( text, end, ceiling );
+        if ( !startsLine( text, lineStart ) || !endsLine( text, lineEnd ) ) {
+            return new Removal( start, end, false );
+        }
+        if ( lineEnd < ceiling ) {
+            return new Removal( lineStart, lineEnd + lineEndLength( text, lineEnd, ceiling ), true );
+        }
+        if ( lineStart > floor ) {
+            return new Removal( lineEndStartBefore( text, lineStart, floor ), lineEnd, true );
+        }
+        return new Removal( lineStart, lineEnd, true );
+    }
+
+    private static int skipBlanksBack( final String text, final int from, final int floor ) {
+        int i = from;
+        while ( i > floor && isBlank( text.charAt( i - 1 ) ) ) {
+            i--;
+        }
+        return i;
+    }
+
+    private static int skipBlanks( final String text, final int from, final int ceiling ) {
+        int i = from;
+        while ( i < ceiling && isBlank( text.charAt( i ) ) ) {
+            i++;
+        }
+        return i;
+    }
+
+    private static boolean startsLine( final String text, final int at ) {
+        return at == 0 || isLineEnd( text.charAt( at - 1 ) );
+    }
+
+    private static boolean endsLine( final String text, final int at ) {
+        return at == text.length() || isLineEnd( text.charAt( at ) );
+    }
+
+    /** Length of the line terminator at {@code at} ({@code \r\n} is one), not reaching {@code ceiling}. */
+    private static int lineEndLength( final String text, final int at, final int ceiling ) {
+        return text.startsWith( "\r\n", at ) && at + 1 < ceiling ? 2 : 1;
+    }
+
+    /** Where the line terminator that ends right at {@code at} starts, not reaching below {@code floor}. */
+    private static int lineEndStartBefore( final String text, final int at, final int floor ) {
+        return at - 2 >= floor && text.startsWith( "\r\n", at - 2 ) ? at - 2 : at - 1;
+    }
+
+    private static boolean isBlank( final char c ) {
+        return c == ' ' || c == '\t';
+    }
+
+    private static boolean isLineEnd( final char c ) {
+        return c == '\n' || c == '\r';
     }
 
     // ---------------------------------------------------------------- code regions

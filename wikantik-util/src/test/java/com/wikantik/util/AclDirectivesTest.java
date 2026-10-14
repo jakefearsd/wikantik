@@ -68,7 +68,7 @@ class AclDirectivesTest {
 
     @Test
     void allowDirectiveIsRemoved() {
-        assertEquals( "\nBody.", AclDirectives.strip( "[{ALLOW edit " + LOGIN + "}]\nBody." ) );
+        assertEquals( "Body.", AclDirectives.strip( "[{ALLOW edit " + LOGIN + "}]\nBody." ) );
     }
 
     @Test
@@ -78,7 +78,7 @@ class AclDirectivesTest {
 
     @Test
     void normalisedFormWithEmptyParenthesesIsRemovedWithItsParentheses() {
-        assertEquals( "\nBody.", AclDirectives.strip( "[{ALLOW view All}]()\nBody." ) );
+        assertEquals( "Body.", AclDirectives.strip( "[{ALLOW view All}]()\nBody." ) );
     }
 
     @Test
@@ -129,14 +129,19 @@ class AclDirectivesTest {
     }
 
     @Test
-    void aDirectiveOnItsOwnLineLeavesAnEmptyLineAndNothingElseChanges() {
-        assertEquals( "---\ntitle: T\n---\n\n[{TableOfContents}]\n\n# H\r\n",
+    void aDirectiveOnItsOwnLineGoesWithItsLineEndAndNothingElseChanges() {
+        // No blank line is left behind: a blank line would end a paragraph or an HTML block that the rule sat in.
+        assertEquals( "---\ntitle: T\n---\n[{TableOfContents}]\n\n# H\r\n",
                 AclDirectives.strip( "---\ntitle: T\n---\n[{ALLOW edit " + LOGIN + "}]\n[{TableOfContents}]\n\n# H\r\n" ) );
+        assertEquals( "Intro\nMore", AclDirectives.strip( "Intro\n  [{DENY edit " + LOGIN + "}] \nMore" ) );
+        assertEquals( "Body", AclDirectives.strip( "Body\n[{ALLOW view All}]" ), "on the last line, the line end before it" );
+        assertEquals( "Intro  more", AclDirectives.strip( "Intro [{ALLOW view All}] more" ), "inside a line, only the rule" );
     }
 
     @Test
     void windowsLineEndingsAroundADirectiveSurvive() {
-        assertEquals( "\r\n# Title\r\n", AclDirectives.strip( "[{ALLOW view All}]\r\n# Title\r\n" ) );
+        assertEquals( "# Title\r\n", AclDirectives.strip( "[{ALLOW view All}]\r\n# Title\r\n" ) );
+        assertEquals( "a\r\nb", AclDirectives.strip( "a\r\n[{ALLOW view All}]\r\nb" ) );
     }
 
     @Test
@@ -144,7 +149,7 @@ class AclDirectivesTest {
         final String text = "[{TableOfContents}]\n[{SET foo='bar'}]\n[{Image src='x.png' caption='a'}]\n"
                 + "[{INSERT Foo}]\n[{$pagename}]\n";
         assertSame( text, AclDirectives.strip( text ) );
-        assertEquals( "[{TableOfContents}]\n\n[{Image src='x.png'}]",
+        assertEquals( "[{TableOfContents}]\n[{Image src='x.png'}]",
                 AclDirectives.strip( "[{TableOfContents}]\n[{ALLOW edit " + LOGIN + "}]\n[{Image src='x.png'}]" ) );
     }
 
@@ -199,14 +204,14 @@ class AclDirectivesTest {
 
     @Test
     void aShorterRunDoesNotCloseAFenceSoTheFenceIsNeverClosedAndIsNotTrusted() {
-        assertEquals( "````\n```\n\n",
+        assertEquals( "````\n```\n",
                 AclDirectives.strip( "````\n```\n[{ALLOW edit " + LOGIN + "}]\n" ) );
     }
 
     @Test
     void anUnclosedFenceIsNotTrustedAsCode() {
         // The renderer would treat the rest of the page as code; we hide the directive regardless (fail closed).
-        assertEquals( "```\ncode\n\nmore", AclDirectives.strip( "```\ncode\n[{ALLOW edit " + LOGIN + "}]\nmore" ) );
+        assertEquals( "```\ncode\nmore", AclDirectives.strip( "```\ncode\n[{ALLOW edit " + LOGIN + "}]\nmore" ) );
     }
 
     @Test
@@ -217,19 +222,19 @@ class AclDirectivesTest {
 
     @Test
     void fenceIndentedByFourSpacesIsNotAFence() {
-        assertEquals( "    ```\n\n    ```\n",
+        assertEquals( "    ```\n    ```\n",
                 AclDirectives.strip( "    ```\n[{ALLOW edit " + LOGIN + "}]\n    ```\n" ) );
     }
 
     @Test
     void directiveAfterAClosedFenceIsRemovedAndTheFenceIsUntouched() {
-        assertEquals( "```\n[{ALLOW edit a}]\n```\n\nbody",
+        assertEquals( "```\n[{ALLOW edit a}]\n```\nbody",
                 AclDirectives.strip( "```\n[{ALLOW edit a}]\n```\n[{ALLOW edit " + LOGIN + "}]\nbody" ) );
     }
 
     @Test
     void directiveBeforeAFenceIsRemoved() {
-        assertEquals( "\n```\ncode\n```\n",
+        assertEquals( "```\ncode\n```\n",
                 AclDirectives.strip( "[{ALLOW edit " + LOGIN + "}]\n```\ncode\n```\n" ) );
     }
 
@@ -277,7 +282,7 @@ class AclDirectivesTest {
     @Test
     void aBacktickSpanDoesNotCrossABlankLine() {
         // The lone backticks are literal text; the directive between them is a real one.
-        assertEquals( "a ` b\n\n\n\nc ` d",
+        assertEquals( "a ` b\n\n\nc ` d",
                 AclDirectives.strip( "a ` b\n\n[{ALLOW edit " + LOGIN + "}]\n\nc ` d" ) );
     }
 
@@ -315,7 +320,7 @@ class AclDirectivesTest {
 
     @Test
     void aDirectiveWrappedOverSeveralLinesIsRemoved() {
-        assertEquals( "\nBody.", AclDirectives.strip( "[{ALLOW edit alice@example.test,\n bob@example.test}]\nBody." ) );
+        assertEquals( "Body.", AclDirectives.strip( "[{ALLOW edit alice@example.test,\n bob@example.test}]\nBody." ) );
         assertEquals( "x", AclDirectives.strip( "x[{DENY view alice@example.test,\r\n  bob@example.test\r\n}]" ) );
     }
 
@@ -377,7 +382,7 @@ class AclDirectivesTest {
         final String wrapped = "summary: How to use [{ALLOW view a,\nb}] rules";
         assertSame( wrapped, AclDirectives.strip( wrapped, "", false ) );
         assertEquals( "summary: How to use  rules", AclDirectives.strip( "summary: How to use [{ALLOW view a}] rules", "", false ) );
-        assertEquals( "\nBody.", AclDirectives.strip( "[{ALLOW edit a,\n b}]\nBody.", "", true ) );
+        assertEquals( "Body.", AclDirectives.strip( "[{ALLOW edit a,\n b}]\nBody.", "", true ) );
     }
 
     // ---- running time on a page with very many code spans and very many candidates ----
@@ -395,7 +400,7 @@ class AclDirectivesTest {
 
     @Test
     void directiveInAnIndentedCodeBlockIsRemovedBecauseTheScannerErrsOnTheSideOfHiding() {
-        assertEquals( "Before.\n\n    \n\nAfter.\n",
+        assertEquals( "Before.\n\n\nAfter.\n",
                 AclDirectives.strip( "Before.\n\n    [{ALLOW view Admin}]\n\nAfter.\n" ) );
     }
 

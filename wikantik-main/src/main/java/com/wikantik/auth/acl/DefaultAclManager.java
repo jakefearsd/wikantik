@@ -169,9 +169,7 @@ public class DefaultAclManager implements AclManager {
             return hit.acl();
         }
 
-        //  Extract ACLs from the page text — the one source of a page's ACL (no render or metadata parse sets one any
-        //  more): the text scan plus the render path's own shapes (EnforcedAclDirectives), far cheaper than a render.
-        //  The cache is in memory only, so a deploy that changes the scan needs no migration.
+        //  Extract ACLs directly from page text using regex - much faster than full page render
         acl = extractAclFromPageText( page );
         page.setAcl( acl );
         aclCache.put( page.getName(), new CachedAcl( page.getVersion(), lastModified, acl ) );
@@ -179,8 +177,7 @@ public class DefaultAclManager implements AclManager {
     }
 
     /**
-     * Extracts ACL rules directly from page text: every rule {@link EnforcedAclDirectives} finds — the text scan's
-     * one-line directives outside code, and the rules the render path reads (wrapped, {@code DENY}, …).
+     * Extracts ACL rules directly from page text using regex pattern matching.
      * This is a lightweight alternative to full page rendering for ACL extraction.
      *
      * @param page the page to extract ACLs from
@@ -195,7 +192,8 @@ public class DefaultAclManager implements AclManager {
                 return acl;
             }
 
-            for( final String ruleLine : EnforcedAclDirectives.ruleLines( pageText ) ) {
+            for( final String directive : aclDirectives( pageText ) ) {
+                final String ruleLine = ruleLineOf( directive );
                 try {
                     acl = parseAcl( page, ruleLine );
                 } catch( final WikiSecurityException e ) {
@@ -214,7 +212,7 @@ public class DefaultAclManager implements AclManager {
      * brace-free rule line {@link #parseAcl} expects ({@code ALLOW view Alice,Bob}).
      *
      * <p>This mirrors what the render path
-     * ({@code AccessRuleLinkNodePostProcessorState#ruleLineOf}) does before calling
+     * ({@code AccessRuleLinkNodePostProcessorState}) already does before calling
      * {@code parseAcl}. Without it, {@code parseAcl}'s {@link StringTokenizer} folds
      * the trailing {@code "}]"} into the <em>last</em> principal name, yielding an
      * entry ({@code "Alice}]"}) that can never match a real principal — a non-empty
@@ -228,20 +226,18 @@ public class DefaultAclManager implements AclManager {
     }
 
     /**
-     * Returns the <em>enforceable</em> ACL directives in {@code pageText}, as written: every
+     * Returns the <em>enforceable</em> ACL directives in {@code pageText}: every
      * {@code [{ALLOW …}]} match that is NOT inside a Markdown code span or code
-     * block, plus every rule the render path reads (a rule wrapped over several
-     * lines, {@code DENY}, …, see {@link EnforcedAclDirectives}). The identical syntax
-     * shown inside backticks or a fenced/indented block is documentation (e.g. a
-     * page that explains how ACLs work) and is skipped, so such a page no longer
-     * accidentally restricts itself.
+     * block. The identical syntax shown inside backticks or a fenced/indented
+     * block is documentation (e.g. a page that explains how ACLs work) and is
+     * skipped, so such a page no longer accidentally restricts itself.
      *
      * <p>The scanner fails closed toward enforcement: a directive in ordinary
      * page text is always returned, so a genuine restriction is never silently
      * dropped. Order of appearance is preserved.
      *
      * @param pageText the raw page source (may be {@code null})
-     * @return the enforced rules' source strings, in document order
+     * @return the matched directive strings outside code, in document order
      * @see EnforcedAclDirectives
      */
     static List< String > aclDirectives( final String pageText ) {

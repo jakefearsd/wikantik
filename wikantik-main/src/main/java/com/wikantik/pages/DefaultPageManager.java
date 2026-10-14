@@ -215,17 +215,12 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
             try {
                 int pagesChanged = 0;
                 final Collection<Page> pages = getAllPages();
-                final com.wikantik.auth.acl.AclManager aclManager =
-                        com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager();
                 for ( final Page page : pages ) {
-                    // Load the page's ACL from its text first: nothing else sets it on an instance any more (renders and
-                    // metadata parses used to, for whichever instance they happened to touch).
-                    aclManager.getPermissions( page );
                     final boolean aclChanged = changeAcl( page, oldPrincipals, newPrincipal );
                     if ( aclChanged ) {
                         // If the Acl needed changing, change it now
                         try {
-                            aclManager.setPermissions( page, page.getAcl() );
+                            com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager().setPermissions( page, page.getAcl() );
                         } catch ( final WikiSecurityException e ) {
                             LOG.error( "Could not change page ACL for page {}: {}", page.getName(), e.getMessage(), e );
                         }

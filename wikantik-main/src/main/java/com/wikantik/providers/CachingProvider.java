@@ -423,8 +423,7 @@ public class CachingProvider implements PageProvider {
                     return; // no text to read metadata from: the next read tries again
                 }
                 if( !data.contains( "[{" ) ) {
-                    // Only plugin markup such as [{SET}] needs the markup parse (access rules are the ACL manager's
-                    // business, read from the text); without any the frontmatter is all
+                    // Only [{ALLOW}]/[{DENY}] and [{SET}] need the markup parse; without them the frontmatter is all
                     // the metadata there is. Spares every first read of a freshly saved page a render-grade parse.
                     FrontmatterParser.parse( data ).metadata().forEach( page::setAttribute );
                     page.setHasMetadata();
@@ -433,9 +432,6 @@ public class CachingProvider implements PageProvider {
                 final RenderingManager mgr = RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
                 final Context ctx = Wiki.context().create( engine, page );
                 final MarkupParser parser = mgr.getParser( ctx, data );
-                // Metadata only: the page's ACL is the ACL manager's text scan, never what this parse reads (it used to
-                // set a partial one — the rules this parser understands — on whichever instance it parsed first).
-                parser.disableAccessRules();
 
                 parser.parse();
                 page.setHasMetadata();   // mark parsed so the next getPageInfo cache hit short-circuits

@@ -18,6 +18,8 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.util.AclDirectives;
+
 import java.util.regex.Pattern;
 
 /**
@@ -58,8 +60,9 @@ public final class SummaryExtractor {
     public static String extract( final String body ) {
         if( body == null || body.isBlank() ) return "";
 
-        // Strip plugin calls first, before markdown stripping
-        String text = PLUGIN_CALL.matcher( body ).replaceAll( " " );
+        // Access-rule directives first, through the one place that knows their syntax (and keeps the words
+        // either side of one apart), then every other plugin call, before markdown stripping
+        String text = PLUGIN_CALL.matcher( AclDirectives.strip( body, " " ) ).replaceAll( " " );
 
         // Strip markdown (also strips frontmatter, headings, links, emphasis, etc.)
         text = NodeTextAssembler.stripMarkdown( text );

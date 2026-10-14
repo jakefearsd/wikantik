@@ -1,0 +1,280 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.util;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Removes page access-rule directives ({@code [{ALLOW view Alice}]}, {@code [{DENY edit Bob}]}) from
+ * raw page text, so the people an access rule names are not disclosed to readers who may not edit the
+ * page, and are not carried into search snippets, retrieval chunks or embeddings.
+ *
+ * <p>What counts as a directive mirrors {@code DefaultAclManager} in {@code wikantik-main}, which this
+ * module cannot depend on: the {@code [{ALLOW <permission> <principals>}]} span, where
+ * {@code <permission>} is one of the seven page permissions. The scan is code-aware in the same way —
+ * the identical text inside a fenced code block or an inline code span is documentation, not a rule,
+ * and is kept. {@code DefaultAclManager} (and the renderer) also recognise the {@code [{DENY …}]} form
+ * as an access rule, so it is removed too, and the spelling that plugin normalisation produces
+ * ({@code [{ALLOW view All}]()}) is removed together with its empty {@code ()}.
+ *
+ * <p>Everything else is returned byte-for-byte: other {@code [{Plugin}]} spans, line endings,
+ * whitespace around a removed directive. Only the directive itself (plus an immediately trailing
+ * {@code ()}) is removed — a directive on its own line leaves an empty line behind.
+ *
+ * <p><b>Fail-closed bias.</b> Code detection is a small purpose-built scanner (this module carries no
+ * Markdown parser) that only trusts what it can be certain of: a <em>closed</em> fenced block whose
+ * fences have at most three spaces of indent, and an inline backtick span that opens and closes on one
+ * line. Anything else — an unclosed fence, a span that wraps onto another line, an indented code
+ * block, a fence nested deeper in a list — is treated as ordinary text, so a directive there is
+ * removed. That can only hide a documentation example from a reader; it can never expose a real rule.
+ *
+ * <p>Removing a directive can in principle splice the text either side of it into a new one
+ * ({@code [{ALLOW vi[{ALLOW view a}]ew a}]}), so the scan repeats until nothing more matches (bounded).
+ */
+public final class AclDirectives {
+
+    /** The page permissions an access rule can name — the action constants of {@code PagePermission}. */
+    private static final String PERMISSIONS = "(?:comment|delete|edit|modify|rename|upload|view)";
+
+    /**
+     * {@code DefaultAclManager.ACL_PATTERN} with {@code DENY} added and an optional trailing {@code ()}.
+     * The part after the permission (optional whitespace, a lazy run of anything, optional whitespace,
+     * then the closing brace and bracket) is deliberately identical, so both sides agree on where a
+     * directive ends.
+     */
+    private static final Pattern DIRECTIVE = Pattern.compile(
+            "\\[\\{\\s*(?:ALLOW|DENY)\\s+" + PERMISSIONS + "\\s*(?:.*?)\\s*\\}\\](?:\\(\\))?" );
+
+    /** Upper bound on re-scans after a removal; real pages converge in one. */
+    private static final int MAX_PASSES = 8;
+
+    private AclDirectives() {
+    }
+
+    /**
+     * Removes every access-rule directive outside code from {@code markdown}.
+     *
+     * @param markdown raw page text (frontmatter included is fine), may be {@code null}
+     * @return the text without directives; the same instance when there was nothing to remove;
+     *         {@code null} when {@code markdown} is {@code null}
+     */
+    public static String strip( final String markdown ) {
+        return strip( markdown, "" );
+    }
+
+    /**
+     * Like {@link #strip(String)}, but each removed directive is replaced by {@code replacement}
+     * (for callers such as excerpt builders that must keep the words either side apart).
+     *
+     * @param markdown    raw page text, may be {@code null}
+     * @param replacement text put in place of each directive; must be shorter than the shortest
+     *                    directive and must not itself contain an opening <code>[&#123;</code>
+     * @return the text with directives replaced; the same instance when there was nothing to replace
+     */
+    public static String strip( final String markdown, final String replacement ) {
+        Objects.requireNonNull( replacement, "replacement" );
+        if ( markdown == null || markdown.indexOf( "[{" ) < 0 ) {
+            return markdown;
+        }
+        String current = markdown;
+        for ( int pass = 0; pass < MAX_PASSES; pass++ ) {
+            final String next = stripOnce( current, replacement );
+            if ( next == null ) {
+                break;
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    /** One left-to-right pass; {@code null} when no directive outside code was found. */
+    private static String stripOnce( final String text, final String replacement ) {
+        final Matcher matcher = DIRECTIVE.matcher( text );
+        if ( !matcher.find() ) {
+            return null;
+        }
+        final List< int[] > code = codeRegions( text );
+        final StringBuilder out = new StringBuilder( text.length() );
+        int copiedTo = 0;
+        boolean changed = false;
+        do {
+            if ( !insideCode( code, matcher.start() ) ) {
+                out.append( text, copiedTo, matcher.start() ).append( replacement );
+                copiedTo = matcher.end();
+                changed = true;
+            }
+        } while ( matcher.find() );
+        if ( !changed ) {
+            return null;
+        }
+        return out.append( text, copiedTo, text.length() ).toString();
+    }
+
+    // ---------------------------------------------------------------- code regions
+
+    /** {@code [start, end)} offsets of every closed fenced code block and one-line inline code span. */
+    private static List< int[] > codeRegions( final String text ) {
+        final List< int[] > regions = fencedBlocks( text );
+        int lineStart = 0;
+        while ( lineStart < text.length() ) {
+            final int newline = text.indexOf( '\n', lineStart );
+            final int lineEnd = newline < 0 ? text.length() : newline;
+            spansInLine( text, lineStart, lineEnd, regions );
+            lineStart = lineEnd + 1;
+        }
+        return regions;
+    }
+
+    private static boolean insideCode( final List< int[] > regions, final int offset ) {
+        for ( final int[] region : regions ) {
+            if ( offset >= region[ 0 ] && offset < region[ 1 ] ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A run of three or more {@code `} or {@code ~} that starts a line, and where it ends. */
+    private record Marker( char ch, int length, int end ) {
+    }
+
+    /**
+     * Fenced code blocks, CommonMark-style: an opening run of 3+ {@code `} or {@code ~} (at most three
+     * spaces of indent; a backtick fence's info string may not contain a backtick) closed by a run of
+     * the same character at least as long with nothing after it. An unclosed fence is not reported (see the
+     * class comment). Each block spans from the start of its opening line to the end of its closing line.
+     */
+    private static List< int[] > fencedBlocks( final String text ) {
+        final List< int[] > blocks = new ArrayList<>();
+        final int length = text.length();
+        Marker open = null;
+        int openStart = 0;
+        int lineStart = 0;
+        while ( lineStart < length ) {
+            final int newline = text.indexOf( '\n', lineStart );
+            final int lineEnd = newline < 0 ? length : newline;
+            final Marker marker = markerAt( text, lineStart, lineEnd );
+            if ( open == null ) {
+                if ( marker != null && opensFence( text, marker, lineEnd ) ) {
+                    open = marker;
+                    openStart = lineStart;
+                }
+            } else if ( marker != null && closesFence( text, open, marker, lineEnd ) ) {
+                blocks.add( new int[]{ openStart, lineEnd } );
+                open = null;
+            }
+            lineStart = lineEnd + 1;
+        }
+        return blocks;
+    }
+
+    private static Marker markerAt( final String text, final int lineStart, final int lineEnd ) {
+        int i = lineStart;
+        while ( i < lineEnd && i - lineStart < 4 && text.charAt( i ) == ' ' ) {
+            i++;
+        }
+        if ( i - lineStart > 3 || i >= lineEnd ) {
+            return null;
+        }
+        final char ch = text.charAt( i );
+        if ( ch != '`' && ch != '~' ) {
+            return null;
+        }
+        final int end = skipRun( text, i, lineEnd, ch );
+        return end - i >= 3 ? new Marker( ch, end - i, end ) : null;
+    }
+
+    private static boolean opensFence( final String text, final Marker marker, final int lineEnd ) {
+        if ( marker.ch() == '~' ) {
+            return true;
+        }
+        final int backtick = text.indexOf( '`', marker.end() );
+        return backtick < 0 || backtick >= lineEnd;
+    }
+
+    private static boolean closesFence( final String text, final Marker open, final Marker marker,
+                                        final int lineEnd ) {
+        return marker.ch() == open.ch()
+                && marker.length() >= open.length()
+                && text.substring( marker.end(), lineEnd ).isBlank();
+    }
+
+    /**
+     * Inline code spans within the line {@code [from, to)}: a backtick run closed by the next run of
+     * exactly the same length on the same line. A backslash makes the backtick after it literal. An
+     * unmatched run is just text.
+     */
+    private static void spansInLine( final String text, final int from, final int to, final List< int[] > out ) {
+        int i = from;
+        while ( i < to ) {
+            if ( text.charAt( i ) != '`' || isEscaped( text, i, from ) ) {
+                i++;
+                continue;
+            }
+            final int runEnd = skipRun( text, i, to, '`' );
+            final int run = runEnd - i;
+            final int close = closingRun( text, runEnd, to, run );
+            if ( close < 0 ) {
+                i = runEnd;
+            } else {
+                out.add( new int[]{ i, close + run } );
+                i = close + run;
+            }
+        }
+    }
+
+    /** Start of the next backtick run of exactly {@code run} characters within {@code [from, to)}, else -1. */
+    private static int closingRun( final String text, final int from, final int to, final int run ) {
+        int j = from;
+        while ( j < to ) {
+            if ( text.charAt( j ) != '`' ) {
+                j++;
+                continue;
+            }
+            final int end = skipRun( text, j, to, '`' );
+            if ( end - j == run ) {
+                return j;
+            }
+            j = end;
+        }
+        return -1;
+    }
+
+    /** True when an odd number of backslashes (not reaching before {@code floor}) precede {@code index}. */
+    private static boolean isEscaped( final String text, final int index, final int floor ) {
+        int backslashes = 0;
+        for ( int k = index - 1; k >= floor && text.charAt( k ) == '\\'; k-- ) {
+            backslashes++;
+        }
+        return backslashes % 2 == 1;
+    }
+
+    /** Index just past the run of {@code ch} that starts at {@code start}, not going beyond {@code limit}. */
+    private static int skipRun( final String text, final int start, final int limit, final char ch ) {
+        int end = start;
+        while ( end < limit && text.charAt( end ) == ch ) {
+            end++;
+        }
+        return end;
+    }
+}

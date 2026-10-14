@@ -61,4 +61,9 @@ class PageExcerptsTest {
         assertEquals( "See the target, T > H done.",
                 PageExcerpts.excerpt( "See [[Target|the target]], [[T#H]] ![[Embedded]] done.", 280 ) );
     }
+
+    /** Plugin normalisation writes a directive as "[{ALLOW view Admin}]()"; the empty parentheses go with it. */
+    @Test void dropsTheEmptyParenthesesOfANormalisedAccessRule() {
+        assertEquals( "Hello there.", PageExcerpts.excerpt( "[{ALLOW view Admin}]()\n\nHello there.\n", 280 ) );
+    }
 }

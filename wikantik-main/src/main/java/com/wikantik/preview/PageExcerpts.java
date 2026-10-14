@@ -29,6 +29,7 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
 
 import com.wikantik.api.parser.WikiLinkSyntax;
+import com.wikantik.util.AclDirectives;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,8 +52,10 @@ public final class PageExcerpts {
         if ( markdownBody == null || markdownBody.isBlank() ) {
             return "";
         }
+        // Access rules go first, through the one place that knows their syntax; PLUGIN then drops every other span.
+        final String withoutRules = AclDirectives.strip( markdownBody, " " );
         final String masked = WikiLinkSyntax.toPlainText(
-                CALLOUT_MARKER.matcher( PLUGIN.matcher( markdownBody ).replaceAll( " " ) ).replaceAll( "$1" ) );
+                CALLOUT_MARKER.matcher( PLUGIN.matcher( withoutRules ).replaceAll( " " ) ).replaceAll( "$1" ) );
         final StringBuilder text = new StringBuilder();
         for ( final Node block : PARSER.parse( masked ).getChildren() ) {
             if ( block instanceof Heading || block instanceof FencedCodeBlock || block instanceof IndentedCodeBlock

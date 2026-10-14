@@ -77,4 +77,17 @@ class SummaryExtractorTest {
         assertFalse( result.contains( "TableOfContents" ) );
         assertTrue( result.contains( "plugin system" ) );
     }
+
+    /**
+     * DefaultAclManager reads a rule whose principal list contains a closing brace ("[{ALLOW edit a}x}]") as one rule,
+     * because its pattern ends at the first closing brace-bracket pair; the plugin pattern here stopped at the first
+     * closing brace, so the rule used to survive into the summary.
+     */
+    @Test
+    void stripsAnAccessRuleWhosePrincipalListContainsABrace() {
+        final String body = "[{ALLOW edit alice@example.test}x}]\nThis page explains how the plugin system works in detail.";
+        final String result = SummaryExtractor.extract( body );
+        assertFalse( result.contains( "alice" ), result );
+        assertTrue( result.contains( "plugin system" ) );
+    }
 }

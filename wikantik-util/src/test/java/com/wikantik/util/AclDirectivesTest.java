@@ -139,6 +139,14 @@ class AclDirectivesTest {
     }
 
     @Test
+    void aLoneCarriageReturnBeforeADirectiveLineNeverJoinsTheNextLineFeed() {
+        // "\r" + "\n" read as one line end would swallow the blank line between the two paragraphs.
+        assertEquals( "A\n\nB", AclDirectives.strip( "A\r[{ALLOW view All}]\n\nB" ) );
+        assertEquals( "A\r\n\nB", AclDirectives.strip( "A\r[{ALLOW view All}]\r\n\nB" ) );
+        assertEquals( "A\rB", AclDirectives.strip( "A\r[{ALLOW view All}]\rB" ), "no line feed follows: nothing to join" );
+    }
+
+    @Test
     void windowsLineEndingsAroundADirectiveSurvive() {
         assertEquals( "# Title\r\n", AclDirectives.strip( "[{ALLOW view All}]\r\n# Title\r\n" ) );
         assertEquals( "a\r\nb", AclDirectives.strip( "a\r\n[{ALLOW view All}]\r\nb" ) );

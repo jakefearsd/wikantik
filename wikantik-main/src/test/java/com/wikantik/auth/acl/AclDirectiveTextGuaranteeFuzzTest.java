@@ -18,6 +18,7 @@
  */
 package com.wikantik.auth.acl;
 
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The facade's guarantee at span level, on seeded token soups: in whatever {@link AclDirectiveText#strip} returns, the
  * ACL manager's text scan finds no directive and the render path reads no rule (both re-run on the output). The
  * fragments are the shapes that broke earlier rounds: {@code $$} math next to fences, HTML blocks and blank lines,
- * footnotes, attribute text, frontmatter, and the wrapped, upper-case, {@code DENY} and {@code ALLOWED} rule shapes.
+ * footnotes, attribute text, frontmatter, and the wrapped, upper-case, {@code DENY} and {@code ALLOWED} rule shapes. Stripping
+ * also never creates a frontmatter block nor destroys one, at the start of the text or of its body.
  */
 class AclDirectiveTextGuaranteeFuzzTest {
 
@@ -97,8 +99,15 @@ class AclDirectiveTextGuaranteeFuzzTest {
         return check( in, out );
     }
 
-    /** Why {@code out} still holds something either reading takes for a rule, or {@code null}. */
+    /**
+     * Why {@code out} still holds something either reading takes for a rule, or creates or destroys a frontmatter block
+     * (the text's own, or one at the start of its body, which an embed renders on its own), or {@code null}.
+     */
     private static String check( final String in, final String out ) {
+        final String frontmatter = frontmatterChange( in, out );
+        if ( frontmatter != null ) {
+            return frontmatter + " out=" + esc( out );
+        }
         if ( !DefaultAclManager.aclDirectives( out ).isEmpty() ) {
             return "text scan still reads " + DefaultAclManager.aclDirectives( out ) + " out=" + esc( out );
         }
@@ -109,6 +118,28 @@ class AclDirectiveTextGuaranteeFuzzTest {
             return "the render path cannot read the output: " + e + " out=" + esc( out );
         }
         return rules.isEmpty() ? null : "render path still reads " + rules + " out=" + esc( out );
+    }
+
+    /** Whether stripping made a frontmatter block appear or disappear; an empty result (fail closed) is exempt. */
+    private static String frontmatterChange( final String in, final String out ) {
+        if ( out.isEmpty() ) {
+            return null;
+        }
+        if ( startsFrontmatter( in ) != startsFrontmatter( out ) ) {
+            return startsFrontmatter( in ) ? "the frontmatter was destroyed" : "a frontmatter block was created";
+        }
+        if ( !startsFrontmatter( bodyOf( in ) ) && startsFrontmatter( bodyOf( out ) ) ) {
+            return "the body now starts a frontmatter block";
+        }
+        return null;
+    }
+
+    private static boolean startsFrontmatter( final String text ) {
+        return FrontmatterParser.bodyOffset( text ) > 0;
+    }
+
+    private static String bodyOf( final String text ) {
+        return text.substring( FrontmatterParser.bodyOffset( text ) );
     }
 
     private static String esc( final String s ) {

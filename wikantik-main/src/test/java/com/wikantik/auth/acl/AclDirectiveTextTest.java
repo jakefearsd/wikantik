@@ -29,6 +29,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -406,5 +407,40 @@ class AclDirectiveTextTest {
         assertEquals( "Intro  more", AclDirectiveText.strip( "Intro [{ALLOW view All}] more" ), "a rule inside a line leaves the line" );
         assertEquals( "Intro\nmore", AclDirectiveText.strip( "Intro\n[{ALLOW view All}]\nmore", " " ),
                 "the replacement is not needed where the line end keeps the words apart" );
+    }
+
+    @Test
+    void aLoneCarriageReturnBeforeARuleLineKeepsTheBlankLineAfterIt() {
+        assertEquals( "A\n\nB", AclDirectiveText.strip( "A\r[{ALLOW view All}]\n\nB" ) );
+    }
+
+    // ---- removing a rule never creates a frontmatter block (nor destroys one)
+
+    @Test
+    void aRuleLineAboveTwoDelimiterLinesNeverTurnsTheTextBetweenThemIntoFrontmatter() {
+        // Review repro 1: once the rule line went with its line end, the text started "---", and every reader lost the
+        // two paragraphs to a frontmatter block that the page never had.
+        final String text = "[{ALLOW edit Admin}]\n---\nIntro paragraph alpha.\n\nMore text beta.\n\n---\n\nRest gamma.\n";
+        final String out = AclDirectiveText.strip( text );
+        assertEquals( "\n---\nIntro paragraph alpha.\n\nMore text beta.\n\n---\n\nRest gamma.\n", out,
+                "the rule's line end stays, so the first --- is not the text's first line" );
+        assertEquals( 0, FrontmatterParser.bodyOffset( out ), out );
+    }
+
+    @Test
+    void removingARuleNeverMakesUpMetadata() {
+        // Review repro 2: the stripped text would have carried {type: hub, cluster: finance} to the SSR head, the
+        // chunker and the agent projection, although the page has no frontmatter.
+        final ParsedPage line = AclDirectiveText.parseStripped( "[{ALLOW view All}]\n---\ntype: hub\ncluster: finance\n---\nBody.\n" );
+        assertEquals( Map.of(), line.metadata(), line.body() );
+        assertTrue( line.body().contains( "type: hub" ), line.body() );
+        // The same through a rule that is not alone on its line.
+        final ParsedPage inline = AclDirectiveText.parseStripped( "[{ALLOW view All}]---\ntype: hub\n---\nBody.\n" );
+        assertEquals( Map.of(), inline.metadata(), inline.body() );
+        // And in a page that has frontmatter: its body (which an embed renders on its own) must not start a new block.
+        final ParsedPage nested = AclDirectiveText.parseStripped(
+                "---\ntitle: T\n---\n[{ALLOW view All}]\n---\ntype: hub\n---\nBody.\n" );
+        assertEquals( Map.of( "title", "T" ), nested.metadata() );
+        assertEquals( 0, FrontmatterParser.bodyOffset( nested.body() ), nested.body() );
     }
 }

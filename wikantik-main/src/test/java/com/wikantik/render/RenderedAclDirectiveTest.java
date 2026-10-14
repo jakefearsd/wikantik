@@ -154,4 +154,16 @@ class RenderedAclDirectiveTest {
         assertTrue( html.contains( AclDirectiveFixtures.BODY ), "the embed rendered: " + html );
         assertFalse( html.toLowerCase( Locale.ROOT ).contains( "example.test" ), html );
     }
+
+    @Test
+    void aRuleLineAboveTwoDelimiterLinesLeavesTheParagraphsBetweenThemOnThePage() {
+        // Review repro: the stripped text started with "---", the renderer took the two paragraphs for frontmatter and
+        // every viewer, editors included, saw only "Rest gamma.".
+        final Page page = Wiki.contents().page( engine, "RenderedAclFrontmatterShape" );   // unsaved: a scratch page for the ACL side effect
+        final String html = rm().textToHTML( viewContext( page ),
+                "[{ALLOW edit Admin}]\n---\nIntro paragraph alpha.\n\nMore text beta.\n\n---\n\nRest gamma.\n" );
+        assertTrue( html.contains( "Intro paragraph alpha." ) && html.contains( "More text beta." ), html );
+        assertTrue( html.contains( "Rest gamma." ), html );
+        assertFalse( html.contains( "ALLOW" ), html );
+    }
 }

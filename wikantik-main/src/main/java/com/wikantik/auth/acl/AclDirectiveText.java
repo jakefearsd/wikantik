@@ -51,7 +51,9 @@ import java.util.Objects;
  * or not; if anything either reading could still take for a rule is left, the result is empty.
  *
  * <p><b>Layout stays.</b> A directive that is all its line holds goes with that line's terminator, so no blank line is
- * left to end the paragraph or HTML block it sat in. The frontmatter and the body are handled apart: the util pass reads
+ * left to end the paragraph or HTML block it sat in — except where that would make the text, or the body after its
+ * frontmatter, start a frontmatter block it did not start: then a line end stays in front of the {@code ---}, so stripping
+ * never makes up metadata. The frontmatter and the body are handled apart: the util pass reads
  * frontmatter in one-line mode (the renderer never reads it, so the wrapped shape does not apply there and a stray opener
  * in a value cannot run to a closer in the body), the closing delimiter is never removed, and a removal that would splice
  * an earlier closing delimiter drops the frontmatter rather than letting its remaining lines be read as body.
@@ -192,7 +194,7 @@ public final class AclDirectiveText {
         final int bodyStart = FrontmatterParser.bodyOffset( text );
         if ( bodyStart == 0 ) {
             final String out = remove( text, ranges, 0, text.length(), replacement );
-            return utilPass ? AclDirectives.strip( out, replacement, true ) : out;
+            return noNewFrontmatter( text, 0, utilPass ? AclDirectives.strip( out, replacement, true ) : out );
         }
         final int closeStart = closingDelimiterStart( text, bodyStart );
         String head = remove( text, ranges, 0, closeStart, replacement );
@@ -201,6 +203,7 @@ public final class AclDirectiveText {
             head = AclDirectives.strip( head, replacement, false );
             body = AclDirectives.strip( body, replacement, true );
         }
+        body = noNewFrontmatter( text, bodyStart, body );
         final String result = head + text.substring( closeStart, bodyStart ) + body;
         if ( FrontmatterParser.bodyOffset( result ) != result.length() - body.length() ) {
             LOG.warn( "Removing access-rule directives from the frontmatter of a text of {} characters would end it early; "
@@ -208,6 +211,20 @@ public final class AclDirectiveText {
             return EMPTY_FRONTMATTER + body;
         }
         return result;
+    }
+
+    /**
+     * {@code out}, the region of {@code text} from {@code regionStart} with directives removed — or, when that removal made
+     * the region start a frontmatter block it did not start (a removed line above a {@code ---} line), {@code out} after
+     * the delimiter's own line end: the removed line's end stays, so the first {@code ---} is no longer the region's
+     * first line, and no reader is handed metadata (or loses paragraphs to it) that the page never had. Applies to the
+     * text and to the body after its frontmatter, which an embed renders on its own.
+     */
+    private static String noNewFrontmatter( final String text, final int regionStart, final String out ) {
+        if ( FrontmatterParser.bodyOffset( out ) == 0 || FrontmatterParser.bodyOffset( text.substring( regionStart ) ) > 0 ) {
+            return out;
+        }
+        return ( out.startsWith( DELIMITER + "\r\n" ) ? "\r\n" : "\n" ) + out;
     }
 
     /** Where the closing {@code ---} line (with the line end before it, if any) starts; {@code bodyStart} follows it. */

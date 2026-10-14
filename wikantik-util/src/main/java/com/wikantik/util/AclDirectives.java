@@ -155,8 +155,8 @@ public final class AclDirectives {
 
     /**
      * What to cut for a directive at {@code [start, end)}: the directive itself, or, when it is all its line holds
-     * (spaces and tabs aside), the whole line with its terminator — on the last line of the region, with the terminator
-     * before it.
+     * (spaces and tabs aside), the whole line with its terminator — on the last line of the region, or when a lone
+     * {@code \r} before the line would otherwise run into a {@code \n} after the cut, with the terminator before it.
      * The cut never reaches below {@code floor} or beyond {@code ceiling} (the edges of the region being rewritten).
      *
      * @param start     where the directive starts
@@ -182,12 +182,24 @@ public final class AclDirectives {
             return new Removal( start, end, false );
         }
         if ( lineEnd < ceiling ) {
-            return new Removal( lineStart, lineEnd + lineEndLength( text, lineEnd, ceiling ), true );
+            final int cutEnd = lineEnd + lineEndLength( text, lineEnd, ceiling );
+            if ( joinsIntoOneLineEnd( text, lineStart, cutEnd, floor, ceiling ) ) {
+                // A lone CR before the line and the LF after the cut would read as one CRLF and swallow a line: take
+                // the CR before the line instead, and keep the line's own terminator.
+                return new Removal( lineStart - 1, lineEnd, true );
+            }
+            return new Removal( lineStart, cutEnd, true );
         }
         if ( lineStart > floor ) {
             return new Removal( lineEndStartBefore( text, lineStart, floor ), lineEnd, true );
         }
         return new Removal( lineStart, lineEnd, true );
+    }
+
+    /** Whether cutting {@code [lineStart, cutEnd)} would leave a lone {@code \r} directly before a {@code \n}. */
+    private static boolean joinsIntoOneLineEnd( final String text, final int lineStart, final int cutEnd, final int floor,
+                                                final int ceiling ) {
+        return lineStart - 1 >= floor && text.charAt( lineStart - 1 ) == '\r' && cutEnd < ceiling && text.charAt( cutEnd ) == '\n';
     }
 
     private static int skipBlanksBack( final String text, final int from, final int floor ) {

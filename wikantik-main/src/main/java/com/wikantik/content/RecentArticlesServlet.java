@@ -67,7 +67,7 @@ import java.util.TimeZone;
  *     {
  *       "name": "PageName",
  *       "title": "Page Title",
- *       "author": "username",
+ *       "author": "Jane Doe",
  *       "lastModified": "2025-12-08T14:30:00Z",
  *       "excerpt": "First paragraph of content...",
  *       "changeNote": "Updated section X",

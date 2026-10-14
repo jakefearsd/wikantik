@@ -19,6 +19,7 @@
 package com.wikantik.content;
 
 import com.google.gson.Gson;
+import com.wikantik.AuthoredPages;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import jakarta.servlet.ServletConfig;
@@ -69,6 +70,23 @@ class RecentArticlesServletTest {
         Mockito.doReturn( new PrintWriter( writer ) ).when( response ).getWriter();
         servlet.doGet( request, response );
         return gson.fromJson( writer.toString(), Map.class );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void testAuthorsAreDisplayNamesAndRestrictedPagesAreNotListed() throws Exception {
+        engine.saveText( "RecentRestrictedPage", "[{ALLOW view Admin}]\n# Hidden\nOnly admins read this." );
+        AuthoredPages.save( engine, "RecentByLoginPage", "# By Login\nBody.", "janne" );
+        engine.getManager( RecentArticlesManager.class ).clearCache();
+
+        final Map< String, Object > data = doGet( HttpMockFactory.createHttpRequest() );
+
+        final List< Map< String, Object > > articles = ( List< Map< String, Object > > ) data.get( "articles" );
+        assertFalse( articles.stream().anyMatch( a -> "RecentRestrictedPage".equals( a.get( "name" ) ) ),
+            "restricted pages must not be listed in the public API" );
+        final Map< String, Object > byLogin = articles.stream()
+            .filter( a -> "RecentByLoginPage".equals( a.get( "name" ) ) ).findFirst().orElseThrow();
+        assertEquals( "Janne Jalkanen", byLogin.get( "author" ) );
     }
 
     @Test

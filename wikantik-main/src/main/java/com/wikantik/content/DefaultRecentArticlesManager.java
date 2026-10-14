@@ -24,7 +24,13 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.WikiSession;
 import com.wikantik.attachment.Attachment;
+import com.wikantik.auth.permissions.PermissionFilter;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -46,6 +52,8 @@ import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -92,13 +100,16 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     /** Regex pattern for numeric HTML entities (&#123; or &#x1F4A1;). */
     private static final Pattern NUMERIC_ENTITY_PATTERN = Pattern.compile( "&#(x?)([0-9a-fA-F]+);" );
 
-    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Held for late-bound manager lookups; not yet consumed on the read path.
     private Engine engine;
     private PageManager pageManager;
     private RenderingManager renderingManager;
     private SystemPageRegistry systemPageRegistry;
     private int cacheTTL;
     private List<Pattern> excludePatterns;
+    /** Test seam: replaces the engine-backed anonymous view check. */
+    private Predicate< String > guestCanViewOverride;
+    /** Test seam: replaces the engine-backed identity lookup. */
+    private Supplier< PublicIdentity > publicIdentityOverride;
 
     // Simple cache: query hash -> (timestamp, results)
     private final ConcurrentHashMap<Integer, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -119,6 +130,22 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         this.pageManager = pageManager;
         this.renderingManager = renderingManager;
         this.systemPageRegistry = systemPageRegistry;
+    }
+
+    /**
+     * Test seam: supplies the anonymous view check and the identity lookup instead of deriving them from the
+     * engine (a Mockito {@code WikiEngine} cannot build a guest session). Not used in production, where the
+     * no-argument SPI constructor plus {@link #initialize} give the engine-backed defaults.
+     */
+    DefaultRecentArticlesManager( final Engine engine,
+                                  final PageManager pageManager,
+                                  final RenderingManager renderingManager,
+                                  final SystemPageRegistry systemPageRegistry,
+                                  final Predicate< String > guestCanView,
+                                  final Supplier< PublicIdentity > publicIdentity ) {
+        this( engine, pageManager, renderingManager, systemPageRegistry );
+        this.guestCanViewOverride = guestCanView;
+        this.publicIdentityOverride = publicIdentity;
     }
 
     /**
@@ -362,6 +389,10 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         // Get recent changes (already sorted by date, most recent first)
         final Set<Page> recentChanges = pageManager.getRecentChanges( cutoffDate );
 
+        // Results are cached once and shared by every caller (Atom feed, /api/recent-articles, both plugins), so
+        // they must be safe for the least-privileged reader: only pages an anonymous visitor may view.
+        final Predicate< String > guestCanView = guestCanView();
+
         for ( final Page page : recentChanges ) {
             // Stop if we've collected enough articles
             if ( results.size() >= query.getCount() ) {
@@ -380,6 +411,11 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
                 continue;
             }
 
+            // Skip pages an anonymous visitor cannot view (before any title, excerpt or author is built)
+            if ( !guestMayView( guestCanView, pageName ) ) {
+                continue;
+            }
+
             // Build article summary
             try {
                 final ArticleSummary summary = buildArticleSummary( context, page, pageManager, renderingManager, query );
@@ -392,6 +428,34 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         }
 
         return Collections.unmodifiableList( results );
+    }
+
+    /** The anonymous view check: a request-free guest session, as the public ontology and knowledge-MCP surfaces use. */
+    private Predicate< String > guestCanView() {
+        if ( guestCanViewOverride != null ) {
+            return guestCanViewOverride;
+        }
+        final Session guest = WikiSession.guestSession( engine );
+        final PermissionFilter filter = new PermissionFilter( engine );
+        return pageName -> filter.canAccessQuietly( guest, pageName, "view" );
+    }
+
+    /** A check that fails hides the page (and is logged); it never fails the list and never leaks. */
+    private static boolean guestMayView( final Predicate< String > guestCanView, final String pageName ) {
+        try {
+            return guestCanView.test( pageName );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Anonymous view check failed for '{}'; leaving it out of recent articles: {}",
+                      pageName, e.getMessage(), e );
+            return false;
+        }
+    }
+
+    /** Resolved per call (the Auth subsystem is built after this manager initialises). */
+    private PublicIdentity publicIdentity() {
+        return publicIdentityOverride != null
+                ? publicIdentityOverride.get()
+                : AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
     }
 
     /**
@@ -433,7 +497,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         return new ArticleSummary.Builder()
             .name( pageName )
             .title( title )
-            .author( page.getAuthor() )
+            .author( IdentityDisplay.ofAuthor( publicIdentity(), page.getAuthor() ) )
             .lastModified( page.getLastModified() )
             .excerpt( excerpt )
             .changeNote( changeNote )

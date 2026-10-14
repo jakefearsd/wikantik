@@ -23,6 +23,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.PageManager;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
@@ -56,6 +58,9 @@ class DefaultRecentArticlesManagerCITest {
     private SystemPageRegistry systemPageRegistry;
     private Context context;
 
+    private PublicIdentity identity;
+    private final Set< String > hiddenFromGuests = new HashSet<>();
+
     private DefaultRecentArticlesManager mgr;
 
     @BeforeEach
@@ -74,8 +79,22 @@ class DefaultRecentArticlesManagerCITest {
         when( context.getURL( eq( ContextEnum.PAGE_VIEW.getRequestContext() ), anyString() ) )
                 .thenAnswer( inv -> "/wiki/" + inv.getArgument( 1 ) );
 
-        mgr = new DefaultRecentArticlesManager( engine, pageManager, renderingManager, systemPageRegistry );
+        identity = mock( PublicIdentity.class );
+        // A stored author with no account/alias shows as written (the real service never returns null).
+        when( identity.displayName( anyString() ) ).thenAnswer( inv -> inv.getArgument( 0 ) );
+        hiddenFromGuests.clear();
+        mgr = manager( pageManager, renderingManager, systemPageRegistry );
         mgr.initialize( engine, new Properties() );
+    }
+
+    /**
+     * The engine-backed anonymous view check and identity lookup need a real WikiEngine; this fixture is all
+     * mocks, so every manager under test is built through the package-private seam.
+     */
+    private DefaultRecentArticlesManager manager( final PageManager pm, final RenderingManager rm,
+                                                  final SystemPageRegistry registry ) {
+        return new DefaultRecentArticlesManager( engine, pm, rm, registry,
+                slug -> !hiddenFromGuests.contains( slug ), () -> identity );
     }
 
     // --- Helper methods ---
@@ -99,6 +118,71 @@ class DefaultRecentArticlesManagerCITest {
             recentChanges.add( p );
         }
         when( pageManager.getRecentChanges( any( Date.class ) ) ).thenReturn( recentChanges );
+    }
+
+    // ==================== Display names and anonymous visibility ====================
+
+    @Test
+    void testPagesAnAnonymousVisitorCannotViewAreLeftOut() {
+        final Page open = mockPage( "OpenPage" );
+        final Page secret = mockPage( "SecretPage" );
+        when( pageManager.getPureText( open ) ).thenReturn( "# Open\nBody." );
+        when( pageManager.getPureText( secret ) ).thenReturn( "# Secret\nBody." );
+        setupRecentChanges( secret, open );
+        hiddenFromGuests.add( "SecretPage" );
+
+        final List<ArticleSummary> articles = mgr.getRecentArticles( context, new RecentArticlesQuery().count( 10 ) );
+
+        assertEquals( List.of( "OpenPage" ), articles.stream().map( ArticleSummary::getName ).toList() );
+    }
+
+    @Test
+    void testHiddenPagesDoNotUseUpTheCountBudget() {
+        final Page secret = mockPage( "SecretPage" );
+        final Page open = mockPage( "OpenPage" );
+        when( pageManager.getPureText( secret ) ).thenReturn( "# Secret\nBody." );
+        when( pageManager.getPureText( open ) ).thenReturn( "# Open\nBody." );
+        setupRecentChanges( secret, open );
+        hiddenFromGuests.add( "SecretPage" );
+
+        final List<ArticleSummary> articles = mgr.getRecentArticles( context, new RecentArticlesQuery().count( 1 ) );
+
+        assertEquals( List.of( "OpenPage" ), articles.stream().map( ArticleSummary::getName ).toList() );
+    }
+
+    @Test
+    void testAViewCheckThatThrowsHidesThePageInsteadOfFailingTheList() {
+        final DefaultRecentArticlesManager flaky = new DefaultRecentArticlesManager( engine, pageManager,
+                renderingManager, systemPageRegistry,
+                name -> {
+                    if ( "BoomPage".equals( name ) ) {
+                        throw new IllegalStateException( "acl backend down" );
+                    }
+                    return true;
+                }, () -> identity );
+        flaky.initialize( engine, new Properties() );
+        final Page boom = mockPage( "BoomPage" );
+        final Page fine = mockPage( "FinePage" );
+        when( pageManager.getPureText( boom ) ).thenReturn( "# Boom\nBody." );
+        when( pageManager.getPureText( fine ) ).thenReturn( "# Fine\nBody." );
+        setupRecentChanges( boom, fine );
+
+        final List<ArticleSummary> articles = flaky.getRecentArticles( context, new RecentArticlesQuery().count( 10 ) );
+
+        assertEquals( List.of( "FinePage" ), articles.stream().map( ArticleSummary::getName ).toList() );
+    }
+
+    @Test
+    void testAuthorsAreResolvedToDisplayNames() {
+        final Page page = mockPage( "AuthoredPage" );
+        when( page.getAuthor() ).thenReturn( "janne" );
+        when( pageManager.getPureText( page ) ).thenReturn( "# Authored\nBody." );
+        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
+        setupRecentChanges( page );
+
+        final List<ArticleSummary> articles = mgr.getRecentArticles( context, new RecentArticlesQuery().count( 10 ) );
+
+        assertEquals( "Janne Jalkanen", articles.get( 0 ).getAuthor() );
     }
 
     // ==================== Null / empty input ====================
@@ -153,7 +237,7 @@ class DefaultRecentArticlesManagerCITest {
     @Test
     void testPageManagerNullReturnsEmptyList() {
         final DefaultRecentArticlesManager noPageMgr =
-                new DefaultRecentArticlesManager( engine, null, renderingManager, systemPageRegistry );
+                manager( null, renderingManager, systemPageRegistry );
         noPageMgr.initialize( engine, new Properties() );
 
         final List<ArticleSummary> articles = noPageMgr.getRecentArticles( context, new RecentArticlesQuery() );
@@ -236,7 +320,7 @@ class DefaultRecentArticlesManagerCITest {
     @Test
     void testNullSystemPageRegistryDoesNotExclude() {
         final DefaultRecentArticlesManager noRegistryMgr =
-                new DefaultRecentArticlesManager( engine, pageManager, renderingManager, null );
+                manager( pageManager, renderingManager, null );
         noRegistryMgr.initialize( engine, new Properties() );
 
         final Page page = mockPage( "LeftMenu" );
@@ -302,7 +386,7 @@ class DefaultRecentArticlesManagerCITest {
         props.setProperty( RecentArticlesManager.PROP_EXCLUDE_PATTERNS, "Admin.*,Config.*" );
 
         final DefaultRecentArticlesManager customMgr =
-                new DefaultRecentArticlesManager( engine, pageManager, renderingManager, systemPageRegistry );
+                manager( pageManager, renderingManager, systemPageRegistry );
         customMgr.initialize( engine, props );
 
         final Page p1 = mockPage( "AdminPage" );
@@ -324,7 +408,7 @@ class DefaultRecentArticlesManagerCITest {
         props.setProperty( RecentArticlesManager.PROP_EXCLUDE_PATTERNS, "[invalid,Valid.*" );
 
         final DefaultRecentArticlesManager customMgr =
-                new DefaultRecentArticlesManager( engine, pageManager, renderingManager, systemPageRegistry );
+                manager( pageManager, renderingManager, systemPageRegistry );
         customMgr.initialize( engine, props );
 
         final Page p1 = mockPage( "ValidMatch" );
@@ -380,7 +464,7 @@ class DefaultRecentArticlesManagerCITest {
     @Test
     void testTitleFallsBackToPageNameWhenNoRenderingManager() {
         final DefaultRecentArticlesManager noRenderMgr =
-                new DefaultRecentArticlesManager( engine, pageManager, null, systemPageRegistry );
+                manager( pageManager, null, systemPageRegistry );
         noRenderMgr.initialize( engine, new Properties() );
 
         final Page page = mockPage( "RawPageName" );
@@ -648,7 +732,7 @@ class DefaultRecentArticlesManagerCITest {
     @Test
     void testHasTemplatePageFalseWhenPageManagerNull() {
         final DefaultRecentArticlesManager noPageMgr =
-                new DefaultRecentArticlesManager( engine, null, renderingManager, systemPageRegistry );
+                manager( null, renderingManager, systemPageRegistry );
         noPageMgr.initialize( engine, new Properties() );
         assertFalse( noPageMgr.hasTemplatePage() );
     }
@@ -908,7 +992,7 @@ class DefaultRecentArticlesManagerCITest {
         // Construct with null renderingManager; do NOT call initialize() since that would
         // re-wire renderingManager from the engine mock (overwriting the intentional null).
         final DefaultRecentArticlesManager noRenderMgr =
-                new DefaultRecentArticlesManager( engine, pageManager, null, systemPageRegistry );
+                manager( pageManager, null, systemPageRegistry );
 
         when( pageManager.wikiPageExists( RecentArticlesManager.TEMPLATE_PAGE_NAME ) ).thenReturn( true );
         when( pageManager.getPureText( RecentArticlesManager.TEMPLATE_PAGE_NAME, -1 ) )
@@ -930,7 +1014,7 @@ class DefaultRecentArticlesManagerCITest {
         // Construct with null renderingManager; do NOT call initialize() since that would
         // re-wire renderingManager from the engine mock (overwriting the intentional null).
         final DefaultRecentArticlesManager noRenderMgr =
-                new DefaultRecentArticlesManager( engine, pageManager, null, systemPageRegistry );
+                manager( pageManager, null, systemPageRegistry );
 
         when( pageManager.wikiPageExists( RecentArticlesManager.TEMPLATE_PAGE_NAME ) ).thenReturn( true );
         when( pageManager.getPureText( RecentArticlesManager.TEMPLATE_PAGE_NAME, -1 ) )
@@ -1064,7 +1148,7 @@ class DefaultRecentArticlesManagerCITest {
         props.setProperty( RecentArticlesManager.PROP_CACHE_TTL, "-1" );
 
         final DefaultRecentArticlesManager customMgr =
-                new DefaultRecentArticlesManager( engine, pageManager, renderingManager, systemPageRegistry );
+                manager( pageManager, renderingManager, systemPageRegistry );
         customMgr.initialize( engine, props );
 
         final Page page = mockPage( "P" );

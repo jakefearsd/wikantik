@@ -27,9 +27,12 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -90,6 +93,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
         String tablewidth = "4";
         
         final Engine engine = context.getEngine();
+        final PublicIdentity identity = AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
 
         //
         //  Which format we want to see?
@@ -188,11 +192,9 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
                     authorinfo.setAttribute( XHTML.ATTR_class, "author" );
 
                     if( author != null ) {
-                        if( PageSubsystemBridge.fromLegacyEngine( engine ).pages().wikiPageExists( author ) ) {
-                            authorinfo.addContent( XhtmlUtil.link( context.getURL( WikiContext.VIEW, author ), author ) );
-                        } else {
-                            authorinfo.addContent( author );
-                        }
+                        // The display name as plain text, never a link: the stored value is a login for pages saved
+                        // since 2.4.58 and a href built from it would hand it to every reader.
+                        authorinfo.addContent( IdentityDisplay.ofAuthor( identity, author ) );
                     } else {
                         authorinfo.addContent( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE )
                                 .getString( "common.unknownauthor" ) );

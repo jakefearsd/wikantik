@@ -18,6 +18,7 @@
  */
 package com.wikantik.content;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiContext;
 import com.wikantik.api.core.Context;
@@ -66,6 +67,23 @@ public class DefaultRecentArticlesManagerTest {
         Assertions.assertFalse( html.isBlank() );
         Assertions.assertTrue( html.contains( "recent-articles" ), "default markup expected: " + html );
         Assertions.assertTrue( html.contains( "NoTemplateArticle" ), "article listed: " + html );
+    }
+
+    @Test
+    public void testRestrictedPagesAreNeverListedAndAuthorsAreDisplayNames() throws Exception {
+        m_engine.saveText( "RecentRestrictedPage", "[{ALLOW view Admin}]\n# Restricted Title\nOnly admins read this body." );
+        AuthoredPages.save( m_engine, "RecentByLoginPage", "# By Login\nBody text of the login-authored page.", "janne" );
+        m_manager.clearCache();
+
+        final List<ArticleSummary> articles =
+            m_manager.getRecentArticles( createContext(), new RecentArticlesQuery().count( 50 ) );
+
+        final List<String> names = articles.stream().map( ArticleSummary::getName ).toList();
+        Assertions.assertFalse( names.contains( "RecentRestrictedPage" ), names.toString() );
+        Assertions.assertTrue( names.contains( "RecentByLoginPage" ), names.toString() );
+        final ArticleSummary byLogin = articles.stream()
+            .filter( a -> a.getName().equals( "RecentByLoginPage" ) ).findFirst().orElseThrow();
+        Assertions.assertEquals( "Janne Jalkanen", byLogin.getAuthor() );
     }
 
     @Test

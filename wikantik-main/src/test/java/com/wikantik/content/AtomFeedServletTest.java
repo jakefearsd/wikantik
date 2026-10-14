@@ -18,6 +18,7 @@
  */
 package com.wikantik.content;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.managers.PageManager;
@@ -66,8 +67,23 @@ class AtomFeedServletTest {
             pm.deletePage( "FeedTestArticle" );
             pm.deletePage( "FeedTestHub" );
             pm.deletePage( "FeedTestOther" );
+            engine.deleteQuietly( "FeedTestRestricted", "FeedTestByLogin" );
             engine.stop();
         }
+    }
+
+    @Test
+    void testFeedOmitsRestrictedPagesAndNamesAuthorsByDisplayName() throws Exception {
+        engine.saveText( "FeedTestRestricted", "[{ALLOW view Admin}]\n# Hidden Heading\nRestricted body." );
+        AuthoredPages.save( engine, "FeedTestByLogin", "# By Login\nBody.", "janne" );
+        engine.getManager( RecentArticlesManager.class ).clearCache();
+
+        final String feed = doGetFeed( null, null );
+
+        assertFalse( feed.contains( "FeedTestRestricted" ), "a page anonymous visitors cannot view must not be in the public feed" );
+        assertFalse( feed.contains( "Hidden Heading" ) );
+        assertTrue( feed.contains( "<author><name>Janne Jalkanen</name></author>" ), feed );
+        assertFalse( feed.contains( "<name>janne</name>" ), "the stored login must not be published" );
     }
 
     @Test

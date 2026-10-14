@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.regex.Pattern;
+
 import static com.wikantik.TestEngine.with;
 
 public class RecentChangesPluginTest {
@@ -144,4 +146,18 @@ public class RecentChangesPluginTest {
         Assertions.assertNotEquals( "<table class=\"recentchanges\" cellpadding=\"4\" />", res );
     }
 
+    @Test
+    public void testAuthorIsShownAsDisplayNameNotLogin() throws Exception {
+        testEngine.saveTextAsJanne( "TestPage05", "Authored by janne" );   // stored author: login "janne"
+        try {
+            context = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "TestPage05" ) );
+
+            final String res = manager.execute( context, "{INSERT com.wikantik.plugin.RecentChangesPlugin}" );
+
+            Assertions.assertTrue( Pattern.compile( "<td class=\"author\">\\s*Janne Jalkanen\\s*</td>" ).matcher( res ).find(), res );
+            Assertions.assertFalse( Pattern.compile( "<td class=\"author\">\\s*janne\\s*</td>" ).matcher( res ).find(), res );
+        } finally {
+            testEngine.deleteTestPage( "TestPage05" );
+        }
+    }
 }

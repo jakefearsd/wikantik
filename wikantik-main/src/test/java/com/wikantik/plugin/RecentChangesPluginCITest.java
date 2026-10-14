@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.regex.Pattern;
+
 import static com.wikantik.TestEngine.with;
 
 /**
@@ -137,24 +139,18 @@ public class RecentChangesPluginCITest {
     }
 
     /**
-     * Author who exists as a wiki page gets rendered as a hyperlink.
-     * Covers the {@code wikiPageExists(author)} true branch.
+     * The author is plain text even when a wiki page with that name exists: the stored value may be a login, and
+     * a link built from it would hand the login to every reader.
      */
     @Test
-    public void testAuthorWhoIsAWikiPage() throws Exception {
-        // Create a wiki page that has the same name as a user (admin)
-        // so that the "author exists as page" branch is taken.
+    public void testAuthorIsPlainTextEvenWhenAPageWithThatNameExists() throws Exception {
         testEngine.saveText( "admin", "The admin user's page" );
         try {
             context = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "RcPage01" ) );
 
-            final String res = manager.execute( context,
-                    "{INSERT com.wikantik.plugin.RecentChangesPlugin}" );
+            final String res = manager.execute( context, "{INSERT com.wikantik.plugin.RecentChangesPlugin}" );
 
-            // The author column should contain a link to the admin wiki page
-            Assertions.assertNotNull( res );
-            Assertions.assertTrue( res.contains( "author" ),
-                    "Result should contain author column class" );
+            Assertions.assertTrue( Pattern.compile( "<td class=\"author\">\\s*Administrator\\s*</td>" ).matcher( res ).find(), res );
         } finally {
             testEngine.deleteTestPage( "admin" );
         }

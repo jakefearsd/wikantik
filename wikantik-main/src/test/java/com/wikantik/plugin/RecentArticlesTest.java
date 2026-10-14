@@ -18,6 +18,7 @@
  */
 package com.wikantik.plugin;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
@@ -64,6 +65,20 @@ public class RecentArticlesTest {
         Assertions.assertNotNull( result );
         // Should contain either articles or "no articles" message
         Assertions.assertTrue( result.contains( "recent-articles" ) || result.contains( "No recent articles" ) );
+    }
+
+    @Test
+    public void testAuthorsAreDisplayNamesAndRestrictedPagesAreNotListed() throws Exception {
+        AuthoredPages.save( m_engine, "PluginAuthoredPage", "# Authored\nBody by a login.", "janne" );
+        m_engine.saveText( "PluginRestrictedPage", "[{ALLOW view Admin}]\n# Hidden Title\nRestricted." );
+        clearManagerCache();
+
+        final String result = m_plugin.execute( createContext(), new HashMap<>() );
+
+        Assertions.assertTrue( result.contains( "<span class=\"author\">Janne Jalkanen</span>" ), result );
+        Assertions.assertFalse( result.contains( ">janne<" ), result );
+        Assertions.assertFalse( result.contains( "PluginRestrictedPage" ), result );
+        Assertions.assertFalse( result.contains( "Hidden Title" ), result );
     }
 
     @Test

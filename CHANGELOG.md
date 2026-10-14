@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.58] - 2026-10-14
+
 ### Upgrade notes
 - People are now shown to each other by **display name** instead of login name (with Google sign-in a
   login is an email address). After deploying, in this order:

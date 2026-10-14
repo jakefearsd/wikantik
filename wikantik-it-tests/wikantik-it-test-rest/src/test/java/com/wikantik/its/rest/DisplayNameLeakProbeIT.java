@@ -122,6 +122,13 @@ public class DisplayNameLeakProbeIT {
     private static String trickyPage;
     /** Embeds the tricky page ({@code ![[trickyPage]]}), so its rendered body reaches readers through another page. */
     private static String embedderPage;
+    /**
+     * Marked verified by the probe through the admin MCP's {@code mark_page_verified}, which records the change note
+     * {@code "verified by <login>"} and the frontmatter {@code verified_by: <login>}. It carries an access rule so that
+     * readers are not editors (an editor is handed the frontmatter as written).
+     */
+    private static String verifiedPage;
+    private static String verifiedId;
     private static String editedId;
     private static String aclId;
     private static String ontoId;
@@ -155,6 +162,7 @@ public class DisplayNameLeakProbeIT {
         ontoPage = "LeakProbeOnto" + rand;
         trickyPage = "LeakProbeTricky" + rand;
         embedderPage = "LeakProbeEmbedder" + rand;
+        verifiedPage = "LeakProbeVerified" + rand;
 
         admin = new Client().login( ADMIN_USER, ADMIN_PASSWORD );
         createAccount( probeLogin, probeDisplay );
@@ -187,10 +195,17 @@ public class DisplayNameLeakProbeIT {
         savePage( probe, ontoPage, "---\ntype: article\nauthor: " + probeLogin + "\n---\n[{ALLOW view All}]\n[{ALLOW edit "
                 + probeLogin + "}]\nOntology fixture " + marker + ".\n", "frontmatter author" );
 
+        // verifiedPage: saved by the probe, then stamped verified with the probe as the verifier (the login an SSO
+        // administrator's verification would record is an email address, exactly like the probe's).
+        savePage( probe, verifiedPage, "[{ALLOW view All}]\n[{ALLOW edit " + probeLogin + "}]\nVerification fixture "
+                + "lpverified" + rand + ".\n", "first version" );
+        markVerifiedByTheProbe( verifiedPage );
+
         editedId = awaitCanonicalId( editedPage );
         aclId = awaitCanonicalId( aclPage );
         ontoId = awaitCanonicalId( ontoPage );
         trickyId = awaitCanonicalId( trickyPage );
+        verifiedId = awaitCanonicalId( verifiedPage );
 
         probeUid = mentionableId( viewer, probeDisplay );
         viewerUid = mentionableId( probe, viewerDisplay );
@@ -215,7 +230,7 @@ public class DisplayNameLeakProbeIT {
         if ( admin == null ) {
             return;
         }
-        for ( final String page : new String[] { editedPage, aclPage, trickyPage, embedderPage, ontoPage } ) {
+        for ( final String page : new String[] { editedPage, aclPage, trickyPage, embedderPage, ontoPage, verifiedPage } ) {
             quietly( "delete page " + page, () -> admin.delete( "/api/pages/" + page ) );
         }
         for ( final String login : new String[] { probeLogin, viewerLogin } ) {
@@ -275,6 +290,18 @@ public class DisplayNameLeakProbeIT {
             }
         }
         throw new AssertionError( "'" + displayName + "' not offered by the mention picker: " + resp.body() );
+    }
+
+    /** The admin MCP's {@code mark_page_verified}, with the probe's login as the verifier. */
+    private static void markVerifiedByTheProbe( final String page ) {
+        final McpSyncClient adminMcp = mcpClient( "wikantik-admin-mcp", null );
+        try {
+            final String result = callTool( adminMcp, "mark_page_verified",
+                    Map.of( "slugs", List.of( page ), "verifier", probeLogin ) );
+            assertTrue( result.contains( "\"ok\":true" ), "mark_page_verified " + page + ": " + result );
+        } finally {
+            adminMcp.close();
+        }
     }
 
     private static String mintKey( final Client as, final String scope ) throws Exception {
@@ -512,6 +539,42 @@ public class DisplayNameLeakProbeIT {
         }
     }
 
+    // ------------------------------------------------------------------ the verifier of a verified page
+
+    /**
+     * {@code mark_page_verified} records the change note {@code "verified by <login>"}: page history, recent articles
+     * and the for-agent projection name the verifier by display name, for an anonymous visitor and for the second user.
+     */
+    @TestFactory
+    Stream< DynamicTest > theVerifierOfAVerifiedPageIsNamedByDisplayName() {
+        final String note = "verified by " + probeDisplay;
+        return Stream.of( new Client(), viewer ).flatMap( who -> {
+            final boolean signedIn = who == viewer;
+            final String label = signedIn ? "signed-in non-admin: " : "anonymous: ";
+            return Stream.of(
+                dynamicTest( label + "GET /api/history/{verified}", () -> {
+                    final HttpResponse< String > resp = who.get( "/api/history/" + verifiedPage, "application/json" );
+                    assertEquals( 200, resp.statusCode(), resp.body() );
+                    assertTrue( resp.body().contains( note ), "the history shows '" + note + "': " + resp.body() );
+                    assertNoForeignLogins( "GET /api/history/{verified}", resp.body(), signedIn );
+                } ),
+                dynamicTest( label + "GET /api/pages/for-agent/{verified-id}", () -> {
+                    final HttpResponse< String > resp = who.get( "/api/pages/for-agent/" + verifiedId, "application/json" );
+                    assertEquals( 200, resp.statusCode(), resp.body() );
+                    assertTrue( resp.body().contains( note ), "recent_changes shows '" + note + "': " + resp.body() );
+                    assertNoForeignLogins( "GET /api/pages/for-agent/{verified-id}", resp.body(), signedIn );
+                } ),
+                dynamicTest( label + "GET /api/recent-articles (verified page)", () -> {
+                    final HttpResponse< String > resp = awaitMarker( who, "/api/recent-articles?count=100&include=" + verifiedPage,
+                            "application/json", verifiedPage );
+                    assertNoForeignLogins( "GET /api/recent-articles (verified page)", resp.body(), signedIn );
+                    assumeTrue( resp.statusCode() == 200 && resp.body().contains( verifiedPage ), "recent articles never listed "
+                            + verifiedPage + " within " + SETTLE.toSeconds() + "s; the absence check above was vacuous" );
+                    assertTrue( resp.body().contains( note ), "the change note shows '" + note + "': " + resp.body() );
+                } ) );
+        } );
+    }
+
     // ------------------------------------------------------------------ comment threads and mentions in detail
 
     @Test
@@ -551,9 +614,13 @@ public class DisplayNameLeakProbeIT {
     // ------------------------------------------------------------------ knowledge MCP and /tools
 
     private static McpSyncClient mcpClient( final String bearerOrNull ) {
+        return mcpClient( "knowledge-mcp", bearerOrNull );
+    }
+
+    private static McpSyncClient mcpClient( final String endpoint, final String bearerOrNull ) {
         final String prefix = baseUrl.endsWith( "/" ) ? baseUrl : baseUrl + "/";
         final HttpClientStreamableHttpTransport.Builder transport = HttpClientStreamableHttpTransport.builder( prefix )
-                .endpoint( "knowledge-mcp" )
+                .endpoint( endpoint )
                 .connectTimeout( Duration.ofSeconds( 15 ) );
         if ( bearerOrNull != null ) {
             transport.httpRequestCustomizer( ( rb, method, uri, body, context ) ->
@@ -613,6 +680,11 @@ public class DisplayNameLeakProbeIT {
         noLogin.accept( who + " get_page_for_agent", projection );
         noLogin.accept( who + " get_page_for_agent (access-rule page)", callTool( mcp, "get_page_for_agent", Map.of( "canonical_id", aclId ) ) );
         noLogin.accept( who + " get_page_for_agent (tricky page)", callTool( mcp, "get_page_for_agent", Map.of( "canonical_id", trickyId ) ) );
+
+        final String verified = callTool( mcp, "get_page_for_agent", Map.of( "canonical_id", verifiedId ) );
+        assertTrue( verified.contains( "verified by " + probeDisplay ),
+                who + " get_page_for_agent names the verifier of the verification change note by display name: " + verified );
+        noLogin.accept( who + " get_page_for_agent (verified page)", verified );
     }
 
     @Test

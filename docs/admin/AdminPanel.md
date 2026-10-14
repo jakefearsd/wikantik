@@ -39,7 +39,10 @@ actions on a selection (lock, unlock, delete, add to a group).
 - Backed by: `/admin/users` and `/admin/users/{login}`, with `/lock`, `/unlock` and
   `/admin/users/bulk-action` (`AdminUserResource`).
 - Source: `AdminUsersPage.jsx`.
-- Notes: a user created here is flagged to change their password at first login.
+- Notes: a user created here is flagged to change their password at first login. The table
+  shows both the login and the display name; the display name obeys the same rules as on the
+  Preferences page and a refused name is explained under the field. Only `/admin/*` shows
+  logins.
   See [Security.md](Security.md#authenticate-users).
 
 ### Security

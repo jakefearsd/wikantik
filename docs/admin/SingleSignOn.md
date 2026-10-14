@@ -116,7 +116,7 @@ OIDC IdP; Google needs `loginName` remapped to `email` (it sends no
 | Property | Default | Maps to |
 |----------|---------|---------|
 | `wikantik.sso.claimMapping.loginName` | `preferred_username` | Wiki login name |
-| `wikantik.sso.claimMapping.fullName` | `name` | Display name |
+| `wikantik.sso.claimMapping.fullName` | `name` | Display name (first sign-in only) |
 | `wikantik.sso.claimMapping.email` | `email` | Email |
 
 `SSOLoginModule` does not read `wikantik.sso.*` itself. It reads JAAS options
@@ -136,6 +136,21 @@ their first scalar element, and a login name from the IdP is rejected when it is
 blank, longer than 100 characters, or contains whitespace or control characters.
 If the mapped claim is absent, the login name falls back to the profile's username
 and then its id (for Google, the numeric `sub`).
+
+### Display name at first sign-in
+
+People are shown to each other by display name, never by login (with
+`claimMapping.loginName = email` the login is an email address). When SSO creates an account
+(`wikantik.sso.autoProvision`), its display name comes from the `fullName` claim (default
+`name`) if the claim passes the display-name rules: 2 to 64 characters, no `@`, no control or
+invisible formatting characters, not reserved, not another account's login, and not already
+another account's display name (ignoring case). If the claim is taken, because another account
+already has that display name or login, a number is added: `Jane Doe 2`, `Jane Doe 3`. If the
+claim is missing or unusable (it is reserved, contains `@`, as an email address does, or is
+too short or too long) the account gets the placeholder `Member N`, the lowest free N. The
+login or email is never used. SSO provisioning does not fail on a name conflict; it logs the
+choice at INFO. The name is not refreshed from the IdP on later sign-ins, so
+users change it themselves under **Preferences**.
 
 ## Identity binding and account linking
 

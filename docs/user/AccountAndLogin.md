@@ -28,12 +28,13 @@ Go to **Profile** in the sidebar, or `/preferences`.
 
 | Field | Notes |
 |---|---|
-| Login Name, Wiki Name | Read-only. |
-| Full Name, Email | Editable. The email is where password resets are sent. |
+| Login name, Wiki Name | Read-only. Only you and administrators can see your login name. |
+| Display name | Editable and required. This is the name other people see on your edits, comments and mentions. 2 to 64 characters, no `@`, and not already used by someone else (case is ignored). The page tells you why a name is refused. |
+| Email | Editable. The email is where password resets are sent. |
 | Bio | Editable, up to 1000 characters. |
 | Current / New / Confirm New Password | Leave blank to keep your current password. |
 
-At the bottom, the **Danger Zone** deletes your account. It is permanent, and you confirm by typing your login name. Pages you contributed stay on the wiki and stay attributed to your username.
+At the bottom, the **Danger Zone** deletes your account. It is permanent, and you confirm by typing your login name. Pages you contributed stay on the wiki. Once the account is gone they are shown under the name stored with them (for a recent edit that is your login name), or as "unknown contributor" when that was an email address.
 
 ## Create a personal API key
 

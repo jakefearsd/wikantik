@@ -12,7 +12,7 @@ authenticated user. It is not shown to anonymous visitors.
 
 ### What it shows
 
-**Identity block** — your initials avatar, your username as a link to
+**Identity block** — your initials avatar, your display name as a link to
 `/preferences`, your role (Admin prefix if applicable), links to **Profile** and
 **Sign out**.
 
@@ -54,15 +54,15 @@ The top fieldset shows the following fields:
 
 | Field | Editable | Notes |
 |-------|----------|-------|
-| Login Name | Read-only | Your account's login identifier. Cannot be changed by self-service. |
-| Wiki Name | Read-only | CamelCase wiki identifier derived from your full name at registration. |
-| Full Name | Editable | Displayed in your profile and search results. |
+| Login name | Read-only | Your account's login identifier. Cannot be changed by self-service. Only you and administrators can see it. |
+| Wiki Name | Read-only | CamelCase wiki identifier derived from your display name at registration. |
+| Display name | Editable, required | The name other people see on your edits, comments, mentions and in search results. 2 to 64 characters, no `@`, unique (case is ignored). A refused name is explained under the field. |
 | Email | Editable | Used for password reset. |
 | Bio | Editable | Up to 1000 characters. Shown on your user profile page. |
 
 Click **Save Changes** to submit. The form calls `PUT /api/auth/profile` with
-body `{fullName, email, bio}`. On success the page shows "Profile updated
-successfully".
+body `{fullName, email, bio}`; `fullName` is the display name. On success the page shows
+"Profile updated successfully" and the sidebar picks up the new name at once.
 
 ### Changing your password
 
@@ -107,8 +107,9 @@ Account deletion:
 - Revokes all your API keys.
 - Removes you from all wiki groups.
 - Logs you out and redirects to `/wiki/Main`.
-- Does **not** remove your past page contributions — those remain attributed to
-  your username.
+- Does **not** remove your past page contributions. They stay on the wiki. Once the account is
+  gone they are shown under the name stored with them (for a recent edit, your login name), or
+  as "unknown contributor" when that was an email address.
 
 **Admins cannot self-delete.** If you hold the Admin role the server refuses the
 request with HTTP 409 ("Administrators cannot delete their own account here…").
@@ -121,8 +122,8 @@ Profile operations are handled by `AuthResource` at `/api/auth/*`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/auth/profile` | Returns `{loginName, fullName, email, bio, wikiName, created, lastModified}`. Requires authentication. |
-| `PUT` | `/api/auth/profile` | Update profile fields and/or password. Body: `{fullName?, email?, bio?, currentPassword?, newPassword?}`. Requires authentication. |
+| `GET` | `/api/auth/profile` | Returns `{loginName, fullName, email, bio, wikiName, created, lastModified}`; `fullName` is the display name. Requires authentication. |
+| `PUT` | `/api/auth/profile` | Update profile fields and/or password. Body: `{fullName?, email?, bio?, currentPassword?, newPassword?}`. A changed `fullName` must satisfy the display-name rules; a violation returns `400` or `409` with the reason. Requires authentication. |
 | `DELETE` | `/api/auth/profile` | Delete account. Body: `{confirmLoginName}`. Requires authentication. Admin accounts cannot self-delete. |
 | `POST` | `/api/auth/reset-password` | Send a new random password to the email address. Body: `{email}`. Unauthenticated. Rate-limited to 3 requests per email per hour. |
 

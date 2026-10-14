@@ -190,6 +190,17 @@ ACL entry that names one of their principals. REST endpoints under `/api/*` enfo
 ACLs through `RestServletBase.checkPagePermission()`, and `/wiki/{slug}?format=md|json`
 hides restricted pages with a 404.
 
+The directives name people by login, so their text is visible only to those who may change
+the page. The page API (`GET /api/pages/{name}`, old versions included), `?format=md|json`,
+the diff endpoint, the Obsidian export and `/tools/get_page` remove every `[{ALLOW ...}]` and
+`[{DENY ...}]` directive from the text they return to a caller without `edit` on the page. The
+agent projection (`/api/pages/for-agent/{id}`, `get_page_for_agent`), `read_pages` on the
+knowledge MCP and briefings never return them to anyone. Chunking and the Lucene content field
+never contain them either, so search results, bundles and retrieval never quote them. Editors
+and administrators see the directives as written in the page API and the editor, and ACL
+evaluation is unchanged. Name groups rather than people in ACLs where you can: a login named in
+an ACL is still visible to everyone who can edit that page.
+
 ### Use login names in groups and ACLs
 
 Identify people by **login name** everywhere access is decided.
@@ -205,21 +216,59 @@ Identify people by **login name** everywhere access is decided.
   could take the name and gain the entry. A name that no account has as its login still
   matches a user your web container authenticates under exactly that login without a wiki
   profile. Roles and groups are matched by name as before.
-- **Display names cannot impersonate a login, role or group.** A full name or wiki name
-  that is reserved (it equals a built-in role, `Admin`, a role or group named in a policy
-  grant, or an existing group) or that equals another account's login name is refused when
-  it is set or changed: `PUT /api/auth/profile` and `/admin/users` return `400`, and SCIM
-  `POST`, `PUT` and `PATCH` on `/scim/v2/Users` return `409` with `scimType` `uniqueness`
-  without saving. Two accounts may share a full name ("John Smith"), because access is
-  decided by login name only. Wiki names stay unique, so the second account gets a
-  numbered wiki name (`JohnSmith2`), which is stored and read back as is, and kept when an
-  identity provider re-sends the same name. A save that would still collide with another
-  account's login or wiki name (for example two concurrent writes) is refused with a generic
-  message: `409` `uniqueness` on SCIM; `400` on admin create/update (`/admin/users`) and self-service (`PUT /api/auth/profile`). SCIM `POST /Groups` returns `409` for a group name that
-  is an account's login, full or wiki name. SSO auto-provisioning falls back to the login
-  name for a reserved name claim and adds a numeric suffix ("jdoe 2") to a claim that
-  equals another account's login. Names are re-checked only when they change, so an
-  existing account is never blocked by a later collision.
+- **Display names are unique and cannot impersonate a login, role or group.** A display
+  name (`users.full_name`) is required and 2 to 64 characters long after trimming. It has no
+  control characters, no invisible formatting characters (zero-width joiners, bidirectional
+  overrides) and no `@`. It must not be reserved (it equals a built-in role, `Admin`, a role
+  or group named in a policy grant, or an existing group), must not equal another account's
+  login name, and must not already be another account's display name, ignoring case,
+  surrounding whitespace and runs of whitespace. The rules run when a name is set or changed.
+  `PUT /api/auth/profile` and `/admin/users` (create and update; create requires a display
+  name) refuse a malformed or reserved name with `400` and a name that is taken with `409`,
+  each with the reason. SCIM `POST`, `PUT` and `PATCH` on `/scim/v2/Users` answer `409` with
+  `scimType` `uniqueness` for a taken name and `400` with `invalidValue` for a malformed or
+  reserved one, without saving; a SCIM `POST` that carries no `name.formatted` creates the
+  account as "Member N". The application checks uniqueness; there is no database index
+  (migrations run on every container start, and an index would fail on existing duplicates),
+  so two saves racing for the same name can both succeed. Wiki names stay unique too: when
+  the wiki name derived from a display name is already held, the account gets a numbered one
+  (`JohnSmith2`), which is stored and read back as is, and kept when an identity provider
+  re-sends the same name. A save that still collides with another account's login or wiki
+  name is refused with a generic message: `409` `uniqueness` on SCIM; `400` on admin
+  create/update (`/admin/users`) and self-service (`PUT /api/auth/profile`). SCIM
+  `POST /Groups` returns `409` for a group name that is an account's login, full or wiki
+  name. SSO auto-provisioning never fails on a name and never uses the email address as one:
+  it takes the IdP's name claim when it passes the rules, adds a number ("Jane Doe 2") when
+  that name is taken, and falls back to "Member N" when there is no usable claim (see
+  [SingleSignOn.md](SingleSignOn.md)). A name is re-checked only when it changes, so an
+  account that predates these rules is never blocked from saving the rest of its profile.
+  `bin/db/one-shots/dedupe_display_names.sh` renames older duplicates once and gives any
+  account that has no stored user id one (see [WikantikOperations.md](WikantikOperations.md)).
+
+### Who can see login names
+
+People are shown to each other by **display name**. A login name is private: with Google
+sign-in it is the user's email address. Only three things see one: the account's owner (on
+the Preferences page), administrators on `/admin/*`, and the admin MCP server, which is
+administrator-equivalent.
+
+- **Stored by login, shown by name.** Version authors, comments, mentions, page owners,
+  group members and ACLs are stored by login, which never changes. Every other surface
+  resolves the stored value through `PublicIdentity` as it answers: the page, list, history,
+  recent-changes and search APIs, the for-agent projection, comment threads, mentions and the
+  mention picker, `/feed.xml` and `/api/recent-articles`, the knowledge MCP, `/tools/*`, and
+  the public ontology (`dct:creator`). A rename therefore applies to every attribution at
+  once: saving a profile drops the cached name, and `PublicIdentity` expires its cache after
+  60 seconds anyway. Two values are copied when a page is indexed or projected, so they follow a
+  rename only when the page is next saved or the indexes and the ontology are rebuilt: the
+  author field of the search index and the ontology's `dct:creator`. A stored value that is not a login (a name
+  recorded before 2.4.58, an agent label) is shown as written, except an email address, which
+  is shown as "unknown contributor".
+- **Page access rules** are removed from text returned to anyone who cannot edit the page,
+  and from everything indexed; see [Page ACLs](#page-acls).
+- **Free text is shown as written.** An editor who types an email address into a page body
+  or an `author:` frontmatter line has published it. Only a value that happens to be a login
+  is resolved.
 
 ### Page ownership and the audit trail
 
@@ -451,7 +500,9 @@ check the result after any proxy change.
 about cross-origin access. They are safe to leave public because of a public/restricted
 split: `PublicProjectionFilter` keeps pages, entities and edges that an anonymous guest
 cannot view out of the materialised dataset entirely, so restricted content cannot be
-queried. `/sparql` rejects update operations and caps results and run time. See
+queried. `/sparql` rejects update operations and caps results and run time. A page's
+`dct:creator` comes from its `author:` frontmatter line: a value that is an account's login is
+published as that account's display name, never as the login. See
 [OntologyManagement.md](OntologyManagement.md).
 
 ## Reduce risk from risky features

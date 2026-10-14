@@ -6,6 +6,85 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Upgrade notes
+- People are now shown to each other by **display name** instead of login name (with Google sign-in a
+  login is an email address). After deploying, in this order:
+  1. Run the one-time cleanup that brings existing display names in line with the new uniqueness rule.
+     `bin/db/one-shots/dedupe_display_names.sh` is a dry run; add `--apply` to commit. In each group of
+     accounts whose display names match (ignoring case) the earliest-created account keeps its name and the
+     others become `<name> 2`, `<name> 3`, ...; a blank or `@`-containing display name becomes `Member N`.
+     It also gives every account with no stored user id one (the id keys @-mentions) and reports stored ids
+     that cannot appear in a mention token. It prints display names only. Against the production container:
+     `PSQL_COMMAND='bin/remote.sh psql --' bin/db/one-shots/dedupe_display_names.sh`
+     (runbook: `docs/admin/WikantikOperations.md`).
+  2. Rebuild the indexes (**Admin → Content → Index Status → Rebuild Indexes**, or
+     `POST /admin/content/rebuild-indexes`) so chunk text and the Lucene content field lose access-rule
+     directives and the search author field carries display names. Search is empty and the embeddings are
+     rebuilt while it runs.
+  3. Rebuild the ontology (`POST /admin/ontology/rebuild`) so the materialised `dct:creator` literals carry
+     display names.
+- Roll forward rather than back: once 2.4.58 has saved a page, running 2.4.57 again would show that author's
+  login in page history.
+- Page history written before this release is not rewritten. Authorship is stored as the login from now on and
+  resolved to the account's current display name when read. Older entries hold the name their author had then
+  and are shown as written, except an email address, which is shown as "unknown contributor".
+- Display-name uniqueness is checked by the application, not by a database index, so there is no migration.
+- Client-visible API changes: `GET /api/users/mentionable` returns `{users: [{id, displayName}]}` (no
+  `loginName` or `fullName`); `GET /api/comment-threads` returns display names and adds `createdById`,
+  `resolvedById`, `comments[].authorId` and a `mentions` map from user id to display name; `GET /api/auth/user`
+  adds `userId` (absent when signed out); `mentionedBy` on `GET /api/me/mentions` is a display name. Mentions are stored as
+  `@[Display Name](user:<id>)`; a hand-typed `@login` still notifies but is shown as typed.
+
+### Added
+- Display-name rules (`ProfileNameRules`): required, 2 to 64 characters, no `@`, control or invisible
+  formatting characters, not reserved, not another account's login, and unique ignoring case and
+  surrounding whitespace. They apply to Preferences, Admin → Users, SSO provisioning and SCIM
+  `name.formatted`. A malformed or reserved name is refused with `400` (SCIM `invalidValue`), a taken one
+  with `409` (SCIM `uniqueness`).
+- `PublicIdentity`, the one service that turns a stored login into the account's current display name for every
+  non-admin surface (cached for 60 seconds, never throws).
+- Preferences and Admin → Users label the field "Display name", check the rules in the browser and show the
+  server's reason under the field. The login name stays visible to its owner, read-only.
+- `bin/db/one-shots/dedupe_display_names.sh` and its offline guard `bin/tests/test-dedupe-display-names.sh`.
+- `DisplayNameLeakProbeIT`: an account whose login looks like an email address edits, comments, is mentioned
+  and is named in an access rule; every public surface is then asserted not to return the login.
+
+### Changed
+- SSO first login takes the display name from the IdP `name` claim when it passes the rules, adds ` 2`, ` 3`,
+  ... when it is taken, and otherwise uses `Member N` (it used to fall back to the login). It never uses the
+  email or login.
+- `POST /admin/users` now requires a display name (`400` "A display name is required"). SCIM `POST /Users`
+  without `name.formatted` creates the account as `Member N`, and a malformed or reserved SCIM name is `400`
+  `invalidValue` (it was `409`).
+- "My pages" lists the pages whose latest stored author is the caller's login, so a page last saved under a
+  legacy full name reappears after its next save.
+- The RecentChanges plugin no longer links author names (a link target would be the login).
+- Saving a profile (your own or an administrator's edit) updates the live session's name at once.
+- The mention picker lists display names and inserts `@[Display Name](user:<id>)`; comment chips show the
+  person's current display name.
+
+### Security
+- Login names (email addresses under Google sign-in) are no longer exposed to anonymous visitors or other
+  signed-in users. The page, list, history and recent-changes APIs, search, the for-agent projection, comment
+  threads, mentions and the mention picker, `/feed.xml`, `/api/recent-articles`, the knowledge MCP, `/tools/*`
+  and the public ontology (`dct:creator`) now return display names. Only the account's owner, `/admin/*` and
+  the admin MCP server see logins.
+- `[{ALLOW ...}]` and `[{DENY ...}]` directives, which name people by login, are removed from page text returned
+  to callers without `edit` on the page (page API, `?format=md|json`, the diff endpoint, `/tools/get_page`,
+  Obsidian export) and for everyone from the agent projection, `read_pages`, briefings, chunks and the Lucene
+  index. Name groups rather than people in access rules.
+- The recent-articles manager behind the feeds and `GET /api/recent-articles` no longer lists pages an
+  anonymous visitor cannot view, and `GET /api/me/mentions` omits the comment snippet when the recipient
+  cannot view the page.
+- `/tools/search_wiki` and the RecentChanges plugin drop pages the caller cannot view. `search_wiki`
+  over-fetches 20 results, filters, then trims, which narrows but cannot fully close a result-count oracle.
+
+### Fixed
+- The "My pages" list matched authors by full name as well as login, so accounts sharing a name saw each
+  other's pages; it now matches the stored login exactly.
+- The page-owner bootstrap compared the version author (a full name) with logins and almost never resolved
+  an owner; the author is now a login.
+
 ## [2.4.57] - 2026-10-13
 
 ### Upgrade notes

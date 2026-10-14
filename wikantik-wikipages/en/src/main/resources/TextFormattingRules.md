@@ -45,7 +45,7 @@ Write inline math as `$x^2$` with no space inside the dollar signs. Write displa
 ## Plugins and page rules
 
 * `[{TableOfContents}]()` and other plugins use the `[{Plugin}]()` form. A plugin is named by its class, for example `[{RecentChangesPlugin}]()` or `[{ReferringPagesPlugin}]()`; [Linking](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Linking.md) lists the ones that ship. [PageIndex](PageIndex) and [RecentChanges](RecentChanges) are built this way.
-* `[{ALLOW view Admin}]()` restricts who may view a page, and `[{ALLOW edit alice,bob}]()` who may edit it. Name people by their login name.
+* `[{ALLOW view Admin}]()` restricts who may view a page, and `[{ALLOW edit alice,bob}]()` who may edit it. Prefer naming a group. A person is named by login name, and these lines are shown only to people who can edit the page: everyone else gets the page without them.
 * Raw HTML is rendered after it is sanitised: scripts, frames, forms, event-handler attributes and unsafe link schemes are removed. Prefer Markdown and plugins.
 
 ## Metadata

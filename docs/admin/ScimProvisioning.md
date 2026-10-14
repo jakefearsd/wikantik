@@ -94,16 +94,23 @@ Behavior:
 - **SSO fail-closed**: if an account with the given `userName` already exists
   and does not carry an `sso.subject` marker, SCIM returns HTTP 409 with
   `scimType: uniqueness`. SCIM cannot claim a pre-existing local account.
-- **Names**: a `name.formatted` or `displayName` that is reserved (a built-in role,
-  `Admin`, or a role or group name) or that equals another account's login name is
-  refused with HTTP 409 and `scimType: uniqueness`, on `POST`, `PUT` and `PATCH`. Two
-  users may share a name: the second "John Smith" is created normally. Wiki names stay
-  unique, so the second account gets a numbered wiki name: `JohnSmith2` when the name
-  comes from `name.formatted`, `John Smith2` when it comes from `displayName`. The `201`
-  response's `displayName` is that stored wiki name, and it is kept when the identity
-  provider re-sends the same name in a later `PUT` or `PATCH`. A save that still collides
-  with another account's login or wiki name returns `409` `uniqueness` with a generic
-  message.
+- **Names**: `name.formatted` becomes the account's display name, which other users see in
+  place of the login, so it must satisfy the display-name rules: 2 to 64 characters, no `@`
+  and no control or invisible formatting characters; not reserved (a built-in role, `Admin`,
+  or a role or group name); not another account's login name; and not already another
+  account's display name (ignoring case and surrounding whitespace). A name that is taken (it
+  is another account's display name or login) is refused with HTTP 409 and
+  `scimType: uniqueness`; a malformed or reserved one is refused with HTTP 400 and
+  `scimType: invalidValue`. Both apply on `POST`, `PUT` and `PATCH`, nothing is saved, and the
+  `detail` names the rule. A `POST` without a `name.formatted` (absent or blank) creates the
+  account with the placeholder display name `Member N` (the lowest free N); a login is never
+  used as a display name. A `displayName` follows the same two statuses (reserved: `400`;
+  another account's login name: `409`). Wiki names stay unique, so a clashing one gets a
+  number: `JohnSmith2` when the name comes from `name.formatted`, `John Smith2` when it comes
+  from `displayName`. The `201` response's `displayName` is that stored wiki name, and it is
+  kept when the identity provider re-sends the same name in a later `PUT` or `PATCH`. A save
+  that still collides with another account's login or wiki name returns `409` `uniqueness`
+  with a generic message.
 - If `active: false` is included in the create body, the account is immediately
   deactivated via `UserLifecycleService` after creation.
 - On success: HTTP 201, `Location` header pointing to the new resource, and the
@@ -280,9 +287,17 @@ A local account with that `userName` already exists. If it is an existing local
 account without an SSO link, SCIM cannot claim it — create the account via the
 admin UI instead, or remove it and let SCIM re-provision it.
 
-The same status is returned when `name.formatted` or `displayName` is a reserved name or
-another account's login name; the response `detail` names the value. Change the name in
-the identity provider. A name that another user merely shares is not refused.
+The same status is returned when `name.formatted` is already another account's display name
+(compared ignoring case) or is another account's login name, and when `displayName` is another
+account's login name; the response `detail` names the value. Change the name in the identity
+provider. Two users can no longer share a display name.
+
+**POST, PUT or PATCH /Users returns 400 invalidValue about a name**
+
+`name.formatted` is malformed (shorter than 2 or longer than 64 characters, or containing `@`,
+a control character or an invisible formatting character) or reserved (a built-in role,
+`Admin`, or a role or group name), or `displayName` is reserved. The `detail` says which rule.
+Change the name in the identity provider.
 
 **POST /Groups returns 400 invalidValue "No user found for member uid"**
 

@@ -26,7 +26,7 @@ The backing tables are `comment_threads` and `comments` (migration
    the new-thread composer (`CommentComposer` in `PageView.jsx`). Press **Esc**
    to cancel.
 4. Type your comment in the **Add a comment** box. You can @-mention any wiki user
-   by typing `@` followed by the start of their login name (see @-mention
+   by typing `@` followed by the start of their display name (see @-mention
    autocomplete below).
 5. Press **Cmd+Enter** (or **Ctrl+Enter**) or click the **Comment** button to post.
    The Comments drawer opens with your new thread.
@@ -48,7 +48,7 @@ the first comment, or by following a mention link. The drawer shows:
 
 - A status-filter selector: **Open**, **Resolved**, **All**. Defaults to Open.
 - Each thread card showing the anchor excerpt in quotes, all comments in the
-  thread with author names and body text, and a reply textarea.
+  thread with each author's display name and the body text, and a reply textarea.
 - A **Resolve** button on open threads. Resolved threads show a **Reopen** button
   instead.
 - Threads whose anchor text no longer appears in the page are grouped under a
@@ -77,11 +77,12 @@ CASCADE`.
 
 ## @-mention autocomplete
 
-In any comment or reply textarea, type `@` immediately followed by the start of a
-login name. A popover (`MentionPicker`) appears at the caret showing up to 8
-matching users. Mentions work only in comment and reply boxes, not in the page
-editor. Each row shows `@loginName` and, if different, the user's full
-name.
+In any comment or reply textarea, type `@` followed by part of a person's display name. A
+popover (`MentionPicker`) appears at the caret showing up to 8 matching users. The match is
+case-insensitive and finds the fragment anywhere in the display name, so a last name works as
+well as a first name; the popover follows one word, and closes at the first space. Mentions
+work only in comment and reply boxes, not in the page editor. Each row shows the person's
+display name; login names and email addresses are never shown, and are not searched.
 
 Navigate the popover with the keyboard:
 - **Up/Down arrows** — move selection.
@@ -91,14 +92,22 @@ Navigate the popover with the keyboard:
 Click any candidate with the mouse (uses `onMouseDown` so the textarea does not
 lose focus first).
 
-Accepted mentions are inserted as `@loginName` in the comment body. `CommentBody`
-renders them as clickable chips that link to `/wiki/Users/{loginName}`.
+Accepting a candidate inserts a mention token, `@[Display Name](user:<id>)`, into the comment
+body. The text in the brackets is the name at the time of writing; `<id>` is the account's
+opaque user id (not its login name), so the mention keeps pointing at the same person if they
+later change their display name. `CommentBody` renders each token as a chip showing the
+person's *current* display name (the comment-threads response carries a `mentions` map from
+id to display name). A token whose id cannot be resolved, for example because the account was
+deleted, is shown as plain text, `@` and the name it was written with. A plain `@login` typed
+by hand, or left by an older version, is still recognised for notifications but is shown
+exactly as typed (a login that is an email address cannot be mentioned this way at all), so
+do not type other people's login names.
 
 The autocomplete calls `GET /api/users/mentionable?q={prefix}&limit=8` to fetch
-candidates (the server default is 8 and the cap is 10). The endpoint requires a
-signed-in session: anonymous callers receive `401`, because under SSO a login
-name is the user's email address and the endpoint must not be a public directory.
-The comment boxes simply offer no suggestions while signed out.
+candidates (the server default is 8 and the cap is 10). The endpoint returns only each
+person's id and display name. It requires a signed-in session: anonymous callers receive
+`401`, because the endpoint must not be a public directory. The comment boxes simply offer no
+suggestions while signed out.
 
 ## The unread mentions inbox (`/me/mentions`)
 
@@ -117,7 +126,7 @@ event), via `useUnreadMentions`.
 
 - Filter between **Unread** and **All** using the tab buttons at the top of the
   page.
-- Each row shows who mentioned you, which page the comment is on (a link that
+- Each row shows who mentioned you (by display name), which page the comment is on (a link that
   opens the page with `?thread=...&comment=...` query params to scroll the
   comments drawer to the specific thread), whether the mention was on a page you
   own ("your page" tag), and a relative timestamp.
@@ -177,6 +186,14 @@ authenticated session.
 | `POST` | `/api/comment-threads?page={slug}` | Create a new thread. Body: `{exact, text, prefix?, suffix?}` |
 | `DELETE` | `/api/comment-threads/{threadId}` | Delete a thread and all its comments. Requires page `delete` permission. |
 
+Thread responses carry display names, never logins. `createdBy`, `resolvedBy` and
+`comments[].author` are display names. `createdById`, `resolvedById` and `comments[].authorId`
+are opaque user ids, absent for an author with no account (a name recorded by an older
+version, or an agent); a client compares them with `userId` from `GET /api/auth/user` (absent
+when signed out) to find the caller's own comments. In the list response the top-level
+`mentions` object maps every user id mentioned in the returned bodies to that person's
+current display name.
+
 ### Comments within a thread
 
 | Method | Path | Description |
@@ -196,13 +213,13 @@ authenticated session.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/users/mentionable?q={prefix}[&limit=N]` | Up to `limit` (default 8, max 10) unlocked users whose login name starts with, or full name contains, `q`. Returns `{users: [{loginName, fullName}]}`. Requires an authenticated session; anonymous callers receive 401. |
+| `GET` | `/api/users/mentionable?q={prefix}[&limit=N]` | Up to `limit` (default 8, max 10) unlocked users whose display name matches `q`. Returns `{users: [{id, displayName}]}`; no login name or email. Requires an authenticated session; anonymous callers receive 401. |
 
 ### Mention feed
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/me/mentions[?status=unread|all&limit=N&before=ISO8601]` | Fetch mention feed. Default limit: 25, max: 50. |
+| `GET` | `/api/me/mentions[?status=unread|all&limit=N&before=ISO8601]` | Fetch mention feed. Default limit: 25, max: 50. `mentionedBy` is the mentioner's display name; the comment snippet is omitted when you cannot view the page. |
 | `GET` | `/api/me/mentions/unread-count` | Returns `{count: N}`. |
 | `POST` | `/api/me/mentions/{id}/read` | Mark one mention read (addressee only). |
 | `POST` | `/api/me/mentions/mark-all-read` | Mark all unread mentions read. Returns `{updated: N}`. |
@@ -218,10 +235,9 @@ All mention routes require authentication; anonymous callers receive 401.
 **Comments drawer is empty even though threads exist** — check the status filter.
 Flip it to "All" to confirm threads exist in resolved state.
 
-**@-mention popover does not appear** — the autocomplete triggers only when `@`
-is typed immediately before a run of `[A-Za-z0-9._-]` characters. A leading space
-before `@` is fine; what matters is that the pattern `@<word>` appears at the
-caret position.
+**@-mention popover does not appear** — you must be signed in (the lookup returns `401`
+otherwise), and the text after `@` must be part of one word of a display name. Type the
+person's name, not their login, and stop at the first space.
 
 **Notification badge does not update** — the badge refreshes on mount and on
 `visibilitychange`. Switch away from the tab and back to force a refresh. If the

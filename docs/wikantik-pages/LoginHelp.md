@@ -26,7 +26,9 @@ The first administrator login and any reset password send you to **Change Your P
 
 ## Your profile and API keys
 
-Choose **Profile** in the sidebar (or open `/preferences`) to edit your full name, email and bio, change your password, and delete your account.
+Choose **Profile** in the sidebar (or open `/preferences`) to edit your display name, email and bio, change your password, and delete your account.
+
+Your **display name** is what other people see on your edits, comments and mentions. It must be unique (case is ignored), 2 to 64 characters, and cannot contain `@`. Your login name stays private: only you and administrators can see it.
 
 The **API Keys** section creates keys for scripts and AI clients. A key acts with your own permissions. A regular account can create keys with the `tools` scope (the `/tools/*` endpoints) or the `mcp_read` scope (read-only knowledge MCP access); keys with wider scope are created by an administrator. The secret is shown once, so copy it when you create it.
 

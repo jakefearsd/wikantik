@@ -84,7 +84,7 @@ Bracket syntax `[{ ... }]` is used for dynamic functions and system controls.
 
 ### Access Control Lists (ACLs)
 An ACL can sit anywhere in the page text outside a code span or code block. Valid permissions are `view`, `comment`, `edit`, `modify`, `upload`, `rename`, and `delete`; principals are login names, group names or roles, separated by commas.
-*   **Example:** `[{ALLOW edit Admin,Editors}]`. Name individual people by their login name.
+*   **Example:** `[{ALLOW edit Admin,Editors}]`. Prefer groups. Name an individual by login name; ACL lines are shown only to people who can edit the page, and are removed from the page text, search index and exports that everyone else sees.
 
 ## IV. Core Plugins
 

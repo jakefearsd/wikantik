@@ -83,8 +83,10 @@ final class OpenApiDocument {
                 Designed for OpenWebUI and other OpenAPI 3.1 tool clients.
 
                 Every endpoint requires a Bearer token. Tokens are generated via the admin API-keys page and
-                are bound to a Wikantik principal; the tool server runs requests under that principal so page
-                ACLs and JAAS permissions apply exactly as they would for that user's interactive session.""" );
+                are bound to a Wikantik principal for attribution and the audit trail. Page access is decided
+                as for an anonymous visitor, not as that principal: the tools return only pages that a
+                signed-out reader may view, and page ACLs apply to them exactly as they would to that
+                reader.""" );
         return info;
     }
 

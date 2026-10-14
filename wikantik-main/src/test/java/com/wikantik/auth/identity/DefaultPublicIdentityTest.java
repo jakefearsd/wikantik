@@ -36,9 +36,13 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -253,6 +257,29 @@ class DefaultPublicIdentityTest {
         assertEquals( Optional.empty(), identity.loginForDisplayName( "Same Name" ), "refuse to guess between two accounts" );
     }
 
+
+    // ---- display-name matching follows the uniqueness rules ----
+
+    @Test
+    void displayNamesAreComparedByTheUniquenessKeyNotJustLowerCase() throws Exception {
+        account( "jane", "Jane Doe", "u1" );
+        assertEquals( Optional.of( "jane" ), identity.loginForDisplayName( "jane   doe" ), "runs of whitespace collapse" );
+        assertEquals( Optional.of( "jane" ), identity.loginForDisplayName( "Jane\u00a0Doe" ), "NFKC: a no-break space is a space" );
+        assertEquals( Optional.of( "jane" ), identity.loginForDisplayName( "\uff2aane Doe" ), "NFKC: a full-width letter is the letter" );
+
+        account( "janet", "Jane  Doe", "u2" );   // the same name under the uniqueness rules: legacy duplicate
+        identity.invalidate( null );             // (the first lookups above are held in the 60 s snapshot)
+        assertEquals( Optional.empty(), identity.loginForDisplayName( "Jane Doe" ),
+                "two accounts that the uniqueness rules treat as one name are ambiguous" );
+    }
+
+    @Test
+    void aNameThatNormalisesToNothingResolvesToNobody() throws Exception {
+        account( "jane", "Jane Doe", "u1" );
+        account( "blank", "\u00a0 \u3000", "u2" );
+        assertEquals( Optional.empty(), identity.loginForDisplayName( "\u00a0\u3000" ) );
+    }
+
     // ---- failures ----
 
     @Test
@@ -305,6 +332,80 @@ class DefaultPublicIdentityTest {
         assertEquals( Optional.empty(), bare.loginForUserId( "u1" ) );
         assertEquals( Optional.empty(), bare.loginForDisplayName( "Jane Doe" ) );
         assertDoesNotThrow( () -> bare.invalidate( "jane" ) );
+    }
+
+
+    // ---- concurrency ----
+
+    /** Waits until every thread is parked on something (a lock, a latch) rather than running. */
+    private static void awaitParked( final List< Thread > threads ) throws InterruptedException {
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 10 );
+        for ( final Thread t : threads ) {
+            while ( t.getState() == Thread.State.RUNNABLE || t.getState() == Thread.State.NEW ) {
+                assertTrue( System.nanoTime() < deadline, "thread never parked: " + t );
+                Thread.sleep( 5 );
+            }
+        }
+    }
+
+    @Test
+    void callersQueuedBehindASlowFailingLoadDoNotEachRetryIt() throws Exception {
+        final CountDownLatch inLoad = new CountDownLatch( 1 );
+        final CountDownLatch finishLoad = new CountDownLatch( 1 );
+        final AtomicInteger attempts = new AtomicInteger();
+        doAnswer( inv -> {
+            attempts.incrementAndGet();
+            inLoad.countDown();
+            finishLoad.await( 10, TimeUnit.SECONDS );
+            throw new IllegalStateException( "pool exhausted" );
+        } ).when( db ).accountSummaries();
+
+        final List< Thread > callers = new ArrayList<>();
+        for ( int i = 0; i < 6; i++ ) {
+            final Thread t = new Thread( () -> identity.displayName( "jane" ), "caller-" + i );
+            callers.add( t );
+            t.start();
+            if ( i == 0 ) {
+                assertTrue( inLoad.await( 10, TimeUnit.SECONDS ), "the first caller reached the database" );
+            }
+        }
+        awaitParked( callers );   // the other five are queued behind the first load
+
+        finishLoad.countDown();
+        for ( final Thread t : callers ) {
+            t.join( 10_000 );
+        }
+        assertEquals( 1, attempts.get(), "one failed load, not one per queued caller: the backoff holds for the queue" );
+    }
+
+    @Test
+    void anExpiredSnapshotIsServedToOtherCallersWhileOneRefreshesIt() throws Exception {
+        account( "jane", "Jane Doe", "u1" );
+        assertEquals( "Jane Doe", identity.displayName( "jane" ) );
+        clock.advance( Duration.ofSeconds( 61 ) );
+
+        final CountDownLatch inLoad = new CountDownLatch( 1 );
+        final CountDownLatch finishLoad = new CountDownLatch( 1 );
+        doAnswer( inv -> {
+            inLoad.countDown();
+            finishLoad.await( 10, TimeUnit.SECONDS );
+            return List.of( new AccountSummary( "jane", "Jane Roe", "u1" ) );
+        } ).when( db ).accountSummaries();
+
+        final Thread refresher = new Thread( () -> identity.displayName( "jane" ), "refresher" );
+        refresher.start();
+        assertTrue( inLoad.await( 10, TimeUnit.SECONDS ), "the refresh is in flight" );
+
+        final String[] seen = new String[ 1 ];
+        final Thread reader = new Thread( () -> seen[ 0 ] = identity.displayName( "jane" ), "reader" );
+        reader.start();
+        reader.join( 5_000 );
+        assertEquals( Thread.State.TERMINATED, reader.getState(), "a reader must not wait for the refresh" );
+        assertEquals( "Jane Doe", seen[ 0 ], "it is answered from the expired snapshot meanwhile" );
+
+        finishLoad.countDown();
+        refresher.join( 10_000 );
+        assertEquals( "Jane Roe", identity.displayName( "jane" ), "and the refreshed snapshot is used afterwards" );
     }
 
     // ---- profile events ----

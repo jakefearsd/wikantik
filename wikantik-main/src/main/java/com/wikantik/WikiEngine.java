@@ -195,8 +195,19 @@ public class WikiEngine implements Engine {
      * fields and their class-to-writer/reader dispatch maps. New services
      * register here via setManager — never as a WikiEngine field.
      */
-    private final com.wikantik.core.registry.EngineServiceRegistry serviceRegistry =
-            new com.wikantik.core.registry.EngineServiceRegistry();
+    private final com.wikantik.core.registry.EngineServiceRegistry serviceRegistry = newServiceRegistry();
+
+    /**
+     * A registry that already holds the engine's {@link com.wikantik.auth.identity.PublicIdentityHolder}: it must exist before
+     * any thread can ask for the {@code PublicIdentity} (the auth snapshot is built late in {@code initialize}, but callers
+     * such as the Lucene indexer's background thread may ask earlier), and the registry is not safe to write to from such a
+     * thread. Only {@code AuthSubsystemFactory} reads it; it is not a manager and has no {@code getManager} accessor.
+     */
+    private static com.wikantik.core.registry.EngineServiceRegistry newServiceRegistry() {
+        final com.wikantik.core.registry.EngineServiceRegistry registry = new com.wikantik.core.registry.EngineServiceRegistry();
+        registry.put( com.wikantik.auth.identity.PublicIdentityHolder.class, new com.wikantik.auth.identity.PublicIdentityHolder() );
+        return registry;
+    }
 
     /** The late-bound service registry. New services register here via setManager — never as a WikiEngine field. */
     public com.wikantik.core.registry.EngineServiceRegistry serviceRegistry() { return serviceRegistry; }

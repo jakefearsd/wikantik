@@ -29,11 +29,11 @@ import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.authorize.GroupManager;
-import com.wikantik.auth.identity.DefaultPublicIdentity;
+import com.wikantik.auth.identity.PublicIdentityHolder;
+import com.wikantik.core.registry.EngineServiceRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Clock;
 import java.util.Objects;
 
 /**
@@ -90,19 +90,23 @@ public final class AuthSubsystemFactory {
             apiKeys,
             /* securityVerifier — wired in Ckpt 3 */ null,
             aclManager,
-            users == null ? null : createPublicIdentity( users )
+            users == null ? null : publicIdentityFor( engine, users )
         );
     }
 
     /**
-     * One {@link PublicIdentity} per engine, bound to the user manager's database (database-less when the manager has none —
-     * bare or mocked engines). It also listens to the user manager's profile events (the legacy {@code setUserProfile} path);
-     * the REST/SCIM/SSO write paths invalidate it through {@code ProfileChangeNotifier}. The listener registry holds it
-     * weakly — the {@code Services} record keeps it alive.
+     * The engine's one {@link PublicIdentity}, bound to the user manager's database (database-less when the manager has none —
+     * bare or mocked engines), and listening to the manager's profile events (the legacy {@code setUserProfile} path; the
+     * REST/SCIM/SSO write paths invalidate it through {@code ProfileChangeNotifier}).
+     *
+     * <p>This runs for <em>every</em> snapshot built for the engine — the one {@code WikiEngine} wires, the rebuilds after a
+     * manager hot-swap, and the throwaway ones {@link AuthSubsystemBridge} synthesises when a caller asks mid-initialisation —
+     * so the identity lives in a {@link PublicIdentityHolder} that the engine creates up front and every build shares. A
+     * bare or mocked engine has no holder; each build then gets its own identity, which is all such an engine needs.</p>
      */
-    private static PublicIdentity createPublicIdentity( final UserManager users ) {
-        final DefaultPublicIdentity identity = new DefaultPublicIdentity( users.getUserDatabase(), Clock.systemUTC() );
-        users.addWikiEventListener( identity );
-        return identity;
+    private static PublicIdentity publicIdentityFor( final WikiEngine engine, final UserManager users ) {
+        final EngineServiceRegistry registry = engine.serviceRegistry();
+        final PublicIdentityHolder shared = registry == null ? null : registry.get( PublicIdentityHolder.class );
+        return ( shared != null ? shared : new PublicIdentityHolder() ).forUsers( users );
     }
 }

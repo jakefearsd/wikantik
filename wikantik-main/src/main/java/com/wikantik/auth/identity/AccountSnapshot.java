@@ -18,28 +18,29 @@
  */
 package com.wikantik.auth.identity;
 
+import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.user.AccountSummary;
 
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * An immutable, in-memory index of the account table: login -> account, stored uid -> login, and normalised display name ->
- * login. A display name held by two accounts is left out of the name index (so it resolves to nobody) and listed in
- * {@code ambiguousNames}.
+ * An immutable, in-memory index of the account table: login -> account, stored uid -> login, and display-name key -> login.
+ * Display names are keyed by {@link ProfileNameRules#displayNameKey} — the very key the uniqueness rules compare (NFKC,
+ * whitespace collapsed, trimmed, lower-cased) — so two names those rules call the same are ambiguous here too: they are left
+ * out of the name index (the name resolves to nobody) and listed in {@code ambiguousNames}.
  *
  * @param expires        when the snapshot stops being trusted
  * @param generation     the {@link DefaultPublicIdentity} invalidation generation current when the load began; a snapshot from an
  *                       older generation is stale (it may predate a write) and is only kept as the fallback if a reload fails
  * @param byLogin        exact-case login -> account (a case variant of a login is a different, non-existent account)
  * @param loginByUid     stored uid -> login; an account with a NULL/blank uid is absent
- * @param loginByName    trimmed, lower-cased display name -> login
- * @param ambiguousNames the normalised display names held by more than one account
+ * @param loginByName    display-name key -> login
+ * @param ambiguousNames the display-name keys held by more than one account
  */
 record AccountSnapshot( Instant expires, long generation, Map< String, AccountSummary > byLogin,
         Map< String, String > loginByUid, Map< String, String > loginByName, Set< String > ambiguousNames ) {
@@ -72,10 +73,10 @@ record AccountSnapshot( Instant expires, long generation, Map< String, AccountSu
 
     private static void indexName( final Map< String, String > loginByName, final Set< String > ambiguousNames,
             final AccountSummary account ) {
-        if ( account.fullName() == null || account.fullName().isBlank() ) {
-            return;
+        final String key = ProfileNameRules.displayNameKey( account.fullName() );
+        if ( key == null || key.isEmpty() ) {
+            return;   // no name, or blank once normalised (e.g. only no-break spaces): never a name anyone could ask for
         }
-        final String key = account.fullName().trim().toLowerCase( Locale.ROOT );
         if ( loginByName.putIfAbsent( key, account.login() ) != null ) {
             ambiguousNames.add( key );
         }

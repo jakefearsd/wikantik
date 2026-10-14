@@ -39,6 +39,36 @@ class SSOAutoProvisionServiceTest {
         engine = new TestEngine( TestEngine.getTestProperties() );
     }
 
+    private SSOAutoProvisionService service() {
+        final Properties props = new Properties();
+        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
+        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
+        return new SSOAutoProvisionService( engine, new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" ) );
+    }
+
+    private UserDatabase userDb() {
+        return engine.getManager( UserManager.class ).getUserDatabase();
+    }
+
+    /** Provisions {@code login} with the given IdP name claim (may be null) and returns the stored display name. */
+    private String provisioned( final String login, final String nameClaim ) throws Exception {
+        final CommonProfile profile = new CommonProfile();
+        profile.setId( login );
+        if ( nameClaim != null ) {
+            profile.addAttribute( "name", nameClaim );
+        }
+        service().provisionIfNeeded( login, login, profile );
+        return userDb().findByLoginName( login ).getFullname();
+    }
+
+    private void saveLocalAccount( final String login, final String fullName ) throws Exception {
+        final UserProfile p = userDb().newProfile();
+        p.setLoginName( login );
+        com.wikantik.auth.ProfileNameRules.applyFullName( engine, userDb(), p, fullName );
+        p.setEmail( login + "@example.test" );
+        userDb().save( p );
+    }
+
     @Test
     void testProvisionNewUser() throws Exception {
         final Properties props = new Properties();
@@ -126,53 +156,6 @@ class SSOAutoProvisionServiceTest {
     }
 
     @Test
-    void testProvisionWithMissingFullNameUsesLoginName() throws Exception {
-        final Properties props = new Properties();
-        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
-        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
-        final SSOConfig ssoConfig = new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" );
-
-        final SSOAutoProvisionService service = new SSOAutoProvisionService( engine, ssoConfig );
-
-        final CommonProfile profile = new CommonProfile();
-        profile.setId( "sso-noname" );
-        // No "name" attribute - should fall back to login name
-
-        service.provisionIfNeeded( "sso-noname", "sso-noname", profile );
-
-        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
-        final UserProfile created = userDb.findByLoginName( "sso-noname" );
-        Assertions.assertEquals( "sso-noname", created.getFullname() );
-
-        // Clean up
-        userDb.deleteByLoginName( "sso-noname" );
-    }
-
-    @Test
-    void testProvisionReplacesReservedDisplayName() throws Exception {
-        final Properties props = new Properties();
-        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
-        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
-        final SSOConfig ssoConfig = new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" );
-        final SSOAutoProvisionService service = new SSOAutoProvisionService( engine, ssoConfig );
-
-        final CommonProfile profile = new CommonProfile();
-        profile.setId( "sso-reserved" );
-        profile.addAttribute( "name", "Admin" );
-        profile.addAttribute( "email", "sso-reserved@example.com" );
-
-        service.provisionIfNeeded( "sso-reserved", "sso-reserved", profile );
-
-        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
-        final UserProfile created = userDb.findByLoginName( "sso-reserved" );
-        Assertions.assertEquals( "sso-reserved", created.getFullname(),
-                "a reserved display name from the IdP falls back to the login name" );
-        Assertions.assertThrows( NoSuchPrincipalException.class, () -> userDb.findByWikiName( "Admin" ) );
-
-        userDb.deleteByLoginName( "sso-reserved" );
-    }
-
-    @Test
     void testProvisionNameClaimEqualToAnotherAccountIsSuffixed() throws Exception {
         final Properties props = new Properties();
         props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
@@ -222,48 +205,85 @@ class SSOAutoProvisionServiceTest {
         userDb.deleteByLoginName( "authenticated" );
     }
 
+    // was testProvisionWithMissingFullNameUsesLoginName — the login (an email on prod) must never become the name
     @Test
-    void testProvisionDeduplicatesCollidingWikiName() throws Exception {
-        final Properties props = new Properties();
-        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
-        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
-        final SSOConfig ssoConfig = new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" );
+    void testProvisionWithMissingNameClaimGetsAPlaceholder() throws Exception {
+        Assertions.assertEquals( "Member 1", provisioned( "sso-noname", null ) );
+        Assertions.assertEquals( "Member 2", provisioned( "sso-noname-2", null ), "smallest free N" );
+    }
 
-        final SSOAutoProvisionService service = new SSOAutoProvisionService( engine, ssoConfig );
-        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
+    // was testProvisionReplacesReservedDisplayName — a reserved claim is unusable; it no longer falls back to the login
+    @Test
+    void testProvisionReplacesReservedDisplayNameWithAPlaceholder() throws Exception {
+        Assertions.assertEquals( "Member 1", provisioned( "sso-reserved", "Admin" ) );
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> userDb().findByWikiName( "Admin" ) );
+    }
 
-        // A pre-existing account whose full name "Jake Fear" derives wiki name "JakeFear".
-        final UserProfile existing = userDb.newProfile();
-        existing.setLoginName( "jakefear-local" );
-        existing.setFullname( "Jake Fear" );
-        existing.setEmail( "jake@local.example" );
-        userDb.save( existing );
-        Assertions.assertEquals( "JakeFear", userDb.findByLoginName( "jakefear-local" ).getWikiName() );
+    @Test
+    void testProvisionClaimUsedAsIsWhenFree() throws Exception {
+        Assertions.assertEquals( "Jane Q. Public", provisioned( "sso-free", "  Jane Q. Public " ), "trimmed claim" );
+    }
 
-        // An SSO login for a *different* account (distinct login name) that resolves the
-        // same display name. Before the fix this threw on the unique wiki_name constraint
-        // and no profile was persisted.
+    @Test
+    void testProvisionTakenClaimIsNumberedIgnoringCaseAndWhitespace() throws Exception {
+        saveLocalAccount( "jf-local", "Jake Fear" );
+        Assertions.assertEquals( "Jake Fear 2", provisioned( "sso-jf2", "Jake Fear" ) );
+        Assertions.assertEquals( "Jake Fear 3", provisioned( "sso-jf3", "Jake Fear" ) );
+        Assertions.assertEquals( "jake fear 4", provisioned( "sso-jf4", " jake fear " ),
+                "case-insensitive clash; the claim keeps its own spelling in the numbered form" );
+    }
+
+    @Test
+    void testProvisionEmailShapedClaimIsUnusable() throws Exception {
+        final String name = provisioned( "sso-email-claim", "jane.doe@example.com" );
+        Assertions.assertEquals( "Member 1", name );
+        Assertions.assertFalse( name.contains( "@" ) );
+    }
+
+    @Test
+    void testProvisionClaimEqualToAnotherLoginIsNumberedCaseInsensitively() throws Exception {
+        saveLocalAccount( "ssoboss", "Sso Boss" );
+        Assertions.assertEquals( "SSOBoss 2", provisioned( "sso-claimer", "SSOBoss" ) );
+    }
+
+    @Test
+    void testProvisionNeverUsesAnEmailLoginAsTheDisplayName() throws Exception {
+        final String name = provisioned( "someone@example.com", null );
+        Assertions.assertEquals( "Member 1", name );
+        Assertions.assertNotEquals( "someone@example.com", name );
+    }
+
+    // was testProvisionDeduplicatesCollidingWikiName — two accounts may no longer share a name; the second is numbered
+    @Test
+    void testProvisionDeduplicatesCollidingDisplayNameAndWikiName() throws Exception {
+        saveLocalAccount( "jakefear-local", "Jake Fear" );
+        Assertions.assertEquals( "JakeFear", userDb().findByLoginName( "jakefear-local" ).getWikiName() );
+
         final CommonProfile profile = new CommonProfile();
         profile.setId( "114291954688138286475" );
         profile.addAttribute( "email", "jakefear@simpleagility.com" );
         profile.addAttribute( "name", "Jake Fear" );
+        service().provisionIfNeeded( "jakefear@simpleagility.com", "114291954688138286475", profile );
 
-        service.provisionIfNeeded( "jakefear@simpleagility.com", "114291954688138286475", profile );
+        final UserProfile created = userDb().findByLoginName( "jakefear@simpleagility.com" );
+        Assertions.assertNotNull( created, "SSO profile must be persisted despite the name clash." );
+        Assertions.assertEquals( "Jake Fear 2", created.getFullname() );
+        Assertions.assertEquals( "jakefear@simpleagility.com", userDb().findByWikiName( "JakeFear2" ).getLoginName(),
+                "the numbered display name derives a free wiki name" );
+        Assertions.assertEquals( "jakefear-local", userDb().findByWikiName( "JakeFear" ).getLoginName() );
+    }
 
-        final UserProfile created = userDb.findByLoginName( "jakefear@simpleagility.com" );
-        Assertions.assertNotNull( created, "SSO profile must be persisted despite the wiki-name clash." );
-        // Two accounts may share a full name; only the wiki name must be unique.
-        Assertions.assertEquals( "Jake Fear", created.getFullname() );
-        // The de-duplicated wiki name is what was stored (and what a prod JDBC INSERT
-        // would use to satisfy the unique constraint). Assert via a stored-attribute
-        // lookup rather than getWikiName(), which re-derives from the full name on read.
-        Assertions.assertEquals( "jakefear@simpleagility.com", userDb.findByWikiName( "JakeFear2" ).getLoginName(),
-            "Colliding wiki name must be de-duplicated to JakeFear2 and stored." );
-        // Original account keeps its wiki name.
-        Assertions.assertEquals( "jakefear-local", userDb.findByWikiName( "JakeFear" ).getLoginName() );
-
-        // Clean up
-        userDb.deleteByLoginName( "jakefear@simpleagility.com" );
-        userDb.deleteByLoginName( "jakefear-local" );
+    @Test
+    void testDescribeChoiceExplainsEachBranch() {
+        Assertions.assertEquals( "no name claim from the identity provider; placeholder",
+                SSOAutoProvisionService.describeChoice( null, "Member 1" ) );
+        Assertions.assertEquals( "no name claim from the identity provider; placeholder",
+                SSOAutoProvisionService.describeChoice( "   ", "Member 1" ) );
+        Assertions.assertEquals( "name claim used as-is",
+                SSOAutoProvisionService.describeChoice( " Jane Doe ", "Jane Doe" ) );
+        Assertions.assertEquals( "name claim was taken; numbered",
+                SSOAutoProvisionService.describeChoice( "Jane Doe", "Jane Doe 2" ) );
+        Assertions.assertEquals( "name claim unusable (reserved, email-shaped or malformed); placeholder",
+                SSOAutoProvisionService.describeChoice( "Admin", "Member 1" ) );
     }
 }

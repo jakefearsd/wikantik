@@ -24,7 +24,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.ProfileNameRules;
-import com.wikantik.auth.ReservedProfileNames;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -94,7 +93,10 @@ public class SSOAutoProvisionService {
             final UserProfile profile = userDb.newProfile();
             profile.setLoginName( loginName );
 
-            profile.setFullname( displayName( userDb, loginName, resolveAttribute( ssoProfile, ssoConfig.getClaimFullName() ) ) );
+            final String claimed = resolveAttribute( ssoProfile, ssoConfig.getClaimFullName() );
+            final String displayName = ProfileNameRules.availableDisplayName( engine, userDb, loginName, claimed );
+            profile.setFullname( displayName );
+            LOG.info( "SSO account {}: display name '{}' ({})", loginName, displayName, describeChoice( claimed, displayName ) );
 
             final String email = resolveAttribute( ssoProfile, ssoConfig.getClaimEmail() );
             if( email != null && !email.isBlank() ) {
@@ -129,39 +131,23 @@ public class SSOAutoProvisionService {
     }
 
     /**
-     * Chooses the provisioned full name. A usable name is neither reserved for a role or group (see
-     * {@link ReservedProfileNames}) nor another account's login name; another account may share
-     * it. The IdP's name claim is used when usable; a claim equal to another account's login gets a
-     * numeric suffix ("jdoe 2"); a reserved or missing claim falls back to the login name.
+     * Why {@code chosen} was picked, for the provisioning INFO line (names only — never a secret). Package-private for tests.
+     *
+     * @param claimed the raw IdP name claim, possibly {@code null}
+     * @param chosen  the display name {@link ProfileNameRules#availableDisplayName} returned
      */
-    private String displayName( final UserDatabase userDb, final String loginName, final String claimed ) {
-        if( claimed != null && !claimed.isBlank() ) {
-            if( ReservedProfileNames.isReserved( engine, claimed ) ) {
-                LOG.info( "SSO name claim '{}' for {} is reserved for a role or group; using the login name instead",
-                        claimed, loginName );
-            } else {
-                final String base = claimed.trim();
-                for( int suffix = 1; suffix <= MAX_NAME_SUFFIX; suffix++ ) {
-                    final String candidate = suffix == 1 ? base : base + " " + suffix;
-                    if( usableName( userDb, loginName, candidate ) ) {
-                        return candidate;
-                    }
-                }
-            }
+    static String describeChoice( final String claimed, final String chosen ) {
+        final String base = claimed == null ? "" : claimed.trim();
+        if ( base.isEmpty() ) {
+            return "no name claim from the identity provider; placeholder";
         }
-        if( usableName( userDb, loginName, loginName ) ) {
-            return loginName;
+        if ( chosen.equals( base ) ) {
+            return "name claim used as-is";
         }
-        return "User " + loginName;
-    }
-
-    /** Upper bound on numeric suffixes tried for a taken display name before falling back. */
-    private static final int MAX_NAME_SUFFIX = 100;
-
-    private boolean usableName( final UserDatabase userDb, final String loginName, final String name ) {
-        return !ReservedProfileNames.isReserved( engine, name )
-                && !ProfileNameRules.isAnotherAccountsLogin( userDb, loginName, name )
-                && !ProfileNameRules.isAnotherAccountsLogin( userDb, loginName, ProfileNameRules.derivedWikiName( name ) );
+        if ( chosen.startsWith( "Member " ) ) {
+            return "name claim unusable (reserved, email-shaped or malformed); placeholder";
+        }
+        return "name claim was taken; numbered";
     }
 
     /**

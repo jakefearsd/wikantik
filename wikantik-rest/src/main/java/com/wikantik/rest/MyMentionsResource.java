@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.wikantik.api.comments.MentionFeedItem;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.comments.mentions.MentionFeedDao;
 import com.wikantik.comments.mentions.MentionService;
@@ -43,6 +44,11 @@ import org.apache.logging.log4j.Logger;
 /**
  * REST servlet backing the per-user mention feed and unread tracking.
  * Mapped to {@code /api/me/mentions/*}.
+ *
+ * <p>Rows are stored against logins, but {@code mentionedBy} goes out as the author's current
+ * display name. The comment {@code snippet} is only included when the caller can still view the
+ * page the comment is on: the feed outlives page ACL changes, and a recipient who lost access
+ * must not keep reading the discussion through it.</p>
  *
  * <ul>
  *   <li>{@code GET /api/me/mentions} — feed list, newest-first, cursor pagination via {@code before}.</li>
@@ -69,6 +75,11 @@ public class MyMentionsResource extends RestServletBase {
     /** Seam — the mention service, overridable for unit tests. */
     protected MentionService mentionService() {
         return getSubsystems().persistence().mentions();
+    }
+
+    /** Seam — turns the stored author login into a display name; overridable for unit tests. */
+    protected PublicIdentity publicIdentity() {
+        return getSubsystems().auth().publicIdentity();
     }
 
     /** Seam — slug resolution from canonical id, overridable for unit tests. */
@@ -133,17 +144,19 @@ public class MyMentionsResource extends RestServletBase {
         final Optional< Instant > before = parseInstant( request.getParameter( "before" ) );
 
         final List< MentionFeedItem > rows = mentionFeed().list( me, status, limit, before );
+        final PublicIdentity identity = publicIdentity();
         final List< Map< String, Object > > out = new ArrayList<>();
         for ( final MentionFeedItem r : rows ) {
-            final String slug = resolveSlug( r.canonicalId() ).orElse( r.canonicalId() );
+            final Optional< String > resolved = resolveSlug( r.canonicalId() );
+            final String slug = resolved.orElse( r.canonicalId() );
             final Map< String, Object > m = new LinkedHashMap<>();
             m.put( "id", r.id().toString() );
             m.put( "threadId", r.threadId().toString() );
             m.put( "commentId", r.commentId().toString() );
             m.put( "canonicalId", r.canonicalId() );
             m.put( "pageName", slug );
-            m.put( "snippet", r.snippet() );
-            m.put( "mentionedBy", r.mentionedBy() );
+            m.put( "snippet", canViewPage( request, resolved ) ? r.snippet() : null );
+            m.put( "mentionedBy", identity.displayName( r.mentionedBy() ) );
             m.put( "isOwnerMention", r.isOwnerMention() );
             m.put( "mentionedAt", r.mentionedAt() == null ? null : r.mentionedAt().toString() );
             m.put( "readAt", r.readAt() == null ? null : r.readAt().toString() );
@@ -152,6 +165,16 @@ public class MyMentionsResource extends RestServletBase {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "mentions", out );
         sendJson( response, body );
+    }
+
+    /**
+     * True when the caller may view the page the mention's comment is on. A page that no longer
+     * resolves cannot be checked, so its snippet is withheld too. Uses the silent capability query:
+     * hiding a snippet is a visibility decision, not an enforcement denial, so it writes no
+     * {@code access.denied} audit row.
+     */
+    private boolean canViewPage( final HttpServletRequest request, final Optional< String > slug ) {
+        return slug.isPresent() && hasPagePermission( request, slug.get(), "view" );
     }
 
     private void unreadCount( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {

@@ -43,17 +43,21 @@ import java.util.Map;
  * composer. Mapped to {@code /api/users/mentionable}.
  * <p>
  * Requires a signed-in (authenticated) session; anonymous and cookie-asserted
- * callers get a {@code 401}. The response carries login names, and under SSO a
- * login name is the user's email address, so the endpoint must not be a public
- * directory. Locked accounts are filtered out so muted users cannot be summoned.
+ * callers get a {@code 401}. Locked accounts are filtered out so muted users
+ * cannot be summoned.
  * <p>
- * Matching rules:
- * <ul>
- *   <li>{@code login_name} — case-insensitive <em>prefix</em> match (the
- *       typical "I typed @al, find me Alice" pattern).</li>
- *   <li>{@code full_name} — case-insensitive <em>substring</em> match (so a
- *       last-name fragment still finds the user).</li>
- * </ul>
+ * Members are shown to each other by <em>display name</em> only. Each row is
+ * {@code {"id": "<users.uid>", "displayName": "<name>"}}: no login name (under
+ * SSO it is the member's email address) and no other profile field. The
+ * picker inserts {@code @[<displayName>](user:<id>)}; the id is the key.
+ * <p>
+ * Matching rule: case-insensitive <em>substring</em> match on the display name
+ * (so a last-name fragment still finds the member) — and on nothing else.
+ * Matching on the login would let any signed-in member probe which logins
+ * exist ({@code q=jake@} returning a row confirms an address), so the login is
+ * never consulted. A member with no display name (or one that is email-shaped, which
+ * {@code PublicIdentity} also refuses to show) or no uid cannot be shown and is skipped.
+ * <p>
  * Default page size {@value #DEFAULT_LIMIT}; hard cap {@value #MAX_LIMIT} —
  * the picker is a typeahead, not a directory browser, so unbounded responses
  * would just be wasted bytes.
@@ -79,8 +83,8 @@ public class MentionableUsersResource extends RestServletBase {
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        // Gate before touching the user database: login names are email addresses under
-        // SSO, so an unauthenticated caller must not be able to enumerate them.
+        // Gate before touching the user database: the member directory is for signed-in
+        // members only, so an unauthenticated caller must not be able to enumerate it.
         if ( !isAuthenticated( request ) ) {
             sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Login required" );
             return;
@@ -103,12 +107,17 @@ public class MentionableUsersResource extends RestServletBase {
                     continue;
                 }
                 if ( p == null || p.isLocked() ) continue;
-                final String login = p.getLoginName() == null ? "" : p.getLoginName().toLowerCase( Locale.ROOT );
-                final String full  = p.getFullname()  == null ? "" : p.getFullname().toLowerCase( Locale.ROOT );
-                if ( q.isEmpty() || login.startsWith( q ) || full.contains( q ) ) {
+                final String uid = p.getUid();
+                final String displayName = usableDisplayName( p );
+                if ( uid == null || uid.isBlank() || displayName.isEmpty() ) {
+                    // Nothing safe to show or key a mention on; never fall back to the login.
+                    LOG.debug( "mentionable: skipping an account with no uid or no display name" );
+                    continue;
+                }
+                if ( q.isEmpty() || displayName.toLowerCase( Locale.ROOT ).contains( q ) ) {
                     final Map< String, Object > row = new LinkedHashMap<>();
-                    row.put( "loginName", p.getLoginName() );
-                    row.put( "fullName",  p.getFullname() );
+                    row.put( "id", uid );
+                    row.put( "displayName", displayName );
                     out.add( row );
                     if ( out.size() >= limit ) break;
                 }
@@ -122,6 +131,16 @@ public class MentionableUsersResource extends RestServletBase {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "users", out );
         sendJson( response, body );
+    }
+
+    /**
+     * The account's display name, or {@code ""} when it has none that can be shown. An email-shaped name
+     * (a legacy account whose full name was its address) is unusable for the same reason
+     * {@code PublicIdentity#displayName} masks it: showing it would publish an address.
+     */
+    private static String usableDisplayName( final UserProfile p ) {
+        final String name = p.getFullname() == null ? "" : p.getFullname().trim();
+        return name.indexOf( '@' ) >= 0 ? "" : name;
     }
 
     private static int clampLimit( final String raw ) {

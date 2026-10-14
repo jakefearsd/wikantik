@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -406,5 +408,79 @@ public class CommentThreadIT {
                 "GET /api/me/mentions/unread-count should return 200: " + count.body() );
         assertTrue( count.body().matches( "(?s).*\"count\"\\s*:\\s*[1-9][0-9]*.*" ),
                 "unread-count should be a positive integer: " + count.body() );
+    }
+    /**
+     * Wire-level check of the display-name mention flow (the legacy {@code @login} flow is covered by
+     * {@link #mention_in_comment_appears_in_my_mentions_feed()}).
+     *
+     * <ol>
+     *   <li>Alice signs in on her own client and reads her opaque uid from {@code GET /api/auth/user}
+     *       ({@code userId}) — the same value the mention picker receives as {@code id}.</li>
+     *   <li>janne comments with the stored token {@code @[Alice](user:<uid>)}.</li>
+     *   <li>Alice's feed holds that mention, names janne by <em>display name</em>, and never contains
+     *       janne's login — proving the server resolved the token's uid to a login for storage and the
+     *       stored author login back to a display name for the response.</li>
+     * </ol>
+     */
+    @Test
+    @Order( 4 )
+    @SuppressWarnings( "unchecked" )
+    void token_mention_reaches_the_mentioned_members_feed_under_display_names() throws Exception {
+        // (1) Alice's uid, read by Alice.
+        final HttpClient aliceClient = HttpClient.newBuilder()
+                .followRedirects( HttpClient.Redirect.NORMAL )
+                .cookieHandler( secureCookieOverHttp() )
+                .build();
+        final HttpResponse< String > aliceLogin = aliceClient.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/auth/login" ) )
+                        .header( "Content-Type", "application/json" )
+                        .header( "Accept", "application/json" )
+                        .POST( HttpRequest.BodyPublishers.ofString(
+                                GSON.toJson( Map.of( "username", "Alice", "password", "password" ) ) ) )
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 200, aliceLogin.statusCode(), "Login as Alice should succeed: " + aliceLogin.body() );
+        final HttpResponse< String > aliceMe = aliceClient.send(
+                HttpRequest.newBuilder().uri( URI.create( baseUrl + "/api/auth/user" ) )
+                        .header( "Accept", "application/json" ).GET().build(),
+                HttpResponse.BodyHandlers.ofString() );
+        final String aliceUid = ( String ) parseJson( aliceMe.body() ).get( "userId" );
+        assertNotNull( aliceUid, "GET /api/auth/user must carry the caller's own userId: " + aliceMe.body() );
+        assertFalse( aliceUid.isBlank(), aliceMe.body() );
+
+        // (2) janne seeds a page and mentions Alice by token.
+        loginAsAdmin();
+        final String janneDisplayName = ( String ) parseJson( get( "/api/auth/user" ).body() ).get( "username" );
+        assertNotEquals( "janne", janneDisplayName,
+                "the IT seed gives janne a display name that differs from his login" );
+        final String tokenPage = "TokenMentionITPage";
+        final String anchor = "the lazy dog";
+        final HttpResponse< String > putResp = put( "/api/pages/" + tokenPage,
+                GSON.toJson( Map.of(
+                        "content", "Body containing " + anchor + " for anchoring a token mention.",
+                        "changeNote", "seed for token_mention_reaches_the_mentioned_members_feed_under_display_names" ) ) );
+        assertEquals( 200, putResp.statusCode(), "Seeding the page should return 200: " + putResp.body() );
+        waitForStructuralIndexUp();
+        final String commentText = "@[Alice](user:" + aliceUid + ") please review";
+        final HttpResponse< String > createResp = post( "/api/comment-threads?page=" + tokenPage,
+                GSON.toJson( Map.of( "exact", anchor, "prefix", "", "suffix", "", "text", commentText ) ) );
+        assertEquals( 200, createResp.statusCode(), "POST create thread should return 200: " + createResp.body() );
+
+        // (3) Alice's feed.
+        final HttpResponse< String > feed = aliceClient.send(
+                HttpRequest.newBuilder().uri( URI.create( baseUrl + "/api/me/mentions?status=unread" ) )
+                        .header( "Accept", "application/json" ).GET().build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 200, feed.statusCode(), "GET /api/me/mentions should return 200: " + feed.body() );
+        final List< Map< String, Object > > mentions =
+                ( List< Map< String, Object > > ) parseJson( feed.body() ).get( "mentions" );
+        final Map< String, Object > row = mentions.stream()
+                .filter( m -> tokenPage.equals( m.get( "pageName" ) ) )
+                .findFirst()
+                .orElseThrow( () -> new AssertionError( "the token mention must reach Alice's feed: " + feed.body() ) );
+        assertEquals( janneDisplayName, row.get( "mentionedBy" ), "the author is named by display name" );
+        assertEquals( commentText, row.get( "snippet" ), "Alice can view the page, so the snippet is present" );
+        assertFalse( feed.body().contains( "\"janne\"" ), "janne's login must not appear: " + feed.body() );
     }
 }

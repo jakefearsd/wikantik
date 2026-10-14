@@ -22,7 +22,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
+import com.wikantik.WikiSubsystems;
 import com.wikantik.api.comments.MentionFeedItem;
+import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.comments.mentions.MentionFeedDao;
 import com.wikantik.comments.mentions.MentionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +45,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MyMentionsResourceTest {
@@ -49,6 +53,7 @@ class MyMentionsResourceTest {
     private final Gson gson = new Gson();
     private MentionFeedDao feed;
     private MentionService svc;
+    private PublicIdentity identity;
     private MyMentionsResource servlet;
 
     @BeforeEach
@@ -62,6 +67,89 @@ class MyMentionsResourceTest {
         Mockito.doReturn( true ).when( servlet ).isAuthenticated( Mockito.any() );
         Mockito.doReturn( "alice" ).when( servlet ).currentUser( Mockito.any() );
         Mockito.doReturn( Optional.of( "FooPage" ) ).when( servlet ).resolveSlug( Mockito.anyString() );
+
+        // A stored principal is shown as itself unless a test says otherwise; every page is viewable.
+        identity = Mockito.mock( PublicIdentity.class );
+        Mockito.when( identity.displayName( Mockito.any() ) ).thenAnswer( inv -> inv.getArgument( 0 ) );
+        Mockito.doReturn( identity ).when( servlet ).publicIdentity();
+        Mockito.doReturn( true ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+    }
+
+    // ---- display names + snippet visibility ----
+
+    private MentionFeedItem item( final String canonicalId, final String snippet, final String mentionedBy ) {
+        return new MentionFeedItem( UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), canonicalId, null,
+                snippet, mentionedBy, false, Instant.parse( "2026-05-01T12:00:00Z" ), null );
+    }
+
+    private JsonArray feedOf( final MentionFeedItem... items ) throws Exception {
+        Mockito.when( feed.list( Mockito.eq( "alice" ), Mockito.any(), Mockito.anyInt(), Mockito.any() ) )
+                .thenReturn( List.of( items ) );
+        return invokeGet( null, null ).getAsJsonArray( "mentions" );
+    }
+
+    @Test
+    void mentionedBy_is_the_display_name_never_the_stored_login() throws Exception {
+        Mockito.when( identity.displayName( "leak-probe@example.test" ) ).thenReturn( "Leak Probe" );
+        final JsonArray mentions = feedOf( item( "CID-1", "hello", "leak-probe@example.test" ) );
+        assertEquals( "Leak Probe", mentions.get( 0 ).getAsJsonObject().get( "mentionedBy" ).getAsString() );
+        assertFalse( mentions.toString().contains( "example.test" ), "the login must not appear: " + mentions );
+    }
+
+    @Test
+    void snippet_is_included_when_the_recipient_can_view_the_page() throws Exception {
+        final JsonArray mentions = feedOf( item( "CID-1", "see this", "bob" ) );
+        assertEquals( "see this", mentions.get( 0 ).getAsJsonObject().get( "snippet" ).getAsString() );
+        Mockito.verify( servlet ).hasPagePermission( Mockito.any(), Mockito.eq( "FooPage" ), Mockito.eq( "view" ) );
+    }
+
+    @Test
+    void snippet_is_omitted_when_the_recipient_cannot_view_the_page() throws Exception {
+        Mockito.doReturn( false ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.eq( "FooPage" ), Mockito.eq( "view" ) );
+        final JsonArray mentions = feedOf( item( "CID-1", "a restricted discussion", "bob" ) );
+        final JsonObject m = mentions.get( 0 ).getAsJsonObject();
+        assertFalse( m.has( "snippet" ), "snippet must be omitted: " + m );
+        assertFalse( mentions.toString().contains( "restricted discussion" ), mentions.toString() );
+        // The row itself stays, so the recipient still sees that they were mentioned and by whom.
+        assertEquals( "bob", m.get( "mentionedBy" ).getAsString() );
+        assertEquals( "FooPage", m.get( "pageName" ).getAsString() );
+    }
+
+    @Test
+    void view_permission_is_checked_per_row() throws Exception {
+        Mockito.doReturn( Optional.of( "OpenPage" ) ).when( servlet ).resolveSlug( "CID-OPEN" );
+        Mockito.doReturn( Optional.of( "SecretPage" ) ).when( servlet ).resolveSlug( "CID-SECRET" );
+        Mockito.doReturn( false ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.eq( "SecretPage" ), Mockito.anyString() );
+        final JsonArray mentions = feedOf(
+                item( "CID-OPEN", "open words", "bob" ), item( "CID-SECRET", "secret words", "bob" ) );
+        assertEquals( "open words", mentions.get( 0 ).getAsJsonObject().get( "snippet" ).getAsString() );
+        assertFalse( mentions.get( 1 ).getAsJsonObject().has( "snippet" ) );
+    }
+
+    @Test
+    void snippet_is_withheld_when_the_page_no_longer_resolves() throws Exception {
+        Mockito.doReturn( Optional.empty() ).when( servlet ).resolveSlug( "CID-GONE" );
+        final JsonObject m = feedOf( item( "CID-GONE", "orphaned words", "bob" ) ).get( 0 ).getAsJsonObject();
+        assertFalse( m.has( "snippet" ), "an unresolvable page cannot be permission-checked: " + m );
+        assertEquals( "CID-GONE", m.get( "pageName" ).getAsString(), "existing fallback to the canonical id" );
+    }
+
+    @Test
+    void publicIdentityDelegatesToAuthSubsystem() {
+        final PublicIdentity expected = Mockito.mock( PublicIdentity.class );
+        final AuthSubsystem.Services auth = Mockito.mock( AuthSubsystem.Services.class );
+        Mockito.when( auth.publicIdentity() ).thenReturn( expected );
+        final MyMentionsResource plain = new MyMentionsResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.auth() ).thenReturn( auth );
+                return subs;
+            }
+        };
+        assertSame( expected, plain.publicIdentity() );
     }
 
     // ---- 1, 2: auth gating ----
@@ -106,7 +194,7 @@ class MyMentionsResourceTest {
         assertEquals( "CID-123", m.get( "canonicalId" ).getAsString() );
         assertEquals( "FooPage", m.get( "pageName" ).getAsString() );
         assertEquals( "hello @alice", m.get( "snippet" ).getAsString() );
-        assertEquals( "bob", m.get( "mentionedBy" ).getAsString() );
+        assertEquals( "bob", m.get( "mentionedBy" ).getAsString(), "shown as-is while identity maps it to itself" );
         assertFalse( m.get( "isOwnerMention" ).getAsBoolean() );
         assertEquals( "2026-05-01T12:00:00Z", m.get( "mentionedAt" ).getAsString() );
         // Gson omits nulls by default; readAt is null in our fixture so either

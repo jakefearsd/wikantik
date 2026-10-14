@@ -53,18 +53,22 @@ class MentionableUsersResourceTest {
     void setUp() throws Exception {
         db = Mockito.mock( UserDatabase.class );
         final Map< String, UserProfile > byWikiName = new HashMap<>();
-        byWikiName.put( "alice",  profile( "alice",  "Alice Anderson",   false ) );
-        byWikiName.put( "alicia", profile( "alicia", "Alicia Aces",      false ) );
-        byWikiName.put( "bob",    profile( "bob",    "Bob Builder",      false ) );
-        byWikiName.put( "carol",  profile( "carol",  "Carol Carmichael", false ) );
-        byWikiName.put( "locked", profile( "locked", "Locked Account",   true  ) );
+        // uids deliberately do not contain the login, so a leaked login is detectable in the JSON.
+        byWikiName.put( "alice",  profile( "uid-0001", "alice",  "Alice Anderson",   false ) );
+        byWikiName.put( "alicia", profile( "uid-0002", "alicia", "Alicia Aces",      false ) );
+        byWikiName.put( "bob",    profile( "uid-0003", "bob",    "Bob Builder",      false ) );
+        byWikiName.put( "carol",  profile( "uid-0004", "carol",  "Carol Carmichael", false ) );
+        byWikiName.put( "locked", profile( "uid-0005", "locked", "Locked Account",   true  ) );
+        // A login that is an email address, with an unrelated display name.
+        byWikiName.put( "zed",    profile( "uid-0006", "zed@example.test", "Quentin Quill", false ) );
 
         final Principal[] wikiNames = new Principal[] {
                 new WikiPrincipal( "alice",  WikiPrincipal.WIKI_NAME ),
                 new WikiPrincipal( "alicia", WikiPrincipal.WIKI_NAME ),
                 new WikiPrincipal( "bob",    WikiPrincipal.WIKI_NAME ),
                 new WikiPrincipal( "carol",  WikiPrincipal.WIKI_NAME ),
-                new WikiPrincipal( "locked", WikiPrincipal.WIKI_NAME )
+                new WikiPrincipal( "locked", WikiPrincipal.WIKI_NAME ),
+                new WikiPrincipal( "zed",    WikiPrincipal.WIKI_NAME )
         };
         Mockito.when( db.getWikiNames() ).thenReturn( wikiNames );
         for ( final Map.Entry< String, UserProfile > e : byWikiName.entrySet() ) {
@@ -77,8 +81,10 @@ class MentionableUsersResourceTest {
         Mockito.doReturn( true ).when( servlet ).isAuthenticated( Mockito.any() );
     }
 
-    private static UserProfile profile( final String login, final String full, final boolean locked ) {
+    private static UserProfile profile( final String uid, final String login, final String full,
+                                        final boolean locked ) {
         final UserProfile p = Mockito.mock( UserProfile.class );
+        Mockito.when( p.getUid() ).thenReturn( uid );
         Mockito.when( p.getLoginName() ).thenReturn( login );
         Mockito.when( p.getFullname() ).thenReturn( full );
         Mockito.when( p.isLocked() ).thenReturn( locked );
@@ -86,14 +92,53 @@ class MentionableUsersResourceTest {
     }
 
     @Test
-    void authenticated_access_returns_users() throws Exception {
+    void authenticated_access_returns_id_and_display_name() throws Exception {
         final JsonObject res = invoke( "?q=ali" );
         assertFalse( res.has( "error" ), "signed-in access should succeed: " + res );
         assertTrue( res.has( "users" ) );
         assertTrue( res.getAsJsonArray( "users" ).size() >= 1 );
         final JsonObject first = res.getAsJsonArray( "users" ).get( 0 ).getAsJsonObject();
-        assertEquals( "alice", first.get( "loginName" ).getAsString() );
-        assertEquals( "Alice Anderson", first.get( "fullName" ).getAsString() );
+        assertEquals( "uid-0001", first.get( "id" ).getAsString() );
+        assertEquals( "Alice Anderson", first.get( "displayName" ).getAsString() );
+    }
+
+    @Test
+    void a_row_carries_exactly_id_and_displayName_no_login_and_no_full_name() throws Exception {
+        final JsonObject res = invoke( "" );
+        res.getAsJsonArray( "users" ).forEach( u ->
+                assertEquals( java.util.Set.of( "id", "displayName" ), u.getAsJsonObject().keySet() ) );
+    }
+
+    @Test
+    void no_login_name_appears_anywhere_in_the_response() throws Exception {
+        final String body = invoke( "" ).toString();
+        for ( final String login : new String[] { "\"alice\"", "\"alicia\"", "\"bob\"", "\"carol\"",
+                "zed@example.test", "example.test" } ) {
+            assertFalse( body.contains( login ), "login leaked (" + login + "): " + body );
+        }
+    }
+
+    @Test
+    void a_login_is_never_matched_so_a_member_cannot_probe_which_logins_exist() throws Exception {
+        // zed@example.test is a real login; its display name is "Quentin Quill".
+        assertEquals( 0, invoke( "?q=zed" ).getAsJsonArray( "users" ).size(), "login prefix must not match" );
+        assertEquals( 0, invoke( "?q=zed@example.test" ).getAsJsonArray( "users" ).size() );
+        assertEquals( 0, invoke( "?q=example" ).getAsJsonArray( "users" ).size() );
+        // ...while the display name finds the same member.
+        final JsonArray hit = invoke( "?q=quill" ).getAsJsonArray( "users" );
+        assertEquals( 1, hit.size() );
+        assertEquals( "uid-0006", hit.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+    }
+
+    @Test
+    void a_login_fragment_that_is_in_no_display_name_finds_nobody() throws Exception {
+        // This member's login "mxyz" shares nothing with the display name "Dana Doe".
+        final UserProfile loginOnly = profile( "uid-0007", "mxyz", "Dana Doe", false );
+        Mockito.when( db.findByWikiName( "mxyz" ) ).thenReturn( loginOnly );
+        Mockito.when( db.getWikiNames() ).thenReturn( new Principal[] {
+                new WikiPrincipal( "mxyz", WikiPrincipal.WIKI_NAME ) } );
+        assertEquals( 0, invoke( "?q=mxy" ).getAsJsonArray( "users" ).size() );
+        assertEquals( 1, invoke( "?q=dana" ).getAsJsonArray( "users" ).size() );
     }
 
     @Test
@@ -112,23 +157,18 @@ class MentionableUsersResourceTest {
     }
 
     @Test
-    void prefix_matches_login() throws Exception {
-        final JsonObject res = invoke( "?q=ali" );
+    void substring_matches_display_name_case_insensitive() throws Exception {
+        final JsonObject res = invoke( "?q=BUILDER" );
         final JsonArray users = res.getAsJsonArray( "users" );
-        // alice + alicia match by login prefix
-        assertTrue( users.size() >= 2 );
-        users.forEach( u -> {
-            final String login = u.getAsJsonObject().get( "loginName" ).getAsString();
-            assertTrue( login.startsWith( "ali" ) );
-        } );
+        assertEquals( 1, users.size() );
+        assertEquals( "uid-0003", users.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+        assertEquals( "Bob Builder", users.get( 0 ).getAsJsonObject().get( "displayName" ).getAsString() );
     }
 
     @Test
-    void substring_matches_full_name_case_insensitive() throws Exception {
-        final JsonObject res = invoke( "?q=builder" );
-        final JsonArray users = res.getAsJsonArray( "users" );
-        assertEquals( 1, users.size() );
-        assertEquals( "bob", users.get( 0 ).getAsJsonObject().get( "loginName" ).getAsString() );
+    void a_display_name_prefix_finds_every_member_whose_name_contains_it() throws Exception {
+        final JsonArray users = invoke( "?q=ali" ).getAsJsonArray( "users" );
+        assertEquals( 2, users.size(), "Alice Anderson and Alicia Aces" );
     }
 
     @Test
@@ -166,7 +206,7 @@ class MentionableUsersResourceTest {
         // alicia still matches; alice does not.
         final JsonArray users = res.getAsJsonArray( "users" );
         users.forEach( u -> assertFalse(
-                "alice".equals( u.getAsJsonObject().get( "loginName" ).getAsString() ),
+                "uid-0001".equals( u.getAsJsonObject().get( "id" ).getAsString() ),
                 "alice's vanished profile must not appear in results" ) );
     }
 
@@ -180,25 +220,47 @@ class MentionableUsersResourceTest {
     }
 
     @Test
-    void profile_with_null_login_or_full_name_is_handled() throws Exception {
-        // Cover the `login == null ? ""` and `full == null ? ""` defensive branches.
-        // An empty-string match always succeeds when q is empty, so the row appears.
+    void a_member_with_no_display_name_or_no_uid_is_skipped_and_never_shown_by_login() throws Exception {
+        // Nothing safe to show (no display name) or to key a mention on (no uid): skipped, not a 500,
+        // and the login is not used as a fallback label.
+        final UserProfile blankName = profile( "uid-8", "blankname@example.test", "   ", false );
+        final UserProfile noUid = profile( null, "nouid@example.test", "No Uid", false );
         final UserProfile sparse = Mockito.mock( UserProfile.class );
         Mockito.when( sparse.getLoginName() ).thenReturn( null );
         Mockito.when( sparse.getFullname() ).thenReturn( null );
+        Mockito.when( sparse.getUid() ).thenReturn( null );
         Mockito.when( sparse.isLocked() ).thenReturn( false );
+        Mockito.when( db.findByWikiName( "blankname" ) ).thenReturn( blankName );
+        Mockito.when( db.findByWikiName( "nouid" ) ).thenReturn( noUid );
         Mockito.when( db.findByWikiName( "sparse" ) ).thenReturn( sparse );
-        // Add the wikiName to the enumeration set.
-        final Principal[] expanded = new Principal[] {
-                new WikiPrincipal( "alice",  WikiPrincipal.WIKI_NAME ),
-                new WikiPrincipal( "sparse", WikiPrincipal.WIKI_NAME )
-        };
-        Mockito.when( db.getWikiNames() ).thenReturn( expanded );
+        Mockito.when( db.getWikiNames() ).thenReturn( new Principal[] {
+                new WikiPrincipal( "alice",     WikiPrincipal.WIKI_NAME ),
+                new WikiPrincipal( "blankname", WikiPrincipal.WIKI_NAME ),
+                new WikiPrincipal( "nouid",     WikiPrincipal.WIKI_NAME ),
+                new WikiPrincipal( "sparse",    WikiPrincipal.WIKI_NAME ) } );
 
         final JsonObject res = invoke( "" );
-        assertFalse( res.has( "error" ), "null login/full name must not blow up: " + res );
-        // Both rows present (q is empty so everything matches).
-        assertTrue( res.getAsJsonArray( "users" ).size() >= 2 );
+        assertFalse( res.has( "error" ), "unusable profiles must not blow up: " + res );
+        final JsonArray users = res.getAsJsonArray( "users" );
+        assertEquals( 1, users.size(), "only alice is usable: " + res );
+        assertEquals( "uid-0001", users.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+        assertFalse( res.toString().contains( "example.test" ), "no login fallback: " + res );
+    }
+
+    @Test
+    void an_email_shaped_display_name_is_skipped_so_an_address_is_never_published() throws Exception {
+        // A legacy account whose full name is its address; PublicIdentity masks such a name, so this
+        // endpoint must not publish it as a "display name" either.
+        final UserProfile emailName = profile( "uid-9", "legacy", "legacy@example.test", false );
+        Mockito.when( db.findByWikiName( "legacy" ) ).thenReturn( emailName );
+        Mockito.when( db.getWikiNames() ).thenReturn( new Principal[] {
+                new WikiPrincipal( "alice",  WikiPrincipal.WIKI_NAME ),
+                new WikiPrincipal( "legacy", WikiPrincipal.WIKI_NAME ) } );
+
+        final JsonObject res = invoke( "" );
+        assertEquals( 1, res.getAsJsonArray( "users" ).size(), res.toString() );
+        assertFalse( res.toString().contains( "example.test" ), "no address in the body: " + res );
+        assertEquals( 0, invoke( "?q=legacy" ).getAsJsonArray( "users" ).size() );
     }
 
     // ---- helpers ----

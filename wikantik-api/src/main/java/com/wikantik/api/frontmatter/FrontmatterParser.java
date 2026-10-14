@@ -53,6 +53,10 @@ public final class FrontmatterParser {
      * share this delimiter-scanning algorithm and diverge only in how they react to each outcome.
      */
     private sealed interface SplitResult permits NoFrontmatter, EmptyBlock, Unclosed, Block {
+        /** Where the body begins in {@code text}, the text this result was split from. */
+        default int bodyOffset( final String text ) {
+            return 0;
+        }
     }
 
     /** No opening {@code ---} delimiter at all, or an opened-but-unclosed block that couldn't
@@ -64,6 +68,10 @@ public final class FrontmatterParser {
 
     /** Opening {@code ---} immediately followed by closing {@code ---} — a zero-content block. */
     private record EmptyBlock( String body ) implements SplitResult {
+        @Override
+        public int bodyOffset( final String text ) {
+            return text.length() - body.length();
+        }
     }
 
     /** Opened with {@code ---} but never closed, and the text does not end with a bare
@@ -74,6 +82,10 @@ public final class FrontmatterParser {
     /** A YAML block (possibly blank) with its trailing body, either delimited normally or
      *  salvaged from a trailing {@code ---} with no newline after it. */
     private record Block( String yamlBlock, String body ) implements SplitResult {
+        @Override
+        public int bodyOffset( final String text ) {
+            return text.length() - body.length();
+        }
     }
 
     /**
@@ -185,6 +197,18 @@ public final class FrontmatterParser {
             case EmptyBlock( String body ) -> parseYaml( "", body );
             case Block( String yamlBlock, String body ) -> parseYaml( yamlBlock, body );
         };
+    }
+
+    /**
+     * Where the body {@link #parse(String)} returns begins in {@code text} — {@code 0} when there is no closed
+     * frontmatter block — without loading any YAML. The body is always the suffix of the text from this offset.
+     *
+     * @param text the raw page text (may be null)
+     * @return the offset of the body; {@code 0} for {@code null}, empty text or text without a frontmatter block
+     */
+    public static int bodyOffset( final String text ) {
+        // split() needs no special case for "": it finds no opening delimiter there
+        return text == null ? 0 : split( text ).bodyOffset( text );
     }
 
     @SuppressWarnings( "unchecked" )

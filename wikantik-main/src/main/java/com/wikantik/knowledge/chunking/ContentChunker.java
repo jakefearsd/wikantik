@@ -25,6 +25,7 @@ import com.vladsch.flexmark.ast.OrderedList;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.util.AclDirectives;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -100,7 +101,10 @@ public class ContentChunker {
     public Config config() { return config; }
 
     public List<Chunk> chunk(String pageName, ParsedPage page) {
-        String body = page.body() == null ? "" : page.body().strip();
+        // Access-rule directives name people by login and are not content: they never reach a chunk, so
+        // never a search hit, a bundle section, an embedding or an extraction prompt.
+        final String withoutRules = AclDirectives.strip(page.body());
+        String body = withoutRules == null ? "" : withoutRules.strip();
         List<Chunk> out = new ArrayList<>();
         if (body.isEmpty()) {
             return out;

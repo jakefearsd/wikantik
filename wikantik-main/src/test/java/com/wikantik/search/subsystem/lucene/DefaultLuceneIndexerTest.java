@@ -48,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -325,6 +326,25 @@ class DefaultLuceneIndexerTest {
 
             assertNull( doc.get( DefaultLuceneIndexer.LUCENE_AUTHOR ),
                 "a stored login must never be written to the index just because the resolver is not up yet" );
+        }
+    }
+
+    @Test
+    void luceneIndexPage_indexesPageTextWithoutAccessRuleDirectives() throws Exception {
+        final String text = "[{ALLOW view All}]()\n[{ALLOW edit leak-probe@example.test}]\n"
+                + "Public prose. Example: `[{ALLOW edit Bob}]`.";
+        final Page page = mockPage( "AclIndexedPage" );
+
+        try ( Directory dir = LuceneDirectoryFactory.open( tmp, false );
+              IndexWriter writer = new IndexWriter( dir, new IndexWriterConfig( new StandardAnalyzer() ) ) ) {
+            final Document doc = newIndexer().luceneIndexPage( page, text, writer );
+
+            final String contents = doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS );
+            assertFalse( contents.contains( "leak-probe@example.test" ), contents );
+            assertFalse( contents.contains( "[{ALLOW view All}]" ), contents );
+            assertTrue( contents.contains( "Public prose." ), contents );
+            assertTrue( contents.contains( "`[{ALLOW edit Bob}]`" ),
+                "a documentation example in a code span stays: " + contents );
         }
     }
 

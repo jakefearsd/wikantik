@@ -373,4 +373,28 @@ class ContentChunkerTest {
                 "overlap=0 must not prepend any tail");
         }
     }
+
+    @Test
+    void accessRuleDirectivesNeverReachChunkText() {
+        final String body = "[{ALLOW view All}]\n[{ALLOW edit leak-probe@example.test}]\n\n# Title\n\n"
+                + "Public prose about the topic.\n\n## Notes\n\nUse `[{ALLOW edit Bob}]` to restrict a page.\n";
+        final List<Chunk> chunks = chunker.chunk("AclPage", new ParsedPage(Map.of(), body));
+
+        assertFalse(chunks.isEmpty());
+        for (final Chunk c : chunks) {
+            assertFalse(c.text().contains("leak-probe@example.test"), c.text());
+            assertFalse(c.text().contains("[{ALLOW view All}]"), c.text());
+        }
+        assertTrue(chunks.stream().anyMatch(c -> c.text().contains("Public prose")));
+        assertTrue(chunks.stream().anyMatch(c -> c.text().contains("`[{ALLOW edit Bob}]`")),
+                "a documentation example inside a code span is page content and stays");
+    }
+
+    @Test
+    void leadingDirectivesLeaveTheChunksExactlyAsIfTheyWereNeverThere() {
+        final String clean = "# Title\n\nPublic prose about the topic.\n\n## Notes\n\nMore prose.\n";
+        final String withRules = "[{ALLOW view All}]()\n[{ALLOW edit leak-probe@example.test}]\n\n" + clean;
+        assertEquals(chunker.chunk("P", new ParsedPage(Map.of(), clean)),
+                     chunker.chunk("P", new ParsedPage(Map.of(), withRules)));
+    }
 }

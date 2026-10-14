@@ -93,8 +93,9 @@ final class DisplayNameRules {
     }
 
     private static Optional< NameViolation > shape( final String candidate ) {
-        // The key is the source of truth for "blank": String.isBlank()/trim() ignore NBSP-class spaces that NFKC folds away.
-        if ( candidate == null || ProfileNameRules.displayNameKey( candidate ).isEmpty() ) {
+        // Blank by either measure: isBlank() knows spaces NFKC leaves alone (U+1680, U+2028/9), the key knows the NBSP-class
+        // spaces NFKC folds to U+0020 that isBlank()/trim() ignore.
+        if ( candidate == null || candidate.isBlank() || ProfileNameRules.displayNameKey( candidate ).isEmpty() ) {
             return ProfileNameRules.invalid( "A display name is required" );
         }
         final String name = candidate.trim();
@@ -105,16 +106,34 @@ final class DisplayNameRules {
             return ProfileNameRules.invalid( "A display name must be " + ProfileNameRules.DISPLAY_NAME_MIN + " to "
                     + ProfileNameRules.DISPLAY_NAME_MAX + " characters long" );
         }
-        if ( name.codePoints().anyMatch( Character::isISOControl ) ) {
+        if ( name.codePoints().anyMatch( DisplayNameRules::isControlOrLineBreak ) ) {
             return ProfileNameRules.invalid( "A display name cannot contain control characters" );
         }
-        if ( name.codePoints().anyMatch( DisplayNameRules::isInvisible ) ) {
+        if ( name.codePoints().anyMatch( DisplayNameRules::isInvisible )
+                || ProfileNameRules.displayNameForm( name ).codePoints().anyMatch( DisplayNameRules::isOddSpace ) ) {
             return ProfileNameRules.invalid( "A display name cannot contain invisible formatting characters" );
         }
         if ( name.indexOf( '@' ) >= 0 ) {
             return ProfileNameRules.invalid( "A display name cannot contain '@'; it would look like an email address" );
         }
         return Optional.empty();
+    }
+
+    /** True for ISO control characters and for the Unicode line and paragraph separators (U+2028, U+2029). */
+    private static boolean isControlOrLineBreak( final int codePoint ) {
+        if ( Character.isISOControl( codePoint ) ) {
+            return true;
+        }
+        final int type = Character.getType( codePoint );
+        return type == Character.LINE_SEPARATOR || type == Character.PARAGRAPH_SEPARATOR;
+    }
+
+    /**
+     * True for a space separator that is still not plain ASCII once NFKC has folded the usual ones (no-break, en/em, ideographic,
+     * ...) to U+0020 &mdash; in practice only U+1680, the Ogham space mark. Call it on the normalised form.
+     */
+    private static boolean isOddSpace( final int codePoint ) {
+        return codePoint > 0x7f && Character.getType( codePoint ) == Character.SPACE_SEPARATOR;
     }
 
     /**

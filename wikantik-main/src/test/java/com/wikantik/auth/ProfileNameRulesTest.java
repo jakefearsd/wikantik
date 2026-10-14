@@ -329,10 +329,27 @@ class ProfileNameRulesTest {
     @Test
     void blankLookingNamesAreTreatedAsMissing() {
         // NBSP-class characters are not whitespace to String.isBlank()/trim(), but they normalise to spaces.
-        for ( final String name : new String[] { "\u00a0\u00a0", "\u2007\u2007", "\u202f\u202f", " \u00a0 \u3000" } ) {
+        for ( final String name : new String[] { "\u00a0\u00a0", "\u2007\u2007", "\u202f\u202f", " \u00a0 \u3000",
+                // Spaces NFKC leaves alone but Character.isWhitespace knows: Ogham space mark, line/paragraph separator.
+                "\u1680\u1680", "\u2028\u2028", "\u2029\u2029", " \u1680 \u2028\u2029" } ) {
             assertTrue( displayError( "mallory", name ).orElseThrow().contains( "required" ), name );
         }
         assertFalse( ProfileNameRules.displayNameViolation( engine, db, "mallory", "\u00a0\u00a0" ).orElseThrow().isConflict() );
+    }
+
+    @Test
+    void lineSeparatorsAreControlCharacters() {
+        for ( final String name : new String[] { "Jake\u2028Fear", "Jake\u2029Fear", "\u2028Jake", "Jake\u2029" } ) {
+            assertTrue( displayError( "mallory", name ).orElseThrow().contains( "control" ), name );
+        }
+    }
+
+    @Test
+    void anOghamSpaceMarkIsAnInvisibleCharacter() {
+        // NFKC folds the other Unicode spaces to U+0020 but not U+1680, so it would otherwise stay as an odd space.
+        for ( final String name : new String[] { "Jake\u1680Fear", "\u1680Jake", "Jake\u1680" } ) {
+            assertTrue( displayError( "mallory", name ).orElseThrow().contains( "invisible" ), name );
+        }
     }
 
     @Test

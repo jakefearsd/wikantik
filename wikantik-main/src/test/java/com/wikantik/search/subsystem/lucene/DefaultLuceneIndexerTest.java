@@ -21,6 +21,7 @@ package com.wikantik.search.subsystem.lucene;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -45,6 +46,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -291,6 +293,38 @@ class DefaultLuceneIndexerTest {
             final Document doc = assertDoesNotThrow( () -> indexer.luceneIndexPage( page, text, writer ) );
             assertEquals( null, doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CLUSTER ),
                 "frontmatter fields must not have been populated once parsing the tags list failed" );
+        }
+    }
+
+    @Test
+    void luceneIndexPage_indexesTheAuthorsDisplayNameInsteadOfTheStoredLogin() throws Exception {
+        final Page page = mockPage( "AuthoredByLogin" );
+        when( page.getAuthor() ).thenReturn( "janne" );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
+
+        try ( Directory dir = LuceneDirectoryFactory.open( tmp, false );
+              IndexWriter writer = new IndexWriter( dir, new IndexWriterConfig( new StandardAnalyzer() ) ) ) {
+            final DefaultLuceneIndexer indexer = newIndexer();
+            indexer.setPublicIdentitySource( () -> identity );
+
+            final Document doc = indexer.luceneIndexPage( page, "Body content.", writer );
+
+            assertEquals( "Janne Jalkanen", doc.get( DefaultLuceneIndexer.LUCENE_AUTHOR ) );
+        }
+    }
+
+    @Test
+    void luceneIndexPage_leavesTheAuthorOutWhenNoIdentityServiceIsAvailable() throws Exception {
+        final Page page = mockPage( "AuthoredBeforeBoot" );
+        when( page.getAuthor() ).thenReturn( "janne" );
+
+        try ( Directory dir = LuceneDirectoryFactory.open( tmp, false );
+              IndexWriter writer = new IndexWriter( dir, new IndexWriterConfig( new StandardAnalyzer() ) ) ) {
+            final Document doc = newIndexer().luceneIndexPage( page, "Body content.", writer );
+
+            assertNull( doc.get( DefaultLuceneIndexer.LUCENE_AUTHOR ),
+                "a stored login must never be written to the index just because the resolver is not up yet" );
         }
     }
 

@@ -241,6 +241,19 @@ class LuceneSearchProviderTest {
         m_engine.deleteTestPage( "SetupPage" );
     }
 
+    @Test
+    void testAuthorFieldCarriesTheDisplayNameOfTheStoredLogin() throws Exception {
+        m_engine.saveTextAsJanne( "AuthorFieldPage", "quokkaauthorbody" );   // stored author: login "janne"
+
+        final Collection<SearchResult> byDisplayName = new ArrayList<>();
+        Awaitility.await( "page searchable by the author's display name" )
+                .atMost( 10, TimeUnit.SECONDS )
+                .until( findsResultsFor( byDisplayName, "Jalkanen" ) );
+
+        Assertions.assertEquals( "AuthorFieldPage", byDisplayName.iterator().next().getPage().getName() );
+        m_engine.deleteTestPage( "AuthorFieldPage" );
+    }
+
     // =========================================================================
     // Tests for page removal from index
     // =========================================================================

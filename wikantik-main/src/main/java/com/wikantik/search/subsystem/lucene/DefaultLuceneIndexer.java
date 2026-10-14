@@ -41,6 +41,7 @@ import org.apache.lucene.store.Directory;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
@@ -112,6 +113,12 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
     private final SystemPageRegistry systemPageRegistry;
 
     /**
+     * Where the identity service comes from. A supplier because the Auth subsystem is built after the search
+     * manager initialises; {@code () -> null} until {@link #setPublicIdentitySource} is called.
+     */
+    private volatile Supplier< PublicIdentity > publicIdentitySource = () -> null;
+
+    /**
      * When {@code true}, Lucene {@link org.apache.lucene.store.Directory} instances
      * are opened as {@link org.apache.lucene.store.MMapDirectory}; when {@code false}
      * (default), as {@link org.apache.lucene.store.NIOFSDirectory}. Threaded down
@@ -169,6 +176,32 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                                   final List<Object[]> updates ) {
         this( directorySupplier, lifecycle, pageManager, attachmentManager,
             systemPageRegistry, updates, /*useMMap*/ false );
+    }
+
+    /**
+     * Supplies the identity service used to index each author's <em>display name</em>. Set once by
+     * {@code LuceneSearchProvider}; never needed by the read path.
+     */
+    public void setPublicIdentitySource( final Supplier< PublicIdentity > source ) {
+        this.publicIdentitySource = source == null ? () -> null : source;
+    }
+
+    /**
+     * The author value to index: the display name for a stored login (legacy names unchanged), or {@code null}
+     * — leaving the field out — when the identity service is not available yet, so a login is never written to
+     * the index (searching for an email would otherwise reveal who edited what).
+     */
+    private String indexedAuthor( final Page page ) {
+        final String stored = page.getAuthor();
+        if ( stored == null ) {
+            return null;
+        }
+        final PublicIdentity identity = publicIdentitySource.get();
+        if ( identity == null ) {
+            LOG.debug( "No identity service yet; author of '{}' is left out of the search index", page.getName() );
+            return null;
+        }
+        return identity.displayName( stored );
     }
 
     private String dir() {
@@ -557,8 +590,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                 TextField.TYPE_STORED );
         doc.add( field );
 
-        if ( page.getAuthor() != null ) {
-            field = new Field( LUCENE_AUTHOR, page.getAuthor(), TextField.TYPE_STORED );
+        final String author = indexedAuthor( page );
+        if ( author != null ) {
+            field = new Field( LUCENE_AUTHOR, author, TextField.TYPE_STORED );
             doc.add( field );
         }
 

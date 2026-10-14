@@ -346,6 +346,26 @@ class SearchResourceTest {
     }
 
     @Test
+    void authorFromTheRetrievalServiceIsServedAsIs_notResolvedASecondTime() throws Exception {
+        // The retrieval service owns turning a stored principal into a display name. The seeded account with the
+        // login "janne" has the display name "Janne Jalkanen": a resource that resolved the already-resolved string
+        // "janne" again would silently swap one person for another.
+        final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
+        final RetrievedPage alpha = RetrievedPage.builder( "RestSearchAlpha", 1.0 )
+            .summary( "" )
+            .author( "janne" )
+            .build();
+        Mockito.doReturn( new RetrievalResult( "Alpha", List.of( alpha ), 1 ) )
+               .when( mockCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, mockCrs );
+
+        final JsonObject entry = gson.fromJson( doSearch( "Alpha", null ), JsonObject.class )
+            .getAsJsonArray( "results" ).get( 0 ).getAsJsonObject();
+
+        assertEquals( "janne", entry.get( "author" ).getAsString() );
+    }
+
+    @Test
     void crsResultWithChunksExposesContextsField() throws Exception {
         // Verify that contributingChunks are serialized as the 'contexts' field.
         final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );

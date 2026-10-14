@@ -26,6 +26,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.managers.AttachmentManager;
@@ -96,12 +97,22 @@ class LuceneSearchProviderCITest {
     @Mock private Session session;
 
     private LuceneSearchProvider provider;
+    private final PublicIdentity identity = mock( PublicIdentity.class );
     private Engine engine;
     private File luceneDir;
 
     @BeforeEach
     void setUp() throws Exception {
-        provider = new LuceneSearchProvider( pageManager, attachmentManager);
+        // In production the identity service is looked up lazily from the WikiEngine; this fixture has no
+        // WikiEngine, so substitute the lookup. Stored values pass through except one login.
+        when( identity.displayName( anyString() ) ).thenAnswer( inv -> inv.getArgument( 0 ) );
+        when( identity.displayName( "zq7login" ) ).thenReturn( "Janne Jalkanen" );
+        provider = new LuceneSearchProvider( pageManager, attachmentManager ) {
+            @Override
+            PublicIdentity publicIdentity() {
+                return identity;
+            }
+        };
 
         // Mockito intercepts default interface methods, so a mocked PageManager returns
         // null from getPageWithoutMetadata instead of running its delegating body. Mirror
@@ -467,6 +478,21 @@ class LuceneSearchProviderCITest {
     }
 
     @Test
+    void testFindPagesMatchesTheAuthorsDisplayNameButNotTheStoredLogin() throws Exception {
+        final Page page = mockPage( "AuthorSearchPage" );
+        when( page.getAuthor() ).thenReturn( "zq7login" );
+        when( attachmentManager.listAttachments( page ) ).thenReturn( Collections.emptyList() );
+        provider.updateLuceneIndex( page, "plain body text" );
+        when( pageManager.getPage( "AuthorSearchPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
+        stubAuthToAllow();
+
+        assertEquals( 1, provider.findPages( "Jalkanen", wikiContext ).size(),
+            "the author's display name is searchable" );
+        assertTrue( provider.findPages( "zq7login", wikiContext ).isEmpty(),
+            "the stored login must not be searchable" );
+    }
+
+    @Test
     void testFindPagesWithoutContextsFlag() throws Exception {
         final Page page = mockPage( "NoCtxPage" );
         when( attachmentManager.listAttachments( page ) ).thenReturn( Collections.emptyList() );
@@ -787,9 +813,10 @@ class LuceneSearchProviderCITest {
         when( aclManager.getPermissions( any( Page.class ) ) ).thenReturn( null );
     }
 
-    private static void setField( final Object target, final String fieldName, final Object value ) {
+    private static void setField( final LuceneSearchProvider target, final String fieldName, final Object value ) {
         try {
-            java.lang.reflect.Field field = target.getClass().getDeclaredField( fieldName );
+            // Declared on LuceneSearchProvider itself: the fixture's provider is an anonymous subclass.
+            java.lang.reflect.Field field = LuceneSearchProvider.class.getDeclaredField( fieldName );
             field.setAccessible( true );
             field.set( target, value );
         } catch( final Exception e ) {

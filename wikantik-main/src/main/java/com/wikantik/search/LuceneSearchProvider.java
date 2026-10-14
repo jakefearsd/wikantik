@@ -33,10 +33,12 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.search.subsystem.lucene.DefaultLuceneIndexer;
@@ -246,7 +248,7 @@ public class LuceneSearchProvider implements SearchProvider {
         if ( indexer == null ) {
             synchronized ( this ) {
                 if ( indexer == null ) {
-                    indexer = new DefaultLuceneIndexer(
+                    final DefaultLuceneIndexer created = new DefaultLuceneIndexer(
                             () -> luceneDirectory,
                             lifecycle(),
                             pageManager,
@@ -254,10 +256,32 @@ public class LuceneSearchProvider implements SearchProvider {
                             systemPageRegistry,
                             updates, // share the facade's updates list
                             useMMap );
+                    created.setPublicIdentitySource( this::publicIdentity );
+                    indexer = created;
                 }
             }
         }
         return indexer;
+    }
+
+    /**
+     * The identity service, looked up lazily because the Auth subsystem is built after this provider initialises:
+     * through the bridge, which serves the engine's snapshot once it exists and otherwise one assembled from the
+     * managers registered so far (the same engine-scoped identity either way). {@code null} while no user manager
+     * is registered yet, and for an engine that is not a {@link com.wikantik.WikiEngine}; the indexer then leaves the
+     * author out rather than index a login. Package-private so tests can substitute it.
+     */
+    PublicIdentity publicIdentity() {
+        if ( engine == null ) {
+            return null;
+        }
+        try {
+            return AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not reach the identity service; authors are left out of the search index: {}",
+                    e.getMessage(), e );
+            return null;
+        }
     }
 
     private DefaultLuceneSearcher searcher() {

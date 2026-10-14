@@ -21,49 +21,40 @@ package com.wikantik.util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
- * Removes page access-rule directives ({@code [{ALLOW view Alice}]}, {@code [{DENY edit Bob}]}) from
- * raw page text, so the people an access rule names are not disclosed to readers who may not edit the
- * page, and are not carried into search snippets, retrieval chunks or embeddings.
+ * The conservative half of removing page access-rule directives ({@code [{ALLOW view Alice}]},
+ * {@code [{DENY edit Bob}]}) from raw page text: it hides the ones it is <em>sure</em> are not documentation, and keeps
+ * the rest byte for byte. <b>It is not, on its own, a guarantee that no enforced rule survives</b> — the guarantee is
+ * {@code com.wikantik.auth.acl.AclDirectiveText} in {@code wikantik-main}, which first removes every span
+ * {@code DefaultAclManager} enforces (judged by a real Markdown parser) and only then runs this pass. Call that, not
+ * this, wherever text is shown to someone who may not edit the page.
  *
- * <p>What counts as a directive mirrors {@code DefaultAclManager} in {@code wikantik-main}, which this
- * module cannot depend on: the {@code [{ALLOW <permission> <principals>}]} span, where
- * {@code <permission>} is one of the seven page permissions. The scan is code-aware in the same way —
- * the identical text inside a fenced code block or an inline code span is documentation, not a rule,
- * and is kept. {@code DefaultAclManager} (and the renderer) also recognise the {@code [{DENY …}]} form
- * as an access rule, so it is removed too, and the spelling that plugin normalisation produces
- * ({@code [{ALLOW view All}]()}) is removed together with its empty {@code ()}.
+ * <p>What counts as a directive mirrors {@code DefaultAclManager}, which this module cannot depend on: the
+ * <code>[{ALLOW &lt;permission&gt; &lt;principals&gt;}]</code> span, where the permission is one of the seven page
+ * permissions, found by {@link AclDirectiveScanner} (linear time, match for match identical to the ACL manager's
+ * expression). {@code DENY} is recognised too, and the spelling plugin normalisation produces
+ * ({@code [{ALLOW view All}]()}) goes together with its empty {@code ()}. The pass is code-aware in the same way the
+ * ACL manager is: the identical text inside a fenced code block or an inline code span is documentation, not a rule,
+ * and is kept.
  *
- * <p>Everything else is returned byte-for-byte: other {@code [{Plugin}]} spans, line endings,
- * whitespace around a removed directive. Only the directive itself (plus an immediately trailing
- * {@code ()}) is removed — a directive on its own line leaves an empty line behind.
+ * <p>Everything else is returned byte-for-byte: other {@code [{Plugin}]} spans, line endings, whitespace around a
+ * removed directive. Only the directive itself (plus an immediately trailing {@code ()}) is removed — a directive on
+ * its own line leaves an empty line behind.
  *
- * <p><b>Fail-closed bias.</b> Code detection is a small purpose-built scanner (this module carries no
- * Markdown parser) that only trusts what it can be certain of: a <em>closed</em> fenced block whose
- * fences have at most three spaces of indent, and an inline backtick span that opens and closes on one
- * line. Anything else — an unclosed fence, a span that wraps onto another line, an indented code
- * block, a fence nested deeper in a list — is treated as ordinary text, so a directive there is
- * removed. That can only hide a documentation example from a reader; it can never expose a real rule.
+ * <p><b>Fail-closed bias, not a promise.</b> Code detection is a small purpose-built scanner (this module carries no
+ * Markdown parser) that only trusts what it can be certain of: a <em>closed</em> fenced block whose fences have at
+ * most three spaces of indent, and an inline backtick span that opens and closes on one line. Anything else — an
+ * unclosed fence, a span that wraps onto another line, an indented code block, a fence nested deeper in a list — is
+ * treated as ordinary text, so a directive there is removed. That errs towards hiding a documentation example, but a
+ * real parser disagrees with this scanner in places (an inline span that pairs across lines, a backtick inside inline
+ * HTML or an autolink, fence-looking lines in an HTML block, tilde fences with a second tilde in the info string), and
+ * where it does a trusted "code" region can hold a rule the ACL manager enforces. Hence the facade above.
  *
  * <p>Removing a directive can in principle splice the text either side of it into a new one
  * ({@code [{ALLOW vi[{ALLOW view a}]ew a}]}), so the scan repeats until nothing more matches (bounded).
  */
 public final class AclDirectives {
-
-    /** The page permissions an access rule can name — the action constants of {@code PagePermission}. */
-    private static final String PERMISSIONS = "(?:comment|delete|edit|modify|rename|upload|view)";
-
-    /**
-     * {@code DefaultAclManager.ACL_PATTERN} with {@code DENY} added and an optional trailing {@code ()}.
-     * The part after the permission (optional whitespace, a lazy run of anything, optional whitespace,
-     * then the closing brace and bracket) is deliberately identical, so both sides agree on where a
-     * directive ends.
-     */
-    private static final Pattern DIRECTIVE = Pattern.compile(
-            "\\[\\{\\s*(?:ALLOW|DENY)\\s+" + PERMISSIONS + "\\s*(?:.*?)\\s*\\}\\](?:\\(\\))?" );
 
     /** Upper bound on re-scans after a removal; real pages converge in one. */
     private static final int MAX_PASSES = 8;
@@ -72,7 +63,7 @@ public final class AclDirectives {
     }
 
     /**
-     * Removes every access-rule directive outside code from {@code markdown}.
+     * Removes every access-rule directive outside the code this pass can recognise from {@code markdown}.
      *
      * @param markdown raw page text (frontmatter included is fine), may be {@code null}
      * @return the text without directives; the same instance when there was nothing to remove;
@@ -109,21 +100,29 @@ public final class AclDirectives {
 
     /** One left-to-right pass; {@code null} when no directive outside code was found. */
     private static String stripOnce( final String text, final String replacement ) {
-        final Matcher matcher = DIRECTIVE.matcher( text );
-        if ( !matcher.find() ) {
+        final AclDirectiveScanner scanner = new AclDirectiveScanner( text, true );
+        AclDirectiveScanner.Span span = scanner.next( 0 );
+        if ( span == null ) {
             return null;
         }
         final List< int[] > code = codeRegions( text );
         final StringBuilder out = new StringBuilder( text.length() );
         int copiedTo = 0;
         boolean changed = false;
-        do {
-            if ( !insideCode( code, matcher.start() ) ) {
-                out.append( text, copiedTo, matcher.start() ).append( replacement );
-                copiedTo = matcher.end();
-                changed = true;
+        while ( span != null ) {
+            if ( insideCode( code, span.start() ) ) {
+                // A candidate that starts in code is skipped, and the search resumes just past its start rather than
+                // at its end: it was found by the lazy run to the first closer, which can swallow a real directive
+                // that begins inside the code (`[{DENY view x` followed by a real [{ALLOW …}]).
+                span = scanner.next( span.start() + 1 );
+                continue;
             }
-        } while ( matcher.find() );
+            final int end = AclDirectiveScanner.endWithEmptyParentheses( text, span );
+            out.append( text, copiedTo, span.start() ).append( replacement );
+            copiedTo = end;
+            changed = true;
+            span = scanner.next( end );
+        }
         if ( !changed ) {
             return null;
         }

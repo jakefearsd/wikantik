@@ -294,6 +294,20 @@ class AclDirectivesTest {
         assertEquals( "\\`\\`", AclDirectives.strip( "\\`[{ALLOW edit " + LOGIN + "}]\\`" ) );
     }
 
+    // ---- a candidate that starts in code must not hide a real directive that begins inside it ----
+
+    @Test
+    void aDenyCandidateStartingInsideACodeSpanDoesNotSwallowARealAllowAfterIt() {
+        // The lazy run from "[{DENY" reaches the closer of the ALLOW directive; only the DENY head lies in code.
+        assertEquals( "`[{DENY view x` ",
+                AclDirectives.strip( "`[{DENY view x` [{ALLOW edit " + LOGIN + "}]" ) );
+    }
+
+    @Test
+    void aDirectiveBeginningInsideACodeCandidateStillGoesWhenTheCandidateEndsAfterIt() {
+        assertEquals( "`[{ALLOW view x`  end", AclDirectives.strip( "`[{ALLOW view x` [{ALLOW edit " + LOGIN + "}] end" ) );
+    }
+
     // ---- documented limitation: indented code blocks fail closed ----
 
     @Test

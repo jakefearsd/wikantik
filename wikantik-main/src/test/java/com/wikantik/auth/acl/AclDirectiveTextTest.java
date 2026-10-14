@@ -1,0 +1,236 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.auth.acl;
+
+import com.wikantik.util.AclDirectiveScanner;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
+/**
+ * {@link AclDirectiveText#strip} is the guarantee: whatever {@link DefaultAclManager} enforces in a text is gone from
+ * the result, by construction (the facade removes exactly what the ACL manager would enforce, with its parser, and
+ * only then runs the conservative util pass). The cases that broke the util pass on its own — found by review — are
+ * fixtures here, each checked for the invariant against the real {@code DefaultAclManager.aclDirectives}, and a
+ * seeded differential run repeats the check on tens of thousands of token soups.
+ */
+class AclDirectiveTextTest {
+
+    private static final String LOGIN = "alice@example.test";
+    private static final String D = "[{ALLOW edit " + LOGIN + "}]";
+
+    // ---- degenerate input
+
+    @Test
+    void nullComesBackAsNullAndATextWithoutAnOpenerAsTheSameInstance() {
+        assertNull( AclDirectiveText.strip( null ) );
+        assertNull( AclDirectiveText.strip( null, " " ) );
+        final String plain = "# Title\n\nJust prose with a [link](x) and `code`.\n";
+        assertSame( plain, AclDirectiveText.strip( plain ) );
+    }
+
+    @Test
+    void aNullReplacementIsRejected() {
+        assertThrows( NullPointerException.class, () -> AclDirectiveText.strip( "x", null ) );
+    }
+
+    @Test
+    void pluginsAndDocumentationExamplesAreKeptByteForByteAndTheSameInstance() {
+        final String text = "[{TableOfContents}]\n[{SET foo='bar'}]\nUse `" + D + "` like so:\n\n```\n" + D + "\n```\n";
+        assertEquals( List.of(), DefaultAclManager.aclDirectives( text ), "fixture: nothing here is enforced" );
+        assertSame( text, AclDirectiveText.strip( text ) );
+    }
+
+    @Test
+    void anEnforcedDirectiveGoesWithItsEmptyParenthesesAndNothingElseMoves() {
+        assertEquals( "\n# T\r\n", AclDirectiveText.strip( "[{ALLOW view All}]()\n# T\r\n" ) );
+        assertEquals( "a b", AclDirectiveText.strip( "a[{ALLOW view All}]()b", " " ) );
+    }
+
+    @Test
+    void removalCannotSpliceTheSurroundingTextIntoAFreshDirective() {
+        final String out = AclDirectiveText.strip( "[{ALLOW vi[{ALLOW view " + LOGIN + "}]ew bob@example.test}]" );
+        assertEquals( "", out );
+    }
+
+    // ---- the cases that defeated the util pass on its own
+
+    private static Stream< Arguments > reviewerRepros() {
+        return Stream.of(
+                Arguments.of( "an inline span that pairs across lines in CommonMark", "a `b\nc` " + D + " `d" ),
+                Arguments.of( "backticks inside inline HTML", "<a title=\"`\">" + D + "<a title=\"`\">" ),
+                Arguments.of( "backticks inside an autolink", "<http://x/`>  " + D + " <http://y/`>" ),
+                Arguments.of( "a fence inside a <details> HTML block", "<details>\n```\n" + D + "\n```\n</details>\n" ),
+                Arguments.of( "a fence inside a <div> HTML block", "<div>\n```\n" + D + "\n```\n</div>\n" ),
+                Arguments.of( "an unclosed fence in a list item, then a later fence",
+                        "- item\n  ```\n  code\n\n" + D + "\n\n- other\n  ```\n" ),
+                Arguments.of( "a tilde fence whose opener holds a second tilde", "~~~x~\n" + D + "\n~~~\n" ),
+                Arguments.of( "a DENY candidate starting in code reaches a real ALLOW", "`[{DENY view x` " + D ) );
+    }
+
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "reviewerRepros" )
+    void everyReviewerReproLosesItsEnforcedDirective( final String label, final String body ) {
+        final List< String > enforced = DefaultAclManager.aclDirectives( body );
+        assertTrue( enforced.contains( D ), "fixture is vacuous: the ACL manager does not enforce the directive in: " + body );
+
+        final String out = AclDirectiveText.strip( body );
+
+        assertInvariant( body, out );
+    }
+
+    /** The invariant, against the real {@code DefaultAclManager}: nothing it enforced in {@code body} survives in {@code out}. */
+    private static void assertInvariant( final String body, final String out ) {
+        for ( final String directive : DefaultAclManager.aclDirectives( body ) ) {
+            assertFalse( out.contains( directive ), "enforced directive survived: " + directive + "\nin: " + out );
+        }
+        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ),
+                "the ACL manager still finds a directive in the output: " + out );
+    }
+
+    // ---- seeded differential: token soup against the real ACL manager
+
+    private static final long SEED = 0xAC1D1EC7L;
+    private static final int SOUPS = 25_000;
+    private static final Pattern SOUP_LOGIN = Pattern.compile( "u\\d+r\\d+@example\\.test" );
+
+    private static final String[] TOKENS = {
+            "`", "`", "``", "```", "````", "~~~", "~~~~", "~~~x~", "```js", "   ```", "    ```", "  ~~~",
+            "\n", "\n", "\n", "\n\n", "\r\n", " ", "  ", "    ", "\t", "- ", "1. ", "> ", "  - ", "* ",
+            "<details>", "</details>", "<div>", "</div>", "<!--", "-->", "<a title=\"", "\">", "<http://x/", ">", "<",
+            "text ", "word", "[{TableOfContents}]", "[{SET a='b'}]", "[x](y)", "()", "\\", "`code`", "\\`" };
+
+    @Test
+    void nothingTheAclManagerEnforcesSurvivesOnSeededTokenSoup() {
+        final Random random = new Random( SEED );
+        int soupsWithEnforcedDirectives = 0;
+        for ( int i = 0; i < SOUPS; i++ ) {
+            final String body = soup( random );
+            final List< String > enforced = DefaultAclManager.aclDirectives( body );
+            if ( !enforced.isEmpty() ) {
+                soupsWithEnforcedDirectives++;
+            }
+            final String out;
+            try {
+                out = AclDirectiveText.strip( body );
+            } catch ( final RuntimeException e ) {
+                throw new AssertionError( "strip threw for soup #" + i + " (seed " + SEED + "): " + printable( body ), e );
+            }
+            try {
+                assertInvariant( body, out );
+                for ( final String directive : enforced ) {
+                    final Matcher login = SOUP_LOGIN.matcher( directive );
+                    while ( login.find() ) {
+                        assertFalse( out.contains( login.group() ), "login survived: " + login.group() );
+                    }
+                }
+            } catch ( final AssertionError e ) {
+                fail( "soup #" + i + " (seed " + SEED + "): " + printable( body ) + "\n" + e.getMessage() );
+            }
+        }
+        assertTrue( soupsWithEnforcedDirectives > SOUPS / 4,
+                "the soups should often hold an enforced directive, got " + soupsWithEnforcedDirectives );
+    }
+
+    /** Token soup with uniquely numbered logins (so a surviving login names its directive). */
+    private static String soup( final Random random ) {
+        final int parts = 3 + random.nextInt( 22 );
+        final StringBuilder sb = new StringBuilder();
+        for ( int p = 0; p < parts; p++ ) {
+            final int pick = random.nextInt( TOKENS.length + 6 );
+            if ( pick < TOKENS.length ) {
+                sb.append( TOKENS[ pick ] );
+            } else {
+                sb.append( directive( random, p ) );
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String directive( final Random random, final int n ) {
+        final String head = random.nextInt( 4 ) == 0 ? "DENY" : "ALLOW";
+        final String permission = random.nextBoolean() ? "edit" : "view";
+        final String principals = "u" + n + "r" + random.nextInt( 1000 ) + "@example.test";
+        return "[{" + head + " " + permission + " " + principals + "}]";
+    }
+
+    private static String printable( final String text ) {
+        return text.replace( "\n", "\\n" ).replace( "\r", "\\r" ).replace( "\t", "\\t" );
+    }
+
+    // ---- the bound is fail-closed
+
+    private static String nested( final int depth ) {
+        String s = "[{ALLOW view u0@example.test}]";
+        for ( int i = 1; i <= depth; i++ ) {
+            s = "[{ALLOW vi" + s + "ew u" + i + "@example.test}]";
+        }
+        return s;
+    }
+
+    @Test
+    void textThatKeepsReformingIntoDirectivesDoesNotComeBackWithOneInIt() {
+        for ( final int depth : new int[]{ 3, 12, 40, 400 } ) {
+            final String body = "keep " + nested( depth ) + " this";
+            final String out = AclDirectiveText.strip( body );
+
+            assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), "depth " + depth + ": " + out );
+            assertTrue( AclDirectiveScanner.findAll( out, true ).isEmpty(), "depth " + depth + ": " + out );
+            assertFalse( out.contains( "example.test" ), "depth " + depth + ": " + out );
+        }
+    }
+
+    // ---- running time
+
+    @Test
+    void shapesThatBrokeTheOriginalExpressionCostNothing() {
+        final String spaces = "[{ALLOW edit" + " ".repeat( 200_000 ) + "x";
+        final String openers = "[{ALLOW edit alice ".repeat( 40_000 ) + "\nx}]";
+        assertTimeoutPreemptively( Duration.ofSeconds( 10 ), () -> {
+            assertSame( spaces, AclDirectiveText.strip( spaces ) );
+            assertSame( openers, AclDirectiveText.strip( openers ) );
+        } );
+    }
+
+    @Test
+    void aLongAccessListIsStillEnforcedAndStillStripped() {
+        // No length bound: a bound would silently stop enforcing (and so stop hiding) a long list.
+        final String principals = ( "someone.with.a.long.name@example.test," ).repeat( 20_000 ) + "last@example.test";
+        final String body = "[{ALLOW view " + principals + "}]\nBody.";
+        assertEquals( 1, DefaultAclManager.aclDirectives( body ).size() );
+        assertEquals( "\nBody.", AclDirectiveText.strip( body ) );
+    }
+}

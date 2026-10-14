@@ -22,13 +22,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.vladsch.flexmark.ast.Code;
-import com.vladsch.flexmark.ast.FencedCodeBlock;
-import com.vladsch.flexmark.ast.IndentedCodeBlock;
-import com.vladsch.flexmark.parser.Parser;
-import com.vladsch.flexmark.util.ast.Document;
-import com.vladsch.flexmark.util.ast.NodeVisitor;
-import com.vladsch.flexmark.util.ast.VisitHandler;
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.AclEntry;
 import com.wikantik.api.core.Attachment;
@@ -55,7 +48,6 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -84,21 +76,15 @@ public class DefaultAclManager implements AclManager {
      * Identifies ACL strings in wiki text; the first group is the action (view, edit) and
      * the second is the list of Principals separated by commas. The overall match is
      * the ACL string from [{ to }].
+     *
+     * <p>Kept for callers that match against it. Nothing in this class enforces through it any more: its adjacent
+     * unbounded quantifiers are cubic on a run of whitespace, so the text a user controls is scanned by
+     * {@code AclDirectiveScanner}, which finds exactly the same matches in linear time.
      */
     public static final Pattern ACL_PATTERN = Pattern.compile( ACL_REGEX );
 
     /** The {@code [{ } ]} wrapper around a directive — see {@link #ruleLineOf}. */
     private static final Pattern DIRECTIVE_BRACES = Pattern.compile( "^\\[\\{|\\}\\]$" );
-
-    /**
-     * Vanilla CommonMark parser used solely to locate Markdown code spans and
-     * code blocks when scanning for ACL directives. A bare parse (no rendering,
-     * no custom extensions) is far cheaper than a full page render and is all we
-     * need to tell a real {@code [{ALLOW …}]} rule apart from one shown as an
-     * example inside backticks or a fenced block. Flexmark {@link Parser}
-     * instances are immutable and safe to reuse across threads.
-     */
-    private static final Parser CODE_REGION_PARSER = Parser.builder().build();
 
     /** Parsed-ACL cache surviving Page-instance churn. Keyed by page name; entry valid only for a matching (version, lastModified). */
     private record CachedAcl( int version, long lastModified, Acl acl ) {}
@@ -252,50 +238,10 @@ public class DefaultAclManager implements AclManager {
      *
      * @param pageText the raw page source (may be {@code null})
      * @return the matched directive strings outside code, in document order
+     * @see EnforcedAclDirectives
      */
     static List< String > aclDirectives( final String pageText ) {
-        if( pageText == null || pageText.isEmpty() ) {
-            return List.of();
-        }
-        final List< int[] > codeRanges = codeRegions( pageText );
-        final List< String > directives = new ArrayList<>();
-        final Matcher matcher = ACL_PATTERN.matcher( pageText );
-        while( matcher.find() ) {
-            if( !isInsideCode( codeRanges, matcher.start() ) ) {
-                directives.add( matcher.group() );
-            }
-        }
-        return directives;
-    }
-
-    /**
-     * Computes the source-offset ranges {@code [start, end)} of every inline
-     * code span and code block in {@code text}, by parsing it as CommonMark and
-     * collecting {@link Code}, {@link FencedCodeBlock} and
-     * {@link IndentedCodeBlock} node spans. Unhandled node types are descended
-     * into automatically by {@link NodeVisitor}, so code nested anywhere in the
-     * document is captured.
-     */
-    private static List< int[] > codeRegions( final String text ) {
-        final List< int[] > ranges = new ArrayList<>();
-        final Document doc = CODE_REGION_PARSER.parse( text );
-        final NodeVisitor visitor = new NodeVisitor(
-            new VisitHandler<>( Code.class,              n -> ranges.add( new int[]{ n.getStartOffset(), n.getEndOffset() } ) ),
-            new VisitHandler<>( FencedCodeBlock.class,   n -> ranges.add( new int[]{ n.getStartOffset(), n.getEndOffset() } ) ),
-            new VisitHandler<>( IndentedCodeBlock.class, n -> ranges.add( new int[]{ n.getStartOffset(), n.getEndOffset() } ) )
-        );
-        visitor.visit( doc );
-        return ranges;
-    }
-
-    /** True if {@code offset} falls within any of the {@code [start, end)} code ranges. */
-    private static boolean isInsideCode( final List< int[] > ranges, final int offset ) {
-        for( final int[] range : ranges ) {
-            if( offset >= range[ 0 ] && offset < range[ 1 ] ) {
-                return true;
-            }
-        }
-        return false;
+        return EnforcedAclDirectives.directives( pageText );
     }
 
     /** {@inheritDoc} */
@@ -305,8 +251,7 @@ public class DefaultAclManager implements AclManager {
 
         // Remove all of the existing ACLs.
         final String pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
-        final Matcher matcher = DefaultAclManager.ACL_PATTERN.matcher( pageText );
-        final String cleansedText = matcher.replaceAll("" );
+        final String cleansedText = EnforcedAclDirectives.withoutAnyDirective( pageText );
         final String newText = DefaultAclManager.printAcl( page.getAcl() ) + cleansedText;
         try {
             pageManager.putPageText( page, newText );

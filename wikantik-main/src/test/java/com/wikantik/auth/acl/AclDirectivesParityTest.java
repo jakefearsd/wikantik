@@ -18,7 +18,6 @@
  */
 package com.wikantik.auth.acl;
 
-import com.wikantik.util.AclDirectives;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -39,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Safety net between two implementations of "what is an access rule": {@link DefaultAclManager} decides
- * what the wiki <em>enforces</em>, {@link AclDirectives} (wikantik-util, which cannot depend on it)
+ * what the wiki <em>enforces</em>, {@link AclDirectiveText} (which wraps the wikantik-util pass)
  * decides what is <em>hidden</em> from readers who may not edit. The invariant that matters for
  * disclosure is one-directional — nothing the ACL manager enforces may survive {@code strip} — so that is
  * what every test here asserts. {@code strip} may remove more (it also removes {@code DENY}, and it does
@@ -87,7 +86,7 @@ class AclDirectivesParityTest {
         final List< String > enforced = DefaultAclManager.aclDirectives( body );
         assertFalse( enforced.isEmpty(), "fixture is vacuous: the ACL manager enforces nothing in: " + body );
 
-        final String stripped = AclDirectives.strip( body );
+        final String stripped = AclDirectiveText.strip( body );
 
         for ( final String directive : enforced ) {
             assertFalse( stripped.contains( directive ), "directive survived: " + directive + " in " + stripped );
@@ -110,7 +109,7 @@ class AclDirectivesParityTest {
             final int withParens = TRAILING_EMPTY_PARENS.matcher( expected.substring( end ) ).find() ? end + 2 : end;
             expected = expected.substring( 0, at ) + expected.substring( withParens );
         }
-        assertEquals( expected, AclDirectives.strip( body ) );
+        assertEquals( expected, AclDirectiveText.strip( body ) );
     }
 
     /**
@@ -122,7 +121,7 @@ class AclDirectivesParityTest {
     void anUnclosedFenceIsHiddenEvenThoughTheAclManagerIgnoresIt() {
         final String body = "```\ncode\n[{ALLOW edit " + LOGIN + "}]\nan unclosed fence";
         assertEquals( List.of(), DefaultAclManager.aclDirectives( body ) );
-        assertEquals( "```\ncode\n\nan unclosed fence", AclDirectives.strip( body ) );
+        assertEquals( "```\ncode\n\nan unclosed fence", AclDirectiveText.strip( body ) );
     }
 
     /** Removing the inner directive joins "[{ALLOW vi" and "ew a}]" into another one, which must go too. */
@@ -130,7 +129,7 @@ class AclDirectivesParityTest {
     void removalCannotSpliceAFreshDirectiveTogether() {
         final String body = "[{ALLOW vi[{ALLOW view " + LOGIN + "}]ew a}]";
         assertEquals( List.of( "[{ALLOW view " + LOGIN + "}]" ), DefaultAclManager.aclDirectives( body ) );
-        final String stripped = AclDirectives.strip( body );
+        final String stripped = AclDirectiveText.strip( body );
         assertEquals( "", stripped );
         assertEquals( List.of(), DefaultAclManager.aclDirectives( stripped ) );
     }
@@ -140,7 +139,7 @@ class AclDirectivesParityTest {
     void everyPermissionTheAclManagerAcceptsIsStripped( final String action ) {
         final String body = "[{ALLOW " + action + " " + LOGIN + "}]";
         assertEquals( List.of( body ), DefaultAclManager.aclDirectives( body ) );
-        assertEquals( "", AclDirectives.strip( body ) );
+        assertEquals( "", AclDirectiveText.strip( body ) );
     }
 
     /** Documentation the ACL manager ignores is documentation {@code strip} keeps, unchanged. */
@@ -156,7 +155,7 @@ class AclDirectivesParityTest {
     } )
     void codeSamplesTheAclManagerIgnoresAreKept( final String body ) {
         assertEquals( List.of(), DefaultAclManager.aclDirectives( body ), "fixture must be ignored by the ACL manager" );
-        assertEquals( body, AclDirectives.strip( body ) );
+        assertEquals( body, AclDirectiveText.strip( body ) );
     }
 
     /**
@@ -173,7 +172,7 @@ class AclDirectivesParityTest {
             for ( final Path file : files.filter( f -> f.toString().endsWith( ".md" ) ).sorted().toList() ) {
                 final String body = Files.readString( file, StandardCharsets.UTF_8 );
                 final List< String > enforced = DefaultAclManager.aclDirectives( body );
-                final String stripped = AclDirectives.strip( body );
+                final String stripped = AclDirectiveText.strip( body );
                 assertEquals( List.of(), DefaultAclManager.aclDirectives( stripped ),
                         "directive survived stripping in " + file.getFileName() );
                 if ( !enforced.isEmpty() ) {

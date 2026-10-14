@@ -137,8 +137,8 @@ public interface UserDatabase {
     /**
      * True if an account <em>other than</em> {@code excludingLogin} already holds {@code fullName} as its full (display) name.
      * Names are compared by {@link ProfileNameRules#displayNameKey}: ignoring case, surrounding whitespace, runs of
-     * whitespace and Unicode compatibility forms. A {@code null}/blank {@code fullName} is never taken. Pass
-     * {@code excludingLogin = null} to ask about every account.
+     * whitespace and Unicode compatibility forms. A {@code fullName} that is {@code null} or blank once normalised is never
+     * taken. Pass {@code excludingLogin = null} to ask about every account.
      *
      * <p>This default implementation scans {@link #findAllProfiles()}. A relational store should override it with a single
      * indexed query ({@code JDBCUserDatabase} does).</p>
@@ -146,10 +146,10 @@ public interface UserDatabase {
      * @throws WikiSecurityException if the profiles cannot be enumerated
      */
     default boolean isFullNameTakenIgnoreCase( final String fullName, final String excludingLogin ) throws WikiSecurityException {
-        if ( fullName == null || fullName.isBlank() ) {
+        final String wanted = ProfileNameRules.displayNameKey( fullName );
+        if ( wanted == null || wanted.isEmpty() ) {
             return false;
         }
-        final String wanted = ProfileNameRules.displayNameKey( fullName );
         for ( final UserProfile profile : findAllProfiles() ) {
             final String other = profile.getFullname();
             if ( other != null && !Objects.equals( profile.getLoginName(), excludingLogin )

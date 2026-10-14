@@ -191,12 +191,13 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public boolean isFullNameTakenIgnoreCase( final String fullName, final String excludingLogin ) throws WikiSecurityException {
-        if ( fullName == null || fullName.isBlank() ) {
-            return false;
+        final String key = ProfileNameRules.displayNameKey( fullName );
+        if ( key == null || key.isEmpty() ) {
+            return false;   // an empty key would match every account stored with a blank name
         }
         try {
             return jdbc.queryOne( FULL_NAME_TAKEN, ps -> {
-                ps.setString( 1, ProfileNameRules.displayNameKey( fullName ) );
+                ps.setString( 1, key );
                 ps.setString( 2, excludingLogin == null ? "" : excludingLogin );
             }, rs -> rs.getInt( 1 ) ).isPresent();
         } catch ( final SQLException e ) {

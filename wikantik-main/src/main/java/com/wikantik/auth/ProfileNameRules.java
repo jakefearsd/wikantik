@@ -84,10 +84,21 @@ public final class ProfileNameRules {
         return Optional.of( new NameViolation( Kind.TAKEN, message ) );
     }
 
-    /** Comparison key for display-name uniqueness: NFKC, whitespace runs collapsed, trimmed, lower-cased. */
-    public static String displayNameKey( final String name ) {
+    /**
+     * The form in which a display name is measured and compared: NFKC (so no-break and ideographic spaces become plain
+     * spaces), whitespace runs collapsed, trimmed. Case is kept. {@code null} for {@code null}.
+     */
+    static String displayNameForm( final String name ) {
         return name == null ? null
-                : Normalizer.normalize( name, Normalizer.Form.NFKC ).replaceAll( "\\s+", " " ).trim().toLowerCase( Locale.ROOT );
+                : Normalizer.normalize( name, Normalizer.Form.NFKC ).replaceAll( "\\s+", " " ).trim();
+    }
+
+    /**
+     * Comparison key for display-name uniqueness: {@link #displayNameForm}, lower-cased. An empty key means the name is
+     * blank once normalised, so it is never a valid name and never "taken".
+     */
+    public static String displayNameKey( final String name ) {
+        return name == null ? null : displayNameForm( name ).toLowerCase( Locale.ROOT );
     }
 
     // ------------------------------------------------------------------ display-name rules

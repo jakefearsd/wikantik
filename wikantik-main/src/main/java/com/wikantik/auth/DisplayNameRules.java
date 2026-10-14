@@ -93,11 +93,15 @@ final class DisplayNameRules {
     }
 
     private static Optional< NameViolation > shape( final String candidate ) {
-        if ( candidate == null || candidate.isBlank() ) {
+        // The key is the source of truth for "blank": String.isBlank()/trim() ignore NBSP-class spaces that NFKC folds away.
+        if ( candidate == null || ProfileNameRules.displayNameKey( candidate ).isEmpty() ) {
             return ProfileNameRules.invalid( "A display name is required" );
         }
         final String name = candidate.trim();
-        if ( name.length() < ProfileNameRules.DISPLAY_NAME_MIN || name.length() > ProfileNameRules.DISPLAY_NAME_MAX ) {
+        // The minimum counts real characters (normalised, trimmed); the maximum bounds both the stored and normalised form.
+        final int normalisedLength = ProfileNameRules.displayNameForm( candidate ).length();
+        if ( normalisedLength < ProfileNameRules.DISPLAY_NAME_MIN
+                || Math.max( name.length(), normalisedLength ) > ProfileNameRules.DISPLAY_NAME_MAX ) {
             return ProfileNameRules.invalid( "A display name must be " + ProfileNameRules.DISPLAY_NAME_MIN + " to "
                     + ProfileNameRules.DISPLAY_NAME_MAX + " characters long" );
         }

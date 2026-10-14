@@ -327,6 +327,38 @@ class ProfileNameRulesTest {
     }
 
     @Test
+    void blankLookingNamesAreTreatedAsMissing() {
+        // NBSP-class characters are not whitespace to String.isBlank()/trim(), but they normalise to spaces.
+        for ( final String name : new String[] { "\u00a0\u00a0", "\u2007\u2007", "\u202f\u202f", " \u00a0 \u3000" } ) {
+            assertTrue( displayError( "mallory", name ).orElseThrow().contains( "required" ), name );
+        }
+        assertFalse( ProfileNameRules.displayNameViolation( engine, db, "mallory", "\u00a0\u00a0" ).orElseThrow().isConflict() );
+    }
+
+    @Test
+    void lengthIsMeasuredOnTheNormalisedTrimmedForm() {
+        // Padding with NBSP-class characters must not satisfy the 2-character minimum ...
+        for ( final String name : new String[] { "A\u00a0", "\u2007A", "A \u00a0\u00a0" } ) {
+            assertTrue( displayError( "mallory", name ).orElseThrow().contains( "2 to 64" ), name );
+        }
+        // ... nor may padding stretch a name past the maximum.
+        assertTrue( displayError( "mallory", "x" + " ".repeat( ProfileNameRules.DISPLAY_NAME_MAX ) + "y" ).orElseThrow()
+                .contains( "2 to 64" ) );
+        assertTrue( displayError( "mallory", "Al\u00a0" ).isEmpty(), "two real characters are enough" );
+    }
+
+    @Test
+    void anEmptyKeyIsNeverTakenByAnAccountStoredWithABlankName() throws Exception {
+        saveAccount( "blank-owner", "\u00a0\u00a0" );   // bypasses the rules, as a legacy row would
+        try {
+            assertFalse( db.isFullNameTakenIgnoreCase( "\u00a0\u00a0", null ) );
+            assertFalse( db.isFullNameTakenIgnoreCase( "\u2007", "mallory" ) );
+        } finally {
+            db.deleteByLoginName( "blank-owner" );
+        }
+    }
+
+    @Test
     void uniquenessSeesThroughCompatibilityForms() {
         assertTrue( displayError( "mallory", "\uff34\uff48\uff45 \uff22\uff4f\uff53\uff53" ).isPresent(), "full-width letters" );
         assertTrue( displayError( "mallory", "The\u00a0Boss" ).isPresent(), "a no-break space" );

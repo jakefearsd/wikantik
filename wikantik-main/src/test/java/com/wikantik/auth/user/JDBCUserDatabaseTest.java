@@ -310,6 +310,24 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
+    public void testIsFullNameTakenIgnoreCaseNeverMatchesAnEmptyKey() throws Exception {
+        // Rows whose stored name normalises to nothing (empty, or only no-break spaces) must not "hold" a blank query.
+        final UserProfile empty = m_db.newProfile();
+        empty.setLoginName( "emptyname" );
+        empty.setFullname( "" );
+        empty.setPassword( Users.ALICE_PASS );
+        m_db.save( empty );
+        final UserProfile padded = m_db.newProfile();
+        padded.setLoginName( "paddedname" );
+        padded.setFullname( "\u00a0\u00a0" );
+        padded.setPassword( Users.ALICE_PASS );
+        m_db.save( padded );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "\u00a0\u00a0", null ), "NBSP-only is an empty key" );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "\u2007\u2007", "janne" ) );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "", null ) );
+    }
+
+    @Test
     public void testFindByUid() {
         try {
             final UserProfile profile = m_db.findByUid( "-7739839977499061014" );

@@ -27,6 +27,7 @@ import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.comments.CommentStore;
 import com.wikantik.comments.PageOwnerService;
+import com.wikantik.comments.mentions.MentionExtractor;
 import com.wikantik.comments.mentions.MentionService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,8 +42,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * REST servlet for anchored comment threads. Mapped to {@code /api/comment-threads/*}.
@@ -61,10 +60,6 @@ import java.util.regex.Pattern;
 public class CommentThreadResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
-
-    // @[Display Name](user:<uid>) — keep in step with MentionExtractor's token pattern.
-    private static final Pattern MENTION_TOKEN =
-            Pattern.compile( "@\\[([^\\]\\n]{1,64})\\]\\(user:([A-Za-z0-9-]{1,64})\\)" );
 
     protected CommentStore commentStore() {
         return getSubsystems().persistence().comments();
@@ -369,7 +364,7 @@ public class CommentThreadResource extends RestServletBase {
         final Set< String > seen = new LinkedHashSet<>();
         for ( final CommentThread t : threads ) {
             for ( final Comment c : t.comments() ) {
-                for ( final String uid : mentionUserIds( c.body() ) ) {
+                for ( final String uid : MentionExtractor.extract( c.body() ).userIds() ) {
                     if ( !seen.add( uid ) ) continue;
                     identity.loginForUserId( uid )
                             .ifPresent( login -> names.put( uid, identity.displayName( login ) ) );
@@ -377,15 +372,6 @@ public class CommentThreadResource extends RestServletBase {
             }
         }
         return names;
-    }
-
-    /** Distinct uids named by {@code @[..](user:<uid>)} tokens in {@code body}. */
-    private static Set< String > mentionUserIds( final String body ) {
-        final Set< String > uids = new LinkedHashSet<>();
-        if ( body == null || body.isEmpty() ) return uids;
-        final Matcher m = MENTION_TOKEN.matcher( body );
-        while ( m.find() ) uids.add( m.group( 2 ) );
-        return uids;
     }
 
     /** Display name for a stored principal; {@code null} when the field is unset (e.g. {@code resolvedBy} on an open thread). */

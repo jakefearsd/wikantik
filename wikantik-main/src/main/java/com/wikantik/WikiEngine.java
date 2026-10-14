@@ -979,12 +979,13 @@ public class WikiEngine implements Engine {
             // Phase 3: Persistence subsystem.
             //
             // The anchored-comments DAOs (PageOwnerService, MentionService)
-            // need to ask "does this login exist?" and "who is the frontmatter
-            // author of this canonical_id?" — those answers live in the Auth
-            // subsystem (built before initKnowledgeGraph) and the structural
-            // index (built later in this method by PageGraphWiringHelper),
-            // respectively. We thread both through Deps as closures that
-            // capture `this` and resolve lazily at call time.
+            // need to ask "does this login exist?", "who is the frontmatter
+            // author of this canonical_id?" and "which login owns this
+            // users.uid?" — the first and third live in the Auth subsystem
+            // (built before initKnowledgeGraph), the second in the structural
+            // index (built later in this method by PageGraphWiringHelper).
+            // We thread all three through Deps as closures that capture `this`
+            // and resolve lazily at call time.
             final java.util.function.Predicate< String > userExistsLookup = login -> {
                 if ( login == null || login.isBlank() ) return false;
                 final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = this.authSubsystem;
@@ -1022,9 +1023,17 @@ public class WikiEngine implements Engine {
                 }
             };
 
+            // A mention token carries users.uid; the identity service turns it into the member's login.
+            // Resolved lazily (like the closures above) because the Auth bundle is rebuilt on manager swaps.
+            final java.util.function.Function< String, java.util.Optional< String > > loginForUserIdLookup = uid -> {
+                final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = this.authSubsystem;
+                if ( auth == null || auth.publicIdentity() == null ) return java.util.Optional.empty();
+                return auth.publicIdentity().loginForUserId( uid );
+            };
+
             this.persistenceSubsystem = com.wikantik.persistence.subsystem.PersistenceSubsystemFactory.create(
                 new com.wikantik.persistence.subsystem.PersistenceSubsystem.Deps(
-                    ds, coreSubsystem.properties(), userExistsLookup, pageAuthorLookup ) );
+                    ds, coreSubsystem.properties(), userExistsLookup, pageAuthorLookup, loginForUserIdLookup ) );
 
             // Resolve the Lucene MoreLikeThis seam.
             HubOverviewService.LuceneMlt luceneMlt = null;

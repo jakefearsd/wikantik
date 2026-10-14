@@ -35,21 +35,40 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /** Writes/reads {@code comment_mentions}. Write methods accept a Connection so
  *  they can run inside the caller's transaction (CommentStore opens one for
- *  thread creation; we participate in it). */
+ *  thread creation; we participate in it).
+ *
+ *  <p>Rows are keyed by <em>login</em>. A comment names a member either by a
+ *  {@code @[Display Name](user:<uid>)} token — the uid is resolved to the member's login
+ *  through {@code loginForUserId}, so a member whose login is an email address is mentionable
+ *  — or by a legacy {@code @login}, accepted when the login exists. */
 public class MentionService {
 
     private static final Logger LOG = LogManager.getLogger( MentionService.class );
 
     private final Jdbc jdbc;
     private final Predicate< String > userExists;
+    private final Function< String, Optional< String > > loginForUserId;
 
+    /** Legacy {@code @login} mentions only: every {@code user:<uid>} token is ignored. */
     public MentionService( final DataSource ds, final Predicate< String > userExists ) {
+        this( ds, userExists, uid -> Optional.empty() );
+    }
+
+    /**
+     * @param userExists     does a member with this exact login exist (legacy {@code @login} text)
+     * @param loginForUserId {@code users.uid} to that member's login, empty when the uid is unknown;
+     *                       production wiring passes {@code PublicIdentity::loginForUserId}
+     */
+    public MentionService( final DataSource ds, final Predicate< String > userExists,
+                           final Function< String, Optional< String > > loginForUserId ) {
         this.jdbc = new Jdbc( ds );
         this.userExists = userExists;
+        this.loginForUserId = loginForUserId;
     }
 
     /** First comment of a thread. Writes direct mentions (including self-mentions);
@@ -146,13 +165,29 @@ public class MentionService {
         }
     }
 
-    /** Resolved (existing-user-only) direct mentions in {@code body}.
+    /** Logins of the existing members directly mentioned in {@code body}, by token or by legacy
+     *  {@code @login}. A uid that no longer resolves is ignored.
      *  Self-mentions are kept — users can intentionally @-mention themselves
      *  (e.g., as a personal todo marker). */
     private Set< String > directMentionsFor( final String body, final String author ) {
-        final Set< String > tokens = MentionExtractor.parse( body );
-        final Set< String > resolved = MentionExtractor.resolve( tokens, userExists );
-        return resolved;
+        final MentionExtractor.Mentions found = MentionExtractor.extract( body );
+        final Set< String > logins = new HashSet<>( MentionExtractor.resolve( found.legacyLogins(), userExists ) );
+        for ( final String uid : found.userIds() ) {
+            loginFor( uid ).ifPresent( logins::add );
+        }
+        return logins;
+    }
+
+    /** The login behind {@code uid}; empty when unknown. A failing lookup is logged and treated as unknown
+     *  so one bad lookup cannot abort the comment write. */
+    private Optional< String > loginFor( final String uid ) {
+        try {
+            final Optional< String > login = loginForUserId.apply( uid );
+            return login == null ? Optional.empty() : login.filter( l -> !l.isBlank() );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Mention uid '{}' could not be resolved to a login: {}", uid, e.getMessage(), e );
+            return Optional.empty();
+        }
     }
 
     /** Insert one row; no-op if the (comment_id, mentioned_login) pair already

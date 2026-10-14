@@ -81,6 +81,10 @@ public final class PersistenceSubsystemFactory {
         final Function< String, Optional< String > > authorResolver = deps.pageAuthorLookup() != null
                 ? deps.pageAuthorLookup()
                 : canonicalId -> Optional.empty();
+        // A mention token carries users.uid; without a resolver every token is ignored.
+        final Function< String, Optional< String > > loginForUserId = deps.loginForUserIdLookup() != null
+                ? deps.loginForUserIdLookup()
+                : uid -> Optional.empty();
 
         // Default owner for agent/unresolvable-author pages (e.g. the `agents`
         // service account). Stored at bootstrap only when it is itself a real
@@ -108,7 +112,7 @@ public final class PersistenceSubsystemFactory {
             new TrustedAuthorsDao( ds ),
             new CommentStore( ds ),
             new PageOwnerService( ds, userExists, authorResolver, defaultPageOwner ),
-            new MentionService( ds, userExists ),
+            new MentionService( ds, userExists, loginForUserId ),
             new MentionFeedDao( ds )
         );
     }

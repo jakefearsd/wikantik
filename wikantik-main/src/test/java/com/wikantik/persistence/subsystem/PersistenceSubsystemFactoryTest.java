@@ -24,10 +24,16 @@ import com.wikantik.core.subsystem.DefaultWikiProperties;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.Statement;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Phase 3 subsystem-isolation test for {@link PersistenceSubsystemFactory}.
@@ -67,6 +73,57 @@ final class PersistenceSubsystemFactoryTest {
         assertNotNull( services.pageVerification(),     "pageVerification" );
         assertNotNull( services.trustedAuthors(),       "trustedAuthors" );
         assertNotNull( services.comments(),             "comments" );
+    }
+
+    @Test
+    void mentionServiceResolvesTokenUidsThroughTheSuppliedLookup() throws Exception {
+        final DataSource dataSource = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "comment_mentions", "comments", "comment_threads" );
+        final PersistenceSubsystem.Services services = PersistenceSubsystemFactory.create(
+            new PersistenceSubsystem.Deps( dataSource, new DefaultWikiProperties( new Properties() ),
+                login -> false, canonicalId -> Optional.empty(),
+                uid -> "u-bob".equals( uid ) ? Optional.of( "bob" ) : Optional.empty() ) );
+        final UUID commentId = seedComment( dataSource );
+
+        try ( Connection c = dataSource.getConnection() ) {
+            services.mentions().recordReply( c, commentId, "alice", "cc @[Bobby](user:u-bob) @[Ghost](user:u-nope)" );
+        }
+
+        final var rows = services.mentions().findByComment( commentId );
+        assertEquals( 1, rows.size(), "only the resolvable uid is recorded" );
+        assertEquals( "bob", rows.get( 0 ).mentionedLogin() );
+    }
+
+    @Test
+    void mentionServiceIgnoresTokensWhenNoLookupIsSupplied() throws Exception {
+        final DataSource dataSource = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "comment_mentions", "comments", "comment_threads" );
+        final PersistenceSubsystem.Services services = PersistenceSubsystemFactory.create(
+            new PersistenceSubsystem.Deps( dataSource, new DefaultWikiProperties( new Properties() ),
+                login -> "carol".equals( login ), canonicalId -> Optional.empty() ) );
+        final UUID commentId = seedComment( dataSource );
+
+        try ( Connection c = dataSource.getConnection() ) {
+            services.mentions().recordReply( c, commentId, "alice", "@[Bobby](user:u-bob) and @carol" );
+        }
+
+        final var rows = services.mentions().findByComment( commentId );
+        assertEquals( 1, rows.size() );
+        assertEquals( "carol", rows.get( 0 ).mentionedLogin() );
+        assertTrue( rows.stream().noneMatch( m -> "bob".equals( m.mentionedLogin() ) ) );
+    }
+
+    /** comment_mentions.comment_id is FK'd to comments(id), which needs a thread. */
+    private static UUID seedComment( final DataSource dataSource ) throws Exception {
+        final UUID threadId = UUID.randomUUID();
+        final UUID commentId = UUID.randomUUID();
+        try ( Connection c = dataSource.getConnection(); Statement s = c.createStatement() ) {
+            s.executeUpdate( "INSERT INTO comment_threads (id, canonical_id, anchor_exact, status, created_by) "
+                    + "VALUES ('" + threadId + "', 'CID-PSF', 'seed', 'open', 'alice')" );
+            s.executeUpdate( "INSERT INTO comments (id, thread_id, author, body) VALUES ('" + commentId + "', '"
+                    + threadId + "', 'alice', 'seed')" );
+        }
+        return commentId;
     }
 
     @Test

@@ -83,18 +83,31 @@ public final class PersistenceSubsystem {
      * comments DAOs): the factory substitutes a default that returns
      * {@code false} / {@link Optional#empty()}, which causes
      * {@link PageOwnerService} to fall back to the admin owner.</p>
+     *
+     * <p>{@code loginForUserIdLookup} maps a {@code users.uid} (carried by an
+     * {@code @[Display Name](user:<uid>)} mention token) to that member's login; the engine passes
+     * {@code PublicIdentity::loginForUserId}. {@code null} makes {@link MentionService} ignore
+     * tokens and keep only legacy {@code @login} mentions.</p>
      */
     public record Deps(
         DataSource dataSource,
         WikiProperties properties,
         Predicate< String > userExistsLookup,
-        Function< String, Optional< String > > pageAuthorLookup
+        Function< String, Optional< String > > pageAuthorLookup,
+        Function< String, Optional< String > > loginForUserIdLookup
     ) {
+
+        /** Four-closure form kept for callers that predate mention tokens: tokens are ignored. */
+        public Deps( final DataSource dataSource, final WikiProperties properties,
+                     final Predicate< String > userExistsLookup,
+                     final Function< String, Optional< String > > pageAuthorLookup ) {
+            this( dataSource, properties, userExistsLookup, pageAuthorLookup, null );
+        }
 
         /** Convenience for callers (e.g. subsystem-isolation tests) that don't
          *  exercise comments DAOs. The factory will install no-op closures. */
         public Deps( final DataSource dataSource, final WikiProperties properties ) {
-            this( dataSource, properties, null, null );
+            this( dataSource, properties, null, null, null );
         }
     }
 

@@ -3,10 +3,11 @@ import { useAuth } from '../hooks/useAuth';
 import { api } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import MyApiKeys from './MyApiKeys';
+import { displayNameChanged, displayNameError, isDisplayNameRejection } from '../utils/displayName';
 
 
 export default function UserPreferencesPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refresh } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
@@ -21,6 +22,10 @@ export default function UserPreferencesPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+  // Display name feedback: the server's 400/409 message, and whether the field has been left once
+  // (so client-side rules are not shown while the user is still typing the first character).
+  const [nameError, setNameError] = useState(null);
+  const [nameTouched, setNameTouched] = useState(false);
 
   // Delete account state
   const [showDeleteSection, setShowDeleteSection] = useState(false);
@@ -50,10 +55,22 @@ export default function UserPreferencesPage() {
     return () => { ignore = true; };
   }, [user, navigate]);
 
+  // The server re-checks a display name only when it changes, so the browser does the same: a
+  // legacy name that no longer satisfies the rules never blocks saving the bio or the email.
+  const nameChanged = displayNameChanged(profile?.fullName, fullName);
+  const clientNameError = nameChanged ? displayNameError(fullName) : null;
+  const shownNameError = nameError || (nameTouched ? clientNameError : null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    setNameError(null);
+
+    if (clientNameError) {
+      setNameTouched(true);
+      return;
+    }
 
     if (newPassword && newPassword !== confirmPassword) {
       setError('New passwords do not match');
@@ -62,19 +79,27 @@ export default function UserPreferencesPage() {
 
     setSaving(true);
     try {
-      const data = { fullName, email, bio };
+      const data = { fullName: fullName.trim(), email, bio };
       if (newPassword) {
         data.currentPassword = currentPassword;
         data.newPassword = newPassword;
       }
       const updated = await api.updateProfile(data);
       setProfile(updated);
+      setFullName(updated.fullName ?? data.fullName);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setMessage('Profile updated successfully');
+      // The live session now carries the new name; re-read it so the sidebar shows it too.
+      await refresh();
     } catch (err) {
-      setError(err.body?.message || err.message || 'Failed to update profile');
+      const message = err.body?.message || err.message || 'Failed to update profile';
+      if (isDisplayNameRejection(err, nameChanged && !newPassword)) {
+        setNameError(message);
+      } else {
+        setError(message);
+      }
     } finally {
       setSaving(false);
     }
@@ -135,6 +160,18 @@ export default function UserPreferencesPage() {
     marginBottom: 'var(--space-md)',
   };
 
+  const helpStyle = {
+    margin: 'var(--space-xs) 0 0',
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+    fontFamily: 'var(--font-ui)',
+  };
+
+  const fieldErrorStyle = {
+    ...helpStyle,
+    color: 'var(--color-danger, #ef4444)',
+  };
+
   return (
     <div style={{ maxWidth: '560px', margin: '0 auto', padding: 'var(--space-xl)' }}>
       <h1 style={{
@@ -193,13 +230,18 @@ export default function UserPreferencesPage() {
           </legend>
 
           <div style={fieldStyle}>
-            <label style={labelStyle}>Login Name</label>
+            <label htmlFor="pref-login-name" style={labelStyle}>Login name</label>
             <input
+              id="pref-login-name"
               type="text"
               value={profile?.loginName || ''}
               readOnly
+              aria-describedby="pref-login-name-help"
               style={readOnlyStyle}
             />
+            <p id="pref-login-name-help" style={helpStyle}>
+              You sign in with this. Only you and administrators can see it; everyone else sees your display name.
+            </p>
           </div>
 
           <div style={fieldStyle}>
@@ -213,13 +255,36 @@ export default function UserPreferencesPage() {
           </div>
 
           <div style={fieldStyle}>
-            <label style={labelStyle}>Full Name</label>
+            <label htmlFor="pref-display-name" style={labelStyle}>Display name</label>
             <input
+              id="pref-display-name"
               type="text"
               value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              style={inputStyle}
+              onChange={e => { setFullName(e.target.value); setNameError(null); }}
+              onBlur={() => setNameTouched(true)}
+              autoComplete="nickname"
+              aria-required="true"
+              aria-invalid={shownNameError ? 'true' : undefined}
+              aria-describedby={shownNameError ? 'pref-display-name-error' : 'pref-display-name-help'}
+              style={shownNameError
+                ? { ...inputStyle, borderColor: 'var(--color-danger, #ef4444)' }
+                : inputStyle}
             />
+            {shownNameError ? (
+              <div
+                id="pref-display-name-error"
+                role="alert"
+                data-testid="display-name-error"
+                style={fieldErrorStyle}
+              >
+                {shownNameError}
+              </div>
+            ) : (
+              <p id="pref-display-name-help" style={helpStyle}>
+                The name other people see on your edits, comments and mentions. Required; 2 to 64
+                characters; no &ldquo;@&rdquo;; and not already used by someone else.
+              </p>
+            )}
           </div>
 
           <div style={fieldStyle}>

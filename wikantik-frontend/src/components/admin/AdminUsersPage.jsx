@@ -8,7 +8,7 @@ import '../../styles/admin.css';
 
 const COLUMNS = [
   { id: 'loginName', label: 'Login', sortable: true },
-  { id: 'fullName', label: 'Full Name', render: (u) => u.fullName || '—', sortable: true },
+  { id: 'fullName', label: 'Display name', render: (u) => u.fullName || '—', sortable: true },
   { id: 'email', label: 'Email', render: (u) => u.email || '—' },
   {
     id: 'created',

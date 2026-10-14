@@ -116,6 +116,7 @@ describe('UserFormModal — cancel and error', () => {
     const { container } = render(<UserFormModal isOpen onClose={onClose} onSave={onSave} />);
     const f = fields(container);
     fireEvent.change(f.login, { target: { value: 'u' } });
+    fireEvent.change(f.fullName, { target: { value: 'Valid Name' } });
     fireEvent.change(f.password, { target: { value: 'longenough' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create User' }));
     await screen.findByText('email taken');
@@ -129,8 +130,115 @@ describe('UserFormModal — cancel and error', () => {
     const { container } = render(<UserFormModal isOpen onClose={vi.fn()} onSave={onSave} />);
     const f = fields(container);
     fireEvent.change(f.login, { target: { value: 'u' } });
+    fireEvent.change(f.fullName, { target: { value: 'Valid Name' } });
     fireEvent.change(f.password, { target: { value: 'longenough' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create User' }));
     await screen.findByText(/Session expired or not authorized/);
+  });
+});
+
+describe('UserFormModal — display name', () => {
+  const USER = { loginName: 'alice', fullName: 'Alice A', email: 'alice@x.com', bio: '' };
+  const rejection = (status, message) => Object.assign(new Error(message), { status });
+
+  it('labels the fields "Login name" and "Display name"', () => {
+    render(<UserFormModal isOpen user={USER} onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.getByLabelText('Login name')).toBeDisabled();
+    expect(screen.getByLabelText('Display name')).toHaveValue('Alice A');
+    expect(screen.queryByText('Full Name')).toBeNull();
+  });
+
+  it.each([
+    ['', 'Display name is required'],
+    ['x', 'Display name must be at least 2 characters'],
+    ['a'.repeat(65), 'Display name must be 64 characters or fewer'],
+    ['a@b.example', "Display name cannot contain '@'"],
+  ])('blocks creating an account with display name %j', async (value, message) => {
+    const onSave = vi.fn();
+    render(<UserFormModal isOpen onClose={vi.fn()} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('Login name'), { target: { value: 'newuser' } });
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value } });
+    fireEvent.change(document.querySelector('input[type="password"]'), { target: { value: 'longenough' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create User' }));
+
+    expect(await screen.findByTestId('display-name-error')).toHaveTextContent(message);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('does not re-validate an unchanged legacy display name when editing', async () => {
+    const onSave = vi.fn().mockResolvedValue();
+    const legacy = { ...USER, fullName: 'alice@x.com' };
+    render(<UserFormModal isOpen user={legacy} onClose={vi.fn()} onSave={onSave} />);
+    fireEvent.change(document.querySelector('textarea'), { target: { value: 'new bio' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ loginName: 'alice', fullName: 'alice@x.com', bio: 'new bio' })));
+  });
+
+  it('validates a changed display name when editing', async () => {
+    const onSave = vi.fn();
+    render(<UserFormModal isOpen user={USER} onClose={vi.fn()} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'bob@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByTestId('display-name-error')).toHaveTextContent("cannot contain '@'");
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('saves the trimmed display name', async () => {
+    const onSave = vi.fn().mockResolvedValue();
+    render(<UserFormModal isOpen user={USER} onClose={vi.fn()} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: '  Alice B  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fullName: 'Alice B' })));
+  });
+
+  it('shows the server 409 message under the field and stays open', async () => {
+    const onSave = vi.fn().mockRejectedValue(rejection(409, 'That display name is already used by another account'));
+    const onClose = vi.fn();
+    render(<UserFormModal isOpen user={USER} onClose={onClose} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Bob Builder' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByTestId('display-name-error'))
+      .toHaveTextContent('That display name is already used by another account');
+    expect(document.querySelector('.error-banner')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows a server 400 under the field when only the display name changed', async () => {
+    const onSave = vi.fn().mockRejectedValue(rejection(400, "The name 'Admin' is reserved for a role or group"));
+    render(<UserFormModal isOpen user={USER} onClose={vi.fn()} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Admin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByTestId('display-name-error'))
+      .toHaveTextContent("The name 'Admin' is reserved for a role or group");
+  });
+
+  it('keeps a server 400 in the banner when a new password was submitted with it', async () => {
+    const onSave = vi.fn().mockRejectedValue(rejection(400, 'Password is too common'));
+    render(<UserFormModal isOpen user={USER} onClose={vi.fn()} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Alice B' } });
+    fireEvent.change(document.querySelector('input[type="password"]'), { target: { value: 'password1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('Password is too common')).toBeInTheDocument();
+    expect(screen.queryByTestId('display-name-error')).toBeNull();
+  });
+
+  it('clears the server message when the name is edited again', async () => {
+    const onSave = vi.fn().mockRejectedValue(rejection(409, 'taken'));
+    render(<UserFormModal isOpen user={USER} onClose={vi.fn()} onSave={onSave} />);
+    const input = screen.getByLabelText('Display name');
+    fireEvent.change(input, { target: { value: 'Bob Builder' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await screen.findByTestId('display-name-error');
+
+    fireEvent.change(input, { target: { value: 'Robert Builder' } });
+
+    expect(screen.queryByTestId('display-name-error')).toBeNull();
   });
 });

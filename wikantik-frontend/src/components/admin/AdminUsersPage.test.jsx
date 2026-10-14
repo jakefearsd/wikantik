@@ -78,6 +78,33 @@ describe('AdminUsersPage — rendering', () => {
     expect(screen.getByText('charlie')).toBeTruthy();
   });
 
+  it('shows both the login and the display name, labelled as such', async () => {
+    render(<AdminUsersPage />);
+    await screen.findByText('alice');
+
+    expect(screen.getByRole('columnheader', { name: /^Login/ })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /^Display name/ })).toBeInTheDocument();
+    expect(screen.queryByText('Full Name')).toBeNull();
+    const aliceRow = screen.getByText('alice').closest('tr');
+    expect(within(aliceRow).getByText('Alice Admin')).toBeInTheDocument();
+  });
+
+  it('surfaces the server message when an admin edit renames to a taken display name', async () => {
+    api.admin.updateUser.mockRejectedValue(
+      Object.assign(new Error('That display name is already used by another account'), { status: 409 }));
+    render(<AdminUsersPage />);
+    await screen.findByText('alice');
+
+    const aliceRow = screen.getByText('alice').closest('tr');
+    fireEvent.click(within(aliceRow).getByRole('button', { name: 'Edit' }));
+    fireEvent.change(await screen.findByLabelText('Display name'), { target: { value: 'Bob Builder' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByTestId('display-name-error'))
+      .toHaveTextContent('That display name is already used by another account');
+    expect(api.admin.updateUser).toHaveBeenCalledWith('alice', { fullName: 'Bob Builder', email: 'alice@example.com' });
+  });
+
   it('shows Create User button', async () => {
     render(<AdminUsersPage />);
     await screen.findByText('alice');

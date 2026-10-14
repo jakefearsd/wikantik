@@ -21,6 +21,7 @@ vi.mock('../api/client', () => ({
 }));
 
 const mockLogout = vi.fn();
+const mockRefresh = vi.fn();
 vi.mock('../hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }));
@@ -47,7 +48,8 @@ beforeEach(() => {
   api.deleteAccount.mockResolvedValue(null);
   api.logout.mockResolvedValue(null);
   mockLogout.mockResolvedValue(undefined);
-  useAuth.mockReturnValue({ user: FAKE_USER, logout: mockLogout });
+  mockRefresh.mockResolvedValue(undefined);
+  useAuth.mockReturnValue({ user: FAKE_USER, logout: mockLogout, refresh: mockRefresh });
 });
 
 function renderPage() {
@@ -347,5 +349,130 @@ describe('UserPreferencesPage — delete account errors + cancel + navigation', 
     // Re-open — confirm input should be back to empty, not "partial"
     fireEvent.click(screen.getByTestId('delete-account-button'));
     expect(screen.getByTestId('delete-confirm-input')).toHaveValue('');
+  });
+});
+
+describe('UserPreferencesPage — display name', () => {
+  const clickSave = () => fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+  const rejection = (status, message) =>
+    Object.assign(new Error('generic'), { status, body: { message } });
+
+  it('labels the editable field "Display name" and shows the login name read-only', async () => {
+    renderPage();
+    const display = await screen.findByLabelText('Display name');
+    expect(display).toHaveValue('Test User');
+    expect(display).not.toHaveAttribute('readonly');
+    expect(display).toHaveAttribute('aria-required', 'true');
+    const login = screen.getByLabelText('Login name');
+    expect(login).toHaveValue('testuser');
+    expect(login).toHaveAttribute('readonly');
+    expect(screen.queryByText('Full Name')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['', 'Display name is required'],
+    ['   ', 'Display name is required'],
+    ['x', 'Display name must be at least 2 characters'],
+    ['a'.repeat(65), 'Display name must be 64 characters or fewer'],
+    ['me@example.com', "Display name cannot contain '@'"],
+  ])('rejects %j on save without calling the API', async (value, message) => {
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Display name'), { target: { value } });
+    clickSave();
+
+    expect(await screen.findByTestId('display-name-error')).toHaveTextContent(message);
+    expect(screen.getByLabelText('Display name')).toHaveAttribute('aria-invalid', 'true');
+    expect(api.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('shows a client-side rule as soon as the field is left, before any save', async () => {
+    renderPage();
+    const display = await screen.findByLabelText('Display name');
+    fireEvent.change(display, { target: { value: 'x' } });
+    expect(screen.queryByTestId('display-name-error')).not.toBeInTheDocument();
+
+    fireEvent.blur(display);
+
+    expect(screen.getByTestId('display-name-error'))
+      .toHaveTextContent('Display name must be at least 2 characters');
+  });
+
+  it('does not re-validate an unchanged legacy name, so it never blocks saving the bio', async () => {
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, fullName: 'legacy@example.com' });
+    api.updateProfile.mockResolvedValue({ ...FAKE_PROFILE, fullName: 'legacy@example.com', bio: 'hi' });
+    renderPage();
+    await screen.findByDisplayValue('legacy@example.com');
+    fireEvent.change(screen.getByPlaceholderText('Tell others about yourself...'), { target: { value: 'hi' } });
+    clickSave();
+
+    await waitFor(() => expect(api.updateProfile).toHaveBeenCalledWith({
+      fullName: 'legacy@example.com', email: 'test@example.com', bio: 'hi',
+    }));
+    expect(screen.queryByTestId('display-name-error')).not.toBeInTheDocument();
+  });
+
+  it('saves the trimmed name, shows the stored one and refreshes the session user', async () => {
+    api.updateProfile.mockResolvedValue({ ...FAKE_PROFILE, fullName: 'New Name' });
+    renderPage();
+    const display = await screen.findByLabelText('Display name');
+    fireEvent.change(display, { target: { value: '  New Name  ' } });
+    clickSave();
+
+    await waitFor(() => expect(api.updateProfile).toHaveBeenCalledWith({
+      fullName: 'New Name', email: 'test@example.com', bio: '',
+    }));
+    expect(await screen.findByText('Profile updated successfully')).toBeInTheDocument();
+    expect(display).toHaveValue('New Name');
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the server 409 message under the field, not in the page banner', async () => {
+    api.updateProfile.mockRejectedValue(rejection(409, 'That display name is already used by another account'));
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Display name'), { target: { value: 'Taken Name' } });
+    clickSave();
+
+    expect(await screen.findByTestId('display-name-error'))
+      .toHaveTextContent('That display name is already used by another account');
+    expect(document.querySelector('.error-banner')).toBeNull();
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it('puts a server 400 under the field when the display name is the only change', async () => {
+    api.updateProfile.mockRejectedValue(rejection(400, "The name 'Admin' is reserved for a role or group"));
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Display name'), { target: { value: 'Admin' } });
+    clickSave();
+
+    expect(await screen.findByTestId('display-name-error'))
+      .toHaveTextContent("The name 'Admin' is reserved for a role or group");
+    expect(document.querySelector('.error-banner')).toBeNull();
+  });
+
+  it('keeps a server 400 in the banner when a password change was part of the request', async () => {
+    api.updateProfile.mockRejectedValue(rejection(400, 'Password is too common'));
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Display name'), { target: { value: 'New Name' } });
+    const { current, newPw, confirmPw } = getPasswordInputs();
+    fireEvent.change(current, { target: { value: 'oldpass' } });
+    fireEvent.change(newPw, { target: { value: 'newpass1' } });
+    fireEvent.change(confirmPw, { target: { value: 'newpass1' } });
+    clickSave();
+
+    expect(await screen.findByText('Password is too common')).toBeInTheDocument();
+    expect(screen.queryByTestId('display-name-error')).not.toBeInTheDocument();
+  });
+
+  it('clears the server message once the name is edited again', async () => {
+    api.updateProfile.mockRejectedValue(rejection(409, 'That display name is already used by another account'));
+    renderPage();
+    const display = await screen.findByLabelText('Display name');
+    fireEvent.change(display, { target: { value: 'Taken Name' } });
+    clickSave();
+    await screen.findByTestId('display-name-error');
+
+    fireEvent.change(display, { target: { value: 'Another Name' } });
+
+    expect(screen.queryByTestId('display-name-error')).not.toBeInTheDocument();
   });
 });

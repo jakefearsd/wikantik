@@ -50,6 +50,7 @@ import java.sql.PreparedStatement;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -137,24 +138,33 @@ class ScimSharedNameJdbcTest {
     }
 
     @Test
-    void secondJohnSmithIsCreatedAndKeepsItsNumberedWikiNameAcrossResync() throws Exception {
+    void sameFullNameIsRefusedButADifferentNameWithTheSameWikiNameKeepsItsNumberedWikiNameAcrossResync() throws Exception {
         create( PREFIX + "js1", "{\"userName\":\"" + PREFIX + "js1\",\"name\":{\"formatted\":\"John Smith\"}}" );
-        final Reply second = call( "POST", null, "{\"userName\":\"" + PREFIX + "js2\",\"name\":{\"formatted\":\"John Smith\"}}" );
+
+        // The same display name (any case, surrounding whitespace or run of whitespace) is a uniqueness conflict.
+        final Reply clash = call( "POST", null,
+                "{\"userName\":\"" + PREFIX + "js0\",\"name\":{\"formatted\":\"  john SMITH \"}}" );
+        verify( clash.resp() ).setStatus( 409 );
+        assertTrue( clash.body().toString().contains( "uniqueness" ), clash.body().toString() );
+
+        // A different display name (no space) that derives the same wiki name is created; the wiki name is numbered.
+        final Reply second = call( "POST", null,
+                "{\"userName\":\"" + PREFIX + "js2\",\"name\":{\"formatted\":\"JohnSmith\"}}" );
         verify( second.resp() ).setStatus( 201 );
-        assertEquals( "John Smith", second.body().getAsJsonObject( "name" ).get( "formatted" ).getAsString() );
+        assertEquals( "JohnSmith", second.body().getAsJsonObject( "name" ).get( "formatted" ).getAsString() );
         assertEquals( "JohnSmith2", second.body().get( "displayName" ).getAsString(),
                 "the 201 reports the stored, numbered wiki name" );
         final String id = second.body().get( "id" ).getAsString();
 
-        // The IdP re-sends the same name on its next sync.
-        final Reply put = call( "PUT", "/" + id, "{\"userName\":\"" + PREFIX + "js2\",\"name\":{\"formatted\":\"John Smith\"},"
+        // The IdP re-sends the same name on its next sync: unchanged, so neither re-validated nor re-numbered.
+        final Reply put = call( "PUT", "/" + id, "{\"userName\":\"" + PREFIX + "js2\",\"name\":{\"formatted\":\"JohnSmith\"},"
                 + "\"emails\":[{\"value\":\"js2@example.test\",\"primary\":true}]}" );
         assertEquals( "JohnSmith2", put.body().get( "displayName" ).getAsString(), put.body().toString() );
         assertEquals( "JohnSmith2", db.findByLoginName( PREFIX + "js2" ).getWikiName() );
         assertEquals( PREFIX + "js1", db.findByWikiName( "JohnSmith" ).getLoginName() );
 
         final Reply patch = call( "PATCH", "/" + id,
-                "{\"Operations\":[{\"op\":\"replace\",\"path\":\"name\",\"value\":{\"formatted\":\"John Smith\"}}]}" );
+                "{\"Operations\":[{\"op\":\"replace\",\"path\":\"name\",\"value\":{\"formatted\":\"JohnSmith\"}}]}" );
         assertEquals( "JohnSmith2", patch.body().get( "displayName" ).getAsString(), patch.body().toString() );
     }
 

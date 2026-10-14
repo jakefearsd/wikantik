@@ -110,6 +110,7 @@ final class UserProfileValidator {
         validatePassword( context, session, profile, rb );
         validateUniqueness( session, profile, rb );
         validateReservedNames( session, profile, rb );
+        validateDisplayName( session, profile );
     }
 
     /**
@@ -132,6 +133,25 @@ final class UserProfileValidator {
                 return;
             }
         }
+    }
+
+    /**
+     * Applies the display-name rules (length, control characters, {@code '@'}, login/duplicate collisions — see
+     * {@link ProfileNameRules#displayNameViolation}) to a full name that differs from the stored one. A reserved name is
+     * already reported by {@link #validateReservedNames}, and a missing one by {@link #validateRequiredFields}, so both are
+     * skipped here to avoid a second message.
+     */
+    private void validateDisplayName( final Session session, final UserProfile profile ) {
+        final String name = profile.getFullname();
+        if ( name == null || name.isBlank() || ReservedProfileNames.isReserved( engine, name ) ) {
+            return;
+        }
+        final UserProfile stored = storedProfile( profile );
+        if ( stored != null && stored.getFullname() != null && name.trim().equals( stored.getFullname().trim() ) ) {
+            return;
+        }
+        ProfileNameRules.displayNameViolation( engine, userDatabase.get(), profile.getLoginName(), name )
+                .ifPresent( violation -> session.addMessage( SESSION_MESSAGES, violation.message() ) );
     }
 
     /** Returns {@code true} if the spam filter rejected the profile (caller should stop further validation). */

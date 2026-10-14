@@ -370,16 +370,16 @@ public class AuthResource extends RestServletBase {
             final UserDatabase db = getSubsystems().auth().users().getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
 
-            // Update fullName if provided
+            // Update fullName (the display name) if provided
             final String fullName = getJsonString( body, "fullName" );
             if ( fullName != null ) {
-                // A changed full name (and the wiki name derived from it) must not be reserved or
-                // be another account's login name; an unchanged name is not re-checked. Another
-                // account may share the full name, so the derived wiki name is kept unique.
-                final java.util.Optional< String > nameError =
-                        ProfileNameRules.fullNameChangeError( engine, db, profile, fullName );
-                if ( nameError.isPresent() ) {
-                    sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
+                // A changed display name must satisfy the display-name rules (length, characters, not reserved, not another
+                // account's login, unique ignoring case) and the wiki name derived from it must not be reserved or another
+                // login; an unchanged name is not re-checked. 409 = collision, 400 = malformed.
+                final java.util.Optional< ProfileNameRules.NameViolation > nameViolation =
+                        ProfileNameRules.fullNameChangeViolation( engine, db, profile, fullName );
+                if ( nameViolation.isPresent() ) {
+                    RestJson.sendNameViolation( response, nameViolation.get() );
                     return;
                 }
                 ProfileNameRules.applyFullName( engine, db, profile, fullName );

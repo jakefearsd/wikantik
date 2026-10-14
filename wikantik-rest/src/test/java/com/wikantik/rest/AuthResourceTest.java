@@ -788,7 +788,7 @@ class AuthResourceTest {
 
         try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
             final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
-            assertEquals( 400, obj.get( "status" ).getAsInt() );
+            assertEquals( 409, obj.get( "status" ).getAsInt() );
             assertTrue( obj.get( "message" ).getAsString().contains( "another account" ), obj.toString() );
         }
         Mockito.verify( profile, Mockito.never() ).setFullname( any() );
@@ -796,26 +796,96 @@ class AuthResourceTest {
     }
 
     @Test
-    void handleUpdateProfile_allowsFullNameSharedWithAnotherAccount() throws Exception {
-        // Two people may share a full name; only the wiki name derived from it must be unique.
+    void handleUpdateProfile_rejectsADuplicateDisplayNameWith409() throws Exception {
         final UserProfile profile = profileFor( "alice", "a@x" );
-        final UserProfile other = profileFor( "asmith", "s@x" );
         final UserManager um = Mockito.mock( UserManager.class );
         final UserDatabase db = Mockito.mock( UserDatabase.class );
         Mockito.when( um.getUserDatabase() ).thenReturn( db );
         Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
-        Mockito.when( db.findByFullName( "Alice Smith" ) ).thenReturn( other );
-        Mockito.when( db.findByWikiName( "AliceSmith" ) ).thenReturn( other );
+        Mockito.when( db.isFullNameTakenIgnoreCase( "Alice Smith", "alice" ) ).thenReturn( true );
         ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "fullName", "Alice Smith" );
 
         try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+            assertEquals( 409, obj.get( "status" ).getAsInt() );
+            assertTrue( obj.get( "message" ).getAsString().contains( "already in use" ), obj.toString() );
+        }
+        Mockito.verify( profile, Mockito.never() ).setFullname( any() );
+        Mockito.verify( db, Mockito.never() ).save( any() );
+    }
+
+    @Test
+    void handleUpdateProfile_rejectsMalformedDisplayNamesWith400() throws Exception {
+        final String[][] cases = {
+            { "A", "2 to 64" }, { "x".repeat( 65 ), "2 to 64" }, { "   ", "required" },
+            { "alice@example.com", "'@'" }, { "Bad\u0007Name", "control" } };
+        for ( final String[] c : cases ) {
+            final UserProfile profile = profileFor( "alice", "a@x" );
+            final UserManager um = Mockito.mock( UserManager.class );
+            final UserDatabase db = Mockito.mock( UserDatabase.class );
+            Mockito.when( um.getUserDatabase() ).thenReturn( db );
+            Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+            ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+            final JsonObject body = new JsonObject();
+            body.addProperty( "fullName", c[ 0 ] );
+            try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+                final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+                assertEquals( 400, obj.get( "status" ).getAsInt(), c[ 0 ] );
+                assertTrue( obj.get( "message" ).getAsString().contains( c[ 1 ] ), obj.toString() );
+            }
+            Mockito.verify( profile, Mockito.never() ).setFullname( any() );
+            Mockito.verify( db, Mockito.never() ).save( any() );
+        }
+    }
+
+    @Test
+    void handleUpdateProfile_numbersTheWikiNameWhenOnlyTheWikiNameCollides() throws Exception {
+        // Display names are unique, but two different display names can still derive the same wiki name
+        // ("Alice Smith" vs a stored "AliceSmith"); the wiki name is numbered, the save succeeds.
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserProfile other = profileFor( "asmith", "s@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.when( db.findByWikiName( "AliceSmith" ) ).thenReturn( other );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", " Alice Smith " );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
             doPut( "profile", body );
         }
         Mockito.verify( profile ).setFullname( "Alice Smith" );
         Mockito.verify( profile ).setWikiName( "AliceSmith2" );
+        Mockito.verify( db ).save( profile );
+    }
+
+    @Test
+    void handleUpdateProfile_doesNotRevalidateAnUnchangedDuplicateName() throws Exception {
+        // Prod has accounts that already share a name; an unchanged name must not block saving the rest.
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        Mockito.when( profile.getFullname() ).thenReturn( "Jake Fear" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.when( db.isFullNameTakenIgnoreCase( "Jake Fear", "alice" ) ).thenReturn( true );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "Jake Fear" );
+        body.addProperty( "bio", "still me" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            doPut( "profile", body );
+        }
+        Mockito.verify( profile ).setBio( "still me" );
         Mockito.verify( db ).save( profile );
     }
 

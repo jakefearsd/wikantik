@@ -510,15 +510,17 @@ public class AdminUserResource extends RestServletBase {
 
         try {
             final UserDatabase db = getUserDatabase();
-            final java.util.Optional< String > nameError = ProfileNameRules.nameChangeError( getEngine(), db, loginName,
-                    null, null, fullName, ProfileNameRules.derivedWikiName( fullName ) );
-            if ( nameError.isPresent() ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
+            // The display name is required on create: a missing/blank one is a 400, a taken one a 409 (a null name used to
+            // count as "unchanged" and slipped through). The rules also cover the wiki name derived from it.
+            final java.util.Optional< ProfileNameRules.NameViolation > nameViolation =
+                    ProfileNameRules.displayNameViolation( getEngine(), db, loginName, fullName );
+            if ( nameViolation.isPresent() ) {
+                RestJson.sendNameViolation( response, nameViolation.get() );
                 return;
             }
             final UserProfile profile = db.newProfile();
             profile.setLoginName( loginName );
-            if ( fullName != null ) ProfileNameRules.applyFullName( getEngine(), db, profile, fullName );
+            ProfileNameRules.applyFullName( getEngine(), db, profile, fullName );
             if ( email != null ) profile.setEmail( email );
             if ( bio != null ) {
                 if ( bio.length() > 1000 ) {
@@ -562,10 +564,10 @@ public class AdminUserResource extends RestServletBase {
             final String bio = getJsonString( body, "bio" );
 
             if ( fullName != null ) {
-                final java.util.Optional< String > nameError =
-                        ProfileNameRules.fullNameChangeError( getEngine(), db, profile, fullName );
-                if ( nameError.isPresent() ) {
-                    sendError( response, HttpServletResponse.SC_BAD_REQUEST, nameError.get() );
+                final java.util.Optional< ProfileNameRules.NameViolation > nameViolation =
+                        ProfileNameRules.fullNameChangeViolation( getEngine(), db, profile, fullName );
+                if ( nameViolation.isPresent() ) {
+                    RestJson.sendNameViolation( response, nameViolation.get() );
                     return;
                 }
                 ProfileNameRules.applyFullName( getEngine(), db, profile, fullName );

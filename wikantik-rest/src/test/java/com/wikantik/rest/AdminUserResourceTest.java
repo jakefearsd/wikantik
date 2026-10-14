@@ -294,6 +294,7 @@ class AdminUserResourceTest {
         // Create user first
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "weakPwdUpdate" );
+        createBody.addProperty( "fullName", "Weak Pwd Update" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -337,6 +338,7 @@ class AdminUserResourceTest {
         // Create a user first
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "lockableUser" );
+        createBody.addProperty( "fullName", "Lockable User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -357,6 +359,7 @@ class AdminUserResourceTest {
         // Create user
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "indefiniteLock" );
+        createBody.addProperty( "fullName", "Indefinite Lock User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -375,6 +378,7 @@ class AdminUserResourceTest {
         // Create user
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "badDateLock" );
+        createBody.addProperty( "fullName", "Bad Date Lock User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -398,6 +402,7 @@ class AdminUserResourceTest {
         // by setting lockExpiry to null and responding with {locked: false})
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "unlockableUser" );
+        createBody.addProperty( "fullName", "Unlockable User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         final String createJson = doPost( null, createBody );
         final JsonObject createObj = gson.fromJson( createJson, JsonObject.class );
@@ -432,6 +437,7 @@ class AdminUserResourceTest {
         // Create a user first
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "deletableUser" );
+        createBody.addProperty( "fullName", "Deletable User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -455,6 +461,7 @@ class AdminUserResourceTest {
         // Create a user
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "orphanTestUser" );
+        createBody.addProperty( "fullName", "Orphan Test User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -485,6 +492,7 @@ class AdminUserResourceTest {
         // Create a user
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "orphanFailUser" );
+        createBody.addProperty( "fullName", "Orphan Fail User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -684,6 +692,7 @@ class AdminUserResourceTest {
         // Create user
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "lockedViewUser" );
+        createBody.addProperty( "fullName", "Locked View User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -752,27 +761,91 @@ class AdminUserResourceTest {
         b.addProperty( "password", "StrongPassword123!" );
         doPost( null, b );
 
+        // equal to another account's login name -> 409 (a collision, not malformed input)
         final JsonObject update = new JsonObject();
         update.addProperty( "fullName", "nameOwner" );
         final JsonObject obj = gson.fromJson( doPut( "nameTaker", update ), JsonObject.class );
         assertTrue( obj.has( "error" ), "a full name equal to another account's login must be rejected: " + obj );
-        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertEquals( 409, obj.get( "status" ).getAsInt() );
 
+        // re-sending the account's own (unchanged) name is fine
+        final JsonObject same = new JsonObject();
+        same.addProperty( "fullName", "Name Taker" );
+        final JsonObject kept = gson.fromJson( doPut( "nameTaker", same ), JsonObject.class );
+        assertFalse( kept.has( "error" ), kept.toString() );
+    }
+
+    @Test
+    void testCreateAndRenameRejectADuplicateDisplayNameIgnoringCaseAndWhitespace() throws Exception {
+        final JsonObject holder = new JsonObject();
+        holder.addProperty( "loginName", "dupHolder" );
+        holder.addProperty( "fullName", "Duplicate Holder Person" );
+        holder.addProperty( "password", "StrongPassword123!" );
+        doPost( null, holder );
+        final JsonObject other = new JsonObject();
+        other.addProperty( "loginName", "dupOther" );
+        other.addProperty( "fullName", "Some Other Person" );
+        other.addProperty( "password", "StrongPassword123!" );
+        doPost( null, other );
+
+        // another account's display name, with different case/whitespace, on create -> 409
         final JsonObject create = new JsonObject();
-        create.addProperty( "loginName", "nameTaker2" );
-        create.addProperty( "fullName", "Name Owner" );
+        create.addProperty( "loginName", "dupClaimer" );
+        create.addProperty( "fullName", "  duplicate HOLDER person " );
         create.addProperty( "password", "StrongPassword123!" );
         final JsonObject created = gson.fromJson( doPost( null, create ), JsonObject.class );
-        assertFalse( created.has( "error" ), "two accounts may share a full name: " + created );
-        assertEquals( "Name Owner", created.get( "fullName" ).getAsString() );
-        assertEquals( "NameOwner2", created.get( "wikiName" ).getAsString(),
-                "the shared full name gets a free wiki name" );
+        assertEquals( 409, created.get( "status" ).getAsInt(), "display names are unique: " + created );
+        assertTrue( created.get( "message" ).getAsString().contains( "already in use" ), created.toString() );
 
+        // ... and on rename -> 409
         final JsonObject rename = new JsonObject();
-        rename.addProperty( "fullName", "Name Owner" );
-        final JsonObject renamed = gson.fromJson( doPut( "nameTaker", rename ), JsonObject.class );
-        assertFalse( renamed.has( "error" ), "a full name another account uses is allowed on update: " + renamed );
-        assertEquals( "NameOwner3", renamed.get( "wikiName" ).getAsString() );
+        rename.addProperty( "fullName", "Duplicate Holder Person" );
+        final JsonObject renamed = gson.fromJson( doPut( "dupOther", rename ), JsonObject.class );
+        assertEquals( 409, renamed.get( "status" ).getAsInt(), renamed.toString() );
+        assertTrue( renamed.get( "message" ).getAsString().contains( "already in use" ), renamed.toString() );
+    }
+
+    @Test
+    void testCreateUserRequiresADisplayName() throws Exception {
+        final JsonObject missing = new JsonObject();
+        missing.addProperty( "loginName", "noNameUser" );
+        missing.addProperty( "password", "StrongPassword123!" );
+        final JsonObject obj = gson.fromJson( doPost( null, missing ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt(), obj.toString() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "required" ), obj.toString() );
+
+        final JsonObject blank = new JsonObject();
+        blank.addProperty( "loginName", "noNameUser" );
+        blank.addProperty( "fullName", "   " );
+        blank.addProperty( "password", "StrongPassword123!" );
+        assertEquals( 400, gson.fromJson( doPost( null, blank ), JsonObject.class ).get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testCreateUserRejectsAnExplicitInvalidDisplayName() throws Exception {
+        for ( final String name : new String[] { "x", "mallory@example.com", "Admin" } ) {
+            final JsonObject body = new JsonObject();
+            body.addProperty( "loginName", "invalidNameUser" );
+            body.addProperty( "fullName", name );
+            body.addProperty( "password", "StrongPassword123!" );
+            final JsonObject obj = gson.fromJson( doPost( null, body ), JsonObject.class );
+            assertEquals( 400, obj.get( "status" ).getAsInt(), name + ": " + obj );
+        }
+    }
+
+    @Test
+    void testUpdateUserRejectsBlankDisplayName() throws Exception {
+        final JsonObject create = new JsonObject();
+        create.addProperty( "loginName", "blankNameUser" );
+        create.addProperty( "fullName", "Blank Name User" );
+        create.addProperty( "password", "StrongPassword123!" );
+        doPost( null, create );
+
+        final JsonObject update = new JsonObject();
+        update.addProperty( "fullName", "   " );
+        final JsonObject obj = gson.fromJson( doPut( "blankNameUser", update ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt(), obj.toString() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "required" ), obj.toString() );
     }
 
     @Test
@@ -840,6 +913,7 @@ class AdminUserResourceTest {
         // Create a user to lock
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "bulkLockTarget" );
+        createBody.addProperty( "fullName", "Bulk Lock Target" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -867,6 +941,7 @@ class AdminUserResourceTest {
         // — tryUnlockUser just sets lockExpiry to null and saves)
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "bulkUnlockTarget" );
+        createBody.addProperty( "fullName", "Bulk Unlock Target" );
         createBody.addProperty( "password", "StrongPassword123!" );
         final String createJson = doPost( null, createBody );
         final JsonObject createObj = gson.fromJson( createJson, JsonObject.class );
@@ -894,6 +969,7 @@ class AdminUserResourceTest {
         // Create a user then bulk delete
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "bulkDeleteTarget" );
+        createBody.addProperty( "fullName", "Bulk Delete Target" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -917,6 +993,7 @@ class AdminUserResourceTest {
         // Create a user and make the servlet request appear to come from that user
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "selfDeleteAttempt" );
+        createBody.addProperty( "fullName", "Self Delete Attempt" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -1041,6 +1118,7 @@ class AdminUserResourceTest {
         // Create one real user; "nonexistentXyz9876" does not exist
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "bulkPartialLockUser" );
+        createBody.addProperty( "fullName", "Bulk Partial Lock User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -1067,6 +1145,7 @@ class AdminUserResourceTest {
         // Create one user; nonexistent one should fail
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "bulkPartialDeleteUser" );
+        createBody.addProperty( "fullName", "Bulk Partial Delete User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 
@@ -1142,6 +1221,7 @@ class AdminUserResourceTest {
         // Seed unflagged profile
         final JsonObject createBody = new JsonObject();
         createBody.addProperty( "loginName", "plain" );
+        createBody.addProperty( "fullName", "Plain User" );
         createBody.addProperty( "password", "StrongPassword123!" );
         doPost( null, createBody );
 

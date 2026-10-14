@@ -258,6 +258,58 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
+    public void testIsFullNameTakenIgnoreCase() throws Exception {
+        // janne ("Janne Jalkanen") is seeded in setUp; "user" has no full name.
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "Janne Jalkanen", null ) );
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "janne jalkanen", null ), "case-insensitive" );
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "  JANNE JALKANEN  ", null ), "surrounding whitespace is trimmed" );
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "Janne Jalkanen", "user" ), "held by a different account" );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "Janne Jalkanen", "janne" ),
+                "an account's own name is not a clash with itself" );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "Nobody Atall", null ) );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "   ", null ), "blank is never 'taken'" );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( null, null ) );
+    }
+
+    @Test
+    public void testIsLoginNameTakenIgnoreCase() throws Exception {
+        // logins "janne" and "user" are seeded in setUp
+        Assertions.assertTrue( m_db.isLoginNameTakenIgnoreCase( "janne", null ) );
+        Assertions.assertTrue( m_db.isLoginNameTakenIgnoreCase( "JANNE", null ), "case-insensitive" );
+        Assertions.assertTrue( m_db.isLoginNameTakenIgnoreCase( "  Janne ", "user" ), "trimmed; held by a different account" );
+        Assertions.assertFalse( m_db.isLoginNameTakenIgnoreCase( "JANNE", "janne" ), "an account's own login is not a clash" );
+        Assertions.assertFalse( m_db.isLoginNameTakenIgnoreCase( "nobody", null ) );
+        Assertions.assertFalse( m_db.isLoginNameTakenIgnoreCase( "  ", null ) );
+        Assertions.assertFalse( m_db.isLoginNameTakenIgnoreCase( null, null ) );
+    }
+
+    @Test
+    public void testIsFullNameTakenIgnoreCaseSeesADuplicateOwnedByAnotherAccountOnly() throws Exception {
+        final UserProfile twin = m_db.newProfile();
+        twin.setLoginName( "janne-twin" );
+        twin.setFullname( "Janne Jalkanen 2" );
+        twin.setPassword( Users.ALICE_PASS );
+        m_db.save( twin );
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "janne jalkanen 2", "janne" ) );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "janne jalkanen 2", "janne-twin" ) );
+    }
+
+    @Test
+    public void testIsFullNameTakenIgnoreCaseComparesTheNormalisedFormOfBothSides() throws Exception {
+        // Stored with a full-width letter, no-break spaces, a run of spaces and a tab: the stored side is normalised too.
+        final UserProfile messy = m_db.newProfile();
+        messy.setLoginName( "messy" );
+        messy.setFullname( "  \uff2dessy\u00a0\u00a0 Name\t " );
+        messy.setPassword( Users.ALICE_PASS );
+        m_db.save( messy );
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "messy name", null ), "NFKC + whitespace runs + case" );
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "MESSY\u00a0NAME", null ), "a no-break space is a space" );
+        Assertions.assertTrue( m_db.isFullNameTakenIgnoreCase( "\uff2d\uff25\uff33\uff33\uff39 name", null ), "full-width query" );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "messy name", "messy" ), "own name is not a clash" );
+        Assertions.assertFalse( m_db.isFullNameTakenIgnoreCase( "messyname", null ), "a removed space is a different name" );
+    }
+
+    @Test
     public void testFindByUid() {
         try {
             final UserProfile profile = m_db.findByUid( "-7739839977499061014" );

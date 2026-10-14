@@ -23,6 +23,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.jdbc.Jdbc;
@@ -109,6 +110,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private static final String DELETE_ROLES = "DELETE FROM roles WHERE login_name=?";
     private static final String RENAME_PROFILE = "UPDATE users SET login_name=?,modified=? WHERE login_name=?";
     private static final String RENAME_ROLES = "UPDATE roles SET login_name=? WHERE login_name=?";
+    // Must agree with ProfileNameRules#displayNameKey: NFKC, whitespace runs collapsed, trimmed, lower-cased.
+    private static final String FULL_NAME_TAKEN =
+            "SELECT 1 FROM users WHERE lower(btrim(regexp_replace(normalize(full_name, NFKC), '\\s+', ' ', 'g'))) = ?"
+            + " AND login_name <> ? LIMIT 1";
+    private static final String LOGIN_NAME_TAKEN =
+            "SELECT 1 FROM users WHERE lower(login_name) = lower(?) AND login_name <> ? LIMIT 1";
 
     private DataSource ds;
 
@@ -175,6 +182,42 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     @Override
     public UserProfile findByFullName( final String index ) throws NoSuchPrincipalException {
         return findByPreparedStatement( FIND_BY_FULL_NAME, index );
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>One query instead of the interface default's full scan of deserialized profiles. {@code login_name} is {@code NOT NULL}, so a
+     * {@code null} exclusion binds as the empty string and excludes nobody.</p>
+     */
+    @Override
+    public boolean isFullNameTakenIgnoreCase( final String fullName, final String excludingLogin ) throws WikiSecurityException {
+        if ( fullName == null || fullName.isBlank() ) {
+            return false;
+        }
+        try {
+            return jdbc.queryOne( FULL_NAME_TAKEN, ps -> {
+                ps.setString( 1, ProfileNameRules.displayNameKey( fullName ) );
+                ps.setString( 2, excludingLogin == null ? "" : excludingLogin );
+            }, rs -> rs.getInt( 1 ) ).isPresent();
+        } catch ( final SQLException e ) {
+            throw new WikiSecurityException( "Could not check whether a display name is taken: " + e.getMessage(), e );
+        }
+    }
+
+    /** {@inheritDoc} One query; the interface default would deserialize every account row. */
+    @Override
+    public boolean isLoginNameTakenIgnoreCase( final String loginName, final String excludingLogin ) throws WikiSecurityException {
+        if ( loginName == null || loginName.isBlank() ) {
+            return false;
+        }
+        try {
+            return jdbc.queryOne( LOGIN_NAME_TAKEN, ps -> {
+                ps.setString( 1, loginName.trim() );
+                ps.setString( 2, excludingLogin == null ? "" : excludingLogin );
+            }, rs -> rs.getInt( 1 ) ).isPresent();
+        } catch ( final SQLException e ) {
+            throw new WikiSecurityException( "Could not check whether a login name is taken: " + e.getMessage(), e );
+        }
     }
 
     /**

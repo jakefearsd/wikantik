@@ -399,6 +399,24 @@ class UserManagerTest {
                 java.util.Arrays.toString( messages ) );
     }
 
+    /** The legacy validate path applies the display-name shape rules to a changed full name. */
+    @Test
+    void testValidateProfileRejectsMalformedDisplayName() throws Exception {
+        for ( final String name : new String[] { "x", "a@b.example", "Control\u0007Char" } ) {
+            final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+            final UserProfile profile = m_db.newProfile();
+            profile.setLoginName( "malformedtest" );
+            profile.setFullname( name );
+            profile.setEmail( "malformed@example.com" );
+            profile.setPassword( Users.ADMIN_PASS );
+            m_mgr.validateProfile( context, profile );
+
+            final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+            Assertions.assertTrue( java.util.Arrays.stream( messages ).anyMatch( m -> m.contains( "display name" ) ),
+                    "Expected a display-name error for '" + name + "', got " + java.util.Arrays.toString( messages ) );
+        }
+    }
+
     /**
      * Tests that validateProfile catches a missing full name.
      */

@@ -21,6 +21,7 @@ package com.wikantik.auth.user;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.ProfileNameRules;
 import com.wikantik.auth.WikiSecurityException;
 
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -131,6 +133,56 @@ public interface UserDatabase {
      * @return the user profile
      */
     UserProfile findByFullName( String index ) throws NoSuchPrincipalException;
+
+    /**
+     * True if an account <em>other than</em> {@code excludingLogin} already holds {@code fullName} as its full (display) name.
+     * Names are compared by {@link ProfileNameRules#displayNameKey}: ignoring case, surrounding whitespace, runs of
+     * whitespace and Unicode compatibility forms. A {@code null}/blank {@code fullName} is never taken. Pass
+     * {@code excludingLogin = null} to ask about every account.
+     *
+     * <p>This default implementation scans {@link #findAllProfiles()}. A relational store should override it with a single
+     * indexed query ({@code JDBCUserDatabase} does).</p>
+     *
+     * @throws WikiSecurityException if the profiles cannot be enumerated
+     */
+    default boolean isFullNameTakenIgnoreCase( final String fullName, final String excludingLogin ) throws WikiSecurityException {
+        if ( fullName == null || fullName.isBlank() ) {
+            return false;
+        }
+        final String wanted = ProfileNameRules.displayNameKey( fullName );
+        for ( final UserProfile profile : findAllProfiles() ) {
+            final String other = profile.getFullname();
+            if ( other != null && !Objects.equals( profile.getLoginName(), excludingLogin )
+                    && ProfileNameRules.displayNameKey( other ).equals( wanted ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True if an account <em>other than</em> {@code excludingLogin} has {@code loginName} as its login name, comparing
+     * case-insensitively (surrounding whitespace ignored). A {@code null}/blank {@code loginName} is never taken. Pass
+     * {@code excludingLogin = null} to ask about every account.
+     *
+     * <p>This default implementation scans {@link #findAllProfiles()}; a relational store should override it with a single
+     * query ({@code JDBCUserDatabase} does).</p>
+     *
+     * @throws WikiSecurityException if the profiles cannot be enumerated
+     */
+    default boolean isLoginNameTakenIgnoreCase( final String loginName, final String excludingLogin ) throws WikiSecurityException {
+        if ( loginName == null || loginName.isBlank() ) {
+            return false;
+        }
+        final String wanted = loginName.trim();
+        for ( final UserProfile profile : findAllProfiles() ) {
+            final String other = profile.getLoginName();
+            if ( other != null && !other.equals( excludingLogin ) && other.equalsIgnoreCase( wanted ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Counts the number of users whose account is currently locked. A user is considered locked when its lock-expiry

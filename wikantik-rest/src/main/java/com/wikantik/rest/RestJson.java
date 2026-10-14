@@ -104,6 +104,16 @@ public final class RestJson {
     }
 
     /**
+     * Sends the error for a refused display name: {@code 409} when it collides with another account (a login or display
+     * name already in use), {@code 400} for malformed or reserved input.
+     */
+    public static void sendNameViolation( final HttpServletResponse response,
+            final com.wikantik.auth.ProfileNameRules.NameViolation violation ) throws IOException {
+        sendError( response, violation.isConflict() ? HttpServletResponse.SC_CONFLICT : HttpServletResponse.SC_BAD_REQUEST,
+                violation.message() );
+    }
+
+    /**
      * Parses the JSON body from the request. On parse failure, sends a 400 error
      * (including the parser exception message so clients can debug malformed
      * payloads) and returns {@code null}.

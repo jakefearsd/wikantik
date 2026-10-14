@@ -24,53 +24,138 @@ import com.wikantik.auth.user.UserProfile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.text.Normalizer;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Rules for a user's display names (full name and wiki name) when they are set or changed through
- * any write path: self-service profile, admin user editor, SCIM and SSO provisioning.
+ * Rules for a user's display name (stored as {@code users.full_name}) and wiki name when they are set or changed through
+ * any write path: self-service profile, admin user editor, SCIM, SSO provisioning and the legacy {@code UserManager} path.
  *
- * <p>A <em>changed</em> display name must not be reserved (see {@link ReservedProfileNames}) and
- * must not equal another account's login name. Two accounts may share a full name: access is
- * decided by login name only, so a shared display name grants nothing. A name that is unchanged is
- * never re-checked, so a name that became reserved or taken after its owner chose it cannot lock
- * the owner out of saving the rest of their profile.</p>
+ * <p>A display name must be present, {@value #DISPLAY_NAME_MIN}-{@value #DISPLAY_NAME_MAX} characters after trimming,
+ * free of control characters, invisible formatting characters and {@code '@'} (so it can never pass for an email
+ * address), not reserved (see {@link ReservedProfileNames}), not equal &mdash; ignoring case &mdash; to any
+ * <em>other</em> account's login name, and unique among all other accounts' display names, ignoring case, surrounding
+ * whitespace and runs of whitespace (see {@link #displayNameKey}). Uniqueness is enforced here, in the application,
+ * not by a database index: migrations run at container start and an index would fail on existing duplicates.</p>
  *
- * <p>Wiki names stay unique (the {@code users.wiki_name} column is UNIQUE); a write path that
- * derives one passes it through {@link #availableWikiName} so a shared full name still saves.</p>
+ * <p>A name that is <em>unchanged</em> is never re-checked, so a name that became reserved or duplicated after its owner
+ * chose it cannot lock the owner out of saving the rest of their profile.</p>
+ *
+ * <p>Wiki names stay unique (the {@code users.wiki_name} column is UNIQUE); a write path that derives one passes it through
+ * {@link #availableWikiName} so two different display names that derive the same wiki name still save.</p>
  */
 public final class ProfileNameRules {
 
     private static final Logger LOG = LogManager.getLogger( ProfileNameRules.class );
 
-    private ProfileNameRules() { }
+    /** Shortest accepted display name, in characters after trimming. */
+    public static final int DISPLAY_NAME_MIN = 2;
 
-    /**
-     * Validates a change of display names for the account {@code login}.
-     *
-     * @return an error message for the first changed name that is reserved or is another account's
-     *         login name, else empty
-     */
-    public static Optional< String > nameChangeError( final Engine engine, final UserDatabase db, final String login,
-            final String oldFull, final String oldWiki, final String newFull, final String newWiki ) {
-        for ( final String[] pair : new String[][] { { oldFull, newFull }, { oldWiki, newWiki } } ) {
-            final String candidate = pair[ 1 ];
-            if ( candidate == null || candidate.isBlank() || Objects.equals( trim( pair[ 0 ] ), trim( candidate ) ) ) {
-                continue;
-            }
-            if ( ReservedProfileNames.isReserved( engine, candidate ) ) {
-                return Optional.of( "The name '" + candidate.trim() + "' is reserved for a role or group; choose a different name" );
-            }
-            if ( isAnotherAccountsLogin( db, login, candidate.trim() ) ) {
-                return Optional.of( "The name '" + candidate.trim() + "' is another account's login name; choose a different name" );
-            }
-        }
-        return Optional.empty();
-    }
+    /** Longest accepted display name, in characters after trimming. */
+    public static final int DISPLAY_NAME_MAX = 64;
 
     /** Upper bound on numeric suffixes tried for a wiki name before giving up and keeping the preferred one. */
     private static final int MAX_WIKI_NAME_SUFFIX = 1000;
+
+    private ProfileNameRules() { }
+
+    /**
+     * How a name broke the rules. {@link #INVALID} is malformed or reserved input (REST 400, SCIM {@code invalidValue}, and an
+     * unusable IdP claim). {@link #TAKEN} is a collision with another account's login name or display name (REST 409, SCIM
+     * {@code uniqueness}, and a claim that is worth numbering).
+     */
+    public enum Kind { INVALID, TAKEN }
+
+    /** The first display-name rule a candidate broke, with a user-facing message. */
+    public record NameViolation( Kind kind, String message ) {
+        /** True for a collision with another account rather than malformed input. */
+        public boolean isConflict() {
+            return kind == Kind.TAKEN;
+        }
+    }
+
+    static Optional< NameViolation > invalid( final String message ) {
+        return Optional.of( new NameViolation( Kind.INVALID, message ) );
+    }
+
+    static Optional< NameViolation > taken( final String message ) {
+        return Optional.of( new NameViolation( Kind.TAKEN, message ) );
+    }
+
+    /** Comparison key for display-name uniqueness: NFKC, whitespace runs collapsed, trimmed, lower-cased. */
+    public static String displayNameKey( final String name ) {
+        return name == null ? null
+                : Normalizer.normalize( name, Normalizer.Form.NFKC ).replaceAll( "\\s+", " " ).trim().toLowerCase( Locale.ROOT );
+    }
+
+    // ------------------------------------------------------------------ display-name rules
+
+    /**
+     * Checks {@code candidate} against every display-name rule for the account {@code login}.
+     *
+     * @param login     the account being saved ({@code null} for a new account); its own login and name never clash
+     * @param candidate the proposed display name
+     * @return the first rule broken, else empty
+     */
+    public static Optional< NameViolation > displayNameViolation( final Engine engine, final UserDatabase db,
+            final String login, final String candidate ) {
+        return DisplayNameRules.violation( engine, db, login, candidate );
+    }
+
+    /** {@link #displayNameViolation} as a bare user-facing message. */
+    public static Optional< String > displayNameError( final Engine engine, final UserDatabase db, final String login,
+            final String candidate ) {
+        return displayNameViolation( engine, db, login, candidate ).map( NameViolation::message );
+    }
+
+    /**
+     * A display name for the account {@code login} that satisfies every rule, for SSO and SCIM provisioning where a conflict
+     * must never fail the sign-in. {@code preferred} (trimmed) when it passes; if it is merely <em>taken</em> (another
+     * account's display name or login) the lowest {@code preferred + " " + n}, n &ge; 2, that passes; if it is
+     * null/blank/email-shaped/reserved/malformed, the lowest {@code "Member " + n}, n &ge; 1, that passes. Never the login or
+     * email.
+     */
+    public static String availableDisplayName( final Engine engine, final UserDatabase db, final String login,
+            final String preferred ) {
+        return DisplayNameAllocator.allocate( engine, db, login, preferred );
+    }
+
+    // ------------------------------------------------------------------ change validation
+
+    /**
+     * Validates a change of display names for the account {@code login}: a full name that changed (and was supplied) must
+     * satisfy {@link #displayNameViolation}; a wiki name that changed must not be reserved or be another account's login.
+     */
+    public static Optional< NameViolation > nameChangeViolation( final Engine engine, final UserDatabase db,
+            final String login, final String oldFull, final String oldWiki, final String newFull, final String newWiki ) {
+        return DisplayNameRules.changeViolation( engine, db, login, oldFull, oldWiki, newFull, newWiki );
+    }
+
+    /** {@link #nameChangeViolation} as a bare user-facing message (signature kept for existing callers). */
+    public static Optional< String > nameChangeError( final Engine engine, final UserDatabase db, final String login,
+            final String oldFull, final String oldWiki, final String newFull, final String newWiki ) {
+        return nameChangeViolation( engine, db, login, oldFull, oldWiki, newFull, newWiki ).map( NameViolation::message );
+    }
+
+    /**
+     * Validates a full-name change through the self-service or admin profile editor. The wiki name is derived from the full
+     * name with whitespace removed, so it is checked too.
+     */
+    public static Optional< NameViolation > fullNameChangeViolation( final Engine engine, final UserDatabase db,
+            final UserProfile current, final String newFull ) {
+        return nameChangeViolation( engine, db, current.getLoginName(), current.getFullname(), current.getWikiName(),
+                newFull, derivedWikiName( newFull ) );
+    }
+
+    /** {@link #fullNameChangeViolation} as a bare user-facing message (signature kept for existing callers). */
+    public static Optional< String > fullNameChangeError( final Engine engine, final UserDatabase db,
+            final UserProfile current, final String newFull ) {
+        return fullNameChangeViolation( engine, db, current, newFull ).map( NameViolation::message );
+    }
+
+    // ------------------------------------------------------------------ wiki names (unchanged behaviour)
 
     /**
      * A wiki name for the account {@code login} that no other account holds as its wiki or login
@@ -107,14 +192,14 @@ public final class ProfileNameRules {
     }
 
     /**
-     * Sets {@code fullName} on {@code profile} and gives it the wiki name derived from it, numbered
+     * Sets {@code fullName} (trimmed) on {@code profile} and gives it the wiki name derived from it, numbered
      * when another account already holds that wiki name (see {@link #availableWikiName}). Call it
      * after {@link #nameChangeError} has accepted the name.
      */
     public static void applyFullName( final Engine engine, final UserDatabase db, final UserProfile profile,
             final String fullName ) {
         final String previousWiki = profile.getWikiName();
-        profile.setFullname( fullName );
+        profile.setFullname( fullName == null ? null : fullName.trim() );
         final String derived = derivedWikiName( fullName );
         final String wiki = availableWikiName( engine, db, profile.getLoginName(), derived, previousWiki );
         if ( !Objects.equals( wiki, derived ) ) {
@@ -139,16 +224,6 @@ public final class ProfileNameRules {
             return false;
         }
         return otherAccount( db, login, () -> db.findByLoginName( name ) );
-    }
-
-    /**
-     * Validates a full-name change through the self-service or admin profile editor. The wiki name
-     * is derived from the full name with whitespace removed, so it is checked too.
-     */
-    public static Optional< String > fullNameChangeError( final Engine engine, final UserDatabase db,
-            final UserProfile current, final String newFull ) {
-        return nameChangeError( engine, db, current.getLoginName(), current.getFullname(), current.getWikiName(),
-                newFull, derivedWikiName( newFull ) );
     }
 
     /**
@@ -179,9 +254,5 @@ public final class ProfileNameRules {
             LOG.debug( "No account matches the proposed name: {}", e.getMessage() );
             return false;
         }
-    }
-
-    private static String trim( final String s ) {
-        return s == null ? null : s.trim();
     }
 }

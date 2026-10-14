@@ -67,7 +67,7 @@ class AtomFeedServletTest {
             pm.deletePage( "FeedTestArticle" );
             pm.deletePage( "FeedTestHub" );
             pm.deletePage( "FeedTestOther" );
-            engine.deleteQuietly( "FeedTestRestricted", "FeedTestByLogin" );
+            engine.deleteQuietly( "FeedTestRestricted", "FeedTestByLogin", "FeedTestHtmlBlockRule" );
             engine.stop();
         }
     }
@@ -84,6 +84,18 @@ class AtomFeedServletTest {
         assertFalse( feed.contains( "Hidden Heading" ) );
         assertTrue( feed.contains( "<author><name>Janne Jalkanen</name></author>" ), feed );
         assertFalse( feed.contains( "<name>janne</name>" ), "the stored login must not be published" );
+    }
+
+    @Test
+    void testFeedExcerptShowsNoAccessRuleFromAnHtmlBlock() throws Exception {
+        // No frontmatter summary, so the entry's summary is the excerpt of the rendered page.
+        engine.saveText( "FeedTestHtmlBlockRule", com.wikantik.auth.acl.AclDirectiveFixtures.HTML_BLOCK.text() );
+        engine.getManager( RecentArticlesManager.class ).clearCache();
+
+        final String feed = doGetFeed( null, null );
+
+        assertTrue( feed.contains( "FeedTestHtmlBlockRule" ), feed );
+        assertFalse( feed.contains( "example.test" ), "an enforced access rule's login reached the public feed: " + feed );
     }
 
     @Test

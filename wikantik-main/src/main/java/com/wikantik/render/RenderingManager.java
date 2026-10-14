@@ -136,7 +136,8 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
      *  @throws IOException if the body cannot be parsed or rendered
      */
     default String renderEmbedBody( final Context context, final String markdown ) throws IOException {
-        return getHTML( context, getParser( context, markdown ).parse() );
+        // A display render: the body is parsed without the access rules the ACL manager enforces (see AclDirectiveText).
+        return getHTML( context, getParser( context, com.wikantik.auth.acl.AclDirectiveText.strip( markdown ) ).parse() );
     }
 
     /**

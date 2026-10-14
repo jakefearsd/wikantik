@@ -468,6 +468,19 @@ public class DefaultRecentArticlesManagerTest {
         }
     }
 
+    @Test
+    public void testExcerptShowsNoAccessRuleFromAnHtmlBlock() throws Exception {
+        m_engine.saveText( "ExcerptHtmlBlockRule", com.wikantik.auth.acl.AclDirectiveFixtures.HTML_BLOCK.text() );
+        m_manager.clearCache();
+        final List<ArticleSummary> articles = m_manager.getRecentArticles( createContext(), new RecentArticlesQuery().count( 100 ) );
+        final ArticleSummary article = articles.stream().filter( a -> "ExcerptHtmlBlockRule".equals( a.getName() ) ).findFirst()
+                .orElseThrow( () -> new AssertionError( "the page is listed" ) );
+        Assertions.assertNotNull( article.getExcerpt() );
+        Assertions.assertFalse( article.getExcerpt().contains( "example.test" ),
+                "an enforced access rule's login reached the excerpt: " + article.getExcerpt() );
+        Assertions.assertTrue( article.getExcerpt().contains( "visible body" ), article.getExcerpt() );
+    }
+
     private Context createContext() {
         try {
             final Page page = m_engine.getManager( PageManager.class ).getPage( "Main" );

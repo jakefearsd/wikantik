@@ -75,7 +75,18 @@ public class LinkParsingOperations {
      * @return {@code true}, if this represents an access rule.
      */
     public boolean isAccessRule( final String link ) {
-        return link.startsWith("{ALLOW") || link.startsWith("{DENY");
+        return isAccessRuleLink( link );
+    }
+
+    /**
+     *  Returns true, if the link in question is an access rule — the classification the render path applies (and
+     *  {@code RenderPathAccessRules} repeats without a context).
+     *
+     * @param link The link text
+     * @return {@code true}, if this represents an access rule.
+     */
+    public static boolean isAccessRuleLink( final String link ) {
+        return link.startsWith( "{ALLOW" ) || link.startsWith( "{DENY" );
     }
 
     /**

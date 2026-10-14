@@ -52,21 +52,37 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
     }
 
     /**
+     * The rule line this post-processor hands the ACL parser for an access-rule link: the link target less one leading
+     * <code>{</code> and one trailing <code>}</code> ({@code {ALLOW view All}} gives {@code ALLOW view All}).
+     *
+     * @param link the access-rule link's target (see {@code WikantikLink.wikiLinkOf})
+     * @return the rule line
+     */
+    public static String ruleLineOf( final String link ) {
+        String ruleLine = link;
+        if( ruleLine.startsWith( "{" ) ) {
+            ruleLine = ruleLine.substring( 1 );
+        }
+        if( ruleLine.endsWith( "}" ) ) {
+            ruleLine = ruleLine.substring( 0, ruleLine.length() - 1 );
+        }
+        return ruleLine;
+    }
+
+    /**
      * {@inheritDoc}
+     *
+     * <p>Display renders never reach this with a rule the ACL manager enforces — they parse the text with those removed
+     * ({@code AclDirectiveText}) — so the ACL a page carries comes from {@code DefaultAclManager}'s text scan alone.
      *
      * @see NodePostProcessorState#process(NodeTracker, Node)
      */
     @Override
     public void process( final NodeTracker state, final WikantikLink link ) {
-        String ruleLine = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
+        final String target = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
         if( !Boolean.FALSE.equals( wikiContext.getVariable( VAR_PARSE_ACCESS_RULES ) ) ) {
             final Page page = wikiContext.getRealPage();
-            if( ruleLine.startsWith( "{" ) ) {
-                ruleLine = ruleLine.substring( 1 );
-            }
-            if( ruleLine.endsWith( "}" ) ) {
-                ruleLine = ruleLine.substring( 0, ruleLine.length() - 1 );
-            }
+            final String ruleLine = ruleLineOf( target );
             LOG.debug( "page={}, ACL = {}", page.getName(), ruleLine );
 
             try {

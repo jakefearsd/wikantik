@@ -118,4 +118,12 @@ class FrontmatterDefaultsFilterTest {
         assertFalse( meta.get( "summary" ).toString().contains( "alice" ), meta.get( "summary" ).toString() );
         assertTrue( result.contains( rules ), "the stored body keeps its access rules" );
     }
+
+    @Test
+    void anInlineAccessRuleDoesNotGlueTheWordsEitherSideOfItTogetherInTheSummary() {
+        final String result = filterWithDefaults().applyDefaults( "InlineRulePage",
+                "Quarterly[{ALLOW view All}]planning notes for the whole team are kept on this page for reference.\n" );
+        final String summary = FrontmatterParser.parse( result ).metadata().get( "summary" ).toString();
+        assertTrue( summary.contains( "Quarterly planning" ), summary );
+    }
 }

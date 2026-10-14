@@ -22,7 +22,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
@@ -170,7 +170,9 @@ public final class WikiEmbedRenderer {
     }
 
     private Optional< String > sourceText( final Page page, final String heading ) {
-        final String text = FrontmatterParser.parse( pages.getPureText( page ) ).body();
+        // The body of the stripped FULL text (frontmatter can change what the ACL manager counts as code); the body
+        // renderer strips again, as every display render does.
+        final String text = AclDirectiveText.parseStripped( pages.getPureText( page ) ).body();
         return heading == null ? Optional.of( text ) : HeadingSlugs.sectionBody( text, HeadingSlugs.slug( heading ) )
                 .filter( s -> !s.isBlank() );
     }

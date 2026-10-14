@@ -18,6 +18,8 @@
  */
 package com.wikantik.markdown.extensions.math;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,38 +68,78 @@ public final class DisplayMathPreProcessor {
         if ( source == null || source.isEmpty() ) {
             return source;
         }
+        return transformTracked( source ).text();
+    }
+
+    /**
+     * One rewritten {@code $$...$$} block: {@code source[sourceStart, sourceEnd)} became
+     * {@code text[targetStart, targetEnd)}. Text outside the edits is copied unchanged.
+     *
+     * @param sourceStart start of the block in the source
+     * @param sourceEnd   end of the block in the source
+     * @param targetStart start of its replacement in the transformed text
+     * @param targetEnd   end of its replacement in the transformed text
+     */
+    public record Edit( int sourceStart, int sourceEnd, int targetStart, int targetEnd ) {
+    }
+
+    /**
+     * The transformed text and where it differs from the source, so a position in it can be taken back.
+     *
+     * @param text  what {@link #transform(String)} returns
+     * @param edits the rewritten blocks, in order
+     */
+    public record Tracked( String text, List< Edit > edits ) {
+    }
+
+    /**
+     * {@link #transform(String)}, also reporting each rewritten block.
+     *
+     * @param source the raw Markdown source text; must not be {@code null}
+     * @return the transformed text with its edits (none, and the very same text, when there is no display math)
+     */
+    public static Tracked transformTracked( final String source ) {
         // No display-math delimiter anywhere means the DOTALL/MULTILINE regex below
-        // cannot match, and appendTail would hand back `source` verbatim. Most pages
-        // carry no math at all, and this runs on every parse — including once per hit
-        // on the search path — so short-circuit on a plain indexOf instead of a
-        // backtracking scan of the whole body.
+        // cannot match. Most pages carry no math at all, and this runs on every parse —
+        // including once per hit on the search path — so short-circuit on a plain indexOf
+        // instead of a backtracking scan of the whole body.
         if ( !source.contains( "$$" ) ) {
-            return source;
+            return new Tracked( source, List.of() );
         }
 
         final Matcher matcher = DISPLAY_MATH_BLOCK.matcher( source );
         final StringBuilder result = new StringBuilder();
-
+        final List< Edit > edits = new ArrayList<>();
+        int copied = 0;
         while ( matcher.find() ) {
-            final String indent = matcher.group( 1 );
-            String content = matcher.group( 2 );
-            // Strip trailing line break — the regex captures it because (.*?) extends
-            // to the line before the closing $$ delimiter. Handle both \n and \r\n.
-            if ( content.endsWith( "\r\n" ) ) {
-                content = content.substring( 0, content.length() - 2 );
-            } else if ( content.endsWith( "\n" ) ) {
-                content = content.substring( 0, content.length() - 1 );
-            }
-            // Preserve the opening delimiter's indent on both fences so math blocks
-            // inside list items keep the list's continuation indent intact.
-            final String replacement = content.isEmpty()
-                    ? indent + "```math\n" + indent + "```"
-                    : indent + "```math\n" + Matcher.quoteReplacement( content ) + "\n" + indent + "```";
-            matcher.appendReplacement( result, replacement );
+            result.append( source, copied, matcher.start() );
+            final int targetStart = result.length();
+            result.append( replacement( matcher.group( 1 ), matcher.group( 2 ) ) );
+            edits.add( new Edit( matcher.start(), matcher.end(), targetStart, result.length() ) );
+            copied = matcher.end();
         }
-        matcher.appendTail( result );
+        if ( edits.isEmpty() ) {
+            return new Tracked( source, List.of() );
+        }
+        result.append( source, copied, source.length() );
+        return new Tracked( result.toString(), List.copyOf( edits ) );
+    }
 
-        return result.toString();
+    /** The {@code ```math} fence that replaces one block. */
+    private static String replacement( final String indent, final String captured ) {
+        String content = captured;
+        // Strip trailing line break — the regex captures it because (.*?) extends
+        // to the line before the closing $$ delimiter. Handle both \n and \r\n.
+        if ( content.endsWith( "\r\n" ) ) {
+            content = content.substring( 0, content.length() - 2 );
+        } else if ( content.endsWith( "\n" ) ) {
+            content = content.substring( 0, content.length() - 1 );
+        }
+        // Preserve the opening delimiter's indent on both fences so math blocks
+        // inside list items keep the list's continuation indent intact.
+        return content.isEmpty()
+                ? indent + "```math\n" + indent + "```"
+                : indent + "```math\n" + content + "\n" + indent + "```";
     }
 
 }

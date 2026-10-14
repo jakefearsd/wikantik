@@ -282,7 +282,7 @@ public class DefaultRenderingManager implements RenderingManager {
 
         // Refresh the data content
         try {
-            final MarkupParser parser = getParser( context, pagedata );
+            final MarkupParser parser = getParser( context, DisplayText.of( context, pagedata ) );
             final WikiDocument doc = parser.parse();
             doc.setPageData( pagedata );
             // Skip the SHARED document cache when this render depended on the viewer
@@ -371,7 +371,7 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public String renderEmbedBody( final Context context, final String markdown ) throws IOException {
         return EmbedBodyCache.render( cachingManager, useHtmlCache( context ), htmlCacheId( context ), context, markdown,
-                () -> getHTML( context, getParser( context, markdown ).parse() ) );
+                () -> getHTML( context, getParser( context, DisplayText.of( context, markdown ) ).parse() ) );
     }
 
     /**
@@ -464,7 +464,7 @@ public class DefaultRenderingManager implements RenderingManager {
                 pagedata = filterManager.doPreTranslateFiltering( context, pagedata );
             }
 
-            final MarkupParser mp = getParser( context, pagedata );
+            final MarkupParser mp = getParser( context, DisplayText.forParse( context, pagedata, justParse ) );
             mp.addLocalLinkHook( localLinkHook );
             mp.addExternalLinkHook( extLinkHook );
             mp.addAttachmentLinkHook( attLinkHook );

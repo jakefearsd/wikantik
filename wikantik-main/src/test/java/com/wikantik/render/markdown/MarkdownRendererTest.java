@@ -202,9 +202,9 @@ public class MarkdownRendererTest {
         final String src = "[{ALLOW view PerryMason}]() This should be visible if the ACL allows you to see it";
         // text is seen because although ACL is added to the page, it is not applied while parsing / rendering
         Assertions.assertEquals( "<p> This should be visible if the ACL allows you to see it</p>\n", translate( src ) );
-        // in any case, we also check that the created wikipage has the ACL added
+        // in any case, we also check that the saved wikipage carries the ACL (read from its text by the ACL manager)
         Assertions.assertEquals( "  user = PerryMason: ((\"com.wikantik.auth.permissions.PagePermission\",\"Wikantik:testpage\",\"view\"))\n",
-                                 ( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).getAcl().toString() );
+                                 savedPageAcl() );
     }
 
     @Test
@@ -232,7 +232,7 @@ public class MarkdownRendererTest {
         final String src = "[{ALLOW view PerryMason}] This should be visible if the ACL allows you to see it";
         Assertions.assertEquals( "<p> This should be visible if the ACL allows you to see it</p>\n", translate( src ) );
         Assertions.assertEquals( "  user = PerryMason: ((\"com.wikantik.auth.permissions.PagePermission\",\"Wikantik:testpage\",\"view\"))\n",
-                                 ( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).getAcl().toString() );
+                                 savedPageAcl() );
     }
 
     @Test
@@ -693,6 +693,12 @@ public class MarkdownRendererTest {
     public void tearDown() {
         created.clear();
         testEngine.stop();
+    }
+
+    /** The saved test page's ACL as the ACL manager reads it from the page text. */
+    private String savedPageAcl() {
+        final Page saved = testEngine.getManager( PageManager.class ).getPage( PAGE_NAME );
+        return testEngine.getManager( com.wikantik.auth.acl.AclManager.class ).getPermissions( saved ).toString();
     }
 
     String translate( final String src ) throws Exception {

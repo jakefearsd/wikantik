@@ -49,8 +49,21 @@ public class WikantikLink extends Link {
         } else {
             hasRef = true;
         }
+        // keep in step with wikiLinkOf(), which reads the same thing from a plain Link
 
         wikiLink = getUrl().toString();
+    }
+
+    /**
+     * What a {@link WikantikLink} made from {@code link} takes for its target (and the link post-processor classifies):
+     * the URL, or the link text when the URL is empty ({@code [PageName]()}, {@code [{ALLOW view All}]()}).
+     *
+     * @param link a parsed Markdown link
+     * @return its wiki-link target
+     */
+    public static String wikiLinkOf( final Link link ) {
+        final String url = link.getUrl().toString();
+        return StringUtils.isEmpty( url ) ? link.getText().toString() : url;
     }
 
     /**

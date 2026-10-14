@@ -28,7 +28,6 @@ import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
-import com.wikantik.markdown.extensions.math.DisplayMathPreProcessor;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 
@@ -37,7 +36,6 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 
 /**
@@ -49,13 +47,6 @@ public class MarkdownParser extends MarkupParser {
 
     /** Bare Flexmark parser (no JSPWiki extensions) used solely for link collection. */
     private static final Parser LINK_SCANNER = Parser.builder().build();
-
-    /**
-     * Matches wiki-syntax bracket references like [{Plugin}], [{ALLOW view Admin}], [{$var}], [{SET k=v}]
-     * that are NOT already followed by (). The replacement adds () so Flexmark parses them as inline links
-     * rather than link references (which conflict with the Attributes extension).
-     */
-    private static final Pattern WIKI_BRACKET_REF = Pattern.compile( "(\\[\\{[^}]+\\}\\])(?!\\()" );
 
     public MarkdownParser( final Context context, final Reader in ) {
         super( context, in );
@@ -79,11 +70,9 @@ public class MarkdownParser extends MarkupParser {
             context.getPage().setAttribute( entry.getKey(), entry.getValue() );
         }
 
-        // Normalize [{...}] wiki-syntax references by appending () so Flexmark parses them as inline links
-        final String normalized = WIKI_BRACKET_REF.matcher( parsed.body() ).replaceAll( "$1()" );
-
-        // Convert $$...$$ display math blocks into ```math fenced blocks for the GitLab extension
-        final String body = DisplayMathPreProcessor.transform( normalized );
+        // [{...}] wiki-syntax references get () appended so Flexmark parses them as inline links, and $$...$$ display
+        // math blocks become ```math fences for the GitLab extension (one place: RenderPathAccessRules reads the same)
+        final String body = MarkdownBodySource.prepare( parsed.body() ).text();
 
         // Collect links from a clean AST (before JSPWiki post-processors modify URLs)
         collectLinks( body );

@@ -843,7 +843,7 @@ public class PageResource extends RestServletBase {
             return;
         }
         // The excerpt is cut from the stripped FULL text (a section is cut from that, not stripped on its own).
-        final ParsedPage parsed = AclDirectiveText.parseStripped( pm.getPureText( pageName, PageProvider.LATEST_VERSION ) );
+        final ParsedPage parsed = AclDirectiveText.parseStripped( pm.getPureText( pageName, PageProvider.LATEST_VERSION ), " " );
         final Map< String, Object > fm = parsed.metadata();
         String body = parsed.body();
         final String section = request.getParameter( "section" );

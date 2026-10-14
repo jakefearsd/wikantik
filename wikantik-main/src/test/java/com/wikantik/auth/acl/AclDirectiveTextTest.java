@@ -160,13 +160,13 @@ class AclDirectiveTextTest {
         assertTrue( page.metadata().isEmpty() );
     }
 
-    // ---- the renderer reads a directive wrapped over several lines; the enforcement scanner does not
+    // ---- the renderer reads a directive wrapped over several lines, so the ACL manager enforces it too
 
     @Test
-    void aMultiLineDirectiveIsRemovedAlthoughTheAclManagerDoesNotEnforceItInText() {
+    void aMultiLineDirectiveIsEnforcedAndRemoved() {
         final String text = "[{ALLOW view All}]\n[{ALLOW edit Admin,alice@example.test,\n bob@example.test}]\nBody.";
-        assertEquals( List.of( "[{ALLOW view All}]" ), DefaultAclManager.aclDirectives( text ),
-                "premise: only the one-line rule is enforced from the text" );
+        assertEquals( List.of( "[{ALLOW view All}]", "[{ALLOW edit Admin,alice@example.test,\n bob@example.test}]" ),
+                DefaultAclManager.aclDirectives( text ), "premise: the wrapped rule is enforced as the render path reads it" );
 
         final String out = AclDirectiveText.strip( text );
 
@@ -287,8 +287,11 @@ class AclDirectiveTextTest {
         final String openers = "[{ALLOW edit alice ".repeat( 40_000 ) + "\nx}]";
         assertTimeoutPreemptively( Duration.ofSeconds( 10 ), () -> {
             assertSame( spaces, AclDirectiveText.strip( spaces ) );
-            // The first opener runs (as the renderer would read it) to the only closer, at the very end.
-            assertEquals( "", AclDirectiveText.strip( openers ) );
+            // The renderer reads the innermost opener as the rule (the closer's "]" closes the nearest "["): that one goes;
+            // what is left has no closer, so it is no directive in any reading.
+            final String out = AclDirectiveText.strip( openers );
+            assertEquals( "[{ALLOW edit alice ".repeat( 39_999 ), out );
+            assertEquals( List.of(), DefaultAclManager.aclDirectives( out ) );
         } );
     }
 
@@ -299,5 +302,61 @@ class AclDirectiveTextTest {
         final String body = "[{ALLOW view " + principals + "}]\nBody.";
         assertEquals( 1, DefaultAclManager.aclDirectives( body ).size() );
         assertEquals( "\nBody.", AclDirectiveText.strip( body ) );
+    }
+
+    // ---- every shape the ACL manager enforces (the render path's included) goes, and the frontmatter survives
+
+    static Stream< AclDirectiveFixtures.Fixture > enforcementFixtures() {
+        return AclDirectiveFixtures.ALL.stream();
+    }
+
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "enforcementFixtures" )
+    void nothingTheAclManagerEnforcesSurvivesAndTheFrontmatterStaysWhole( final AclDirectiveFixtures.Fixture f ) {
+        final String out = AclDirectiveText.strip( f.text() );
+        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), out );
+        if ( !f.acl().isEmpty() ) {
+            assertFalse( out.contains( "example.test" ), "an enforced rule's principals reached the reader: " + out );
+        }
+        assertTrue( out.contains( AclDirectiveFixtures.BODY ), out );
+        assertEquals( FrontmatterParser.parse( f.text() ).metadata(), FrontmatterParser.parse( out ).metadata(),
+                "the frontmatter must survive whole: " + out );
+    }
+
+    @Test
+    void anUnterminatedOpenerInAFrontmatterValueNeverReachesPastTheFrontmatter() {
+        // The re-review's repro: removing "[{ALLOW view ... }]" up to a body closer deleted the closing "---", the YAML
+        // above it (verified_by: <login>) became body text and skipped the display-name substitution of metadata.
+        final String text = "---\ntitle: Access rules\nverified_by: alice-login\nsummary: How to use [{ALLOW view and "
+                + "[{DENY edit rules\n---\nUse `[{ALLOW edit Alice}]` to restrict a page.\n";
+        final String out = AclDirectiveText.strip( text );
+        final ParsedPage parsed = FrontmatterParser.parse( out );
+        assertEquals( "alice-login", parsed.metadata().get( "verified_by" ), out );
+        assertFalse( parsed.body().contains( "verified_by" ), out );
+        assertSame( text, out, "nothing here is a directive" );
+    }
+
+    @Test
+    void aOneLineRuleThatSwallowsTheClosingDelimiterIsRemovedButTheDelimiterStays() {
+        // "[{ALLOW edit\n---\n}]" is a one-line shape (only whitespace runs cross the line ends): the ACL manager enforces
+        // it (principal "---"), so it must go, and the frontmatter must still end where it did.
+        final String text = "---\ntitle: X\nverified_by: alice-login\nnote: see [{ALLOW edit\n---\n}] Body.\n";
+        assertEquals( 1, DefaultAclManager.aclDirectives( text ).size(), "premise: the rule is enforced" );
+        final String out = AclDirectiveText.strip( text );
+        final ParsedPage parsed = FrontmatterParser.parse( out );
+        assertEquals( "alice-login", parsed.metadata().get( "verified_by" ), out );
+        assertFalse( parsed.body().contains( "verified_by" ), out );
+        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), out );
+    }
+
+    @Test
+    void aRemovalThatWouldSpliceAnEarlierClosingDelimiterDropsTheFrontmatterInsteadOfShowingIt() {
+        // "[{ALLOW view x}]---" removed leaves "---" on a line of its own: the frontmatter would end early and the YAML
+        // after it (verified_by: <login>) would be read as body. Readers get no frontmatter rather than that.
+        final String text = "---\ntitle: X\n[{ALLOW view x}]---\nverified_by: alice-login\n---\nBody.\n";
+        final String out = AclDirectiveText.strip( text );
+        assertFalse( FrontmatterParser.parse( out ).body().contains( "alice-login" ), out );
+        assertFalse( out.contains( "[{ALLOW" ), out );
+        assertTrue( FrontmatterParser.parse( out ).body().contains( "Body." ), out );
     }
 }

@@ -19,11 +19,14 @@
 package com.wikantik.ontology.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.ontology.projection.PageRecord;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
@@ -91,5 +94,31 @@ class PageRecordBuilderTest {
         assertEquals( List.of( "x" ), r.tags() );
         assertEquals( "s", r.summary() );
         assertEquals( "ml", r.cluster() );
+    }
+
+    @Test
+    void frontmatterAuthorThatIsALoginIsProjectedAsTheDisplayName() {
+        final PageCanonicalIdsDao.Row row = new PageCanonicalIdsDao.Row(
+                "01CANON0000000000000000003", "Authored", "Authored", "article", null, Instant.EPOCH, Instant.EPOCH );
+        when( pageManager.getPureText( "Authored", -1 ) ).thenReturn( "---\nauthor: jakefear\n---\nBody." );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.userIdForLogin( "jakefear" ) ).thenReturn( Optional.of( "uid-1" ) );
+        when( identity.displayName( "jakefear" ) ).thenReturn( "Jake Fear" );
+
+        final PageRecordBuilder builder = new PageRecordBuilder( pageManager, () -> List.of( row ), identity );
+
+        assertEquals( "Jake Fear", builder.build().get( 0 ).author() );
+    }
+
+    @Test
+    void frontmatterAuthorThatIsNotALoginIsProjectedAsWritten() {
+        final PageCanonicalIdsDao.Row row = new PageCanonicalIdsDao.Row(
+                "01CANON0000000000000000004", "Agent", "Agent", "article", null, Instant.EPOCH, Instant.EPOCH );
+        when( pageManager.getPureText( "Agent", -1 ) ).thenReturn( "---\nauthor: claude-code-researcher\n---\nBody." );
+        final PublicIdentity identity = mock( PublicIdentity.class );   // knows no logins
+
+        final PageRecord record = PageRecordBuilder.fromRow( row, pageManager, identity );
+
+        assertEquals( "claude-code-researcher", record.author() );
     }
 }

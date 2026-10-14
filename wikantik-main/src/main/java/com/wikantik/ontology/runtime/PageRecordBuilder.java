@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.ontology.projection.PageRecord;
@@ -41,23 +43,42 @@ public final class PageRecordBuilder {
 
     private final PageManager pageManager;
     private final Supplier< List< PageCanonicalIdsDao.Row > > rowSource;
+    /** {@code null} = no identity service: frontmatter authors are projected exactly as written. */
+    private final PublicIdentity publicIdentity;
 
     public PageRecordBuilder( final PageManager pageManager,
                               final Supplier< List< PageCanonicalIdsDao.Row > > rowSource ) {
+        this( pageManager, rowSource, null );
+    }
+
+    public PageRecordBuilder( final PageManager pageManager,
+                              final Supplier< List< PageCanonicalIdsDao.Row > > rowSource,
+                              final PublicIdentity publicIdentity ) {
         this.pageManager = pageManager;
         this.rowSource = rowSource;
+        this.publicIdentity = publicIdentity;
     }
 
     public List< PageRecord > build() {
         final List< PageRecord > out = new ArrayList<>();
         for ( final PageCanonicalIdsDao.Row row : rowSource.get() ) {
-            out.add( fromRow( row, pageManager ) );
+            out.add( fromRow( row, pageManager, publicIdentity ) );
         }
         return out;
     }
 
-    /** Turns one canonical-id row into a PageRecord, enriching tags/summary/date/author from frontmatter. */
+    /** As {@link #fromRow(PageCanonicalIdsDao.Row, PageManager, PublicIdentity)} with no identity service. */
     public static PageRecord fromRow( final PageCanonicalIdsDao.Row row, final PageManager pageManager ) {
+        return fromRow( row, pageManager, null );
+    }
+
+    /**
+     * Turns one canonical-id row into a PageRecord, enriching tags/summary/date/author from frontmatter. The
+     * frontmatter {@code author:} is editor-typed text: it becomes the account's display name only when it is an
+     * existing login (the public dataset must not publish logins), otherwise it is projected as written.
+     */
+    public static PageRecord fromRow( final PageCanonicalIdsDao.Row row, final PageManager pageManager,
+                                      final PublicIdentity publicIdentity ) {
         Map< String, Object > md = Map.of();
         try {
             final String text = pageManager.getPureText( row.currentSlug(), PageProvider.LATEST_VERSION );
@@ -74,7 +95,7 @@ public final class PageRecordBuilder {
                 row.canonicalId(), row.currentSlug(), row.title(), row.type(), row.cluster(),
                 ClusterPath.memberships( md.get( "cluster" ) ),
                 tags( md.get( "tags" ) ), str( md.get( "summary" ) ), isoDate( md.get( "date" ) ),
-                str( md.get( "author" ) ) );
+                IdentityDisplay.ofLoginOrText( publicIdentity, str( md.get( "author" ) ) ) );
     }
 
     private static List< String > tags( final Object raw ) {

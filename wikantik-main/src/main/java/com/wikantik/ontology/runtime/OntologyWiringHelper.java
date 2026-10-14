@@ -68,7 +68,9 @@ public final class OntologyWiringHelper {
         final KgNodeRepository nodeRepo = new KgNodeRepository( dataSource );
         final KgEdgeRepository edgeRepo = new KgEdgeRepository( dataSource );
         final PageCanonicalIdsDao pageDao = new PageCanonicalIdsDao( dataSource );
-        final PageRecordBuilder pageBuilder = new PageRecordBuilder( pageManager, pageDao::findAll );
+        // Frontmatter authors that are logins are published as display names (public dataset).
+        final com.wikantik.api.identity.PublicIdentity publicIdentity = publicIdentityOf( engine );
+        final PageRecordBuilder pageBuilder = new PageRecordBuilder( pageManager, pageDao::findAll, publicIdentity );
 
         // ACL split: a page/node is PUBLIC iff a GUEST (anonymous) session may view it.
         // Reuse one guest session across the whole rebuild (stateless anonymous principal).
@@ -101,7 +103,7 @@ public final class OntologyWiringHelper {
 
         // Event-incremental sync: re-project a page's graph on save/rename, remove on true delete.
         // Same ACL gate — a restricted page's save removes it from the public dataset.
-        final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic );
+        final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic, publicIdentity );
         final OntologyEventListener pageListener = new OntologyEventListener( pageSync );
         pageListener.register( pageManager, filterManager );
         // Strong references, mirroring WikiEngine's auditEventListener/lastLoginEventListener
@@ -154,6 +156,16 @@ public final class OntologyWiringHelper {
         // Startup-if-empty: non-blocking self-heal on first boot.
         coordinator.rebuildIfEmpty();
         return coordinator;
+    }
+
+    /** The Auth subsystem is built before the knowledge graph (and so this wiring); a missing one is logged loudly. */
+    static com.wikantik.api.identity.PublicIdentity publicIdentityOf( final WikiEngine engine ) {
+        final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = engine.getAuthSubsystem();
+        if ( auth == null || auth.publicIdentity() == null ) {
+            LOG.warn( "No PublicIdentity at ontology wiring time; frontmatter authors will be projected as written" );
+            return null;
+        }
+        return auth.publicIdentity();
     }
 
     private static String resolveDir( final WikiEngine engine, final Properties props ) {

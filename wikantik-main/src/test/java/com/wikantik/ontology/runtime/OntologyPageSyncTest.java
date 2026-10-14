@@ -18,17 +18,22 @@
  */
 package com.wikantik.ontology.runtime;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.ontology.Iris;
 import com.wikantik.ontology.OntologyModelManager;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
+import org.apache.jena.rdf.model.Model;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -62,6 +67,27 @@ class OntologyPageSyncTest {
         assertTrue( mgr.namedGraphExists( Iris.page( CID ) ), "page graph projected" );
         assertTrue( mgr.namedGraphExists( Iris.concept( "graphs" ) ), "tag concept graph projected" );
         assertTrue( mgr.namedGraphExists( Iris.concept( "ml" ) ), "cluster concept graph projected" );
+    }
+
+    private static List< String > creators( final OntologyModelManager mgr ) {
+        final Model graph = mgr.namedGraphSnapshot( Iris.page( CID ) );
+        return graph.listObjectsOfProperty( graph.createProperty( "http://purl.org/dc/terms/creator" ) )
+                    .mapWith( node -> node.asLiteral().getString() ).toList();
+    }
+
+    @Test
+    void onPageSavedProjectsTheFrontmatterAuthorAsADisplayNameWhenItIsALogin() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.userIdForLogin( "jakefear" ) ).thenReturn( Optional.of( "uid-1" ) );
+        when( identity.displayName( "jakefear" ) ).thenReturn( "Jake Fear" );
+        when( dao.findBySlug( "Solo" ) ).thenReturn( Optional.of( row( "Solo" ) ) );
+        when( pageManager.getPureText( "Solo", -1 ) ).thenReturn( "---\nauthor: jakefear\n---\nbody" );
+
+        new OntologyPageSync( mgr, dao, pageManager, slug -> true, identity ).onPageSaved( "Solo" );
+
+        assertEquals( List.of( "Jake Fear" ), creators( mgr ) );
     }
 
     @Test

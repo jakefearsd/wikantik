@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.ontology.Iris;
 import com.wikantik.ontology.OntologyModelManager;
@@ -47,15 +48,24 @@ public final class OntologyPageSync {
     private final PageManager pageManager;
     /** slug -> public? — only anonymously-viewable pages are projected into the public dataset. */
     private final java.util.function.Predicate< String > isPublic;
+    /** {@code null} = no identity service: frontmatter authors are projected exactly as written. */
+    private final PublicIdentity publicIdentity;
     /** slug -> canonical_id, populated on save so deletes can resolve the page IRI after the row is gone. */
     private final ConcurrentHashMap< String, String > slugToCanonical = new ConcurrentHashMap<>();
 
     public OntologyPageSync( final OntologyModelManager manager, final PageCanonicalIdsDao dao,
                              final PageManager pageManager, final java.util.function.Predicate< String > isPublic ) {
+        this( manager, dao, pageManager, isPublic, null );
+    }
+
+    public OntologyPageSync( final OntologyModelManager manager, final PageCanonicalIdsDao dao,
+                             final PageManager pageManager, final java.util.function.Predicate< String > isPublic,
+                             final PublicIdentity publicIdentity ) {
         this.manager = manager;
         this.dao = dao;
         this.pageManager = pageManager;
         this.isPublic = isPublic;
+        this.publicIdentity = publicIdentity;
     }
 
     /** Re-projects the page's named graph + its tag/cluster concept graphs (public pages only). */
@@ -65,7 +75,7 @@ public final class OntologyPageSync {
             LOG.warn( "onPageSaved: no canonical_id row for slug '{}'; skipping (nightly rebuild will reconcile)", slug );
             return;
         }
-        final PageRecord record = PageRecordBuilder.fromRow( row.get(), pageManager );
+        final PageRecord record = PageRecordBuilder.fromRow( row.get(), pageManager, publicIdentity );
         slugToCanonical.put( slug, record.canonicalId() );
         if ( !isPublic.test( slug ) ) {
             // Page is (now) ACL-restricted: ensure it is absent from the public dataset.

@@ -146,7 +146,18 @@ public final class AclDirectiveFixtures {
             new Fixture( "an ALLOW and a DENY for the same permission",
                     "[{ALLOW view Admin}]\n[{DENY view Guest}]\n", Set.of( "Admin:view" ), true ),
             new Fixture( "a math-only rule and a wrapped rule for the same permission",
-                    "x $[{ALLOW edit alice}]$ y\n\n[{ALLOW edit bob,\n carol}]\n", Set.of( "alice:edit" ), true ) );
+                    "x $[{ALLOW edit alice}]$ y\n\n[{ALLOW edit bob,\n carol}]\n", Set.of( "alice:edit" ), true ),
+            // Round-2 review: pages whose render parse throws hold rules only the render path reads (#13, #14).
+            new Fixture( "a page whose render parse throws and whose only rule is wrapped",
+                    "[{ALLOW edit alice,\n bob}]\n\nSecret.\n\n[^1]: [[^1]\\[{y}]\n", Set.of(), true ),
+            new Fixture( "a page whose render parse throws, with a one-line and a wrapped rule",
+                    "[{ALLOW view bob}]\n[{ALLOW edit alice,\n bob}]\n\n[^1]: [[^1]\\[{y}]\n", Set.of( "bob:view" ), true ),
+            // Round-2 review: a rule line above lines that look like a frontmatter block (#15, #16).
+            new Fixture( "a rule line above two delimiter lines",
+                    "[{ALLOW edit Admin}]\n---\nIntro paragraph alpha.\n\nMore text beta.\n\n---\n\nRest gamma.\n",
+                    Set.of( "Admin:edit" ), true ),
+            new Fixture( "a rule line above a frontmatter-shaped block",
+                    "[{ALLOW view All}]\n---\ntype: hub\ncluster: finance\n---\nBody.\n", Set.of( "All:view" ), true ) );
 
     private AclDirectiveFixtures() {
     }

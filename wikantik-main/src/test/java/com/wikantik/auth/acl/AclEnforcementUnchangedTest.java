@@ -27,6 +27,8 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.acl.AclDirectiveFixtures.Fixture;
 import com.wikantik.parser.markdown.MarkdownParser;
 import com.wikantik.render.RenderingManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,14 +51,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * <ul>
  *   <li>the ACL manager's text scan — single-line {@code [{ALLOW …}]} outside code — gives the same ACL for every
  *       fixture and for the round-1 review's repros (a page whose render parse throws still enforces its rule);</li>
- *   <li>a display render still sets the page's ACL from the RAW text, as the render path always did, although the HTML
- *       it shows is built from the text without the rules;</li>
+ *   <li>a display render (both forms) still sets the page's ACL from the RAW text, as the render path always did,
+ *       although the HTML it shows is built from the text without the rules — for every fixture and every review repro,
+ *       including pages whose parse throws (whether on the raw text or only on the text without the rules);</li>
  * </ul>
  * (The metadata parse behind {@code PageManager.getPage} is the 2.4.57 code again, so a page read that way carries what
  * it carried before.) The disagreement between the two readings (wrapped, DENY, upper-case, ALLOWED, HTML-block and math rules) is
  * pre-existing and is left to its own issue; this test pins it so that nothing here changes it by accident.
  */
 class AclEnforcementUnchangedTest {
+
+    private static final Logger LOG = LogManager.getLogger( AclEnforcementUnchangedTest.class );
 
     private static TestEngine engine;
 
@@ -76,10 +81,6 @@ class AclEnforcementUnchangedTest {
 
     static Stream< Fixture > all() {
         return Stream.concat( AclDirectiveFixtures.ALL.stream(), AclDirectiveFixtures.ENFORCEMENT_REPROS.stream() );
-    }
-
-    static Stream< Fixture > rendered() {
-        return AclDirectiveFixtures.ALL.stream();
     }
 
     private static String pageName( final Fixture f ) {
@@ -114,12 +115,28 @@ class AclEnforcementUnchangedTest {
         return out;
     }
 
-    /** The ACL the render path sets from the RAW text: the markup parser and its access-rule post-processor. */
-    private static Set< String > rawRenderAcl( final Fixture f ) throws Exception {
+    /**
+     * The ACL the render path sets from the RAW text: the markup parser and its access-rule post-processor. On a page
+     * whose parse throws, the rules read before the throw are what a 2.4.57 render left on the page.
+     */
+    private static Set< String > rawRenderAcl( final Fixture f ) {
         final Page scratch = Wiki.contents().page( engine, "RawRenderProbe" );
         final Context ctx = Wiki.context().create( engine, scratch );
-        new MarkdownParser( ctx, new StringReader( f.text() ) ).parse();
+        rendering( f, "raw parse", () -> new MarkdownParser( ctx, new StringReader( f.text() ) ).parse() );
         return pairs( scratch.getAcl() );
+    }
+
+    private interface Render {
+        void run() throws Exception;
+    }
+
+    /** Runs a render that may throw on the crash fixtures; what it left on the page is what the caller asserts. */
+    private static void rendering( final Fixture f, final String what, final Render render ) {
+        try {
+            render.run();
+        } catch ( final Exception e ) {
+            LOG.info( "{} of fixture '{}' threw, as it does on this page's text: {}", what, f.name(), e.toString() );
+        }
     }
 
     @ParameterizedTest( name = "{0}" )
@@ -136,10 +153,20 @@ class AclEnforcementUnchangedTest {
     }
 
     @ParameterizedTest( name = "{0}" )
-    @MethodSource( "rendered" )
-    void aDisplayRenderStillSetsTheAclTheRawRenderPathSets( final Fixture f ) throws Exception {
+    @MethodSource( "all" )
+    void aDisplayRenderStillSetsTheAclTheRawRenderPathSets( final Fixture f ) {
         final Page page = freshPage( f );
-        engine.getManager( RenderingManager.class ).textToHTML( Wiki.context().create( engine, page ), f.text() );
+        rendering( f, "display render", () ->
+                engine.getManager( RenderingManager.class ).textToHTML( Wiki.context().create( engine, page ), f.text() ) );
+        assertEquals( rawRenderAcl( f ), pairs( page.getAcl() ) );
+    }
+
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "all" )
+    void anExplicitDisplayRenderStillSetsTheAclTheRawRenderPathSets( final Fixture f ) {
+        final Page page = freshPage( f );
+        rendering( f, "explicit display render", () -> engine.getManager( RenderingManager.class )
+                .textToHTML( Wiki.context().create( engine, page ), f.text(), null, null, null, true, false ) );
         assertEquals( rawRenderAcl( f ), pairs( page.getAcl() ) );
     }
 }

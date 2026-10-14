@@ -78,7 +78,8 @@ final class DisplayText {
 
     /**
      * Lets the raw text set the page's ACL as a render always did, when the display text differs from it: parses
-     * {@code raw} with {@code renderer}'s parser, plugins off, and drops the result.
+     * {@code raw} with {@code renderer}'s parser, plugins off, and drops the result. Callers run it after the display
+     * parse in a {@code finally}, so a display text that cannot be parsed still leaves the ACL the raw text sets.
      *
      * @param renderer the rendering manager whose parser the render uses
      * @param context  the render context (its real page receives the ACL)

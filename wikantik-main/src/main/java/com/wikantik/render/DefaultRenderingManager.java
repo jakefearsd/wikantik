@@ -283,8 +283,13 @@ public class DefaultRenderingManager implements RenderingManager {
         // Refresh the data content
         try {
             final String display = DisplayText.of( context, pagedata );
-            final WikiDocument doc = getParser( context, display ).parse();
-            DisplayText.keepRawAccessRules( this, context, pagedata, display, true );
+            final WikiDocument doc;
+            try {
+                doc = getParser( context, display ).parse();
+            } finally {
+                // Even when the display text cannot be parsed, the raw text sets the page's ACL as a render always did.
+                DisplayText.keepRawAccessRules( this, context, pagedata, display, true );
+            }
             doc.setPageData( pagedata );
             // Skip the SHARED document cache when this render depended on the viewer
             // (a plugin executed or a session-dependent variable resolved) — plugin
@@ -475,8 +480,13 @@ public class DefaultRenderingManager implements RenderingManager {
                 mp.disableAccessRules();
             }
 
-            final WikiDocument doc = mp.parse();
-            DisplayText.keepRawAccessRules( this, context, pagedata, parsed, parseAccessRules );
+            final WikiDocument doc;
+            try {
+                doc = mp.parse();
+            } finally {
+                // Even when the display text cannot be parsed, the raw text sets the page's ACL as a render always did.
+                DisplayText.keepRawAccessRules( this, context, pagedata, parsed, parseAccessRules );
+            }
             //  In some cases it's better just to parse, not to render
             if( !justParse ) {
                 result = getHTML( context, doc );

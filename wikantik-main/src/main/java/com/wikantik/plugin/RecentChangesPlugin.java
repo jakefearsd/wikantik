@@ -33,7 +33,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.auth.permissions.PermissionFilter;
-import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -100,7 +100,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
         String tablewidth = "4";
         
         final Engine engine = context.getEngine();
-        final PublicIdentity identity = AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
+        final PublicIdentity identity = PublicIdentities.forEngine( engine );
 
         // The listing is filtered by the viewer's view permission, so it differs per viewer; keep it out of the
         // shared, principal-less render caches (PluginContent also flags every executed plugin; this keeps the

@@ -57,8 +57,12 @@ import java.util.Set;
  * <p>The retrieval service applies no view-ACL filtering of its own, so this class drops every
  * result (and every {@code relatedPages} reference) the caller may not view, using the same
  * {@link PermissionFilter} rule {@link GetPageTool} enforces for {@code get_page}. Hidden results
- * are removed before the result cap and {@code total} are computed, so neither the response size
- * nor {@code total} reveals how many restricted pages matched.</p>
+ * are removed before the result cap and {@code total} are computed, and retrieval is always asked for
+ * the full {@link ContextQuery#MAX_PAGES_CAP} so that a restricted hit ranked inside the top
+ * {@code maxResults} is replaced by the next visible one instead of shortening the response. That
+ * <em>narrows</em> the count oracle; it cannot close it entirely: if more than
+ * {@code MAX_PAGES_CAP - maxResults} restricted pages outrank the visible ones the response can still
+ * come back short (the same residual as the knowledge MCP's {@code retrieve_context}).</p>
  */
 class SearchWikiTool {
 
@@ -77,7 +81,8 @@ class SearchWikiTool {
     /**
      * @param query      required non-blank search string
      * @param maxResults upper bound clamped to [1, {@value #MAX_MAX_RESULTS}]
-     * @param request    HTTP request, used only to build citation URLs when no public base URL is set
+     * @param request    the caller's HTTP request: its session decides which pages may be viewed, and it builds
+     *                   citation URLs when no public base URL is set
      */
     Map< String, Object > execute( final String query, final int maxResults, final HttpServletRequest request ) {
         final int clamped = clampLimit( maxResults );
@@ -88,7 +93,9 @@ class SearchWikiTool {
         }
         final RetrievalResult retrieval;
         try {
-            retrieval = ctxService.retrieve( new ContextQuery( query, Math.min( clamped, 20 ), 3, null ) );
+            // Over-fetch to the cap: hidden pages are dropped afterwards and the survivors trimmed to
+            // maxResults, so restricted hits near the top do not shorten the response.
+            retrieval = ctxService.retrieve( new ContextQuery( query, ContextQuery.MAX_PAGES_CAP, 3, null ) );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Tool-server search failed for query '{}': {}", query, e.getMessage() );
             return errorResult( query, "search failed: " + e.getMessage() );

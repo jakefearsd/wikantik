@@ -85,6 +85,7 @@ class SearchWikiToolViewPermissionTest {
     void setUp() throws Exception {
         testEngine.saveText( "VpPublicOne", "open page one" );
         testEngine.saveText( "VpPublicTwo", "open page two" );
+        testEngine.saveText( "VpPublicThree", "open page three" );
         testEngine.saveText( "VpSecret", "[{ALLOW view Admin}]\n\nclassified body" );
         testEngine.saveText( "VpEditLocked", "[{ALLOW edit Admin}]\n\nedit-locked body" );
 
@@ -97,6 +98,7 @@ class SearchWikiToolViewPermissionTest {
     void tearDown() {
         testEngine.deleteTestPage( "VpPublicOne" );
         testEngine.deleteTestPage( "VpPublicTwo" );
+        testEngine.deleteTestPage( "VpPublicThree" );
         testEngine.deleteTestPage( "VpSecret" );
         testEngine.deleteTestPage( "VpEditLocked" );
     }
@@ -208,12 +210,23 @@ class SearchWikiToolViewPermissionTest {
     }
 
     @Test
-    void hiddenResultsDoNotConsumeTheResultCap() {
-        retrievalReturns( hit( "VpSecret" ), hit( "VpPublicOne" ), hit( "VpEditLocked" ), hit( "VpPublicTwo" ) );
+    void aHiddenTopRankedHitDoesNotShortenTheResponse() {
+        // A retrieval service that honours the page budget it is asked for, as the real one does: if the tool
+        // asked for only maxResults (2) pages, the hidden VpSecret would take one of them and the caller would
+        // get a shorter response than the corpus can fill - a count oracle for restricted pages.
+        final List< RetrievedPage > ranked = List.of( hit( "VpSecret" ), hit( "VpPublicOne" ),
+                hit( "VpEditLocked" ), hit( "VpPublicTwo" ), hit( "VpPublicThree" ) );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenAnswer( inv -> {
+            final ContextQuery q = inv.getArgument( 0 );
+            final List< RetrievedPage > page = ranked.subList( 0, Math.min( q.maxPages(), ranked.size() ) );
+            return new RetrievalResult( "q", page, page.size() );
+        } );
 
         final Map< String, Object > out = tool.execute( "q", 2, anonymousRequest() );
 
-        assertEquals( List.of( "VpPublicOne", "VpPublicTwo" ), names( out ) );
+        assertEquals( List.of( "VpPublicOne", "VpPublicTwo" ), names( out ),
+            "hidden hits ranked inside the top 2 must not shorten the response" );
+        assertEquals( 2, out.get( "total" ) );
     }
 
     @Test

@@ -703,6 +703,26 @@ class DefaultRecentArticlesManagerCITest {
     }
 
     @Test
+    void testWithoutAnIdentityServiceAnEmailShapedAuthorIsStillMasked() {
+        // A null identity supplier selects the engine-backed lookup; this bare mock engine has no Auth subsystem,
+        // the same position the engine is in before startup completes. The never-null fallback knows no accounts
+        // but still must not publish an email-shaped stored author.
+        final DefaultRecentArticlesManager bare = new DefaultRecentArticlesManager( engine, pageManager,
+                renderingManager, systemPageRegistry, slug -> true, null );
+        bare.initialize( engine, new Properties() );
+        final Page page = mockPage( "EmailAuthored" );
+        when( page.getAuthor() ).thenReturn( "janne@example.com" );
+        when( pageManager.getPureText( page ) ).thenReturn( "# Title\nContent" );
+        setupRecentChanges( page );
+
+        final List<ArticleSummary> articles = bare.getRecentArticles( context, new RecentArticlesQuery().count( 10 ) );
+
+        assertEquals( 1, articles.size() );
+        assertEquals( PublicIdentity.UNKNOWN_CONTRIBUTOR, articles.get( 0 ).getAuthor(),
+                "with no identity service an email-shaped author must be masked, not published" );
+    }
+
+    @Test
     void testArticleWithNullAuthor() {
         final Page page = mockPage( "NoAuthor" );
         when( page.getAuthor() ).thenReturn( null );

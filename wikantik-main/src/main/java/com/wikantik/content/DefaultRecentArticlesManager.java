@@ -30,7 +30,7 @@ import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.WikiSession;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.auth.permissions.PermissionFilter;
-import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -392,6 +392,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         // Results are cached once and shared by every caller (Atom feed, /api/recent-articles, both plugins), so
         // they must be safe for the least-privileged reader: only pages an anonymous visitor may view.
         final Predicate< String > guestCanView = guestCanView();
+        final PublicIdentity identity = publicIdentity();
 
         for ( final Page page : recentChanges ) {
             // Stop if we've collected enough articles
@@ -418,7 +419,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
 
             // Build article summary
             try {
-                final ArticleSummary summary = buildArticleSummary( context, page, pageManager, renderingManager, query );
+                final ArticleSummary summary = buildArticleSummary( context, page, pageManager, renderingManager, query, identity );
                 if ( summary != null ) {
                     results.add( summary );
                 }
@@ -451,11 +452,15 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         }
     }
 
-    /** Resolved per call (the Auth subsystem is built after this manager initialises). */
+    /**
+     * Resolved once per build (the Auth subsystem is built after this manager initialises). Never null in
+     * production: before the service is wired {@link PublicIdentities} answers with a masking-only fallback, so a
+     * stored login is never published as an author.
+     */
     private PublicIdentity publicIdentity() {
         return publicIdentityOverride != null
                 ? publicIdentityOverride.get()
-                : AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
+                : PublicIdentities.forEngine( engine );
     }
 
     /**
@@ -465,7 +470,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
                                                  final Page page,
                                                  final PageManager pageManager,
                                                  final RenderingManager renderingManager,
-                                                 final RecentArticlesQuery query ) {
+                                                 final RecentArticlesQuery query,
+                                                 final PublicIdentity identity ) {
         final String pageName = page.getName();
 
         // Get page content for title and excerpt extraction
@@ -497,7 +503,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         return new ArticleSummary.Builder()
             .name( pageName )
             .title( title )
-            .author( IdentityDisplay.ofAuthor( publicIdentity(), page.getAuthor() ) )
+            .author( IdentityDisplay.ofAuthor( identity, page.getAuthor() ) )
             .lastModified( page.getLastModified() )
             .excerpt( excerpt )
             .changeNote( changeNote )

@@ -80,7 +80,6 @@ class OntologyPageSyncTest {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
         final PublicIdentity identity = mock( PublicIdentity.class );
-        when( identity.userIdForLogin( "jakefear" ) ).thenReturn( Optional.of( "uid-1" ) );
         when( identity.displayName( "jakefear" ) ).thenReturn( "Jake Fear" );
         when( dao.findBySlug( "Solo" ) ).thenReturn( Optional.of( row( "Solo" ) ) );
         when( pageManager.getPureText( "Solo", -1 ) ).thenReturn( "---\nauthor: jakefear\n---\nbody" );

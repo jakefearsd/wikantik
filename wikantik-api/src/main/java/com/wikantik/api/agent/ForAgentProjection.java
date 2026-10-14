@@ -91,8 +91,9 @@ public record ForAgentProjection(
     }
 
     /**
-     * A copy whose {@code verifiedBy} (when it is an existing login) and every recent-change author are display
-     * names. The projection is cached by {@code DefaultForAgentProjectionService} holding stored principals, so
+     * A copy whose {@code verifiedBy} (see {@link IdentityDisplay#ofLoginOrText}), every recent-change author and the
+     * verifier named in a recent change's {@code "verified by <login>"} summary ({@link IdentityDisplay#changeNote}) are
+     * display names. The projection is cached by {@code DefaultForAgentProjectionService} holding stored principals, so
      * the two serving surfaces call this on every response; that is also why a rename shows up without the cache
      * being evicted. Returns {@code this} when {@code identity} is {@code null}.
      */
@@ -101,9 +102,8 @@ public record ForAgentProjection(
             return this;
         }
         final List< RecentChange > shownChanges = recentChanges.stream()
-                .map( c -> c.author() == null
-                        ? c
-                        : new RecentChange( c.version(), c.at(), identity.displayName( c.author() ), c.summary() ) )
+                .map( c -> new RecentChange( c.version(), c.at(), IdentityDisplay.ofAuthor( identity, c.author() ),
+                        IdentityDisplay.changeNote( identity, c.summary() ) ) )
                 .toList();
         return new ForAgentProjection( canonicalId, slug, title, type, cluster, audience, confidence,
                 verifiedAt, IdentityDisplay.ofLoginOrText( identity, verifiedBy ), updated, summary,

@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
@@ -102,7 +101,6 @@ class PageRecordBuilderTest {
                 "01CANON0000000000000000003", "Authored", "Authored", "article", null, Instant.EPOCH, Instant.EPOCH );
         when( pageManager.getPureText( "Authored", -1 ) ).thenReturn( "---\nauthor: jakefear\n---\nBody." );
         final PublicIdentity identity = mock( PublicIdentity.class );
-        when( identity.userIdForLogin( "jakefear" ) ).thenReturn( Optional.of( "uid-1" ) );
         when( identity.displayName( "jakefear" ) ).thenReturn( "Jake Fear" );
 
         final PageRecordBuilder builder = new PageRecordBuilder( pageManager, () -> List.of( row ), identity );
@@ -115,7 +113,8 @@ class PageRecordBuilderTest {
         final PageCanonicalIdsDao.Row row = new PageCanonicalIdsDao.Row(
                 "01CANON0000000000000000004", "Agent", "Agent", "article", null, Instant.EPOCH, Instant.EPOCH );
         when( pageManager.getPureText( "Agent", -1 ) ).thenReturn( "---\nauthor: claude-code-researcher\n---\nBody." );
-        final PublicIdentity identity = mock( PublicIdentity.class );   // knows no logins
+        final PublicIdentity identity = mock( PublicIdentity.class );   // knows no logins: a non-email value comes back as is
+        when( identity.displayName( "claude-code-researcher" ) ).thenReturn( "claude-code-researcher" );
 
         final PageRecord record = PageRecordBuilder.fromRow( row, pageManager, identity );
 

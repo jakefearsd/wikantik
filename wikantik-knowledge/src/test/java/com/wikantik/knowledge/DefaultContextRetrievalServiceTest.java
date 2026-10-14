@@ -530,11 +530,9 @@ class DefaultContextRetrievalServiceTest {
         pm.addPage( "ByLegacySameName", "body", "Janne Jalkanen", new Date() );
         pm.addPage( "Other", "body", "bob", new Date() );
         final PublicIdentity identity = mock( PublicIdentity.class );
-        when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
-        when( identity.userIdForLogin( "bob" ) ).thenReturn( Optional.of( "uid-2" ) );
-        when( identity.loginForDisplayName( "Janne Jalkanen" ) ).thenReturn( Optional.of( "janne" ) );
         when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
         when( identity.displayName( "Janne Jalkanen" ) ).thenReturn( "Janne Jalkanen" );
+        when( identity.displayName( "bob" ) ).thenReturn( "Bob Builder" );
         final DefaultContextRetrievalService svc =
             FakeDeps.minimal().pageManager( pm ).publicIdentity( () -> identity ).build();
 

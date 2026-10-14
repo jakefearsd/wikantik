@@ -269,8 +269,13 @@ you should name groups there instead of people.
 - **Page access rules** are removed from text returned to anyone who cannot edit the page,
   and from everything indexed; see [Page ACLs](#page-acls).
 - **Free text is shown as written.** An editor who types an email address into a page body
-  or an `author:` frontmatter line has published it. Only a value that happens to be a login
-  is resolved.
+  or a change note has published it. The `author:` and `verified_by:` frontmatter fields are
+  the exception: a login there is shown as the account's display name, and an email address
+  that is no account as "unknown contributor". The change note `mark_page_verified` records,
+  `verified by <login>`, likewise names the verifier by display name wherever history is shown.
+- **Filtering by author** (`list_pages`, `retrieve_context`) matches the name readers see,
+  ignoring case, never the stored login, so it cannot confirm who wrote a page by login or
+  email address.
 
 ### Page ownership and the audit trail
 

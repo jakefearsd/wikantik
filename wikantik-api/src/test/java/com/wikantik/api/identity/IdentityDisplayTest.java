@@ -31,21 +31,28 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 class IdentityDisplayTest {
 
-    /** One known account: login {@code janne} → {@code Janne Jalkanen}; behaves like the real service otherwise. */
+    /**
+     * Known accounts: login {@code janne} → {@code Janne Jalkanen}; {@code nulluid} → {@code Null Uid Person}, an account
+     * whose stored uid is NULL (until the one-shot runs), so {@code userIdForLogin} finds nothing for it; and
+     * {@code sso.user@example.test} → {@code Sso User}, an SSO account whose login is its email. Behaves like the real
+     * service otherwise.
+     */
     private static final class FakeIdentity implements PublicIdentity {
-        private final Map< String, String > namesByLogin = Map.of( "janne", "Janne Jalkanen" );
+        private final Map< String, String > namesByLogin = Map.of( "janne", "Janne Jalkanen", "nulluid", "Null Uid Person",
+                "sso.user@example.test", "Sso User" );
 
-        @Override public String displayName( final String stored ) {
-            if ( stored == null || stored.isBlank() ) {
+        @Override public String displayName( final String storedPrincipal ) {
+            if ( storedPrincipal == null || storedPrincipal.isBlank() ) {
                 return UNKNOWN;
             }
+            final String stored = storedPrincipal.trim();
             if ( namesByLogin.containsKey( stored ) ) {
                 return namesByLogin.get( stored );
             }
             return stored.indexOf( '@' ) >= 0 ? UNKNOWN_CONTRIBUTOR : stored;
         }
         @Override public Optional< String > userIdForLogin( final String login ) {
-            return namesByLogin.containsKey( login ) ? Optional.of( "uid-" + login ) : Optional.empty();
+            return namesByLogin.containsKey( login ) && !"nulluid".equals( login ) ? Optional.of( "uid-" + login ) : Optional.empty();
         }
         @Override public Optional< String > loginForUserId( final String uid ) { return Optional.empty(); }
         @Override public Optional< String > loginForDisplayName( final String displayName ) { return Optional.empty(); }
@@ -87,11 +94,53 @@ class IdentityDisplayTest {
     }
 
     @Test
-    void ofLoginOrText_showsTypedTextAsWrittenEvenWhenEmailShaped() {
-        assertEquals( "someone@company.test", IdentityDisplay.ofLoginOrText( identity, "someone@company.test" ),
-                "editor-typed text is not an account, so it is not rewritten" );
+    void ofLoginOrText_resolvesTheLoginOfAnAccountWithNoStoredUid() {
+        // Login-ness is decided by the account lookup itself, never by the stored uid: a NULL-uid account's login
+        // is still a login, and must not be shown as written.
+        assertEquals( "Null Uid Person", IdentityDisplay.ofLoginOrText( identity, "nulluid" ) );
+    }
+
+    @Test
+    void ofLoginOrText_alwaysMasksAnEmailShapedValue() {
+        // A deleted SSO account's login (an email) left in verified_by/author is no account any more; it must not be
+        // shown as written. An email-shaped login of a live account resolves like any login.
+        assertEquals( PublicIdentity.UNKNOWN_CONTRIBUTOR, IdentityDisplay.ofLoginOrText( identity, "gone.user@example.test" ) );
+        assertEquals( "Sso User", IdentityDisplay.ofLoginOrText( identity, "sso.user@example.test" ) );
+    }
+
+    @Test
+    void ofLoginOrText_showsOtherTypedTextExactlyAsWritten() {
+        assertEquals( "  ops-team ", IdentityDisplay.ofLoginOrText( identity, "  ops-team " ), "not a login: byte for byte" );
         assertEquals( "  ", IdentityDisplay.ofLoginOrText( identity, "  " ) );
         assertNull( IdentityDisplay.ofLoginOrText( identity, null ) );
+        assertEquals( "someone@company.test", IdentityDisplay.ofLoginOrText( null, "someone@company.test" ),
+                "without an identity service values pass through" );
+    }
+
+    @Test
+    void changeNote_resolvesTheVerifierOfAMachineWrittenVerificationNote() {
+        assertEquals( "verified by Janne Jalkanen", IdentityDisplay.changeNote( identity, "verified by janne" ) );
+        assertEquals( "verified by Null Uid Person", IdentityDisplay.changeNote( identity, "verified by nulluid" ) );
+        assertEquals( "verified by Sso User", IdentityDisplay.changeNote( identity, "verified by sso.user@example.test" ) );
+        assertEquals( "verified by Janne Jalkanen (quarterly review)",
+                IdentityDisplay.changeNote( identity, "verified by janne (quarterly review)" ), "the rest of the note is kept" );
+    }
+
+    @Test
+    void changeNote_masksAVerifierThatIsAnEmailButNoAccount() {
+        assertEquals( "verified by unknown contributor", IdentityDisplay.changeNote( identity, "verified by gone.user@example.test" ) );
+    }
+
+    @Test
+    void changeNote_leavesEveryOtherNoteAsWritten() {
+        assertEquals( "verified by hand", IdentityDisplay.changeNote( identity, "verified by hand" ) );
+        assertEquals( "verified by Jane Doe after the audit", IdentityDisplay.changeNote( identity, "verified by Jane Doe after the audit" ) );
+        assertEquals( "tidy: janne asked for it", IdentityDisplay.changeNote( identity, "tidy: janne asked for it" ),
+                "only the machine-written verification shape is rewritten" );
+        assertEquals( "Verified by janne", IdentityDisplay.changeNote( identity, "Verified by janne" ) );
+        assertEquals( "", IdentityDisplay.changeNote( identity, "" ) );
+        assertNull( IdentityDisplay.changeNote( identity, null ) );
+        assertEquals( "verified by janne", IdentityDisplay.changeNote( null, "verified by janne" ) );
     }
 
     @Test

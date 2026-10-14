@@ -141,9 +141,11 @@ public final class PageListEngine {
     }
 
     /**
-     * The filter value is a display name, as returned in {@code author}. A page whose stored author is a login
-     * matches only through that account's display name (so typing a login can never confirm an account's
-     * authorship); a stored legacy full name or agent label still matches exactly as written.
+     * The filter value is compared with what readers see in {@code author} — the stored author's
+     * {@link PublicIdentity#displayName display name}, ignoring case and surrounding whitespace — and never with the
+     * stored value itself. So typing a login (an email address under SSO) can never confirm authorship, whether the
+     * account still exists, has no stored uid, or is gone and shown as "unknown contributor"; a stored legacy full name
+     * or agent label is shown, and so matched, as written.
      */
     private boolean authorMatches( final Page page, final PageListFilter f ) {
         final String wanted = f.author();
@@ -158,10 +160,7 @@ public final class PageListEngine {
         if ( identity == null ) {
             return wanted.equals( stored );
         }
-        if ( wanted.equals( stored ) && identity.userIdForLogin( stored ).isEmpty() ) {
-            return true;
-        }
-        return identity.loginForDisplayName( wanted ).filter( stored::equals ).isPresent();
+        return identity.displayName( stored ).trim().equalsIgnoreCase( wanted.trim() );
     }
 
     private static boolean tagsMatch( final Map< String, Object > meta, final PageListFilter f ) {

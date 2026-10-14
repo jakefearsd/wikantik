@@ -89,6 +89,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   cannot view the page.
 - `/tools/search_wiki` and the RecentChanges plugin drop pages the caller cannot view. `search_wiki`
   over-fetches 20 results, filters, then trims, which narrows but cannot fully close a result-count oracle.
+- The change note `mark_page_verified` records, `verified by <login>`, names the verifier by display name in page
+  history, `/api/recent-articles`, the RecentChanges plugin and the for-agent `recent_changes`, notes written before
+  this release included (an email address that is no account is shown as "unknown contributor").
+- The `author` filter of `list_pages` and `retrieve_context` matches the name readers see, ignoring case, and never the
+  stored login, so it cannot confirm authorship by login or email address. A frontmatter `author:` or `verified_by:`
+  holding an email address that is no account is shown as "unknown contributor".
 
 ### Fixed
 - The "My pages" list matched authors by full name as well as login, so accounts sharing a name saw each

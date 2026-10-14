@@ -87,6 +87,25 @@ public class DefaultRecentArticlesManagerTest {
     }
 
     @Test
+    public void testAMachineWrittenVerificationNoteNamesTheVerifierByDisplayName() throws Exception {
+        AuthoredPages.save( m_engine, "RecentVerifiedPage", "# Verified\nBody text of the verified page.", "janne",
+                "verified by janne" );
+        AuthoredPages.save( m_engine, "RecentHandVerifiedPage", "# Hand\nBody text of the hand-verified page.", "janne",
+                "verified by hand" );
+        m_manager.clearCache();
+
+        final List<ArticleSummary> articles =
+            m_manager.getRecentArticles( createContext(), new RecentArticlesQuery().count( 50 ) );
+
+        Assertions.assertEquals( "verified by Janne Jalkanen", noteOf( articles, "RecentVerifiedPage" ) );
+        Assertions.assertEquals( "verified by hand", noteOf( articles, "RecentHandVerifiedPage" ) );
+    }
+
+    private static String noteOf( final List<ArticleSummary> articles, final String name ) {
+        return articles.stream().filter( a -> a.getName().equals( name ) ).findFirst().orElseThrow().getChangeNote();
+    }
+
+    @Test
     public void testManagerAvailable() {
         Assertions.assertNotNull( m_manager, "RecentArticlesManager should be available" );
     }

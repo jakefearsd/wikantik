@@ -28,6 +28,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,12 +40,33 @@ class ForAgentProjectionDisplayNamesTest {
                 "/f", "/r", false, List.of(), List.of() );
     }
 
+    /** One account, {@code janne} → {@code Janne Jalkanen}; every other value answers as the real service does. */
     private static PublicIdentity identity() {
         final PublicIdentity identity = mock( PublicIdentity.class );
         when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
-        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
-        when( identity.displayName( "Legacy Person" ) ).thenReturn( "Legacy Person" );
+        when( identity.displayName( anyString() ) ).thenAnswer( call -> {
+            final String stored = call.< String >getArgument( 0 ).trim();
+            if ( "janne".equals( stored ) ) {
+                return "Janne Jalkanen";
+            }
+            return stored.indexOf( '@' ) >= 0 ? PublicIdentity.UNKNOWN_CONTRIBUTOR : stored;
+        } );
         return identity;
+    }
+
+    @Test
+    void aMachineWrittenVerificationNoteShowsTheVerifiersDisplayName() {
+        final ForAgentProjection p = projection( null, List.of(
+                new RecentChange( 3, Instant.parse( "2026-04-23T11:10:00Z" ), "janne", "verified by janne" ),
+                new RecentChange( 2, Instant.parse( "2026-04-22T11:10:00Z" ), null, "verified by gone.user@example.test" ),
+                new RecentChange( 1, Instant.parse( "2026-04-21T11:10:00Z" ), "Legacy Person", "verified by hand" ) ) );
+
+        final List< RecentChange > shown = p.withDisplayNames( identity() ).recentChanges();
+
+        assertEquals( "verified by Janne Jalkanen", shown.get( 0 ).summary() );
+        assertEquals( "verified by unknown contributor", shown.get( 1 ).summary(), "even where the version has no author" );
+        assertEquals( "verified by hand", shown.get( 2 ).summary() );
+        assertEquals( "verified by janne", p.recentChanges().get( 0 ).summary(), "the cached projection itself is never mutated" );
     }
 
     @Test

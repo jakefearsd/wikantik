@@ -506,7 +506,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
             .author( IdentityDisplay.ofAuthor( identity, page.getAuthor() ) )
             .lastModified( page.getLastModified() )
             .excerpt( excerpt )
-            .changeNote( changeNote )
+            .changeNote( IdentityDisplay.changeNote( identity, changeNote ) )
             .version( page.getVersion() )
             .url( url )
             .size( page.getSize() )

@@ -163,6 +163,26 @@ class HistoryResourceTest {
         }
     }
 
+    @Test
+    void testAMachineWrittenVerificationNoteNamesTheVerifierByDisplayName() throws Exception {
+        // mark_page_verified records "verified by <login>" (an email for an SSO administrator); readers of the history
+        // get the verifier's display name, and a note an editor typed stays as written.
+        AuthoredPages.save( engine, "RestHistoryVerified", "First version.", "Legacy Person", "verified by hand" );
+        AuthoredPages.save( engine, "RestHistoryVerified", "Second version.", "janne", "verified by janne" );
+        AuthoredPages.save( engine, "RestHistoryVerified", "Third version.", "janne", "verified by gone.user@example.test" );
+        try {
+            final JsonArray versions = gson.fromJson( doGet( "RestHistoryVerified" ), JsonObject.class )
+                    .getAsJsonArray( "versions" );
+            final java.util.Set< String > notes = new java.util.HashSet<>();
+            versions.forEach( v -> notes.add( v.getAsJsonObject().get( "changeNote" ).getAsString() ) );
+
+            assertEquals( java.util.Set.of( "verified by hand", "verified by Janne Jalkanen", "verified by unknown contributor" ),
+                    notes );
+        } finally {
+            engine.deleteQuietly( "RestHistoryVerified" );
+        }
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {

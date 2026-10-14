@@ -44,12 +44,21 @@ public final class AuthoredPages {
 
     public static void save( final TestEngine engine, final String pageName, final String content,
                              final String storedAuthor ) throws WikiException {
+        save( engine, pageName, content, storedAuthor, null );
+    }
+
+    /** Like {@link #save(TestEngine, String, String, String)}, recording {@code changeNote} with the version when not null. */
+    public static void save( final TestEngine engine, final String pageName, final String content,
+                             final String storedAuthor, final String changeNote ) throws WikiException {
         final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/wiki/" + pageName );
         final Session session = SessionMonitor.getInstance( engine ).find( request.getSession() );
         engine.getManager( AuthenticationManager.class ).login( session, request, Users.ADMIN, Users.ADMIN_PASS );
 
         final Page page = Wiki.contents().page( engine, pageName );
         page.setAuthor( storedAuthor );
+        if ( changeNote != null ) {
+            page.setAttribute( Page.CHANGENOTE, changeNote );
+        }
         final Context context = Wiki.context().create( engine, request, page );
         engine.getManager( PageManager.class ).saveText( context, content );
     }

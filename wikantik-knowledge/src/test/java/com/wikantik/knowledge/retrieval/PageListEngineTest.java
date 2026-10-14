@@ -25,15 +25,18 @@ import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.auth.identity.DefaultPublicIdentity;
+import com.wikantik.auth.user.AccountSummary;
+import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.knowledge.testfakes.FakePageManager;
 import com.wikantik.search.FrontmatterMetadataCache;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -177,27 +180,65 @@ class PageListEngineTest {
         assertTrue( engine.matchesFilter( page, Map.of(), before2030 ), "page predates the cutoff" );
     }
 
+    /**
+     * The real identity service over three accounts: {@code janne} (display name Janne Jalkanen), {@code bob}, and
+     * {@code nulluid}, whose stored uid is NULL (as every account's was until the one-shot ran).
+     */
+    private static PublicIdentity accounts() throws Exception {
+        final UserDatabase db = mock( UserDatabase.class );
+        doReturn( List.of( new AccountSummary( "janne", "Janne Jalkanen", "uid-1" ),
+                new AccountSummary( "bob", "Bob Builder", "uid-2" ),
+                new AccountSummary( "nulluid", "Null Uid Person", null ) ) ).when( db ).accountSummaries();
+        return new DefaultPublicIdentity( db, Clock.systemUTC() );
+    }
+
+    private static java.util.Set< String > namesFound( final PageListEngine engine, final String author ) {
+        return engine.listPages( new PageListFilter( null, null, null, author, null, null, 50, 0 ) ).pages().stream()
+            .map( RetrievedPage::name ).collect( java.util.stream.Collectors.toSet() );
+    }
+
     @Test
-    void authorFilter_matchesALoginOnlyThroughItsDisplayName_andLegacyStringsAsWritten() {
+    void authorFilter_matchesALoginOnlyThroughItsDisplayName_andLegacyStringsAsWritten() throws Exception {
         final FakePageManager pm = new FakePageManager();
         pm.addPage( "ByLogin", "body", "janne", new Date() );
         pm.addPage( "ByLegacy", "body", "Janne Jalkanen", new Date() );
         pm.addPage( "Other", "body", "bob", new Date() );
-        final PublicIdentity identity = mock( PublicIdentity.class );
-        when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
-        when( identity.userIdForLogin( "bob" ) ).thenReturn( Optional.of( "uid-2" ) );
-        when( identity.loginForDisplayName( "Janne Jalkanen" ) ).thenReturn( Optional.of( "janne" ) );
+        final PublicIdentity identity = accounts();
         final PageListEngine engine =
             new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage, () -> identity );
 
-        final PageList byName = engine.listPages(
-            new PageListFilter( null, null, null, "Janne Jalkanen", null, null, 50, 0 ) );
-        assertEquals( java.util.Set.of( "ByLogin", "ByLegacy" ),
-            byName.pages().stream().map( RetrievedPage::name ).collect( java.util.stream.Collectors.toSet() ) );
+        assertEquals( java.util.Set.of( "ByLogin", "ByLegacy" ), namesFound( engine, "Janne Jalkanen" ) );
+        assertEquals( java.util.Set.of( "ByLogin", "ByLegacy" ), namesFound( engine, "  janne jalkanen " ),
+            "what readers see, ignoring case and surrounding whitespace" );
+        assertEquals( java.util.Set.of(), namesFound( engine, "janne" ), "typing a login must not confirm that account's authorship" );
+    }
 
-        final PageList byLogin = engine.listPages(
-            new PageListFilter( null, null, null, "janne", null, null, 50, 0 ) );
-        assertEquals( 0, byLogin.totalMatched(), "typing a login must not confirm that account's authorship" );
+    @Test
+    void authorFilter_neverMatchesTheLoginOfAnAccountWithNoStoredUid() throws Exception {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "ByNullUid", "body", "nulluid", new Date() );
+        final PublicIdentity identity = accounts();
+        final PageListEngine engine =
+            new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage, () -> identity );
+
+        assertEquals( java.util.Set.of(), namesFound( engine, "nulluid" ), "the stored login is never what readers see" );
+        assertEquals( java.util.Set.of( "ByNullUid" ), namesFound( engine, "Null Uid Person" ) );
+    }
+
+    @Test
+    void authorFilter_neverConfirmsTheEmailOfADeletedSsoAccount() throws Exception {
+        // An SSO user deleted their account: their edits keep the email login, shown as "unknown contributor".
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "ByGoneSsoUser", "body", "gone.user@example.test", new Date() );
+        pm.addPage( "ByJanne", "body", "janne", new Date() );
+        final PublicIdentity identity = accounts();
+        final PageListEngine engine =
+            new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage, () -> identity );
+
+        assertEquals( java.util.Set.of(), namesFound( engine, "gone.user@example.test" ),
+            "filtering by the email must not confirm that it wrote anything" );
+        assertEquals( java.util.Set.of( "ByGoneSsoUser" ), namesFound( engine, PublicIdentity.UNKNOWN_CONTRIBUTOR ),
+            "the filter finds what the list shows" );
     }
 
     @Test

@@ -21,10 +21,12 @@ package com.wikantik.api.identity;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Presentation helpers for surfaces that show who wrote something: they turn the principal a page version,
- * verification stamp or frontmatter field carries into the name shown to readers, through
+ * verification stamp, change note or frontmatter field carries into the name shown to readers, through
  * {@link PublicIdentity}. Pure functions; a {@code null} identity (unit-test wiring only) means "no account is
  * known", so values pass through unchanged.
  */
@@ -32,6 +34,12 @@ public final class IdentityDisplay {
 
     /** Frontmatter keys whose value names a principal rather than carrying prose. */
     public static final List< String > PRINCIPAL_KEYS = List.of( "author", "verified_by" );
+
+    /** How the change note written by {@code mark_page_verified} starts; the verifier's login follows. */
+    private static final String VERIFIED_BY = "verified by ";
+
+    /** A verifier (a run of non-space characters) and whatever follows it. */
+    private static final Pattern FIRST_WORD = Pattern.compile( "(\\S+)(.*)", Pattern.DOTALL );
 
     private IdentityDisplay() {
     }
@@ -51,15 +59,50 @@ public final class IdentityDisplay {
     }
 
     /**
-     * The display form of a value an editor <em>typed</em> (frontmatter {@code author:} / {@code verified_by:}):
-     * replaced by the account's display name only when the text is an existing login, otherwise shown exactly
-     * as written.
+     * The display form of a value in a principal field an editor may type or a tool writes (frontmatter
+     * {@code author:} / {@code verified_by:}): an existing login becomes the account's display name, whatever its
+     * stored uid; an email-shaped value that is no account becomes {@link PublicIdentity#UNKNOWN_CONTRIBUTOR} (a
+     * deleted SSO account's login must not reappear); any other text is shown exactly as written.
+     *
+     * <p>Login-ness is the account lookup behind {@link PublicIdentity#displayName} itself: the value is shown as
+     * written exactly when that lookup leaves it unchanged. (When no account can be read at all the service answers
+     * with its neutral fallback, so this fails closed.)</p>
      */
     public static String ofLoginOrText( final PublicIdentity identity, final String value ) {
         if ( identity == null || value == null || value.isBlank() ) {
             return value;
         }
-        return identity.userIdForLogin( value ).isPresent() ? identity.displayName( value ) : value;
+        final String shown = identity.displayName( value );
+        return shown.equals( value.trim() ) ? value : shown;
+    }
+
+    /**
+     * The display form of a page version's change note. Only the note {@code mark_page_verified} writes,
+     * {@code "verified by <login>"} (optionally followed by more text), is rewritten: its verifier goes through
+     * {@link #ofLoginOrText}, so a login (an email address for an SSO administrator) becomes the display name and an
+     * email-shaped value that is no account becomes {@link PublicIdentity#UNKNOWN_CONTRIBUTOR}. Every other note is
+     * free text and is returned as written; {@code null} stays {@code null}.
+     *
+     * <p>The verifier is the whole rest of the note when that is a login (a login may hold spaces), else its first
+     * word.</p>
+     */
+    public static String changeNote( final PublicIdentity identity, final String note ) {
+        if ( identity == null || note == null || !note.startsWith( VERIFIED_BY ) ) {
+            return note;
+        }
+        final String rest = note.substring( VERIFIED_BY.length() );
+        if ( rest.indexOf( '@' ) < 0 ) {
+            final String whole = ofLoginOrText( identity, rest );
+            if ( !whole.equals( rest ) ) {
+                return VERIFIED_BY + whole;
+            }
+        }
+        final Matcher verifier = FIRST_WORD.matcher( rest );
+        if ( !verifier.matches() ) {
+            return note;
+        }
+        final String shown = ofLoginOrText( identity, verifier.group( 1 ) );
+        return shown.equals( verifier.group( 1 ) ) ? note : VERIFIED_BY + shown + verifier.group( 2 );
     }
 
     /**

@@ -19,6 +19,7 @@ under the License.
 
 package com.wikantik.plugin;
 
+import com.wikantik.AuthoredPages;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.spi.Wiki;
@@ -158,6 +159,21 @@ public class RecentChangesPluginTest {
             Assertions.assertFalse( Pattern.compile( "<td class=\"author\">\\s*janne\\s*</td>" ).matcher( res ).find(), res );
         } finally {
             testEngine.deleteTestPage( "TestPage05" );
+        }
+    }
+
+    @Test
+    public void testAMachineWrittenVerificationNoteNamesTheVerifierByDisplayName() throws Exception {
+        AuthoredPages.save( testEngine, "TestPage06", "Verified by janne", "janne", "verified by janne" );
+        try {
+            context = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "TestPage06" ) );
+
+            final String res = manager.execute( context, "{INSERT com.wikantik.plugin.RecentChangesPlugin}" );
+
+            Assertions.assertTrue( res.contains( "<td class=\"changenote\">verified by Janne Jalkanen</td>" ), res );
+            Assertions.assertFalse( res.contains( "verified by janne" ), res );
+        } finally {
+            testEngine.deleteTestPage( "TestPage06" );
         }
     }
 }

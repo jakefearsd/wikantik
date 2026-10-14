@@ -218,7 +218,8 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
 
                 // Change note
                 if( showChangenote ) {
-                    final String changenote = pageref.getAttribute( Page.CHANGENOTE );
+                    // "verified by <login>" (mark_page_verified) names the verifier by display name; other notes as written.
+                    final String changenote = IdentityDisplay.changeNote( identity, pageref.getAttribute( Page.CHANGENOTE ) );
                     final Element td_changenote = XhtmlUtil.element( XHTML.td, changenote );
                     td_changenote.setAttribute( XHTML.ATTR_class, "changenote" );
                     row.addContent( td_changenote );

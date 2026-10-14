@@ -49,9 +49,16 @@ class AclDirectiveScannerTest {
     private static final Pattern ORACLE_ANY = Pattern.compile(
             "\\[\\{\\s*(ALLOW|DENY)\\s+(comment|delete|edit|modify|rename|upload|view)\\s*(.*?)\\s*\\}\\]" );
 
-    /** Wide mode is the same expression with {@code .} allowed to match a line terminator. */
+    /**
+     * Wide mode is the same expression with {@code .} allowed to match a line terminator, less every match that contains
+     * a blank line (the renderer's link label ends there): {@link #oracleFindFrom} skips such a match and looks again
+     * just past its start.
+     */
     private static final Pattern ORACLE_ALLOW_WIDE = Pattern.compile( ORACLE_ALLOW.pattern(), Pattern.DOTALL );
     private static final Pattern ORACLE_ANY_WIDE = Pattern.compile( ORACLE_ANY.pattern(), Pattern.DOTALL );
+
+    /** A blank line: a line ending ({@code \r\n} is one), then only spaces and tabs, then another line ending. */
+    private static final Pattern BLANK_LINE = Pattern.compile( "(?:\\r\\n|\\r(?!\\n)|\\n)[ \\t]*[\\r\\n]" );
 
     private static final long SEED = 0x5CA77E4L;
     private static final int RANDOM_INPUTS = 40_000;
@@ -60,7 +67,7 @@ class AclDirectiveScannerTest {
             "[{", "[{", "[{ALLOW edit ", "[{ALLOW view", "[{DENY view ", "[{ DENY comment", "[{ALLOW  upload\t",
             "[{ALLOWED edit ", "[{allow edit ", "[{ALLOW editor x", "[{ALLOW fly ", "[{ALLOW}", "ALLOW", "DENY",
             "edit", "view", "comment", "delete", "modify", "rename", "upload", "ed", "e",
-            " ", "  ", "\t", "\n", "\r", "\r\n", "\u0085", "\u2028", "\u2029", "\u000B", "\f", "\u00a0", "\u2003",
+            " ", "  ", "\t", "\n", "\r", "\r\n", "\n\n", "\n \t\n", "\r\n\r\n", "\u0085", "\u2028", "\u2029", "\u000B", "\f", "\u00a0", "\u2003",
             "}]", "}]", "}", "]", "}}]", "}]]", "}\n]", "} ]",
             "x", "alice@example.test", ",", "Admin,Bob", "(", ")", "()", "`", "[", "{", "[{TableOfContents}]" };
 
@@ -86,9 +93,8 @@ class AclDirectiveScannerTest {
 
     private static List< Hit > oracle( final String text, final boolean includeDeny, final boolean wide ) {
         final List< Hit > hits = new ArrayList<>();
-        final Matcher m = oraclePattern( includeDeny, wide ).matcher( text );
-        while ( m.find() ) {
-            hits.add( hit( m, includeDeny ) );
+        for ( Hit h = oracleFindFrom( text, 0, includeDeny, wide ); h != null; h = oracleFindFrom( text, h.end(), includeDeny, wide ) ) {
+            hits.add( h );
         }
         return hits;
     }
@@ -113,7 +119,14 @@ class AclDirectiveScannerTest {
     /** What {@code Matcher.find( from )} reports on the oracle: the first match that starts at or after {@code from}. */
     private static Hit oracleFindFrom( final String text, final int from, final boolean includeDeny, final boolean wide ) {
         final Matcher m = oraclePattern( includeDeny, wide ).matcher( text );
-        return from <= text.length() && m.find( from ) ? hit( m, includeDeny ) : null;
+        int at = from;
+        while ( at <= text.length() && m.find( at ) ) {
+            if ( !wide || !BLANK_LINE.matcher( m.group() ).find() ) {
+                return hit( m, includeDeny );
+            }
+            at = m.start() + 1;
+        }
+        return null;
     }
 
     private static String printable( final String text ) {
@@ -151,7 +164,7 @@ class AclDirectiveScannerTest {
     }
 
     @Test
-    void wideModeIsTheOriginalExpressionCompiledWithDotAll() {
+    void wideModeIsTheOriginalExpressionCompiledWithDotAllLessMatchesThatSpanABlankLine() {
         final Random random = new Random( SEED + 2 );
         for ( int i = 0; i < RANDOM_INPUTS; i++ ) {
             final String text = randomText( random );
@@ -319,6 +332,23 @@ class AclDirectiveScannerTest {
     void aLineTerminatorHiddenAmongManyCandidatesIsFoundOnceNotPerCandidate() {
         final String text = "[{ALLOW edit a".repeat( 60_000 ) + "\u0085}]";
         assertTimeoutPreemptively( BUDGET, () -> assertTrue( AclDirectiveScanner.findAll( text, true ).isEmpty() ) );
+    }
+
+    @Test
+    void wideModeNeverRunsAcrossABlankLine() {
+        assertEquals( List.of(), scanned( "[{ALLOW edit a,\n\nb}]", true, true ) );
+        assertEquals( List.of(), scanned( "[{ALLOW edit a,\r\n \t\r\nb}]", true, true ) );
+        assertEquals( List.of(), scanned( "[{\n\nALLOW edit a}]", true, true ) );
+        assertEquals( 1, scanned( "[{ALLOW edit a,\r\nb}]", true, true ).size(), "one CRLF is one line ending, not a blank line" );
+        // A later opener after the blank line still matches the same closer.
+        assertEquals( List.of( new Hit( 17, 35, "ALLOW", "view", 30, 33 ) ),
+                scanned( "[{ALLOW edit a,\n\n[{ALLOW view bob}]", true, true ) );
+    }
+
+    @Test
+    void manyBlankLinesBetweenManyOpenersAndOneCloserAreLinear() {
+        final String text = "[{ALLOW edit a,\n\n".repeat( 100_000 ) + "[{ALLOW view z}]";
+        assertTimeoutPreemptively( BUDGET, () -> assertEquals( 1, AclDirectiveScanner.findAll( text, true, true ).size() ) );
     }
 
     @Test

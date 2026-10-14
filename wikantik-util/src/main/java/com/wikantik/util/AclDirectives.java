@@ -36,9 +36,11 @@ import java.util.Objects;
  * expression). {@code DENY} is recognised too, the spelling plugin normalisation produces
  * ({@code [{ALLOW view All}]()}) goes together with its empty {@code ()}, and — because the renderer reads a link
  * label that spans lines as readily as a one-line one — so does a directive wrapped over several lines
- * (<code>[{ALLOW edit alice,\n bob}]</code>), which the enforcement expression does not match. The pass is code-aware in the same way the
- * ACL manager is: the identical text inside a fenced code block or an inline code span is documentation, not a rule,
- * and is kept.
+ * (<code>[{ALLOW edit alice,\n bob}]</code>), which the enforcement expression does not match. Like the renderer's
+ * link label, the wrapped shape never spans a blank line, and it applies only to page body: frontmatter, which the
+ * renderer never reads, is passed with {@code wrapped = false} by the facade, which splits the two. The pass is
+ * code-aware in the same way the ACL manager is: the identical text inside a fenced code block or an inline code span
+ * is documentation, not a rule, and is kept.
  *
  * <p>Everything else is returned byte-for-byte: other {@code [{Plugin}]} spans, line endings, whitespace around a
  * removed directive. Only the directive itself (plus an immediately trailing {@code ()}) is removed — a directive on
@@ -85,13 +87,28 @@ public final class AclDirectives {
      * @return the text with directives replaced; the same instance when there was nothing to replace
      */
     public static String strip( final String markdown, final String replacement ) {
+        return strip( markdown, replacement, true );
+    }
+
+    /**
+     * Like {@link #strip(String, String)}, choosing whether the wrapped shape counts.
+     *
+     * @param markdown    raw page text, may be {@code null}
+     * @param replacement text put in place of each directive (see {@link #strip(String, String)})
+     * @param wrapped     {@code true} for page body: a directive wrapped over several lines (no blank line) is removed
+     *                    too, as the renderer reads one. {@code false} for frontmatter, which the renderer never reads:
+     *                    only the one-line shape the ACL manager enforces there counts, so a stray opener in a value can
+     *                    never reach a closer beyond the frontmatter
+     * @return the text with directives replaced; the same instance when there was nothing to replace
+     */
+    public static String strip( final String markdown, final String replacement, final boolean wrapped ) {
         Objects.requireNonNull( replacement, "replacement" );
         if ( markdown == null || markdown.indexOf( "[{" ) < 0 ) {
             return markdown;
         }
         String current = markdown;
         for ( int pass = 0; pass < MAX_PASSES; pass++ ) {
-            final String next = stripOnce( current, replacement );
+            final String next = stripOnce( current, replacement, wrapped );
             if ( next == null ) {
                 break;
             }
@@ -101,10 +118,10 @@ public final class AclDirectives {
     }
 
     /** One left-to-right pass; {@code null} when no directive outside code was found. */
-    private static String stripOnce( final String text, final String replacement ) {
-        // Wide mode: this pass only hides, and the renderer hands a directive wrapped over several lines to the ACL
-        // parser as readily as a one-line one, so the multi-line shape must go too.
-        final AclDirectiveScanner scanner = new AclDirectiveScanner( text, true, true );
+    private static String stripOnce( final String text, final String replacement, final boolean wrapped ) {
+        // Wide mode (for body text): this pass only hides, and the renderer hands a directive wrapped over several
+        // lines to the ACL parser as readily as a one-line one, so the multi-line shape must go too.
+        final AclDirectiveScanner scanner = new AclDirectiveScanner( text, true, wrapped );
         AclDirectiveScanner.Span span = scanner.next( 0 );
         if ( span == null ) {
             return null;

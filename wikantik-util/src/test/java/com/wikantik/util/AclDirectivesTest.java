@@ -348,6 +348,38 @@ class AclDirectivesTest {
                 AclDirectives.strip( "head [{ALLOW edit a,\nb}] tail [{TableOfContents}]" ) );
     }
 
+    // ---- the wrapped shape is bounded the way the renderer bounds a link label: never across a blank line ----
+
+    @Test
+    void anUnterminatedOpenerDoesNotSwallowTheParagraphsUpToALaterCloser() {
+        // A link label ends at a blank line, so "[{ALLOW edit" in one paragraph is no directive with a "}]" in another.
+        final String text = "Use [{ALLOW edit to restrict a page.\n\nSecond paragraph.\n\nThird one ends with }] here.";
+        assertSame( text, AclDirectives.strip( text ) );
+        final String spaced = "Use [{ALLOW edit a,\n \t\nb}] here.";
+        assertSame( spaced, AclDirectives.strip( spaced ) );
+        final String crlf = "Use [{DENY view a,\r\n\r\nb}] here.";
+        assertSame( crlf, AclDirectives.strip( crlf ) );
+    }
+
+    @Test
+    void aWrappedDirectiveWithNoBlankLineIsStillRemovedWhateverItsLength() {
+        final StringBuilder list = new StringBuilder( "[{ALLOW view " );
+        for ( int i = 0; i < 500; i++ ) {
+            list.append( "user" ).append( i ).append( "@example.test,\n " );
+        }
+        list.append( "last}]" );
+        assertEquals( "x  y", AclDirectives.strip( "x " + list + " y" ) );
+    }
+
+    @Test
+    void theOneLineVariantLeavesAWrappedDirectiveAlone() {
+        // What the facade hands it is frontmatter, which the renderer never reads: only the one-line shape counts there.
+        final String wrapped = "summary: How to use [{ALLOW view a,\nb}] rules";
+        assertSame( wrapped, AclDirectives.strip( wrapped, "", false ) );
+        assertEquals( "summary: How to use  rules", AclDirectives.strip( "summary: How to use [{ALLOW view a}] rules", "", false ) );
+        assertEquals( "\nBody.", AclDirectives.strip( "[{ALLOW edit a,\n b}]\nBody.", "", true ) );
+    }
+
     // ---- running time on a page with very many code spans and very many candidates ----
 
     @Test

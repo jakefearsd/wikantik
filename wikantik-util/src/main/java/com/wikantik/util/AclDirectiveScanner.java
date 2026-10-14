@@ -48,10 +48,13 @@ import java.util.List;
  *
  * <p><b>Wide mode.</b> The wiki's renderer recognises a wider shape than the enforcement expression does: a link label
  * <code>[{ALLOW edit alice@example.test,\n bob@example.test}]</code> may run over several lines, and the render
- * path hands it to the ACL parser. A caller that only <em>hides</em> directives (never enforces) asks for wide mode,
- * which drops the line-terminator condition: the match is then the first closer after the permission, whatever lies
- * between. That is the original expression compiled with {@code DOTALL}, and a second differential test pins it.
- * Enforcement never uses wide mode.
+ * path hands it to the ACL parser. A caller that only <em>hides</em> directives asks for wide mode, which drops the
+ * line-terminator condition but keeps the renderer's own bound: a link label never spans a blank line (a line holding
+ * nothing but spaces and tabs ends the paragraph), so a span that contains one is no match at that opener. The match
+ * is then the first closer after the permission, provided no blank line lies between the opener and it. That is the
+ * original expression compiled with {@code DOTALL}, less every match that contains a blank line, and a second
+ * differential test pins it. The renderer imposes no length limit on such a label, so neither does wide mode.
+ * Enforcement never uses wide mode (the ACL manager reads the render path's own shapes from a real parse).
  *
  * <p>Instances are single-use, not thread-safe, and cheap; use {@link #findAll} for the common case.
  */
@@ -92,6 +95,8 @@ public final class AclDirectiveScanner {
     private int terminatorAt;
     private int runQuery = -1;
     private int runStart;
+    private int blankQuery = -1;
+    private int blankAt;
 
     /**
      * @param text        the page text
@@ -105,9 +110,9 @@ public final class AclDirectiveScanner {
     /**
      * @param text                   the page text
      * @param includeDeny            whether a {@code DENY} head is accepted alongside {@code ALLOW}
-     * @param lineBreaksInPrincipals {@code true} for wide mode: line breaks are allowed between the permission and the
-     *                               closer, so a directive wrapped over several lines is found. Only for callers that
-     *                               hide directives; the ACL manager enforces with {@code false}
+     * @param lineBreaksInPrincipals {@code true} for wide mode: line breaks (but no blank line) are allowed between the
+     *                               opener and the closer, so a directive wrapped over several lines is found. Only for
+     *                               callers that hide directives; the ACL manager enforces with {@code false}
      */
     public AclDirectiveScanner( final String text, final boolean includeDeny, final boolean lineBreaksInPrincipals ) {
         this.text = text;
@@ -207,6 +212,9 @@ public final class AclDirectiveScanner {
         if ( !lineBreaksInPrincipals && terminatorAtOrAfter( principalsStart ) < principalsEnd ) {
             return null;
         }
+        if ( lineBreaksInPrincipals && blankLineAtOrAfter( opener ) < closer ) {
+            return null;                                         // the renderer's label ends at a blank line
+        }
         return new Span( opener, closer + CLOSER.length(), keyword, permission, principalsStart, principalsEnd );
     }
 
@@ -255,6 +263,37 @@ public final class AclDirectiveScanner {
             terminatorQuery = pos;
         }
         return terminatorAt;
+    }
+
+    /**
+     * The first line ending at or after {@code pos} that begins a blank line (the ending, then only spaces and tabs,
+     * then another line ending; {@code \r\n} is one ending), or the text length when there is none.
+     */
+    private int blankLineAtOrAfter( final int pos ) {
+        if ( blankQuery < 0 || pos < blankQuery || pos > blankAt ) {
+            int i = pos;
+            while ( i < length && !blankLineStartsAt( i ) ) {
+                i++;
+            }
+            blankAt = i;
+            blankQuery = pos;
+        }
+        return blankAt;
+    }
+
+    private boolean blankLineStartsAt( final int i ) {
+        final char c = text.charAt( i );
+        if ( c != '\n' && c != '\r' ) {
+            return false;
+        }
+        int j = i + 1;
+        if ( c == '\r' && j < length && text.charAt( j ) == '\n' ) {
+            j++;
+        }
+        while ( j < length && ( text.charAt( j ) == ' ' || text.charAt( j ) == '\t' ) ) {
+            j++;
+        }
+        return j < length && ( text.charAt( j ) == '\n' || text.charAt( j ) == '\r' );
     }
 
     /** Where the run of whitespace that ends right before {@code closer} begins. */

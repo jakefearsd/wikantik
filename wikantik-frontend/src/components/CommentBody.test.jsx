@@ -9,34 +9,64 @@ describe('CommentBody', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it('renders a chip linking to /wiki/Users/<login> for a single mention', () => {
-    render(<CommentBody body="hi @alice please look" />);
-    const link = screen.getByRole('link', { name: '@alice' });
-    expect(link.getAttribute('href')).toBe('/wiki/Users/alice');
-    expect(link.className).toContain('comment-mention-chip');
+  it('renders a mention token as a chip showing the current name from mentionNames', () => {
+    const { container } = render(
+      <CommentBody body="hi @[Alice A](user:u-1) please look" mentionNames={{ 'u-1': 'Alice A' }} />
+    );
+    const chip = container.querySelector('.comment-mention-chip');
+    expect(chip.textContent).toBe('@Alice A');
+    expect(chip.getAttribute('data-user-id')).toBe('u-1');
+    expect(container.querySelector('.comment-body').textContent).toBe('hi @Alice A please look');
   });
 
-  it('renders multiple mentions in one body', () => {
-    render(<CommentBody body="@alice and @bob both" />);
-    const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(2);
-    expect(links[0].getAttribute('href')).toBe('/wiki/Users/alice');
-    expect(links[1].getAttribute('href')).toBe('/wiki/Users/bob');
+  it('shows the CURRENT display name from the mentions map, not the snapshot', () => {
+    const { container } = render(
+      <CommentBody body="ping @[Old Name](user:u-1)" mentionNames={{ 'u-1': 'New Name' }} />
+    );
+    expect(container.querySelector('.comment-mention-chip').textContent).toBe('@New Name');
+    expect(container.textContent).not.toContain('Old Name');
   });
 
-  it('does not include trailing punctuation in the chip', () => {
-    render(<CommentBody body="@alice, hello" />);
-    const link = screen.getByRole('link');
-    expect(link.textContent).toBe('@alice');
-    // The trailing comma is rendered as plain text after the chip.
-    expect(link.parentElement.textContent).toContain(', hello');
+  it('renders a token with no current name as plain @snapshot text, not a chip', () => {
+    const { container } = render(<CommentBody body="hi @[Alice A](user:u-1) please look" />);
+    expect(container.querySelector('.comment-mention-chip')).toBeNull();
+    expect(container.querySelector('.comment-body').textContent).toBe('hi @Alice A please look');
   });
 
-  it('url-encodes the login in the href', () => {
-    render(<CommentBody body="ping @user.with.dots" />);
-    const link = screen.getByRole('link');
-    expect(link.getAttribute('href')).toBe('/wiki/Users/user.with.dots');
-    // Dots are URL-safe; just confirm it didn't double-encode.
+  it('renders a uid missing from the map as plain @snapshot text', () => {
+    const { container } = render(
+      <CommentBody body="@[Gone Away](user:u-9)" mentionNames={{ 'u-1': 'Someone Else' }} />
+    );
+    expect(container.querySelector('.comment-mention-chip')).toBeNull();
+    expect(container.textContent).toBe('@Gone Away');
+  });
+
+  it('renders several chips in one body', () => {
+    const { container } = render(
+      <CommentBody body="@[A](user:1) and @[B](user:2) both" mentionNames={{ 1: 'A', 2: 'B' }} />
+    );
+    const chips = container.querySelectorAll('.comment-mention-chip');
+    expect(chips).toHaveLength(2);
+    expect(chips[0].textContent).toBe('@A');
+    expect(chips[1].textContent).toBe('@B');
+  });
+
+  it('never renders a chip as a link', () => {
+    render(<CommentBody body="@[Alice A](user:u-1)" mentionNames={{ 'u-1': 'Alice A' }} />);
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('renders a legacy @login as plain text without the dead /wiki/Users link', () => {
+    const { container } = render(<CommentBody body="hi @alice please look" />);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(container.querySelector('.comment-mention-chip')).toBeNull();
+    expect(container.querySelector('.comment-body').textContent).toBe('hi @alice please look');
+  });
+
+  it('leaves a malformed token as text', () => {
+    const { container } = render(<CommentBody body="see @[Alice](user:) there" />);
+    expect(container.querySelector('.comment-mention-chip')).toBeNull();
+    expect(container.textContent).toBe('see @[Alice](user:) there');
   });
 
   it('null/empty body renders nothing', () => {

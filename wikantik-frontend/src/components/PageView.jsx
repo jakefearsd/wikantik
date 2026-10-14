@@ -57,8 +57,8 @@ function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }
       catch { return []; }
     },
   });
-  const acceptLogin = (login) => {
-    const { replacement, selectionStart } = picker.accept(login);
+  const acceptCandidate = (candidate) => {
+    const { replacement, selectionStart } = picker.accept(candidate);
     setText(replacement);
     // After React renders, restore caret + auto-grow.
     setTimeout(() => {
@@ -93,7 +93,7 @@ function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }
           if (picker.onKeyDown(e)) {
             if (e.key === 'Enter' || e.key === 'Tab') {
               const sel = picker.candidates[picker.selectedIndex];
-              if (sel) acceptLogin(sel.loginName);
+              if (sel) acceptCandidate(sel);
             }
             return;
           }
@@ -115,7 +115,7 @@ function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }
         open={picker.open}
         candidates={picker.candidates}
         selectedIndex={picker.selectedIndex}
-        onSelect={acceptLogin}
+        onSelect={acceptCandidate}
         anchorPos={picker.anchorPos}
       />
     </div>
@@ -156,6 +156,8 @@ export default function PageView() {
   const articleRef = useRef(null);
 
   const [threads, setThreads] = useState([]);
+  // uid -> current display name for every @mention token in the loaded comments.
+  const [mentionNames, setMentionNames] = useState({});
   const [detachedIds, setDetachedIds] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('open');
@@ -167,6 +169,7 @@ export default function PageView() {
     try {
       const res = await api.listCommentThreads(name, 'all');
       setThreads(res.threads || []);
+      setMentionNames(res.mentions || {});
     } catch (e) {
       console.warn('Failed to load comment threads', e);
     }
@@ -179,7 +182,11 @@ export default function PageView() {
   useEffect(() => {
     let ignore = false;
     api.listCommentThreads(name, 'all')
-      .then((res) => { if (!ignore) setThreads(res.threads || []); })
+      .then((res) => {
+        if (ignore) return;
+        setThreads(res.threads || []);
+        setMentionNames(res.mentions || {});
+      })
       .catch((e) => { if (!ignore) console.warn('Failed to load comment threads', e); });
     return () => { ignore = true; };
   }, [name]);
@@ -624,6 +631,8 @@ export default function PageView() {
         statusFilter={statusFilter}
         canModerate={!!page.permissions?.delete}
         canMention={!!user?.authenticated}
+        currentUserId={user?.authenticated ? (user.userId ?? null) : null}
+        mentionNames={mentionNames}
         focusedThreadId={focusedThreadId}
         onStatusFilter={setStatusFilter}
         onReply={async (threadId, text) => {

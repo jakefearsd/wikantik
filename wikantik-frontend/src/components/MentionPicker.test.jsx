@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import MentionPicker from './MentionPicker';
 
 const CANDS = [
-  { loginName: 'alice', fullName: 'Alice A' },
-  { loginName: 'alicia', fullName: 'Alicia B' },
+  { id: 'u-alice', displayName: 'Alice A' },
+  { id: 'u-alicia', displayName: 'Alicia B' },
 ];
 
 describe('MentionPicker', () => {
@@ -33,25 +33,34 @@ describe('MentionPicker', () => {
     expect(items[1].getAttribute('aria-selected')).toBe('true');
   });
 
-  it('fires onSelect with loginName when clicked', () => {
+  it('shows display names only', () => {
+    render(
+      <MentionPicker open={true} candidates={CANDS} selectedIndex={0} onSelect={() => {}} anchorPos={{ top: 100, left: 50 }} />
+    );
+    const items = screen.getAllByRole('option');
+    expect(items[0].textContent).toBe('@Alice A');
+    expect(items[1].textContent).toBe('@Alicia B');
+  });
+
+  it('fires onSelect with the whole candidate (id + displayName) when clicked', () => {
     const onSelect = vi.fn();
     render(
       <MentionPicker open={true} candidates={CANDS} selectedIndex={0} onSelect={onSelect} anchorPos={{ top: 100, left: 50 }} />
     );
     fireEvent.mouseDown(screen.getAllByRole('option')[1]);
-    expect(onSelect).toHaveBeenCalledWith('alicia');
+    expect(onSelect).toHaveBeenCalledWith({ id: 'u-alicia', displayName: 'Alicia B' });
   });
 
   it('renders nothing when anchorPos is null (no caret coords yet)', () => {
     const { container } = render(
-      <MentionPicker open={true} candidates={[{ loginName: 'a', fullName: '' }]} selectedIndex={0} onSelect={() => {}} anchorPos={null} />
+      <MentionPicker open={true} candidates={[{ id: 'u-a', displayName: 'A' }]} selectedIndex={0} onSelect={() => {}} anchorPos={null} />
     );
     expect(container.firstChild).toBeNull();
   });
 
   it('renders at the supplied anchorPos via position: fixed', () => {
     render(
-      <MentionPicker open={true} candidates={[{ loginName: 'a', fullName: '' }]} selectedIndex={0} onSelect={() => {}} anchorPos={{ top: 222, left: 333 }} />
+      <MentionPicker open={true} candidates={[{ id: 'u-a', displayName: 'A' }]} selectedIndex={0} onSelect={() => {}} anchorPos={{ top: 222, left: 333 }} />
     );
     const list = screen.getByRole('listbox');
     expect(list.style.position).toBe('fixed');
@@ -61,11 +70,11 @@ describe('MentionPicker', () => {
 
   it('moves when anchorPos changes (caret moves)', () => {
     const { rerender } = render(
-      <MentionPicker open={true} candidates={[{ loginName: 'a', fullName: '' }]} selectedIndex={0} onSelect={() => {}} anchorPos={{ top: 100, left: 50 }} />
+      <MentionPicker open={true} candidates={[{ id: 'u-a', displayName: 'A' }]} selectedIndex={0} onSelect={() => {}} anchorPos={{ top: 100, left: 50 }} />
     );
     expect(screen.getByRole('listbox').style.top).toBe('100px');
     rerender(
-      <MentionPicker open={true} candidates={[{ loginName: 'a', fullName: '' }]} selectedIndex={0} onSelect={() => {}} anchorPos={{ top: 200, left: 75 }} />
+      <MentionPicker open={true} candidates={[{ id: 'u-a', displayName: 'A' }]} selectedIndex={0} onSelect={() => {}} anchorPos={{ top: 200, left: 75 }} />
     );
     expect(screen.getByRole('listbox').style.top).toBe('200px');
   });

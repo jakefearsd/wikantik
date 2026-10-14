@@ -7,7 +7,7 @@ import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
 
 function ThreadCard({
-  thread, detached, canModerate, canMention, focusedThreadId,
+  thread, detached, canModerate, canMention, focusedThreadId, mentionNames, currentUserId,
   onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
 }) {
   const [reply, setReply] = useState('');
@@ -36,8 +36,8 @@ function ThreadCard({
       catch { return []; }
     },
   });
-  const acceptLogin = (login) => {
-    const { replacement, selectionStart } = picker.accept(login);
+  const acceptCandidate = (candidate) => {
+    const { replacement, selectionStart } = picker.accept(candidate);
     setReply(replacement);
     setTimeout(() => {
       const ta = replyRef.current;
@@ -62,12 +62,18 @@ function ThreadCard({
   return (
     <div className={`comment-thread${isFocused ? ' focused' : ''}`} onClick={() => onFocusThread(thread.id)}>
       <div className="comment-thread-anchor">“{thread.anchor?.exact}”</div>
-      {thread.comments.map((c) => (
-        <div key={c.id} className="comment-item">
-          <span className="comment-author">{c.author}</span>
-          <CommentBody body={c.body} />
-        </div>
-      ))}
+      {thread.comments.map((c) => {
+        // `author` is a display name; `authorId` is the opaque uid the viewer's own
+        // `user.userId` is compared with. Anonymous viewers have no id, so nothing is "mine".
+        const mine = !!currentUserId && c.authorId === currentUserId;
+        return (
+          <div key={c.id} className={`comment-item${mine ? ' mine' : ''}`}>
+            <span className="comment-author">{c.author}</span>
+            {mine && <span className="comment-author-you">(you)</span>}
+            <CommentBody body={c.body} mentionNames={mentionNames} />
+          </div>
+        );
+      })}
       {confirmingDelete ? (
         <div className="comment-thread-confirm" onClick={(e) => e.stopPropagation()}>
           <span className="comment-thread-confirm-text">Delete this thread permanently?</span>
@@ -102,7 +108,7 @@ function ThreadCard({
               if (picker.onKeyDown(e)) {
                 if (e.key === 'Enter' || e.key === 'Tab') {
                   const sel = picker.candidates[picker.selectedIndex];
-                  if (sel) acceptLogin(sel.loginName);
+                  if (sel) acceptCandidate(sel);
                 }
                 return;
               }
@@ -118,7 +124,7 @@ function ThreadCard({
             open={picker.open}
             candidates={picker.candidates}
             selectedIndex={picker.selectedIndex}
-            onSelect={acceptLogin}
+            onSelect={acceptCandidate}
             anchorPos={picker.anchorPos}
           />
         </div>
@@ -136,7 +142,7 @@ function ThreadCard({
 
 export default function CommentsDrawer({
   open, threads, detachedIds = [], statusFilter, canModerate = false,
-  canMention = false, focusedThreadId = null,
+  canMention = false, focusedThreadId = null, mentionNames = {}, currentUserId = null,
   onStatusFilter, onReply, onResolve, onReopen, onDeleteThread = () => {},
   onFocusThread, onClose,
 }) {
@@ -150,7 +156,8 @@ export default function CommentsDrawer({
   const attached = visible.filter((t) => !isDetached(t.id));
   const detached = visible.filter((t) => isDetached(t.id));
   const cardProps = {
-    canModerate, canMention, focusedThreadId, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
+    canModerate, canMention, focusedThreadId, mentionNames, currentUserId,
+    onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
   };
 
   return (

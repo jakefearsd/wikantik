@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 /** Dumb popover for @-mention autocomplete. Driven entirely by props from
- *  the useMentionPicker hook. */
+ *  the useMentionPicker hook. Candidates are `{ id, displayName }`: members are
+ *  shown to each other by display name only — never by login name. */
 export default function MentionPicker({ open, candidates, selectedIndex, onSelect, anchorPos }) {
   const listRef = useRef(null);
 
@@ -24,18 +25,15 @@ export default function MentionPicker({ open, candidates, selectedIndex, onSelec
     <div className="mention-picker" style={style} ref={listRef} role="listbox" aria-label="User mentions">
       {candidates.map((c, idx) => (
         <button
-          key={c.loginName}
+          key={c.id}
           type="button"
           role="option"
           aria-selected={idx === selectedIndex}
           className={`mention-picker-item ${idx === selectedIndex ? 'active' : ''}`}
           // onMouseDown (not onClick) so the textarea doesn't lose focus first.
-          onMouseDown={(e) => { e.preventDefault(); onSelect(c.loginName); }}
+          onMouseDown={(e) => { e.preventDefault(); onSelect(c); }}
         >
-          <span className="mention-picker-login">@{c.loginName}</span>
-          {c.fullName && c.fullName !== c.loginName && (
-            <span className="mention-picker-fullname"> {c.fullName}</span>
-          )}
+          <span className="mention-picker-name">@{c.displayName}</span>
         </button>
       ))}
     </div>

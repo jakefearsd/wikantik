@@ -8,11 +8,12 @@ vi.mock('../api/client', () => ({
 }));
 vi.mock('../utils/caretCoords', () => ({ getCaretCoordinates: vi.fn(() => ({ top: 1, left: 2 })) }));
 
+// The API returns display names (`author`, `createdBy`) and opaque uids (`authorId`, `createdById`).
 const threads = [
-  { id: 'T1', status: 'open', anchor: { exact: 'alpha' }, createdBy: 'alice',
-    comments: [{ id: 'C1', author: 'alice', body: 'first note' }] },
-  { id: 'T2', status: 'resolved', anchor: { exact: 'beta' }, createdBy: 'bob',
-    comments: [{ id: 'C2', author: 'bob', body: 'done note' }] },
+  { id: 'T1', status: 'open', anchor: { exact: 'alpha' }, createdBy: 'Alice A', createdById: 'u-alice',
+    comments: [{ id: 'C1', author: 'Alice A', authorId: 'u-alice', body: 'first note' }] },
+  { id: 'T2', status: 'resolved', anchor: { exact: 'beta' }, createdBy: 'Bob B', createdById: 'u-bob',
+    comments: [{ id: 'C2', author: 'Bob B', authorId: 'u-bob', body: 'done note' }] },
 ];
 
 function setup(extra = {}) {
@@ -128,6 +129,51 @@ describe('CommentsDrawer', () => {
     expect(screen.getByText('No comments yet.')).toBeTruthy();
   });
 
+  describe('display names and "mine"', () => {
+    it('shows the display name of each comment author', () => {
+      setup({ statusFilter: 'all' });
+      expect(screen.getByText('Alice A')).toBeTruthy();
+      expect(screen.getByText('Bob B')).toBeTruthy();
+    });
+
+    it('marks the viewer\'s own comment when authorId matches user.userId', () => {
+      const { container } = setup({ statusFilter: 'all', currentUserId: 'u-alice' });
+      const mine = container.querySelectorAll('.comment-item.mine');
+      expect(mine).toHaveLength(1);
+      expect(mine[0].textContent).toContain('first note');
+      expect(mine[0].querySelector('.comment-author-you').textContent).toBe('(you)');
+    });
+
+    it('marks nothing as mine for an anonymous viewer', () => {
+      const { container } = setup({ statusFilter: 'all', currentUserId: null });
+      expect(container.querySelector('.comment-item.mine')).toBeNull();
+      expect(screen.queryByText('(you)')).toBeNull();
+    });
+
+    it('compares ids, not names: a different member with the same display name is not mine', () => {
+      const lookalike = [{ id: 'T9', status: 'open', anchor: { exact: 'x' },
+        comments: [{ id: 'C9', author: 'Alice A', authorId: 'u-impostor', body: 'hello' }] }];
+      const { container } = setup({ statusFilter: 'open', threads: lookalike, currentUserId: 'u-alice' });
+      expect(container.querySelector('.comment-item.mine')).toBeNull();
+    });
+
+    it('a comment without an authorId (legacy author) is never mine', () => {
+      const legacy = [{ id: 'T8', status: 'open', anchor: { exact: 'x' },
+        comments: [{ id: 'C8', author: 'Old Name', body: 'legacy' }] }];
+      const { container } = setup({ statusFilter: 'open', threads: legacy, currentUserId: 'u-alice' });
+      expect(container.querySelector('.comment-item.mine')).toBeNull();
+    });
+
+    it('renders mention chips with the current name from mentionNames', () => {
+      const withMention = [{ id: 'T7', status: 'open', anchor: { exact: 'x' },
+        comments: [{ id: 'C7', author: 'Bob B', authorId: 'u-bob', body: 'cc @[Old Name](user:u-carol)' }] }];
+      const { container } = setup({
+        statusFilter: 'open', threads: withMention, mentionNames: { 'u-carol': 'Carol C' },
+      });
+      expect(container.querySelector('.comment-mention-chip').textContent).toBe('@Carol C');
+    });
+  });
+
   describe('@-mention autocomplete (signed-in only)', () => {
     afterEach(() => {
       vi.useRealTimers();
@@ -138,7 +184,7 @@ describe('CommentsDrawer', () => {
     // picker's 150 ms debounce elapse so any candidate fetch would have fired.
     async function typeMention() {
       vi.useFakeTimers();
-      api.listMentionableUsers.mockResolvedValue({ users: [{ loginName: 'alice', fullName: 'Alice A' }] });
+      api.listMentionableUsers.mockResolvedValue({ users: [{ id: 'u-alice', displayName: 'Alice A' }] });
       const reply = screen.getByPlaceholderText(/reply/i);
       fireEvent.change(reply, { target: { value: 'hi @al', selectionStart: 6, selectionEnd: 6 } });
       await act(async () => { await vi.advanceTimersByTimeAsync(400); });
@@ -148,6 +194,15 @@ describe('CommentsDrawer', () => {
       setup({ statusFilter: 'open', canMention: true });
       await typeMention();
       expect(api.listMentionableUsers).toHaveBeenCalledWith('al');
+    });
+
+    it('picking a candidate with Enter inserts the stored token, not a login name', async () => {
+      setup({ statusFilter: 'open', canMention: true });
+      await typeMention();
+      const reply = screen.getByPlaceholderText(/reply/i);
+      fireEvent.keyDown(reply, { key: 'Enter' });
+      await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+      expect(reply.value).toBe('hi @[Alice A](user:u-alice) ');
     });
 
     it('never calls the mentionable-users endpoint for an anonymous viewer', async () => {

@@ -228,7 +228,10 @@ export const api = {
   deleteCommentThread: (threadId) =>
     request(`/api/comment-threads/${encodeURIComponent(threadId)}`, { method: 'DELETE' }),
 
-  // Mentions + mentionable users
+  // Mentions + mentionable users. Members are identified by display name and an opaque uid, never by login:
+  //   listMentionableUsers -> { users: [{ id, displayName }] }, matched on display name only
+  //   listMyMentions       -> { mentions: [{ ..., mentionedBy: <display name>, snippet: <absent when the page is no longer viewable> }] }
+  //   listCommentThreads   -> { threads: [...], mentions: { <uid>: <current display name> } }
   listMentionableUsers: (q, limit = 8) =>
     request(`/api/users/mentionable?q=${encodeURIComponent(q)}&limit=${limit}`),
 

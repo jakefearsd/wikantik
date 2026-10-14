@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useToast } from '../hooks/useToast';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { formatRelative } from '../utils/datetime';
+import { flattenMentions } from '../utils/mentionTokens';
 import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
 
@@ -123,7 +124,7 @@ export default function MentionsPage() {
             style={{ animationDelay: i < 10 ? `${i * 40}ms` : '400ms' }}
           >
             <div className="mentions-item-meta">
-              <span className="mentions-item-author">@{m.mentionedBy}</span>
+              <span className="mentions-item-author">{m.mentionedBy}</span>
               <span className="mentions-item-context">
                 on <Link
                   to={`/wiki/${encodeURIComponent(m.pageName)}?thread=${encodeURIComponent(m.threadId)}&comment=${encodeURIComponent(m.commentId)}`}
@@ -141,7 +142,14 @@ export default function MentionsPage() {
                 >✕</button>
               )}
             </div>
-            <div className="mentions-item-snippet">&quot;{m.snippet}&quot;</div>
+            {m.snippet ? (
+              <div className="mentions-item-snippet">&quot;{flattenMentions(m.snippet)}&quot;</div>
+            ) : (
+              // The server omits the snippet when the viewer can no longer see the page.
+              <div className="mentions-item-snippet">
+                You can no longer view this comment.
+              </div>
+            )}
           </li>
         ))}
       </ul>

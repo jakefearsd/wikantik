@@ -880,6 +880,16 @@ describe('PageView comment composer @-mention autocomplete', () => {
     expect(api.listMentionableUsers).toHaveBeenCalledWith('al');
   }, TEST_TIMEOUT);
 
+  it('picking a candidate inserts the stored display-name token into the composer', async () => {
+    api.listMentionableUsers.mockResolvedValue({ users: [{ id: 'u-alice', displayName: 'Alice A' }] });
+    const { container } = await mountAndSettle();
+    await typeMentionInComposer(container);
+    const textarea = screen.getByPlaceholderText('Add a comment');
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(textarea.value).toBe('hi @[Alice A](user:u-alice) ');
+  }, TEST_TIMEOUT);
+
   it('anonymous viewer: typing @al never queries the mentionable-users endpoint', async () => {
     // /api/users/mentionable answers 401 to anonymous callers (login names are email
     // addresses under SSO), and a 401 would fire the global re-auth event on every keystroke.
@@ -891,5 +901,50 @@ describe('PageView comment composer @-mention autocomplete', () => {
     });
     await typeMentionInComposer(container);
     expect(api.listMentionableUsers).not.toHaveBeenCalled();
+  }, TEST_TIMEOUT);
+});
+
+describe('PageView display names in comments', () => {
+  const MENTION_THREAD = {
+    id: 'T5',
+    status: 'open',
+    anchor: { exact: 'quick brown', prefix: 'The ', suffix: ' fox' },
+    comments: [
+      { id: 'C5', author: 'Bob B', authorId: 'u-bob', body: 'cc @[Old Name](user:u-carol)', createdAt: '2026-01-01T00:00:00Z' },
+      { id: 'C6', author: 'Alice A', authorId: 'u-alice', body: 'mine', createdAt: '2026-01-02T00:00:00Z' },
+    ],
+  };
+
+  it('passes the mentions map to the drawer so chips show the current display name', async () => {
+    api.listCommentThreads.mockResolvedValue({ threads: [MENTION_THREAD], mentions: { 'u-carol': 'Carol C' } });
+    const { container } = await mountAndSettle();
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    await waitFor(() => expect(container.querySelector('.comment-mention-chip')?.textContent).toBe('@Carol C'));
+  }, TEST_TIMEOUT);
+
+  it('renders a token as plain @snapshot text, not a chip, when the response carries no mentions map', async () => {
+    api.listCommentThreads.mockResolvedValue({ threads: [MENTION_THREAD] });
+    const { container } = await mountAndSettle();
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    await waitFor(() => expect(container.querySelector('.comment-item')?.textContent).toContain('cc @Old Name'));
+    expect(container.querySelector('.comment-mention-chip')).toBeNull();
+  }, TEST_TIMEOUT);
+
+  it('marks the signed-in member\'s own comment using user.userId from /api/auth/user', async () => {
+    api.getUser.mockResolvedValue({ authenticated: true, username: 'Alice A', userId: 'u-alice', roles: [] });
+    api.listCommentThreads.mockResolvedValue({ threads: [MENTION_THREAD], mentions: {} });
+    const { container } = await mountAndSettle();
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    await waitFor(() => expect(container.querySelectorAll('.comment-item.mine')).toHaveLength(1));
+    expect(container.querySelector('.comment-item.mine').textContent).toContain('mine');
+  }, TEST_TIMEOUT);
+
+  it('an anonymous viewer never has a comment marked as theirs', async () => {
+    api.getUser.mockResolvedValue({ authenticated: false, roles: [] });
+    api.listCommentThreads.mockResolvedValue({ threads: [MENTION_THREAD], mentions: {} });
+    const { container } = renderPageView();
+    fireEvent.click(await screen.findByTestId('comments-toggle-button'));
+    await waitFor(() => expect(container.querySelectorAll('.comment-item').length).toBeGreaterThan(0));
+    expect(container.querySelector('.comment-item.mine')).toBeNull();
   }, TEST_TIMEOUT);
 });

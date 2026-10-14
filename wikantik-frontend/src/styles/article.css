@@ -244,6 +244,7 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
 .comment-thread-anchor { font-size: 12px; color: #64748b; font-style: italic; margin-bottom: 6px; }
 .comment-item { font-size: 13px; margin-bottom: 4px; }
 .comment-author { font-weight: 600; margin-right: 6px; }
+.comment-author-you { color: var(--text-secondary); font-size: 12px; margin-right: 6px; }
 .comment-reply-row { display: flex; gap: 6px; margin-top: 6px; }
 
 /* Multi-line auto-growing reply: same behaviour as the comment composer
@@ -452,10 +453,9 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
 }
 .mention-picker-item.active,
 .mention-picker-item:hover { background: var(--sage-light); }
-.mention-picker-login { font-weight: 600; }
-.mention-picker-fullname { color: var(--text-secondary); }
+.mention-picker-name { font-weight: 600; }
 
-/* Comment @-mention chip linking to /wiki/Users/<login>. */
+/* Comment @-mention chip: the member's display name. Not a link — members have no profile page. */
 .comment-mention-chip {
   display: inline-block;
   padding: 0 6px;
@@ -463,10 +463,8 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
   border-radius: 4px;
   background: var(--sage-light);
   color: var(--text);
-  text-decoration: none;
   font-weight: 600;
 }
-.comment-mention-chip:hover { background: var(--border-strong); }
 
 /* ── Code-copy button ─────────────────────────────────────────────── */
 .article-prose pre { position: relative; }

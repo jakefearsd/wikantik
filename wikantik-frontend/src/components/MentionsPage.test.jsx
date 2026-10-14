@@ -22,8 +22,8 @@ const SAMPLE = [
   {
     id: 'm1', threadId: 't1', commentId: 'c1',
     canonicalId: 'CID1', pageName: 'Foo',
-    snippet: 'hi @alice please',
-    mentionedBy: 'bob',
+    snippet: 'hi @[Alice A](user:u-alice) please',
+    mentionedBy: 'Bob B',
     isOwnerMention: false,
     mentionedAt: '2026-05-28T00:00:00Z',
     readAt: null,
@@ -32,7 +32,7 @@ const SAMPLE = [
     id: 'm2', threadId: 't2', commentId: 'c2',
     canonicalId: 'CID2', pageName: 'Bar',
     snippet: 'thx',
-    mentionedBy: 'carol',
+    mentionedBy: 'Carol C',
     isOwnerMention: true,
     mentionedAt: '2026-05-27T00:00:00Z',
     readAt: null,
@@ -59,10 +59,39 @@ describe('MentionsPage', () => {
   it('renders mentions list on mount with default unread filter', async () => {
     renderPage();
     await waitFor(() => expect(api.listMyMentions).toHaveBeenCalledWith({ status: 'unread', limit: 50 }));
-    expect(screen.getByText(/hi @alice please/)).toBeTruthy();
+    expect(screen.getByText(/hi @Alice A please/)).toBeTruthy();
     expect(screen.getByText(/thx/)).toBeTruthy();
     // Owner mention has "(your page)" tag.
     expect(screen.getByText('(your page)')).toBeTruthy();
+  });
+
+  it('shows the display name of who mentioned you, without a login-style @ prefix', async () => {
+    renderPage();
+    expect(await screen.findByText('Bob B')).toBeTruthy();
+    expect(screen.getByText('Carol C')).toBeTruthy();
+    expect(screen.queryByText('@Bob B')).toBeNull();
+  });
+
+  it('renders mention tokens in the snippet as plain @Display Name text', async () => {
+    renderPage();
+    const snippet = await screen.findByText(/hi @Alice A please/);
+    expect(snippet.textContent).not.toContain('user:');
+    expect(snippet.textContent).not.toContain('[');
+  });
+
+  it('drops a token cut off by the server snippet length', async () => {
+    api.listMyMentions.mockResolvedValue({ mentions: [{
+      ...SAMPLE[0], snippet: 'see @[Alice A](user:u-alice) and @[Bob B](user:u-',
+    }] });
+    renderPage();
+    expect(await screen.findByText(/see @Alice A and …/)).toBeTruthy();
+  });
+
+  it('shows a notice instead of a snippet when the server omitted it', async () => {
+    api.listMyMentions.mockResolvedValue({ mentions: [{ ...SAMPLE[0], snippet: undefined }] });
+    renderPage();
+    expect(await screen.findByText('You can no longer view this comment.')).toBeTruthy();
+    expect(screen.queryByText(/hi @/)).toBeNull();
   });
 
   it('filter toggle re-fetches with the chosen status', async () => {
@@ -74,7 +103,7 @@ describe('MentionsPage', () => {
 
   it('dismiss (X) on a row calls markMentionRead and reloads', async () => {
     renderPage();
-    expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
+    expect(await screen.findByText(/hi @Alice A please/)).toBeTruthy();
     const dismissButtons = screen.getAllByTitle('Mark read');
     fireEvent.click(dismissButtons[0]);
     await waitFor(() => expect(api.markMentionRead).toHaveBeenCalledWith('m1'));
@@ -106,7 +135,7 @@ describe('MentionsPage', () => {
 
   it('view-in-context link goes to /wiki/<page>?thread=...&comment=...', async () => {
     renderPage();
-    expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
+    expect(await screen.findByText(/hi @Alice A please/)).toBeTruthy();
     const links = screen.getAllByRole('link');
     const fooLink = links.find((l) => l.textContent === 'Foo');
     expect(fooLink.getAttribute('href')).toContain('/wiki/Foo?thread=t1&comment=c1');
@@ -119,7 +148,7 @@ describe('MentionsPage', () => {
       api.markMentionRead.mockReturnValue(new Promise(res => { resolveMarkOne = res; }));
 
       renderPage();
-      expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
+      expect(await screen.findByText(/hi @Alice A please/)).toBeTruthy();
 
       // Item m1 is unread — dismiss button visible
       const dismissButtons = screen.getAllByTitle('Mark read');
@@ -148,7 +177,7 @@ describe('MentionsPage', () => {
       api.markMentionRead.mockRejectedValue(new Error('network error'));
 
       renderPage();
-      expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
+      expect(await screen.findByText(/hi @Alice A please/)).toBeTruthy();
 
       const dismissButtons = screen.getAllByTitle('Mark read');
       const initialCount = dismissButtons.length;

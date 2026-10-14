@@ -1,36 +1,26 @@
-import React from 'react';
+import { splitMentions } from '../utils/mentionTokens';
 
-// Same regex used by the server-side MentionExtractor: requires a non-word
-// char (or start-of-string) before the @, captures the login.
-const TOKEN_RE = /(?:^|\W)@([A-Za-z0-9._-]+)/g;
-
-export default function CommentBody({ body }) {
+/**
+ * Renders a comment body. A mention token (`@[Display Name](user:<uid>)`) becomes a
+ * chip showing the member's CURRENT display name from `mentionNames` (the
+ * comment-threads response carries `mentions: {uid: displayName}`).
+ *
+ * The name inside the token is only a snapshot, and anyone can type a token with
+ * any name and any uid, so it is never shown as a chip: a uid the server did not
+ * resolve renders as plain `@snapshot` text. A legacy `@login` is plain text too;
+ * there is no profile page to link to.
+ */
+export default function CommentBody({ body, mentionNames = {} }) {
   if (!body) return null;
-  const parts = [];
-  let lastIndex = 0;
-  // matchAll clones TOKEN_RE (per spec, RegExp[Symbol.matchAll] constructs a
-  // fresh matcher from it) instead of mutating its shared `lastIndex`, so
-  // concurrent renders of multiple CommentBody instances can't corrupt each
-  // other's scan position.
-  for (const match of body.matchAll(TOKEN_RE)) {
-    const login = match[1];
-    // The @ position inside the match: if the match starts at 0 and the body
-    // starts with @, the @ is at match.index; otherwise the leading char is
-    // the non-word char (e.g. ' '), so the @ is at match.index + 1.
-    const atIndex = body.charAt(match.index) === '@' ? match.index : match.index + 1;
-    // Append plain text before this mention.
-    if (atIndex > lastIndex) parts.push(body.substring(lastIndex, atIndex));
-    parts.push(
-      <a
-        key={`m-${parts.length}-${login}`}
-        href={`/wiki/Users/${encodeURIComponent(login)}`}
-        className="comment-mention-chip"
-      >
-        @{login}
-      </a>
+  const parts = splitMentions(body).map((segment, i) => {
+    if (segment.type === 'text') return segment.text;
+    const currentName = mentionNames[segment.uid];
+    if (!currentName) return `@${segment.snapshot}`;
+    return (
+      <span key={`m-${i}-${segment.uid}`} className="comment-mention-chip" data-user-id={segment.uid}>
+        @{currentName}
+      </span>
     );
-    lastIndex = atIndex + 1 + login.length;
-  }
-  if (lastIndex < body.length) parts.push(body.substring(lastIndex));
+  });
   return <span className="comment-body">{parts}</span>;
 }

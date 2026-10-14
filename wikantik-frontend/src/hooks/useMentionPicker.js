@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCaretCoordinates } from '../utils/caretCoords';
+import { buildMentionToken } from '../utils/mentionTokens';
 
 /**
  * Pure-logic hook for tracking an in-flight `@<token>` mention under a
@@ -10,21 +11,25 @@ import { getCaretCoordinates } from '../utils/caretCoords';
  *   const picker = useMentionPicker({ textareaRef, fetchCandidates });
  *
  *   textareaRef:      React ref to the host textarea element.
- *   fetchCandidates:  (query: string) => Promise<[{loginName, fullName}]>
+ *   fetchCandidates:  (query: string) => Promise<[{id, displayName}]>
  *
  * Returns:
  *   open:           boolean — whether to render a popover
- *   candidates:     [{loginName, fullName}] — current candidates
+ *   candidates:     [{id, displayName}] — current candidates
  *   selectedIndex:  number — highlighted candidate in the list
- *   query:          string — substring being matched (the chars after the last '@')
+ *   query:          string — fragment of a display name being matched (the chars after the last '@')
  *   anchorPos:      { top, left } | null — caret position for popover anchoring
  *   onKeyDown(ev):  boolean — handles keyboard nav; returns true if consumed
  *   onChange(ev):   void — call from textarea's onChange to update picker state
- *   accept(login):  { replacement, selectionStart, selectionEnd } — apply selection
+ *   accept(candidate): { replacement, selectionStart, selectionEnd } — apply selection;
+ *                   inserts the stored token `@[Display Name](user:<id>) `
  *   close():        void — manually close (e.g., on blur)
  */
 
-const TOKEN_RE = /^[A-Za-z0-9._-]*$/;
+// What a member may have typed after the '@': part of a display name. Letters and digits of
+// any script, plus the punctuation names commonly carry. Brackets, parentheses and colons are
+// excluded so a caret resting inside an already-inserted `@[Name](user:id)` token closes the picker.
+const TOKEN_RE = /^[\p{L}\p{N}._'’-]*$/u;
 
 export function useMentionPicker({ textareaRef, fetchCandidates }) {
   const [state, setState] = useState({
@@ -133,12 +138,12 @@ export function useMentionPicker({ textareaRef, fetchCandidates }) {
     }
     if (event.key === 'Enter' || event.key === 'Tab') {
       event.preventDefault();
-      return true; // caller handles via accept(selectedLogin)
+      return true; // caller handles via accept(selectedCandidate)
     }
     return false;
   }, [state.open, close]);
 
-  const accept = useCallback((login) => {
+  const accept = useCallback((candidate) => {
     const ta = textareaRef.current;
     if (!ta) {
       return { replacement: '', selectionStart: 0, selectionEnd: 0 };
@@ -147,7 +152,7 @@ export function useMentionPicker({ textareaRef, fetchCandidates }) {
     const value = ta.value;
     const before = tokenStart >= 0 ? value.substring(0, tokenStart) : value;
     const after = tokenEnd >= 0 ? value.substring(tokenEnd) : '';
-    const inserted = `@${login} `;
+    const inserted = `${buildMentionToken(candidate.id, candidate.displayName)} `;
     const replacement = before + inserted + after;
     const caretAfter = (before + inserted).length;
     close();

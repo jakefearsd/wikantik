@@ -33,8 +33,10 @@ import java.util.Objects;
  * <p>What counts as a directive mirrors {@code DefaultAclManager}, which this module cannot depend on: the
  * <code>[{ALLOW &lt;permission&gt; &lt;principals&gt;}]</code> span, where the permission is one of the seven page
  * permissions, found by {@link AclDirectiveScanner} (linear time, match for match identical to the ACL manager's
- * expression). {@code DENY} is recognised too, and the spelling plugin normalisation produces
- * ({@code [{ALLOW view All}]()}) goes together with its empty {@code ()}. The pass is code-aware in the same way the
+ * expression). {@code DENY} is recognised too, the spelling plugin normalisation produces
+ * ({@code [{ALLOW view All}]()}) goes together with its empty {@code ()}, and — because the renderer reads a link
+ * label that spans lines as readily as a one-line one — so does a directive wrapped over several lines
+ * (<code>[{ALLOW edit alice,\n bob}]</code>), which the enforcement expression does not match. The pass is code-aware in the same way the
  * ACL manager is: the identical text inside a fenced code block or an inline code span is documentation, not a rule,
  * and is kept.
  *
@@ -100,17 +102,19 @@ public final class AclDirectives {
 
     /** One left-to-right pass; {@code null} when no directive outside code was found. */
     private static String stripOnce( final String text, final String replacement ) {
-        final AclDirectiveScanner scanner = new AclDirectiveScanner( text, true );
+        // Wide mode: this pass only hides, and the renderer hands a directive wrapped over several lines to the ACL
+        // parser as readily as a one-line one, so the multi-line shape must go too.
+        final AclDirectiveScanner scanner = new AclDirectiveScanner( text, true, true );
         AclDirectiveScanner.Span span = scanner.next( 0 );
         if ( span == null ) {
             return null;
         }
-        final List< int[] > code = codeRegions( text );
+        final OffsetRanges code = OffsetRanges.of( codeRegions( text ) );
         final StringBuilder out = new StringBuilder( text.length() );
         int copiedTo = 0;
         boolean changed = false;
         while ( span != null ) {
-            if ( insideCode( code, span.start() ) ) {
+            if ( code.contains( span.start() ) ) {
                 // A candidate that starts in code is skipped, and the search resumes just past its start rather than
                 // at its end: it was found by the lazy run to the first closer, which can swallow a real directive
                 // that begins inside the code (`[{DENY view x` followed by a real [{ALLOW …}]).
@@ -142,15 +146,6 @@ public final class AclDirectives {
             lineStart = lineEnd + 1;
         }
         return regions;
-    }
-
-    private static boolean insideCode( final List< int[] > regions, final int offset ) {
-        for ( final int[] region : regions ) {
-            if ( offset >= region[ 0 ] && offset < region[ 1 ] ) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /** A run of three or more {@code `} or {@code ~} that starts a line, and where it ends. */

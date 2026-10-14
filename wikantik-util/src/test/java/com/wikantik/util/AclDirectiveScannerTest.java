@@ -49,6 +49,10 @@ class AclDirectiveScannerTest {
     private static final Pattern ORACLE_ANY = Pattern.compile(
             "\\[\\{\\s*(ALLOW|DENY)\\s+(comment|delete|edit|modify|rename|upload|view)\\s*(.*?)\\s*\\}\\]" );
 
+    /** Wide mode is the same expression with {@code .} allowed to match a line terminator. */
+    private static final Pattern ORACLE_ALLOW_WIDE = Pattern.compile( ORACLE_ALLOW.pattern(), Pattern.DOTALL );
+    private static final Pattern ORACLE_ANY_WIDE = Pattern.compile( ORACLE_ANY.pattern(), Pattern.DOTALL );
+
     private static final long SEED = 0x5CA77E4L;
     private static final int RANDOM_INPUTS = 40_000;
 
@@ -63,23 +67,53 @@ class AclDirectiveScannerTest {
     private record Hit( int start, int end, String keyword, String permission, int principalsStart, int principalsEnd ) {
     }
 
+    private static Pattern oraclePattern( final boolean includeDeny, final boolean wide ) {
+        if ( wide ) {
+            return includeDeny ? ORACLE_ANY_WIDE : ORACLE_ALLOW_WIDE;
+        }
+        return includeDeny ? ORACLE_ANY : ORACLE_ALLOW;
+    }
+
+    private static Hit hit( final Matcher m, final boolean includeDeny ) {
+        final int g = includeDeny ? 1 : 0;
+        return new Hit( m.start(), m.end(), includeDeny ? m.group( 1 ) : "ALLOW", m.group( 1 + g ),
+                m.start( 2 + g ), m.end( 2 + g ) );
+    }
+
     private static List< Hit > oracle( final String text, final boolean includeDeny ) {
+        return oracle( text, includeDeny, false );
+    }
+
+    private static List< Hit > oracle( final String text, final boolean includeDeny, final boolean wide ) {
         final List< Hit > hits = new ArrayList<>();
-        final Matcher m = ( includeDeny ? ORACLE_ANY : ORACLE_ALLOW ).matcher( text );
+        final Matcher m = oraclePattern( includeDeny, wide ).matcher( text );
         while ( m.find() ) {
-            final int g = includeDeny ? 1 : 0;
-            hits.add( new Hit( m.start(), m.end(), includeDeny ? m.group( 1 ) : "ALLOW", m.group( 1 + g ),
-                    m.start( 2 + g ), m.end( 2 + g ) ) );
+            hits.add( hit( m, includeDeny ) );
         }
         return hits;
     }
 
+    private static Hit hit( final AclDirectiveScanner.Span s ) {
+        return s == null ? null
+                : new Hit( s.start(), s.end(), s.keyword(), s.permission(), s.principalsStart(), s.principalsEnd() );
+    }
+
     private static List< Hit > scanned( final String text, final boolean includeDeny ) {
+        return scanned( text, includeDeny, false );
+    }
+
+    private static List< Hit > scanned( final String text, final boolean includeDeny, final boolean wide ) {
         final List< Hit > hits = new ArrayList<>();
-        for ( final AclDirectiveScanner.Span s : AclDirectiveScanner.findAll( text, includeDeny ) ) {
-            hits.add( new Hit( s.start(), s.end(), s.keyword(), s.permission(), s.principalsStart(), s.principalsEnd() ) );
+        for ( final AclDirectiveScanner.Span s : AclDirectiveScanner.findAll( text, includeDeny, wide ) ) {
+            hits.add( hit( s ) );
         }
         return hits;
+    }
+
+    /** What {@code Matcher.find( from )} reports on the oracle: the first match that starts at or after {@code from}. */
+    private static Hit oracleFindFrom( final String text, final int from, final boolean includeDeny, final boolean wide ) {
+        final Matcher m = oraclePattern( includeDeny, wide ).matcher( text );
+        return from <= text.length() && m.find( from ) ? hit( m, includeDeny ) : null;
     }
 
     private static String printable( final String text ) {
@@ -113,6 +147,45 @@ class AclDirectiveScannerTest {
             final String text = randomText( random );
             assertEquals( oracle( text, true ), scanned( text, true ),
                     "input #" + i + " (seed " + ( SEED + 1 ) + "): " + printable( text ) );
+        }
+    }
+
+    @Test
+    void wideModeIsTheOriginalExpressionCompiledWithDotAll() {
+        final Random random = new Random( SEED + 2 );
+        for ( int i = 0; i < RANDOM_INPUTS; i++ ) {
+            final String text = randomText( random );
+            for ( final boolean includeDeny : new boolean[]{ false, true } ) {
+                assertEquals( oracle( text, includeDeny, true ), scanned( text, includeDeny, true ),
+                        "input #" + i + " (seed " + ( SEED + 2 ) + ", deny " + includeDeny + "): " + printable( text ) );
+            }
+        }
+    }
+
+    @Test
+    void searchingFromAnyPointFindsWhatMatcherFindFromFinds() {
+        // The util pass drives the scanner with next( end ) after a removal and next( start + 1 ) after a skipped
+        // candidate; both must agree with Matcher.find( from ) on the original expression, in either mode.
+        final Random random = new Random( SEED + 3 );
+        for ( int i = 0; i < RANDOM_INPUTS / 2; i++ ) {
+            final String text = randomText( random );
+            for ( final boolean wide : new boolean[]{ false, true } ) {
+                final boolean includeDeny = random.nextBoolean();
+                final AclDirectiveScanner scanner = new AclDirectiveScanner( text, includeDeny, wide );
+                int from = 0;
+                int steps = 0;
+                while ( true ) {
+                    final Hit expected = oracleFindFrom( text, from, includeDeny, wide );
+                    final Hit actual = hit( scanner.next( from ) );
+                    assertEquals( expected, actual, "input #" + i + " (seed " + ( SEED + 3 ) + ", wide " + wide
+                            + ", deny " + includeDeny + ") from " + from + " after " + steps + " steps: " + printable( text ) );
+                    if ( expected == null ) {
+                        break;
+                    }
+                    from = random.nextBoolean() ? expected.end() : expected.start() + 1;
+                    steps++;
+                }
+            }
         }
     }
 
@@ -254,7 +327,8 @@ class AclDirectiveScannerTest {
         final String openers = "[{ALLOW edit alice ".repeat( 40_000 ) + "\nx}]";
         assertTimeoutPreemptively( BUDGET, () -> {
             assertEquals( spaces, AclDirectives.strip( spaces ) );
-            assertEquals( openers, AclDirectives.strip( openers ) );
+            // The util pass reads the multi-line shape, so the first opener runs to the only closer, at the very end.
+            assertEquals( "", AclDirectives.strip( openers ) );
         } );
     }
 }

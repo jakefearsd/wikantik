@@ -46,6 +46,13 @@ import java.util.List;
  * closer, next line terminator, whitespace run before a closer), so overlapping candidates that share a closer are
  * decided in constant time each rather than by rescanning.
  *
+ * <p><b>Wide mode.</b> The wiki's renderer recognises a wider shape than the enforcement expression does: a link label
+ * <code>[{ALLOW edit alice@example.test,\n bob@example.test}]</code> may run over several lines, and the render
+ * path hands it to the ACL parser. A caller that only <em>hides</em> directives (never enforces) asks for wide mode,
+ * which drops the line-terminator condition: the match is then the first closer after the permission, whatever lies
+ * between. That is the original expression compiled with {@code DOTALL}, and a second differential test pins it.
+ * Enforcement never uses wide mode.
+ *
  * <p>Instances are single-use, not thread-safe, and cheap; use {@link #findAll} for the common case.
  */
 public final class AclDirectiveScanner {
@@ -75,6 +82,7 @@ public final class AclDirectiveScanner {
     private final String text;
     private final int length;
     private final boolean includeDeny;
+    private final boolean lineBreaksInPrincipals;
 
     // Monotone caches. Each remembers "the answer for a query at queryPos" and is valid for any later query up to
     // the answer itself, so a run of overlapping candidates costs one scan between them.
@@ -91,9 +99,21 @@ public final class AclDirectiveScanner {
      *                    {@code false} only {@code ALLOW} is, which is exactly what the ACL manager enforces
      */
     public AclDirectiveScanner( final String text, final boolean includeDeny ) {
+        this( text, includeDeny, false );
+    }
+
+    /**
+     * @param text                   the page text
+     * @param includeDeny            whether a {@code DENY} head is accepted alongside {@code ALLOW}
+     * @param lineBreaksInPrincipals {@code true} for wide mode: line breaks are allowed between the permission and the
+     *                               closer, so a directive wrapped over several lines is found. Only for callers that
+     *                               hide directives; the ACL manager enforces with {@code false}
+     */
+    public AclDirectiveScanner( final String text, final boolean includeDeny, final boolean lineBreaksInPrincipals ) {
         this.text = text;
         this.length = text.length();
         this.includeDeny = includeDeny;
+        this.lineBreaksInPrincipals = lineBreaksInPrincipals;
     }
 
     /**
@@ -105,10 +125,22 @@ public final class AclDirectiveScanner {
      * @return the directives, never {@code null}
      */
     public static List< Span > findAll( final String text, final boolean includeDeny ) {
+        return findAll( text, includeDeny, false );
+    }
+
+    /**
+     * As {@link #findAll(String, boolean)}, optionally in wide mode (see the class comment).
+     *
+     * @param text                   the page text, may be {@code null}
+     * @param includeDeny            whether {@code [{DENY …}]} counts
+     * @param lineBreaksInPrincipals wide mode: a directive may be wrapped over several lines
+     * @return the directives, never {@code null}
+     */
+    public static List< Span > findAll( final String text, final boolean includeDeny, final boolean lineBreaksInPrincipals ) {
         if ( text == null || text.indexOf( OPENER ) < 0 ) {
             return List.of();
         }
-        final AclDirectiveScanner scanner = new AclDirectiveScanner( text, includeDeny );
+        final AclDirectiveScanner scanner = new AclDirectiveScanner( text, includeDeny, lineBreaksInPrincipals );
         final List< Span > found = new ArrayList<>();
         int from = 0;
         for ( Span span = scanner.next( from ); span != null; span = scanner.next( from ) ) {
@@ -172,7 +204,7 @@ public final class AclDirectiveScanner {
             return EXHAUSTED;
         }
         final int principalsEnd = Math.max( principalsStart, whitespaceRunStart( closer ) );
-        if ( terminatorAtOrAfter( principalsStart ) < principalsEnd ) {
+        if ( !lineBreaksInPrincipals && terminatorAtOrAfter( principalsStart ) < principalsEnd ) {
             return null;
         }
         return new Span( opener, closer + CLOSER.length(), keyword, permission, principalsStart, principalsEnd );

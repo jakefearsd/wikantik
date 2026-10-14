@@ -22,10 +22,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.time.Duration;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 /**
  * {@link AclDirectives#strip(String)} removes exactly the access-rule directives
@@ -306,6 +309,54 @@ class AclDirectivesTest {
     @Test
     void aDirectiveBeginningInsideACodeCandidateStillGoesWhenTheCandidateEndsAfterIt() {
         assertEquals( "`[{ALLOW view x`  end", AclDirectives.strip( "`[{ALLOW view x` [{ALLOW edit " + LOGIN + "}] end" ) );
+    }
+
+    // ---- the multi-line shape: the renderer reads a link label that spans lines as readily as a one-line one ----
+
+    @Test
+    void aDirectiveWrappedOverSeveralLinesIsRemoved() {
+        assertEquals( "\nBody.", AclDirectives.strip( "[{ALLOW edit alice@example.test,\n bob@example.test}]\nBody." ) );
+        assertEquals( "x", AclDirectives.strip( "x[{DENY view alice@example.test,\r\n  bob@example.test\r\n}]" ) );
+    }
+
+    @Test
+    void aWrappedDirectiveGoesWithItsEmptyParenthesesAndTheRestOfTheTextIsKept() {
+        assertEquals( "a  b", AclDirectives.strip( "a [{ALLOW view All,\nAdmin}]() b" ) );
+    }
+
+    @Test
+    void aWrappedDirectiveInAClosedFenceIsDocumentationAndStays() {
+        final String fenced = "```\n[{ALLOW edit a,\n b}]\n```\n";
+        assertSame( fenced, AclDirectives.strip( fenced ) );
+    }
+
+    @Test
+    void aWrappedDirectiveInAMultiLineBacktickSpanIsNotTrustedAsCode() {
+        // The scanner does not trust a span that wraps onto a second line (a real parser might pair it differently).
+        assertEquals( "Write it as `` if you must.", AclDirectives.strip( "Write it as `[{ALLOW edit a,\n b}]` if you must." ) );
+    }
+
+    @Test
+    void anOpenerWithAPermissionButNoCloserAtAllIsKept() {
+        final String text = "[{ALLOW edit alice@example.test,\n bob@example.test";
+        assertSame( text, AclDirectives.strip( text ) );
+    }
+
+    @Test
+    void aLineWrappedDirectiveRunsToTheFirstCloserSoOnlyThatSpanGoes() {
+        assertEquals( "head  tail [{TableOfContents}]",
+                AclDirectives.strip( "head [{ALLOW edit a,\nb}] tail [{TableOfContents}]" ) );
+    }
+
+    // ---- running time on a page with very many code spans and very many candidates ----
+
+    @Test
+    void manyCodeSpansAndManyCandidatesAreCheckedInLinearithmicTime() {
+        // Checking each candidate against every code range is quadratic: ~150k x 150k on this 3 MB text.
+        final String unit = "`x` [{ALLOW view a}] ";
+        final String text = unit.repeat( 150_000 );
+        final String expected = "`x`  ".repeat( 150_000 );
+        assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> assertEquals( expected, AclDirectives.strip( text ) ) );
     }
 
     // ---- documented limitation: indented code blocks fail closed ----

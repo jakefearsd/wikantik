@@ -120,6 +120,8 @@ public class DisplayNameLeakProbeIT {
     private static String aclPage;
     private static String ontoPage;
     private static String trickyPage;
+    /** Embeds the tricky page ({@code ![[trickyPage]]}), so its rendered body reaches readers through another page. */
+    private static String embedderPage;
     private static String editedId;
     private static String aclId;
     private static String ontoId;
@@ -152,6 +154,7 @@ public class DisplayNameLeakProbeIT {
         aclPage = "LeakProbeAcl" + rand;
         ontoPage = "LeakProbeOnto" + rand;
         trickyPage = "LeakProbeTricky" + rand;
+        embedderPage = "LeakProbeEmbedder" + rand;
 
         admin = new Client().login( ADMIN_USER, ADMIN_PASSWORD );
         createAccount( probeLogin, probeDisplay );
@@ -176,6 +179,9 @@ public class DisplayNameLeakProbeIT {
         savePage( probe, trickyPage, trickyBody, "first version" );
         savePage( probe, trickyPage, "[{ALLOW view All}]\n\n<details>\n```\n[{ALLOW edit Admin," + probeLogin
                 + "}]\n```\n</details>\n\n" + trickyBody, "adds an access rule inside an HTML block" );
+
+        // embedderPage: a reader sees the tricky page's rendered body through the embed.
+        savePage( probe, embedderPage, "Embeds the tricky page:\n\n![[" + trickyPage + "]]\n", "embeds the tricky page" );
 
         // ontoPage: the editor typed the login as the frontmatter author.
         savePage( probe, ontoPage, "---\ntype: article\nauthor: " + probeLogin + "\n---\n[{ALLOW view All}]\n[{ALLOW edit "
@@ -209,7 +215,7 @@ public class DisplayNameLeakProbeIT {
         if ( admin == null ) {
             return;
         }
-        for ( final String page : new String[] { editedPage, aclPage, trickyPage, ontoPage } ) {
+        for ( final String page : new String[] { editedPage, aclPage, trickyPage, embedderPage, ontoPage } ) {
             quietly( "delete page " + page, () -> admin.delete( "/api/pages/" + page ) );
         }
         for ( final String login : new String[] { probeLogin, viewerLogin } ) {
@@ -426,7 +432,8 @@ public class DisplayNameLeakProbeIT {
             new Surface( "GET /api/me/mentions", "/api/me/mentions?status=all", json, true, probeDisplay, true, true ),
             new Surface( "GET /wiki/{edited}?format=md", "/wiki/" + editedPage + "?format=md", "text/markdown", false, marker, false, true ),
             new Surface( "GET /wiki/{edited}?format=json", "/wiki/" + editedPage + "?format=json", json, false, marker, false, true ),
-            new Surface( "GET /feed.xml", "/feed.xml", "application/atom+xml", false, editedPage, true, false ),
+            // count=100 (the maximum): with the default 20 the fixture pages can fall off a busy IT wiki's feed.
+            new Surface( "GET /feed.xml", "/feed.xml?count=100", "application/atom+xml", false, editedPage, true, false ),
             new Surface( "GET /api/recent-articles", "/api/recent-articles", json, false, editedPage, true, false ),
             // The page that names the probe in its access rule: the rule must be invisible to non-editors.
             new Surface( "GET /api/pages/{acl}", "/api/pages/" + aclPage, json, false, aclPage, true, true ),
@@ -446,6 +453,15 @@ public class DisplayNameLeakProbeIT {
             new Surface( "GET /api/diff/{tricky}?from=1&to=2", "/api/diff/" + trickyPage + "?from=1&to=2", json, false, trickyPage, false, true ),
             new Surface( "GET /api/pages/for-agent/{tricky-id}", "/api/pages/for-agent/" + trickyId, json, false, trickyPage, false, true ),
             new Surface( "GET /api/search (tricky page)", "/api/search?q=" + marker, json, false, trickyPage, false, false ),
+            // Rendered surfaces of the tricky page: the renderer prints a directive inside an HTML block unless display
+            // rendering parses the text without the rules the ACL manager enforces.
+            new Surface( "GET /api/pages/{tricky}?render=true", "/api/pages/" + trickyPage + "?render=true", json, false, trickyPage, true, true ),
+            // The preview's excerpt of this page is empty (removing the rule's line leaves a blank line that ends the HTML
+            // block, and the rest is an unclosed fence, which excerpts skip): the page name is the proof of a real answer.
+            new Surface( "GET /api/pages/{tricky}/preview", "/api/pages/" + trickyPage + "/preview", json, false, trickyPage, false, true ),
+            new Surface( "GET /api/pages/{tricky}/embed", "/api/pages/" + trickyPage + "/embed", json, false, marker, false, true ),
+            new Surface( "GET /wiki/{embedder} (SSR HTML, ![[tricky]])", "/wiki/" + embedderPage, html, false, "tricky access-rule", false, true ),
+            new Surface( "GET /feed.xml (tricky page)", "/feed.xml?count=100", "application/atom+xml", false, trickyPage, true, false ),
             // The server-rendered HTML a browser or crawler gets for a page: head, no-JS body and the
             // window.__WIKANTIK_PAGE__ data island. The island's metadata carries the frontmatter author.
             new Surface( "GET /wiki/{edited} (SSR HTML)", "/wiki/" + editedPage, html, false, marker, false, true ),
@@ -794,9 +810,7 @@ public class DisplayNameLeakProbeIT {
 
     /**
      * Neither a signed-in non-editor nor an anonymous visitor may be handed access-rule text by the page API, for the page
-     * whose directive sits in an HTML block. (Who may edit that page is deliberately not asserted: the render path and the
-     * ACL manager's text scan do not agree on that shape, so the effective ACL depends on whether the page was rendered
-     * first. Neither outcome makes the second user or an anonymous visitor an editor.)
+     * whose directive sits in an HTML block.
      */
     @Test
     void thePageApiHandsNonEditorsNoAccessRuleTextForTheTrickyPage() throws Exception {
@@ -807,6 +821,34 @@ public class DisplayNameLeakProbeIT {
                 assertFalse( resp.body().contains( "ALLOW" ), path + " must carry no access rule text: " + resp.body() );
             }
         }
+    }
+
+    /**
+     * The tricky page's access rule is enforced the same way whatever happened first: render the page (server-side HTML,
+     * the rendered page API, the embed), then ask. The probe, named in the rule, may edit and gets the rule as written;
+     * the second user may not edit and gets none of it. (The render path used to set the page's ACL from the rules it
+     * parsed, dropping the one inside the HTML block until the page cache expired.)
+     */
+    @Test
+    void theTrickyAccessRuleIsEnforcedWhateverWasRenderedFirst() throws Exception {
+        final Client anonymous = new Client();
+        assertEquals( 200, anonymous.get( "/wiki/" + trickyPage, "text/html" ).statusCode() );
+        assertEquals( 200, anonymous.get( "/api/pages/" + trickyPage + "?render=true", "application/json" ).statusCode() );
+        assertEquals( 200, anonymous.get( "/wiki/" + embedderPage, "text/html" ).statusCode() );
+
+        final HttpResponse< String > asProbe = probe.get( "/api/pages/" + trickyPage, "application/json" );
+        assertEquals( 200, asProbe.statusCode(), asProbe.body() );
+        final JsonObject probePage = JsonParser.parseString( asProbe.body() ).getAsJsonObject();
+        assertTrue( probePage.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean(),
+                "the probe is named in the edit rule: " + asProbe.body() );
+        assertTrue( probePage.get( "content" ).getAsString().contains( "[{ALLOW edit Admin," + probeLogin + "}]" ),
+                "an editor gets the rule as written: " + asProbe.body() );
+
+        final HttpResponse< String > asViewer = viewer.get( "/api/pages/" + trickyPage, "application/json" );
+        assertEquals( 200, asViewer.statusCode(), asViewer.body() );
+        assertFalse( JsonParser.parseString( asViewer.body() ).getAsJsonObject().getAsJsonObject( "permissions" )
+                .get( "edit" ).getAsBoolean(), "the second user is not in the edit rule: " + asViewer.body() );
+        assertFalse( asViewer.body().contains( "ALLOW" ), asViewer.body() );
     }
 
     /**

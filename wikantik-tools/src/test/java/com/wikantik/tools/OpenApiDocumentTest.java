@@ -188,4 +188,12 @@ class OpenApiDocumentTest {
         final String url = root.getAsJsonArray( "servers" ).get( 0 ).getAsJsonObject().get( "url" ).getAsString();
         assertEquals( "/tools", url );
     }
+
+    @Test
+    void authorIsDocumentedAsADisplayNameNotALogin() {
+        final String json = OpenApiDocument.render( request, new ToolsConfig( new Properties() ) );
+
+        assertFalse( json.contains( "Last author login" ), json );
+        assertTrue( json.contains( "Display name of the last author, when recorded" ), json );
+    }
 }

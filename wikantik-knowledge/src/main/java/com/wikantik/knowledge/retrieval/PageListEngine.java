@@ -21,6 +21,7 @@ package com.wikantik.knowledge.retrieval;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
@@ -36,6 +37,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 import com.wikantik.api.exceptions.ProviderException;
 
@@ -57,6 +59,7 @@ public final class PageListEngine {
     private final PageManager pageManager;
     private final FrontmatterMetadataCache fmCache;
     private final BiFunction< Page, Map< String, Object >, RetrievedPage > pageBuilder;
+    private final Supplier< PublicIdentity > publicIdentity;
 
     /**
      * @param pageBuilder builds a {@link RetrievedPage} from a page and its
@@ -72,9 +75,22 @@ public final class PageListEngine {
             final PageManager pageManager,
             final FrontmatterMetadataCache fmCache,
             final BiFunction< Page, Map< String, Object >, RetrievedPage > pageBuilder ) {
+        this( pageManager, fmCache, pageBuilder, () -> null );
+    }
+
+    /**
+     * @param publicIdentity lets the {@code author} filter take the display name readers see; {@code () -> null}
+     *        keeps exact matching on the stored string (tests, and engines without an identity service)
+     */
+    public PageListEngine(
+            final PageManager pageManager,
+            final FrontmatterMetadataCache fmCache,
+            final BiFunction< Page, Map< String, Object >, RetrievedPage > pageBuilder,
+            final Supplier< PublicIdentity > publicIdentity ) {
         this.pageManager = pageManager;
         this.fmCache = fmCache;
         this.pageBuilder = pageBuilder;
+        this.publicIdentity = publicIdentity == null ? () -> null : publicIdentity;
     }
 
     public PageList listPages( final PageListFilter filter ) {
@@ -124,8 +140,28 @@ public final class PageListEngine {
         return f.type() == null || f.type().equals( meta.get( "type" ) );
     }
 
-    private static boolean authorMatches( final Page page, final PageListFilter f ) {
-        return f.author() == null || f.author().equals( page.getAuthor() );
+    /**
+     * The filter value is a display name, as returned in {@code author}. A page whose stored author is a login
+     * matches only through that account's display name (so typing a login can never confirm an account's
+     * authorship); a stored legacy full name or agent label still matches exactly as written.
+     */
+    private boolean authorMatches( final Page page, final PageListFilter f ) {
+        final String wanted = f.author();
+        if ( wanted == null ) {
+            return true;
+        }
+        final String stored = page.getAuthor();
+        if ( stored == null ) {
+            return false;
+        }
+        final PublicIdentity identity = publicIdentity.get();
+        if ( identity == null ) {
+            return wanted.equals( stored );
+        }
+        if ( wanted.equals( stored ) && identity.userIdForLogin( stored ).isEmpty() ) {
+            return true;
+        }
+        return identity.loginForDisplayName( wanted ).filter( stored::equals ).isPresent();
     }
 
     private static boolean tagsMatch( final Map< String, Object > meta, final PageListFilter f ) {

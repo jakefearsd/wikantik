@@ -82,7 +82,7 @@ public class RetrieveContextTool extends AbstractMcpTool {
         ) );
         properties.put( "filters", Map.of(
             "type", "object",
-            "description", "Optional pre-filter — cluster, tags, type, modifiedAfter (ISO-8601).",
+            "description", "Optional pre-filter — cluster, tags, type, author (display name), modifiedAfter (ISO-8601).",
             "examples", List.of( Map.of(
                     "cluster", "retrieval",
                     "tags", List.of( "agents" ),
@@ -110,7 +110,7 @@ public class RetrieveContextTool extends AbstractMcpTool {
                                 "name", "HandlingEmbeddingServiceOutages",
                                 "reason", "co-mentioned in chunks about fail-closed degradation"
                         ) ),
-                        "author", "jakefear",
+                        "author", "Jake Fear",
                         "lastModified", "2026-04-25T14:30:00Z"
                 ) ),
                 "totalMatched", 1

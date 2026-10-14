@@ -27,6 +27,7 @@ import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.agent.HeadingOutline;
 import com.wikantik.api.agent.KeyFact;
+import com.wikantik.api.agent.RecentChange;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
 import jakarta.servlet.http.HttpServletRequest;
@@ -261,6 +262,40 @@ class PageForAgentResourceTest {
         assertTrue( data.get( "degraded" ).getAsBoolean() );
         final JsonArray missing = data.getAsJsonArray( "missing_fields" );
         assertEquals( 2, missing.size() );
+    }
+
+    @Test
+    void verified_by_and_recent_change_authors_are_display_names() throws Exception {
+        final ForAgentProjection p = new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article",
+                "wikantik-development",
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE,
+                Instant.parse( "2026-04-20T00:00:00Z" ), "janne",
+                Instant.parse( "2026-04-22T11:10:00Z" ),
+                "Operator reference for hybrid retrieval.",
+                List.of(), List.of(),
+                List.of( new RecentChange( 2, Instant.parse( "2026-04-22T11:10:00Z" ), "janne", "tidy" ),
+                         new RecentChange( 1, Instant.parse( "2026-04-21T11:10:00Z" ), "Legacy Person", null ) ),
+                List.of(),
+                null,
+                null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
+                false, List.of(), List.of() );
+        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+
+        final HttpServletRequest req = anonReq( "/01ABC" );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( req, resp );
+
+        final JsonObject data = JsonParser.parseString( sw.toString() ).getAsJsonObject().getAsJsonObject( "data" );
+        assertEquals( "Janne Jalkanen", data.get( "verified_by" ).getAsString() );
+        final JsonArray changes = data.getAsJsonArray( "recent_changes" );
+        assertEquals( "Janne Jalkanen", changes.get( 0 ).getAsJsonObject().get( "author" ).getAsString() );
+        assertEquals( "Legacy Person", changes.get( 1 ).getAsJsonObject().get( "author" ).getAsString() );
+        assertFalse( sw.toString().contains( "\"janne\"" ), "the stored login must not appear anywhere" );
     }
 
     // ----- Helper methods -----

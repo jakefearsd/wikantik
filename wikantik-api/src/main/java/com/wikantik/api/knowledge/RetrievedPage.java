@@ -26,6 +26,10 @@ import java.util.List;
  * mention-co-occurrence neighbors as {@link RelatedPage} hints. All list
  * fields default to empty when {@code null} is passed; name must be
  * non-blank.
+ *
+ * <p>{@code author} is already the author's <b>display name</b> (resolved by the service that built the page
+ * through {@code PublicIdentity}), never a stored login. Surfaces serve it as-is: resolving it a second time
+ * could swap one person for another when a legacy display name equals a different account's login.</p>
  */
 public record RetrievedPage(
     String name,

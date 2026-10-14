@@ -104,7 +104,8 @@ public class PageForAgentResource extends RestServletBase {
         }
 
         final JsonObject envelope = new JsonObject();
-        envelope.add( "data", toJson( p ) );
+        // The service caches stored principals; show readers display names (verified_by, recent_changes[].author).
+        envelope.add( "data", toJson( p.withDisplayNames( getSubsystems().auth().publicIdentity() ) ) );
         final String body = AGENT_GSON.toJson( envelope );
         resp.setContentType( "application/json; charset=UTF-8" );
         resp.setStatus( 200 );

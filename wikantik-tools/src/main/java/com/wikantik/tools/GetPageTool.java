@@ -21,7 +21,9 @@ package com.wikantik.tools;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.permissions.PermissionFilter;
@@ -106,7 +108,7 @@ class GetPageTool {
             out.put( "lastModified", page.getLastModified().toInstant().toString() );
         }
         if ( page.getAuthor() != null ) {
-            out.put( "author", page.getAuthor() );
+            out.put( "author", publicIdentity().displayName( page.getAuthor() ) );
         }
         out.put( "text", shown );
         out.put( "truncated", truncated );
@@ -125,6 +127,14 @@ class GetPageTool {
     boolean canView( final HttpServletRequest request, final String pageName ) {
         final Session session = Wiki.session().find( engine, request );
         return new PermissionFilter( engine ).canAccess( session, pageName, "view" );
+    }
+
+    /**
+     * The identity service that turns a stored author into the display name shown to callers.
+     * Package-visible so tests can substitute it; evaluated only when a page has an author.
+     */
+    PublicIdentity publicIdentity() {
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
     }
 
     private static int resolveLimit( final int requested ) {

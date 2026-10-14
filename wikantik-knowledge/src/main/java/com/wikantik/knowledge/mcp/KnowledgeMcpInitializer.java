@@ -40,6 +40,7 @@ import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.auth.AbstractJDBCDatabase;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.mcp.McpEndpointBootstrapper;
 import com.wikantik.mcp.tools.McpTool;
@@ -164,6 +165,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 .queryLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null )
                 .briefingLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null )
                 .viewGate( viewGate )
+                .publicIdentity( () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() )
                 .build() );
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
@@ -271,7 +273,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
     private static void addProjectionAndBundleTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
         final PageViewGate viewGate = deps.viewGate();
         if ( deps.forAgent() != null ) {
-            tools.add( new GetPageForAgentTool( deps.forAgent(), viewGate ) );
+            tools.add( new GetPageForAgentTool( deps.forAgent(), viewGate, deps.publicIdentity() ) );
         }
         if ( deps.bundleService() != null ) {
             // Resolve the query log lazily (the service is set during engine startup; resolving

@@ -133,7 +133,7 @@ final class OpenApiDocument {
                                 "description", "Pages linked via KG-mention co-occurrence" ) ),
                         prop( "snippet", "string", "Leading excerpt from the top contributing chunk (legacy field — use contributingChunks for richer context)" ),
                         prop( "lastModified", "string", "ISO-8601 timestamp of the last edit" ),
-                        prop( "author", "string", "Last author login, when recorded" ) ) ) );
+                        prop( "author", "string", "Display name of the last author, when recorded" ) ) ) );
 
         schemas.put( "PageContent", Map.of(
                 "type", "object",
@@ -147,7 +147,7 @@ final class OpenApiDocument {
                         prop( "totalChars", "integer", "Original body length, only present when truncated" ),
                         prop( "truncatedAt", "integer", "Character cap applied, only present when truncated" ),
                         prop( "lastModified", "string", "ISO-8601 timestamp of the last edit" ),
-                        prop( "author", "string", "Last author login, when recorded" ) ) ) );
+                        prop( "author", "string", "Display name of the last author, when recorded" ) ) ) );
 
         final Map< String, Object > comp = new LinkedHashMap<>();
         comp.put( "securitySchemes", securitySchemes );
@@ -283,7 +283,7 @@ final class OpenApiDocument {
                 "text", "# Hybrid Retrieval\n\nHybrid retrieval combines BM25 lexical scoring with dense-vector cosine similarity...",
                 "truncated", false,
                 "lastModified", "2026-04-25T14:30:00Z",
-                "author", "jakefear"
+                "author", "Jake Fear"
         );
         op.put( "responses", Map.of(
                 "200", Map.of(

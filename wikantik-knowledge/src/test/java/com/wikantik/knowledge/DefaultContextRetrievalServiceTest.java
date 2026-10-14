@@ -20,6 +20,8 @@ package com.wikantik.knowledge;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.search.SearchManager;
@@ -30,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -492,5 +495,56 @@ class DefaultContextRetrievalServiceTest {
         FakeDeps.minimal().search( sm ).build()
                 .retrieve( new com.wikantik.api.knowledge.ContextQuery( "algorithm", 5, 3, null ) );
         assertEquals( "algorithm", sm.lastQuery(), "no ontology service must not alter the query" );
+    }
+
+    @Test
+    void getPage_servesTheAuthorsDisplayNameNotTheStoredLogin() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "ByLogin", "body", "janne", new Date() );
+        pm.addPage( "ByLegacyName", "body", "Legacy Person", new Date() );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
+        when( identity.displayName( "Legacy Person" ) ).thenReturn( "Legacy Person" );
+        final DefaultContextRetrievalService svc =
+            FakeDeps.minimal().pageManager( pm ).publicIdentity( () -> identity ).build();
+
+        assertEquals( "Janne Jalkanen", svc.getPage( "ByLogin" ).author() );
+        assertEquals( "Legacy Person", svc.getPage( "ByLegacyName" ).author() );
+    }
+
+    @Test
+    void getPage_keepsAnAbsentAuthorAbsent() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "NoAuthor", "body", null, new Date() );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        final DefaultContextRetrievalService svc =
+            FakeDeps.minimal().pageManager( pm ).publicIdentity( () -> identity ).build();
+
+        assertNull( svc.getPage( "NoAuthor" ).author() );
+    }
+
+    @Test
+    void listPages_authorFilterTakesADisplayNameAndNeverAStoredLogin() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "ByLogin", "body", "janne", new Date() );
+        pm.addPage( "ByLegacySameName", "body", "Janne Jalkanen", new Date() );
+        pm.addPage( "Other", "body", "bob", new Date() );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
+        when( identity.userIdForLogin( "bob" ) ).thenReturn( Optional.of( "uid-2" ) );
+        when( identity.loginForDisplayName( "Janne Jalkanen" ) ).thenReturn( Optional.of( "janne" ) );
+        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
+        when( identity.displayName( "Janne Jalkanen" ) ).thenReturn( "Janne Jalkanen" );
+        final DefaultContextRetrievalService svc =
+            FakeDeps.minimal().pageManager( pm ).publicIdentity( () -> identity ).build();
+
+        final var byDisplayName = svc.listPages(
+            new PageListFilter( null, null, null, "Janne Jalkanen", null, null, 50, 0 ) );
+        assertEquals( java.util.Set.of( "ByLogin", "ByLegacySameName" ),
+            byDisplayName.pages().stream().map( RetrievedPage::name ).collect( java.util.stream.Collectors.toSet() ) );
+        assertTrue( byDisplayName.pages().stream().allMatch( p -> "Janne Jalkanen".equals( p.author() ) ) );
+
+        final var byLogin = svc.listPages( new PageListFilter( null, null, null, "janne", null, null, 50, 0 ) );
+        assertEquals( 0, byLogin.totalMatched(), "a login is not a searchable author name" );
     }
 }

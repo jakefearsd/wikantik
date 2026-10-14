@@ -73,8 +73,8 @@ public class ListPagesTool extends AbstractMcpTool {
             "description", "Filter by frontmatter type value.",
             "examples", List.of( "runbook" ) ) );
         properties.put( "author", Map.of( "type", "string",
-            "description", "Filter by page author.",
-            "examples", List.of( "jakefear" ) ) );
+            "description", "Filter by page author's display name, as shown in the author field.",
+            "examples", List.of( "Jake Fear" ) ) );
         properties.put( "modifiedAfter", Map.of( "type", "string",
             "description", "ISO-8601 instant — include only pages modified after this time.",
             "examples", List.of( "2026-01-01T00:00:00Z" ) ) );

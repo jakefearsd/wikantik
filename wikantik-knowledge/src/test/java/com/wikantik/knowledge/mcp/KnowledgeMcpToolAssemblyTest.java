@@ -18,21 +18,28 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.mcp.tools.McpTool;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Pins the Knowledge-MCP tool surface against the {@code wikantik.knowledge.enabled}
@@ -95,5 +102,28 @@ class KnowledgeMcpToolAssemblyTest {
         for ( final String kgTool : KG_TOOLS ) {
             assertTrue( names.contains( kgTool ), "KG tool '" + kgTool + "' must be present when kgService is wired" );
         }
+    }
+
+    @Test
+    void getPageForAgentIsWiredWithThePublicIdentityService() {
+        final ForAgentProjectionService forAgent = mock( ForAgentProjectionService.class );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
+        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
+        when( forAgent.project( "01ABC" ) ).thenReturn( Optional.of( new ForAgentProjection(
+                "01ABC", "Slug", "T", "article", null, null, null, null, "janne", null, "s",
+                null, null, null, null, null, null, false, "/f", "/r", false, List.of(), List.of() ) ) );
+
+        final McpTool tool = KnowledgeMcpInitializer.assembleTools( KnowledgeToolDeps.builder()
+                .forAgent( forAgent )
+                .publicIdentity( () -> identity )
+                .viewGate( PageViewGate.ALLOW_ALL )
+                .build() )
+            .stream().filter( t -> "get_page_for_agent".equals( t.name() ) ).findFirst().orElseThrow();
+
+        final String text = ( (McpSchema.TextContent) tool.execute( Map.of( "canonical_id", "01ABC" ) )
+                .content().get( 0 ) ).text();
+        assertTrue( text.contains( "Janne Jalkanen" ), text );
+        assertFalse( text.contains( "\"janne\"" ), text );
     }
 }

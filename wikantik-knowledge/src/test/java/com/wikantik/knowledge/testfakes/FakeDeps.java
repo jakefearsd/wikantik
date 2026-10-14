@@ -30,6 +30,7 @@ public final class FakeDeps {
     private String baseUrl = "";
     private com.wikantik.api.ontology.OntologyQueryService ontologyQuery = null;
     private com.wikantik.search.FrontmatterMetadataCache fmCache = null;
+    private java.util.function.Supplier< com.wikantik.api.identity.PublicIdentity > publicIdentity = () -> null;
 
     public static FakeDeps minimal() { return new FakeDeps(); }
 
@@ -43,9 +44,14 @@ public final class FakeDeps {
     public FakeDeps fmCache( final com.wikantik.search.FrontmatterMetadataCache c ) {
         this.fmCache = c; return this;
     }
+    public FakeDeps publicIdentity( final java.util.function.Supplier< com.wikantik.api.identity.PublicIdentity > p ) {
+        this.publicIdentity = p;
+        return this;
+    }
 
     public DefaultContextRetrievalService build() {
         return new DefaultContextRetrievalService(
-            engine, search, null, null, null, null, null, pageManager, fmCache, baseUrl, ontologyQuery );
+            engine, search, null, null, null, null, null, pageManager, fmCache, baseUrl, ontologyQuery,
+            publicIdentity );
     }
 }

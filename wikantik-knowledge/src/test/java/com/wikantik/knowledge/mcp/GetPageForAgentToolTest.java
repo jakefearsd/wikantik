@@ -22,12 +22,15 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
+import com.wikantik.api.agent.RecentChange;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,6 +92,37 @@ class GetPageForAgentToolTest {
         assertFalse( result.isError() );
         assertFalse( result.content().isEmpty() );
         assertTrue( result.content().toString().contains( "HybridRetrieval" ) );
+    }
+
+    @Test
+    void verified_by_and_recent_change_authors_are_display_names() {
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
+        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
+        final GetPageForAgentTool named = new GetPageForAgentTool( svc, PageViewGate.ALLOW_ALL, () -> identity );
+        final ForAgentProjection p = new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article",
+                "wikantik-development",
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE,
+                Instant.parse( "2026-04-20T00:00:00Z" ), "janne", null,
+                "Operator reference for hybrid retrieval.",
+                List.of(), List.of(),
+                List.of( new RecentChange( 1, Instant.parse( "2026-04-22T11:10:00Z" ), "janne", "tidy" ) ),
+                List.of(),
+                null,
+                null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
+                false, List.of(), List.of() );
+        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+
+        final McpSchema.CallToolResult result = named.execute( Map.of( "canonical_id", "01ABC" ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        final JsonObject body = JsonParser.parseString( text ).getAsJsonObject();
+        assertEquals( "Janne Jalkanen", body.get( "verified_by" ).getAsString() );
+        assertEquals( "Janne Jalkanen",
+                body.getAsJsonArray( "recent_changes" ).get( 0 ).getAsJsonObject().get( "author" ).getAsString() );
+        assertFalse( text.contains( "\"janne\"" ), "the stored login must not appear anywhere" );
     }
 
     @Test

@@ -20,6 +20,7 @@ package com.wikantik.knowledge.retrieval;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
@@ -32,6 +33,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -173,5 +175,38 @@ class PageListEngineTest {
 
         assertFalse( engine.matchesFilter( page, Map.of(), before2020 ), "page postdates the cutoff" );
         assertTrue( engine.matchesFilter( page, Map.of(), before2030 ), "page predates the cutoff" );
+    }
+
+    @Test
+    void authorFilter_matchesALoginOnlyThroughItsDisplayName_andLegacyStringsAsWritten() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "ByLogin", "body", "janne", new Date() );
+        pm.addPage( "ByLegacy", "body", "Janne Jalkanen", new Date() );
+        pm.addPage( "Other", "body", "bob", new Date() );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
+        when( identity.userIdForLogin( "bob" ) ).thenReturn( Optional.of( "uid-2" ) );
+        when( identity.loginForDisplayName( "Janne Jalkanen" ) ).thenReturn( Optional.of( "janne" ) );
+        final PageListEngine engine =
+            new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage, () -> identity );
+
+        final PageList byName = engine.listPages(
+            new PageListFilter( null, null, null, "Janne Jalkanen", null, null, 50, 0 ) );
+        assertEquals( java.util.Set.of( "ByLogin", "ByLegacy" ),
+            byName.pages().stream().map( RetrievedPage::name ).collect( java.util.stream.Collectors.toSet() ) );
+
+        final PageList byLogin = engine.listPages(
+            new PageListFilter( null, null, null, "janne", null, null, 50, 0 ) );
+        assertEquals( 0, byLogin.totalMatched(), "typing a login must not confirm that account's authorship" );
+    }
+
+    @Test
+    void authorFilter_withoutAnIdentityServiceKeepsExactMatching() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "ByLogin", "body", "janne", new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+
+        assertEquals( 1, engine.listPages(
+            new PageListFilter( null, null, null, "janne", null, null, 50, 0 ) ).totalMatched() );
     }
 }

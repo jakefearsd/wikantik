@@ -27,6 +27,7 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -37,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * MCP tool — return the {@code /for-agent} projection for a canonical_id.
@@ -77,14 +79,25 @@ public class GetPageForAgentTool extends AbstractMcpTool {
 
     private final ForAgentProjectionService service;
     private final PageViewGate viewGate;
+    private final Supplier< PublicIdentity > publicIdentity;
 
     public GetPageForAgentTool( final ForAgentProjectionService service ) {
         this( service, PageViewGate.ALLOW_ALL );
     }
 
     public GetPageForAgentTool( final ForAgentProjectionService service, final PageViewGate viewGate ) {
+        this( service, viewGate, () -> null );
+    }
+
+    /**
+     * @param publicIdentity resolves verifier and recent-change authors to display names per call;
+     *        {@code () -> null} leaves them as stored (tests only)
+     */
+    public GetPageForAgentTool( final ForAgentProjectionService service, final PageViewGate viewGate,
+                                final Supplier< PublicIdentity > publicIdentity ) {
         this.service = service;
         this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
+        this.publicIdentity = publicIdentity == null ? () -> null : publicIdentity;
     }
 
     @Override public String name() { return TOOL_NAME; }
@@ -116,7 +129,7 @@ public class GetPageForAgentTool extends AbstractMcpTool {
         ) ) );
         exampleProjection.put( "verification", Map.of(
                 "verified_at", "2026-04-25T14:30:00Z",
-                "verified_by", "jakefear",
+                "verified_by", "Jake Fear",
                 "confidence", "authoritative"
         ) );
         exampleProjection.put( "recent_changes", List.of( Map.of(
@@ -170,6 +183,6 @@ public class GetPageForAgentTool extends AbstractMcpTool {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "no page for canonical_id " + s );
         }
-        return McpToolUtils.jsonResult( PROJECTION_GSON, maybe.get() );
+        return McpToolUtils.jsonResult( PROJECTION_GSON, maybe.get().withDisplayNames( publicIdentity.get() ) );
     }
 }

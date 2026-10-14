@@ -21,6 +21,7 @@ package com.wikantik.tools;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,6 +45,7 @@ class GetPageToolTest {
     @Mock WikiEngine engine;
     @Mock PageManager pageManager;
     @Mock Page page;
+    @Mock PublicIdentity identity;
     @Mock HttpServletRequest request;
 
     /**
@@ -56,6 +58,11 @@ class GetPageToolTest {
             @Override
             boolean canView( final HttpServletRequest request, final String pageName ) {
                 return true;
+            }
+
+            @Override
+            PublicIdentity publicIdentity() {
+                return identity;
             }
         };
     }
@@ -153,12 +160,28 @@ class GetPageToolTest {
         final Date lastModified = new Date( 1_700_000_000_000L );
         when( page.getLastModified() ).thenReturn( lastModified );
         when( page.getAuthor() ).thenReturn( "alice" );
+        when( identity.displayName( "alice" ) ).thenReturn( "alice" );
 
         final GetPageTool tool = allowingTool( engine, new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "Main", 0, request );
 
         assertEquals( lastModified.toInstant().toString(), out.get( "lastModified" ) );
         assertEquals( "alice", out.get( "author" ) );
+    }
+
+    @Test
+    void authorStoredAsALoginIsReturnedAsTheDisplayName() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Main" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Main" );
+        when( pageManager.getPureText( "Main", -1 ) ).thenReturn( "Body content" );
+        when( page.getAuthor() ).thenReturn( "janne" );
+        when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
+
+        final Map< String, Object > out = allowingTool( engine, new ToolsConfig( new Properties() ) )
+                .execute( "Main", 0, request );
+
+        assertEquals( "Janne Jalkanen", out.get( "author" ) );
     }
 
     @Test

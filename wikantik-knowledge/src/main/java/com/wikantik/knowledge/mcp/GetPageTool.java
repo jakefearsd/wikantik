@@ -75,7 +75,7 @@ public class GetPageTool extends AbstractMcpTool {
                 "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
                 "cluster", "retrieval",
                 "tags", List.of( "retrieval", "search" ),
-                "author", "jakefear",
+                "author", "Jake Fear",
                 "lastModified", "2026-04-25T14:30:00Z"
         ) ) );
 

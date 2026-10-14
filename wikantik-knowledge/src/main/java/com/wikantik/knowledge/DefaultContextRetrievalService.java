@@ -22,6 +22,8 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
@@ -33,6 +35,7 @@ import com.wikantik.api.knowledge.RelatedPage;
 import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -54,6 +57,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Composes the retrieval singletons into the agent-facing contract defined
@@ -77,6 +81,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private final RelatedPagesFinder relatedPagesFinder;
     private final PageListEngine pageListEngine;
     private final ContributingChunkAssembler contributingChunkAssembler;
+    private final Supplier< PublicIdentity > publicIdentity;
 
     public DefaultContextRetrievalService(
             final Engine engine,
@@ -90,6 +95,28 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final FrontmatterMetadataCache fmCache,
             final String publicBaseUrl,
             final com.wikantik.api.ontology.OntologyQueryService ontologyQuery ) {
+        this( engine, searchManager, hybridSearch, chunkIndex, chunkRepo, similarity, mentionIndex,
+              pageManager, fmCache, publicBaseUrl, ontologyQuery, () -> null );
+    }
+
+    /**
+     * @param publicIdentity resolves a page's stored author to its display name at call time (a supplier because
+     *        the Auth subsystem is built after this service's collaborators); {@code () -> null} leaves authors
+     *        exactly as stored and is meant only for tests that do not exercise names
+     */
+    public DefaultContextRetrievalService(
+            final Engine engine,
+            final SearchManager searchManager,
+            final HybridSearchService hybridSearch,
+            final ChunkVectorIndex chunkIndex,
+            final ContentChunkRepository chunkRepo,
+            final NodeMentionSimilarity similarity,
+            final MentionIndex mentionIndex,
+            final PageManager pageManager,
+            final FrontmatterMetadataCache fmCache,
+            final String publicBaseUrl,
+            final com.wikantik.api.ontology.OntologyQueryService ontologyQuery,
+            final Supplier< PublicIdentity > publicIdentity ) {
         if ( engine == null ) throw new IllegalArgumentException( "engine required" );
         if ( searchManager == null ) throw new IllegalArgumentException( "searchManager required" );
         if ( pageManager == null ) throw new IllegalArgumentException( "pageManager required" );
@@ -103,9 +130,10 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         // Optional: when present (and the flag enabled at the wiring site), the query is
         // expanded with ontology-derived terms before search. Null = no expansion.
         this.ontologyQuery = ontologyQuery;
+        this.publicIdentity = publicIdentity == null ? () -> null : publicIdentity;
         this.relatedPagesFinder = new RelatedPagesFinder( mentionIndex );
         this.pageListEngine = new PageListEngine( pageManager, fmCache,
-            ( page, meta ) -> buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ) );
+            ( page, meta ) -> buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ), this.publicIdentity );
         this.contributingChunkAssembler = new ContributingChunkAssembler( chunkIndex, chunkRepo, hybridSearch );
     }
 
@@ -136,7 +164,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             pm,
             search.frontmatterMetadataCache(),
             engine.getBaseURL(),
-            ontologyQueryFor( engine ) );
+            ontologyQueryFor( engine ),
+            () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() );
     }
 
     /**
@@ -327,7 +356,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             PageListEngine.stringList( meta.get( "tags" ) ),
             chunks,
             related,
-            page.getAuthor(),
+            IdentityDisplay.ofAuthor( publicIdentity.get(), page.getAuthor() ),
             page.getLastModified(),
             meta.get( "derived_from" ) != null );
     }

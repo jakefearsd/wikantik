@@ -22,6 +22,7 @@ import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.briefing.BriefingAssemblyService;
 import com.wikantik.api.briefing.BriefingLogService;
 import com.wikantik.api.bundle.BundleAssemblyService;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
@@ -59,6 +60,7 @@ final class KnowledgeToolDeps {
     private final Supplier< QueryLogService > queryLog;
     private final Supplier< BriefingLogService > briefingLog;
     private final PageViewGate viewGate;
+    private final Supplier< PublicIdentity > publicIdentity;
 
     private KnowledgeToolDeps( final Builder b ) {
         this.kgService = b.kgService;
@@ -75,6 +77,7 @@ final class KnowledgeToolDeps {
         this.queryLog = b.queryLog != null ? b.queryLog : () -> null;
         this.briefingLog = b.briefingLog != null ? b.briefingLog : () -> null;
         this.viewGate = b.viewGate != null ? b.viewGate : PageViewGate.ALLOW_ALL;
+        this.publicIdentity = b.publicIdentity != null ? b.publicIdentity : () -> null;
     }
 
     static Builder builder() {
@@ -95,6 +98,7 @@ final class KnowledgeToolDeps {
     Supplier< QueryLogService > queryLog() { return queryLog; }
     Supplier< BriefingLogService > briefingLog() { return briefingLog; }
     PageViewGate viewGate() { return viewGate; }
+    Supplier< PublicIdentity > publicIdentity() { return publicIdentity; }
 
     static final class Builder {
         private KnowledgeGraphService kgService;
@@ -111,6 +115,7 @@ final class KnowledgeToolDeps {
         private Supplier< QueryLogService > queryLog;
         private Supplier< BriefingLogService > briefingLog;
         private PageViewGate viewGate;
+        private Supplier< PublicIdentity > publicIdentity;
 
         Builder kgService( final KnowledgeGraphService v ) { this.kgService = v; return this; }
         Builder mentionIndex( final MentionIndex v ) { this.mentionIndex = v; return this; }
@@ -126,6 +131,7 @@ final class KnowledgeToolDeps {
         Builder queryLog( final Supplier< QueryLogService > v ) { this.queryLog = v; return this; }
         Builder briefingLog( final Supplier< BriefingLogService > v ) { this.briefingLog = v; return this; }
         Builder viewGate( final PageViewGate v ) { this.viewGate = v; return this; }
+        Builder publicIdentity( final Supplier< PublicIdentity > v ) { this.publicIdentity = v; return this; }
 
         KnowledgeToolDeps build() {
             return new KnowledgeToolDeps( this );

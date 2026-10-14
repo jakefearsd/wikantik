@@ -19,6 +19,8 @@
 package com.wikantik.api.agent;
 
 import com.wikantik.api.citation.CitationRef;
+import com.wikantik.api.identity.IdentityDisplay;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
 
@@ -86,5 +88,26 @@ public record ForAgentProjection(
         mcpToolHints        = mcpToolHints        == null ? List.of() : List.copyOf( mcpToolHints );
         missingFields       = missingFields       == null ? List.of() : List.copyOf( missingFields );
         staleCitations      = staleCitations      == null ? List.of() : List.copyOf( staleCitations );
+    }
+
+    /**
+     * A copy whose {@code verifiedBy} (when it is an existing login) and every recent-change author are display
+     * names. The projection is cached by {@code DefaultForAgentProjectionService} holding stored principals, so
+     * the two serving surfaces call this on every response; that is also why a rename shows up without the cache
+     * being evicted. Returns {@code this} when {@code identity} is {@code null}.
+     */
+    public ForAgentProjection withDisplayNames( final PublicIdentity identity ) {
+        if ( identity == null ) {
+            return this;
+        }
+        final List< RecentChange > shownChanges = recentChanges.stream()
+                .map( c -> c.author() == null
+                        ? c
+                        : new RecentChange( c.version(), c.at(), identity.displayName( c.author() ), c.summary() ) )
+                .toList();
+        return new ForAgentProjection( canonicalId, slug, title, type, cluster, audience, confidence,
+                verifiedAt, IdentityDisplay.ofLoginOrText( identity, verifiedBy ), updated, summary,
+                keyFacts, headingsOutline, shownChanges, mcpToolHints, runbook, agentHints,
+                summarySynthesized, fullBodyUrl, rawMarkdownUrl, degraded, missingFields, staleCitations );
     }
 }

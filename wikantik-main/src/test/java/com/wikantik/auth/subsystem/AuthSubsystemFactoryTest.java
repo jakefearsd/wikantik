@@ -34,9 +34,12 @@ import org.junit.jupiter.api.Test;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -79,11 +82,29 @@ final class AuthSubsystemFactoryTest {
         assertSame( users, services.users() );
         assertSame( groups, services.groups() );
         assertSame( aclManager, services.aclManager() );
+        assertNotNull( services.publicIdentity(), "wired whenever a user manager is registered (database-less if it has none)" );
+        verify( users ).addWikiEventListener( any( com.wikantik.auth.identity.DefaultPublicIdentity.class ) );
         assertNotNull( services, "services" );
         // webAuthorizer is null when the authorizer isn't configured (mocked
         // AuthorizationManager.getAuthorizer() returns null) — no assertion.
         // apiKeys is null when no datasource is configured — same.
         // securityVerifier is null until Ckpt 3.
+    }
+
+    @Test
+    void createToleratesAMissingUserManager() {
+        final WikiEngine engine = mock( WikiEngine.class );   // no managers registered
+        final CoreSubsystem.Services core = CoreSubsystemFactory.create( new CoreSubsystem.Deps(
+            new Properties(), null, new SimpleMeterRegistry(),
+            mock( SystemPageRegistry.class ),
+            mock( RecentArticlesManager.class ),
+            engine ) );
+
+        final AuthSubsystem.Services services = AuthSubsystemFactory.create(
+            new AuthSubsystem.Deps( core, /*persistence=*/ null, /*servletContext=*/ null, engine ) );
+
+        assertNull( services.users() );
+        assertNull( services.publicIdentity(), "no user manager -> no identity service; consumers use PublicIdentities.forEngine" );
     }
 
     @Test

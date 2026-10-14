@@ -388,6 +388,7 @@ public class AdminUserResource extends RestServletBase {
             }
 
             getUserDatabase().deleteByLoginName( loginName );
+            ProfileChangeNotifier.profileDeleted( getEngine(), loginName );
             return Optional.empty();
         } catch ( final Exception e ) {
             LOG.warn( "bulk-delete: failed to delete user={}: {}", loginName, e.getMessage(), e );
@@ -617,6 +618,7 @@ public class AdminUserResource extends RestServletBase {
             }
 
             getUserDatabase().deleteByLoginName( loginName );
+            ProfileChangeNotifier.profileDeleted( getEngine(), loginName );
             LOG.info( "Deleted user: {}", loginName );
             sendJson( response, Map.of( "success", true ) );
         } catch ( final Exception e ) {

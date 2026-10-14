@@ -19,6 +19,7 @@
 package com.wikantik.auth.subsystem;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.Authorizer;
@@ -86,6 +87,12 @@ public final class AuthSubsystem {
      *       bundle. Callers must instantiate {@link SecurityVerifier}
      *       directly as before. This field is retained so that Checkpoint 5
      *       can remove it cleanly if it remains unused.</li>
+     *   <li>{@code publicIdentity} is the stored-principal to display-name resolver
+     *       ({@link PublicIdentity}); non-null from {@link AuthSubsystemFactory#create}
+     *       (database-less when the user manager has none) but {@code null} when no
+     *       {@link UserManager} is registered, in the sparse records built by
+     *       {@link AuthSubsystemBridge} for non-{@code WikiEngine} engines, and in tests
+     *       — use {@code PublicIdentities.forEngine(engine)} when a non-null handle is needed.</li>
      * </ul>
      */
     public record Services(
@@ -96,6 +103,7 @@ public final class AuthSubsystem {
         Authorizer            webAuthorizer,
         ApiKeyService         apiKeys,
         SecurityVerifier      securityVerifier,
-        AclManager            aclManager
+        AclManager            aclManager,
+        PublicIdentity        publicIdentity
     ) {}
 }

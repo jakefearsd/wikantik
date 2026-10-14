@@ -185,6 +185,25 @@ public interface UserDatabase {
     }
 
     /**
+     * Every account's login, display name and <em>stored</em> uid, without the password hash or attribute blob — what identity
+     * resolution needs, in one pass. A NULL/blank stored uid is reported as {@code null} (never an invented one).
+     *
+     * <p>This default implementation maps {@link #findAllProfiles()}; a relational store should override it with one narrow
+     * query ({@code JDBCUserDatabase} does).</p>
+     *
+     * @throws WikiSecurityException if the accounts cannot be enumerated
+     */
+    default Collection< AccountSummary > accountSummaries() throws WikiSecurityException {
+        final List< AccountSummary > summaries = new ArrayList<>();
+        for ( final UserProfile profile : findAllProfiles() ) {
+            final String uid = profile.getUid();
+            summaries.add( new AccountSummary( profile.getLoginName(), profile.getFullname(),
+                    uid == null || uid.isBlank() ? null : uid ) );
+        }
+        return summaries;
+    }
+
+    /**
      * Counts the number of users whose account is currently locked. A user is considered locked when its lock-expiry
      * timestamp is non-{@code null} and lies in the future (i.e. {@code lockExpiry != null && lockExpiry.after(now)}).
      * <p>

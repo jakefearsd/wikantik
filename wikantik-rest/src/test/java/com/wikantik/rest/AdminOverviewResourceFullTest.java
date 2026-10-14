@@ -213,7 +213,7 @@ class AdminOverviewResourceFullTest {
                         wikiProps, null, null, null, null, null, null, null, null, null, null ),
                 null,
                 new com.wikantik.auth.subsystem.AuthSubsystem.Services(
-                        null, null, userManager, null, null, null, null, null ),
+                        null, null, userManager, null, null, null, null, null, null ),
                 null, null, null,
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
                         kg, null, null, null, null, null, null, null, null, null, null, null, null,
@@ -331,7 +331,7 @@ class AdminOverviewResourceFullTest {
         final WikiSubsystems subs = new WikiSubsystems(
                 null, null,
                 new com.wikantik.auth.subsystem.AuthSubsystem.Services(
-                        null, null, userManager, null, null, null, null, null ),
+                        null, null, userManager, null, null, null, null, null, null ),
                 null, null, null, null, null );
 
         final JsonObject data = invoke( mock( Engine.class ), subs ).getAsJsonObject( "data" );
@@ -352,7 +352,7 @@ class AdminOverviewResourceFullTest {
         final WikiSubsystems subs = new WikiSubsystems(
                 null, null,
                 new com.wikantik.auth.subsystem.AuthSubsystem.Services(
-                        null, null, userManager, null, null, null, null, null ),
+                        null, null, userManager, null, null, null, null, null, null ),
                 null, null, null, null, null );
 
         final JsonObject data = invoke( mock( Engine.class ), subs ).getAsJsonObject( "data" );

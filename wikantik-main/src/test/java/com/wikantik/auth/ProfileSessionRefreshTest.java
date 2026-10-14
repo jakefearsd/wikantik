@@ -21,6 +21,8 @@ package com.wikantik.auth;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import org.junit.jupiter.api.AfterEach;
@@ -122,5 +124,34 @@ class ProfileSessionRefreshTest {
         assertDoesNotThrow( () -> ProfileChangeNotifier.profileSaved( null, Users.FRED ) );
         assertDoesNotThrow( () -> ProfileChangeNotifier.profileSaved( engine, null ) );
         assertDoesNotThrow( () -> ProfileChangeNotifier.profileSaved( engine, "  " ) );
+    }
+
+    @Test
+    void profileSavedAlsoInvalidatesThePublicIdentityCache() throws Exception {
+        final PublicIdentity identity = AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
+        assertEquals( "Fred Flintstone", identity.displayName( Users.FRED ) );
+        rename( Users.FRED, "Fred Astaire" );
+        assertEquals( "Fred Flintstone", identity.displayName( Users.FRED ), "still served from the 60 s snapshot" );
+
+        ProfileChangeNotifier.profileSaved( engine, Users.FRED );
+
+        assertEquals( "Fred Astaire", identity.displayName( Users.FRED ), "a profile save must not wait for the TTL" );
+    }
+
+    @Test
+    void profileDeletedInvalidatesThePublicIdentityCache() throws Exception {
+        final UserProfile p = db.newProfile();
+        p.setLoginName( "gone-user" );
+        p.setFullname( "Gone User" );
+        p.setPassword( "correct-horse-battery-staple-6" );
+        db.save( p );
+        final PublicIdentity identity = AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
+        assertEquals( "Gone User", identity.displayName( "gone-user" ) );
+
+        db.deleteByLoginName( "gone-user" );
+        ProfileChangeNotifier.profileDeleted( engine, "gone-user" );
+
+        assertEquals( "gone-user", identity.displayName( "gone-user" ),
+                "no longer an account: a non-email value is an ordinary string and passes through" );
     }
 }

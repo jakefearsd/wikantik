@@ -570,7 +570,7 @@ class AdminApiKeysResourceTest {
             @Override protected WikiSubsystems getSubsystems() {
                 final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
                 final AuthSubsystem.Services auth =
-                        new AuthSubsystem.Services( null, null, null, null, null, null, null, null );
+                        new AuthSubsystem.Services( null, null, null, null, null, null, null, null, null );
                 Mockito.when( subs.auth() ).thenReturn( auth );
                 return subs;
             }
@@ -587,7 +587,7 @@ class AdminApiKeysResourceTest {
             @Override protected WikiSubsystems getSubsystems() {
                 final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
                 final AuthSubsystem.Services auth =
-                        new AuthSubsystem.Services( null, null, userManagerNullDb, null, null, null, null, null );
+                        new AuthSubsystem.Services( null, null, userManagerNullDb, null, null, null, null, null, null );
                 Mockito.when( subs.auth() ).thenReturn( auth );
                 return subs;
             }
@@ -606,7 +606,7 @@ class AdminApiKeysResourceTest {
             @Override protected WikiSubsystems getSubsystems() {
                 final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
                 final AuthSubsystem.Services auth =
-                        new AuthSubsystem.Services( null, null, userManager, null, null, null, null, null );
+                        new AuthSubsystem.Services( null, null, userManager, null, null, null, null, null, null );
                 Mockito.when( subs.auth() ).thenReturn( auth );
                 return subs;
             }

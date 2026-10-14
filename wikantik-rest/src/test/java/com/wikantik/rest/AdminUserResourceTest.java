@@ -1292,6 +1292,25 @@ class AdminUserResourceTest {
                 "passwordMustChange should be true for newly created user" );
     }
 
+    @Test
+    void testRenameAndDeleteInvalidateThePublicIdentityImmediately() throws Exception {
+        final com.wikantik.api.identity.PublicIdentity identity = com.wikantik.auth.identity.PublicIdentities.forEngine( engine );
+        final JsonObject create = new JsonObject();
+        create.addProperty( "loginName", "identityUser" );
+        create.addProperty( "fullName", "Identity User One" );
+        create.addProperty( "password", "StrongPassword123!" );
+        doPost( null, create );
+        assertEquals( "Identity User One", identity.displayName( "identityUser" ) );
+
+        final JsonObject rename = new JsonObject();
+        rename.addProperty( "fullName", "Identity User Two" );
+        doPut( "identityUser", rename );
+        assertEquals( "Identity User Two", identity.displayName( "identityUser" ), "an admin edit must not wait for the TTL" );
+
+        doDelete( "identityUser" );
+        assertEquals( "identityUser", identity.displayName( "identityUser" ), "a deleted account no longer resolves" );
+    }
+
     // ----- Helper methods -----
 
     private String doBulkAction( final JsonObject body ) throws Exception {

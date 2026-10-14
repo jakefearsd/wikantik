@@ -250,7 +250,7 @@ class DefaultPageGraphServiceTest {
         final AuthorizationManager authMgr = mock( AuthorizationManager.class );
         final WikiEngine wikiEngine = mock( WikiEngine.class );
         when( wikiEngine.getAuthSubsystem() ).thenReturn(
-                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null ) );
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null, null ) );
         service.setEngine( wikiEngine );
 
         final Page pageA = mock( Page.class );
@@ -289,7 +289,7 @@ class DefaultPageGraphServiceTest {
         when( authMgr.isPermitted( any(), any( Permission.class ) ) ).thenReturn( true );
         final WikiEngine wikiEngine = mock( WikiEngine.class );
         when( wikiEngine.getAuthSubsystem() ).thenReturn(
-                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null ) );
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null, null ) );
         service.setEngine( wikiEngine );
 
         when( pageMgr.getPage( "A" ) ).thenThrow( new RuntimeException( "provider unavailable" ) );
@@ -312,7 +312,7 @@ class DefaultPageGraphServiceTest {
         when( authMgr.isPermitted( any(), any( Permission.class ) ) ).thenReturn( true );
         final WikiEngine wikiEngine = mock( WikiEngine.class );
         when( wikiEngine.getAuthSubsystem() ).thenReturn(
-                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null ) );
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null, null ) );
         when( wikiEngine.getApplicationName() ).thenReturn( "TestWiki" );
         service.setEngine( wikiEngine );
 

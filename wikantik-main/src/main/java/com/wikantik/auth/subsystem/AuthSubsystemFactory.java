@@ -19,6 +19,7 @@
 package com.wikantik.auth.subsystem;
 
 import com.wikantik.WikiEngine;
+import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.Authorizer;
@@ -28,9 +29,11 @@ import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.auth.identity.DefaultPublicIdentity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Clock;
 import java.util.Objects;
 
 /**
@@ -86,7 +89,20 @@ public final class AuthSubsystemFactory {
             webAuthorizer,
             apiKeys,
             /* securityVerifier — wired in Ckpt 3 */ null,
-            aclManager
+            aclManager,
+            users == null ? null : createPublicIdentity( users )
         );
+    }
+
+    /**
+     * One {@link PublicIdentity} per engine, bound to the user manager's database (database-less when the manager has none —
+     * bare or mocked engines). It also listens to the user manager's profile events (the legacy {@code setUserProfile} path);
+     * the REST/SCIM/SSO write paths invalidate it through {@code ProfileChangeNotifier}. The listener registry holds it
+     * weakly — the {@code Services} record keeps it alive.
+     */
+    private static PublicIdentity createPublicIdentity( final UserManager users ) {
+        final DefaultPublicIdentity identity = new DefaultPublicIdentity( users.getUserDatabase(), Clock.systemUTC() );
+        users.addWikiEventListener( identity );
+        return identity;
     }
 }

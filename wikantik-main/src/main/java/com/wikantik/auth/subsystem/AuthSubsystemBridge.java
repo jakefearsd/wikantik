@@ -43,7 +43,7 @@ public final class AuthSubsystemBridge {
         if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
             // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
             return new AuthSubsystem.Services(
-                null, null, null, null, null, null, null, null );
+                null, null, null, null, null, null, null, null, null );
         }
         final AuthSubsystem.Services typed = wikiEngine.getAuthSubsystem();
         if ( typed != null ) return typed;

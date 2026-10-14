@@ -116,6 +116,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             + " AND login_name <> ? LIMIT 1";
     private static final String LOGIN_NAME_TAKEN =
             "SELECT 1 FROM users WHERE lower(login_name) = lower(?) AND login_name <> ? LIMIT 1";
+    private static final String ACCOUNT_SUMMARIES = "SELECT login_name, full_name, uid FROM users";
 
     private DataSource ds;
 
@@ -218,6 +219,20 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             }, rs -> rs.getInt( 1 ) ).isPresent();
         } catch ( final SQLException e ) {
             throw new WikiSecurityException( "Could not check whether a login name is taken: " + e.getMessage(), e );
+        }
+    }
+
+    /** {@inheritDoc} One narrow query: no attribute blobs, no invented uids, immune to a corrupt attributes column. */
+    @Override
+    public Collection< AccountSummary > accountSummaries() throws WikiSecurityException {
+        try {
+            return jdbc.query( ACCOUNT_SUMMARIES, SqlBinder.NONE, rs -> {
+                final String uid = rs.getString( "uid" );
+                return new AccountSummary( rs.getString( "login_name" ), rs.getString( "full_name" ),
+                        uid == null || uid.isBlank() ? null : uid );
+            } );
+        } catch ( final SQLException e ) {
+            throw new WikiSecurityException( "Could not list accounts: " + e.getMessage(), e );
         }
     }
 

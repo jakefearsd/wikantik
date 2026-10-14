@@ -221,6 +221,7 @@ public class AuthResource extends RestServletBase {
             revokeApiKeysFor( engine, loginName );
             removeFromAllGroups( engine, getSubsystems().auth().groups(), session, loginName );
             getSubsystems().auth().users().getUserDatabase().deleteByLoginName( loginName );
+            ProfileChangeNotifier.profileDeleted( engine, loginName );
         } catch ( final NoSuchPrincipalException e ) {
             sendNotFound( response, "Profile not found" );
             return;

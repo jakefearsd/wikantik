@@ -72,7 +72,7 @@ class RememberMeAuthFilterTest {
         session = mock( Session.class );
 
         when( engine.getAuthSubsystem() ).thenReturn(
-                new AuthSubsystem.Services( authMgr, null, null, null, null, null, null, null ) );
+                new AuthSubsystem.Services( authMgr, null, null, null, null, null, null, null, null ) );
 
         wikiStatic = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS );
 
@@ -222,7 +222,7 @@ class RememberMeAuthFilterTest {
     @Test
     void unavailableAuthManager_doesNotBlockTheRequest() throws Exception {
         when( engine.getAuthSubsystem() ).thenReturn(
-                new AuthSubsystem.Services( null, null, null, null, null, null, null, null ) );
+                new AuthSubsystem.Services( null, null, null, null, null, null, null, null, null ) );
 
         filter.doFilter( req, resp, chain );
 

@@ -19,6 +19,8 @@
 package com.wikantik.auth;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,7 +28,7 @@ import org.apache.logging.log4j.Logger;
  * The one place that reacts to a user profile having been written outside the user's own session. Every path that writes
  * a profile through {@code UserDatabase#save} directly — the self-service and admin REST endpoints, SCIM and SSO
  * provisioning — calls {@link #profileSaved} afterwards (the {@code PROFILE_SAVE} events only exist for the legacy
- * {@code UserManager#setUserProfile} path).
+ * {@code UserManager#setUserProfile} path); every path that deletes an account calls {@link #profileDeleted}.
  *
  * <p>The reactions are best-effort: the profile is already stored, so a failure here is logged at WARN and never fails the
  * request that made the change.</p>
@@ -39,7 +41,7 @@ public final class ProfileChangeNotifier {
 
     /**
      * Call after any write that may have changed a profile's display (full) or wiki name: refreshes the live sessions of
-     * {@code loginName} so the new name applies immediately.
+     * {@code loginName} and drops the cached {@link PublicIdentity} snapshot so the new name applies immediately.
      *
      * @param engine    the wiki engine; {@code null} is ignored
      * @param loginName the account whose profile was saved; {@code null}/blank is ignored
@@ -49,6 +51,33 @@ public final class ProfileChangeNotifier {
             return;
         }
         refreshLiveSessions( engine, loginName );
+        invalidateIdentity( engine, loginName );
+    }
+
+    /**
+     * Call after an account is deleted: drops the cached {@link PublicIdentity} snapshot so the account stops resolving
+     * immediately. (No session refresh — the profile no longer exists.)
+     *
+     * @param engine    the wiki engine; {@code null} is ignored
+     * @param loginName the account that was deleted; {@code null}/blank is ignored
+     */
+    public static void profileDeleted( final Engine engine, final String loginName ) {
+        if ( engine == null || loginName == null || loginName.isBlank() ) {
+            return;
+        }
+        invalidateIdentity( engine, loginName );
+    }
+
+    private static void invalidateIdentity( final Engine engine, final String loginName ) {
+        try {
+            final PublicIdentity identity = AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity();
+            if ( identity != null ) {
+                identity.invalidate( loginName );
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not invalidate the cached display name of '{}'; it refreshes within 60 s anyway: {}",
+                    loginName, e.getMessage(), e );
+        }
     }
 
     private static void refreshLiveSessions( final Engine engine, final String loginName ) {

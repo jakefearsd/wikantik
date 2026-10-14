@@ -284,6 +284,24 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
+    public void testAccountSummariesReportTheStoredUidAndNullWhenTheColumnIsNull() throws Exception {
+        try ( final Connection conn = m_ds.getConnection(); final Statement stmt = conn.createStatement() ) {
+            stmt.executeUpdate( "INSERT INTO users (email,login_name,password,created,full_name,wiki_name) VALUES ("
+                    + "'nouid@mailinator.com','nouid-user','{SHA-256}x','" + new Timestamp( System.currentTimeMillis() )
+                    + "','No Uid User','NoUidUser')" );
+        }
+        final java.util.Map< String, com.wikantik.auth.user.AccountSummary > byLogin = new java.util.HashMap<>();
+        for ( final com.wikantik.auth.user.AccountSummary a : m_db.accountSummaries() ) {
+            byLogin.put( a.login(), a );
+        }
+        Assertions.assertEquals( "-7739839977499061014", byLogin.get( "janne" ).uid() );
+        Assertions.assertEquals( "Janne Jalkanen", byLogin.get( "janne" ).fullName() );
+        Assertions.assertNull( byLogin.get( "nouid-user" ).uid(), "a NULL uid is reported as null, never an invented one" );
+        Assertions.assertNotNull( m_db.findByLoginName( "nouid-user" ).getUid(),
+                "documents why accountSummaries exists: findByLoginName invents a uid for such a row" );
+    }
+
+    @Test
     public void testIsFullNameTakenIgnoreCaseSeesADuplicateOwnedByAnotherAccountOnly() throws Exception {
         final UserProfile twin = m_db.newProfile();
         twin.setLoginName( "janne-twin" );

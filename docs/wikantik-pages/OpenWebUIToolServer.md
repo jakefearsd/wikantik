@@ -107,7 +107,7 @@ The response strips YAML frontmatter from `text`, includes `summary`/`tags` from
 frontmatter as top-level fields, and reports truncation via `truncated`/`totalChars`/
 `truncatedAt` when the body exceeds the limit (default 6000 chars, hard cap 20000;
 a missing or non-positive `maxChars` uses the default). A page that does not exist
-returns 404, and a page the key's principal may not view returns 403 before any body
+returns 404, and a page a signed-out reader may not view returns 403 before any body
 is loaded.
 
 ## Observability

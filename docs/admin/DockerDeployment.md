@@ -56,7 +56,12 @@ project name `repo` when deployed with `bin/remote.sh`):
 | `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector: users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
 | `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 25, the wiki application |
 | `backup` | `postgres:18-alpine` | Scheduled `pg_dump` and page-tree tarball |
-| `ollama` | `ollama/ollama:latest` | CPU-only embedding sidecar serving `qwen3-embedding:0.6b` at `http://ollama:11434` (internal only, no host port). `wikantik` does not `depends_on` it, so the query embedder fails closed to BM25 if it is unreachable. |
+
+The production stack has no embedding sidecar (the CPU `ollama` service was dropped on
+2026-10-15). Embeddings and Knowledge Graph extraction/judge run on the shared GPU inference
+host: set `WIKANTIK_EMBEDDING_BASE_URL` and `WIKANTIK_EXTRACTOR_BASE_URL` in the prod `.env`
+to a name that resolves from the container (for example `http://inference.lan:11434`). If the
+embedding endpoint is unreachable the query embedder fails closed to BM25 (see §4).
 
 Monitoring is external: a jakemon Grafana Alloy agent on the host scrapes `/metrics` and
 ships logs to the central stack on host `docker2`. There is no in-repo observability
@@ -216,8 +221,8 @@ Defaults below are copied from `docs/ConfigurationReference.md`; that page is au
 | `WIKANTIK_SSO_CLAIM_EMAIL` | `email` | `wikantik.sso.claimMapping.email` | IdP claim mapped to email. |
 | `WIKANTIK_GENAI_MODE` | `full` | `wikantik.genai.mode` | GenAI ceiling: `full` \| `embeddings-only` \| `none`. Never turns a feature on — only forces an already-enabled feature off. See [CostTiers.md](CostTiers.md) and [CloudDeployment.md](CloudDeployment.md). |
 | `WIKANTIK_KNOWLEDGE_ENABLED` | `true` | `wikantik.knowledge.enabled` | `false` skips constructing the Knowledge Graph subsystem entirely (no KG services, no KG MCP tools; `/admin/knowledge-graph/*` and `/api/page-knowledge/*` 503). Chunking and the embedding/dense-retrieval pipeline stay independent of it. |
-| `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | `wikantik.search.embedding.base-url` | Dense-retrieval embedding service base URL override, e.g. `http://ollama-embed:11434` for the cloud overlay's sidecar. The docker image points this at its bundled CPU embedder and the docker1 deployment keeps it there deliberately, so the retrieval hot path does not depend on a host outside the stack. Whatever you point it at must serve the model named by `wikantik.search.embedding.model` — the dense index is fixed at that model's dimension. |
-| `WIKANTIK_EMBEDDING_BATCH_SIZE` | `10` | `wikantik.search.embedding.batch-size` | Texts per embedding backend round-trip. **Coupled to `WIKANTIK_EMBEDDING_TIMEOUT_MS` and to the backend's available CPU:** a batch must complete inside the timeout, or the request fails, is treated as transient, and after 3 retries the entire reconcile aborts. Capping the embedder's CPU (a docker `cpus:` limit) multiplies per-batch time — a 32/30000 pair can time out on a CPU-bound embedder (the default `10` fits the 30 s timeout on the bundled CPU sidecar). Lower this, raise the timeout, or both. |
+| `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | `wikantik.search.embedding.base-url` | Dense-retrieval embedding service base URL override, e.g. `http://ollama-embed:11434` for the cloud overlay's sidecar. Unset, the shipped default applies, and `inference.jakefear.com` does not resolve on every network — set this to a name that resolves from the container. Production sets it in `.env` to the shared GPU inference host (for example `http://inference.lan:11434`); the prod overlay bundles no embedder. If the endpoint is unreachable the wiki fails closed to BM25. Whatever you point it at must serve the model named by `wikantik.search.embedding.model` — the dense index is fixed at that model's dimension. |
+| `WIKANTIK_EMBEDDING_BATCH_SIZE` | `10` | `wikantik.search.embedding.batch-size` | Texts per embedding backend round-trip. **Coupled to `WIKANTIK_EMBEDDING_TIMEOUT_MS` and to the backend's available CPU:** a batch must complete inside the timeout, or the request fails, is treated as transient, and after 3 retries the entire reconcile aborts. Capping the embedder's CPU (a docker `cpus:` limit) multiplies per-batch time — a 32/30000 pair can time out on a CPU-bound embedder (the default `10` fits the 30 s timeout on a CPU-only embedder such as the cloud overlay's sidecar). Lower this, raise the timeout, or both. |
 | `WIKANTIK_EMBEDDING_TIMEOUT_MS` | `30000` | `wikantik.search.embedding.timeout-ms` | Per-request embedding HTTP timeout in ms. See the coupling note on `WIKANTIK_EMBEDDING_BATCH_SIZE`. On a 2-CPU-capped CPU-only embedder, `8` / `120000` is a working pair. |
 | `WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE` | `256` | `wikantik.search.embedding.commit-batch-size` | Rows committed per transaction during an embedding backfill. A full backfill is hours of CPU inference; this bounds how much of it an interruption discards. Lower it (e.g. `64`) on a host where long runs get interrupted — a commit is sub-millisecond next to seconds-per-chunk inference, so there is no throughput cost. Must be > 0; the app refuses to start on a non-positive value. |
 | `WIKANTIK_EXTRACTOR_BACKEND` | `ollama` | `wikantik.knowledge.extractor.backend` | KG entity-extractor backend: `ollama` \| `claude` \| `disabled`. `claude` also requires `ANTHROPIC_API_KEY` (read directly from the process environment by `EntityExtractorFactory` — never rendered into a properties file). |
@@ -304,12 +309,14 @@ disturbs local-dev config.
 
 Knowledge-Graph / hybrid-retrieval backends (Ollama endpoint, model tags) are
 left unset by default — they fall back to the baked-in defaults in
-`ini/wikantik.properties` (`ollama` backend at `inference.jakefear.com:11434`)
-unless overridden via `WIKANTIK_EMBEDDING_BASE_URL` / `WIKANTIK_EXTRACTOR_BACKEND`
-(§1) or a `wikantik-custom.properties` override. The container needs network
-reach to whichever endpoint is in effect, only if KG / hybrid retrieval is in
-use — the prod overlay's bundled `ollama` sidecar (§4) is one such override
-target.
+`ini/wikantik.properties` (`ollama` backend at `inference.jakefear.com:11434`, which
+does not resolve on every network) unless overridden via `WIKANTIK_EMBEDDING_BASE_URL` /
+`WIKANTIK_EXTRACTOR_BASE_URL` / `WIKANTIK_EXTRACTOR_BACKEND` (§1) or a
+`wikantik-custom.properties` override. The container needs network reach to whichever
+endpoint is in effect, only if KG / hybrid retrieval is in use. Production sets
+`WIKANTIK_EMBEDDING_BASE_URL` and `WIKANTIK_EXTRACTOR_BASE_URL` in `.env.prod` to the shared
+GPU inference host (for example `http://inference.lan:11434`); the prod overlay no longer
+bundles an embedding sidecar (§4).
 
 ## 2. Data persistence
 
@@ -326,9 +333,9 @@ State lives in several places, with deliberately different storage:
   startup) and the ontology TDB2 store; see
   [WikantikOperations.md](WikantikOperations.md#12-containerized-deployment-recommended-for-production)
   for the TDB2 growth note.
-- **Embedding model cache** — named volume `ollama-models` (prod overlay), mounted
-  into the `ollama` sidecar. Not backed up; `ollama pull qwen3-embedding:0.6b`
-  re-populates it.
+- **Embedding model cache** — none in the prod stack: the embedding model lives on the
+  shared GPU inference host (the `ollama-models` volume went away with the sidecar on
+  2026-10-15).
 - **JFR profiling recordings** — named volume `wikantik-profiling` (prod
   overlay only), mounted at `/var/wikantik/profiling`. JFR recordings started
   via `POST /admin/profiling/jfr/start` land here; download them with
@@ -364,7 +371,7 @@ Environments (passed via `-e`):
 | Env | Compose files | What it adds |
 |-----|--------------|--------------|
 | `dev` (default) | base + `docker-compose.dev.yml` | DB on host port 15432; JDWP debug port 5005; uses `Dockerfile.dev` for hot-swap (bind-mounts `wikantik-war/target/Wikantik.war` into the container); pages mounted from `docs/wikantik-pages/` |
-| `prod` | base + `docker-compose.prod.yml` | Backup sidecar; CPU-only `ollama` embedding sidecar; host bind-mount for pages (`WIKANTIK_PAGES_DIR`); resource limits (wikantik 3G with a 50% heap via `WIKANTIK_JVM_MAX_RAM_PERCENTAGE`, db 2G, ollama 4G); `wikantik-profiling` volume; DB published on `${DB_HOST_BIND:-172.17.0.1}:5432` for jakemon; `start_period 90s` healthcheck |
+| `prod` | base + `docker-compose.prod.yml` | Backup sidecar; host bind-mount for pages (`WIKANTIK_PAGES_DIR`); resource limits (wikantik 3G with a 50% heap via `WIKANTIK_JVM_MAX_RAM_PERCENTAGE`, db 2G); `wikantik-profiling` volume; DB published on `${DB_HOST_BIND:-172.17.0.1}:5432` for jakemon; `start_period 90s` healthcheck |
 | `test` | base + `docker-compose.test.yml`, project `wikantik-test` | Alt ports (wikantik on 18080 via `WIKANTIK_HOST_PORT`, DB on 15432); own namespaced containers + volumes so `down -v` never touches dev/prod state; used by `smoke-test` subcommand |
 | `base` | base only | No overlays — useful for debugging compose variable substitution in isolation |
 
@@ -474,15 +481,15 @@ Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agen
 ## 4. External services
 
 The base compose stack bundles PostgreSQL + pgvector; the **prod overlay**
-(`docker-compose.prod.yml`) additionally bundles a CPU-only Ollama sidecar
-for embeddings (added 2026-07-21, while the GPU inference host is
-decommissioned) — everything else is external:
+(`docker-compose.prod.yml`) adds only the backup sidecar. Everything else is external,
+including embeddings: the CPU-only Ollama sidecar the prod overlay carried from 2026-07-21
+was dropped on 2026-10-15, and production now embeds on the shared GPU inference host.
 
 | Service | Status | Endpoint |
 |---|---|---|
 | **PostgreSQL + pgvector** | Bundled (`db` service) | `db:5432` (internal) |
-| **Ollama — embeddings** | Bundled under `-e prod` (`ollama` service, `ollama/ollama:latest`, no `depends_on` — the wiki fails closed to BM25 if unreachable) | `http://ollama:11434` (internal only); point `WIKANTIK_EMBEDDING_BASE_URL` at it. First-time setup pulls the model manually: `docker exec repo-ollama-1 ollama pull qwen3-embedding:0.6b` |
-| **Ollama — extraction / judge** | External, optional | `ini/wikantik.properties` default `http://inference.jakefear.com:11434`, or point `WIKANTIK_EXTRACTOR_BACKEND`/the embedding base URL at the bundled sidecar instead |
+| **Ollama — embeddings** | External — the shared GPU inference host (not bundled; no `depends_on`, so the wiki fails closed to BM25 if it is unreachable) | Set `WIKANTIK_EMBEDDING_BASE_URL` in `.env` to a name that resolves from the container, e.g. `http://inference.lan:11434`. The `ini/wikantik.properties` default `http://inference.jakefear.com:11434` does not resolve on the LAN host. The host must serve the model named by `wikantik.search.embedding.model` |
+| **Ollama — extraction / judge** | External (same inference host), optional | Set `WIKANTIK_EXTRACTOR_BASE_URL` (e.g. `http://inference.lan:11434`); the KG judge follows it unless `wikantik.kg.judge.endpoint` is set. Falls back to the `ini/wikantik.properties` default `http://inference.jakefear.com:11434` |
 | **Anthropic API** (alternative extractor backend) | External, optional | `ANTHROPIC_API_KEY` env var |
 | **TLS terminator / reverse proxy** | External, optional | `RemoteIpValve` reads the client IP from `PROXY_REMOTE_IP_HEADER` (default `CF-Connecting-IP`; set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB — see the env-var table in §1) |
 

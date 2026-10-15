@@ -29,9 +29,8 @@ The production stack (`docker-compose.yml` plus `docker-compose.prod.yml`) runs 
 | **db** | `pgvector/pgvector:pg18` | PostgreSQL with the pgvector extension: users, groups, policy grants, API keys, the Knowledge Graph, embeddings, page metadata, and the `schema_migrations` ledger |
 | **wikantik** | `wikantik:latest` (built from the `Dockerfile`, or the released `ghcr.io/jakefearsd/wikantik:X.Y.Z` image; Tomcat 11.0.26 / JDK 25) | Runs the wiki application |
 | **backup** | `postgres:18-alpine` | Automated database dumps and page file archives (production overlay only) |
-| **ollama** | `ollama/ollama:latest` | CPU-only embedding sidecar serving `qwen3-embedding:0.6b` for dense retrieval (production overlay only; internal network, no host port) |
 
-The base file alone starts only `db` and `wikantik`. All services share the compose project's private network, and `wikantik` connects to `db` by hostname. The `backup` container connects to `db` for `pg_dump` and mounts the same pages directory as `wikantik` to archive page files. `wikantik` does not depend on `ollama`: if the embedder is unreachable, retrieval falls back to BM25. Port 8080 is the wiki's published port (`WIKANTIK_HOST_PORT`, default 8080). The production overlay also publishes PostgreSQL on `${DB_HOST_BIND:-172.17.0.1}:5432` (the docker0 bridge, so it is not LAN-exposed) for the external metrics exporter, and the dev overlay publishes the database on 15432 and a debug port on 5005.
+The base file alone starts only `db` and `wikantik`. All services share the compose project's private network, and `wikantik` connects to `db` by hostname. The `backup` container connects to `db` for `pg_dump` and mounts the same pages directory as `wikantik` to archive page files. The production overlay bundles no embedding service: `wikantik` embeds on the shared GPU inference host (`WIKANTIK_EMBEDDING_BASE_URL` in `.env`, for example `http://inference.lan:11434`), and if the embedder is unreachable, retrieval falls back to BM25. Port 8080 is the wiki's published port (`WIKANTIK_HOST_PORT`, default 8080). The production overlay also publishes PostgreSQL on `${DB_HOST_BIND:-172.17.0.1}:5432` (the docker0 bridge, so it is not LAN-exposed) for the external metrics exporter, and the dev overlay publishes the database on 15432 and a debug port on 5005.
 
 ### What lives where
 
@@ -42,7 +41,6 @@ The base file alone starts only `db` and `wikantik`. All services share the comp
 | PostgreSQL data | `/var/lib/postgresql` (the pg18 image keeps its data under a version-specific subdirectory here) | volume `pgdata` (compose prefixes the project name, for example `repo_pgdata`) | **NO** | **YES** |
 | Lucene search index | `/var/wikantik/work` | volume `wikantik-work` | YES (auto-rebuilds on startup) | No |
 | Ontology TDB2 store | `/var/wikantik/work` | volume `wikantik-work` | YES (rebuilds on startup) | No |
-| Embedding model cache | `/root/.ollama` in the `ollama` container | volume `ollama-models` | YES (`ollama pull qwen3-embedding:0.6b`) | No |
 | Application logs | `/var/wikantik/logs` | volume `wikantik-logs` | N/A | No |
 
 The three items that cannot be rebuilt (pages, attachments, database) are all covered by the automated backup system.
@@ -65,7 +63,7 @@ docker/
   entrypoint.sh             Generates config files from environment variables, runs migrations
 docker-compose.yml          Base services: db + wikantik
 docker-compose.dev.yml      Dev overrides: bind mounts, debug port, no backup
-docker-compose.prod.yml     Prod overrides: resource limits, backup and ollama services
+docker-compose.prod.yml     Prod overrides: resource limits, backup service
 docker-compose.test.yml     Test overrides: alternate ports, namespaced volumes
 docker-compose.cloud.yml    Cloud-VM overlay (see Wikantik Cloud Deployment)
 Dockerfile                  Production: multi-stage Maven build inside container
@@ -152,9 +150,9 @@ This will:
 - Pull the `pgvector/pgvector:pg18` image and start PostgreSQL; `docker/db/001-init.sql` creates the pgvector extension
 - Build the Wikantik image (multi-stage Maven build, takes a few minutes the first time)
 - Start Wikantik, whose entrypoint applies every migration from `bin/db/migrations/` (this creates the schema and the default `admin` account) and then begins serving
-- Start the backup container with cron scheduling, and the CPU embedding sidecar
+- Start the backup container with cron scheduling
 
-Two follow-ups are needed on a fresh host. The page directory starts empty, so push your page tree into it (`bin/remote.sh pages-push docs/wikantik-pages` from a workstation, or copy the files in). And pull the embedding model once: `docker compose -f docker-compose.yml -f docker-compose.prod.yml exec ollama ollama pull qwen3-embedding:0.6b`.
+Two follow-ups are needed on a fresh host. The page directory starts empty, so push your page tree into it (`bin/remote.sh pages-push docs/wikantik-pages` from a workstation, or copy the files in). And point the wiki at an embedding service: set `WIKANTIK_EMBEDDING_BASE_URL` (and `WIKANTIK_EXTRACTOR_BASE_URL` for Knowledge Graph extraction) in `.env` to the shared GPU inference host, using a name that resolves from the container (for example `http://inference.lan:11434`). The shipped default, `http://inference.jakefear.com:11434`, does not resolve on every network. Until it is reachable, retrieval runs on BM25 alone.
 
 For a remote host the supported path is `bin/remote.sh bootstrap` followed by the manual first-deploy sequence in [Docker Deployment](DockerDeployment) ("Remote host — first deploy"), not `remote.sh deploy`, which would migrate an empty schema.
 
@@ -532,7 +530,7 @@ Key differences from production:
 - **WAR is bind-mounted** from `wikantik-war/target/` — rebuild the WAR and restart the container to pick up changes
 - **Debug port 5005** is exposed for remote JVM debugging
 - **PostgreSQL port 15432** is exposed (not 5432, to avoid conflicting with a local PostgreSQL)
-- **No backup or embedding sidecar** runs
+- **No backup sidecar** runs
 - **MCP authorization is still DB-backed**: mint a key at `/admin/apikeys` after logging in (the access filter fails closed otherwise)
 
 `bin/container.sh -e dev up -d` is the shorthand for the same thing. For bare-metal development (local PostgreSQL and Tomcat), see [PostgreSQL Local Deployment](PostgreSQLLocalDeployment).

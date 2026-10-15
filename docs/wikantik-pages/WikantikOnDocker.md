@@ -22,7 +22,7 @@ This guide covers everything you need to deploy Wikantik using Docker Compose, f
 
 ## Architecture Overview
 
-The production stack (`docker-compose.yml` plus `docker-compose.prod.yml`) runs four services:
+The production stack (`docker-compose.yml` plus `docker-compose.prod.yml`) runs three services:
 
 | Service | Image | Purpose |
 |---------|-------|---------|

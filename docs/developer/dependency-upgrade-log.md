@@ -477,3 +477,57 @@ its own change.
 - vitest / @vitest/coverage-v8 4.1.11 -> 5.0.4, happy-dom 20 -> 21, katex 0.18.11 -> 0.19.0: majors.
 - `commons-lang3` 3.20.0 -> 3.21.0 shown under *pluginManagement*: a dependency the Apache parent POM adds
   to apache-rat-plugin, not ours (our `commons-lang.version` is already 3.21.0). RAT is informational only.
+
+---
+
+# Dependency Sweep — 2026-10-17
+
+Minor/patch sweep. Scans: `versions:display-{property,dependency,plugin}-updates` (recursive,
+stable-only ruleset; every plugin already current), `npm outdated`, `npm audit` (0), and Maven Central
+`maven-metadata.xml` for the pins the versions plugin cannot see (Tomcat, pgjdbc). Verified with
+`mvn clean install -DskipITs` (SUCCESS, 12293 unit tests), `bin/run-tests.sh --it --parallel 4` (ALL PASSED,
+5 modules; Cargo ran `tomcat-11.0.27`), and frontend `npm run lint`, `npm run build`, `npx vitest run`
+(2926 tests).
+
+## Applied — Maven
+
+| Property | From | To |
+|---|---|---|
+| `mcp-sdk.version` | 2.0.1 | 2.1.0 |
+| `anthropic-java.version` | 2.71.0 | 2.73.0 (`Usage` now requires `speed`; test fixture updated) |
+| `tomcat.version` (+ `Dockerfile`, `bin/deploy-local.sh`) | 11.0.26 | 11.0.27 |
+
+**mcp-sdk 2.1.0 changes server defaults; no production code change was needed.**
+`HttpServletStreamableServerTransportProvider.Builder` now defaults `keepAliveInterval` and
+`sessionSweepInterval` to 30 minutes (2.0.1: no keep-alive, sessions never reclaimed, so they
+accumulated until restart). A session with no request in one sweep interval and no open stream is
+closed; its next request gets 404 `Session not found`, which per spec makes the client re-initialize.
+That is the same thing a redeploy already does. The header validator default stays `NOOP`
+(`ServerHttpHeaderValidator` replaces the deprecated `ServerTransportSecurityValidator`; we use
+neither). Streamable HTTP offers 2025-03-26 / 2025-06-18 / 2025-11-25 only (2024-11-05 dropped), and a
+POST whose media type is not `application/json` (parameters allowed) is refused with 415.
+Client side, `httpRequestCustomizer` is deprecated (it cleared earlier customizers) in favour of
+`addHttpRequestCustomizer`; the two IT call sites were migrated (`-Xlint:deprecation` is on).
+
+**anthropic-java 2.72.0 adds OpenTelemetry tracing** and a compile dependency on
+`opentelemetry-api` 1.62.0. It only emits spans when a global tracer provider is registered; nothing
+here registers one (no OTel agent in the `Dockerfile` or scripts), so it is a no-op. If an OTel Java
+agent is ever attached, `EntityExtractorFactory`'s client will start emitting spans and sending trace
+headers to the Anthropic API unless built with `.openTelemetry(false)`.
+
+**Tomcat 11.0.27:** bug fixes only (HTTP/2 flow-control leak and upload corruption with async IO,
+chunked-body corruption after a failed write, DefaultServlet byte-range truncation, CombinedRealm
+concurrency). The Docker tag `tomcat:11.0.27-jdk25-temurin`, the Apache archive tarball and the
+Central zip all exist.
+
+## Applied — frontend
+
+react / react-dom 19.3.0 -> 19.3.1, cytoscape 3.34.3 -> 3.34.4, eslint 10.12.0 -> 10.13.0,
+vitest / @vitest/coverage-v8 4.1.11 -> 4.1.12 (transitive chai 6.2.2 -> 6.3.0). The candidates were
+one to three days old. `npm audit signatures`: 415/415 verified.
+
+## Not taken
+
+- @codemirror/view 6.43.14: still held (2026-10-12); no 6.43.15 yet.
+- tika 4.1.0 / junrar 8.1.2, vitest 5.0.5, happy-dom 21.0.3, katex 0.19.0: majors.
+- `commons-lang3` 3.21.0 under pluginManagement: the Apache parent's RAT dependency, not ours.

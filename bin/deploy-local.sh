@@ -243,7 +243,7 @@ print_status "WAR file found: ${WAR_SOURCE}"
 
 # Tomcat target version. Bump this and re-run with --upgrade-tomcat to
 # pick up a new release. Fresh-clone installs always pin to this version.
-TOMCAT_VERSION="11.0.26"
+TOMCAT_VERSION="11.0.27"
 
 # Downloads + extracts the requested Tomcat version into ${TOMCAT_DIR}.
 # Tries the live Apache mirror first; falls back to archive.apache.org for

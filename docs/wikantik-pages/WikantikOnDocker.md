@@ -27,7 +27,7 @@ The production stack (`docker-compose.yml` plus `docker-compose.prod.yml`) runs 
 | Service | Image | Purpose |
 |---------|-------|---------|
 | **db** | `pgvector/pgvector:pg18` | PostgreSQL with the pgvector extension: users, groups, policy grants, API keys, the Knowledge Graph, embeddings, page metadata, and the `schema_migrations` ledger |
-| **wikantik** | `wikantik:latest` (built from the `Dockerfile`, or the released `ghcr.io/jakefearsd/wikantik:X.Y.Z` image; Tomcat 11.0.26 / JDK 25) | Runs the wiki application |
+| **wikantik** | `wikantik:latest` (built from the `Dockerfile`, or the released `ghcr.io/jakefearsd/wikantik:X.Y.Z` image; Tomcat 11.0.27 / JDK 25) | Runs the wiki application |
 | **backup** | `postgres:18-alpine` | Automated database dumps and page file archives (production overlay only) |
 
 The base file alone starts only `db` and `wikantik`. All services share the compose project's private network, and `wikantik` connects to `db` by hostname. The `backup` container connects to `db` for `pg_dump` and mounts the same pages directory as `wikantik` to archive page files. The production overlay bundles no embedding service: `wikantik` embeds on the shared GPU inference host (`WIKANTIK_EMBEDDING_BASE_URL` in `.env`, for example `http://inference.lan:11434`), and if the embedder is unreachable, retrieval falls back to BM25. Port 8080 is the wiki's published port (`WIKANTIK_HOST_PORT`, default 8080). The production overlay also publishes PostgreSQL on `${DB_HOST_BIND:-172.17.0.1}:5432` (the docker0 bridge, so it is not LAN-exposed) for the external metrics exporter, and the dev overlay publishes the database on 15432 and a debug port on 5005.

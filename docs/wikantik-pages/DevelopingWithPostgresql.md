@@ -94,7 +94,7 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 | PostgreSQL | 15 | Production runs 18; the container stack uses `pgvector/pgvector:pg18` |
 | pgvector extension | 0.5 | Required: migration V004 runs `CREATE EXTENSION vector` and V032 builds an HNSW index (HNSW needs pgvector 0.5+). Install the OS package before running the migrations |
 | Java JDK | 25 | `jdk.version` in the root `pom.xml`; the build enforcer fails on an older JDK, and `bin/deploy-local.sh` and `bin/redeploy.sh` refuse to start Tomcat on one |
-| Apache Tomcat | 11.0.26 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; `deploy-local.sh` downloads it for you |
+| Apache Tomcat | 11.0.27 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; `deploy-local.sh` downloads it for you |
 | PostgreSQL JDBC Driver | 42.7.14 | Pinned in the root `pom.xml`; see section 5 |
 | Maven / Node.js | 3.9+ / 20.19+ | Only to build the WAR from source (the WAR build runs `npm install` and `vite build`) |
 

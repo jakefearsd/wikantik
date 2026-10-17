@@ -623,7 +623,7 @@ public class DisplayNameLeakProbeIT {
                 .endpoint( endpoint )
                 .connectTimeout( Duration.ofSeconds( 15 ) );
         if ( bearerOrNull != null ) {
-            transport.httpRequestCustomizer( ( rb, method, uri, body, context ) ->
+            transport.addHttpRequestCustomizer( ( rb, method, uri, body, context ) ->
                     rb.header( "Authorization", "Bearer " + bearerOrNull ) );
         }
         final McpSyncClient client = McpClient.sync( transport.build() )

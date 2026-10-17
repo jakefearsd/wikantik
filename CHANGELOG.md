@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Tomcat 11.0.27 in the `Dockerfile` and `bin/deploy-local.sh` (HTTP/2 flow-control leak, chunked-body and
+  DefaultServlet byte-range truncation fixes). Run `bin/deploy-local.sh --upgrade-tomcat` for a bare-metal install.
+- MCP Java SDK 2.1.0. Both MCP endpoints now ping open sessions every 30 minutes and close sessions that
+  have had no request and no open stream for 30 to 60 minutes; a client returning after that receives 404 and
+  re-initializes, as it already must after a redeploy. Protocol version 2024-11-05 is no longer offered over
+  Streamable HTTP, and a POST whose `Content-Type` is not `application/json` is refused with 415.
+- Dependencies: anthropic-java 2.73.0 (brings `opentelemetry-api`; inert, no tracer provider is registered).
+  Frontend: React 19.3.1, Cytoscape 3.34.4; ESLint 10.13.0 and Vitest 4.1.12 (dev only).
+
 ## [2.4.58] - 2026-10-14
 
 ### Upgrade notes

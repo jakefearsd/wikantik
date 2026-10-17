@@ -27,7 +27,7 @@ You only need to set these in `wikantik-custom.properties` if you are replacing 
 ## 2. Prerequisites
 
 - **PostgreSQL 15 or later with the pgvector extension.** Migration V004 runs `CREATE EXTENSION vector`, which succeeds only if the pgvector binaries are installed on the server.
-- **Java 25 or later and Tomcat 11** (the project pins Tomcat 11.0.26 in `bin/deploy-local.sh` and in the `Dockerfile`).
+- **Java 25 or later and Tomcat 11** (the project pins Tomcat 11.0.27 in `bin/deploy-local.sh` and in the `Dockerfile`).
 - **The PostgreSQL JDBC driver, version 42.7.14** (`<postgresql-jdbc.version>` in the root `pom.xml`). The WAR declares the driver `provided`, so the container must supply it.
 
 ## 3. Configuration Steps

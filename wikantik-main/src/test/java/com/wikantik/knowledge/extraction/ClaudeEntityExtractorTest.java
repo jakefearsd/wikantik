@@ -115,6 +115,7 @@ class ClaudeEntityExtractorTest {
                 .outputTokensDetails( Optional.empty() )
                 .serverToolUse( Optional.empty() )
                 .serviceTier( Optional.empty() )
+                .speed( Optional.empty() )
                 .build() )
             .build();
     }

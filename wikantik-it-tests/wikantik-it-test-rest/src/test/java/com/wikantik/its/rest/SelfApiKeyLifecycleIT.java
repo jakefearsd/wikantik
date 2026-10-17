@@ -183,9 +183,9 @@ public class SelfApiKeyLifecycleIT {
                 HttpClientStreamableHttpTransport.builder( prefix )
                         .endpoint( "knowledge-mcp" )
                         .connectTimeout( Duration.ofSeconds( 15 ) )
-                        // mcp-sdk 2.0.0 replaced customizeRequest(Consumer<HttpRequest.Builder>)
-                        // with the richer httpRequestCustomizer contract.
-                        .httpRequestCustomizer( ( rb, method, uri, body, context ) ->
+                        // mcp-sdk 2.1.0 deprecated httpRequestCustomizer (which replaced
+                        // any earlier customizer) for the composing addHttpRequestCustomizer.
+                        .addHttpRequestCustomizer( ( rb, method, uri, body, context ) ->
                                 rb.header( "Authorization", "Bearer " + token ) )
                         .build();
         return McpClient.sync( transport )

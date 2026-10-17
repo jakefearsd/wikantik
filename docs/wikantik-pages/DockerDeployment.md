@@ -22,7 +22,7 @@ Wikantik is deployed as a Docker Compose stack: PostgreSQL with pgvector, the Wi
 
 ## 1. What Ships
 
-**The image.** The `Dockerfile` is multi-stage. It builds the WAR (including the React frontend) in `maven:3.9-eclipse-temurin-25`, then runs it on `tomcat:11.0.26-jdk25-temurin` (Tomcat 11, Java 25). The WAR is unzipped as the ROOT context, so the wiki answers at `http://host:8080/`. The PostgreSQL JDBC driver is downloaded from Maven Central at build time (`ARG POSTGRES_JDBC_VERSION`, currently 42.7.14, which must match `<postgresql-jdbc.version>` in the root `pom.xml`). The image also carries the database migrations (`bin/db/`) and the default pages from `docs/wikantik-pages/`. Defaults: `CATALINA_OPTS="-Djava.security.egd=file:/dev/./urandom -XX:MaxRAMPercentage=70.0 --add-modules=jdk.incubator.vector"` and `LANG=en_US.UTF-8`. The container healthcheck is `curl -fsS http://localhost:8080/api/health`.
+**The image.** The `Dockerfile` is multi-stage. It builds the WAR (including the React frontend) in `maven:3.9-eclipse-temurin-25`, then runs it on `tomcat:11.0.27-jdk25-temurin` (Tomcat 11, Java 25). The WAR is unzipped as the ROOT context, so the wiki answers at `http://host:8080/`. The PostgreSQL JDBC driver is downloaded from Maven Central at build time (`ARG POSTGRES_JDBC_VERSION`, currently 42.7.14, which must match `<postgresql-jdbc.version>` in the root `pom.xml`). The image also carries the database migrations (`bin/db/`) and the default pages from `docs/wikantik-pages/`. Defaults: `CATALINA_OPTS="-Djava.security.egd=file:/dev/./urandom -XX:MaxRAMPercentage=70.0 --add-modules=jdk.incubator.vector"` and `LANG=en_US.UTF-8`. The container healthcheck is `curl -fsS http://localhost:8080/api/health`.
 
 **The services.**
 

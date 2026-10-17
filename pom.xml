@@ -44,7 +44,7 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
-    <anthropic-java.version>2.71.0</anthropic-java.version>
+    <anthropic-java.version>2.73.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <bcrypt.version>0.10.2</bcrypt.version>
     <commons-collections.version>4.6.0</commons-collections.version>
@@ -100,9 +100,9 @@
     <selenium.version>4.51.0</selenium.version>
     <slf4j.version>2.0.20</slf4j.version>
     <tika.version>3.3.2</tika.version>
-    <tomcat.version>11.0.26</tomcat.version>
+    <tomcat.version>11.0.27</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
-    <mcp-sdk.version>2.0.1</mcp-sdk.version>
+    <mcp-sdk.version>2.1.0</mcp-sdk.version>
     <snakeyaml.version>2.7</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>

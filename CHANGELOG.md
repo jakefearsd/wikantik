@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Upgrade notes
+- `docker-compose.prod.yml` no longer runs the CPU `ollama` embedding sidecar. Before deploying, set
+  `WIKANTIK_EMBEDDING_BASE_URL` (and `WIKANTIK_EXTRACTOR_BASE_URL` for Knowledge Graph extraction) in the prod
+  `.env` to an Ollama host that resolves from the container and serves `qwen3-embedding:0.6b`; without one,
+  retrieval falls back to BM25. An existing `ollama` container is left running as an orphan: remove it with
+  `docker compose ... up -d --remove-orphans`, and drop the `ollama-models` volume if nothing else uses it.
+
 ### Changed
 - Tomcat 11.0.27 in the `Dockerfile` and `bin/deploy-local.sh` (HTTP/2 flow-control leak, chunked-body and
   DefaultServlet byte-range truncation fixes). Run `bin/deploy-local.sh --upgrade-tomcat` for a bare-metal install.

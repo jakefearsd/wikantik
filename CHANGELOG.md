@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.59] - 2026-10-17
+
 ### Upgrade notes
 - `docker-compose.prod.yml` no longer runs the CPU `ollama` embedding sidecar. Before deploying, set
   `WIKANTIK_EMBEDDING_BASE_URL` (and `WIKANTIK_EXTRACTOR_BASE_URL` for Knowledge Graph extraction) in the prod

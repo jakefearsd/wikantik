@@ -28,14 +28,13 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.util.AtomicFileWriter;
 import com.wikantik.util.FileUtil;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -254,14 +253,28 @@ public class VersioningFileProvider extends AbstractFileProvider {
     }
 
     /**
+     *  Atomically replaces {@code to} with the content of {@code from}, preserving its last-modified time
+     *  (the version history relies on it).
+     */
+    private static void copyAtomically( final File from, final File to ) throws IOException {
+        AtomicFileWriter.write( to.toPath(), out -> {
+            try( InputStream in = new BufferedInputStream( Files.newInputStream( from.toPath() ) ) ) {
+                FileUtil.copyContents( in, out );
+            }
+        } );
+        if( !to.setLastModified( from.lastModified() ) ) {
+            LOG.warn( "Failed to preserve last-modified timestamp on {}", to.getAbsolutePath() );
+        }
+    }
+
+    /**
      *  Writes the page properties back to the file system.
      *  Note that it WILL overwrite any previous properties.
      */
     private void putPageProperties( final String page, final Properties properties ) throws IOException {
         final File propertyFile = new File( findOldPageDir(page), PROPERTYFILE );
-        try( OutputStream out = Files.newOutputStream( propertyFile.toPath() ) ) {
-            properties.store( out, " JSPWiki page properties for "+page+". DO NOT MODIFY!" );
-        }
+        AtomicFileWriter.write( propertyFile.toPath(),
+                                out -> properties.store( out, " JSPWiki page properties for "+page+". DO NOT MODIFY!" ) );
 
         // Update cache with the new properties
         propertyCache.put( page, properties, propertyFile.lastModified() );
@@ -380,18 +393,10 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
             if( oldFile != null && oldFile.exists() ) {
                 final File pageFile = new File( pageDir, versionNumber + FILE_EXT );
-                try( InputStream in = new BufferedInputStream( Files.newInputStream( oldFile.toPath() ) );
-                     OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
-                    FileUtil.copyContents( in, out );
+                copyAtomically( oldFile, pageFile );
 
-                    // We need also to set the date, since we rely on this.
-                    if( !pageFile.setLastModified( oldFile.lastModified() ) ) {
-                        LOG.warn( "Failed to preserve last-modified timestamp on {}", pageFile.getAbsolutePath() );
-                    }
-
-                    // Kludge to make the property code to work properly.
-                    versionNumber++;
-                }
+                // Kludge to make the property code to work properly.
+                versionNumber++;
             }
 
             //  Let superclass handler writing data to a new version.
@@ -677,15 +682,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 final File pageDir = findOldPageDir( page );
                 final File previousFile = new File( pageDir, latest + FILE_EXT );
                 final File pageFile = findPage(page);
-                try( InputStream in = new BufferedInputStream( Files.newInputStream( previousFile.toPath() ) );
-                     OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
-                    if( previousFile.exists() ) {
-                        FileUtil.copyContents( in, out );
-                        // We need also to set the date, since we rely on this.
-                        if( !pageFile.setLastModified( previousFile.lastModified() ) ) {
-                            LOG.warn( "Failed to preserve last-modified timestamp on {}", pageFile.getAbsolutePath() );
-                        }
-                    }
+                try {
+                    copyAtomically( previousFile, pageFile );
                 } catch( final IOException e ) {
                     LOG.fatal("Something wrong with the page directory - you may have just lost data!",e);
                 }
@@ -709,20 +707,14 @@ public class VersioningFileProvider extends AbstractFileProvider {
     /**
      *  {@inheritDoc}
      */
-    // Reads version info for every page individually (one properties lookup per page).
+    // Reads version info for every page once (one properties lookup per page).
     @Override
     public Collection< Page > getAllPages() throws ProviderException {
         final java.util.concurrent.locks.Lock readLock = rwLock.readLock();
         readLock.lock();
         try {
-            final Collection< Page > pages = super.getAllPages();
-            final Collection< Page > returnedPages = new ArrayList<>();
-            for( final Page page : pages ) {
-                final Page info = getPageInfo( page.getName(), WikiProvider.LATEST_VERSION );
-                returnedPages.add( info );
-            }
-
-            return returnedPages;
+            // super.getAllPages() already builds each page through the overridden getPageInfo( LATEST ).
+            return super.getAllPages();
         } finally {
             readLock.unlock();
         }

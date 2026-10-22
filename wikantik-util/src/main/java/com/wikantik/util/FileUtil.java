@@ -23,8 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -118,7 +116,6 @@ public final class FileUtil {
      *  @param out The outputstream to copy to
      *  @throws IOException In case reading or writing fails.
      */
-    @SuppressWarnings( "PMD.CloseResource" ) // `fos` is a pattern-binding on a caller-owned OutputStream; the caller closes it.
     public static void copyContents( final InputStream in, final OutputStream out ) throws IOException {
         final byte[] buf = new byte[BUFFER_SIZE];
         int bytesRead;
@@ -127,12 +124,6 @@ public final class FileUtil {
         }
 
         out.flush();
-
-        // FileOutputStream.flush is an empty method, so in this case we grab the underlying file descriptor and force from there thw write to disk
-        if( out instanceof FileOutputStream fos ) {
-            final FileDescriptor fd = fos.getFD();
-            fd.sync();
-        }
     }
 
     /**

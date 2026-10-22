@@ -41,6 +41,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.parser.MarkdownLinkScanner;
 import com.wikantik.api.parser.WikiLinkSyntax;
 import com.wikantik.wikilink.WikiLinkResolver;
+import com.wikantik.util.AtomicFileWriter;
 import com.wikantik.util.TextUtil;
 
 import java.io.*;
@@ -480,14 +481,18 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         lastSerializedNanos = System.nanoTime();
         serializedOnce = true;
         final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
-        try( ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( serializationFile.toPath() ) ) ) ) {
+        try {
             final StopWatch sw = new StopWatch();
             sw.start();
 
-            out.writeLong( serialVersionUID );
-            out.writeLong( System.currentTimeMillis() ); // Timestamp
-            out.writeObject( new HashMap<>( refersTo ) );
-            out.writeObject( new HashMap<>( referredBy ) );
+            AtomicFileWriter.write( serializationFile.toPath(), raw -> {
+                try( ObjectOutputStream out = new ObjectOutputStream( raw ) ) {
+                    out.writeLong( serialVersionUID );
+                    out.writeLong( System.currentTimeMillis() ); // Timestamp
+                    out.writeObject( new HashMap<>( refersTo ) );
+                    out.writeObject( new HashMap<>( referredBy ) );
+                }
+            } );
 
             sw.stop();
 
@@ -583,7 +588,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             //  Create a digest for the name
             f = new File( f, hashName );
 
-            try( ObjectOutputStream out =  new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( f.toPath() ) ) ) ) {
+            try {
                 // snapshot the attributes map to avoid ConcurrentModificationException
                 final Map< String, Object > attrSnapshot = new java.util.LinkedHashMap<>( p.getAttributes() );
                 final Set< Map.Entry < String, Object > > entries = attrSnapshot.entrySet();
@@ -591,23 +596,27 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
                 if(entries.isEmpty()) {
                     //  Nothing to serialize, therefore we will just simply remove the serialization file so that the
                     //  next time we boot, we don't deserialize old data.
-                    if( !f.delete() ) {
+                    if( f.exists() && !f.delete() ) {
                         LOG.warn( "Failed to delete stale reference serialization file: {}", f.getAbsolutePath() );
                     }
                     return;
                 }
 
-                out.writeLong( serialVersionUID );
-                out.writeLong( System.currentTimeMillis() ); // Timestamp
-                out.writeUTF( p.getName() );
-                out.writeLong( entries.size() );
+                AtomicFileWriter.write( f.toPath(), raw -> {
+                    try( ObjectOutputStream out = new ObjectOutputStream( raw ) ) {
+                        out.writeLong( serialVersionUID );
+                        out.writeLong( System.currentTimeMillis() ); // Timestamp
+                        out.writeUTF( p.getName() );
+                        out.writeLong( entries.size() );
 
-                for( final Map.Entry< String, Object > e : entries ) {
-                    if( e.getValue() instanceof Serializable serializableValue ) {
-                        out.writeUTF( e.getKey() );
-                        out.writeObject( serializableValue );
+                        for( final Map.Entry< String, Object > e : entries ) {
+                            if( e.getValue() instanceof Serializable serializableValue ) {
+                                out.writeUTF( e.getKey() );
+                                out.writeObject( serializableValue );
+                            }
+                        }
                     }
-                }
+                } );
 
             } catch( final IOException e ) {
                 LOG.error( "Unable to serialize!", e );

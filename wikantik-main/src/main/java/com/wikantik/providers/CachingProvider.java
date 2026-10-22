@@ -39,10 +39,14 @@ import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -371,17 +375,28 @@ public class CachingProvider implements PageProvider {
         LOG.debug( "All-pages cache expired or not yet populated, refreshing from provider" );
         final Collection< Page > providerPages = provider.getAllPages();
 
-        // Clear existing page entries and repopulate the cache
-        // This ensures deleted pages are also detected
-        final List< String > existingKeys = cachingManager.keys( CachingManager.CACHE_PAGES );
-        for ( final String key : existingKeys ) {
-            cachingManager.remove( CachingManager.CACHE_PAGES, key );
-            cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, key );
-        }
-
-        // Populate the cache with all pages from provider
+        // Diff against the provider: only new/changed pages are (re)cached and have their text evicted;
+        // pages that vanished are evicted; unchanged pages keep both their Page object and cached text.
+        final Set< String > live = new HashSet<>();
         for( final Page page : providerPages ) {
+            live.add( page.getName() );
+            final Page cached = cachingManager.get( CachingManager.CACHE_PAGES, page.getName(), () -> null );
+            if( cached != null && sameRevision( cached, page ) ) {
+                continue;
+            }
             cachingManager.put( CachingManager.CACHE_PAGES, page.getName(), page );
+            if( cached != null ) {
+                cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, page.getName() );
+                cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, page.getName() );
+            }
+        }
+        final List< String > existingKeys = cachingManager.keys( CachingManager.CACHE_PAGES );
+        for( final String key : existingKeys ) {
+            if( !live.contains( key ) ) {
+                cachingManager.remove( CachingManager.CACHE_PAGES, key );
+                cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, key );
+                cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, key );
+            }
         }
         allPagesLastRefresh.set( System.currentTimeMillis() );
         pages.set( providerPages.size() );
@@ -389,12 +404,42 @@ public class CachingProvider implements PageProvider {
         LOG.debug( "All-pages cache refreshed with {} pages", providerPages.size() );
     }
 
+    /** True when the two Page objects describe the same stored revision (version, modification time, size, author). */
+    private static boolean sameRevision( final Page cached, final Page fresh ) {
+        return cached.getVersion() == fresh.getVersion()
+                && cached.getSize() == fresh.getSize()
+                && Objects.equals( cached.getLastModified(), fresh.getLastModified() )
+                && Objects.equals( cached.getAuthor(), fresh.getAuthor() );
+    }
+
     /**
      *  {@inheritDoc}
+     *
+     *  @implNote Served from the cached all-pages collection (refreshed on its TTL and kept current by
+     *  saves and the directory watcher) so a change-feed request does not rescan the page store.
      */
     @Override
     public Collection< Page > getAllChangedSince( final Date date ) {
-        return provider.getAllChangedSince( date );
+        final Collection< Page > all;
+        try {
+            all = getAllPages();
+        } catch( final ProviderException e ) {
+            LOG.warn( "Could not serve getAllChangedSince from the page cache, asking the provider: {}", e.getMessage(), e );
+            return provider.getAllChangedSince( date );
+        }
+
+        final long sinceMillis = ( date == null ) ? 0L : date.getTime();
+        if( sinceMillis <= 0L ) {
+            return all;
+        }
+        final List< Page > changed = new ArrayList<>();
+        for( final Page page : all ) {
+            final Date modified = page.getLastModified();
+            if( modified == null || modified.getTime() >= sinceMillis ) {
+                changed.add( page );
+            }
+        }
+        return changed;
     }
 
     /**

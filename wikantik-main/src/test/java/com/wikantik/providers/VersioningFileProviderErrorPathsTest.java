@@ -292,15 +292,17 @@ class VersioningFileProviderErrorPathsTest {
         provider.putPageText( page, "v1" );
         provider.putPageText( page, "v2" );
 
+        // Properties are replaced atomically (temp file + rename), so it is the directory's writability that matters.
         final File propsFile = new File( oldDirFor( pageDir, "DeleteLatestPropsLocked" ), VersioningFileProvider.PROPERTYFILE );
         Assertions.assertTrue( propsFile.exists() );
-        Assertions.assertTrue( propsFile.setWritable( false ) );
-        Assumptions.assumeFalse( propsFile.canWrite(), "permission bits not enforced here (running as root?)" );
+        final File propsDir = propsFile.getParentFile();
+        Assertions.assertTrue( propsDir.setWritable( false ) );
+        Assumptions.assumeFalse( propsDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             Assertions.assertThrows( ProviderException.class,
                     () -> provider.deleteVersion( "DeleteLatestPropsLocked", PageProvider.LATEST_VERSION ) );
         } finally {
-            propsFile.setWritable( true );
+            propsDir.setWritable( true );
         }
     }
 

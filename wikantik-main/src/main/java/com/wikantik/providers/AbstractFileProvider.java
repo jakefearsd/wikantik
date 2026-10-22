@@ -32,6 +32,7 @@ import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.search.SearchMatcher;
 import com.wikantik.search.SearchResultComparator;
+import com.wikantik.util.AtomicFileWriter;
 import com.wikantik.util.FileUtil;
 import com.wikantik.util.TextUtil;
 
@@ -41,8 +42,6 @@ import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -442,10 +441,11 @@ public abstract class AbstractFileProvider implements PageProvider {
             }
         }
 
-        try( PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), encoding ) ) ) {
-            out.print( text );
+        try {
+            AtomicFileWriter.write( file.toPath(), text.getBytes( encoding ) );
         } catch( final IOException e ) {
-            LOG.error( "Saving failed", e );
+            LOG.error( "Saving page '{}' to '{}' failed: {}", page.getName(), file.getAbsolutePath(), e.getMessage(), e );
+            throw new ProviderException( "Could not save page text for '" + page.getName() + "': " + e.getMessage(), e );
         }
 
         // Update cache with the extension used for this page

@@ -23,10 +23,10 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 
+import com.wikantik.util.AtomicFileWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.Properties;
 
@@ -67,11 +67,12 @@ public class FileSystemProvider extends AbstractFileProvider {
      */
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
+        super.putPageText( page, text );
         try {
-            super.putPageText( page, text );
             putPageProperties( page );
         } catch( final IOException e ) {
-            LOG.error( "Saving failed" );
+            LOG.error( "Saving properties of page '{}' failed: {}", page.getName(), e.getMessage(), e );
+            throw new ProviderException( "Could not save page properties for '" + page.getName() + "': " + e.getMessage(), e );
         }
     }
 
@@ -105,9 +106,7 @@ public class FileSystemProvider extends AbstractFileProvider {
         getCustomProperties( page, props );
 
         final File file = new File( getPageDirectory(), mangleName( page.getName() ) + PROP_EXT );
-        try( OutputStream out = Files.newOutputStream( file.toPath() ) ) {
-            props.store( out, "JSPWiki page properties for page "+page.getName() );
-        }
+        AtomicFileWriter.write( file.toPath(), out -> props.store( out, "JSPWiki page properties for page "+page.getName() ) );
     }
     
     /**

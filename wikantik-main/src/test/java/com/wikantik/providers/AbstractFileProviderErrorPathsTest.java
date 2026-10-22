@@ -171,7 +171,7 @@ class AbstractFileProviderErrorPathsTest {
     }
 
     @Test
-    void testPutPageText_migrationRenameFails_stillWritesContentToOldFile( @TempDir final File pageDir ) throws Exception {
+    void testPutPageText_migrationRenameFails_writeFailureSurfacesAndKeepsOldFile( @TempDir final File pageDir ) throws Exception {
         final FileSystemProvider provider = buildProvider( pageDir );
         final File legacyTxt = new File( pageDir, "LockedLegacyPage.txt" );
         try( FileWriter w = new FileWriter( legacyTxt ) ) {
@@ -184,14 +184,16 @@ class AbstractFileProviderErrorPathsTest {
             final Page page = Wiki.contents().page( engine, "LockedLegacyPage" );
             page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
 
-            Assertions.assertDoesNotThrow( () -> provider.putPageText( page, "updated content" ) );
+            // Neither the rename nor the atomic (temp file + rename) write can happen in a locked directory;
+            // the failure must surface instead of reporting a save that did not happen.
+            Assertions.assertThrows( ProviderException.class, () -> provider.putPageText( page, "updated content" ) );
         } finally {
             pageDir.setWritable( true );
         }
 
-        // The directory couldn't be modified, so the rename must have failed and the
-        // original .txt file should have been overwritten in place instead.
+        // The directory couldn't be modified, so the rename must have failed and the original .txt file is intact.
         Assertions.assertTrue( legacyTxt.exists(), "rename should have failed, leaving the .txt file in place" );
+        Assertions.assertEquals( "legacy wiki-syntax content", java.nio.file.Files.readString( legacyTxt.toPath() ) );
         Assertions.assertFalse( new File( pageDir, "LockedLegacyPage.md" ).exists() );
     }
 

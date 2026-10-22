@@ -31,6 +31,7 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.search.QueryItem;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.pages.PageTimeComparator;
+import com.wikantik.util.AtomicFileWriter;
 import com.wikantik.util.FileUtil;
 import com.wikantik.util.TextUtil;
 
@@ -39,7 +40,6 @@ import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -243,9 +243,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     private void putPageProperties( final Attachment att, final Properties properties ) throws IOException, ProviderException {
         final File attDir = findAttachmentDir( att );
         final File propertyFile = new File( attDir, PROPERTY_FILE );
-        try( OutputStream out = Files.newOutputStream( propertyFile.toPath() ) ) {
-            properties.store( out, " JSPWiki page properties for " + att.getName() + ". DO NOT MODIFY!" );
-        }
+        AtomicFileWriter.write( propertyFile.toPath(),
+                                out -> properties.store( out, " JSPWiki page properties for " + att.getName() + ". DO NOT MODIFY!" ) );
     }
 
     /**
@@ -279,10 +278,10 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         final int versionNumber = latestVersion + 1;
 
         final File newfile = new File( attDir, versionNumber + "." + getFileExtension( att.getFileName() ) );
-        try( OutputStream out = Files.newOutputStream( newfile.toPath() ) ) {
+        try {
             LOG.info( "Uploading attachment {} to page {}", att.getFileName(), att.getParentName() );
             LOG.info( "Saving attachment contents to {}", newfile.getAbsolutePath() );
-            FileUtil.copyContents( data, out );
+            AtomicFileWriter.write( newfile.toPath(), out -> FileUtil.copyContents( data, out ) );
 
             final Properties props = getPageProperties( att );
 
@@ -569,6 +568,14 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         }
         if( !dir.delete() ) {
             LOG.warn( "Failed to delete attachment directory: {}", dir.getAbsolutePath() );
+            return;
+        }
+
+        // Last attachment of the page gone: do not leave an empty <page>-att directory behind.
+        final File pageDir = dir.getParentFile();
+        final String[] remaining = pageDir == null ? null : pageDir.list();
+        if( remaining != null && remaining.length == 0 && !pageDir.delete() ) {
+            LOG.warn( "Failed to delete empty attachment directory: {}", pageDir.getAbsolutePath() );
         }
     }
 

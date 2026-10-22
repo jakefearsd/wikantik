@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Context bundles re-parsed every cited page on every request to work out the section links added in 2.4.60,
+  which made bundle assembly roughly 1.6–1.8× as expensive. Each page's section anchors are now cached until the
+  page's text changes.
+- Since 2.4.59, a bare-metal Tomcat stopped with `shutdown.sh` never exited: the MCP SDK's idle-session sweeper
+  thread kept the JVM alive. The next start (`bin/redeploy.sh`) then could not open the ontology store, so
+  `/knowledge-mcp` came up with 10 tools and `/api/bundle` answered 503. The sweeper is now disposed when the
+  webapp stops, and the Lucene search pool, whose idle threads held the JVM open for up to a minute after search
+  traffic, now uses daemon threads. `bin/redeploy.sh` also waits for the old JVM to exit, not only for port 8080,
+  and sends it SIGTERM after 30 s, so it never starts a second instance beside one that is still shutting down.
+  Docker deployments were not affected: a container stop ends the JVM regardless.
+
 ## [2.4.60] - 2026-10-22
 
 ### Added

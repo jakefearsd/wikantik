@@ -122,7 +122,12 @@ public class DatabasePolicy
         catch( final SQLException e )
         {
             // LOG.error justified: SQL failure loading policy grants makes authorization unreliable
-            LOG.error( "Failed to load policy grants from table '{}': {}", tableName, e.getMessage(), e );
+            // The previous snapshot stays in force; before the first successful load that snapshot is
+            // empty, i.e. fail-closed.
+            // LOG.error justified: SQL failure loading policy grants makes authorization unreliable
+            LOG.error( "Failed to load policy grants from table '{}': {} - keeping the previous grant snapshot "
+                    + "(empty and fail-closed if none was ever loaded)", tableName, e.getMessage(), e );
+            return;
         }
 
         // Publish the new snapshot atomically

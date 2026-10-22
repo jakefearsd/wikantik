@@ -496,8 +496,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * <p>
      * Targeted update of the {@code last_login} column only — it deliberately leaves the
      * {@code modified} timestamp and all other fields untouched, so stamping a login does not
-     * masquerade as a profile edit. The cached profile for this login is invalidated so the
-     * next lookup (e.g. the admin user list) reflects the fresh timestamp.
+     * masquerade as a profile edit. The cached profile for this login, if any, is updated in
+     * place so lookups reflect the fresh timestamp without a DB round trip.
      */
     @Override
     public void recordLastLogin( final String loginName, final Date when ) throws WikiSecurityException {
@@ -509,7 +509,14 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 ps.setTimestamp( 1, new Timestamp( when.getTime() ) );
                 ps.setString( 2, loginName );
             } );
-            byLoginCache.invalidate( loginName );
+            // Refresh the cached copy in place rather than evicting it: a last_login stamp must
+            // not force the next (e.g. per-request Basic-auth) lookup back to the DB.
+            final UserProfile cached = byLoginCache.getIfPresent( loginName );
+            if( cached != null ) {
+                final UserProfile updated = DefaultUserProfile.copyOf( cached );
+                updated.setLastLogin( new Date( when.getTime() ) );
+                byLoginCache.put( loginName, updated );
+            }
         } catch( final SQLException e ) {
             throw new WikiSecurityException( "Could not record last login for '" + loginName + "': " + e.getMessage(), e );
         }

@@ -107,3 +107,16 @@ for bad in abc 0 100 150 '50 -Dx=y' '5.' '.5' '50%'; do
         || fail "rejection of '${bad}' did not name the variable: $(cat "${TMP}/heap-bad-${i}/stderr")"
 done
 ok "malformed WIKANTIK_JVM_MAX_RAM_PERCENTAGE values refuse to boot"
+
+# Connection-pool hygiene: a half-open TCP connection or hung query must not pin a pooled
+# connection forever (driver connect/socket timeouts + keepalive), and validation must run
+# on idle connections rather than on every borrow. Container and bare-metal templates agree.
+TEMPLATE="${REPO_ROOT}/wikantik-war/src/main/config/tomcat/Wikantik-context.xml.template"
+for ctx in "${TMP}/unset/conf/Catalina/localhost/ROOT.xml" "${TEMPLATE}"; do
+    for want in 'connectTimeout=10' 'socketTimeout=300' 'tcpKeepAlive=true' \
+                'testOnBorrow="false"' 'testWhileIdle="true"' 'timeBetweenEvictionRunsMillis="30000"'; do
+        grep -qF -- "${want}" "${ctx}" || fail "${ctx} lacks ${want}"
+    done
+    if grep -qi 'removeAbandoned="true"' "${ctx}"; then fail "${ctx} must not enable removeAbandoned"; fi
+done
+ok "container and bare-metal DataSource carry driver timeouts and idle-time validation"

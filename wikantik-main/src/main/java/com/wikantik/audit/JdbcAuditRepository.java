@@ -28,6 +28,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -35,6 +36,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class JdbcAuditRepository implements AuditRepository {
 
@@ -42,9 +45,22 @@ public final class JdbcAuditRepository implements AuditRepository {
     private static final long CHAIN_LOCK_KEY = 8423971L;
     private static final String CHAIN_HEAD_SQL = "SELECT seq, row_hash FROM audit_log ORDER BY seq DESC LIMIT 1";
 
-    private final Jdbc jdbc;
+    /** Same head, restricted to one monthly partition ({@code created_at} is the partition key), so the
+     *  planner prunes to a single partition instead of a Merge Append over every month. */
+    static final String CHAIN_HEAD_PRUNED_SQL =
+        "SELECT seq, row_hash FROM audit_log WHERE created_at >= ? AND created_at < ? ORDER BY seq DESC LIMIT 1";
 
-    public JdbcAuditRepository( final DataSource dataSource ) { this.jdbc = new Jdbc( dataSource ); }
+    private final Jdbc jdbc;
+    private final Clock clock;
+    /** Partitions already confirmed to exist (per JVM); cleared on any append failure. */
+    private final Set<String> knownPartitions = ConcurrentHashMap.newKeySet();
+
+    public JdbcAuditRepository( final DataSource dataSource ) { this( dataSource, Clock.systemUTC() ); }
+
+    JdbcAuditRepository( final DataSource dataSource, final Clock clock ) {
+        this.jdbc = new Jdbc( dataSource );
+        this.clock = clock;
+    }
 
     @Override
     public ChainHead chainHead() {
@@ -70,11 +86,12 @@ public final class JdbcAuditRepository implements AuditRepository {
         try {
             jdbc.inTransaction( conn -> {
                 lockChain( conn );
-                ensurePartition( conn, Instant.now() );
-                final ChainHead head = chainHeadTx( conn );
+                final Instant nowInstant = clock.instant();
+                ensurePartition( conn, nowInstant );
+                final ChainHead head = chainHeadTx( conn, nowInstant );
                 long seq = head.lastSeq();
                 String prev = head.lastHash();
-                final Timestamp now = Timestamp.from( Instant.now() );
+                final Timestamp now = Timestamp.from( nowInstant );
                 final List<SqlBinder> binders = new ArrayList<>( entries.size() );
                 for ( final AuditEntry e : entries ) {
                     seq++;
@@ -113,7 +130,11 @@ public final class JdbcAuditRepository implements AuditRepository {
                 return null;
             } );
         } catch ( final SQLException e ) {
+            knownPartitions.clear();   // a partition may have been dropped; re-verify on the next append
             throw new IllegalStateException( "audit append failed", e );
+        } catch ( final RuntimeException e ) {
+            knownPartitions.clear();
+            throw e;
         }
     }
 
@@ -123,7 +144,17 @@ public final class JdbcAuditRepository implements AuditRepository {
         jdbc.<Void>query( conn, "SELECT pg_advisory_xact_lock( ? )", ps -> ps.setLong( 1, CHAIN_LOCK_KEY ), rs -> null );
     }
 
-    private ChainHead chainHeadTx( final Connection conn ) throws SQLException {
+    /** Head of the chain: the newest row of the current month's partition if it has one (the common case),
+     *  otherwise the unpruned lookup across all partitions (first append of a month, or a fresh table). */
+    private ChainHead chainHeadTx( final Connection conn, final Instant when ) throws SQLException {
+        final ZonedDateTime start = when.atZone( ZoneOffset.UTC ).withDayOfMonth( 1 ).toLocalDate().atStartOfDay( ZoneOffset.UTC );
+        final Timestamp from = Timestamp.from( start.toInstant() );
+        final Timestamp to = Timestamp.from( start.plusMonths( 1 ).toInstant() );
+        final Optional<ChainHead> pruned = jdbc.queryOne( conn, CHAIN_HEAD_PRUNED_SQL,
+                ps -> { ps.setTimestamp( 1, from ); ps.setTimestamp( 2, to ); }, this::mapChainHead );
+        if ( pruned.isPresent() ) {
+            return pruned.get();
+        }
         return jdbc.queryOne( conn, CHAIN_HEAD_SQL, SqlBinder.NONE, this::mapChainHead )
             .orElse( new ChainHead( 0L, AuditChainHasher.GENESIS_PREV_HASH ) );
     }
@@ -152,7 +183,11 @@ public final class JdbcAuditRepository implements AuditRepository {
         final ZonedDateTime start = z.withDayOfMonth( 1 ).toLocalDate().atStartOfDay( ZoneOffset.UTC );
         final ZonedDateTime end = start.plusMonths( 1 );
         final String name = String.format( "audit_log_%04d_%02d", start.getYear(), start.getMonthValue() );
+        if ( knownPartitions.contains( name ) ) {
+            return;
+        }
         if ( partitionExists( conn, name ) ) {
+            knownPartitions.add( name );
             return;
         }
         final String ddl = "CREATE TABLE IF NOT EXISTS " + name + " PARTITION OF audit_log "

@@ -95,6 +95,38 @@ class LastLoginEventListenerTest {
     }
 
     @Test
+    void repeatedLoginsWithinWindowWriteOnce() throws Exception {
+        final UserDatabase db = mock( UserDatabase.class );
+        final LastLoginEventListener listener = new LastLoginEventListener( db );
+        for ( int i = 0; i < 50; i++ ) {
+            listener.actionPerformed( new WikiSecurityEvent( this,
+                    WikiSecurityEvent.LOGIN_AUTHENTICATED, new WikiPrincipal( "alice" ), null ) );
+        }
+        listener.actionPerformed( new WikiSecurityEvent( this,
+                WikiSecurityEvent.LOGIN_AUTHENTICATED, new WikiPrincipal( "bob" ), null ) );
+        verify( db, times( 1 ) ).recordLastLogin( eq( "alice" ), any( Date.class ) );
+        verify( db, times( 1 ) ).recordLastLogin( eq( "bob" ), any( Date.class ) );
+    }
+
+    @Test
+    void writesAgainAfterWindowAndFailedWriteDoesNotConsumeWindow() throws Exception {
+        final UserDatabase db = mock( UserDatabase.class );
+        doThrow( new WikiSecurityException( "db down" ) ).doNothing().when( db ).recordLastLogin( any(), any() );
+        final long[] nanos = { 0L };
+        final LastLoginEventListener listener = new LastLoginEventListener( db, () -> nanos[ 0 ] );
+        for ( int i = 0; i < 2; i++ ) {
+            listener.actionPerformed( new WikiSecurityEvent( this,
+                    WikiSecurityEvent.LOGIN_AUTHENTICATED, new WikiPrincipal( "alice" ), null ) );
+        }
+        verify( db, times( 2 ) ).recordLastLogin( eq( "alice" ), any( Date.class ) );
+
+        nanos[ 0 ] = LastLoginEventListener.WRITE_INTERVAL.toNanos() + 1;
+        listener.actionPerformed( new WikiSecurityEvent( this,
+                WikiSecurityEvent.LOGIN_AUTHENTICATED, new WikiPrincipal( "alice" ), null ) );
+        verify( db, times( 3 ) ).recordLastLogin( eq( "alice" ), any( Date.class ) );
+    }
+
+    @Test
     void ignoresEventsWithoutAResolvablePrincipalName() throws Exception {
         final UserDatabase db = mock( UserDatabase.class );
         final LastLoginEventListener listener = new LastLoginEventListener( db );

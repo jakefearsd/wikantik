@@ -18,6 +18,9 @@
  */
 package com.wikantik.auth;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
@@ -26,6 +29,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.security.Principal;
+import java.time.Duration;
 import java.util.Date;
 
 /**
@@ -42,10 +46,25 @@ public final class LastLoginEventListener implements WikiEventListener {
 
     private static final Logger LOG = LogManager.getLogger( LastLoginEventListener.class );
 
+    /** Minimum gap between two {@code last_login} writes for one account. */
+    static final Duration WRITE_INTERVAL = Duration.ofMinutes( 5 );
+
     private final UserDatabase userDatabase;
 
+    /** Logins stamped within {@link #WRITE_INTERVAL}; bounded so it cannot grow without limit. */
+    private final Cache< String, Boolean > recentlyStamped;
+
     public LastLoginEventListener( final UserDatabase userDatabase ) {
+        this( userDatabase, Ticker.systemTicker() );
+    }
+
+    LastLoginEventListener( final UserDatabase userDatabase, final Ticker ticker ) {
         this.userDatabase = userDatabase;
+        this.recentlyStamped = Caffeine.newBuilder()
+                .expireAfterWrite( WRITE_INTERVAL )
+                .maximumSize( 10_000 )
+                .ticker( ticker )
+                .build();
     }
 
     @Override
@@ -58,9 +77,15 @@ public final class LastLoginEventListener implements WikiEventListener {
             LOG.debug( "LOGIN_AUTHENTICATED with no resolvable principal name; not recording last login" );
             return;
         }
+        // Basic-auth clients authenticate on every request; one write per window is enough for a
+        // last-login timestamp and avoids queueing concurrent requests on the same users row.
+        if ( recentlyStamped.asMap().putIfAbsent( loginName, Boolean.TRUE ) != null ) {
+            return;
+        }
         try {
             userDatabase.recordLastLogin( loginName, new Date() );
         } catch ( final Exception e ) {
+            recentlyStamped.invalidate( loginName );
             // Best-effort telemetry — never let a stamping failure break authentication.
             LOG.warn( "Could not record last login for '{}': {}", loginName, e.getMessage(), e );
         }

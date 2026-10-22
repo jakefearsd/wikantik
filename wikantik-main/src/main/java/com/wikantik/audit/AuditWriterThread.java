@@ -34,13 +34,52 @@ public final class AuditWriterThread extends Thread {
 
     private final DefaultAuditService service;
     private final AuditRepository repository;
+    static final int MAX_ATTEMPTS = 3;
+    private static final long DEFAULT_BACKOFF_MILLIS = 250;
+
+    private final long backoffMillis;
     private volatile boolean running = true;
 
     public AuditWriterThread( final DefaultAuditService service, final AuditRepository repository ) {
+        this( service, repository, DEFAULT_BACKOFF_MILLIS );
+    }
+
+    AuditWriterThread( final DefaultAuditService service, final AuditRepository repository, final long backoffMillis ) {
         super( "audit-writer" );
         setDaemon( true );
         this.service = service;
         this.repository = repository;
+        this.backoffMillis = backoffMillis;
+    }
+
+    /** Persists a batch, retrying with backoff; returns false if it had to be dropped. Order is kept
+     *  because the whole batch is re-appended (the append is one transaction) before anything newer. */
+    boolean persist( final List<AuditEntry> batch ) {
+        RuntimeException last = null;
+        for ( int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++ ) {
+            try {
+                repository.append( batch );
+                return true;
+            } catch ( final RuntimeException e ) {
+                last = e;
+                LOG.warn( "Audit writer failed to persist a batch of {} (attempt {}/{})",
+                        batch.size(), attempt, MAX_ATTEMPTS, e );
+            }
+            if ( attempt < MAX_ATTEMPTS ) {
+                try {
+                    Thread.sleep( backoffMillis * attempt );
+                } catch ( final InterruptedException ie ) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        final AuditEntry first = batch.get( 0 );
+        final AuditEntry end = batch.get( batch.size() - 1 );
+        // LOG.error justified: audit entries are permanently lost after exhausting retries
+        LOG.error( "Audit batch of {} entries DROPPED after retries; first={}@{} last={}@{}",
+                batch.size(), first.eventType(), first.eventTime(), end.eventType(), end.eventTime(), last );
+        return false;
     }
 
     @Override
@@ -52,20 +91,16 @@ public final class AuditWriterThread extends Thread {
                 final List<AuditEntry> batch = new ArrayList<>();
                 batch.add( first );
                 service.drainTo( batch, MAX_BATCH - 1 );
-                repository.append( batch );
+                persist( batch );
             } catch ( final InterruptedException e ) {
                 Thread.currentThread().interrupt();
                 break;
-            } catch ( final RuntimeException e ) {
-                // Never swallow: a persistence failure is logged with context.
-                // The batch is lost (documented v1 limit); loop continues.
-                LOG.warn( "Audit writer failed to persist a batch", e );
             }
         }
         // Best-effort final drain on shutdown.
         try {
             final List<AuditEntry> tail = new ArrayList<>();
-            if ( service.drainTo( tail, MAX_BATCH ) > 0 ) repository.append( tail );
+            if ( service.drainTo( tail, MAX_BATCH ) > 0 ) persist( tail );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Audit writer failed final drain on shutdown", e );
         }

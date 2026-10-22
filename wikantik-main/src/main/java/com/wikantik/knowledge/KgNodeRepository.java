@@ -496,7 +496,9 @@ public final class KgNodeRepository extends KgJdbcSupport {
         final StringBuilder sql = new StringBuilder();
         sql.append( countOnly ? "SELECT COUNT(*) FROM kg_nodes n " : "SELECT n.* FROM kg_nodes n " )
            .append( "LEFT JOIN kg_excluded_pages kgxn ON n.source_page = kgxn.page_name " )
-           .append( "WHERE NOT EXISTS ( SELECT 1 FROM kg_edges e WHERE e.source_id = n.id OR e.target_id = n.id )" );
+           // Two NOT EXISTS (not one OR) so each probe uses its own source_id / target_id index
+           .append( "WHERE NOT EXISTS ( SELECT 1 FROM kg_edges es WHERE es.source_id = n.id ) " )
+           .append( "AND NOT EXISTS ( SELECT 1 FROM kg_edges et WHERE et.target_id = n.id )" );
 
         if ( filters != null ) {
             if ( filters.containsKey( "node_type" ) ) {

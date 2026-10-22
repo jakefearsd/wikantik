@@ -486,6 +486,7 @@ cat > "${CATALINA_HOME}/conf/Catalina/localhost/ROOT.xml" <<EOF
               maxTotal="90"
               maxIdle="30"
               maxWaitMillis="5000"
+              connectionProperties="connectTimeout=10;socketTimeout=300;tcpKeepAlive=true"
               validationQuery="SELECT 1"
               testOnBorrow="false"
               testWhileIdle="true"

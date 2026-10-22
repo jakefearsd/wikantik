@@ -167,6 +167,10 @@ public non-sealed class WikiPageEvent extends WikiEvent {
 
     private final String pagename;
 
+    /** Login name of the authenticated user who caused the event, or {@code null} (system or anonymous). */
+
+    private final String actor;
+
     // ............
 
     /**
@@ -177,8 +181,30 @@ public non-sealed class WikiPageEvent extends WikiEvent {
       * @param newPagename the WikiPage being acted upon.
       */
     public WikiPageEvent( final Object src, final int type, final String newPagename ) {
+        this( src, type, newPagename, null );
+    }
+
+    /**
+     * Constructs an instance of this event that also records who caused it.
+     *
+     * @param src  the Object that is the source of the event.
+     * @param type the type of the event (see the enumerated int values defined in {@link com.wikantik.event.WikiEvent}).
+     * @param newPagename the WikiPage being acted upon.
+     * @param actor login name of the authenticated user who caused the event, or {@code null}
+     */
+    public WikiPageEvent( final Object src, final int type, final String newPagename, final String actor ) {
         super( src, type );
         this.pagename = newPagename;
+        this.actor = actor;
+    }
+
+    /**
+     * Returns the login name of the authenticated user who caused this event, if known.
+     *
+     * @return the actor's login name, or {@code null} for system and anonymous actions.
+     */
+    public String getActor() {
+        return actor;
     }
 
     /**

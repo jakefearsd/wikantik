@@ -102,12 +102,14 @@ public final class AuditEventListener implements WikiEventListener {
         final String eventType = PAGE_EVENT_TYPES.get( pe.getType() );
         if ( eventType == null ) return null;
         final String pageName = pe.getPageName();
+        final String actor = pe.getActor();
         final AuditEntry.Builder b = AuditEntry.builder()
             .eventTime( Instant.now() )
             .category( AuditCategory.CONTENT )
             .eventType( eventType )
             .outcome( AuditOutcome.SUCCESS )
-            .actorType( "system" )
+            .actorType( actor == null ? "system" : "user" )
+            .actorPrincipal( actor )
             .targetType( "page" )
             .targetId( pageName )
             .targetLabel( pageName );

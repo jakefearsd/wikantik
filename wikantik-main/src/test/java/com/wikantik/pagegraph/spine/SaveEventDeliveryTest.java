@@ -120,4 +120,15 @@ class SaveEventDeliveryTest {
             .filter( e -> "page.save".equals( e.eventType() ) && PAGE.equals( e.targetId() ) ).toList();
         assertEquals( 1, saves.size(), "page.save entries: " + audited );
     }
+
+    @Test
+    void thePageSaveAuditEntryNamesTheUserWhoSaved() throws Exception {
+        engine.saveTextAsJanne( PAGE, "Hello from Janne" );
+
+        final List< AuditEntry > saves = audited.stream()
+            .filter( e -> "page.save".equals( e.eventType() ) && PAGE.equals( e.targetId() ) ).toList();
+        assertEquals( 1, saves.size(), "page.save entries: " + audited );
+        assertEquals( "janne", saves.get( 0 ).actorPrincipal(), "who saved must be on the audit row" );
+        assertEquals( "user", saves.get( 0 ).actorType() );
+    }
 }

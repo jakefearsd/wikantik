@@ -22,10 +22,14 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.config.GenAiMode;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Confidence;
+import com.wikantik.api.providers.PageProvider;
+import com.wikantik.knowledge.chunking.SectionAnchors;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
+import com.wikantik.util.WikiPageUrls;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -159,7 +163,7 @@ public final class BundleServiceWiring {
 
         return new DefaultBundleAssemblyService(
             new RetrievalRouting( sources, RetrievalMode.HYBRID ), recordedReranker,
-            new CitationResolvers( canonicalIdOf, versionOf ), MAX_SECTIONS,
+            new CitationResolvers( canonicalIdOf, versionOf, sectionLinks( pageManager, props ) ), MAX_SECTIONS,
             coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ),
             new QueryDecomposition( recordedPlanner,
                 new SubQueryFusion( decompositionConfig.rrfK(),
@@ -213,6 +217,39 @@ public final class BundleServiceWiring {
             return planner;
         }
         return planner instanceof LlmQueryPlanner ? new RecordingQueryPlanner( planner, log, "ollama", model ) : planner;
+    }
+
+    /**
+     * Slug → that page's heading-path → section-URL lookup: {@code wikantik.baseURL} (site-relative
+     * when blank) + {@code /wiki/<slug>}, plus the page view's anchor for the section when the current
+     * page still has that heading ({@link SectionAnchors}). A page that cannot be read still gets its
+     * page link — a section link is a convenience and never fails a bundle.
+     */
+    static Function< String, Function< List< String >, String > > sectionLinks( final PageManager pageManager,
+                                                                               final Properties props ) {
+        final String base = WikiPageUrls.base( props, "" );
+        return slug -> {
+            final String pageUrl = WikiPageUrls.page( base, slug );
+            final Map< List< String >, String > anchors = sectionAnchors( pageManager, slug );
+            return headingPath -> {
+                final String anchor = anchors.get( headingPath );
+                return anchor == null ? pageUrl : pageUrl + "#" + anchor;
+            };
+        };
+    }
+
+    private static Map< List< String >, String > sectionAnchors( final PageManager pageManager, final String slug ) {
+        if ( pageManager == null ) {
+            return Map.of();
+        }
+        try {
+            final String text = pageManager.getPureText( slug, PageProvider.LATEST_VERSION );
+            return text == null ? Map.of() : SectionAnchors.byHeadingPath( FrontmatterParser.parse( text ).body() );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not read page '{}' to anchor its bundle sections; linking the page instead: {}",
+                slug, e.getMessage() );
+            return Map.of();
+        }
     }
 
     /** Knee cutoff on/off, {@code wikantik.bundle.knee.enabled}, default false (fixed top-N). */

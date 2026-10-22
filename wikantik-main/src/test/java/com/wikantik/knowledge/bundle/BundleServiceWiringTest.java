@@ -114,6 +114,59 @@ class BundleServiceWiringTest {
         return new PageCanonicalIdsDao.Row( canonical, slug, "title", "article", "cluster", null, null );
     }
 
+    /* ---------- section links ---------- */
+
+    private static final int LATEST = com.wikantik.api.providers.PageProvider.LATEST_VERSION;
+
+    private static PageCanonicalIdsDao daoWith( final String slug ) {
+        final PageCanonicalIdsDao dao = mock( PageCanonicalIdsDao.class );
+        when( dao.findBySlug( slug ) ).thenReturn( Optional.of( row( "01X", slug ) ) );
+        return dao;
+    }
+
+    private static PageManager pagesWith( final String slug, final String text ) {
+        final PageManager pm = mock( PageManager.class );
+        final Page page = mock( Page.class );
+        when( page.getVersion() ).thenReturn( 3 );
+        when( pm.getPageWithoutMetadata( slug, LATEST ) ).thenReturn( page );
+        when( pm.getPureText( slug, LATEST ) ).thenReturn( text );
+        return pm;
+    }
+
+    private static String sectionUrl( final PageManager pm, final Properties props ) {
+        final ContextBundle b = BundleServiceWiring.build( stubRetrieval(),
+            Map.of( RetrievalMode.HYBRID, denseWith( "PageX" ) ), daoWith( "PageX" ), pm, props ).assemble( "q" );
+        assertEquals( 1, b.sections().size() );
+        return b.sections().get( 0 ).url();
+    }
+
+    @Test
+    void build_linksEachSectionToItsHeadingAnchorUnderTheConfiguredBaseUrl() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.baseURL", "https://wiki.example.com/" );
+        // denseWith() puts its section under heading path ["H"]; frontmatter is not part of the body.
+        assertEquals( "https://wiki.example.com/wiki/PageX#h",
+            sectionUrl( pagesWith( "PageX", "---\nsummary: x\n---\n## Intro\n\nx\n\n## H\n\ntext\n" ), props ) );
+    }
+
+    @Test
+    void build_sectionLinksAreSiteRelativeWithoutABaseUrl() {
+        assertEquals( "/wiki/PageX#h", sectionUrl( pagesWith( "PageX", "## H\n\ntext\n" ), new Properties() ) );
+    }
+
+    @Test
+    void build_aSectionWhoseHeadingIsNoLongerOnThePageLinksToThePage() {
+        // The chunk was indexed from an older version; never emit a fragment that lands nowhere.
+        assertEquals( "/wiki/PageX", sectionUrl( pagesWith( "PageX", "## Renamed\n\ntext\n" ), new Properties() ) );
+    }
+
+    @Test
+    void build_anUnreadablePageStillLinksToThePage() {
+        final PageManager pm = pagesWith( "PageX", "" );
+        when( pm.getPureText( "PageX", LATEST ) ).thenThrow( new IllegalStateException( "provider down" ) );
+        assertEquals( "/wiki/PageX", sectionUrl( pm, new Properties() ) );
+    }
+
     @Test
     void build_nullRetrieval_returnsNull() {
         assertNull( BundleServiceWiring.build( null,

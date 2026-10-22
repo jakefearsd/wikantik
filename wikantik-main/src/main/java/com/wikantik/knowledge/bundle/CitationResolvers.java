@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.bundle;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -25,6 +26,16 @@ import java.util.function.Function;
  * Slug → citation-identity resolvers used to build a {@link com.wikantik.api.bundle.CitationHandle}
  * per kept section: {@code canonicalIdOf} (a page without one can't be cited and its section is
  * dropped, not emitted) and {@code versionOf} (the pinned page version recorded on the citation).
+ * {@code sectionLinksOf} turns a slug into that page's heading-path → section-URL lookup; it is
+ * called once per kept page per bundle, so it may read and parse the page.
  */
 record CitationResolvers( Function< String, Optional< String > > canonicalIdOf,
-                          Function< String, Integer > versionOf ) {}
+                          Function< String, Integer > versionOf,
+                          Function< String, Function< List< String >, String > > sectionLinksOf ) {
+
+    /** Resolvers that give sections no link. */
+    CitationResolvers( final Function< String, Optional< String > > canonicalIdOf,
+                       final Function< String, Integer > versionOf ) {
+        this( canonicalIdOf, versionOf, slug -> headingPath -> null );
+    }
+}

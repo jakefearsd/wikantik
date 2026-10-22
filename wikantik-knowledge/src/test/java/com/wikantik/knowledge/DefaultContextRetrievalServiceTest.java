@@ -82,7 +82,8 @@ class DefaultContextRetrievalServiceTest {
 
         assertNotNull( p );
         assertEquals( "Hub", p.name() );
-        assertEquals( "https://wiki.example/Hub", p.url() );
+        // The reader route: a bare https://wiki.example/Hub 404s.
+        assertEquals( "https://wiki.example/wiki/Hub", p.url() );
         assertEquals( "the hub", p.summary() );
         assertEquals( "search", p.cluster() );
         assertEquals( java.util.List.of( "retrieval", "search" ), p.tags() );
@@ -429,6 +430,28 @@ class DefaultContextRetrievalServiceTest {
             .prefetchQueryEmbedding( org.mockito.ArgumentMatchers.anyString() );
         // Sanity: the results still carry contributing chunks (from the prescanned set).
         assertEquals( 2, result.pages().size() );
+    }
+
+    @Test
+    void getPage_linksSiteRelativeWhenThereIsNoPublicOrigin() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Hub", "---\nsummary: the hub\n---\n\nBody", "alice", new Date() );
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).baseUrl( "" ).build();
+
+        // Never the bare page name, which a client would resolve against whatever URL it holds.
+        assertEquals( "/wiki/Hub", svc.getPage( "Hub" ).url() );
+    }
+
+    @Test
+    void publicBaseUrl_isTheConfiguredOriginElseTheContextPath() {
+        final Engine engine = mock( Engine.class );
+        final java.util.Properties props = new java.util.Properties();
+        when( engine.getWikiProperties() ).thenReturn( props );
+        when( engine.getBaseURL() ).thenReturn( "/ctx" );   // Engine#getBaseURL is only the servlet context path
+        assertEquals( "/ctx", DefaultContextRetrievalService.publicBaseUrl( engine ) );
+
+        props.setProperty( "wikantik.baseURL", "https://wiki.example.com/" );
+        assertEquals( "https://wiki.example.com", DefaultContextRetrievalService.publicBaseUrl( engine ) );
     }
 
     @Test

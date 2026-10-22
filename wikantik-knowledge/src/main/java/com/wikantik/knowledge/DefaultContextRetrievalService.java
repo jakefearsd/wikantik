@@ -48,6 +48,7 @@ import com.wikantik.search.SearchManager;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.ScoredChunk;
+import com.wikantik.util.WikiPageUrls;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -163,7 +164,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             kg.mentionIndex(),
             pm,
             search.frontmatterMetadataCache(),
-            engine.getBaseURL(),
+            publicBaseUrl( engine ),
             ontologyQueryFor( engine ),
             () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() );
     }
@@ -362,9 +363,15 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     }
 
     private String buildUrl( final String pageName ) {
-        if ( publicBaseUrl == null || publicBaseUrl.isBlank() ) return pageName;
-        final String base = publicBaseUrl.endsWith( "/" ) ? publicBaseUrl : publicBaseUrl + "/";
-        return base + pageName;
+        return WikiPageUrls.page( WikiPageUrls.base( null, publicBaseUrl ), pageName );
+    }
+
+    /**
+     * The origin result links are built on: {@code wikantik.baseURL}, else the servlet context path
+     * ({@link Engine#getBaseURL()} — never an origin), which yields site-relative links.
+     */
+    static String publicBaseUrl( final Engine engine ) {
+        return WikiPageUrls.base( engine.getWikiProperties(), engine.getBaseURL() );
     }
 
     @Override

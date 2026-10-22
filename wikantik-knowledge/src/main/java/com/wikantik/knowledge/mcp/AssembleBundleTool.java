@@ -84,7 +84,8 @@ public class AssembleBundleTool extends AbstractMcpTool {
                 .name( TOOL_NAME )
                 .description( "PRIMARY tool for answering a question from the wiki. Returns a ranked, de-duplicated, "
                         + "version-pinned, citation-bearing set of section texts to ground your answer on. Prefer this "
-                        + "for how/why/what questions. Ground your answer ONLY in the returned sections and cite them. "
+                        + "for how/why/what questions. Ground your answer ONLY in the returned sections and cite them; "
+                        + "each section's 'url' links straight to that section on the wiki. "
                         + "Optional 'mode' arg: hybrid (default), dense, or lexical. Does NOT synthesize an answer. "
                         + "The response includes a 'coverage' block (confidence: strong|partial|weak|unknown);"
                         + " when confidence is weak or partial, refine your query or escalate to sparql_query /"

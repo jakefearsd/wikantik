@@ -100,14 +100,19 @@ public class ContentChunker {
     /** Returns the {@link Config} this chunker was constructed with. */
     public Config config() { return config; }
 
+    /** The page body exactly as it is parsed for chunking: access-rule directives removed, then trimmed. */
+    static String chunkableBody(String body) {
+        final String withoutRules = AclDirectiveText.strip(body);
+        return withoutRules == null ? "" : withoutRules.strip();
+    }
+
     public List<Chunk> chunk(String pageName, ParsedPage page) {
         // Access-rule directives name people by login and are not content: they never reach a chunk, so
         // never a search hit, a bundle section, an embedding or an extraction prompt. Producers hand over the body of
         // the stripped FULL text (AclDirectiveText.parseStripped), because enforcement is judged on the full text and
         // frontmatter can change which body regions are code; stripping the body again here is a last line of defence
         // for a producer that did not, and cannot bring a directive back.
-        final String withoutRules = AclDirectiveText.strip(page.body());
-        String body = withoutRules == null ? "" : withoutRules.strip();
+        String body = chunkableBody(page.body());
         List<Chunk> out = new ArrayList<>();
         if (body.isEmpty()) {
             return out;
@@ -127,20 +132,19 @@ public class ContentChunker {
             if (child instanceof Heading heading) {
                 // Flush any accumulated blocks under the *current* heading path
                 // before we shift into the new heading.
-                flushBlocks(pageName, chunkIndex, currentHeadingPath(headingStack), state, out);
+                flushBlocks(pageName, chunkIndex, HeadingPaths.path(headingStack), state, out);
                 // Heading fidelity at the boundary: a section at/above the fragment
                 // floor is emitted here under its OWN heading_path (so it can't steal
                 // the next section's heading — the OllamaSetup/AgentMemory defect). A
                 // sub-floor fragment is left held; it merges into the next section and
                 // adopts that heading (see flushBlocks), so we never emit a tiny chunk.
                 emitSectionAtBoundary(pageName, chunkIndex, state, out);
-                adjustHeadingStack(headingStack, heading.getLevel(),
-                                   extractHeadingTitle(heading));
+                HeadingPaths.push(headingStack, heading.getLevel(), HeadingPaths.title(heading), "");
             } else {
                 state.blocks.add(child);
             }
         }
-        flushBlocks(pageName, chunkIndex, currentHeadingPath(headingStack), state, out);
+        flushBlocks(pageName, chunkIndex, HeadingPaths.path(headingStack), state, out);
         // Final flush: emit any residual merge-forward buffer even if below threshold,
         // so tail content is never dropped.
         if (!state.pending.isEmpty()) {
@@ -148,7 +152,7 @@ public class ContentChunker {
             if (!text.isEmpty()) {
                 List<String> hp = state.pendingHeadingPath != null
                     ? state.pendingHeadingPath
-                    : currentHeadingPath(headingStack);
+                    : HeadingPaths.path(headingStack);
                 out.add(buildChunk(pageName, chunkIndex[0]++, hp, text));
             }
             state.pending.setLength(0);
@@ -183,53 +187,6 @@ public class ContentChunker {
                                tail + "\n\n" + cur.text()));
         }
         return out;
-    }
-
-    /**
-     * Builds a heading path snapshot from the current stack, stripping leading
-     * empty entries that the stack pads in when a subheading appears without a
-     * parent heading (e.g. a {@code ##} at the top of a page). Downstream
-     * callers treat {@code heading_path} as the *meaningful* hierarchy, so a
-     * leading {@code ""} placeholder isn't useful to preserve.
-     */
-    private List<String> currentHeadingPath(Deque<String> stack) {
-        List<String> list = new ArrayList<>(stack);
-        int firstNonEmpty = 0;
-        while (firstNonEmpty < list.size() && list.get(firstNonEmpty).isEmpty()) {
-            firstNonEmpty++;
-        }
-        return List.copyOf(list.subList(firstNonEmpty, list.size()));
-    }
-
-    /**
-     * Extracts the heading's full title by walking its inline children and
-     * concatenating their source ranges. Flexmark's {@code Heading.getText()}
-     * returns a {@link com.vladsch.flexmark.util.sequence.BasedSequence} covering
-     * the ATX text span in the current version (0.64.8), but that behaviour is
-     * brittle across versions: sibling releases have returned only the first
-     * child's characters, silently truncating headings that contain inline
-     * markup like {@code ## First *emphasized* Section}. Walking the children
-     * explicitly and using {@code getChars()} on each one preserves the full
-     * source-range title (markers included) regardless of Flexmark version.
-     */
-    private static String extractHeadingTitle(Heading heading) {
-        StringBuilder sb = new StringBuilder();
-        Node child = heading.getFirstChild();
-        while (child != null) {
-            sb.append(child.getChars());
-            child = child.getNext();
-        }
-        return sb.toString().strip();
-    }
-
-    private void adjustHeadingStack(Deque<String> stack, int level, String title) {
-        while (stack.size() >= level) {
-            stack.removeLast();
-        }
-        while (stack.size() < level - 1) {
-            stack.addLast("");
-        }
-        stack.addLast(title.trim());
     }
 
     /**

@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     private final SectionReranker reranker;
     private final Function< String, Optional< String > > canonicalIdOf;  // slug -> canonical_id
     private final Function< String, Integer > versionOf;                  // slug -> page version
+    private final Function< String, Function< List< String >, String > > sectionLinksOf; // slug -> (heading path -> url)
     private final int maxSections;
     private final BundleCoverageCalculator coverageCalc;
     private final KneeCutoff knee;
@@ -160,6 +162,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         this.reranker = reranker;
         this.canonicalIdOf = citations.canonicalIdOf();
         this.versionOf = citations.versionOf();
+        this.sectionLinksOf = citations.sectionLinksOf();
         this.maxSections = maxSections;
         this.coverageCalc = coverageCalc;
         this.knee = knee;
@@ -222,9 +225,10 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         return fused;
     }
 
-    /** Dedup by (slug, heading-path), drop un-citable sections, cite, and cap at {@code cut}. */
+    /** Dedup by (slug, heading-path), drop un-citable sections, cite, link, and cap at {@code cut}. */
     private List< BundleSection > citeAndDedup( final List< CandidateSection > ranked, final int cut ) {
         final Set< SectionKey > seen = new LinkedHashSet<>();
+        final Map< String, Function< List< String >, String > > pageLinks = new HashMap<>();  // one page read per bundle
         final List< BundleSection > out = new ArrayList<>();
         for ( final CandidateSection cs : ranked ) {
             if ( !seen.add( new SectionKey( cs.slug(), cs.headingPath() ) ) ) continue;  // dedup by (slug, heading-path)
@@ -232,7 +236,8 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             if ( canonical == null ) continue;         // can't cite an un-versioned page; skip
             final CitationHandle cite = new CitationHandle(
                 canonical, versionOf.apply( cs.slug() ), cs.headingPath(), cs.text(), sha256( cs.text() ) );
-            out.add( new BundleSection( canonical, cs.slug(), cs.headingPath(), cs.text(), cs.denseScore(), cite ) );
+            final String url = pageLinks.computeIfAbsent( cs.slug(), sectionLinksOf ).apply( cs.headingPath() );
+            out.add( new BundleSection( canonical, cs.slug(), cs.headingPath(), cs.text(), cs.denseScore(), cite, url ) );
             if ( out.size() >= cut ) break;             // top-N (dynamic when knee enabled)
         }
         return out;

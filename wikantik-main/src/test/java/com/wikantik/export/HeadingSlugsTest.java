@@ -65,6 +65,23 @@ class HeadingSlugsTest {
         assertEquals( java.util.List.of( "setup", "setup-2", "setup-3" ), java.util.List.copyOf( m.keySet() ) );
     }
 
+    @Test void viewAnchorsCoverOnlyTheH2AndH3HeadingsThePageViewAnchors() {
+        final com.vladsch.flexmark.util.ast.Document doc = com.vladsch.flexmark.parser.Parser.builder().build()
+                .parse( "# Setup\n\n## Setup\n\n#### Setup\n\n### Setup\n" );
+        final List< com.vladsch.flexmark.ast.Heading > headings = new java.util.ArrayList<>();
+        doc.getDescendants().forEach( n -> {
+            if ( n instanceof com.vladsch.flexmark.ast.Heading h ) {
+                headings.add( h );
+            }
+        } );
+        final Map< com.vladsch.flexmark.ast.Heading, String > anchors = HeadingSlugs.viewAnchors( doc );
+        assertEquals( 2, anchors.size() );
+        assertNull( anchors.get( headings.get( 0 ) ) );
+        assertEquals( "setup", anchors.get( headings.get( 1 ) ) );
+        assertNull( anchors.get( headings.get( 2 ) ) );
+        assertEquals( "setup-2", anchors.get( headings.get( 3 ) ) );
+    }
+
     @Test void h2AndH3TakePrecedenceOverAnEarlierH1OrH4WithTheSameSlug() {
         // "Set-up" (h1) and "Set up" (h2) both slug to "set-up"; the view anchors the h2, so it owns the slug
         final Map< String, String > m = HeadingSlugs.headingsBySlug( "# Set-up\n\n## Set up\n" );

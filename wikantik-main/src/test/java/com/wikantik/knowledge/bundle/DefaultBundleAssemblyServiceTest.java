@@ -19,12 +19,14 @@
 package com.wikantik.knowledge.bundle;
 
 import com.wikantik.api.bundle.BundleCoverage;
+import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.knowledge.*;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.*;
@@ -88,6 +90,40 @@ class DefaultBundleAssemblyServiceTest {
     /** Helper matching the shape used elsewhere in this test class. */
     private static CandidateSection candidate( final String slug, final String text ) {
         return new CandidateSection( slug, List.of( "H" ), text, 1.0 );
+    }
+
+    @Test
+    void sectionsCarryTheirSectionLink_resolvingEachKeptPageOnce() {
+        final SectionCandidateSource source = q -> SectionCandidates.of( List.of(
+            new CandidateSection( "PageA", List.of( "One" ), "a1", 0.9 ),
+            new CandidateSection( "PageC", List.of( "Gone" ), "c1", 0.85 ),   // no canonical_id: dropped
+            new CandidateSection( "PageA", List.of( "Two" ), "a2", 0.8 ),
+            new CandidateSection( "PageB", List.of( "Three" ), "b3", 0.7 ) ), -1.0 );
+        final List< String > pagesResolved = new ArrayList<>();
+        final CitationResolvers resolvers = new CitationResolvers(
+            slug -> "PageC".equals( slug ) ? Optional.empty() : Optional.of( "c-" + slug ), slug -> 1,
+            slug -> {
+                pagesResolved.add( slug );
+                return path -> "/wiki/" + slug + "#" + path.get( 0 ).toLowerCase();
+            } );
+
+        final ContextBundle b = new DefaultBundleAssemblyService(
+            new RetrievalRouting( Map.of( RetrievalMode.HYBRID, source ), RetrievalMode.HYBRID ), ( q, s ) -> s,
+            resolvers, 12, BundleCoverageCalculator.defaults(), KneeCutoff.disabled(), QueryDecomposition.disabled() )
+            .assemble( "q" );
+
+        assertEquals( List.of( "/wiki/PageA#one", "/wiki/PageA#two", "/wiki/PageB#three" ),
+            b.sections().stream().map( BundleSection::url ).toList() );
+        assertEquals( List.of( "PageA", "PageB" ), pagesResolved,
+            "links are resolved once per page, and only for pages whose sections are kept" );
+    }
+
+    @Test
+    void sectionLinkIsAbsentWithoutALinkResolver() {
+        final SectionCandidateSource source = q -> SectionCandidates.of( List.of( candidate( "PageA", "a" ) ), -1.0 );
+        final ContextBundle b = new DefaultBundleAssemblyService(
+            source, ( q, s ) -> s, slug -> Optional.of( "c-" + slug ), slug -> 1, 5 ).assemble( "q" );
+        assertNull( b.sections().get( 0 ).url() );
     }
 
     @Test

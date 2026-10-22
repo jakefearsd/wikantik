@@ -64,11 +64,13 @@ public final class HeadingSlugs {
         return EDGE_HYPHEN.matcher( s ).replaceAll( "" );
     }
 
-    /** Each heading's view anchor, in document order (h2/h3 own their numbered slugs; others only a free base slug). */
-    private static Map< Heading, String > anchors( final Document doc ) {
+    /**
+     * The id the page view gives each h2/h3 heading of {@code doc} (duplicates numbered {@code -2}, {@code -3}, ...).
+     * Other levels get no id in the view, so they are absent.
+     */
+    public static Map< Heading, String > viewAnchors( final Document doc ) {
         final Map< String, Integer > seen = new HashMap<>();
         final Map< Heading, String > anchored = new IdentityHashMap<>();
-        // Pass 1: the keys h2/h3 headings own (the view's ids). An h1/h4 sharing a slug must not claim one.
         for ( final Node n : doc.getDescendants() ) {
             if ( n instanceof Heading h && ( h.getLevel() == 2 || h.getLevel() == 3 ) ) {
                 final String base = slug( headingText( h ) );
@@ -76,6 +78,13 @@ public final class HeadingSlugs {
                 anchored.put( h, count == 0 ? base : base + "-" + ( count + 1 ) );
             }
         }
+        return anchored;
+    }
+
+    /** Each heading's view anchor, in document order (h2/h3 own their numbered slugs; others only a free base slug). */
+    private static Map< Heading, String > anchors( final Document doc ) {
+        // Pass 1: the keys h2/h3 headings own (the view's ids). An h1/h4 sharing a slug must not claim one.
+        final Map< Heading, String > anchored = viewAnchors( doc );
         final Set< String > owned = new HashSet<>( anchored.values() );
         // Pass 2: document order.
         final Map< Heading, String > out = new LinkedHashMap<>();

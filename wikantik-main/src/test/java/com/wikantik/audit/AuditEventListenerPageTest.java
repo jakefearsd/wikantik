@@ -39,7 +39,7 @@ class AuditEventListenerPageTest {
     // Real WikiPageEvent API:
     //   constructor: WikiPageEvent( Object src, int type, String newPagename )
     //   page-name accessor: getPageName()
-    //   constants used: PAGE_DELETED (27), POST_SAVE (22)
+    //   constants used: PAGE_DELETED (27), POST_SAVE_END (23)
     //
     // Real WikiPageRenameEvent API:
     //   constructor: WikiPageRenameEvent( Object src, String oldname, String newname )
@@ -64,10 +64,18 @@ class AuditEventListenerPageTest {
     }
 
     @Test
+    void barePostSaveIsNotAudited() {
+        CapturingService svc = new CapturingService();
+        new AuditEventListener( svc ).actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "SomePage" ) );
+
+        assertTrue( svc.recorded.isEmpty() );
+    }
+
+    @Test
     void postSaveMapsToPageSave() {
         CapturingService svc = new CapturingService();
         AuditEventListener listener = new AuditEventListener( svc );
-        WikiPageEvent evt = new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "SomePage" );
+        WikiPageEvent evt = new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, "SomePage" );
 
         listener.actionPerformed( evt );
 

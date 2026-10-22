@@ -57,7 +57,7 @@ public final class AuditEventListener implements WikiEventListener {
     /** Declarative dispatch table: which {@link WikiPageEvent} types are audited, and their event-type label. */
     private static final Map< Integer, String > PAGE_EVENT_TYPES = Map.of(
         WikiPageEvent.PAGE_DELETED, "page.delete",
-        WikiPageEvent.POST_SAVE,    "page.save"
+        WikiPageEvent.POST_SAVE_END, "page.save"
     );
 
     private final AuditService audit;

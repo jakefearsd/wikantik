@@ -132,7 +132,7 @@ class AuditEventListenerTest {
 
     @Test
     void pageSaveMapsToContentSave() {
-        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "MyPage" ) );
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, "MyPage" ) );
 
         final AuditEntry e = onlyEntry();
         assertEquals( AuditCategory.CONTENT, e.category() );

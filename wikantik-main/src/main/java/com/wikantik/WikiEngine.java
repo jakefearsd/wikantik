@@ -1294,7 +1294,8 @@ public class WikiEngine implements Engine {
                                   getManager( AuthorizationManager.class ),
                                   getManager( UserManager.class ) );
         attachContentAuditListeners( pageManager, getManager( GroupManager.class ),
-                                     getManager( com.wikantik.content.PageRenamer.class ) );
+                                     getManager( com.wikantik.content.PageRenamer.class ),
+                                     com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( this ).filterManager() );
 
         LOG.info( "Audit subsystem initialized (queue=10000)" );
     }
@@ -1386,8 +1387,13 @@ public class WikiEngine implements Engine {
      * renamer. See {@link #attachAuthAuditListeners}.
      */
     private void attachContentAuditListeners( final PageManager pageManager, final GroupManager groupMgr,
-                                              final com.wikantik.content.PageRenamer pageRenamer ) {
+                                              final com.wikantik.content.PageRenamer pageRenamer,
+                                              final FilterManager filterManager ) {
         if ( groupMgr != null ) groupMgr.addWikiEventListener( auditEventListener );
+        // Save events (POST_SAVE_END) are fired by the FilterManager at the end of doPostSaveFiltering.
+        if ( filterManager != null ) {
+            com.wikantik.event.WikiEventManager.addWikiEventListener( filterManager, auditEventListener );
+        }
         // PageManager has no addWikiEventListener on its interface; it fires page
         // events via WikiEventManager keyed on the manager instance, so register
         // the listener against that instance directly (same mechanism).

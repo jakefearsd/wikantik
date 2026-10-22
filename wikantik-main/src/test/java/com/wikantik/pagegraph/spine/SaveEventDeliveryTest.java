@@ -22,6 +22,9 @@ import com.wikantik.TestEngine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.citation.CitationEventListener;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditEventListener;
+import com.wikantik.audit.AuditService;
 import com.wikantik.citation.CitationSync;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
@@ -58,6 +61,8 @@ class SaveEventDeliveryTest {
     private WikiEventListener recorder;
     private StructuralIndexEventListener structuralListener;
     private CitationEventListener citationListener;
+    private AuditEventListener auditListener;
+    private final List< AuditEntry > audited = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -82,6 +87,13 @@ class SaveEventDeliveryTest {
         doAnswer( inv -> { citationCalls.incrementAndGet(); return null; } ).when( sync ).onPageSaved( anyString() );
         citationListener = new CitationEventListener( sync );
         citationListener.register( pm, fm );
+
+        final AuditService audit = mock( AuditService.class );
+        doAnswer( inv -> { audited.add( inv.getArgument( 0 ) ); return null; } ).when( audit ).record( org.mockito.ArgumentMatchers.any() );
+        auditListener = new AuditEventListener( audit );
+        // registered as WikiEngine.attachContentAuditListeners does
+        WikiEventManager.addWikiEventListener( pm, auditListener );
+        WikiEventManager.addWikiEventListener( fm, auditListener );
     }
 
     @AfterEach
@@ -98,5 +110,14 @@ class SaveEventDeliveryTest {
         assertEquals( 1, postSaveEnd, "events seen: " + seenTypes );
         assertEquals( 1, structuralCalls.get(), "structural index sync runs once per save; events seen: " + seenTypes );
         assertEquals( 1, citationCalls.get(), "citation sync runs once per save; events seen: " + seenTypes );
+    }
+
+    @Test
+    void oneSaveProducesOnePageSaveAuditEntry() throws Exception {
+        engine.saveText( PAGE, "Hello world" );
+
+        final List< AuditEntry > saves = audited.stream()
+            .filter( e -> "page.save".equals( e.eventType() ) && PAGE.equals( e.targetId() ) ).toList();
+        assertEquals( 1, saves.size(), "page.save entries: " + audited );
     }
 }

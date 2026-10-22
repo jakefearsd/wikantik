@@ -78,6 +78,8 @@ class KnowledgeMcpToolAssemblyTest {
         assertTrue( names.contains( "read_pages" ),       "read_pages must stay" );
         assertTrue( names.contains( "list_clusters" ),    "list_clusters must stay" );
         assertTrue( names.contains( "get_page_by_id" ),   "get_page_by_id must stay" );
+        // Registered with the spine even before the link index is ready (it then answers "not ready").
+        assertTrue( names.contains( "get_page_neighbors" ), "get_page_neighbors must stay" );
     }
 
     @Test

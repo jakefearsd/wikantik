@@ -26,6 +26,7 @@ import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.citation.CitationRepository;
@@ -38,8 +39,9 @@ import java.util.function.Supplier;
 /**
  * Collaborator bundle for {@link KnowledgeMcpInitializer#assembleTools(KnowledgeToolDeps)}.
  * Every collaborator is optional (null = that tool group is not wired); the two log
- * services are {@link Supplier}s because they are set during engine startup and must be
- * resolved at call time to avoid startup-ordering coupling.
+ * services and the reference manager are {@link Supplier}s because they are set during engine
+ * startup (the reference manager by an asynchronous page scan) and must be resolved at call time
+ * to avoid startup-ordering coupling.
  *
  * <p>Built via {@link #builder()} so wiring sites name each dependency explicitly
  * instead of threading a long positional parameter list.</p>
@@ -61,6 +63,7 @@ final class KnowledgeToolDeps {
     private final Supplier< BriefingLogService > briefingLog;
     private final PageViewGate viewGate;
     private final Supplier< PublicIdentity > publicIdentity;
+    private final Supplier< ReferenceManager > referenceManager;
 
     private KnowledgeToolDeps( final Builder b ) {
         this.kgService = b.kgService;
@@ -78,6 +81,7 @@ final class KnowledgeToolDeps {
         this.briefingLog = b.briefingLog != null ? b.briefingLog : () -> null;
         this.viewGate = b.viewGate != null ? b.viewGate : PageViewGate.ALLOW_ALL;
         this.publicIdentity = b.publicIdentity != null ? b.publicIdentity : () -> null;
+        this.referenceManager = b.referenceManager != null ? b.referenceManager : () -> null;
     }
 
     static Builder builder() {
@@ -99,6 +103,7 @@ final class KnowledgeToolDeps {
     Supplier< BriefingLogService > briefingLog() { return briefingLog; }
     PageViewGate viewGate() { return viewGate; }
     Supplier< PublicIdentity > publicIdentity() { return publicIdentity; }
+    Supplier< ReferenceManager > referenceManager() { return referenceManager; }
 
     static final class Builder {
         private KnowledgeGraphService kgService;
@@ -116,6 +121,7 @@ final class KnowledgeToolDeps {
         private Supplier< BriefingLogService > briefingLog;
         private PageViewGate viewGate;
         private Supplier< PublicIdentity > publicIdentity;
+        private Supplier< ReferenceManager > referenceManager;
 
         Builder kgService( final KnowledgeGraphService v ) { this.kgService = v; return this; }
         Builder mentionIndex( final MentionIndex v ) { this.mentionIndex = v; return this; }
@@ -132,6 +138,7 @@ final class KnowledgeToolDeps {
         Builder briefingLog( final Supplier< BriefingLogService > v ) { this.briefingLog = v; return this; }
         Builder viewGate( final PageViewGate v ) { this.viewGate = v; return this; }
         Builder publicIdentity( final Supplier< PublicIdentity > v ) { this.publicIdentity = v; return this; }
+        Builder referenceManager( final Supplier< ReferenceManager > v ) { this.referenceManager = v; return this; }
 
         KnowledgeToolDeps build() {
             return new KnowledgeToolDeps( this );

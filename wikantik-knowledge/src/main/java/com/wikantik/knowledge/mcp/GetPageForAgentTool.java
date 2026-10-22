@@ -122,11 +122,6 @@ public class GetPageForAgentTool extends AbstractMcpTool {
                 "When the embedding service is unreachable, the system fails closed to BM25-only results."
         ) );
         exampleProjection.put( "headings", List.of( "Failure modes", "Graph rerank step", "Configuration" ) );
-        exampleProjection.put( "relations", List.of( Map.of(
-                "type", "part-of",
-                "target_id", "01H8G3Z2E7FD8R1Q4V9X2T0NMP",
-                "target_slug", "RetrievalExperimentHarness"
-        ) ) );
         exampleProjection.put( "verification", Map.of(
                 "verified_at", "2026-04-25T14:30:00Z",
                 "verified_by", "Jake Fear",
@@ -150,10 +145,11 @@ public class GetPageForAgentTool extends AbstractMcpTool {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Return a token-budgeted projection of a wiki page for agent " +
-                        "consumption: summary, key facts, headings outline, typed relations, " +
-                        "verification state, recent changes, and MCP tool hints — without " +
-                        "the full page body. Prefer this over get_page when the agent only " +
-                        "needs to orient itself; follow up with get_page for the full body." )
+                        "consumption: summary, key facts, headings outline, verification state, " +
+                        "recent changes, and MCP tool hints — without the full page body. Prefer " +
+                        "this over get_page when the agent only needs to orient itself; follow up " +
+                        "with get_page for the full body, or get_page_neighbors for its links and " +
+                        "cluster siblings." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "canonical_id" ),
                         null, null, null ) )
                 .outputSchema( outputSchema )

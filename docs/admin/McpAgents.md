@@ -11,7 +11,7 @@ instead of repeating the numbers.
 | Endpoint | Protocol | Tools | Access | Minimum key scope |
 |---|---|---|---|---|
 | `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 29 read and write tools when fully wired | `McpAccessFilter` | `mcp_admin` |
-| `/knowledge-mcp` | MCP (Streamable HTTP) | 21 read-only tools when fully wired | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
+| `/knowledge-mcp` | MCP (Streamable HTTP) | 22 read-only tools when fully wired | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
 Counts are as of **2.4.53**. The URL patterns come from `web.xml` (`/tools/*`) and the
@@ -225,14 +225,14 @@ returns as its instructions on `initialize`. Every write tool refuses system pag
 | `list_content_opportunities` | The ranked content-opportunity backlog; see [ContentIntelligence.md](ContentIntelligence.md) | read |
 | `snooze_opportunity` | Decline an opportunity for 1-365 days with a required reason | write |
 
-### /knowledge-mcp (21 tools when fully wired)
+### /knowledge-mcp (22 tools when fully wired)
 
-All 21 are read-only with respect to content. `assemble_bundle` and `get_briefing`
+All 22 are read-only with respect to content. `assemble_bundle` and `get_briefing`
 record query telemetry (`retrieval_query_log`, `briefing_log`), which does not change
 wiki content. Tools that take the guest view gate described under
 [Get a key](#get-a-key) do not return restricted pages: `assemble_bundle`, `get_briefing`,
 `retrieve_context`, `get_page`, `read_pages`, `get_page_for_agent`, `get_page_by_id`,
-`list_pages`, `list_pages_by_filter`, `list_clusters`, `query_nodes`, `get_node`,
+`get_page_neighbors`, `list_pages`, `list_pages_by_filter`, `list_clusters`, `query_nodes`, `get_node`,
 `traverse`, `search_knowledge` and `find_similar`. These take no gate: `list_tags`,
 `list_metadata_values`, `discover_schema`, `list_stale_citations`, `get_ontology` and
 `sparql_query`; the last two read the ontology, which is already limited to publicly
@@ -246,8 +246,9 @@ allow-all and logs an `ERROR`.
 | `retrieve_context` | Discover which pages and sections are relevant to a query |
 | `get_page` | Fetch one page's frontmatter metadata and URL by name |
 | `read_pages` | Batched raw-markdown read of up to 20 pages |
-| `get_page_for_agent` | Token-budgeted page projection: summary, key facts, outline, relations, verification state |
+| `get_page_for_agent` | Token-budgeted page projection: summary, key facts, outline, verification state |
 | `get_page_by_id` | Resolve a rename-stable `canonical_id` to the current page descriptor |
+| `get_page_neighbors` | A page's 1-hop Page Graph neighborhood without bodies: wikilinks out and in, plus cluster siblings and hub |
 | `list_pages` | Browse pages by metadata filters |
 | `list_pages_by_filter` | List pages by structural filter (type, cluster, tags, freshness) from the Page Graph index |
 | `list_clusters` | Every cluster with its hub page, article count and last update |

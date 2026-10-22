@@ -166,6 +166,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 .briefingLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null )
                 .viewGate( viewGate )
                 .publicIdentity( () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() )
+                .referenceManager( () -> PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager() )
                 .build() );
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
@@ -182,7 +183,8 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                     .serverInfo( serverImpl )
                     .instructions( "Agent-facing MCP endpoint. For wiki structure (fastest, " +
                         "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
-                        "or get_page_by_id. For wiki content use assemble_bundle " +
+                        "or get_page_by_id; get_page_neighbors lists a page's wikilinks in and out " +
+                        "plus its cluster siblings. For wiki content use assemble_bundle " +
                         "(primary answer-grounding tool), retrieve_context (page/section discovery), " +
                         "get_page (pinned fetch), read_pages (batched markdown fetch, max 20), " +
                         "list_pages (browse), or list_metadata_values (discovery). For Knowledge Graph (LLM-extracted entities) use " +
@@ -268,6 +270,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         tools.add( new ListTagsTool( structuralIndex ) );
         tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
         tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );
+        tools.add( new GetPageNeighborsTool( structuralIndex, deps.referenceManager(), viewGate ) );
     }
 
     private static void addProjectionAndBundleTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {

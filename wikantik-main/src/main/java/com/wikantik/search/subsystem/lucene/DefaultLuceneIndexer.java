@@ -768,6 +768,8 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             luceneIndexPage( pageOf( item ), ( String ) item[ 1 ], writer );
             return null;
         } catch ( final IOException | RuntimeException e ) {
+            // The drain logs it (WARN per retry, ERROR on drop); this only hands it over.
+            LOG.debug( "Indexing '{}' failed; handing the failure to the drain", pageOf( item ).getName(), e );
             return e;
         }
     }

@@ -175,6 +175,27 @@ class BootstrapEmbeddingIndexerTest {
     }
 
     @Test
+    void staleReconcileReloadsAnEmptyDenseIndexEvenWhenNothingWasUpserted() throws Exception {
+        // The construction-time load can fail (DB blip at boot): a clean reconcile must still repair it.
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        when( index.indexStale( MODEL ) ).thenReturn( 0 );
+        final DataSource ds = stubDataSourceReturningChunkCount( 7L );
+        final AtomicInteger postRuns = new AtomicInteger();
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try {
+            final BootstrapEmbeddingIndexer boot =
+                new BootstrapEmbeddingIndexer( ds, index, MODEL, postRuns::incrementAndGet, ex );
+            boot.setReloadWhen( () -> true );
+            boot.startIfNeeded();
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( 1, postRuns.get(), "an empty dense index is reloaded on the stale pass" );
+        } finally {
+            if ( !ex.isTerminated() ) ex.shutdownNow();
+        }
+    }
+
+    @Test
     void startIfNeeded_runsIndexStaleAndTransitionsToCompleted() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
         when( index.indexStale( MODEL ) ).thenReturn( 7 );

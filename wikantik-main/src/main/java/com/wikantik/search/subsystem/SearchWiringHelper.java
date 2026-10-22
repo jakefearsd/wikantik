@@ -196,6 +196,9 @@ public final class SearchWiringHelper {
 
         final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex;
         final Runnable indexReloadHook;
+        // True when the in-memory dense index holds nothing (e.g. its boot-time load failed), so the
+        // bootstrap's stale pass reloads it even when it upserted nothing.
+        final java.util.function.BooleanSupplier denseIndexEmpty;
         // Must match AsyncEmbeddingIndexListener.setPostIndexCallback's param type
         // (Consumer<List<UUID>>). upsertChunks(Collection<UUID>) method refs satisfy it.
         final java.util.function.Consumer< java.util.List< java.util.UUID > > upsertCallback;
@@ -211,6 +214,7 @@ public final class SearchWiringHelper {
                 // in EmbeddingIndexService.UPSERT_SQL (Task 7) — no in-memory
                 // snapshot to refresh, so the bootstrap reload hook is a no-op.
                 indexReloadHook = () -> {};
+                denseIndexEmpty = () -> false;
                 LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
                     modelCode, efSearch );
             } else if ( DenseBackends.LUCENE_HNSW.equals( denseBackend ) ) {
@@ -223,6 +227,7 @@ public final class SearchWiringHelper {
                 vectorIndex = hnswIndex;
                 upsertCallback = hnswIndex::upsertChunks;
                 indexReloadHook = hnswIndex::reload;
+                denseIndexEmpty = () -> hnswIndex.size() == 0;
                 LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, "
                         + "ef_search={}, quantization={}, size={})",
                     modelCode, params.m(), params.efConstruction(), params.efSearch(),
@@ -232,6 +237,7 @@ public final class SearchWiringHelper {
                 vectorIndex = memIndex;
                 upsertCallback = memIndex::upsertChunks;
                 indexReloadHook = memIndex::reload;
+                denseIndexEmpty = () -> memIndex.size() == 0;
                 engine.setManager( InMemoryChunkVectorIndex.class, memIndex );
                 LOG.info( "Dense retrieval backend: in-memory brute-force (model={}, size={})",
                     modelCode, memIndex.size() );
@@ -320,6 +326,7 @@ public final class SearchWiringHelper {
 
         final BootstrapEmbeddingIndexer bootstrap =
             new BootstrapEmbeddingIndexer( ds, indexService, modelCode, indexReloadHook );
+        bootstrap.setReloadWhen( denseIndexEmpty );
         engine.setManager( BootstrapEmbeddingIndexer.class, bootstrap );
         try {
             bootstrap.startIfNeeded();

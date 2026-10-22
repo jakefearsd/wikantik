@@ -133,6 +133,8 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
     private final ExecutorService executor;
     private final boolean ownsExecutor;
     private final Runnable postRunCallback;
+    /** Extra reload trigger for the stale pass, e.g. "the dense index is empty" after a failed boot load. */
+    private volatile java.util.function.BooleanSupplier reloadWhen = () -> false;
 
     private final AtomicReference< Progress > progress = new AtomicReference<>( Progress.idle() );
 
@@ -336,7 +338,7 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
                 progress.set( new Progress( State.COMPLETED, chunkCount, startedAt, Instant.now(), null ) );
                 // The dense index already loaded every committed vector at construction; a reconcile
                 // that wrote nothing leaves it exactly current, so a reload is a pure repeat of that load.
-                if ( upserted > 0 ) {
+                if ( upserted > 0 || reloadWhen.getAsBoolean() ) {
                     invokePostRun();
                 }
                 return;
@@ -384,6 +386,14 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
             progress.set( new Progress( State.FAILED, chunkCount, startedAt, Instant.now(),
                 e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage() ) );
         }
+    }
+
+    /**
+     * Also runs the post-run reload after a stale pass that upserted nothing when {@code condition} holds —
+     * wired to "the dense index is empty", so a failed construction-time load still self-heals.
+     */
+    public void setReloadWhen( final java.util.function.BooleanSupplier condition ) {
+        this.reloadWhen = condition == null ? () -> false : condition;
     }
 
     private void invokePostRun() {

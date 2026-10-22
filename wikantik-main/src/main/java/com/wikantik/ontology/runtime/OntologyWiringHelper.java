@@ -80,19 +80,8 @@ public final class OntologyWiringHelper {
         final java.util.function.Predicate< String > isPublic =
                 slug -> permFilter.canAccessQuietly( guest, slug, "view" );
 
-        // Tier.MACHINE includes BOTH human- and machine-tier rows (full dump);
-        // Tier.HUMAN would exclude machine-tier nodes/edges. Each supplier projects only
-        // ACL-public resources (restricted pages/entities/edges are never materialized).
-        final OntologyRebuildCoordinator coordinator = new OntologyRebuildCoordinator(
-                mgr,
-                () -> com.wikantik.ontology.PublicProjectionFilter.publicNodes(
-                        nodeRepo.getAllNodes( Tier.MACHINE ), isPublic ),
-                () -> com.wikantik.ontology.PublicProjectionFilter.publicEdges(
-                        edgeRepo.getAllEdges( Tier.MACHINE ),
-                        com.wikantik.ontology.PublicProjectionFilter.publicNodeIds(
-                                nodeRepo.getAllNodes( Tier.MACHINE ), isPublic ) ),
-                () -> com.wikantik.ontology.PublicProjectionFilter.publicPages( pageBuilder.build(), isPublic ),
-                true );
+        final OntologyRebuildCoordinator coordinator =
+                newCoordinator( mgr, nodeRepo, edgeRepo, pageBuilder::build, isPublic );
 
         engine.setManager( OntologyRebuildCoordinator.class, coordinator );
         // Disable SPARQL SERVICE federation engine-wide before any public /sparql or
@@ -102,9 +91,13 @@ public final class OntologyWiringHelper {
         LOG.info( "ontology runtime wired (tdb2 dir={})", dir );
 
         // Event-incremental sync: re-project a page's graph on save/rename, remove on true delete.
-        // Same ACL gate — a restricted page's save removes it from the public dataset.
+        // Same ACL gate — a restricted page's save removes it from the public dataset. The TDB2
+        // writes run on the queue's worker thread, coalesced per page, never on the save request.
+        final long coalesceMs = Long.parseLong(
+                props.getProperty( "wikantik.ontology.incremental.coalesce.ms", "500" ) );
         final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic, publicIdentity );
-        final OntologyEventListener pageListener = new OntologyEventListener( pageSync );
+        final OntologyPageSyncQueue pageQueue = new OntologyPageSyncQueue( pageSync, coalesceMs );
+        final OntologyEventListener pageListener = new OntologyEventListener( pageQueue );
         pageListener.register( pageManager, filterManager );
         // Strong references, mirroring WikiEngine's auditEventListener/lastLoginEventListener
         // pattern: WikiEventManager's delegate keys listeners by identity in a WeakHashMap, so
@@ -119,12 +112,11 @@ public final class OntologyWiringHelper {
         // and page sync; the nightly rebuild below reconciles anything missed.
         final boolean incrementalEnabled = Boolean.parseBoolean(
                 props.getProperty( "wikantik.ontology.incremental.enabled", "true" ) );
+        OntologyEntitySync entitySync = null;
         if ( incrementalEnabled && knowledgeServices != null
                 && knowledgeServices.kgService() != null
                 && knowledgeServices.kgMaterialization() != null ) {
-            final long coalesceMs = Long.parseLong(
-                    props.getProperty( "wikantik.ontology.incremental.coalesce.ms", "500" ) );
-            final OntologyEntitySync entitySync = new OntologyEntitySync(
+            entitySync = new OntologyEntitySync(
                     mgr, nodeRepo, edgeRepo, pageDao, isPublic, coalesceMs );
             final KgChangeEventListener changeListener = new KgChangeEventListener( entitySync );
             changeListener.register(
@@ -146,16 +138,45 @@ public final class OntologyWiringHelper {
         // rewritten continuously (nightly rebuild + per-save incremental sync) only ever grows.
         // Default weekly: measured production growth is ~1.35 GB/day, so daily compaction would
         // be needlessly aggressive I/O for the space it reclaims. 0 disables, matching the
-        // rebuild interval's own 0=disabled convention.
+        // rebuild interval's own 0=disabled convention. Compaction is due from the store's
+        // persisted last-compaction time, so it survives the restart on every deploy.
         final long rebuildIntervalHours = Long.parseLong(
                 props.getProperty( "wikantik.ontology.rebuild.interval.hours", "24" ) );
         final long compactionIntervalHours = Long.parseLong(
                 props.getProperty( "wikantik.ontology.compaction.interval.hours", "168" ) );
-        new OntologyRebuildScheduler( coordinator, rebuildIntervalHours, compactionIntervalHours ).start();
+        final OntologyRebuildScheduler scheduler =
+                new OntologyRebuildScheduler( coordinator, rebuildIntervalHours, compactionIntervalHours );
+        scheduler.start();
+        // Closed by WikiEngine.shutdown(): stop the timer, drain the workers, close the dataset.
+        engine.setManager( OntologyRuntime.class, new OntologyRuntime( scheduler, pageQueue, entitySync, mgr ) );
 
         // Startup-if-empty: non-blocking self-heal on first boot.
         coordinator.rebuildIfEmpty();
         return coordinator;
+    }
+
+    /**
+     * The rebuild coordinator over the live repositories. Tier.MACHINE includes BOTH human- and
+     * machine-tier rows (full dump); Tier.HUMAN would exclude machine-tier nodes/edges. Each source
+     * projects only ACL-public resources (restricted pages/entities/edges are never materialized).
+     * Edges are filtered against the public nodes the same rebuild already loaded, so the node
+     * table is read once per rebuild.
+     */
+    static OntologyRebuildCoordinator newCoordinator( final OntologyModelManager mgr,
+                                                      final KgNodeRepository nodeRepo,
+                                                      final KgEdgeRepository edgeRepo,
+                                                      final java.util.function.Supplier< java.util.List< com.wikantik.ontology.projection.PageRecord > > pages,
+                                                      final java.util.function.Predicate< String > isPublic ) {
+        return new OntologyRebuildCoordinator(
+                mgr,
+                () -> com.wikantik.ontology.PublicProjectionFilter.publicNodes(
+                        nodeRepo.getAllNodes( Tier.MACHINE ), isPublic ),
+                publicNodes -> com.wikantik.ontology.PublicProjectionFilter.publicEdges(
+                        edgeRepo.getAllEdges( Tier.MACHINE ),
+                        publicNodes.stream().map( com.wikantik.api.knowledge.KgNode::id )
+                                .collect( java.util.stream.Collectors.toSet() ) ),
+                () -> com.wikantik.ontology.PublicProjectionFilter.publicPages( pages.get(), isPublic ),
+                true );
     }
 
     /** The Auth subsystem is built before the knowledge graph (and so this wiring); a missing one is logged loudly. */

@@ -20,6 +20,7 @@ package com.wikantik.ontology.runtime;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.wikantik.api.knowledge.KgEdge;
@@ -54,7 +55,8 @@ public final class OntologyRebuildCoordinator {
 
     private final OntologyModelManager manager;
     private final Supplier< List< KgNode > > nodeSource;
-    private final Supplier< List< KgEdge > > edgeSource;
+    /** Edges for the nodes {@link #nodeSource} just returned — so a rebuild loads the node table once. */
+    private final Function< List< KgNode >, List< KgEdge > > edgeSource;
     private final Supplier< List< PageRecord > > pageSource;
     private final boolean enabled;
     private final com.wikantik.ontology.OntologyRebuildService materializer =
@@ -74,7 +76,7 @@ public final class OntologyRebuildCoordinator {
 
     public OntologyRebuildCoordinator( final OntologyModelManager manager,
                                        final Supplier< List< KgNode > > nodeSource,
-                                       final Supplier< List< KgEdge > > edgeSource,
+                                       final Function< List< KgNode >, List< KgEdge > > edgeSource,
                                        final Supplier< List< PageRecord > > pageSource,
                                        final boolean enabled ) {
         this.manager = manager;
@@ -177,7 +179,8 @@ public final class OntologyRebuildCoordinator {
     private void runRebuild() {
         state.set( State.RUNNING );
         try {
-            final int written = materializer.rebuild( manager, nodeSource.get(), edgeSource.get(), pageSource.get() );
+            final List< KgNode > nodes = nodeSource.get();
+            final int written = materializer.rebuild( manager, nodes, edgeSource.apply( nodes ), pageSource.get() );
             graphCount = written;
             lastError = null;
             LOG.info( "ontology rebuild complete: {} named graphs", written );
@@ -203,5 +206,10 @@ public final class OntologyRebuildCoordinator {
     /** The materialized (public) model — read access for the public endpoints. */
     public OntologyModelManager modelManager() {
         return manager;
+    }
+
+    /** When the store was last compacted (persisted across restarts); empty = never/unknown, i.e. overdue. */
+    public java.util.Optional< java.time.Instant > lastCompactedAt() {
+        return manager.lastCompactedAt();
     }
 }

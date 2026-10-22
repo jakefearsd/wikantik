@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
@@ -35,22 +36,21 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Materializes the full A-Box from in-memory inputs: clears existing named
- * graphs, then projects every entity (with its outgoing edges), page, and
- * concept into its own named graph. Pure orchestration — the caller (Phase 1b)
- * supplies the lists from the repositories.
+ * Materializes the full A-Box from in-memory inputs: projects every entity (with its outgoing
+ * edges), page, and concept into its own named graph and prunes every graph it did not write.
+ * All of it is ONE write transaction ({@link OntologyModelManager#replaceAbox}), each graph
+ * projected as it is streamed in, so readers see the previous A-Box until the commit.
+ * Pure orchestration — the caller supplies the lists from the repositories.
  */
 public final class OntologyRebuildService {
 
     private static final Logger LOG = LogManager.getLogger( OntologyRebuildService.class );
 
-    /** @return the number of named graphs written. */
+    /** @return the number of named graphs the rebuilt A-Box holds. */
     public int rebuild( final OntologyModelManager mgr,
                         final List< KgNode > nodes,
                         final List< KgEdge > edges,
                         final List< PageRecord > pages ) {
-        mgr.clearAbox();
-
         // Index outgoing edges by source node, and pages' slug -> canonical_id.
         final Map< UUID, List< KgEdge > > outgoing = new HashMap<>();
         for ( final KgEdge e : edges ) {
@@ -63,23 +63,24 @@ public final class OntologyRebuildService {
             }
         }
 
-        int written = 0;
-        for ( final KgNode node : nodes ) {
-            final Model g = EntityProjector.project(
-                    node, outgoing.getOrDefault( node.id(), List.of() ), slugToCanonical::get );
-            mgr.replaceNamedGraph( Iris.entity( node.id() ), g );
-            written++;
-        }
-        for ( final PageRecord page : pages ) {
-            mgr.replaceNamedGraph( Iris.page( page.canonicalId() ), PageProjector.project( page ) );
-            written++;
-        }
-        for ( final Map.Entry< String, Model > c : ConceptProjector.project( pages ).entrySet() ) {
-            mgr.replaceNamedGraph( c.getKey(), c.getValue() );
-            written++;
-        }
+        final AtomicInteger written = new AtomicInteger();
+        mgr.replaceAbox( abox -> {
+            for ( final KgNode node : nodes ) {
+                abox.replaceNamedGraph( Iris.entity( node.id() ), EntityProjector.project(
+                        node, outgoing.getOrDefault( node.id(), List.of() ), slugToCanonical::get ) );
+                written.incrementAndGet();
+            }
+            for ( final PageRecord page : pages ) {
+                abox.replaceNamedGraph( Iris.page( page.canonicalId() ), PageProjector.project( page ) );
+                written.incrementAndGet();
+            }
+            for ( final Map.Entry< String, Model > c : ConceptProjector.project( pages ).entrySet() ) {
+                abox.replaceNamedGraph( c.getKey(), c.getValue() );
+                written.incrementAndGet();
+            }
+        } );
         LOG.info( "ontology rebuild: {} named graphs ({} nodes, {} edges, {} pages)",
-                written, nodes.size(), edges.size(), pages.size() );
-        return written;
+                written.get(), nodes.size(), edges.size(), pages.size() );
+        return written.get();
     }
 }

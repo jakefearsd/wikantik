@@ -36,8 +36,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Single-page incremental re-projection into the ontology dataset. Page + concept
- * graphs only — entity graphs change via the nightly full rebuild (no KG events exist).
+ * Single-page incremental re-projection into the ontology dataset. Page + concept graphs only —
+ * entity graphs are kept current by {@link OntologyEntitySync}. Synchronous: in production it is
+ * driven by {@link OntologyPageSyncQueue}'s worker thread, never by the saving request thread.
  */
 public final class OntologyPageSync {
 
@@ -68,7 +69,10 @@ public final class OntologyPageSync {
         this.publicIdentity = publicIdentity;
     }
 
-    /** Re-projects the page's named graph + its tag/cluster concept graphs (public pages only). */
+    /**
+     * Re-projects the page's named graph + its tag/cluster concept graphs (public pages only), all in
+     * ONE write transaction — each commit is a TDB2 sync round, and unchanged graphs are not rewritten.
+     */
     public void onPageSaved( final String slug ) {
         final Optional< PageCanonicalIdsDao.Row > row = dao.findBySlug( slug );
         if ( row.isEmpty() ) {
@@ -82,10 +86,28 @@ public final class OntologyPageSync {
             manager.removeNamedGraph( Iris.page( record.canonicalId() ) );
             return;
         }
-        manager.replaceNamedGraph( Iris.page( record.canonicalId() ), PageProjector.project( record ) );
-        for ( final Map.Entry< String, Model > c : ConceptProjector.project( List.of( record ) ).entrySet() ) {
-            manager.replaceNamedGraph( c.getKey(), c.getValue() );
-        }
+        manager.writeBatch( batch -> {
+            batch.replaceNamedGraph( Iris.page( record.canonicalId() ), PageProjector.project( record ) );
+            for ( final Map.Entry< String, Model > c : ConceptProjector.project( List.of( record ) ).entrySet() ) {
+                batch.replaceNamedGraph( c.getKey(), c.getValue() );
+            }
+        } );
+    }
+
+    /**
+     * The canonical_id a delete of {@code slug} should remove, or {@code null} when unknown. Read
+     * when the delete EVENT arrives: by the time a queued delete is applied, the page's
+     * canonical-id row is normally gone.
+     */
+    String canonicalIdFor( final String slug ) {
+        final String known = slugToCanonical.get( slug );
+        return known != null ? known
+                : dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId ).orElse( null );
+    }
+
+    /** Drops the slug -> canonical_id memo for a slug that was renamed away. */
+    void forget( final String slug ) {
+        slugToCanonical.remove( slug );
     }
 
     /**
@@ -93,7 +115,13 @@ public final class OntologyPageSync {
      * lives (rename surfaced as delete-of-old), the graph is left for the save event.
      */
     public void onPageDeleted( final String slug ) {
-        String canonicalId = slugToCanonical.remove( slug );
+        onPageDeleted( slug, null );
+    }
+
+    /** As {@link #onPageDeleted(String)}, for a canonical_id resolved earlier ({@code null} = resolve now). */
+    void onPageDeleted( final String slug, final String knownCanonicalId ) {
+        final String memo = slugToCanonical.remove( slug );
+        String canonicalId = knownCanonicalId != null ? knownCanonicalId : memo;
         if ( canonicalId == null ) {
             canonicalId = dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId ).orElse( null );
         }

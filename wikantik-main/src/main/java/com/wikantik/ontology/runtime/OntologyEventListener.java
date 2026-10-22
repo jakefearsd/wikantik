@@ -29,18 +29,24 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Forwards wiki page events to {@link OntologyPageSync}, mirroring
- * {@code StructuralIndexEventListener}: save events arrive from the FilterManager
- * (doPostSaveFiltering), PAGE_DELETED from the PageManager — so register on both.
+ * Queues wiki page events for {@link OntologyPageSyncQueue}: save events arrive from the
+ * FilterManager, PAGE_DELETED from the PageManager — so register on both. Only enqueues: the TDB2
+ * writes happen on the queue's worker thread, never on the saving request thread.
+ *
+ * <p>Saves are recognised by {@code POST_SAVE_END} alone. Every save path (REST PUT/PATCH, MCP
+ * writes, import, derived ingest) goes through {@code PageSaveHelper} → {@code PageManager.saveText}
+ * → {@code DefaultFilterManager.doPostSaveFiltering}, which fires it exactly once per save. The
+ * in-phase {@code POST_SAVE} only comes from a {@code PageEventFilter}, which is fired from that
+ * same filter loop; handling it too would project every save twice wherever one is configured.</p>
  */
 public final class OntologyEventListener implements WikiEventListener {
 
     private static final Logger LOG = LogManager.getLogger( OntologyEventListener.class );
 
-    private final OntologyPageSync sync;
+    private final OntologyPageSyncQueue queue;
 
-    public OntologyEventListener( final OntologyPageSync sync ) {
-        this.sync = sync;
+    public OntologyEventListener( final OntologyPageSyncQueue queue ) {
+        this.queue = queue;
     }
 
     public void register( final PageManager pageManager, final FilterManager filterManager ) {
@@ -52,17 +58,16 @@ public final class OntologyEventListener implements WikiEventListener {
     @Override
     public void actionPerformed( final WikiEvent event ) {
         if ( event instanceof WikiPageRenameEvent rename ) {
-            sync.onPageRenamed( rename.getOldPageName(), rename.getNewPageName() );
+            queue.renamed( rename.getOldPageName(), rename.getNewPageName() );
             return;
         }
         if ( !( event instanceof WikiPageEvent pageEvent ) ) {
             return;
         }
         switch ( pageEvent.getType() ) {
-            case WikiPageEvent.POST_SAVE_END,
-                 WikiPageEvent.POST_SAVE     -> sync.onPageSaved( pageEvent.getPageName() );
-            case WikiPageEvent.PAGE_DELETED  -> sync.onPageDeleted( pageEvent.getPageName() );
-            default                          -> { /* ignore */ }
+            case WikiPageEvent.POST_SAVE_END -> queue.saved( pageEvent.getPageName() );
+            case WikiPageEvent.PAGE_DELETED  -> queue.deleted( pageEvent.getPageName() );
+            default                          -> { /* ignore — incl. in-phase POST_SAVE, see class doc */ }
         }
     }
 }

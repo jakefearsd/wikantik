@@ -49,7 +49,7 @@ class OntologyRebuildCoordinatorTest {
     private OntologyRebuildCoordinator coordinator( final OntologyModelManager mgr, final boolean enabled ) {
         final List< KgNode > nodes = List.of(
                 new KgNode( N1, "X", "concept", null, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ) );
-        return new OntologyRebuildCoordinator( mgr, () -> nodes, List::of, List::of, enabled );
+        return new OntologyRebuildCoordinator( mgr, () -> nodes, loaded -> List.of(), List::of, enabled );
     }
 
     @Test
@@ -80,7 +80,7 @@ class OntologyRebuildCoordinatorTest {
                     }
                     return List.of();
                 },
-                List::of, List::of, true );
+                loaded -> List.of(), List::of, true );
         svc.triggerRebuild();
         assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerRebuild );
         Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
@@ -140,7 +140,7 @@ class OntologyRebuildCoordinatorTest {
         assertTrue( before > 0, "TDB2 store should have a nonzero footprint after churn" );
 
         final OntologyRebuildCoordinator svc =
-                new OntologyRebuildCoordinator( mgr, List::of, List::of, List::of, true );
+                new OntologyRebuildCoordinator( mgr, List::of, loaded -> List.of(), List::of, true );
         final OntologyRebuildStatus started = svc.triggerCompaction();
         assertEquals( "COMPACTING", started.state() );
 
@@ -168,7 +168,7 @@ class OntologyRebuildCoordinatorTest {
             }
         };
         final OntologyRebuildCoordinator svc =
-                new OntologyRebuildCoordinator( mgr, List::of, List::of, List::of, true );
+                new OntologyRebuildCoordinator( mgr, List::of, loaded -> List.of(), List::of, true );
         svc.triggerCompaction();
         assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerCompaction );
         Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
@@ -190,7 +190,7 @@ class OntologyRebuildCoordinatorTest {
                     }
                     return List.of();
                 },
-                List::of, List::of, true );
+                loaded -> List.of(), List::of, true );
         svc.triggerRebuild();
         assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerCompaction );
         Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );

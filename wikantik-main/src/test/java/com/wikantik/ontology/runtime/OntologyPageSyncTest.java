@@ -69,6 +69,21 @@ class OntologyPageSyncTest {
         assertTrue( mgr.namedGraphExists( Iris.concept( "ml" ) ), "cluster concept graph projected" );
     }
 
+    @Test
+    void onPageSavedWritesThePageAndItsConceptGraphsInOneTransaction() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        when( dao.findBySlug( "Solo" ) ).thenReturn( Optional.of( row( "Solo" ) ) );
+        when( pageManager.getPureText( "Solo", -1 ) ).thenReturn( "---\ntags: [graphs, trees]\n---\nbody" );
+        final long before = mgr.committedWriteTransactions();
+
+        sync( mgr ).onPageSaved( "Solo" );
+
+        assertEquals( 1L, mgr.committedWriteTransactions() - before,
+                "page graph + 3 concept graphs must share one commit (each commit is a TDB2 sync round)" );
+        assertTrue( mgr.namedGraphExists( Iris.concept( "trees" ) ) );
+    }
+
     private static List< String > creators( final OntologyModelManager mgr ) {
         final Model graph = mgr.namedGraphSnapshot( Iris.page( CID ) );
         return graph.listObjectsOfProperty( graph.createProperty( "http://purl.org/dc/terms/creator" ) )

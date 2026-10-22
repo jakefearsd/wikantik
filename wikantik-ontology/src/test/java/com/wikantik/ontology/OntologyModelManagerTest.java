@@ -131,4 +131,54 @@ class OntologyModelManagerTest {
         assertThrows( RuntimeException.class, () -> mgr.replaceNamedGraph( "urn:test:bad-write", null ) );
         assertFalse( mgr.namedGraphExists( "urn:test:bad-write" ), "failed write left no partial graph" );
     }
+
+    @Test
+    void writeBatchCommitsEveryGraphInOneTransaction() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        mgr.replaceNamedGraph( "urn:test:gone", entityGraph( "urn:test:gone", "Concept" ) );
+        final long before = mgr.committedWriteTransactions();
+
+        mgr.writeBatch( w -> {
+            w.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
+            w.replaceNamedGraph( "urn:test:b", entityGraph( "urn:test:b", "Concept" ) );
+            w.removeNamedGraph( "urn:test:gone" );
+        } );
+
+        assertEquals( 1L, mgr.committedWriteTransactions() - before );
+        assertTrue( mgr.namedGraphExists( "urn:test:a" ) );
+        assertTrue( mgr.namedGraphExists( "urn:test:b" ) );
+        assertFalse( mgr.namedGraphExists( "urn:test:gone" ) );
+    }
+
+    @Test
+    void writeBatchThatChangesNothingCommitsNothing() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        mgr.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
+        final long before = mgr.committedWriteTransactions();
+
+        mgr.writeBatch( w -> {
+            w.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
+            w.removeNamedGraph( "urn:test:never-existed" );
+        } );
+
+        assertEquals( 0L, mgr.committedWriteTransactions() - before, "identical content is not rewritten" );
+        assertTrue( mgr.namedGraphExists( "urn:test:a" ) );
+    }
+
+    @Test
+    void aFailingBatchRollsBackEveryWriteAndRethrows() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final long before = mgr.committedWriteTransactions();
+
+        assertThrows( IllegalStateException.class, () -> mgr.writeBatch( w -> {
+            w.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
+            throw new IllegalStateException( "projection failed" );
+        } ) );
+
+        assertFalse( mgr.namedGraphExists( "urn:test:a" ), "nothing from the failed batch is visible" );
+        assertEquals( 0L, mgr.committedWriteTransactions() - before );
+    }
 }

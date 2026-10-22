@@ -91,6 +91,23 @@ class OntologyModelManagerSnapshotCacheTest {
     }
 
     @Test
+    void replaceAboxInvalidatesSnapshots() {
+        final Model g = ModelFactory.createDefaultModel();
+        g.add( g.createResource( "urn:test:subject" ), RDFS.label, "old-abox" );
+        mgr.replaceNamedGraph( "urn:test:graph", g );
+        final Model before = mgr.inferenceSnapshot();
+
+        final Model next = ModelFactory.createDefaultModel();
+        next.add( next.createResource( "urn:test:other" ), RDFS.label, "new-abox" );
+        mgr.replaceAbox( w -> w.replaceNamedGraph( "urn:test:other", next ) );
+
+        final Model after = mgr.inferenceSnapshot();
+        assertNotSame( before, after );
+        assertTrue( after.contains( after.createResource( "urn:test:other" ), RDFS.label ) );
+        assertFalse( after.contains( after.createResource( "urn:test:subject" ), RDFS.label ) );
+    }
+
+    @Test
     void writeLandingDuringBuildIsNotMaskedByLatePublish() {
         // Simulate: a write commits while a snapshot build is in flight.
         // The in-flight build may be returned to ITS caller, but must NOT be

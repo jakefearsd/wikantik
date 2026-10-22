@@ -1974,6 +1974,9 @@ public class WikiEngine implements Engine {
     @Override
     public void shutdown() {
         fireEvent( WikiEngineEvent.SHUTDOWN );
+        // First, while the page cache still serves the page-sync drain: stops the ontology timer,
+        // drains its sync workers, then closes the TDB2 dataset.
+        closeQuietly( com.wikantik.ontology.runtime.OntologyRuntime.class );
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
         closeQuietly( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );

@@ -20,9 +20,17 @@ package com.wikantik.ontology;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.base.file.Location;
@@ -50,12 +58,21 @@ public final class OntologyModelManager {
     private static final Logger LOG = LogManager.getLogger( OntologyModelManager.class );
     private static final String TBOX_RESOURCE = "/ontology/wikantik.ttl";
 
+    /** File in the TDB2 root recording when the store was last compacted (or created). */
+    static final String COMPACTION_MARKER = "wikantik-last-compaction";
+
     private final Dataset dataset;
+
+    /** TDB2 root directory; {@code null} for the in-memory dataset. */
+    private final Path storeDir;
+
+    /** Write transactions committed so far — one per commit, never one per graph of a batch. */
+    private final java.util.concurrent.atomic.AtomicLong committedWrites = new java.util.concurrent.atomic.AtomicLong();
 
     /**
      * Cached detached snapshots, invalidated by every successful write
      * ({@link #loadTBox}, {@link #replaceNamedGraph}, {@link #removeNamedGraph},
-     * {@link #clearAbox}). Callers receive a SHARED model and must treat it as
+     * {@link #clearAbox}, {@link #writeBatch}, {@link #replaceAbox}). Callers receive a SHARED model and must treat it as
      * read-only; all production callers only run read queries against it.
      */
     private volatile Model cachedInferenceSnapshot;
@@ -79,8 +96,89 @@ public final class OntologyModelManager {
      */
     Runnable postBuildTestHook = () -> {};
 
-    private OntologyModelManager( final Dataset dataset ) {
+    private OntologyModelManager( final Dataset dataset, final Path storeDir ) {
         this.dataset = dataset;
+        this.storeDir = storeDir;
+    }
+
+    /**
+     * When this store was last compacted (or created), read from {@link #COMPACTION_MARKER}. Empty
+     * when the store predates the marker, the marker is unreadable, or the dataset is in memory —
+     * callers treat empty as "compaction overdue".
+     */
+    public Optional< Instant > lastCompactedAt() {
+        if ( storeDir == null ) {
+            return Optional.empty();
+        }
+        final Path marker = storeDir.resolve( COMPACTION_MARKER );
+        if ( !Files.isRegularFile( marker ) ) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of( Instant.parse( Files.readString( marker, StandardCharsets.UTF_8 ).strip() ) );
+        } catch ( final IOException | DateTimeParseException e ) {
+            LOG.warn( "unreadable ontology compaction marker {} (treating the store as never compacted): {}",
+                    marker, e.getMessage() );
+            return Optional.empty();
+        }
+    }
+
+    /** Records "compacted now" in the store root (temp file + atomic move); a failure is logged, never thrown. */
+    private void recordCompaction() {
+        if ( storeDir == null ) {
+            return;
+        }
+        final Path marker = storeDir.resolve( COMPACTION_MARKER );
+        Path tmp = null;
+        try {
+            tmp = Files.createTempFile( storeDir, COMPACTION_MARKER, ".tmp" );
+            Files.writeString( tmp, Instant.now().toString(), StandardCharsets.UTF_8 );
+            Files.move( tmp, marker, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE );
+        } catch ( final IOException e ) {
+            LOG.warn( "could not record ontology compaction time in {} (the next startup will compact again): {}",
+                    marker, e.getMessage(), e );
+            deleteQuietly( tmp );
+        }
+    }
+
+    private static void deleteQuietly( final Path tmp ) {
+        if ( tmp == null ) {
+            return;
+        }
+        try {
+            Files.deleteIfExists( tmp );
+        } catch ( final IOException e ) {
+            LOG.warn( "could not remove temporary compaction marker {}: {}", tmp, e.getMessage() );
+        }
+    }
+
+    /** True when {@code root} already holds a TDB2 generation ({@code Data-NNNN}) directory. */
+    private static boolean hasGeneration( final Path root ) {
+        if ( !Files.isDirectory( root ) ) {
+            return false;
+        }
+        try ( Stream< Path > kids = Files.list( root ) ) {
+            return kids.anyMatch( p -> Files.isDirectory( p ) && p.getFileName().toString().startsWith( "Data-" ) );
+        } catch ( final IOException e ) {
+            LOG.warn( "could not list ontology store {} (assuming it already exists): {}", root, e.getMessage() );
+            return true;
+        }
+    }
+
+    /**
+     * Number of write transactions this manager has committed. Each TDB2 commit is a sync round over
+     * every index file and strands the copy-on-write blocks it replaced, so this is the fsync and
+     * store-growth cost driver (and what the batch-write tests assert on).
+     */
+    public long committedWriteTransactions() {
+        return committedWrites.get();
+    }
+
+    /** Commits the open write transaction and invalidates the cached snapshots. */
+    private void commit() {
+        dataset.commit();
+        committedWrites.incrementAndGet();
+        invalidateSnapshots();
     }
 
     private void invalidateSnapshots() {
@@ -91,12 +189,22 @@ public final class OntologyModelManager {
 
     /** In-memory transactional dataset (tests). */
     public static OntologyModelManager inMemory() {
-        return new OntologyModelManager( DatasetFactory.createTxnMem() );
+        return new OntologyModelManager( DatasetFactory.createTxnMem(), null );
     }
 
-    /** Persistent TDB2-backed dataset at {@code dir} (production). */
+    /**
+     * Persistent TDB2-backed dataset at {@code dir} (production). A store created by this call is
+     * recorded as just compacted — it has no dead space yet, so the first compaction is a full
+     * interval away rather than due at the next startup.
+     */
     public static OntologyModelManager tdb2( final String dir ) {
-        return new OntologyModelManager( TDB2Factory.connectDataset( dir ) );
+        final Path root = Path.of( dir );
+        final boolean fresh = !hasGeneration( root );
+        final OntologyModelManager mgr = new OntologyModelManager( TDB2Factory.connectDataset( dir ), root );
+        if ( fresh ) {
+            mgr.recordCompaction();
+        }
+        return mgr;
     }
 
     /** Loads the bundled T-Box into the default graph (replacing any prior T-Box). */
@@ -109,8 +217,7 @@ public final class OntologyModelManager {
             final Model def = dataset.getDefaultModel();
             def.removeAll();
             RDFDataMgr.read( def, in, Lang.TURTLE );
-            dataset.commit();
-            invalidateSnapshots();
+            commit();
         } catch ( final Exception e ) {
             dataset.abort();
             LOG.warn( "failed loading T-Box {}: {}", TBOX_RESOURCE, e.getMessage(), e );
@@ -125,8 +232,7 @@ public final class OntologyModelManager {
         dataset.begin( ReadWrite.WRITE );
         try {
             dataset.replaceNamedModel( graphIri, triples );
-            dataset.commit();
-            invalidateSnapshots();
+            commit();
         } catch ( final RuntimeException e ) {
             dataset.abort();
             LOG.warn( "replaceNamedGraph failed for {}: {}", graphIri, e.getMessage(), e );
@@ -141,8 +247,7 @@ public final class OntologyModelManager {
         dataset.begin( ReadWrite.WRITE );
         try {
             dataset.removeNamedModel( graphIri );
-            dataset.commit();
-            invalidateSnapshots();
+            commit();
         } catch ( final RuntimeException e ) {
             dataset.abort();
             LOG.warn( "removeNamedGraph failed for {}: {}", graphIri, e.getMessage(), e );
@@ -187,13 +292,108 @@ public final class OntologyModelManager {
             for ( final String name : names ) {
                 dataset.removeNamedModel( name );
             }
-            dataset.commit();
-            invalidateSnapshots();
+            commit();
         } catch ( final RuntimeException e ) {
             dataset.abort();
             throw e;
         } finally {
             dataset.end();
+        }
+    }
+
+    /**
+     * Graph writes applied inside one open write transaction — see {@link #writeBatch} and
+     * {@link #replaceAbox}. Writing a graph whose stored content is already identical is a no-op,
+     * so re-projecting an unchanged resource costs a read, not a copy-on-write rewrite.
+     */
+    public interface GraphWriter {
+        /** Replaces (or creates) the named graph at {@code graphIri} with {@code triples}. */
+        void replaceNamedGraph( String graphIri, Model triples );
+
+        /** Removes the named graph at {@code graphIri} (no-op if absent). */
+        void removeNamedGraph( String graphIri );
+    }
+
+    /**
+     * Applies every write {@code body} makes in ONE write transaction: one commit however many
+     * graphs it touches, and no commit at all when nothing actually changed. Readers see all of
+     * the batch or none of it.
+     */
+    public void writeBatch( final Consumer< GraphWriter > body ) {
+        inWriteTransaction( "writeBatch", body );
+    }
+
+    /**
+     * Replaces the whole A-Box in ONE write transaction: {@code body} streams the new graphs in, and
+     * every named graph it did not write is removed before the commit. Readers keep seeing the
+     * previous A-Box until that commit, so the public dataset never shows an empty or half-built
+     * window, and graphs whose content is unchanged are not rewritten. The T-Box is untouched.
+     */
+    public void replaceAbox( final Consumer< GraphWriter > body ) {
+        inWriteTransaction( "replaceAbox", writer -> {
+            final Set< String > stale = new HashSet<>();
+            for ( final Iterator< String > it = dataset.listNames(); it.hasNext(); ) {
+                stale.add( it.next() );
+            }
+            body.accept( new GraphWriter() {
+                @Override
+                public void replaceNamedGraph( final String graphIri, final Model triples ) {
+                    stale.remove( graphIri );
+                    writer.replaceNamedGraph( graphIri, triples );
+                }
+
+                @Override
+                public void removeNamedGraph( final String graphIri ) {
+                    stale.remove( graphIri );
+                    writer.removeNamedGraph( graphIri );
+                }
+            } );
+            for ( final String name : stale ) {
+                writer.removeNamedGraph( name );
+            }
+        } );
+    }
+
+    private void inWriteTransaction( final String op, final Consumer< GraphWriter > work ) {
+        dataset.begin( ReadWrite.WRITE );
+        try {
+            final TxnGraphWriter writer = new TxnGraphWriter();
+            work.accept( writer );
+            if ( writer.changed ) {
+                commit();
+            } else {
+                dataset.abort();   // nothing changed: skip the commit and its sync round entirely
+            }
+        } catch ( final RuntimeException | Error e ) {
+            dataset.abort();
+            LOG.warn( "{} failed: {}", op, e.getMessage(), e );
+            throw e;
+        } finally {
+            dataset.end();
+        }
+    }
+
+    /** Writes straight into the open write transaction, skipping writes that would change nothing. */
+    private final class TxnGraphWriter implements GraphWriter {
+        private boolean changed;
+
+        @Override
+        public void replaceNamedGraph( final String graphIri, final Model triples ) {
+            final boolean unchanged = dataset.containsNamedModel( graphIri )
+                    ? dataset.getNamedModel( graphIri ).isIsomorphicWith( triples )
+                    : triples.isEmpty();
+            if ( !unchanged ) {
+                dataset.replaceNamedModel( graphIri, triples );
+                changed = true;
+            }
+        }
+
+        @Override
+        public void removeNamedGraph( final String graphIri ) {
+            if ( dataset.containsNamedModel( graphIri ) ) {
+                dataset.removeNamedModel( graphIri );
+                changed = true;
+            }
         }
     }
 
@@ -308,7 +508,7 @@ public final class OntologyModelManager {
         }
     }
 
-    /** For Phase 1b shutdown wiring. */
+    /** Closes the dataset; called on engine shutdown once nothing writes to it any more. */
     public void close() {
         dataset.close();
     }
@@ -392,5 +592,6 @@ public final class OntologyModelManager {
         }
         preCompactTestHook.run();
         DatabaseMgr.compact( dsg, true );
+        recordCompaction();
     }
 }

@@ -23,7 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.apache.jena.rdf.model.Model;
@@ -124,6 +127,71 @@ class OntologyModelManagerCompactionTest {
                     ResourceFactory.createResource( iri ), RDF.type,
                     ResourceFactory.createResource( "urn:o-final" ) ),
                     "the LATEST content survives — not a stale prior generation" );
+        } finally {
+            mgr.close();
+        }
+    }
+
+    @Test
+    void theInMemoryDatasetHasNoCompactionRecord() {
+        assertTrue( OntologyModelManager.inMemory().lastCompactedAt().isEmpty() );
+    }
+
+    @Test
+    void aFreshStoreRecordsItsCreationAsTheLastCompaction( @TempDir final Path dir ) {
+        final Instant before = Instant.now();
+        final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.resolve( "store" ).toString() );
+        try {
+            final Optional< Instant > last = mgr.lastCompactedAt();
+            assertTrue( last.isPresent(), "a brand-new store has nothing to compact for a full interval" );
+            assertFalse( last.get().isBefore( before ), "recorded at creation, not some earlier time" );
+        } finally {
+            mgr.close();
+        }
+    }
+
+    @Test
+    void anExistingStoreWithoutAMarkerHasNeverBeenCompacted( @TempDir final Path dir ) throws Exception {
+        final OntologyModelManager first = OntologyModelManager.tdb2( dir.toString() );
+        first.loadTBox();
+        first.close();
+        Files.deleteIfExists( dir.resolve( OntologyModelManager.COMPACTION_MARKER ) );
+
+        final OntologyModelManager reopened = OntologyModelManager.tdb2( dir.toString() );
+        try {
+            assertTrue( reopened.lastCompactedAt().isEmpty(),
+                    "a pre-existing store with no record (production today) must count as overdue" );
+        } finally {
+            reopened.close();
+        }
+    }
+
+    @Test
+    void anUnreadableMarkerCountsAsNeverCompacted( @TempDir final Path dir ) throws Exception {
+        final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
+        try {
+            Files.writeString( dir.resolve( OntologyModelManager.COMPACTION_MARKER ), "not-an-instant" );
+            assertTrue( mgr.lastCompactedAt().isEmpty() );
+        } finally {
+            mgr.close();
+        }
+    }
+
+    @Test
+    void compactionRecordsWhenItRan( @TempDir final Path dir ) throws Exception {
+        final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
+        try {
+            mgr.loadTBox();
+            final Instant stale = Instant.parse( "2026-08-19T00:00:00Z" );
+            Files.writeString( dir.resolve( OntologyModelManager.COMPACTION_MARKER ), stale.toString() );
+            final Instant before = Instant.now();
+
+            mgr.compact();
+
+            final Optional< Instant > last = mgr.lastCompactedAt();
+            assertTrue( last.isPresent() && !last.get().isBefore( before ),
+                    "a successful compaction must update the record: " + last );
+            assertTrue( mgr.namedGraphCount() >= 0, "store still usable after compaction with the marker in its root" );
         } finally {
             mgr.close();
         }

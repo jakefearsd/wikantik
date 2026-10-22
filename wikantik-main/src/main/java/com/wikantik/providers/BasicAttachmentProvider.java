@@ -603,7 +603,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         @Override
         public boolean accept( final File dir, final String name )
         {
-            return !PROPERTY_FILE.equals( name );
+            // In-flight AtomicFileWriter temp files are not versions (hidden, ".tmp").
+            return !PROPERTY_FILE.equals( name ) && !name.startsWith( "." ) && !name.endsWith( AtomicFileWriter.TMP_SUFFIX );
         }
     }
 

@@ -27,9 +27,11 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -43,7 +45,7 @@ public final class AtomicFileWriter {
     private static final Logger LOG = LogManager.getLogger( AtomicFileWriter.class );
 
     /** Suffix of the in-flight temp file; deliberately not a wiki page or properties extension. */
-    static final String TMP_SUFFIX = ".tmp";
+    public static final String TMP_SUFFIX = ".tmp";
 
     private static final AtomicLong SEQ = new AtomicLong();
 
@@ -75,7 +77,7 @@ public final class AtomicFileWriter {
      */
     public static void write( final Path target, final ContentWriter writer ) throws IOException {
         final Path abs = target.toAbsolutePath();
-        final Path tmp = abs.resolveSibling( abs.getFileName() + "." + ProcessHandle.current().pid() + "."
+        final Path tmp = abs.resolveSibling( "." + abs.getFileName() + "." + ProcessHandle.current().pid() + "."
                                              + SEQ.incrementAndGet() + TMP_SUFFIX );
         boolean moved = false;
         try {
@@ -99,6 +101,7 @@ public final class AtomicFileWriter {
                 Files.move( tmp, abs, StandardCopyOption.REPLACE_EXISTING );
             }
             moved = true;
+            syncDirectory( abs.getParent() );
         } finally {
             if( !moved ) {
                 try {
@@ -107,6 +110,18 @@ public final class AtomicFileWriter {
                     LOG.warn( "Could not delete temp file {} after a failed write of {}: {}", tmp, abs, e.getMessage() );
                 }
             }
+        }
+    }
+
+    /** Makes the rename itself durable: without a directory fsync a crash can still lose the new entry. */
+    private static void syncDirectory( final Path dir ) {
+        if( dir == null ) {
+            return;
+        }
+        try( FileChannel channel = FileChannel.open( dir, StandardOpenOption.READ ) ) {
+            channel.force( true );
+        } catch( final IOException e ) {
+            LOG.debug( "Directory fsync of {} is not supported here; the rename is still atomic: {}", dir, e.getMessage() );
         }
     }
 }

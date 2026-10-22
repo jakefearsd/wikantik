@@ -431,6 +431,29 @@ public class ContentIndexRebuildService {
     }
 
     /**
+     * The listed pages plus any chunked page that exists now but was created or renamed after the rebuild
+     * took its listing (the save-time projector already chunked it): those chunks must not be swept.
+     */
+    private Set< String > keepSetFor( final Set< String > chunkedPageNames ) {
+        final Set< String > keep = new HashSet<>( chunkedPageNames );
+        for ( final String name : chunkRepo.listDistinctPageNames() ) {
+            if ( !keep.contains( name ) && !systemPages.isSystemPage( name ) && existsNow( name ) ) {
+                keep.add( name );
+            }
+        }
+        return keep;
+    }
+
+    private boolean existsNow( final String name ) {
+        try {
+            return pages.pageExists( name );
+        } catch ( final ProviderException e ) {
+            LOG.warn( "Could not check whether '{}' exists; keeping its chunks: {}", name, e.getMessage(), e );
+            return true;
+        }
+    }
+
+    /**
      * Removes the chunks of pages that no longer exist (and of system pages, which are never chunked).
      * Kept pages' chunks were diff-applied, so their ids -- and the embeddings and KG mentions that
      * cascade from them -- survive. An empty listing is a provider fault, not an empty wiki: sweeping
@@ -441,7 +464,7 @@ public class ContentIndexRebuildService {
             if ( chunkedPageNames.isEmpty() ) {
                 LOG.warn( "Rebuild listed no content pages; skipping the removed-page chunk sweep" );
             } else {
-                final int swept = chunkRepo.deleteChunksOfPagesNotIn( chunkedPageNames );
+                final int swept = chunkRepo.deleteChunksOfPagesNotIn( keepSetFor( chunkedPageNames ) );
                 LOG.info( "Rebuild swept {} chunk(s) of removed/system pages", swept );
             }
         } catch ( final RuntimeException e ) {

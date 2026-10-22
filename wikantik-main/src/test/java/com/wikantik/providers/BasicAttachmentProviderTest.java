@@ -315,4 +315,15 @@ public class BasicAttachmentProviderTest {
         Assertions.assertEquals( att2.getName(), a2.getName(), "a2 name :: " + res );
     }
 
+    @Test
+    void anInFlightAtomicWriteTempFileIsNotAnAttachmentVersion() {
+        // AtomicFileWriter stages "<version>.<ext>.<pid>.<seq>.tmp" beside the version files while it writes;
+        // counted as a version, it would become the "latest" one and the attachment would 404 meanwhile.
+        final java.io.FilenameFilter versions = new BasicAttachmentProvider.AttachmentVersionFilter();
+        final java.io.File dir = new java.io.File( "." );
+        Assertions.assertTrue( versions.accept( dir, "3.png" ) );
+        Assertions.assertFalse( versions.accept( dir, "4.png.1234.7.tmp" ) );
+        Assertions.assertFalse( versions.accept( dir, ".4.png.1234.7.tmp" ) );
+        Assertions.assertFalse( versions.accept( dir, "attachment.properties" ) );
+    }
 }

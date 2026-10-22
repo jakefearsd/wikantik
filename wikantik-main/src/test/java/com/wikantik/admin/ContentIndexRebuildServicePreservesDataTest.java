@@ -70,6 +70,8 @@ class ContentIndexRebuildServicePreservesDataTest {
     private static DataSource ds;
 
     private final Map< String, String > bodies = new LinkedHashMap<>();
+    /** Pages that exist but were created/renamed after the rebuild took its page listing. */
+    private final java.util.Set< String > createdDuringRebuild = new java.util.HashSet<>();
     private final AtomicInteger embeddedTexts = new AtomicInteger();
     private ContentChunkRepository repo;
     private ContentIndexRebuildService svc;
@@ -83,6 +85,7 @@ class ContentIndexRebuildServicePreservesDataTest {
     void setUp() throws Exception {
         PostgresTestDb.truncate( "kg_content_chunks", "kg_nodes" );
         bodies.clear();
+        createdDuringRebuild.clear();
         embeddedTexts.set( 0 );
         repo = new ContentChunkRepository( ds );
 
@@ -98,6 +101,10 @@ class ContentIndexRebuildServicePreservesDataTest {
         } );
         lenient().when( pm.getPureText( any( Page.class ) ) ).thenAnswer(
             ( InvocationOnMock inv ) -> bodies.get( inv.getArgument( 0, Page.class ).getName() ) );
+        lenient().when( pm.pageExists( anyString() ) ).thenAnswer( ( InvocationOnMock inv ) -> {
+            final String n = inv.getArgument( 0, String.class );
+            return bodies.containsKey( n ) || createdDuringRebuild.contains( n );
+        } );
         final SystemPageRegistry sp = mock( SystemPageRegistry.class );
         lenient().when( sp.isSystemPage( anyString() ) ).thenReturn( false );
 
@@ -201,6 +208,23 @@ class ContentIndexRebuildServicePreservesDataTest {
         assertEquals( 1, chunkIds( "Keep" ).size() );
         assertEquals( 1, count( "SELECT COUNT(*) FROM content_chunk_embeddings" ),
             "the deleted page's embeddings go with its chunks" );
+    }
+
+    @Test
+    void aPageCreatedWhileTheRebuildRunsKeepsItsChunks() throws Exception {
+        bodies.put( "Keep", section( "Keep", "alpha" ) );
+        bodies.put( "Late", section( "Late", "beta" ) );
+        rebuild();
+        final UUID late = chunkIds( "Late" ).get( 0 );
+
+        // "Late" was saved (and chunked by the save-time projector) after the rebuild listed the pages:
+        // missing from the listing, yet it exists.
+        bodies.remove( "Late" );
+        createdDuringRebuild.add( "Late" );
+        rebuild();
+
+        assertEquals( late, chunkIds( "Late" ).get( 0 ), "an existing page's chunks are never swept" );
+        assertEquals( 2, count( "SELECT COUNT(*) FROM content_chunk_embeddings" ) );
     }
 
     @Test

@@ -584,6 +584,18 @@ class EmbeddingIndexServiceTest {
         assertEquals( 7, countRows() );
     }
 
+    @Test
+    void indexStale_reportsPerBatchProgressToTheCallback() throws SQLException {
+        seedChunks( 6 );
+        stubBatchEmbed( 6, false );
+        final List< Integer > seen = new ArrayList<>();
+
+        final int upserted = new EmbeddingIndexService( dataSource, client, 2 ).indexStale( MODEL, seen::add );
+
+        assertEquals( 6, upserted );
+        assertEquals( List.of( 2, 4, 6 ), seen, "one callback per embedded batch with the running total" );
+    }
+
     // ---- indexStale tests ----
 
     @Test

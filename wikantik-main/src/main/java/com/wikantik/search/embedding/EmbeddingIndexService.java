@@ -307,8 +307,17 @@ public class EmbeddingIndexService {
      *         poisoned chunks excluded)
      */
     public int indexStale( final String modelCode ) {
+        return indexStale( modelCode, null );
+    }
+
+    /**
+     * {@link #indexStale(String)} with the per-batch progress callback of
+     * {@link #indexAll(String, IntConsumer)}: receives the running upserted count after each batch.
+     * Callback failures are logged and swallowed.
+     */
+    public int indexStale( final String modelCode, final IntConsumer onBatchFlushed ) {
         requireModelCode( modelCode );
-        return indexRows( modelCode, SELECT_STALE_SQL, true, null,
+        return indexRows( modelCode, SELECT_STALE_SQL, true, onBatchFlushed,
             "indexStale", "embedding reconcile" );
     }
 

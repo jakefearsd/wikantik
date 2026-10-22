@@ -22,7 +22,6 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.config.GenAiMode;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Confidence;
@@ -62,6 +61,8 @@ public final class BundleServiceWiring {
 
     /** Total ranked, cited sections returned in a bundle — the spike's top-N. */
     public static final int MAX_SECTIONS = 12;
+    /** Pages whose section anchors stay cached; above the corpus size, so steady state never re-parses. */
+    static final int ANCHOR_CACHE_PAGES = 4096;
     /**
      * Default per-page section shortlist depth. Raised from 5 to 20 on 2026-06-14:
      * once contextual embeddings made section scores discriminative, the per-page
@@ -228,9 +229,10 @@ public final class BundleServiceWiring {
     static Function< String, Function< List< String >, String > > sectionLinks( final PageManager pageManager,
                                                                                final Properties props ) {
         final String base = WikiPageUrls.base( props, "" );
+        final SectionAnchorCache anchorCache = new SectionAnchorCache( ANCHOR_CACHE_PAGES, SectionAnchors::byHeadingPath );
         return slug -> {
             final String pageUrl = WikiPageUrls.page( base, slug );
-            final Map< List< String >, String > anchors = sectionAnchors( pageManager, slug );
+            final Map< List< String >, String > anchors = sectionAnchors( pageManager, anchorCache, slug );
             return headingPath -> {
                 final String anchor = anchors.get( headingPath );
                 return anchor == null ? pageUrl : pageUrl + "#" + anchor;
@@ -238,13 +240,13 @@ public final class BundleServiceWiring {
         };
     }
 
-    private static Map< List< String >, String > sectionAnchors( final PageManager pageManager, final String slug ) {
+    private static Map< List< String >, String > sectionAnchors( final PageManager pageManager,
+                                                                final SectionAnchorCache anchorCache, final String slug ) {
         if ( pageManager == null ) {
             return Map.of();
         }
         try {
-            final String text = pageManager.getPureText( slug, PageProvider.LATEST_VERSION );
-            return text == null ? Map.of() : SectionAnchors.byHeadingPath( FrontmatterParser.parse( text ).body() );
+            return anchorCache.anchorsFor( slug, pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Could not read page '{}' to anchor its bundle sections; linking the page instead: {}",
                 slug, e.getMessage() );

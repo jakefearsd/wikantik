@@ -352,20 +352,7 @@ public class ContentIndexRebuildService {
                     systemPagesSkipped.incrementAndGet();
                 } else {
                     chunkedPageNames.add( name );
-                    try {
-                        final String content = pages.getPureText( page );
-                        // Full text stripped first, then parsed: see AclDirectiveText.parseStripped
-                        final ParsedPage parsed = AclDirectiveText.parseStripped( content );
-                        final List< Chunk > produced = chunker.chunk( name, parsed );
-                        final List< ChunkDiff.Stored > existing = chunkRepo.findByPage( name );
-                        final ChunkDiff.Diff diff = ChunkDiff.compute( existing, produced );
-                        chunkRepo.apply( name, diff );
-                        pagesChunked.incrementAndGet();
-                        chunksWritten.addAndGet( produced.size() );
-                    } catch ( final Exception e ) {
-                        LOG.warn( "Chunker failed for page '{}': {}", name, e.getMessage(), e );
-                        recordError( name, e );
-                    }
+                    rechunkPage( page, name );
                 }
                 try {
                     lucene.reindexPage( page );
@@ -376,22 +363,7 @@ public class ContentIndexRebuildService {
                 }
             }
 
-            // Sweep chunks of pages that no longer exist (and of system pages, which are
-            // never chunked). Kept pages' chunks were diff-applied above, so their ids --
-            // and the embeddings and KG mentions that cascade from them -- survive.
-            // An empty listing is a provider fault, not an empty wiki: sweeping on it would
-            // cascade away every embedding and KG mention.
-            try {
-                if ( chunkedPageNames.isEmpty() ) {
-                    LOG.warn( "Rebuild listed no content pages; skipping the removed-page chunk sweep" );
-                } else {
-                    final int swept = chunkRepo.deleteChunksOfPagesNotIn( chunkedPageNames );
-                    LOG.info( "Rebuild swept {} chunk(s) of removed/system pages", swept );
-                }
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Sweep of removed pages' chunks failed: {}", e.getMessage(), e );
-                recordError( "<chunk-sweep>", e );
-            }
+            sweepRemovedPages( chunkedPageNames );
 
             // Post-chunk hook: refresh dense-vector embeddings now that the
             // chunk rows are in their final state. This runs synchronously on
@@ -437,6 +409,44 @@ public class ContentIndexRebuildService {
             LOG.warn( "Embedding status lookup failed for model={}: {}",
                 model, e.getMessage(), e );
             return new IndexStatusSnapshot.Embeddings( model, 0, 0, null );
+        }
+    }
+
+    /** Diff-applies one page's chunks: unchanged chunks keep their ids, embeddings and KG mentions. */
+    private void rechunkPage( final Page page, final String name ) {
+        try {
+            final String content = pages.getPureText( page );
+            // Full text stripped first, then parsed: see AclDirectiveText.parseStripped
+            final ParsedPage parsed = AclDirectiveText.parseStripped( content );
+            final List< Chunk > produced = chunker.chunk( name, parsed );
+            final List< ChunkDiff.Stored > existing = chunkRepo.findByPage( name );
+            final ChunkDiff.Diff diff = ChunkDiff.compute( existing, produced );
+            chunkRepo.apply( name, diff );
+            pagesChunked.incrementAndGet();
+            chunksWritten.addAndGet( produced.size() );
+        } catch ( final Exception e ) {
+            LOG.warn( "Chunker failed for page '{}': {}", name, e.getMessage(), e );
+            recordError( name, e );
+        }
+    }
+
+    /**
+     * Removes the chunks of pages that no longer exist (and of system pages, which are never chunked).
+     * Kept pages' chunks were diff-applied, so their ids -- and the embeddings and KG mentions that
+     * cascade from them -- survive. An empty listing is a provider fault, not an empty wiki: sweeping
+     * on it would cascade away every embedding and KG mention.
+     */
+    private void sweepRemovedPages( final Set< String > chunkedPageNames ) {
+        try {
+            if ( chunkedPageNames.isEmpty() ) {
+                LOG.warn( "Rebuild listed no content pages; skipping the removed-page chunk sweep" );
+            } else {
+                final int swept = chunkRepo.deleteChunksOfPagesNotIn( chunkedPageNames );
+                LOG.info( "Rebuild swept {} chunk(s) of removed/system pages", swept );
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Sweep of removed pages' chunks failed: {}", e.getMessage(), e );
+            recordError( "<chunk-sweep>", e );
         }
     }
 

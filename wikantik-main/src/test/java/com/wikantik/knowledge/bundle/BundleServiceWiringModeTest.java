@@ -50,7 +50,7 @@ class BundleServiceWiringModeTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.reranker.enabled", "true" );
 
-        assertInstanceOf( LlmSectionReranker.class, BundleServiceWiring.rerankerFor( p ),
+        assertInstanceOf( LlmSectionReranker.class, BundleRerankers.rerankerFor( p ),
             "no genai.mode set -> regression guard: unchanged behavior" );
     }
 
@@ -60,7 +60,7 @@ class BundleServiceWiringModeTest {
         p.setProperty( "wikantik.bundle.reranker.enabled", "true" );
         p.setProperty( GenAiMode.PROP, "embeddings-only" );
 
-        final SectionReranker r = BundleServiceWiring.rerankerFor( p );
+        final SectionReranker r = BundleRerankers.rerankerFor( p );
 
         assertFalse( r instanceof LlmSectionReranker,
             "embeddings-only must never construct the LLM reranker even with reranker.enabled=true" );
@@ -74,7 +74,7 @@ class BundleServiceWiringModeTest {
         p.setProperty( "wikantik.bundle.reranker.enabled", "true" );
         p.setProperty( GenAiMode.PROP, "none" );
 
-        assertFalse( BundleServiceWiring.rerankerFor( p ) instanceof LlmSectionReranker,
+        assertFalse( BundleRerankers.rerankerFor( p ) instanceof LlmSectionReranker,
             "none must never construct the LLM reranker" );
     }
 
@@ -85,7 +85,7 @@ class BundleServiceWiringModeTest {
         p.setProperty( GenAiMode.PROP, "full" );
 
         final List< CandidateSection > in = List.of( sec( "A" ) );
-        assertSame( in, BundleServiceWiring.rerankerFor( p ).rerank( "q", in ),
+        assertSame( in, BundleRerankers.rerankerFor( p ).rerank( "q", in ),
             "reranker.enabled=false under mode=full must remain identity" );
     }
 
@@ -96,7 +96,7 @@ class BundleServiceWiringModeTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.chain", "llm,metadata-boost" );
 
-        final SectionReranker r = BundleServiceWiring.rerankerFor( p, slug -> null );
+        final SectionReranker r = BundleRerankers.rerankerFor( p, slug -> null );
 
         assertInstanceOf( SectionRerankChain.class, r );
         final SectionRerankChain chain = (SectionRerankChain) r;
@@ -110,7 +110,7 @@ class BundleServiceWiringModeTest {
         p.setProperty( "wikantik.bundle.rerank.chain", "llm,metadata-boost" );
         p.setProperty( GenAiMode.PROP, "embeddings-only" );
 
-        final SectionReranker r = BundleServiceWiring.rerankerFor( p, slug -> com.wikantik.api.pagegraph.Confidence.PROVISIONAL );
+        final SectionReranker r = BundleRerankers.rerankerFor( p, slug -> com.wikantik.api.pagegraph.Confidence.PROVISIONAL );
 
         assertInstanceOf( SectionRerankChain.class, r,
             "chain must still be built with its non-LLM stages" );
@@ -127,7 +127,7 @@ class BundleServiceWiringModeTest {
         p.setProperty( "wikantik.bundle.rerank.chain", "mmr,llm" );
         p.setProperty( GenAiMode.PROP, "none" );
 
-        final SectionReranker r = BundleServiceWiring.rerankerFor( p, null );
+        final SectionReranker r = BundleRerankers.rerankerFor( p, null );
 
         final SectionRerankChain chain = (SectionRerankChain) r;
         assertEquals( 1, chain.stages().size(), "the llm stage must be skipped" );
@@ -142,7 +142,7 @@ class BundleServiceWiringModeTest {
         p.setProperty( GenAiMode.PROP, "none" );
 
         final List< CandidateSection > in = List.of( sec( "A" ) );
-        assertSame( in, BundleServiceWiring.rerankerFor( p, null ).rerank( "q", in ),
+        assertSame( in, BundleRerankers.rerankerFor( p, null ).rerank( "q", in ),
             "an all-llm chain under a disallowing mode degrades to identity" );
     }
 }

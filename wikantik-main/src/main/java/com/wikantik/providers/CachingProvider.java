@@ -39,12 +39,10 @@ import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
@@ -381,7 +379,7 @@ public class CachingProvider implements PageProvider {
         for( final Page page : providerPages ) {
             live.add( page.getName() );
             final Page cached = cachingManager.get( CachingManager.CACHE_PAGES, page.getName(), () -> null );
-            if( cached != null && sameRevision( cached, page ) ) {
+            if( cached != null && PageRevisions.same( cached, page ) ) {
                 continue;
             }
             cachingManager.put( CachingManager.CACHE_PAGES, page.getName(), page );
@@ -404,14 +402,6 @@ public class CachingProvider implements PageProvider {
         LOG.debug( "All-pages cache refreshed with {} pages", providerPages.size() );
     }
 
-    /** True when the two Page objects describe the same stored revision (version, modification time, size, author). */
-    private static boolean sameRevision( final Page cached, final Page fresh ) {
-        return cached.getVersion() == fresh.getVersion()
-                && cached.getSize() == fresh.getSize()
-                && Objects.equals( cached.getLastModified(), fresh.getLastModified() )
-                && Objects.equals( cached.getAuthor(), fresh.getAuthor() );
-    }
-
     /**
      *  {@inheritDoc}
      *
@@ -427,19 +417,7 @@ public class CachingProvider implements PageProvider {
             LOG.warn( "Could not serve getAllChangedSince from the page cache, asking the provider: {}", e.getMessage(), e );
             return provider.getAllChangedSince( date );
         }
-
-        final long sinceMillis = ( date == null ) ? 0L : date.getTime();
-        if( sinceMillis <= 0L ) {
-            return all;
-        }
-        final List< Page > changed = new ArrayList<>();
-        for( final Page page : all ) {
-            final Date modified = page.getLastModified();
-            if( modified == null || modified.getTime() >= sinceMillis ) {
-                changed.add( page );
-            }
-        }
-        return changed;
+        return PageRevisions.changedSince( all, date );
     }
 
     /**

@@ -58,7 +58,7 @@ class BundleServiceWiringTest {
     void rerankerDisabledByDefault_isIdentity_noNetwork() {
         // No 'enabled' key -> default OFF: identity reranker that returns the input untouched
         // (the 2026-06-13 live measurement showed the reranker is ordering-only, +1.5s, no recall).
-        final SectionReranker r = BundleServiceWiring.rerankerFor( new Properties() );
+        final SectionReranker r = BundleRerankers.rerankerFor( new Properties() );
         final List< CandidateSection > in = List.of( sec( "A" ), sec( "B" ) );
         assertSame( in, r.rerank( "q", in ), "disabled reranker must return the input list unchanged" );
     }
@@ -67,7 +67,7 @@ class BundleServiceWiringTest {
     void rerankerEnabled_isLlmReranker() {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.reranker.enabled", "true" );
-        assertInstanceOf( LlmSectionReranker.class, BundleServiceWiring.rerankerFor( p ),
+        assertInstanceOf( LlmSectionReranker.class, BundleRerankers.rerankerFor( p ),
             "enabled=true must select the LLM reranker" );
     }
 
@@ -76,7 +76,7 @@ class BundleServiceWiringTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.reranker.enabled", "false" );
         final List< CandidateSection > in = List.of( sec( "A" ) );
-        assertEquals( in, BundleServiceWiring.rerankerFor( p ).rerank( "q", in ) );
+        assertEquals( in, BundleRerankers.rerankerFor( p ).rerank( "q", in ) );
     }
 
     @Test
@@ -305,14 +305,14 @@ class BundleServiceWiringTest {
     void rerankChainUnset_preservesLegacyIdentity() {
         // No rerank.chain key -> must behave exactly as today (identity when reranker.enabled absent).
         final List< CandidateSection > in = List.of( sec( "A" ), sec( "B" ) );
-        assertSame( in, BundleServiceWiring.rerankerFor( new Properties() ).rerank( "q", in ) );
+        assertSame( in, BundleRerankers.rerankerFor( new Properties() ).rerank( "q", in ) );
     }
 
     @Test
     void rerankChainMmr_buildsChainContainingMmr() {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.chain", "mmr" );
-        final SectionReranker r = BundleServiceWiring.rerankerFor( p );
+        final SectionReranker r = BundleRerankers.rerankerFor( p );
         assertInstanceOf( SectionRerankChain.class, r );
         final SectionRerankChain chain = (SectionRerankChain) r;
         assertEquals( 1, chain.stages().size() );
@@ -323,7 +323,7 @@ class BundleServiceWiringTest {
     void rerankChainUnknownStage_isSkipped() {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.chain", "mmr, bogus" );
-        final SectionRerankChain chain = (SectionRerankChain) BundleServiceWiring.rerankerFor( p );
+        final SectionRerankChain chain = (SectionRerankChain) BundleRerankers.rerankerFor( p );
         assertEquals( 1, chain.stages().size(), "unknown stage names are skipped with a warn" );
         assertInstanceOf( MmrSectionReranker.class, chain.stages().get( 0 ) );
     }
@@ -333,16 +333,16 @@ class BundleServiceWiringTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.chain", "bogus" );
         final List< CandidateSection > in = List.of( sec( "A" ) );
-        assertSame( in, BundleServiceWiring.rerankerFor( p ).rerank( "q", in ),
+        assertSame( in, BundleRerankers.rerankerFor( p ).rerank( "q", in ),
             "an all-unknown chain degrades to identity, not an empty chain" );
     }
 
     @Test
     void mmrLambda_defaultsToPoint7AndParses() {
-        assertEquals( 0.7, BundleServiceWiring.mmrLambda( new Properties() ), 1e-9 );
+        assertEquals( 0.7, BundleRerankers.mmrLambda( new Properties() ), 1e-9 );
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.mmr.lambda", "0.5" );
-        assertEquals( 0.5, BundleServiceWiring.mmrLambda( p ), 1e-9 );
+        assertEquals( 0.5, BundleRerankers.mmrLambda( p ), 1e-9 );
     }
 
     @Test
@@ -350,7 +350,7 @@ class BundleServiceWiringTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.chain", "metadata-boost" );
         final Function< String, Confidence > conf = slug -> Confidence.PROVISIONAL;
-        final SectionReranker r = BundleServiceWiring.rerankerFor( p, conf );
+        final SectionReranker r = BundleRerankers.rerankerFor( p, conf );
         final SectionRerankChain chain = (SectionRerankChain) r;
         assertEquals( 1, chain.stages().size() );
         assertInstanceOf( MetadataBoostSectionReranker.class, chain.stages().get( 0 ) );
@@ -362,14 +362,14 @@ class BundleServiceWiringTest {
         p.setProperty( "wikantik.bundle.rerank.chain", "metadata-boost" );
         final List< CandidateSection > in = List.of( sec( "A" ) );
         // no confidence lookup wired -> the boost stage is skipped -> empty chain -> IDENTITY
-        assertSame( in, BundleServiceWiring.rerankerFor( p, null ).rerank( "q", in ) );
+        assertSame( in, BundleRerankers.rerankerFor( p, null ).rerank( "q", in ) );
     }
 
     @Test
     void rerankChainMmrAndBoost_ordersStages() {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.chain", "mmr, metadata-boost" );
-        final SectionRerankChain chain = (SectionRerankChain) BundleServiceWiring.rerankerFor( p, slug -> Confidence.PROVISIONAL );
+        final SectionRerankChain chain = (SectionRerankChain) BundleRerankers.rerankerFor( p, slug -> Confidence.PROVISIONAL );
         assertEquals( 2, chain.stages().size() );
         assertInstanceOf( MmrSectionReranker.class, chain.stages().get( 0 ) );
         assertInstanceOf( MetadataBoostSectionReranker.class, chain.stages().get( 1 ) );
@@ -379,7 +379,7 @@ class BundleServiceWiringTest {
     void legacyRerankerFor_singleArg_stillIdentityByDefault() {
         // the old 1-arg rerankerFor must be unchanged (delegates with null confidence)
         final List< CandidateSection > in = List.of( sec( "A" ) );
-        assertSame( in, BundleServiceWiring.rerankerFor( new Properties() ).rerank( "q", in ) );
+        assertSame( in, BundleRerankers.rerankerFor( new Properties() ).rerank( "q", in ) );
     }
 
     /* ---------- build(): query-decomposition wiring (default off) ---------- */
@@ -428,13 +428,13 @@ class BundleServiceWiringTest {
 
     @Test
     void metadataBoostPositionsAndWindow_defaultsAndParse() {
-        assertEquals( 1.5, BundleServiceWiring.metadataBoostPositions( new Properties() ), 1e-9 );
-        assertEquals( 24, BundleServiceWiring.metadataBoostWindow( new Properties() ) );
+        assertEquals( 1.5, BundleRerankers.metadataBoostPositions( new Properties() ), 1e-9 );
+        assertEquals( 24, BundleRerankers.metadataBoostWindow( new Properties() ) );
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.metadata_boost.positions", "3" );
         p.setProperty( "wikantik.bundle.rerank.metadata_boost.window", "30" );
-        assertEquals( 3.0, BundleServiceWiring.metadataBoostPositions( p ), 1e-9 );
-        assertEquals( 30, BundleServiceWiring.metadataBoostWindow( p ) );
+        assertEquals( 3.0, BundleRerankers.metadataBoostPositions( p ), 1e-9 );
+        assertEquals( 30, BundleRerankers.metadataBoostWindow( p ) );
     }
 
     /* ---------- recordReranker / recordPlanner: llm-activity recording parity (Task 1.7) ---------- */
@@ -443,20 +443,20 @@ class BundleServiceWiringTest {
     void recordReranker_activityLogDisabled_returnsUnchanged() {
         final SectionReranker llm = new LlmSectionReranker( new RerankerConfig( "m", "http://x", 1000 ) );
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( false, 60, 100, 500 );
-        assertSame( llm, BundleServiceWiring.recordReranker( llm, log, "m" ) );
+        assertSame( llm, BundleRerankers.recordReranker( llm, log, "m" ) );
     }
 
     @Test
     void recordReranker_nullLog_returnsUnchanged() {
         final SectionReranker llm = new LlmSectionReranker( new RerankerConfig( "m", "http://x", 1000 ) );
-        assertSame( llm, BundleServiceWiring.recordReranker( llm, null, "m" ) );
+        assertSame( llm, BundleRerankers.recordReranker( llm, null, "m" ) );
     }
 
     @Test
     void recordReranker_bareLlmReranker_wrapsWhenEnabled() {
         final SectionReranker llm = new LlmSectionReranker( new RerankerConfig( "m", "http://x", 1000 ) );
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertInstanceOf( RecordingSectionReranker.class, BundleServiceWiring.recordReranker( llm, log, "m" ) );
+        assertInstanceOf( RecordingSectionReranker.class, BundleRerankers.recordReranker( llm, log, "m" ) );
     }
 
     @Test
@@ -464,7 +464,7 @@ class BundleServiceWiringTest {
         // Identity and MMR never issue chat inference — nothing to record.
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
         final SectionReranker mmr = new MmrSectionReranker( 0.7 );
-        assertSame( mmr, BundleServiceWiring.recordReranker( mmr, log, "m" ) );
+        assertSame( mmr, BundleRerankers.recordReranker( mmr, log, "m" ) );
     }
 
     @Test
@@ -474,7 +474,7 @@ class BundleServiceWiringTest {
         final SectionRerankChain chain = new SectionRerankChain( List.of( llm, mmr ) );
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
 
-        final SectionReranker result = BundleServiceWiring.recordReranker( chain, log, "m" );
+        final SectionReranker result = BundleRerankers.recordReranker( chain, log, "m" );
 
         assertInstanceOf( SectionRerankChain.class, result );
         final List< SectionReranker > stages = ( (SectionRerankChain) result ).stages();
@@ -487,7 +487,7 @@ class BundleServiceWiringTest {
     void recordReranker_chainWithoutLlmStage_returnsSameChain() {
         final SectionRerankChain chain = new SectionRerankChain( List.of( new MmrSectionReranker( 0.7 ) ) );
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertSame( chain, BundleServiceWiring.recordReranker( chain, log, "m" ) );
+        assertSame( chain, BundleRerankers.recordReranker( chain, log, "m" ) );
     }
 
     @Test
@@ -495,14 +495,14 @@ class BundleServiceWiringTest {
         final QueryPlanner llm = new LlmQueryPlanner( HttpClient.newHttpClient(),
             new BundleDecompositionConfig( true, "m", "http://x", 4000, 4, 60, "rrf" ) );
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( false, 60, 100, 500 );
-        assertSame( llm, BundleServiceWiring.recordPlanner( llm, log, "m" ) );
+        assertSame( llm, BundleRerankers.recordPlanner( llm, log, "m" ) );
     }
 
     @Test
     void recordPlanner_nullLog_returnsUnchanged() {
         final QueryPlanner llm = new LlmQueryPlanner( HttpClient.newHttpClient(),
             new BundleDecompositionConfig( true, "m", "http://x", 4000, 4, 60, "rrf" ) );
-        assertSame( llm, BundleServiceWiring.recordPlanner( llm, null, "m" ) );
+        assertSame( llm, BundleRerankers.recordPlanner( llm, null, "m" ) );
     }
 
     @Test
@@ -510,7 +510,7 @@ class BundleServiceWiringTest {
         final QueryPlanner llm = new LlmQueryPlanner( HttpClient.newHttpClient(),
             new BundleDecompositionConfig( true, "m", "http://x", 4000, 4, 60, "rrf" ) );
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertInstanceOf( RecordingQueryPlanner.class, BundleServiceWiring.recordPlanner( llm, log, "m" ) );
+        assertInstanceOf( RecordingQueryPlanner.class, BundleRerankers.recordPlanner( llm, log, "m" ) );
     }
 
     @Test
@@ -518,7 +518,7 @@ class BundleServiceWiringTest {
         // The default-off passthrough planner never calls out — nothing to record.
         final QueryPlanner passthrough = new PassthroughQueryPlanner();
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertSame( passthrough, BundleServiceWiring.recordPlanner( passthrough, log, "m" ) );
+        assertSame( passthrough, BundleRerankers.recordPlanner( passthrough, log, "m" ) );
     }
 
     /* ---------- slug -> canonical_id resolves from the structural index, not one query per section ---------- */

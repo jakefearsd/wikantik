@@ -64,7 +64,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     private final PageManager pageManager;
     private final PageCanonicalIdsDao dao;
-    private final PageVerificationDao verificationDao;
     private final ConfidenceComputer confidenceComputer;
     private final StructuralIndexMetrics metrics;
 
@@ -74,8 +73,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             IndexHealth.Status.DOWN, 0, 0, null, null, 0L, 0L );
     private volatile int unclaimed = 0;
     private volatile List< StructuralConflict > conflicts = List.of();
-    /** All {@code page_verification} rows, loaded at rebuild; {@code null} until then (DB fallback). */
-    private volatile Map< String, Verification > verifications;
+    /** {@code page_verification} rows in memory, loaded at rebuild (DB fallback until then). */
+    private final VerificationStore verifications;
 
     /** Full-fidelity ctor — used by the production WikiEngine bootstrap. */
     public DefaultStructuralIndexService( final PageManager pageManager,
@@ -85,7 +84,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                                           final StructuralIndexMetrics metrics ) {
         this.pageManager        = pageManager;
         this.dao                = dao;
-        this.verificationDao    = verificationDao;
+        this.verifications      = new VerificationStore( verificationDao );
         this.confidenceComputer = confidenceComputer == null
                 ? new ConfidenceComputer( name -> false ) : confidenceComputer;
         this.metrics            = metrics == null ? new StructuralIndexMetrics() : metrics;
@@ -174,7 +173,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             }
         }
 
-        loadVerifications();
+        verifications.reload();
         final StructuralProjection projection = builder.build();
         current.set( projection );
         titles.onRebuilt( nextAliases );
@@ -241,25 +240,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     @Override
     public Optional< Verification > verificationOf( final String canonicalId ) {
-        if ( verificationDao == null || canonicalId == null || canonicalId.isBlank() ) {
-            return Optional.empty();
-        }
-        final Map< String, Verification > cached = verifications;
-        if ( cached != null ) {
-            return Optional.ofNullable( cached.get( canonicalId ) );
-        }
-        return verificationDao.findByCanonicalId( canonicalId );
-    }
-
-    /** Replaces the in-memory verification rows with one read of the table; keeps the old view on failure. */
-    private void loadVerifications() {
-        if ( verificationDao == null ) {
-            return;
-        }
-        final Map< String, Verification > all = verificationDao.findAll();
-        if ( all != null ) {
-            verifications = new java.util.concurrent.ConcurrentHashMap<>( all );
-        }
+        return verifications.get( canonicalId );
     }
 
     @Override
@@ -418,10 +399,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         } catch ( final RuntimeException dbx ) {
             LOG.warn( "dao.delete({}) failed: {}", canonicalId, dbx.getMessage() );
         }
-        final Map< String, Verification > cached = verifications;
-        if ( cached != null ) {
-            cached.remove( canonicalId );
-        }
+        verifications.remove( canonicalId );
 
         final StructuralProjection proj = current.get();
         final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
@@ -451,7 +429,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
      * but otherwise it's a function of verified_at + trusted-authors.
      */
     private void persistVerification( final String canonicalId, final Map< String, Object > fm ) {
-        if ( verificationDao == null ) {
+        if ( !verifications.wired() ) {
             return;
         }
         try {
@@ -464,11 +442,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             final com.wikantik.api.pagegraph.Confidence confidence =
                     confidenceComputer.compute( verifiedAt, verifiedBy, explicitOverride, Instant.now() );
             final Verification verification = new Verification( verifiedAt, verifiedBy, confidence, audience );
-            verificationDao.upsert( canonicalId, verification );
-            final Map< String, Verification > cached = verifications;
-            if ( cached != null ) {
-                cached.put( canonicalId, verification );
-            }
+            verifications.save( canonicalId, verification );
         } catch ( final RuntimeException ex ) {
             LOG.warn( "verification persistence failed for {}: {}", canonicalId, ex.getMessage() );
         }

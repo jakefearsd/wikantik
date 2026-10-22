@@ -20,7 +20,6 @@ package com.wikantik.knowledge.bundle;
 
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.RetrievalMode;
-import com.wikantik.api.config.GenAiMode;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
@@ -34,10 +33,7 @@ import com.wikantik.util.WikiPageUrls;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.http.HttpClient;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -144,36 +140,18 @@ public final class BundleServiceWiring {
                 ? Map.of( RetrievalMode.HYBRID, new RetrievalSectionSource( retrieval, sectionsPerPageFrom( props ) ) )
                 : sourceMap;
 
-        final SectionReranker reranker = rerankerFor( props, confidenceOf );
-        final Function< String, Optional< String > > canonicalIdOf = slug -> {
-            final Optional< String > indexed = structuralIndex == null || hasSynthesisedId( structuralIndex, slug )
-                ? Optional.empty() : structuralIndex.resolveCanonicalIdFromSlug( slug );
-            if ( indexed.isPresent() || dao == null ) {
-                return indexed;
-            }
-            return dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId );
-        };
-        final Function< String, Integer > versionOf = slug -> {
-            if ( pageManager == null ) return 0;
-            // Metadata-free: this lambda needs the version and nothing else, so it must not
-            // trigger CachingProvider.refreshMetadata's flexmark parse (4.4% of the
-            // refreshMetadata cost in the 2026-09-25 JFR, reached via citeAndDedup).
-            final Page p = pageManager.getPageWithoutMetadata(
-                slug, com.wikantik.api.providers.PageProvider.LATEST_VERSION );
-            return p == null ? 0 : p.getVersion();
-        };
+        final SectionReranker reranker = BundleRerankers.rerankerFor( props, confidenceOf );
+        final Function< String, Optional< String > > canonicalIdOf = canonicalIdResolver( dao, structuralIndex );
+        final Function< String, Integer > versionOf = versionResolver( pageManager );
 
-        final String rerankerLabel = reranker instanceof SectionRerankChain c ? "chain(" + c.stages().size() + ")"
-            : reranker instanceof LlmSectionReranker ? "on" : "off";
+        final String rerankerLabel = BundleRerankers.label( reranker );
         final String kneeLabel = kneeEnabled( props ) ? ( "on/ratio=" + kneeRetainRatio( props ) ) : "off";
         final BundleDecompositionConfig decompositionConfig = BundleDecompositionConfig.fromProperties( props );
-        final QueryPlanner planner = decompositionConfig.enabled()
-            ? new LlmQueryPlanner( HttpClient.newHttpClient(), decompositionConfig )
-            : new PassthroughQueryPlanner();
+        final QueryPlanner planner = BundleRerankers.plannerFor( decompositionConfig );
         LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={}, decomposition={})",
             sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel, decompositionConfig.enabled() );
 
-        // LLM-activity observability parity (Task 1.7): decorate whatever rerankerFor()/the
+        // LLM-activity observability parity (Task 1.7): decorate whatever BundleRerankers.rerankerFor()/the
         // decomposition-config branch above already decided to construct — this happens AFTER
         // the wikantik.genai.mode ceiling logic has run, so it never influences that decision.
         // It only makes calls that DO happen (chat inference, when the ceiling allows it)
@@ -182,9 +160,9 @@ public final class BundleServiceWiring {
         final com.wikantik.llm.activity.LlmActivityLog activityLog =
             com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
         final SectionReranker recordedReranker =
-            recordReranker( reranker, activityLog, RerankerConfig.fromProperties( props ).model() );
+            BundleRerankers.recordReranker( reranker, activityLog, RerankerConfig.fromProperties( props ).model() );
         final QueryPlanner recordedPlanner =
-            recordPlanner( planner, activityLog, decompositionConfig.model() );
+            BundleRerankers.recordPlanner( planner, activityLog, decompositionConfig.model() );
 
         return new DefaultBundleAssemblyService(
             new RetrievalRouting( sources, RetrievalMode.HYBRID ), recordedReranker,
@@ -197,51 +175,44 @@ public final class BundleServiceWiring {
                 decompositionConfig.enabled() ) );
     }
 
-    /**
-     * Wraps {@code reranker} for {@code /admin/llm-activity} recording when the activity log is
-     * enabled AND the reranker actually issues chat inference — a bare {@link LlmSectionReranker},
-     * or a {@link SectionRerankChain} carrying one as its {@code llm} stage. Non-LLM rerankers
-     * (identity, {@link MmrSectionReranker}, {@link MetadataBoostSectionReranker}) are returned
-     * unchanged — there is no call to record. Never called from {@link #rerankerFor} itself, so
-     * the genai.mode ceiling logic there stays byte-for-byte unchanged and independently testable.
-     */
-    static SectionReranker recordReranker( final SectionReranker reranker, final com.wikantik.llm.activity.LlmActivityLog log,
-                                           final String model ) {
-        if ( log == null || !log.enabled() ) {
-            return reranker;
-        }
-        if ( reranker instanceof LlmSectionReranker ) {
-            return new RecordingSectionReranker( reranker, log, "ollama", model );
-        }
-        if ( reranker instanceof SectionRerankChain chain ) {
-            boolean changed = false;
-            final List< SectionReranker > stages = new ArrayList<>( chain.stages().size() );
-            for ( final SectionReranker stage : chain.stages() ) {
-                if ( stage instanceof LlmSectionReranker ) {
-                    stages.add( new RecordingSectionReranker( stage, log, "ollama", model ) );
-                    changed = true;
-                } else {
-                    stages.add( stage );
-                }
-            }
-            return changed ? new SectionRerankChain( stages ) : chain;
-        }
-        return reranker;
-    }
 
     /**
-     * Wraps {@code planner} for {@code /admin/llm-activity} recording when the activity log is
-     * enabled AND the planner is the LLM-backed {@link LlmQueryPlanner} — the (default)
-     * {@link PassthroughQueryPlanner} is returned unchanged, since it never calls out. Never
-     * called from {@link BundleDecompositionConfig#fromProperties}, so that method's genai.mode
-     * ceiling logic stays byte-for-byte unchanged and independently testable.
+     * Slug → canonical id for citations: the structural index first (no query), then the DAO. A slug the
+     * index holds only under an in-memory id (no authored canonical_id) goes to the DAO too, because that
+     * id changes on every restart and a citation must not pin to it.
      */
-    static QueryPlanner recordPlanner( final QueryPlanner planner, final com.wikantik.llm.activity.LlmActivityLog log,
-                                       final String model ) {
-        if ( log == null || !log.enabled() ) {
-            return planner;
+    static Function< String, Optional< String > > canonicalIdResolver( final PageCanonicalIdsDao dao,
+                                                                       final StructuralIndexService structuralIndex ) {
+        return slug -> {
+            final Optional< String > indexed = structuralIndex == null || hasSynthesisedId( structuralIndex, slug )
+                ? Optional.empty() : structuralIndex.resolveCanonicalIdFromSlug( slug );
+            if ( indexed.isPresent() || dao == null ) {
+                return indexed;
+            }
+            return dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId );
+        };
+    }
+
+    private static boolean hasSynthesisedId( final StructuralIndexService index, final String slug ) {
+        for ( final StructuralConflict c : index.conflicts() ) {
+            if ( c.kind() == StructuralConflict.Kind.MISSING_CANONICAL_ID && slug.equals( c.slug() ) ) {
+                return true;
+            }
         }
-        return planner instanceof LlmQueryPlanner ? new RecordingQueryPlanner( planner, log, "ollama", model ) : planner;
+        return false;
+    }
+
+    /** Slug → current page version for citation pinning; 0 when the page manager is absent or the page is gone. */
+    private static Function< String, Integer > versionResolver( final PageManager pageManager ) {
+        return slug -> {
+            if ( pageManager == null ) return 0;
+            // Metadata-free: this lambda needs the version and nothing else, so it must not
+            // trigger CachingProvider.refreshMetadata's flexmark parse (4.4% of the
+            // refreshMetadata cost in the 2026-09-25 JFR, reached via citeAndDedup).
+            final Page p = pageManager.getPageWithoutMetadata(
+                slug, com.wikantik.api.providers.PageProvider.LATEST_VERSION );
+            return p == null ? 0 : p.getVersion();
+        };
     }
 
     /**
@@ -313,115 +284,4 @@ public final class BundleServiceWiring {
         }
     }
 
-    /** Identity reranker: returns the (already relevance-sorted) input untouched. */
-    private static final SectionReranker IDENTITY = ( query, sections ) -> sections;
-
-    /**
-     * Selects the section reranker from config. If {@code wikantik.bundle.rerank.chain} is set
-     * (CSV of stage names: {@code mmr}, {@code llm}), builds an ordered {@link SectionRerankChain}
-     * from it. Otherwise falls back to the legacy behavior: {@code wikantik.bundle.reranker.enabled}
-     * defaults to {@code false} — the 2026-06-13 live measurement showed the listwise LLM reranker
-     * is an ordering lever, not a recall lever (rerank == dense recall), at ~1.5s per request — so
-     * the bundle ships dense-ordered by default (identity) and opts in to the LLM reranker.
-     */
-    /**
-     * True when the index holds {@code slug} only under an in-memory id (no authored canonical_id):
-     * that id changes on every restart, so a citation must not pin to it.
-     */
-    private static boolean hasSynthesisedId( final StructuralIndexService index, final String slug ) {
-        for ( final StructuralConflict c : index.conflicts() ) {
-            if ( c.kind() == StructuralConflict.Kind.MISSING_CANONICAL_ID && slug.equals( c.slug() ) ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    static SectionReranker rerankerFor( final Properties props ) {
-        return rerankerFor( props, null );
-    }
-
-    /**
-     * Selects the section reranker from config. If {@code wikantik.bundle.rerank.chain} is set
-     * (CSV of stage names: {@code mmr}, {@code metadata-boost}, {@code llm}), builds an ordered
-     * {@link SectionRerankChain} from it — {@code confidenceOf} (slug → {@link Confidence}) feeds
-     * the {@code metadata-boost} stage, which is skipped when null. Otherwise falls back to the
-     * legacy behavior: {@code wikantik.bundle.reranker.enabled} defaults to {@code false} — the
-     * 2026-06-13 live measurement showed the listwise LLM reranker is an ordering lever, not a
-     * recall lever (rerank == dense recall), at ~1.5s per request — so the bundle ships
-     * dense-ordered by default (identity) and opts in to the LLM reranker.
-     */
-    static SectionReranker rerankerFor( final Properties props, final Function< String, Confidence > confidenceOf ) {
-        // wikantik.genai.mode ceiling: the LLM reranker is chat inference, so neither
-        // activation path below (legacy enabled flag, or an 'llm' token in the chain
-        // spec) may construct one when the mode disallows chat inference.
-        final GenAiMode mode = props == null ? GenAiMode.FULL : GenAiMode.fromProperties( props );
-        final boolean chatAllowed = mode.allowsChatInference();
-
-        final String chainSpec = props == null ? null : props.getProperty( "wikantik.bundle.rerank.chain" );
-        if ( chainSpec != null && !chainSpec.isBlank() ) {
-            return buildChain( chainSpec, props, confidenceOf, chatAllowed, mode );
-        }
-        final boolean enabled = props != null && Boolean.parseBoolean(
-            props.getProperty( RerankerConfig.PREFIX + "enabled", "false" ) );
-        if ( enabled && !chatAllowed ) {
-            LOG.warn( "{}={} disallows chat inference; ignoring {}enabled=true, using identity reranker",
-                GenAiMode.PROP, mode, RerankerConfig.PREFIX );
-            return IDENTITY;
-        }
-        return enabled ? new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) : IDENTITY;
-    }
-
-    /** Builds an ordered reranker chain from a CSV of stage names; unknown names are skipped with a
-     *  warn, and an all-unknown/empty spec degrades to {@link #IDENTITY}. The {@code metadata-boost}
-     *  stage is skipped (with a warn) when {@code confidenceOf} is null. */
-    private static SectionReranker buildChain( final String spec, final Properties props,
-                                               final Function< String, Confidence > confidenceOf,
-                                               final boolean chatAllowed, final GenAiMode mode ) {
-        final List< SectionReranker > stages = new ArrayList<>();
-        for ( final String raw : spec.split( "," ) ) {
-            final String name = raw.trim().toLowerCase( Locale.ROOT );
-            switch ( name ) {
-                case "" -> { /* empty token from stray comma — ignore */ }
-                case "mmr" -> stages.add( new MmrSectionReranker( mmrLambda( props ) ) );
-                case "metadata-boost" -> {
-                    if ( confidenceOf == null ) {
-                        LOG.warn( "rerank stage 'metadata-boost' requested but no confidence lookup wired; skipping" );
-                    } else {
-                        stages.add( new MetadataBoostSectionReranker(
-                            confidenceOf, metadataBoostPositions( props ), metadataBoostWindow( props ) ) );
-                    }
-                }
-                case "llm" -> {
-                    if ( !chatAllowed ) {
-                        LOG.warn( "{}={} disallows chat inference; skipping 'llm' rerank stage",
-                            GenAiMode.PROP, mode );
-                    } else {
-                        stages.add( new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) );
-                    }
-                }
-                default -> LOG.warn( "Unknown rerank stage '{}' in wikantik.bundle.rerank.chain; skipping", name );
-            }
-        }
-        return stages.isEmpty() ? IDENTITY : new SectionRerankChain( stages );
-    }
-
-    /** MMR λ from {@code wikantik.bundle.rerank.mmr.lambda}, default 0.7 (higher = more relevance-biased). */
-    static double mmrLambda( final Properties props ) {
-        if ( props == null ) return 0.7;
-        return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.mmr.lambda", 0.7 );
-    }
-
-    /** Confidence rank-boost magnitude in positions, {@code wikantik.bundle.rerank.metadata_boost.positions},
-     *  default 1.5 (an AUTHORITATIVE section overtakes a STALE one only within 2·positions positions). */
-    static double metadataBoostPositions( final Properties props ) {
-        if ( props == null ) return 1.5;
-        return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.metadata_boost.positions", 1.5 );
-    }
-
-    /** Top-N candidates the boost may reorder, {@code wikantik.bundle.rerank.metadata_boost.window}, default 24. */
-    static int metadataBoostWindow( final Properties props ) {
-        if ( props == null ) return 24;
-        return (int) com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.metadata_boost.window", 24 );
-    }
 }

@@ -40,7 +40,9 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -118,7 +120,7 @@ public class ContentIndexRebuildService {
 
     // --- embedding hook (Phase 1 of hybrid retrieval) --------------------
     // Optional collaborators: when both are set, the rebuild thread invokes
-    // EmbeddingIndexService.indexAll(modelCode) after chunks are rewritten but
+    // EmbeddingIndexService.indexStale(modelCode) after chunks are rewritten but
     // before DRAINING_LUCENE exits. Left null in tests and in deployments that
     // haven't enabled hybrid retrieval yet — embedding errors are isolated
     // from the rebuild outcome counter.
@@ -286,15 +288,17 @@ public class ContentIndexRebuildService {
      * Full rebuild loop. Runs on a dedicated daemon thread started by
      * {@link #triggerRebuild()}. Phases:
      * <ol>
-     *   <li>{@link State#STARTING} — wipe both indexes. A failure here is
+     *   <li>{@link State#STARTING} — clear the Lucene index. Chunk rows are
+     *       <em>not</em> wiped: they are diff-applied in place so unchanged chunks keep
+     *       their ids, embeddings and Knowledge Graph mentions. A failure here is
      *       fatal to this run; error is recorded and we return to IDLE.</li>
      *   <li>{@link State#RUNNING} — iterate every page. For non-system pages
      *       compute chunks and diff-apply them; for every page (system or
      *       not) enqueue a Lucene reindex — system pages become no-ops in
      *       Lucene thanks to the preflight filter. Per-page failures are
      *       captured into {@link #errors} and the loop continues.</li>
-     *   <li>{@link State#EMBEDDING} — re-embed every chunk via
-     *       {@link EmbeddingIndexService#indexAll(String, java.util.function.IntConsumer)}.
+     *   <li>{@link State#EMBEDDING} — embed only missing/stale chunks via
+     *       {@link EmbeddingIndexService#indexStale(String)}.
      *       Skipped if no embedding hook is wired. This phase dominates the
      *       rebuild's wall time at corpus scale, so the orchestrator drives a
      *       per-batch progress callback into {@link #embeddingsIndexed} for
@@ -315,7 +319,6 @@ public class ContentIndexRebuildService {
             setState( State.STARTING );
             try {
                 lucene.clearIndex();
-                chunkRepo.deleteAll();
             } catch ( final Exception fatal ) {
                 // LOG.error justified: index wipe failed; both indexes in indeterminate state, operator action required.
                 LOG.error( "STARTING phase failed: {}", fatal.getMessage(), fatal );
@@ -340,6 +343,7 @@ public class ContentIndexRebuildService {
             pagesTotal = all.size();
             setState( State.RUNNING );
 
+            final Set< String > chunkedPageNames = new HashSet<>();
             for ( final Page page : all ) {
                 pagesIterated.incrementAndGet();
                 final String name = page.getName();
@@ -347,6 +351,7 @@ public class ContentIndexRebuildService {
                 if ( isSystem ) {
                     systemPagesSkipped.incrementAndGet();
                 } else {
+                    chunkedPageNames.add( name );
                     try {
                         final String content = pages.getPureText( page );
                         // Full text stripped first, then parsed: see AclDirectiveText.parseStripped
@@ -369,6 +374,17 @@ public class ContentIndexRebuildService {
                     LOG.warn( "Lucene enqueue failed for page '{}': {}", name, e.getMessage(), e );
                     recordError( name, e );
                 }
+            }
+
+            // Sweep chunks of pages that no longer exist (and of system pages, which are
+            // never chunked). Kept pages' chunks were diff-applied above, so their ids --
+            // and the embeddings and KG mentions that cascade from them -- survive.
+            try {
+                final int swept = chunkRepo.deleteChunksOfPagesNotIn( chunkedPageNames );
+                LOG.info( "Rebuild swept {} chunk(s) of removed/system pages", swept );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Sweep of removed pages' chunks failed: {}", e.getMessage(), e );
+                recordError( "<chunk-sweep>", e );
             }
 
             // Post-chunk hook: refresh dense-vector embeddings now that the
@@ -419,8 +435,7 @@ public class ContentIndexRebuildService {
     }
 
     /**
-     * Runs a full embedding reindex against the chunks that were just
-     * rewritten. Called after the per-page loop completes so chunk IDs are
+     * Embeds the chunks that are missing an embedding or whose text changed since. Called after the per-page loop completes so chunk IDs are
      * already committed. Errors are recorded in {@link #errors} and logged
      * at {@code warn}, but never thrown — a broken embedding backend must
      * not mark the whole rebuild as failed when Lucene+chunks succeeded.
@@ -433,7 +448,9 @@ public class ContentIndexRebuildService {
         }
         setState( State.EMBEDDING );
         try {
-            final int indexed = svc.indexAll( model, embeddingsIndexed::set );
+            // Only missing/stale chunks: unchanged ones keep their embeddings. A forced full
+            // re-embed is the separate /admin/content/reindex-embeddings endpoint.
+            final int indexed = svc.indexStale( model );
             embeddingsIndexed.set( indexed );
             LOG.info( "Embedding rebuild complete: model={} indexed={}", model, indexed );
         } catch( final RuntimeException e ) {

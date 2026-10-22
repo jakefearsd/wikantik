@@ -213,6 +213,7 @@ final class RebuildTestFactory {
     /** Shared counters observable via the static accessor methods. */
     private static final AtomicInteger LUCENE_CLEAR_CALLS = new AtomicInteger( 0 );
     private static final AtomicInteger CHUNKS_DELETE_ALL_CALLS = new AtomicInteger( 0 );
+    private static final AtomicInteger CHUNKS_SWEEP_CALLS = new AtomicInteger( 0 );
 
     /** Test accessor: true iff lucene.clearIndex() was called at least once in the current fixture. */
     static boolean luceneClearedAtLeastOnce() {
@@ -224,7 +225,12 @@ final class RebuildTestFactory {
         return CHUNKS_DELETE_ALL_CALLS.get() > 0;
     }
 
+    static boolean chunkSweepCalledAtLeastOnce() {
+        return CHUNKS_SWEEP_CALLS.get() > 0;
+    }
+
     private static void resetCallCounters() {
+        CHUNKS_SWEEP_CALLS.set( 0 );
         LUCENE_CLEAR_CALLS.set( 0 );
         CHUNKS_DELETE_ALL_CALLS.set( 0 );
     }
@@ -399,6 +405,10 @@ final class RebuildTestFactory {
             store.clear();
             return null;
         } ).when( repo ).deleteAll();
+        lenient().when( repo.deleteChunksOfPagesNotIn( any() ) ).thenAnswer( inv -> {
+            CHUNKS_SWEEP_CALLS.incrementAndGet();
+            return 0;
+        } );
         doAnswer( inv -> {
             final String pageName = inv.getArgument( 0, String.class );
             final ChunkDiff.Diff diff = inv.getArgument( 1, ChunkDiff.Diff.class );

@@ -551,9 +551,7 @@ public class ContentChunkRepository extends KgJdbcSupport {
                 for( final ChunkDiff.Update u : diff.updates() ) {
                     applyUpdate( conn, u );
                 }
-                for( final Chunk ins : diff.inserts() ) {
-                    insert( conn, ins );
-                }
+                insertAll( conn, diff.inserts() );
                 return null;
             } );
         } catch( final SQLException e ) {
@@ -578,6 +576,26 @@ public class ContentChunkRepository extends KgJdbcSupport {
             throw new RuntimeException( "deleteAll failed", e );
         }
         invalidateAll();
+    }
+
+    /**
+     * Removes the chunks of every page not named in {@code keepPageNames}, in one set-based
+     * statement. Rows of kept pages are untouched, so their embeddings and Knowledge Graph
+     * mentions (both {@code ON DELETE CASCADE} on chunk id) survive.
+     *
+     * @return number of chunk rows removed
+     */
+    public int deleteChunksOfPagesNotIn( final java.util.Collection< String > keepPageNames ) {
+        final String[] keep = keepPageNames.toArray( new String[ 0 ] );
+        try {
+            final int removed = update( "DELETE FROM kg_content_chunks WHERE page_name <> ALL( ? )",
+                ps -> ps.setArray( 1, ps.getConnection().createArrayOf( "text", keep ) ) );
+            invalidateAll();
+            return removed;
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to delete chunks of removed pages: {}", e.getMessage(), e );
+            throw new RuntimeException( "deleteChunksOfPagesNotIn failed", e );
+        }
     }
 
     /**
@@ -609,7 +627,7 @@ public class ContentChunkRepository extends KgJdbcSupport {
 
     // ---- private helpers ----
 
-    private void insert( final Connection conn, final Chunk ch ) throws SQLException {
+    private void insertAll( final Connection conn, final List< Chunk > chunks ) throws SQLException {
         // D4: Concurrent PUTs to the same page produced a unique-constraint violation on
         // (page_name, chunk_index) because two threads computed independent diffs and
         // each tried to insert chunk 0 while the other was already mid-transaction. Use
@@ -627,16 +645,23 @@ public class ContentChunkRepository extends KgJdbcSupport {
             + "  token_count_estimate = EXCLUDED.token_count_estimate, "
             + "  content_hash = EXCLUDED.content_hash, "
             + "  modified = CURRENT_TIMESTAMP";
-        update( conn, sql, ps -> {
-            final Array headingArray = conn.createArrayOf( "text", ch.headingPath().toArray() );
-            ps.setString( 1, ch.pageName() );
-            ps.setInt( 2, ch.chunkIndex() );
-            ps.setArray( 3, headingArray );
-            ps.setString( 4, ch.text() );
-            ps.setInt( 5, ch.charCount() );
-            ps.setInt( 6, ch.tokenCountEstimate() );
-            ps.setString( 7, ch.contentHash() );
-        } );
+        if( chunks.isEmpty() ) {
+            return;
+        }
+        final List< SqlBinder > binders = new ArrayList<>( chunks.size() );
+        for( final Chunk ch : chunks ) {
+            binders.add( ps -> {
+                final Array headingArray = conn.createArrayOf( "text", ch.headingPath().toArray() );
+                ps.setString( 1, ch.pageName() );
+                ps.setInt( 2, ch.chunkIndex() );
+                ps.setArray( 3, headingArray );
+                ps.setString( 4, ch.text() );
+                ps.setInt( 5, ch.charCount() );
+                ps.setInt( 6, ch.tokenCountEstimate() );
+                ps.setString( 7, ch.contentHash() );
+            } );
+        }
+        batch( conn, sql, binders );
     }
 
     private void applyUpdate( final Connection conn, final ChunkDiff.Update u ) throws SQLException {

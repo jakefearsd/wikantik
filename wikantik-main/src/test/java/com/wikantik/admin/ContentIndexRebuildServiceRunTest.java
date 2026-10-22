@@ -24,6 +24,7 @@ import java.time.Duration;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -69,15 +70,17 @@ class ContentIndexRebuildServiceRunTest {
     }
 
     @Test
-    void initialPhaseClearsLuceneAndChunksTable() {
+    void initialPhaseClearsLuceneButKeepsChunksTable() {
         final ContentIndexRebuildService svc = RebuildTestFactory.buildWithPreloadedChunks();
         svc.triggerRebuild();
         await().atMost( Duration.ofSeconds( 10 ) ).until( () ->
             svc.snapshot().rebuild().state().equals( "IDLE" ) );
         assertTrue( RebuildTestFactory.luceneClearedAtLeastOnce(),
             "lucene.clearIndex() called at least once during STARTING" );
-        assertTrue( RebuildTestFactory.chunksClearedAtLeastOnce(),
-            "chunkRepo.deleteAll() called at least once during STARTING" );
+        assertFalse( RebuildTestFactory.chunksClearedAtLeastOnce(),
+            "chunkRepo.deleteAll() must not be called: it cascades into embeddings and KG mentions" );
+        assertTrue( RebuildTestFactory.chunkSweepCalledAtLeastOnce(),
+            "chunks of removed pages are swept after the per-page loop" );
     }
 
     @Test

@@ -273,4 +273,33 @@ class ContentChunkRepositoryTest {
         assertTrue( stats.avgTokens() >= 52 && stats.avgTokens() <= 54,
                    "avg: " + stats.avgTokens() );
     }
+
+    @Test
+    void deleteChunksOfPagesNotInKeepsNamedPagesOnly() {
+        for( final String page : List.of( "Keep", "Gone1", "Gone2" ) ) {
+            repo.apply( page, new ChunkDiff.Diff(
+                List.of( new Chunk( page, 0, List.of(), "t", 1, 1, "h" ) ), List.of(), List.of() ) );
+        }
+        final UUID keepId = repo.findByPage( "Keep" ).get( 0 ).id();
+
+        assertEquals( 2, repo.deleteChunksOfPagesNotIn( List.of( "Keep", "Other" ) ) );
+
+        assertEquals( keepId, repo.findByPage( "Keep" ).get( 0 ).id() );
+        assertTrue( repo.findByPage( "Gone1" ).isEmpty() );
+        assertTrue( repo.findByPage( "Gone2" ).isEmpty() );
+    }
+
+    @Test
+    void batchedInsertsWriteEveryChunkAndUpsertOnConflict() {
+        final List< Chunk > chunks = new java.util.ArrayList<>();
+        for( int i = 0; i < 50; i++ ) {
+            chunks.add( new Chunk( "Big", i, List.of( "H" + i ), "body" + i, 5, 1, "h" + i ) );
+        }
+        repo.apply( "Big", new ChunkDiff.Diff( chunks, List.of(), List.of() ) );
+        assertEquals( 50, repo.findByPage( "Big" ).size() );
+        // Re-inserting an existing (page, index) refreshes it rather than failing the batch.
+        repo.apply( "Big", new ChunkDiff.Diff(
+            List.of( new Chunk( "Big", 3, List.of(), "new", 3, 1, "newhash" ) ), List.of(), List.of() ) );
+        assertEquals( "newhash", repo.findByPage( "Big" ).get( 3 ).contentHash() );
+    }
 }

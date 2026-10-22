@@ -379,9 +379,15 @@ public class ContentIndexRebuildService {
             // Sweep chunks of pages that no longer exist (and of system pages, which are
             // never chunked). Kept pages' chunks were diff-applied above, so their ids --
             // and the embeddings and KG mentions that cascade from them -- survive.
+            // An empty listing is a provider fault, not an empty wiki: sweeping on it would
+            // cascade away every embedding and KG mention.
             try {
-                final int swept = chunkRepo.deleteChunksOfPagesNotIn( chunkedPageNames );
-                LOG.info( "Rebuild swept {} chunk(s) of removed/system pages", swept );
+                if ( chunkedPageNames.isEmpty() ) {
+                    LOG.warn( "Rebuild listed no content pages; skipping the removed-page chunk sweep" );
+                } else {
+                    final int swept = chunkRepo.deleteChunksOfPagesNotIn( chunkedPageNames );
+                    LOG.info( "Rebuild swept {} chunk(s) of removed/system pages", swept );
+                }
             } catch ( final RuntimeException e ) {
                 LOG.warn( "Sweep of removed pages' chunks failed: {}", e.getMessage(), e );
                 recordError( "<chunk-sweep>", e );

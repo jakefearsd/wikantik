@@ -204,6 +204,20 @@ class ContentIndexRebuildServicePreservesDataTest {
     }
 
     @Test
+    void rebuildThatSeesNoPagesKeepsEveryChunk() throws Exception {
+        bodies.put( "P", section( "P", "alpha" ) );
+        rebuild();
+        final UUID before = chunkIds( "P" ).get( 0 );
+
+        // A provider hiccup that lists no pages must not sweep the whole corpus away.
+        bodies.clear();
+        rebuild();
+
+        assertEquals( before, chunkIds( "P" ).get( 0 ) );
+        assertEquals( 1, count( "SELECT COUNT(*) FROM content_chunk_embeddings" ) );
+    }
+
+    @Test
     void rebuildFillsMissingEmbeddingsForUnchangedChunks() throws Exception {
         bodies.put( "P", section( "P", "alpha" ) );
         rebuild();

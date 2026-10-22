@@ -60,7 +60,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Facade over the three-way Lucene decomposition:
@@ -284,12 +286,26 @@ public class LuceneSearchProvider implements SearchProvider {
         }
     }
 
+    /**
+     * Lucene's per-segment search pool. Nothing shuts it down, so its threads are daemons: an idle
+     * non-daemon worker kept a Tomcat stopped with shutdown.sh alive for up to its one-minute
+     * keep-alive, still holding the ontology TDB2 lock when bin/redeploy.sh started the next JVM.
+     */
+    static ExecutorService newSearchExecutor() {
+        final AtomicInteger threads = new AtomicInteger();
+        return Executors.newCachedThreadPool( task -> {
+            final Thread thread = new Thread( task, "lucene-search-" + threads.incrementAndGet() );
+            thread.setDaemon( true );
+            return thread;
+        } );
+    }
+
     private DefaultLuceneSearcher searcher() {
         if ( searcher == null ) {
             synchronized ( this ) {
                 if ( searcher == null ) {
                     final Executor exec = searchExecutor != null
-                            ? searchExecutor : Executors.newCachedThreadPool();
+                            ? searchExecutor : newSearchExecutor();
                     searcher = new DefaultLuceneSearcher(
                             () -> luceneDirectory,
                             lifecycle(),
@@ -339,7 +355,7 @@ public class LuceneSearchProvider implements SearchProvider {
         // -> PermissionFilter.filterViewableQuietly). It previously held AuthorizationManager and
         // AclManager fields for an internal filter that was never implemented; they were removed
         // rather than left to imply a control that does not live here.
-        searchExecutor = Executors.newCachedThreadPool();
+        searchExecutor = newSearchExecutor();
 
         luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR;
 

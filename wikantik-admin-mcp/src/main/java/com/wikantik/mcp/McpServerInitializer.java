@@ -187,6 +187,8 @@ public class McpServerInitializer implements ServletContextListener {
                 LOG.warn( "Error shutting down MCP server: {}", e.getMessage() );
             }
         }
+        // Closing the server leaves the SDK's non-daemon session sweeper running; see SdkSessionSweepers.
+        SdkSessionSweepers.disposeAll();
     }
 
     /**

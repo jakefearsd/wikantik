@@ -20,20 +20,28 @@ package com.wikantik.mcp;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.auth.apikeys.ApiKeyService;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletRegistration;
 import org.junit.jupiter.api.Test;
+import reactor.core.scheduler.Schedulers;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Cheap unit coverage for {@link McpEndpointBootstrapper.Builder} validation.
  *
- * <p>{@code registerAccessFilter}/{@code registerTransport} need a live servlet
- * container + wired {@link Engine} subsystem and are intentionally left to the
- * wikantik-admin-mcp / wikantik-knowledge integration surfaces that exercise the
- * real startup sequence; this class covers only the builder's own required-field
- * validation, which is pure and cheap.</p>
+ * <p>{@code registerAccessFilter} needs a live servlet container + wired {@link Engine}
+ * subsystem and is left to the wikantik-admin-mcp / wikantik-knowledge integration
+ * surfaces that exercise the real startup sequence; this class covers the builder's
+ * required-field validation and the transport's shutdown hygiene.</p>
  */
 class McpEndpointBootstrapperTest {
 
@@ -113,5 +121,28 @@ class McpEndpointBootstrapperTest {
                 .requiredScope( ApiKeyService.Scope.MCP_READ )
                 .build();
         assertNotNull( bootstrapper );
+    }
+
+    /** registerTransport must leave nothing that keeps a stopped Tomcat's JVM alive (see {@link SdkSessionSweepers}). */
+    @Test
+    void registeredTransportsSessionSweeperIsDisposedAtShutdown() throws Exception {
+        Schedulers.removeExecutorServiceDecorator( SdkSessionSweepers.DECORATOR_KEY );   // no tracking left by other tests
+        final ServletContext context = mock( ServletContext.class );
+        when( context.addServlet( anyString(), any( Servlet.class ) ) ).thenReturn( mock( ServletRegistration.Dynamic.class ) );
+
+        validBuilder().build().registerTransport( context ).closeGracefully().block();
+        assertFalse( liveSweeperThreads().isEmpty(), "the transport started its idle-session sweeper" );
+
+        SdkSessionSweepers.disposeAll();
+        for ( int i = 0; i < 50 && !liveSweeperThreads().isEmpty(); i++ ) {
+            Thread.sleep( 100 );
+        }
+        assertEquals( java.util.List.of(), liveSweeperThreads() );
+    }
+
+    private static java.util.List< Thread > liveSweeperThreads() {
+        return Thread.getAllStackTraces().keySet().stream()
+                .filter( t -> t.isAlive() && t.getName().startsWith( "streamable-http-server-transport-session-sweeper" ) )
+                .toList();
     }
 }

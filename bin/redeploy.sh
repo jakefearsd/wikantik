@@ -3,7 +3,8 @@
 # bin/redeploy.sh — fast routine redeploy of the bare-metal Tomcat install.
 #
 # Use this for "edit code, see it running" iteration. It does:
-#   1. shuts down Tomcat (if running) and waits for port 8080 to release
+#   1. shuts down Tomcat (if running) and waits for port 8080 to release and
+#      for the old JVM to exit
 #   2. rotates catalina.out so the next run's log starts clean
 #   3. swaps the deployed WAR
 #   4. runs bin/db/migrate.sh against the database named in ROOT.xml
@@ -87,6 +88,28 @@ if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
         echo "ERROR: port 8080 still bound after 30s — old Tomcat process didn't exit." >&2
         echo "       Identify and kill it manually:" >&2
         echo "         pgrep -af 'org.apache.catalina.startup.Bootstrap'" >&2
+        exit 1
+    fi
+
+    # The port is released before the JVM exits, and a JVM a lingering non-daemon thread keeps
+    # alive still holds the ontology TDB2 lock: a new instance started beside it comes up with the
+    # Knowledge Graph disabled (/knowledge-mcp short of tools, /api/bundle 503). So also wait for
+    # this install's JVM to exit; SIGTERM ends it regardless of non-daemon threads.
+    old_tomcat_pids() {
+        local p
+        for p in $(pgrep -f 'org.apache.catalina.startup.Bootstrap'); do
+            tr '\0' ' ' < "/proc/${p}/cmdline" 2>/dev/null | grep -qF -- "-Dcatalina.base=${TOMCAT_REAL} " && echo "${p}"
+        done
+    }
+    TOMCAT_REAL="$(realpath "${TOMCAT_DIR}")"
+    for _ in $(seq 1 30); do [[ -z "$(old_tomcat_pids)" ]] && break; sleep 1; done
+    if [[ -n "$(old_tomcat_pids)" ]]; then
+        echo "WARNING: Tomcat JVM $(old_tomcat_pids | tr '\n' ' ')still running 30s after shutdown; sending SIGTERM." >&2
+        kill -TERM $(old_tomcat_pids) 2>/dev/null || true
+        for _ in $(seq 1 15); do [[ -z "$(old_tomcat_pids)" ]] && break; sleep 1; done
+    fi
+    if [[ -n "$(old_tomcat_pids)" ]]; then
+        echo "ERROR: Tomcat JVM $(old_tomcat_pids | tr '\n' ' ')did not exit; not starting a second instance beside it." >&2
         exit 1
     fi
 fi

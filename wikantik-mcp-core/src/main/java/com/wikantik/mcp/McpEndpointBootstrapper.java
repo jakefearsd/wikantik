@@ -119,6 +119,8 @@ public final class McpEndpointBootstrapper {
      * {@code McpServer.sync(...)} when building the server.
      */
     public HttpServletStreamableServerTransportProvider registerTransport( final ServletContext servletContext ) {
+        // The transport starts a non-daemon session sweeper; record it so contextDestroyed can dispose it.
+        SdkSessionSweepers.track();
         final HttpServletStreamableServerTransportProvider transportProvider =
                 HttpServletStreamableServerTransportProvider.builder()
                         .mcpEndpoint( endpointPath )

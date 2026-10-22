@@ -43,6 +43,7 @@ import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.mcp.McpEndpointBootstrapper;
+import com.wikantik.mcp.SdkSessionSweepers;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.kg.QueryNodesTool;
 import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
@@ -396,5 +397,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 LOG.warn( "Error shutting down Knowledge MCP server: {}", e.getMessage() );
             }
         }
+        // Closing the server leaves the SDK's non-daemon session sweeper running; see SdkSessionSweepers.
+        SdkSessionSweepers.disposeAll();
     }
 }

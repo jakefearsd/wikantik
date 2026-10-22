@@ -328,15 +328,6 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
 
     // events processing .......................................................
 
-    /** The authenticated user's login name for audit attribution; {@code null} for system or anonymous work. */
-    private static String actorOf( final Context context ) {
-        final com.wikantik.api.core.Session session = context.getWikiSession();
-        if( session == null || !session.isAuthenticated() || session.getLoginPrincipal() == null ) {
-            return null;
-        }
-        return session.getLoginPrincipal().getName();
-    }
-
     /**
      *  Fires a WikiPageEvent of the provided type and WikiContext. Invalid WikiPageEvent types are ignored.
      *
@@ -346,7 +337,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     public void fireEvent( final int type, final Context context ) {
         if( WikiEventManager.isListening(this ) && WikiPageEvent.isValidType( type ) )  {
-            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent(this, new WikiPageEvent( engine, type, context.getPage().getName(), actorOf( context ) ) );
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent(this, new WikiPageEvent( engine, type, context.getPage().getName(), EventActors.of( context ) ) );
         }
     }
 

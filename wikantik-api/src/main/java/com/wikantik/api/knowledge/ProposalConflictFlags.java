@@ -72,23 +72,16 @@ public final class ProposalConflictFlags {
         final Set< String > names = new LinkedHashSet<>();
         final Set< List< String > > triples = new LinkedHashSet<>();
         for ( final KgProposal p : proposals ) {
-            if ( p == null || p.proposedData() == null ) continue;
-            if ( "new-node".equals( p.proposalType() ) ) {
-                if ( p.proposedData().get( "name" ) instanceof String s && !s.isBlank() ) names.add( s );
-            } else if ( "new-edge".equals( p.proposalType() ) ) {
-                final Object src = p.proposedData().get( "source" );
-                final Object tgt = p.proposedData().get( "target" );
-                final Object rel = p.proposedData().get( "relationship" );
-                if ( src instanceof String s && tgt instanceof String t && rel instanceof String r ) {
-                    triples.add( List.of( s, t, r ) );
-                }
-            }
+            final String name = proposedNodeName( p );
+            if ( name != null ) names.add( name );
+            final List< String > triple = proposedEdgeTriple( p );
+            if ( triple != null ) triples.add( triple );
         }
-        Map< String, KgNode > nodesByName = null;
-        Set< List< String > > rejected = null;
+        final Map< String, KgNode > nodesByName;
+        final Set< List< String > > rejected;
         try {
-            if ( !names.isEmpty() ) nodesByName = svc.getNodesByNames( names, adminBypass );
-            if ( !triples.isEmpty() ) rejected = svc.findRejected( triples );
+            nodesByName = names.isEmpty() ? Map.of() : svc.getNodesByNames( names, adminBypass );
+            rejected = triples.isEmpty() ? Set.of() : svc.findRejected( triples );
         } catch ( final Exception e ) {
             LOG.warn( "Batched conflict-flag lookup failed, falling back to per-proposal: {}", e.getMessage() );
             final List< Map< String, Object > > fallback = new ArrayList<>( proposals.size() );
@@ -97,25 +90,41 @@ public final class ProposalConflictFlags {
         }
         final List< Map< String, Object > > out = new ArrayList<>( proposals.size() );
         for ( final KgProposal p : proposals ) {
-            final Map< String, Object > flags = new LinkedHashMap<>();
-            out.add( flags );
-            if ( p == null || p.proposedData() == null ) continue;
-            if ( "new-node".equals( p.proposalType() ) ) {
-                if ( p.proposedData().get( "name" ) instanceof String s && !s.isBlank() ) {
-                    final KgNode existing = nodesByName == null ? null : nodesByName.get( s );
-                    flags.put( "node_exists", existing != null );
-                    if ( existing != null ) flags.put( "existing_node_id", existing.id().toString() );
-                }
-            } else if ( "new-edge".equals( p.proposalType() ) ) {
-                final Object src = p.proposedData().get( "source" );
-                final Object tgt = p.proposedData().get( "target" );
-                final Object rel = p.proposedData().get( "relationship" );
-                if ( src instanceof String s && tgt instanceof String t && rel instanceof String r ) {
-                    flags.put( "edge_previously_rejected", rejected != null && rejected.contains( List.of( s, t, r ) ) );
-                }
-            }
+            out.add( flagsFrom( p, nodesByName == null ? Map.of() : nodesByName, rejected == null ? Set.of() : rejected ) );
         }
         return out;
+    }
+
+    /** The flags of one proposal, from the page's batched lookups. */
+    private static Map< String, Object > flagsFrom( final KgProposal p, final Map< String, KgNode > nodesByName,
+                                                    final Set< List< String > > rejected ) {
+        final Map< String, Object > flags = new LinkedHashMap<>();
+        final String name = proposedNodeName( p );
+        if ( name != null ) {
+            final KgNode existing = nodesByName.get( name );
+            flags.put( "node_exists", existing != null );
+            if ( existing != null ) flags.put( "existing_node_id", existing.id().toString() );
+        }
+        final List< String > triple = proposedEdgeTriple( p );
+        if ( triple != null ) {
+            flags.put( "edge_previously_rejected", rejected.contains( triple ) );
+        }
+        return flags;
+    }
+
+    /** The non-blank name a {@code new-node} proposal proposes, else {@code null}. */
+    private static String proposedNodeName( final KgProposal p ) {
+        if ( p == null || p.proposedData() == null || !"new-node".equals( p.proposalType() ) ) return null;
+        return p.proposedData().get( "name" ) instanceof String s && !s.isBlank() ? s : null;
+    }
+
+    /** {@code [source, target, relationship]} of a well-formed {@code new-edge} proposal, else {@code null}. */
+    private static List< String > proposedEdgeTriple( final KgProposal p ) {
+        if ( p == null || p.proposedData() == null || !"new-edge".equals( p.proposalType() ) ) return null;
+        final Object src = p.proposedData().get( "source" );
+        final Object tgt = p.proposedData().get( "target" );
+        final Object rel = p.proposedData().get( "relationship" );
+        return src instanceof String s && tgt instanceof String t && rel instanceof String r ? List.of( s, t, r ) : null;
     }
 
     /** Backwards-compatible overload — bypass off. */

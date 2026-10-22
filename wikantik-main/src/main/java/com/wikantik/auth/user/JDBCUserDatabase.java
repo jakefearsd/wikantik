@@ -510,13 +510,13 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 ps.setString( 2, loginName );
             } );
             // Refresh the cached copy in place rather than evicting it: a last_login stamp must
-            // not force the next (e.g. per-request Basic-auth) lookup back to the DB.
-            final UserProfile cached = byLoginCache.getIfPresent( loginName );
-            if( cached != null ) {
+            // not force the next (e.g. per-request Basic-auth) lookup back to the DB. Atomic, so a
+            // concurrent profile save's eviction can never be undone by re-caching the old profile.
+            byLoginCache.asMap().computeIfPresent( loginName, ( name, cached ) -> {
                 final UserProfile updated = DefaultUserProfile.copyOf( cached );
                 updated.setLastLogin( new Date( when.getTime() ) );
-                byLoginCache.put( loginName, updated );
-            }
+                return updated;
+            } );
         } catch( final SQLException e ) {
             throw new WikiSecurityException( "Could not record last login for '" + loginName + "': " + e.getMessage(), e );
         }

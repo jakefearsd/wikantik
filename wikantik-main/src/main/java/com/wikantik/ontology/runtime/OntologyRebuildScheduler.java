@@ -51,6 +51,9 @@ public final class OntologyRebuildScheduler {
     /** Earliest a compaction may run after startup, and the retry delay when a rebuild is in the way. */
     static final Duration COMPACTION_GRACE = Duration.ofMinutes( 5 );
 
+    /** Delay from startup to the first reconciliation rebuild, after startup work and any rebuild-if-empty. */
+    static final Duration REBUILD_GRACE = Duration.ofMinutes( 10 );
+
     private final OntologyRebuildCoordinator coordinator;
     private final long rebuildIntervalHours;
     private final long compactionIntervalHours;
@@ -109,8 +112,11 @@ public final class OntologyRebuildScheduler {
         }
         executor = executorFactory.get();
         if ( rebuildIntervalHours > 0 ) {
-            executor.scheduleAtFixedRate( this::runRebuildOnce, rebuildIntervalHours, rebuildIntervalHours, TimeUnit.HOURS );
-            LOG.info( "ontology rebuild scheduler started (every {}h)", rebuildIntervalHours );
+            // First run shortly after startup: a JVM restarted on every deploy never reached a first
+            // run one interval out. A rebuild of unchanged content is cheap and commits nothing.
+            executor.scheduleAtFixedRate( this::runRebuildOnce, REBUILD_GRACE.toMinutes(),
+                    TimeUnit.HOURS.toMinutes( rebuildIntervalHours ), TimeUnit.MINUTES );
+            LOG.info( "ontology rebuild scheduler started (first run in {}, then every {}h)", REBUILD_GRACE, rebuildIntervalHours );
         } else {
             LOG.info( "ontology rebuild scheduler disabled (interval={}h)", rebuildIntervalHours );
         }

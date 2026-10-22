@@ -144,6 +144,15 @@ class OntologyRebuildSchedulerTest {
     }
 
     @Test
+    void theReconciliationRebuildRunsSoonAfterStartupNotOneIntervalLater() {
+        // A JVM restarted on every deploy never lived 24 h, so a first run one interval out never happened.
+        scheduler( 24, 0 ).start();
+        verify( executor ).scheduleAtFixedRate( any( Runnable.class ),
+                eq( OntologyRebuildScheduler.REBUILD_GRACE.toMinutes() ), eq( Duration.ofHours( 24 ).toMinutes() ),
+                eq( TimeUnit.MINUTES ) );
+    }
+
+    @Test
     void startSchedulesAnOverdueCompactionAfterTheGraceDelayNotAWeekOut() {
         when( coordinator.lastCompactedAt() ).thenReturn( Optional.of( NOW.minus( Duration.ofDays( 8 ) ) ) );
         scheduler( 0, 168 ).start();

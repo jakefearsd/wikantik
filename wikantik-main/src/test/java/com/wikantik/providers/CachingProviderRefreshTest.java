@@ -208,4 +208,53 @@ class CachingProviderRefreshTest {
         Assertions.assertEquals( 3, cp.getAllChangedSince( new Date( 0L ) ).size() );
         Assertions.assertEquals( 3, cp.getAllChangedSince( null ).size() );
     }
+
+    /** Rebuilds the engine with a long all-pages TTL, as shipped (300 s), so no refresh hides the listing. */
+    private void rebuildWithLongTtl() {
+        engine.stop();
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
+        props.setProperty( "wikantik.pageProvider", MutableProvider.class.getName() );
+        props.setProperty( CachingProvider.PROP_CACHE_ALLPAGES_TTL, "300" );
+        engine = TestEngine.build( props );
+        cp = ( CachingProvider ) engine.getManager( PageManager.class ).getProvider();
+    }
+
+    private Set< String > listedNames() throws ProviderException {
+        final Set< String > names = new TreeSet<>();
+        cp.getAllPages().forEach( p -> names.add( p.getName() ) );
+        return names;
+    }
+
+    @Test
+    void listingStaysCompleteWhenPerPageCacheEntriesExpire() throws Exception {
+        rebuildWithLongTtl();
+        Assertions.assertEquals( Set.of( "Foo", "Bar", "Baz" ), listedNames() );
+
+        // The per-page cache expires entries after 60 s while the listing is kept for 300 s.
+        engine.getManager( CachingManager.class ).remove( CachingManager.CACHE_PAGES, "Bar" );
+
+        Assertions.assertEquals( Set.of( "Foo", "Bar", "Baz" ), listedNames(),
+                "a page whose per-page cache entry expired must still be listed" );
+    }
+
+    @Test
+    void savesDeletesAndMovesKeepTheListingCurrentBetweenRefreshes() throws Exception {
+        rebuildWithLongTtl();
+        Assertions.assertEquals( 3, cp.getAllPages().size() );
+
+        MutableProvider.put( "Qux", "qux", 1, 4_000L );
+        cp.putPageText( Wiki.contents().page( engine, "Qux" ), "qux" );
+        Assertions.assertEquals( Set.of( "Foo", "Bar", "Baz", "Qux" ), listedNames() );
+
+        MutableProvider.PAGES.remove( "Bar" );
+        cp.deletePage( "Bar" );
+        Assertions.assertEquals( Set.of( "Foo", "Baz", "Qux" ), listedNames() );
+
+        MutableProvider.put( "Foo2", "foo text", 1, 5_000L );
+        MutableProvider.PAGES.remove( "Foo" );
+        cp.movePage( "Foo", "Foo2" );
+        Assertions.assertEquals( Set.of( "Foo2", "Baz", "Qux" ), listedNames(),
+                "a renamed page is listed under its new name, not dropped" );
+    }
 }

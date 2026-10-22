@@ -43,9 +43,11 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -109,6 +111,13 @@ public class CachingProvider implements PageProvider {
 
     /** Count of pages in the cache */
     private final AtomicLong pages = new AtomicLong( 0L );
+
+    /**
+     * Page name -> Page for every page, as of the last all-pages refresh plus this provider's own saves,
+     * deletes and moves. Kept apart from {@code CACHE_PAGES}, whose entries expire on their own (60 s)
+     * well inside the all-pages TTL: a listing read from that cache silently dropped expired pages.
+     */
+    private final Map< String, Page > listing = new ConcurrentHashMap<>();
 
     /**
      *  {@inheritDoc}
@@ -279,6 +288,7 @@ public class CachingProvider implements PageProvider {
             final Page refreshed = getPageInfoFromCache( page.getName() );
             if( refreshed != null ) {
                 refreshed.clearHasMetadata();
+                listing.put( page.getName(), refreshed );
             }
         } finally {
             rwLock.writeLock().unlock();
@@ -306,17 +316,7 @@ public class CachingProvider implements PageProvider {
         rwLock.readLock().lock();
         try {
             if ( !isAllPagesCacheExpired() ) {
-                final Collection< Page > all = readAllPagesFromCache();
-
-                if( cachingManager.enabled( CachingManager.CACHE_PAGES )
-                        && pages.get() >= cachingManager.info( CachingManager.CACHE_PAGES ).getMaxElementsAllowed() ) {
-                    LOG.warn( "seems {} can't hold all pages from your page repository, " +
-                            "so we're delegating on the underlying provider instead. Please consider increasing " +
-                            "your cache sizes on the ehcache configuration file to avoid this behaviour", CachingManager.CACHE_PAGES );
-                    return provider.getAllPages();
-                }
-
-                return all;
+                return listedPages();
             }
         } finally {
             rwLock.readLock().unlock();
@@ -329,36 +329,21 @@ public class CachingProvider implements PageProvider {
             if ( isAllPagesCacheExpired() ) {
                 refreshAllPagesCache();
             }
-            final Collection< Page > all = readAllPagesFromCache();
-
-            if( cachingManager.enabled( CachingManager.CACHE_PAGES )
-                    && pages.get() >= cachingManager.info( CachingManager.CACHE_PAGES ).getMaxElementsAllowed() ) {
-                LOG.warn( "seems {} can't hold all pages from your page repository, " +
-                        "so we're delegating on the underlying provider instead. Please consider increasing " +
-                        "your cache sizes on the ehcache configuration file to avoid this behaviour", CachingManager.CACHE_PAGES );
-                return provider.getAllPages();
-            }
-
-            return all;
+            return listedPages();
         } finally {
             rwLock.writeLock().unlock();
         }
     }
 
     /**
-     * Reads all pages from the page cache. Caller must hold either the read or write lock.
-     *
-     * @return Collection of all cached pages
-     * @throws ProviderException if an error occurs reading from cache
+     * Every listed page, preferring the per-page cache's (fresher, metadata-bearing) object when it still
+     * holds one. Caller must hold either the read or write lock.
      */
-    private Collection< Page > readAllPagesFromCache() throws ProviderException {
-        final List< String > keys = cachingManager.keys( CachingManager.CACHE_PAGES );
+    private Collection< Page > listedPages() {
         final Collection< Page > all = new TreeSet<>();
-        for( final String key : keys ) {
-            final Page cachedPage = cachingManager.get( CachingManager.CACHE_PAGES, key, () -> null );
-            if( cachedPage != null ) {
-                all.add( cachedPage );
-            }
+        for( final Map.Entry< String, Page > e : listing.entrySet() ) {
+            final Page cachedPage = cachingManager.get( CachingManager.CACHE_PAGES, e.getKey(), () -> null );
+            all.add( cachedPage != null ? cachedPage : e.getValue() );
         }
         return all;
     }
@@ -388,13 +373,18 @@ public class CachingProvider implements PageProvider {
                 cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, page.getName() );
             }
         }
-        final List< String > existingKeys = cachingManager.keys( CachingManager.CACHE_PAGES );
-        for( final String key : existingKeys ) {
+        final Set< String > known = new HashSet<>( listing.keySet() );
+        known.addAll( cachingManager.keys( CachingManager.CACHE_PAGES ) );
+        for( final String key : known ) {
             if( !live.contains( key ) ) {
                 cachingManager.remove( CachingManager.CACHE_PAGES, key );
                 cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, key );
                 cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, key );
             }
+        }
+        listing.keySet().retainAll( live );
+        for( final Page page : providerPages ) {
+            listing.put( page.getName(), page );
         }
         allPagesLastRefresh.set( System.currentTimeMillis() );
         pages.set( providerPages.size() );
@@ -561,6 +551,7 @@ public class CachingProvider implements PageProvider {
 
             provider.deleteVersion( pageName, version );
             cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, pageName );
+            relist( pageName );
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -587,6 +578,7 @@ public class CachingProvider implements PageProvider {
             }
 
             provider.deletePage( pageName );
+            listing.remove( pageName );
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -616,8 +608,20 @@ public class CachingProvider implements PageProvider {
             cachingManager.remove( CachingManager.CACHE_PAGES, to );
             cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, to );
             cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, to );
+            listing.remove( from );
+            relist( to );
         } finally {
             rwLock.writeLock().unlock();
+        }
+    }
+
+    /** Re-reads one page's listing entry after a change made through this provider (absent = unlisted). */
+    private void relist( final String pageName ) throws ProviderException {
+        final Page now = getPageInfoFromCache( pageName );
+        if( now != null ) {
+            listing.put( pageName, now );
+        } else {
+            listing.remove( pageName );
         }
     }
 

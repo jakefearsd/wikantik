@@ -49,7 +49,12 @@
                 <TimeBasedTriggeringPolicy interval="1"/>
                 <SizeBasedTriggeringPolicy size="50MB"/>
             </Policies>
-            <DefaultRolloverStrategy max="30"/>
+            <DefaultRolloverStrategy max="30">
+                <Delete basePath="${logDir}" maxDepth="1">
+                    <IfFileName glob="wikantik-*.log.gz"/>
+                    <IfLastModified age="30d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingFile>
 
         <!-- Security audit log -->
@@ -60,7 +65,12 @@
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
             </Policies>
-            <DefaultRolloverStrategy max="90"/>
+            <DefaultRolloverStrategy max="90">
+                <Delete basePath="${logDir}" maxDepth="1">
+                    <IfFileName glob="security-*.log.gz"/>
+                    <IfLastModified age="90d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingFile>
 
         <!-- Access log for page views -->
@@ -71,7 +81,12 @@
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
             </Policies>
-            <DefaultRolloverStrategy max="7"/>
+            <DefaultRolloverStrategy max="7">
+                <Delete basePath="${logDir}" maxDepth="1">
+                    <IfFileName glob="access-*.log.gz"/>
+                    <IfLastModified age="7d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingFile>
     </Appenders>
 

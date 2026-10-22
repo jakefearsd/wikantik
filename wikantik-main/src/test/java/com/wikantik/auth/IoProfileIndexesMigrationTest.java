@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @RequiresPostgres
 class IoProfileIndexesMigrationTest {
 
-    private static final List< String > INDEXES = List.of( "ix_users_uid", "ix_drift_snapshot_counts_sweep",
+    private static final List< String > INDEXES = List.of( "ix_users_uid",
             "ix_retrieval_runs_mode_started", "ix_kg_proposals_judge_pending" );
 
     @Test

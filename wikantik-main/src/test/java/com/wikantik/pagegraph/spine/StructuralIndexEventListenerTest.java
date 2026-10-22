@@ -50,8 +50,16 @@ class StructuralIndexEventListenerTest {
     }
 
     @Test
-    void post_save_triggers_onPageSaved() {
+    void post_save_does_not_trigger_onPageSaved() {
+        // A save fires POST_SAVE_END once; reacting to POST_SAVE as well would run the sync twice per save.
         listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "HybridRetrieval" ) );
+
+        verifyNoInteractions( svc );
+    }
+
+    @Test
+    void post_save_end_triggers_onPageSaved_once() {
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, "HybridRetrieval" ) );
 
         verify( svc, times( 1 ) ).onPageSaved( "HybridRetrieval" );
     }

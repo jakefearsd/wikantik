@@ -31,7 +31,8 @@ import org.apache.logging.log4j.Logger;
 /**
  * Bridges page save/rename/delete events to {@link CitationSync}. Mirrors
  * {@code OntologyEventListener}: save events arrive from the FilterManager
- * (doPostSaveFiltering), PAGE_DELETED from the PageManager — so register on both.
+ * (doPostSaveFiltering), PAGE_DELETED from the PageManager — so register on both. Only POST_SAVE_END is
+ * handled: the bare POST_SAVE (fired by a PageEventFilter) is ignored so a save is never synced twice.
  */
 public final class CitationEventListener implements WikiEventListener {
 
@@ -60,8 +61,7 @@ public final class CitationEventListener implements WikiEventListener {
                 return;
             }
             switch ( pageEvent.getType() ) {
-                case WikiPageEvent.POST_SAVE_END,
-                     WikiPageEvent.POST_SAVE     -> sync.onPageSaved( pageEvent.getPageName() );
+                case WikiPageEvent.POST_SAVE_END -> sync.onPageSaved( pageEvent.getPageName() );
                 case WikiPageEvent.PAGE_DELETED  -> sync.onPageDeleted( pageEvent.getPageName() );
                 default                          -> { /* ignore */ }
             }

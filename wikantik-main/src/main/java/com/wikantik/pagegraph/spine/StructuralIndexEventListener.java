@@ -36,9 +36,9 @@ import org.apache.logging.log4j.Logger;
  * with the {@link FilterManager} as the event source — not the
  * {@link PageManager}. {@code PAGE_DELETED} is fired from {@link PageManager}.
  * The listener therefore registers on both sources and routes
- * {@code POST_SAVE_END} (or the bare {@code POST_SAVE}, in case a
- * {@code PageEventFilter} is ever wired in) to {@code onPageSaved}, and
- * {@code PAGE_DELETED} to {@code onPageDeleted}.</p>
+ * {@code POST_SAVE_END} to {@code onPageSaved}, and {@code PAGE_DELETED} to
+ * {@code onPageDeleted}. The bare {@code POST_SAVE} is deliberately ignored: a
+ * {@code PageEventFilter} fires it as well, so handling both would run the sync twice per save.</p>
  */
 public class StructuralIndexEventListener implements WikiEventListener {
 
@@ -62,8 +62,7 @@ public class StructuralIndexEventListener implements WikiEventListener {
             return;
         }
         switch ( pageEvent.getType() ) {
-            case WikiPageEvent.POST_SAVE_END,
-                 WikiPageEvent.POST_SAVE     -> service.onPageSaved( pageEvent.getPageName() );
+            case WikiPageEvent.POST_SAVE_END -> service.onPageSaved( pageEvent.getPageName() );
             case WikiPageEvent.PAGE_DELETED  -> service.onPageDeleted( pageEvent.getPageName() );
             default                          -> { /* ignore other event types */ }
         }

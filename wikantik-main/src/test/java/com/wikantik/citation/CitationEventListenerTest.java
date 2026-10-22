@@ -34,6 +34,15 @@ class CitationEventListenerTest {
     }
 
     @Test
+    void postSaveDoesNotDispatchOnPageSaved() {
+        // A save fires POST_SAVE_END once; reacting to POST_SAVE as well would run the sync twice per save.
+        final CitationSync sync = mock( CitationSync.class );
+        final CitationEventListener l = new CitationEventListener( sync );
+        l.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "MyPage" ) );
+        verifyNoInteractions( sync );
+    }
+
+    @Test
     void pageDeletedDispatchesOnPageDeleted() {
         final CitationSync sync = mock( CitationSync.class );
         final CitationEventListener l = new CitationEventListener( sync );

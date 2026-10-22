@@ -136,12 +136,35 @@ class ListProposalsToolTest {
         when( p.proposedData() ).thenReturn( java.util.Map.of( "name", "Raft" ) );
         when( p.status() ).thenReturn( "pending" );
         when( svc.listProposals( "pending", null, 50, 0 ) ).thenReturn( java.util.List.of( p ) );
-        when( svc.getNodeByName( "Raft", true ) ).thenReturn( Mockito.mock( com.wikantik.api.knowledge.KgNode.class ) );
+        final com.wikantik.api.knowledge.KgNode raft = Mockito.mock( com.wikantik.api.knowledge.KgNode.class );
+        when( raft.id() ).thenReturn( UUID.randomUUID() );
+        when( svc.getNodeByName( "Raft", true ) ).thenReturn( raft );
+        when( svc.getNodesByNames( any(), eq( true ) ) ).thenReturn( Map.of( "Raft", raft ) );
 
         final var result = new ListProposalsTool( svc ).execute( java.util.Map.of( "status", "pending" ) );
         final String body = ( ( io.modelcontextprotocol.spec.McpSchema.TextContent )
                 result.content().get( 0 ) ).text();
         org.junit.jupiter.api.Assertions.assertTrue( body.contains( "\"node_exists\":true" ),
                 "Expected node_exists flag in payload: " + body );
+    }
+
+    @Test
+    void conflictFlagsForAPageOfProposalsUseOneBatchedLookupNotOnePerProposal() {
+        final KnowledgeGraphService svc = Mockito.mock( KnowledgeGraphService.class );
+        final List< KgProposal > page = new java.util.ArrayList<>();
+        for ( final String name : List.of( "Raft", "Paxos", "Zab" ) ) {
+            final KgProposal p = Mockito.mock( KgProposal.class );
+            when( p.id() ).thenReturn( UUID.randomUUID() );
+            when( p.proposalType() ).thenReturn( "new-node" );
+            when( p.proposedData() ).thenReturn( Map.of( "name", name ) );
+            page.add( p );
+        }
+        when( svc.listProposals( "pending", null, 50, 0 ) ).thenReturn( page );
+        when( svc.getNodesByNames( any(), eq( true ) ) ).thenReturn( Map.of() );
+
+        new ListProposalsTool( svc ).execute( Map.of( "status", "pending" ) );
+
+        verify( svc, times( 1 ) ).getNodesByNames( any(), eq( true ) );
+        verify( svc, never() ).getNodeByName( anyString(), anyBoolean() );
     }
 }

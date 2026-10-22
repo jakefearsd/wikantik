@@ -24,6 +24,7 @@ import com.wikantik.api.knowledge.ProposalConflictFlags;
 import com.wikantik.mcp.AbstractMcpTool;
 import io.modelcontextprotocol.spec.McpSchema;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,7 +114,11 @@ public class ListProposalsTool extends AbstractMcpTool {
         final int offset = McpToolUtils.getInt( arguments, "offset", 0 );
 
         final List< KgProposal > proposals = service.listProposals( status, sourcePage, limit, offset );
-        final List< Map< String, Object > > results = proposals.stream().map( p -> {
+        // One batched node/rejection lookup for the whole page, not two queries per proposal.
+        final List< Map< String, Object > > flags = ProposalConflictFlags.forProposals( service, proposals, true );
+        final List< Map< String, Object > > results = new ArrayList<>( proposals.size() );
+        for ( int i = 0; i < proposals.size(); i++ ) {
+            final KgProposal p = proposals.get( i );
             final Map< String, Object > map = new LinkedHashMap<>();
             map.put( "id", p.id().toString() );
             map.put( "proposal_type", p.proposalType() );
@@ -125,9 +130,9 @@ public class ListProposalsTool extends AbstractMcpTool {
             map.put( "reviewed_by", p.reviewedBy() );
             map.put( "created", p.created() != null ? p.created().toString() : null );
             map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
-            map.putAll( ProposalConflictFlags.forProposal( service, p, true ) );
-            return map;
-        } ).toList();
+            map.putAll( flags.get( i ) );
+            results.add( map );
+        }
 
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "proposals", results ) );
     }

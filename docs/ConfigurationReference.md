@@ -729,7 +729,7 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.ontology.rebuild.interval.hours` | `long` | `24` | `wikantik_ontology_rebuild_interval_hours` | Hours between full nightly rebuilds of the TDB2 store from PostgreSQL - a reconciliation backstop that catches KG drift and any missed incremental sync … |
 | `wikantik.ontology.compaction.interval.hours` | `long` | `168` | `wikantik_ontology_compaction_interval_hours` | Hours between periodic TDB2 compactions. … |
 | `wikantik.ontology.incremental.enabled` | `boolean` | `true` | `wikantik_ontology_incremental_enabled` | Event-incremental entity sync: re-project an entity's graph on KgChangeEvent (from both KG write funnels) instead of waiting for the nightly rebuild. … |
-| `wikantik.ontology.incremental.coalesce.ms` | `long` | `500` | `wikantik_ontology_incremental_coalesce_ms` | Coalescing window for incremental entity sync, in milliseconds - batches rapid-fire KgChangeEvents for the same entity into a single re-projection instead … |
+| `wikantik.ontology.incremental.coalesce.ms` | `long` | `500` | `wikantik_ontology_incremental_coalesce_ms` | Coalescing window for incremental ontology sync, in milliseconds - batches rapid-fire KgChangeEvents for the same entity, and repeated saves of the same … |
 
 Full descriptions (truncated above to keep the table scannable):
 
@@ -738,7 +738,7 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.ontology.rebuild.interval.hours`** — Hours between full nightly rebuilds of the TDB2 store from PostgreSQL - a reconciliation backstop that catches KG drift and any missed incremental sync events. 0 disables the scheduled rebuild entirely (incremental sync and the startup-if-empty self-heal still run).
 - **`wikantik.ontology.compaction.interval.hours`** — Hours between periodic TDB2 compactions. The store's copy-on-write B+Trees never shrink on their own, so continuous rewriting (nightly rebuild + every incremental sync) only ever grows it - measured production growth is ~1.35 GB/day. Weekly is deliberately less aggressive than the daily rebuild interval; 0 disables scheduled compaction (same 0=disabled convention as the rebuild interval above).
 - **`wikantik.ontology.incremental.enabled`** — Event-incremental entity sync: re-project an entity's graph on KgChangeEvent (from both KG write funnels) instead of waiting for the nightly rebuild. When false, entity graphs are only refreshed by the nightly rebuild/backstop.
-- **`wikantik.ontology.incremental.coalesce.ms`** — Coalescing window for incremental entity sync, in milliseconds - batches rapid-fire KgChangeEvents for the same entity into a single re-projection instead of re-projecting on every individual write.
+- **`wikantik.ontology.incremental.coalesce.ms`** — Coalescing window for incremental ontology sync, in milliseconds - batches rapid-fire KgChangeEvents for the same entity, and repeated saves of the same page, into a single re-projection instead of re-projecting on every write. Page sync runs on a background worker, so a save never waits for TDB2 commits.
 
 ## Frontmatter & structural enforcement
 

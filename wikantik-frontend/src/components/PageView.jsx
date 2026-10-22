@@ -13,6 +13,7 @@ import { addCopyButtons } from '../utils/codeCopy';
 import { highlightCodeBlocks } from '../utils/codeHighlight';
 import { useLowlight } from '../hooks/useLowlight';
 import { addHeadingAnchors } from '../utils/headingAnchors';
+import { pinFragmentTarget } from '../utils/fragmentScroll';
 import Icon from './ui/Icon';
 import Spinner from './ui/Spinner';
 import PageMeta from './PageMeta';
@@ -272,8 +273,28 @@ export default function PageView() {
     });
     // addHeadingAnchors runs after ids are set; it is idempotent so a re-run
     // on auth-driven refetches (which reset dangerouslySetInnerHTML) is safe.
-    addHeadingAnchors(root);
-  }, [page, headings]);
+    addHeadingAnchors(root, {
+      onCopy: () => toast.success('Link copied'),
+      onError: (err) => {
+        console.warn('[headingAnchors] clipboard write failed', err?.message || err);
+        toast.error("Couldn't copy link");
+      },
+    });
+  }, [page, headings, toast]);
+
+  // Section deep links (/wiki/Foo#section). The browser's native fragment
+  // scroll ran against the server-rendered layout, which createRoot replaces
+  // with a much taller SPA layout, so land the reader on the section here —
+  // after the heading pass above has assigned the ids. Keyed on the page
+  // rather than the `page` object so the auth-driven refetch does not cut the
+  // pin short, and so in-page hash changes (TOC clicks) keep their own scroll.
+  // `pageReady` is false while a previous route's page is still on screen.
+  const pageReady = page?.name === name;
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!pageReady || !id || !articleRef.current) return undefined;
+    return pinFragmentTarget(articleRef.current, id) || undefined;
+  }, [name, pageReady]);
 
   // Stable identity (all deps below are stable refs/setters/imports) so the
   // memoized article element (see `articleEl`) keeps a constant reference across

@@ -1,6 +1,6 @@
 import { describe, it, vi, beforeEach, afterEach, expect } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthProvider } from '../hooks/useAuth';
 import { ToastProvider } from '../components/ui/ToastProvider';
 import { api } from '../api/client';
@@ -946,5 +946,118 @@ describe('PageView display names in comments', () => {
     fireEvent.click(await screen.findByTestId('comments-toggle-button'));
     await waitFor(() => expect(container.querySelectorAll('.comment-item').length).toBeGreaterThan(0));
     expect(container.querySelector('.comment-item.mine')).toBeNull();
+  }, TEST_TIMEOUT);
+});
+
+describe('PageView section deep links', () => {
+  // The browser's own fragment scroll runs against the server-rendered layout, which createRoot
+  // replaces with a taller SPA layout, so PageView must land the reader on the section itself
+  // (pinFragmentTarget — its drift / reader-input / settle behaviour is covered in fragmentScroll.test.js).
+  const SECTIONED = {
+    ...PAGE,
+    contentHtml: '<h2>Intro</h2><p>a</p><h2>Second Part</h2><p>b</p><h3>Deep Detail</h3><p>c</p>',
+  };
+  const headingScrolls = () =>
+    Element.prototype.scrollIntoView.mock.contexts.filter((el) => /^H[23]$/.test(el?.tagName));
+
+  // PageView reads the fragment from the real URL, as a cold-loaded deep link presents it.
+  function renderAt(url) {
+    window.history.replaceState(null, '', url);
+    return renderPageView(url);
+  }
+
+  beforeEach(() => {
+    api.getPage.mockImplementation(async () => ({ ...SECTIONED }));
+  });
+
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('scrolls the fragment\'s heading into view exactly once, across the auth-driven refetch', async () => {
+    renderAt('/wiki/Foo#second-part');
+    await awaitStableLoaded();
+
+    await waitFor(() => expect(headingScrolls()).toHaveLength(1));
+    expect(headingScrolls()[0].id).toBe('second-part');
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
+  }, TEST_TIMEOUT);
+
+  it('keeps the section pinned while the page settles, and lets go when the page unmounts', async () => {
+    const { unmount } = renderAt('/wiki/Foo#second-part');
+    await awaitStableLoaded();
+    await waitFor(() => expect(headingScrolls()).toHaveLength(1));
+
+    // Late layout work (a web-font swap) pushes the section down: the pin re-lands it.
+    Element.prototype.getBoundingClientRect = vi.fn(() => ({ ...FIXED_RECT, top: 1138 }));
+    await waitFor(() => expect(headingScrolls().length).toBeGreaterThanOrEqual(2));
+
+    // Unmounting stops the pin: its frame loop and reader-input listeners do not outlive the page.
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+    unmount();
+    expect(removeSpy.mock.calls.some(([type, , capture]) => type === 'wheel' && capture === true)).toBe(true);
+  }, TEST_TIMEOUT);
+
+  it('scrolls nothing when the URL has no fragment', async () => {
+    renderAt('/wiki/Foo');
+    await awaitStableLoaded();
+
+    expect(headingScrolls()).toHaveLength(0);
+  }, TEST_TIMEOUT);
+
+  it('navigating to Bar#section waits for Bar instead of pinning the previous page still on screen', async () => {
+    // The first render after an in-app navigation still shows Foo's article — which carries the same
+    // heading ids — before useApi flips to loading; pinning then would scroll Foo's content.
+    let resolveBar;
+    api.getPage.mockImplementation((pageName) => (pageName === 'Bar'
+      ? new Promise((resolve) => { resolveBar = () => resolve({ ...SECTIONED, name: 'Bar' }); })
+      : Promise.resolve({ ...SECTIONED })));
+    let navigateTo;
+    function NavProbe() {
+      navigateTo = useNavigate();
+      return null;
+    }
+    window.history.replaceState(null, '', '/wiki/Foo');
+    render(
+      <MemoryRouter initialEntries={['/wiki/Foo']}>
+        <ToastProvider>
+          <AuthProvider>
+            <NavProbe />
+            <Routes>
+              <Route path="/wiki/:name" element={<PageView />} />
+            </Routes>
+          </AuthProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    await awaitStableLoaded();
+
+    // BrowserRouter pushes the URL before rendering; mirror that for the in-memory router.
+    window.history.replaceState(null, '', '/wiki/Bar#second-part');
+    act(() => navigateTo('/wiki/Bar#second-part'));
+    await waitFor(() => expect(resolveBar).toBeTypeOf('function'));
+    expect(headingScrolls()).toHaveLength(0);
+
+    await act(async () => resolveBar());
+    await waitFor(() => expect(screen.getByTestId('page-view').dataset.pageName).toBe('Bar'));
+    await waitFor(() => expect(headingScrolls()).toHaveLength(1));
+    expect(headingScrolls()[0].id).toBe('second-part');
+  }, TEST_TIMEOUT);
+
+  it('clicking a heading anchor copies the section link and confirms with a toast', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    try {
+      const { container } = renderAt('/wiki/Foo');
+      await awaitStableLoaded();
+      await waitFor(() => expect(container.querySelector('#second-part a.heading-anchor')).toBeTruthy());
+
+      fireEvent.click(container.querySelector('#second-part a.heading-anchor'));
+
+      expect(await screen.findByText('Link copied')).toBeInTheDocument();
+      expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/#second-part$/));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   }, TEST_TIMEOUT);
 });

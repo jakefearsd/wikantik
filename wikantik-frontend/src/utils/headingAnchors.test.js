@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { addHeadingAnchors } from './headingAnchors';
 
 describe('addHeadingAnchors', () => {
@@ -43,5 +43,60 @@ describe('addHeadingAnchors', () => {
     );
     addHeadingAnchors(container);
     expect(container.querySelectorAll('a.heading-anchor').length).toBe(2);
+  });
+
+  describe('copy link on click', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    const sectionUrl = (id) => `${window.location.origin}${window.location.pathname}#${id}`;
+
+    it('copies the absolute section URL and reports success', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+      const onCopy = vi.fn();
+      const container = makeContainer('<h2 id="my-section">My Section</h2>');
+      addHeadingAnchors(container, { onCopy });
+
+      container.querySelector('a.heading-anchor').click();
+
+      await vi.waitFor(() => expect(onCopy).toHaveBeenCalledTimes(1));
+      expect(writeText).toHaveBeenCalledWith(sectionUrl('my-section'));
+    });
+
+    it('still follows the fragment link, so the address bar shows the section', () => {
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+      const container = makeContainer('<h2 id="my-section">My Section</h2>');
+      addHeadingAnchors(container);
+
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+      container.querySelector('a.heading-anchor').dispatchEvent(click);
+
+      expect(click.defaultPrevented).toBe(false);
+    });
+
+    it('reports a rejected clipboard write through onError', async () => {
+      const failure = new Error('denied');
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(failure) } });
+      const onCopy = vi.fn();
+      const onError = vi.fn();
+      const container = makeContainer('<h2 id="my-section">My Section</h2>');
+      addHeadingAnchors(container, { onCopy, onError });
+
+      container.querySelector('a.heading-anchor').click();
+
+      await vi.waitFor(() => expect(onError).toHaveBeenCalledWith(failure));
+      expect(onCopy).not.toHaveBeenCalled();
+    });
+
+    it('reports a missing clipboard API (insecure context) through onError instead of throwing', async () => {
+      vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
+      const onError = vi.fn();
+      const container = makeContainer('<h2 id="my-section">My Section</h2>');
+      addHeadingAnchors(container, { onError });
+
+      expect(() => container.querySelector('a.heading-anchor').click()).not.toThrow();
+
+      await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    });
   });
 });

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.61] - 2026-10-22
+
 ### Fixed
 - Context bundles re-parsed every cited page on every request to work out the section links added in 2.4.60,
   which made bundle assembly roughly 1.6–1.8× as expensive. Each page's section anchors are now cached until the

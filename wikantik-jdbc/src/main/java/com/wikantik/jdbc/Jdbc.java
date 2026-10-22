@@ -207,8 +207,10 @@ public final class Jdbc {
     /**
      * Streams {@code sql}'s result set to {@code consumer} one row at a time instead of
      * collecting it into a {@link List}, for backfills/indexers over tables too large to hold in
-     * memory at once. {@code fetchSize} is passed straight to {@link Statement#setFetchSize(int)}
-     * — the JDBC driver decides how literally it honours it.
+     * memory at once. A positive {@code fetchSize} is passed to {@link Statement#setFetchSize(int)}
+     * and runs the scan in a read transaction (auto-commit off, committed afterwards, previous
+     * state restored): PgJDBC ignores the fetch size under auto-commit and buffers the whole
+     * result. {@code fetchSize} 0 leaves the connection's mode untouched.
      */
     public void forEachRow( final String sql, final SqlBinder binder, final int fetchSize,
                              final RowConsumer consumer ) throws SQLException {
@@ -217,15 +219,30 @@ public final class Jdbc {
         }
     }
 
-    /** {@link #forEachRow(String, SqlBinder, int, RowConsumer)} on an already-open connection. */
+    /**
+     * {@link #forEachRow(String, SqlBinder, int, RowConsumer)} on an already-open connection. When
+     * the connection is in auto-commit and {@code fetchSize} is positive, the scan is wrapped in
+     * its own read transaction as described there; on a connection already inside a transaction it
+     * simply runs within it.
+     */
     public void forEachRow( final Connection conn, final String sql, final SqlBinder binder, final int fetchSize,
                              final RowConsumer consumer ) throws SQLException {
-        try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setFetchSize( fetchSize );
-            binder.bind( ps );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) consumer.accept( rs );
+        final boolean wrap = fetchSize > 0 && conn.getAutoCommit();
+        if ( wrap ) conn.setAutoCommit( false );
+        try {
+            try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+                ps.setFetchSize( fetchSize );
+                binder.bind( ps );
+                try ( ResultSet rs = ps.executeQuery() ) {
+                    while ( rs.next() ) consumer.accept( rs );
+                }
             }
+            if ( wrap ) conn.commit();
+        } catch ( final SQLException | RuntimeException | Error e ) {
+            if ( wrap ) Transactions.rollbackQuietly( conn, e, LOG, "forEachRow" );
+            throw e;
+        } finally {
+            if ( wrap ) conn.setAutoCommit( true );
         }
     }
 

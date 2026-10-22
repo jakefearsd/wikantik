@@ -33,6 +33,7 @@ import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -176,6 +177,84 @@ class NodeMentionSimilarityTest {
             new float[]{ 1f, 0f, 0f, 0f }, 5, Set.of( "Alice" ) );
         // Alice is excluded, so top result is Bob (identical direction), then Carol.
         assertEquals( List.of( "Bob", "Carol" ), ranked.stream().map( ScoredName::name ).toList() );
+    }
+
+    // ---- centroid cache ----
+
+    /** Wraps the shared DataSource, counting how many connections (hence queries) are opened. */
+    private static DataSource countingDataSource( final AtomicInteger opened ) {
+        return (DataSource) java.lang.reflect.Proxy.newProxyInstance(
+            NodeMentionSimilarityTest.class.getClassLoader(), new Class< ? >[] { DataSource.class },
+            ( proxy, method, args ) -> {
+                if ( "getConnection".equals( method.getName() ) ) opened.incrementAndGet();
+                try {
+                    return method.invoke( dataSource, args );
+                } catch ( final java.lang.reflect.InvocationTargetException e ) {
+                    throw e.getCause();
+                }
+            } );
+    }
+
+    @Test
+    void repeatedSimilarToWithinTheTtlLoadsCentroidsOnce() {
+        final UUID alice = insertNode( "Alice" );
+        final UUID bob = insertNode( "Bob" );
+        bindMention( alice, new float[]{ 1f, 0f, 0f, 0f } );
+        bindMention( bob,   new float[]{ 1f, 0f, 0f, 0f } );
+        final AtomicInteger opened = new AtomicInteger();
+        final NodeMentionSimilarity sim = new NodeMentionSimilarity( countingDataSource( opened ), MODEL_CODE );
+        final float[] query = { 1f, 0f, 0f, 0f };
+
+        final List< ScoredName > first = sim.similarTo( query, 5, Set.of() );
+        final List< ScoredName > second = sim.similarTo( query, 5, Set.of() );
+
+        assertEquals( 2, first.size() );
+        assertEquals( first, second );
+        assertEquals( 1, opened.get(), "the all-mentions vector join must not run on every call" );
+    }
+
+    @Test
+    void centroidCacheRefreshesAfterTtlAndOnInvalidate() {
+        final UUID alice = insertNode( "Alice" );
+        bindMention( alice, new float[]{ 1f, 0f, 0f, 0f } );
+        final AtomicInteger opened = new AtomicInteger();
+        final long[] nowNanos = { 0L };
+        final NodeMentionSimilarity sim = new NodeMentionSimilarity(
+            countingDataSource( opened ), MODEL_CODE, () -> nowNanos[ 0 ] );
+        final float[] query = { 1f, 0f, 0f, 0f };
+
+        assertEquals( 1, sim.similarTo( query, 5, Set.of() ).size() );
+        final UUID bob = insertNode( "Bob" );
+        bindMention( bob, new float[]{ 1f, 0f, 0f, 0f } );
+        assertEquals( 1, sim.similarTo( query, 5, Set.of() ).size(), "still within the TTL" );
+
+        nowNanos[ 0 ] = NodeMentionSimilarity.CENTROID_CACHE_TTL.toNanos() + 1;
+        assertEquals( 2, sim.similarTo( query, 5, Set.of() ).size(), "expired entry reloads" );
+        assertEquals( 2, opened.get() );
+
+        final UUID carol = insertNode( "Carol" );
+        bindMention( carol, new float[]{ 1f, 0f, 0f, 0f } );
+        sim.invalidate();
+        assertEquals( 3, sim.similarTo( query, 5, Set.of() ).size(), "invalidate forces a reload" );
+    }
+
+    @Test
+    void streamedCentroidsMatchTheListBasedCentroid() {
+        final UUID alice = insertNode( "Alice" );
+        final UUID bob = insertNode( "Bob" );
+        final UUID c1 = insertChunk( "PA", 0, "a1" );
+        final UUID c2 = insertChunk( "PA", 1, "a2" );
+        insertEmbedding( c1, new float[]{ 1f, 0f, 0f, 0f } );
+        insertEmbedding( c2, new float[]{ 0f, 2f, 0f, 0f } );
+        insertMention( c1, alice, 1.0f );
+        insertMention( c2, alice, 1.0f );
+        bindMention( bob,   new float[]{ 0f, 0f, 3f, 0f } );
+
+        final java.util.Map< String, float[] > all = similarity.allCentroids();
+
+        final float r = (float) ( 1.0 / Math.sqrt( 2.0 ) );
+        assertArrayEquals( new float[]{ r, r, 0f, 0f }, all.get( "Alice" ), 1e-5f );
+        assertArrayEquals( new float[]{ 0f, 0f, 1f, 0f }, all.get( "Bob" ), 1e-5f );
     }
 
     @Test

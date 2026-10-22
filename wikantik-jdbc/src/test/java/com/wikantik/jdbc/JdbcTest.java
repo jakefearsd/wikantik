@@ -133,6 +133,68 @@ class JdbcTest {
         assertEquals( List.of( "x", "y" ), seen );
     }
 
+    /** A DataSource lending one real connection whose close() is a no-op, so state can be inspected afterwards. */
+    private DataSource nonClosingDataSource( final Connection real ) {
+        final Connection lent = (Connection) Proxy.newProxyInstance( getClass().getClassLoader(),
+            new Class< ? >[] { Connection.class }, ( proxy, method, args ) -> {
+                if ( "close".equals( method.getName() ) ) return null;
+                try {
+                    return method.invoke( real, args );
+                } catch ( final InvocationTargetException e ) {
+                    throw e.getCause();
+                }
+            } );
+        return (DataSource) Proxy.newProxyInstance( getClass().getClassLoader(),
+            new Class< ? >[] { DataSource.class }, ( proxy, method, args ) -> {
+                if ( "getConnection".equals( method.getName() ) ) return lent;
+                throw new UnsupportedOperationException( method.getName() );
+            } );
+    }
+
+    @Test
+    void forEachRowWithFetchSizeRunsInAReadTransactionAndRestoresAutoCommit() throws SQLException {
+        jdbc.update( "INSERT INTO t (id, name) VALUES (?, ?)", ps -> { ps.setInt( 1, 1 ); ps.setString( 2, "x" ); } );
+        try ( Connection real = realH2.getConnection() ) {
+            final Jdbc spying = new Jdbc( nonClosingDataSource( real ) );
+            assertTrue( real.getAutoCommit() );
+            final List< Boolean > autoCommitDuringScan = new ArrayList<>();
+
+            spying.forEachRow( "SELECT name FROM t", SqlBinder.NONE, 10,
+                rs -> autoCommitDuringScan.add( real.getAutoCommit() ) );
+
+            assertEquals( List.of( false ), autoCommitDuringScan,
+                "a positive fetch size only streams when autocommit is off" );
+            assertTrue( real.getAutoCommit(), "auto-commit must be restored afterwards" );
+        }
+    }
+
+    @Test
+    void forEachRowWithZeroFetchSizeLeavesAutoCommitAlone() throws SQLException {
+        jdbc.update( "INSERT INTO t (id, name) VALUES (?, ?)", ps -> { ps.setInt( 1, 1 ); ps.setString( 2, "x" ); } );
+        try ( Connection real = realH2.getConnection() ) {
+            final Jdbc spying = new Jdbc( nonClosingDataSource( real ) );
+            final List< Boolean > autoCommitDuringScan = new ArrayList<>();
+
+            spying.forEachRow( "SELECT name FROM t", SqlBinder.NONE, 0,
+                rs -> autoCommitDuringScan.add( real.getAutoCommit() ) );
+
+            assertEquals( List.of( true ), autoCommitDuringScan );
+        }
+    }
+
+    @Test
+    void forEachRowConsumerFailureRestoresAutoCommitAndPropagates() throws SQLException {
+        jdbc.update( "INSERT INTO t (id, name) VALUES (?, ?)", ps -> { ps.setInt( 1, 1 ); ps.setString( 2, "x" ); } );
+        try ( Connection real = realH2.getConnection() ) {
+            final Jdbc spying = new Jdbc( nonClosingDataSource( real ) );
+
+            assertThrows( IllegalStateException.class, () -> spying.forEachRow( "SELECT name FROM t",
+                SqlBinder.NONE, 10, rs -> { throw new IllegalStateException( "boom" ); } ) );
+
+            assertTrue( real.getAutoCommit() );
+        }
+    }
+
     // ----- execute ---------------------------------------------------------------------------
 
     @Test

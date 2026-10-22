@@ -27,13 +27,14 @@ import javax.sql.DataSource;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.LongSupplier;
 
 /**
  * Derives per-KG-node vectors as the centroid of their mention-chunk vectors
@@ -46,11 +47,10 @@ import java.util.Set;
  * populated by the extractor pipeline (Phase 2) and can race ahead of the
  * embedding indexer. A node with no mentions yields {@link Optional#empty()}.
  *
- * <p>Every call issues a scoped SQL query; there is no in-process cache yet.
- * For the read volumes we see in hub-discovery / find-similar (a few hundred
- * nodes, tens of candidates per run) this is cheap and simple. A caching layer
- * can be layered on later if needed — the API is deliberately small so that
- * substitution stays mechanical.
+ * <p>{@link #vectorFor} issues a scoped query per call. The all-nodes centroid map behind
+ * {@link #similarTo(float[], int, Set)} is cached for {@link #CENTROID_CACHE_TTL} (bounded
+ * staleness) because rebuilding it reads and decodes one vector per mention; KG write paths
+ * can call {@link #invalidate()} to drop it early. {@link #allCentroids()} always reads fresh.
  */
 public class NodeMentionSimilarity {
 
@@ -106,10 +106,22 @@ public class NodeMentionSimilarity {
       + "   AND" + KgInclusionFilter.MENTION_FILTER_WHERE
       + " ORDER BY n.name";
 
+    /** How long the all-nodes centroid map serves {@link #similarTo(float[], int, Set)} before a reload. */
+    static final Duration CENTROID_CACHE_TTL = Duration.ofSeconds( 60 );
+
+    private record CentroidSnapshot( Map< String, float[] > centroids, long loadedAtNanos ) {}
+
     private final Jdbc jdbc;
     private final String modelCode;
+    private final LongSupplier nanoClock;
+    private volatile CentroidSnapshot cache;
 
     public NodeMentionSimilarity( final DataSource dataSource, final String modelCode ) {
+        this( dataSource, modelCode, System::nanoTime );
+    }
+
+    NodeMentionSimilarity( final DataSource dataSource, final String modelCode, final LongSupplier nanoClock ) {
+        this.nanoClock = nanoClock;
         if ( dataSource == null ) throw new IllegalArgumentException( "dataSource must not be null" );
         if ( modelCode == null || modelCode.isBlank() ) {
             throw new IllegalArgumentException( "modelCode must not be blank" );
@@ -174,7 +186,17 @@ public class NodeMentionSimilarity {
      * set and do their own math on the resulting vectors.
      */
     public Map< String, float[] > allCentroids() {
-        return loadAllCentroids();
+        final Map< String, float[] > fresh = loadAllCentroids();
+        if ( fresh != null ) {
+            cache = new CentroidSnapshot( fresh, nanoClock.getAsLong() );
+            return fresh;
+        }
+        return Map.of();
+    }
+
+    /** Drops the cached centroid map so the next similarity call rebuilds it; for the KG write paths. */
+    public void invalidate() {
+        cache = null;
     }
 
     /** Names of all nodes with at least one chunk mention. */
@@ -208,7 +230,7 @@ public class NodeMentionSimilarity {
         if ( queryVector == null ) throw new IllegalArgumentException( "queryVector must not be null" );
         if ( limit <= 0 ) return List.of();
 
-        final Map< String, float[] > centroids = loadAllCentroids();
+        final Map< String, float[] > centroids = cachedCentroids();
         if ( centroids.isEmpty() ) return List.of();
 
         final float[] unitQuery = normalized( queryVector );
@@ -229,8 +251,28 @@ public class NodeMentionSimilarity {
 
     // ---- internals ----
 
+    private Map< String, float[] > cachedCentroids() {
+        final long now = nanoClock.getAsLong();
+        final CentroidSnapshot snap = cache;
+        if ( snap != null && now - snap.loadedAtNanos() < CENTROID_CACHE_TTL.toNanos() ) {
+            return snap.centroids();
+        }
+        final Map< String, float[] > fresh = loadAllCentroids();
+        if ( fresh == null ) {
+            return Map.of();    // load failed (already logged); don't cache the failure
+        }
+        cache = new CentroidSnapshot( fresh, now );
+        return fresh;
+    }
+
+    /**
+     * Streams mention vectors ordered by node name and folds each node's vectors into a running
+     * sum, so only one node's accumulator is live at a time. Returns {@code null} on a query failure.
+     */
     private Map< String, float[] > loadAllCentroids() {
-        final Map< String, List< float[] > > perNode = new LinkedHashMap<>();
+        final Map< String, float[] > out = new HashMap<>();
+        final String[] currentName = { null };
+        final float[][] sum = { null };
         try {
             jdbc.forEachRow( SELECT_ALL_NODE_CHUNK_VECTORS_SQL, ps -> ps.setString( 1, modelCode ), 500, rs -> {
                 final String name = rs.getString( 1 );
@@ -238,18 +280,33 @@ public class NodeMentionSimilarity {
                 final byte[] raw = rs.getBytes( 3 );
                 final float[] v = decodeVector( name, raw, dim );
                 if ( v == null ) return;
-                perNode.computeIfAbsent( name, k -> new ArrayList<>() ).add( v );
+                if ( !name.equals( currentName[ 0 ] ) ) {
+                    if ( currentName[ 0 ] != null ) out.put( currentName[ 0 ], finish( sum[ 0 ] ) );
+                    currentName[ 0 ] = name;
+                    sum[ 0 ] = new float[ v.length ];
+                }
+                accumulate( sum[ 0 ], v );
             } );
         } catch ( final SQLException e ) {
             LOG.warn( "NodeMentionSimilarity.loadAllCentroids failed (model={}): {}",
                 modelCode, e.getMessage(), e );
-            return Map.of();
+            return null;
         }
-        final Map< String, float[] > out = new HashMap<>( perNode.size() * 2 );
-        for ( final Map.Entry< String, List< float[] > > e : perNode.entrySet() ) {
-            out.put( e.getKey(), centroid( e.getValue() ) );
-        }
+        if ( currentName[ 0 ] != null ) out.put( currentName[ 0 ], finish( sum[ 0 ] ) );
         return out;
+    }
+
+    /** Adds the unit-normalized {@code v} into {@code sum}; mixed-dimension and zero vectors are skipped. */
+    private static void accumulate( final float[] sum, final float[] v ) {
+        if ( v.length != sum.length ) return;
+        final float[] unit = normalized( v );
+        if ( unit == null ) return;
+        for ( int i = 0; i < sum.length; i++ ) sum[ i ] += unit[ i ];
+    }
+
+    private static float[] finish( final float[] sum ) {
+        final float[] unit = normalized( sum );
+        return unit != null ? unit : sum;
     }
 
     /**

@@ -334,7 +334,11 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
                         + "chunksTotal={} elapsedMs={} attempt={}/{}",
                     modelCode, upserted, chunkCount, elapsedMs, attempt, staleAttempts );
                 progress.set( new Progress( State.COMPLETED, chunkCount, startedAt, Instant.now(), null ) );
-                invokePostRun();
+                // The dense index already loaded every committed vector at construction; a reconcile
+                // that wrote nothing leaves it exactly current, so a reload is a pure repeat of that load.
+                if ( upserted > 0 ) {
+                    invokePostRun();
+                }
                 return;
             } catch( final RuntimeException e ) {
                 last = e;

@@ -468,6 +468,122 @@ class EmbeddingIndexServiceTest {
         }
     }
 
+    // ---- no connection pinned across embedding calls ----
+
+    /** Counts other sessions of this database sitting 'idle in transaction'. */
+    private int idleInTransactionSessions() throws SQLException {
+        try( final Connection c = dataSource.getConnection();
+             final ResultSet rs = c.createStatement().executeQuery(
+                 "SELECT COUNT(*) FROM pg_stat_activity WHERE datname = current_database() "
+               + "AND pid <> pg_backend_pid() AND state LIKE 'idle in transaction%'" ) ) {
+            rs.next();
+            return rs.getInt( 1 );
+        }
+    }
+
+    /** Stubs the embedder to record, on every call, how many sessions are idle in a transaction. */
+    private List< Integer > stubEmbedRecordingIdleInTransaction() {
+        final List< Integer > idleDuringEmbed = new ArrayList<>();
+        when( client.embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenAnswer( ( InvocationOnMock inv ) -> {
+                idleDuringEmbed.add( idleInTransactionSessions() );
+                final List< String > texts = inv.getArgument( 0 );
+                final List< float[] > out = new ArrayList<>( texts.size() );
+                for( int i = 0; i < texts.size(); i++ ) out.add( randomVec() );
+                return out;
+            } );
+        return idleDuringEmbed;
+    }
+
+    @Test
+    void indexChunks_holdsNoTransactionOpenWhileEmbedding() throws SQLException {
+        final List< UUID > ids = seedChunks( 3 );
+        final List< Integer > idleDuringEmbed = stubEmbedRecordingIdleInTransaction();
+
+        assertEquals( 3, new EmbeddingIndexService( dataSource, client, 2 ).indexChunks( ids, MODEL ) );
+
+        assertEquals( 3, countRows() );
+        assertTrue( !idleDuringEmbed.isEmpty() && idleDuringEmbed.stream().allMatch( n -> n == 0 ),
+            "no session may be idle-in-transaction during an embedding call. Observed: " + idleDuringEmbed );
+    }
+
+    @Test
+    void indexChunks_embedFailureLeavesNoHalfWrittenPage() throws SQLException {
+        final List< UUID > ids = seedChunks( 3 );
+        final AtomicInteger call = new AtomicInteger();
+        when( client.embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenAnswer( ( InvocationOnMock inv ) -> {
+                if ( call.incrementAndGet() > 1 ) {
+                    throw new EmbeddingException( "backend down", new RuntimeException( "x" ), true );
+                }
+                final List< String > texts = inv.getArgument( 0 );
+                final List< float[] > out = new ArrayList<>( texts.size() );
+                for( int i = 0; i < texts.size(); i++ ) out.add( randomVec() );
+                return out;
+            } );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 2 );
+        svc.configureTransientRetryForTest( 0, millis -> { } );
+
+        assertThrows( RuntimeException.class, () -> svc.indexChunks( ids, MODEL ) );
+
+        assertEquals( 0, countRows(), "the first batch embedded but the page must be all-or-nothing" );
+    }
+
+    @Test
+    void indexAll_holdsNoTransactionOpenWhileEmbedding() throws SQLException {
+        seedChunks( 6 );
+        final List< Integer > idleDuringEmbed = stubEmbedRecordingIdleInTransaction();
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService(
+            dataSource, client, /*batchSize*/ 2, /*contextResolver*/ null, /*commitBatchSize*/ 4 );
+        assertEquals( 6, svc.indexAll( MODEL ) );
+
+        assertTrue( !idleDuringEmbed.isEmpty() && idleDuringEmbed.stream().allMatch( n -> n == 0 ),
+            "no session may be idle-in-transaction during an embedding call. Observed: " + idleDuringEmbed );
+    }
+
+    @Test
+    void indexStale_holdsNoTransactionOpenWhileEmbedding() throws SQLException {
+        seedChunks( 5 );
+        final List< Integer > idleDuringEmbed = stubEmbedRecordingIdleInTransaction();
+
+        assertEquals( 5, new EmbeddingIndexService( dataSource, client, 2 ).indexStale( MODEL ) );
+
+        assertTrue( !idleDuringEmbed.isEmpty() && idleDuringEmbed.stream().allMatch( n -> n == 0 ),
+            "no session may be idle-in-transaction during an embedding call. Observed: " + idleDuringEmbed );
+    }
+
+    @Test
+    void indexAll_keysetPagingEmbedsEveryChunkExactlyOnceAcrossPagesAndPageBoundaries() throws SQLException {
+        // Two pages (names), 7 chunks; read page size 3 forces boundaries inside and between pages.
+        seedChunks( 4 );
+        try( final Connection c = dataSource.getConnection();
+             final PreparedStatement ps = c.prepareStatement(
+                 "INSERT INTO kg_content_chunks (page_name, chunk_index, text, char_count, "
+               + "token_count_estimate, content_hash) VALUES (?, ?, ?, 1, 1, ?)" ) ) {
+            for( int i = 0; i < 3; i++ ) {
+                ps.setString( 1, "ZPage" ); ps.setInt( 2, i ); ps.setString( 3, "z body #" + i );
+                ps.setString( 4, "zh" + i ); ps.executeUpdate();
+            }
+        }
+        final List< String > embeddedTexts = new ArrayList<>();
+        when( client.embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenAnswer( ( InvocationOnMock inv ) -> {
+                final List< String > texts = inv.getArgument( 0 );
+                embeddedTexts.addAll( texts );
+                final List< float[] > out = new ArrayList<>( texts.size() );
+                for( int i = 0; i < texts.size(); i++ ) out.add( randomVec() );
+                return out;
+            } );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 2 );
+        svc.setReadPageSizeForTest( 3 );
+
+        assertEquals( 7, svc.indexAll( MODEL ) );
+
+        assertEquals( 7, embeddedTexts.size(), "each chunk embedded exactly once: " + embeddedTexts );
+        assertEquals( 7, countRows() );
+    }
+
     // ---- indexStale tests ----
 
     @Test

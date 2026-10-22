@@ -155,6 +155,26 @@ class BootstrapEmbeddingIndexerTest {
     }
 
     @Test
+    void staleReconcileThatUpsertedNothingDoesNotReloadTheDenseIndex() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        when( index.indexStale( MODEL ) ).thenReturn( 0 );
+        final DataSource ds = stubDataSourceReturningChunkCount( 7L );
+        final AtomicInteger postRuns = new AtomicInteger();
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try {
+            final BootstrapEmbeddingIndexer boot =
+                new BootstrapEmbeddingIndexer( ds, index, MODEL, postRuns::incrementAndGet, ex );
+            boot.startIfNeeded();
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( BootstrapEmbeddingIndexer.State.COMPLETED, boot.progress().state() );
+            assertEquals( 0, postRuns.get(), "nothing changed, so the index must not be reloaded" );
+        } finally {
+            if ( !ex.isTerminated() ) ex.shutdownNow();
+        }
+    }
+
+    @Test
     void startIfNeeded_runsIndexStaleAndTransitionsToCompleted() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
         when( index.indexStale( MODEL ) ).thenReturn( 7 );

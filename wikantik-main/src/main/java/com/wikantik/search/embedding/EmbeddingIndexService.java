@@ -59,17 +59,16 @@ import java.util.function.IntConsumer;
  * makes the class trivially testable with a mock client and a live JDBC
  * container.</p>
  *
- * <p>All database access goes through {@link Jdbc}. The full-corpus rebuild
- * ({@link #indexAll}) and stale-reconcile ({@link #indexStale}) paths stream
- * the candidate set on one long-lived read transaction ({@link
- * Jdbc#forEachRow} run inside {@link Jdbc#inTransaction} — PostgreSQL only
- * honours a server-side cursor when auto-commit is off) while writes are
- * committed periodically: every {@value #DEFAULT_COMMIT_BATCH_SIZE} embedded
- * rows are flushed through their own short-lived {@link Jdbc#inTransaction}
- * call (its own connection, its own commit) so an interrupted run keeps
- * whatever it already finished. {@link #indexChunks} re-embeds a small,
- * caller-supplied chunk set and commits once, atomically, on a single
- * connection — no incremental durability needed for a page-save-sized batch.</p>
+ * <p>All database access goes through {@link Jdbc}, and no connection is ever held
+ * while the embedding backend is called (its HTTP retries and backoff can last
+ * minutes). The full-corpus rebuild ({@link #indexAll}) and stale-reconcile
+ * ({@link #indexStale}) paths read the candidate set in short keyset-paged reads
+ * (each returns its connection), embed the page of rows, and flush every
+ * {@value #DEFAULT_COMMIT_BATCH_SIZE} embedded rows through their own short
+ * {@link Jdbc#inTransaction} so an interrupted run keeps whatever it already
+ * finished. {@link #indexChunks} re-embeds a small, caller-supplied chunk set:
+ * it reads, embeds everything, then writes in one short transaction, so an
+ * embed failure never leaves a half-written page.</p>
  */
 public class EmbeddingIndexService {
 
@@ -90,11 +89,19 @@ public class EmbeddingIndexService {
      */
     public static final int DEFAULT_COMMIT_BATCH_SIZE = 256;
 
+    /** Rows fetched per short read in the full/stale drain; bounds memory and the read's duration. */
+    static final int DEFAULT_READ_PAGE_SIZE = 500;
+
+    /** Initial keyset cursor: sorts before every real {@code (page_name, chunk_index)}. */
+    private static final String CURSOR_START_PAGE = "";
+    private static final int CURSOR_START_INDEX = -1;
+
     private static final String SELECT_ALL_SQL =
-        "SELECT id, text, heading_path, page_name FROM kg_content_chunks ORDER BY page_name, chunk_index";
+        "SELECT id, text, heading_path, page_name, chunk_index FROM kg_content_chunks "
+      + "WHERE (page_name, chunk_index) > (?, ?) ORDER BY page_name, chunk_index LIMIT ?";
 
     private static final String SELECT_BY_IDS_SQL =
-        "SELECT id, text, heading_path, page_name FROM kg_content_chunks WHERE id = ANY( ? ) "
+        "SELECT id, text, heading_path, page_name, chunk_index FROM kg_content_chunks WHERE id = ANY( ? ) "
       + "ORDER BY page_name, chunk_index";
 
     /**
@@ -102,14 +109,17 @@ public class EmbeddingIndexService {
      * OR whose {@code content_chunk_embeddings.updated} timestamp predates the chunk's
      * own {@code kg_content_chunks.modified} timestamp. Used by {@link #indexStale(String)}
      * to heal gaps left by in-memory queue loss across restarts and by bulk-save cascades
-     * (e.g. {@code HubSyncFilter} secondary saves).
+     * (e.g. {@code HubSyncFilter} secondary saves). Keyset-paged like {@link #SELECT_ALL_SQL}.
      */
     private static final String SELECT_STALE_SQL =
-        "SELECT c.id, c.text, c.heading_path, c.page_name "
+        "SELECT c.id, c.text, c.heading_path, c.page_name, c.chunk_index "
       + "FROM kg_content_chunks c "
       + "LEFT JOIN content_chunk_embeddings e ON e.chunk_id = c.id AND e.model_code = ? "
-      + "WHERE e.chunk_id IS NULL OR e.updated < c.modified "
-      + "ORDER BY c.page_name, c.chunk_index";
+      + "WHERE ( e.chunk_id IS NULL OR e.updated < c.modified ) AND (c.page_name, c.chunk_index) > (?, ?) "
+      + "ORDER BY c.page_name, c.chunk_index LIMIT ?";
+
+    /** One selected chunk, held only until its page of rows has been embedded. */
+    private record ChunkRow( UUID id, String pageName, int chunkIndex, String text, List< String > headingPath ) {}
 
     /**
      * Upsert so both full rebuilds and incremental page-save calls converge.
@@ -168,6 +178,9 @@ public class EmbeddingIndexService {
      * before the reconcile is aborted. Default 3. Configurable for tests.
      */
     private int maxTransientRetries = 3;
+
+    /** Rows read per short keyset-paged read in {@link #indexRows}; no connection is held while embedding. */
+    private int readPageSize = DEFAULT_READ_PAGE_SIZE;
 
     /** Sleeper used for exponential backoff between transient-retry attempts. Tests inject a no-op. */
     private Sleeper sleeper = Thread::sleep;
@@ -238,6 +251,11 @@ public class EmbeddingIndexService {
         this.sleeper = sleeper;
     }
 
+    /** Test hook: rows per keyset read page in {@link #indexRows}. */
+    void setReadPageSizeForTest( final int rows ) {
+        this.readPageSize = rows;
+    }
+
     /** Batch size this service uses when fanning out to the embedding backend. */
     public int batchSize() { return batchSize; }
 
@@ -273,7 +291,7 @@ public class EmbeddingIndexService {
      */
     public int indexAll( final String modelCode, final IntConsumer onBatchFlushed ) {
         requireModelCode( modelCode );
-        return indexRows( modelCode, SELECT_ALL_SQL, SqlBinder.NONE, onBatchFlushed,
+        return indexRows( modelCode, SELECT_ALL_SQL, false, onBatchFlushed,
             "indexAll", "embedding indexer" );
     }
 
@@ -290,37 +308,47 @@ public class EmbeddingIndexService {
      */
     public int indexStale( final String modelCode ) {
         requireModelCode( modelCode );
-        return indexRows( modelCode, SELECT_STALE_SQL, ps -> ps.setString( 1, modelCode ), null,
+        return indexRows( modelCode, SELECT_STALE_SQL, true, null,
             "indexStale", "embedding reconcile" );
     }
 
     /**
-     * Shared drain loop for {@link #indexAll} and {@link #indexStale}: streams
-     * {@code selectSql} on one long-lived read transaction (autocommit off is
-     * what lets PostgreSQL honour the server-side cursor — see {@link Jdbc#forEachRow}),
-     * embeds in {@link #batchSize}-sized chunks, and periodically commits the
-     * embedded rows through their own short-lived {@link Jdbc#inTransaction}
-     * call every {@link #commitBatchSize} rows (plus a final flush for whatever
-     * remains) so an interrupted run keeps its completed work. Two connections
-     * are in play at any moment — the read transaction never writes, and each
-     * write transaction opens (and closes) its own connection — for exactly the
-     * reason the two-connection design existed before this migration: a write
-     * commit must never invalidate the read cursor.
+     * Shared drain loop for {@link #indexAll} and {@link #indexStale}: reads {@code selectSql} in
+     * keyset-paged short reads of {@link #readPageSize} rows (each releases its connection before
+     * anything is embedded), embeds in {@link #batchSize}-sized chunks with no connection held, and
+     * periodically commits the embedded rows through their own short {@link Jdbc#inTransaction} every
+     * {@link #commitBatchSize} rows (plus a final flush for whatever remains) so an interrupted run
+     * keeps its completed work. The cursor is {@code (page_name, chunk_index)}, so rows committed
+     * mid-run (which drop out of the stale predicate) never shift later pages.
      */
-    private int indexRows( final String modelCode, final String selectSql, final SqlBinder selectBinder,
+    private int indexRows( final String modelCode, final String selectSql, final boolean modelBound,
                            final IntConsumer onBatchFlushed, final String opName, final String progressLabel ) {
         final int[] upserted = { 0 };
+        final List< UUID > pendingIds = new ArrayList<>( commitBatchSize );
+        final List< float[] > pendingVectors = new ArrayList<>( commitBatchSize );
         try {
-            jdbc.inTransaction( readConn -> {
-                final List< UUID > batchIds = new ArrayList<>( batchSize );
-                final List< String > batchTexts = new ArrayList<>( batchSize );
-                final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo = new HashMap<>();
-                final List< UUID > pendingIds = new ArrayList<>( commitBatchSize );
-                final List< float[] > pendingVectors = new ArrayList<>( commitBatchSize );
-                final int[] progressThreshold = { 200 };
+            final List< UUID > batchIds = new ArrayList<>( batchSize );
+            final List< String > batchTexts = new ArrayList<>( batchSize );
+            final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo = new HashMap<>();
+            final int[] progressThreshold = { 200 };
+            String cursorPage = CURSOR_START_PAGE;
+            int cursorIndex = CURSOR_START_INDEX;
 
-                jdbc.forEachRow( readConn, selectSql, selectBinder, 500, rs -> {
-                    final int staged = mapRowAndMaybeStage( rs, ctxMemo, batchIds, batchTexts,
+            while ( true ) {
+                final String page = cursorPage;
+                final int index = cursorIndex;
+                final List< ChunkRow > rows = jdbc.query( selectSql, ps -> {
+                    int i = 1;
+                    if ( modelBound ) ps.setString( i++, modelCode );
+                    ps.setString( i++, page );
+                    ps.setInt( i++, index );
+                    ps.setInt( i, readPageSize );
+                }, EmbeddingIndexService::mapChunkRow );
+                if ( rows.isEmpty() ) {
+                    break;
+                }
+                for ( final ChunkRow row : rows ) {
+                    final int staged = addRowAndMaybeStage( row, ctxMemo, batchIds, batchTexts,
                         pendingIds, pendingVectors );
                     if ( staged > 0 ) {
                         upserted[ 0 ] += staged;
@@ -330,23 +358,28 @@ public class EmbeddingIndexService {
                             commitPending( modelCode, pendingIds, pendingVectors );
                         }
                     }
-                } );
-                if ( !batchIds.isEmpty() ) {
-                    upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
-                    fireProgress( onBatchFlushed, upserted[ 0 ] );
-                    maybeLogProgress( progressLabel, modelCode, upserted[ 0 ], progressThreshold );
                 }
-                if ( !pendingIds.isEmpty() ) {
-                    commitPending( modelCode, pendingIds, pendingVectors );
+                final ChunkRow last = rows.get( rows.size() - 1 );
+                cursorPage = last.pageName();
+                cursorIndex = last.chunkIndex();
+                if ( rows.size() < readPageSize ) {
+                    break;
                 }
-                return null;
-            } );
+            }
+            if ( !batchIds.isEmpty() ) {
+                upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
+                fireProgress( onBatchFlushed, upserted[ 0 ] );
+                maybeLogProgress( progressLabel, modelCode, upserted[ 0 ], progressThreshold );
+            }
+            if ( !pendingIds.isEmpty() ) {
+                commitPending( modelCode, pendingIds, pendingVectors );
+            }
         } catch ( final SQLException e ) {
-            LOG.warn( "{} rolled back uncommitted tail (model={}, committed={}): {}",
+            LOG.warn( "{} stopped; uncommitted tail dropped (model={}, staged={}): {}",
                 opName, modelCode, upserted[ 0 ], e.getMessage(), e );
             throw new RuntimeException( opName + " failed for " + modelCode, e );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "{} rolled back uncommitted tail on runtime error (model={}, committed={}): {}",
+            LOG.warn( "{} stopped on runtime error; uncommitted tail dropped (model={}, staged={}): {}",
                 opName, modelCode, upserted[ 0 ], e.getMessage(), e );
             throw e;
         }
@@ -388,30 +421,28 @@ public class EmbeddingIndexService {
         }
         final int[] upserted = { 0 };
         try {
-            jdbc.inTransaction( conn -> {
-                final UUID[] idArray = chunkIds.toArray( UUID[]::new );
-                final List< UUID > batchIds = new ArrayList<>( batchSize );
-                final List< String > batchTexts = new ArrayList<>( batchSize );
-                final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo = new HashMap<>();
-                final List< UUID > pendingIds = new ArrayList<>();
-                final List< float[] > pendingVectors = new ArrayList<>();
+            final UUID[] idArray = chunkIds.toArray( UUID[]::new );
+            final List< ChunkRow > rows = jdbc.query( SELECT_BY_IDS_SQL,
+                ps -> ps.setArray( 1, ps.getConnection().createArrayOf( "uuid", idArray ) ),
+                EmbeddingIndexService::mapChunkRow );
+            final List< UUID > batchIds = new ArrayList<>( batchSize );
+            final List< String > batchTexts = new ArrayList<>( batchSize );
+            final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo = new HashMap<>();
+            final List< UUID > pendingIds = new ArrayList<>();
+            final List< float[] > pendingVectors = new ArrayList<>();
 
-                // null writeConn-equivalent = no mid-drain commits: this path re-embeds one
-                // page's chunks after a save; all-or-nothing is the right semantic and the
-                // set is far too small to need incremental durability.
-                jdbc.forEachRow( conn, SELECT_BY_IDS_SQL,
-                    ps -> ps.setArray( 1, conn.createArrayOf( "uuid", idArray ) ), 500, rs -> {
-                    upserted[ 0 ] += mapRowAndMaybeStage( rs, ctxMemo, batchIds, batchTexts,
-                        pendingIds, pendingVectors );
-                } );
-                if ( !batchIds.isEmpty() ) {
-                    upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
-                }
-                if ( !pendingIds.isEmpty() ) {
-                    jdbc.batch( conn, UPSERT_SQL, buildUpsertBinders( modelCode, pendingIds, pendingVectors ) );
-                }
-                return null;
-            } );
+            // Embed everything with no connection held, then write once: all-or-nothing for the page.
+            for ( final ChunkRow row : rows ) {
+                upserted[ 0 ] += addRowAndMaybeStage( row, ctxMemo, batchIds, batchTexts,
+                    pendingIds, pendingVectors );
+            }
+            if ( !batchIds.isEmpty() ) {
+                upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
+            }
+            if ( !pendingIds.isEmpty() ) {
+                final List< SqlBinder > binders = buildUpsertBinders( modelCode, pendingIds, pendingVectors );
+                jdbc.inTransaction( conn -> jdbc.batch( conn, UPSERT_SQL, binders ) );
+            }
         } catch ( final SQLException e ) {
             LOG.warn( "indexChunks rolled back (model={}, ids={}): {}",
                 modelCode, chunkIds.size(), e.getMessage(), e );
@@ -467,25 +498,25 @@ public class EmbeddingIndexService {
 
     // ---- internals ----
 
+    private static ChunkRow mapChunkRow( final ResultSet rs ) throws SQLException {
+        return new ChunkRow( rs.getObject( 1, UUID.class ), rs.getString( 4 ), rs.getInt( 5 ),
+            rs.getString( 2 ), readHeadingPath( rs, 3 ) );
+    }
+
     /**
-     * Maps one selected chunk row into {@code batchIds}/{@code batchTexts} and, once the
-     * batch reaches {@link #batchSize}, stages it into {@code pendingIds}/{@code pendingVectors}
-     * via {@link #stageEmbeddings} (clearing the batch lists) — the row-mapping + batch-flush
-     * trigger shared by {@link #indexRows} and {@link #indexChunks}, which differ only in what
-     * happens around a full batch (progress callbacks + mid-drain commits for {@code indexRows};
-     * nothing extra for {@code indexChunks}).
+     * Adds one chunk to {@code batchIds}/{@code batchTexts} and, once the batch reaches
+     * {@link #batchSize}, stages it into {@code pendingIds}/{@code pendingVectors} via
+     * {@link #stageEmbeddings} (clearing the batch lists) - the row-mapping + batch-flush trigger
+     * shared by {@link #indexRows} and {@link #indexChunks}.
      *
      * @return the number of rows staged by this call (0 unless the batch was just flushed)
      */
-    private int mapRowAndMaybeStage( final ResultSet rs, final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo,
+    private int addRowAndMaybeStage( final ChunkRow row, final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo,
                                      final List< UUID > batchIds, final List< String > batchTexts,
-                                     final List< UUID > pendingIds, final List< float[] > pendingVectors )
-            throws SQLException {
-        batchIds.add( rs.getObject( 1, UUID.class ) );
-        final EmbeddingTextBuilder.PageContext ctx =
-            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
-        batchTexts.add( EmbeddingTextBuilder.forDocument(
-            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+                                     final List< UUID > pendingIds, final List< float[] > pendingVectors ) {
+        batchIds.add( row.id() );
+        final EmbeddingTextBuilder.PageContext ctx = ctxMemo.computeIfAbsent( row.pageName(), contextResolver );
+        batchTexts.add( EmbeddingTextBuilder.forDocument( ctx, row.headingPath(), row.text() ) );
         if ( batchIds.size() < batchSize ) {
             return 0;
         }
@@ -520,8 +551,7 @@ public class EmbeddingIndexService {
      * Commits {@code pendingIds}/{@code pendingVectors} in one short-lived transaction — its
      * own connection, opened and committed by this call alone — then clears both lists. This
      * is the "one {@link Jdbc#inTransaction} per commit batch" that gives {@link #indexRows}
-     * its periodic-commit durability: the read transaction stays open on a separate connection
-     * throughout, unaffected by this write transaction's commit.
+     * its periodic-commit durability.
      */
     private void commitPending( final String modelCode,
                                 final List< UUID > pendingIds, final List< float[] > pendingVectors )

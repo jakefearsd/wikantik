@@ -30,7 +30,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * JDBC repository for {@code kg_rejections} table operations.
@@ -102,6 +105,36 @@ public final class KgRejectionRepository {
             }, rs -> rs.getInt( 1 ) ).map( count -> count > 0 ).orElse( false );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to check rejection: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
+
+    /**
+     * Batch form of {@link #isRejected}: given {@code [source, target, relationship]} triples, returns the
+     * subset with a recorded rejection, in one query joining the rejections to the unnested triples.
+     */
+    public Set< List< String > > findRejected( final Collection< List< String > > triples ) {
+        if ( triples == null || triples.isEmpty() ) return Set.of();
+        final String sql = "SELECT r.proposed_source, r.proposed_target, r.proposed_relationship "
+                + "FROM kg_rejections r JOIN unnest( ?::text[], ?::text[], ?::text[] ) AS t( s, t, r ) "
+                + "ON r.proposed_source = t.s AND r.proposed_target = t.t AND r.proposed_relationship = t.r";
+        final String[] sources = new String[ triples.size() ];
+        final String[] targets = new String[ triples.size() ];
+        final String[] rels = new String[ triples.size() ];
+        int i = 0;
+        for ( final List< String > t : triples ) {
+            sources[ i ] = t.get( 0 );
+            targets[ i ] = t.get( 1 );
+            rels[ i++ ] = t.get( 2 );
+        }
+        try {
+            return new LinkedHashSet<>( jdbc.query( sql, ps -> {
+                ps.setArray( 1, ps.getConnection().createArrayOf( "text", sources ) );
+                ps.setArray( 2, ps.getConnection().createArrayOf( "text", targets ) );
+                ps.setArray( 3, ps.getConnection().createArrayOf( "text", rels ) );
+            }, rs -> List.of( rs.getString( 1 ), rs.getString( 2 ), rs.getString( 3 ) ) ) );
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to check {} rejections: {}", triples.size(), e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }

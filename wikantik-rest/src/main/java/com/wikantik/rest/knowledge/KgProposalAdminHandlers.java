@@ -36,6 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +119,7 @@ public final class KgProposalAdminHandlers {
             totalCount = service.countProposals( status, null, null, false, sourcePage );
         }
         AdminKnowledgeIo.sendJson( response, Map.of(
-            "proposals", proposals.stream().map( p -> proposalToMap( service, p ) ).toList(),
+            "proposals", proposalsToMaps( service, proposals ),
             "total_count", totalCount,
             "limit", limit,
             "offset", offset
@@ -363,11 +364,14 @@ public final class KgProposalAdminHandlers {
      * Both lookups are best-effort — exceptions are logged at WARN and the
      * flag is omitted rather than failing the whole listing.
      */
-    private Map< String, Object > proposalToMap( final KnowledgeGraphService service, final KgProposal p ) {
-        final Map< String, Object > map = KnowledgeJsonMapper.proposalToMap( p );
+    private List< Map< String, Object > > proposalsToMaps( final KnowledgeGraphService service,
+                                                           final List< KgProposal > proposals ) {
+        final List< Map< String, Object > > maps = new ArrayList<>( proposals.size() );
+        for ( final KgProposal p : proposals ) maps.add( KnowledgeJsonMapper.proposalToMap( p ) );
         if ( service != null ) {
-            map.putAll( ProposalConflictFlags.forProposal( service, p, true ) );
+            final List< Map< String, Object > > flags = ProposalConflictFlags.forProposals( service, proposals, true );
+            for ( int i = 0; i < maps.size(); i++ ) maps.get( i ).putAll( flags.get( i ) );
         }
-        return map;
+        return maps;
     }
 }

@@ -206,6 +206,54 @@ public final class KgNodeRepository extends KgJdbcSupport {
         }
     }
 
+    /**
+     * Batch form of {@link #getNodeByName(String, boolean)}: one {@code name = ANY( ? )} query with the same
+     * inclusion filter. Returns the resolved nodes keyed by exact name; unresolved names are absent.
+     */
+    public Map< String, KgNode > getNodesByNames( final Collection< String > names, final boolean adminBypass ) {
+        if ( names == null || names.isEmpty() ) return Map.of();
+        final String sql = "SELECT n.* FROM kg_nodes n"
+                + KgInclusionFilter.nodeFilterJoin( adminBypass )
+                + " WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
+                + " AND n.name = ANY( ? )";
+        final String[] nameArray = names.toArray( new String[ 0 ] );
+        try {
+            final Map< String, KgNode > found = new LinkedHashMap<>();
+            for ( final KgNode node : query( sql,
+                    ps -> ps.setArray( 1, ps.getConnection().createArrayOf( "text", nameArray ) ), this::mapNode ) ) {
+                found.put( node.name(), node );
+            }
+            return found;
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to get {} nodes by name: {}", names.size(), e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
+
+    /**
+     * Batch form of {@link #getNode(UUID)}: one {@code id = ANY( ? )} query with the same inclusion filter.
+     * Returns the resolved nodes keyed by id; ids that do not resolve (or are filtered out) are absent.
+     */
+    public Map< UUID, KgNode > getNodes( final Collection< UUID > ids ) {
+        if ( ids == null || ids.isEmpty() ) return Map.of();
+        final String sql = "SELECT n.* FROM kg_nodes n"
+                + KgInclusionFilter.nodeFilterJoin( false )
+                + " WHERE" + KgInclusionFilter.nodeFilterWhere( false )
+                + " AND n.id = ANY( ? )";
+        final UUID[] idArray = ids.toArray( new UUID[ 0 ] );
+        try {
+            final Map< UUID, KgNode > found = new LinkedHashMap<>();
+            for ( final KgNode node : query( sql,
+                    ps -> ps.setArray( 1, ps.getConnection().createArrayOf( "uuid", idArray ) ), this::mapNode ) ) {
+                found.put( node.id(), node );
+            }
+            return found;
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to get {} nodes by id: {}", ids.size(), e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
+
     public void deleteNode( final UUID id ) {
         final String sql = "DELETE FROM kg_nodes WHERE id = ?";
         try {

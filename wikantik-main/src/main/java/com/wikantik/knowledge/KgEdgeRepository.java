@@ -385,6 +385,26 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         }
     }
 
+    /**
+     * Batch form of {@link #getEdgesForNode(UUID, String)} with direction {@code both}: every edge touching
+     * any of {@code nodeIds}, once each, under the same inclusion filter, in one {@code = ANY( ? )} query.
+     */
+    public List< KgEdge > getEdgesForNodes( final Collection< UUID > nodeIds ) {
+        if ( nodeIds == null || nodeIds.isEmpty() ) return List.of();
+        final String sql = "SELECT e.* FROM kg_edges e" + KgInclusionFilter.EDGE_FILTER_JOIN
+                + "WHERE ( e.source_id = ANY( ? ) OR e.target_id = ANY( ? ) ) AND" + KgInclusionFilter.EDGE_FILTER_WHERE;
+        final UUID[] idArray = nodeIds.toArray( new UUID[ 0 ] );
+        try {
+            return query( sql, ps -> {
+                ps.setArray( 1, ps.getConnection().createArrayOf( "uuid", idArray ) );
+                ps.setArray( 2, ps.getConnection().createArrayOf( "uuid", idArray ) );
+            }, this::mapEdge );
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to get edges for {} nodes: {}", nodeIds.size(), e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
+
     public void diffAndRemoveStaleEdges( final UUID sourceId,
                                          final Set< Map.Entry< String, String > > currentEdges ) {
         final String sql = "SELECT e.*, n.name AS target_name "

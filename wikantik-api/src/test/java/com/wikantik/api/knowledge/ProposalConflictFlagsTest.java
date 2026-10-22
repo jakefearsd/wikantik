@@ -93,4 +93,54 @@ public class ProposalConflictFlagsTest {
         Mockito.verify( svc ).getNodeByName( "Raft", true );
         Mockito.verify( svc, Mockito.never() ).getNodeByName( "Raft", false );
     }
+
+    private static KgProposal proposal( final String type, final Map< String, Object > data ) {
+        final KgProposal p = Mockito.mock( KgProposal.class );
+        when( p.proposalType() ).thenReturn( type );
+        when( p.proposedData() ).thenReturn( data );
+        return p;
+    }
+
+    @Test
+    void forProposalsUsesDefaultBatchMethodsAndMatchesPerProposalFlags() {
+        final KnowledgeGraphService svc = Mockito.mock( KnowledgeGraphService.class, Mockito.CALLS_REAL_METHODS );
+        final KgNode existing = Mockito.mock( KgNode.class );
+        when( existing.id() ).thenReturn( UUID.randomUUID() );
+        Mockito.doReturn( existing ).when( svc ).getNodeByName( "Raft", true );
+        Mockito.doReturn( true ).when( svc ).isRejected( "A", "B", "uses" );
+        Mockito.doReturn( false ).when( svc ).isRejected( "A", "C", "uses" );
+        final java.util.List< KgProposal > ps = java.util.List.of(
+            proposal( "new-node", Map.of( "name", "Raft" ) ),
+            proposal( "new-node", Map.of( "name", "Paxos" ) ),
+            proposal( "new-edge", Map.of( "source", "A", "target", "B", "relationship", "uses" ) ),
+            proposal( "new-edge", Map.of( "source", "A", "target", "C", "relationship", "uses" ) ),
+            proposal( "other", Map.of() ) );
+
+        final java.util.List< Map< String, Object > > batch = ProposalConflictFlags.forProposals( svc, ps, true );
+
+        assertEquals( ps.size(), batch.size() );
+        for ( int i = 0; i < ps.size(); i++ ) {
+            assertEquals( ProposalConflictFlags.forProposal( svc, ps.get( i ), true ), batch.get( i ) );
+        }
+        assertEquals( Boolean.TRUE, batch.get( 0 ).get( "node_exists" ) );
+        assertEquals( Boolean.FALSE, batch.get( 1 ).get( "node_exists" ) );
+        assertEquals( Boolean.TRUE, batch.get( 2 ).get( "edge_previously_rejected" ) );
+        assertEquals( Boolean.FALSE, batch.get( 3 ).get( "edge_previously_rejected" ) );
+        assertTrue( batch.get( 4 ).isEmpty() );
+    }
+
+    @Test
+    void forProposalsFallsBackToPerProposalWhenBatchLookupFails() {
+        final KnowledgeGraphService svc = Mockito.mock( KnowledgeGraphService.class );
+        when( svc.getNodesByNames( Mockito.anyCollection(), Mockito.anyBoolean() ) )
+            .thenThrow( new RuntimeException( "db down" ) );
+        final KgNode existing = Mockito.mock( KgNode.class );
+        when( existing.id() ).thenReturn( UUID.randomUUID() );
+        when( svc.getNodeByName( "Raft", true ) ).thenReturn( existing );
+
+        final java.util.List< Map< String, Object > > batch = ProposalConflictFlags.forProposals( svc,
+            java.util.List.of( proposal( "new-node", Map.of( "name", "Raft" ) ) ), true );
+
+        assertEquals( Boolean.TRUE, batch.get( 0 ).get( "node_exists" ) );
+    }
 }

@@ -237,6 +237,16 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     @Override
+    public Map< String, KgNode > getNodesByNames( final Collection< String > names, final boolean adminBypass ) {
+        return nodes.getNodesByNames( names, adminBypass );
+    }
+
+    @Override
+    public Set< List< String > > findRejected( final Collection< List< String > > triples ) {
+        return rejections.findRejected( triples );
+    }
+
+    @Override
     public KgNode getNodeByName( final String name, final boolean adminBypass ) {
         return nodes.getNodeByName( name, adminBypass );
     }
@@ -425,9 +435,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     /** Loads each {@link KgNode} for {@code pageEntityIds}, skipping (and logging) any that no longer resolve. */
     private List< KgNode > resolveEntities( final Set< UUID > pageEntityIds, final String pageName ) {
+        final Map< UUID, KgNode > found = nodes.getNodes( pageEntityIds );
         final List< KgNode > entities = new ArrayList<>( pageEntityIds.size() );
         for ( final UUID id : pageEntityIds ) {
-            final KgNode node = nodes.getNode( id );
+            final KgNode node = found.get( id );
             if ( node == null ) {
                 LOG.warn( "getPageSlice: node id {} mentioned on page '{}' not found in kg_nodes — skipping",
                     id, pageName );
@@ -444,16 +455,12 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
      */
     private List< KgEdgeView > collectIntraPageEdgeViews( final Set< UUID > pageEntityIds ) {
         // Step 3 — collect intra-page edges (both endpoints must be in pageEntityIds).
-        // Issues one query per entity — acceptable at page scale; collapse into a single
-        // = ANY(?) batch if this becomes a hotspot.
         final Map< UUID, KgEdge > seenEdges = new LinkedHashMap<>();
-        for ( final UUID entityId : pageEntityIds ) {
-            for ( final KgEdge edge : edges.getEdgesForNode( entityId, "both" ) ) {
-                if ( pageEntityIds.contains( edge.sourceId() )
-                     && pageEntityIds.contains( edge.targetId() )
-                     && !seenEdges.containsKey( edge.id() ) ) {
-                    seenEdges.put( edge.id(), edge );
-                }
+        for ( final KgEdge edge : edges.getEdgesForNodes( pageEntityIds ) ) {
+            if ( pageEntityIds.contains( edge.sourceId() )
+                 && pageEntityIds.contains( edge.targetId() )
+                 && !seenEdges.containsKey( edge.id() ) ) {
+                seenEdges.put( edge.id(), edge );
             }
         }
 

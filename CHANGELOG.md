@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.60] - 2026-10-22
+
 ### Added
 - Context bundles (`assemble_bundle`, `GET /api/bundle`) give each section a `url` that opens the wiki at that
   section: `wikantik.baseURL` + `/wiki/<page>#<anchor>`, site-relative when `wikantik.baseURL` is blank. A section

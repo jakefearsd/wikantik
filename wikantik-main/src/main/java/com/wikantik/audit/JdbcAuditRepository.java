@@ -45,10 +45,11 @@ public final class JdbcAuditRepository implements AuditRepository {
     private static final long CHAIN_LOCK_KEY = 8423971L;
     private static final String CHAIN_HEAD_SQL = "SELECT seq, row_hash FROM audit_log ORDER BY seq DESC LIMIT 1";
 
-    /** Same head, restricted to one monthly partition ({@code created_at} is the partition key), so the
-     *  planner prunes to a single partition instead of a Merge Append over every month. */
+    /** Same head, restricted to partitions from the current month on ({@code created_at} is the partition key),
+     *  so every older month is pruned. No upper bound: after a clock steps back across a month boundary the
+     *  head may sit in a "future" partition, and missing it would fork the chain. */
     static final String CHAIN_HEAD_PRUNED_SQL =
-        "SELECT seq, row_hash FROM audit_log WHERE created_at >= ? AND created_at < ? ORDER BY seq DESC LIMIT 1";
+        "SELECT seq, row_hash FROM audit_log WHERE created_at >= ? ORDER BY seq DESC LIMIT 1";
 
     private final Jdbc jdbc;
     private final Clock clock;
@@ -149,9 +150,8 @@ public final class JdbcAuditRepository implements AuditRepository {
     private ChainHead chainHeadTx( final Connection conn, final Instant when ) throws SQLException {
         final ZonedDateTime start = when.atZone( ZoneOffset.UTC ).withDayOfMonth( 1 ).toLocalDate().atStartOfDay( ZoneOffset.UTC );
         final Timestamp from = Timestamp.from( start.toInstant() );
-        final Timestamp to = Timestamp.from( start.plusMonths( 1 ).toInstant() );
         final Optional<ChainHead> pruned = jdbc.queryOne( conn, CHAIN_HEAD_PRUNED_SQL,
-                ps -> { ps.setTimestamp( 1, from ); ps.setTimestamp( 2, to ); }, this::mapChainHead );
+                ps -> ps.setTimestamp( 1, from ), this::mapChainHead );
         if ( pruned.isPresent() ) {
             return pruned.get();
         }

@@ -120,15 +120,28 @@ class JdbcAuditRepositoryHeadTest {
     }
 
     @Test
-    void headQueryTouchesOnlyTheCurrentMonthPartition() throws Exception {
+    void aClockSteppedBackAcrossAMonthBoundaryStillContinuesTheChain() {
+        final DataSource ds = PostgresTestDb.createDataSource();
+        new JdbcAuditRepository( ds, at( "2027-04-30T23:59:58Z" ) ).append( List.of( entry( "a" ) ) );
+        new JdbcAuditRepository( ds, at( "2027-05-01T00:00:01Z" ) ).append( List.of( entry( "b" ), entry( "c" ) ) );
+
+        final JdbcAuditRepository steppedBack = new JdbcAuditRepository( ds, at( "2027-04-30T23:59:59Z" ) );
+        steppedBack.append( List.of( entry( "d" ) ) );
+
+        assertEquals( 4L, steppedBack.chainHead().lastSeq(), "the head is the highest seq, whatever month it is in" );
+        assertTrue( steppedBack.verifyChain( 1, Long.MAX_VALUE ).isEmpty(), "the chain must not fork" );
+    }
+
+    @Test
+    void headQueryPrunesEveryOlderMonth() throws Exception {
         try ( Connection c = PostgresTestDb.createDataSource().getConnection(); Statement st = c.createStatement();
               ResultSet rs = st.executeQuery( "EXPLAIN " + JdbcAuditRepository.CHAIN_HEAD_PRUNED_SQL
-                      .replaceFirst( "\\?", "'2027-03-01'" ).replaceFirst( "\\?", "'2027-04-01'" ) ) ) {
+                      .replaceFirst( "\\?", "'2027-03-01'" ) ) ) {
             final StringBuilder plan = new StringBuilder();
             while ( rs.next() ) plan.append( rs.getString( 1 ) ).append( '\n' );
             assertTrue( plan.toString().contains( "audit_log_2027_03" ), plan.toString() );
-            assertFalse( plan.toString().contains( "audit_log_2027_04" ), plan.toString() );
-            assertFalse( plan.toString().contains( "audit_log_2028" ), plan.toString() );
+            assertFalse( plan.toString().contains( "audit_log_2027_02" ), plan.toString() );
+            assertFalse( plan.toString().contains( "audit_log_2026" ), plan.toString() );
         }
     }
 }

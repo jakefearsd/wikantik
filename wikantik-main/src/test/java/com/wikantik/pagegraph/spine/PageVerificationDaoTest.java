@@ -112,4 +112,47 @@ class PageVerificationDaoTest {
         dao.deleteByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" );
         assertEquals( Optional.empty(), dao.findByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ) );
     }
+
+    private String rowVersion( final String id ) throws Exception {
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
+              var rs = s.executeQuery( "SELECT xmin::text || '/' || updated_at::text FROM page_verification " +
+                      "WHERE canonical_id = '" + id + "'" ) ) {
+            rs.next();
+            return rs.getString( 1 );
+        }
+    }
+
+    @Test
+    void upsert_identicalValues_doesNotRewriteTheRow() throws Exception {
+        final Verification v = new Verification( Instant.parse( "2026-04-25T12:00:00Z" ), "alice",
+                Confidence.AUTHORITATIVE, Audience.HUMANS_AND_AGENTS );
+        dao.upsert( "01AAAAAAAAAAAAAAAAAAAAAAAA", v );
+        final String before = rowVersion( "01AAAAAAAAAAAAAAAAAAAAAAAA" );
+        Thread.sleep( 20 );
+        dao.upsert( "01AAAAAAAAAAAAAAAAAAAAAAAA", v );
+        assertEquals( before, rowVersion( "01AAAAAAAAAAAAAAAAAAAAAAAA" ),
+                "an identical upsert must not write a new tuple or bump updated_at" );
+    }
+
+    @Test
+    void upsert_changedValues_stillUpdates() throws Exception {
+        dao.upsert( "01AAAAAAAAAAAAAAAAAAAAAAAA", new Verification( null, null,
+                Confidence.PROVISIONAL, Audience.HUMANS_AND_AGENTS ) );
+        final String before = rowVersion( "01AAAAAAAAAAAAAAAAAAAAAAAA" );
+        Thread.sleep( 20 );
+        dao.upsert( "01AAAAAAAAAAAAAAAAAAAAAAAA", new Verification( Instant.parse( "2026-04-25T12:00:00Z" ),
+                "bob", Confidence.AUTHORITATIVE, Audience.AGENTS ) );
+        assertNotEquals( before, rowVersion( "01AAAAAAAAAAAAAAAAAAAAAAAA" ) );
+        assertEquals( "bob", dao.findByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().verifiedBy() );
+    }
+
+    @Test
+    void findAll_returnsEveryRowKeyedById() {
+        dao.upsert( "01AAAAAAAAAAAAAAAAAAAAAAAA", Verification.unverified() );
+        dao.upsert( "01BBBBBBBBBBBBBBBBBBBBBBBB", new Verification( null, "carol",
+                Confidence.STALE, Audience.AGENTS ) );
+        final var all = dao.findAll();
+        assertEquals( 2, all.size() );
+        assertEquals( "carol", all.get( "01BBBBBBBBBBBBBBBBBBBBBBBB" ).verifiedBy() );
+    }
 }

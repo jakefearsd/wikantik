@@ -58,35 +58,47 @@ public class PageVerificationDao extends JdbcSupport {
             throw new IllegalArgumentException( "verification required" );
         }
         try {
-            inTransaction( conn -> {
-                final boolean exists = queryOne( conn, "SELECT 1 FROM page_verification WHERE canonical_id = ?",
-                        ps -> ps.setString( 1, canonicalId ), rs -> Boolean.TRUE ).isPresent();
-                if ( exists ) {
-                    update( conn, "UPDATE page_verification SET verified_at = ?, verified_by = ?, " +
-                            "confidence = ?, audience = ?, updated_at = CURRENT_TIMESTAMP " +
-                            "WHERE canonical_id = ?", ps -> {
-                        bindTimestamp( ps, 1, v.verifiedAt() );
-                        ps.setString( 2, v.verifiedBy() );
-                        ps.setString( 3, v.confidence().wireName() );
-                        ps.setString( 4, v.audience().wireName() );
-                        ps.setString( 5, canonicalId );
-                    } );
-                } else {
-                    update( conn, "INSERT INTO page_verification " +
-                            "(canonical_id, verified_at, verified_by, confidence, audience) " +
-                            "VALUES (?, ?, ?, ?, ?)", ps -> {
-                        ps.setString( 1, canonicalId );
-                        bindTimestamp( ps, 2, v.verifiedAt() );
-                        ps.setString( 3, v.verifiedBy() );
-                        ps.setString( 4, v.confidence().wireName() );
-                        ps.setString( 5, v.audience().wireName() );
-                    } );
-                }
-                return null;
+            // One statement; the WHERE makes an identical re-upsert (every boot) a no-op that
+            // writes no tuple and leaves updated_at alone.
+            update( "INSERT INTO page_verification " +
+                    "(canonical_id, verified_at, verified_by, confidence, audience) " +
+                    "VALUES (?, ?, ?, ?, ?) " +
+                    "ON CONFLICT ( canonical_id ) DO UPDATE SET verified_at = EXCLUDED.verified_at, " +
+                    "verified_by = EXCLUDED.verified_by, confidence = EXCLUDED.confidence, " +
+                    "audience = EXCLUDED.audience, updated_at = CURRENT_TIMESTAMP " +
+                    "WHERE ( page_verification.verified_at, page_verification.verified_by, " +
+                    "page_verification.confidence, page_verification.audience ) " +
+                    "IS DISTINCT FROM ( EXCLUDED.verified_at, EXCLUDED.verified_by, " +
+                    "EXCLUDED.confidence, EXCLUDED.audience )", ps -> {
+                ps.setString( 1, canonicalId );
+                bindTimestamp( ps, 2, v.verifiedAt() );
+                ps.setString( 3, v.verifiedBy() );
+                ps.setString( 4, v.confidence().wireName() );
+                ps.setString( 5, v.audience().wireName() );
             } );
         } catch ( final SQLException e ) {
             LOG.warn( "PageVerificationDao.upsert({}) failed: {}", canonicalId, e.getMessage(), e );
             throw new RuntimeException( "verification upsert failed", e );
+        }
+    }
+
+    /**
+     * Every verification row keyed by canonical id, in one query.
+     *
+     * @return the rows, or {@code null} if the read failed (callers fall back to per-id lookups)
+     */
+    public java.util.Map< String, Verification > findAll() {
+        try {
+            final java.util.Map< String, Verification > out = new java.util.HashMap<>();
+            query( "SELECT canonical_id, verified_at, verified_by, confidence, audience FROM page_verification",
+                    ps -> {}, rs -> {
+                        out.put( rs.getString( "canonical_id" ), readRow( rs ) );
+                        return Boolean.TRUE;
+                    } );
+            return out;
+        } catch ( final SQLException e ) {
+            LOG.warn( "findAll() failed: {}", e.getMessage() );
+            return null;
         }
     }
 

@@ -347,4 +347,35 @@ class PageCanonicalIdsDaoTest {
         assertEquals( "delete failed", ex.getMessage() );
         assertInstanceOf( SQLException.class, ex.getCause() );
     }
+
+    private String rowVersion( final String id ) throws Exception {
+        try ( Connection c = ds.getConnection();
+              var st = c.createStatement();
+              var rs = st.executeQuery( "SELECT xmin::text || '/' || updated_at::text FROM page_canonical_ids " +
+                      "WHERE canonical_id = '" + id + "'" ) ) {
+            rs.next();
+            return rs.getString( 1 );
+        }
+    }
+
+    @Test
+    void upsert_identicalValues_doesNotRewriteTheRow() throws Exception {
+        dao.upsert( "01H8G3Z1K6Q5W7P9X2V4R0T8MN", "HybridRetrieval", "Hybrid Retrieval", "article", "c" );
+        final String before = rowVersion( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" );
+        Thread.sleep( 20 );
+        dao.upsert( "01H8G3Z1K6Q5W7P9X2V4R0T8MN", "HybridRetrieval", "Hybrid Retrieval", "article", "c" );
+        assertEquals( before, rowVersion( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" ),
+                "an unchanged re-upsert must not write a new tuple or bump updated_at" );
+    }
+
+    @Test
+    void upsert_changedTitle_stillUpdates() throws Exception {
+        dao.upsert( "01H8G3Z1K6Q5W7P9X2V4R0T8MN", "HybridRetrieval", "Hybrid Retrieval", "article", null );
+        final String before = rowVersion( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" );
+        Thread.sleep( 20 );
+        dao.upsert( "01H8G3Z1K6Q5W7P9X2V4R0T8MN", "HybridRetrieval", "Hybrid Retrieval 2", "article", null );
+        assertNotEquals( before, rowVersion( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" ) );
+        assertEquals( "Hybrid Retrieval 2",
+                dao.findByCanonicalId( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" ).orElseThrow().title() );
+    }
 }

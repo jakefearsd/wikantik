@@ -338,6 +338,76 @@ class MentionIndexTest {
             "batch should open exactly one connection — for the ColdB miss only" );
     }
 
+    @Test
+    void findRelatedPagesBatch_manyUncachedPages_isOneStatementAndMatchesSingleCalls() throws Exception {
+        final UUID e1 = UUID.randomUUID();
+        final UUID e2 = UUID.randomUUID();
+        final UUID e3 = UUID.randomUUID();
+        seedNode( e1, "E1" ); seedNode( e2, "E2" ); seedNode( e3, "E3" );
+        // Five pages all mentioning E1; P0/P1 also E2; P0 also E3 — gives ties and a limit cut.
+        for ( int i = 0; i < 5; i++ ) {
+            final UUID c = UUID.randomUUID();
+            seedChunk( c, "P" + i, 0 );
+            seedMention( c, e1, 0.9 );
+            if ( i < 2 ) seedMention( c, e2, 0.9 );
+            if ( i == 0 ) seedMention( c, e3, 0.9 );
+        }
+        final List< String > pages = List.of( "P0", "P1", "P2", "P3", "P4", "NoSuchPage" );
+
+        final MentionIndex reference = new MentionIndex( dataSource );
+        final StatementCountingDataSource counting = new StatementCountingDataSource( dataSource );
+        final MentionIndex idx = new MentionIndex( counting );
+
+        final var batch = idx.findRelatedPagesBatch( pages, 2 );
+
+        assertEquals( 1, counting.statementCount(), "six uncached pages must cost one statement, not six" );
+        for ( final String page : pages ) {
+            assertEquals( reference.findRelatedPages( page, 2 ), batch.get( page ),
+                "batch result for " + page + " must equal the single-page query" );
+        }
+        counting.reset();
+        idx.findRelatedPagesBatch( pages, 2 );
+        assertEquals( 0, counting.statementCount(), "second call is served entirely from the cache" );
+    }
+
+    /** Counts {@code prepareStatement} calls on every connection the wrapped pool hands out. */
+    private static final class StatementCountingDataSource implements DataSource {
+        private final DataSource delegate;
+        private final AtomicInteger statements = new AtomicInteger();
+
+        StatementCountingDataSource( final DataSource delegate ) { this.delegate = delegate; }
+
+        int statementCount() { return statements.get(); }
+        void reset() { statements.set( 0 ); }
+
+        private Connection wrap( final Connection real ) {
+            return (Connection) java.lang.reflect.Proxy.newProxyInstance(
+                Connection.class.getClassLoader(), new Class< ? >[] { Connection.class },
+                ( proxy, method, args ) -> {
+                    if ( method.getName().equals( "prepareStatement" ) || method.getName().equals( "createStatement" ) ) {
+                        statements.incrementAndGet();
+                    }
+                    try {
+                        return method.invoke( real, args );
+                    } catch ( final java.lang.reflect.InvocationTargetException e ) {
+                        throw e.getCause();
+                    }
+                } );
+        }
+
+        @Override public Connection getConnection() throws SQLException { return wrap( delegate.getConnection() ); }
+        @Override public Connection getConnection( String u, String p ) throws SQLException {
+            return wrap( delegate.getConnection( u, p ) );
+        }
+        @Override public PrintWriter getLogWriter() throws SQLException { return delegate.getLogWriter(); }
+        @Override public void setLogWriter( PrintWriter w ) throws SQLException { delegate.setLogWriter( w ); }
+        @Override public void setLoginTimeout( int s ) throws SQLException { delegate.setLoginTimeout( s ); }
+        @Override public int getLoginTimeout() throws SQLException { return delegate.getLoginTimeout(); }
+        @Override public Logger getParentLogger() { return Logger.getLogger( "StatementCountingDataSource" ); }
+        @Override public < T > T unwrap( Class< T > iface ) throws SQLException { return delegate.unwrap( iface ); }
+        @Override public boolean isWrapperFor( Class< ? > iface ) throws SQLException { return delegate.isWrapperFor( iface ); }
+    }
+
     /**
      * DataSource decorator that counts {@link #getConnection()} calls so tests
      * can assert exactly how many DB connections a code path opened.

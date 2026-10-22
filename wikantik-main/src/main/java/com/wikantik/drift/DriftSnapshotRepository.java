@@ -29,7 +29,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -102,7 +105,7 @@ public final class DriftSnapshotRepository {
         final String sql = "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
                          + "FROM drift_sweeps WHERE swept_at >= ? ORDER BY id ASC";
         try {
-            return jdbc.query( sql, ps -> ps.setTimestamp( 1, cutoff ), this::rowToRecord );
+            return withCounts( jdbc.query( sql, ps -> ps.setTimestamp( 1, cutoff ), this::rowToRecord ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read drift trend ({} days): {}", days, e.getMessage(), e );
             throw new IllegalStateException( "drift trend query failed", e );
@@ -111,7 +114,8 @@ public final class DriftSnapshotRepository {
 
     private Optional< DriftSweepRecord > querySingle( final String description, final String sql, final SqlBinder binder ) {
         try {
-            return jdbc.queryOne( sql, binder, this::rowToRecord );
+            final Optional< DriftSweepRecord > sweep = jdbc.queryOne( sql, binder, this::rowToRecord );
+            return sweep.isEmpty() ? sweep : Optional.of( withCounts( List.of( sweep.get() ) ).get( 0 ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read drift sweep ({}): {}", description, e.getMessage(), e );
             throw new IllegalStateException( "drift sweep query failed", e );
@@ -127,15 +131,29 @@ public final class DriftSnapshotRepository {
                 rs.getLong( "duration_ms" ),
                 rs.getString( "triggered_by" ),
                 rs.getBoolean( "shacl_checked" ),
-                countsFor( id ) );
+                List.of() );
     }
 
-    private List< DriftCount > countsFor( final long sweepId ) throws SQLException {
-        return jdbc.query(
-                "SELECT family, code, severity, \"count\" FROM drift_snapshot_counts "
-              + "WHERE sweep_id = ? ORDER BY family, code, severity",
-                ps -> ps.setLong( 1, sweepId ),
-                rs -> new DriftCount( rs.getString( "family" ), rs.getString( "code" ),
-                        rs.getString( "severity" ), rs.getInt( "count" ) ) );
+    /** Fills in the counts of every sweep with one query ({@code sweep_id = ANY( ? )}) instead of one per sweep. */
+    private List< DriftSweepRecord > withCounts( final List< DriftSweepRecord > sweeps ) throws SQLException {
+        if ( sweeps.isEmpty() ) {
+            return sweeps;
+        }
+        final Long[] ids = sweeps.stream().map( DriftSweepRecord::id ).toArray( Long[]::new );
+        final Map< Long, List< DriftCount > > bySweep = new HashMap<>();
+        jdbc.query(
+                "SELECT sweep_id, family, code, severity, \"count\" FROM drift_snapshot_counts "
+              + "WHERE sweep_id = ANY( ? ) ORDER BY sweep_id, family, code, severity",
+                ps -> ps.setArray( 1, ps.getConnection().createArrayOf( "bigint", ids ) ),
+                rs -> {
+                    bySweep.computeIfAbsent( rs.getLong( "sweep_id" ), k -> new ArrayList<>() )
+                            .add( new DriftCount( rs.getString( "family" ), rs.getString( "code" ),
+                                    rs.getString( "severity" ), rs.getInt( "count" ) ) );
+                    return Boolean.TRUE;
+                } );
+        return sweeps.stream()
+                .map( r -> new DriftSweepRecord( r.id(), r.sweptAt(), r.pagesScanned(), r.durationMs(),
+                        r.triggeredBy(), r.shaclChecked(), bySweep.getOrDefault( r.id(), List.of() ) ) )
+                .toList();
     }
 }

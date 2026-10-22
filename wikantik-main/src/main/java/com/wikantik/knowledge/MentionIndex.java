@@ -92,6 +92,33 @@ public class MentionIndex {
       + " ORDER BY shared_count DESC, other_c.page_name ASC "
       + " LIMIT ?";
 
+    /**
+     * Same ranking as {@link #RELATED_PAGES_SQL} (shared_count DESC, page_name ASC, per source
+     * page) over many source pages in one statement: {@code ?1} = text[] of source pages,
+     * {@code ?2} = per-page limit. Columns: source, other, shared_entities, shared_count.
+     */
+    private static final String RELATED_PAGES_BATCH_SQL =
+        "SELECT source_page, other_page, shared_entities, shared_count FROM ( "
+      + "SELECT my_c.page_name AS source_page, other_c.page_name AS other_page, "
+      + "       ARRAY_AGG( DISTINCT n.name ) AS shared_entities, "
+      + "       COUNT( DISTINCT my_m.node_id ) AS shared_count, "
+      + "       ROW_NUMBER() OVER ( PARTITION BY my_c.page_name "
+      + "           ORDER BY COUNT( DISTINCT my_m.node_id ) DESC, other_c.page_name ASC ) AS rn "
+      + "  FROM kg_content_chunks my_c "
+      + "  JOIN chunk_entity_mentions my_m ON my_m.chunk_id = my_c.id "
+      + "  JOIN chunk_entity_mentions other_m ON other_m.node_id = my_m.node_id "
+      + "  JOIN kg_content_chunks other_c ON other_c.id = other_m.chunk_id "
+      + "  JOIN kg_nodes n ON n.id = my_m.node_id "
+      + "  LEFT JOIN kg_excluded_pages kgxm_my    ON my_c.page_name    = kgxm_my.page_name "
+      + "  LEFT JOIN kg_excluded_pages kgxm_other ON other_c.page_name = kgxm_other.page_name "
+      + " WHERE my_c.page_name = ANY( ? ) "
+      + "   AND other_c.page_name <> my_c.page_name "
+      + "   AND kgxm_my.page_name    IS NULL "
+      + "   AND kgxm_other.page_name IS NULL "
+      + " GROUP BY my_c.page_name, other_c.page_name ) ranked "
+      + "WHERE rn <= ? "
+      + "ORDER BY source_page, rn";
+
     private static final long RELATED_TTL_SECONDS = 300L;
 
     private final Jdbc jdbc;
@@ -239,8 +266,8 @@ public class MentionIndex {
      * map keyed by input page name; missing keys (pages with no related
      * matches) map to an empty list. Behaviour per page is identical to a
      * stand-alone {@code findRelatedPages} call — only the I/O shape changes:
-     * one borrowed connection reused across the N executions (via
-     * {@link Jdbc#withConnection}), instead of N connection acquires.
+     * every uncached page is resolved by one statement ({@code page_name = ANY( ? )}
+     * with per-page ranking and limit), instead of one statement per page.</p>
      *
      * <p>This eliminates the N+1 lookup pattern that
      * {@code DefaultContextRetrievalService} used in its result-building
@@ -274,20 +301,23 @@ public class MentionIndex {
         if ( out.isEmpty() ) return Map.of();
         if ( uncached.isEmpty() ) return out;
         try {
-            jdbc.withConnection( conn -> {
-                for ( final String pageName : uncached ) {
-                    final List< RelatedByMention > forPage = jdbc.query( conn, RELATED_PAGES_SQL, ps -> {
-                        ps.setString( 1, pageName );
-                        ps.setInt( 2, limit );
-                    }, MentionIndex::mapRelatedByMention );
-                    final List< RelatedByMention > result = List.copyOf( forPage );
-                    out.put( pageName, result );
-                    // Negatively cache empty results too, so pages with no shared
-                    // mentions don't re-query on every search.
-                    relatedCache.put( cacheKey( pageName, limit ), result );
-                }
-                return null;
+            final Map< String, List< RelatedByMention > > bySource = new HashMap<>();
+            jdbc.query( RELATED_PAGES_BATCH_SQL, ps -> {
+                ps.setArray( 1, ps.getConnection().createArrayOf( "text", uncached.toArray() ) );
+                ps.setInt( 2, limit );
+            }, rs -> {
+                bySource.computeIfAbsent( rs.getString( 1 ), k -> new ArrayList<>() )
+                    .add( new RelatedByMention( rs.getString( 2 ), arrayToStringList( rs.getArray( 3 ) ),
+                        rs.getInt( 4 ) ) );
+                return Boolean.TRUE;
             } );
+            for ( final String pageName : uncached ) {
+                final List< RelatedByMention > result = List.copyOf( bySource.getOrDefault( pageName, List.of() ) );
+                out.put( pageName, result );
+                // Negatively cache empty results too, so pages with no shared
+                // mentions don't re-query on every search.
+                relatedCache.put( cacheKey( pageName, limit ), result );
+            }
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.findRelatedPagesBatch failed for {} pages: {}",
                 pageNames.size(), e.getMessage(), e );

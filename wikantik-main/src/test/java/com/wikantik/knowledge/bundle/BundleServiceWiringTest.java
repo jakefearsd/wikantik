@@ -520,4 +520,36 @@ class BundleServiceWiringTest {
         final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
         assertSame( passthrough, BundleServiceWiring.recordPlanner( passthrough, log, "m" ) );
     }
+
+    /* ---------- slug -> canonical_id resolves from the structural index, not one query per section ---------- */
+
+    @Test
+    void build_withStructuralIndex_resolvesCanonicalIdsWithoutTouchingTheDao() {
+        final PageCanonicalIdsDao dao = mock( PageCanonicalIdsDao.class );
+        final com.wikantik.api.pagegraph.StructuralIndexService index =
+            mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        when( index.resolveCanonicalIdFromSlug( "PageX" ) ).thenReturn( Optional.of( "01X" ) );
+
+        final ContextBundle b = BundleServiceWiring.build( mock( ContextRetrievalService.class ),
+            Map.of( RetrievalMode.HYBRID, denseWith( "PageX" ), RetrievalMode.DENSE, denseWith( "PageX" ) ),
+            dao, null, new Properties(), null, index ).assemble( "q" );
+
+        assertEquals( 1, b.sections().size() );
+        assertEquals( "01X", b.sections().get( 0 ).citation().canonicalId() );
+        verifyNoInteractions( dao );
+    }
+
+    @Test
+    void build_withStructuralIndex_fallsBackToDaoWhenSlugNotIndexed() {
+        final PageCanonicalIdsDao dao = daoWith( "PageX" );
+        final com.wikantik.api.pagegraph.StructuralIndexService index =
+            mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        when( index.resolveCanonicalIdFromSlug( "PageX" ) ).thenReturn( Optional.empty() );
+
+        final ContextBundle b = BundleServiceWiring.build( mock( ContextRetrievalService.class ),
+            Map.of( RetrievalMode.HYBRID, denseWith( "PageX" ), RetrievalMode.DENSE, denseWith( "PageX" ) ),
+            dao, null, new Properties(), null, index ).assemble( "q" );
+
+        assertEquals( "01X", b.sections().get( 0 ).citation().canonicalId() );
+    }
 }

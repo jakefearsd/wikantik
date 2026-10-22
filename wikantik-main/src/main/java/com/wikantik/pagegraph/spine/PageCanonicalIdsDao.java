@@ -28,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -124,6 +125,12 @@ public class PageCanonicalIdsDao extends JdbcSupport {
     private UpsertResult updateExisting( final Connection conn, final UpsertSpec spec, final Row prev )
             throws SQLException {
         if ( prev.currentSlug().equals( spec.currentSlug() ) ) {
+            if ( Objects.equals( prev.title(), spec.title() ) && Objects.equals( prev.type(), spec.type() )
+                    && Objects.equals( prev.cluster(), spec.cluster() ) ) {
+                // Nothing changed: skip the write so a boot does not rewrite every row (and
+                // updated_at keeps meaning "last real change").
+                return UpsertResult.WRITTEN;
+            }
             LOG.debug( "upsert({}, {}): canonical_id and slug unchanged — updating metadata only",
                        spec.canonicalId(), spec.currentSlug() );
         } else {

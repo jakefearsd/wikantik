@@ -25,6 +25,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Confidence;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.chunking.SectionAnchors;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
@@ -112,6 +113,23 @@ public final class BundleServiceWiring {
                                                final PageManager pageManager,
                                                final Properties props,
                                                final Function< String, Confidence > confidenceOf ) {
+        return build( retrieval, sourceMap, dao, pageManager, props, confidenceOf, null );
+    }
+
+    /**
+     * Overload that also takes the structural index, so a slug is resolved to its canonical id from
+     * memory instead of one {@code page_canonical_ids} query per section; the DAO is the fallback
+     * for a slug the index does not hold.
+     *
+     * @param structuralIndex slug → canonical_id source tried before the DAO (null tolerated)
+     */
+    public static BundleAssemblyService build( final ContextRetrievalService retrieval,
+                                               final Map< RetrievalMode, SectionCandidateSource > sourceMap,
+                                               final PageCanonicalIdsDao dao,
+                                               final PageManager pageManager,
+                                               final Properties props,
+                                               final Function< String, Confidence > confidenceOf,
+                                               final StructuralIndexService structuralIndex ) {
         if ( retrieval == null ) {
             LOG.debug( "ContextRetrievalService not yet wired — bundle assembly service unavailable" );
             return null;
@@ -126,9 +144,14 @@ public final class BundleServiceWiring {
                 : sourceMap;
 
         final SectionReranker reranker = rerankerFor( props, confidenceOf );
-        final Function< String, Optional< String > > canonicalIdOf = slug ->
-            dao == null ? Optional.empty()
-                        : dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId );
+        final Function< String, Optional< String > > canonicalIdOf = slug -> {
+            final Optional< String > indexed = structuralIndex == null
+                ? Optional.empty() : structuralIndex.resolveCanonicalIdFromSlug( slug );
+            if ( indexed.isPresent() || dao == null ) {
+                return indexed;
+            }
+            return dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId );
+        };
         final Function< String, Integer > versionOf = slug -> {
             if ( pageManager == null ) return 0;
             // Metadata-free: this lambda needs the version and nothing else, so it must not

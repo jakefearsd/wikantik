@@ -112,4 +112,46 @@ class DriftSnapshotRepositoryTest {
         assertEquals( "status.noncanonical", counts.get( 1 ).code() );
         assertEquals( "wk:implements", counts.get( 2 ).code() );
     }
+
+    @Test
+    void trend_loadsCountsForAllSweepsInOneStatementAndKeepsThemPerSweep() {
+        final long[] ids = new long[ 5 ];
+        for ( int i = 0; i < ids.length; i++ ) {
+            ids[ i ] = repo.insertSweep( Instant.now().minus( 5 - i, ChronoUnit.HOURS ), 10 + i, 1L, "scheduled", true,
+                    List.of( new DriftCount( "frontmatter", "b", "WARNING", i ),
+                             new DriftCount( "frontmatter", "a", "ERROR", i + 100 ) ) );
+        }
+        final java.util.concurrent.atomic.AtomicInteger statements = new java.util.concurrent.atomic.AtomicInteger();
+        final DataSource real = PostgresTestDb.createDataSource();
+        final DataSource counting = ( DataSource ) java.lang.reflect.Proxy.newProxyInstance(
+                DataSource.class.getClassLoader(), new Class< ? >[] { DataSource.class }, ( proxy, m, a ) -> {
+                    try {
+                        final Object r = m.invoke( real, a );
+                        if ( r instanceof java.sql.Connection c ) {
+                            return java.lang.reflect.Proxy.newProxyInstance( c.getClass().getClassLoader(),
+                                    new Class< ? >[] { java.sql.Connection.class }, ( p2, m2, a2 ) -> {
+                                        if ( m2.getName().equals( "prepareStatement" ) ) statements.incrementAndGet();
+                                        try {
+                                            return m2.invoke( c, a2 );
+                                        } catch ( final java.lang.reflect.InvocationTargetException e ) {
+                                            throw e.getCause();
+                                        }
+                                    } );
+                        }
+                        return r;
+                    } catch ( final java.lang.reflect.InvocationTargetException e ) {
+                        throw e.getCause();
+                    }
+                } );
+
+        final List< DriftSweepRecord > trend = new DriftSnapshotRepository( counting ).trend( 7 );
+
+        assertEquals( 5, trend.size() );
+        assertEquals( 2, statements.get(), "one statement for the sweeps plus one for all their counts" );
+        for ( int i = 0; i < ids.length; i++ ) {
+            assertEquals( ids[ i ], trend.get( i ).id() );
+            assertEquals( List.of( new DriftCount( "frontmatter", "a", "ERROR", i + 100 ),
+                                   new DriftCount( "frontmatter", "b", "WARNING", i ) ), trend.get( i ).counts() );
+        }
+    }
 }

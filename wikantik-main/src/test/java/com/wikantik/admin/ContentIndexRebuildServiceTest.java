@@ -171,7 +171,7 @@ class ContentIndexRebuildServiceTest {
     @Test
     void embeddingHookFailureIsRecordedButRebuildStillReachesIdle() throws Exception {
         final EmbeddingIndexService embedSvc = mock( EmbeddingIndexService.class );
-        when( embedSvc.indexStale( eq( "model-x" ) ) ).thenThrow( new RuntimeException( "embed backend down" ) );
+        when( embedSvc.indexStale( eq( "model-x" ), any( java.util.function.IntConsumer.class ) ) ).thenThrow( new RuntimeException( "embed backend down" ) );
         service.setEmbeddingHook( embedSvc, "model-x" );
 
         service.runRebuild();
@@ -191,7 +191,7 @@ class ContentIndexRebuildServiceTest {
         service.runRebuild();
 
         // With the hook cleared, indexStale() must never be invoked.
-        org.mockito.Mockito.verify( embedSvc, org.mockito.Mockito.never() ).indexStale( anyString() );
+        org.mockito.Mockito.verify( embedSvc, org.mockito.Mockito.never() ).indexStale( anyString(), any( java.util.function.IntConsumer.class ) );
     }
 
     // ---- outer fatal-exception catch -----------------------------------------------------------

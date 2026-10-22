@@ -298,7 +298,7 @@ public class ContentIndexRebuildService {
      *       Lucene thanks to the preflight filter. Per-page failures are
      *       captured into {@link #errors} and the loop continues.</li>
      *   <li>{@link State#EMBEDDING} — embed only missing/stale chunks via
-     *       {@link EmbeddingIndexService#indexStale(String)}.
+     *       {@link EmbeddingIndexService#indexStale(String, java.util.function.IntConsumer)}.
      *       Skipped if no embedding hook is wired. This phase dominates the
      *       rebuild's wall time at corpus scale, so the orchestrator drives a
      *       per-batch progress callback into {@link #embeddingsIndexed} for
@@ -456,7 +456,7 @@ public class ContentIndexRebuildService {
         try {
             // Only missing/stale chunks: unchanged ones keep their embeddings. A forced full
             // re-embed is the separate /admin/content/reindex-embeddings endpoint.
-            final int indexed = svc.indexStale( model );
+            final int indexed = svc.indexStale( model, embeddingsIndexed::set );
             embeddingsIndexed.set( indexed );
             LOG.info( "Embedding rebuild complete: model={} indexed={}", model, indexed );
         } catch( final RuntimeException e ) {

@@ -114,8 +114,10 @@ class ContentIndexRebuildServiceEmbeddingHookTest {
             .thenReturn( new EmbeddingIndexService.Status( MODEL, 768, 0, null ) );
         final CountDownLatch midRun = new CountDownLatch( 1 );
         final CountDownLatch release = new CountDownLatch( 1 );
-        when( embed.indexStale( MODEL ) )
+        when( embed.indexStale( eq( MODEL ), any( java.util.function.IntConsumer.class ) ) )
             .thenAnswer( inv -> {
+                // Stream one batch's progress before pausing, as the real per-batch callback does.
+                inv.getArgument( 1, java.util.function.IntConsumer.class ).accept( 5 );
                 midRun.countDown();
                 if ( !release.await( 5, TimeUnit.SECONDS ) ) {
                     throw new AssertionError( "test never released embedding mock" );
@@ -131,6 +133,7 @@ class ContentIndexRebuildServiceEmbeddingHookTest {
         // Mid-run snapshot: state must be EMBEDDING while the stale-only pass runs.
         final IndexStatusSnapshot mid = svc.snapshot();
         assertEquals( "EMBEDDING", mid.rebuild().state() );
+        assertEquals( 5, mid.rebuild().embeddingsIndexed(), "progress streams while the stale pass runs" );
 
         release.countDown();
 

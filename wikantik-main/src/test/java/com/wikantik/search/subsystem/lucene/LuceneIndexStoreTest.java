@@ -76,6 +76,27 @@ class LuceneIndexStoreTest {
     }
 
     @Test
+    void closingFromAnInterruptedThreadStillCommitsAndReleasesTheIndex() throws Exception {
+        // Shutdown runs on the indexer's background thread after it was interrupted; Lucene's close
+        // aborts on an interrupted thread, so the store must close with the flag cleared, then restore it.
+        storeAt( tmp );
+        addDoc( store.writer(), "Pending" );
+        Thread.currentThread().interrupt();
+        try {
+            store.close();
+            assertTrue( Thread.currentThread().isInterrupted(), "the caller's interrupt is preserved" );
+        } finally {
+            Thread.interrupted();
+        }
+        store = null;
+
+        final LuceneIndexStore reopened = storeAt( tmp ); // fails on a write.lock left behind
+        addDoc( reopened.writer(), "After" );
+        reopened.commit();
+        assertEquals( 2, liveDocs(), "the uncommitted write was committed by close()" );
+    }
+
+    @Test
     void readingBeforeTheFirstCommitReportsNoIndexYet() {
         storeAt( tmp );
         assertThrows( IndexNotFoundException.class, store::acquire );

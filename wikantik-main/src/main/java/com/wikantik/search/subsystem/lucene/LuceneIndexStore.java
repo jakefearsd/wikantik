@@ -147,7 +147,17 @@ public final class LuceneIndexStore implements Closeable {
     @Override
     public synchronized void close() {
         closed = true;
-        closeResources();
+        // Shutdown arrives on the indexer's background thread after it was interrupted, and Lucene aborts
+        // IndexWriter.close() on an interrupted thread (losing the final commit). Close with the flag
+        // cleared, then hand it back to the caller.
+        final boolean interrupted = Thread.interrupted();
+        try {
+            closeResources();
+        } finally {
+            if ( interrupted ) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private synchronized ReaderManager openReaders() throws IOException {

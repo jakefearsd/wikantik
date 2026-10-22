@@ -42,7 +42,7 @@ public interface LuceneIndexer {
     void reindexPage( Page page );
 
     /**
-     * Removes the given page from the Lucene index immediately (synchronous).
+     * Removes the given page from the Lucene index and commits (synchronous).
      *
      * @param page the page to remove
      */
@@ -55,7 +55,8 @@ public interface LuceneIndexer {
     void clearIndex();
 
     /**
-     * @return number of pages currently queued for background reindexing
+     * @return number of pages queued for background reindexing, including those a running
+     *         drain has taken but not yet committed
      */
     int getReindexQueueDepth();
 
@@ -83,7 +84,7 @@ public interface LuceneIndexer {
     Set<String> getIndexedPageNames();
 
     /**
-     * Updates the Lucene index for a single page (synchronous, serialised).
+     * Replaces the page's document and commits (synchronous, serialised).
      *
      * @param page the page to index
      * @param text the raw text content to index
@@ -92,7 +93,8 @@ public interface LuceneIndexer {
     boolean updateLuceneIndex( Page page, String text );
 
     /**
-     * Indexes a single {@link Page} document into the given writer.
+     * Writes a single {@link Page} document into the given writer, atomically replacing any
+     * existing document with the same id. Does not commit.
      *
      * @param page   the page (or attachment) to index
      * @param text   the content to index
@@ -148,7 +150,9 @@ public interface LuceneIndexer {
     record DrainStats( int totalQueued, int indexed, int skipped, int failed ) {}
 
     /**
-     * Drains the pending reindex queue, writing each queued page to the index.
+     * Drains the pending reindex queue, writing each queued page and committing once.
+     * Pages that failed stay queued for the next drain (a page failing on its own, a bounded
+     * number of times).
      *
      * @return stats describing what the drain did
      */

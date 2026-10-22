@@ -44,6 +44,7 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.search.subsystem.lucene.DefaultLuceneIndexer;
 import com.wikantik.search.subsystem.lucene.DefaultLuceneIndexLifecycle;
 import com.wikantik.search.subsystem.lucene.DefaultLuceneSearcher;
+import com.wikantik.search.subsystem.lucene.LuceneIndexStore;
 import com.wikantik.search.subsystem.lucene.LuceneIndexer;
 import com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle;
 import com.wikantik.search.subsystem.lucene.LuceneSearcher;
@@ -141,8 +142,8 @@ public class LuceneSearchProvider implements SearchProvider {
 
     /**
      * Resolved once from {@code wikantik.search.lucene.directory.kind} during
-     * {@link #initialize(Engine, Properties)} and passed down to both
-     * {@link DefaultLuceneSearcher} and {@link DefaultLuceneIndexer}. {@code true}
+     * {@link #initialize(Engine, Properties)} and passed down to the
+     * {@link LuceneIndexStore} both helpers share. {@code true}
      * selects {@link org.apache.lucene.store.MMapDirectory}; {@code false}
      * (default) keeps {@link org.apache.lucene.store.NIOFSDirectory}.
      */
@@ -169,6 +170,7 @@ public class LuceneSearchProvider implements SearchProvider {
     // -------------------------------------------------------------------------
 
     private volatile DefaultLuceneIndexLifecycle lifecycle;
+    private volatile LuceneIndexStore store;
     private volatile DefaultLuceneIndexer indexer;
     private volatile DefaultLuceneSearcher searcher;
 
@@ -242,6 +244,21 @@ public class LuceneSearchProvider implements SearchProvider {
     }
 
     /**
+     * Constructs the index store if not already present: the one writer and the shared reader that
+     * the indexer and searcher both use, so every commit refreshes what searches see.
+     */
+    private LuceneIndexStore store() {
+        if ( store == null ) {
+            synchronized ( this ) {
+                if ( store == null ) {
+                    store = new LuceneIndexStore( () -> luceneDirectory, lifecycle(), useMMap );
+                }
+            }
+        }
+        return store;
+    }
+
+    /**
      * Constructs the indexer if not already present.
      * Uses the same {@link List} reference as {@link #updates} so that
      * reflection-based queue injection in tests targets the correct list.
@@ -251,13 +268,12 @@ public class LuceneSearchProvider implements SearchProvider {
             synchronized ( this ) {
                 if ( indexer == null ) {
                     final DefaultLuceneIndexer created = new DefaultLuceneIndexer(
-                            () -> luceneDirectory,
+                            store(),
                             lifecycle(),
                             pageManager,
                             attachmentManager,
                             systemPageRegistry,
-                            updates, // share the facade's updates list
-                            useMMap );
+                            updates ); // share the facade's updates list
                     created.setPublicIdentitySource( this::publicIdentity );
                     indexer = created;
                 }
@@ -307,13 +323,12 @@ public class LuceneSearchProvider implements SearchProvider {
                     final Executor exec = searchExecutor != null
                             ? searchExecutor : newSearchExecutor();
                     searcher = new DefaultLuceneSearcher(
-                            () -> luceneDirectory,
+                            store(),
                             lifecycle(),
                             indexer(),
                             pageManager,
                             engine,
-                            exec,
-                            useMMap );
+                            exec );
                 }
             }
         }
@@ -545,6 +560,17 @@ public class LuceneSearchProvider implements SearchProvider {
         indexer().clearIndex();
     }
 
+    /**
+     * Closes the index writer (committing anything uncommitted and releasing {@code write.lock}) and
+     * the shared reader. Called when the engine shuts down; the index cannot be used afterwards.
+     */
+    public void close() {
+        final LuceneIndexStore s = store;
+        if ( s != null ) {
+            s.close();
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Methods that tests call directly (forwarded to indexer)
     // -------------------------------------------------------------------------
@@ -732,6 +758,11 @@ public class LuceneSearchProvider implements SearchProvider {
             provider.doFullLuceneReindex();
             lastMissingPageCheck = System.currentTimeMillis();
             watchdog.exitState();
+        }
+
+        @Override
+        public void shutdownTask() {
+            provider.close();
         }
 
         @Override

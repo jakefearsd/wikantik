@@ -28,16 +28,11 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.store.Directory;
-// NIOFSDirectory and MMapDirectory are selected at runtime via LuceneDirectoryFactory.
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
@@ -56,10 +51,13 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -69,17 +67,14 @@ import java.util.stream.Collectors;
  *
  * <p>Write side of the LuceneSearchProvider decomposition. Owns the reindex
  * queue ({@link #updates}), per-page document construction, attachment content
- * extraction, and index clearing. All index directory I/O reads the path from
- * a {@link Supplier}{@code <String>} so the enclosing
- * {@code LuceneSearchProvider} facade's {@code luceneDirectory} field can be
- * mutated (e.g. by test fixtures via reflection) without invalidating this
- * helper's view of the path.</p>
+ * extraction, and index clearing. All index I/O goes through a shared
+ * {@link LuceneIndexStore}: one long-lived writer, each page written with
+ * {@code updateDocument} (an atomic replace), one commit per drained batch, and
+ * the searcher's reader refreshed by every commit.</p>
  *
  * <p>Synchronisation for all mutating operations is on {@code this} (the
  * indexer's own monitor), preserving the semantics that were previously on
- * {@code LuceneSearchProvider.this}. The reentrant call from
- * {@link #updateLuceneIndex} into {@link #pageRemoved} is safe because both
- * methods are {@code synchronized} on the same instance.</p>
+ * {@code LuceneSearchProvider.this}.</p>
  */
 public class DefaultLuceneIndexer implements LuceneIndexer {
 
@@ -89,6 +84,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             StringUtils.repeat( " ", TextUtil.PUNCTUATION_CHARS_ALLOWED.length() );
 
     public static final int QUEUE_DEPTH_WARN_THRESHOLD = 1000;
+
+    /** Drains a page may fail in before it is dropped from the queue (a failure of the index itself never counts). */
+    static final int MAX_INDEX_ATTEMPTS = 3;
 
     // Lucene field-name constants (public so the facade in a parent package can reference them)
     public static final String LUCENE_ID            = "id";
@@ -107,7 +105,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             ".xhtml", ".java", ".c", ".cpp", ".php", ".asm", ".sh",
             ".properties", ".kml", ".gpx", ".loc", ".md", ".xml" );
 
-    private final Supplier<String> directorySupplier;
+    private final LuceneIndexStore store;
     private final LuceneIndexLifecycle lifecycle;
     private final PageManager pageManager;
     private final AttachmentManager attachmentManager;
@@ -120,15 +118,6 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
     private volatile Supplier< PublicIdentity > publicIdentitySource = () -> null;
 
     /**
-     * When {@code true}, Lucene {@link org.apache.lucene.store.Directory} instances
-     * are opened as {@link org.apache.lucene.store.MMapDirectory}; when {@code false}
-     * (default), as {@link org.apache.lucene.store.NIOFSDirectory}. Threaded down
-     * from {@link com.wikantik.search.LuceneSearchProvider} where the property
-     * {@code wikantik.search.lucene.directory.kind} is read once.
-     */
-    private final boolean useMMap;
-
-    /**
      * Pending reindex queue — (Page, String) pairs awaiting drain.
      * Injected at construction time so the facade and indexer share the same list
      * instance, allowing test fixtures that access {@code LuceneSearchProvider.updates}
@@ -136,38 +125,39 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
      */
     final List<Object[]> updates;
 
+    /** Pages taken off {@link #updates} by the running drain and not yet committed. Guarded by {@link #updates}. */
+    private int inFlight;
+
+    /** Failed drains per page name, for the {@link #MAX_INDEX_ATTEMPTS} bound. Guarded by {@code this}. */
+    private final Map< String, Integer > failedAttempts = new HashMap<>();
+
     /**
-     * Constructs a {@code DefaultLuceneIndexer} with a caller-supplied queue.
+     * Constructs a {@code DefaultLuceneIndexer} over a shared index store.
      *
-     * @param directorySupplier  lambda that returns the current Lucene index directory path;
-     *                           called on every I/O operation so reflective mutation of the
-     *                           facade's {@code luceneDirectory} field is automatically visible
+     * @param store              the index store, shared with the searcher so commits refresh its reader
      * @param lifecycle          the shared lifecycle (owns analyzer + stats)
      * @param pageManager        used to read page text and enumerate all pages
      * @param attachmentManager  used to enumerate and stream attachments
      * @param systemPageRegistry used to detect system pages; may be {@code null}
      * @param updates            the shared reindex queue — must be thread-safe
      */
-    public DefaultLuceneIndexer( final Supplier<String> directorySupplier,
+    public DefaultLuceneIndexer( final LuceneIndexStore store,
                                   final LuceneIndexLifecycle lifecycle,
                                   final PageManager pageManager,
                                   final AttachmentManager attachmentManager,
                                   final SystemPageRegistry systemPageRegistry,
-                                  final List<Object[]> updates,
-                                  final boolean useMMap ) {
-        this.directorySupplier = directorySupplier;
+                                  final List<Object[]> updates ) {
+        this.store = store;
         this.lifecycle = lifecycle;
         this.pageManager = pageManager;
         this.attachmentManager = attachmentManager;
         this.systemPageRegistry = systemPageRegistry;
         this.updates = updates;
-        this.useMMap = useMMap;
     }
 
     /**
-     * Six-argument convenience constructor for callers that don't yet thread the
-     * MMap flag. Defaults to {@code useMMap=false} (NIO directory) — i.e. the
-     * pre-flag behaviour, preserved for tests and any external wiring.
+     * Convenience constructor for a stand-alone indexer with its own NIO-backed {@link LuceneIndexStore}.
+     * Nothing else sees its commits, so a searcher must not be paired with it.
      */
     public DefaultLuceneIndexer( final Supplier<String> directorySupplier,
                                   final LuceneIndexLifecycle lifecycle,
@@ -175,8 +165,8 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                                   final AttachmentManager attachmentManager,
                                   final SystemPageRegistry systemPageRegistry,
                                   final List<Object[]> updates ) {
-        this( directorySupplier, lifecycle, pageManager, attachmentManager,
-            systemPageRegistry, updates, /*useMMap*/ false );
+        this( new LuceneIndexStore( directorySupplier, lifecycle, false ), lifecycle, pageManager,
+            attachmentManager, systemPageRegistry, updates );
     }
 
     /**
@@ -206,7 +196,14 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
     }
 
     private String dir() {
-        return directorySupplier.get();
+        return store.path();
+    }
+
+    /** {@code true} when the index directory is absent or empty, i.e. there is nothing to read yet. */
+    private boolean indexDirectoryEmpty() {
+        final String path = dir();
+        final String[] dirFiles = path == null ? null : new File( path ).list();
+        return dirFiles == null || dirFiles.length == 0;
     }
 
     // -------------------------------------------------------------------------
@@ -238,11 +235,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
     @Override
     public synchronized void pageRemoved( final Page page ) {
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
-              IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-            final org.apache.lucene.search.Query query =
-                    new TermQuery( new Term( LUCENE_ID, page.getName() ) );
-            writer.deleteDocuments( query );
+        try {
+            store.writer().deleteDocuments( new Term( LUCENE_ID, page.getName() ) );
+            store.commit();
         } catch ( final Exception e ) {
             // LOG.error justified: Lucene I/O failure removing a page from the index; search results may be stale until corrected.
             LOG.error( "Unable to remove page '{}' from Lucene index", page.getName(), e );
@@ -260,10 +255,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         if ( !dirFile.exists() ) {
             return;
         }
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-              IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-            writer.deleteAll();
-            writer.commit();
+        try {
+            store.writer().deleteAll();
+            store.commit();
             lifecycle.touchLastUpdateInstant();
             LOG.info( "Cleared Lucene index at {}", dirFile.getAbsolutePath() );
         } catch ( final IOException e ) {
@@ -275,23 +269,23 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
     @Override
     public int documentCount() {
-        final File dirFile = new File( dir() == null ? "" : dir() );
-        final String[] dirFiles = dirFile.list();
-        if ( !dirFile.exists() || dirFiles == null || dirFiles.length == 0 ) {
+        if ( indexDirectoryEmpty() ) {
             return 0;
         }
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-              IndexReader reader = DirectoryReader.open( luceneDir ) ) {
-            return reader.numDocs();
+        try ( LuceneIndexStore.ReaderLease lease = store.acquire() ) {
+            return lease.reader().numDocs();
         } catch ( final IOException e ) {
             LOG.warn( "Could not read Lucene index for documentCount: {}", e.getMessage(), e );
             return 0;
         }
     }
 
+    /** Counts queued pages plus those the running drain has taken but not yet committed. */
     @Override
     public int getReindexQueueDepth() {
-        return updates.size();
+        synchronized ( updates ) {
+            return updates.size() + inFlight;
+        }
     }
 
     @Override
@@ -311,10 +305,8 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                 final Date start = new Date();
                 LOG.info( "Starting Lucene reindexing, this can take a couple of minutes..." );
 
-                final Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-                try ( IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-                    indexAllPagesAndAttachments( writer );
-                }
+                indexAllPagesAndAttachments( store.writer() );
+                store.commit();
 
                 final Date end = new Date();
                 LOG.info( "Full Lucene index finished in {} milliseconds.", end.getTime() - start.getTime() );
@@ -377,9 +369,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
     @Override
     public int indexMissingPages() {
-        final File dirFile = new File( dir() );
-        final String[] dirFiles = dirFile.list();
-        if ( !dirFile.exists() || dirFiles == null || dirFiles.length == 0 ) {
+        if ( indexDirectoryEmpty() ) {
             LOG.debug( "No Lucene index exists, skipping missing page check" );
             return 0;
         }
@@ -392,9 +382,10 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
             logMissingPageSweepResult( allPages, indexedPages, missingPages );
 
+            int missingPagesWritten = 0;
             if ( !missingPages.isEmpty() ) {
                 LOG.info( "Found {} pages missing from Lucene index, indexing...", missingPages.size() );
-                pagesIndexed = indexMissingPagesToDisk( dirFile, missingPages );
+                missingPagesWritten = indexMissingPagesToDisk( missingPages );
             }
 
             final Collection<Attachment> allAttachments = attachmentManager.getAllAttachments();
@@ -402,11 +393,17 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                     .filter( att -> !indexedPages.contains( att.getName() ) )
                     .toList();
 
+            int attachmentsWritten = 0;
             if ( !missingAttachments.isEmpty() ) {
                 LOG.info( "Found {} attachments missing from Lucene index, indexing...",
                           missingAttachments.size() );
-                indexMissingAttachmentsToDisk( dirFile, missingAttachments );
+                attachmentsWritten = indexMissingAttachmentsToDisk( missingAttachments );
             }
+            // One commit for the whole sweep — pages and attachments alike.
+            if ( missingPagesWritten + attachmentsWritten > 0 ) {
+                store.commit();
+            }
+            pagesIndexed = missingPagesWritten;
         } catch ( final ProviderException e ) {
             // LOG.error justified: page provider failure during missing-page sweep; index may be incomplete.
             LOG.error( "Error reading pages while checking for missing Lucene entries", e );
@@ -458,64 +455,58 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         }
     }
 
-    /** Opens a writer and indexes {@code missingPages} into it, returning the count actually indexed. */
-    private int indexMissingPagesToDisk( final File dirFile, final List<Page> missingPages ) throws IOException, ProviderException {
+    /** Writes {@code missingPages} through the shared writer (uncommitted), returning the count written. */
+    private int indexMissingPagesToDisk( final List<Page> missingPages ) throws IOException, ProviderException {
+        final IndexWriter writer = store.writer();
         int pagesIndexed = 0;
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-              IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-            for ( final Page page : missingPages ) {
-                try {
-                    final String text = pageManager.getPageText(
-                            page.getName(), WikiProvider.LATEST_VERSION );
-                    luceneIndexPage( page, text, writer );
-                    pagesIndexed++;
-                    LOG.debug( "Indexed missing page: {}", page.getName() );
-                } catch ( final IOException e ) {
-                    LOG.warn( "Unable to index missing page {}", page.getName(), e );
-                }
+        for ( final Page page : missingPages ) {
+            try {
+                final String text = pageManager.getPageText(
+                        page.getName(), WikiProvider.LATEST_VERSION );
+                luceneIndexPage( page, text, writer );
+                pagesIndexed++;
+                LOG.debug( "Indexed missing page: {}", page.getName() );
+            } catch ( final IOException e ) {
+                LOG.warn( "Unable to index missing page {}", page.getName(), e );
             }
         }
         LOG.info( "Indexed {} missing pages", pagesIndexed );
         return pagesIndexed;
     }
 
-    /** Opens a writer and indexes {@code missingAttachments} into it. */
-    private void indexMissingAttachmentsToDisk( final File dirFile, final List<Attachment> missingAttachments ) throws IOException {
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-              IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-            int attachmentsIndexed = 0;
-            for ( final Attachment att : missingAttachments ) {
-                try {
-                    final String text = getAttachmentContent(
-                            att.getName(), WikiProvider.LATEST_VERSION );
-                    luceneIndexPage( att, text, writer );
-                    attachmentsIndexed++;
-                    LOG.debug( "Indexed missing attachment: {}", att.getName() );
-                } catch ( final IOException e ) {
-                    LOG.warn( "Unable to index missing attachment {}", att.getName(), e );
-                }
+    /** Writes {@code missingAttachments} through the shared writer (uncommitted), returning the count written. */
+    private int indexMissingAttachmentsToDisk( final List<Attachment> missingAttachments ) throws IOException {
+        final IndexWriter writer = store.writer();
+        int attachmentsIndexed = 0;
+        for ( final Attachment att : missingAttachments ) {
+            try {
+                final String text = getAttachmentContent(
+                        att.getName(), WikiProvider.LATEST_VERSION );
+                luceneIndexPage( att, text, writer );
+                attachmentsIndexed++;
+                LOG.debug( "Indexed missing attachment: {}", att.getName() );
+            } catch ( final IOException e ) {
+                LOG.warn( "Unable to index missing attachment {}", att.getName(), e );
             }
-            LOG.info( "Indexed {} missing attachments", attachmentsIndexed );
         }
+        LOG.info( "Indexed {} missing attachments", attachmentsIndexed );
+        return attachmentsIndexed;
     }
 
     @Override
     public Set<String> getIndexedPageNames() {
         final Set<String> indexedPages = new HashSet<>();
-        final File dirFile = new File( dir() );
-        final String[] dirFiles = dirFile.list();
-        if ( !dirFile.exists() || dirFiles == null || dirFiles.length == 0 ) {
+        if ( indexDirectoryEmpty() ) {
             return indexedPages;
         }
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-              IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+        try ( LuceneIndexStore.ReaderLease lease = store.acquire() ) {
             // Walk each leaf and honour liveDocs. A deleted document keeps its stored
             // fields on disk until a merge reclaims the segment, so a reader.maxDoc()
             // scan still reads back the deleted page's id and reports it as indexed.
             // The missing-page sweep would then never re-index a page the searcher
             // (which honours liveDocs) can no longer match — it stays invisible to
             // search indefinitely while the sweep logs "0 pages missing".
-            for ( final LeafReaderContext leafContext : reader.leaves() ) {
+            for ( final LeafReaderContext leafContext : lease.reader().leaves() ) {
                 final LeafReader leaf = leafContext.reader();
                 final Bits liveDocs = leaf.getLiveDocs();
                 final StoredFields storedFields = leaf.storedFields();
@@ -543,10 +534,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             return false;
         }
         LOG.debug( "Updating Lucene index for page '{}'...", page.getName() );
-        pageRemoved( page );
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
-              IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-            luceneIndexPage( page, text, writer );
+        try {
+            luceneIndexPage( page, text, store.writer() );
+            store.commit();
         } catch ( final IOException e ) {
             // LOG.error justified: Lucene I/O failure indexing a page; search results may be stale.
             LOG.error( "Unable to update page '{}' from Lucene index", page.getName(), e );
@@ -645,9 +635,10 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             LOG.debug( "Could not parse frontmatter for indexing {}: {}", page.getName(), e.getMessage() );
         }
 
-        synchronized ( writer ) {
-            writer.addDocument( doc );
-        }
+        // Replaces any existing document for the page in one atomic operation, so a failure can never
+        // leave the page deleted but not re-added. No synchronized( writer ): IndexWriter is thread-safe,
+        // and Lucene warns that locking on it can deadlock against its own merge threads.
+        writer.updateDocument( new Term( LUCENE_ID, page.getName() ), doc );
         return doc;
     }
 
@@ -689,44 +680,146 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                 && systemPageRegistry.isSystemPage( pageName );
     }
 
+    /**
+     * Takes the whole queue as one batch, writes each page through the shared writer and commits once.
+     * Pages that failed stay queued for the next drain: a page that failed on its own for up to
+     * {@link #MAX_INDEX_ATTEMPTS} drains, and every uncommitted page when the index itself failed.
+     */
     @Override
     public DrainStats drainUpdateQueue() {
-        synchronized ( updates ) {
-            final int totalQueued = updates.size();
-            if ( totalQueued >= QUEUE_DEPTH_WARN_THRESHOLD ) {
-                LOG.warn( "Lucene reindex queue depth {} has reached threshold {} — sustained backpressure; search results may lag",
-                          totalQueued, QUEUE_DEPTH_WARN_THRESHOLD );
-            }
-            if ( totalQueued == 0 ) {
-                return new DrainStats( 0, 0, 0, 0 );
-            }
-
-            int processed = 0;
-            int failed = 0;
-            int skipped = 0;
-            while ( !updates.isEmpty() ) {
-                final Object[] pair = updates.remove( 0 );
-                final Page page = ( Page ) pair[ 0 ];
-                final String text = ( String ) pair[ 1 ];
-                if ( isSystemPageExcluded( page.getName() ) ) {
-                    LOG.debug( "Drain loop skipping system page '{}'", page.getName() );
-                    skipped++;
-                } else if ( !updateLuceneIndex( page, text ) ) {
-                    failed++;
-                }
-                processed++;
-                if ( processed % 100 == 0 ) {
-                    LOG.info( "Reindex progress: {}/{} pages indexed ({} failed, {} skipped so far)",
-                              processed, totalQueued, failed, skipped );
-                }
-            }
-            final int indexed = processed - failed - skipped;
-            LOG.info( "Reindex complete: {} pages indexed, {} failed, {} skipped out of {} total",
-                      indexed, failed, skipped, totalQueued );
-            if ( indexed > 0 ) {
-                lifecycle.touchLastUpdateInstant();
-            }
-            return new DrainStats( totalQueued, indexed, skipped, failed );
+        final List<Object[]> batch = takeQueuedBatch();
+        if ( batch.size() >= QUEUE_DEPTH_WARN_THRESHOLD ) {
+            LOG.warn( "Lucene reindex queue depth {} has reached threshold {} — sustained backpressure; search results may lag",
+                      batch.size(), QUEUE_DEPTH_WARN_THRESHOLD );
         }
+        if ( batch.isEmpty() ) {
+            return new DrainStats( 0, 0, 0, 0 );
+        }
+        final List<Object[]> retry = new ArrayList<>();
+        try {
+            return indexBatch( batch, retry );
+        } finally {
+            requeue( retry, batch.size() );
+        }
+    }
+
+    /** Moves the whole queue into a local batch at once; the pages count as in flight until {@link #requeue}. */
+    private List<Object[]> takeQueuedBatch() {
+        synchronized ( updates ) {
+            final List<Object[]> batch = new ArrayList<>( updates );
+            updates.clear();
+            inFlight += batch.size();
+            return batch;
+        }
+    }
+
+    private synchronized DrainStats indexBatch( final List<Object[]> batch, final List<Object[]> retry ) {
+        final List<Object[]> toWrite = new ArrayList<>( batch.size() );
+        for ( final Object[] item : batch ) {
+            if ( isSystemPageExcluded( pageOf( item ).getName() ) ) {
+                LOG.debug( "Drain loop skipping system page '{}'", pageOf( item ).getName() );
+            } else {
+                toWrite.add( item );
+            }
+        }
+        final int skipped = batch.size() - toWrite.size();
+        final int indexed = toWrite.isEmpty() ? 0 : writeAndCommit( toWrite, batch.size(), retry );
+        final int failed = toWrite.size() - indexed;
+        LOG.info( "Reindex complete: {} pages indexed, {} failed, {} skipped out of {} total",
+                  indexed, failed, skipped, batch.size() );
+        return new DrainStats( batch.size(), indexed, skipped, failed );
+    }
+
+    /** Writes {@code toWrite} and commits once; returns the number committed, adding what to try again to {@code retry}. */
+    private int writeAndCommit( final List<Object[]> toWrite, final int totalQueued, final List<Object[]> retry ) {
+        final IndexWriter writer;
+        try {
+            writer = store.writer();
+        } catch ( final IOException | RuntimeException e ) {
+            LOG.warn( "Cannot open the Lucene index writer; {} pages stay queued: {}", toWrite.size(), e.getMessage(), e );
+            retry.addAll( toWrite );
+            return 0;
+        }
+        final List<Object[]> written = new ArrayList<>( toWrite.size() );
+        for ( int i = 0; i < toWrite.size(); i++ ) {
+            final Object[] item = toWrite.get( i );
+            final Exception failure = writeQueuedPage( item, writer );
+            if ( failure == null ) {
+                written.add( item );
+            } else if ( writer.isOpen() ) {
+                retryOrDrop( item, failure, retry );
+            } else {
+                // Lucene closed the writer after a tragic failure; nothing written in this batch will commit.
+                LOG.warn( "Lucene index writer closed while indexing '{}'; {} pages stay queued: {}",
+                          pageOf( item ).getName(), toWrite.size() - i, failure.getMessage(), failure );
+                retry.addAll( toWrite.subList( i, toWrite.size() ) );
+                break;
+            }
+            if ( ( i + 1 ) % 100 == 0 ) {
+                LOG.info( "Reindex progress: {}/{} pages written ({} failed so far)", i + 1, totalQueued, i + 1 - written.size() );
+            }
+        }
+        return commitWritten( written, retry );
+    }
+
+    /** @return {@code null} when the page was written, else the failure */
+    private Exception writeQueuedPage( final Object[] item, final IndexWriter writer ) {
+        try {
+            luceneIndexPage( pageOf( item ), ( String ) item[ 1 ], writer );
+            return null;
+        } catch ( final IOException | RuntimeException e ) {
+            return e;
+        }
+    }
+
+    private int commitWritten( final List<Object[]> written, final List<Object[]> retry ) {
+        if ( written.isEmpty() ) {
+            return 0;
+        }
+        try {
+            store.commit();
+        } catch ( final IOException | RuntimeException e ) {
+            LOG.warn( "Lucene commit of {} pages failed; they stay queued: {}", written.size(), e.getMessage(), e );
+            retry.addAll( written );
+            return 0;
+        }
+        if ( !failedAttempts.isEmpty() ) {
+            written.forEach( item -> failedAttempts.remove( pageOf( item ).getName() ) );
+        }
+        lifecycle.touchLastUpdateInstant();
+        return written.size();
+    }
+
+    /** Re-queues a page that failed on its own until it has failed {@link #MAX_INDEX_ATTEMPTS} drains. */
+    private void retryOrDrop( final Object[] item, final Exception failure, final List<Object[]> retry ) {
+        final String name = pageOf( item ).getName();
+        final int attempts = failedAttempts.merge( name, 1, Integer::sum );
+        if ( attempts < MAX_INDEX_ATTEMPTS ) {
+            LOG.warn( "Unable to index page '{}' (attempt {} of {}); it stays queued: {}",
+                      name, attempts, MAX_INDEX_ATTEMPTS, failure.getMessage(), failure );
+            retry.add( item );
+        } else {
+            failedAttempts.remove( name );
+            // LOG.error justified: the update is abandoned; search keeps the page's previously indexed version until it is saved again.
+            LOG.error( "Unable to index page '{}' after {} attempts; dropping the update — search keeps its previously "
+                       + "indexed version until the page is saved again", name, attempts, failure );
+        }
+    }
+
+    /** Puts {@code retry} back on the queue, except pages a newer save has queued again meanwhile, and ends the batch's in-flight count. */
+    private void requeue( final List<Object[]> retry, final int batchSize ) {
+        synchronized ( updates ) {
+            for ( final Object[] item : retry ) {
+                final String name = pageOf( item ).getName();
+                if ( updates.stream().noneMatch( queued -> name.equals( pageOf( queued ).getName() ) ) ) {
+                    updates.add( item );
+                }
+            }
+            inFlight -= batchSize;
+        }
+    }
+
+    private static Page pageOf( final Object[] item ) {
+        return ( Page ) item[ 0 ];
     }
 }

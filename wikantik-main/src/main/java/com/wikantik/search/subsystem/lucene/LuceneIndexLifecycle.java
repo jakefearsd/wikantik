@@ -30,10 +30,10 @@ import java.time.Instant;
  *
  * <p>Owns the cached {@link Analyzer} instance and all shared mutable state:
  * search-counter metrics and the {@code lastUpdateInstant} timestamp.
- * Provides an {@link IndexWriter} factory used by the indexer.
- * The Lucene index directory path is managed by the enclosing
- * {@code LuceneSearchProvider} facade and threaded through via
- * {@code Supplier<String>} lambdas on the indexer and searcher.</p>
+ * Provides the {@link IndexWriter} factory {@link LuceneIndexStore} opens its one
+ * long-lived writer with. The Lucene index directory path is managed by the enclosing
+ * {@code LuceneSearchProvider} facade and read by that store through a
+ * {@code Supplier<String>}.</p>
  */
 public interface LuceneIndexLifecycle {
 

@@ -205,9 +205,9 @@ class DefaultLuceneIndexerTest {
         when( attachmentManager.getAllAttachments() ).thenReturn( List.of( att ) );
         when( attachmentManager.getAttachmentInfo( "Attach1", WikiProvider.LATEST_VERSION ) ).thenReturn( att );
 
-        // Every addDocument (page AND attachment) fails — must not abort the batch.
+        // Every document write (page AND attachment) fails — must not abort the batch.
         final IndexWriter faultyWriter = mock( IndexWriter.class );
-        when( faultyWriter.addDocument( any() ) ).thenThrow( new IOException( "add failed" ) );
+        when( faultyWriter.updateDocument( any(), any() ) ).thenThrow( new IOException( "add failed" ) );
         when( lifecycle.getIndexWriter( any() ) ).thenReturn( faultyWriter );
 
         final DefaultLuceneIndexer indexer = newIndexer();
@@ -240,7 +240,7 @@ class DefaultLuceneIndexerTest {
         when( attachmentManager.getAllAttachments() ).thenReturn( List.of() );
 
         final IndexWriter faultyWriter = mock( IndexWriter.class );
-        when( faultyWriter.addDocument( any() ) ).thenThrow( new IOException( "add failed" ) );
+        when( faultyWriter.updateDocument( any(), any() ) ).thenThrow( new IOException( "add failed" ) );
         when( lifecycle.getIndexWriter( any() ) ).thenReturn( faultyWriter );
 
         final DefaultLuceneIndexer indexer = newIndexer();
@@ -260,7 +260,7 @@ class DefaultLuceneIndexerTest {
         when( attachmentManager.getAttachmentInfo( "Attach1", WikiProvider.LATEST_VERSION ) ).thenReturn( att );
 
         final IndexWriter faultyWriter = mock( IndexWriter.class );
-        when( faultyWriter.addDocument( any() ) ).thenThrow( new IOException( "add failed" ) );
+        when( faultyWriter.updateDocument( any(), any() ) ).thenThrow( new IOException( "add failed" ) );
         when( lifecycle.getIndexWriter( any() ) ).thenReturn( faultyWriter );
 
         final DefaultLuceneIndexer indexer = newIndexer();

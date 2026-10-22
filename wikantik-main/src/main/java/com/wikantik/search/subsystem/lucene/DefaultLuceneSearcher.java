@@ -22,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexNotFoundException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.StoredFields;
@@ -41,9 +40,6 @@ import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleHTMLEncoder;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
-import org.apache.lucene.store.Directory;
-// NIOFSDirectory and MMapDirectory are selected at runtime via LuceneDirectoryFactory;
-// no direct import needed here.
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
@@ -60,7 +56,6 @@ import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -79,10 +74,9 @@ import java.util.function.Supplier;
  *
  * <p>Read side of the LuceneSearchProvider decomposition. Owns query parsing,
  * scored-hits assembly, ACL filtering, highlighting, snippet extraction, and
- * MoreLikeThis. Reads the Lucene index via a per-call {@link DirectoryReader}
- * (no persistent searcher state). Directory path is obtained from a
- * {@link Supplier}{@code <String>} so that reflective mutations of the facade's
- * {@code luceneDirectory} field are automatically visible.</p>
+ * MoreLikeThis. Reads the Lucene index through the shared {@link LuceneIndexStore}:
+ * each query borrows the current reader and gives it back, so consecutive searches
+ * reuse one open reader until a commit replaces it.</p>
  */
 public class DefaultLuceneSearcher implements LuceneSearcher {
 
@@ -112,7 +106,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
             2.5f   // summary
     };
 
-    private final Supplier<String> directorySupplier;
+    private final LuceneIndexStore store;
     private final LuceneIndexLifecycle lifecycle;
     private final LuceneIndexer indexer;
     private final PageManager pageManager;
@@ -145,15 +139,6 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     private static final java.util.Set< String > ID_ONLY_FIELDS =
         java.util.Set.of( DefaultLuceneIndexer.LUCENE_ID );
 
-    /**
-     * When {@code true}, Lucene {@link org.apache.lucene.store.Directory} instances
-     * are opened as {@link org.apache.lucene.store.MMapDirectory}; when {@code false}
-     * (default), as {@link org.apache.lucene.store.NIOFSDirectory}. Threaded down
-     * from {@link com.wikantik.search.LuceneSearchProvider} where the property
-     * {@code wikantik.search.lucene.directory.kind} is read once.
-     */
-    private final boolean useMMap;
-
     // Lazily resolved (initialised after SearchManager in engine startup sequence)
     private AuthorizationManager authorizationManager;
     private AclManager aclManager;
@@ -161,31 +146,25 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     /**
      * Constructs a {@code DefaultLuceneSearcher}.
      *
-     * @param directorySupplier lambda that returns the current Lucene index directory path
+     * @param store              the index store shared with the indexer, whose commits refresh its reader
      * @param lifecycle          shared lifecycle (analyzer + metrics)
      * @param indexer            used to remove stale index entries found during search
      * @param pageManager        used to load page objects for ACL checks
      * @param engine             used for lazy auth-manager resolution
      * @param searchExecutor     executor for Lucene searcher thread pool
-     * @param useMMap            when {@code true}, open {@link org.apache.lucene.store.Directory}
-     *                           instances as {@link org.apache.lucene.store.MMapDirectory};
-     *                           when {@code false} (default), as
-     *                           {@link org.apache.lucene.store.NIOFSDirectory}
      */
-    public DefaultLuceneSearcher( final Supplier<String> directorySupplier,
+    public DefaultLuceneSearcher( final LuceneIndexStore store,
                                    final LuceneIndexLifecycle lifecycle,
                                    final LuceneIndexer indexer,
                                    final PageManager pageManager,
                                    final Engine engine,
-                                   final Executor searchExecutor,
-                                   final boolean useMMap ) {
-        this.directorySupplier = directorySupplier;
+                                   final Executor searchExecutor ) {
+        this.store = store;
         this.lifecycle = lifecycle;
         this.indexer = indexer;
         this.pageManager = pageManager;
         this.engine = engine;
         this.searchExecutor = searchExecutor;
-        this.useMMap = useMMap;
         // Defensive: engine.getWikiProperties() can be null in test fixtures that
         // mock Engine. Treat that case as "default" (highlighting off).
         final java.util.Properties wikiProps = engine == null ? null : engine.getWikiProperties();
@@ -201,7 +180,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
 
     /**
      * Package-private constructor for tests that supply auth managers directly,
-     * bypassing the lazy-resolution path.
+     * bypassing the lazy-resolution path. Reads through its own NIO-backed store.
      */
     DefaultLuceneSearcher( final Supplier<String> directorySupplier,
                             final LuceneIndexLifecycle lifecycle,
@@ -211,14 +190,10 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                             final Executor searchExecutor,
                             final AuthorizationManager authorizationManager,
                             final AclManager aclManager ) {
-        this( directorySupplier, lifecycle, indexer, pageManager, engine, searchExecutor,
-            /*useMMap*/ false );
+        this( new LuceneIndexStore( directorySupplier, lifecycle, false ), lifecycle, indexer,
+            pageManager, engine, searchExecutor );
         this.authorizationManager = authorizationManager;
         this.aclManager = aclManager;
-    }
-
-    private String dir() {
-        return directorySupplier.get();
     }
 
 
@@ -245,8 +220,8 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         ArrayList<SearchResult> list = new ArrayList<>();
         Highlighter highlighter = null;
 
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
-              IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+        try ( LuceneIndexStore.ReaderLease lease = store.acquire() ) {
+            final IndexReader reader = lease.reader();
 
             final String[] queryfields = {
                     DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS,
@@ -419,9 +394,8 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         }
         final Set<String> excludes = excludeNames == null ? Collections.emptySet() : excludeNames;
 
-        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
-              IndexReader reader = DirectoryReader.open( luceneDir ) ) {
-
+        try ( LuceneIndexStore.ReaderLease lease = store.acquire() ) {
+            final IndexReader reader = lease.reader();
             final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
             final TopDocs seedHits = searcher.search(
                     new TermQuery( new Term( DefaultLuceneIndexer.LUCENE_ID, seedDocName ) ), 1 );

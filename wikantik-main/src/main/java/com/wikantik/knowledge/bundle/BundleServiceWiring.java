@@ -25,6 +25,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Confidence;
+import com.wikantik.api.pagegraph.StructuralConflict;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.chunking.SectionAnchors;
@@ -145,7 +146,7 @@ public final class BundleServiceWiring {
 
         final SectionReranker reranker = rerankerFor( props, confidenceOf );
         final Function< String, Optional< String > > canonicalIdOf = slug -> {
-            final Optional< String > indexed = structuralIndex == null
+            final Optional< String > indexed = structuralIndex == null || hasSynthesisedId( structuralIndex, slug )
                 ? Optional.empty() : structuralIndex.resolveCanonicalIdFromSlug( slug );
             if ( indexed.isPresent() || dao == null ) {
                 return indexed;
@@ -323,6 +324,19 @@ public final class BundleServiceWiring {
      * is an ordering lever, not a recall lever (rerank == dense recall), at ~1.5s per request — so
      * the bundle ships dense-ordered by default (identity) and opts in to the LLM reranker.
      */
+    /**
+     * True when the index holds {@code slug} only under an in-memory id (no authored canonical_id):
+     * that id changes on every restart, so a citation must not pin to it.
+     */
+    private static boolean hasSynthesisedId( final StructuralIndexService index, final String slug ) {
+        for ( final StructuralConflict c : index.conflicts() ) {
+            if ( c.kind() == StructuralConflict.Kind.MISSING_CANONICAL_ID && slug.equals( c.slug() ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static SectionReranker rerankerFor( final Properties props ) {
         return rerankerFor( props, null );
     }

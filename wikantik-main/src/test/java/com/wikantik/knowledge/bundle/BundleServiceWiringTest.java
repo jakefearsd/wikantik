@@ -552,4 +552,24 @@ class BundleServiceWiringTest {
 
         assertEquals( "01X", b.sections().get( 0 ).citation().canonicalId() );
     }
+
+    @Test
+    void build_withStructuralIndex_neverCitesASynthesisedCanonicalId() {
+        // A page without an authored canonical_id is indexed under an in-memory ULID that changes on
+        // every restart; citing it would pin a citation to an id that disappears.
+        final PageCanonicalIdsDao dao = mock( PageCanonicalIdsDao.class );
+        when( dao.findBySlug( "PageX" ) ).thenReturn( Optional.empty() );
+        final com.wikantik.api.pagegraph.StructuralIndexService index =
+            mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        when( index.resolveCanonicalIdFromSlug( "PageX" ) ).thenReturn( Optional.of( "01SYNTH" ) );
+        when( index.conflicts() ).thenReturn( List.of( new com.wikantik.api.pagegraph.StructuralConflict(
+            "PageX", null, com.wikantik.api.pagegraph.StructuralConflict.Kind.MISSING_CANONICAL_ID,
+            "page indexed under synthesised id 01SYNTH" ) ) );
+
+        final ContextBundle b = BundleServiceWiring.build( mock( ContextRetrievalService.class ),
+            Map.of( RetrievalMode.HYBRID, denseWith( "PageX" ), RetrievalMode.DENSE, denseWith( "PageX" ) ),
+            dao, null, new Properties(), null, index ).assemble( "q" );
+
+        assertTrue( b.sections().isEmpty(), "an un-persisted id must not be cited" );
+    }
 }

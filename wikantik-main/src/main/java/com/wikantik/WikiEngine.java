@@ -1726,7 +1726,8 @@ public class WikiEngine implements Engine {
                 pageCanonicalIdsDao(),
                 pageSubsystem != null ? pageSubsystem.pages() : null,
                 properties,
-                confidenceOf );
+                confidenceOf,
+                structuralIndex );
 
         final com.wikantik.api.briefing.BriefingAssemblyService briefingSvc =
             com.wikantik.knowledge.briefing.BriefingServiceWiring.build(

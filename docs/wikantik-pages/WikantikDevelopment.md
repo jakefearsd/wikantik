@@ -56,7 +56,7 @@ Wikantik is a Maven multi-module reactor: 24 modules in the root `pom.xml` `<mod
 | `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 29 tools |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for non-MCP clients |
 | `wikantik-scim` | SCIM 2.0 provisioning at `/scim/v2/*` |
-| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 21 read-only tools when fully wired; also hosts the KG service, hybrid retriever, RAG bundle |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 22 read-only tools when fully wired; also hosts the KG service, hybrid retriever, RAG bundle |
 | `wikantik-ontology` | RDF/OWL ontology (Apache Jena + TDB2) — T-Box, projectors, SHACL gate, public SPARQL surface |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation, and the backpressure and rate-limit filters |
 | `wikantik-insights` | Content Intelligence — search-visibility facts, opportunity rules, effect measurement; depends only on `wikantik-jdbc` |

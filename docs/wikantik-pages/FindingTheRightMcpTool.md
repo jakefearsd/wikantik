@@ -93,7 +93,8 @@ Two MCP endpoints, partitioned by trust level:
   stronger) key, and limited to pages an anonymous visitor may view. Hosts
   grounding and retrieval (assemble_bundle, retrieve_context, get_briefing,
   read_pages, get_page, list_pages, list_metadata_values), navigation
-  (list_clusters, list_tags, list_pages_by_filter, get_page_by_id),
+  (list_clusters, list_tags, list_pages_by_filter, get_page_by_id,
+  get_page_neighbors),
   knowledge-graph traversal (discover_schema, query_nodes, get_node,
   traverse, search_knowledge, find_similar), the agent-grade projection
   (get_page_for_agent), and the ontology and citation tools (get_ontology,

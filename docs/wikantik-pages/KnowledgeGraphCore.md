@@ -66,7 +66,7 @@ Entities and relations enter mainly through two routes: the LLM extractors (chun
 Two separate MCP endpoints serve different use cases:
 
 - **`/wikantik-admin-mcp`** (authoring + curation, 29 tools on the server overall). The KG-facing subset is `propose_knowledge`, `list_proposals`, `inspect_proposals`, `review_proposals`, `curate_nodes`, `curate_edges`, `list_orphaned_kg_nodes`, plus admin-bypass copies of `query_nodes` and `search_knowledge` so curators see entities they have just created.
-- **`/knowledge-mcp`** (consumption, 21 read-only tools on the server overall when fully wired). The KG-facing subset is `discover_schema`, `query_nodes`, `traverse` (a co-mention traversal), `get_node`, `search_knowledge`, and `find_similar`; the ontology tools `get_ontology` and `sparql_query` sit beside them.
+- **`/knowledge-mcp`** (consumption, 22 read-only tools on the server overall when fully wired). The KG-facing subset is `discover_schema`, `query_nodes`, `traverse` (a co-mention traversal), `get_node`, `search_knowledge`, and `find_similar`; the ontology tools `get_ontology` and `sparql_query` sit beside them.
 
 > The authoring endpoint is `/wikantik-admin-mcp`. An older `/mcp` path appears in early notes; it no longer exists. Curation writes are refused when an edge violates a SHACL shape.
 

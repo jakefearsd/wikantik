@@ -215,7 +215,7 @@ final class OpenApiDocument {
                 "results", List.of(
                         Map.of(
                                 "name", "HybridRetrieval",
-                                "url", "https://wiki.example.com/HybridRetrieval",
+                                "url", "https://wiki.example.com/wiki/HybridRetrieval",
                                 "score", 0.87,
                                 "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
                                 "tags", List.of( "retrieval", "search" ),
@@ -279,7 +279,7 @@ final class OpenApiDocument {
 
         final Map< String, Object > pageExample = Map.of(
                 "name", "HybridRetrieval",
-                "url", "https://wiki.example.com/HybridRetrieval",
+                "url", "https://wiki.example.com/wiki/HybridRetrieval",
                 "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
                 "tags", List.of( "retrieval", "search" ),
                 "text", "# Hybrid Retrieval\n\nHybrid retrieval combines BM25 lexical scoring with dense-vector cosine similarity...",

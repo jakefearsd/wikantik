@@ -42,7 +42,7 @@ The guiding principle, repeated throughout the design, is **human–machine pari
             ▼               ▼            ▼             ▼                  ▼
       /api/* REST     /wikantik-     /knowledge-   /scim/v2/*     /sparql · /id/*
       /admin/*        admin-mcp        mcp                         /export/*  (RDF)
-            │          (29 tools)     (21 tools)     │                  │
+            │          (29 tools)     (22 tools)     │                  │
             └───────────────────────────┬────────────┴──────────────────┘
                                          ▼
                          ┌───────────────────────────────────────────┐

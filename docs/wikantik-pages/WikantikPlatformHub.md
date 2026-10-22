@@ -52,7 +52,7 @@ This hub organizes platform architecture, administrative governance, search inte
 |---|---|---|
 | Hybrid search | Lucene BM25 plus dense embeddings (pgvector, `lucene-hnsw` or in-memory) fused with Reciprocal Rank Fusion; BM25-only fallback when the embedder is down | Page search and cited context bundles (`GET /api/bundle`) |
 | Knowledge Graph | LLM-extracted entities and edges in PostgreSQL (`kg_*` tables), plus an Apache Jena RDF/OWL ontology with a public read-only SPARQL endpoint | Entity traversal and curation, `sparql_query` |
-| AI agent interface | Model Context Protocol: `/wikantik-admin-mcp` (29 tools) and `/knowledge-mcp` (21 read-only tools when fully wired); OpenAPI tool server at `/tools/*` | Retrieval, authoring, curation, session briefings |
+| AI agent interface | Model Context Protocol: `/wikantik-admin-mcp` (29 tools) and `/knowledge-mcp` (22 read-only tools when fully wired); OpenAPI tool server at `/tools/*` | Retrieval, authoring, curation, session briefings |
 | Collaborative editing | Markdown with YAML frontmatter, a CodeMirror editor in the React single-page app, per-page version history and diffs | Authoring, review, restore |
 | Security and governance | JAAS authentication (database accounts, SSO, SCIM provisioning), page ACLs, database-backed policy grants, scoped `admin:<area>` grants, API-key scopes (`tools`, `mcp_read`, `mcp_admin`) | Who may view, edit and administer what |
 

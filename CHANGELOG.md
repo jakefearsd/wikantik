@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Context bundles (`assemble_bundle`, `GET /api/bundle`) give each section a `url` that opens the wiki at that
+  section: `wikantik.baseURL` + `/wiki/<page>#<anchor>`, site-relative when `wikantik.baseURL` is blank. A section
+  below h3 links to its nearest h2/h3, and a section whose heading has left the page links to the page.
+- `get_page_neighbors` on `/knowledge-mcp` (22 tools when fully wired): a page's 1-hop Page Graph neighborhood
+  without page bodies — the pages it wikilinks to, the pages that wikilink to it, and its cluster siblings with
+  each cluster's hub. Pages an anonymous visitor cannot view are left out.
+- Clicking a heading's `#` anchor in the reader copies the section's link.
+
+### Fixed
+- Opening a link to a section (`/wiki/Page#section`) now lands on the section; it used to stop thousands of
+  pixels away, because the browser scrolled the server-rendered page before the reader replaced it with a
+  taller layout. The section is held in place while web fonts and math finish loading, until the reader scrolls.
+- `retrieve_context` page URLs were bare page names (`"url":"HybridRetrieval"`); they are now reader links built
+  from `wikantik.baseURL`, else the context path.
+- `get_page_for_agent` no longer advertises a "typed relations" field it never returned.
+
 ## [2.4.59] - 2026-10-17
 
 ### Upgrade notes

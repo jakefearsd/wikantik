@@ -245,7 +245,7 @@ Tool names below are canonical wire identifiers (snake\_case). Every tool ships 
 
 The admin endpoint also serves resources, prompts, and completions (see *Capabilities*).
 
-### `/knowledge-mcp` (21 tools when fully wired)
+### `/knowledge-mcp` (22 tools when fully wired)
 
 **Knowledge-graph traversal & introspection** (registered when `KnowledgeGraphService` is configured):
 
@@ -286,8 +286,9 @@ The admin endpoint also serves resources, prompts, and completions (see *Capabil
 | `list_tags` | Enumerate tags with frequency. |
 | `list_pages_by_filter` | Pages matching `cluster=`, `tag=`, `type=`, etc. |
 | `get_page_by_id` | Resolve a page by its stable `canonical_id` (ULID). |
+| `get_page_neighbors` | A page's 1-hop Page Graph neighborhood without bodies: pages it wikilinks to, pages that wikilink to it, and its cluster siblings with each cluster's hub, each as `{slug, title, type, summary}`. |
 
-> **Removed 2026-05-02:** `traverse_relations` no longer exists. It walked the typed `relations:` frontmatter block, which was deleted with typed relations. For page-to-page traversal use `get_backlinks` / `get_outbound_links` on `/wikantik-admin-mcp` (real wikilink edges), or `traverse` on this server for the derived KG co-mention graph.
+> **Removed 2026-05-02:** `traverse_relations` no longer exists. It walked the typed `relations:` frontmatter block, which was deleted with typed relations. For page-to-page traversal use `get_page_neighbors` on this server (real wikilink edges, both directions, plus cluster siblings), `get_backlinks` / `get_outbound_links` on `/wikantik-admin-mcp` (restricted pages included), or `traverse` on this server for the derived KG co-mention graph.
 
 **Agent-grade projection** (registered when `ForAgentProjectionService` is configured):
 
@@ -593,7 +594,7 @@ Log streams worth tailing:
 | `403 Key not authorized for MCP` | A valid key whose scope does not cover the endpoint: a `tools` key at an MCP endpoint, or an `mcp_read` key at `/wikantik-admin-mcp`. Mint a key with `scope=mcp_read` (knowledge endpoint), `scope=mcp_admin` or `scope=all`. |
 | `429 Rate limit exceeded` | Rate-limit knobs too tight, or runaway agent; back off for the `Retry-After: 1` second. Inspect `SecurityLog`. |
 | `/knowledge-mcp` is not mounted (404) or lists no tools | None of `KnowledgeGraphService`, `ContextRetrievalService`, `StructuralIndexService` is configured — check `wikantik.datasource` and the embeddings setup. |
-| `/knowledge-mcp` advertises fewer than 21 tools, or `/wikantik-admin-mcp` fewer than 29 | Expected on a partial deployment — several tools register conditionally on what is wired. Not an error. |
+| `/knowledge-mcp` advertises fewer than 22 tools, or `/wikantik-admin-mcp` fewer than 29 | Expected on a partial deployment — several tools register conditionally on what is wired. Not an error. |
 | `get_page_for_agent` returns `degraded: true` | One of the extractors failed; the named field appears in `missing_fields`. Check log for the underlying exception. |
 | Startup log warns about tool-name drift | An external `mcp.instructions.file` override disagrees with the live registry. The bundled instructions are regression-tested at build time; only an operator-supplied override can drift in a live deployment. Refresh the override or remove it. |
 | Authoring tool says `hash mismatch` | Optimistic-lock guard fired. The response carries `currentHash`, `currentVersion` and `latestContent` — rebase against it and retry without a separate read. |

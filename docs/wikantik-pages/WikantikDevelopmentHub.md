@@ -36,7 +36,7 @@ This hub details Wikantik platform internals, MCP integration patterns, search p
 
 | Layer | Technologies | Primary functionality |
 |---|---|---|
-| Agent surface | MCP servers `/wikantik-admin-mcp` (29 tools) and `/knowledge-mcp` (21 read-only tools when fully wired); OpenAPI tool server `/tools/*` (2 tools) | Authoring, curation, retrieval, session briefings |
+| Agent surface | MCP servers `/wikantik-admin-mcp` (29 tools) and `/knowledge-mcp` (22 read-only tools when fully wired); OpenAPI tool server `/tools/*` (2 tools) | Authoring, curation, retrieval, session briefings |
 | Knowledge Graph | LLM-extracted entities and edges in PostgreSQL (`kg_*` tables); Apache Jena RDF/OWL ontology with read-only SPARQL | Entity curation, traversal, ontology queries |
 | Hybrid search | Apache Lucene BM25 plus dense embeddings (pgvector, `lucene-hnsw` or in-memory), fused with Reciprocal Rank Fusion; BM25-only fallback when the embedder is down | Page search and cited context bundles |
 | Storage and versioning | File-system page provider with per-page version history (`VersioningFileProvider`); PostgreSQL for users, groups, policy grants, knowledge and embeddings, with the schema defined only by `bin/db/migrations/V*.sql` | Version history, diffs, durable metadata |

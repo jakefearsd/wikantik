@@ -137,6 +137,40 @@ class CookieAuthenticationLoginModuleCITest {
         assertEquals( "janne", principals.iterator().next().getName() );
     }
 
+    // --- revokeLoginCookies: a revoked user's cookie stops authenticating, others keep working ---
+
+    @Test
+    void revokedLoginCookiesNoLongerAuthenticateButOtherUsersStillDo() throws Exception {
+        final String revokedUid = issueCookie( "revoke-me" );
+        final String keptUid = issueCookie( "keep-me" );
+
+        assertEquals( 1, CookieAuthenticationLoginModule.revokeLoginCookies( engine, "revoke-me" ) );
+
+        assertFalse( cookieLogin( revokedUid ), "a revoked cookie must not log anyone in" );
+        assertTrue( cookieLogin( keptUid ), "another user's cookie is untouched" );
+        assertEquals( 0, CookieAuthenticationLoginModule.revokeLoginCookies( engine, "revoke-me" ), "idempotent" );
+        assertEquals( 0, CookieAuthenticationLoginModule.revokeLoginCookies( engine, null ) );
+    }
+
+    private String issueCookie( final String login ) {
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final Cookie[] captured = new Cookie[1];
+        Mockito.doAnswer( invocation -> {
+            captured[0] = invocation.getArgument( 0 );
+            return null;
+        } ).when( response ).addCookie( Mockito.any( Cookie.class ) );
+        CookieAuthenticationLoginModule.setLoginCookie( engine, response, login );
+        return captured[0].getValue();
+    }
+
+    private boolean cookieLogin( final String uid ) throws LoginException {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        Mockito.doReturn( new Cookie[]{ new Cookie( "WikantikUID", uid ) } ).when( request ).getCookies();
+        final LoginModule module = new CookieAuthenticationLoginModule();
+        module.initialize( new Subject(), new WebContainerCallbackHandler( engine, request ), new HashMap<>(), new HashMap<>() );
+        return module.login();
+    }
+
     // --- remember-me cookie must not authenticate a locked/deactivated account ---
 
     @Test

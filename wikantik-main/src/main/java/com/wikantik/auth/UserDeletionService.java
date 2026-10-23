@@ -23,12 +23,14 @@ import com.wikantik.api.core.Session;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.auth.login.CookieAuthenticationLoginModule;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.security.Principal;
 
 /**
@@ -43,14 +45,17 @@ import java.security.Principal;
  *
  * <p>Failure semantics, in order:</p>
  * <ol>
+ *   <li>The account is looked up first: an unknown login throws {@link NoSuchPrincipalException} with nothing
+ *       changed.</li>
+ *   <li>Revoking API keys, removing group memberships, removing the trusted-author entry and deleting the
+ *       remember-me cookie files are <b>fail-closed</b>: a failure is logged and the delete is aborted with a
+ *       {@link WikiSecurityException} <em>before</em> pages or the profile row are touched, so the account remains
+ *       intact and the operation can be retried. A live credential or privilege must never outlive its user. Group
+ *       removal still attempts every group before reporting, so one bad group does not strand the others.</li>
  *   <li>Orphaning owned pages is <b>best-effort</b> (logged, never aborts): the pages stay valid and an admin can
- *       reassign orphans later.</li>
- *   <li>Revoking API keys, removing group memberships and removing the trusted-author entry are
- *       <b>fail-closed</b>: a failure is logged and the delete is aborted with a {@link WikiSecurityException}
- *       <em>before</em> the profile row is touched, so the account remains and the operation can be retried. A
- *       live credential or privilege must never outlive its user. Group removal still attempts every group before
- *       reporting, so one bad group does not strand the others.</li>
- *   <li>The profile row is deleted last; its {@link NoSuchPrincipalException} propagates unchanged.</li>
+ *       reassign orphans later. It runs only once the fail-closed steps passed, so an aborted delete never leaves
+ *       a still-existing account's pages orphaned.</li>
+ *   <li>The profile row is deleted; then the user's live sessions are demoted to guest (best-effort).</li>
  * </ol>
  *
  * <p>SCIM never hard-deletes (it routes decommission through {@link UserLifecycleService#deactivate}), so it does
@@ -87,18 +92,43 @@ public class UserDeletionService {
      * Hard-deletes {@code loginName} and everything keyed on it.
      *
      * @param actorSession the session performing the delete (recorded as the modifier of any group it edits)
-     * @throws NoSuchPrincipalException if no such account exists
+     * @throws NoSuchPrincipalException if no such account exists (nothing is changed)
      * @throws WikiSecurityException    if a fail-closed cleanup step failed (the account is left in place) or the
      *                                  profile row could not be deleted
      */
     public void delete( final Session actorSession, final String loginName )
             throws NoSuchPrincipalException, WikiSecurityException {
-        orphanOwnedPages( loginName );
+        users.findByLoginName( loginName );
         revokeApiKeys( loginName );
         removeFromAllGroups( actorSession, loginName );
         removeTrustedAuthor( loginName );
+        revokeRememberMeCookies( loginName );
+        orphanOwnedPages( loginName );
         users.deleteByLoginName( loginName );
+        endLiveSessions( loginName );
         ProfileChangeNotifier.profileDeleted( engine, loginName );
+    }
+
+    private void revokeRememberMeCookies( final String loginName ) throws WikiSecurityException {
+        try {
+            final int removed = CookieAuthenticationLoginModule.revokeLoginCookies( engine, loginName );
+            LOG.debug( "User delete: removed {} remember-me cookie file(s) of user={}", removed, loginName );
+        } catch ( final IOException | RuntimeException e ) {
+            LOG.warn( "User delete aborted: failed to remove remember-me cookies of user={}: {}",
+                    loginName, e.getMessage(), e );
+            throw new WikiSecurityException( "Could not revoke remember-me cookies of '" + loginName
+                    + "'; account not deleted", e );
+        }
+    }
+
+    private void endLiveSessions( final String loginName ) {
+        try {
+            final int ended = SessionMonitor.getInstance( engine ).invalidateSessionsOf( loginName );
+            LOG.debug( "User delete: demoted {} live session(s) of user={} to guest", ended, loginName );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "User delete: could not end the live sessions of user={}; they lapse at session timeout: {}",
+                    loginName, e.getMessage(), e );
+        }
     }
 
     private void orphanOwnedPages( final String loginName ) {

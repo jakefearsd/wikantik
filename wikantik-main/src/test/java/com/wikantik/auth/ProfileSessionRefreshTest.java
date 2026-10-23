@@ -97,6 +97,19 @@ class ProfileSessionRefreshTest {
     }
 
     @Test
+    void invalidateSessionsOfDemotesThatUsersLiveSessionsOnly() throws Exception {
+        final Session fred = login( "invalidate-fred", Users.FRED, Users.FRED_PASS );
+        final Session bob = login( "invalidate-bob", Users.BOB, Users.BOB_PASS );
+
+        assertEquals( 1, monitor.invalidateSessionsOf( Users.FRED ) );
+
+        assertFalse( fred.isAuthenticated(), "a deleted user's open session must stop acting as the user" );
+        assertTrue( bob.isAuthenticated(), "another user's session is not touched" );
+        assertEquals( 0, monitor.invalidateSessionsOf( Users.FRED ), "already a guest" );
+        assertEquals( 0, monitor.invalidateSessionsOf( null ) );
+    }
+
+    @Test
     void refreshProfileIgnoresGuestsAndUnknownLogins() throws Exception {
         monitor.find( "refresh-guest" );
         login( "refresh-fred", Users.FRED, Users.FRED_PASS );

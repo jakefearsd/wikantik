@@ -20,6 +20,7 @@ package com.wikantik.auth;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
+import com.wikantik.WikiSession;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
@@ -28,12 +29,18 @@ import com.wikantik.comments.PageOwnerService;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.security.Principal;
+import java.util.UUID;
 import java.sql.SQLException;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -150,5 +157,60 @@ class UserDeletionServiceTest {
         doThrow( new NoSuchPrincipalException( "nope" ) ).when( users ).deleteByLoginName( LOGIN );
 
         assertThrows( NoSuchPrincipalException.class, () -> service().delete( session, LOGIN ) );
+    }
+
+    @Test
+    void anUnknownLoginIsRejectedBeforeAnythingIsTouched() throws Exception {
+        when( users.findByLoginName( LOGIN ) ).thenThrow( new NoSuchPrincipalException( "nope" ) );
+
+        assertThrows( NoSuchPrincipalException.class, () -> service().delete( session, LOGIN ) );
+
+        verify( apiKeys, never() ).revokeAllForPrincipalOrThrow( anyString() );
+        verify( groups, never() ).setGroup( any(), any() );
+        verify( trusted, never() ).remove( anyString() );
+        verify( pageOwners, never() ).orphanByOwner( anyString(), anyString() );
+        verify( users, never() ).deleteByLoginName( anyString() );
+    }
+
+    @Test
+    void anAbortedDeleteLeavesTheStillExistingAccountsPagesOwned() throws Exception {
+        doThrow( new RuntimeException( "trusted_authors remove failed" ) ).when( trusted ).remove( LOGIN );
+
+        assertThrows( WikiSecurityException.class, () -> service().delete( session, LOGIN ) );
+
+        verify( pageOwners, never() ).orphanByOwner( anyString(), anyString() );
+    }
+
+    @Test
+    void deleteRemovesTheUsersRememberMeCookieFilesOnly( @TempDir final File workDir ) throws Exception {
+        when( engine.getWorkDir() ).thenReturn( workDir.getAbsolutePath() );
+        final File cookieDir = new File( workDir, "logincookies" );
+        assertTrue( cookieDir.mkdirs() );
+        final File mine = new File( cookieDir, UUID.randomUUID().toString() );
+        final File theirs = new File( cookieDir, UUID.randomUUID().toString() );
+        Files.writeString( mine.toPath(), LOGIN );
+        Files.writeString( theirs.toPath(), "bob" );
+
+        service().delete( session, LOGIN );
+
+        assertFalse( mine.exists(), "a deleted user's remember-me cookie must stop authenticating" );
+        assertTrue( theirs.exists(), "another user's cookie is untouched" );
+    }
+
+    @Test
+    void deleteDemotesTheUsersLiveSessionsToGuest() throws Exception {
+        final WikiSession live = mock( WikiSession.class );
+        when( live.isAuthenticated() ).thenReturn( true );
+        when( live.getLoginPrincipal() ).thenReturn( new WikiPrincipal( LOGIN, WikiPrincipal.LOGIN_NAME ) );
+        final jakarta.servlet.http.HttpSession http = mock( jakarta.servlet.http.HttpSession.class );
+        when( http.getId() ).thenReturn( "deleted-user-live-session" );
+        SessionMonitor.getInstance( engine ).register( http, live );
+        try {
+            service().delete( session, LOGIN );
+
+            verify( live ).invalidate();
+        } finally {
+            SessionMonitor.getInstance( engine ).remove( "deleted-user-live-session" );
+        }
     }
 }

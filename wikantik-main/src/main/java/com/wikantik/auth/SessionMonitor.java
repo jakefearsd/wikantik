@@ -243,6 +243,33 @@ public class SessionMonitor implements HttpSessionListener {
     }
 
     /**
+     * Demotes every live authenticated session of {@code loginName} to a guest session — used when the account is
+     * deleted, so a session opened before the delete stops acting as the user. One failing session never stops the
+     * others.
+     *
+     * @param loginName the deleted account
+     * @return how many sessions were demoted
+     */
+    public final int invalidateSessionsOf( final String loginName ) {
+        if ( loginName == null ) {
+            return 0;
+        }
+        int invalidated = 0;
+        for ( final Session s : sessions.values() ) {
+            try {
+                if ( s instanceof WikiSession ws && ws.isAuthenticated()
+                        && ws.getLoginPrincipal() != null && loginName.equals( ws.getLoginPrincipal().getName() ) ) {
+                    ws.invalidate();
+                    invalidated++;
+                }
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Could not invalidate one live session of '{}': {}", loginName, e.getMessage(), e );
+            }
+        }
+        return invalidated;
+    }
+
+    /**
      * Registers a WikiEventListener with this instance.
      *
      * @param listener the event listener

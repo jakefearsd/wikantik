@@ -6,6 +6,60 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Database and disk profiling fixes. Findings and repairs are written up on the wiki page
+`WikantikDatabaseAndDiskProfiling` and in `loadtest/results/CAMPAIGN-2026-10-22-db-disk.md`.
+
+### Fixed
+- **Ontology store growth.** The ontology store grew without bound (79.7 GB in production) and each full rebuild
+  wrote about 15 GB to disk.
+  - The rebuild is now one write transaction, and rebuilding unchanged content commits nothing.
+  - Compaction is scheduled from a persisted marker, so an overdue store (including production's) compacts
+    5 minutes after startup.
+  - The reconciliation rebuild first runs 10 minutes after startup.
+- **"Rebuild indexes" was destructive.** `POST /admin/content/rebuild-indexes` deleted every chunk, which cascaded
+  to every embedding and every Knowledge Graph entity mention. It now keeps unchanged chunks and their embeddings
+  and mentions, sweeps only removed pages (never on an empty listing, never a page created mid-rebuild), and
+  re-embeds only stale chunks.
+- **Silent data loss on page writes.** Page text, page and attachment properties, attachment data and the
+  reference-manager files were rewritten in place, and page write errors were swallowed (the save reported
+  success). All are now written atomically (temp file, fsync, atomic rename, directory fsync), and failures raise
+  `ProviderException`.
+- **Incomplete page listings.** `getAllPages()` silently left out pages whose per-page cache entry had expired
+  (60 s) inside the 300 s all-pages TTL, and a renamed page vanished from the listing. The listing is now an
+  explicit snapshot.
+- **Unaudited page saves.** Page saves were never audited, because the listener mapped an event that production
+  does not fire. Each save now writes one `page.save` row naming the authenticated user.
+- **Policy refresh on DB error.** A database error during a policy refresh published an empty grant set; the
+  previous grants are now kept.
+- **Lost audit batches.** A failed audit batch was dropped; it is now retried with backoff first.
+- **Lucene index on shutdown.** The final commit, and the release of the index lock, could be lost when the
+  indexer thread was interrupted at shutdown.
+
+### Changed
+- **Page saves.** Saves no longer commit ontology transactions on the request thread: page sync runs on a
+  coalescing background worker. Saves went from 180–277 ms to 17–42 ms locally.
+- **Lucene.** One long-lived writer and a shared reader replace a new reader per query and two writer commits
+  per page update. The admin reindex went from 1,213 commits and 64 s to a single commit per drained batch.
+- **Change feeds.** `/api/changes`, `/api/recent-changes`, `/api/me/pages` and `/feed.xml` are served from the
+  page cache instead of re-reading hundreds of property files per request.
+- **N+1 queries.** Verification lookups, related pages, bundle citation ids, KG proposal conflict flags (REST and
+  MCP `list_proposals`), the page knowledge slice and the drift trend each run a constant number of statements.
+  For example, `/api/pages/for-agent` went from 182 to 5 and `/admin/agent-grade-audit` from 2,377 to 5.
+- **Embedding transactions.** Embedding no longer holds a database transaction across HTTP calls to the embedder.
+  `Jdbc.forEachRow` with a fetch size now streams.
+- **Startup.** Vectors are no longer loaded twice, and unchanged canonical-id rows are no longer rewritten on
+  every boot.
+- **Audit and login hot paths.** `last_login` writes are throttled to once per 5 minutes per login. The audit
+  chain-head lookup prunes old partitions and checks partition existence once per month.
+- **Connection pool.** The pool sets `connectTimeout=10`, `socketTimeout=300` and `tcpKeepAlive=true`. The dev
+  context template no longer validates every borrow.
+- **Log retention.** Rotated logs are deleted after 30 days (90 days for the security log).
+- **CI.** The complexity ratchet, red since 2.4.60, passes again.
+
+### Database
+- Migration `V062__io_profile_indexes.sql`: indexes on `users(uid)` and `retrieval_runs(mode, started_at DESC)`,
+  and a partial index for the KG judge claim.
+
 ## [2.4.61] - 2026-10-22
 
 ### Fixed

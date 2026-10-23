@@ -303,8 +303,12 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
     }
 
     /**
-     * Processes a file deletion event.
-     * Invalidates all relevant caches and fires a PAGE_DELETED event.
+     * Processes a file deletion event: invalidates the page caches (firing only the cache-flushing
+     * {@code POST_SAVE_BEGIN}) and drops the page from the reference and search indexes.
+     *
+     * <p>It deliberately does <b>not</b> fire {@code PAGE_DELETED}. That event retires the page's
+     * canonical_id, owners, comment threads, citations and chunks, and an external {@code git mv}
+     * arrives here as a delete plus a create — retiring on it would destroy the moved page's rows.</p>
      */
     private void processDeleted( final String pageName ) {
         LOG.info( "External deletion detected for page: {}", pageName );

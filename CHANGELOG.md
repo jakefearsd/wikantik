@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.63] - 2026-10-23
+
 Database and disk hygiene pass.
 
 ### Fixed

@@ -253,6 +253,14 @@ public final class StructuralProjection {
         return Optional.ofNullable( slugToCanonicalId.get( slug ) );
     }
 
+    /** Every slug this projection maps to {@code canonicalId} — more than one only when pages share an id. */
+    public List< String > slugsOf( final String canonicalId ) {
+        return slugToCanonicalId.entrySet().stream()
+                .filter( e -> e.getValue().equals( canonicalId ) )
+                .map( Map.Entry::getKey )
+                .toList();
+    }
+
     private static < K > Map< K, List< PageDescriptor > > deepCopy( final Map< K, List< PageDescriptor > > m ) {
         final Map< K, List< PageDescriptor > > out = new HashMap<>( m.size() );
         m.forEach( ( k, v ) -> out.put( k, List.copyOf( v ) ) );

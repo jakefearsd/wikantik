@@ -259,14 +259,26 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     /** Called by {@link StructuralIndexEventListener} on save events. */
     synchronized void onPageSaved( final String pageName ) {
+        indexPage( pageName );
+    }
+
+    /**
+     * Re-index one page from its current text. Never throws.
+     *
+     * @return {@code true} when the page was found and spliced into the projection
+     */
+    private boolean indexPage( final String pageName ) {
         try {
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
-                return;
+                LOG.warn( "indexPage({}): page not found — projection left unchanged", pageName );
+                return false;
             }
             applyIncrementalUpdate( page );
+            return true;
         } catch ( final Exception e ) {
-            LOG.warn( "onPageSaved({}) failed: {}", pageName, e.getMessage() );
+            LOG.warn( "indexPage({}) failed: {}", pageName, e.getMessage() );
+            return false;
         }
     }
 
@@ -395,13 +407,16 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
      * the page under its new slug (its authored canonical_id moved with it, so the id row is
      * re-pointed rather than retired), then drop whatever still sits under the old slug — a page
      * without an authored id was re-indexed under a fresh synthesised one. Nothing is retired.
+     * When the new slug fails to index the old entry is kept: dropping it would leave the page
+     * invisible to the index until its next save.
      */
-    void onPageRenamed( final String oldName, final String newName ) {
-        onPageSaved( newName );
-        synchronized ( this ) {
-            current.get().resolveCanonicalIdFromSlug( oldName )
-                    .ifPresent( staleId -> applyIncrementalDelete( oldName, staleId, false ) );
+    synchronized void onPageRenamed( final String oldName, final String newName ) {
+        if ( !indexPage( newName ) ) {
+            LOG.warn( "onPageRenamed({} -> {}): new slug did not index — keeping the old entry", oldName, newName );
+            return;
         }
+        current.get().resolveCanonicalIdFromSlug( oldName )
+                .ifPresent( staleId -> applyIncrementalDelete( oldName, staleId, false ) );
     }
 
     /**
@@ -413,15 +428,86 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
      */
     synchronized void onPageDeleted( final String pageName ) {
         try {
-            final StructuralProjection proj = current.get();
-            final Optional< String > canonicalId = proj.resolveCanonicalIdFromSlug( pageName );
+            if ( mayStillExist( pageName ) ) {
+                LOG.warn( "onPageDeleted({}): the page still exists (its delete failed?) — retiring nothing",
+                          pageName );
+                return;
+            }
+            final Optional< String > canonicalId = current.get().resolveCanonicalIdFromSlug( pageName );
             if ( canonicalId.isEmpty() ) {
                 return;
             }
-            applyIncrementalDelete( pageName, canonicalId.get(), true );
-            retirementListeners.fire( pageName, canonicalId.get() );
+            final String id = canonicalId.get();
+            final List< String > sharers = liveSharersOf( id, pageName );
+            if ( !sharers.isEmpty() ) {
+                // Another live page carries the same canonical_id (an authoring defect). Its owners,
+                // comments, citations and id row belong to it too: drop only this slug, then
+                // re-index the sharer so the projection and the id row point at it.
+                LOG.warn( "onPageDeleted({}): canonical_id {} is also carried by {} — not retiring it",
+                          pageName, id, sharers );
+                applyIncrementalDelete( pageName, id, false );
+                sharers.forEach( this::indexPage );
+                return;
+            }
+            applyIncrementalDelete( pageName, id, true );
+            retirementListeners.fire( pageName, id );
         } catch ( final Exception e ) {
             LOG.warn( "onPageDeleted({}) failed: {}", pageName, e.getMessage() );
+        }
+    }
+
+    /**
+     * Whether {@code pageName} may still be in the page store. A lookup failure counts as
+     * "may exist": skipping a retirement leaks rows, retiring a live page destroys them.
+     */
+    private boolean mayStillExist( final String pageName ) {
+        try {
+            return pageManager.pageExists( pageName );
+        } catch ( final Exception e ) {
+            LOG.warn( "pageExists({}) failed — treating the page as live: {}", pageName, e.getMessage() );
+            return true;
+        }
+    }
+
+    /**
+     * Other existing pages whose frontmatter carries {@code canonicalId}. Candidates come from the
+     * projection (which holds one descriptor per id, so an incremental splice can lose a sharer's
+     * slug) and from the id row's current slug and slug history; each is confirmed by re-reading
+     * its frontmatter.
+     */
+    private List< String > liveSharersOf( final String canonicalId, final String deletedSlug ) {
+        final java.util.Set< String > candidates = new java.util.LinkedHashSet<>(
+                current.get().slugsOf( canonicalId ) );
+        try {
+            dao.findByCanonicalId( canonicalId ).ifPresent( row -> candidates.add( row.currentSlug() ) );
+            candidates.addAll( dao.slugHistory( canonicalId ) );
+        } catch ( final RuntimeException dbx ) {
+            LOG.warn( "Could not read the id row of {} while checking for sharers: {}",
+                      canonicalId, dbx.getMessage() );
+        }
+        candidates.remove( deletedSlug );
+        final List< String > sharers = new ArrayList<>();
+        for ( final String slug : candidates ) {
+            if ( slug != null && mayStillExist( slug ) && carriesCanonicalId( slug, canonicalId ) ) {
+                sharers.add( slug );
+            }
+        }
+        return sharers;
+    }
+
+    /** Whether page {@code slug}'s frontmatter names {@code canonicalId}; a read failure counts as yes. */
+    private boolean carriesCanonicalId( final String slug, final String canonicalId ) {
+        try {
+            final Page page = pageManager.getPage( slug );
+            if ( page == null ) {
+                return false;
+            }
+            final Map< String, Object > fm = FrontmatterParser.parse( pageManager.getPureText( page ) ).metadata();
+            return canonicalId.equals( asString( fm.get( "canonical_id" ) ) );
+        } catch ( final Exception e ) {
+            LOG.warn( "Could not read {} while checking it for canonical_id {} — treating it as a sharer: {}",
+                      slug, canonicalId, e.getMessage() );
+            return true;
         }
     }
 

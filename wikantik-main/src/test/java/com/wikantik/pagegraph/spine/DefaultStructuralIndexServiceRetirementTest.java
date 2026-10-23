@@ -41,6 +41,7 @@ import static org.mockito.Mockito.*;
 class DefaultStructuralIndexServiceRetirementTest {
 
     private static final String CID = "01H8G3Z1K6Q5W7P9X2V4R0T8R1";
+    private static final String SHARED = "01KS6S8Z8QYAS6P09AM61S5E2O";
 
     private PageManager pageManager;
     private PageCanonicalIdsDao dao;
@@ -84,7 +85,7 @@ class DefaultStructuralIndexServiceRetirementTest {
 
     @Test
     void theSecondPageDeletedEventOfOneDeleteRetiresOnlyOnce() {
-        // DefaultPageRepository.deletePage(String) fires PAGE_DELETED twice for one delete.
+        // A re-delivered PAGE_DELETED (the repository used to fire two per delete) must not retire twice.
         svc.onPageDeleted( "OldName" );
         svc.onPageDeleted( "OldName" );
 
@@ -138,6 +139,75 @@ class DefaultStructuralIndexServiceRetirementTest {
         assertEquals( Optional.empty(), svc.resolveCanonicalIdFromSlug( "BareOld" ),
                 "the old slug must not linger in the projection under its synthesised id" );
         assertTrue( retired.isEmpty(), "a rename never retires: " + retired );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void deletingOneOfTwoPagesSharingACanonicalIdRetiresNothingAndReindexesTheSurvivor() throws Exception {
+        // Production carries such a pair (two pages authored with one canonical_id). Retiring the
+        // id on either delete would wipe the SURVIVING page's owners, comments and citations.
+        final Page first = fakePage( "SharerA", "canonical_id: " + SHARED + "\ntitle: A" );
+        final Page second = fakePage( "SharerB", "canonical_id: " + SHARED + "\ntitle: B" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( first, second ) );
+        when( pageManager.getPage( "SharerB" ) ).thenReturn( second );
+        when( pageManager.pageExists( "SharerB" ) ).thenReturn( true );
+        svc.rebuild();
+        clearInvocations( dao );
+
+        svc.onPageDeleted( "SharerA" );
+
+        assertTrue( retired.isEmpty(), "a shared id must not be retired while a page still carries it: " + retired );
+        verify( dao, never() ).delete( anyString() );
+        assertEquals( Optional.of( "SharerB" ), svc.resolveSlugFromCanonicalId( SHARED ) );
+        assertEquals( Optional.of( SHARED ), svc.resolveCanonicalIdFromSlug( "SharerB" ) );
+        assertEquals( Optional.empty(), svc.resolveCanonicalIdFromSlug( "SharerA" ) );
+        verify( dao ).upsert( eq( SHARED ), eq( "SharerB" ), any(), any(), any() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void aSharerTheProjectionLostTrackOfIsFoundThroughTheCanonicalIdRowAndItsSlugHistory() throws Exception {
+        // The projection holds one descriptor per canonical_id, so an incremental save can drop the
+        // other sharer's slug mapping. The id row's current slug and slug history still name it.
+        final Page first = fakePage( "SharerA", "canonical_id: " + SHARED + "\ntitle: A" );
+        final Page second = fakePage( "SharerB", "canonical_id: " + SHARED + "\ntitle: B" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( first, second ) );
+        when( pageManager.getPage( "SharerA" ) ).thenReturn( first );
+        when( pageManager.getPage( "SharerB" ) ).thenReturn( second );
+        when( pageManager.pageExists( "SharerB" ) ).thenReturn( true );
+        svc.rebuild();
+        svc.onPageSaved( "SharerA" );   // the incremental splice drops SharerB's slug mapping
+        when( dao.findByCanonicalId( SHARED ) ).thenReturn( Optional.of( new PageCanonicalIdsDao.Row(
+                SHARED, "SharerA", "A", "article", null, java.time.Instant.EPOCH, java.time.Instant.EPOCH ) ) );
+        when( dao.slugHistory( SHARED ) ).thenReturn( List.of( "SharerB" ) );
+
+        svc.onPageDeleted( "SharerA" );
+
+        assertTrue( retired.isEmpty(), retired.toString() );
+        verify( dao, never() ).delete( anyString() );
+        assertEquals( Optional.of( "SharerB" ), svc.resolveSlugFromCanonicalId( SHARED ) );
+    }
+
+    @Test
+    void aPageDeletedEventForAPageThatStillExistsRetiresNothing() throws Exception {
+        // A provider whose file delete failed still fires PAGE_DELETED; the page is still there.
+        when( pageManager.pageExists( "OldName" ) ).thenReturn( true );
+
+        svc.onPageDeleted( "OldName" );
+
+        assertTrue( retired.isEmpty(), retired.toString() );
+        verify( dao, never() ).delete( anyString() );
+        assertEquals( Optional.of( CID ), svc.resolveCanonicalIdFromSlug( "OldName" ) );
+    }
+
+    @Test
+    void aRenameWhoseNewSlugFailsToIndexKeepsTheOldSlugIndexed() throws Exception {
+        when( pageManager.getPage( "NewName" ) ).thenThrow( new IllegalStateException( "provider down" ) );
+
+        svc.onPageRenamed( "OldName", "NewName" );
+
+        assertEquals( Optional.of( CID ), svc.resolveCanonicalIdFromSlug( "OldName" ),
+                "dropping the old slug before the new one indexed makes the page invisible to the index" );
     }
 
     @Test

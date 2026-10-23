@@ -137,19 +137,10 @@ public class AttachmentServlet extends HttpServlet {
         authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         progressManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).progressManager();
         final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
-        final String tmpDir = engine.getWorkDir() + File.separator + "attach-tmp";
         uploadPolicy = AttachmentUploadPolicy.fromProperties( props );
-
-        final File tmpDirFile = new File( tmpDir );
-        if( !tmpDirFile.exists() ) {
-            if( !tmpDirFile.mkdirs() ) {
-                LOG.warn( "Failed to create temporary directory for attachments: {}", tmpDir );
-            }
-        } else if( !tmpDirFile.isDirectory() ) {
-            LOG.fatal( "A file already exists where the temporary dir is supposed to be: {}. Please remove it.", tmpDir );
-        }
-
-        LOG.debug( "UploadServlet initialized. Using {} for temporary storage.", tmpDir );
+        // Uploads spool through DiskFileItemFactory with no repository, i.e. java.io.tmpdir; there is
+        // deliberately no <workDir>/attach-tmp directory.
+        LOG.debug( "UploadServlet initialized." );
     }
 
     /**

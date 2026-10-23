@@ -28,11 +28,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.InputStream;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -62,17 +60,18 @@ class AttachmentServletInitTest {
     }
 
     @Test
-    void testInitWithDefaultPropertiesCreatesTmpDirAndParsesEmptyExtensionLists() throws Exception {
+    void testInitWithDefaultPropertiesDoesNotCreateUnusedTmpDir() throws Exception {
         // Default TestEngine properties declare neither wikantik.attachment.allowed nor
-        // .forbidden, so init() must take the "else" branch for both (empty String[] patterns)
-        // and successfully create the attach-tmp working directory.
+        // .forbidden, so init() must take the "else" branch for both (empty String[] patterns).
+        // Uploads spool via DiskFileItemFactory with no repository (java.io.tmpdir), so init()
+        // must not create an <workDir>/attach-tmp directory that nothing ever writes to.
         testEngine = new TestEngine( TestEngine.getTestProperties() );
 
         final AttachmentServlet servlet = new AttachmentServlet();
         servlet.init( configFor( testEngine ) );
 
         final File tmpDir = new File( testEngine.getWorkDir() + File.separator + "attach-tmp" );
-        org.junit.jupiter.api.Assertions.assertTrue( tmpDir.isDirectory(), "attach-tmp directory should have been created" );
+        org.junit.jupiter.api.Assertions.assertFalse( tmpDir.exists(), "attach-tmp is unused and must not be created" );
     }
 
     @Test
@@ -109,22 +108,5 @@ class AttachmentServletInitTest {
         assertThrows( RedirectException.class,
                 () -> servlet.executeUpload( context, data2, "image.png", "http://localhost/error",
                         "TestPage", null, 1L ) );
-    }
-
-    @Test
-    void testInitLogsFatalWhenTmpDirPathIsARegularFile() throws Exception {
-        testEngine = new TestEngine( TestEngine.getTestProperties() );
-
-        // Pre-create a plain file where AttachmentServlet.init() wants to create attach-tmp/.
-        final File tmpDirPath = new File( testEngine.getWorkDir() + File.separator + "attach-tmp" );
-        try( FileWriter fw = new FileWriter( tmpDirPath ) ) {
-            fw.write( "not a directory" );
-        }
-
-        final AttachmentServlet servlet = new AttachmentServlet();
-
-        // init() must not throw even though the temp dir path is unusable -- it only logs LOG.fatal().
-        assertDoesNotThrow( () -> servlet.init( configFor( testEngine ) ) );
-        org.junit.jupiter.api.Assertions.assertTrue( tmpDirPath.isFile(), "the pre-existing file must be left untouched" );
     }
 }

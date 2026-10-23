@@ -97,7 +97,18 @@ public class AdminUserResource extends RestServletBase {
     }
 
     protected com.wikantik.comments.PageOwnerService pageOwners() {
-        return getSubsystems().persistence().pageOwners();
+        final var persistence = getSubsystems().persistence();
+        return persistence == null ? null : persistence.pageOwners();
+    }
+
+    /** Built from this class's overridable accessors so tests can substitute any collaborator. */
+    @Override
+    protected com.wikantik.auth.UserDeletionService userDeletionService() {
+        final var persistence = getSubsystems().persistence();
+        return new com.wikantik.auth.UserDeletionService(
+                getEngine(), getUserDatabase(), getGroupManager(),
+                com.wikantik.auth.apikeys.ApiKeyServiceHolder.get( getEngine().getWikiProperties() ),
+                pageOwners(), persistence == null ? null : persistence.trustedAuthors() );
     }
 
     @Override
@@ -204,6 +215,8 @@ public class AdminUserResource extends RestServletBase {
             if ( resolution == null ) return;
             targetGroup = resolution.group;
             session = resolution.session;
+        } else if ( "delete".equals( action ) ) {
+            session = Wiki.session().find( getEngine(), request );
         }
 
         final String actor = currentLogin( request );
@@ -237,7 +250,7 @@ public class AdminUserResource extends RestServletBase {
         switch ( action ) {
             case "lock"   -> err = tryLockUser( loginName, actor );
             case "unlock" -> err = tryUnlockUser( loginName, actor );
-            case "delete" -> err = tryDeleteUser( loginName, actor );
+            case "delete" -> err = tryDeleteUser( loginName, actor, session );
             case "add-to-group" -> err = tryAddToGroup( loginName, targetGroup, session, actor );
             default -> err = Optional.of( "Unknown action" );  // unreachable
         }
@@ -375,20 +388,12 @@ public class AdminUserResource extends RestServletBase {
      * Deletes {@code loginName}. Rejects the actor's own login as a per-id
      * failure. Returns empty on success, error message on failure.
      */
-    Optional< String > tryDeleteUser( final String loginName, final String actor ) {
+    Optional< String > tryDeleteUser( final String loginName, final String actor, final Session session ) {
         if ( loginName.equals( actor ) ) {
             return Optional.of( "Cannot delete yourself" );
         }
         try {
-            // Orphan owned pages before deleting the user (best-effort; swallow errors)
-            try {
-                pageOwners().orphanByOwner( loginName, "system:user-deleted:" + loginName );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "bulk-delete: failed to orphan pages for user={}: {}", loginName, e.getMessage() );
-            }
-
-            getUserDatabase().deleteByLoginName( loginName );
-            ProfileChangeNotifier.profileDeleted( getEngine(), loginName );
+            userDeletionService().delete( session, loginName );
             return Optional.empty();
         } catch ( final Exception e ) {
             LOG.warn( "bulk-delete: failed to delete user={}: {}", loginName, e.getMessage(), e );
@@ -446,7 +451,7 @@ public class AdminUserResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Login name required in path" );
             return;
         }
-        handleDeleteUser( response, loginName );
+        handleDeleteUser( request, response, loginName );
     }
 
     private void handleListUsers( final HttpServletResponse response ) throws IOException {
@@ -608,22 +613,20 @@ public class AdminUserResource extends RestServletBase {
         }
     }
 
-    private void handleDeleteUser( final HttpServletResponse response, final String loginName ) throws IOException {
+    private void handleDeleteUser( final HttpServletRequest request, final HttpServletResponse response,
+                                   final String loginName ) throws IOException {
         try {
-            // Orphan owned pages before deleting the user (best-effort; swallow errors)
-            try {
-                pageOwners().orphanByOwner( loginName, "system:user-deleted:" + loginName );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "handleDeleteUser: failed to orphan pages for user={}: {}", loginName, e.getMessage() );
-            }
-
-            getUserDatabase().deleteByLoginName( loginName );
-            ProfileChangeNotifier.profileDeleted( getEngine(), loginName );
+            userDeletionService().delete( Wiki.session().find( getEngine(), request ), loginName );
             LOG.info( "Deleted user: {}", loginName );
             sendJson( response, Map.of( "success", true ) );
-        } catch ( final Exception e ) {
+        } catch ( final com.wikantik.auth.NoSuchPrincipalException e ) {
             LOG.error( "Failed to delete user {}: {}", loginName, e.getMessage() );
             sendNotFound( response, "User not found: " + loginName );
+        } catch ( final Exception e ) {
+            // A fail-closed cleanup step (API keys / groups / trusted author) refused; the account is still there.
+            LOG.error( "Failed to delete user {}: {}", loginName, e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Could not delete user " + loginName + "; the account was left in place — retry" );
         }
     }
 

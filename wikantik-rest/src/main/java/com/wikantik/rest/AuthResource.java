@@ -30,12 +30,7 @@ import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.NoSuchPrincipalException;
-import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
-import com.wikantik.auth.apikeys.ApiKeyService;
-import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
-import com.wikantik.auth.authorize.Group;
-import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.sso.SSOConfig;
 import com.wikantik.auth.user.ProfileConflictException;
 import com.wikantik.auth.user.UserDatabase;
@@ -218,10 +213,7 @@ public class AuthResource extends RestServletBase {
         }
 
         try {
-            revokeApiKeysFor( engine, loginName );
-            removeFromAllGroups( engine, getSubsystems().auth().groups(), session, loginName );
-            getSubsystems().auth().users().getUserDatabase().deleteByLoginName( loginName );
-            ProfileChangeNotifier.profileDeleted( engine, loginName );
+            userDeletionService().delete( session, loginName );
         } catch ( final NoSuchPrincipalException e ) {
             sendNotFound( response, "Profile not found" );
             return;
@@ -654,47 +646,6 @@ public class AuthResource extends RestServletBase {
      */
     static boolean confirmationMatches( final String sessionLogin, final String confirm ) {
         return confirm != null && confirm.equals( sessionLogin );
-    }
-
-    /**
-     * Revokes all API keys owned by {@code loginName} as part of account
-     * deletion. Best-effort: a failure here is logged but does not abort the
-     * deletion (the profile removal is the authoritative step).
-     */
-    void revokeApiKeysFor( final Engine engine, final String loginName ) {
-        try {
-            final ApiKeyService svc = ApiKeyServiceHolder.get( engine.getWikiProperties() );
-            if ( svc == null ) {
-                LOG.warn( "ApiKeyService not available — skipping API key revocation for '{}'", loginName );
-                return;
-            }
-            svc.revokeAllForPrincipal( loginName );
-        } catch ( final Exception e ) {
-            LOG.warn( "Failed to revoke API keys for {} during account deletion: {}", loginName, e.getMessage(), e );
-        }
-    }
-
-    /**
-     * Removes {@code loginName} from every group it belongs to, as part of
-     * account deletion. Best-effort per group: a failure on one group is logged
-     * and does not stop the others.
-     */
-    static void removeFromAllGroups( final Engine engine, final GroupManager groupManager,
-                                     final Session session, final String loginName ) {
-        final Principal userPrincipal =
-                new WikiPrincipal( loginName, WikiPrincipal.LOGIN_NAME );
-        for ( final Principal groupRole : groupManager.getRoles() ) {
-            try {
-                final Group group = groupManager.getGroup( groupRole.getName() );
-                if ( group.isMember( userPrincipal ) ) {
-                    group.remove( userPrincipal );
-                    groupManager.setGroup( session, group );
-                }
-            } catch ( final Exception e ) {
-                LOG.warn( "Failed to remove {} from group {} during account deletion: {}",
-                        loginName, groupRole.getName(), e.getMessage(), e );
-            }
-        }
     }
 
     /**

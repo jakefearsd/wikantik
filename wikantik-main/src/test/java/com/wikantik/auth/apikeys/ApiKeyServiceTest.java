@@ -290,6 +290,26 @@ class ApiKeyServiceTest {
     }
 
     @Test
+    void revokeAllForPrincipalOrThrow_revokesKeysAndPropagatesDatabaseFailure() {
+        final ApiKeyService.Generated g = service.generate( "erin", "key1", ApiKeyService.Scope.ALL, "admin" );
+        assertTrue( service.verify( g.plaintext() ).isPresent() );
+
+        assertDoesNotThrow( () -> service.revokeAllForPrincipalOrThrow( "erin" ) );
+        assertTrue( service.verify( g.plaintext() ).isEmpty(), "key must be revoked" );
+
+        // A failing database must surface to the caller instead of being logged and swallowed,
+        // so account deletion can refuse to leave a live key behind.
+        final DataSource down = org.mockito.Mockito.mock( DataSource.class );
+        try {
+            org.mockito.Mockito.when( down.getConnection() ).thenThrow( new SQLException( "db down" ) );
+        } catch ( final SQLException e ) {
+            throw new AssertionError( e );
+        }
+        final ApiKeyService failing = new ApiKeyService( down );
+        assertThrows( SQLException.class, () -> failing.revokeAllForPrincipalOrThrow( "erin" ) );
+    }
+
+    @Test
     void listByPrincipalReturnsOnlyThatPrincipalsActiveKeysNewestFirst() {
         final ApiKeyService.Generated bob1 = service.generate( "bob", "k1", ApiKeyService.Scope.ALL, "admin" );
         service.generate( "bob", "k2", ApiKeyService.Scope.MCP_ADMIN, "admin" );

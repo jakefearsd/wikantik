@@ -115,6 +115,23 @@ public abstract class RestServletBase extends HttpServlet {
     }
 
     /**
+     * The one hard-delete path for a user account (revokes API keys, removes group memberships and the
+     * trusted-author entry, orphans owned pages, then deletes the profile). Every REST surface that deletes
+     * an account — self-service, admin single and admin bulk — goes through this.
+     */
+    protected com.wikantik.auth.UserDeletionService userDeletionService() {
+        final com.wikantik.WikiSubsystems subsystems = getSubsystems();
+        final var persistence = subsystems.persistence();
+        return new com.wikantik.auth.UserDeletionService(
+                getEngine(),
+                subsystems.auth().users().getUserDatabase(),
+                subsystems.auth().groups(),
+                com.wikantik.auth.apikeys.ApiKeyServiceHolder.get( getEngine().getWikiProperties() ),
+                persistence == null ? null : persistence.pageOwners(),
+                persistence == null ? null : persistence.trustedAuthors() );
+    }
+
+    /**
      * Returns the {@link com.wikantik.WikiSubsystems} bundle stashed on the
      * {@link jakarta.servlet.ServletContext} at engine boot.
      *

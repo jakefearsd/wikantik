@@ -1311,13 +1311,18 @@ class AuthResourceTest {
         final StringWriter sw = new StringWriter();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
+        final com.wikantik.auth.apikeys.ApiKeyService keys = Mockito.mock( com.wikantik.auth.apikeys.ApiKeyService.class );
+        com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( keys );
         try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
             servlet.doDelete( request, response );
+        } finally {
+            com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( null );
         }
 
         final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
         assertTrue( obj.get( "deleted" ).getAsBoolean() );
         assertEquals( "alice", obj.get( "loginName" ).getAsString() );
+        Mockito.verify( keys ).revokeAllForPrincipalOrThrow( "alice" );
         Mockito.verify( db ).deleteByLoginName( "alice" );
         Mockito.verify( gm ).getRoles();
         Mockito.verify( httpSession ).invalidate();

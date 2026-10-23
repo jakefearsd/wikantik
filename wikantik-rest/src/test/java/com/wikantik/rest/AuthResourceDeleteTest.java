@@ -19,20 +19,16 @@
 package com.wikantik.rest;
 
 import com.wikantik.TestEngine;
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.auth.WikiPrincipal;
-import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.security.Principal;
 import java.util.Arrays;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -60,36 +56,6 @@ class AuthResourceDeleteTest {
     }
 
     // ----- tests -----
-
-    @AfterEach
-    void clearApiKeyServiceHolder() {
-        // Reset the holder so test-injected services don't leak between tests.
-        ApiKeyServiceHolder.setForTesting( null );
-    }
-
-    // ----- revokeApiKeysFor tests -----
-
-    /**
-     * When no ApiKeyService is configured (holder returns null), calling
-     * {@code revokeApiKeysFor} must be a no-op — it must not throw any exception.
-     * This is the defensive path exercised in environments without a DataSource.
-     */
-    @Test
-    void revokeApiKeysFor_noServiceConfigured_doesNotThrow() {
-        // Ensure the holder has no service cached.
-        ApiKeyServiceHolder.setForTesting( null );
-
-        final Engine engine = Mockito.mock( Engine.class );
-        Mockito.when( engine.getWikiProperties() ).thenReturn( new Properties() );
-
-        final AuthResource resource = new AuthResource();
-        resource.setEngine( engine );
-
-        assertDoesNotThrow(
-            () -> resource.revokeApiKeysFor( engine, "alice" ),
-            "revokeApiKeysFor must not throw when ApiKeyService is unavailable"
-        );
-    }
 
     /**
      * A session whose roles include a principal named {@code "Admin"} must
@@ -191,7 +157,7 @@ class AuthResourceDeleteTest {
     // ----- removeFromAllGroups tests -----
 
     /**
-     * After {@code removeFromAllGroups} is called, the user must no longer
+     * After {@code UserDeletionService.delete} is called, the user must no longer
      * appear as a member of any group they previously belonged to.
      * <p>
      * Uses a real {@link TestEngine} so that the XML-backed {@link GroupManager}
@@ -219,8 +185,9 @@ class AuthResourceDeleteTest {
                 "Pre-condition: user should be a member before removal"
             );
 
-            // Act.
-            AuthResource.removeFromAllGroups( engine, gm, session, loginName );
+            // Act: the same shared delete path the self-service and admin endpoints use.
+            new com.wikantik.auth.UserDeletionService( engine, Mockito.mock( com.wikantik.auth.user.UserDatabase.class ),
+                    gm, null, null, null ).delete( session, loginName );
 
             // Assert: user is no longer in the group.
             final Group after = gm.getGroup( groupName );

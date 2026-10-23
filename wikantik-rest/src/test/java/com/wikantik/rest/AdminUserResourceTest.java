@@ -535,7 +535,7 @@ class AdminUserResourceTest {
         Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
 
         // Call tryDeleteUser
-        final var result = spy.tryDeleteUser( "bulkDeleteTestUser", "admin" );
+        final var result = spy.tryDeleteUser( "bulkDeleteTestUser", "admin", engine.guestSession() );
 
         // Verify success
         assertTrue( result.isEmpty(), "Delete should succeed; got error: " + result );
@@ -561,13 +561,94 @@ class AdminUserResourceTest {
                 .when( pageOwnersMock ).orphanByOwner( "bulkOrphanFailUser", "system:user-deleted:bulkOrphanFailUser" );
 
         // Call tryDeleteUser
-        final var result = spy.tryDeleteUser( "bulkOrphanFailUser", "admin" );
+        final var result = spy.tryDeleteUser( "bulkOrphanFailUser", "admin", engine.guestSession() );
 
         // Verify success despite orphan failure
         assertTrue( result.isEmpty(), "Delete should succeed even when orphan fails; got error: " + result );
 
         // Verify the user delete was still called despite orphan failure
         Mockito.verify( userDbMock ).deleteByLoginName( "bulkOrphanFailUser" );
+    }
+
+    // ----- delete cleanup parity with self-delete: keys, group memberships -----
+
+    private void createUser( final String loginName ) throws Exception {
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", loginName );
+        createBody.addProperty( "fullName", "Full " + loginName );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+    }
+
+    private com.wikantik.auth.authorize.Group putInNewGroup( final String groupName, final String loginName ) throws Exception {
+        final com.wikantik.auth.authorize.GroupManager gm = engine.getManager( com.wikantik.auth.authorize.GroupManager.class );
+        gm.setGroup( engine.guestSession(), gm.parseGroup( groupName, loginName, true ) );
+        return gm.getGroup( groupName );
+    }
+
+    private static boolean isMember( final String groupName, final String loginName ) throws Exception {
+        final com.wikantik.auth.authorize.GroupManager gm = engine.getManager( com.wikantik.auth.authorize.GroupManager.class );
+        return gm.getGroup( groupName ).isMember(
+                new com.wikantik.auth.WikiPrincipal( loginName, com.wikantik.auth.WikiPrincipal.LOGIN_NAME ) );
+    }
+
+    @Test
+    void handleDeleteUser_revokes_api_keys_and_removes_group_memberships() throws Exception {
+        final String login = "adminDelCleanup";
+        final String group = "AdminDelCleanupGroup";
+        createUser( login );
+        putInNewGroup( group, login );
+        final com.wikantik.auth.apikeys.ApiKeyService keys = Mockito.mock( com.wikantik.auth.apikeys.ApiKeyService.class );
+        com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( keys );
+        try {
+            final String json = doDelete( login );
+
+            assertFalse( gson.fromJson( json, JsonObject.class ).has( "error" ), "Delete should succeed, got: " + json );
+            Mockito.verify( keys ).revokeAllForPrincipalOrThrow( login );
+            assertFalse( isMember( group, login ), "a deleted user must not stay in a group (a re-created login would inherit it)" );
+        } finally {
+            com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( null );
+        }
+    }
+
+    @Test
+    void tryDeleteUser_revokes_api_keys_and_removes_group_memberships() throws Exception {
+        final String login = "bulkDelCleanup";
+        final String group = "BulkDelCleanupGroup";
+        createUser( login );
+        putInNewGroup( group, login );
+        final com.wikantik.auth.apikeys.ApiKeyService keys = Mockito.mock( com.wikantik.auth.apikeys.ApiKeyService.class );
+        com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( keys );
+        try {
+            final var result = servlet.tryDeleteUser( login, "admin", engine.guestSession() );
+
+            assertTrue( result.isEmpty(), "Delete should succeed; got error: " + result );
+            Mockito.verify( keys ).revokeAllForPrincipalOrThrow( login );
+            assertFalse( isMember( group, login ), "bulk delete must also drop group memberships" );
+        } finally {
+            com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( null );
+        }
+    }
+
+    @Test
+    void failedKeyRevocation_keeps_the_user_and_reports_the_failure() throws Exception {
+        final String login = "keyRevokeFails";
+        createUser( login );
+        final com.wikantik.auth.apikeys.ApiKeyService keys = Mockito.mock( com.wikantik.auth.apikeys.ApiKeyService.class );
+        Mockito.doThrow( new java.sql.SQLException( "db down" ) ).when( keys ).revokeAllForPrincipalOrThrow( login );
+        com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( keys );
+        try {
+            final var bulk = servlet.tryDeleteUser( login, "admin", engine.guestSession() );
+            assertTrue( bulk.isPresent(), "bulk delete must report the failure rather than leave a live key" );
+
+            final String json = doDelete( login );
+            assertTrue( gson.fromJson( json, JsonObject.class ).has( "error" ), "single delete must fail, got: " + json );
+
+            final JsonObject still = gson.fromJson( doGet( login ), JsonObject.class );
+            assertFalse( still.has( "error" ), "the account must still exist so the delete can be retried" );
+        } finally {
+            com.wikantik.auth.apikeys.ApiKeyServiceHolder.setForTesting( null );
+        }
     }
 
     @Test

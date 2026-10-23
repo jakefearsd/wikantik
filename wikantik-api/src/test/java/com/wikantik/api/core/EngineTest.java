@@ -160,4 +160,64 @@ class EngineTest {
 
         assertNull( result );
     }
+
+    /** Names of the stray copies {@code findConfigFile} leaves in java.io.tmpdir for {@code name}. */
+    private static java.util.Set< String > tempCopiesOf( final String name ) throws IOException {
+        // Ask File.createTempFile where it really writes: the JDK caches java.io.tmpdir at
+        // startup, so a property surefire sets afterwards would point at the wrong directory.
+        final java.io.File probe = java.io.File.createTempFile( "probe", "" );
+        final Path tmpDir = probe.getParentFile().toPath();
+        Files.delete( probe.toPath() );
+        try ( var stream = Files.list( tmpDir ) ) {
+            return stream.map( p -> p.getFileName().toString() )
+                         .filter( n -> n.startsWith( "temp." + name ) )
+                         .collect( java.util.stream.Collectors.toSet() );
+        }
+    }
+
+    @Test
+    void findConfigFileLeavesNoTempFileWhenServletContextResourceIsUsed() throws IOException {
+        final Engine engine = mockEngine();
+        when( engine.getRootPath() ).thenReturn( null );
+        final ServletContext ctx = mock( ServletContext.class );
+        when( engine.getServletContext() ).thenReturn( ctx );
+        when( ctx.getResource( "/WEB-INF/dummy-config-file.txt" ) )
+            .thenReturn( new URL( "file:/fake/WEB-INF/dummy-config-file.txt" ) );
+        final java.util.Set< String > before = tempCopiesOf( "dummy-config-file.txt" );
+
+        engine.findConfigFile( "dummy-config-file.txt" );
+
+        assertEquals( before, tempCopiesOf( "dummy-config-file.txt" ),
+            "returning the servlet-container URL must not leave an unused temp file behind" );
+    }
+
+    @Test
+    void findConfigFileLeavesNoTempFileWhenClasspathResourceIsMissing() throws IOException {
+        final Engine engine = mockEngine();
+        when( engine.getRootPath() ).thenReturn( null );
+        final ServletContext ctx = mock( ServletContext.class );
+        when( engine.getServletContext() ).thenReturn( ctx );
+        final java.util.Set< String > before = tempCopiesOf( "totally-nonexistent-resource.xyz" );
+
+        assertNull( engine.findConfigFile( "totally-nonexistent-resource.xyz" ) );
+
+        assertEquals( before, tempCopiesOf( "totally-nonexistent-resource.xyz" ),
+            "a failed lookup must not leave an empty temp file behind" );
+    }
+
+    @Test
+    void findConfigFileReturnsDirectlyUsableClasspathFileWithoutCopying() throws Exception {
+        final Engine engine = mockEngine();
+        when( engine.getRootPath() ).thenReturn( null );
+        final ServletContext ctx = mock( ServletContext.class );
+        when( engine.getServletContext() ).thenReturn( ctx );
+        when( ctx.getResource( "/WEB-INF/dummy-config-file.txt" ) ).thenReturn( null );
+        final java.util.Set< String > before = tempCopiesOf( "dummy-config-file.txt" );
+
+        final URL result = engine.findConfigFile( "dummy-config-file.txt" );
+
+        assertEquals( Engine.class.getResource( "/dummy-config-file.txt" ), result,
+            "a classpath resource that already is a plain file needs no temp copy" );
+        assertEquals( before, tempCopiesOf( "dummy-config-file.txt" ) );
+    }
 }

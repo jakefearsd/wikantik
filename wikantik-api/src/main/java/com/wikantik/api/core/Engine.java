@@ -29,14 +29,9 @@ import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.ServletContext;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Properties;
@@ -236,44 +231,43 @@ public interface Engine {
         }
 
         // Ok, the absolute path didn't work; try other methods
-        URL path = null;
-
-        if( getServletContext() != null ) {
-            final File tmpFile;
-            try {
-                tmpFile = File.createTempFile( "temp." + name, "" );
-            } catch( final IOException e ) {
-                LogManager.getLogger( Engine.class ).error( "unable to create a temp file to load onto the policy", e );
-                return null;
-            }
-            tmpFile.deleteOnExit();
-            LogManager.getLogger( Engine.class ).info( "looking for /" + name + " on classpath" );
-            //  create a tmp file of the policy loaded as an InputStream and return the URL to it
-            try( InputStream is = Engine.class.getResourceAsStream( "/" + name );
-                OutputStream os = Files.newOutputStream( tmpFile.toPath() ) ) {
-                if( is == null ) {
-                    throw new FileNotFoundException( name + " not found" );
-                }
-                final URL url = getServletContext().getResource( "/WEB-INF/" + name );
-                if( url != null ) {
-                    return url;
-                }
-
-                final byte[] buff = new byte[1024];
-                int bytes;
-                while( ( bytes = is.read( buff ) ) != -1 ) {
-                    os.write( buff, 0, bytes );
-                }
-
-                path = tmpFile.toURI().toURL();
-            } catch( final MalformedURLException e ) {
-                // This should never happen unless I screw up
-                LogManager.getLogger( Engine.class ).fatal( "Your code is b0rked.  You are a bad person.", e );
-            } catch( final IOException e ) {
-                LogManager.getLogger( Engine.class ).error( "failed to load security policy from file " + name + ",stacktrace follows", e );
-            }
+        if( getServletContext() == null ) {
+            return null;
         }
-        return path;
+        LogManager.getLogger( Engine.class ).info( "looking for /" + name + " on classpath" );
+        final URL resource = Engine.class.getResource( "/" + name );
+        if( resource == null ) {
+            LogManager.getLogger( Engine.class ).error( "failed to load security policy from file " + name + ": " + name + " not found" );
+            return null;
+        }
+        try {
+            final URL webInfUrl = getServletContext().getResource( "/WEB-INF/" + name );
+            if( webInfUrl != null ) {
+                return webInfUrl;
+            }
+        } catch( final MalformedURLException e ) {
+            // This should never happen unless I screw up
+            LogManager.getLogger( Engine.class ).fatal( "Your code is b0rked.  You are a bad person.", e );
+            return null;
+        }
+
+        // A plain file on the classpath (e.g. an exploded WEB-INF/classes) is directly usable: no copy needed.
+        if( "file".equals( resource.getProtocol() ) ) {
+            return resource;
+        }
+
+        // Packaged inside a jar: consumers need a real file, so materialise one (once per name).
+        final File copy = ConfigFileCopies.tempCopy( name, resource );
+        if( copy == null ) {
+            return null;
+        }
+        try {
+            return copy.toURI().toURL();
+        } catch( final MalformedURLException e ) {
+            // This should never happen unless I screw up
+            LogManager.getLogger( Engine.class ).fatal( "Your code is b0rked.  You are a bad person.", e );
+            return null;
+        }
     }
 
     /**

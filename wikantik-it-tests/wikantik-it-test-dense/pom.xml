@@ -32,6 +32,9 @@
   <description>Integration tests for dense retrieval and the RAG context bundle against a live CPU embedding provider — the only IT module with embeddings enabled</description>
 
   <properties>
+    <!-- A ~130 MB WAR that nothing consumes from the local repo (the ITs run in the same invocation,
+         before install): installing it only fills ~/.m2 with one copy per version. -->
+    <maven.install.skip>true</maven.install.skip>
     <it-wikantik.context>${project.artifactId}</it-wikantik.context>
 
     <it-wikantik.groupdatabase>com.wikantik.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>

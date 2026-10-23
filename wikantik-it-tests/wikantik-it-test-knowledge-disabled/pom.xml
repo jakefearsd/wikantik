@@ -31,6 +31,9 @@
   <description>Integration tests for the wikantik.knowledge.enabled master flag — validates that a Cargo-deployed Tomcat with the Knowledge Graph subsystem OFF refuses KG surfaces cleanly (503 citing the flag) while retrieval/chunking stay alive</description>
 
   <properties>
+    <!-- A ~130 MB WAR that nothing consumes from the local repo (the ITs run in the same invocation,
+         before install): installing it only fills ~/.m2 with one copy per version. -->
+    <maven.install.skip>true</maven.install.skip>
     <it-wikantik.context>${project.artifactId}</it-wikantik.context>
 
     <it-wikantik.groupdatabase>com.wikantik.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>

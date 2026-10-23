@@ -229,4 +229,80 @@ class ChunkProjectorTest {
         assertEquals( 1, survivor.get(),
             "a sink registered after a failing one must still be notified" );
     }
+
+    private static final String PROSE =
+        " carries enough prose content to produce a chunk of reasonable size so that the "
+        + "min-tokens floor does not cause merge-forward to swallow this buffer entirely.";
+
+    private static String twoSections() {
+        return "## First\n\nThe first section" + PROSE + "\n\n## Second\n\nThe second section" + PROSE + "\n";
+    }
+
+    @Test
+    void onPageDeletedDropsTheChunksAndTellsIndexRefreshSinksWhichIdsWent() {
+        projector.projectPage( "DeletedPage", Map.of(), twoSections() );
+        projector.projectPage( "OtherPage", Map.of(), twoSections() );
+        final List< UUID > ids = repo.listChunkIdsForPage( "DeletedPage" );
+        assertEquals( 2, ids.size(), "precondition: two chunks" );
+        final List< List< UUID > > refreshed = new java.util.ArrayList<>();
+        final List< List< UUID > > postChunk = new java.util.ArrayList<>();
+        projector.addIndexRefreshSink( refreshed::add );
+        projector.addPostChunkSink( postChunk::add );
+
+        projector.onPageDeleted( "DeletedPage" );
+
+        assertTrue( repo.findByPage( "DeletedPage" ).isEmpty(), "a deleted page's chunks must not linger" );
+        assertEquals( 2, repo.findByPage( "OtherPage" ).size() );
+        assertEquals( 1, refreshed.size(), "retrieval indexes are told once" );
+        assertEquals( new java.util.HashSet<>( ids ), new java.util.HashSet<>( refreshed.get( 0 ) ) );
+        assertTrue( postChunk.isEmpty(), "nothing to embed or extract for a deleted page" );
+    }
+
+    @Test
+    void onPageRenamedRekeysTheChunksAndRefreshesIndexesWithoutReExtracting() {
+        projector.projectPage( "OldName", Map.of(), twoSections() );
+        final List< UUID > ids = repo.listChunkIdsForPage( "OldName" );
+        final List< List< UUID > > refreshed = new java.util.ArrayList<>();
+        final List< List< UUID > > postChunk = new java.util.ArrayList<>();
+        projector.addIndexRefreshSink( refreshed::add );
+        projector.addPostChunkSink( postChunk::add );
+
+        projector.onPageRenamed( "OldName", "NewName" );
+
+        assertTrue( repo.findByPage( "OldName" ).isEmpty() );
+        assertEquals( ids, repo.listChunkIdsForPage( "NewName" ), "same ids, so embeddings + mentions survive" );
+        assertEquals( 1, refreshed.size() );
+        assertEquals( new java.util.HashSet<>( ids ), new java.util.HashSet<>( refreshed.get( 0 ) ),
+            "indexes re-read the moved ids so they stop answering with the old page name" );
+        assertTrue( postChunk.isEmpty(), "a rename changes no content: no re-embed, no LLM re-extraction" );
+    }
+
+    @Test
+    void aSaveThatDropsChunksTellsIndexRefreshSinksWhichIdsWent() {
+        projector.projectPage( "ShrinkPage", Map.of(), twoSections() );
+        final List< UUID > before = repo.listChunkIdsForPage( "ShrinkPage" );
+        assertEquals( 2, before.size(), "precondition: two chunks" );
+        final List< List< UUID > > refreshed = new java.util.ArrayList<>();
+        projector.addIndexRefreshSink( refreshed::add );
+
+        projector.projectPage( "ShrinkPage", Map.of(), "## First\n\nThe first section" + PROSE + "\n" );
+
+        final java.util.Set< UUID > gone = new java.util.HashSet<>( before );
+        gone.removeAll( repo.listChunkIdsForPage( "ShrinkPage" ) );
+        assertEquals( 1, gone.size(), "precondition: the save dropped one chunk" );
+        assertEquals( List.of( List.copyOf( gone ) ), refreshed,
+            "the post-chunk sinks only ever hear the surviving ids, so the dropped one must reach the indexes here" );
+    }
+
+    @Test
+    void aFailingIndexRefreshSinkDoesNotStopTheOthers() {
+        projector.projectPage( "DeletedPage", Map.of(), twoSections() );
+        final java.util.concurrent.atomic.AtomicInteger survivor = new java.util.concurrent.atomic.AtomicInteger();
+        projector.addIndexRefreshSink( ids -> { throw new RuntimeException( "boom" ); } );
+        projector.addIndexRefreshSink( ids -> survivor.incrementAndGet() );
+
+        assertDoesNotThrow( () -> projector.onPageDeleted( "DeletedPage" ) );
+
+        assertEquals( 1, survivor.get() );
+    }
 }

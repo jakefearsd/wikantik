@@ -150,6 +150,10 @@ public final class SearchWiringHelper {
             if ( lexicalOnlyIndex != null && chunkProjector != null ) {
                 chunkProjector.addPostChunkSink(
                     ids -> BM25_REFRESH.execute( () -> lexicalOnlyIndex.upsertChunks( ids ) ) );
+                // Removed / re-keyed chunk ids (page delete, rename, a save that drops chunks):
+                // the upsert re-reads them, evicting a missing row and re-keying a moved one.
+                chunkProjector.addIndexRefreshSink(
+                    ids -> BM25_REFRESH.execute( () -> lexicalOnlyIndex.upsertChunks( ids ) ) );
             }
             LOG.info( "Embedding client absent — bundle sources wired BM25-only (LEXICAL/HYBRID)" );
             return;
@@ -288,6 +292,11 @@ public final class SearchWiringHelper {
             listener.setChunkChangeCallback( bm25Index::upsertChunks );
         }
         chunkProjector.addPostChunkSink( listener );
+        // Chunk ids removed (page delete, a save that drops chunks) or re-keyed (rename) carry no
+        // content to embed: the listener runs only its index callbacks for them, on its own
+        // thread, so every write to the in-process indexes stays on one thread. Their upsert
+        // re-reads the ids — a missing row is evicted, a moved one picks up its new page name.
+        chunkProjector.addIndexRefreshSink( listener::refreshWithoutEmbedding );
         engine.setManager( AsyncEmbeddingIndexListener.class, listener );
 
         if ( rebuildService != null ) {

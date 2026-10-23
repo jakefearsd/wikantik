@@ -599,6 +599,57 @@ public class ContentChunkRepository extends KgJdbcSupport {
     }
 
     /**
+     * Removes every chunk of a deleted page. Embeddings and Knowledge Graph mentions go with
+     * them ({@code ON DELETE CASCADE} on chunk id).
+     *
+     * @return the ids removed, so in-process retrieval indexes can evict them
+     */
+    public List< UUID > deleteByPage( final String pageName ) {
+        try {
+            final List< UUID > removed = query( DELETE_PAGE_RETURNING_IDS,
+                ps -> ps.setString( 1, pageName ), rs -> rs.getObject( 1, UUID.class ) );
+            invalidatePage( pageName );
+            return removed;
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to delete chunks of deleted page '{}': {}", pageName, e.getMessage(), e );
+            throw new RuntimeException( "deleteByPage failed for " + pageName, e );
+        }
+    }
+
+    /**
+     * Re-keys a renamed page's chunks to its new name, keeping their ids — and with them their
+     * embeddings and Knowledge Graph mentions. One transaction: any rows already under
+     * {@code newName} are stale (a page once deleted there left them behind — the rename target
+     * cannot exist as a page) and are removed first, or the update would collide with the
+     * {@code (page_name, chunk_index)} unique constraint. {@code modified} is bumped so the next
+     * embedding stale pass refreshes the contextual prefix, which can carry the page name.
+     *
+     * @return ids of those stale rows, so in-process retrieval indexes can evict them
+     */
+    public List< UUID > renamePage( final String oldName, final String newName ) {
+        try {
+            final List< UUID > displaced = inTransaction( conn -> {
+                final List< UUID > stale = query( conn, DELETE_PAGE_RETURNING_IDS,
+                    ps -> ps.setString( 1, newName ), rs -> rs.getObject( 1, UUID.class ) );
+                update( conn, "UPDATE kg_content_chunks SET page_name = ?, modified = NOW() WHERE page_name = ?", ps -> {
+                    ps.setString( 1, newName );
+                    ps.setString( 2, oldName );
+                } );
+                return stale;
+            } );
+            invalidatePage( oldName );
+            invalidatePage( newName );
+            return displaced;
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to re-key chunks of '{}' to renamed page '{}': {}", oldName, newName, e.getMessage(), e );
+            throw new RuntimeException( "renamePage failed for " + oldName + " -> " + newName, e );
+        }
+    }
+
+    private static final String DELETE_PAGE_RETURNING_IDS =
+        "DELETE FROM kg_content_chunks WHERE page_name = ? RETURNING id";
+
+    /**
      * Returns aggregate statistics over the chunks table.
      *
      * <p>{@link AggregateStats#pagesMissingChunks()} is always {@code 0} —

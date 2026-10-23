@@ -35,6 +35,7 @@ import com.wikantik.knowledge.agent.AgentHintsDeriver;
 import com.wikantik.knowledge.agent.DefaultForAgentProjectionService;
 import com.wikantik.knowledge.agent.ForAgentMetrics;
 import com.wikantik.knowledge.agent.HubSummarySynthesizer;
+import com.wikantik.knowledge.chunking.ChunkLifecycleListener;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
@@ -216,6 +217,27 @@ public final class KnowledgeWiringHelper {
             LOG.info( "ContentIndexRebuildService NOT registered — no LuceneSearchProvider in use" );
         }
         return rebuildService;
+    }
+
+    /**
+     * Keeps {@code kg_content_chunks} in step with page deletes (chunks dropped) and renames
+     * (chunks re-keyed). The listener is registered on the engine so it stays strongly reachable —
+     * WikiEventManager holds listeners weakly.
+     *
+     * @return the registered listener, or {@code null} when there is no projector
+     */
+    public static ChunkLifecycleListener wireChunkLifecycle( final ChunkProjector chunkProjector,
+                                                             final PageManager pageManager,
+                                                             final com.wikantik.content.PageRenamer pageRenamer,
+                                                             final WikiEngine engine ) {
+        if ( chunkProjector == null ) {
+            LOG.info( "Chunk lifecycle listener not wired: no ChunkProjector" );
+            return null;
+        }
+        final ChunkLifecycleListener listener = new ChunkLifecycleListener( chunkProjector );
+        listener.register( pageManager, pageRenamer );
+        engine.setManager( ChunkLifecycleListener.class, listener );
+        return listener;
     }
 
     // -----------------------------------------------------------------------

@@ -278,4 +278,34 @@ class KnowledgeWiringHelperTest {
         verify( engine, never() ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
         verify( chunkProjector, never() ).addPostChunkSink( any() );
     }
+
+    @Test
+    void wireChunkLifecycle_registersOnBothEventSourcesAndKeepsTheListenerStronglyReachable() {
+        final WikiEngine engine = mock( WikiEngine.class );
+        final ChunkProjector chunkProjector = mock( ChunkProjector.class );
+        final com.wikantik.api.managers.PageManager pageManager = mock( com.wikantik.api.managers.PageManager.class );
+        final com.wikantik.content.PageRenamer renamer = mock( com.wikantik.content.PageRenamer.class );
+
+        final com.wikantik.knowledge.chunking.ChunkLifecycleListener listener =
+            KnowledgeWiringHelper.wireChunkLifecycle( chunkProjector, pageManager, renamer, engine );
+        try {
+            verify( engine ).setManager( com.wikantik.knowledge.chunking.ChunkLifecycleListener.class, listener );
+            com.wikantik.event.WikiEventManager.fireEvent( pageManager, new com.wikantik.event.WikiPageEvent(
+                this, com.wikantik.event.WikiPageEvent.PAGE_DELETED, "Gone" ) );
+            com.wikantik.event.WikiEventManager.fireEvent( renamer,
+                new com.wikantik.event.WikiPageRenameEvent( renamer, "Old", "New" ) );
+            verify( chunkProjector ).onPageDeleted( "Gone" );
+            verify( chunkProjector ).onPageRenamed( "Old", "New" );
+        } finally {
+            com.wikantik.event.WikiEventManager.removeWikiEventListener( pageManager, listener );
+            com.wikantik.event.WikiEventManager.removeWikiEventListener( renamer, listener );
+        }
+    }
+
+    @Test
+    void wireChunkLifecycle_withoutAProjectorWiresNothing() {
+        final WikiEngine engine = mock( WikiEngine.class );
+        assertTrue( KnowledgeWiringHelper.wireChunkLifecycle( null, null, null, engine ) == null );
+        verify( engine, never() ).setManager( any(), any() );
+    }
 }

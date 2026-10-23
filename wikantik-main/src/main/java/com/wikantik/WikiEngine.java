@@ -1190,6 +1190,9 @@ public class WikiEngine implements Engine {
 
             // Register save-time filters.
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
+            com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireChunkLifecycle(
+                svcs.chunkProjector(), pageManager,
+                pageSubsystem != null ? pageSubsystem.pageRenamer() : null, this );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
             com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
                 props, structuralIndex, coreSubsystem, filterManager, pageManager, this );

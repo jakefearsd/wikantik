@@ -127,6 +127,7 @@ class SearchWiringHelperPostgresTest {
         }
         assertTrue( sawRefreshThread,
             "the BM25 refresh executor must have created its daemon worker thread by now" );
+        verify( chunkProjector ).addIndexRefreshSink( org.mockito.ArgumentMatchers.any() );
     }
 
     @Test
@@ -134,13 +135,17 @@ class SearchWiringHelperPostgresTest {
         final DataSource ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( "content_chunk_embeddings", "kg_content_chunks" );
 
+        final UUID chunkId;
         try ( Connection c = ds.getConnection();
               PreparedStatement ps = c.prepareStatement(
                   "INSERT INTO kg_content_chunks "
                   + "(page_name, chunk_index, text, char_count, token_count_estimate, content_hash) "
                   + "VALUES ('SearchWiringCtxPage', 0, 'content about search wiring context resolution', "
-                  + "48, 8, 'search-wiring-ctx-hash')" ) ) {
-            ps.executeUpdate();
+                  + "48, 8, 'search-wiring-ctx-hash') RETURNING id" ) ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
+                rs.next();
+                chunkId = (UUID) rs.getObject( 1 );
+            }
         }
 
         final HttpServer stub = HttpServer.create( new InetSocketAddress( "127.0.0.1", 0 ), 0 );
@@ -220,9 +225,28 @@ class SearchWiringHelperPostgresTest {
                 "chunk_text cache metrics must be registered" );
             assertNotNull( meterRegistry.find( "wikantik_cache.size" ).tag( "cache", "frontmatter_metadata" ).gauge(),
                 "frontmatter_metadata cache metrics must be registered" );
+
+            // A deleted page's chunk must leave the in-process dense index, not be served until a reload.
+            final InMemoryChunkVectorIndex dense = (InMemoryChunkVectorIndex) vecCaptor.getValue();
+            awaitSize( dense, 1, "precondition: the bootstrap run loaded the chunk into the dense index" );
+            @SuppressWarnings( "unchecked" )
+            final ArgumentCaptor< Consumer< List< UUID > > > refreshCaptor = ArgumentCaptor.forClass( Consumer.class );
+            verify( chunkProjector ).addIndexRefreshSink( refreshCaptor.capture() );
+            assertEquals( List.of( chunkId ), chunkRepo.deleteByPage( "SearchWiringCtxPage" ) );
+            refreshCaptor.getValue().accept( List.of( chunkId ) );
+            awaitSize( dense, 0, "the removed chunk must be evicted from the in-memory dense index" );
         } finally {
             MeterRegistryHolder.set( null );
             stub.stop( 0 );
         }
+    }
+
+    private static void awaitSize( final InMemoryChunkVectorIndex index, final int expected, final String message )
+            throws InterruptedException {
+        final long deadline = System.currentTimeMillis() + 10_000;
+        while ( index.size() != expected && System.currentTimeMillis() < deadline ) {
+            Thread.sleep( 25 );
+        }
+        assertEquals( expected, index.size(), message );
     }
 }

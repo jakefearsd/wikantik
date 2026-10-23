@@ -302,4 +302,83 @@ class ContentChunkRepositoryTest {
             List.of( new Chunk( "Big", 3, List.of(), "new", 3, 1, "newhash" ) ), List.of(), List.of() ) );
         assertEquals( "newhash", repo.findByPage( "Big" ).get( 3 ).contentHash() );
     }
+
+    private void seed( final String page, final int count ) {
+        final List< Chunk > chunks = new java.util.ArrayList<>();
+        for( int i = 0; i < count; i++ ) {
+            chunks.add( new Chunk( page, i, List.of( "H" ), page + " body " + i, 9, 2, page + "-h" + i ) );
+        }
+        repo.apply( page, new ChunkDiff.Diff( chunks, List.of(), List.of() ) );
+    }
+
+    private void embed( final UUID chunkId ) throws Exception {
+        try( final Connection conn = dataSource.getConnection();
+             final java.sql.PreparedStatement ps = conn.prepareStatement(
+                 "INSERT INTO content_chunk_embeddings (chunk_id, model_code, dim, vec) VALUES (?, 'test-model', 1, ?)" ) ) {
+            ps.setObject( 1, chunkId );
+            ps.setBytes( 2, new byte[]{ 0, 0, 0, 0 } );
+            ps.executeUpdate();
+        }
+    }
+
+    private int embeddingCount( final java.util.Collection< UUID > ids ) throws Exception {
+        try( final Connection conn = dataSource.getConnection();
+             final java.sql.PreparedStatement ps = conn.prepareStatement(
+                 "SELECT COUNT(*) FROM content_chunk_embeddings WHERE chunk_id = ANY( ? )" ) ) {
+            ps.setArray( 1, conn.createArrayOf( "uuid", ids.toArray() ) );
+            try( final java.sql.ResultSet rs = ps.executeQuery() ) {
+                rs.next();
+                return rs.getInt( 1 );
+            }
+        }
+    }
+
+    @Test
+    void deleteByPageRemovesOnlyThatPagesChunksAndTheirEmbeddings() throws Exception {
+        seed( "Gone", 2 );
+        seed( "Kept", 1 );
+        final List< UUID > goneIds = repo.listChunkIdsForPage( "Gone" );
+        for( final UUID id : goneIds ) embed( id );
+        assertEquals( 2, repo.findByIds( goneIds ).size(), "warm the read cache" );
+
+        final List< UUID > removed = repo.deleteByPage( "Gone" );
+
+        assertEquals( new java.util.HashSet<>( goneIds ), new java.util.HashSet<>( removed ) );
+        assertTrue( repo.findByPage( "Gone" ).isEmpty(), "a deleted page's chunks must not linger" );
+        assertTrue( repo.findByIds( goneIds ).isEmpty(), "the read cache must not keep serving them" );
+        assertEquals( 0, embeddingCount( goneIds ), "embeddings cascade" );
+        assertEquals( 1, repo.findByPage( "Kept" ).size() );
+        assertTrue( repo.deleteByPage( "Gone" ).isEmpty(), "idempotent" );
+    }
+
+    @Test
+    void renamePageRekeysChunksKeepingTheirIdsAndEmbeddings() throws Exception {
+        seed( "OldName", 2 );
+        final List< UUID > ids = repo.listChunkIdsForPage( "OldName" );
+        for( final UUID id : ids ) embed( id );
+        assertEquals( "OldName", repo.findByIds( ids ).get( 0 ).pageName(), "warm the read cache" );
+
+        final List< UUID > displaced = repo.renamePage( "OldName", "NewName" );
+
+        assertTrue( displaced.isEmpty() );
+        assertTrue( repo.findByPage( "OldName" ).isEmpty() );
+        assertEquals( ids, repo.listChunkIdsForPage( "NewName" ), "ids survive a rename" );
+        assertEquals( 2, embeddingCount( ids ), "so do their embeddings" );
+        assertTrue( repo.findByIds( ids ).stream().allMatch( c -> "NewName".equals( c.pageName() ) ),
+            "the read cache must not keep serving the old name" );
+    }
+
+    @Test
+    void renamePageDropsStaleRowsAlreadyUnderTheNewNameInsteadOfColliding() {
+        // A page once deleted at NewName left chunks behind; (page_name, chunk_index) is unique.
+        seed( "NewName", 3 );
+        final List< UUID > stale = repo.listChunkIdsForPage( "NewName" );
+        seed( "OldName", 2 );
+        final List< UUID > moving = repo.listChunkIdsForPage( "OldName" );
+
+        final List< UUID > displaced = repo.renamePage( "OldName", "NewName" );
+
+        assertEquals( new java.util.HashSet<>( stale ), new java.util.HashSet<>( displaced ) );
+        assertEquals( moving, repo.listChunkIdsForPage( "NewName" ) );
+    }
 }

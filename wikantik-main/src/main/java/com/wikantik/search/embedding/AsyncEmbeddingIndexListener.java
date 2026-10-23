@@ -161,6 +161,28 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
         }
     }
 
+    /**
+     * Chunk ids whose rows were deleted, or re-keyed to another page, with no content change:
+     * run only the two index callbacks — each in-process index re-reads the ids, evicting a
+     * missing row and picking up a moved row's page name — and embed nothing. Queued on the same
+     * executor as {@link #accept}, so every write to those indexes stays on one thread.
+     */
+    public void refreshWithoutEmbedding( final List< UUID > chunkIds ) {
+        if ( chunkIds == null || chunkIds.isEmpty() ) {
+            return;
+        }
+        final List< UUID > snapshot = List.copyOf( chunkIds );
+        try {
+            executor.submit( () -> {
+                notify( this.chunkChangeCallback, snapshot, "Chunk-change callback (refresh)" );
+                notify( this.postIndexCallback, snapshot, "Post-index callback (refresh)" );
+            } );
+        } catch( final RuntimeException reject ) {
+            LOG.warn( "Rejected index refresh of {} removed/re-keyed chunks: {}",
+                snapshot.size(), reject.getMessage() );
+        }
+    }
+
     private void runIndex( final List< UUID > chunkIds ) {
         // First, and unconditionally: consumers that need only the chunk text. Ordered
         // ahead of the embedding call so lexical retrieval does not wait on an HTTP

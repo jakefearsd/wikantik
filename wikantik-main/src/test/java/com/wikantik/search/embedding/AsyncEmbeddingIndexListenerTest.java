@@ -254,4 +254,45 @@ class AsyncEmbeddingIndexListenerTest {
             verify( indexer, times( 1 ) ).indexChunks( any(), eq( MODEL ) );
         }
     }
+
+    /**
+     * Ids of deleted or re-keyed chunks reach both in-process indexes (which re-read them,
+     * evicting a missing row) on the listener's own thread — and never the embedding backend.
+     */
+    @Test
+    void refreshWithoutEmbedding_runs_both_index_callbacks_and_never_embeds() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final AtomicReference< List< UUID > > lexical = new AtomicReference<>();
+        final AtomicReference< List< UUID > > dense = new AtomicReference<>();
+        final List< UUID > ids = List.of( UUID.randomUUID(), UUID.randomUUID() );
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            listener.setChunkChangeCallback( lexical::set );
+            listener.setPostIndexCallback( dense::set );
+            listener.refreshWithoutEmbedding( ids );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+        }
+        assertEquals( ids, lexical.get() );
+        assertEquals( ids, dense.get() );
+        verify( indexer, never() ).indexChunks( any(), any() );
+    }
+
+    @Test
+    void refreshWithoutEmbedding_isolates_a_failing_index_callback() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final AtomicInteger dense = new AtomicInteger();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            listener.setChunkChangeCallback( ids -> { throw new RuntimeException( "bm25 blew up" ); } );
+            listener.setPostIndexCallback( ids -> dense.incrementAndGet() );
+            listener.refreshWithoutEmbedding( List.of( UUID.randomUUID() ) );
+            listener.refreshWithoutEmbedding( List.of() );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+        }
+        assertEquals( 1, dense.get() );
+    }
 }

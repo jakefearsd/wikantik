@@ -148,6 +148,72 @@ public class ChunkProjector implements PageFilter {
     }
 
     /**
+     * Sinks told which chunk ids were removed, or re-keyed to another page, with no content to
+     * re-embed or re-extract: the in-process retrieval indexes (BM25, and the in-memory / Lucene
+     * HNSW dense backends) re-read those ids from the table, which updates a moved chunk's page
+     * name and evicts an id whose row is gone. The post-chunk sinks never hear such ids — they
+     * are handed only the chunks a page still has.
+     */
+    private final java.util.List< Consumer< List< UUID > > > indexRefreshSinks =
+        new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an index-refresh sink (see {@link #indexRefreshSinks}). A {@code null} sink is ignored. */
+    public void addIndexRefreshSink( final Consumer< List< UUID > > sink ) {
+        if ( sink != null ) {
+            indexRefreshSinks.add( sink );
+        }
+    }
+
+    /**
+     * A page was deleted: drop its chunks (their embeddings and Knowledge Graph mentions cascade)
+     * and evict them from the retrieval indexes. Not gated on {@code enabled} — whatever chunks a
+     * deleted page has are stale either way. Never rethrows.
+     */
+    public void onPageDeleted( final String pageName ) {
+        try {
+            final List< UUID > removed = repository.deleteByPage( pageName );
+            if ( !removed.isEmpty() ) {
+                LOG.info( "Dropped {} chunks of deleted page '{}'", removed.size(), pageName );
+                notifyIndexRefreshSinks( pageName, removed );
+            }
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Dropping chunks of deleted page '{}' failed (admin content rebuild sweeps them): {}",
+                pageName, e.getMessage(), e );
+        }
+    }
+
+    /**
+     * A page was renamed: re-key its chunks to the new name, keeping their ids so embeddings and
+     * Knowledge Graph mentions survive, and have the retrieval indexes re-read them. Content is
+     * unchanged, so the post-chunk sinks (embedding, LLM entity extraction) are not run. Never rethrows.
+     */
+    public void onPageRenamed( final String oldName, final String newName ) {
+        try {
+            final List< UUID > displaced = repository.renamePage( oldName, newName );
+            final List< UUID > touched = new java.util.ArrayList<>( displaced );
+            touched.addAll( repository.listChunkIdsForPage( newName ) );
+            if ( !touched.isEmpty() ) {
+                notifyIndexRefreshSinks( newName, touched );
+            }
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Re-keying chunks of '{}' to renamed page '{}' failed (re-saving the page re-chunks it): {}",
+                oldName, newName, e.getMessage(), e );
+        }
+    }
+
+    private void notifyIndexRefreshSinks( final String pageName, final List< UUID > ids ) {
+        final List< UUID > snapshot = List.copyOf( ids );
+        for ( final Consumer< List< UUID > > sink : indexRefreshSinks ) {
+            try {
+                sink.accept( snapshot );
+            } catch( final RuntimeException e ) {
+                LOG.warn( "Index-refresh sink failed for page '{}' ({} ids): {}",
+                    pageName, snapshot.size(), e.getMessage(), e );
+            }
+        }
+    }
+
+    /**
      * PageFilter callback — chunks the saved page and persists the diff.
      * Never rethrows: failures are logged and the save is unaffected.
      */
@@ -209,6 +275,11 @@ public class ChunkProjector implements PageFilter {
                 && diff.deletes().isEmpty();
             if ( !diffEmpty ) {
                 notifyPostChunkSink( pageName );
+            }
+            // The post-chunk sinks are only told the ids the page still has; the ones this save
+            // dropped must reach the in-process indexes separately or they are served until a reload.
+            if ( !diff.deletes().isEmpty() ) {
+                notifyIndexRefreshSinks( pageName, diff.deletes() );
             }
         } catch( final Exception e ) {
             LOG.warn( "Content chunking failed for page '{}': {}",

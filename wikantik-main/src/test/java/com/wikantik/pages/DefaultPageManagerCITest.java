@@ -500,14 +500,33 @@ class DefaultPageManagerCITest {
 
         mgr.deletePage( "EventPage" );
 
-        // deletePage(String) calls deletePage(Page) which fires DELETE_REQUEST and DELETED,
-        // then deletePage(String) fires another DELETED
+        // deletePage(String) delegates to deletePage(Page), which fires DELETE_REQUEST then DELETED —
+        // exactly once: every PAGE_DELETED listener retires rows, so a second event is a second retirement.
         final long deletedCount = events.stream()
                 .filter( e -> e.getType() == WikiPageEvent.PAGE_DELETED )
                 .count();
-        assertTrue( deletedCount >= 1, "Should fire at least one PAGE_DELETED event" );
+        assertEquals( 1, deletedCount, "one delete must fire exactly one PAGE_DELETED" );
 
         WikiEventManager.removeWikiEventListener( mgr, listener );
+    }
+
+    @Test
+    void deletePageByNameFiresNoDeletedEventWhenTheProviderDeleteFails() throws ProviderException {
+        final Page page = mockPage( "Stuck" );
+        when( pageProvider.getPageInfo( "Stuck", PageProvider.LATEST_VERSION ) ).thenReturn( page );
+        when( attachmentManager.hasAttachments( page ) ).thenReturn( false );
+        doThrow( new ProviderException( "file still there" ) ).when( pageProvider ).deletePage( "Stuck" );
+
+        final List< WikiEvent > events = new ArrayList<>();
+        final WikiEventListener listener = events::add;
+        WikiEventManager.addWikiEventListener( mgr, listener );
+        try {
+            assertThrows( ProviderException.class, () -> mgr.deletePage( "Stuck" ) );
+            assertTrue( events.stream().noneMatch( e -> e.getType() == WikiPageEvent.PAGE_DELETED ),
+                    "a failed delete must not announce PAGE_DELETED" );
+        } finally {
+            WikiEventManager.removeWikiEventListener( mgr, listener );
+        }
     }
 
     // ==================== deletePage(Page) ====================

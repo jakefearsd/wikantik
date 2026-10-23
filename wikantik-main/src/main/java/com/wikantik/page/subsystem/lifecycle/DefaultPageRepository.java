@@ -382,8 +382,9 @@ public class DefaultPageRepository implements PageRepository {
                         getAttachmentManager().deleteAttachment( attachment );
                     }
                 }
+                // deletePage(Page) announces PAGE_DELETED itself; firing it again here ran every
+                // retirement listener twice per delete.
                 deletePage( pageToDelete );
-                fireEvent( WikiPageEvent.PAGE_DELETED, pageName );
             }
         }
     }

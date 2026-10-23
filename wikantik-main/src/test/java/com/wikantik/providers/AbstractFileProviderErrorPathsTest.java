@@ -115,6 +115,31 @@ class AbstractFileProviderErrorPathsTest {
         }
     }
 
+    // ============== deletePage() ==============
+
+    @Test
+    void testDeletePage_fileCannotBeDeleted_throwsAndLeavesThePage( @TempDir final File pageDir ) throws Exception {
+        final FileSystemProvider provider = buildProvider( pageDir );
+        final Page page = com.wikantik.api.spi.Wiki.contents().page( engine, "Survivor" );
+        provider.putPageText( page, "still here" );
+        Assertions.assertTrue( pageDir.setWritable( false ) );
+        Assumptions.assumeFalse( pageDir.canWrite(), "permission bits not enforced here (running as root?)" );
+        try {
+            // A delete that leaves the file behind must fail loudly: PAGE_DELETED fires only after
+            // deletePage returns, and it retires the page's canonical_id, owners and chunks.
+            Assertions.assertThrows( ProviderException.class, () -> provider.deletePage( "Survivor" ) );
+            Assertions.assertTrue( provider.pageExists( "Survivor" ) );
+        } finally {
+            pageDir.setWritable( true );
+        }
+    }
+
+    @Test
+    void testDeletePage_missingPage_doesNotThrow( @TempDir final File pageDir ) throws Exception {
+        final FileSystemProvider provider = buildProvider( pageDir );
+        Assertions.assertDoesNotThrow( () -> provider.deletePage( "NeverExisted" ) );
+    }
+
     // ============== getPageFileExtension() cache-miss branches ==============
 
     @Test

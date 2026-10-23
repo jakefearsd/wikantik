@@ -685,12 +685,16 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  Subclasses call {@code super.deletePage()} and then clean up their own artifacts:
      *  {@code FileSystemProvider} removes the companion {@code .properties} file;
      *  {@code VersioningFileProvider} removes the version directory under {@code OLD/}.
+     *
+     *  @throws ProviderException when the page file exists but could not be deleted — the page
+     *          manager announces {@code PAGE_DELETED} only after this returns, and its listeners
+     *          retire the page's canonical_id, owners and chunks. A missing file is not an error.
      */
     @Override
     public void deletePage( final String pageName ) throws ProviderException {
         final File f = findPage( pageName );
-        if( !f.delete() ) {
-            LOG.warn( "Failed to delete page file: {}", f.getAbsolutePath() );
+        if( !f.delete() && f.exists() ) {
+            throw new ProviderException( "Failed to delete page file: " + f.getAbsolutePath() );
         }
         // Invalidate cache since the page file no longer exists
         fileExtensionCache.remove( pageName );

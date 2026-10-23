@@ -39,6 +39,8 @@ public final class ChunkLifecycleListener implements WikiEventListener {
     private static final Logger LOG = LogManager.getLogger( ChunkLifecycleListener.class );
 
     private final ChunkProjector projector;
+    /** Set by {@link #register}; consulted before a PAGE_DELETED drops anything. */
+    private volatile PageManager pageManager;
 
     public ChunkLifecycleListener( final ChunkProjector projector ) {
         this.projector = projector;
@@ -51,6 +53,7 @@ public final class ChunkLifecycleListener implements WikiEventListener {
      * strong reference to this listener: WikiEventManager keeps listeners weakly.
      */
     public void register( final PageManager pageManager, final PageRenamer pageRenamer ) {
+        this.pageManager = pageManager;
         if ( pageManager != null ) {
             WikiEventManager.addWikiEventListener( pageManager, this );
         }
@@ -66,7 +69,27 @@ public final class ChunkLifecycleListener implements WikiEventListener {
         if ( event instanceof WikiPageRenameEvent rename ) {
             projector.onPageRenamed( rename.getOldPageName(), rename.getNewPageName() );
         } else if ( event instanceof WikiPageEvent pageEvent && pageEvent.getType() == WikiPageEvent.PAGE_DELETED ) {
-            projector.onPageDeleted( pageEvent.getPageName() );
+            final String pageName = pageEvent.getPageName();
+            if ( mayStillExist( pageName ) ) {
+                LOG.warn( "PAGE_DELETED for '{}' but the page still exists (its delete failed?) — keeping its chunks",
+                    pageName );
+                return;
+            }
+            projector.onPageDeleted( pageName );
+        }
+    }
+
+    /** A lookup failure counts as "may exist": keeping stale chunks beats dropping a live page's. */
+    private boolean mayStillExist( final String pageName ) {
+        final PageManager pm = pageManager;
+        if ( pm == null ) {
+            return false;
+        }
+        try {
+            return pm.pageExists( pageName );
+        } catch ( final Exception e ) {
+            LOG.warn( "pageExists('{}') failed — keeping its chunks: {}", pageName, e.getMessage() );
+            return true;
         }
     }
 }

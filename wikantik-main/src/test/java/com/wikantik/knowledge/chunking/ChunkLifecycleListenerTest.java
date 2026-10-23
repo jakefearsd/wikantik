@@ -60,6 +60,16 @@ class ChunkLifecycleListenerTest {
     }
 
     @Test
+    void aPageDeletedEventForAPageThatStillExistsKeepsItsChunks() throws Exception {
+        // A provider whose file delete failed: the page is still there, its chunks must stay.
+        when( pageManager.pageExists( "Stuck" ) ).thenReturn( true );
+
+        WikiEventManager.fireEvent( pageManager, new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "Stuck" ) );
+
+        verify( projector, never() ).onPageDeleted( anyString() );
+    }
+
+    @Test
     void aRenameFromTheRenamerRekeysTheChunksAndDeletesNothing() {
         WikiEventManager.fireEvent( renamer, new WikiPageRenameEvent( renamer, "OldName", "NewName" ) );
 

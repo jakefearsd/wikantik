@@ -19,6 +19,14 @@ WORKDIR /src
 COPY . .
 RUN mvn -B clean package -pl wikantik-war -am -DskipTests
 
+# Explode the WAR here, in the build stage, so the runtime stage can COPY the
+# exploded tree directly. Copying the ~150 MB WAR into the runtime stage and
+# deleting it in a later RUN would leave it in its own image layer forever.
+# `jar xf` ships with the JDK, so this needs no extra package in the build image.
+RUN mkdir -p /out/ROOT \
+    && cd /out/ROOT \
+    && jar xf /src/wikantik-war/target/Wikantik.war
+
 # Stage 2: Tomcat 11 / JDK 25 runtime
 # Pinned to the same version as bin/deploy-local.sh's TOMCAT_VERSION so the
 # bare-metal and container install paths run on the identical Tomcat patch.
@@ -81,11 +89,8 @@ RUN chmod +x /entrypoint.sh
 COPY bin/db/ /opt/wikantik/db/
 RUN chmod +x /opt/wikantik/db/migrate.sh
 
-# Deploy WAR (unzipped for faster startup)
-COPY --from=build /src/wikantik-war/target/Wikantik.war /tmp/Wikantik.war
-RUN mkdir -p ${CATALINA_HOME}/webapps/ROOT \
-    && unzip -q -d ${CATALINA_HOME}/webapps/ROOT /tmp/Wikantik.war \
-    && rm /tmp/Wikantik.war
+# Deploy WAR (exploded in the build stage for faster startup and so no WAR layer is kept)
+COPY --from=build /out/ROOT ${CATALINA_HOME}/webapps/ROOT/
 
 # Copy default page content
 COPY docs/wikantik-pages/ /var/wikantik/pages/

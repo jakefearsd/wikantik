@@ -196,6 +196,7 @@ do_tomcat_upgrade() {
     restore_preserved "${stage}"
     rm -rf "${stage}"
     print_status "Restored preserved paths into fresh ${new_version}"
+    print_warning "Only data/workdir was carried over; anything else under the old data/ remains only in ${backup_dir}/data (removed by the next upgrade's backup prune)"
 
     echo ""
     echo "    Rollback: rm -rf ${TOMCAT_DIR} && mv ${backup_dir} ${TOMCAT_DIR}"

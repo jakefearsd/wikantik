@@ -369,16 +369,20 @@ class ContentChunkRepositoryTest {
     }
 
     @Test
-    void renamePageDropsStaleRowsAlreadyUnderTheNewNameInsteadOfColliding() {
-        // A page once deleted at NewName left chunks behind; (page_name, chunk_index) is unique.
+    void renamePageKeepsChunksAlreadyWrittenUnderTheNewNameAndDropsTheOldOnes() {
+        // A self-linking page: the renamer's referrer rewrite saves it under NewName first, so the
+        // save-time projector has already written fresh chunks there. A delete drops a page's
+        // chunks, so rows under NewName are never a deleted page's leftovers — they are current.
         seed( "NewName", 3 );
-        final List< UUID > stale = repo.listChunkIdsForPage( "NewName" );
+        final List< UUID > fresh = repo.listChunkIdsForPage( "NewName" );
         seed( "OldName", 2 );
-        final List< UUID > moving = repo.listChunkIdsForPage( "OldName" );
+        final List< UUID > superseded = repo.listChunkIdsForPage( "OldName" );
 
         final List< UUID > displaced = repo.renamePage( "OldName", "NewName" );
 
-        assertEquals( new java.util.HashSet<>( stale ), new java.util.HashSet<>( displaced ) );
-        assertEquals( moving, repo.listChunkIdsForPage( "NewName" ) );
+        assertEquals( fresh, repo.listChunkIdsForPage( "NewName" ), "the post-rewrite chunks are kept" );
+        assertTrue( repo.findByPage( "OldName" ).isEmpty(), "the pre-rewrite chunks are dropped" );
+        assertEquals( new java.util.HashSet<>( superseded ), new java.util.HashSet<>( displaced ),
+            "the dropped ids are reported so retrieval indexes evict them" );
     }
 }

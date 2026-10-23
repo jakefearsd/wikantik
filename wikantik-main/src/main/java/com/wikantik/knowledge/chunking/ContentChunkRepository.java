@@ -618,24 +618,32 @@ public class ContentChunkRepository extends KgJdbcSupport {
 
     /**
      * Re-keys a renamed page's chunks to its new name, keeping their ids — and with them their
-     * embeddings and Knowledge Graph mentions. One transaction: any rows already under
-     * {@code newName} are stale (a page once deleted there left them behind — the rename target
-     * cannot exist as a page) and are removed first, or the update would collide with the
-     * {@code (page_name, chunk_index)} unique constraint. {@code modified} is bumped so the next
-     * embedding stale pass refreshes the contextual prefix, which can carry the page name.
+     * embeddings and Knowledge Graph mentions. {@code modified} is bumped so the next embedding
+     * stale pass refreshes the contextual prefix, which can carry the page name.
      *
-     * @return ids of those stale rows, so in-process retrieval indexes can evict them
+     * <p>When chunks already sit under {@code newName} they are kept and the old name's rows are
+     * dropped instead: a delete removes a page's chunks, so rows under the new name are never a
+     * deleted page's leftovers — they were written by the rename itself (a self-linking page is
+     * re-saved under its new name by the referrer rewrite before the rename event fires) and
+     * reflect the rewritten text, which the old rows do not. One transaction.</p>
+     *
+     * @return ids of the rows dropped, so in-process retrieval indexes can evict them
      */
     public List< UUID > renamePage( final String oldName, final String newName ) {
         try {
             final List< UUID > displaced = inTransaction( conn -> {
-                final List< UUID > stale = query( conn, DELETE_PAGE_RETURNING_IDS,
-                    ps -> ps.setString( 1, newName ), rs -> rs.getObject( 1, UUID.class ) );
+                final boolean alreadyChunked = queryOne( conn,
+                    "SELECT 1 FROM kg_content_chunks WHERE page_name = ? LIMIT 1",
+                    ps -> ps.setString( 1, newName ), rs -> Boolean.TRUE ).isPresent();
+                if ( alreadyChunked ) {
+                    return query( conn, DELETE_PAGE_RETURNING_IDS,
+                        ps -> ps.setString( 1, oldName ), rs -> rs.getObject( 1, UUID.class ) );
+                }
                 update( conn, "UPDATE kg_content_chunks SET page_name = ?, modified = NOW() WHERE page_name = ?", ps -> {
                     ps.setString( 1, newName );
                     ps.setString( 2, oldName );
                 } );
-                return stale;
+                return List.< UUID >of();
             } );
             invalidatePage( oldName );
             invalidatePage( newName );

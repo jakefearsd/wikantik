@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,8 +44,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * a recording is running throws {@link IllegalStateException} so the REST
  * layer can map it to a 409. Duration is bounded by
  * {@link #MAX_DURATION_SECONDS} so an unattended recording can't run forever.
- * Directory size is capped to refuse new recordings when the operator has
- * not cleaned up old captures.</p>
+ * Directory size is capped: before a new recording starts, the oldest finished
+ * recordings are deleted until the directory is back under the cap.</p>
  *
  * <p>Uses JFR's built-in {@code default} configuration (~1 % CPU overhead).
  * A future toggle could expose the {@code profile} configuration; out of
@@ -192,20 +193,61 @@ public final class JfrProfilingService {
         }
     }
 
+    /**
+     * Brings the directory back under {@link #maxDirectoryBytes} by deleting the OLDEST finished
+     * {@code .jfr} recordings (by last-modified time), so an unattended service never fills the disk
+     * and then blocks profiling until someone deletes files by hand. A recording still in progress is
+     * never deleted. Pruned recordings are dropped from the tracked set so they stop being listed.
+     *
+     * @throws IllegalStateException if the directory is still over the cap after pruning
+     */
     private void enforceSizeCap() {
+        final List< Path > files = new ArrayList<>();
         try ( var stream = Files.list( directory ) ) {
-            final long total = stream
-                .filter( p -> p.toString().endsWith( ".jfr" ) )
-                .mapToLong( p -> p.toFile().length() )
-                .sum();
-            if ( total > maxDirectoryBytes ) {
-                throw new IllegalStateException(
-                    "Profiling directory exceeds size cap (" + total + " > " + maxDirectoryBytes
-                    + " bytes). Delete old recordings before starting a new one." );
-            }
+            stream.filter( p -> p.toString().endsWith( ".jfr" ) && Files.isRegularFile( p ) ).forEach( files::add );
         } catch ( final IOException e ) {
             throw new IllegalStateException( "Cannot enforce profiling dir size cap: " + e.getMessage(), e );
         }
+        long total = 0L;
+        for ( final Path p : files ) total += p.toFile().length();
+        if ( total <= maxDirectoryBytes ) {
+            return;
+        }
+
+        files.sort( Comparator.comparingLong( ( Path p ) -> p.toFile().lastModified() ).thenComparing( Path::getFileName ) );
+        for ( final Path p : files ) {
+            if ( total <= maxDirectoryBytes ) {
+                break;
+            }
+            if ( isInProgress( p ) ) {
+                continue;
+            }
+            final long size = p.toFile().length();
+            try {
+                Files.delete( p );
+            } catch ( final IOException e ) {
+                LOG.warn( "JFR prune: could not delete old recording {} ({}B): {}", p.getFileName(), size, e.getMessage(), e );
+                continue;
+            }
+            total -= size;
+            recordings.values().removeIf( t -> t.info.filePath().equals( p ) );
+            LOG.info( "JFR prune: deleted old recording {} ({}B) to stay under the {}B cap",
+                p.getFileName(), size, maxDirectoryBytes );
+        }
+        if ( total > maxDirectoryBytes ) {
+            throw new IllegalStateException(
+                "Profiling directory exceeds size cap (" + total + " > " + maxDirectoryBytes
+                + " bytes) and no more old recordings could be deleted." );
+        }
+    }
+
+    private boolean isInProgress( final Path file ) {
+        for ( final Tracked t : recordings.values() ) {
+            if ( t.info.filePath().equals( file ) && !"FINISHED".equals( t.info.status() ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Immutable DTO. The {@code status} string is one of "RUNNING", "FINISHED", or "FAILED". */

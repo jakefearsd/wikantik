@@ -171,13 +171,63 @@ class JfrProfilingServiceTest {
     }
 
     @Test
-    void sizeCapRejectsNewStart( @TempDir final Path tmp ) throws Exception {
-        // Pre-populate a fake .jfr file larger than the (tiny) cap so the next start refuses.
-        java.nio.file.Files.write( tmp.resolve( "preexisting.jfr" ), new byte[ 1024 ] );
-        svc = new JfrProfilingService( tmp, 512 );  // 512 bytes cap; the file above blows it.
-        final IllegalStateException ex = assertThrows( IllegalStateException.class,
-            () -> svc.start( 2, "would-overflow" ) );
-        assertTrue( ex.getMessage().contains( "size cap" ),
-            "expected 'size cap' in message, got: " + ex.getMessage() );
+    void sizeCapPrunesOldestRecordingsInsteadOfRefusing( @TempDir final Path tmp ) throws Exception {
+        // Three finished 400-byte recordings (1200 B) against a 1000 B cap. The OLDEST must be
+        // deleted (not the newer ones) and the start must then succeed. Before the fix start()
+        // threw "exceeds size cap" and the directory stayed full until someone deleted by hand.
+        final Path oldest = writeJfr( tmp, "oldest.jfr", 400, 1_000_000L );
+        final Path middle = writeJfr( tmp, "middle.jfr", 400, 2_000_000L );
+        final Path newest = writeJfr( tmp, "newest.jfr", 400, 3_000_000L );
+        svc = new JfrProfilingService( tmp, 1000 );
+
+        final var info = svc.start( 2, "after-prune" );
+
+        assertEquals( "RUNNING", info.status() );
+        assertFalse( java.nio.file.Files.exists( oldest ), "oldest recording should have been pruned" );
+        assertTrue( java.nio.file.Files.exists( middle ), "newer recording must be kept" );
+        assertTrue( java.nio.file.Files.exists( newest ), "newest recording must be kept" );
+    }
+
+    @Test
+    void sizeCapPrunesUntilUnderCapAndIgnoresNonJfrFiles( @TempDir final Path tmp ) throws Exception {
+        final Path a = writeJfr( tmp, "a.jfr", 600, 1_000_000L );
+        final Path b = writeJfr( tmp, "b.jfr", 600, 2_000_000L );
+        final Path c = writeJfr( tmp, "c.jfr", 600, 3_000_000L );
+        final Path notes = writeJfr( tmp, "notes.txt", 5000, 0L );
+        svc = new JfrProfilingService( tmp, 700 );
+
+        svc.start( 2, "multi-prune" );
+
+        assertFalse( java.nio.file.Files.exists( a ) );
+        assertFalse( java.nio.file.Files.exists( b ) );
+        assertTrue( java.nio.file.Files.exists( c ), "newest is kept once the directory is under the cap" );
+        assertTrue( java.nio.file.Files.exists( notes ), "non-.jfr files are never touched" );
+    }
+
+    @Test
+    void prunedRecordingIsDroppedFromTrackedList( @TempDir final Path tmp ) throws Exception {
+        svc = new JfrProfilingService( tmp, 1000 );
+        final var first = svc.start( 2, "tracked-first" );
+        TimeUnit.MILLISECONDS.sleep( 200 );
+        final var stopped = svc.stop( first.recordingId() );
+        assertTrue( stopped.sizeBytes() > 0 );
+        // Make the real finished recording the oldest, and push the dir over the cap.
+        java.nio.file.Files.setLastModifiedTime( stopped.filePath(),
+            java.nio.file.attribute.FileTime.fromMillis( 1_000_000L ) );
+        writeJfr( tmp, "filler.jfr", 2000, 5_000_000L );
+
+        svc.start( 2, "tracked-second" );
+
+        assertFalse( java.nio.file.Files.exists( stopped.filePath() ) );
+        assertNull( svc.get( first.recordingId() ),
+            "a pruned recording must not stay listed (its file is gone)" );
+    }
+
+    private static Path writeJfr( final Path dir, final String name, final int bytes, final long mtimeMillis )
+            throws java.io.IOException {
+        final Path p = dir.resolve( name );
+        java.nio.file.Files.write( p, new byte[ bytes ] );
+        java.nio.file.Files.setLastModifiedTime( p, java.nio.file.attribute.FileTime.fromMillis( mtimeMillis ) );
+        return p;
     }
 }

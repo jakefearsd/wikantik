@@ -179,7 +179,7 @@
              Documentation at: /docs/config/valve.html
              Pattern fields: %h=client IP, %D=duration(ms), CF-IPCountry=country code -->
         <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
-               prefix="access" suffix=".log"
+               prefix="access" suffix=".log" maxDays="14"
                pattern="%h %l %u %t &quot;%r&quot; %s %b %D %{CF-IPCountry}i &quot;%{User-Agent}i&quot;" />
 
       </Host>

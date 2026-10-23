@@ -58,7 +58,7 @@
                protocolHeader="X-Forwarded-Proto" />
 
         <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
-               prefix="access" suffix=".log"
+               prefix="access" suffix=".log" maxDays="14"
                pattern="%h %l %u %t &quot;%r&quot; %s %b %D %{CF-IPCountry}i &quot;%{User-Agent}i&quot;" />
 
         <Valve className="org.apache.catalina.valves.ErrorReportValve"

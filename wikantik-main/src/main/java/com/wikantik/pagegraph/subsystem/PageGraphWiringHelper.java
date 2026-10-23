@@ -94,8 +94,10 @@ public final class PageGraphWiringHelper {
         // reference in the managers map so the listener is not GC'd between events.
         final StructuralIndexEventListener structuralIndexListener =
             new StructuralIndexEventListener( structuralIndex );
-        structuralIndexListener.register( pageManager, filterManager );
+        final com.wikantik.page.subsystem.PageSubsystem.Services pages = engine.getPageSubsystem();
+        structuralIndexListener.register( pageManager, filterManager, pages == null ? null : pages.pageRenamer() );
         engine.setManager( StructuralIndexEventListener.class, structuralIndexListener );
+        wireRetirementCleanups( structuralIndex, persistenceSubsystem );
 
         // Native [[ ]] links resolve through the title index. Once the initial rebuild has finished, refresh the
         // references of pages that were scanned while it was warming (or before native links existed). This runs on
@@ -123,6 +125,26 @@ public final class PageGraphWiringHelper {
         LOG.info( "PageGraphService registered" );
 
         return structuralIndex;
+    }
+
+    /**
+     * Rows keyed on a page's canonical_id with no foreign key to {@code page_canonical_ids}
+     * (V033/V034 — the index synthesises ids it never persists) are dropped when a true delete
+     * retires the id. Each is its own listener, so one failing does not stop the other; a rename
+     * retires nothing, so ownership and comment threads follow the page to its new name.
+     * Citations register their own cleanup in {@code CitationWiringHelper}.
+     */
+    static void wireRetirementCleanups( final DefaultStructuralIndexService structuralIndex,
+                                        final PersistenceSubsystem.Services persistenceSubsystem ) {
+        final com.wikantik.comments.PageOwnerService owners = persistenceSubsystem.pageOwners();
+        if ( owners != null ) {
+            structuralIndex.addPageRetirementListener( ( slug, canonicalId ) -> owners.deleteForPage( canonicalId ) );
+        }
+        final com.wikantik.comments.CommentStore comments = persistenceSubsystem.comments();
+        if ( comments != null ) {
+            structuralIndex.addPageRetirementListener(
+                ( slug, canonicalId ) -> comments.deleteThreadsForPage( canonicalId ) );
+        }
     }
 
     /**

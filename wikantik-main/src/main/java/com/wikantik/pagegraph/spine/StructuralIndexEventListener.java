@@ -19,10 +19,12 @@
 package com.wikantik.pagegraph.spine;
 
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.content.PageRenamer;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
+import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.filters.FilterManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -56,8 +58,26 @@ public class StructuralIndexEventListener implements WikiEventListener {
         LOG.info( "Structural index event listener registered for PageManager + FilterManager events" );
     }
 
+    /**
+     * As {@link #register(PageManager, FilterManager)}, plus the renamer: {@code DefaultPageRenamer}
+     * fires its {@link WikiPageRenameEvent} keyed on itself, never on the PageManager, so without
+     * this the index keeps the canonical_id pointed at the old slug until the page is next saved.
+     */
+    public void register( final PageManager pageManager, final FilterManager filterManager,
+                          final PageRenamer pageRenamer ) {
+        register( pageManager, filterManager );
+        if ( pageRenamer != null ) {
+            WikiEventManager.addWikiEventListener( pageRenamer, this );
+            LOG.info( "Structural index event listener registered for PageRenamer events" );
+        }
+    }
+
     @Override
     public void actionPerformed( final WikiEvent event ) {
+        if ( event instanceof WikiPageRenameEvent rename ) {
+            service.onPageRenamed( rename.getOldPageName(), rename.getNewPageName() );
+            return;
+        }
         if ( !( event instanceof WikiPageEvent pageEvent ) ) {
             return;
         }

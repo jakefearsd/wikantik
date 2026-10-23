@@ -47,6 +47,17 @@ public final class CitationWiringHelper {
 
     private CitationWiringHelper() {}
 
+    /** Deletes reach citations through the index's retirement hook, which alone knows the id is truly gone. */
+    private static void registerRetirementCleanup( final StructuralIndexService structuralIndex,
+                                                   final CitationSync sync ) {
+        if ( structuralIndex instanceof com.wikantik.pagegraph.spine.DefaultStructuralIndexService spine ) {
+            spine.addPageRetirementListener( sync::onPageRetired );
+        } else {
+            LOG.warn( "structural index is {}, not the default; a deleted page's citations will not be cleaned up on delete",
+                      structuralIndex.getClass().getName() );
+        }
+    }
+
     /**
      * Holds the objects that must be retained by the caller to prevent garbage
      * collection (WikiEventManager holds listeners via WEAK references).
@@ -121,6 +132,7 @@ public final class CitationWiringHelper {
 
         final CitationEventListener listener = new CitationEventListener( sync );
         listener.register( pageManager, filterManager );
+        registerRetirementCleanup( structuralIndex, sync );
 
         if ( coordinator != null ) {
             coordinator.onRebuildComplete( () -> {

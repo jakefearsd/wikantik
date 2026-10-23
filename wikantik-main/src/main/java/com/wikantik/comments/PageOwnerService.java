@@ -134,6 +134,21 @@ public class PageOwnerService {
         }
     }
 
+    /**
+     * Drops the ownership row of a page whose canonical_id was retired by a true delete.
+     *
+     * @return rows removed (0 or 1)
+     */
+    public int deleteForPage( final String canonicalId ) {
+        try {
+            return jdbc.update( "DELETE FROM page_owners WHERE canonical_id = ?",
+                    ps -> ps.setString( 1, canonicalId ) );
+        } catch ( final SQLException e ) {
+            LOG.warn( "PageOwnerService.deleteForPage({}) failed: {}", canonicalId, e.getMessage(), e );
+            throw new RuntimeException( "page-owner delete failed", e );
+        }
+    }
+
     public int bulkReassign( final String fromOwner, final String toOwner, final String assignedBy ) {
         try {
             return jdbc.update( "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +

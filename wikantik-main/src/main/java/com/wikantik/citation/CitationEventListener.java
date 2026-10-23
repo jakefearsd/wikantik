@@ -29,10 +29,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Bridges page save/rename/delete events to {@link CitationSync}. Mirrors
+ * Bridges page save/rename events to {@link CitationSync}. Mirrors
  * {@code OntologyEventListener}: save events arrive from the FilterManager
- * (doPostSaveFiltering), PAGE_DELETED from the PageManager — so register on both. Only POST_SAVE_END is
+ * (doPostSaveFiltering), so register on it (and the PageManager). Only POST_SAVE_END is
  * handled: the bare POST_SAVE (fired by a PageEventFilter) is ignored so a save is never synced twice.
+ * Deletes are not handled here — see {@link CitationSync#onPageRetired}.
  */
 public final class CitationEventListener implements WikiEventListener {
 
@@ -62,7 +63,10 @@ public final class CitationEventListener implements WikiEventListener {
             }
             switch ( pageEvent.getType() ) {
                 case WikiPageEvent.POST_SAVE_END -> sync.onPageSaved( pageEvent.getPageName() );
-                case WikiPageEvent.PAGE_DELETED  -> sync.onPageDeleted( pageEvent.getPageName() );
+                // PAGE_DELETED is deliberately not handled here: deletes reach CitationSync through
+                // the structural index's retirement hook (CitationSync#onPageRetired), which knows
+                // whether the canonical_id is truly gone — this listener's position relative to the
+                // index's own PAGE_DELETED listener is undefined.
                 default                          -> { /* ignore */ }
             }
         } catch ( final RuntimeException e ) {

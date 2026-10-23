@@ -75,25 +75,50 @@ class CitationSyncTest {
     }
 
     @Test
-    void onPageDeletedMarksInboundTargetMissingWhenCanonicalIdGone() {
+    void onPageRetiredDropsOutboundAndFlagsInboundTargetMissing() {
         final CitationRepository repo = mock( CitationRepository.class );
         final StructuralIndexService idx = mock( StructuralIndexService.class );
-        when( idx.resolveCanonicalIdFromSlug( "Gone" ) ).thenReturn( Optional.of( "tgtGone" ) );
-        when( idx.resolveSlugFromCanonicalId( "tgtGone" ) ).thenReturn( Optional.empty() );  // truly gone
         final CitationRow inbound = new CitationRow( 8, "s", "tgtGone", "", "x",
             Spans.hash( "x" ), "c", 0, 1, CitationStatus.CURRENT, null, null, null );
         when( repo.findByTarget( "tgtGone" ) ).thenReturn( List.of( inbound ) );
-        sync( repo, idx, Map.of(), Map.of() ).onPageDeleted( "Gone" );
+
+        sync( repo, idx, Map.of(), Map.of() ).onPageRetired( "Gone", "tgtGone" );
+
+        verify( repo ).deleteBySource( "tgtGone" );
         verify( repo ).updateStatus( eq( 8L ), eq( CitationStatus.TARGET_MISSING ), any() );
     }
 
+    /** A real index, as production has it: a slug and its canonical_id always resolve to each other. */
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    private static com.wikantik.pagegraph.spine.DefaultStructuralIndexService realIndexWith(
+            final String slug, final String canonicalId ) throws Exception {
+        final com.wikantik.api.managers.PageManager pm = mock( com.wikantik.api.managers.PageManager.class );
+        final com.wikantik.api.core.Page page = mock( com.wikantik.api.core.Page.class );
+        when( page.getName() ).thenReturn( slug );
+        when( page.getLastModified() ).thenReturn( new java.util.Date( 1700000000000L ) );
+        when( pm.getPureText( page ) ).thenReturn( "---\ncanonical_id: " + canonicalId + "\n---\nbody" );
+        when( pm.getAllPages() ).thenReturn( (java.util.Collection) List.of( page ) );
+        final com.wikantik.pagegraph.spine.DefaultStructuralIndexService idx =
+            new com.wikantik.pagegraph.spine.DefaultStructuralIndexService(
+                pm, mock( com.wikantik.pagegraph.spine.PageCanonicalIdsDao.class ) );
+        idx.rebuild();
+        return idx;
+    }
+
     @Test
-    void onPageDeletedSkipsWhenCanonicalIdStillLivesRename() {
+    void deletingACitedPageThroughTheStructuralIndexFlagsInboundAndDropsOutbound() throws Exception {
+        final String cid = "01H8G3Z1K6Q5W7P9X2V4R0T8C1";
         final CitationRepository repo = mock( CitationRepository.class );
-        final StructuralIndexService idx = mock( StructuralIndexService.class );
-        when( idx.resolveCanonicalIdFromSlug( "OldName" ) ).thenReturn( Optional.of( "tgt1" ) );
-        when( idx.resolveSlugFromCanonicalId( "tgt1" ) ).thenReturn( Optional.of( "NewName" ) );  // rename
-        sync( repo, idx, Map.of(), Map.of() ).onPageDeleted( "OldName" );
-        verify( repo, never() ).updateStatus( anyLong(), any(), any() );
+        final CitationRow inbound = new CitationRow( 8, "s", cid, "", "x",
+            Spans.hash( "x" ), "c", 0, 1, CitationStatus.CURRENT, null, null, null );
+        when( repo.findByTarget( cid ) ).thenReturn( List.of( inbound ) );
+        final var idx = realIndexWith( "Gone", cid );
+        idx.addPageRetirementListener( sync( repo, idx, Map.of(), Map.of() )::onPageRetired );
+
+        new com.wikantik.pagegraph.spine.StructuralIndexEventListener( idx ).actionPerformed(
+            new com.wikantik.event.WikiPageEvent( this, com.wikantik.event.WikiPageEvent.PAGE_DELETED, "Gone" ) );
+
+        verify( repo ).deleteBySource( cid );
+        verify( repo ).updateStatus( eq( 8L ), eq( CitationStatus.TARGET_MISSING ), any() );
     }
 }

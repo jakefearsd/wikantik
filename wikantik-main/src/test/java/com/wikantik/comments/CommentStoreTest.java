@@ -148,4 +148,42 @@ class CommentStoreTest {
         final UUID cid = t.comments().get( 0 ).id();
         assertEquals( "alice", store.findComment( cid ).orElseThrow().author() );
     }
+
+    @Test
+    void deleteThreadsForPage_removes_the_pages_threads_comments_and_mentions_only() throws Exception {
+        final CommentThread gone = store.createThread( "CID-GONE",
+                new TextQuoteSelector( "a", null, null ), "alice", "first", mentions, Optional.empty() );
+        final Comment reply = store.addComment( gone.id(), "bob", "reply", mentions );
+        final CommentThread kept = store.createThread( "CID-KEPT",
+                new TextQuoteSelector( "b", null, null ), "alice", "other", mentions, Optional.empty() );
+        try ( java.sql.Connection c = ds.getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement(
+                  "INSERT INTO comment_mentions (id, comment_id, mentioned_login, mentioning_login) "
+                  + "VALUES (?, ?, 'carol', 'bob')" ) ) {
+            ps.setObject( 1, UUID.randomUUID() );
+            ps.setObject( 2, reply.id() );
+            ps.executeUpdate();
+        }
+
+        assertEquals( 1, store.deleteThreadsForPage( "CID-GONE" ) );
+
+        assertTrue( store.listByCanonicalId( "CID-GONE", "all" ).isEmpty() );
+        assertTrue( store.findComment( reply.id() ).isEmpty(), "comments cascade with their thread" );
+        assertEquals( 0, countMentionsOf( reply.id() ), "mentions cascade with their comment" );
+        assertEquals( List.of( kept.id() ),
+                store.listByCanonicalId( "CID-KEPT", "all" ).stream().map( CommentThread::id ).toList() );
+        assertEquals( 0, store.deleteThreadsForPage( "CID-GONE" ), "idempotent" );
+    }
+
+    private int countMentionsOf( final UUID commentId ) throws Exception {
+        try ( java.sql.Connection c = ds.getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement(
+                  "SELECT COUNT(*) FROM comment_mentions WHERE comment_id = ?" ) ) {
+            ps.setObject( 1, commentId );
+            try ( java.sql.ResultSet rs = ps.executeQuery() ) {
+                rs.next();
+                return rs.getInt( 1 );
+            }
+        }
+    }
 }

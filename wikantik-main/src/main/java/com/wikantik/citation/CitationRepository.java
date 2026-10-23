@@ -97,6 +97,22 @@ public final class CitationRepository {
         }
     }
 
+    /**
+     * Drops every citation whose SOURCE is a page retired by a true delete — the claims went with
+     * the page. Citations that TARGET it are left for the caller to flag {@code target_missing}.
+     *
+     * @return rows removed
+     */
+    public int deleteBySource( final String sourceCanonicalId ) {
+        try {
+            return jdbc.update( "DELETE FROM citations WHERE source_canonical_id = ?",
+                    ps -> ps.setString( 1, sourceCanonicalId ) );
+        } catch ( final SQLException e ) {
+            LOG.warn( "citation deleteBySource failed for {}: {}", sourceCanonicalId, e.getMessage(), e );
+            throw new IllegalStateException( "citation deleteBySource failed for " + sourceCanonicalId, e );
+        }
+    }
+
     public List< CitationRow > findBySource( final String sourceCanonicalId ) {
         return findBy( "source_canonical_id", sourceCanonicalId );
     }

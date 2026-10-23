@@ -142,6 +142,22 @@ public class CommentStore {
         return executeUpdate( "DELETE FROM comment_threads WHERE id = ?", threadId, "deleteThread" );
     }
 
+    /**
+     * Drops every thread of a page whose canonical_id was retired by a true delete; the
+     * threads' comments and mentions go with them ({@code ON DELETE CASCADE}).
+     *
+     * @return threads removed
+     */
+    public int deleteThreadsForPage( final String canonicalId ) {
+        try {
+            return jdbc.update( "DELETE FROM comment_threads WHERE canonical_id = ?",
+                    ps -> ps.setString( 1, canonicalId ) );
+        } catch ( final SQLException e ) {
+            LOG.warn( "deleteThreadsForPage(canonicalId={}) failed: {}", canonicalId, e.getMessage(), e );
+            throw new RuntimeException( "deleteThreadsForPage failed", e );
+        }
+    }
+
     public boolean resolve( final UUID threadId, final String resolvedBy ) {
         try {
             return jdbc.update( "UPDATE comment_threads SET status = 'resolved', resolved_by = ?, " +

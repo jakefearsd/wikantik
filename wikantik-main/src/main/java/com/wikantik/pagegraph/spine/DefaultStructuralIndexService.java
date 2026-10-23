@@ -117,6 +117,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     /** Title/alias bookkeeping for {@link #titleLookup()}. */
     private final TitleIndexState titles = new TitleIndexState();
 
+    /** Told when a true delete retires a canonical_id. */
+    private final PageRetirementListeners retirementListeners = new PageRetirementListeners();
+
     @Override
     public synchronized void rebuild() {
         final Instant start = Instant.now();
@@ -377,6 +380,37 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         metrics.update( snapshot(), health );
     }
 
+    /**
+     * Registers a listener told when a deleted page's canonical_id is retired — the hook the
+     * subsystems keyed on canonical_id (ownership, comments, citations) clean up through.
+     * A {@code null} listener is ignored.
+     */
+    public void addPageRetirementListener( final PageRetirementListener listener ) {
+        retirementListeners.add( listener );
+    }
+
+    /**
+     * Called by {@link StructuralIndexEventListener} when a page is renamed. The renamer moves
+     * the file without running save filters, so this is the only signal the index gets: re-index
+     * the page under its new slug (its authored canonical_id moved with it, so the id row is
+     * re-pointed rather than retired), then drop whatever still sits under the old slug — a page
+     * without an authored id was re-indexed under a fresh synthesised one. Nothing is retired.
+     */
+    void onPageRenamed( final String oldName, final String newName ) {
+        onPageSaved( newName );
+        synchronized ( this ) {
+            current.get().resolveCanonicalIdFromSlug( oldName )
+                    .ifPresent( staleId -> applyIncrementalDelete( oldName, staleId, false ) );
+        }
+    }
+
+    /**
+     * A page was deleted. When its slug still maps to a canonical_id here, that id is retired —
+     * a rename has already re-pointed it at the new slug, so the old slug no longer resolves —
+     * and, after the index's own update, the retirement listeners run. They run under the index
+     * lock, like the {@code page_canonical_ids} delete before them, so a save of the same page
+     * cannot interleave with its cleanup; each is a handful of keyed DELETE/UPDATE statements.
+     */
     synchronized void onPageDeleted( final String pageName ) {
         try {
             final StructuralProjection proj = current.get();
@@ -384,22 +418,28 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             if ( canonicalId.isEmpty() ) {
                 return;
             }
-            applyIncrementalDelete( pageName, canonicalId.get() );
+            applyIncrementalDelete( pageName, canonicalId.get(), true );
+            retirementListeners.fire( pageName, canonicalId.get() );
         } catch ( final Exception e ) {
             LOG.warn( "onPageDeleted({}) failed: {}", pageName, e.getMessage() );
         }
     }
 
     /**
-     * Drop the descriptor for {@code slug}.
+     * Drop the descriptor for {@code slug}, with its title + conflict bookkeeping. With
+     * {@code retireRow} the canonical_id's {@code page_canonical_ids} row (and through it the
+     * verification + slug-history rows) goes too; without it — a rename's stale old-slug entry —
+     * only the in-memory projection changes.
      */
-    private void applyIncrementalDelete( final String slug, final String canonicalId ) {
-        try {
-            dao.delete( canonicalId );
-        } catch ( final RuntimeException dbx ) {
-            LOG.warn( "dao.delete({}) failed: {}", canonicalId, dbx.getMessage() );
+    private void applyIncrementalDelete( final String slug, final String canonicalId, final boolean retireRow ) {
+        if ( retireRow ) {
+            try {
+                dao.delete( canonicalId );
+            } catch ( final RuntimeException dbx ) {
+                LOG.warn( "dao.delete({}) failed: {}", canonicalId, dbx.getMessage() );
+            }
+            verifications.remove( canonicalId );
         }
-        verifications.remove( canonicalId );
 
         final StructuralProjection proj = current.get();
         final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();

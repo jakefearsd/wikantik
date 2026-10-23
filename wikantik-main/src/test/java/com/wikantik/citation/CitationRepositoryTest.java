@@ -127,4 +127,18 @@ class CitationRepositoryTest {
         assertEquals( CitationStatus.CURRENT, after.status() );
         assertEquals( checkedAt.getEpochSecond(), after.lastChecked().getEpochSecond() );
     }
+
+    @Test
+    void deleteBySource_removesOnlyTheRetiredSourcesOutboundCitations() {
+        repo.replaceForSource( "gone", List.of(
+            newRow( "gone", "t1", "H", "a", CitationStatus.CURRENT ),
+            newRow( "gone", "t2", "H", "b", CitationStatus.CURRENT ) ) );
+        repo.replaceForSource( "other", List.of( newRow( "other", "gone", "H", "c", CitationStatus.CURRENT ) ) );
+
+        assertEquals( 2, repo.deleteBySource( "gone" ) );
+
+        assertTrue( repo.findBySource( "gone" ).isEmpty(), "a deleted page's outbound citations must not linger" );
+        assertEquals( 1, repo.findByTarget( "gone" ).size(), "inbound citations are the caller's to flag, not delete" );
+        assertEquals( 0, repo.deleteBySource( "gone" ), "idempotent" );
+    }
 }

@@ -205,4 +205,16 @@ class PageOwnerServiceTest {
         assertEquals( 2, svc.listByOwner( "alice", 100, 0 ).size() );
         assertEquals( 2, svc.countByOwner( "alice" ) );
     }
+
+    @Test
+    void deleteForPage_removes_only_that_pages_ownership_row() {
+        svc.setOwner( "CID-GONE", "alice", "admin" );
+        svc.setOwner( "CID-KEPT", "bob", "admin" );
+
+        assertEquals( 1, svc.deleteForPage( "CID-GONE" ) );
+
+        assertTrue( svc.findRaw( "CID-GONE" ).isEmpty(), "a deleted page's owner row must not linger" );
+        assertEquals( "bob", svc.findRaw( "CID-KEPT" ).orElseThrow().ownerLogin() );
+        assertEquals( 0, svc.deleteForPage( "CID-GONE" ), "idempotent" );
+    }
 }

@@ -54,13 +54,20 @@ public final class CitationSync {
         recheckInbound( pageName );
     }
 
-    /** A page was deleted: best-effort flag inbound citations target_missing (skip renames).
-     *  reconcileAll() is the guarantee; this is only the fast path. */
-    public void onPageDeleted( final String pageName ) {
-        final Optional< String > cid = structuralIndex.resolveCanonicalIdFromSlug( pageName );
-        if ( cid.isEmpty() ) { return; }                                 // row already gone — reconcileAll handles it
-        if ( structuralIndex.resolveSlugFromCanonicalId( cid.get() ).isPresent() ) { return; }  // rename, not delete
-        for ( final CitationRow r : repo.findByTarget( cid.get() ) ) {
+    /**
+     * A page was truly deleted and its canonical_id retired (a
+     * {@link com.wikantik.pagegraph.spine.PageRetirementListener} callback — the structural index
+     * fires it only once the id belongs to no live page, so a rename never gets here). The page's
+     * own outbound citations go with it; citations that target it are flagged target_missing.
+     *
+     * <p>This replaces a PAGE_DELETED handler that resolved the id from the structural index
+     * itself and was a no-op in both listener orders: before the index's own delete the slug and
+     * id still resolved to each other (read as "rename"), after it the slug no longer resolved.</p>
+     */
+    public void onPageRetired( final String slug, final String canonicalId ) {
+        final int dropped = repo.deleteBySource( canonicalId );
+        LOG.debug( "citation: '{}' retired {} — dropped {} outbound citation(s)", slug, canonicalId, dropped );
+        for ( final CitationRow r : repo.findByTarget( canonicalId ) ) {
             if ( r.status() != CitationStatus.TARGET_MISSING ) {
                 repo.updateStatus( r.id(), CitationStatus.TARGET_MISSING, Instant.now() );
             }

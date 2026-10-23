@@ -43,11 +43,13 @@ class CitationEventListenerTest {
     }
 
     @Test
-    void pageDeletedDispatchesOnPageDeleted() {
+    void pageDeletedIsLeftToTheStructuralIndexRetirementHook() {
+        // Deletes arrive through CitationSync#onPageRetired, fired by the structural index once the
+        // canonical_id is truly gone; acting on PAGE_DELETED here raced the index's own listener.
         final CitationSync sync = mock( CitationSync.class );
         final CitationEventListener l = new CitationEventListener( sync );
         l.actionPerformed( new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "MyPage" ) );
-        verify( sync ).onPageDeleted( "MyPage" );
+        verifyNoInteractions( sync );
     }
 
     @Test

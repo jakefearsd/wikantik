@@ -21,11 +21,13 @@ package com.wikantik.pagegraph.spine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
+import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.filters.FilterManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 class StructuralIndexEventListenerTest {
@@ -101,5 +103,22 @@ class StructuralIndexEventListenerTest {
             new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "GoneBaby" ) );
 
         verify( svc, times( 1 ) ).onPageDeleted( "GoneBaby" );
+    }
+
+    @Test
+    void rename_event_from_the_renamer_reaches_on_page_renamed() {
+        // DefaultPageRenamer fires WikiPageRenameEvent keyed on ITSELF, never on the PageManager —
+        // a listener registered only on PageManager + FilterManager never hears a rename, and the
+        // index keeps pointing the canonical_id at the old slug.
+        final com.wikantik.content.PageRenamer renamer = mock( com.wikantik.content.PageRenamer.class );
+        listener.register( pageManager, filterManager, renamer );
+        try {
+            WikiEventManager.fireEvent( renamer, new WikiPageRenameEvent( renamer, "OldName", "NewName" ) );
+
+            verify( svc, times( 1 ) ).onPageRenamed( "OldName", "NewName" );
+            verify( svc, never() ).onPageDeleted( anyString() );
+        } finally {
+            WikiEventManager.removeWikiEventListener( renamer, listener );
+        }
     }
 }

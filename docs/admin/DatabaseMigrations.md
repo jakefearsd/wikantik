@@ -142,7 +142,7 @@ Rules that follow from the ledger:
 
 ## Migration history
 
-The migration directory is the source of truth; this table summarises it through V061.
+The migration directory is the source of truth; this table summarises it through V063.
 
 | Migration | What it adds |
 |-----------|--------------|
@@ -205,14 +205,12 @@ The migration directory is the source of truth; this table summarises it through
 | V059 | Pre-create `audit_log` monthly partitions through 2028-12, so a least-privilege app role never has to create one |
 | V060 | Add the `export` wiki permission to the `Authenticated` grant (only while that row still holds the stock actions) |
 | V061 | Widen the `api_keys.scope` CHECK to admit `mcp_admin` (the renamed full-admin MCP scope); existing `mcp` rows are kept and read as an alias |
+| V062 | Indexes found missing by the 2026-10-22 profiling run: `users(uid)`, `retrieval_runs(mode, started_at)`, partial `kg_proposals(created)` for the judge claim |
+| V063 | Drop 16 redundant or unusable indexes (covered by a PK/unique constraint's leading columns, or never served by any query), incl. the GIN `idx_kg_nodes_properties` |
 
 The other `.sql` files directly under `bin/db/` (`migration-1.0-to-1.1.sql`,
 `cleanup-2026-04-30-stale-canonical-ids.sql`, `normalize-relationship-types.sql`) are
 historical one-offs, not part of the ledger.
-
-## Known unused index
-
-`idx_kg_nodes_properties` (a GIN index on `kg_nodes.properties`, created by V004) is not used by application queries: `KgNodeRepository` searches with `LOWER( n.properties::text ) LIKE ?`, which bypasses a GIN index. Using it would need JSONB containment (`@>`); until then it only costs writes. The other V004 edge indexes are not flagged here: `idx_kg_edges_type` backs the `relationship_type` filter in `KgEdgeRepository`.
 
 ## Troubleshoot
 

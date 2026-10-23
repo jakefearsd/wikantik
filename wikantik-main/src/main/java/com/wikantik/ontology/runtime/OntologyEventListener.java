@@ -19,6 +19,7 @@
 package com.wikantik.ontology.runtime;
 
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.content.PageRenamer;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
@@ -30,7 +31,8 @@ import org.apache.logging.log4j.Logger;
 
 /**
  * Queues wiki page events for {@link OntologyPageSyncQueue}: save events arrive from the
- * FilterManager, PAGE_DELETED from the PageManager — so register on both. Only enqueues: the TDB2
+ * FilterManager, PAGE_DELETED from the PageManager and renames from the PageRenamer — so register
+ * on all three. Only enqueues: the TDB2
  * writes happen on the queue's worker thread, never on the saving request thread.
  *
  * <p>Saves are recognised by {@code POST_SAVE_END} alone. Every save path (REST PUT/PATCH, MCP
@@ -53,6 +55,20 @@ public final class OntologyEventListener implements WikiEventListener {
         WikiEventManager.addWikiEventListener( pageManager, this );
         WikiEventManager.addWikiEventListener( filterManager, this );
         LOG.info( "Ontology event listener registered for PageManager + FilterManager events" );
+    }
+
+    /**
+     * As {@link #register(PageManager, FilterManager)}, plus the renamer: {@code DefaultPageRenamer}
+     * fires its {@link WikiPageRenameEvent} keyed on itself, never on the PageManager, so without
+     * this a renamed page's graph stays under its old IRI until the nightly reconcile.
+     */
+    public void register( final PageManager pageManager, final FilterManager filterManager,
+                          final PageRenamer pageRenamer ) {
+        register( pageManager, filterManager );
+        if ( pageRenamer != null ) {
+            WikiEventManager.addWikiEventListener( pageRenamer, this );
+            LOG.info( "Ontology event listener registered for PageRenamer events" );
+        }
     }
 
     @Override

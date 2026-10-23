@@ -98,7 +98,8 @@ public final class OntologyWiringHelper {
         final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic, publicIdentity );
         final OntologyPageSyncQueue pageQueue = new OntologyPageSyncQueue( pageSync, coalesceMs );
         final OntologyEventListener pageListener = new OntologyEventListener( pageQueue );
-        pageListener.register( pageManager, filterManager );
+        final com.wikantik.page.subsystem.PageSubsystem.Services pages = engine.getPageSubsystem();
+        pageListener.register( pageManager, filterManager, pages == null ? null : pages.pageRenamer() );
         // Strong references, mirroring WikiEngine's auditEventListener/lastLoginEventListener
         // pattern: WikiEventManager's delegate keys listeners by identity in a WeakHashMap, so
         // an inline listener with no other strong reference is eligible for GC at any time —

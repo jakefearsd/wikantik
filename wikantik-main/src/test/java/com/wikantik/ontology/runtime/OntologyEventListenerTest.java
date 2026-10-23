@@ -70,6 +70,26 @@ class OntologyEventListenerTest {
     }
 
     @Test
+    void aRenameEventFiredByTheRenamerReachesTheQueue() {
+        // DefaultPageRenamer fires WikiPageRenameEvent keyed on ITSELF, never on the PageManager or
+        // FilterManager — registered on those two alone, renamed pages' RDF stayed stale until the
+        // nightly reconcile.
+        final PageManager pageManager = mock( PageManager.class );
+        final com.wikantik.filters.FilterManager filterManager = mock( com.wikantik.filters.FilterManager.class );
+        final com.wikantik.content.PageRenamer renamer = mock( com.wikantik.content.PageRenamer.class );
+        final OntologyEventListener listener = new OntologyEventListener( queue );
+        listener.register( pageManager, filterManager, renamer );
+        try {
+            com.wikantik.event.WikiEventManager.fireEvent( renamer, new WikiPageRenameEvent( renamer, "Old", "New" ) );
+            verify( queue ).renamed( "Old", "New" );
+        } finally {
+            com.wikantik.event.WikiEventManager.removeWikiEventListener( pageManager, listener );
+            com.wikantik.event.WikiEventManager.removeWikiEventListener( filterManager, listener );
+            com.wikantik.event.WikiEventManager.removeWikiEventListener( renamer, listener );
+        }
+    }
+
+    @Test
     void bareInPhasePostSaveIsIgnored_onlyPostSaveEndProjects() {
         new OntologyEventListener( queue ).actionPerformed(
                 new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "Foo" ) );

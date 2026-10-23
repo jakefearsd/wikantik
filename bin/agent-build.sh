@@ -13,6 +13,8 @@
 # runs the build in its own session (survives process-group kills) and
 # appends an EXIT=<code> sentinel to the log, so completion is one grep.
 # It also unsets WIKANTIK_* env vars in the child (WikiTest counts them).
+# On `start` it prunes logs/pid files older than 7 days (AGENT_BUILD_RETENTION_DAYS) for builds
+# that are not running, so .build-logs/ stays bounded.
 
 set -euo pipefail
 
@@ -55,6 +57,25 @@ file_mtime() {
   printf '%s\n' "$t"
 }
 
+# Delete build logs (<name>.log, <name>.log.prev) and stale pid files (<name>.pid) not touched for
+# AGENT_BUILD_RETENTION_DAYS (default 7), so .build-logs/ cannot grow without bound. Never touches the
+# build being started ($1) nor any build whose pid file names a still-running process. Best-effort:
+# a failure here must never block starting a build.
+prune_old_logs() {
+  local keep="$1" days="${AGENT_BUILD_RETENTION_DAYS:-7}" f base pidf
+  [[ "$days" =~ ^[0-9]+$ ]] || days=7
+  while IFS= read -r f; do
+    base="$(basename "$f")"
+    base="${base%.log.prev}"; base="${base%.log}"; base="${base%.pid}"
+    [[ "$base" == "$keep" ]] && continue
+    pidf="$DIR/$base.pid"
+    if [[ -f "$pidf" ]] && kill -0 "$(cat "$pidf" 2>/dev/null)" 2>/dev/null; then
+      continue
+    fi
+    rm -f -- "$f" || true
+  done < <(find "$DIR" -maxdepth 1 -type f \( -name '*.log' -o -name '*.log.prev' -o -name '*.pid' \) -mtime +"$days" 2>/dev/null || true)
+}
+
 cmd="${1:-}"
 [[ -n "$cmd" ]] || usage
 shift
@@ -68,6 +89,7 @@ case "$cmd" in
     shift
     [[ $# -gt 0 ]] || { echo "missing command after '--'"; exit 2; }
     log="$DIR/$name.log"; pidf="$DIR/$name.pid"
+    prune_old_logs "$name"
     if [[ -f "$pidf" ]] && kill -0 "$(cat "$pidf")" 2>/dev/null; then
       echo "REFUSED: build '$name' already RUNNING (pid $(cat "$pidf")) — pick another name or wait"
       exit 2

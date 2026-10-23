@@ -53,7 +53,7 @@ PRESERVED_PATHS=(
     "lib/postgresql.jar"                  # JDBC driver
     "conf/Catalina/localhost/ROOT.xml"    # context with DB password
     "bin/setenv.sh"                       # JAVA_OPTS additions (Vector API, etc.)
-    "data"                                 # jspwiki-files / attachments / workdir
+    "data/workdir"                         # wikantik.workDir (search index, ontology store, ...)
     "logs/wikantik"                        # app logs
 )
 
@@ -108,7 +108,7 @@ installed_jdbc_version() {
 #
 # For directories we copy CONTENTS via cp -aT so re-restore into a
 # pre-existing dir of the same name doesn't nest (the
-# download_and_extract_tomcat step pre-creates logs/wikantik + data/
+# download_and_extract_tomcat step pre-creates logs/wikantik + data/workdir
 # subdirs; cp -a src_dir existing_dst would nest src INTO dst as
 # `dst/src_basename`).
 snapshot_preserved() {
@@ -145,6 +145,18 @@ restore_preserved() {
             mkdir -p "$(dirname "${dst}")"
             cp -a "${src}" "${dst}"
         fi
+    done
+}
+
+# Deletes every ${TOMCAT_DIR}.bak.* rollback copy except the one passed as $1 (the newest, just
+# created by do_tomcat_upgrade). Each is a full Tomcat install, so they otherwise accumulate
+# one per upgrade. Only called after the upgrade has completed.
+prune_old_tomcat_backups() {
+    local keep="$1" d
+    for d in "${TOMCAT_DIR}".bak.*; do
+        [[ -d "${d}" && "${d}" != "${keep}" ]] || continue
+        rm -rf -- "${d}"
+        print_status "Removed older Tomcat backup ${d}"
     done
 }
 
@@ -188,6 +200,8 @@ do_tomcat_upgrade() {
     echo ""
     echo "    Rollback: rm -rf ${TOMCAT_DIR} && mv ${backup_dir} ${TOMCAT_DIR}"
     echo ""
+
+    prune_old_tomcat_backups "${backup_dir}"
 }
 
 # Parse arguments
@@ -266,9 +280,7 @@ download_and_extract_tomcat() {
     mv "$(dirname "${TOMCAT_DIR}")/apache-tomcat-${v}" "${TOMCAT_DIR}"
     rm -f "${tmp_tar}"
     chmod +x "${TOMCAT_DIR}"/bin/*.sh
-    mkdir -p "${TOMCAT_DIR}/data/jspwiki-files" \
-             "${TOMCAT_DIR}/data/attachments"   \
-             "${TOMCAT_DIR}/data/workdir"        \
+    mkdir -p "${TOMCAT_DIR}/data/workdir" \
              "${TOMCAT_DIR}/logs/wikantik"
     print_status "Tomcat ${v} downloaded and unpacked"
 }

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.62] - 2026-10-22
+
 Database and disk profiling fixes. Findings and repairs are written up on the wiki page
 `WikantikDatabaseAndDiskProfiling` and in `loadtest/results/CAMPAIGN-2026-10-22-db-disk.md`.
 

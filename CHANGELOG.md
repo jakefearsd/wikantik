@@ -6,6 +6,36 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Database and disk hygiene pass.
+
+### Fixed
+- **Page delete leaves rows behind.** A true page delete now retires the page's `canonical_id` and drops its
+  owners, comment threads and outbound citations, and drops its chunks (with their embeddings and Knowledge
+  Graph mentions) instead of leaving them retrievable until the next admin rebuild. Removed chunk ids are
+  evicted from the in-process BM25 and dense indexes. Nothing is retired while the page file still exists
+  (a failed file delete now throws instead of announcing the delete) or while another live page carries the
+  same `canonical_id`. One delete fires one `PAGE_DELETED`.
+- **Renames.** The structural index and the ontology now hear `WikiPageRenameEvent` (they only listened to the
+  page manager, so renames went unnoticed until the next save or nightly reconcile). A rename re-keys the
+  page's chunks so embeddings and mentions survive.
+- **User delete.** Self-delete, admin delete and admin bulk delete share one `UserDeletionService`: it checks
+  the login exists, then revokes API keys, group memberships, the trusted-author entry and remember-me cookie
+  files (each fail-closed), orphans owned pages, deletes the profile and demotes the user's live sessions.
+  Admin delete previously left API keys active and group memberships (including Admin) in place for a later
+  account with the same login to inherit.
+- **Temp files.** `Engine.findConfigFile` no longer leaves a `deleteOnExit` temp file on every lookup; the
+  unused `<workDir>/attach-tmp` is no longer created.
+
+### Changed
+- **V063** drops 16 redundant or unused indexes (each covered by a primary key or unique index with the same
+  leading column, or never used by any query).
+- The profiling directory prunes the oldest finished JFR recordings when over its size cap instead of refusing
+  to record.
+- Tomcat access logs keep 14 days; every service in `docker-compose.cloud.yml` gets json-file log caps; the
+  Docker image no longer carries the WAR in a layer (~150 MB smaller).
+- Build hygiene: three IT WAR modules skip `~/.m2` install; `bin/agent-build.sh` prunes logs older than 7 days;
+  `bin/deploy-local.sh` drops the legacy `data/` dirs and keeps only the newest Tomcat upgrade backup.
+
 ## [2.4.62] - 2026-10-22
 
 Database and disk profiling fixes. Findings and repairs are written up on the wiki page

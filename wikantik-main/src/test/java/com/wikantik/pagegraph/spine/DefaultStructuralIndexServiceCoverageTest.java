@@ -202,16 +202,13 @@ class DefaultStructuralIndexServiceCoverageTest {
     // parseInstant — the pass-through branch for an already-Instant value.
     // Frontmatter parsing never actually produces a raw Instant (SnakeYAML
     // gives a Date or a String), so this defensive branch is exercised
-    // directly via reflection.
+    // directly (it lives in SpineFrontmatter).
     // -----------------------------------------------------------------------
 
     @Test
-    void parseInstant_passesThroughAnAlreadyParsedInstant() throws Exception {
-        final java.lang.reflect.Method m = DefaultStructuralIndexService.class
-                .getDeclaredMethod( "parseInstant", Object.class );
-        m.setAccessible( true );
+    void parseInstant_passesThroughAnAlreadyParsedInstant() {
         final java.time.Instant now = java.time.Instant.now();
-        assertEquals( now, m.invoke( null, now ) );
+        assertEquals( now, SpineFrontmatter.parseInstant( now ) );
     }
 
     // -----------------------------------------------------------------------

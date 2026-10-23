@@ -162,8 +162,19 @@
 # profile directions.
 # ============================================================================
 
+# Explicit log retention: same json-file caps as docker-compose.prod.yml. Without a
+# `logging:` block, retention is whatever the VM's docker daemon default is (unbounded
+# json-file on most distros), so a long-lived cloud VM slowly fills its disk. Applied to
+# every service below.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "10"
+
 services:
   db:
+    logging: *default-logging
     # Same pgvector image as the base compose. No host-port publish here
     # (unlike docker-compose.prod.yml's DB_HOST_BIND, which exists only for
     # docker1's jakemon Postgres exporter) — the DB is reachable from other
@@ -172,6 +183,7 @@ services:
     profiles: ["bundled-db"]
 
   wikantik:
+    logging: *default-logging
     image: ${WIKANTIK_IMAGE:?set WIKANTIK_IMAGE to ghcr.io/jakefearsd/wikantik:<tag>}
     # Base compose sets `build:`; a registry image and a build context are
     # mutually exclusive here (this overlay never builds — no host Maven,
@@ -226,6 +238,7 @@ services:
   # land in a named volume unconditionally (no jakemon-specific host path
   # dependency — see the volume comment below).
   backup:
+    logging: *default-logging
     image: postgres:18-alpine
     restart: unless-stopped
     depends_on:
@@ -259,6 +272,7 @@ services:
     entrypoint: ["sh", "-c", "cp /opt/wikantik/crontab /etc/crontabs/root && chown root:root /etc/crontabs/root && chmod 600 /etc/crontabs/root && exec crond -f -d 8"]
 
   caddy:
+    logging: *default-logging
     image: caddy:2-alpine
     restart: unless-stopped
     profiles: ["caddy"]
@@ -279,6 +293,7 @@ services:
         condition: service_healthy
 
   cloudflared:
+    logging: *default-logging
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     profiles: ["cloudflared"]
@@ -290,6 +305,7 @@ services:
         condition: service_healthy
 
   ollama-embed:
+    logging: *default-logging
     image: ollama/ollama:latest
     restart: unless-stopped
     profiles: ["embeddings"]

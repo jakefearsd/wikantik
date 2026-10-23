@@ -137,19 +137,19 @@ class CookieAuthenticationLoginModuleCITest {
         assertEquals( "janne", principals.iterator().next().getName() );
     }
 
-    // --- revokeLoginCookies: a revoked user's cookie stops authenticating, others keep working ---
+    // --- LoginCookieFiles.revokeFor: a revoked user's cookie stops authenticating, others keep working ---
 
     @Test
     void revokedLoginCookiesNoLongerAuthenticateButOtherUsersStillDo() throws Exception {
         final String revokedUid = issueCookie( "revoke-me" );
         final String keptUid = issueCookie( "keep-me" );
 
-        assertEquals( 1, CookieAuthenticationLoginModule.revokeLoginCookies( engine, "revoke-me" ) );
+        assertEquals( 1, LoginCookieFiles.revokeFor( engine, "revoke-me" ) );
 
         assertFalse( cookieLogin( revokedUid ), "a revoked cookie must not log anyone in" );
         assertTrue( cookieLogin( keptUid ), "another user's cookie is untouched" );
-        assertEquals( 0, CookieAuthenticationLoginModule.revokeLoginCookies( engine, "revoke-me" ), "idempotent" );
-        assertEquals( 0, CookieAuthenticationLoginModule.revokeLoginCookies( engine, null ) );
+        assertEquals( 0, LoginCookieFiles.revokeFor( engine, "revoke-me" ), "idempotent" );
+        assertEquals( 0, LoginCookieFiles.revokeFor( engine, null ) );
     }
 
     private String issueCookie( final String login ) {

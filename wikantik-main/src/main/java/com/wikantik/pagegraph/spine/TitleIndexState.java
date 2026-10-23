@@ -83,7 +83,7 @@ final class TitleIndexState {
     }
 
     static List< String > aliasesOf( final Map< String, Object > fm ) {
-        return DefaultStructuralIndexService.stringList( fm.get( "aliases" ) ).stream()
+        return SpineFrontmatter.stringList( fm.get( "aliases" ) ).stream()
                 .map( String::trim ).filter( s -> !s.isEmpty() ).toList();
     }
 }

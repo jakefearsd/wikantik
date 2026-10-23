@@ -88,6 +88,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         this.confidenceComputer = confidenceComputer == null
                 ? new ConfidenceComputer( name -> false ) : confidenceComputer;
         this.metrics            = metrics == null ? new StructuralIndexMetrics() : metrics;
+        this.sharers            = new CanonicalIdSharers( pageManager, dao );
     }
 
     /**
@@ -116,6 +117,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     /** Title/alias bookkeeping for {@link #titleLookup()}. */
     private final TitleIndexState titles = new TitleIndexState();
+
+    /** Finds other live pages carrying a deleted page's canonical_id. */
+    private final CanonicalIdSharers sharers;
 
     /** Told when a true delete retires a canonical_id. */
     private final PageRetirementListeners retirementListeners = new PageRetirementListeners();
@@ -148,7 +152,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 final ParsedPage parsed = FrontmatterParser.parse( raw );
                 final Map< String, Object > fm = parsed.metadata();
 
-                String canonicalId = asString( fm.get( "canonical_id" ) );
+                String canonicalId = SpineFrontmatter.asString( fm.get( "canonical_id" ) );
                 final boolean authored = canonicalId != null && !canonicalId.isBlank();
                 if ( !authored ) {
                     canonicalId = UlidCreator.getUlid().toString();
@@ -301,14 +305,14 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         return new PageDescriptor(
                 canonicalId,
                 page.getName(),
-                firstNonBlank( asString( fm.get( "title" ) ), page.getName() ),
+                SpineFrontmatter.firstNonBlank( SpineFrontmatter.asString( fm.get( "title" ) ), page.getName() ),
                 PageType.fromFrontmatter( fm.get( "type" ) ),
                 clusters.isEmpty() ? null : clusters.get( 0 ),
                 clusters,
-                stringList( fm.get( "tags" ) ),
-                asString( fm.get( "summary" ) ),
+                SpineFrontmatter.stringList( fm.get( "tags" ) ),
+                SpineFrontmatter.asString( fm.get( "summary" ) ),
                 page.getLastModified() == null ? null : page.getLastModified().toInstant(),
-                parseKgInclude( fm.get( "kg_include" ) ),
+                SpineFrontmatter.parseKgInclude( fm.get( "kg_include" ) ),
                 fm.get( "derived_from" ) != null );
     }
 
@@ -350,7 +354,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         final ParsedPage parsed = FrontmatterParser.parse( raw );
         final Map< String, Object > fm = parsed.metadata();
 
-        String canonicalId = asString( fm.get( "canonical_id" ) );
+        String canonicalId = SpineFrontmatter.asString( fm.get( "canonical_id" ) );
         final boolean authored = canonicalId != null && !canonicalId.isBlank();
         if ( !authored ) {
             canonicalId = UlidCreator.getUlid().toString();
@@ -428,7 +432,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
      */
     synchronized void onPageDeleted( final String pageName ) {
         try {
-            if ( mayStillExist( pageName ) ) {
+            if ( sharers.mayStillExist( pageName ) ) {
                 LOG.warn( "onPageDeleted({}): the page still exists (its delete failed?) — retiring nothing",
                           pageName );
                 return;
@@ -438,76 +442,21 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 return;
             }
             final String id = canonicalId.get();
-            final List< String > sharers = liveSharersOf( id, pageName );
-            if ( !sharers.isEmpty() ) {
+            final List< String > others = sharers.liveSharersOf( current.get(), id, pageName );
+            if ( !others.isEmpty() ) {
                 // Another live page carries the same canonical_id (an authoring defect). Its owners,
                 // comments, citations and id row belong to it too: drop only this slug, then
                 // re-index the sharer so the projection and the id row point at it.
                 LOG.warn( "onPageDeleted({}): canonical_id {} is also carried by {} — not retiring it",
-                          pageName, id, sharers );
+                          pageName, id, others );
                 applyIncrementalDelete( pageName, id, false );
-                sharers.forEach( this::indexPage );
+                others.forEach( this::indexPage );
                 return;
             }
             applyIncrementalDelete( pageName, id, true );
             retirementListeners.fire( pageName, id );
         } catch ( final Exception e ) {
             LOG.warn( "onPageDeleted({}) failed: {}", pageName, e.getMessage() );
-        }
-    }
-
-    /**
-     * Whether {@code pageName} may still be in the page store. A lookup failure counts as
-     * "may exist": skipping a retirement leaks rows, retiring a live page destroys them.
-     */
-    private boolean mayStillExist( final String pageName ) {
-        try {
-            return pageManager.pageExists( pageName );
-        } catch ( final Exception e ) {
-            LOG.warn( "pageExists({}) failed — treating the page as live: {}", pageName, e.getMessage() );
-            return true;
-        }
-    }
-
-    /**
-     * Other existing pages whose frontmatter carries {@code canonicalId}. Candidates come from the
-     * projection (which holds one descriptor per id, so an incremental splice can lose a sharer's
-     * slug) and from the id row's current slug and slug history; each is confirmed by re-reading
-     * its frontmatter.
-     */
-    private List< String > liveSharersOf( final String canonicalId, final String deletedSlug ) {
-        final java.util.Set< String > candidates = new java.util.LinkedHashSet<>(
-                current.get().slugsOf( canonicalId ) );
-        try {
-            dao.findByCanonicalId( canonicalId ).ifPresent( row -> candidates.add( row.currentSlug() ) );
-            candidates.addAll( dao.slugHistory( canonicalId ) );
-        } catch ( final RuntimeException dbx ) {
-            LOG.warn( "Could not read the id row of {} while checking for sharers: {}",
-                      canonicalId, dbx.getMessage() );
-        }
-        candidates.remove( deletedSlug );
-        final List< String > sharers = new ArrayList<>();
-        for ( final String slug : candidates ) {
-            if ( slug != null && mayStillExist( slug ) && carriesCanonicalId( slug, canonicalId ) ) {
-                sharers.add( slug );
-            }
-        }
-        return sharers;
-    }
-
-    /** Whether page {@code slug}'s frontmatter names {@code canonicalId}; a read failure counts as yes. */
-    private boolean carriesCanonicalId( final String slug, final String canonicalId ) {
-        try {
-            final Page page = pageManager.getPage( slug );
-            if ( page == null ) {
-                return false;
-            }
-            final Map< String, Object > fm = FrontmatterParser.parse( pageManager.getPureText( page ) ).metadata();
-            return canonicalId.equals( asString( fm.get( "canonical_id" ) ) );
-        } catch ( final Exception e ) {
-            LOG.warn( "Could not read {} while checking it for canonical_id {} — treating it as a sharer: {}",
-                      slug, canonicalId, e.getMessage() );
-            return true;
         }
     }
 
@@ -559,8 +508,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             return;
         }
         try {
-            final Instant verifiedAt = parseInstant( fm.get( "verified_at" ) );
-            final String verifiedBy  = asString( fm.get( "verified_by" ) );
+            final Instant verifiedAt = SpineFrontmatter.parseInstant( fm.get( "verified_at" ) );
+            final String verifiedBy  = SpineFrontmatter.asString( fm.get( "verified_by" ) );
             final var explicitOverride = com.wikantik.api.pagegraph.Confidence
                     .fromWire( fm.get( "confidence" ) );
             final com.wikantik.api.pagegraph.Audience audience =
@@ -574,78 +523,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         }
     }
 
-    private static Instant parseInstant( final Object raw ) {
-        if ( raw == null ) {
-            return null;
-        }
-        if ( raw instanceof java.util.Date d ) {
-            // SnakeYAML parses ISO-8601 timestamps directly into java.util.Date.
-            return d.toInstant();
-        }
-        if ( raw instanceof Instant i ) {
-            return i;
-        }
-        final String s = raw.toString().trim();
-        if ( s.isEmpty() ) {
-            return null;
-        }
-        try {
-            return Instant.parse( s );
-        } catch ( final java.time.format.DateTimeParseException ex ) {
-            // Fall back to ISO_LOCAL_DATE_TIME or ISO_DATE — authors sometimes omit the trailing Z.
-            try {
-                return java.time.LocalDateTime.parse( s ).atZone( java.time.ZoneOffset.UTC ).toInstant();
-            } catch ( final java.time.format.DateTimeParseException ignored ) {
-                LOG.warn( "verified_at could not be parsed: '{}'", s );
-                return null;
-            }
-        }
-    }
-
-    private static String asString( final Object o ) {
-        if ( o == null ) return null;
-        final String s = o.toString().trim();
-        return s.isEmpty() ? null : s;
-    }
-
-    private static String firstNonBlank( final String a, final String b ) {
-        return ( a == null || a.isBlank() ) ? b : a;
-    }
-
     @Override
     public Optional< PageTitleLookup > titleLookup() {
         return titles.lookup( current.get() );
-    }
-
-    @SuppressWarnings( "unchecked" )
-    static List< String > stringList( final Object o ) {
-        if ( o == null ) return List.of();
-        if ( o instanceof List< ? > list ) {
-            final List< String > out = new ArrayList<>( list.size() );
-            for ( final Object x : list ) {
-                if ( x != null ) out.add( x.toString() );
-            }
-            return List.copyOf( out );
-        }
-        return List.of( o.toString() );
-    }
-
-    /**
-     * Parses the {@code kg_include} frontmatter field. SnakeYAML auto-types
-     * {@code true}/{@code false} literals to {@link Boolean}, but authors may
-     * also write the value as a string. Any unrecognised value yields
-     * {@link Optional#empty()}.
-     */
-    private static Optional< Boolean > parseKgInclude( final Object raw ) {
-        if ( raw == null ) {
-            return Optional.empty();
-        }
-        if ( raw instanceof Boolean b ) {
-            return Optional.of( b );
-        }
-        final String s = raw.toString().trim().toLowerCase( java.util.Locale.ROOT );
-        if ( "true".equals( s ) )  return Optional.of( true );
-        if ( "false".equals( s ) ) return Optional.of( false );
-        return Optional.empty();
     }
 }

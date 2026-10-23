@@ -37,13 +37,10 @@ import javax.security.auth.login.LoginException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.Reader;
 import java.io.StringReader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
@@ -127,7 +124,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                 final File cookieFile = getCookieFile( engine, uid );
                 if( cookieFile != null && cookieFile.exists() && cookieFile.canRead() ) {
                     try {
-                        final String username = readCookieOwner( cookieFile );
+                        final String username = LoginCookieFiles.readOwner( cookieFile );
 
                         // Reject re-auth if the account has been locked/deactivated
                         // since the cookie was issued (fail closed, same as password login).
@@ -178,62 +175,6 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
             throw le;
         }
         return false;
-    }
-
-    /** Reads the login a remember-me cookie file was issued to (the file's whole content). */
-    private static String readCookieOwner( final File cookieFile ) throws IOException {
-        try( Reader in = new BufferedReader( new InputStreamReader( Files.newInputStream( cookieFile.toPath() ), StandardCharsets.UTF_8 ) ) ) {
-            return FileUtil.readContents( in );
-        }
-    }
-
-    /**
-     * Deletes every remember-me cookie file issued to {@code loginName}, so the cookies a browser still
-     * holds stop authenticating. Called when the account is deleted: {@link #login()} accepts a cookie
-     * whose login has no profile, so a surviving file would keep re-authenticating the deleted user —
-     * and would log its holder into any account later created under the same login. A file that
-     * cannot be read is skipped (it cannot authenticate either).
-     *
-     * @param engine    the wiki engine, whose work directory holds the cookie files
-     * @param loginName the login whose cookies to revoke; {@code null} revokes nothing
-     * @return how many cookie files were removed
-     * @throws IOException if the cookie directory cannot be listed or a matching file cannot be deleted
-     */
-    public static int revokeLoginCookies( final Engine engine, final String loginName ) throws IOException {
-        final String workDir = engine.getWorkDir();
-        if( workDir == null || loginName == null ) {
-            return 0;
-        }
-        final File cookieDir = new File( workDir, COOKIE_DIR );
-        if( !cookieDir.isDirectory() ) {
-            return 0;
-        }
-        final File[] files = cookieDir.listFiles();
-        if( files == null ) {
-            throw new IOException( "Could not list the remember-me cookie directory " + cookieDir.getAbsolutePath() );
-        }
-        int removed = 0;
-        for( final File cookieFile : files ) {
-            if( cookieFile.isFile() && loginName.equals( ownerOrNull( cookieFile ) ) ) {
-                if( !cookieFile.delete() ) {
-                    // The file name is the bearer token: report only the directory.
-                    throw new IOException( "Could not delete a remember-me cookie file of '" + loginName + "' in "
-                            + cookieDir.getAbsolutePath() );
-                }
-                removed++;
-            }
-        }
-        return removed;
-    }
-
-    private static String ownerOrNull( final File cookieFile ) {
-        try {
-            return readCookieOwner( cookieFile );
-        } catch( final IOException e ) {
-            LOG.warn( "Could not read a remember-me cookie file in {} while revoking cookies; skipping it: {}",
-                    cookieFile.getParent(), e.getMessage() );
-            return null;
-        }
     }
 
     /**

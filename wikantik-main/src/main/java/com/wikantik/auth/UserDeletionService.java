@@ -23,7 +23,7 @@ import com.wikantik.api.core.Session;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
-import com.wikantik.auth.login.CookieAuthenticationLoginModule;
+import com.wikantik.auth.login.LoginCookieFiles;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
@@ -111,7 +111,7 @@ public class UserDeletionService {
 
     private void revokeRememberMeCookies( final String loginName ) throws WikiSecurityException {
         try {
-            final int removed = CookieAuthenticationLoginModule.revokeLoginCookies( engine, loginName );
+            final int removed = LoginCookieFiles.revokeFor( engine, loginName );
             LOG.debug( "User delete: removed {} remember-me cookie file(s) of user={}", removed, loginName );
         } catch ( final IOException | RuntimeException e ) {
             LOG.warn( "User delete aborted: failed to remove remember-me cookies of user={}: {}",

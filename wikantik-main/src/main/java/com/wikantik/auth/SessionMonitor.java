@@ -224,22 +224,7 @@ public class SessionMonitor implements HttpSessionListener {
      * @return how many sessions were refreshed
      */
     public final int refreshProfile( final String loginName ) {
-        if ( loginName == null ) {
-            return 0;
-        }
-        int refreshed = 0;
-        for ( final Session s : sessions.values() ) {
-            try {
-                if ( s instanceof WikiSession ws && ws.isAuthenticated()
-                        && ws.getLoginPrincipal() != null && loginName.equals( ws.getLoginPrincipal().getName() ) ) {
-                    ws.refreshUserProfile();
-                    refreshed++;
-                }
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Could not refresh the profile principals of one live session of '{}': {}", loginName, e.getMessage(), e );
-            }
-        }
-        return refreshed;
+        return forEachLiveSessionOf( loginName, WikiSession::refreshUserProfile, "refresh the profile principals of" );
     }
 
     /**
@@ -251,22 +236,28 @@ public class SessionMonitor implements HttpSessionListener {
      * @return how many sessions were demoted
      */
     public final int invalidateSessionsOf( final String loginName ) {
+        return forEachLiveSessionOf( loginName, WikiSession::invalidate, "invalidate" );
+    }
+
+    /** Applies {@code action} to every live authenticated session of {@code loginName}; one failure never stops the rest. */
+    private int forEachLiveSessionOf( final String loginName, final java.util.function.Consumer< WikiSession > action,
+                                      final String what ) {
         if ( loginName == null ) {
             return 0;
         }
-        int invalidated = 0;
+        int applied = 0;
         for ( final Session s : sessions.values() ) {
             try {
                 if ( s instanceof WikiSession ws && ws.isAuthenticated()
                         && ws.getLoginPrincipal() != null && loginName.equals( ws.getLoginPrincipal().getName() ) ) {
-                    ws.invalidate();
-                    invalidated++;
+                    action.accept( ws );
+                    applied++;
                 }
             } catch ( final RuntimeException e ) {
-                LOG.warn( "Could not invalidate one live session of '{}': {}", loginName, e.getMessage(), e );
+                LOG.warn( "Could not {} one live session of '{}': {}", what, loginName, e.getMessage(), e );
             }
         }
-        return invalidated;
+        return applied;
     }
 
     /**

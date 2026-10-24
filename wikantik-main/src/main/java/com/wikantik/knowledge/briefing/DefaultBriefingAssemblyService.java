@@ -19,7 +19,6 @@
 package com.wikantik.knowledge.briefing;
 
 import com.wikantik.api.briefing.BriefingAssemblyService;
-import com.wikantik.api.briefing.BriefingItem;
 import com.wikantik.api.briefing.BriefingRequest;
 import com.wikantik.api.briefing.ContextBriefing;
 import com.wikantik.api.briefing.ScopeMode;
@@ -30,7 +29,6 @@ import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.knowledge.briefing.BriefingConfig.BriefingLimits;
 import com.wikantik.util.TokenEstimator;
@@ -59,7 +57,6 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
     private static final Logger LOG = LogManager.getLogger( DefaultBriefingAssemblyService.class );
 
     private static final int BUDGET_FLOOR = 200;
-    private static final String ORIGIN_ELSEWHERE = "elsewhere";
 
     private final BundleAssemblyService bundleService;   // nullable
     private final StructuralIndexService structuralIndex; // nullable
@@ -112,10 +109,10 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
 
     /**
      * Per-request mutable working state — keeps the assembly steps small and free of tuple
-     * returns. Delegates pin/cluster-member/cited-page handling to {@link ItemAssembler} and shares the
-     * token-budget ledger with it via {@link SectionBudget} (God Class burn-down: this class now
-     * owns only orchestration + the prompt-driven section-retrieval step and its out-of-scope
-     * {@code elsewhere} pointers).
+     * returns. Delegates pin/cluster-member/cited-page and {@code elsewhere}-pointer handling to
+     * {@link ItemAssembler} and shares the token-budget ledger with it via {@link SectionBudget}
+     * (God Class burn-down: this class now owns only orchestration + the prompt-driven
+     * section-retrieval step and its in/out-of-scope partition).
      */
     private final class Assembly {
 
@@ -153,7 +150,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
             final List< BundleSection > outOfScope = assembleSections();
             itemAssembler.assemblePins();
             itemAssembler.assembleClusterMembers();
-            addElsewhere( outOfScope );
+            itemAssembler.assembleElsewhere( outOfScope, limits.elsewhereMax() );
             return new ContextBriefing( req.prompt(), ledger.sections, ledger.coverage,
                 itemAssembler.items, warnings, ledger.budget, ledger.used );
         }
@@ -162,7 +159,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
 
         /**
          * Fills {@code ledger.sections} from the prompt's candidate pool and returns the pool's
-         * out-of-scope sections (in rank order) for {@link #addElsewhere}; empty when the scope is
+         * out-of-scope sections (in rank order) for {@link ItemAssembler#assembleElsewhere}; empty when the scope is
          * {@code STRICT}, when nothing is out of scope, or when there was no retrieval pass.
          */
         private List< BundleSection > assembleSections() {
@@ -224,33 +221,6 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
                 if ( taken.merge( s.slug(), 1, Integer::sum ) <= perPage ) kept.add( s );
             }
             return kept;
-        }
-
-        /**
-         * One pointer per out-of-scope page (first hit wins), at most {@code elsewhereMax}, appended after
-         * the scoped items. They spend no budget and have their own cap, so they never count toward
-         * {@code pointersMax}; a page that is already an item (a pin) is not repeated.
-         */
-        private void addElsewhere( final List< BundleSection > outOfScope ) {
-            final Set< String > seen = new LinkedHashSet<>();
-            itemAssembler.items.forEach( i -> seen.add( i.slug() ) );
-            int added = 0;
-            for ( final BundleSection s : outOfScope ) {
-                if ( added >= limits.elsewhereMax() ) break;
-                if ( !seen.add( s.slug() ) ) continue;
-                itemAssembler.items.add( new BriefingItem( s.slug(), s.canonicalId(), s.slug(),
-                    String.join( " › ", s.headingPath() ), ORIGIN_ELSEWHERE, false, null, clusterOf( s.slug() ) ) );
-                added++;
-            }
-        }
-
-        /** The page's primary cluster, or null when the index is absent or does not know the page. */
-        private String clusterOf( final String slug ) {
-            if ( structuralIndex == null ) return null;
-            return structuralIndex.resolveCanonicalIdFromSlug( slug )
-                .flatMap( structuralIndex::getByCanonicalId )
-                .map( PageDescriptor::cluster )
-                .orElse( null );
         }
     }
 }

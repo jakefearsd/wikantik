@@ -47,14 +47,17 @@ import java.util.Set;
  * <p>Which pages are in scope, and in what order, is {@link BriefingScope}'s decision; this class
  * only decides, item by item, whether a page's body still fits (full item) or degrades to a
  * title/summary pointer. Cluster and cited pointers are capped at {@code pointersMax}; pins never
- * are. It owns only the pin/scope → {@link BriefingItem} concern, split out of
+ * are. Out-of-scope retrieval hits become {@code elsewhere} pointers with their own cap. It owns only
+ * the pin/scope/elsewhere → {@link BriefingItem} concern, split out of
  * {@code DefaultBriefingAssemblyService.Assembly} (God Class burn-down).</p>
  */
 final class ItemAssembler {
 
-    private static final String ORIGIN_PIN = "pin";
-    private static final String ORIGIN_CLUSTER = "cluster";
-    private static final String ORIGIN_CITED = "cited";
+    // The origin vocabulary of BriefingItem; package-visible so the renderer filters on the same literals.
+    static final String ORIGIN_PIN = "pin";
+    static final String ORIGIN_CLUSTER = "cluster";
+    static final String ORIGIN_CITED = "cited";
+    static final String ORIGIN_ELSEWHERE = "elsewhere";
 
     private final Logger log;
     private final PageManager pageManager;
@@ -194,6 +197,30 @@ final class ItemAssembler {
         }
         scopedPointers++;
         return true;
+    }
+
+    // ------------------------------------------------------- elsewhere
+
+    /**
+     * One pointer per out-of-scope page (first hit wins), at most {@code elsewhereMax}, appended after
+     * the scoped items. They spend no budget and have their own cap, so they never count toward
+     * {@code pointersMax}; a page that is already an item (a pin, a member) is not repeated.
+     */
+    void assembleElsewhere( final List< BundleSection > outOfScope, final int elsewhereMax ) {
+        int added = 0;
+        for ( final BundleSection s : outOfScope ) {
+            if ( added >= elsewhereMax ) break;
+            if ( !includedSlugs.add( s.slug() ) ) continue;
+            items.add( new BriefingItem( s.slug(), s.canonicalId(), s.slug(),
+                String.join( " › ", s.headingPath() ), ORIGIN_ELSEWHERE, false, null, clusterOf( s.canonicalId() ) ) );
+            added++;
+        }
+    }
+
+    /** The page's primary cluster, or null when the index is absent or does not know the page. */
+    private String clusterOf( final String canonicalId ) {
+        if ( structuralIndex == null || canonicalId == null ) return null;
+        return structuralIndex.getByCanonicalId( canonicalId ).map( PageDescriptor::cluster ).orElse( null );
     }
 
     // --------------------------------------------------------- shared

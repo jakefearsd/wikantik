@@ -4,13 +4,13 @@ Base URL: `https://wiki.wikantik.com` -- 1 of 8 cases passed.
 
 | case | result | separation | diversity | violations |
 |------|--------|-----------:|----------:|------------|
-| `sa-roller-telemetry` | FAIL | 0.81 | 0.17 | forbidden body page present: StockroomPhase7PhotoIdentificationPlan |
-| `roller-telemetry-prefer` | FAIL | 0.94 | 0.17 | required item missing or not included: SimpleAgilityTelemetryContract; RollerTelemetryHandoffSpec has 11 sections (cap 4) |
-| `roller-telemetry-strict` | FAIL | 1.00 | 0.09 | required item missing or not included: SimpleAgilityTelemetryContract; RollerTelemetryHandoffSpec has 11 sections (cap 4) |
-| `jakemon-push-feed` | FAIL | 0.74 | 0.17 | forbidden body page present: IncidentWebmasterProviderStale; required item missing or not included: SimpleAgilityObservabilityPlane |
-| `stockroom-itemsold` | FAIL | 0.00 | 0.67 | required item missing or not included: StockroomHub; forbidden warning present: unknown cluster: stockroom |
-| `nocluster-lease-guard` | PASS | n/a | 0.33 | - |
-| `wikidev-trace-id` | FAIL | 0.62 | 0.50 | forbidden body page present: RollerTelemetryHandoffSpec |
+| `sa-roller-telemetry` | PASS | 0.84 | 0.33 | - |
+| `roller-telemetry-prefer` | FAIL | 0.94 | 0.17 | required item missing: SimpleAgilityTelemetryContract; RollerTelemetryHandoffSpec has 11 sections (cap 4) |
+| `roller-telemetry-strict` | FAIL | 1.00 | 0.09 | required item missing: SimpleAgilityTelemetryContract; RollerTelemetryHandoffSpec has 11 sections (cap 4) |
+| `jakemon-push-feed` | FAIL | 0.72 | 0.17 | forbidden body page present: IncidentWebmasterProviderStale |
+| `stockroom-itemsold` | FAIL | 0.20 | 0.25 | required item missing: StockroomHub |
+| `nocluster-lease-guard` | FAIL | n/a | 0.17 | BackgroundJobProcessing has 11 sections (cap 4) |
+| `wikidev-trace-id` | FAIL | 0.71 | 0.64 | forbidden body page present: LoginHelp; forbidden body page present: RollerTelemetryHandoffSpec |
 | `roller-unknown-arg` | FAIL | 0.94 | 0.17 | expected warning not found: /^unknown argument: scope/ |
 
 Raw per-case counts (token estimate = chars / 4):
@@ -19,12 +19,12 @@ Raw per-case counts (token estimate = chars / 4):
 {
   "sa-roller-telemetry": {
     "sections": 12,
-    "distinct_pages": 2,
+    "distinct_pages": 4,
     "included_items": 2,
     "warnings": 0,
-    "in_scope_tokens": 4576,
-    "total_tokens": 5680,
-    "used_tokens": 5691
+    "in_scope_tokens": 5027,
+    "total_tokens": 5950,
+    "used_tokens": 5960
   },
   "roller-telemetry-prefer": {
     "sections": 12,
@@ -49,36 +49,36 @@ Raw per-case counts (token estimate = chars / 4):
     "distinct_pages": 2,
     "included_items": 2,
     "warnings": 0,
-    "in_scope_tokens": 4177,
-    "total_tokens": 5657,
-    "used_tokens": 5668
+    "in_scope_tokens": 4106,
+    "total_tokens": 5724,
+    "used_tokens": 5735
   },
   "stockroom-itemsold": {
     "sections": 12,
-    "distinct_pages": 8,
-    "included_items": 0,
-    "warnings": 1,
-    "in_scope_tokens": 0,
-    "total_tokens": 1851,
-    "used_tokens": 1861
+    "distinct_pages": 3,
+    "included_items": 2,
+    "warnings": 0,
+    "in_scope_tokens": 1045,
+    "total_tokens": 5128,
+    "used_tokens": 5138
   },
   "nocluster-lease-guard": {
     "sections": 12,
-    "distinct_pages": 4,
+    "distinct_pages": 2,
     "included_items": 0,
     "warnings": 0,
     "in_scope_tokens": 0,
-    "total_tokens": 1914,
-    "used_tokens": 1922
+    "total_tokens": 608,
+    "used_tokens": 616
   },
   "wikidev-trace-id": {
-    "sections": 12,
-    "distinct_pages": 6,
-    "included_items": 3,
+    "sections": 11,
+    "distinct_pages": 7,
+    "included_items": 2,
     "warnings": 0,
-    "in_scope_tokens": 3714,
-    "total_tokens": 5969,
-    "used_tokens": 5979
+    "in_scope_tokens": 4005,
+    "total_tokens": 5638,
+    "used_tokens": 5648
   },
   "roller-unknown-arg": {
     "sections": 12,

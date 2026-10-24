@@ -17,7 +17,8 @@ Each case in `cases.json` is one briefing request plus assertions:
 | `clusters`, `prompt`, `scope_mode` | the request (`scope_mode` omitted when absent) |
 | `extra_params` | extra query parameters appended verbatim (e.g. `{"scope": "strict"}`) |
 | `must_include_as_section` | slugs that must appear in `sections[]` |
-| `must_include_as_item` | slugs that must appear in `items[]` with `included == true` |
+| `must_include_as_item` | slugs that must appear in `items[]` as *any* entry, included or pointer (a contract may legitimately be budget-trimmed to a pointer) |
+| `must_include_as_body` | slugs that must appear in `items[]` with `included == true` (empty in the seed cases) |
 | `must_not_include_as_body` | slugs (`fnmatch` globs, e.g. `Incident*`) that fail the case if they appear in `sections[]` **or** as an `items[]` entry with `included == true`. A pointer item (`included == false`, e.g. `origin: elsewhere`) never fails it |
 | `may_point_to` | informational only: reported as `pointed_to` when the slug is present as a pointer item |
 | `max_sections_per_page` | cap on `sections[]` entries sharing one slug |
@@ -60,7 +61,6 @@ Pure-function tests over canned JSON; no network.
 
 ## Caveat
 
-Cases `sa-roller-telemetry` through `roller-unknown-arg` were seeded from the eight observed 2026-10-23 runs; where the
-original prompt was not recorded the prompt text is a representative one for that topic. `roller-unknown-arg` asserts a
+Cases are seeded from the eight observed 2026-10-23 runs, with their original prompts and clusters. `roller-unknown-arg` asserts a
 warning the server does not yet emit, and `stockroom-itemsold` names a `stockroom` cluster that does not exist in prod,
 so both fail until the scoping change lands.

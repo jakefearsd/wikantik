@@ -46,11 +46,16 @@ class EvaluateTest(unittest.TestCase):
         self.assertTrue(r.passed, r.violations)
         self.assertEqual(["RollerTelemetryHandoffSpec"], r.pointed_to)
 
-    def test_missing_required_item_fails(self):
-        c = case(must_include_as_item=["RollerHub"])
-        r = run_eval.evaluate(c, briefing(items=[item("RollerHub", "cluster", False, "")]), MEMBERS)
+    def test_required_item_satisfied_by_pointer_but_required_body_is_not(self):
+        pointer = briefing(items=[item("RollerHub", "elsewhere", False, "")])
+        r = run_eval.evaluate(case(must_include_as_item=["RollerHub"]), pointer, MEMBERS)
+        self.assertTrue(r.passed, r.violations)
+        r = run_eval.evaluate(case(must_include_as_item=["RollerHub"]), briefing(), MEMBERS)
         self.assertFalse(r.passed)
-        r = run_eval.evaluate(c, briefing(items=[item("RollerHub")]), MEMBERS)
+        r = run_eval.evaluate(case(must_include_as_body=["RollerHub"]), pointer, MEMBERS)
+        self.assertFalse(r.passed)
+        r = run_eval.evaluate(case(must_include_as_body=["RollerHub"]),
+                              briefing(items=[item("RollerHub")]), MEMBERS)
         self.assertTrue(r.passed, r.violations)
 
     def test_separation_score_counts_only_in_scope_tokens(self):

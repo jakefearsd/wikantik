@@ -1,62 +1,114 @@
 [
   {
     "id": "sa-roller-telemetry",
-    "clusters": ["simple-agility"],
-    "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
-    "must_include_as_item": ["SimpleAgilityStackHub"],
-    "must_not_include_as_body": ["StockroomPhase7PhotoIdentificationPlan"]
+    "clusters": [
+      "simple-agility"
+    ],
+    "prompt": "how should roller emit telemetry and structured logs",
+    "must_include_as_item": [
+      "SimpleAgilityStackHub"
+    ],
+    "must_include_as_body": [],
+    "must_not_include_as_body": [
+      "StockroomPhase7PhotoIdentificationPlan"
+    ]
   },
   {
     "id": "roller-telemetry-prefer",
-    "clusters": ["roller"],
+    "clusters": [
+      "roller"
+    ],
     "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
     "scope_mode": "prefer",
     "must_include_as_section": [],
-    "must_include_as_item": ["RollerHub", "SimpleAgilityTelemetryContract"],
-    "must_not_include_as_body": ["StockroomPhase7PhotoIdentificationPlan"],
-    "may_point_to": ["SimpleAgilityTelemetryAdoption"],
+    "must_include_as_item": [
+      "RollerHub",
+      "SimpleAgilityTelemetryContract"
+    ],
+    "must_include_as_body": [],
+    "must_not_include_as_body": [
+      "StockroomPhase7PhotoIdentificationPlan"
+    ],
+    "may_point_to": [
+      "SimpleAgilityTelemetryAdoption"
+    ],
     "max_sections_per_page": 4
   },
   {
     "id": "roller-telemetry-strict",
-    "clusters": ["roller"],
+    "clusters": [
+      "roller"
+    ],
     "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
     "scope_mode": "strict",
-    "must_include_as_item": ["SimpleAgilityTelemetryContract"],
+    "must_include_as_item": [
+      "SimpleAgilityTelemetryContract"
+    ],
+    "must_include_as_body": [],
     "max_sections_per_page": 4
   },
   {
     "id": "jakemon-push-feed",
-    "clusters": ["jakemon"],
-    "prompt": "add a push feed for incident events to jakemon",
-    "must_include_as_item": ["SimpleAgilityObservabilityPlane"],
-    "must_not_include_as_body": ["Incident*"]
+    "clusters": [
+      "jakemon"
+    ],
+    "prompt": "add a new push feed from jakemon to a product",
+    "must_include_as_item": [
+      "SimpleAgilityObservabilityPlane"
+    ],
+    "must_include_as_body": [],
+    "must_not_include_as_body": [
+      "Incident*"
+    ]
   },
   {
     "id": "stockroom-itemsold",
-    "clusters": ["stockroom"],
-    "prompt": "emit an ItemSold event when a reseller listing sells",
-    "must_include_as_item": ["StockroomHub"],
-    "must_not_warn": ["unknown cluster"]
+    "clusters": [
+      "stockroom"
+    ],
+    "prompt": "emit ItemSold events for the accounting component",
+    "must_include_as_item": [
+      "StockroomHub"
+    ],
+    "must_include_as_body": [],
+    "must_not_warn": [
+      "unknown cluster"
+    ]
   },
   {
     "id": "nocluster-lease-guard",
     "clusters": [],
-    "prompt": "guard against double-lease of a connector sync lock",
-    "max_sections_per_page": 4
+    "prompt": "implement a background job runner with a lease guard so only one worker processes an item",
+    "max_sections_per_page": 4,
+    "must_include_as_body": []
   },
   {
     "id": "wikidev-trace-id",
-    "clusters": ["wikantik-development"],
-    "prompt": "propagate a trace id through the request correlation filter",
-    "must_not_include_as_body": ["RollerTelemetryHandoffSpec", "LoginHelp"],
-    "may_point_to": ["RollerTelemetryHandoffSpec"]
+    "clusters": [
+      "wikantik-development"
+    ],
+    "prompt": "add trace.id to Wikantik request logging",
+    "must_not_include_as_body": [
+      "RollerTelemetryHandoffSpec",
+      "LoginHelp"
+    ],
+    "may_point_to": [
+      "RollerTelemetryHandoffSpec"
+    ],
+    "must_include_as_body": []
   },
   {
     "id": "roller-unknown-arg",
-    "clusters": ["roller"],
+    "clusters": [
+      "roller"
+    ],
     "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
-    "extra_params": {"scope": "strict"},
-    "must_warn": ["^unknown argument: scope"]
+    "extra_params": {
+      "scope": "strict"
+    },
+    "must_warn": [
+      "^unknown argument: scope"
+    ],
+    "must_include_as_body": []
   }
 ]

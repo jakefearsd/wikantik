@@ -64,12 +64,16 @@ def evaluate(case, briefing, members):
         if _matches(slug, case.get("must_not_include_as_body", [])):
             r.violations.append("forbidden body page present: %s" % slug)
     included_items = {i.get("slug") for i in items if i.get("included")}
+    item_slugs = {i.get("slug") for i in items}
     for slug in case.get("must_include_as_section", []):
         if slug not in {s.get("slug") for s in sections}:
             r.violations.append("required section missing: %s" % slug)
     for slug in case.get("must_include_as_item", []):
+        if slug not in item_slugs:
+            r.violations.append("required item missing: %s" % slug)
+    for slug in case.get("must_include_as_body", []):
         if slug not in included_items:
-            r.violations.append("required item missing or not included: %s" % slug)
+            r.violations.append("required body (included item) missing: %s" % slug)
 
     pointers = {i.get("slug") for i in items if not i.get("included")}
     r.pointed_to = [s for s in case.get("may_point_to", []) if s in pointers]

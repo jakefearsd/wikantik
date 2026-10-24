@@ -28,7 +28,9 @@ Two scores per case (reported, not pass/fail):
 
 - **separation** = estimated tokens (chars / 4) of sections and included items whose slug is a member of a requested
   cluster, or has an `items[]` entry with `origin == "cited"`, divided by the same estimate over *all* sections and
-  included items. `n/a` when no cluster was requested or the briefing has no body text.
+  included items. `n/a` when no cluster was requested, the briefing has no body text, or a requested cluster has no
+  members in the sitemap (a typo or a stale case; the runner prints `warning: cluster '<name>' has no members in the
+  sitemap` on stderr rather than reporting a misleading `0.00`).
 - **diversity** = distinct `sections[].slug` / `sections.length`.
 
 Cluster membership comes from **`GET /api/structure/sitemap`** (`data.pages[].{slug,cluster}`), fetched once per run.

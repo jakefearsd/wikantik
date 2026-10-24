@@ -1,5 +1,11 @@
 """Pure-function tests for the briefing-scope runner. Stdlib only; no network."""
+import contextlib
+import io
+import json
+import os
+import tempfile
 import unittest
+from unittest import mock
 
 import run_eval
 
@@ -97,6 +103,46 @@ class EvaluateTest(unittest.TestCase):
         c = case(must_not_warn=["unknown cluster"])
         r = run_eval.evaluate(c, briefing(warnings=["Unknown cluster: stockroom"]), MEMBERS)
         self.assertFalse(r.passed)
+
+
+class EmptyClusterTest(unittest.TestCase):
+    """A requested cluster with no members in the sitemap is a typo or a stale case, not a 0.00 score."""
+
+    def test_separation_is_none_and_cluster_recorded_when_a_requested_cluster_has_no_members(self):
+        r = run_eval.evaluate(case(clusters=["nope"]), briefing(sections=[section("A")]), {"nope": set()})
+        self.assertIsNone(r.separation)
+        self.assertEqual(["nope"], r.empty_clusters)
+
+    def test_clusters_with_members_are_unaffected(self):
+        r = run_eval.evaluate(case(), briefing(sections=[section("RollerHub")]), MEMBERS)
+        self.assertEqual([], r.empty_clusters)
+        self.assertAlmostEqual(1.0, r.separation)
+
+    def test_warning_text_names_each_empty_requested_cluster_once(self):
+        warnings = run_eval.empty_cluster_warnings(
+            [case(clusters=["nope", "roller"]), case(clusters=["nope"])], {"nope": set(), "roller": {"A"}})
+        self.assertEqual(["warning: cluster 'nope' has no members in the sitemap"], warnings)
+
+    def test_main_warns_on_stderr_and_prints_separation_as_na(self):
+        cases = [{"id": "typo", "clusters": ["nope"], "prompt": "p"}]
+        sitemap = {"data": {"pages": [{"slug": "A", "cluster": "roller"}]}}
+
+        def fake_http_json(url, timeout=60):
+            return sitemap if "sitemap" in url else briefing(sections=[section("A")])
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump(cases, f)
+        out, err = io.StringIO(), io.StringIO()
+        try:
+            with mock.patch.object(run_eval, "http_json", fake_http_json), \
+                    contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = run_eval.main(["--base-url", "http://h", "--cases", f.name])
+        finally:
+            os.unlink(f.name)
+        self.assertEqual(0, code, "the case has no hard-rule violations; the warning does not fail it")
+        self.assertIn("warning: cluster 'nope' has no members in the sitemap", err.getvalue())
+        self.assertIn("sep=n/a", out.getvalue())
+        self.assertNotIn("sep=0.00", out.getvalue())
 
 
 class UrlAndMembersTest(unittest.TestCase):

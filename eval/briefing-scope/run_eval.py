@@ -27,9 +27,10 @@ class CaseResult:
     id: str
     passed: bool = True
     violations: list = field(default_factory=list)
-    separation: float = None   # None = not applicable (no requested clusters / no body text)
+    separation: float = None   # None = not applicable (no requested clusters / no body text / empty cluster)
     diversity: float = None    # None = no sections
     pointed_to: list = field(default_factory=list)   # may_point_to slugs seen as pointer items
+    empty_clusters: list = field(default_factory=list)   # requested clusters with no members in the sitemap
     counts: dict = field(default_factory=dict)
     error: str = None
 
@@ -105,7 +106,10 @@ def evaluate(case, briefing, members):
                 "included_items": len(included_items), "warnings": len(warnings),
                 "in_scope_tokens": scoped, "total_tokens": total,
                 "used_tokens": briefing.get("usedTokens")}
-    if case.get("clusters") and total > 0:
+    r.empty_clusters = [c for c in case.get("clusters", []) if not members.get(c)]
+    # A requested cluster with no members is a typo or a stale case: every token would read as out of
+    # scope and the score as a silent 0.00, which looks like a leaking briefing. Report n/a instead.
+    if case.get("clusters") and total > 0 and not r.empty_clusters:
         r.separation = scoped / total
     if sections:
         r.diversity = len(per_page) / len(sections)
@@ -130,6 +134,12 @@ def members_from_sitemap(sitemap, clusters):
             if pc == c or pc.startswith(c + "/"):
                 out[c].add(p.get("slug"))
     return out
+
+
+def empty_cluster_warnings(cases, members):
+    """One warning line per requested cluster that has no members in the sitemap (sorted, de-duplicated)."""
+    names = sorted({c for case in cases for c in case.get("clusters", []) if not members.get(c)})
+    return ["warning: cluster '%s' has no members in the sitemap" % c for c in names]
 
 
 def build_url(base_url, case):
@@ -204,6 +214,8 @@ def main(argv):
         print("cannot fetch sitemap: %s: %s" % (type(e).__name__, e), file=sys.stderr)
         return 2
     members = members_from_sitemap(sitemap, clusters)
+    for line in empty_cluster_warnings(cases, members):
+        print(line, file=sys.stderr)
 
     results = [run_case(args.base_url, case, members) for case in cases]
     for r in results:

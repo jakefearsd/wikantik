@@ -311,6 +311,8 @@ structured-log envelope + `correlation_id`, `/healthz`), `SimpleAgilityFeedbackL
 and **`SimpleAgilityRoadmap`** — read that one before going looking for a capability, because the
 contracts state intent while the roadmap states what is actually built.
 
+Start an agent session with `get_briefing(clusters=["wikantik-development"], prompt="<your first task>")` on the knowledge MCP; the briefing carries this repository's pages and the Simple Agility contracts they cite (SA-13, ADR-0011).
+
 Read the plane page before adding any metrics/log/event store, third-party poller, alerting, or SLO
 computation to Wikantik — those belong to jakemon. Apply its **"rule that decides where data lives"**
 first: telemetry emitted for *observation* goes to the plane, but data that is a *functional input* to

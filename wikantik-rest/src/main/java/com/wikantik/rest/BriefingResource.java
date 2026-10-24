@@ -34,6 +34,7 @@ import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.knowledge.briefing.BriefingAclGate;
+import com.wikantik.knowledge.briefing.BriefingWarnings;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -44,6 +45,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -58,6 +60,10 @@ public class BriefingResource extends RestServletBase {
     private static final Logger LOG = LogManager.getLogger( BriefingResource.class );
 
     private static final Gson BRIEFING_GSON = new GsonBuilder().serializeNulls().create();
+
+    /** Every query parameter this endpoint reads; anything else is reported in the briefing's warnings. */
+    private static final Set< String > KNOWN_PARAMETERS =
+            Set.of( "pins", "clusters", "prompt", "budget", "scope_mode", "format" );
 
     /**
      * Resolves the briefing assembly service from the knowledge subsystem.
@@ -181,7 +187,10 @@ public class BriefingResource extends RestServletBase {
         briefing.items().stream().map( BriefingItem::slug ).filter( Objects::nonNull ).forEach( allSlugs::add );
         final Set< String > viewable = filterViewable( req, allSlugs );
 
-        final ContextBriefing gated = BriefingAclGate.gate( briefing, pins, viewable::contains );
+        // Unknown parameters are warned about, not rejected: the briefing above already ran with
+        // defaults, so the caller sees what was ignored (a typo'd "scope" for "scope_mode").
+        final ContextBriefing gated = BriefingWarnings.withUnknownArguments(
+                BriefingAclGate.gate( briefing, pins, viewable::contains ), parameterNames( req ), KNOWN_PARAMETERS );
 
         resp.setStatus( 200 );
         if ( "md".equals( format ) ) {
@@ -211,6 +220,12 @@ public class BriefingResource extends RestServletBase {
                     promptPresent, gated.budgetTokens(), gated.usedTokens(), gated.sections().size(),
                     pinCount, pointerCount, SourceSurface.API_BRIEFING.wire() ) );
         }
+    }
+
+    /** The names of the request's query parameters; empty when the container reports none (or a test double returns {@code null}). */
+    private static Set< String > parameterNames( final HttpServletRequest req ) {
+        final Map< String, String[] > parameters = req.getParameterMap();
+        return parameters == null ? Set.of() : parameters.keySet();
     }
 
     private static void writeError( final HttpServletResponse resp, final int status, final String message )

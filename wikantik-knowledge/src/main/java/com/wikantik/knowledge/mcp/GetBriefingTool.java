@@ -28,6 +28,7 @@ import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.knowledge.briefing.BriefingAclGate;
+import com.wikantik.knowledge.briefing.BriefingWarnings;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
 import com.google.gson.Gson;
 import com.wikantik.mcp.AbstractMcpTool;
@@ -35,9 +36,11 @@ import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -146,7 +149,11 @@ public class GetBriefingTool extends AbstractMcpTool {
         // body (404-hiding semantics, see PageViewGate). A dropped-restricted pin gets the same
         // "unknown pin" warning a nonexistent pin would, so the two are indistinguishable
         // (see BriefingAclGate).
-        final ContextBriefing gated = BriefingAclGate.gate( briefing, pins, viewGate::canView );
+        //
+        // Unknown arguments are warned about, not rejected: the briefing above already ran with
+        // defaults, so the caller sees what was ignored (a typo'd "scope" for "scope_mode").
+        final ContextBriefing gated = BriefingWarnings.withUnknownArguments(
+                BriefingAclGate.gate( briefing, pins, viewGate::canView ), arguments.keySet(), knownArguments() );
 
         final boolean promptPresent = prompt != null && !prompt.isBlank();
         final QueryLogService qlog = queryLog == null ? null : queryLog.get();
@@ -173,6 +180,19 @@ public class GetBriefingTool extends AbstractMcpTool {
                 .content( List.of( new McpSchema.TextContent( MarkdownBriefingRenderer.render( gated ) ) ) )
                 .isError( false )
                 .build();
+    }
+
+    /** The argument names this tool understands, taken from its own published schema so the two cannot drift. */
+    private Set< String > knownArguments() {
+        final Object properties = definition().inputSchema().get( "properties" );
+        if ( !( properties instanceof Map< ?, ? > map ) ) {
+            return Set.of();
+        }
+        final Set< String > names = new HashSet<>();
+        for ( final Object key : map.keySet() ) {
+            names.add( String.valueOf( key ) );
+        }
+        return names;
     }
 
     private static List< String > stringList( final List< ? > raw ) {

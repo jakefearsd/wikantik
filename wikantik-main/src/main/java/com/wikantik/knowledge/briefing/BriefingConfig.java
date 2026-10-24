@@ -27,8 +27,11 @@ import java.util.Properties;
 
 /**
  * Property helpers for the session-start context briefing feature. Keys are namespaced
- * under {@link #PREFIX}. Integer parsing mirrors {@code BundleServiceWiring.sectionsPerPageFrom}:
- * blank/invalid/non-positive values fall back to the default with a {@code WARN} log.
+ * under {@link #PREFIX} but every reader below spells its key out in full: the configuration
+ * drift gate ({@code ConfigSurfaceDriftTest}) finds reads by string literal, so a key built as
+ * {@code PREFIX + "x"} would be invisible to it. Integer parsing mirrors
+ * {@code BundleServiceWiring.sectionsPerPageFrom}: blank/invalid/non-positive values fall back to the
+ * default with a {@code WARN} log.
  */
 public final class BriefingConfig {
 
@@ -39,6 +42,15 @@ public final class BriefingConfig {
     public static final String PREFIX = "wikantik.briefing.";
     public static final int DEFAULT_BUDGET = 6000;
     public static final int MAX_BUDGET = 24000;
+
+    /** Defaults of the diversity/scope tunables. Single source for {@link BriefingLimits#defaults()} and the
+     *  readers; {@code ini/wikantik.properties} states the same values ({@code BriefingConfigTest} pins them). */
+    public static final int DEFAULT_SECTIONS_PER_PAGE = 4;
+    public static final int DEFAULT_CANDIDATE_POOL = 36;
+    public static final boolean DEFAULT_CITED_ENABLED = true;
+    public static final int DEFAULT_CITED_MAX = 12;
+    public static final int DEFAULT_ELSEWHERE_MAX = 8;
+    public static final int DEFAULT_POINTERS_MAX = 30;
 
     /** Read-amplification caps on caller input — a briefing surface is public/anonymous, and the
      *  assembler reads a full page body per pin and per cluster member. Excess is truncated with a
@@ -69,23 +81,44 @@ public final class BriefingConfig {
 
         /** The shipped defaults: 6000/24000 tokens, 4 sections per page from a pool of 36, 12 cited, 8 elsewhere, 30 pointers. */
         public static BriefingLimits defaults() {
-            return new BriefingLimits( DEFAULT_BUDGET, MAX_BUDGET, 4, 36, true, 12, 8, 30 );
+            return new BriefingLimits( DEFAULT_BUDGET, MAX_BUDGET, DEFAULT_SECTIONS_PER_PAGE, DEFAULT_CANDIDATE_POOL,
+                DEFAULT_CITED_ENABLED, DEFAULT_CITED_MAX, DEFAULT_ELSEWHERE_MAX, DEFAULT_POINTERS_MAX );
         }
+    }
+
+    /**
+     * Every briefing tunable, read from {@code props} ({@code null} tolerated: all defaults). A blank,
+     * unparseable or non-positive integer falls back to that key's default with a {@code WARN}.
+     */
+    public static BriefingLimits limits( final Properties props ) {
+        return new BriefingLimits(
+            defaultBudget( props ),
+            maxBudget( props ),
+            intProperty( props, "wikantik.briefing.sections_per_page", DEFAULT_SECTIONS_PER_PAGE ),
+            intProperty( props, "wikantik.briefing.candidate_pool", DEFAULT_CANDIDATE_POOL ),
+            booleanProperty( props, "wikantik.briefing.scope.cited.enabled", DEFAULT_CITED_ENABLED ),
+            intProperty( props, "wikantik.briefing.scope.cited.max", DEFAULT_CITED_MAX ),
+            intProperty( props, "wikantik.briefing.elsewhere.max", DEFAULT_ELSEWHERE_MAX ),
+            intProperty( props, "wikantik.briefing.pointers.max", DEFAULT_POINTERS_MAX ) );
     }
 
     /** {@code wikantik.briefing.enabled}, default {@code true}. */
     public static boolean enabled( final Properties props ) {
-        return TextUtil.getBooleanProperty( props, PREFIX + "enabled", true );
+        return booleanProperty( props, "wikantik.briefing.enabled", true );
     }
 
     /** {@code wikantik.briefing.default_budget}, default {@link #DEFAULT_BUDGET}. */
     public static int defaultBudget( final Properties props ) {
-        return intProperty( props, PREFIX + "default_budget", DEFAULT_BUDGET );
+        return intProperty( props, "wikantik.briefing.default_budget", DEFAULT_BUDGET );
     }
 
     /** {@code wikantik.briefing.max_budget}, default {@link #MAX_BUDGET}. */
     public static int maxBudget( final Properties props ) {
-        return intProperty( props, PREFIX + "max_budget", MAX_BUDGET );
+        return intProperty( props, "wikantik.briefing.max_budget", MAX_BUDGET );
+    }
+
+    private static boolean booleanProperty( final Properties props, final String key, final boolean def ) {
+        return props == null ? def : TextUtil.getBooleanProperty( props, key, def );
     }
 
     private static int intProperty( final Properties props, final String key, final int def ) {

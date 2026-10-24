@@ -1742,6 +1742,9 @@ public class WikiEngine implements Engine {
             com.wikantik.knowledge.briefing.BriefingServiceWiring.build(
                 bundleSvc,
                 structuralIndexOrNull(),
+                // From the page subsystem snapshot, not getManager(): a new getManager caller here would
+                // violate the frozen R-2 ArchUnit rule. The snapshot is rebuilt when ReferenceManager registers.
+                pageSubsystem != null ? pageSubsystem.referenceManager() : null,
                 pageSubsystem != null ? pageSubsystem.pages() : null,
                 properties );
 

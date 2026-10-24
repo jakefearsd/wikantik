@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-10-22'
+date: '2026-10-23'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -807,6 +807,15 @@ Full descriptions (truncated above to keep the table scannable):
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
 | `wikantik.briefing.log.enabled` | `boolean` | `true` | `wikantik_briefing_log_enabled` | Whether real /api/briefing and get_briefing (MCP) requests are recorded to briefing_log for later analysis. … |
+| `wikantik.briefing.enabled` | `boolean` | `true` | `wikantik_briefing_enabled` | Kill switch for the session-start briefing service. … |
+| `wikantik.briefing.default_budget` | `int` | `6000` | `wikantik_briefing_default_budget` | Token budget of a briefing when the request names none. |
+| `wikantik.briefing.max_budget` | `int` | `24000` | `wikantik_briefing_max_budget` | Ceiling a requested briefing budget is clamped to. |
+| `wikantik.briefing.sections_per_page` | `int` | `4` | `wikantik_briefing_sections_per_page` | Most task-relevant sections one page may contribute to a briefing, so a single long page cannot crowd out the rest of the project's pages. |
+| `wikantik.briefing.candidate_pool` | `int` | `36` | `wikantik_briefing_candidate_pool` | Sections requested from the context bundle before they are partitioned into in-scope and out-of-scope and capped per page. … |
+| `wikantik.briefing.scope.cited.enabled` | `boolean` | `true` | `wikantik_briefing_scope_cited_enabled` | Whether a cluster-scoped briefing may include the cited tier: pages outside the requested clusters that the cluster members link to. … |
+| `wikantik.briefing.scope.cited.max` | `int` | `12` | `wikantik_briefing_scope_cited_max` | Most cited pages (outside the requested clusters) a single briefing includes. |
+| `wikantik.briefing.elsewhere.max` | `int` | `8` | `wikantik_briefing_elsewhere_max` | Most out-of-scope "elsewhere" pointers a single briefing lists for relevant material that lives outside the requested clusters. |
+| `wikantik.briefing.pointers.max` | `int` | `30` | `wikantik_briefing_pointers_max` | Most cluster and cited pointers ("available on request" entries) a single briefing lists. Pinned pages are never capped. |
 | `wikantik.bundle.coverage.strong_similarity` | `double` | `0.55` | `wikantik_bundle_coverage_strong_similarity` | A section's dense cosine similarity at/above this counts as "strong" coverage. |
 | `wikantik.bundle.coverage.partial_similarity` | `double` | `0.40` | `wikantik_bundle_coverage_partial_similarity` | A section's dense cosine similarity at/above this (but below strong_similarity) counts as "partial" coverage; below it counts as no coverage. |
 | `wikantik.bundle.reranker.enabled` | `boolean` | `false` | `wikantik_bundle_reranker_enabled` | RAG-as-a-Service context-bundle reranker (GET /api/bundle, assemble_bundle MCP). … |
@@ -842,6 +851,9 @@ Full descriptions (truncated above to keep the table scannable):
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.briefing.log.enabled`** — Whether real /api/briefing and get_briefing (MCP) requests are recorded to briefing_log for later analysis. Writes run on a single bounded-queue daemon thread that drops the oldest pending record when saturated under load, so a traffic spike never back-pressures briefing assembly.
+- **`wikantik.briefing.enabled`** — Kill switch for the session-start briefing service. When false the service is not wired: /api/briefing answers 503 and the get_briefing tool is not registered.
+- **`wikantik.briefing.candidate_pool`** — Sections requested from the context bundle before they are partitioned into in-scope and out-of-scope and capped per page. Larger pools find more in-scope material when the prompt's best matches sit outside the requested clusters.
+- **`wikantik.briefing.scope.cited.enabled`** — Whether a cluster-scoped briefing may include the cited tier: pages outside the requested clusters that the cluster members link to. A kill switch, not a mode.
 - **`wikantik.bundle.reranker.enabled`** — RAG-as-a-Service context-bundle reranker (GET /api/bundle, assemble_bundle MCP). Listwise section reranker over the per-page shortlist. DEFAULT OFF: the 2026-06-13 LIVE end-to-end measurement (eval/bundle-corpus/ baseline-notes.md) showed the listwise reranker is an ORDERING lever, not a recall lever - rerank recall == dense recall at the bundle's operating point - while adding ~1.5s/request. The bundle ships dense-ordered (already relevance- sorted) by default; flip 'enabled' to true to opt into reranked ordering.
 - **`wikantik.bundle.reranker.base_url`** — Ollama base URL for the reranker model; only consulted when enabled=true - which it is not by default, because the LLM reranker was measured and rejected. If you ever enable it, this must name a chat-capable endpoint and wikantik.genai.mode must be full.
 - **`wikantik.bundle.rerank.chain`** — Ordered, comma-separated stage names applied after RRF fusion, before dedup/top-N. Stages: mmr (lexical MMR diversity), metadata-boost (confidence tie-breaker, see below), llm (listwise LLM reranker; overrides reranker.enabled). Enable only after a measured recall@12 no-regression run (see eval/bundle-corpus/baseline-notes.md). `Example: wikantik.bundle.rerank.chain = mmr`

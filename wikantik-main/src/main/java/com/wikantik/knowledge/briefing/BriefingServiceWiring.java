@@ -21,6 +21,7 @@ package com.wikantik.knowledge.briefing;
 import com.wikantik.api.briefing.BriefingAssemblyService;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -52,16 +53,19 @@ public final class BriefingServiceWiring {
     /**
      * Builds a {@link DefaultBriefingAssemblyService}, or {@code null} when the
      * feature is disabled or has no {@link PageManager} to read pages from. Never
-     * throws — a missing {@code bundle} or {@code structuralIndex} degrades the
-     * relevant lookup (prompt widening / cluster expansion) rather than failing.
+     * throws — a missing {@code bundle}, {@code structuralIndex} or {@code referenceManager}
+     * degrades the relevant lookup (prompt widening / cluster expansion / cited pages)
+     * rather than failing.
      *
-     * @param bundle          the live bundle assembly service (null tolerated → prompt widening skipped)
-     * @param structuralIndex the structural index (null tolerated → cluster expansion skipped)
-     * @param pageManager     page source — required; {@code null} → returns {@code null}
-     * @param props           configuration source (null tolerated → defaults)
+     * @param bundle           the live bundle assembly service (null tolerated → prompt widening skipped)
+     * @param structuralIndex  the structural index (null tolerated → cluster expansion skipped)
+     * @param referenceManager the page-to-page reference data (null tolerated → no cited tier, with a warning)
+     * @param pageManager      page source — required; {@code null} → returns {@code null}
+     * @param props            configuration source (null tolerated → defaults)
      */
     public static BriefingAssemblyService build( final BundleAssemblyService bundle,
                                                  final StructuralIndexService structuralIndex,
+                                                 final ReferenceManager referenceManager,
                                                  final PageManager pageManager,
                                                  final Properties props ) {
         if ( pageManager == null ) {
@@ -73,10 +77,18 @@ public final class BriefingServiceWiring {
                 BriefingConfig.PREFIX );
             return null;
         }
-        LOG.info( "Briefing assembly service wired (bundle={}, structuralIndex={})",
-            bundle != null, structuralIndex != null );
+        LOG.info( "Briefing assembly service wired (bundle={}, structuralIndex={}, referenceManager={})",
+            bundle != null, structuralIndex != null, referenceManager != null );
         return new DefaultBriefingAssemblyService(
-            bundle, structuralIndex, pageManager,
-            BriefingConfig.defaultBudget( props ), BriefingConfig.maxBudget( props ) );
+            bundle, structuralIndex, referenceManager, pageManager, BriefingConfig.limits( props ) );
+    }
+
+    /** As {@link #build(BundleAssemblyService, StructuralIndexService, ReferenceManager, PageManager, Properties)}
+     *  without reference data: cluster-scoped briefings carry no cited tier. */
+    public static BriefingAssemblyService build( final BundleAssemblyService bundle,
+                                                 final StructuralIndexService structuralIndex,
+                                                 final PageManager pageManager,
+                                                 final Properties props ) {
+        return build( bundle, structuralIndex, null, pageManager, props );
     }
 }

@@ -64,6 +64,18 @@ class BriefingResourceTest {
         return req;
     }
 
+    /** {@link #req} plus the {@code getParameterMap()} a real container supplies: the five known names, plus {@code extra}. */
+    private static HttpServletRequest reqWithParameterNames( final String pins, final String... extra ) {
+        final HttpServletRequest req = req( pins, null, null, null, null, null );
+        final java.util.Map< String, String[] > map = new java.util.LinkedHashMap<>();
+        map.put( "pins", new String[] { pins } );
+        for ( final String name : extra ) {
+            map.put( name, new String[] { "x" } );
+        }
+        when( req.getParameterMap() ).thenReturn( map );
+        return req;
+    }
+
     /* (a) no params -> 400 */
     @Test
     void noParams_returns_400() throws Exception {
@@ -315,5 +327,63 @@ class BriefingResourceTest {
 
         verify( qlog ).log( "deploy", ActorType.HUMAN, SourceSurface.API_BRIEFING, 0,
             BundleCoverage.WEAK, null );
+    }
+
+    /* unknown query parameter -> warning, request still served */
+    @Test
+    void unknownQueryParam_appearsInWarnings() throws Exception {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        final BriefingItem itemA = new BriefingItem( "A", "01A", "Page A", "summary a",
+                "pin", true, "content a" );
+        final ContextBriefing briefing = new ContextBriefing( null, List.of(), BundleCoverage.empty(),
+                List.of( itemA ), List.of( "existing" ), 4000, 100 );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );
+            }
+        };
+        final HttpServletRequest request = reqWithParameterNames( "A", "scope", "format" );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( request, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject body = JsonParser.parseString( sw.toString() ).getAsJsonObject();
+        final List< String > warnings = new java.util.ArrayList<>();
+        body.getAsJsonArray( "warnings" ).forEach( e -> warnings.add( e.getAsString() ) );
+        assertEquals( List.of( "existing", "unknown argument: scope" ), warnings,
+            "'format' is a known parameter; only 'scope' is unknown" );
+    }
+
+    /* a null getParameterMap() (bare mock) is treated as no parameters */
+    @Test
+    void nullParameterMap_addsNoWarning() throws Exception {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        final BriefingItem itemA = new BriefingItem( "A", "01A", "Page A", "summary a",
+                "pin", true, "content a" );
+        final ContextBriefing briefing = new ContextBriefing( null, List.of(), BundleCoverage.empty(),
+                List.of( itemA ), List.of(), 4000, 100 );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );
+            }
+        };
+        final HttpServletRequest request = req( "A", null, null, null, null, null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( request, resp );
+
+        final JsonObject body = JsonParser.parseString( sw.toString() ).getAsJsonObject();
+        assertEquals( 0, body.getAsJsonArray( "warnings" ).size() );
     }
 }

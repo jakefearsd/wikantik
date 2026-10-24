@@ -188,8 +188,13 @@ injection. Defaults shown.
 | `wikantik.bundle.coverage.strong_similarity` | `0.55` | `topSimilarity` at/above which coverage is `strong`. |
 | `wikantik.bundle.coverage.partial_similarity` | `0.40` | `topSimilarity` at/above which coverage is `partial` (else `weak`). |
 | `wikantik.bundle.reranker.enabled` | `false` | LLM listwise reranker. **Default off** — measured to reorder without improving recall (a bad relevance judge under shuffled input). |
-| `wikantik.briefing.enabled` | `true` | Kill switch for the briefing service; when `false` it is not wired (code default; not declared in `wikantik.properties`). |
-| `wikantik.briefing.default_budget` / `.max_budget` | `6000` / `24000` | Default and maximum token budget for `/api/briefing` (code defaults; not declared in `wikantik.properties`). |
+| `wikantik.briefing.enabled` | `true` | Kill switch for the briefing service; when `false` it is not wired. |
+| `wikantik.briefing.default_budget` / `.max_budget` | `6000` / `24000` | Default and maximum token budget for `/api/briefing` and `get_briefing`. |
+| `wikantik.briefing.sections_per_page` | `4` | Most task-relevant sections one page may contribute to a briefing. |
+| `wikantik.briefing.candidate_pool` | `36` | Sections requested from the bundle before the in-scope/out-of-scope partition and per-page cap. |
+| `wikantik.briefing.scope.cited.enabled` / `.max` | `true` / `12` | Cited tier: pages outside the requested clusters that cluster members link to; kill switch and per-request cap. |
+| `wikantik.briefing.elsewhere.max` | `8` | Most out-of-scope "elsewhere" pointers per briefing. |
+| `wikantik.briefing.pointers.max` | `30` | Most cluster and cited pointers per briefing; pinned pages are never capped. |
 | `wikantik.briefing.log.enabled` | `true` | Record briefing requests to `briefing_log`. |
 | `wikantik.citations.enabled` | `true` | Gate the `cite://` citation-edge subsystem (unrelated to document ingestion). |
 

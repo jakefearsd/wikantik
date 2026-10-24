@@ -130,6 +130,38 @@ class GetBriefingToolTest {
                 "dropped-restricted pin must warn like a nonexistent one; got: " + md );
     }
 
+    /* ---------- (c3) unknown argument is warned, not silently ignored ---------- */
+
+    @Test
+    void execute_unknownArgument_isWarnedNotIgnored() {
+        final ContextBriefing briefing = briefingWith( List.of(), List.of( PIN_ITEM_A ) );
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> null, () -> null, PageViewGate.ALLOW_ALL );
+
+        final McpSchema.CallToolResult result =
+            tool.execute( Map.of( "clusters", List.of( "roller" ), "scope", "strict" ) );
+
+        assertFalse( result.isError(), "an unknown argument is a warning, not a failure" );
+        final String md = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( md.contains( "unknown argument: scope" ), "got: " + md );
+        verify( svc ).assemble( any( BriefingRequest.class ) );
+    }
+
+    @Test
+    void execute_onlyKnownArguments_addsNoUnknownWarning() {
+        final ContextBriefing briefing = briefingWith( List.of(), List.of( PIN_ITEM_A ) );
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> null, () -> null, PageViewGate.ALLOW_ALL );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "pins", List.of( "PageA" ),
+            "clusters", List.of( "roller" ), "prompt", "p", "budget", 500, "scope_mode", "strict" ) );
+
+        final String md = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( md.contains( "unknown argument" ), "got: " + md );
+    }
+
     /* ---------- (d) definition ---------- */
 
     @Test

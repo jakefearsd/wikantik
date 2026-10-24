@@ -96,6 +96,11 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         return new Assembly( request ).run();
     }
 
+    /** The limits this service runs with; package-visible for the wiring test. */
+    BriefingLimits limits() {
+        return limits;
+    }
+
     private static int clamp( final int v, final int lo, final int hi ) {
         return Math.max( lo, Math.min( v, hi ) );
     }

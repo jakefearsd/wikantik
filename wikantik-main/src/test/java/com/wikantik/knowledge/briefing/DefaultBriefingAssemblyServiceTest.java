@@ -24,6 +24,7 @@ import com.wikantik.api.briefing.ContextBriefing;
 import com.wikantik.api.briefing.ScopeMode;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleCoverage;
+import com.wikantik.api.bundle.BundleOptions;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
@@ -50,6 +51,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -246,45 +250,255 @@ class DefaultBriefingAssemblyServiceTest {
             b.usedTokens(), "refunded the two superseded sections, charged the full body" );
     }
 
-    @Test
-    void strictScopeDropsOutOfClusterSections() {
-        final StubIndex idx = new StubIndex();
-        idx.clusters.put( "billing",
-            cluster( "billing", null, List.of( desc( "BillingProcess", Instant.now() ) ) ) );
-        final ContextBundle bundle = new ContextBundle( "billing",
-            List.of( sec( "BillingProcess", "H1", "in-scope text" ),
-                     sec( "Rogue", "HR", "out-of-scope text" ) ),
-            new BundleCoverage( 2, 2, 0.8, BundleCoverage.STRONG ) );
-        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
-            q -> bundle, idx, pageManagerFixture(), DEFAULT_BUDGET, MAX_BUDGET );
+    // ------------------------------------------- tiered partition (corpus: roller)
+    //
+    // Requesting "roller" over the eight-page corpus gives tier 1 = RollerHub, RollerMcp,
+    // RollerTelemetrySpec; tier 2 (cited) = TelemetryContract, StackHub; everything else
+    // (CommerceDataFlow, StockroomHub, Phase7Plan) is out of scope.
 
-        final ContextBriefing b = svc.assemble(
-            new BriefingRequest( null, List.of( "billing" ), "billing", 10000, ScopeMode.STRICT ) );
+    private static ContextBundle bundleOf( final BundleSection... sections ) {
+        return new ContextBundle( "q", List.of( sections ),
+            new BundleCoverage( sections.length, sections.length, 0.8, BundleCoverage.STRONG ) );
+    }
 
-        assertEquals( 1, b.sections().size(), "STRICT drops the out-of-cluster section" );
-        assertEquals( "BillingProcess", b.sections().get( 0 ).slug() );
-        assertEquals( 1, b.coverage().sectionCount(), "coverage recounted after the scope drop" );
+    private static BriefingRequest rollerRequest( final ScopeMode mode ) {
+        return new BriefingRequest( null, List.of( "roller" ), "roller", 10000, mode );
+    }
+
+    private static List< String > headings( final ContextBriefing b ) {
+        return b.sections().stream().map( s -> s.slug() + "/" + s.headingPath().get( 0 ) ).toList();
     }
 
     @Test
-    void preferScopeReordersInScopeFirst() {
+    void strictScopeDropsOutOfClusterSections() {
+        final ContextBundle bundle = bundleOf(
+            sec( "CommerceDataFlow", "H1", "out-of-scope text" ),
+            sec( "TelemetryContract", "H2", "cited text" ),
+            sec( "RollerMcp", "H3", "member text" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( rollerRequest( ScopeMode.STRICT ) );
+
+        assertEquals( List.of( "RollerMcp/H3", "TelemetryContract/H2" ), headings( b ),
+            "STRICT drops the out-of-scope section but keeps the tier-2 (cited) one, tier 1 first" );
+        assertEquals( 2, b.coverage().sectionCount(), "coverage recounted after the scope drop" );
+        assertTrue( b.items().stream().noneMatch( i -> "elsewhere".equals( i.origin() ) ),
+            "STRICT never emits elsewhere pointers: " + slugsOf( b ) );
+    }
+
+    @Test
+    void strictWithNothingInScopeYieldsNoSectionsAndNoElsewhere() {
+        final ContextBundle bundle = bundleOf(
+            sec( "CommerceDataFlow", "H1", "out one" ), sec( "Phase7Plan", "H2", "out two" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( rollerRequest( ScopeMode.STRICT ) );
+
+        assertTrue( b.sections().isEmpty(), "nothing in scope, nothing kept: " + headings( b ) );
+        assertEquals( 0, b.coverage().sectionCount() );
+        assertTrue( b.items().stream().noneMatch( i -> "elsewhere".equals( i.origin() ) ),
+            "and the dropped pages are not mentioned either: " + slugsOf( b ) );
+    }
+
+    @Test
+    void strictWithUnknownClusterYieldsNoSections() {
+        final ContextBundle bundle = bundleOf( sec( "CommerceDataFlow", "H1", "out" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( new BriefingRequest( null, List.of( "nonesuch" ), "q", 10000, ScopeMode.STRICT ) );
+
+        assertTrue( b.sections().isEmpty(), "a requested-but-empty scope puts every section out of scope" );
+        assertTrue( b.items().isEmpty() );
+        assertTrue( b.warnings().contains( "unknown cluster: nonesuch" ), b.warnings().toString() );
+    }
+
+    @Test
+    void preferScopeKeepsTiersAsSectionsAndOutAsElsewhere() {
+        // Pool in rank order, tiers interleaved: out, tier 2, tier 1, out, tier 1.
+        final ContextBundle bundle = bundleOf(
+            sec( "CommerceDataFlow", "HC", "out one" ),
+            sec( "TelemetryContract", "HT", "cited text" ),
+            sec( "RollerMcp", "HM", "member text" ),
+            sec( "Phase7Plan", "HP", "out two" ),
+            sec( "RollerHub", "HH", "hub text" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "RollerMcp/HM", "RollerHub/HH", "TelemetryContract/HT" ), headings( b ),
+            "sections are tier 1 then tier 2, each in rank order; out-of-scope sections are not bodies" );
+        assertEquals( 3, b.coverage().sectionCount() );
+
+        final List< BriefingItem > elsewhere = b.items().stream()
+            .filter( i -> "elsewhere".equals( i.origin() ) ).toList();
+        assertEquals( List.of( "CommerceDataFlow", "Phase7Plan" ), elsewhere.stream().map( BriefingItem::slug ).toList() );
+        assertTrue( elsewhere.stream().noneMatch( BriefingItem::included ), "elsewhere items are pointers" );
+        assertTrue( elsewhere.stream().allMatch( i -> i.content() == null ) );
+        assertEquals( List.of( "simple-agility", "stockroom" ),
+            elsewhere.stream().map( BriefingItem::cluster ).toList(), "each names whose page it is" );
+        assertEquals( "01CommerceDataFlow", elsewhere.get( 0 ).canonicalId() );
+        assertEquals( "CommerceDataFlow", elsewhere.get( 0 ).title() );
+        assertEquals( "HC", elsewhere.get( 0 ).summary(), "the summary is the matched section's heading path" );
+        assertEquals( List.of( "cluster", "cluster", "cluster", "cited", "cited", "elsewhere", "elsewhere" ),
+            b.items().stream().map( BriefingItem::origin ).toList(),
+            "items read pins, members, cited, elsewhere" );
+    }
+
+    @Test
+    void elsewhereSummaryJoinsTheHeadingPath() {
+        final ContextBundle bundle = bundleOf( new BundleSection( "01Phase7Plan", "Phase7Plan",
+            List.of( "Plan", "Risks" ), "text", 0.9, new CitationHandle( "01Phase7Plan", 1, List.of( "Plan", "Risks" ), "text", "sha" ) ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        assertEquals( "Plan › Risks", itemBySlug( b, "Phase7Plan" ).summary() );
+    }
+
+    @Test
+    void preferWithUnknownClusterTurnsEverySectionIntoElsewhere() {
+        final ContextBundle bundle = bundleOf( sec( "CommerceDataFlow", "H1", "out" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( new BriefingRequest( null, List.of( "nonesuch" ), "q", 10000, ScopeMode.PREFER ) );
+
+        assertTrue( b.sections().isEmpty() );
+        assertEquals( List.of( "CommerceDataFlow" ), slugsOf( b ) );
+        assertEquals( "elsewhere", b.items().get( 0 ).origin() );
+    }
+
+    @Test
+    void elsewhereDeduplicatesBySlugFirstOccurrenceWins() {
+        final ContextBundle bundle = bundleOf(
+            sec( "CommerceDataFlow", "First", "a" ), sec( "Phase7Plan", "P", "b" ),
+            sec( "CommerceDataFlow", "Second", "c" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "CommerceDataFlow", "Phase7Plan" ), slugsOf( b ).subList( 5, 7 ) );
+        assertEquals( 7, b.items().size(), "five scoped items plus one elsewhere item per distinct page" );
+        assertEquals( "First", itemBySlug( b, "CommerceDataFlow" ).summary() );
+    }
+
+    @Test
+    void elsewhereCappedAtMax() {
+        final BriefingLimits limits = new BriefingLimits( 6000, 24000, 4, 36, true, 12, 2, 30 );
+        final ContextBundle bundle = bundleOf(
+            sec( "CommerceDataFlow", "H1", "a" ), sec( "StockroomHub", "H2", "b" ), sec( "Phase7Plan", "H3", "c" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), limits, q -> bundle )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "CommerceDataFlow", "StockroomHub" ),
+            b.items().stream().filter( i -> "elsewhere".equals( i.origin() ) ).map( BriefingItem::slug ).toList(),
+            "elsewhereMax of 2 keeps the two best-ranked out-of-scope pages" );
+    }
+
+    @Test
+    void elsewhereSpendsNoBudgetAndIgnoresThePointerCap() {
         final StubIndex idx = new StubIndex();
+        // The member has no live page, so no item is built: any spend is from the section alone.
         idx.clusters.put( "billing",
             cluster( "billing", null, List.of( desc( "BillingProcess", Instant.now() ) ) ) );
-        // Bundle lists Rogue BEFORE BillingProcess; PREFER must reorder in-scope first.
-        final ContextBundle bundle = new ContextBundle( "billing",
-            List.of( sec( "Rogue", "HR", "out-of-scope text" ),
-                     sec( "BillingProcess", "H1", "in-scope text" ) ),
-            new BundleCoverage( 2, 2, 0.8, BundleCoverage.STRONG ) );
-        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
-            q -> bundle, idx, pageManagerFixture(), DEFAULT_BUDGET, MAX_BUDGET );
+        idx.register( desc( "Rogue", Instant.now() ) );
+        final String memberText = "m".repeat( 400 );
+        final ContextBundle bundle = bundleOf(
+            sec( "BillingProcess", "H1", memberText ), sec( "Rogue", "HR", "r".repeat( 4000 ) ) );
+        final BriefingLimits limits = new BriefingLimits( 6000, 24000, 4, 36, true, 12, 8, 0 );
+        final PageManager pm = mock( PageManager.class );
 
-        final ContextBriefing b = svc.assemble(
-            new BriefingRequest( null, List.of( "billing" ), "billing", 10000, ScopeMode.PREFER ) );
+        final ContextBriefing b = new DefaultBriefingAssemblyService(
+            q -> bundle, idx, refs( Map.of() ), pm, limits )
+            .assemble( new BriefingRequest( null, List.of( "billing" ), "q", 10000, ScopeMode.PREFER ) );
 
-        assertEquals( 2, b.sections().size(), "PREFER keeps both sections" );
-        assertEquals( "BillingProcess", b.sections().get( 0 ).slug(), "in-scope section reordered first" );
-        assertEquals( "Rogue", b.sections().get( 1 ).slug() );
+        assertEquals( List.of( "Rogue" ), slugsOf( b ), "pointersMax of 0 does not touch elsewhere" );
+        assertEquals( TokenEstimator.estimate( memberText ), b.usedTokens(),
+            "the out-of-scope section's text is never charged" );
+        assertFalse( b.warnings().stream().anyMatch( w -> w.startsWith( "pointer list capped" ) ), b.warnings().toString() );
+    }
+
+    @Test
+    void elsewhereSkipsAPageThatIsAlreadyAnItem() {
+        // Phase7Plan is out of scope for "roller" but is pinned: it already appears in full.
+        final ContextBundle bundle = bundleOf( sec( "Phase7Plan", "HP", "out" ), sec( "CommerceDataFlow", "HC", "out" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( new BriefingRequest( List.of( "Phase7Plan" ), List.of( "roller" ), "q", 10000, ScopeMode.PREFER ) );
+
+        assertEquals( 1, b.items().stream().filter( i -> "Phase7Plan".equals( i.slug() ) ).count(),
+            "one item for the pinned page, no elsewhere duplicate: " + slugsOf( b ) );
+        assertEquals( "pin", itemBySlug( b, "Phase7Plan" ).origin() );
+        assertEquals( "elsewhere", itemBySlug( b, "CommerceDataFlow" ).origin() );
+    }
+
+    // ------------------------------------------------ candidate pool, per-page cap
+
+    @Test
+    void candidatePoolRequestedFromBundle() {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final ContextBundle bundle = bundleOf( sec( "RollerMcp", "H1", "text" ) );
+        when( svc.assemble( eq( "roller" ), any( BundleOptions.class ) ) ).thenReturn( bundle );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), svc )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        verify( svc ).assemble( eq( "roller" ), argThat( ( final BundleOptions o ) ->
+            o.maxSections() != null && o.maxSections() == 36 && o.mode() == null ) );
+        verify( svc, never() ).assemble( "roller" );
+        assertEquals( 1, b.sections().size() );
+    }
+
+    @Test
+    void perPageCapKeepsFirstNSectionsOfAPageInRankOrder() {
+        final List< BundleSection > pool = new ArrayList<>();
+        for ( int i = 0; i < 6; i++ ) pool.add( sec( "RollerMcp", "M" + i, "member " + i ) );
+        pool.add( sec( "RollerHub", "H0", "hub 0" ) );
+        pool.add( sec( "RollerHub", "H1", "hub 1" ) );
+        final ContextBundle bundle = new ContextBundle( "q", pool,
+            new BundleCoverage( 8, 2, 0.8, BundleCoverage.STRONG ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "RollerMcp/M0", "RollerMcp/M1", "RollerMcp/M2", "RollerMcp/M3",
+                               "RollerHub/H0", "RollerHub/H1" ), headings( b ),
+            "a page keeps its first four sections by rank; the displaced two are dropped, and the next page follows" );
+        assertEquals( 6, b.coverage().sectionCount() );
+    }
+
+    @Test
+    void perPageCapIsAppliedBeforeTheTokenBudget() {
+        // Each section is ~100 tokens; the 350-token budget admits three. Cap-then-budget keeps
+        // M0, M1 and H0 (all fit). Budget-then-cap would spend the budget on M0, M1, M2, stop, and
+        // never reach RollerHub.
+        final String text = "y".repeat( 400 );
+        final List< BundleSection > pool = new ArrayList<>();
+        for ( int i = 0; i < 6; i++ ) pool.add( sec( "RollerMcp", "M" + i, text ) );
+        pool.add( sec( "RollerHub", "H0", text ) );
+        final ContextBundle bundle = new ContextBundle( "q", pool,
+            new BundleCoverage( 7, 2, 0.8, BundleCoverage.STRONG ) );
+        final BriefingLimits limits = new BriefingLimits( 6000, 24000, 2, 36, true, 12, 8, 30 );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), limits, q -> bundle )
+            .assemble( new BriefingRequest( null, List.of( "roller" ), "q", 350, ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "RollerMcp/M0", "RollerMcp/M1", "RollerHub/H0" ), headings( b ),
+            "cap 2 per page first: M0, M1, H0 survive and all three fit; M2..M5 never compete for budget" );
+    }
+
+    @Test
+    void noClustersAppliesCapOnly() {
+        final List< BundleSection > pool = new ArrayList<>();
+        for ( int i = 0; i < 12; i++ ) pool.add( sec( "PageA", "H" + i, "text " + i ) );
+        final ContextBundle bundle = new ContextBundle( "q", pool,
+            new BundleCoverage( 12, 1, 0.8, BundleCoverage.STRONG ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( new BriefingRequest( null, null, "q", 10000, ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "PageA/H0", "PageA/H1", "PageA/H2", "PageA/H3" ), headings( b ) );
+        assertTrue( b.items().isEmpty(), "no scope, so nothing is out of scope: " + slugsOf( b ) );
     }
 
     /** A {@link PageManager} that knows a small body for every page of the eight-page corpus. */
@@ -298,8 +512,12 @@ class DefaultBriefingAssemblyServiceTest {
 
     private static DefaultBriefingAssemblyService corpusService( final PageManager pm,
                                                                  final BriefingLimits limits ) {
-        return new DefaultBriefingAssemblyService( q -> new ContextBundle( q, List.of() ), corpusIndex(),
-            refs( corpusEdges() ), pm, limits );
+        return corpusService( pm, limits, q -> new ContextBundle( q, List.of() ) );
+    }
+
+    private static DefaultBriefingAssemblyService corpusService( final PageManager pm, final BriefingLimits limits,
+                                                                 final BundleAssemblyService bundles ) {
+        return new DefaultBriefingAssemblyService( bundles, corpusIndex(), refs( corpusEdges() ), pm, limits );
     }
 
     private static List< String > slugsOf( final ContextBriefing b ) {

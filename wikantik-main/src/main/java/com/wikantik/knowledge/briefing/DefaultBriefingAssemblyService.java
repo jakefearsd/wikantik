@@ -19,16 +19,17 @@
 package com.wikantik.knowledge.briefing;
 
 import com.wikantik.api.briefing.BriefingAssemblyService;
+import com.wikantik.api.briefing.BriefingItem;
 import com.wikantik.api.briefing.BriefingRequest;
 import com.wikantik.api.briefing.ContextBriefing;
 import com.wikantik.api.briefing.ScopeMode;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleCoverage;
+import com.wikantik.api.bundle.BundleOptions;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.knowledge.briefing.BriefingConfig.BriefingLimits;
@@ -38,10 +39,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -57,6 +59,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
     private static final Logger LOG = LogManager.getLogger( DefaultBriefingAssemblyService.class );
 
     private static final int BUDGET_FLOOR = 200;
+    private static final String ORIGIN_ELSEWHERE = "elsewhere";
 
     private final BundleAssemblyService bundleService;   // nullable
     private final StructuralIndexService structuralIndex; // nullable
@@ -111,7 +114,8 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
      * Per-request mutable working state — keeps the assembly steps small and free of tuple
      * returns. Delegates pin/cluster-member/cited-page handling to {@link ItemAssembler} and shares the
      * token-budget ledger with it via {@link SectionBudget} (God Class burn-down: this class now
-     * owns only orchestration + the prompt-driven section-retrieval step).
+     * owns only orchestration + the prompt-driven section-retrieval step and its out-of-scope
+     * {@code elsewhere} pointers).
      */
     private final class Assembly {
 
@@ -121,6 +125,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         private final List< String > cappedPins;      // req.pins() truncated to MAX_PINS
         private final List< String > cappedClusters;  // req.clusters() truncated to MAX_CLUSTERS
         private final Set< String > warnedClusters = new LinkedHashSet<>();
+        private final BriefingScope scope;
         private final ItemAssembler itemAssembler;
 
         Assembly( final BriefingRequest req ) {
@@ -131,7 +136,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
                 "too many pins; first " + BriefingConfig.MAX_PINS + " included" );
             this.cappedClusters = cap( req.clusters(), BriefingConfig.MAX_CLUSTERS,
                 "too many clusters; first " + BriefingConfig.MAX_CLUSTERS + " included" );
-            final BriefingScope scope = BriefingScope.compute( cappedClusters, structuralIndex, referenceManager,
+            this.scope = BriefingScope.compute( cappedClusters, structuralIndex, referenceManager,
                 limits.citedEnabled(), limits.citedMax(), warnings, warnedClusters );
             this.itemAssembler = new ItemAssembler( LOG, pageManager, structuralIndex, ledger,
                 cappedPins, scope, limits.pointersMax(), warnings );
@@ -145,71 +150,107 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         }
 
         ContextBriefing run() {
-            assembleSections();
+            final List< BundleSection > outOfScope = assembleSections();
             itemAssembler.assemblePins();
             itemAssembler.assembleClusterMembers();
+            addElsewhere( outOfScope );
             return new ContextBriefing( req.prompt(), ledger.sections, ledger.coverage,
                 itemAssembler.items, warnings, ledger.budget, ledger.used );
         }
 
         // --------------------------------------------------------- sections
 
-        private void assembleSections() {
+        /**
+         * Fills {@code ledger.sections} from the prompt's candidate pool and returns the pool's
+         * out-of-scope sections (in rank order) for {@link #addElsewhere}; empty when the scope is
+         * {@code STRICT}, when nothing is out of scope, or when there was no retrieval pass.
+         */
+        private List< BundleSection > assembleSections() {
             final String prompt = req.prompt();
-            if ( prompt == null || prompt.isBlank() ) return;
+            if ( prompt == null || prompt.isBlank() ) return List.of();
             if ( bundleService == null ) {
                 warnings.add( "bundle service unavailable; prompt refinement skipped" );
-                return;
+                return List.of();
             }
             final ContextBundle bundle;
             try {
-                bundle = bundleService.assemble( prompt );
+                bundle = bundleService.assemble( prompt, new BundleOptions( null, limits.candidatePool() ) );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "Bundle assembly failed for briefing prompt; degrading to pins/clusters", e );
                 warnings.add( "bundle assembly failed; briefing degraded to pins/clusters" );
-                return;
+                return List.of();
             }
             ledger.bundleCoverage = bundle.coverage();
-            final Set< String > inScope = computeScope();
-            for ( final BundleSection s : partitionByScope( bundle.sections(), inScope, req.scopeMode() ) ) {
+            final Partition partition = partition( bundle.sections() );
+            for ( final BundleSection s : capPerPage( partition.inScope(), limits.sectionsPerPage() ) ) {
                 final int est = TokenEstimator.estimate( s.text() );
                 if ( ledger.used + est > ledger.budget ) break;
                 ledger.sections.add( s );
                 ledger.used += est;
             }
             ledger.coverage = BundleCoverage.recount( ledger.bundleCoverage, ledger.sections );
+            return partition.outOfScope();
         }
 
-        /** Slugs in the requested clusters, or {@code null} when no scoping applies. */
-        private Set< String > computeScope() {
-            if ( cappedClusters.isEmpty() || structuralIndex == null ) return null;
-            final Set< String > inScope = new LinkedHashSet<>();
-            for ( final String name : cappedClusters ) {
-                final Optional< ClusterDetails > cd = structuralIndex.getCluster( name );
-                if ( cd.isEmpty() ) {
-                    if ( warnedClusters.add( name ) ) warnings.add( "unknown cluster: " + name );
-                    continue;
-                }
-                final ClusterDetails c = cd.get();
-                if ( c.hubPage() != null ) inScope.add( c.hubPage().slug() );
-                for ( final PageDescriptor a : c.articles() ) inScope.add( a.slug() );
-            }
-            return inScope;
-        }
+        /** The candidate pool split by {@link BriefingScope} tier. */
+        private record Partition( List< BundleSection > inScope, List< BundleSection > outOfScope ) {}
 
-        private List< BundleSection > partitionByScope( final List< BundleSection > secs,
-                                                        final Set< String > inScope, final ScopeMode mode ) {
-            if ( inScope == null ) return secs;
-            if ( mode == ScopeMode.STRICT ) {
-                return secs.stream().filter( s -> inScope.contains( s.slug() ) ).toList();
-            }
-            final List< BundleSection > in = new ArrayList<>();  // PREFER: stable in-scope-first partition
+        /**
+         * Tier 1 (cluster members), then tier 2 (cited pages), each in rank order, make up
+         * {@code inScope}; everything else is {@code outOfScope} — kept only under {@code PREFER}, where
+         * it becomes {@code elsewhere} pointers. Without a scope every section is in scope.
+         */
+        private Partition partition( final List< BundleSection > pool ) {
+            if ( scope.isNone() ) return new Partition( pool, List.of() );
+            final List< BundleSection > inScope = new ArrayList<>();
+            final List< BundleSection > cited = new ArrayList<>();
             final List< BundleSection > out = new ArrayList<>();
-            for ( final BundleSection s : secs ) {
-                ( inScope.contains( s.slug() ) ? in : out ).add( s );
+            for ( final BundleSection s : pool ) {
+                switch ( scope.tierOf( s.slug() ) ) {
+                    case 1 -> inScope.add( s );
+                    case 2 -> cited.add( s );
+                    default -> out.add( s );
+                }
             }
-            in.addAll( out );
-            return in;
+            inScope.addAll( cited );
+            return new Partition( inScope, req.scopeMode() == ScopeMode.STRICT ? List.of() : out );
+        }
+
+        /** The first {@code perPage} sections of each page, in rank order; later ones are dropped, not moved. */
+        private List< BundleSection > capPerPage( final List< BundleSection > sections, final int perPage ) {
+            final Map< String, Integer > taken = new HashMap<>();
+            final List< BundleSection > kept = new ArrayList<>();
+            for ( final BundleSection s : sections ) {
+                if ( taken.merge( s.slug(), 1, Integer::sum ) <= perPage ) kept.add( s );
+            }
+            return kept;
+        }
+
+        /**
+         * One pointer per out-of-scope page (first hit wins), at most {@code elsewhereMax}, appended after
+         * the scoped items. They spend no budget and have their own cap, so they never count toward
+         * {@code pointersMax}; a page that is already an item (a pin) is not repeated.
+         */
+        private void addElsewhere( final List< BundleSection > outOfScope ) {
+            final Set< String > seen = new LinkedHashSet<>();
+            itemAssembler.items.forEach( i -> seen.add( i.slug() ) );
+            int added = 0;
+            for ( final BundleSection s : outOfScope ) {
+                if ( added >= limits.elsewhereMax() ) break;
+                if ( !seen.add( s.slug() ) ) continue;
+                itemAssembler.items.add( new BriefingItem( s.slug(), s.canonicalId(), s.slug(),
+                    String.join( " › ", s.headingPath() ), ORIGIN_ELSEWHERE, false, null, clusterOf( s.slug() ) ) );
+                added++;
+            }
+        }
+
+        /** The page's primary cluster, or null when the index is absent or does not know the page. */
+        private String clusterOf( final String slug ) {
+            if ( structuralIndex == null ) return null;
+            return structuralIndex.resolveCanonicalIdFromSlug( slug )
+                .flatMap( structuralIndex::getByCanonicalId )
+                .map( PageDescriptor::cluster )
+                .orElse( null );
         }
     }
 }

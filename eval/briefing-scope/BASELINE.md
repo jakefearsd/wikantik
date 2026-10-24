@@ -283,3 +283,99 @@ Raw per-case counts (token estimate = chars / 4):
 ```
 
 > 7 of 8 pass on 2.4.64. `jakemon-push-feed` fails because tier-1 in-degree ranking places incident runbooks (a dense 42-page link web) above the contracts, so two runbook bodies land in standing context; the task-relevant sections are correct. Its separation score of 0.46 is a harness limitation (the sitemap exposes only each page's primary cluster, so `SimpleAgilityObservabilityPlane`/`SimpleAgilityTelemetryContract`, multi-members of `jakemon`, count as out-of-scope). Fixed in 2.4.65 by ordering non-runbook members before runbooks (spec amendment 11).
+
+## After 2.4.65 (2026-10-24)
+
+Base URL: `https://wiki.wikantik.com` -- 7 of 8 cases passed.
+
+| case | result | separation | diversity | violations |
+|------|--------|-----------:|----------:|------------|
+| `sa-roller-telemetry` | PASS | 1.00 | 0.39 | - |
+| `roller-telemetry-prefer` | PASS | 0.77 | 0.62 | - |
+| `roller-telemetry-strict` | PASS | 0.77 | 0.62 | - |
+| `jakemon-push-feed` | FAIL | 0.75 | 0.47 | forbidden body page present: IncidentGpuThermalThrottle |
+| `stockroom-itemsold` | PASS | 1.00 | 0.60 | - |
+| `nocluster-lease-guard` | PASS | n/a | 0.64 | - |
+| `wikidev-trace-id` | PASS | 1.00 | 0.50 | - |
+| `roller-unknown-arg` | PASS | 0.77 | 0.62 | - |
+
+Raw per-case counts (token estimate = chars / 4):
+
+```json
+{
+  "sa-roller-telemetry": {
+    "sections": 18,
+    "distinct_pages": 7,
+    "included_items": 1,
+    "warnings": 0,
+    "in_scope_tokens": 5774,
+    "total_tokens": 5774,
+    "used_tokens": 5787
+  },
+  "roller-telemetry-prefer": {
+    "sections": 8,
+    "distinct_pages": 5,
+    "included_items": 4,
+    "warnings": 0,
+    "in_scope_tokens": 4300,
+    "total_tokens": 5604,
+    "used_tokens": 5613
+  },
+  "roller-telemetry-strict": {
+    "sections": 8,
+    "distinct_pages": 5,
+    "included_items": 4,
+    "warnings": 0,
+    "in_scope_tokens": 4300,
+    "total_tokens": 5604,
+    "used_tokens": 5613
+  },
+  "jakemon-push-feed": {
+    "sections": 19,
+    "distinct_pages": 9,
+    "included_items": 2,
+    "warnings": 1,
+    "in_scope_tokens": 4348,
+    "total_tokens": 5823,
+    "used_tokens": 5839
+  },
+  "stockroom-itemsold": {
+    "sections": 10,
+    "distinct_pages": 6,
+    "included_items": 3,
+    "warnings": 0,
+    "in_scope_tokens": 5694,
+    "total_tokens": 5694,
+    "used_tokens": 5704
+  },
+  "nocluster-lease-guard": {
+    "sections": 22,
+    "distinct_pages": 14,
+    "included_items": 0,
+    "warnings": 0,
+    "in_scope_tokens": 0,
+    "total_tokens": 3325,
+    "used_tokens": 3337
+  },
+  "wikidev-trace-id": {
+    "sections": 8,
+    "distinct_pages": 4,
+    "included_items": 4,
+    "warnings": 1,
+    "in_scope_tokens": 5598,
+    "total_tokens": 5598,
+    "used_tokens": 5608
+  },
+  "roller-unknown-arg": {
+    "sections": 8,
+    "distinct_pages": 5,
+    "included_items": 4,
+    "warnings": 1,
+    "in_scope_tokens": 4300,
+    "total_tokens": 5604,
+    "used_tokens": 5613
+  }
+}
+```
+
+> 7 of 8 on 2.4.65. Tier-1 ordering is now correct (`JakemonHub, JakemonDashboardsInventory, SimpleAgilityTelemetryContract, SimpleAgilityObservabilityPlane, SearchVisibilityExporter, Incident…`), but at the default budget the hub and the three contracts did not fit after the sections and became pointers, and the first runbook small enough to fit (`IncidentGpuThermalThrottle`) was included as a standing body. Fixed in 2.4.66: standing-context admission is rank-ordered within a tier — once a higher-ranked member degrades to a pointer, every lower-ranked member in that tier is a pointer (spec amendment 12).

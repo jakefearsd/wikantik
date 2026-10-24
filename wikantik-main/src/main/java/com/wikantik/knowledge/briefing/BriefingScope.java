@@ -67,7 +67,7 @@ final class BriefingScope {
     record Cited( PageDescriptor page, int citers, int reach ) {}
 
     /** No clusters requested, or no structural index: nothing is in scope and nothing is ranked. */
-    static final BriefingScope NONE = new BriefingScope( List.of(), List.of() );
+    static final BriefingScope NONE = new BriefingScope( List.of(), List.of(), Set.of() );
 
     private static final Comparator< Instant > NEWEST_FIRST_NULLS_LAST =
         Comparator.nullsLast( Comparator.reverseOrder() );
@@ -76,14 +76,26 @@ final class BriefingScope {
     private final List< Cited > cited;
     private final Map< String, Integer > tiers = new HashMap<>();
 
-    private BriefingScope( final List< PageDescriptor > members, final List< Cited > cited ) {
+    /**
+     * @param members     the ordered, capped tier-1 list
+     * @param cited       the ordered, capped tier-2 list
+     * @param memberSlugs <i>every</i> member of the requested clusters, including those the per-cluster cap
+     *                    left out of {@code members}: a capped-out member is still tier 1, never cited and
+     *                    never out of scope
+     */
+    private BriefingScope( final List< PageDescriptor > members, final List< Cited > cited,
+                           final Set< String > memberSlugs ) {
         this.members = List.copyOf( members );
         this.cited = List.copyOf( cited );
         this.cited.forEach( c -> tiers.put( c.page().slug(), 2 ) );
-        this.members.forEach( m -> tiers.put( m.slug(), 1 ) );
+        memberSlugs.forEach( slug -> tiers.put( slug, 1 ) );
     }
 
-    /** Tier 1, ordered: hub(s) first, then in-degree desc, summary present, {@code updated} desc (nulls last). */
+    /**
+     * Tier 1, ordered: hub(s) first, then in-degree desc, summary present, {@code updated} desc (nulls last);
+     * at most {@link BriefingConfig#MAX_CLUSTER_MEMBERS} per cluster (the newest), though {@link #tierOf}
+     * still answers {@code 1} for the members the cap left out.
+     */
     List< PageDescriptor > members() {
         return members;
     }
@@ -134,14 +146,15 @@ final class BriefingScope {
         final Descriptors descriptors = new Descriptors( index );
         final Map< String, PageDescriptor > hubs = new LinkedHashMap<>();
         final Map< String, PageDescriptor > articles = new LinkedHashMap<>();
+        // Every member, capped out or not: the cap bounds the ordered list and the link fan-out below,
+        // not who counts as a member (a capped-out member linked by a listed one is not "cited").
+        final Set< String > memberSlugs = new LinkedHashSet<>();
         for ( final String name : clusters ) {
-            collect( name, index, warnings, warnedClusters, hubs, articles );
+            collect( name, index, warnings, warnedClusters, hubs, articles, memberSlugs );
         }
         final List< PageDescriptor > candidates = new ArrayList<>( hubs.values() );
         candidates.addAll( articles.values() );
         candidates.forEach( descriptors::remember );
-        final Set< String > memberSlugs = new LinkedHashSet<>();
-        candidates.forEach( m -> memberSlugs.add( m.slug() ) );
 
         final Map< String, Integer > inDegree = inDegrees( candidates, memberSlugs, refs );
         final List< PageDescriptor > ranked = new ArrayList<>( hubs.values() );
@@ -155,15 +168,18 @@ final class BriefingScope {
                 cited.addAll( citedPages( candidates, memberSlugs, refs, descriptors, citedMax ) );
             }
         }
-        return new BriefingScope( ranked, cited );
+        return new BriefingScope( ranked, cited, memberSlugs );
     }
 
     // ------------------------------------------------------------ tier 1
 
-    /** Adds one cluster's hub and capped, recency-ordered articles; warns once if the cluster is unknown. */
+    /**
+     * Adds one cluster's hub and capped, recency-ordered articles; warns once if the cluster is unknown.
+     * {@code memberSlugs} receives the hub and <i>all</i> the cluster's articles, before the cap.
+     */
     private static void collect( final String name, final StructuralIndexService index, final List< String > warnings,
                                  final Set< String > warnedClusters, final Map< String, PageDescriptor > hubs,
-                                 final Map< String, PageDescriptor > articles ) {
+                                 final Map< String, PageDescriptor > articles, final Set< String > memberSlugs ) {
         final Optional< ClusterDetails > found = index.getCluster( name );
         if ( found.isEmpty() ) {
             if ( warnedClusters.add( name ) ) warnings.add( "unknown cluster: " + name );
@@ -174,7 +190,9 @@ final class BriefingScope {
         if ( hub != null ) {
             hubs.putIfAbsent( hub.slug(), hub );
             articles.remove( hub.slug() );
+            memberSlugs.add( hub.slug() );
         }
+        cluster.articles().forEach( a -> memberSlugs.add( a.slug() ) );
         final List< PageDescriptor > byRecency = cluster.articles().stream()
             .sorted( Comparator.comparing( PageDescriptor::updated, NEWEST_FIRST_NULLS_LAST ) )
             .toList();

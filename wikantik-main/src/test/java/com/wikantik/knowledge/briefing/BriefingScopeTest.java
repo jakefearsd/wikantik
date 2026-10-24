@@ -290,6 +290,34 @@ class BriefingScopeTest {
         assertTrue( warnings.contains( "too many members in cluster big; first 200 included" ), warnings.toString() );
     }
 
+    @Test
+    void cappedOutMemberIsNeverCited() {
+        // 210 articles plus a hub: the per-cluster cap keeps the hub and the 199 newest articles, so the
+        // oldest (Mem000) is capped out of members(). The hub links to it, which must not make it a
+        // "contract this project cites": it is still a member of the cluster, just not listed.
+        final StubIndex idx = new StubIndex();
+        final Instant base = Instant.parse( "2026-10-01T00:00:00Z" );
+        final PageDescriptor hub = desc( "BigHub", List.of( "big" ), "Hub.", base );
+        idx.register( hub );
+        final List< PageDescriptor > articles = new ArrayList<>();
+        for ( int i = 0; i < 210; i++ ) {
+            final PageDescriptor d = desc( String.format( "Mem%03d", i ), List.of( "big" ), "s", base.plusSeconds( i ) );
+            idx.register( d );
+            articles.add( d );
+        }
+        idx.clusters.put( "big", cluster( "big", hub, articles ) );
+
+        final BriefingScope scope = BriefingScope.compute( List.of( "big" ), idx,
+            refs( Map.of( "BigHub", List.of( "Mem000" ) ) ), true, 8, warnings, warned );
+
+        assertEquals( BriefingConfig.MAX_CLUSTER_MEMBERS, scope.members().size() );
+        assertFalse( slugs( scope.members() ).contains( "Mem000" ), "the cap still bounds the ordered member list" );
+        assertFalse( citedSlugs( scope ).contains( "Mem000" ), "a capped-out member is not a cited page: " + citedSlugs( scope ) );
+        assertEquals( 1, scope.tierOf( "Mem000" ), "its retrieved sections stay tier 1, never demoted to out of scope" );
+        assertEquals( 1, scope.tierOf( "Mem209" ) );
+        assertEquals( 0, scope.tierOf( "SomewhereElse" ) );
+    }
+
     // ----------------------------------------------------------------- none
 
     @Test

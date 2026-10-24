@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.65] - 2026-10-24
+
 ### Changed
 - **Briefing tier 1 puts `type: runbook` members last.** In a cluster-scoped briefing, runbook members now
   sort after every non-runbook member (hub still first; each group keeps its in-degree, summary, recency order),

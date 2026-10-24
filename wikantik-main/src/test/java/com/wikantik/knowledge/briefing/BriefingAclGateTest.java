@@ -74,7 +74,10 @@ class BriefingAclGateTest {
     }
 
     @Test
-    void retrievalCoverageIsNotRecountedByTheGate() {
+    void retrievalCoverageIsRecountedByTheGate() {
+        // The retrieval backend does not ACL-filter, so the raw retrieval counts include pages the caller
+        // cannot view. The gate recounts them over the viewable sections exactly as it does `coverage`,
+        // so nothing about unviewable pages (their number, or the confidence they inflated) survives.
         final BundleCoverage retrieved = new BundleCoverage( 6, 3, 0.9, BundleCoverage.STRONG );
         final ContextBriefing original = new ContextBriefing( "prompt",
             List.of( sec( "PublicPage", "public" ), sec( "SecretPage", "TOP SECRET" ) ),
@@ -84,7 +87,24 @@ class BriefingAclGateTest {
         final ContextBriefing gated = BriefingAclGate.gate( original, List.of(), slug -> !"SecretPage".equals( slug ) );
 
         assertEquals( 1, gated.coverage().sectionCount(), "delivered coverage is recounted over kept sections" );
-        assertEquals( retrieved, gated.retrievalCoverage(), "what retrieval found is not a delivered-content figure" );
+        assertEquals( 1, gated.retrievalCoverage().sectionCount(), "and so is retrieval coverage: no raw count survives" );
+        assertEquals( 1, gated.retrievalCoverage().distinctPageCount() );
+        assertEquals( BundleCoverage.PARTIAL, gated.retrievalCoverage().confidence(),
+            "a strong bundle thinned below the 3-section floor steps down, like `coverage`" );
+        assertEquals( 0.9, gated.retrievalCoverage().topSimilarity(), 1e-9, "the retrieval-derived similarity is kept" );
+    }
+
+    @Test
+    void retrievalCoverageOfAFullyHiddenResultRevealsNothing() {
+        final ContextBriefing original = new ContextBriefing( "prompt", List.of( sec( "SecretPage", "TOP SECRET" ) ),
+            new BundleCoverage( 1, 1, 0.9, BundleCoverage.STRONG ), List.of(), List.of(), 4000, 100,
+            new BundleCoverage( 12, 6, 0.9, BundleCoverage.STRONG ) );
+
+        final ContextBriefing gated = BriefingAclGate.gate( original, List.of(), slug -> false );
+
+        assertEquals( 0, gated.retrievalCoverage().sectionCount() );
+        assertEquals( 0, gated.retrievalCoverage().distinctPageCount() );
+        assertEquals( BundleCoverage.WEAK, gated.retrievalCoverage().confidence() );
     }
 
     @Test

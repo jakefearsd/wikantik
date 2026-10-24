@@ -53,9 +53,10 @@ Project-context separation for session briefings
 ### Fixed
 - **The query log records what retrieval found.** `ContextBriefing.retrievalCoverage` (JSON: `retrievalCoverage`) is
   the bundle's coverage before the cluster-scope partition; `GET /api/briefing` and `get_briefing` log its
-  confidence and delivered-sections-plus-`elsewhere` as the result count. A prompt whose hits all lie outside the
-  requested cluster used to log `0 / weak`, a false content-gap signal. The markdown coverage line mentions the
-  `elsewhere` hits.
+  confidence and delivered-sections-plus-`elsewhere` as the result count, read from the pre-gate briefing. A prompt
+  whose hits all lie outside the requested cluster used to log `0 / weak`, a false content-gap signal. In the
+  response the ACL gate recounts `retrievalCoverage` over the sections the caller can view (the retrieval backend does
+  not ACL-filter), and the markdown coverage line mentions the number of `elsewhere` hits.
 - **`prefer` with only unknown clusters keeps its sections.** A typo in a project's configured cluster turned every
   retrieved section into an `elsewhere` pointer; it now degrades to an unscoped briefing (the warning remains).
   `strict` still drops everything.

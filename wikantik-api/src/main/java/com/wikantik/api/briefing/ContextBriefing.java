@@ -32,7 +32,12 @@ import java.util.List;
  *  retrieval actually found. The query log records the latter: a prompt whose strong hits all lie
  *  outside the requested cluster is not a content gap just because zero sections were delivered.
  *  {@code retrievalCoverage} is {@code null}-tolerant and defaults to the same object as
- *  {@code coverage}.</p> */
+ *  {@code coverage}.</p>
+ *
+ *  <p><b>The raw value is server-side only.</b> The retrieval backend does not ACL-filter, so the
+ *  assembler's {@code retrievalCoverage} counts pages the caller may not view. The surfaces read it from
+ *  the briefing <em>before</em> the ACL gate for the query log; the gate then recounts it over the
+ *  viewable sections, exactly as it does {@code coverage}, before anything is returned to a caller.</p> */
 public record ContextBriefing( String prompt, List< BundleSection > sections, BundleCoverage coverage,
                                List< BriefingItem > items, List< String > warnings,
                                int budgetTokens, int usedTokens, BundleCoverage retrievalCoverage ) {

@@ -47,7 +47,7 @@ public final class MarkdownBriefingRenderer {
         final StringBuilder sb = new StringBuilder();
         sb.append( "# Wiki context briefing\n" );
         final Tiers tiers = Tiers.of( briefing.items() );
-        sb.append( coverageLine( briefing, tiers.elsewhere().size() ) ).append( '\n' );
+        sb.append( coverageLine( briefing.coverage(), tiers.elsewhere().size() ) ).append( '\n' );
 
         if ( !briefing.sections().isEmpty() ) {
             sb.append( "\n## Task-relevant sections\n" );
@@ -140,19 +140,20 @@ public final class MarkdownBriefingRenderer {
 
     /**
      * The delivered coverage, then &mdash; only when out-of-scope hits were turned into {@code elsewhere}
-     * pointers &mdash; what retrieval itself found, so a briefing with no delivered sections is not read as
-     * "the wiki has nothing on this".
+     * pointers &mdash; how many further sections they stand for, so a briefing with no delivered sections is
+     * not read as "the wiki has nothing on this". The retrieval confidence is deliberately not rendered: it is
+     * a server-side figure computed before the ACL gate.
      */
-    private static String coverageLine( final ContextBriefing briefing, final int elsewhereCount ) {
-        final BundleCoverage coverage = briefing.coverage();
+    private static String coverageLine( final BundleCoverage coverage, final int elsewhereCount ) {
         final StringBuilder sb = new StringBuilder( "_Coverage: " ).append( coverage.confidence() )
             .append( " — " ).append( coverage.sectionCount() )
             .append( " sections across " ).append( coverage.distinctPageCount() ).append( " pages. Deepen with " )
             .append( "`assemble_bundle(\"<question>\")`; fetch full pages with `read_pages`." );
-        if ( elsewhereCount > 0 ) {
-            sb.append( " Retrieval: " ).append( briefing.retrievalCoverage().confidence() ).append( "; " )
-                .append( elsewhereCount ).append( " further sections from other projects are listed under " )
-                .append( "\"Elsewhere in the wiki\"." );
+        if ( elsewhereCount == 1 ) {
+            sb.append( " 1 further section from another project is listed under \"Elsewhere in the wiki\"." );
+        } else if ( elsewhereCount > 1 ) {
+            sb.append( ' ' ).append( elsewhereCount )
+                .append( " further sections from other projects are listed under \"Elsewhere in the wiki\"." );
         }
         return sb.append( '_' ).toString();
     }

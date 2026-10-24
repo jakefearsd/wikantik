@@ -477,3 +477,14 @@ Recorded after Phase 2 was built. Earlier text above is left as approved; where 
 9. **Phase 3 tool-description bullet.** Done in the final fix wave for the knowledge MCP tool description and
    `clients/skills/wiki-context/SKILL.md`. `wikantik-mcp-instructions.txt` is the admin server's file and does
    not list knowledge tools, so it is unchanged by design.
+10. **`retrievalCoverage` is masked in the response; the raw value is for the query log only.** The retrieval
+   backend does not ACL-filter, so the assembler's `retrievalCoverage` counts pages the caller cannot view
+   (the same reason `BriefingAclGate` recounts `coverage`). Amendment 8's first pass handed the raw value to the
+   caller, which let an anonymous caller read section/page counts and a confidence computed over restricted
+   pages, in the JSON and in the markdown `Retrieval: <confidence>` label. Now: both surfaces log
+   `briefing.retrievalCoverage().confidence()` and `retrievalHitCount(briefing)` from the **pre-gate** briefing
+   (retrieval truth for Content Intelligence does not depend on who asked); `BriefingAclGate.gate` recounts
+   `retrievalCoverage` over the viewable sections with the same `BundleCoverage.recount` as `coverage`; the
+   markdown coverage line no longer renders a retrieval confidence, only the count of `elsewhere` items after
+   gating (`1 further section from another project is listed …` / `N further sections from other projects are
+   listed …`). The `briefing_log` entry still comes from the gated briefing.

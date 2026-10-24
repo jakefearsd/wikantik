@@ -164,9 +164,11 @@ public class GetBriefingTool extends AbstractMcpTool {
             // REST twin (BriefingResource) records the same pair. The AGENT_GAP rule triggers on
             // coverage in {weak, unknown}, so this must be what RETRIEVAL found (retrievalCoverage
             // and the elsewhere hits), not what the cluster scope let through as sections: a prompt
-            // whose strong hits all lie outside the cluster is not a content gap.
+            // whose strong hits all lie outside the cluster is not a content gap. Read from the
+            // PRE-gate briefing: the query log is server-side and independent of who asked, whereas
+            // the gate recounts retrievalCoverage over what this caller may view.
             qlog.log( prompt, ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING,
-                    BriefingLogEntries.retrievalHitCount( gated ), gated.retrievalCoverage().confidence(), null );
+                    BriefingLogEntries.retrievalHitCount( briefing ), briefing.retrievalCoverage().confidence(), null );
         }
 
         final BriefingLogService blog = briefingLog == null ? null : briefingLog.get();

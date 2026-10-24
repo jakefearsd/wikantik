@@ -319,6 +319,30 @@ class GetBriefingToolTest {
                 BundleCoverage.WEAK, null );
     }
 
+    /**
+     * The retrieval backend does not ACL-filter. The query log is server-side and independent of who asked,
+     * so it gets the raw pre-gate confidence and hit count even when the gate hides a section from this
+     * (guest) caller.
+     */
+    @Test
+    void execute_logsPreGateRetrievalFigures_evenWhenTheViewGateHidesASection() {
+        final BundleSection hidden = new BundleSection( "01HID", "HiddenPage", List.of( "Intro" ), "hidden body", 0.8,
+                new CitationHandle( "01HID", 1, List.of( "Intro" ), "hidden body", "hashH" ) );
+        final ContextBriefing briefing = new ContextBriefing( "prompt", List.of( SECTION_A, hidden ),
+                new BundleCoverage( 2, 2, 0.9, BundleCoverage.STRONG ), List.of(), List.of(), 4000, 100,
+                new BundleCoverage( 9, 5, 0.9, BundleCoverage.STRONG ) );
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final PageViewGate denyHidden = slug -> !"HiddenPage".equals( slug );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> qlog, () -> null, denyHidden );
+
+        tool.execute( Map.of( "prompt", "deploy steps" ) );
+
+        verify( qlog ).log( "deploy steps", ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, 2,
+                BundleCoverage.STRONG, null );
+    }
+
     @Test
     void execute_withoutPrompt_doesNotLogQuery() {
         final ContextBriefing briefing = briefingWith( List.of(), List.of( PIN_ITEM_A ) );

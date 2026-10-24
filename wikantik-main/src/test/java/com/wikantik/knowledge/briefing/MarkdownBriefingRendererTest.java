@@ -197,7 +197,7 @@ class MarkdownBriefingRendererTest {
 
         final String expected = """
             # Wiki context briefing
-            _Coverage: unknown — 0 sections across 0 pages. Deepen with `assemble_bundle("<question>")`; fetch full pages with `read_pages`. Retrieval: unknown; 5 further sections from other projects are listed under "Elsewhere in the wiki"._
+            _Coverage: unknown — 0 sections across 0 pages. Deepen with `assemble_bundle("<question>")`; fetch full pages with `read_pages`. 5 further sections from other projects are listed under "Elsewhere in the wiki"._
 
             ## Elsewhere in the wiki
 
@@ -242,6 +242,8 @@ class MarkdownBriefingRendererTest {
 
     @Test
     void coverageLineMentionsElsewhereHits() {
+        // The retrieval confidence is deliberately NOT rendered: it is a server-side figure computed
+        // before the ACL gate, and the delivered coverage already carries the (recounted) confidence.
         final ContextBriefing briefing = new ContextBriefing(
             "q", List.of(), new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK ),
             List.of( elsewhere( "A", "01A", "H", "stockroom" ), elsewhere( "B", "01B", "H", "stockroom" ),
@@ -251,7 +253,21 @@ class MarkdownBriefingRendererTest {
         final String firstLine = MarkdownBriefingRenderer.render( briefing ).lines().skip( 1 ).findFirst().orElseThrow();
 
         assertEquals( "_Coverage: weak — 0 sections across 0 pages. Deepen with `assemble_bundle(\"<question>\")`; "
-            + "fetch full pages with `read_pages`. Retrieval: strong; 3 further sections from other projects are "
+            + "fetch full pages with `read_pages`. 3 further sections from other projects are "
+            + "listed under \"Elsewhere in the wiki\"._", firstLine );
+        assertFalse( firstLine.contains( "strong" ), "no retrieval confidence in the rendered line: " + firstLine );
+    }
+
+    @Test
+    void coverageLineUsesTheSingularForOneElsewhereHit() {
+        final ContextBriefing briefing = new ContextBriefing(
+            "q", List.of(), new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK ),
+            List.of( elsewhere( "A", "01A", "H", "stockroom" ) ), List.of(), 4000, 0 );
+
+        final String firstLine = MarkdownBriefingRenderer.render( briefing ).lines().skip( 1 ).findFirst().orElseThrow();
+
+        assertEquals( "_Coverage: weak — 0 sections across 0 pages. Deepen with `assemble_bundle(\"<question>\")`; "
+            + "fetch full pages with `read_pages`. 1 further section from another project is "
             + "listed under \"Elsewhere in the wiki\"._", firstLine );
     }
 

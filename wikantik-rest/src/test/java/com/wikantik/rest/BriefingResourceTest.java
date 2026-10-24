@@ -406,6 +406,51 @@ class BriefingResourceTest {
             BundleCoverage.STRONG, null );
     }
 
+    /* The retrieval backend does not ACL-filter, so the raw retrievalCoverage counts pages the caller
+       cannot view. The response field is recounted over viewable sections (nothing about the restricted
+       page survives) while the query log -- server-side, independent of who asked -- gets the raw
+       pre-gate confidence and hit count. */
+    @Test
+    void retrievalCoverage_isMaskedInTheResponse_whileTheQueryLogGetsTheRawFigures() throws Exception {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        final BundleSection pub = new BundleSection( "01PUB", "PublicPage", List.of( "Intro" ),
+                "public text", 0.9, new CitationHandle( "01PUB", 1, List.of( "Intro" ), "public text", "aaa" ) );
+        final BundleSection sec = new BundleSection( "01SEC", "SecretPage", List.of( "Keys" ),
+                "TOP SECRET", 0.8, new CitationHandle( "01SEC", 1, List.of( "Keys" ), "TOP SECRET", "bbb" ) );
+        final ContextBriefing briefing = new ContextBriefing( "deploy", List.of( pub, sec ),
+                new BundleCoverage( 2, 2, 0.9, BundleCoverage.STRONG ), List.of(), List.of(), 4000, 100,
+                new BundleCoverage( 9, 5, 0.9, BundleCoverage.STRONG ) );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return svc; }
+            @Override protected QueryLogService queryLogService() { return qlog; }
+            @Override protected BriefingLogService briefingLogService() { return null; }
+            @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.HUMAN; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                final java.util.Set< String > out = new java.util.HashSet<>( names );
+                out.remove( "SecretPage" );
+                return out;
+            }
+        };
+        final HttpServletRequest request = req( null, null, "deploy", null, null, null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( request, resp );
+
+        final JsonObject obj = JsonParser.parseString( sw.toString() ).getAsJsonObject();
+        final JsonObject retrieval = obj.getAsJsonObject( "retrievalCoverage" );
+        assertEquals( 1, retrieval.get( "sectionCount" ).getAsInt(),
+                "retrievalCoverage.sectionCount is the number of viewable sections, not the raw 9: " + sw );
+        assertEquals( 1, retrieval.get( "distinctPageCount" ).getAsInt() );
+        assertEquals( BundleCoverage.PARTIAL, retrieval.get( "confidence" ).getAsString() );
+        verify( qlog ).log( "deploy", ActorType.HUMAN, SourceSurface.API_BRIEFING, 2,
+                BundleCoverage.STRONG, null );
+    }
+
     /* unknown query parameter -> warning, request still served */
     @Test
     void unknownQueryParam_appearsInWarnings() throws Exception {

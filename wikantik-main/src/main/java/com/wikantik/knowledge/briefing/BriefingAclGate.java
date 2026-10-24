@@ -50,6 +50,10 @@ import java.util.function.Predicate;
  *       bodies; pointer items contribute 0, matching the assembler). The assembler charged a
  *       restricted pin its full body estimate; leaving that in would leak the restricted page's
  *       size.</li>
+ *   <li><b>Coverage.</b> {@code coverage} <em>and</em> {@code retrievalCoverage} are recounted over the KEPT
+ *       sections. The retrieval backend does not ACL-filter, so the raw retrieval counts and confidence
+ *       include pages the caller cannot view; that raw figure belongs to the server-side query log, which
+ *       reads it from the briefing <em>before</em> this gate runs.</li>
  * </ul>
  *
  * <p><b>Not masked (conscious accept):</b> cluster-name existence — the assembler's
@@ -73,7 +77,7 @@ public final class BriefingAclGate {
      * @param original       the ACL-agnostic briefing from the assembler
      * @param requestedPins  the caller's raw pin inputs (slug or canonical_id), in request order
      * @param canView        predicate: may the caller view this page slug?
-     * @return a new briefing with non-viewable sections/items dropped, coverage + usedTokens
+     * @return a new briefing with non-viewable sections/items dropped, coverage + retrievalCoverage + usedTokens
      *         recomputed over kept content, and one {@code "unknown pin: <input>"} warning per
      *         unsatisfied requested pin
      */
@@ -85,6 +89,9 @@ public final class BriefingAclGate {
         final List< BriefingItem > keptItems = original.items().stream()
                 .filter( i -> canView.test( i.slug() ) ).toList();
         final BundleCoverage coverage = BundleCoverage.recount( original.coverage(), keptSections );
+        // The retrieval backend does not ACL-filter, so the raw retrieval coverage counts pages this caller
+        // cannot view. Recount it the same way: the raw figure is for the server-side query log only.
+        final BundleCoverage retrievalCoverage = BundleCoverage.recount( original.retrievalCoverage(), keptSections );
 
         int usedTokens = 0;
         for ( final BundleSection s : keptSections ) {
@@ -112,6 +119,6 @@ public final class BriefingAclGate {
         }
 
         return new ContextBriefing( original.prompt(), keptSections, coverage,
-                keptItems, warnings, original.budgetTokens(), usedTokens, original.retrievalCoverage() );
+                keptItems, warnings, original.budgetTokens(), usedTokens, retrievalCoverage );
     }
 }

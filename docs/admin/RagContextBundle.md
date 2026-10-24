@@ -191,9 +191,10 @@ without clusters has the same headings as before).
 6. A closing `> Briefing warnings: …` line when any assembly warning was raised
 
 When retrieval hits were turned into `elsewhere` pointers, the coverage line gains a second
-sentence, `Retrieval: <confidence>; <n> further sections from other projects are listed under
-"Elsewhere in the wiki".`, so a briefing whose delivered coverage is `weak` or `unknown` because
-every hit lay outside the project is not read as "the wiki has nothing on this".
+sentence, `<n> further sections from other projects are listed under "Elsewhere in the wiki".`
+(`1 further section from another project is listed under …` for a single hit; `n` counts the
+`elsewhere` items the caller can see), so a briefing whose delivered coverage is `weak` or
+`unknown` because every hit lay outside the project is not read as "the wiki has nothing on this".
 
 ### JSON shape additions
 
@@ -204,9 +205,12 @@ every hit lay outside the project is not read as "the wiki has nothing on this".
   heading path of the matching section).
 - `cluster` is the page's primary cluster for `cited` and `elsewhere` items so a reader can
   tell whose page it is; it is `null` for pins and members.
-- `retrievalCoverage` (top level, beside `coverage`) is the retrieval bundle's coverage *before*
-  the cluster-scope partition: what retrieval found. `coverage` keeps its meaning of what the
-  briefing delivered as `sections[]`.
+- `retrievalCoverage` (top level, beside `coverage`) is the retrieval bundle's coverage *before* the
+  cluster-scope partition. The retrieval backend does not ACL-filter, so the ACL gate recounts it over the
+  sections the caller can view, exactly as it does `coverage`: it never reflects restricted pages. For a result
+  in which every retrieved section was delivered and viewable it equals retrieval's pre-partition counts; where
+  the scope moved hits to `elsewhere` (or the budget dropped them) the response reports only the viewable
+  delivered sections, and the pre-partition truth lives in the query log (see [Telemetry](#telemetry)).
 
 `sections[]` carry no tier field; they are ordered by tier, members then cited pages.
 
@@ -228,10 +232,12 @@ budget bound. Since `V064` the row also carries `cited_count`, `elsewhere_count`
 
 A briefing with a `prompt` is also written to the query log (surfaces `api_briefing` and
 `mcp_get_briefing`) so Content Intelligence can see agent demand. That row records what
-*retrieval* found: `retrievalCoverage.confidence` and a result count of delivered sections plus
+*retrieval* found, read from the briefing *before* the ACL gate so it does not depend on who
+asked: the pre-gate `retrievalCoverage.confidence` and a result count of delivered sections plus
 `elsewhere` pointers. It deliberately does not record the delivered `coverage`, which the cluster
 scope can take to zero for a prompt whose strong hits all lie in other projects; that would read as
-a content gap that does not exist.
+a content gap that does not exist. The `briefing_log` row, by contrast, is built from the gated
+briefing as served.
 
 Portable client shims that wire the briefing into an agent runtime
 (Claude Code, Antigravity) live under [`clients/`](../../clients/).

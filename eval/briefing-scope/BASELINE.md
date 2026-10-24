@@ -379,3 +379,99 @@ Raw per-case counts (token estimate = chars / 4):
 ```
 
 > 7 of 8 on 2.4.65. Tier-1 ordering is now correct (`JakemonHub, JakemonDashboardsInventory, SimpleAgilityTelemetryContract, SimpleAgilityObservabilityPlane, SearchVisibilityExporter, Incident…`), but at the default budget the hub and the three contracts did not fit after the sections and became pointers, and the first runbook small enough to fit (`IncidentGpuThermalThrottle`) was included as a standing body. Fixed in 2.4.66: standing-context admission is rank-ordered within a tier — once a higher-ranked member degrades to a pointer, every lower-ranked member in that tier is a pointer (spec amendment 12).
+
+## After 2.4.66 (2026-10-24) — acceptance
+
+Base URL: `https://wiki.wikantik.com` -- 8 of 8 cases passed.
+
+| case | result | separation | diversity | violations |
+|------|--------|-----------:|----------:|------------|
+| `sa-roller-telemetry` | PASS | 1.00 | 0.37 | - |
+| `roller-telemetry-prefer` | PASS | 1.00 | 0.62 | - |
+| `roller-telemetry-strict` | PASS | 1.00 | 0.62 | - |
+| `jakemon-push-feed` | PASS | 0.84 | 0.47 | - |
+| `stockroom-itemsold` | PASS | 1.00 | 0.60 | - |
+| `nocluster-lease-guard` | PASS | n/a | 0.64 | - |
+| `wikidev-trace-id` | PASS | 1.00 | 0.50 | - |
+| `roller-unknown-arg` | PASS | 1.00 | 0.62 | - |
+
+Raw per-case counts (token estimate = chars / 4):
+
+```json
+{
+  "sa-roller-telemetry": {
+    "sections": 19,
+    "distinct_pages": 7,
+    "included_items": 0,
+    "warnings": 0,
+    "in_scope_tokens": 3911,
+    "total_tokens": 3911,
+    "used_tokens": 3924
+  },
+  "roller-telemetry-prefer": {
+    "sections": 8,
+    "distinct_pages": 5,
+    "included_items": 1,
+    "warnings": 0,
+    "in_scope_tokens": 3338,
+    "total_tokens": 3338,
+    "used_tokens": 3344
+  },
+  "roller-telemetry-strict": {
+    "sections": 8,
+    "distinct_pages": 5,
+    "included_items": 1,
+    "warnings": 0,
+    "in_scope_tokens": 3338,
+    "total_tokens": 3338,
+    "used_tokens": 3344
+  },
+  "jakemon-push-feed": {
+    "sections": 19,
+    "distinct_pages": 9,
+    "included_items": 1,
+    "warnings": 1,
+    "in_scope_tokens": 3975,
+    "total_tokens": 4745,
+    "used_tokens": 4760
+  },
+  "stockroom-itemsold": {
+    "sections": 10,
+    "distinct_pages": 6,
+    "included_items": 1,
+    "warnings": 0,
+    "in_scope_tokens": 3178,
+    "total_tokens": 3178,
+    "used_tokens": 3186
+  },
+  "nocluster-lease-guard": {
+    "sections": 22,
+    "distinct_pages": 14,
+    "included_items": 0,
+    "warnings": 0,
+    "in_scope_tokens": 0,
+    "total_tokens": 3325,
+    "used_tokens": 3337
+  },
+  "wikidev-trace-id": {
+    "sections": 8,
+    "distinct_pages": 4,
+    "included_items": 1,
+    "warnings": 1,
+    "in_scope_tokens": 3935,
+    "total_tokens": 3935,
+    "used_tokens": 3943
+  },
+  "roller-unknown-arg": {
+    "sections": 8,
+    "distinct_pages": 5,
+    "included_items": 1,
+    "warnings": 1,
+    "in_scope_tokens": 3338,
+    "total_tokens": 3338,
+    "used_tokens": 3344
+  }
+}
+```
+
+> **Acceptance met on 2.4.66: 8 of 8.** `jakemon-push-feed` separation 0.84 rather than 1.00 is the harness's primary-cluster-only membership (multi-member contract pages count as out of scope), not a product gap.

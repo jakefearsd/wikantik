@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "SCIM 2.0 provisioning for your wiki",
     "description": "Automate user lifecycle with SCIM 2.0: bearer-authed Users and Groups CRUD, PATCH active, soft-delete, and discovery — IdP-driven onboarding and offboarding for Wikantik.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/scim-provisioning.html" }
@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "Does offboarding via SCIM actually lock access immediately?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. A SCIM DELETE or PATCH active=false routes through UserLifecycleService.deactivate(), which locks the account. Every login module — including the database authenticator and the remember-me token filter — checks isLocked() and refuses access for locked accounts. The account row is preserved for audit history and can be reactivated if needed." } },
       { "@type": "Question", "name": "Can a SCIM group escalate a user to the Admin role?",
-        "acceptedAnswer": { "@type": "Answer", "text": "No. SCIM groups route exclusively through GroupManager and the groups/group_members tables. The roles table is never touched by SCIM. A SCIM group named 'Admin' creates a wiki group only — it does not grant the Admin role to any of its members. Admin role assignment is a privileged operation done through the admin UI or database only." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "No. SCIM groups route exclusively through GroupManager and the groups/group_members tables. The roles table is never touched by SCIM. Administrator access is membership of the wiki group named Admin, so SCIM never writes it: creating, replacing, patching or deleting the Admin group over SCIM is refused with HTTP 403 and audited as DENIED. The Admin group is changed in the admin UI only." } }
     ] }
   </script>
 </head>
@@ -143,14 +143,14 @@
           <h2>Security boundaries</h2>
 
           <h3>SCIM Groups never grant the Admin role</h3>
-          <p>This is an explicit security boundary, not an accident. SCIM groups route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table — which holds the <code>Admin</code> role assignment — is never touched by any SCIM operation. A SCIM group named "Admin" creates a wiki group only; it does not grant the Admin role to any member. Admin role assignment is a privileged operation done through the admin UI or directly in the database.</p>
+          <p>This is an explicit security boundary, not an accident. SCIM groups route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table — which holds the <code>Admin</code> role assignment — is never touched by any SCIM operation. Because administrator access is membership of the wiki group named <code>Admin</code> (which the default policy grants <code>AllPermission</code>), SCIM never writes that group either: <code>POST</code> with displayName <code>Admin</code>, and <code>PUT</code>, <code>PATCH</code> and <code>DELETE</code> on <code>/scim/v2/Groups/Admin</code>, are refused with HTTP 403 (matched case-insensitively) and recorded in the audit log as <code>DENIED</code>. Reads are unaffected. The Admin group is changed in the admin UI only.</p>
 
           <h3>Lock enforcement at every login path</h3>
           <p>Deactivation only works if every login path checks it. Wikantik's database login module, the SSO login module, and the remember-me token filter all call <code>isLocked()</code> and refuse access for locked accounts. An attacker who obtained a valid remember-me cookie before offboarding cannot use it after the SCIM deactivation lands.</p>
 
           <h3>Bearer token authentication</h3>
-          <p>Every request to <code>/scim/v2/*</code> must carry <code>Authorization: Bearer &lt;token&gt;</code>. The filter uses constant-time comparison to prevent timing attacks. Set the token in <code>wikantik-custom.properties</code>:</p>
-          <pre><code>wikantik.scim.token = &lt;a-long-random-secret&gt;</code></pre>
+          <p>Every request to <code>/scim/v2/*</code> must carry <code>Authorization: Bearer &lt;token&gt;</code>. The filter uses constant-time comparison to prevent timing attacks. Supply the token as a JVM system property (a value in a properties file is never read); in the Docker image, set <code>WIKANTIK_SCIM_TOKEN</code> and the entrypoint passes it through:</p>
+          <pre><code>-Dwikantik.scim.token=&lt;a-long-random-secret&gt;</code></pre>
           <p>If the token is absent, <code>ScimAccessFilter</code> logs a warning at startup and denies all SCIM requests with HTTP 401.</p>
 
           <div class="callout">
@@ -169,7 +169,7 @@
             </details>
             <details>
               <summary>Can a SCIM group escalate a user to the Admin role?</summary>
-              <p>No. SCIM groups route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table is never touched by SCIM. A SCIM group named "Admin" creates a wiki group only — it does not grant the Admin role to any of its members. Admin role assignment is a privileged operation done through the admin UI or database only.</p>
+              <p>No. SCIM groups route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table is never touched by SCIM. Administrator access is membership of the wiki group named Admin, so SCIM never writes it: creating, replacing, patching or deleting the Admin group over SCIM is refused with HTTP 403 and audited as DENIED. The Admin group is changed in the admin UI only.</p>
             </details>
           </section>
         </div>

@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Page graph: wikilinks, canonical IDs and clusters",
     "description": "Wikantik's page graph is the real wikilink graph of your content — rename-stable canonical IDs and cluster-hub membership — navigable by humans and agents alike.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/page-graph.html" }
@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "What happens to wikilinks when a page is renamed?",
         "acceptedAnswer": { "@type": "Answer", "text": "Each page has a canonical_id — a 26-character ULID assigned at first save and immutable thereafter. External references can use the canonical_id instead of the slug; GET /api/pages/by-id/{canonical_id} resolves to the current page regardless of renames. The slug history is also tracked in page_slug_history." } },
       { "@type": "Question", "name": "How do agents navigate the Page Graph?",
-        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server exposes structural spine tools — list_clusters, list_tags, list_pages_by_filter, and get_page_by_id — that let agents navigate by cluster membership, type, and canonical ID. The /api/structure/* REST endpoints (including /api/structure/sitemap) serve the same data for non-MCP clients." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server exposes structural spine tools — list_clusters, list_tags, list_pages_by_filter, get_page_by_id, and get_page_neighbors — that let agents navigate by cluster membership, type, and canonical ID. The /api/structure/* REST endpoints (including /api/structure/sitemap) serve the same data for non-MCP clients." } }
     ] }
   </script>
 </head>
@@ -104,16 +104,16 @@
         <div class="doc-body">
 
           <h2>What the Page Graph is</h2>
-          <p>The Page Graph is not a metaphor. It is a concrete data structure: a directed graph where nodes are pages and edges are the <code>[OtherPage]</code> wikilinks that authors write in page bodies. That is the only source of edges — no inference, no LLM extraction, no implicit relationships. If an author did not write the link, the edge does not exist.</p>
+          <p>The Page Graph is not a metaphor. It is a concrete data structure: a directed graph where nodes are pages and edges are the wikilinks (<code>[OtherPage]</code> or Obsidian-style <code>[[OtherPage]]</code>) that authors write in page bodies. That is the only source of edges — no inference, no LLM extraction, no implicit relationships. If an author did not write the link, the edge does not exist.</p>
           <p>This strictness is a feature. It means the Page Graph reflects actual editorial intent: which authors judged that one page is relevant enough to another to link it explicitly. That signal is valuable for navigation, authoring aids, and — as it turns out — for computing inbound link centrality to rank pages for agent retrieval.</p>
           <p>For an authoritative comparison of the Page Graph and the Knowledge Graph, see <a href="https://wiki.wikantik.com/wiki/PageGraphVsKnowledgeGraph">Page Graph vs Knowledge Graph</a> in the live wiki.</p>
 
           <h2>Wikilinks as first-class edges</h2>
-          <p>Wikilinks in Wikantik are parsed from page bodies at save time by <code>ReferenceManager</code>. The resulting edges are queryable: you can ask "which pages link to this one?" (backlinks) and "which pages does this one link to?" (outbound links). Both are available via the REST API at <code>/api/pages/{slug}/backlinks</code> and via the <code>get_backlinks</code> / <code>get_outbound_links</code> MCP tools on <code>/wikantik-admin-mcp</code>.</p>
+          <p>Wikilinks in Wikantik are parsed from page bodies at save time by <code>ReferenceManager</code>. The resulting edges are queryable: you can ask "which pages link to this one?" (backlinks) and "which pages does this one link to?" (outbound links). Both are available via the REST API at <code>/api/backlinks/{page}</code> and <code>/api/outbound-links/{page}</code> and via the <code>get_backlinks</code> / <code>get_outbound_links</code> MCP tools on <code>/wikantik-admin-mcp</code>.</p>
           <p>The backlink graph powers several visible features:</p>
           <ul>
-            <li><strong>Broken-link triage</strong> — when a page is deleted or renamed without updating links, affected pages surface in <code>/admin/page-graph/*</code></li>
-            <li><strong>Orphan detection</strong> — pages with no inbound links from other pages in the same cluster are flagged by the agent-grade audit</li>
+            <li><strong>Broken-link triage</strong> — when a page is deleted or renamed without updating links, the affected links are listed by the <code>get_broken_links</code> MCP tool</li>
+            <li><strong>Orphan detection</strong> — pages with no inbound links are listed by the <code>get_orphaned_pages</code> MCP tool</li>
             <li><strong>Inbound link centrality</strong> — used by <code>AgentHintsDeriver</code> to rank pages in the <code>prefer_pages</code> hint on agent projections</li>
           </ul>
 
@@ -123,8 +123,8 @@
           <p>Canonical ID assignment is enforced at save time: if a page lacks a <code>canonical_id</code> in its frontmatter, <code>StructuralSpinePageFilter</code> automatically assigns one and injects it before the page is saved.</p>
 
           <h2>Clusters and hubs</h2>
-          <p>Every page declares a <code>cluster:</code> in its frontmatter, assigning it to a logical topic area. Within each cluster, one page is designated the hub — the entry point that links to all cluster articles and provides the overview. The rest are articles.</p>
-          <p>Cluster membership is the primary navigation structure for agents: <code>list_clusters</code> on the <code>/knowledge-mcp</code> server returns all clusters with their hub page, article count, and last-updated timestamp. <code>list_pages_by_filter</code> lets agents filter by cluster, type, tag, or update time. This is how an agent asks "what does this wiki contain?" without doing a full-text search.</p>
+          <p>Every page declares a <code>cluster:</code> in its frontmatter, assigning it to a logical topic area (non-hub pages may list more than one cluster). A cluster exists when exactly one hub page (<code>type: hub</code>) declares it — that page is the entry point that provides the overview. Sub-clusters are written <code>parent/child</code>, one level deep. The rest are articles.</p>
+          <p>Cluster membership is the primary navigation structure for agents: <code>list_clusters</code> on the <code>/knowledge-mcp</code> server returns all clusters with their hub page, article count, and last-updated timestamp. <code>list_pages_by_filter</code> lets agents filter by cluster, type, tag, or update time, and <code>get_page_neighbors</code> returns a page's one-hop neighborhood — wikilinks in and out plus cluster siblings, without page bodies. This is how an agent asks "what does this wiki contain?" without doing a full-text search.</p>
 
           <h2>Page Graph vs. Knowledge Graph</h2>
           <p>These are distinct subsystems and must not be confused. The Page Graph's nodes are pages; its edges are wikilinks authors wrote. The <a href="/platform/knowledge-graph.html">Knowledge Graph</a>'s nodes are LLM-extracted entities (concepts, people, technologies); its edges are co-mention or typed-relation predicates. They live in separate code packages (<code>com.wikantik.pagegraph.*</code> vs <code>com.wikantik.knowledge.*</code>), separate database tables (<code>page_canonical_ids</code> vs <code>kg_*</code>), and serve different purposes: navigation vs. semantic retrieval.</p>
@@ -141,7 +141,7 @@
             </details>
             <details>
               <summary>How do agents navigate the Page Graph?</summary>
-              <p>The <code>/knowledge-mcp</code> server exposes structural spine tools — <code>list_clusters</code>, <code>list_tags</code>, <code>list_pages_by_filter</code>, and <code>get_page_by_id</code> — that let agents navigate by cluster membership, type, and canonical ID. The <code>/api/structure/*</code> REST endpoints (including <code>/api/structure/sitemap</code>) serve the same data for non-MCP clients.</p>
+              <p>The <code>/knowledge-mcp</code> server exposes structural spine tools — <code>list_clusters</code>, <code>list_tags</code>, <code>list_pages_by_filter</code>, <code>get_page_by_id</code>, and <code>get_page_neighbors</code> — that let agents navigate by cluster membership, type, and canonical ID. The <code>/api/structure/*</code> REST endpoints (including <code>/api/structure/sitemap</code>) serve the same data for non-MCP clients.</p>
             </details>
           </section>
         </div>

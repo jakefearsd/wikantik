@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "The ontology: your wiki as queryable, governed linked data",
     "description": "Wikantik projects every page, cluster, tag, and extracted entity into a queryable RDF/OWL ontology — SPARQL, dereferenceable IRIs, and Turtle dumps — governed by a SHACL gate and shared human + AI curation.",
-    "datePublished": "2026-06-10", "dateModified": "2026-06-10",
+    "datePublished": "2026-06-10", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/ontology.html" }
@@ -110,7 +110,7 @@
             <li><strong>Page concepts.</strong> Every page is a typed concept — its content class, IRI, title and summary — and its cluster and tags become SKOS concepts it links to. This is the topical hierarchy, authored entirely from page frontmatter.</li>
             <li><strong>The Knowledge Graph.</strong> The entities mentioned across the wiki and the typed relations among them, projected as instances of the vocabulary's classes and predicates.</li>
           </ul>
-          <p>The model stays in sync automatically: a page's graph is re-projected when it's saved or renamed, and a nightly job reconciles the entity graphs — so the RDF is never stale for long.</p>
+          <p>The model stays in sync automatically: a page's graph is re-projected when it's saved or renamed, entity graphs are re-projected incrementally as the Knowledge Graph changes, and a nightly job reconciles the whole store as a backstop — so the RDF is never stale for long.</p>
 
           <h2>Use case: ask the graph, don't grep the text</h2>
           <p>Keyword search maps terms to documents. An ontology maps concepts to one another — so you can ask <em>structured</em> questions a text index can't answer. A public, read-only <strong>SPARQL</strong> endpoint at <code>/sparql</code> takes <code>SELECT</code> / <code>ASK</code> / <code>CONSTRUCT</code> queries:</p>

@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Structural spine: a machine-queryable wiki index",
     "description": "Wikantik's structural spine is a small set of first-class APIs, persistent canonical IDs, and cluster-hub membership that let agents navigate your wiki by shape, not just keywords.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/structural-spine.html" }
@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "What is a canonical ID and why is it immutable?",
         "acceptedAnswer": { "@type": "Answer", "text": "A canonical_id is a 26-character ULID assigned to each page at first save by StructuralSpinePageFilter. It is immutable — renaming the page does not change the canonical_id. External systems that reference a page by canonical_id instead of slug are rename-proof; GET /api/pages/by-id/{canonical_id} always resolves to the current page." } },
       { "@type": "Question", "name": "How is Main.md kept in sync with the actual wiki structure?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Main.md is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so Main.md is kept in sync with the actual cluster taxonomy. A regression test in CI fails the build if a checked-in Main.md diverges from the generated version. Curators can add editorial pins via Main.pins.yaml without hand-editing Main.md directly." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Main.md is generated rather than hand-maintained. It is rendered by the GenerateMainPageCli command-line generator in wikantik-extract-cli, so it follows the actual cluster taxonomy. A regression test in CI fails the build if a checked-in Main.md diverges from the generated version. Curators can add editorial pins via Main.pins.yaml without hand-editing Main.md directly." } }
     ] }
   </script>
 </head>
@@ -115,9 +115,9 @@
             <li><code>GET /api/structure/clusters/{name}</code> — full cluster detail: hub summary, ordered article list with summaries, tag distribution</li>
             <li><code>GET /api/structure/tags?min_pages=N</code> — tag dictionary with counts and representative pages</li>
             <li><code>GET /api/structure/pages?type=hub&amp;cluster=X&amp;tag=Y&amp;updated_since=ISO</code> — filtered, paginated page listing</li>
-            <li><code>GET /api/structure/sitemap?shape=compact</code> — compact machine-readable sitemap suitable as an agent prelude payload (approximately 200 bytes per page)</li>
+            <li><code>GET /api/structure/sitemap</code> — compact machine-readable sitemap (id, slug, title, type, cluster, tags, summary per viewable page) suitable as an agent prelude payload</li>
           </ul>
-          <p>The same data is available via the <code>/knowledge-mcp</code> MCP server's structural spine tools (<code>list_clusters</code>, <code>list_tags</code>, <code>list_pages_by_filter</code>, <code>get_page_by_id</code>), so MCP-native and REST-native agents share one surface.</p>
+          <p>The same data is available via the <code>/knowledge-mcp</code> MCP server's structural spine tools (<code>list_clusters</code>, <code>list_tags</code>, <code>list_pages_by_filter</code>, <code>get_page_by_id</code>, plus <code>get_page_neighbors</code> for a page's one-hop wikilink neighborhood), so MCP-native and REST-native agents share one surface.</p>
 
           <h2>Canonical IDs: rename-stable page identity</h2>
           <p>Every page carries a <code>canonical_id</code>: a 26-character ULID assigned at first save by <code>StructuralSpinePageFilter</code> and stored in the page's YAML frontmatter and in the <code>page_canonical_ids</code> database table. The canonical ID is immutable — renaming the page does not change it.</p>
@@ -126,15 +126,15 @@
 
           <h2>Cluster hubs: the entry points agents use</h2>
           <p>Every page belongs to a cluster declared via <code>cluster:</code> in its frontmatter. Within each cluster, one page is the hub — the entry point that links to all cluster articles. The structural index tracks hub designation per cluster, so <code>list_clusters</code> returns not just cluster names but the hub page's canonical ID, slug, and title.</p>
-          <p>A cluster's existence is a declaration, not a folder: it exists once exactly one page carries <code>type: hub</code> with a matching <code>cluster:</code> path, and that hub is the single source of truth for the cluster — not just a landing page. Sub-clusters nest one level deep as <code>parent/child</code> paths, and an individual page can belong to more than one cluster at once, with its first listing as the primary that drives breadcrumbs and citations.</p>
+          <p>A cluster's existence is a declaration, not a folder: it exists once exactly one page carries <code>type: hub</code> with a matching <code>cluster:</code> path, and that hub is the single source of truth for the cluster — not just a landing page. Sub-clusters nest one level deep as <code>parent/child</code> paths, and an individual page can belong to more than one cluster at once, with its first listing as the primary that drives breadcrumbs and the article section.</p>
           <p>For agents navigating a large wiki, the pattern is: call <code>list_clusters</code> to get a map of the wiki's topic areas; pick the relevant cluster; call <code>list_pages_by_filter</code> with that cluster to get its article list; then read specific articles via <code>read_pages</code> or <code>get_page_by_id</code>. This is three to four tool calls to fully orient an agent in any topic area, versus unbounded keyword search iterations.</p>
 
           <h2>Generated Main.md: structure that stays accurate</h2>
-          <p>Wikantik's <code>Main.md</code> — the wiki's homepage — is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so <code>Main.md</code> is kept in sync with the actual cluster taxonomy. A CI regression test (<code>MainPageRegressionTest</code>) fails the build if the checked-in <code>Main.md</code> diverges from what the generator would produce.</p>
-          <p>Curators can add editorial pins via <code>docs/wikantik-pages/Main.pins.yaml</code> — featured pages and highlighted sections — without hand-editing <code>Main.md</code> directly. The generator reads both the structural output and the pins, merging them into the final page.</p>
+          <p>Wikantik's <code>Main.md</code> — the wiki's homepage — is generated rather than hand-maintained. It is rendered by the <code>GenerateMainPageCli</code> command-line generator in <code>wikantik-extract-cli</code>, so it follows the actual cluster taxonomy. A CI regression test (<code>MainPageRegressionTest</code>) fails the build if the checked-in <code>Main.md</code> diverges from what the generator would produce.</p>
+          <p>Curators can add editorial pins via <code>docs/wikantik-pages/Main.pins.yaml</code> — featured pages and highlighted sections — without hand-editing <code>Main.md</code> directly. The generator reads both the pages' structural metadata and the pins, merging them into the final page.</p>
 
           <h2>Fail-closed behaviour</h2>
-          <p>The structural index follows the same fail-closed principle as hybrid retrieval. If the index is being rebuilt after startup, structural endpoints return HTTP 503 with a <code>Retry-After</code> header rather than silently returning stale or empty data. MCP tools return a structured <code>rebuilding</code> error with an ETA hint. An agent that gets a 503 from a structural endpoint knows to retry — it does not get silently wrong data.</p>
+          <p>The structural index follows the same fail-closed principle as hybrid retrieval. If the structural index is unavailable, <code>/api/structure/*</code> returns HTTP 503 rather than silently returning empty data, and <code>get_page_neighbors</code> returns a retry-shortly error while the link index is still scanning at startup. An agent that gets a 503 from a structural endpoint knows to retry — it does not get silently wrong data.</p>
 
           <section class="faq">
             <h2>Frequently asked questions</h2>
@@ -148,7 +148,7 @@
             </details>
             <details>
               <summary>How is Main.md kept in sync with the actual wiki structure?</summary>
-              <p><code>Main.md</code> is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so <code>Main.md</code> is kept in sync with the actual cluster taxonomy. A CI regression test fails the build if the checked-in <code>Main.md</code> diverges. Curators add editorial pins via <code>Main.pins.yaml</code> without hand-editing <code>Main.md</code> directly.</p>
+              <p><code>Main.md</code> is generated rather than hand-maintained. It is rendered by the <code>GenerateMainPageCli</code> command-line generator in <code>wikantik-extract-cli</code>, so it follows the actual cluster taxonomy. A CI regression test fails the build if the checked-in <code>Main.md</code> diverges. Curators add editorial pins via <code>Main.pins.yaml</code> without hand-editing <code>Main.md</code> directly.</p>
             </details>
           </section>
         </div>

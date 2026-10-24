@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Agent-grade content: runbooks, projections and verification",
     "description": "Wikantik serves every page to two readers — humans and machines: token-budgeted projections, runbook types, verification metadata, and derived agent hints for reliable AI answers.",
-    "datePublished": "2026-06-07", "dateModified": "2026-08-20",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/agent-grade-content.html" }
@@ -63,9 +63,9 @@
       { "@type": "Question", "name": "What is the /api/pages/for-agent/{id} endpoint?",
         "acceptedAnswer": { "@type": "Answer", "text": "It is a token-budgeted projection of a page tailored for agent consumption. It includes the page content, structured frontmatter metadata, verification status, and derived agent_hints — prefer_tools (which MCP tools are relevant to this page) and prefer_pages (which cluster pages are highest-centrality). Agents get all this in one call rather than assembling it from multiple endpoints." } },
       { "@type": "Question", "name": "What is the auto-generated flag?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Pages with auto-generated: true in their frontmatter are treated as low-confidence stubs. Setting it to false is a declaration that a human has reviewed and overhauled the content to meet the high-density standards required for authoritative agent citations. The agent-grade audit surfaces pages that are still auto-generated." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Pages with auto-generated: true in their frontmatter are treated as low-confidence stubs. Setting it to false is a declaration that a human has reviewed and overhauled the content to meet the high-density standards required for authoritative agent citations." } },
       { "@type": "Question", "name": "How does verification metadata work?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Pages carry verified_at (ISO-8601 timestamp), verified_by (the human reviewer's login name), and confidence (authoritative, provisional, or stale). Agents can check these fields to decide how much to trust a citation. The agent-grade audit at /admin/agent-grade-audit flags pages with missing or stale verification so operators know what needs attention." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Pages carry verified_at (ISO-8601 timestamp), verified_by (the human reviewer, shown to readers as a display name), and confidence (authoritative, provisional, or stale). Agents can check these fields to decide how much to trust a citation. The operator audit at /admin/agent-grade-audit flags pages with missing or stale verification so operators know what needs attention." } }
     ] }
   </script>
 </head>
@@ -144,13 +144,13 @@
           <p>Agents need to know how much to trust a citation. Is this page current? Has a human reviewed it recently? Wikantik's confidence protocol answers these questions with three frontmatter fields:</p>
           <ul>
             <li><code>verified_at</code> — ISO-8601 timestamp of the last manual audit</li>
-            <li><code>verified_by</code> — the login name of the human verifier</li>
+            <li><code>verified_by</code> — the verifier (readers see their display name, not the stored login)</li>
             <li><code>confidence</code> — one of <code>authoritative</code> (verified within the last 90 days by a trusted author), <code>provisional</code> (verified within 90 days but not by a trusted author), or <code>stale</code> (never verified, or over 90 days since the last verification)</li>
           </ul>
           <p>The <code>auto-generated</code> frontmatter flag acts as a technical debt marker: pages marked <code>true</code> are treated as low-confidence stubs. Setting it to <code>false</code> is a declaration that the content has been overhauled to meet the high-density, machine-readable standard.</p>
 
           <h2>Retrieval-quality CI and the agent-grade audit</h2>
-          <p>Wikantik ships an operator-facing audit report at <code>/admin/agent-grade-audit</code> that surfaces pages with weak agent-grade signals: no cluster, no inbound cluster links (for non-hub pages), generic hub summaries, missing or stale verification, or still flagged <code>auto-generated: true</code>. Pages are sorted by flag count so operators can focus their improvement effort where it matters most.</p>
+          <p>Wikantik ships an operator-facing audit report at <code>/admin/agent-grade-audit</code> that surfaces pages with weak agent-grade signals: no cluster, no inbound cluster links (for non-hub pages), generic hub summaries, or missing or stale verification. Pages are sorted by flag count so operators can focus their improvement effort where it matters most.</p>
           <p>This is the compensating control for a content standard that does not impose mandatory frontmatter on every page: the audit tells you where the gaps are, without blocking authors who are still writing drafts.</p>
 
           <div class="callout">
@@ -165,11 +165,11 @@
             </details>
             <details>
               <summary>What is the auto-generated flag?</summary>
-              <p>Pages with <code>auto-generated: true</code> in their frontmatter are treated as low-confidence stubs. Setting it to <code>false</code> is a declaration that a human has reviewed and overhauled the content to meet the high-density standards required for authoritative agent citations. The agent-grade audit surfaces pages that are still auto-generated.</p>
+              <p>Pages with <code>auto-generated: true</code> in their frontmatter are treated as low-confidence stubs. Setting it to <code>false</code> is a declaration that a human has reviewed and overhauled the content to meet the high-density standards required for authoritative agent citations.</p>
             </details>
             <details>
               <summary>How does verification metadata work?</summary>
-              <p>Pages carry <code>verified_at</code> (ISO-8601 timestamp), <code>verified_by</code> (the reviewer's login name), and <code>confidence</code> (<code>authoritative</code>, <code>provisional</code>, or <code>stale</code>). Agents can check these fields to assess how much to trust a citation. The agent-grade audit at <code>/admin/agent-grade-audit</code> flags pages with missing or stale verification.</p>
+              <p>Pages carry <code>verified_at</code> (ISO-8601 timestamp), <code>verified_by</code> (the reviewer, shown to readers as a display name), and <code>confidence</code> (<code>authoritative</code>, <code>provisional</code>, or <code>stale</code>). Agents can check these fields to assess how much to trust a citation. The agent-grade audit at <code>/admin/agent-grade-audit</code> flags pages with missing or stale verification.</p>
             </details>
           </section>
         </div>

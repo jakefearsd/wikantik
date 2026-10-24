@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Security hardening: NIST passwords, CSP, safe deserialization",
     "description": "Wikantik ships hardened by default: NIST 800-63B password validation with a breach blocklist, CSRF/CORS/CSP and security headers, and deserialization filtering on every input stream.",
-    "datePublished": "2026-06-07", "dateModified": "2026-08-20",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/security-hardening.html" }
@@ -114,7 +114,7 @@
             <li><strong>Minimum length</strong> is enforced.</li>
             <li><strong>Common-password blocklist</strong> — new passwords are checked against a list of known breached and trivially guessable passwords. <code>password</code>, <code>123456</code>, and their obvious variants are rejected.</li>
             <li>Mandatory rotation and arbitrary complexity rules are <em>not</em> enforced — NIST explicitly recommends against them.</li>
-            <li><strong>Stored as bcrypt</strong> — passwords are hashed with bcrypt (work factor tuned to roughly a quarter-second per hash), never reversible encryption or a bare digest. Installs upgraded from older builds re-hash legacy SHA hashes to bcrypt transparently on the owner's next login.</li>
+            <li><strong>Stored as bcrypt</strong> — passwords are hashed with bcrypt (work factor tuned to roughly a quarter-second per hash), never reversible encryption or a bare digest. Installs upgraded from older builds re-hash legacy salted SHA-256 hashes to bcrypt transparently on the owner's next login; salted SHA-1 hashes are no longer accepted.</li>
           </ul>
           <p>This means your team's passwords are longer and more unique in practice, because they weren't forced into a corner by rules that reward gaming the system.</p>
 
@@ -130,10 +130,10 @@
           <p>The <code>wikantik-http</code> servlet filter chain applies the following on every response:</p>
 
           <h3>CSRF — synchronizer token pattern</h3>
-          <p>State-changing requests (POST, PUT, DELETE) must carry a valid session-bound CSRF token. The token is generated per session and checked before any mutation proceeds. The one explicit exception is the SAML <code>/sso/callback</code> endpoint: the IdP-signed SAML assertion is its own CSRF defense (an attacker cannot forge a valid IdP signature), so a synchronizer token would add friction without adding security.</p>
+          <p>State-changing requests (POST, PUT, PATCH, DELETE) must carry a valid session-bound CSRF token. The token is generated per session and checked before any mutation proceeds. The one explicit exception is the SAML <code>/sso/callback</code> endpoint: the IdP-signed SAML assertion is its own CSRF defense (an attacker cannot forge a valid IdP signature), so a synchronizer token would add friction without adding security.</p>
 
           <h3>CORS</h3>
-          <p>Cross-Origin Resource Sharing headers are set to restrict which origins can make credentialed requests to the API. The CORS filter is configurable and defaults to denying cross-origin credentialed requests unless explicitly allowed.</p>
+          <p>Cross-origin access to the REST API is allowlist-only: with <code>wikantik.cors.allowedOrigins</code> blank (the default) no cross-origin requests are allowed, and <code>Access-Control-Allow-Credentials</code> is never set, so the session cookie is never exposed to cross-origin scripts.</p>
 
           <h3>Content Security Policy</h3>
           <p>A Content Security Policy header is sent with every HTML response, restricting which origins scripts, styles, and other resources can be loaded from. CSP is the primary defense against XSS attacks that manage to inject content — even if an attacker injects a <code>&lt;script&gt;</code> tag, the browser refuses to execute it if the source doesn't match the policy.</p>
@@ -142,14 +142,14 @@
           <p>Additional headers applied on every response include:</p>
           <ul>
             <li><code>X-Content-Type-Options: nosniff</code> — prevents MIME-type sniffing</li>
-            <li><code>X-Frame-Options: SAMEORIGIN</code> — blocks clickjacking</li>
+            <li><code>X-Frame-Options: DENY</code> — blocks clickjacking</li>
             <li><code>Referrer-Policy</code> — controls referrer leakage</li>
             <li><code>Strict-Transport-Security</code> — enforces HTTPS on compliant browsers</li>
           </ul>
 
           <h2>Session management</h2>
           <p>Wikantik rotates the HTTP session on every authentication event — both local password login and SSO callback. The old session ID is invalidated and a fresh one is issued before any privileged state is written. This closes the session fixation attack, where an attacker tricks a user into using a pre-seeded session token.</p>
-          <p>Authentication is JAAS-based. Pluggable login modules support local database, LDAP, SSO (pac4j), and container-managed authentication. All modules coexist and can be active simultaneously.</p>
+          <p>Authentication is JAAS-based. Pluggable login modules support local database, SSO (pac4j), and container-managed authentication. All modules coexist and can be active simultaneously.</p>
 
           <h2>Access control enforced on the read path — including the agent surface</h2>
           <p>View ACLs are not just a UI concern. Wikantik enforces page view permissions on every read surface: the REST read endpoints (page fetch, diff, history, backlinks, recent-changes, search, and the agent projection) and — critically — the machine surfaces an AI agent uses. The <code>/knowledge-mcp</code> retrieval and Knowledge Graph tools and the <code>/api/bundle</code> context bundle all run candidate results through the same session view gate.</p>
@@ -161,7 +161,7 @@
             <li><strong>JDBC plugin disabled by default.</strong> The <code>[{JDBCPlugin}]</code> wiki-markup plugin — which lets a page run a configured SQL query — now ships off (<code>wikantik.plugin.jdbc.enabled</code>), so a compromised or careless editor can't turn page content into a database query surface without an operator opting in first.</li>
             <li><strong>SSRF protection on connector fetches.</strong> An <code>EgressGuard</code> validates every outbound HTTP(S) request a connector makes: non-http(s) schemes are rejected, and any host resolving to loopback, private, link-local (including the <code>169.254.169.254</code> cloud metadata address), multicast, or IPv6 unique-local addresses is blocked by default — with every redirect hop re-validated, closing the classic "public URL that 302s to an internal address" bypass.</li>
             <li><strong>Viewer-sensitive renders never shared across users.</strong> Rendered-page caches now skip content whose output depends on the viewer's own permissions, so an ACL-gated render for one user can never be served from cache to another.</li>
-            <li><strong>Scoped MCP API keys.</strong> API keys now carry a scope: <code>mcp_read</code> grants read-only knowledge-base access, while full admin/write access requires the separate <code>mcp</code> scope — so a token meant only for retrieval can no longer be used to write or curate content if it leaks.</li>
+            <li><strong>Scoped MCP API keys.</strong> API keys now carry a scope: <code>mcp_read</code> grants read-only knowledge-base access, while full admin/write access requires the separate <code>mcp_admin</code> scope (the older <code>mcp</code> name is still accepted as an alias, and its use is logged) — so a token meant only for retrieval can no longer be used to write or curate content if it leaks.</li>
           </ul>
 
           <h2>Defense in depth</h2>
@@ -170,7 +170,7 @@
             <li><a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a> — session rotation, fail-closed account binding, CSRF handling for SAML</li>
             <li><a href="/enterprise/access-control-rbac.html">RBAC &amp; access control</a> — JAAS permissions, policy grants, page ACLs</li>
             <li><a href="/enterprise/audit-log.html">Tamper-evident audit log</a> — every authentication event, access denial, and admin action recorded and verifiable</li>
-            <li><a href="/enterprise/scim-provisioning.html">SCIM provisioning</a> — deactivation enforced at every login path; SCIM groups never grant Admin</li>
+            <li><a href="/enterprise/scim-provisioning.html">SCIM provisioning</a> — deactivation enforced at every login path; SCIM can never write the Admin group</li>
           </ul>
 
           <section class="faq">

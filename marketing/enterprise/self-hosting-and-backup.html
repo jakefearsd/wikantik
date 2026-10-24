@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Self-hosted wiki: Docker, one-command AWS/GCP, backup and disaster recovery",
     "description": "Run Wikantik on your own infrastructure — Docker Compose, or a one-command AWS/GCP Terraform reference deployment — with a 3-2-1 backup strategy, tested disaster recovery, and cost-governed LLM spend.",
-    "datePublished": "2026-06-07", "dateModified": "2026-08-20",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/self-hosting-and-backup.html" }
@@ -109,7 +109,7 @@
 
           <h2>Own your data</h2>
           <p>The single most common regret when leaving a SaaS wiki: "I wish I'd owned the data." Export tools break, vendor formats are opaque, and the migration project that was going to be a weekend turns into months.</p>
-          <p>Wikantik stores your pages as plain Markdown files in a directory you control. Your PostgreSQL database holds structured metadata, search indexes, user accounts, and the knowledge graph — but the content itself is readable and portable without any Wikantik tooling. You can check the page directory into git, back it up with <code>rsync</code>, or export it as a tarball at any time. There is no lock-in step.</p>
+          <p>Wikantik stores your pages as plain Markdown files in a directory you control. Your PostgreSQL database holds structured metadata, embeddings, user accounts, and the knowledge graph — but the content itself is readable and portable without any Wikantik tooling. You can check the page directory into git, back it up with <code>rsync</code>, or export it as a tarball at any time. There is no lock-in step.</p>
 
           <h2>Run it on Docker and PostgreSQL</h2>
           <p>The production deployment is a Docker Compose stack: the Wikantik application container, a PostgreSQL + pgvector database, and a backup sidecar. The application is released as a Docker image to GitHub Container Registry. Deploying a new version is a pull-and-restart, and rolling back is the same operation in the other direction.</p>
@@ -155,7 +155,7 @@
           <p>The script refuses to target the production host by accident and supports a <code>--dry-run</code> mode that prints the full plan without changing anything. Run it quarterly to confirm your recovery actually works.</p>
 
           <div class="callout">
-            <p><strong>Search rebuilds automatically.</strong> The Lucene search index and in-memory caches are not included in the backup — they are derived state. After a restore, the application rebuilds the search index from the restored database on startup. No manual intervention is required.</p>
+            <p><strong>Search rebuilds automatically.</strong> The Lucene search index and in-memory caches are not included in the backup — they are derived state. After a restore, the application rebuilds the search index from the restored pages on startup. No manual intervention is required.</p>
           </div>
 
           <h2>Self-managed vs. fully-managed</h2>

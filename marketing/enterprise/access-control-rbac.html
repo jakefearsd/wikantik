@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "RBAC &amp; access control: policy grants, ACLs, groups",
     "description": "Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/access-control-rbac.html" }
@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "Can I restrict a single page to a specific group?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. Inline ACL syntax in the page body controls per-page access: [{ALLOW view Admin}] restricts view permission to the Admin role. You can combine multiple ACL lines for different permissions. The REST API enforces these ACLs via RestServletBase.checkPagePermission() on every request." } },
       { "@type": "Question", "name": "How does Wikantik prevent privilege escalation through groups?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Groups (including SCIM-provisioned groups) route exclusively through GroupManager and the groups/group_members tables. The roles table is never modified by group operations. Admin role assignment requires a direct privileged operation through the admin UI or database — it cannot be inferred from group membership alone." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Groups (including SCIM-provisioned groups) route exclusively through GroupManager and the groups/group_members tables. The roles table is never modified by group operations. Administrator access is membership of the wiki group named Admin, and SCIM is refused (HTTP 403) any write to that group, so an IdP cannot grant or revoke it — only the admin UI can." } }
     ] }
   </script>
 </head>
@@ -133,20 +133,19 @@
           <p>Because the grants live in the database rather than a config file, changes take effect immediately — no redeploy required. An admin can tighten or loosen role defaults at runtime, and every change is visible to any query on the <code>policy_grants</code> table. Database-backed grants are always active when a datasource is configured, which is the default for all production deployments.</p>
 
           <div class="callout">
-            <p><strong>Bootstrap admin override.</strong> The <code>wikantik.admin.bootstrap</code> property guarantees admin access during initial setup, even if the policy grants table is empty or the admin account hasn't been configured yet. This override is documented and should be disabled once the installation is complete.</p>
+            <p><strong>Bootstrap admin override.</strong> The <code>wikantik.admin.bootstrap</code> property gives the named user <code>AllPermission</code> for a limited window after startup (<code>wikantik.admin.bootstrap.maxAgeSeconds</code>, default 24 hours) so a fresh or locked-out installation can be recovered. Leave it blank once a real admin account is confirmed working.</p>
           </div>
 
           <h2>Page-level ACLs</h2>
           <p>Individual pages can override the role-level defaults with inline ACL directives. The syntax is embedded directly in the page body:</p>
           <pre><code>[{ALLOW view Admin}]
-[{ALLOW edit Engineering}]
-[{DENY view Anonymous}]</code></pre>
+[{ALLOW edit Engineering}]</code></pre>
           <p>This approach makes page permissions visible to anyone who can read the page source — there are no hidden configuration files to audit. An ACL line restricting view to <code>Admin</code> means exactly what it says: only users with the Admin role can view that page.</p>
           <p>The REST API enforces these ACLs on every request via <code>RestServletBase.checkPagePermission()</code>. There is no path through the REST layer that bypasses the ACL check.</p>
 
           <h2>Groups</h2>
           <p>Database-backed groups (stored in <code>groups</code> + <code>group_members</code> tables) let you assign permissions to teams. You can reference a group name in a page ACL the same way you reference a role. Groups are managed through the admin UI and can be provisioned via <a href="/enterprise/scim-provisioning.html">SCIM</a> from your IdP.</p>
-          <p>One explicit boundary: groups never grant the Admin role. SCIM groups, IdP-synced groups, and manually created groups all route through <code>GroupManager</code> only — the <code>roles</code> table is not modified by any group operation. Admin role assignment requires a direct privileged action.</p>
+          <p>One explicit boundary: administrator access is membership of the wiki group named <code>Admin</code> (the default policy grants it <code>AllPermission</code>), and SCIM never writes that group — a SCIM create, replace, patch or delete aimed at <code>Admin</code> is refused with HTTP 403 and audited. All other groups, SCIM-provisioned or manual, route through <code>GroupManager</code> only and never modify the <code>roles</code> table; they carry only what policy grants and page ACLs give them. The Admin group is managed in the admin UI.</p>
 
           <h2>Enforced everywhere</h2>
           <p>The access control model is applied at every surface:</p>
@@ -154,7 +153,7 @@
             <li><strong>UI</strong> — the React SPA checks permissions before rendering edit controls; the server also enforces them independently.</li>
             <li><strong>REST API (<code>/api/*</code>)</strong> — every endpoint calls <code>checkPagePermission()</code> with the authenticated principal before performing any operation.</li>
             <li><strong>Admin surface (<code>/admin/*</code>)</strong> — protected by <code>AdminAuthFilter</code>, which requires <code>AllPermission</code> (the Admin role). No admin endpoint is reachable without it.</li>
-            <li><strong>MCP servers</strong> — write tools on <code>/wikantik-admin-mcp</code> are bearer-token protected and operate under the same JAAS principal checks.</li>
+            <li><strong>MCP servers</strong> — write tools on <code>/wikantik-admin-mcp</code> need a bearer API key with the <code>mcp_admin</code> scope; <code>/knowledge-mcp</code> accepts a read-only <code>mcp_read</code> key that cannot reach the admin surface.</li>
           </ul>
 
           <section class="faq">
@@ -169,7 +168,7 @@
             </details>
             <details>
               <summary>How does Wikantik prevent privilege escalation through groups?</summary>
-              <p>Groups (including SCIM-provisioned groups) route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table is never modified by group operations. Admin role assignment requires a direct privileged operation through the admin UI or database — it cannot be inferred from group membership alone.</p>
+              <p>Groups (including SCIM-provisioned groups) route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table is never modified by group operations. Administrator access is membership of the wiki group named Admin, and SCIM is refused (HTTP 403) any write to that group, so an IdP cannot grant or revoke it — only the admin UI can.</p>
             </details>
           </section>
         </div>

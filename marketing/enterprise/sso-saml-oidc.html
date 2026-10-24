@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "SSO for your wiki: SAML, OIDC &amp; Google",
     "description": "Single sign-on for Wikantik via SAML and OIDC (pac4j), including Google. Configurable identity claim, session-fixation hardening, and fail-closed account binding.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/sso-saml-oidc.html" }
@@ -61,7 +61,7 @@
   { "@context": "https://schema.org", "@type": "FAQPage",
     "mainEntity": [
       { "@type": "Question", "name": "Which identity providers are supported for SSO?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Wikantik supports any SAML 2.0 IdP and any OIDC-compliant provider via pac4j. Google OIDC is used in production. LDAP and local database authentication run alongside SSO — all are additive." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Wikantik supports any SAML 2.0 IdP and any OIDC-compliant provider via pac4j. Google OIDC is used in production. Local database authentication runs alongside SSO — all methods are additive." } },
       { "@type": "Question", "name": "Can I trust preferred_username instead of sub as the identity claim?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes, by setting wikantik.sso.identityClaim = preferred_username. Be aware that preferred_username is a mutable claim — if the IdP changes it, the account link breaks. The default sub is the immutable IdP subject and is safer for most deployments." } },
       { "@type": "Question", "name": "What stops an attacker from taking over an existing account via SSO name collision?",
@@ -154,7 +154,7 @@ wikantik.sso.claimMapping.loginName = email</code></pre>
             <h2>Frequently asked questions</h2>
             <details>
               <summary>Which identity providers are supported for SSO?</summary>
-              <p>Any SAML 2.0 IdP and any OIDC-compliant provider via pac4j. Google OIDC is used in production. LDAP and local database authentication run alongside SSO — all authentication methods are additive. You can run SAML and OIDC simultaneously with <code>wikantik.sso.type = both</code>.</p>
+              <p>Any SAML 2.0 IdP and any OIDC-compliant provider via pac4j. Google OIDC is used in production. Local database authentication runs alongside SSO — all authentication methods are additive. You can run SAML and OIDC simultaneously with <code>wikantik.sso.type = both</code>.</p>
             </details>
             <details>
               <summary>Can I trust <code>preferred_username</code> instead of <code>sub</code> as the identity claim?</summary>

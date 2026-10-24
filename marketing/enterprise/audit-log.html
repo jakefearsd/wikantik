@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Tamper-evident audit log for your wiki",
     "description": "Wikantik records privileged actions in a tamper-evident audit log you can query, cryptographically verify, and export — with retention and purge controls for compliance.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/audit-log.html" }
@@ -112,8 +112,8 @@
           <ul>
             <li><strong>AUTHN</strong> — <code>login.ok</code>, <code>login.failed</code>, <code>logout</code>, <code>session.expired</code></li>
             <li><strong>AUTHZ</strong> — <code>access.denied</code></li>
-            <li><strong>CONTENT</strong> — page save, page delete</li>
-            <li><strong>ADMIN</strong> — group membership changes, profile saves, user lifecycle (lock/unlock), API key issuance, and all SCIM operations (<code>scim.user.create</code>, <code>scim.user.update</code>, <code>scim.group.create</code>, <code>scim.group.update</code>, <code>scim.group.delete</code>)</li>
+            <li><strong>CONTENT</strong> — page save, page delete, page rename</li>
+            <li><strong>ADMIN</strong> — group membership changes, profile saves, user lifecycle (lock/unlock), API key issuance and revocation, policy-grant changes, connector changes, and all SCIM operations (<code>scim.user.create</code>, <code>scim.user.update</code>, <code>scim.group.create</code>, <code>scim.group.update</code>, <code>scim.group.delete</code>)</li>
             <li><strong>READ</strong> — <code>page.read</code> (conditional and policy-controlled — recorded only on pages where read auditing is enabled)</li>
           </ul>
           <p>Each entry carries: sequence number, timestamps, category, event type, actor identity, actor type, target, outcome (<code>SUCCESS</code>, <code>FAILURE</code>, or <code>DENIED</code>), source IP, user agent, correlation ID, detail text, and the chain hashes.</p>

@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Connectors: sync external content into your wiki, with provenance",
     "description": "Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.",
-    "datePublished": "2026-07-17", "dateModified": "2026-07-17",
+    "datePublished": "2026-07-17", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/connectors.html" }
@@ -63,7 +63,7 @@
       { "@type": "Question", "name": "What sources can a Wikantik connector sync from?",
         "acceptedAnswer": { "@type": "Answer", "text": "Seven connector types today: a local filesystem, a web crawler, an XML sitemap, RSS/Atom feeds, Google Drive (OAuth2), GitHub, and Confluence. Each is a continuous sync, not a one-time import — content is re-pulled on a schedule and kept current." } },
       { "@type": "Question", "name": "Will readers know a page came from an external source?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results, page lists, and the cluster tree. Nothing is silently absorbed into the wiki as if a human wrote it." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results and the sidebar. Nothing is silently absorbed into the wiki as if a human wrote it." } },
       { "@type": "Question", "name": "Are connector credentials stored securely?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitHub tokens, Confluence API tokens, and Google Drive OAuth secrets are encrypted at rest (AES-256-GCM) in a dedicated credential store. The admin UI only ever shows whether a secret is set, never its value, and a dry-run connection test can use a credential without persisting or logging it." } },
       { "@type": "Question", "name": "Does synced content get indexed for search and the knowledge graph?",
@@ -120,7 +120,7 @@
 
           <h2>Derived pages: real wiki pages, honestly labeled</h2>
           <p>A page created by a connector is not a special second-class object — it is a normal Markdown page with YAML frontmatter, stored the same way as anything a human wrote. What makes it a <em>derived</em> page is a <code>derived_from</code> field recording the retained source, plus <code>derived_connector</code> and <code>derived_source_url</code> naming which connector produced it and where the content originated.</p>
-          <p>Readers are never left guessing. Every derived page carries a provenance banner — "Synced from <em>[source]</em> · last synced [date] · via connector <em>[name]</em>" — and a compact badge appears next to derived pages in search results, page lists, and the cluster tree. If a connector is later deleted but its pages are kept, the banner says so plainly: the source is no longer syncing.</p>
+          <p>Readers are never left guessing. Every derived page carries a provenance banner — "Synced from <em>[source]</em> · last synced [date] · via connector <em>[name]</em>" — and a compact badge appears next to derived pages in search results and the sidebar. If a connector is later deleted but its pages are kept, the banner says so plainly: the source is no longer syncing.</p>
           <div class="callout">
             <p><strong>The body is machine-owned, the metadata is yours.</strong> A derived page's body is regenerated on every sync — editing it by hand will be overwritten on the next run, and the editor says so. Curation you add in frontmatter (cluster, tags, summary, related pages) survives reflow; only the machine-managed body gets replaced.</p>
           </div>
@@ -130,10 +130,10 @@
 
           <h2>A guided admin experience</h2>
           <p>Setting up a connector is a stepped wizard in the admin panel, not a properties file and a restart: pick a source type — six of the seven are configurable this way, with the filesystem connector set up via properties file given the server-path access it requires — fill in its settings with inline guidance (down to the exact GitHub token scopes or the Confluence API-token walkthrough), authorize where needed (Google Drive is a real OAuth consent redirect), and run a <strong>dry-run connection test</strong> before saving anything. The test reuses the connector's own fetch path — so "success" means the real sync will work too — and reports what it found in plain language, not a raw API response.</p>
-          <p>Once saved, the connector's detail page shows its last runs, sync status, and the pages it has produced, with a one-click "Sync Now" alongside its schedule. A <code>wikantik.connectors.enabled</code> kill switch lets an operator pause all syncing instantly if something looks wrong.</p>
+          <p>Once saved, the connector's detail page shows its last runs, sync status, and the pages it has produced, with a one-click "Sync Now" alongside its schedule. A <code>wikantik.connectors.enabled</code> kill switch (on by default) lets an operator turn off all automatic syncing if something looks wrong. Outbound fetches also pass an SSRF egress guard that refuses non-HTTP(S) schemes and loopback, private and link-local addresses, re-checked on every redirect.</p>
 
           <h2>Credentials stay encrypted, never echoed</h2>
-          <p>GitHub personal access tokens, Confluence API tokens, and Google Drive OAuth client secrets and refresh tokens are encrypted at rest (AES-256-GCM) in a dedicated credential store — connector configuration rows themselves hold no secret fields. The admin UI shows only whether a credential is set, never its value, and the dry-run test endpoint can use a freshly entered credential without ever persisting or logging it. Filesystem connectors — the one type that reads arbitrary server paths — are deliberately not creatable from the web UI at all.</p>
+          <p>GitHub personal access tokens, Confluence API tokens, and Google Drive OAuth client secrets and refresh tokens are encrypted at rest (AES-256-GCM) in a dedicated credential store (enabled by setting a 32-byte <code>wikantik.connectors.crypto.key</code>; without one, credential storage stays off) — connector configuration rows themselves hold no secret fields. The admin UI shows only whether a credential is set, never its value, and the dry-run test endpoint can use a freshly entered credential without ever persisting or logging it. Filesystem connectors — the one type that reads arbitrary server paths — are deliberately not creatable from the web UI at all.</p>
 
           <h2>Sync scheduling, per connector</h2>
           <p>Each connector has its own sync interval, in hours, editable from its settings — zero or blank means manual-only. A due-tick scheduler checks every connector against its own interval rather than running everything on one fixed clock, so a fast-moving GitHub repo and a slow-changing sitemap can each be scheduled sensibly. Every run — scheduled or manually triggered — is recorded with its timing, counts of created/updated/unchanged/deleted items, and any error text, so a connector's recent history is always visible on its detail page.</p>
@@ -146,7 +146,7 @@
             </details>
             <details>
               <summary>Will readers know a page came from an external source?</summary>
-              <p>Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results, page lists, and the cluster tree. Nothing is silently absorbed into the wiki as if a human wrote it.</p>
+              <p>Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results and the sidebar. Nothing is silently absorbed into the wiki as if a human wrote it.</p>
             </details>
             <details>
               <summary>Are connector credentials stored securely?</summary>

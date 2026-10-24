@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Hybrid retrieval: BM25 + dense, RRF-fused",
     "description": "How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion — with a fail-closed BM25 fallback and pluggable dense backend.",
-    "datePublished": "2026-06-07", "dateModified": "2026-08-20",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/hybrid-retrieval.html" }
@@ -61,11 +61,11 @@
   { "@context": "https://schema.org", "@type": "FAQPage",
     "mainEntity": [
       { "@type": "Question", "name": "What embedding backends are supported?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Three backends are available via the wikantik.search.dense.backend property: inmemory (brute-force cosine scan; the config-file default for new installs), pgvector (delegates to PostgreSQL HNSW), and lucene-hnsw (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Three backends are available via the wikantik.search.dense.backend property: inmemory (brute-force cosine scan; a dev/small-corpus fallback), pgvector (delegates to PostgreSQL HNSW), and lucene-hnsw (in-process Lucene HNSW index, the shipped default). All three share the same fail-closed BM25 fallback." } },
       { "@type": "Question", "name": "What happens if the vector store is down?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN after consecutive failures and automatically re-probes; during the OPEN period, search continues returning BM25 results. Search never goes dark." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN when the embedding failure rate over a sliding window crosses a threshold, and automatically re-probes after a cooldown; during the OPEN period, search continues returning BM25 results. Search never goes dark." } },
       { "@type": "Question", "name": "Does hybrid retrieval work for agents and humans?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same /api/search endpoint is used by the web UI, the MCP server tools, and direct API callers. Agents benefit from the same BM25 + dense RRF pipeline that humans use, plus the structured JSON response format that makes results easy to process programmatically." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same hybrid pipeline serves the web UI (/api/search), the MCP retrieval tools, and direct API callers. Agents benefit from the same BM25 + dense RRF pipeline that humans use, plus the structured JSON response format that makes results easy to process programmatically." } }
     ] }
   </script>
 </head>
@@ -114,14 +114,14 @@
           <p>At query time, Wikantik runs two retrieval passes in parallel: a Lucene BM25 pass and a dense cosine-similarity pass against chunk embeddings. The two ranked lists are then merged using <strong>weighted Reciprocal Rank Fusion (RRF)</strong> — a rank-based combination method that is robust to score-scale differences between the two signals.</p>
           <p>The key configuration properties are:</p>
           <ul>
-            <li><code>wikantik.search.hybrid.rrf.bm25-weight</code> — weight applied to BM25 ranks (default <code>1.0</code>)</li>
+            <li><code>wikantik.search.hybrid.rrf.bm25-weight</code> — weight applied to BM25 ranks (default <code>1.5</code>)</li>
             <li><code>wikantik.search.hybrid.rrf.dense-weight</code> — weight applied to dense ranks (default <code>1.5</code>)</li>
             <li><code>wikantik.search.hybrid.rrf.k</code> — the RRF smoothing constant (default <code>60</code>)</li>
           </ul>
-          <p>Dense retrieval operates at the chunk level — each page is broken into overlapping passages, each embedded separately — and the <code>SUM_TOP_3</code> page aggregation strategy collapses chunk scores into a per-page score before fusion.</p>
+          <p>Dense retrieval operates at the chunk level — each page is broken into overlapping passages, each embedded separately — and the page aggregation strategy (<code>wikantik.search.hybrid.page-aggregation</code>, default <code>mean_top_3</code>) collapses chunk scores into a per-page score before fusion.</p>
 
           <h3>Stage 2 — fail-closed BM25 fallback</h3>
-          <p>Every abnormal path in the dense retrieval stage returns the BM25 result list unchanged rather than failing. If the embedding backend times out, the circuit breaker trips OPEN and the embedder returns empty — and BM25 takes over seamlessly. This is not an afterthought; it is a design invariant enforced in <code>HybridSearchService.rerank()</code>.</p>
+          <p>Every abnormal path in the dense retrieval stage returns the BM25 result list unchanged rather than failing. If the embedding backend times out, the circuit breaker trips OPEN and the embedder returns empty — and BM25 takes over seamlessly. This is not an afterthought; it is a design invariant enforced in <code>HybridSearchService</code>.</p>
 
           <h3>Optional stage: experimental knowledge-graph proximity rerank</h3>
           <p>An experimental third stage once reranked the fused list using the Knowledge Graph, boosting pages whose mentioned entities were close (in Knowledge Graph hops) to entities resolved from the query. <strong>It was removed after measurement.</strong> Repeated experiments found no net ranking lift &mdash; even with a high-quality knowledge graph &mdash; because which entities are related is not the same signal as which passage answers the question. Production search is BM25 + dense only.</p>
@@ -133,22 +133,22 @@
 
           <h2>Why it matters for RAG and agents</h2>
           <p>Retrieval-Augmented Generation (RAG) systems are only as good as their retrieval step. An agent that gets the wrong page returns a wrong or hallucinated answer. Hybrid retrieval dramatically reduces the chance of a retrieval miss compared to either BM25 or dense alone — particularly for queries that combine exact terminology with broader semantic intent, which is exactly how humans and agents tend to ask questions about a technical knowledge base.</p>
-          <p>The same <code>/api/search</code> endpoint that powers the search box in the wiki UI is the one the MCP tools call. Agents get first-class search, not a stripped-down API.</p>
+          <p>The same hybrid pipeline that powers <code>/api/search</code> and the search box in the wiki UI also backs the MCP retrieval tools. Agents get first-class search, not a stripped-down API.</p>
           <p>For deeper reading on the implementation, see the <a href="https://wiki.wikantik.com/wiki/HybridRetrieval">Hybrid Retrieval design doc</a> in the live wiki.</p>
 
           <section class="faq">
             <h2>Frequently asked questions</h2>
             <details>
               <summary>What embedding backends are supported?</summary>
-              <p>Three backends are available via the <code>wikantik.search.dense.backend</code> property: <code>inmemory</code> (brute-force cosine scan; the config-file default for new installs), <code>pgvector</code> (delegates to PostgreSQL HNSW index), and <code>lucene-hnsw</code> (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback.</p>
+              <p>Three backends are available via the <code>wikantik.search.dense.backend</code> property: <code>inmemory</code> (brute-force cosine scan; a dev/small-corpus fallback), <code>pgvector</code> (delegates to PostgreSQL HNSW index), and <code>lucene-hnsw</code> (in-process Lucene HNSW index, the shipped default). All three share the same fail-closed BM25 fallback.</p>
             </details>
             <details>
               <summary>What happens if the vector store is down?</summary>
-              <p>Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN after consecutive embedding failures and automatically re-probes after a reset interval; during the OPEN period, search continues returning BM25 results. Search never goes dark because of an embedding outage.</p>
+              <p>Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN when the embedding failure rate over a sliding window crosses a threshold, and automatically re-probes after a cooldown; during the OPEN period, search continues returning BM25 results. Search never goes dark because of an embedding outage.</p>
             </details>
             <details>
               <summary>Does hybrid retrieval work for both agents and humans?</summary>
-              <p>Yes. The same <code>/api/search</code> endpoint is used by the web UI search box, the <code>/knowledge-mcp</code> MCP tools, and direct API callers. Agents benefit from the same BM25 + dense RRF pipeline that humans get, plus the structured JSON response that makes results easy to process programmatically.</p>
+              <p>Yes. The same hybrid pipeline serves the web UI search box (<code>/api/search</code>), the <code>/knowledge-mcp</code> MCP tools, and direct API callers. Agents benefit from the same BM25 + dense RRF pipeline that humans get, plus the structured JSON response that makes results easy to process programmatically.</p>
             </details>
           </section>
         </div>

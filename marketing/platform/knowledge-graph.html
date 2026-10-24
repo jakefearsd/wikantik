@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Knowledge graph: entities and relations from your content",
     "description": "Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, pgvector embeddings, and hub discovery — so agents reason over meaning.",
-    "datePublished": "2026-06-07", "dateModified": "2026-07-17",
+    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/knowledge-graph.html" }
@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "How does the inclusion policy work?",
         "acceptedAnswer": { "@type": "Answer", "text": "By default, pages are excluded from Knowledge Graph extraction unless their cluster has an explicit include policy. You can also override per-page with kg_include: true or kg_include: false in frontmatter. This keeps the graph curated and focused on content that benefits from entity extraction." } },
       { "@type": "Question", "name": "How do agents access the Knowledge Graph?",
-        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp MCP server exposes 21 read-only tools, including dedicated Knowledge Graph traversal — entity lookup, hub discovery, typed-relation traversal — plus ontology/SPARQL access. Admins can curate the graph via the /wikantik-admin-mcp tools and the /admin/knowledge-graph/* web interface." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp MCP server exposes up to 22 read-only tools, including dedicated Knowledge Graph traversal — entity lookup, co-mention traversal, similarity search — plus ontology/SPARQL access. Admins can curate the graph via the /wikantik-admin-mcp tools and the /admin/knowledge-graph/* web interface." } }
     ] }
   </script>
 </head>
@@ -108,18 +108,18 @@
           <p>For a wiki, this means: when an agent asks "which pages are most relevant to understanding distributed consensus?", a knowledge graph can surface pages that mention Raft, Paxos, and leader election — even if none of them explicitly contain the phrase "distributed consensus" — because the entity graph knows those concepts are related.</p>
 
           <h2>How Wikantik builds the Knowledge Graph</h2>
-          <p>The Knowledge Graph is populated by an entity extraction pipeline that reads page content, identifies entities, and proposes nodes and edges for admin review. No entity enters the graph without human approval — which keeps the graph accurate rather than noisy.</p>
+          <p>The Knowledge Graph is populated by an entity extraction pipeline that reads page content, identifies entities, and files nodes and edges as proposals. A judge model validates each proposal and materializes it at a <em>machine</em> trust tier; an admin approval upgrades it to the <em>human</em> tier. Readers can ask for the strict human-vetted view, so the graph stays accurate rather than noisy.</p>
           <p>Extraction is chat inference, so it's the most cost-sensitive part of the platform — it only runs when both <code>wikantik.knowledge.enabled</code> and the operator's <code>wikantik.genai.mode</code> cost ceiling allow it. Wikantik runs fully on BM25 search with the Knowledge Graph off entirely; see <a href="/enterprise/self-hosting-and-backup.html">self-hosting &amp; backup</a> for the three cost tiers.</p>
 
           <h3>Nodes: LLM-extracted entities</h3>
-          <p>Each page is chunked into overlapping passages (<code>kg_content_chunks</code>), and the configured LLM backend (Ollama or Anthropic) extracts entity candidates from each chunk. Candidate nodes are written to <code>kg_proposals</code> with a confidence score; proposals above the confidence threshold and approved by an admin are promoted to <code>kg_nodes</code>.</p>
+          <p>Each page is chunked into overlapping passages (<code>kg_content_chunks</code>), and the configured LLM backend (Ollama or Anthropic) extracts entity candidates from each chunk. Candidates are written to <code>kg_proposals</code> with a confidence score (proposals below the confidence threshold, default 0.6, are dropped); the judge promotes the surviving ones to <code>kg_nodes</code> at the machine tier, and an admin approval promotes them to the human tier. Extracted entity types are restricted to a fixed nine-class vocabulary (person, organization, place, event, product, technology, concept, project, version).</p>
           <p>Nodes carry pgvector-backed embeddings (<code>kg_node_embeddings</code>) that enable semantic entity lookup — "find entities similar to 'Raft consensus algorithm'" resolves to the right nodes even with paraphrase variation.</p>
 
           <h3>Edges: co-mention and typed relations</h3>
           <p>Edges in <code>kg_edges</code> are of two kinds:</p>
           <ul>
             <li><strong>Co-mention edges</strong> — two entities that appear in the same passage are co-mentioned. These are inferred automatically by the extraction pipeline.</li>
-            <li><strong>Typed-relation edges</strong> — relationship predicates (e.g. <code>partOf</code>, <code>implements</code>, <code>requires</code>) between approved entities, promoted from the extraction pipeline's reviewed proposals or written by the admin curation tools. These are curated, not automatically inferred.</li>
+            <li><strong>Typed-relation edges</strong> — relationship predicates (e.g. <code>partOf</code>, <code>implements</code>, <code>requires</code>) between approved entities, promoted from the extraction pipeline's proposals or written by the admin curation tools. Edges are checked against SHACL shapes at write time; today that gate is narrow, covering only the <code>implements</code> and <code>located_in</code> predicates, and a non-conformant edge is refused (curation) or skipped and counted (machine path).</li>
           </ul>
           <p>An experimental proximity-rerank stage once scored retrieval candidates by entity proximity, using a multi-source breadth-first search over <code>kg_edges</code>. It was removed after measurement found no net ranking lift; production search runs BM25 + dense only. The knowledge graph earns its place as a curated, queryable knowledge surface &mdash; not as a search ranking signal.</p>
 
@@ -133,7 +133,7 @@
           <p>These are two distinct subsystems — do not conflate them. The <a href="/platform/page-graph.html">Page Graph</a> contains edges that are real wikilinks authors wrote in page bodies. The Knowledge Graph contains nodes that are LLM-extracted entities and edges that are extracted or frontmatter-declared predicates. The Page Graph is for human navigation and authoring aids. The Knowledge Graph is for semantic retrieval and agent reasoning. See <a href="https://wiki.wikantik.com/wiki/PageGraphVsKnowledgeGraph">Page Graph vs Knowledge Graph</a> for the full explanation.</p>
 
           <h2>How agents use the Knowledge Graph</h2>
-          <p>Agents access the Knowledge Graph through the <code>/knowledge-mcp</code> server's 21 read-only tools. Dedicated Knowledge Graph traversal tools let agents explore entity relationships, find hub entities, and discover topically related pages through the graph rather than just through text matching. The ontology layer also exposes SPARQL queries and typed-IRI dereferencing for agents that need formal reasoning over the entity vocabulary.</p>
+          <p>Agents access the Knowledge Graph through the <code>/knowledge-mcp</code> server's read-only tools (up to 22 when fully wired). Dedicated Knowledge Graph tools let agents look up entities, walk the co-mention graph, find similar entities, and discover topically related pages through the graph rather than just through text matching. The ontology layer also exposes SPARQL queries and typed-IRI dereferencing for agents that need formal reasoning over the entity vocabulary.</p>
           <p>Admin agents use the <code>/wikantik-admin-mcp</code> server's Knowledge Graph curation tools to review proposals, approve or reject nodes and edges, and manage the graph's quality over time.</p>
 
           <section class="faq">
@@ -148,7 +148,7 @@
             </details>
             <details>
               <summary>How do agents access the Knowledge Graph?</summary>
-              <p>The <code>/knowledge-mcp</code> MCP server exposes 21 read-only tools, including dedicated Knowledge Graph traversal — entity lookup, hub discovery, typed-relation traversal — plus ontology/SPARQL access. Curators manage the graph via the <code>/wikantik-admin-mcp</code> tools and the <code>/admin/knowledge-graph/*</code> web interface.</p>
+              <p>The <code>/knowledge-mcp</code> MCP server exposes up to 22 read-only tools, including dedicated Knowledge Graph traversal — entity lookup, co-mention traversal, similarity search — plus ontology/SPARQL access. Curators manage the graph via the <code>/wikantik-admin-mcp</code> tools and the <code>/admin/knowledge-graph/*</code> web interface.</p>
             </details>
           </section>
         </div>

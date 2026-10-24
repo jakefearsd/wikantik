@@ -31,4 +31,14 @@ public interface BundleAssemblyService {
     default ContextBundle assemble( String query, RetrievalMode mode ) {
         return assemble( query );
     }
+
+    /**
+     * Assemble a bundle with per-request overrides. The default implementation honours only
+     * {@link BundleOptions#mode()} (delegating to {@link #assemble(String, RetrievalMode)} when set,
+     * else {@link #assemble(String)}) and ignores {@link BundleOptions#maxSections()}; the
+     * production implementation applies both.
+     */
+    default ContextBundle assemble( String query, BundleOptions options ) {
+        return options == null || options.mode() == null ? assemble( query ) : assemble( query, options.mode() );
+    }
 }

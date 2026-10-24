@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.bundle;
 
 import com.wikantik.api.bundle.BundleCoverage;
+import com.wikantik.api.bundle.BundleOptions;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.bundle.RetrievalMode;
@@ -85,6 +86,26 @@ class DefaultBundleAssemblyServiceTest {
         final ContextBundle b = new DefaultBundleAssemblyService(
             source, ( q, s ) -> s, slug -> Optional.of( "c-" + slug ), slug -> 1, 3 ).assemble( "q" );
         assertEquals( 3, b.sections().size(), "output capped at maxSections" );
+    }
+
+    @Test
+    void assembleWithOptionsMaxSectionsOverridesCap() {
+        // 30 distinct citable candidates; the service is built with maxSections = 12.
+        final List< CandidateSection > thirty = new ArrayList<>();
+        for ( int i = 0; i < 30; i++ ) {
+            thirty.add( new CandidateSection( "Page" + i, List.of( "H" ), "t" + i, 1.0 - 0.01 * i ) );
+        }
+        final SectionCandidateSource source = q -> SectionCandidates.of( thirty, -1.0 );
+        final DefaultBundleAssemblyService svc = new DefaultBundleAssemblyService(
+            source, ( q, s ) -> s, slug -> Optional.of( "c-" + slug ), slug -> 1, 12 );
+
+        assertEquals( 30, svc.assemble( "q", new BundleOptions( null, 36 ) ).sections().size(),
+            "a non-null maxSections replaces the configured cap" );
+        assertEquals( 12, svc.assemble( "q" ).sections().size(), "assemble(q) keeps the configured cap" );
+        assertEquals( 12, svc.assemble( "q", BundleOptions.defaults() ).sections().size(),
+            "null maxSections leaves the configured cap in force" );
+        assertEquals( 5, svc.assemble( "q", new BundleOptions( null, 5 ) ).sections().size(),
+            "the override may also lower the cap" );
     }
 
     /** Helper matching the shape used elsewhere in this test class. */

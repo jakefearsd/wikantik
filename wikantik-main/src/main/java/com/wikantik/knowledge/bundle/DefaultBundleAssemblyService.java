@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.bundle;
 
 import com.wikantik.api.bundle.BundleAssemblyService;
+import com.wikantik.api.bundle.BundleOptions;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
@@ -178,6 +179,21 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
 
     @Override
     public ContextBundle assemble( final String query, final RetrievalMode mode ) {
+        return assemble( query, mode, maxSections );
+    }
+
+    /**
+     * A non-null {@link BundleOptions#maxSections()} replaces the configured cap (the knee, when
+     * enabled, still shortens the output below it); a null mode uses the default mode.
+     */
+    @Override
+    public ContextBundle assemble( final String query, final BundleOptions options ) {
+        final RetrievalMode mode = options == null || options.mode() == null ? defaultMode : options.mode();
+        final int max = options == null || options.maxSections() == null ? maxSections : options.maxSections();
+        return assemble( query, mode, max );
+    }
+
+    private ContextBundle assemble( final String query, final RetrievalMode mode, final int effectiveMax ) {
         SectionCandidateSource src = sources.get( mode );
         if ( src == null ) {
             LOG.warn( "Retrieval mode {} has no wired source; degrading to default {}", mode, defaultMode );
@@ -191,8 +207,8 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         // knee only valid on cosine-scale dense candidates; and it counts dense-ranked N applied
         // to the reranked output — rerank picks which/order, knee picks how many.
         final int cut = cand.denseCosineScale()
-            ? knee.effectiveN( cand.sections(), cand.topSimilarity(), maxSections )
-            : maxSections;
+            ? knee.effectiveN( cand.sections(), cand.topSimilarity(), effectiveMax )
+            : effectiveMax;
         final List< BundleSection > out = citeAndDedup( ranked, cut );
         return new ContextBundle( query, out, coverageCalc.compute( cand.topSimilarity(), out ) );
     }

@@ -104,6 +104,15 @@ final class BriefingScope {
     }
 
     /**
+     * True when no page is in scope at all &mdash; no member and no cited page. This is {@link #NONE}
+     * and also a scope that was requested but matched nothing (every cluster unknown, or only empty
+     * ones); the latter is not {@link #isNone()}.
+     */
+    boolean isEmpty() {
+        return members.isEmpty() && cited.isEmpty();
+    }
+
+    /**
      * Computes the tiers for {@code clusters}.
      *
      * @param clusters       requested cluster names; null or empty yields {@link #NONE}

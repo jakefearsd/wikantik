@@ -200,10 +200,15 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         /**
          * Tier 1 (cluster members), then tier 2 (cited pages), each in rank order, make up
          * {@code inScope}; everything else is {@code outOfScope} — kept only under {@code PREFER}, where
-         * it becomes {@code elsewhere} pointers. Without a scope every section is in scope.
+         * it becomes {@code elsewhere} pointers. Without a scope every section is in scope, and so it is
+         * under {@code PREFER} when the requested scope matched no page at all (every cluster unknown): a
+         * typo in a project's configuration must not turn all of the prompt's content into pointers.
+         * {@code STRICT} keeps dropping everything in that case.
          */
         private Partition partition( final List< BundleSection > pool ) {
-            if ( scope.isNone() ) return new Partition( pool, List.of() );
+            if ( scope.isNone() || ( scope.isEmpty() && req.scopeMode() != ScopeMode.STRICT ) ) {
+                return new Partition( pool, List.of() );
+            }
             final List< BundleSection > inScope = new ArrayList<>();
             final List< BundleSection > cited = new ArrayList<>();
             final List< BundleSection > out = new ArrayList<>();

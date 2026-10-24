@@ -262,6 +262,17 @@ class BriefingScopeTest {
     }
 
     @Test
+    void onlyUnknownClustersYieldAnEmptyScopeThatIsNotNone() {
+        final BriefingScope unknown = compute( "nope" );
+        final BriefingScope known = compute( "roller" );
+
+        assertTrue( unknown.isEmpty(), "no member and no cited page" );
+        assertFalse( unknown.isNone(), "scoping was requested, it just matched nothing" );
+        assertFalse( known.isEmpty() );
+        assertTrue( BriefingScope.NONE.isEmpty() );
+    }
+
+    @Test
     void membersCappedPerClusterWithWarning() {
         final StubIndex idx = new StubIndex();
         final List< PageDescriptor > articles = new ArrayList<>();

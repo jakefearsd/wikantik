@@ -320,7 +320,7 @@ class DefaultBriefingAssemblyServiceTest {
     }
 
     @Test
-    void strictWithUnknownClusterYieldsNoSections() {
+    void strictWithOnlyUnknownClustersYieldsNoSections() {
         final ContextBundle bundle = bundleOf( sec( "CommerceDataFlow", "H1", "out" ) );
 
         final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
@@ -375,15 +375,31 @@ class DefaultBriefingAssemblyServiceTest {
     }
 
     @Test
-    void preferWithUnknownClusterTurnsEverySectionIntoElsewhere() {
-        final ContextBundle bundle = bundleOf( sec( "CommerceDataFlow", "H1", "out" ) );
+    void preferWithOnlyUnknownClustersKeepsSectionsAndWarns() {
+        // A typo in a project's session-start config must not cost every session its content:
+        // with no scoped page at all, PREFER has nothing to prefer and degrades to unscoped.
+        final ContextBundle bundle = bundleOf( sec( "CommerceDataFlow", "H1", "out" ), sec( "Phase7Plan", "H2", "also out" ) );
 
         final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
             .assemble( new BriefingRequest( null, List.of( "nonesuch" ), "q", 10000, ScopeMode.PREFER ) );
 
-        assertTrue( b.sections().isEmpty() );
-        assertEquals( List.of( "CommerceDataFlow" ), slugsOf( b ) );
-        assertEquals( "elsewhere", b.items().get( 0 ).origin() );
+        assertEquals( List.of( "CommerceDataFlow/H1", "Phase7Plan/H2" ), headings( b ), "the sections are kept as bodies" );
+        assertEquals( 2, b.coverage().sectionCount() );
+        assertTrue( b.items().stream().noneMatch( i -> "elsewhere".equals( i.origin() ) ),
+            "nothing is demoted to elsewhere: " + slugsOf( b ) );
+        assertTrue( b.warnings().contains( "unknown cluster: nonesuch" ), b.warnings().toString() );
+    }
+
+    @Test
+    void preferWithOnlyUnknownClustersStillAppliesThePerPageCap() {
+        final BriefingLimits limits = new BriefingLimits( 6000, 24000, 2, 36, true, 12, 8, 30 );
+        final ContextBundle bundle = bundleOf( sec( "PageA", "H0", "a" ), sec( "PageA", "H1", "b" ),
+            sec( "PageA", "H2", "c" ), sec( "PageB", "H0", "d" ) );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), limits, q -> bundle )
+            .assemble( new BriefingRequest( null, List.of( "nonesuch" ), "q", 10000, ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "PageA/H0", "PageA/H1", "PageB/H0" ), headings( b ) );
     }
 
     @Test

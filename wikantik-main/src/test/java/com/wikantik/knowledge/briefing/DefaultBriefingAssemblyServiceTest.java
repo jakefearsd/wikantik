@@ -29,28 +29,18 @@ import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pagegraph.ClusterDetails;
-import com.wikantik.api.pagegraph.ClusterSummary;
-import com.wikantik.api.pagegraph.IndexHealth;
 import com.wikantik.api.pagegraph.PageDescriptor;
-import com.wikantik.api.pagegraph.PageType;
-import com.wikantik.api.pagegraph.Sitemap;
-import com.wikantik.api.pagegraph.StructuralConflict;
-import com.wikantik.api.pagegraph.StructuralFilter;
-import com.wikantik.api.pagegraph.StructuralIndexService;
-import com.wikantik.api.pagegraph.TagSummary;
-import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.knowledge.briefing.BriefingTestFixtures.StubIndex;
 import com.wikantik.util.TokenEstimator;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
+import static com.wikantik.knowledge.briefing.BriefingTestFixtures.cluster;
+import static com.wikantik.knowledge.briefing.BriefingTestFixtures.desc;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -90,46 +80,8 @@ class DefaultBriefingAssemblyServiceTest {
         when( pm.getPureText( slug, PageProvider.LATEST_VERSION ) ).thenReturn( body );
     }
 
-    private static PageDescriptor desc( final String slug, final Instant updated ) {
-        return new PageDescriptor( "01" + slug, slug, slug, null, "billing",
-            List.of(), null, updated, Optional.empty(), false );
-    }
-
-    private static ClusterDetails cluster( final String name, final PageDescriptor hub,
-                                           final List< PageDescriptor > articles ) {
-        return new ClusterDetails( name, hub, articles, Map.of(), Instant.now() );
-    }
-
     private static BriefingItem itemBySlug( final ContextBriefing b, final String slug ) {
         return b.items().stream().filter( i -> slug.equals( i.slug() ) ).findFirst().orElse( null );
-    }
-
-    /** Configurable StructuralIndexService double; only the three lookups the assembler uses are wired. */
-    private static final class StubIndex implements StructuralIndexService {
-        final Map< String, ClusterDetails > clusters = new HashMap<>();
-        final Map< String, String > slugFromCanonical = new HashMap<>();
-        final Map< String, String > canonicalFromSlug = new HashMap<>();
-
-        @Override public Optional< ClusterDetails > getCluster( final String name ) {
-            return Optional.ofNullable( clusters.get( name ) );
-        }
-        @Override public Optional< String > resolveSlugFromCanonicalId( final String canonicalId ) {
-            return Optional.ofNullable( slugFromCanonical.get( canonicalId ) );
-        }
-        @Override public Optional< String > resolveCanonicalIdFromSlug( final String slug ) {
-            return Optional.ofNullable( canonicalFromSlug.get( slug ) );
-        }
-        @Override public List< ClusterSummary > listClusters() { throw new UnsupportedOperationException(); }
-        @Override public List< TagSummary > listTags( final int minPages ) { throw new UnsupportedOperationException(); }
-        @Override public List< PageDescriptor > listPagesByType( final PageType type ) { throw new UnsupportedOperationException(); }
-        @Override public List< PageDescriptor > listPagesByFilter( final StructuralFilter filter ) { throw new UnsupportedOperationException(); }
-        @Override public Sitemap sitemap() { throw new UnsupportedOperationException(); }
-        @Override public Optional< PageDescriptor > getByCanonicalId( final String canonicalId ) { throw new UnsupportedOperationException(); }
-        @Override public void rebuild() { throw new UnsupportedOperationException(); }
-        @Override public IndexHealth health() { throw new UnsupportedOperationException(); }
-        @Override public List< StructuralConflict > conflicts() { throw new UnsupportedOperationException(); }
-        @Override public Optional< Verification > verificationOf( final String canonicalId ) { throw new UnsupportedOperationException(); }
-        @Override public StructuralProjectionSnapshot snapshot() { throw new UnsupportedOperationException(); }
     }
 
     // ---------------------------------------------------------------- tests

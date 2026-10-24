@@ -138,10 +138,25 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
                 "too many pins; first " + BriefingConfig.MAX_PINS + " included" );
             this.cappedClusters = cap( req.clusters(), BriefingConfig.MAX_CLUSTERS,
                 "too many clusters; first " + BriefingConfig.MAX_CLUSTERS + " included" );
-            this.scope = BriefingScope.compute( cappedClusters, structuralIndex, referenceManager,
-                limits.citedEnabled(), limits.citedMax(), warnings, warnedClusters );
+            this.scope = computeScope();
             this.itemAssembler = new ItemAssembler( LOG, pageManager, structuralIndex, ledger,
                 cappedPins, scope, limits.pointersMax(), warnings );
+        }
+
+        /**
+         * The scope for the requested clusters. A failure while deriving it (reference data, the
+         * structural index) degrades to an unscoped briefing with a warning rather than an exception:
+         * the briefing is session-start context and must always arrive.
+         */
+        private BriefingScope computeScope() {
+            try {
+                return BriefingScope.compute( cappedClusters, structuralIndex, referenceManager,
+                    limits.citedEnabled(), limits.citedMax(), warnings, warnedClusters );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Briefing scope computation failed for clusters {}; continuing unscoped", cappedClusters, e );
+                warnings.add( "scope computation failed; clusters skipped" );
+                return BriefingScope.NONE;
+            }
         }
 
         /** Truncate a caller-supplied list to {@code max}, warning once when it actually trims. */

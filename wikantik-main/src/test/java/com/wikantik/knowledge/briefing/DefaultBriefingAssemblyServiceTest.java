@@ -30,6 +30,7 @@ import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.briefing.BriefingConfig.BriefingLimits;
@@ -400,6 +401,23 @@ class DefaultBriefingAssemblyServiceTest {
             .assemble( new BriefingRequest( null, List.of( "nonesuch" ), "q", 10000, ScopeMode.PREFER ) );
 
         assertEquals( List.of( "PageA/H0", "PageA/H1", "PageB/H0" ), headings( b ) );
+    }
+
+    @Test
+    void scopeComputationFailureDegradesToUnscopedWithWarning() {
+        // The reference data is the one collaborator whose failure used to escape: a scope that cannot
+        // be computed must cost the agent its project pages, not its whole briefing.
+        final ReferenceManager brokenRefs = mock( ReferenceManager.class );
+        when( brokenRefs.findRefersTo( any() ) ).thenThrow( new IllegalStateException( "reference data unavailable" ) );
+        final ContextBundle bundle = bundleOf( sec( "CommerceDataFlow", "H1", "out of cluster" ) );
+
+        final ContextBriefing b = new DefaultBriefingAssemblyService(
+            q -> bundle, corpusIndex(), brokenRefs, corpusPageManager(), BriefingLimits.defaults() )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        assertEquals( List.of( "CommerceDataFlow/H1" ), headings( b ), "the prompt's sections survive, unscoped" );
+        assertTrue( b.items().isEmpty(), "no scope, so no cluster, cited or elsewhere items: " + slugsOf( b ) );
+        assertTrue( b.warnings().contains( "scope computation failed; clusters skipped" ), b.warnings().toString() );
     }
 
     @Test

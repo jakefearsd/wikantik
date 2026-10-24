@@ -6,6 +6,49 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Project-context separation for session briefings
+([ADR-0011](docs/adr/0011-project-context-is-derived-from-citations.md)).
+
+### Added
+- **Tiered project scope in briefings.** A briefing for a cluster now draws on the cluster's members
+  (tier 1), then on the pages outside it that those members link to (tier 2, origin `cited`), so a
+  `roller` briefing carries the shared contracts Roller pages cite without any page declaring it.
+  Tier 2 is ranked by citers, then reach (distinct citing clusters), and capped. The cited pages render
+  under `## Contracts this project cites`; items carry the new `origin` value `cited` and a `cluster`
+  field in JSON.
+- **`elsewhere` pointers.** In `prefer` mode, task-relevant sections outside both tiers become one pointer per
+  page under `## Elsewhere in the wiki` (grouped by cluster) instead of body text; `strict` drops them. They are
+  ACL-gated like every other item and spend no budget.
+- **Config keys** (declared in `ini/wikantik.properties`): `wikantik.briefing.sections_per_page` (4),
+  `wikantik.briefing.candidate_pool` (36), `wikantik.briefing.scope.cited.enabled` (true),
+  `wikantik.briefing.scope.cited.max` (12), `wikantik.briefing.elsewhere.max` (8),
+  `wikantik.briefing.pointers.max` (30), plus the previously code-only `wikantik.briefing.enabled`,
+  `wikantik.briefing.default_budget` and `wikantik.briefing.max_budget`.
+- **`briefing_log` tier columns (V064).** `cited_count`, `elsewhere_count` and `scope_mode` record the tiers and
+  effective scope mode of each briefing. DDL only; no read surface.
+- **Unknown-argument warnings.** `GET /api/briefing` and `get_briefing` add `unknown argument: <name>` for each
+  parameter they do not recognise, so `scope=strict` (the parameter is `scope_mode`) no longer silently runs as
+  `prefer`. The request still runs with defaults. `assemble_bundle` is unchanged: `ContextBundle` has no
+  warnings channel.
+- **`BundleAssemblyService.assemble(query, BundleOptions)`.** An additive method with a `maxSections` override
+  that the briefing uses for its candidate pool. `/api/bundle` and `assemble_bundle` do not call it.
+- **Eval harness `eval/briefing-scope/`.** Eight cases seeded from the 2026-10-23 prod runs, a separation and a
+  diversity score, and recorded baselines in `BASELINE.md`.
+
+### Changed
+- **Standing context is ranked by in-degree, not recency.** Cluster members are ordered hub first, then by how
+  many other members link to them, then summary present, then `updated` newest first. A recently edited
+  plan or runbook no longer outranks the pages the cluster is built around.
+- **`prefer` mode turns out-of-scope sections into pointers.** They were appended as body text and spent
+  budget on other projects' plans.
+- **`pointerCount` (and `briefing_log.pointer_count`) counts only budget-trimmed pin and cluster items.**
+  Cited pointers are counted in `cited_count` and `elsewhere` pointers in `elsewhere_count`.
+- **Per-page cap on task-relevant sections** (`wikantik.briefing.sections_per_page`, default 4), applied to every
+  briefing including ones with no clusters. It draws on a larger candidate pool, so the vacated slots are
+  filled by other pages' sections rather than left empty.
+- **"Available on request" is ranked and capped** (`wikantik.briefing.pointers.max`, default 30) in tier order
+  instead of listing every unincluded member in `updated` order.
+
 ## [2.4.63] - 2026-10-23
 
 Database and disk hygiene pass.

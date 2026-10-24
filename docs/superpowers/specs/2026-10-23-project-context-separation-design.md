@@ -433,3 +433,24 @@ is prose in a table), which is a content convention to settle on `SimpleAgilityD
 - The `wikantik-development` cluster's system-page members (`LoginHelp`, `SandBox`, …) are *not* a
   Phase 0 item: in-degree ranking demotes them, and re-clustering system pages is a separate corpus
   decision.
+
+## Amendments (2026-10-23)
+
+Recorded after Phase 2 was built. Earlier text above is left as approved; where it differs, this section governs.
+
+1. **No `tier` on sections in JSON.** Phase 2 said "JSON output gains `tier` on sections and items" and an
+   `elsewhere[]` array. Sections carry no tier field: they are ordered by tier (members, then cited pages).
+   Items carry no tier either; they carry `origin` (`pin`, `cluster`, `cited`, `elsewhere`) and `cluster`, and
+   the out-of-scope pointers are ordinary entries of `items[]` with origin `elsewhere`.
+2. **The candidate pool is an explicit key.** "Diversity" sized the pool as `3 × its section budget`. It is the
+   key `wikantik.briefing.candidate_pool` (default 36), a count of sections requested through
+   `BundleAssemblyService.assemble(query, BundleOptions)`, independent of the token budget. Nine
+   `wikantik.briefing.*` keys were declared in `ini/wikantik.properties`: the five Phase 2 listed,
+   `candidate_pool`, and `enabled`, `default_budget` and `max_budget`, which had been code-only defaults.
+3. **`assemble_bundle` gets no unknown-argument warning.** "Unknown arguments warn" said the same treatment for
+   `assemble_bundle` was cheap. `ContextBundle` has no warnings channel, so adding one would change the wire shape
+   of both bundle surfaces, which this design holds fixed. Only `/api/briefing` and `get_briefing` warn.
+4. **Per-page cap test.** The plan's `perPageCapPrefersTier1SectionsOfAPage` was replaced by
+   `perPageCapKeepsFirstNSectionsOfAPageInRankOrder`: a page belongs to exactly one tier, so there is no
+   within-page tier preference to test; the cap keeps a page's first N sections in rank order, applied after the
+   tier partition.

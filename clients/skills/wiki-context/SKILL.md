@@ -28,7 +28,10 @@ At the start of a new session or task, before doing any other work, call
   or `strict` to stay confined to them
 
 The response is injection-ready markdown starting `# Wiki context briefing`,
-including a coverage line and an "Available on request" pointer list —
+with a coverage line and then, each omitted when empty: `## Task-relevant
+sections`, `## Standing context`, `## Contracts this project cites` (shared
+pages the project's own pages link to), `## Elsewhere in the wiki` (pointers to
+relevant pages outside the project) and `## Available on request` (pointers) —
 treat it as authoritative standing context for the rest of the session.
 Call `get_briefing` **once per session**; do not re-call it on later turns
 just because the topic shifts — use follow-up retrieval instead (below).

@@ -61,6 +61,7 @@ Pure-function tests over canned JSON; no network.
 
 ## Caveat
 
-Cases are seeded from the eight observed 2026-10-23 runs, with their original prompts and clusters. `roller-unknown-arg` asserts a
-warning the server does not yet emit, and `stockroom-itemsold` names a `stockroom` cluster that does not exist in prod,
-so both fail until the scoping change lands.
+Cases are seeded from the eight observed 2026-10-23 runs, with their original prompts and clusters. `stockroom-itemsold` names the
+`stockroom` cluster, which did not exist when the runs were taken; Phase 0 created `StockroomHub` and the cluster, so that case
+passes against current prod. `roller-unknown-arg` asserts the `unknown argument: scope` warning, which prod emits only once the
+release carrying it is deployed, so it fails against an older deployment.

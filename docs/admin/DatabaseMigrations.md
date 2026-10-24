@@ -142,7 +142,7 @@ Rules that follow from the ledger:
 
 ## Migration history
 
-The migration directory is the source of truth; this table summarises it through V063.
+The migration directory is the source of truth; this table summarises it through V064.
 
 | Migration | What it adds |
 |-----------|--------------|

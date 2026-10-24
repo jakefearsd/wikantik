@@ -112,10 +112,10 @@ always returns Markdown.
 | Parameter | Meaning |
 |---|---|
 | `pins` | CSV of page names to pin into the briefing verbatim. |
-| `clusters` | CSV of clusters to draw representative context from. |
+| `clusters` | CSV of clusters to draw representative context from. Also scopes the briefing: see [Project scope](#project-scope-members-cited-elsewhere). |
 | `prompt` | The task prompt — used to retrieve additionally-relevant sections. |
 | `budget` | Token budget for the assembled briefing (the assembler dedupes and trims to fit). A non-integer value returns `400`. Default 6000 (`wikantik.briefing.default_budget`), capped at 24000 (`wikantik.briefing.max_budget`). |
-| `scope_mode` | `prefer` (default: the briefing may widen beyond the pins/clusters) or `strict` (stay within them). Any other value returns `400`. |
+| `scope_mode` | `prefer` (default: task-relevant hits outside the requested clusters become pointers under "Elsewhere in the wiki") or `strict` (drop them). Any other value returns `400`. |
 | `format` | `json` (default — structured) or `md` (injection-ready Markdown, `text/markdown`). Any other value returns `400`. Session hooks pass `format=md`. |
 
 The `get_briefing` MCP tool takes `pins`, `clusters`, `prompt`, `budget` and `scope_mode` (no `format`) and returns Markdown.
@@ -123,6 +123,83 @@ The `get_briefing` MCP tool takes `pins`, `clusters`, `prompt`, `budget` and `sc
 At least one of `pins`, `clusters` or `prompt` is required, otherwise the
 endpoint returns `400`. Input is capped at 25 pins and 10 clusters (200 members
 per cluster); excess is truncated with a logged warning.
+
+### Project scope: members, cited, elsewhere
+
+A briefing for a cluster is built from tiers computed per request from the Page Graph
+(structural-index membership plus every link the reference manager holds, body
+wikilinks and frontmatter `related:` alike; no separate index or cache). The working
+rule: **a citation from a project page to a shared page is that project's adoption of
+it** ([ADR-0011](../adr/0011-project-context-is-derived-from-citations.md)).
+
+| Tier | Contents | Order within the tier | Briefing origin |
+|---|---|---|---|
+| Pins | Pages named in `pins` | Request order | `pin` |
+| 1 — members | Pages in a requested cluster (sub-cluster members included) | Hub first, then in-degree (how many other members link to the page), then pages with a summary, then `updated` newest first | `cluster` |
+| 2 — cited | Pages *outside* the requested clusters that at least one member links to | Citers (how many members link to it), then reach (how many distinct clusters link to it), then `updated` newest first; at most `wikantik.briefing.scope.cited.max` pages | `cited` |
+| Elsewhere | Task-relevant retrieval hits on pages in neither tier (`prefer` mode only) | Retrieval rank, one pointer per page, at most `wikantik.briefing.elsewhere.max` | `elsewhere` |
+
+A project therefore receives the shared contracts it has linked to without any page
+declaring it should: a Roller briefing carries `SimpleAgilityTelemetryContract` because
+Roller pages cite it. The converse holds as well. A shared page that no page in the
+project links to does not reach that project's briefing as a tier-2 item, however
+important it is; adopt a contract by linking to it. With no `clusters`, or without the
+structural index, there are no tiers and the briefing is selected as before (with the
+existing "structural index unavailable" warning when clusters were requested). When link
+data is unavailable the cited tier is empty and a warning says so;
+`wikantik.briefing.scope.cited.enabled=false` switches the tier off.
+
+**Task-relevant sections** come from the bundle's candidate pool
+(`wikantik.briefing.candidate_pool`, default 36, requested through
+`BundleAssemblyService.assemble(query, BundleOptions)`; `/api/bundle` and
+`assemble_bundle` keep their own limits). The pool is split by tier, members then cited
+pages, each in rank order; a page keeps at most `wikantik.briefing.sections_per_page`
+(default 4) of its sections, in rank order, and the result is truncated to the token
+budget. In `strict` mode sections outside tiers 1 and 2 are dropped; in `prefer` mode
+they become `elsewhere` pointers rather than body text. The per-page cap applies to every
+briefing, including one with no clusters.
+
+**Pointers.** A member or cited page whose body does not fit the remaining budget becomes
+a pointer (title and summary only). Cluster and cited pointers share a cap of
+`wikantik.briefing.pointers.max` (default 30) and are emitted in tier order, members before
+cited pages, so low in-degree pages fall off first; pinned pages are never capped. Hitting
+the cap adds a `pointer list capped at <n>` warning. `elsewhere` pointers spend no budget,
+have their own cap, and do not count against the cluster-and-cited cap.
+
+### Rendered markdown
+
+`format=md` (and `get_briefing`) emit a `# Wiki context briefing` title and coverage line,
+then these headings in this order, each omitted when it would be empty (so a briefing
+without clusters has the same headings as before).
+
+1. `## Task-relevant sections`
+2. `## Standing context` (pins and tier-1 member bodies)
+3. `## Contracts this project cites` (tier-2 bodies, then tier-2 items trimmed to pointer lines)
+4. `## Elsewhere in the wiki` (out-of-scope pointers, grouped by cluster, as
+   `slug › heading path (canonical_id)`)
+5. `## Available on request` (budget-trimmed pin and cluster pointers)
+6. A closing `> Briefing warnings: …` line when any assembly warning was raised
+
+### JSON shape additions
+
+`format=json` is unchanged except for additive fields on `items[]`:
+
+- `origin` takes two new values alongside `pin` and `cluster`: `cited` (tier 2) and
+  `elsewhere` (an out-of-scope hit, always `included: false`; its `summary` holds the
+  heading path of the matching section).
+- `cluster` is the page's primary cluster for `cited` and `elsewhere` items so a reader can
+  tell whose page it is; it is `null` for pins and members.
+
+`sections[]` carry no tier field; they are ordered by tier, members then cited pages.
+
+### Unknown arguments
+
+Both `GET /api/briefing` and the `get_briefing` tool add one `unknown argument: <name>`
+warning, in sorted order after the other warnings, for each request parameter they do not
+recognise (the name is truncated to 64 characters). The request still runs with defaults;
+the warning exists so that `scope=strict` (the parameter is `scope_mode`) is no longer
+silently treated as `prefer`. `assemble_bundle` and `/api/bundle` do not warn: the bundle
+response has no warnings channel.
 
 Each assembled briefing is recorded in the `briefing_log` table (migration
 `V044`; toggle with `wikantik.briefing.log.enabled`, default `true`) for telemetry — what was requested, how large the result was, whether the

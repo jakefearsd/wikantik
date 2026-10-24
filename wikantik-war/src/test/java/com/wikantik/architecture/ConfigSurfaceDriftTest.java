@@ -99,7 +99,7 @@ class ConfigSurfaceDriftTest {
         "wikantik.interWikiRef.", "wikantik.specialPage.", "wikantik.loginModule.options.",
         "wikantik.sso.claimMapping.", "wikantik.translatorReader.inlinePattern.", "wikantik.custom.cascade.",
         "wikantik.connectors.", "wikantik.knowledge.extractor.", "wikantik.bundle.reranker.",
-        "wikantik.bundle.decomposition.", "wikantik.briefing.", "wikantik.search.hybrid.embedder.", "wikantik.tools."
+        "wikantik.bundle.decomposition.", "wikantik.search.hybrid.embedder.", "wikantik.tools."
     );
 
     static final Set<String> TYPES = Set.of( "boolean", "int", "long", "double", "string", "path", "url", "class", "list", "secret" );

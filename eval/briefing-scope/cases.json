@@ -1,0 +1,62 @@
+[
+  {
+    "id": "sa-roller-telemetry",
+    "clusters": ["simple-agility"],
+    "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
+    "must_include_as_item": ["SimpleAgilityStackHub"],
+    "must_not_include_as_body": ["StockroomPhase7PhotoIdentificationPlan"]
+  },
+  {
+    "id": "roller-telemetry-prefer",
+    "clusters": ["roller"],
+    "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
+    "scope_mode": "prefer",
+    "must_include_as_section": [],
+    "must_include_as_item": ["RollerHub", "SimpleAgilityTelemetryContract"],
+    "must_not_include_as_body": ["StockroomPhase7PhotoIdentificationPlan"],
+    "may_point_to": ["SimpleAgilityTelemetryAdoption"],
+    "max_sections_per_page": 4
+  },
+  {
+    "id": "roller-telemetry-strict",
+    "clusters": ["roller"],
+    "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
+    "scope_mode": "strict",
+    "must_include_as_item": ["SimpleAgilityTelemetryContract"],
+    "max_sections_per_page": 4
+  },
+  {
+    "id": "jakemon-push-feed",
+    "clusters": ["jakemon"],
+    "prompt": "add a push feed for incident events to jakemon",
+    "must_include_as_item": ["SimpleAgilityObservabilityPlane"],
+    "must_not_include_as_body": ["Incident*"]
+  },
+  {
+    "id": "stockroom-itemsold",
+    "clusters": ["stockroom"],
+    "prompt": "emit an ItemSold event when a reseller listing sells",
+    "must_include_as_item": ["StockroomHub"],
+    "must_not_warn": ["unknown cluster"]
+  },
+  {
+    "id": "nocluster-lease-guard",
+    "clusters": [],
+    "prompt": "guard against double-lease of a connector sync lock",
+    "max_sections_per_page": 4
+  },
+  {
+    "id": "wikidev-trace-id",
+    "clusters": ["wikantik-development"],
+    "prompt": "propagate a trace id through the request correlation filter",
+    "must_not_include_as_body": ["RollerTelemetryHandoffSpec", "LoginHelp"],
+    "may_point_to": ["RollerTelemetryHandoffSpec"]
+  },
+  {
+    "id": "roller-unknown-arg",
+    "clusters": ["roller"],
+    "prompt": "add Prometheus metrics endpoint and ECS logging to Roller",
+    "extra_params": {"scope": "strict"},
+    "must_warn": ["^unknown argument: scope"]
+  }
+]

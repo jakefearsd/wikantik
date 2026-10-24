@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.64] - 2026-10-24
+
 Project-context separation for session briefings
 ([ADR-0011](docs/adr/0011-project-context-is-derived-from-citations.md)).
 

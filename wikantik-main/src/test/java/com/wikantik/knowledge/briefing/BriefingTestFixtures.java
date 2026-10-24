@@ -66,6 +66,13 @@ final class BriefingTestFixtures {
             List.of(), summary, updated, Optional.empty(), false );
     }
 
+    /** As {@link #desc(String, List, String, Instant)} with an explicit {@link PageType}. */
+    static PageDescriptor desc( final String slug, final PageType type, final List< String > clusters,
+                                final String summary, final Instant updated ) {
+        return new PageDescriptor( "01" + slug, slug, slug, type, null, clusters,
+            List.of(), summary, updated, Optional.empty(), false );
+    }
+
     static ClusterDetails cluster( final String name, final PageDescriptor hub,
                                    final List< PageDescriptor > articles ) {
         return new ClusterDetails( name, hub, articles, Map.of(), Instant.now() );

@@ -135,7 +135,7 @@ it** ([ADR-0011](../adr/0011-project-context-is-derived-from-citations.md)).
 | Tier | Contents | Order within the tier | Briefing origin |
 |---|---|---|---|
 | Pins | Pages named in `pins` | Request order | `pin` |
-| 1 — members | Pages in a requested cluster (sub-cluster members included) | Hub first, then in-degree (how many other members link to the page), then pages with a summary, then `updated` newest first | `cluster` |
+| 1 — members | Pages in a requested cluster (sub-cluster members included) | Hub first, then in-degree (how many other members link to the page), then pages with a summary, then `updated` newest first; `type: runbook` members sort after every non-runbook member, since scenario-keyed procedures are surfaced by the prompt-driven sections rather than carried as standing context | `cluster` |
 | 2 — cited | Pages *outside* the requested clusters that at least one member links to | Citers (how many members link to it), then reach (how many distinct clusters link to it), then `updated` newest first; at most `wikantik.briefing.scope.cited.max` pages | `cited` |
 | Elsewhere | Task-relevant retrieval hits on pages in neither tier (`prefer` mode only) | Retrieval rank, one pointer per page, at most `wikantik.briefing.elsewhere.max` | `elsewhere` |
 

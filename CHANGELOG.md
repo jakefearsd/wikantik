@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Briefing tier 1 puts `type: runbook` members last.** In a cluster-scoped briefing, runbook members now
+  sort after every non-runbook member (hub still first; each group keeps its in-degree, summary, recency order),
+  so a cluster's densely cross-linked incident runbooks no longer outrank its contracts and reference pages in
+  the standing context.
+
 ## [2.4.64] - 2026-10-24
 
 Project-context separation for session briefings

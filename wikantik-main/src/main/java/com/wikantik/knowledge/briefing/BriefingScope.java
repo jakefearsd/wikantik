@@ -21,6 +21,7 @@ package com.wikantik.knowledge.briefing;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 
 import org.apache.logging.log4j.LogManager;
@@ -42,9 +43,9 @@ import java.util.Set;
  * The two tiers of a cluster-scoped briefing, derived from the Page Graph.
  *
  * <ul>
- *   <li><b>Tier 1</b> — members of the requested clusters, hub(s) first, then ranked by
- *       <i>in-degree</i> (how many other members link to the page), then summary present, then
- *       {@code updated} newest first.</li>
+ *   <li><b>Tier 1</b> — members of the requested clusters, hub(s) first, then non-runbook members, then
+ *       {@code type: runbook} members (see {@link #byRank}); each group ranked by <i>in-degree</i> (how many
+ *       other members link to the page), then summary present, then {@code updated} newest first.</li>
  *   <li><b>Tier 2</b> — pages <i>outside</i> the requested clusters that at least one member links
  *       to, ranked by <i>citers</i> (how many members link to it), then <i>reach</i> (how many
  *       distinct clusters have a page linking to it), then {@code updated}; capped.</li>
@@ -92,7 +93,8 @@ final class BriefingScope {
     }
 
     /**
-     * Tier 1, ordered: hub(s) first, then in-degree desc, summary present, {@code updated} desc (nulls last);
+     * Tier 1, ordered: hub(s) first, then non-runbook members, then runbook members, each by in-degree desc,
+     * summary present, {@code updated} desc (nulls last);
      * at most {@link BriefingConfig#MAX_CLUSTER_MEMBERS} per cluster (the newest), though {@link #tierOf}
      * still answers {@code 1} for the members the cap left out.
      */
@@ -220,9 +222,21 @@ final class BriefingScope {
         return result;
     }
 
+    /**
+     * The one tier-1 ordering for non-hub members: non-runbook pages first, then runbooks, each group by
+     * in-degree desc, summary present, {@code updated} newest first (nulls last), slug.
+     *
+     * <p>A {@code type: runbook} page is a scenario-keyed procedure: the prompt-driven sections surface it
+     * when a task matches it, so as <i>standing</i> context it is noise. Runbooks also link each other
+     * densely (a cluster's incident runbooks cross-reference as a set), which would otherwise give them the
+     * highest in-degree and push the cluster's contracts and reference pages behind them. A runbook is
+     * demoted within tier 1, never removed from it, and a cluster made only of runbooks is ordered by the
+     * remaining keys exactly as before.</p>
+     */
     private static Comparator< PageDescriptor > byRank( final Map< String, Integer > inDegree ) {
         return Comparator
-            .comparing( ( PageDescriptor d ) -> inDegree.getOrDefault( d.slug(), 0 ), Comparator.reverseOrder() )
+            .comparing( ( PageDescriptor d ) -> d.type() == PageType.RUNBOOK ? 1 : 0 )
+            .thenComparing( d -> inDegree.getOrDefault( d.slug(), 0 ), Comparator.reverseOrder() )
             .thenComparing( d -> hasSummary( d ) ? 0 : 1 )
             .thenComparing( PageDescriptor::updated, NEWEST_FIRST_NULLS_LAST )
             .thenComparing( PageDescriptor::slug );

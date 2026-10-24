@@ -488,3 +488,16 @@ Recorded after Phase 2 was built. Earlier text above is left as approved; where 
    markdown coverage line no longer renders a retrieval confidence, only the count of `elsewhere` items after
    gating (`1 further section from another project is listed …` / `N further sections from other projects are
    listed …`). The `briefing_log` entry still comes from the gated briefing.
+11. **Runbooks sort after other members in tier 1.** Observed on prod (2.4.64), `clusters=["jakemon"]`: tier 1 was
+   `JakemonHub, IncidentWikantikOffsiteBackupStale, IncidentWikantikBackupStale, IncidentHostNotReporting,
+   IncidentGpuThermalThrottle, SimpleAgilityTelemetryContract, SimpleAgilityObservabilityPlane,
+   SearchVisibilityExporter, …`. The cluster's 42 `type: runbook` incident pages link each other densely, so
+   in-degree ranked them above the contracts and reference pages, and the standing context for an "add a push
+   feed" session carried two incident runbook bodies (the acceptance case `jakemon-push-feed` failed on exactly
+   this). Rule: tier 1 is the hub(s), then members whose `PageDescriptor.type()` is not `PageType.RUNBOOK`, then
+   `RUNBOOK` members, each group ordered by in-degree desc, has-summary desc, `updated` desc (nulls last), slug,
+   in the single comparator in `BriefingScope`. Reason: a runbook is a scenario-keyed procedure
+   (AgentGradeContentDesign); the prompt-driven sections surface it when a task matches, and as standing context it
+   is noise, while its dense mutual linking is a property of the page type, not evidence it matters more. A
+   runbook is demoted within tier 1, not removed, so `tierOf` is unchanged, and a cluster made only of runbooks
+   (e.g. `agent-cookbook`) keeps its current in-degree order. Tier 2 ordering, caps and warnings are unchanged.

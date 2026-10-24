@@ -20,6 +20,7 @@ package com.wikantik.knowledge.briefing;
 
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.knowledge.briefing.BriefingTestFixtures.StubIndex;
 import org.junit.jupiter.api.Test;
 
@@ -129,6 +130,55 @@ class BriefingScopeTest {
             warnings, warned );
 
         assertEquals( List.of( "Hub", "Fresh", "Old", "Never" ), slugs( scope.members() ) );
+    }
+
+    @Test
+    void runbookMembersSortAfterNonRunbookMembers() {
+        final StubIndex idx = new StubIndex();
+        final Instant t = Instant.parse( "2026-10-01T00:00:00Z" );
+        final PageDescriptor hub = desc( "Hub", PageType.HUB, List.of( "proj" ), "h", t );
+        final PageDescriptor runbookA = desc( "RunbookA", PageType.RUNBOOK, List.of( "proj" ), "s", t );
+        final PageDescriptor runbookB = desc( "RunbookB", PageType.RUNBOOK, List.of( "proj" ), "s", t );
+        // The article has no inbound link and no summary, and is the oldest member: it loses every
+        // other tiebreak and must still precede both runbooks.
+        final PageDescriptor article = desc( "Contract", PageType.ARTICLE, List.of( "proj" ), null,
+            t.minusSeconds( 600 ) );
+        final PageDescriptor reference = desc( "Reference", PageType.REFERENCE, List.of( "proj" ), "s", t );
+        for ( final PageDescriptor d : List.of( hub, runbookA, runbookB, article, reference ) ) idx.register( d );
+        idx.clusters.put( "proj", cluster( "proj", hub, List.of( runbookA, runbookB, article, reference ) ) );
+        // The runbooks link each other densely (in-degree 2 and 1); the reference is linked once.
+        final Map< String, List< String > > edges = new LinkedHashMap<>();
+        edges.put( "RunbookA", List.of( "RunbookB" ) );
+        edges.put( "RunbookB", List.of( "RunbookA" ) );
+        edges.put( "Hub", List.of( "RunbookA", "Reference" ) );
+
+        final BriefingScope scope = BriefingScope.compute( List.of( "proj" ), idx, refs( edges ), true, 8,
+            warnings, warned );
+
+        assertEquals( List.of( "Hub", "Reference", "Contract", "RunbookA", "RunbookB" ), slugs( scope.members() ),
+            "hub, then non-runbooks by rank, then runbooks by rank" );
+        assertEquals( 1, scope.tierOf( "RunbookA" ), "a runbook is demoted within tier 1, not removed from it" );
+    }
+
+    @Test
+    void runbookOnlyClusterKeepsInDegreeOrder() {
+        final StubIndex idx = new StubIndex();
+        final Instant t = Instant.parse( "2026-10-01T00:00:00Z" );
+        final PageDescriptor hub = desc( "Hub", PageType.HUB, List.of( "cookbook" ), "h", t );
+        final PageDescriptor fresh = desc( "Fresh", PageType.RUNBOOK, List.of( "cookbook" ), "s", t.plusSeconds( 60 ) );
+        final PageDescriptor linked = desc( "Linked", PageType.RUNBOOK, List.of( "cookbook" ), "s", t );
+        final PageDescriptor stale = desc( "Stale", PageType.RUNBOOK, List.of( "cookbook" ), "s", t.minusSeconds( 60 ) );
+        for ( final PageDescriptor d : List.of( hub, fresh, linked, stale ) ) idx.register( d );
+        idx.clusters.put( "cookbook", cluster( "cookbook", hub, List.of( fresh, linked, stale ) ) );
+        final Map< String, List< String > > edges = new LinkedHashMap<>();
+        edges.put( "Fresh", List.of( "Linked" ) );
+        edges.put( "Stale", List.of( "Linked" ) );
+
+        final BriefingScope scope = BriefingScope.compute( List.of( "cookbook" ), idx, refs( edges ), true, 8,
+            warnings, warned );
+
+        assertEquals( List.of( "Hub", "Linked", "Fresh", "Stale" ), slugs( scope.members() ),
+            "with no non-runbook members, in-degree then recency decide exactly as before" );
     }
 
     @Test

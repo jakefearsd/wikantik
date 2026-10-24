@@ -145,31 +145,50 @@ final class ItemAssembler {
 
     // ------------------------------------------------ cluster members, cited
 
-    /** Tier 1 (origin {@code cluster}) in scope order, then tier 2 (origin {@code cited}, naming its cluster). */
+    /**
+     * Tier 1 (origin {@code cluster}) in scope order, then tier 2 (origin {@code cited}, naming its cluster).
+     *
+     * <p>Admission is rank-ordered within each tier: once a page has degraded to a pointer because its
+     * body did not fit, every later page of that tier is a pointer too, however small. Otherwise
+     * standing context would be "whatever is small enough" and the ranking would be decorative — a
+     * short runbook would be included while the hub and the contracts ranked above it were pointers.
+     * The two tiers are judged independently, pins are not part of the rule, and a page skipped for
+     * another reason (no live page, already an item) does not trigger it. Later pages are emitted
+     * straight from their descriptor, so no body is read for them.</p>
+     */
     void assembleClusterMembers() {
+        boolean membersDegraded = false;
         for ( final PageDescriptor member : scope.members() ) {
-            addScoped( member, ORIGIN_CLUSTER, null );
+            if ( addScoped( member, ORIGIN_CLUSTER, null, membersDegraded ) ) membersDegraded = true;
         }
+        boolean citedDegraded = false;
         for ( final BriefingScope.Cited cited : scope.cited() ) {
-            addScoped( cited.page(), ORIGIN_CITED, cited.page().cluster() );
+            if ( addScoped( cited.page(), ORIGIN_CITED, cited.page().cluster(), citedDegraded ) ) citedDegraded = true;
         }
     }
 
-    private void addScoped( final PageDescriptor page, final String origin, final String cluster ) {
+    /**
+     * Adds one tier page as a full item or a pointer.
+     *
+     * @param degraded true once an earlier page of the same tier has degraded: this one is a pointer outright
+     * @return true when the page was reduced to a pointer (or refused as one by the cap), so the tier is now degraded
+     */
+    private boolean addScoped( final PageDescriptor page, final String origin, final String cluster,
+                               final boolean degraded ) {
         final String slug = page.slug();
-        if ( includedSlugs.contains( slug ) ) return;
+        if ( includedSlugs.contains( slug ) ) return false;
         if ( pageManager.getPage( slug ) == null ) {
             log.debug( "Briefing page {} has no live page; skipping", slug );
-            return;
+            return false;
         }
-        // Pointer fast-path: once the budget is all but spent, nothing more can fit, so
-        // emit a pointer straight from the descriptor (title/summary already loaded)
-        // rather than reading the full body off disk — read-amplification defence.
-        if ( ledger.budget - ledger.used < BriefingConfig.POINTER_ONLY_FLOOR_TOKENS ) {
+        // Pointer fast-path: once the tier has degraded, or the budget is all but spent so nothing more
+        // can fit, emit a pointer straight from the descriptor (title/summary already loaded) rather
+        // than reading the full body off disk — read-amplification defence.
+        if ( degraded || ledger.budget - ledger.used < BriefingConfig.POINTER_ONLY_FLOOR_TOKENS ) {
             addPointer( page, origin, cluster );
-        } else {
-            loadItem( slug, origin, bodyOf( slug ), cluster );
+            return true;
         }
+        return !loadItem( slug, origin, bodyOf( slug ), cluster );
     }
 
     /** Pointer item built purely from a structural descriptor — no page-body read. */
@@ -228,18 +247,24 @@ final class ItemAssembler {
 
     // --------------------------------------------------------- shared
 
-    /** Include the full body if it fits the remaining budget, else a title/summary pointer. */
-    private void loadItem( final String slug, final String origin, final String body, final String cluster ) {
+    /**
+     * Include the full body if it fits the remaining budget, else a title/summary pointer.
+     *
+     * @return true when the full body was included, false when the page degraded to a pointer
+     *         (or the pointer was refused by the cap)
+     */
+    private boolean loadItem( final String slug, final String origin, final String body, final String cluster ) {
         final Map< String, Object > meta = FrontmatterParser.parse( body == null ? "" : body ).metadata();
         final String title = DefaultBriefingAssemblyService.str( meta.get( "title" ), slug );
         final String summary = DefaultBriefingAssemblyService.str( meta.get( "summary" ), "" );
         final String canonicalId = canonicalIdOf( slug );
         final int est = TokenEstimator.estimate( body );
         final boolean fits = ledger.used + est <= ledger.budget;
-        if ( !fits && !admitPointer( origin ) ) return;
+        if ( !fits && !admitPointer( origin ) ) return false;
         items.add( new BriefingItem( slug, canonicalId, title, summary, origin, fits, fits ? body : null, cluster ) );
         includedSlugs.add( slug );
         if ( fits ) ledger.used += est;
+        return fits;
     }
 
     /** Page text for injection into an agent's context — access-rule directives (people, by login) are left out. */

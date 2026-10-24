@@ -598,7 +598,7 @@ class DefaultBriefingAssemblyServiceTest {
     @Test
     void citedPageDegradesToPointerUnderBudget() {
         final PageManager pm = corpusPageManager();
-        // ~500 tokens: can never fit the 200-token floor budget, whereas the small members and StackHub do.
+        // ~500 tokens: can never fit the 200-token floor budget, whereas the small members and StackHub would.
         stub( pm, "TelemetryContract", page( "Telemetry Contract", "The contract.", 2000 ) );
 
         final ContextBriefing b = corpusService( pm, BriefingLimits.defaults() ).assemble(
@@ -611,8 +611,90 @@ class DefaultBriefingAssemblyServiceTest {
         assertEquals( "simple-agility", contract.cluster() );
         assertEquals( "Telemetry Contract", contract.title() );
         final BriefingItem stackHub = itemBySlug( b, "StackHub" );
-        assertTrue( stackHub.included(), "the next cited page is judged on its own size: " + b.items() );
         assertEquals( "cited", stackHub.origin() );
+        assertFalse( stackHub.included(),
+            "admission is rank-ordered: the lower-ranked cited page is a pointer however small it is: " + b.items() );
+    }
+
+    /** One page's worth of body that can never fit the 200-token floor budget (~500 tokens). */
+    private static String bigPage( final String slug ) {
+        return page( slug, slug + " summary.", 2000 );
+    }
+
+    @Test
+    void lowerRankedMemberIsNotIncludedOnceAHigherRankedOneDegraded() {
+        final StubIndex idx = new StubIndex();
+        final PageManager pm = pageManagerFixture();
+        final Instant base = Instant.parse( "2026-10-01T00:00:00Z" );
+        final PageDescriptor hub = desc( "BillingHub", List.of( "billing" ), "Hub.", base );
+        final PageDescriptor tiny = desc( "TinyNote", List.of( "billing" ), "Tiny.", base );
+        idx.clusters.put( "billing", cluster( "billing", hub, List.of( tiny ) ) );
+        stub( pm, "BillingHub", bigPage( "BillingHub" ) );                // does not fit: degrades
+        stub( pm, "TinyNote", page( "Tiny Note", "Tiny.", 10 ) );          // would fit on its own
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), idx, refs( Map.of() ), pm, BriefingLimits.defaults() );
+
+        final ContextBriefing b = svc.assemble( new BriefingRequest( null, List.of( "billing" ), null, 200, null ) );
+
+        assertEquals( List.of( "BillingHub", "TinyNote" ), slugsOf( b ), "both are still listed, in rank order" );
+        assertTrue( b.items().stream().noneMatch( BriefingItem::included ),
+            "standing context is a rank-ordered prefix, not whatever happens to be small: " + b.items() );
+        assertTrue( b.items().stream().allMatch( i -> "cluster".equals( i.origin() ) ) );
+        verify( pm, never() ).getPureText( "TinyNote", PageProvider.LATEST_VERSION );
+    }
+
+    @Test
+    void citedAdmissionIsRankOrderedIndependentlyOfTier1() {
+        final PageManager pm = corpusPageManager();
+        stub( pm, "TelemetryContract", bigPage( "TelemetryContract" ) );   // first cited page: too large
+
+        final ContextBriefing b = corpusService( pm, BriefingLimits.defaults() ).assemble(
+            new BriefingRequest( null, List.of( "roller" ), null, 200, null ) );
+
+        assertEquals( List.of( "RollerHub", "RollerMcp", "RollerTelemetrySpec" ),
+            b.items().stream().filter( i -> "cluster".equals( i.origin() ) ).map( BriefingItem::slug ).toList() );
+        assertTrue( b.items().stream().filter( i -> "cluster".equals( i.origin() ) ).allMatch( BriefingItem::included ),
+            "tier 1 fits whole, so the cited tier starts with a clean slate: " + b.items() );
+        assertEquals( List.of( "TelemetryContract", "StackHub" ),
+            b.items().stream().filter( i -> "cited".equals( i.origin() ) ).map( BriefingItem::slug ).toList() );
+        assertTrue( b.items().stream().filter( i -> "cited".equals( i.origin() ) ).noneMatch( BriefingItem::included ),
+            "the tiny second cited page follows the degraded first one as a pointer: " + b.items() );
+        verify( pm, never() ).getPureText( "StackHub", PageProvider.LATEST_VERSION );
+    }
+
+    @Test
+    void aDegradedTierOneDoesNotDegradeTheCitedTier() {
+        final PageManager pm = corpusPageManager();
+        stub( pm, "RollerHub", bigPage( "RollerHub" ) );                   // tier 1 degrades at its first member
+
+        final ContextBriefing b = corpusService( pm, BriefingLimits.defaults() ).assemble(
+            new BriefingRequest( null, List.of( "roller" ), null, 200, null ) );
+
+        assertTrue( b.items().stream().filter( i -> "cluster".equals( i.origin() ) ).noneMatch( BriefingItem::included ),
+            "every member after the degraded hub is a pointer: " + b.items() );
+        assertTrue( b.items().stream().filter( i -> "cited".equals( i.origin() ) ).allMatch( BriefingItem::included ),
+            "tier 2 is judged on its own, and the small contract pages still fit: " + b.items() );
+    }
+
+    @Test
+    void pinsAreNotAffectedByTierDegradation() {
+        final StubIndex idx = new StubIndex();
+        final PageManager pm = pageManagerFixture();
+        final PageDescriptor hub = desc( "BillingHub", List.of( "billing" ), "Hub.", Instant.now() );
+        idx.clusters.put( "billing", cluster( "billing", hub, List.of() ) );
+        stub( pm, "BillingHub", bigPage( "BillingHub" ) );                  // degrades tier 1
+        stub( pm, "PinBig", bigPage( "PinBig" ) );                          // degrades a pin
+        stub( pm, "PinSmall", page( "Pin Small", "Small.", 10 ) );
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), idx, refs( Map.of() ), pm, BriefingLimits.defaults() );
+
+        final ContextBriefing b = svc.assemble(
+            new BriefingRequest( List.of( "PinBig", "PinSmall" ), List.of( "billing" ), null, 200, null ) );
+
+        assertFalse( itemBySlug( b, "PinBig" ).included(), "a pin that does not fit is a pointer" );
+        assertTrue( itemBySlug( b, "PinSmall" ).included(),
+            "a pin after a degraded page is judged on its own size, as before: " + b.items() );
+        assertFalse( itemBySlug( b, "BillingHub" ).included() );
     }
 
     @Test

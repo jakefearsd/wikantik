@@ -168,7 +168,10 @@ an error. A member the per-cluster cap leaves out of the listed members is still
 it is never reported as a cited page and its sections are not demoted to `elsewhere`.
 
 **Pointers.** A member or cited page whose body does not fit the remaining budget becomes
-a pointer (title and summary only). Cluster-member pointers are capped at
+a pointer (title and summary only), and admission is rank-ordered within a tier: once
+a member has degraded to a pointer, every lower-ranked member is a pointer too, however
+small, and cited pages are treated the same way independently of the members (pins are
+not affected). Cluster-member pointers are capped at
 `wikantik.briefing.pointers.max` (default 30) and are emitted in rank order, so low
 in-degree pages fall off first. Hitting the cap adds a `pointer list capped at <n>` warning.
 Cited pointers do not count against it: that tier is already bounded by

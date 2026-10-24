@@ -501,3 +501,17 @@ Recorded after Phase 2 was built. Earlier text above is left as approved; where 
    is noise, while its dense mutual linking is a property of the page type, not evidence it matters more. A
    runbook is demoted within tier 1, not removed, so `tierOf` is unchanged, and a cluster made only of runbooks
    (e.g. `agent-cookbook`) keeps its current in-degree order. Tier 2 ordering, caps and warnings are unchanged.
+12. **Standing-context admission is rank-ordered within a tier.** Observed on prod (2.4.65), `clusters=["jakemon"]`
+   with a prompt and the 6000-token budget: tier 1 was ordered correctly (`JakemonHub, JakemonDashboardsInventory,
+   SimpleAgilityTelemetryContract, SimpleAgilityObservabilityPlane, SearchVisibilityExporter, Incident…`), but the
+   retrieved sections had spent ~5.4k tokens, so the hub and the three contracts did not fit and became pointers,
+   `JakemonDashboardsInventory` fit, and then the first runbook short enough to fit
+   (`IncidentGpuThermalThrottle`) was included as a standing-context body. Rule: within tier 1, once a member has
+   degraded to a pointer because its body did not fit, every later tier-1 member is emitted as a pointer,
+   whatever its size; tier 2 (`cited`) follows the same rule independently of tier 1. Pins are unaffected (an
+   explicit request keeps its own full-body-or-pointer judgement), a member skipped for another reason (no live
+   page, already an item) does not trigger the degradation, and the pointer cap and all warnings are unchanged.
+   Reason: the full-body-or-pointer test applied page by page turned standing context into "whatever is small
+   enough", which makes the ranking decorative under budget pressure; a prefix of the ranked list is what the
+   ordering rules (amendment 11, in-degree, citers) are for. Side benefit: the degraded tail is built from the
+   descriptor, so no bodies are read for it.

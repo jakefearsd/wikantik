@@ -168,6 +168,39 @@ class BriefingAclGateTest {
         assertEquals( 6, gated.usedTokens(), "2 + 1 sections + 3 included body + 0 pointer" );
     }
 
+    @Test
+    void gate_dropsRestrictedCitedAndElsewhereItems() {
+        // A restricted page can reach a briefing as a cited body, a cited pointer or an elsewhere pointer.
+        // Each carries a title, cluster and (for elsewhere) heading path that would leak its existence.
+        final BriefingItem pin = new BriefingItem( "PublicPin", "01PublicPin", "Public Pin", "", "pin", true, "body" );
+        final BriefingItem citedPublic = new BriefingItem( "PublicContract", "01PublicContract",
+            "Public Contract", "", "cited", true, "abcdefgh", "simple-agility" );
+        final BriefingItem citedSecretBody = new BriefingItem( "SecretContract", "01SecretContract",
+            "Secret Contract Title", "", "cited", true, "x".repeat( 400 ), "secret-cluster" );
+        final BriefingItem citedSecretPointer = new BriefingItem( "SecretPointer", "01SecretPointer",
+            "Secret Pointer Title", "secret summary", "cited", false, null, "secret-cluster" );
+        final BriefingItem elsewherePublic = new BriefingItem( "PublicElsewhere", "01PublicElsewhere",
+            "PublicElsewhere", "Plan › Public", "elsewhere", false, null, "stockroom" );
+        final BriefingItem elsewhereSecret = new BriefingItem( "SecretElsewhere", "01SecretElsewhere",
+            "SecretElsewhere", "Hidden › Heading", "elsewhere", false, null, "secret-cluster" );
+        final ContextBriefing original = briefing( List.of(),
+            List.of( pin, citedPublic, citedSecretBody, citedSecretPointer, elsewherePublic, elsewhereSecret ),
+            List.of() );
+
+        final ContextBriefing gated = BriefingAclGate.gate( original, List.of(),
+            slug -> !slug.startsWith( "Secret" ) );
+
+        assertEquals( List.of( "PublicPin", "PublicContract", "PublicElsewhere" ),
+            gated.items().stream().map( BriefingItem::slug ).toList(),
+            "restricted cited and elsewhere items are dropped like any other item" );
+        final String rendered = MarkdownBriefingRenderer.render( gated );
+        assertFalse( rendered.contains( "Secret" ), "no title or slug of a restricted page survives: " + rendered );
+        assertFalse( rendered.contains( "secret" ), "no cluster or summary of a restricted page survives: " + rendered );
+        assertFalse( rendered.contains( "Hidden" ), "no heading path of a restricted page survives: " + rendered );
+        // "body" (1) + "abcdefgh" (2) = 3; the 400-char restricted cited body is not charged.
+        assertEquals( 3, gated.usedTokens(), "usedTokens excludes dropped cited items" );
+    }
+
     private static int countUnknownPin( final ContextBriefing b, final String pin ) {
         return (int) b.warnings().stream().filter( w -> w.equals( "unknown pin: " + pin ) ).count();
     }

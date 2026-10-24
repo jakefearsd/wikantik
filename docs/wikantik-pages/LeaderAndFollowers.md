@@ -15,7 +15,7 @@ relations:
 - type: related_to
   target_id: 01KS7N9Z8QYAS6P09AM61S5E2U
 - type: related_to
-  target_id: 01KS6S8Z8QYAS6P09AM61S5E2O
+  target_id: 01KQ12YDW4P2B6GRRJY43T5TTB
 cluster: distributed-systems
 canonical_id: 01KS7P9Z8QYAS6P09AM61S5E2V
 title: Leader and Followers

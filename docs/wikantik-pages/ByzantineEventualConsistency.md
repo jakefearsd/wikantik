@@ -8,7 +8,7 @@ relations:
 - type: component_of
   target_id: 01KQEKG9XWDSFGH7TWHH63NZT
 - type: alternative_to
-  target_id: 01KS6S8Z8QYAS6P09AM61S5E2O
+  target_id: 01KQ12YDW4P2B6GRRJY43T5TTB
 type: article
 tags:
 - crdt

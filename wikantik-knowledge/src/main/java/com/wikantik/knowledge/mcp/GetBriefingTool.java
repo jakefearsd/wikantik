@@ -19,7 +19,6 @@
 package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.briefing.BriefingAssemblyService;
-import com.wikantik.api.briefing.BriefingLogEntry;
 import com.wikantik.api.briefing.BriefingLogService;
 import com.wikantik.api.briefing.BriefingRequest;
 import com.wikantik.api.briefing.ContextBriefing;
@@ -28,6 +27,7 @@ import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.knowledge.briefing.BriefingAclGate;
+import com.wikantik.knowledge.briefing.BriefingLogEntries;
 import com.wikantik.knowledge.briefing.BriefingWarnings;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
 import com.google.gson.Gson;
@@ -168,12 +168,7 @@ public class GetBriefingTool extends AbstractMcpTool {
 
         final BriefingLogService blog = briefingLog == null ? null : briefingLog.get();
         if ( blog != null ) {
-            final int pinCount = (int) gated.items().stream()
-                    .filter( i -> i.included() && "pin".equals( i.origin() ) ).count();
-            final int pointerCount = (int) gated.items().stream().filter( i -> !i.included() ).count();
-            blog.log( new BriefingLogEntry( String.join( ",", pins ), String.join( ",", clusters ),
-                    promptPresent, gated.budgetTokens(), gated.usedTokens(), gated.sections().size(),
-                    pinCount, pointerCount, SourceSurface.MCP_GET_BRIEFING.wire() ) );
+            blog.log( BriefingLogEntries.of( request, gated, SourceSurface.MCP_GET_BRIEFING.wire() ) );
         }
 
         return McpSchema.CallToolResult.builder()

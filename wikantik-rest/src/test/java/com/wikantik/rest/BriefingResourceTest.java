@@ -296,6 +296,48 @@ class BriefingResourceTest {
             BundleCoverage.UNKNOWN, null );
     }
 
+    /* (g2) cited/elsewhere counts and the effective scope mode are logged; pointerCount no longer
+       counts the cited/elsewhere pointers. */
+    @Test
+    void briefingLog_carriesScopeModeAndTierCounts() throws Exception {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        final BriefingItem itemA = new BriefingItem( "A", "01A", "Page A", "summary a",
+                "pin", true, "content a" );
+        final BriefingItem clusterPointer = new BriefingItem( "B", "01B", "Page B", "summary b",
+                "cluster", false, null );
+        final BriefingItem citedPointer = new BriefingItem( "C", "01C", "Page C", "summary c",
+                "cited", false, null, "shared" );
+        final BriefingItem elsewherePointer = new BriefingItem( "D", "01D", "Page D", "summary d",
+                "elsewhere", false, null, "other" );
+        final ContextBriefing briefing = new ContextBriefing( "deploy", List.of(), BundleCoverage.empty(),
+                List.of( itemA, clusterPointer, citedPointer, elsewherePointer ), List.of(), 4000, 100 );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final BriefingLogService blog = mock( BriefingLogService.class );
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return svc; }
+            @Override protected QueryLogService queryLogService() { return null; }
+            @Override protected BriefingLogService briefingLogService() { return blog; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );
+            }
+        };
+        final HttpServletRequest request = req( "A", "cluster1", null, null, "strict", null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( request, resp );
+
+        final ArgumentCaptor< BriefingLogEntry > captor = ArgumentCaptor.forClass( BriefingLogEntry.class );
+        verify( blog ).log( captor.capture() );
+        final BriefingLogEntry entry = captor.getValue();
+        assertEquals( 1, entry.pinCount() );
+        assertEquals( 1, entry.pointerCount(), "only the cluster pointer; cited/elsewhere are counted separately" );
+        assertEquals( 1, entry.citedCount() );
+        assertEquals( 1, entry.elsewhereCount() );
+        assertEquals( "strict", entry.scopeMode() );
+    }
+
     /* (h) coverage.confidence() is passed through to the query-log call — this is the datum the
        AGENT_GAP content-intelligence rule fires on (design §6.2/§7.3): a weak-coverage bundle is
        a content gap a raw section count alone hides. */

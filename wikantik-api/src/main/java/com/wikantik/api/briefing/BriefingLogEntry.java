@@ -18,7 +18,25 @@
  */
 package com.wikantik.api.briefing;
 
-/** One logged briefing request, for telemetry grounding future eval work. */
+/**
+ * One logged briefing request, for telemetry grounding future eval work.
+ *
+ * <p>{@code pinCount} counts included {@code pin} items; {@code pointerCount} counts budget-trimmed
+ * ({@code included == false}) {@code pin} and {@code cluster} items only; {@code citedCount} and
+ * {@code elsewhereCount} count the {@code cited} and {@code elsewhere} items whether or not they were
+ * trimmed. {@code scopeMode} is the effective scope mode in wire form ({@code "prefer"} or
+ * {@code "strict"}); {@code null} only on the nine-argument form.</p>
+ */
 public record BriefingLogEntry( String pins, String clusters, boolean promptPresent,
                                 int budgetRequested, int budgetUsed, int sectionCount,
-                                int pinCount, int pointerCount, String surface ) {}
+                                int pinCount, int pointerCount, String surface,
+                                int citedCount, int elsewhereCount, String scopeMode ) {
+
+    /** An entry that predates the tier columns: zero cited/elsewhere items, no scope mode. */
+    public BriefingLogEntry( final String pins, final String clusters, final boolean promptPresent,
+                             final int budgetRequested, final int budgetUsed, final int sectionCount,
+                             final int pinCount, final int pointerCount, final String surface ) {
+        this( pins, clusters, promptPresent, budgetRequested, budgetUsed, sectionCount,
+              pinCount, pointerCount, surface, 0, 0, null );
+    }
+}

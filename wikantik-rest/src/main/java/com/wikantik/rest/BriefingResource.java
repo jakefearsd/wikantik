@@ -23,7 +23,6 @@ import com.google.gson.GsonBuilder;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.briefing.BriefingAssemblyService;
 import com.wikantik.api.briefing.BriefingItem;
-import com.wikantik.api.briefing.BriefingLogEntry;
 import com.wikantik.api.briefing.BriefingLogService;
 import com.wikantik.api.briefing.BriefingRequest;
 import com.wikantik.api.briefing.ContextBriefing;
@@ -34,6 +33,7 @@ import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.knowledge.briefing.BriefingAclGate;
+import com.wikantik.knowledge.briefing.BriefingLogEntries;
 import com.wikantik.knowledge.briefing.BriefingWarnings;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
 import jakarta.servlet.http.HttpServletRequest;
@@ -213,12 +213,7 @@ public class BriefingResource extends RestServletBase {
 
         final BriefingLogService blog = briefingLogService();
         if ( blog != null ) {
-            final int pinCount = (int) gated.items().stream()
-                    .filter( i -> i.included() && "pin".equals( i.origin() ) ).count();
-            final int pointerCount = (int) gated.items().stream().filter( i -> !i.included() ).count();
-            blog.log( new BriefingLogEntry( String.join( ",", pins ), String.join( ",", clusters ),
-                    promptPresent, gated.budgetTokens(), gated.usedTokens(), gated.sections().size(),
-                    pinCount, pointerCount, SourceSurface.API_BRIEFING.wire() ) );
+            blog.log( BriefingLogEntries.of( request, gated, SourceSurface.API_BRIEFING.wire() ) );
         }
     }
 

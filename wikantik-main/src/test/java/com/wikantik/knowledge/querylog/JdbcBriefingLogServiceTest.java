@@ -65,6 +65,50 @@ class JdbcBriefingLogServiceTest {
     }
 
     @Test
+    void log_insertsTwelveFields() throws Exception {
+        final DataSource ds = mock( DataSource.class );
+        final Connection conn = mock( Connection.class );
+        final PreparedStatement ps = mock( PreparedStatement.class );
+        when( ds.getConnection() ).thenReturn( conn );
+        when( conn.prepareStatement( anyString() ) ).thenReturn( ps );
+
+        final BriefingLogEntry entry = new BriefingLogEntry(
+            "PageA", "clusterX", true, 6000, 4200, 5, 2, 1, "api_briefing", 3, 4, "strict" );
+
+        new JdbcBriefingLogService( ds, true, INLINE ).log( entry );
+
+        verify( ps ).setString( 1, "PageA" );
+        verify( ps ).setString( 2, "clusterX" );
+        verify( ps ).setBoolean( 3, true );
+        verify( ps ).setInt( 4, 6000 );
+        verify( ps ).setInt( 5, 4200 );
+        verify( ps ).setInt( 6, 5 );
+        verify( ps ).setInt( 7, 2 );
+        verify( ps ).setInt( 8, 1 );
+        verify( ps ).setString( 9, "api_briefing" );
+        verify( ps ).setInt( 10, 3 );
+        verify( ps ).setInt( 11, 4 );
+        verify( ps ).setString( 12, "strict" );
+        verify( ps ).executeUpdate();
+    }
+
+    @Test
+    void log_nineArgEntry_storesZeroTierCountsAndNullScopeMode() throws Exception {
+        final DataSource ds = mock( DataSource.class );
+        final Connection conn = mock( Connection.class );
+        final PreparedStatement ps = mock( PreparedStatement.class );
+        when( ds.getConnection() ).thenReturn( conn );
+        when( conn.prepareStatement( anyString() ) ).thenReturn( ps );
+
+        new JdbcBriefingLogService( ds, true, INLINE ).log( new BriefingLogEntry(
+            "PageA", null, false, 6000, 0, 0, 1, 0, "api_briefing" ) );
+
+        verify( ps ).setInt( 10, 0 );
+        verify( ps ).setInt( 11, 0 );
+        verify( ps ).setString( 12, null );
+    }
+
+    @Test
     void log_truncatesOversizedPinsAndClustersTo2000Chars() throws Exception {
         final DataSource ds = mock( DataSource.class );
         final Connection conn = mock( Connection.class );

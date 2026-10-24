@@ -126,7 +126,8 @@ per cluster); excess is truncated with a logged warning.
 
 Each assembled briefing is recorded in the `briefing_log` table (migration
 `V044`; toggle with `wikantik.briefing.log.enabled`, default `true`) for telemetry — what was requested, how large the result was, whether the
-budget bound. Portable client shims that wire the briefing into an agent runtime
+budget bound. Since `V064` the row also carries `cited_count`, `elsewhere_count` and the effective `scope_mode` (`prefer` or `strict`), and
+`pointer_count` counts only budget-trimmed pin and cluster items. Portable client shims that wire the briefing into an agent runtime
 (Claude Code, Antigravity) live under [`clients/`](../../clients/).
 
 ---

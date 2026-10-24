@@ -32,6 +32,7 @@ import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
@@ -199,6 +200,54 @@ class GetBriefingToolTest {
     private static BriefingLogEntry argThatSurfaceIsMcpGetBriefing() {
         return org.mockito.ArgumentMatchers.argThat( entry ->
                 entry != null && "mcp_get_briefing".equals( entry.surface() ) && entry.pinCount() == 1 );
+    }
+
+    /**
+     * pointerCount is the budget-trimmed pin/cluster pointers only; cited and elsewhere items are
+     * counted in their own columns so they cannot inflate it. scope_mode is logged in wire form.
+     */
+    @Test
+    void execute_logsCitedAndElsewhereCounts() {
+        final BriefingItem clusterPointer = new BriefingItem(
+                "PageB", "01B", "Page B", "summary B", "cluster", false, null );
+        final BriefingItem citedPointer = new BriefingItem(
+                "SharedC", "01C", "Shared C", "summary C", "cited", false, null, "shared" );
+        final BriefingItem elsewherePointer = new BriefingItem(
+                "OtherD", "01D", "Other D", "summary D", "elsewhere", false, null, "other" );
+        final ContextBriefing briefing = briefingWith( List.of(),
+                List.of( PIN_ITEM_A, clusterPointer, citedPointer, elsewherePointer ) );
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final BriefingLogService blog = mock( BriefingLogService.class );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> null, () -> blog, PageViewGate.ALLOW_ALL );
+
+        tool.execute( Map.of( "pins", List.of( "PageA" ), "scope_mode", "strict" ) );
+
+        final ArgumentCaptor< BriefingLogEntry > captor = ArgumentCaptor.forClass( BriefingLogEntry.class );
+        verify( blog ).log( captor.capture() );
+        final BriefingLogEntry entry = captor.getValue();
+        assertEquals( 1, entry.pinCount() );
+        assertEquals( 1, entry.pointerCount(), "only the cluster pointer; cited/elsewhere are counted separately" );
+        assertEquals( 1, entry.citedCount() );
+        assertEquals( 1, entry.elsewhereCount() );
+        assertEquals( "strict", entry.scopeMode() );
+    }
+
+    @Test
+    void execute_logsPreferScopeMode_whenNoneSupplied() {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) )
+                .thenReturn( briefingWith( List.of(), List.of( PIN_ITEM_A ) ) );
+        final BriefingLogService blog = mock( BriefingLogService.class );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> null, () -> blog, PageViewGate.ALLOW_ALL );
+
+        tool.execute( Map.of( "pins", List.of( "PageA" ) ) );
+
+        final ArgumentCaptor< BriefingLogEntry > captor = ArgumentCaptor.forClass( BriefingLogEntry.class );
+        verify( blog ).log( captor.capture() );
+        assertEquals( "prefer", captor.getValue().scopeMode(), "the effective mode is logged, never null" );
+        assertEquals( 0, captor.getValue().citedCount() );
+        assertEquals( 0, captor.getValue().elsewhereCount() );
     }
 
     @Test

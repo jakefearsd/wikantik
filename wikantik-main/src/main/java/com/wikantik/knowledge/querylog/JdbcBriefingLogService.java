@@ -39,7 +39,8 @@ public final class JdbcBriefingLogService implements BriefingLogService {
 
     private static final String INSERT_SQL =
         "INSERT INTO briefing_log (pins, clusters, prompt_present, budget_requested, budget_used, "
-        + "section_count, pin_count, pointer_count, surface) VALUES (?,?,?,?,?,?,?,?,?)";
+        + "section_count, pin_count, pointer_count, surface, cited_count, elsewhere_count, scope_mode) "
+        + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
 
     /** Cap on the caller-supplied pins/clusters strings — the columns are unbounded TEXT and the
      *  input is anonymous, so a pathological request can't stuff megabytes into a log row. */
@@ -80,6 +81,9 @@ public final class JdbcBriefingLogService implements BriefingLogService {
                 ps.setInt( 7, entry.pinCount() );
                 ps.setInt( 8, entry.pointerCount() );
                 ps.setString( 9, entry.surface() );
+                ps.setInt( 10, entry.citedCount() );
+                ps.setInt( 11, entry.elsewhereCount() );
+                ps.setString( 12, entry.scopeMode() );
             } );
         } catch ( final Exception e ) {
             LOG.warn( "Briefing-log write failed for surface={}: {}", entry.surface(), e.getMessage() );

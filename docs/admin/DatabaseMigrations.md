@@ -207,6 +207,7 @@ The migration directory is the source of truth; this table summarises it through
 | V061 | Widen the `api_keys.scope` CHECK to admit `mcp_admin` (the renamed full-admin MCP scope); existing `mcp` rows are kept and read as an alias |
 | V062 | Indexes found missing by the 2026-10-22 profiling run: `users(uid)`, `retrieval_runs(mode, started_at)`, partial `kg_proposals(created)` for the judge claim |
 | V063 | Drop 16 redundant or unusable indexes (covered by a PK/unique constraint's leading columns, or never served by any query), incl. the GIN `idx_kg_nodes_properties` |
+| V064 | `briefing_log`: add `cited_count`, `elsewhere_count` and `scope_mode` so the project-context tiers and scope mode of each briefing are recorded |
 
 The other `.sql` files directly under `bin/db/` (`migration-1.0-to-1.1.sql`,
 `cleanup-2026-04-30-stale-canonical-ids.sql`, `normalize-relationship-types.sql`) are

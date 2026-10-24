@@ -115,7 +115,7 @@ always returns Markdown.
 | `clusters` | CSV of clusters to draw representative context from. Also scopes the briefing: see [Project scope](#project-scope-members-cited-elsewhere). |
 | `prompt` | The task prompt — used to retrieve additionally-relevant sections. |
 | `budget` | Token budget for the assembled briefing (the assembler dedupes and trims to fit). A non-integer value returns `400`. Default 6000 (`wikantik.briefing.default_budget`), capped at 24000 (`wikantik.briefing.max_budget`). |
-| `scope_mode` | `prefer` (default: task-relevant hits outside the requested clusters become pointers under "Elsewhere in the wiki") or `strict` (drop them). Any other value returns `400`. |
+| `scope_mode` | `prefer` (default: task-relevant hits outside the requested clusters become one-line pointers under "Elsewhere in the wiki", not body text) or `strict` (drop them). Has no effect without `clusters`. Any other value returns `400`. |
 | `format` | `json` (default — structured) or `md` (injection-ready Markdown, `text/markdown`). Any other value returns `400`. Session hooks pass `format=md`. |
 
 The `get_briefing` MCP tool takes `pins`, `clusters`, `prompt`, `budget` and `scope_mode` (no `format`) and returns Markdown.
@@ -159,6 +159,14 @@ budget. In `strict` mode sections outside tiers 1 and 2 are dropped; in `prefer`
 they become `elsewhere` pointers rather than body text. The per-page cap applies to every
 briefing, including one with no clusters.
 
+A requested scope that matches no page at all (every cluster unknown) is not allowed to
+cost the agent its content: under `prefer` the briefing is selected as if no clusters had
+been requested (the `unknown cluster: <name>` warning remains), while `strict` keeps dropping
+everything outside the scope. Likewise a failure while deriving the scope degrades to an
+unscoped briefing with a `scope computation failed; clusters skipped` warning rather than
+an error. A member the per-cluster cap leaves out of the listed members is still a member:
+it is never reported as a cited page and its sections are not demoted to `elsewhere`.
+
 **Pointers.** A member or cited page whose body does not fit the remaining budget becomes
 a pointer (title and summary only). Cluster-member pointers are capped at
 `wikantik.briefing.pointers.max` (default 30) and are emitted in rank order, so low
@@ -182,6 +190,11 @@ without clusters has the same headings as before).
 5. `## Available on request` (budget-trimmed pin and cluster pointers)
 6. A closing `> Briefing warnings: …` line when any assembly warning was raised
 
+When retrieval hits were turned into `elsewhere` pointers, the coverage line gains a second
+sentence, `Retrieval: <confidence>; <n> further sections from other projects are listed under
+"Elsewhere in the wiki".`, so a briefing whose delivered coverage is `weak` or `unknown` because
+every hit lay outside the project is not read as "the wiki has nothing on this".
+
 ### JSON shape additions
 
 `format=json` is unchanged except for additive fields on `items[]`:
@@ -191,6 +204,9 @@ without clusters has the same headings as before).
   heading path of the matching section).
 - `cluster` is the page's primary cluster for `cited` and `elsewhere` items so a reader can
   tell whose page it is; it is `null` for pins and members.
+- `retrievalCoverage` (top level, beside `coverage`) is the retrieval bundle's coverage *before*
+  the cluster-scope partition: what retrieval found. `coverage` keeps its meaning of what the
+  briefing delivered as `sections[]`.
 
 `sections[]` carry no tier field; they are ordered by tier, members then cited pages.
 
@@ -203,10 +219,21 @@ the warning exists so that `scope=strict` (the parameter is `scope_mode`) is no 
 silently treated as `prefer`. `assemble_bundle` and `/api/bundle` do not warn: the bundle
 response has no warnings channel.
 
+### Telemetry
+
 Each assembled briefing is recorded in the `briefing_log` table (migration
 `V044`; toggle with `wikantik.briefing.log.enabled`, default `true`) for telemetry — what was requested, how large the result was, whether the
 budget bound. Since `V064` the row also carries `cited_count`, `elsewhere_count` and the effective `scope_mode` (`prefer` or `strict`), and
-`pointer_count` counts only budget-trimmed pin and cluster items. Portable client shims that wire the briefing into an agent runtime
+`pointer_count` counts only budget-trimmed pin and cluster items.
+
+A briefing with a `prompt` is also written to the query log (surfaces `api_briefing` and
+`mcp_get_briefing`) so Content Intelligence can see agent demand. That row records what
+*retrieval* found: `retrievalCoverage.confidence` and a result count of delivered sections plus
+`elsewhere` pointers. It deliberately does not record the delivered `coverage`, which the cluster
+scope can take to zero for a prompt whose strong hits all lie in other projects; that would read as
+a content gap that does not exist.
+
+Portable client shims that wire the briefing into an agent runtime
 (Claude Code, Antigravity) live under [`clients/`](../../clients/).
 
 ---

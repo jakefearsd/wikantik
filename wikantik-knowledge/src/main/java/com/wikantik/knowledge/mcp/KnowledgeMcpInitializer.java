@@ -188,6 +188,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                         "plus its cluster siblings. For wiki content use assemble_bundle " +
                         "(primary answer-grounding tool), retrieve_context (page/section discovery), " +
                         "get_page (pinned fetch), read_pages (batched markdown fetch, max 20), " +
+                        "get_briefing (session-start briefing: your project's pages and the contracts it cites), " +
                         "list_pages (browse), or list_metadata_values (discovery). For Knowledge Graph (LLM-extracted entities) use " +
                         "discover_schema, query_nodes, get_node, traverse, search_knowledge, " +
                         "or find_similar." )

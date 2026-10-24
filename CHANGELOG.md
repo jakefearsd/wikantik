@@ -50,6 +50,19 @@ Project-context separation for session briefings
   members, in rank order instead of `updated` order. Cited pointers are bounded by
   `wikantik.briefing.scope.cited.max` and do not count against it, so a large cluster cannot starve the cited tier.
 
+### Fixed
+- **The query log records what retrieval found.** `ContextBriefing.retrievalCoverage` (JSON: `retrievalCoverage`) is
+  the bundle's coverage before the cluster-scope partition; `GET /api/briefing` and `get_briefing` log its
+  confidence and delivered-sections-plus-`elsewhere` as the result count. A prompt whose hits all lie outside the
+  requested cluster used to log `0 / weak`, a false content-gap signal. The markdown coverage line mentions the
+  `elsewhere` hits.
+- **`prefer` with only unknown clusters keeps its sections.** A typo in a project's configured cluster turned every
+  retrieved section into an `elsewhere` pointer; it now degrades to an unscoped briefing (the warning remains).
+  `strict` still drops everything.
+- **A scope that cannot be computed no longer fails the briefing.** It degrades to unscoped with a
+  `scope computation failed; clusters skipped` warning.
+- **A member left out by the per-cluster cap is not reported as cited**, and its sections stay tier 1.
+
 ## [2.4.63] - 2026-10-23
 
 Database and disk hygiene pass.

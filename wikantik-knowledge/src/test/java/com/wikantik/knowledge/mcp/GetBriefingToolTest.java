@@ -180,6 +180,13 @@ class GetBriefingToolTest {
         assertTrue( props.containsKey( "budget" ) );
         assertTrue( props.containsKey( "scope_mode" ) );
         assertTrue( ToolSchemas.required( def.inputSchema() ).isEmpty(), "no required fields — validated via hasAnySource" );
+        assertTrue( def.description().contains( "Contracts this project cites" ),
+                "the tool description names the cited tier, not just pins and cluster members: " + def.description() );
+        assertTrue( def.description().contains( "Elsewhere" ) || def.description().contains( "elsewhere" ),
+                "and says out-of-scope hits become pointers: " + def.description() );
+        final String scopeModeDescription = String.valueOf( ( (Map< ?, ? >) props.get( "scope_mode" ) ).get( "description" ) );
+        assertTrue( scopeModeDescription.contains( "pointers" ) && scopeModeDescription.contains( "dropped" ),
+                "scope_mode describes pointers (prefer) and dropped hits (strict): " + scopeModeDescription );
     }
 
     /* ---------- (e) briefing-log surface ---------- */

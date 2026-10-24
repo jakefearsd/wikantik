@@ -47,8 +47,8 @@ import org.apache.logging.log4j.Logger;
 
 /**
  * MCP tool — assemble a session-start context briefing: prompt-refined wiki sections plus
- * pinned pages and cluster members, filled into a token budget with pointers for what did
- * not fit. Unlike {@link AssembleBundleTool} (JSON, repeated per-question calls), this tool
+ * pinned pages, cluster members and the shared pages they cite, filled into a token budget with
+ * pointers for what did not fit and for relevant sections elsewhere in the wiki. Unlike {@link AssembleBundleTool} (JSON, repeated per-question calls), this tool
  * returns injection-ready <b>markdown</b> and is meant to be called once at session start
  * (ADR-0001 — never synthesizes an answer).
  */
@@ -99,17 +99,19 @@ public class GetBriefingTool extends AbstractMcpTool {
         ) );
         props.put( "scope_mode", Map.of(
                 "type", "string",
-                "description", "prefer (default; may widen beyond pins/clusters) or strict (stay within them)."
+                "description", "prefer (default: out-of-scope retrieval hits become pointers under "
+                        + "'Elsewhere in the wiki') or strict (out-of-scope hits are dropped)."
         ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Assemble a session-start context briefing: prompt-refined wiki sections plus "
-                        + "pinned pages and cluster members, filled into a token budget with pointers for what "
-                        + "did not fit. Returns injection-ready markdown. Call this ONCE at the start of a "
-                        + "session with the clusters/pins configured for your project and the user's first "
-                        + "request as `prompt`. For follow-up questions use assemble_bundle instead. Does NOT "
-                        + "synthesize an answer." )
+                .description( "Assemble a session-start context briefing for a project: prompt-refined wiki "
+                        + "sections, the project's own pages (cluster members ranked by in-cluster links), the "
+                        + "shared pages the project cites ('Contracts this project cites'), and one-line pointers "
+                        + "to relevant sections elsewhere in the wiki, within a token budget. Returns "
+                        + "injection-ready markdown. Call this ONCE at session start with your project cluster in "
+                        + "`clusters` and the user's first request as `prompt`; use assemble_bundle for follow-up "
+                        + "questions. Does NOT synthesize an answer." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();

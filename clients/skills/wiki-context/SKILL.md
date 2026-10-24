@@ -22,10 +22,12 @@ wiki's knowledge MCP server.
 At the start of a new session or task, before doing any other work, call
 `get_briefing` with:
 - `pins`: the project's configured pinned pages (if any)
-- `clusters`: the project's configured clusters (if any)
+- `clusters`: the project's configured clusters (if any) — the briefing lists
+  the project's own pages and the shared pages it cites
 - `prompt`: the user's first request, verbatim
-- `scope_mode`: `prefer` (default) to widen beyond pins/clusters when useful,
-  or `strict` to stay confined to them
+- `scope_mode`: `prefer` (default) turns task-relevant hits outside the
+  project into one-line pointers under "Elsewhere in the wiki", or `strict`
+  drops them. It has no effect without `clusters`.
 
 The response is injection-ready markdown starting `# Wiki context briefing`,
 with a coverage line and then, each omitted when empty: `## Task-relevant

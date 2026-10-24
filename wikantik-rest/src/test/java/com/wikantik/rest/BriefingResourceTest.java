@@ -371,6 +371,41 @@ class BriefingResourceTest {
             BundleCoverage.WEAK, null );
     }
 
+    /* A briefing whose hits all lie outside the requested cluster delivers 0 sections (they become
+       "elsewhere" pointers) but retrieval was strong: the query log must record that, not 0 / weak,
+       or Content Intelligence reads a false AGENT_GAP. */
+    @Test
+    void queryLog_receivesRetrievalCoverageAndElsewhereCount() throws Exception {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        final java.util.List< BriefingItem > elsewhere = java.util.List.of(
+                new BriefingItem( "OtherA", "01A", "Other A", "H", "elsewhere", false, null, "other" ),
+                new BriefingItem( "OtherB", "01B", "Other B", "H", "elsewhere", false, null, "other" ),
+                new BriefingItem( "OtherC", "01C", "Other C", "H", "elsewhere", false, null, "other" ) );
+        final ContextBriefing briefing = new ContextBriefing( "deploy", List.of(),
+                new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK ), elsewhere, List.of(), 4000, 0,
+                new BundleCoverage( 12, 6, 0.9, BundleCoverage.STRONG ) );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return svc; }
+            @Override protected QueryLogService queryLogService() { return qlog; }
+            @Override protected BriefingLogService briefingLogService() { return null; }
+            @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.HUMAN; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );
+            }
+        };
+        final HttpServletRequest request = req( null, "roller", "deploy", null, null, null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( request, resp );
+
+        verify( qlog ).log( "deploy", ActorType.HUMAN, SourceSurface.API_BRIEFING, 3,
+            BundleCoverage.STRONG, null );
+    }
+
     /* unknown query parameter -> warning, request still served */
     @Test
     void unknownQueryParam_appearsInWarnings() throws Exception {

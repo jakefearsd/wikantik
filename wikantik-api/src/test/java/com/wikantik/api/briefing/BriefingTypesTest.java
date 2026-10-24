@@ -78,6 +78,30 @@ class BriefingTypesTest {
     }
 
     @Test
+    void retrievalCoverageDefaultsToTheDeliveredCoverageObject() {
+        final BundleCoverage delivered = new BundleCoverage( 2, 2, 0.5, BundleCoverage.PARTIAL );
+        final ContextBriefing sevenArg = new ContextBriefing( "p", List.of(), delivered, List.of(), List.of(), 6000, 0 );
+        assertSame( delivered, sevenArg.retrievalCoverage(), "the seven-argument form carries no separate retrieval truth" );
+
+        final ContextBriefing explicitNull =
+            new ContextBriefing( "p", List.of(), delivered, List.of(), List.of(), 6000, 0, null );
+        assertSame( delivered, explicitNull.retrievalCoverage(), "null is tolerated and means the delivered coverage" );
+
+        final ContextBriefing bare = new ContextBriefing( null, null, null, null, null, 6000, 0, null );
+        assertEquals( BundleCoverage.empty(), bare.retrievalCoverage() );
+    }
+
+    @Test
+    void retrievalCoverageIsKeptSeparateFromTheDeliveredCoverage() {
+        final BundleCoverage delivered = new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK );
+        final BundleCoverage retrieved = new BundleCoverage( 12, 6, 0.9, BundleCoverage.STRONG );
+        final ContextBriefing b =
+            new ContextBriefing( "p", List.of(), delivered, List.of(), List.of(), 6000, 0, retrieved );
+        assertSame( delivered, b.coverage() );
+        assertSame( retrieved, b.retrievalCoverage() );
+    }
+
+    @Test
     void sourceSurfaceWireValues() {
         assertEquals( "api_briefing", SourceSurface.API_BRIEFING.wire() );
         assertEquals( "mcp_get_briefing", SourceSurface.MCP_GET_BRIEFING.wire() );

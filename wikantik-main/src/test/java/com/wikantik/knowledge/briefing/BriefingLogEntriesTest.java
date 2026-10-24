@@ -24,6 +24,8 @@ import com.wikantik.api.briefing.BriefingRequest;
 import com.wikantik.api.briefing.ContextBriefing;
 import com.wikantik.api.briefing.ScopeMode;
 import com.wikantik.api.bundle.BundleCoverage;
+import com.wikantik.api.bundle.BundleSection;
+import com.wikantik.api.bundle.CitationHandle;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -56,6 +58,20 @@ class BriefingLogEntriesTest {
 
         assertEquals( 1, e.pinCount(), "only included pins" );
         assertEquals( 2, e.pointerCount(), "a trimmed pin and a trimmed cluster item; cited/elsewhere excluded" );
+    }
+
+    @Test
+    void retrievalHitCountIsDeliveredSectionsPlusElsewherePointers() {
+        final BundleSection section = new BundleSection( "01A", "A", List.of( "H" ), "text", 0.9,
+                new CitationHandle( "01A", 1, List.of( "H" ), "text", "sha" ) );
+        final ContextBriefing b = new ContextBriefing( "p", List.of( section ), BundleCoverage.empty(),
+                List.of( item( "x", "elsewhere", false ), item( "y", "elsewhere", false ),
+                         item( "z", "cited", false ), item( "w", "pin", true ) ), List.of(), 4000, 10 );
+
+        assertEquals( 3, BriefingLogEntries.retrievalHitCount( b ),
+                "1 section + 2 elsewhere pointers; cited and pinned items are not retrieval hits" );
+        assertEquals( 0, BriefingLogEntries.retrievalHitCount(
+                new ContextBriefing( "p", List.of(), BundleCoverage.empty(), List.of(), List.of(), 4000, 0 ) ) );
     }
 
     @Test

@@ -159,11 +159,12 @@ public class GetBriefingTool extends AbstractMcpTool {
         final QueryLogService qlog = queryLog == null ? null : queryLog.get();
         if ( qlog != null && promptPresent ) {
             // Coverage, not just the section count -- same reason as AssembleBundleTool, and the
-            // REST twin (BriefingResource) already records it. Without this the MCP half of the
-            // briefing surface is invisible to the AGENT_GAP rule, which triggers on
-            // coverage in {weak, unknown}.
-            qlog.log( prompt, ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, gated.sections().size(),
-                    gated.coverage() == null ? null : gated.coverage().confidence(), null );
+            // REST twin (BriefingResource) records the same pair. The AGENT_GAP rule triggers on
+            // coverage in {weak, unknown}, so this must be what RETRIEVAL found (retrievalCoverage
+            // and the elsewhere hits), not what the cluster scope let through as sections: a prompt
+            // whose strong hits all lie outside the cluster is not a content gap.
+            qlog.log( prompt, ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING,
+                    BriefingLogEntries.retrievalHitCount( gated ), gated.retrievalCoverage().confidence(), null );
         }
 
         final BriefingLogService blog = briefingLog == null ? null : briefingLog.get();

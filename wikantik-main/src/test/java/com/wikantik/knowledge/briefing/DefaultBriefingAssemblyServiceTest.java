@@ -301,6 +301,25 @@ class DefaultBriefingAssemblyServiceTest {
     }
 
     @Test
+    void retrievalCoverageIsThePrePartitionBundleCoverage() {
+        // Strong retrieval, but every hit lies outside the requested cluster: PREFER moves them all
+        // to "elsewhere", so nothing is delivered as a section. The delivered coverage says so;
+        // the retrieval coverage (what the query log records) still says retrieval was strong.
+        final BundleCoverage found = new BundleCoverage( 4, 2, 0.91, BundleCoverage.STRONG );
+        final ContextBundle bundle = new ContextBundle( "q", List.of(
+            sec( "CommerceDataFlow", "H1", "out one" ), sec( "Phase7Plan", "H2", "out two" ),
+            sec( "CommerceDataFlow", "H3", "out three" ), sec( "Phase7Plan", "H4", "out four" ) ), found );
+
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults(), q -> bundle )
+            .assemble( rollerRequest( ScopeMode.PREFER ) );
+
+        assertTrue( b.sections().isEmpty(), headings( b ).toString() );
+        assertEquals( 0, b.coverage().sectionCount(), "coverage keeps meaning what was delivered as sections" );
+        assertEquals( found, b.retrievalCoverage(), "retrievalCoverage is the bundle's own coverage, pre-partition" );
+        assertEquals( BundleCoverage.STRONG, b.retrievalCoverage().confidence() );
+    }
+
+    @Test
     void strictWithUnknownClusterYieldsNoSections() {
         final ContextBundle bundle = bundleOf( sec( "CommerceDataFlow", "H1", "out" ) );
 

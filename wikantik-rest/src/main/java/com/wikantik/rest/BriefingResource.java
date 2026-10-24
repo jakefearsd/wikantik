@@ -202,13 +202,15 @@ public class BriefingResource extends RestServletBase {
         }
 
         // Telemetry (fail-open; interfaces are contracted never to throw, never affects the
-        // response written above). coverage.confidence() is the datum the AGENT_GAP content-
-        // intelligence rule fires on (design §6.2/§7.3).
+        // response written above). The confidence is the datum the AGENT_GAP content-intelligence
+        // rule fires on (design §6.2/§7.3), so it is what RETRIEVAL found (retrievalCoverage plus the
+        // elsewhere hits), not what the cluster scope let through as sections: a prompt whose strong
+        // hits all lie outside the cluster is not a content gap.
         final boolean promptPresent = prompt != null && !prompt.isBlank();
         final QueryLogService qlog = queryLogService();
         if ( qlog != null && promptPresent ) {
-            qlog.log( prompt, actorType( req ), SourceSurface.API_BRIEFING, gated.sections().size(),
-                gated.coverage().confidence(), null );
+            qlog.log( prompt, actorType( req ), SourceSurface.API_BRIEFING,
+                BriefingLogEntries.retrievalHitCount( gated ), gated.retrievalCoverage().confidence(), null );
         }
 
         final BriefingLogService blog = briefingLogService();

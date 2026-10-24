@@ -197,7 +197,7 @@ class MarkdownBriefingRendererTest {
 
         final String expected = """
             # Wiki context briefing
-            _Coverage: unknown — 0 sections across 0 pages. Deepen with `assemble_bundle("<question>")`; fetch full pages with `read_pages`._
+            _Coverage: unknown — 0 sections across 0 pages. Deepen with `assemble_bundle("<question>")`; fetch full pages with `read_pages`. Retrieval: unknown; 5 further sections from other projects are listed under "Elsewhere in the wiki"._
 
             ## Elsewhere in the wiki
 
@@ -238,6 +238,34 @@ class MarkdownBriefingRendererTest {
             assertTrue( next > at, heading + " must follow the previous tier in: " + rendered );
             at = next;
         }
+    }
+
+    @Test
+    void coverageLineMentionsElsewhereHits() {
+        final ContextBriefing briefing = new ContextBriefing(
+            "q", List.of(), new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK ),
+            List.of( elsewhere( "A", "01A", "H", "stockroom" ), elsewhere( "B", "01B", "H", "stockroom" ),
+                     elsewhere( "C", "01C", "H", "roller" ) ),
+            List.of(), 4000, 0, new BundleCoverage( 9, 5, 0.9, BundleCoverage.STRONG ) );
+
+        final String firstLine = MarkdownBriefingRenderer.render( briefing ).lines().skip( 1 ).findFirst().orElseThrow();
+
+        assertEquals( "_Coverage: weak — 0 sections across 0 pages. Deepen with `assemble_bundle(\"<question>\")`; "
+            + "fetch full pages with `read_pages`. Retrieval: strong; 3 further sections from other projects are "
+            + "listed under \"Elsewhere in the wiki\"._", firstLine );
+    }
+
+    @Test
+    void coverageLineIsUnchangedWithoutElsewhereHits() {
+        final ContextBriefing briefing = new ContextBriefing(
+            "q", List.of(), new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK ),
+            List.of( new BriefingItem( "P", "01P", "Pin", "", "pin", true, "<body>" ) ),
+            List.of(), 4000, 0, new BundleCoverage( 9, 5, 0.9, BundleCoverage.STRONG ) );
+
+        final String firstLine = MarkdownBriefingRenderer.render( briefing ).lines().skip( 1 ).findFirst().orElseThrow();
+
+        assertEquals( "_Coverage: weak — 0 sections across 0 pages. Deepen with `assemble_bundle(\"<question>\")`; "
+            + "fetch full pages with `read_pages`._", firstLine );
     }
 
     private static BriefingItem elsewhere( final String slug, final String canonicalId,

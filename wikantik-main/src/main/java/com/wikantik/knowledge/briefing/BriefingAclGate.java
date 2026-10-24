@@ -106,6 +106,6 @@ public final class BriefingAclGate {
         }
 
         return new ContextBriefing( original.prompt(), keptSections, coverage,
-                keptItems, warnings, original.budgetTokens(), usedTokens );
+                keptItems, warnings, original.budgetTokens(), usedTokens, original.retrievalCoverage() );
     }
 }

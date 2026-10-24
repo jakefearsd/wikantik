@@ -66,7 +66,7 @@ public final class BriefingWarnings {
             warnings.add( UNKNOWN_ARGUMENT_PREFIX + echo( name ) );
         }
         return new ContextBriefing( briefing.prompt(), briefing.sections(), briefing.coverage(), briefing.items(),
-            warnings, briefing.budgetTokens(), briefing.usedTokens() );
+            warnings, briefing.budgetTokens(), briefing.usedTokens(), briefing.retrievalCoverage() );
     }
 
     /** Caps the name and replaces control characters so it cannot break the surrounding markdown line. */

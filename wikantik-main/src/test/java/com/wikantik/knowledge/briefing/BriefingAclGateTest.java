@@ -74,6 +74,20 @@ class BriefingAclGateTest {
     }
 
     @Test
+    void retrievalCoverageIsNotRecountedByTheGate() {
+        final BundleCoverage retrieved = new BundleCoverage( 6, 3, 0.9, BundleCoverage.STRONG );
+        final ContextBriefing original = new ContextBriefing( "prompt",
+            List.of( sec( "PublicPage", "public" ), sec( "SecretPage", "TOP SECRET" ) ),
+            new BundleCoverage( 2, 2, 0.9, BundleCoverage.STRONG ),
+            List.of(), List.of(), 4000, 100, retrieved );
+
+        final ContextBriefing gated = BriefingAclGate.gate( original, List.of(), slug -> !"SecretPage".equals( slug ) );
+
+        assertEquals( 1, gated.coverage().sectionCount(), "delivered coverage is recounted over kept sections" );
+        assertEquals( retrieved, gated.retrievalCoverage(), "what retrieval found is not a delivered-content figure" );
+    }
+
+    @Test
     void droppedPinBySlugGetsUnknownPinWarning() {
         final ContextBriefing original = briefing( List.of(),
             List.of( item( "SecretPage", "01SecretPage", true ) ), List.of() );

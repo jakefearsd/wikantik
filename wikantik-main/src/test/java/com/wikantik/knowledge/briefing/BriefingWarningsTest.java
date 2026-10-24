@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.briefing;
 
 import com.wikantik.api.briefing.ContextBriefing;
+import com.wikantik.api.bundle.BundleCoverage;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashSet;
@@ -58,6 +59,17 @@ class BriefingWarningsTest {
         assertEquals( List.of( "existing", "unknown argument: alpha", "unknown argument: zeta" ), out.warnings() );
         assertEquals( b.budgetTokens(), out.budgetTokens() );
         assertEquals( b.usedTokens(), out.usedTokens() );
+    }
+
+    @Test
+    void retrievalCoverageSurvivesTheWarningPass() {
+        final BundleCoverage retrieved = new BundleCoverage( 9, 5, 0.9, BundleCoverage.STRONG );
+        final ContextBriefing b = new ContextBriefing( "p", List.of(),
+            new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK ), List.of(), List.of(), 100, 10, retrieved );
+
+        final ContextBriefing out = BriefingWarnings.withUnknownArguments( b, Set.of( "bogus" ), KNOWN );
+
+        assertSame( retrieved, out.retrievalCoverage(), "adding a warning must not reset retrieval truth to the delivered coverage" );
     }
 
     @Test

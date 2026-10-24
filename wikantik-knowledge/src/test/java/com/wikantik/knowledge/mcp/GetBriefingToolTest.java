@@ -260,10 +260,35 @@ class GetBriefingToolTest {
 
         tool.execute( Map.of( "prompt", "deploy steps" ) );
 
-        // Coverage is recorded, and it is the POST-GATE value: BriefingAclGate recounts, and a
-        // STRONG bundle thinned below the 3-section floor becomes PARTIAL.
+        // What retrieval found is recorded, not what survived the gate or the scope partition:
+        // briefingWith carries no separate retrievalCoverage, so it is the briefing's STRONG coverage
+        // even though BriefingAclGate recounts the delivered coverage down to PARTIAL.
         verify( qlog ).log( "deploy steps", ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, 1,
-                BundleCoverage.PARTIAL, null );
+                BundleCoverage.STRONG, null );
+    }
+
+    /**
+     * A cluster-scoped briefing whose retrieval hits all lie outside the cluster delivers zero
+     * sections (they become "elsewhere" pointers) yet retrieval was strong. The query log must see
+     * the retrieval truth, or Content Intelligence reads a false AGENT_GAP.
+     */
+    @Test
+    void execute_logsRetrievalCoverage_notDeliveredCoverage() {
+        final BriefingItem e1 = new BriefingItem( "OtherA", "01A", "Other A", "H", "elsewhere", false, null, "other" );
+        final BriefingItem e2 = new BriefingItem( "OtherB", "01B", "Other B", "H", "elsewhere", false, null, "other" );
+        final BriefingItem e3 = new BriefingItem( "OtherC", "01C", "Other C", "H", "elsewhere", false, null, "other" );
+        final ContextBriefing briefing = new ContextBriefing( "prompt", List.of(),
+                new BundleCoverage( 0, 0, 0.9, BundleCoverage.WEAK ), List.of( e1, e2, e3 ), List.of(), 4000, 0,
+                new BundleCoverage( 12, 6, 0.9, BundleCoverage.STRONG ) );
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> qlog, () -> null, PageViewGate.ALLOW_ALL );
+
+        tool.execute( Map.of( "prompt", "deploy steps", "clusters", List.of( "roller" ) ) );
+
+        verify( qlog ).log( "deploy steps", ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, 3,
+                BundleCoverage.STRONG, null );
     }
 
     /**

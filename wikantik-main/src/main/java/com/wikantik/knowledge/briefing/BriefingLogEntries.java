@@ -59,6 +59,16 @@ public final class BriefingLogEntries {
                 request.scopeMode().name().toLowerCase( Locale.ROOT ) );
     }
 
+    /**
+     * The result count the <i>query</i> log records for a served briefing: the sections delivered plus the
+     * {@code elsewhere} pointers, i.e. the retrieval hits the agent was told about. Counting delivered
+     * sections alone would log {@code 0} for a prompt whose hits all lie outside the requested cluster,
+     * a false content-gap signal. Paired with {@link ContextBriefing#retrievalCoverage()}.
+     */
+    public static int retrievalHitCount( final ContextBriefing gated ) {
+        return gated.sections().size() + count( gated.items(), i -> ItemAssembler.ORIGIN_ELSEWHERE.equals( i.origin() ) );
+    }
+
     private static int count( final List< BriefingItem > items, final Predicate< BriefingItem > test ) {
         return (int) items.stream().filter( test ).count();
     }

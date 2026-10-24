@@ -157,7 +157,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
             itemAssembler.assembleClusterMembers();
             itemAssembler.assembleElsewhere( outOfScope, limits.elsewhereMax() );
             return new ContextBriefing( req.prompt(), ledger.sections, ledger.coverage,
-                itemAssembler.items, warnings, ledger.budget, ledger.used );
+                itemAssembler.items, warnings, ledger.budget, ledger.used, ledger.bundleCoverage );
         }
 
         // --------------------------------------------------------- sections

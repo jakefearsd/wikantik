@@ -24,14 +24,30 @@ import com.wikantik.api.bundle.BundleSection;
 import java.util.List;
 
 /** The unit a session-start briefing returns: retrieval-driven sections (with coverage), plus
- *  the explicitly pinned/cluster items, warnings, and the token budget actually used. */
+ *  the explicitly pinned/cluster items, warnings, and the token budget actually used.
+ *
+ *  <p>Two coverage values, deliberately distinct: {@code coverage} is what the briefing
+ *  <em>delivered</em> as sections (recounted over the kept sections), while {@code retrievalCoverage}
+ *  is the retrieval bundle's own coverage <em>before</em> the cluster-scope partition, i.e. what
+ *  retrieval actually found. The query log records the latter: a prompt whose strong hits all lie
+ *  outside the requested cluster is not a content gap just because zero sections were delivered.
+ *  {@code retrievalCoverage} is {@code null}-tolerant and defaults to the same object as
+ *  {@code coverage}.</p> */
 public record ContextBriefing( String prompt, List< BundleSection > sections, BundleCoverage coverage,
                                List< BriefingItem > items, List< String > warnings,
-                               int budgetTokens, int usedTokens ) {
+                               int budgetTokens, int usedTokens, BundleCoverage retrievalCoverage ) {
     public ContextBriefing {
         sections = sections == null ? List.of() : List.copyOf( sections );
         items = items == null ? List.of() : List.copyOf( items );
         warnings = warnings == null ? List.of() : List.copyOf( warnings );
         coverage = coverage == null ? BundleCoverage.empty() : coverage;
+        retrievalCoverage = retrievalCoverage == null ? coverage : retrievalCoverage;
+    }
+
+    /** A briefing whose retrieval coverage is the delivered {@code coverage} (no scope partition took place). */
+    public ContextBriefing( final String prompt, final List< BundleSection > sections, final BundleCoverage coverage,
+                            final List< BriefingItem > items, final List< String > warnings,
+                            final int budgetTokens, final int usedTokens ) {
+        this( prompt, sections, coverage, items, warnings, budgetTokens, usedTokens, null );
     }
 }

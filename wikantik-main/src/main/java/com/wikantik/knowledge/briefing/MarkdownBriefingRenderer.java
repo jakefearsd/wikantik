@@ -46,7 +46,8 @@ public final class MarkdownBriefingRenderer {
     public static String render( final ContextBriefing briefing ) {
         final StringBuilder sb = new StringBuilder();
         sb.append( "# Wiki context briefing\n" );
-        sb.append( coverageLine( briefing.coverage() ) ).append( '\n' );
+        final Tiers tiers = Tiers.of( briefing.items() );
+        sb.append( coverageLine( briefing, tiers.elsewhere().size() ) ).append( '\n' );
 
         if ( !briefing.sections().isEmpty() ) {
             sb.append( "\n## Task-relevant sections\n" );
@@ -56,7 +57,6 @@ public final class MarkdownBriefingRenderer {
             }
         }
 
-        final Tiers tiers = Tiers.of( briefing.items() );
         appendStanding( sb, tiers.standing() );
         appendCited( sb, tiers.cited() );
         appendElsewhere( sb, tiers.elsewhere() );
@@ -138,10 +138,23 @@ public final class MarkdownBriefingRenderer {
             .append( item.content() ).append( '\n' );
     }
 
-    private static String coverageLine( final BundleCoverage coverage ) {
-        return "_Coverage: " + coverage.confidence() + " — " + coverage.sectionCount()
-            + " sections across " + coverage.distinctPageCount() + " pages. Deepen with "
-            + "`assemble_bundle(\"<question>\")`; fetch full pages with `read_pages`._";
+    /**
+     * The delivered coverage, then &mdash; only when out-of-scope hits were turned into {@code elsewhere}
+     * pointers &mdash; what retrieval itself found, so a briefing with no delivered sections is not read as
+     * "the wiki has nothing on this".
+     */
+    private static String coverageLine( final ContextBriefing briefing, final int elsewhereCount ) {
+        final BundleCoverage coverage = briefing.coverage();
+        final StringBuilder sb = new StringBuilder( "_Coverage: " ).append( coverage.confidence() )
+            .append( " — " ).append( coverage.sectionCount() )
+            .append( " sections across " ).append( coverage.distinctPageCount() ).append( " pages. Deepen with " )
+            .append( "`assemble_bundle(\"<question>\")`; fetch full pages with `read_pages`." );
+        if ( elsewhereCount > 0 ) {
+            sb.append( " Retrieval: " ).append( briefing.retrievalCoverage().confidence() ).append( "; " )
+                .append( elsewhereCount ).append( " further sections from other projects are listed under " )
+                .append( "\"Elsewhere in the wiki\"." );
+        }
+        return sb.append( '_' ).toString();
     }
 
     private static String sectionHeading( final BundleSection section ) {

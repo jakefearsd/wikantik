@@ -55,6 +55,12 @@ import java.util.function.Predicate;
  * <p><b>Not masked (conscious accept):</b> cluster-name existence — the assembler's
  * {@code "unknown cluster: ..."} warnings pass through unchanged. Cluster names are lower-sensitivity
  * than page slugs; this is a recorded decision, not a silent gap.</p>
+ *
+ * <p><b>Also not masked (conscious accept):</b> tier-2 ordering and the {@code cited.max} /
+ * {@code elsewhere.max} slots are computed ACL-agnostically, before this gate runs, so a restricted
+ * member's links can influence which cited pages appear (and in what order). This is the same class of
+ * disclosure as {@code list_clusters} article counts, which already reveal that restricted members
+ * exist; a recorded decision, not a silent gap.</p>
  */
 public final class BriefingAclGate {
 

@@ -464,3 +464,16 @@ Recorded after Phase 2 was built. Earlier text above is left as approved; where 
    `wikantik.briefing.pointers.max`; `cited` pointers are bounded by `wikantik.briefing.scope.cited.max` (12)
    in `BriefingScope`, pins are never capped, and `elsewhere` pointers keep their own cap. The warning text
    is unchanged (`pointer list capped at <N>`).
+6. **Reach and citers are derived per request.** The "Where the numbers come from" paragraph governs; the
+   Phase 2 sentence about deriving them at snapshot time is superseded.
+7. **Section count.** The briefing takes up to `candidate_pool` (36) sections, subject to the per-page cap and the
+   token budget. There is no 12-section count truncation: the budget is the bound (prod runs used 5.1-6.0k of
+   the 6k tokens).
+8. **Retrieval truth.** `ContextBriefing.retrievalCoverage` (the bundle's coverage before the scope partition) is
+   what the query log records, with a result count of delivered sections plus `elsewhere` pointers; `coverage`
+   is what was delivered as sections. `prefer` with only unknown clusters degrades to unscoped (the
+   `unknown cluster` warning remains; `strict` still drops everything), and a scope computation failure
+   degrades to unscoped with a `scope computation failed; clusters skipped` warning rather than an exception.
+9. **Phase 3 tool-description bullet.** Done in the final fix wave for the knowledge MCP tool description and
+   `clients/skills/wiki-context/SKILL.md`. `wikantik-mcp-instructions.txt` is the admin server's file and does
+   not list knowledge tools, so it is unchanged by design.

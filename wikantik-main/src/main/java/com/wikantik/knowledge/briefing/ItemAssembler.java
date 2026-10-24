@@ -46,8 +46,9 @@ import java.util.Set;
  *
  * <p>Which pages are in scope, and in what order, is {@link BriefingScope}'s decision; this class
  * only decides, item by item, whether a page's body still fits (full item) or degrades to a
- * title/summary pointer. Cluster and cited pointers are capped at {@code pointersMax}; pins never
- * are. Out-of-scope retrieval hits become {@code elsewhere} pointers with their own cap. It owns only
+ * title/summary pointer. Only {@code cluster} (tier 1) pointers are capped at {@code pointersMax};
+ * {@code cited} pointers are bounded by the scope's own cited cap and pins are never capped.
+ * Out-of-scope retrieval hits become {@code elsewhere} pointers with their own cap. It owns only
  * the pin/scope/elsewhere → {@link BriefingItem} concern, split out of
  * {@code DefaultBriefingAssemblyService.Assembly} (God Class burn-down).</p>
  */
@@ -70,7 +71,7 @@ final class ItemAssembler {
 
     final List< BriefingItem > items = new ArrayList<>();
     private final Set< String > includedSlugs = new LinkedHashSet<>(); // every item (full or pointer)
-    private int scopedPointers;          // cluster + cited pointers emitted, counted against pointersMax
+    private int clusterPointers;         // tier-1 pointers emitted, counted against pointersMax
     private boolean pointerCapWarned;
 
     ItemAssembler( final Logger log, final PageManager pageManager, final StructuralIndexService structuralIndex,
@@ -182,20 +183,22 @@ final class ItemAssembler {
     }
 
     /**
-     * Whether another pointer of {@code origin} may be emitted. Cluster and cited pointers share
-     * {@code pointersMax}; the first one refused adds the single {@code pointer list capped} warning.
-     * A pin pointer is always admitted and never counted.
+     * Whether another pointer of {@code origin} may be emitted. Only tier-1 ({@code cluster}) pointers
+     * are counted against {@code pointersMax}; the first one refused adds the single
+     * {@code pointer list capped} warning. A {@code cited} pointer is bounded by the scope's cited cap
+     * and a pin pointer is never capped, so neither is counted nor refused here — otherwise a large
+     * cluster would spend the whole cap before the first cited page and starve the tier.
      */
     private boolean admitPointer( final String origin ) {
-        if ( ORIGIN_PIN.equals( origin ) ) return true;
-        if ( scopedPointers >= pointersMax ) {
+        if ( !ORIGIN_CLUSTER.equals( origin ) ) return true;
+        if ( clusterPointers >= pointersMax ) {
             if ( !pointerCapWarned ) {
                 warnings.add( "pointer list capped at " + pointersMax );
                 pointerCapWarned = true;
             }
             return false;
         }
-        scopedPointers++;
+        clusterPointers++;
         return true;
     }
 

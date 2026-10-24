@@ -74,7 +74,7 @@ public final class BriefingConfig {
      * @param citedEnabled    false drops the cited tier (pages outside the clusters that members link to)
      * @param citedMax        most cited pages per request
      * @param elsewhereMax    most out-of-scope pointers per request
-     * @param pointersMax     most cluster and cited pointers ("available on request") per request; pins are never capped
+     * @param pointersMax     most cluster-member pointers ("available on request") per request; cited pointers are bounded by {@code citedMax} and pins are never capped
      */
     public record BriefingLimits( int defaultBudget, int maxBudget, int sectionsPerPage, int candidatePool,
                                   boolean citedEnabled, int citedMax, int elsewhereMax, int pointersMax ) {

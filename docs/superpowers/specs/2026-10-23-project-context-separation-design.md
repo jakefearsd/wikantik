@@ -454,3 +454,13 @@ Recorded after Phase 2 was built. Earlier text above is left as approved; where 
    `perPageCapKeepsFirstNSectionsOfAPageInRankOrder`: a page belongs to exactly one tier, so there is no
    within-page tier preference to test; the cap keeps a page's first N sections in rank order, applied after the
    tier partition.
+5. **`pointers.max` caps cluster-member pointers only.** "Pointers" said the ranked, capped list followed the
+   tier order through both tiers. Built that way, the cap was shared: the standing-context pass walks every
+   tier-1 member before the first cited page, so in a large cluster the cap was spent before tier 2 began.
+   Smoke test on the `wikantik-development` cluster (132 members): 3 bodies and 30 `cluster` pointers, `pointer
+   list capped at 30`, and no `cited` items at all, although `BriefingScope` had computed them (the
+   `agent-cookbook` cluster showed 12). Cited pages that did not fit the budget were silently dropped, which
+   defeats the point of the cited tier. Now only `cluster` pointers count against and are refused by
+   `wikantik.briefing.pointers.max`; `cited` pointers are bounded by `wikantik.briefing.scope.cited.max` (12)
+   in `BriefingScope`, pins are never capped, and `elsewhere` pointers keep their own cap. The warning text
+   is unchanged (`pointer list capped at <N>`).

@@ -160,11 +160,13 @@ they become `elsewhere` pointers rather than body text. The per-page cap applies
 briefing, including one with no clusters.
 
 **Pointers.** A member or cited page whose body does not fit the remaining budget becomes
-a pointer (title and summary only). Cluster and cited pointers share a cap of
-`wikantik.briefing.pointers.max` (default 30) and are emitted in tier order, members before
-cited pages, so low in-degree pages fall off first; pinned pages are never capped. Hitting
-the cap adds a `pointer list capped at <n>` warning. `elsewhere` pointers spend no budget,
-have their own cap, and do not count against the cluster-and-cited cap.
+a pointer (title and summary only). Cluster-member pointers are capped at
+`wikantik.briefing.pointers.max` (default 30) and are emitted in rank order, so low
+in-degree pages fall off first. Hitting the cap adds a `pointer list capped at <n>` warning.
+Cited pointers do not count against it: that tier is already bounded by
+`wikantik.briefing.scope.cited.max`, and counting them would let a large cluster spend the
+whole cap before the first cited page. Pinned pages are never capped, and `elsewhere`
+pointers spend no budget and have their own cap.
 
 ### Rendered markdown
 
@@ -272,7 +274,7 @@ injection. Defaults shown.
 | `wikantik.briefing.candidate_pool` | `36` | Sections requested from the bundle before the in-scope/out-of-scope partition and per-page cap. |
 | `wikantik.briefing.scope.cited.enabled` / `.max` | `true` / `12` | Cited tier: pages outside the requested clusters that cluster members link to; kill switch and per-request cap. |
 | `wikantik.briefing.elsewhere.max` | `8` | Most out-of-scope "elsewhere" pointers per briefing. |
-| `wikantik.briefing.pointers.max` | `30` | Most cluster and cited pointers per briefing; pinned pages are never capped. |
+| `wikantik.briefing.pointers.max` | `30` | Most cluster-member pointers per briefing; cited pointers are bounded by `scope.cited.max`, and pinned pages are never capped. |
 | `wikantik.briefing.log.enabled` | `true` | Record briefing requests to `briefing_log`. |
 | `wikantik.citations.enabled` | `true` | Gate the `cite://` citation-edge subsystem (unrelated to document ingestion). |
 

@@ -612,6 +612,51 @@ class DefaultBriefingAssemblyServiceTest {
     }
 
     @Test
+    void citedPointersAreNotStarvedByTheClusterPointerCap() {
+        final StubIndex idx = new StubIndex();
+        final PageManager pm = pageManagerFixture();
+        final Instant base = Instant.parse( "2026-10-01T00:00:00Z" );
+        final PageDescriptor hub = desc( "BillingHub", List.of( "billing" ), "Hub.", base );
+        idx.register( hub );
+        stub( pm, "BillingHub", page( "Billing Hub", "Hub.", 40 ) );   // the one page that fits
+        final List< PageDescriptor > articles = new ArrayList<>();
+        for ( int i = 0; i < 9; i++ ) {
+            final String slug = String.format( "Member%02d", i );
+            final PageDescriptor article = desc( slug, List.of( "billing" ), slug + " summary.", base.plusSeconds( i ) );
+            idx.register( article );
+            articles.add( article );
+            stub( pm, slug, page( slug, slug + " summary.", 2000 ) );   // ~500 tokens: never fits
+        }
+        idx.clusters.put( "billing", cluster( "billing", hub, articles ) );
+        for ( final String slug : List.of( "ContractOne", "ContractTwo" ) ) {
+            idx.register( desc( slug, List.of( "shared" ), slug + " summary.", base ) );
+            stub( pm, slug, page( slug, slug + " summary.", 2000 ) );
+        }
+        // The hub cites both contracts; no member links to them otherwise.
+        final BriefingLimits limits = new BriefingLimits( 6000, 24000, 4, 36, true, 12, 8, 5 );
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), idx,
+            refs( Map.of( "BillingHub", List.of( "ContractOne", "ContractTwo" ) ) ), pm, limits );
+
+        final ContextBriefing b = svc.assemble( new BriefingRequest( null, List.of( "billing" ), null, 200, null ) );
+
+        final List< BriefingItem > clusterItems = b.items().stream().filter( i -> "cluster".equals( i.origin() ) ).toList();
+        final List< BriefingItem > citedItems = b.items().stream().filter( i -> "cited".equals( i.origin() ) ).toList();
+        assertEquals( 5, clusterItems.stream().filter( i -> !i.included() ).count(),
+            "exactly pointersMax cluster pointers: " + slugsOf( b ) );
+        assertEquals( List.of( "BillingHub" ), clusterItems.stream().filter( BriefingItem::included )
+            .map( BriefingItem::slug ).toList(), "only the hub fits, and a full item is not a pointer" );
+        assertEquals( List.of( "ContractOne", "ContractTwo" ), citedItems.stream().map( BriefingItem::slug ).toList(),
+            "the cluster pointer cap must not starve the cited tier: " + slugsOf( b ) );
+        assertTrue( citedItems.stream().noneMatch( BriefingItem::included ), "the contracts do not fit, so they are pointers" );
+        assertTrue( citedItems.stream().allMatch( i -> "shared".equals( i.cluster() ) ) );
+        assertEquals( 1, b.warnings().stream().filter( w -> w.equals( "pointer list capped at 5" ) ).count(),
+            "one cap warning, from the cluster tier: " + b.warnings() );
+        final int lastCluster = slugsOf( b ).lastIndexOf( clusterItems.get( clusterItems.size() - 1 ).slug() );
+        assertTrue( slugsOf( b ).indexOf( "ContractOne" ) > lastCluster, "cited items follow every cluster item: " + slugsOf( b ) );
+    }
+
+    @Test
     void legacyConstructorStillWorksWithoutReferenceManager() {
         final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
             q -> new ContextBundle( q, List.of() ), corpusIndex(), corpusPageManager(), DEFAULT_BUDGET, MAX_BUDGET );

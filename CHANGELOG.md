@@ -46,8 +46,9 @@ Project-context separation for session briefings
 - **Per-page cap on task-relevant sections** (`wikantik.briefing.sections_per_page`, default 4), applied to every
   briefing including ones with no clusters. It draws on a larger candidate pool, so the vacated slots are
   filled by other pages' sections rather than left empty.
-- **"Available on request" is ranked and capped** (`wikantik.briefing.pointers.max`, default 30) in tier order
-  instead of listing every unincluded member in `updated` order.
+- **"Available on request" is ranked and capped** (`wikantik.briefing.pointers.max`, default 30) for cluster
+  members, in rank order instead of `updated` order. Cited pointers are bounded by
+  `wikantik.briefing.scope.cited.max` and do not count against it, so a large cluster cannot starve the cited tier.
 
 ## [2.4.63] - 2026-10-23
 

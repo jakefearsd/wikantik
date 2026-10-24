@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.66] - 2026-10-24
+
 ### Changed
 - **Briefing standing context is a rank-ordered prefix.** Once a tier-1 member's body does not fit the remaining
   budget, every lower-ranked member is a pointer however small, instead of a later short page being included

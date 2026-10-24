@@ -27,9 +27,11 @@ import com.wikantik.api.bundle.BundleCoverage;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.knowledge.briefing.BriefingConfig.BriefingLimits;
 import com.wikantik.util.TokenEstimator;
 
 import org.apache.logging.log4j.LogManager;
@@ -47,8 +49,8 @@ import java.util.Set;
  * retrieval-driven section widening. Never synthesizes answers (ADR-0001) and is ACL-agnostic
  * like {@code DefaultBundleAssemblyService} — the REST/MCP surfaces (Tasks 6-7) gate visibility.
  *
- * <p>{@code bundleService} and {@code structuralIndex} are nullable: the assembler degrades with a
- * warning rather than failing. {@code pageManager} is required.</p>
+ * <p>{@code bundleService}, {@code structuralIndex} and {@code referenceManager} are nullable: the
+ * assembler degrades with a warning rather than failing. {@code pageManager} is required.</p>
  */
 public final class DefaultBriefingAssemblyService implements BriefingAssemblyService {
 
@@ -58,20 +60,35 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
 
     private final BundleAssemblyService bundleService;   // nullable
     private final StructuralIndexService structuralIndex; // nullable
+    private final ReferenceManager referenceManager;      // nullable: no cited tier, with a warning
     private final PageManager pageManager;
-    private final int defaultBudget;
-    private final int maxBudget;
+    private final BriefingLimits limits;
 
+    public DefaultBriefingAssemblyService( final BundleAssemblyService bundleService,
+                                           final StructuralIndexService structuralIndex,
+                                           final ReferenceManager referenceManager,
+                                           final PageManager pageManager,
+                                           final BriefingLimits limits ) {
+        this.bundleService = bundleService;
+        this.structuralIndex = structuralIndex;
+        this.referenceManager = referenceManager;
+        this.pageManager = Objects.requireNonNull( pageManager, "pageManager" );
+        this.limits = Objects.requireNonNull( limits, "limits" );
+    }
+
+    /** Without reference data: no cited tier. The remaining limits are {@link BriefingLimits#defaults()}. */
     public DefaultBriefingAssemblyService( final BundleAssemblyService bundleService,
                                            final StructuralIndexService structuralIndex,
                                            final PageManager pageManager,
                                            final int defaultBudget,
                                            final int maxBudget ) {
-        this.bundleService = bundleService;
-        this.structuralIndex = structuralIndex;
-        this.pageManager = Objects.requireNonNull( pageManager, "pageManager" );
-        this.defaultBudget = defaultBudget;
-        this.maxBudget = maxBudget;
+        this( bundleService, structuralIndex, null, pageManager, withBudgets( defaultBudget, maxBudget ) );
+    }
+
+    private static BriefingLimits withBudgets( final int defaultBudget, final int maxBudget ) {
+        final BriefingLimits d = BriefingLimits.defaults();
+        return new BriefingLimits( defaultBudget, maxBudget, d.sectionsPerPage(), d.candidatePool(),
+            d.citedEnabled(), d.citedMax(), d.elsewhereMax(), d.pointersMax() );
     }
 
     @Override
@@ -92,7 +109,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
 
     /**
      * Per-request mutable working state — keeps the assembly steps small and free of tuple
-     * returns. Delegates pin/cluster-member handling to {@link ItemAssembler} and shares the
+     * returns. Delegates pin/cluster-member/cited-page handling to {@link ItemAssembler} and shares the
      * token-budget ledger with it via {@link SectionBudget} (God Class burn-down: this class now
      * owns only orchestration + the prompt-driven section-retrieval step).
      */
@@ -108,14 +125,16 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
 
         Assembly( final BriefingRequest req ) {
             this.req = req;
-            final int requested = req.budgetTokens() == null ? defaultBudget : req.budgetTokens();
-            this.ledger = new SectionBudget( clamp( requested, BUDGET_FLOOR, maxBudget ) );
+            final int requested = req.budgetTokens() == null ? limits.defaultBudget() : req.budgetTokens();
+            this.ledger = new SectionBudget( clamp( requested, BUDGET_FLOOR, limits.maxBudget() ) );
             this.cappedPins = cap( req.pins(), BriefingConfig.MAX_PINS,
                 "too many pins; first " + BriefingConfig.MAX_PINS + " included" );
             this.cappedClusters = cap( req.clusters(), BriefingConfig.MAX_CLUSTERS,
                 "too many clusters; first " + BriefingConfig.MAX_CLUSTERS + " included" );
+            final BriefingScope scope = BriefingScope.compute( cappedClusters, structuralIndex, referenceManager,
+                limits.citedEnabled(), limits.citedMax(), warnings, warnedClusters );
             this.itemAssembler = new ItemAssembler( LOG, pageManager, structuralIndex, ledger,
-                cappedPins, cappedClusters, warnings, warnedClusters );
+                cappedPins, scope, limits.pointersMax(), warnings );
         }
 
         /** Truncate a caller-supplied list to {@code max}, warning once when it actually trims. */

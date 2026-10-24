@@ -31,6 +31,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.knowledge.briefing.BriefingConfig.BriefingLimits;
 import com.wikantik.knowledge.briefing.BriefingTestFixtures.StubIndex;
 import com.wikantik.util.TokenEstimator;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,13 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static com.wikantik.knowledge.briefing.BriefingTestFixtures.cluster;
+import static com.wikantik.knowledge.briefing.BriefingTestFixtures.corpusEdges;
+import static com.wikantik.knowledge.briefing.BriefingTestFixtures.corpusIndex;
 import static com.wikantik.knowledge.briefing.BriefingTestFixtures.desc;
+import static com.wikantik.knowledge.briefing.BriefingTestFixtures.refs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -282,26 +287,131 @@ class DefaultBriefingAssemblyServiceTest {
         assertEquals( "Rogue", b.sections().get( 1 ).slug() );
     }
 
-    @Test
-    void clusterMembersHubFirstThenByUpdatedDesc() {
-        final Instant older = Instant.parse( "2026-01-01T00:00:00Z" );
-        final Instant newer = Instant.parse( "2026-06-01T00:00:00Z" );
-        final StubIndex idx = new StubIndex();
-        idx.clusters.put( "billing", cluster( "billing", desc( "BillingHub", newer ),
-            List.of( desc( "ArticleA", older ), desc( "ArticleB", newer ) ) ) );
+    /** A {@link PageManager} that knows a small body for every page of the eight-page corpus. */
+    private static PageManager corpusPageManager() {
         final PageManager pm = pageManagerFixture();
-        stub( pm, "BillingHub", page( "Billing Hub", "Hub summary.", 40 ) );
-        stub( pm, "ArticleA", page( "Article A", "A summary.", 40 ) );
-        stub( pm, "ArticleB", page( "Article B", "B summary.", 40 ) );
+        for ( final String slug : corpusEdges().keySet() ) {
+            stub( pm, slug, page( slug, slug + " summary.", 40 ) );
+        }
+        return pm;
+    }
+
+    private static DefaultBriefingAssemblyService corpusService( final PageManager pm,
+                                                                 final BriefingLimits limits ) {
+        return new DefaultBriefingAssemblyService( q -> new ContextBundle( q, List.of() ), corpusIndex(),
+            refs( corpusEdges() ), pm, limits );
+    }
+
+    private static List< String > slugsOf( final ContextBriefing b ) {
+        return b.items().stream().map( BriefingItem::slug ).toList();
+    }
+
+    @Test
+    void clusterMembersHubFirstThenByInDegree() {
+        final ContextBriefing b = corpusService( corpusPageManager(), BriefingLimits.defaults() ).assemble(
+            new BriefingRequest( null, List.of( "roller" ), null, null, null ) );
+
+        // RollerTelemetrySpec is the newest Roller page, so recency alone would list it before
+        // RollerMcp; in-degree (RollerMcp is linked by two members, the spec by one) puts it second.
+        assertEquals( List.of( "RollerHub", "RollerMcp", "RollerTelemetrySpec", "TelemetryContract", "StackHub" ),
+            slugsOf( b ), "members hub-first by in-degree, then the pages they cite" );
+        assertEquals( List.of( "cluster", "cluster", "cluster", "cited", "cited" ),
+            b.items().stream().map( BriefingItem::origin ).toList() );
+        assertTrue( b.items().stream().allMatch( BriefingItem::included ), "everything fits the default budget" );
+        assertEquals( List.of( "simple-agility", "simple-agility" ),
+            b.items().stream().filter( i -> "cited".equals( i.origin() ) ).map( BriefingItem::cluster ).toList(),
+            "a cited item names the cluster it lives in" );
+        assertTrue( b.warnings().isEmpty(), "a clean scope warns about nothing: " + b.warnings() );
+    }
+
+    @Test
+    void citedPageDegradesToPointerUnderBudget() {
+        final PageManager pm = corpusPageManager();
+        // ~500 tokens: can never fit the 200-token floor budget, whereas the small members and StackHub do.
+        stub( pm, "TelemetryContract", page( "Telemetry Contract", "The contract.", 2000 ) );
+
+        final ContextBriefing b = corpusService( pm, BriefingLimits.defaults() ).assemble(
+            new BriefingRequest( null, List.of( "roller" ), null, 10, null ) );
+
+        final BriefingItem contract = itemBySlug( b, "TelemetryContract" );
+        assertEquals( "cited", contract.origin() );
+        assertFalse( contract.included(), "a cited page that does not fit degrades to a pointer" );
+        assertNull( contract.content() );
+        assertEquals( "simple-agility", contract.cluster() );
+        assertEquals( "Telemetry Contract", contract.title() );
+        final BriefingItem stackHub = itemBySlug( b, "StackHub" );
+        assertTrue( stackHub.included(), "the next cited page is judged on its own size: " + b.items() );
+        assertEquals( "cited", stackHub.origin() );
+    }
+
+    @Test
+    void pointerListCappedWithWarning() {
+        final StubIndex idx = new StubIndex();
+        final PageManager pm = pageManagerFixture();
+        final List< PageDescriptor > articles = new ArrayList<>();
+        for ( int i = 0; i < 12; i++ ) {
+            final String slug = String.format( "Big%02d", i );
+            articles.add( desc( slug, Instant.now() ) );
+            stub( pm, slug, page( slug, slug + " summary.", 2000 ) );   // ~500 tokens: never fits
+        }
+        idx.clusters.put( "billing", cluster( "billing", null, articles ) );
+        final BriefingLimits limits = new BriefingLimits( 6000, 24000, 4, 36, true, 12, 8, 5 );
         final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
-            q -> new ContextBundle( q, List.of() ), idx, pm, DEFAULT_BUDGET, MAX_BUDGET );
+            q -> new ContextBundle( q, List.of() ), idx, refs( Map.of() ), pm, limits );
+
+        final ContextBriefing b = svc.assemble( new BriefingRequest( null, List.of( "billing" ), null, 200, null ) );
+
+        assertEquals( 5, b.items().stream().filter( i -> !i.included() ).count(), "exactly pointersMax pointers" );
+        assertEquals( 5, b.items().size(), "members past the cap are dropped, not emitted as full items" );
+        assertEquals( 1, b.warnings().stream().filter( w -> w.equals( "pointer list capped at 5" ) ).count(),
+            "one cap warning, however many pointers were refused: " + b.warnings() );
+    }
+
+    @Test
+    void pinPointersAreNotCountedAgainstThePointerCap() {
+        final StubIndex idx = new StubIndex();
+        final PageManager pm = pageManagerFixture();
+        stub( pm, "PinA", page( "Pin A", "A.", 2000 ) );
+        stub( pm, "PinB", page( "Pin B", "B.", 2000 ) );
+        final List< PageDescriptor > articles = new ArrayList<>();
+        for ( int i = 0; i < 3; i++ ) {
+            final String slug = String.format( "Big%02d", i );
+            articles.add( desc( slug, Instant.now() ) );
+            stub( pm, slug, page( slug, slug + " summary.", 2000 ) );
+        }
+        idx.clusters.put( "billing", cluster( "billing", null, articles ) );
+        final BriefingLimits limits = new BriefingLimits( 6000, 24000, 4, 36, true, 12, 8, 1 );
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), idx, refs( Map.of() ), pm, limits );
 
         final ContextBriefing b = svc.assemble(
-            new BriefingRequest( null, List.of( "billing" ), null, null, null ) );
+            new BriefingRequest( List.of( "PinA", "PinB" ), List.of( "billing" ), null, 200, null ) );
 
-        assertEquals( List.of( "BillingHub", "ArticleB", "ArticleA" ),
-            b.items().stream().map( BriefingItem::slug ).toList(),
-            "hub first, then articles by updated desc" );
+        assertEquals( List.of( "pin", "pin", "cluster" ),
+            b.items().stream().map( BriefingItem::origin ).toList(),
+            "both pin pointers survive; only one cluster pointer fits the cap of 1" );
+        assertTrue( b.warnings().contains( "pointer list capped at 1" ), b.warnings().toString() );
+    }
+
+    @Test
+    void legacyConstructorStillWorksWithoutReferenceManager() {
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), corpusIndex(), corpusPageManager(), DEFAULT_BUDGET, MAX_BUDGET );
+
+        final ContextBriefing scoped = svc.assemble(
+            new BriefingRequest( null, List.of( "roller" ), null, null, null ) );
+
+        assertEquals( 3, scoped.items().size(), "the members are still assembled" );
+        assertTrue( scoped.items().stream().noneMatch( i -> "cited".equals( i.origin() ) ),
+            "no reference data, no cited tier" );
+        assertTrue( scoped.warnings().contains( "reference data unavailable; cited pages skipped" ),
+            scoped.warnings().toString() );
+        assertEquals( DEFAULT_BUDGET, scoped.budgetTokens(), "legacy budgets carry through" );
+
+        final ContextBriefing unscoped = svc.assemble(
+            new BriefingRequest( List.of( "BillingProcess" ), null, null, null, null ) );
+        assertTrue( unscoped.warnings().isEmpty(),
+            "the missing-reference-data warning belongs to cluster-scoped requests only: " + unscoped.warnings() );
     }
 
     @Test

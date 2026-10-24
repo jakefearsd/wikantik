@@ -23,7 +23,6 @@ import com.wikantik.api.bundle.BundleCoverage;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.providers.PageProvider;
@@ -33,7 +32,6 @@ import com.wikantik.util.TokenEstimator;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,41 +39,48 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Turns requested pins and cluster members into {@link BriefingItem}s, spending against the
- * shared {@link SectionBudget} ledger — including the pin-supersedes-its-own-sections rule (a
- * page body is a superset of its own retrieved sections, so a kept pin refunds and drops them).
+ * Turns requested pins and the {@link BriefingScope} tiers (cluster members, then the pages they
+ * cite) into {@link BriefingItem}s, spending against the shared {@link SectionBudget} ledger —
+ * including the pin-supersedes-its-own-sections rule (a page body is a superset of its own
+ * retrieved sections, so a kept pin refunds and drops them).
  *
- * <p>Extracted verbatim (method bodies unchanged, only field access re-targeted to this class'
- * own fields / the shared {@link SectionBudget}) from {@code DefaultBriefingAssemblyService
- * .Assembly}, which had grown into a God Class covering prompt-driven section retrieval,
- * budgeting, pin resolution, and cluster-member fan-out all at once. This class owns only the
- * pin/cluster-member → {@link BriefingItem} concern.</p>
+ * <p>Which pages are in scope, and in what order, is {@link BriefingScope}'s decision; this class
+ * only decides, item by item, whether a page's body still fits (full item) or degrades to a
+ * title/summary pointer. Cluster and cited pointers are capped at {@code pointersMax}; pins never
+ * are. It owns only the pin/scope → {@link BriefingItem} concern, split out of
+ * {@code DefaultBriefingAssemblyService.Assembly} (God Class burn-down).</p>
  */
 final class ItemAssembler {
+
+    private static final String ORIGIN_PIN = "pin";
+    private static final String ORIGIN_CLUSTER = "cluster";
+    private static final String ORIGIN_CITED = "cited";
 
     private final Logger log;
     private final PageManager pageManager;
     private final StructuralIndexService structuralIndex; // nullable
     private final SectionBudget ledger;
     private final List< String > cappedPins;
-    private final List< String > cappedClusters;
+    private final BriefingScope scope;
+    private final int pointersMax;
     private final List< String > warnings;
-    private final Set< String > warnedClusters;
 
     final List< BriefingItem > items = new ArrayList<>();
     private final Set< String > includedSlugs = new LinkedHashSet<>(); // every item (full or pointer)
+    private int scopedPointers;          // cluster + cited pointers emitted, counted against pointersMax
+    private boolean pointerCapWarned;
 
     ItemAssembler( final Logger log, final PageManager pageManager, final StructuralIndexService structuralIndex,
-                   final SectionBudget ledger, final List< String > cappedPins, final List< String > cappedClusters,
-                   final List< String > warnings, final Set< String > warnedClusters ) {
+                   final SectionBudget ledger, final List< String > cappedPins, final BriefingScope scope,
+                   final int pointersMax, final List< String > warnings ) {
         this.log = log;
         this.pageManager = pageManager;
         this.structuralIndex = structuralIndex;
         this.ledger = ledger;
         this.cappedPins = cappedPins;
-        this.cappedClusters = cappedClusters;
+        this.scope = scope;
+        this.pointersMax = pointersMax;
         this.warnings = warnings;
-        this.warnedClusters = warnedClusters;
     }
 
     // ------------------------------------------------------------- pins
@@ -125,85 +130,84 @@ final class ItemAssembler {
                 items.add( new BriefingItem( slug, canonicalIdOf( slug ),
                     DefaultBriefingAssemblyService.str( meta.get( "title" ), slug ),
                     DefaultBriefingAssemblyService.str( meta.get( "summary" ), "" ),
-                    "pin", true, body ) );
+                    ORIGIN_PIN, true, body ) );
                 includedSlugs.add( slug );
                 ledger.used += est;
                 return;
             }
         }
-        loadItem( slug, "pin", body );
+        loadItem( slug, ORIGIN_PIN, body, null );
     }
 
-    // -------------------------------------------------- cluster members
+    // ------------------------------------------------ cluster members, cited
 
+    /** Tier 1 (origin {@code cluster}) in scope order, then tier 2 (origin {@code cited}, naming its cluster). */
     void assembleClusterMembers() {
-        if ( cappedClusters.isEmpty() ) return;
-        if ( structuralIndex == null ) {
-            warnings.add( "structural index unavailable; clusters skipped" );
+        for ( final PageDescriptor member : scope.members() ) {
+            addScoped( member, ORIGIN_CLUSTER, null );
+        }
+        for ( final BriefingScope.Cited cited : scope.cited() ) {
+            addScoped( cited.page(), ORIGIN_CITED, cited.page().cluster() );
+        }
+    }
+
+    private void addScoped( final PageDescriptor page, final String origin, final String cluster ) {
+        final String slug = page.slug();
+        if ( includedSlugs.contains( slug ) ) return;
+        if ( pageManager.getPage( slug ) == null ) {
+            log.debug( "Briefing page {} has no live page; skipping", slug );
             return;
         }
-        for ( final String name : cappedClusters ) {
-            for ( final PageDescriptor member : clusterMembers( name ) ) {
-                final String slug = member.slug();
-                if ( includedSlugs.contains( slug ) ) continue;
-                if ( pageManager.getPage( slug ) == null ) {
-                    log.debug( "Cluster member {} has no live page; skipping", slug );
-                    continue;
-                }
-                // Pointer fast-path: once the budget is all but spent, nothing more can fit, so
-                // emit a pointer straight from the descriptor (title/summary already loaded)
-                // rather than reading the full body off disk — read-amplification defence.
-                if ( ledger.budget - ledger.used < BriefingConfig.POINTER_ONLY_FLOOR_TOKENS ) {
-                    addPointer( member );
-                } else {
-                    loadItem( slug, "cluster", bodyOf( slug ) );
-                }
-            }
+        // Pointer fast-path: once the budget is all but spent, nothing more can fit, so
+        // emit a pointer straight from the descriptor (title/summary already loaded)
+        // rather than reading the full body off disk — read-amplification defence.
+        if ( ledger.budget - ledger.used < BriefingConfig.POINTER_ONLY_FLOOR_TOKENS ) {
+            addPointer( page, origin, cluster );
+        } else {
+            loadItem( slug, origin, bodyOf( slug ), cluster );
         }
-    }
-
-    /** Hub first (if any), then articles by {@code updated} descending (nulls last), capped. */
-    private List< PageDescriptor > clusterMembers( final String name ) {
-        final Optional< ClusterDetails > cd = structuralIndex.getCluster( name );
-        if ( cd.isEmpty() ) {
-            if ( warnedClusters.add( name ) ) warnings.add( "unknown cluster: " + name );
-            return List.of();
-        }
-        final ClusterDetails c = cd.get();
-        final List< PageDescriptor > members = new ArrayList<>();
-        if ( c.hubPage() != null ) members.add( c.hubPage() );
-        c.articles().stream()
-            .sorted( Comparator.comparing( PageDescriptor::updated,
-                Comparator.nullsLast( Comparator.reverseOrder() ) ) )
-            .forEach( members::add );
-        if ( members.size() > BriefingConfig.MAX_CLUSTER_MEMBERS ) {
-            warnings.add( "too many members in cluster " + name + "; first "
-                + BriefingConfig.MAX_CLUSTER_MEMBERS + " included" );
-            return members.subList( 0, BriefingConfig.MAX_CLUSTER_MEMBERS );
-        }
-        return members;
     }
 
     /** Pointer item built purely from a structural descriptor — no page-body read. */
-    private void addPointer( final PageDescriptor d ) {
+    private void addPointer( final PageDescriptor d, final String origin, final String cluster ) {
+        if ( !admitPointer( origin ) ) return;
         final String slug = d.slug();
         items.add( new BriefingItem( slug, d.canonicalId(),
             DefaultBriefingAssemblyService.str( d.title(), slug ),
-            DefaultBriefingAssemblyService.str( d.summary(), "" ), "cluster", false, null ) );
+            DefaultBriefingAssemblyService.str( d.summary(), "" ), origin, false, null, cluster ) );
         includedSlugs.add( slug );
+    }
+
+    /**
+     * Whether another pointer of {@code origin} may be emitted. Cluster and cited pointers share
+     * {@code pointersMax}; the first one refused adds the single {@code pointer list capped} warning.
+     * A pin pointer is always admitted and never counted.
+     */
+    private boolean admitPointer( final String origin ) {
+        if ( ORIGIN_PIN.equals( origin ) ) return true;
+        if ( scopedPointers >= pointersMax ) {
+            if ( !pointerCapWarned ) {
+                warnings.add( "pointer list capped at " + pointersMax );
+                pointerCapWarned = true;
+            }
+            return false;
+        }
+        scopedPointers++;
+        return true;
     }
 
     // --------------------------------------------------------- shared
 
     /** Include the full body if it fits the remaining budget, else a title/summary pointer. */
-    private void loadItem( final String slug, final String origin, final String body ) {
+    private void loadItem( final String slug, final String origin, final String body, final String cluster ) {
         final Map< String, Object > meta = FrontmatterParser.parse( body == null ? "" : body ).metadata();
         final String title = DefaultBriefingAssemblyService.str( meta.get( "title" ), slug );
         final String summary = DefaultBriefingAssemblyService.str( meta.get( "summary" ), "" );
         final String canonicalId = canonicalIdOf( slug );
         final int est = TokenEstimator.estimate( body );
         final boolean fits = ledger.used + est <= ledger.budget;
-        items.add( new BriefingItem( slug, canonicalId, title, summary, origin, fits, fits ? body : null ) );
+        if ( !fits && !admitPointer( origin ) ) return;
+        items.add( new BriefingItem( slug, canonicalId, title, summary, origin, fits, fits ? body : null, cluster ) );
         includedSlugs.add( slug );
         if ( fits ) ledger.used += est;
     }

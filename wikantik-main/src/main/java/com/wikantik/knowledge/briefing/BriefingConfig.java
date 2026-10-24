@@ -52,6 +52,27 @@ public final class BriefingConfig {
      *  reading their bodies — nothing more would fit anyway. */
     public static final int POINTER_ONLY_FLOOR_TOKENS = 50;
 
+    /**
+     * The tunables one {@link DefaultBriefingAssemblyService} runs with.
+     *
+     * @param defaultBudget   token budget when the request names none
+     * @param maxBudget       ceiling a requested budget is clamped to
+     * @param sectionsPerPage most task-relevant sections one page may contribute
+     * @param candidatePool   sections requested from the bundle before partitioning and capping
+     * @param citedEnabled    false drops the cited tier (pages outside the clusters that members link to)
+     * @param citedMax        most cited pages per request
+     * @param elsewhereMax    most out-of-scope pointers per request
+     * @param pointersMax     most cluster and cited pointers ("available on request") per request; pins are never capped
+     */
+    public record BriefingLimits( int defaultBudget, int maxBudget, int sectionsPerPage, int candidatePool,
+                                  boolean citedEnabled, int citedMax, int elsewhereMax, int pointersMax ) {
+
+        /** The shipped defaults: 6000/24000 tokens, 4 sections per page from a pool of 36, 12 cited, 8 elsewhere, 30 pointers. */
+        public static BriefingLimits defaults() {
+            return new BriefingLimits( DEFAULT_BUDGET, MAX_BUDGET, 4, 36, true, 12, 8, 30 );
+        }
+    }
+
     /** {@code wikantik.briefing.enabled}, default {@code true}. */
     public static boolean enabled( final Properties props ) {
         return TextUtil.getBooleanProperty( props, PREFIX + "enabled", true );

@@ -57,6 +57,15 @@ class BriefingTypesTest {
         final BriefingItem ptr = new BriefingItem( "Q3Goals", "01Q3", "Q3 Goals", "sum", "cluster", false, null );
         assertFalse( ptr.included() );
         assertNull( ptr.content() );
+        assertNull( ptr.cluster(), "the seven-argument form carries no cluster" );
+    }
+
+    @Test
+    void itemCarriesItsClusterWhenGiven() {
+        final BriefingItem cited = new BriefingItem( "TelemetryContract", "01TC", "Telemetry Contract", "sum",
+            "cited", true, "body", "simple-agility" );
+        assertEquals( "simple-agility", cited.cluster() );
+        assertEquals( "cited", cited.origin() );
     }
 
     @Test

@@ -75,9 +75,9 @@ class JdbcBriefingLogServicePostgresTest {
     }
 
     @Test
-    void log_nineArgEntry_storesZeroCountsAndNullScopeMode_onRealPostgres() throws Exception {
+    void log_zeroTierCountsAndNullScopeMode_onRealPostgres() throws Exception {
         new JdbcBriefingLogService( ds, true, INLINE ).log( new BriefingLogEntry(
-            "PageA", null, false, 6000, 0, 0, 1, 0, "mcp_get_briefing" ) );
+            "PageA", null, false, 6000, 0, 0, 1, 0, "mcp_get_briefing", 0, 0, null ) );
 
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
               ResultSet rs = s.executeQuery( "SELECT cited_count, elsewhere_count, scope_mode FROM briefing_log" ) ) {

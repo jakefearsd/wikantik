@@ -40,7 +40,7 @@ class JdbcBriefingLogServiceTest {
     private static final Executor INLINE = Runnable::run;
 
     @Test
-    void log_insertsRowWithAllNineFields_whenEnabled() throws Exception {
+    void log_bindsCoreFields_whenEnabled() throws Exception {
         final DataSource ds = mock( DataSource.class );
         final Connection conn = mock( Connection.class );
         final PreparedStatement ps = mock( PreparedStatement.class );
@@ -48,7 +48,7 @@ class JdbcBriefingLogServiceTest {
         when( conn.prepareStatement( anyString() ) ).thenReturn( ps );
 
         final BriefingLogEntry entry = new BriefingLogEntry(
-            "PageA,PageB", "clusterX", true, 6000, 4200, 5, 2, 1, "api_briefing" );
+            "PageA,PageB", "clusterX", true, 6000, 4200, 5, 2, 1, "api_briefing", 0, 0, null );
 
         new JdbcBriefingLogService( ds, true, INLINE ).log( entry );
 
@@ -93,7 +93,7 @@ class JdbcBriefingLogServiceTest {
     }
 
     @Test
-    void log_nineArgEntry_storesZeroTierCountsAndNullScopeMode() throws Exception {
+    void log_nullScopeModeAndZeroTierCounts_areBound() throws Exception {
         final DataSource ds = mock( DataSource.class );
         final Connection conn = mock( Connection.class );
         final PreparedStatement ps = mock( PreparedStatement.class );
@@ -101,7 +101,7 @@ class JdbcBriefingLogServiceTest {
         when( conn.prepareStatement( anyString() ) ).thenReturn( ps );
 
         new JdbcBriefingLogService( ds, true, INLINE ).log( new BriefingLogEntry(
-            "PageA", null, false, 6000, 0, 0, 1, 0, "api_briefing" ) );
+            "PageA", null, false, 6000, 0, 0, 1, 0, "api_briefing", 0, 0, null ) );
 
         verify( ps ).setInt( 10, 0 );
         verify( ps ).setInt( 11, 0 );
@@ -119,7 +119,7 @@ class JdbcBriefingLogServiceTest {
         final String hugePins = "p".repeat( 5000 );
         final String hugeClusters = "c".repeat( 3000 );
         final BriefingLogEntry entry = new BriefingLogEntry(
-            hugePins, hugeClusters, true, 6000, 4200, 5, 2, 1, "api_briefing" );
+            hugePins, hugeClusters, true, 6000, 4200, 5, 2, 1, "api_briefing", 0, 0, null );
 
         new JdbcBriefingLogService( ds, true, INLINE ).log( entry );
 
@@ -131,7 +131,7 @@ class JdbcBriefingLogServiceTest {
     void log_isNoOp_whenDisabled() {
         final DataSource ds = mock( DataSource.class );
         final BriefingLogEntry entry = new BriefingLogEntry(
-            null, null, false, 6000, 0, 0, 0, 0, "api_briefing" );
+            null, null, false, 6000, 0, 0, 0, 0, "api_briefing", 0, 0, null );
 
         new JdbcBriefingLogService( ds, false, INLINE ).log( entry );
 
@@ -143,7 +143,7 @@ class JdbcBriefingLogServiceTest {
         final DataSource broken = mock( DataSource.class );
         when( broken.getConnection() ).thenThrow( new SQLException( "no connection" ) );
         final BriefingLogEntry entry = new BriefingLogEntry(
-            null, null, false, 6000, 0, 0, 0, 0, "api_briefing" );
+            null, null, false, 6000, 0, 0, 0, 0, "api_briefing", 0, 0, null );
 
         assertDoesNotThrow( () -> new JdbcBriefingLogService( broken, true, INLINE ).log( entry ),
             "a write failure must never propagate to the caller" );

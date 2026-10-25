@@ -65,6 +65,14 @@
             <artifactId>wikantik-plantuml</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Test scope only (never transitive, never in the WAR): below the package phase a reactor build resolves
+             wikantik-plantuml to its target/classes, which lacks the shaded PlantUML classes (plantuml-mit is an
+             optional dependency there), so `mvn test` across the reactor would fail with NoClassDefFoundError. -->
+        <dependency>
+            <groupId>net.sourceforge.plantuml</groupId>
+            <artifactId>plantuml-mit</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>${project.groupId}</groupId>

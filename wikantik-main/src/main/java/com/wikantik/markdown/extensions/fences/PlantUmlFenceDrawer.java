@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
 
 /**
  * The {@code plantuml} {@link ServerFenceDrawer}: adapts {@link PlantUmlService} (policy, outcome cache, bounded
@@ -43,6 +44,8 @@ public final class PlantUmlFenceDrawer implements ServerFenceDrawer {
     /** Kill switch. */
     public static final String PROP_ENABLED = "wikantik.fences.plantuml.enabled";
     private static final String DISABLED = "plantuml-disabled";
+    /** Page budget of the fallback resolver; never spent, because its drawer refuses without waiting. */
+    private static final long UNAVAILABLE_BUDGET_MS = 60_000L;
 
     /** What the drawer does with a source. */
     private enum Mode { DRAW, DISABLED, UNAVAILABLE }
@@ -91,12 +94,19 @@ public final class PlantUmlFenceDrawer implements ServerFenceDrawer {
      * @return the resolver, with the {@code plantuml} drawer and the per-page limits
      */
     public static ServerFenceResolver resolver( final Properties p ) {
+        return resolver( p, PlantUmlFenceDrawer::fromProperties );
+    }
+
+    /** {@link #resolver(Properties)} over a given drawer factory (test seam for the failure path). */
+    static ServerFenceResolver resolver( final Properties p, final Function< Properties, ServerFenceDrawer > drawers ) {
         try {
-            return new ServerFenceResolver( Map.of( "plantuml", fromProperties( p ) ), pageMaxDiagrams( p ), pageBudgetMs( p ) );
+            return new ServerFenceResolver( Map.of( "plantuml", drawers.apply( p ) ), pageMaxDiagrams( p ), pageBudgetMs( p ) );
         } catch ( final RuntimeException | LinkageError e ) {
             // LOG.error justified: startup-time loss of every PlantUML drawing until an operator fixes the deployment; logged once per engine.
             LOG.error( "Server fence drawing could not be set up; PlantUML fences show their source: {}", e.toString(), e );
-            return new ServerFenceResolver( Map.of( "plantuml", unavailable() ), 0, 0L );
+            // Unlimited per-page limits: the unavailable drawer answers instantly, so every fence reports render-failed
+            // (as logged) rather than page-budget.
+            return new ServerFenceResolver( Map.of( "plantuml", unavailable() ), Integer.MAX_VALUE, UNAVAILABLE_BUDGET_MS );
         }
     }
 

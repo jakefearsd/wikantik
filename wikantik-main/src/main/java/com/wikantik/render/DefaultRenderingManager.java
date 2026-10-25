@@ -45,6 +45,7 @@ import com.wikantik.markdown.extensions.fences.ServerFenceResolver;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
+import com.wikantik.parser.RenderDepth;
 import com.wikantik.parser.WikiDocument;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.util.ClassUtil;

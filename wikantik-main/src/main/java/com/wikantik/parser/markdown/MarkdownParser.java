@@ -31,8 +31,8 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.parser.MarkupParser;
+import com.wikantik.parser.RenderDepth;
 import com.wikantik.parser.WikiDocument;
-import com.wikantik.render.RenderDepth;
 
 import java.io.BufferedReader;
 import java.io.IOException;

@@ -35,6 +35,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
+import com.wikantik.parser.RenderDepth;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.util.TextUtil;
@@ -479,7 +480,9 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         String renderedHtml = null;
         if ( query.isIncludeExcerpt() && renderingManager != null ) {
             try {
-                renderedHtml = renderingManager.getHTML( pageName, page.getVersion() );
+                // Rendered one level deep so server fences stay placeholders: the HTML only feeds the plain-text title
+                // and excerpt, and drawing every listed page's diagrams would spend a PlantUML budget per article.
+                renderedHtml = RenderDepth.nested( () -> renderingManager.getHTML( pageName, page.getVersion() ) );
             } catch ( final Exception e ) {
                 LOG.debug( "Could not render page '{}': {}", pageName, e.getMessage() );
             }

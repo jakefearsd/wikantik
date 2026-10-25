@@ -26,6 +26,9 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CachingManager;
+import com.wikantik.content.ArticleSummary;
+import com.wikantik.content.DefaultRecentArticlesManager;
+import com.wikantik.content.RecentArticlesQuery;
 import com.wikantik.markdown.extensions.fences.ServerDrawing;
 import com.wikantik.markdown.extensions.fences.ServerFenceDrawer;
 import com.wikantik.markdown.extensions.fences.ServerFenceResolver;
@@ -33,6 +36,7 @@ import com.wikantik.parser.MarkupParser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -197,6 +201,25 @@ class DefaultRenderingManagerServerFenceTest {
         assertTrue( html.contains( "data-embed=\"SfBody\"" ), html );
         assertEquals( 1, drawer.calls.get(), html );
         assertTrue( html.contains( "data-fence-state=\"drawn\"" ) && html.contains( LIGHT ), html );
+    }
+
+    @Test
+    void recentArticleExcerptsNeverDraw() throws Exception {
+        bootWithFakeDrawer();
+        drawer.outcome = n -> ServerDrawing.drawn( "<svg><text>LIGHTSVGLABEL</text></svg>", "<svg><text>DARKSVGLABEL</text></svg>" );
+        engine.saveText( "SfRecent", "Opening words of the article.\n\n" + DIAGRAM );
+        final DefaultRecentArticlesManager recent = new DefaultRecentArticlesManager();
+        recent.initialize( engine, engine.getWikiProperties() ); // binds the swapped-in rendering manager
+
+        final List< ArticleSummary > articles = recent.getRecentArticles( viewContext( "SfRecent" ),
+                new RecentArticlesQuery().count( 100 ).includeExcerpt( true ) );
+
+        final ArticleSummary article = articles.stream().filter( a -> "SfRecent".equals( a.getName() ) ).findFirst()
+                .orElseThrow( () -> new AssertionError( "SfRecent not listed: " + articles ) );
+        assertNotNull( article.getExcerpt() );
+        assertTrue( article.getExcerpt().contains( "Opening words" ), article.getExcerpt() );
+        assertFalse( article.getExcerpt().contains( "SVGLABEL" ), article.getExcerpt() );
+        assertEquals( 0, drawer.calls.get(), "an excerpt is plain text: its render must not draw diagrams" );
     }
 
     @Test

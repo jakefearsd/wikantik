@@ -16,17 +16,19 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.render;
+package com.wikantik.parser;
 
 import java.util.function.UnaryOperator;
 
 /**
  * Render nesting on the current thread, so that server-fence drawings are spliced in only by the outermost
- * {@link RenderingManager#textToHTML(com.wikantik.api.core.Context, String)}. Every render entry of
- * {@link DefaultRenderingManager} and every Markdown parse counts itself: a {@code textToHTML} reached from inside
+ * {@code RenderingManager.textToHTML(Context, String)}. Every render entry of {@code DefaultRenderingManager} and
+ * every Markdown parse counts itself: a {@code textToHTML} reached from inside
  * one of them (InsertPage, an embed body, a plugin body, a plugin run by a metadata or reference parse) returns
  * placeholders, because its HTML is going into an enclosing render whose sanitize pass would strip a drawing, or
  * nowhere at all. Each {@link #enter()} must be paired with a {@link #leave()} in a {@code finally}.
+ * <p>It lives in the parser package (a leaf both the parser and the rendering manager already depend on) so that
+ * counting a parse adds no parser&rarr;render dependency.</p>
  */
 public final class RenderDepth {
 

@@ -21,7 +21,11 @@ package com.wikantik.markdown.extensions.fences;
 import com.wikantik.plantuml.PlantUmlSettings;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -111,6 +115,22 @@ class PlantUmlFenceDrawerTest {
         assertFalse( d.isDrawn() );
         assertEquals( "plantuml-disabled", d.reason() );
         assertFalse( d.transientFailure() );
+    }
+
+    @Test
+    void failedSetupRefusesEveryFenceAsRenderFailedNotPageBudget() {
+        final ServerFenceResolver r = PlantUmlFenceDrawer.resolver( new Properties(), p -> {
+            throw new IllegalStateException( "PlantUML missing" );
+        } );
+        final String html = ServerFenceResolverTest.render(
+                "```plantuml\nA -> B\n```\n\n```plantuml\nC -> D\n```\n\n```plantuml\nE -> F\n```\n", false );
+
+        final Matcher m = Pattern.compile( "data-fence-error=\"([^\"]*)\"" ).matcher( r.resolve( html ) );
+        final List< String > reasons = new ArrayList<>();
+        while ( m.find() ) {
+            reasons.add( m.group( 1 ) );
+        }
+        assertEquals( List.of( "render-failed", "render-failed", "render-failed" ), reasons );
     }
 
     @Test

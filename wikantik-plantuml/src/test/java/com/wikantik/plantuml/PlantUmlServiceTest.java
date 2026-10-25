@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,6 +62,25 @@ class PlantUmlServiceTest {
 
     private static PlantUmlSettings plain() {
         return settings( 2, 4, 2_000L, 600_000L, 100_000 );
+    }
+
+    @Test
+    void idlePoolThreadsExit() throws Exception {
+        final AtomicReference< Thread > worker = new AtomicReference<>();
+        final PlantUmlService s = new PlantUmlService( plain(), src -> { worker.set( Thread.currentThread() ); return DRAWN; },
+            System::nanoTime, 50L );
+        assertTrue( s.render( SRC, 1_000 ).isDrawn() );
+        final Thread t = worker.get();
+        assertTrue( t != null && t.isDaemon() );
+        t.join( 2_000L );
+        assertFalse( t.isAlive(), "an idle render thread must exit so a redeployed engine's pool does not linger" );
+    }
+
+    @Test
+    void productionPoolKeepsIdleThreadsForAMinuteThenLetsThemGo() {
+        final PlantUmlService s = new PlantUmlService( plain() );
+        assertEquals( 60_000L, s.keepAliveMs() );
+        assertTrue( s.coreThreadsTimeOut() );
     }
 
     @Test

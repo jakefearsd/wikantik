@@ -56,6 +56,8 @@ public final class PlantUmlService {
 
     private static final Logger LOG = LogManager.getLogger( PlantUmlService.class );
     private static final String TOO_SLOW = "too-slow";
+    /** Idle render threads exit after this long (core threads included). */
+    static final long IDLE_KEEP_ALIVE_MS = 60_000L;
 
     /** A cached outcome; {@code expiresAtNanos == 0} means it never expires (normal LRU lifetime). */
     private record CacheEntry( RenderOutcome outcome, long expiresAtNanos ) {
@@ -97,6 +99,16 @@ public final class PlantUmlService {
 
     PlantUmlService( final PlantUmlSettings settings, final Function< String, RenderOutcome > engine,
                      final LongSupplier nanoClock ) {
+        this( settings, engine, nanoClock, IDLE_KEEP_ALIVE_MS );
+    }
+
+    /**
+     * @param keepAliveMs how long an idle render thread lingers before it exits (test seam; production uses
+     *                    {@value #IDLE_KEEP_ALIVE_MS}). Core threads time out too, so a pool left behind by a
+     *                    re-initialised engine drains to zero threads instead of pinning its classloader.
+     */
+    PlantUmlService( final PlantUmlSettings settings, final Function< String, RenderOutcome > engine,
+                     final LongSupplier nanoClock, final long keepAliveMs ) {
         this.settings = settings;
         this.engine = engine;
         this.nanoClock = nanoClock;
@@ -111,11 +123,22 @@ public final class PlantUmlService {
         final BlockingQueue< Runnable > queue = settings.queueCapacity() > 0
             ? new ArrayBlockingQueue<>( settings.queueCapacity() ) : new SynchronousQueue<>();
         final AtomicInteger counter = new AtomicInteger();
-        this.pool = new ThreadPoolExecutor( threads, threads, 0L, TimeUnit.MILLISECONDS, queue, r -> {
+        this.pool = new ThreadPoolExecutor( threads, threads, keepAliveMs, TimeUnit.MILLISECONDS, queue, r -> {
             final Thread t = new Thread( null, r, "wikantik-plantuml-" + counter.incrementAndGet(), settings.threadStackBytes() );
             t.setDaemon( true );
             return t;
         } );
+        this.pool.allowCoreThreadTimeOut( true );
+    }
+
+    /** @return the idle keep-alive of the render threads (test aid) */
+    long keepAliveMs() {
+        return pool.getKeepAliveTime( TimeUnit.MILLISECONDS );
+    }
+
+    /** @return whether idle core render threads exit (test aid) */
+    boolean coreThreadsTimeOut() {
+        return pool.allowsCoreThreadTimeOut();
     }
 
     /** @return the number of renders waiting in the pool queue (test aid) */

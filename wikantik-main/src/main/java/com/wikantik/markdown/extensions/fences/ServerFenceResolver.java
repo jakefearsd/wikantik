@@ -53,10 +53,15 @@ public final class ServerFenceResolver {
     private static final String MARKER = "data-fence-drawing=\"";
     private static final String RENDER_FAILED = "render-failed";
     private static final String DEFAULT_LABEL = "PlantUML diagram";
-    private static final Pattern FIGURE = Pattern.compile( "<figure\\b[^>]*?\\sdata-fence-drawing=\"[^\"]*\"[^>]*>" );
-    private static final Pattern TOKEN_ATTR = Pattern.compile( "\\sdata-fence-drawing=\"([^\"]*)\"" );
-    private static final Pattern LANGUAGE_ATTR = Pattern.compile( "\\sdata-fence=\"([^\"]*)\"" );
-    private static final Pattern CODE_OPEN = Pattern.compile( "<code\\b[^>]*>" );
+    /** A quote-aware tag body: attribute values may hold {@code >} or the token text without ending the tag. */
+    private static final String TAG_BODY = "(?:[^>\"']++|\"[^\"]*+\"|'[^']*+')*+";
+    private static final Pattern FIGURE = Pattern.compile( "<figure(?=[\\s>])" + TAG_BODY + ">" );
+    private static final Pattern ATTRIBUTE = Pattern.compile(
+            "\\s+([^\\s\"'>/=]+)(?:\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+)))?" );
+    /** The only body a placeholder figure may have before its source: {@code <pre …><code …>}. */
+    private static final Pattern ENVELOPE_OPEN = Pattern.compile( "\\s*<pre(?=[\\s>])" + TAG_BODY + ">\\s*<code(?=[\\s>])("
+            + TAG_BODY + ")>" );
+    private static final Pattern ENVELOPE_CLOSE = Pattern.compile( "</code>\\s*</pre>\\s*</figure>" );
     private static final Pattern TITLE = Pattern.compile( "^[ \\t]*title[ \\t]+(\\S.*?)[ \\t]*$",
             Pattern.MULTILINE | Pattern.CASE_INSENSITIVE );
     private static final Pattern ENTITY = Pattern.compile( "&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]{2,6});" );
@@ -132,25 +137,62 @@ public final class ServerFenceResolver {
         return out.append( html, last, html.length() ).toString();
     }
 
+    /** A figure opening tag's placeholder attribute (its span within the tag, including leading space) and language. */
+    private record FigureTag( int tokenStart, int tokenEnd, String token, String language ) {
+
+        /** @return the parsed tag, or null when it carries no {@code data-fence-drawing} attribute */
+        static FigureTag parse( final String tag ) {
+            final Matcher m = ATTRIBUTE.matcher( tag );
+            int pos = "<figure".length();
+            int start = -1;
+            int end = -1;
+            String token = null;
+            String language = null;
+            while ( pos < tag.length() - 1 && m.region( pos, tag.length() - 1 ).lookingAt() ) {
+                if ( "data-fence-drawing".equals( m.group( 1 ) ) && token == null ) {
+                    start = m.start();
+                    end = m.end();
+                    token = value( m );
+                } else if ( "data-fence".equals( m.group( 1 ) ) ) {
+                    language = value( m );
+                }
+                pos = m.end();
+            }
+            return token == null ? null : new FigureTag( start, end, token, language );
+        }
+
+        private static String value( final Matcher m ) {
+            for ( int g = 2; g <= 4; g++ ) {
+                if ( m.group( g ) != null ) {
+                    return m.group( g );
+                }
+            }
+            return "";
+        }
+
+        String replaceToken( final String tag, final String replacement ) {
+            return tag.substring( 0, tokenStart ) + replacement + tag.substring( tokenEnd );
+        }
+    }
+
     /** @return the figure's replacement opening tag, followed by its drawing when there is one */
     private String resolveFigure( final String html, final String tag, final int tagEnd, final Budget budget ) {
-        final Matcher token = TOKEN_ATTR.matcher( tag );
-        if ( !token.find() ) {
+        final FigureTag figure = tag.contains( MARKER ) ? FigureTag.parse( tag ) : null;
+        if ( figure == null ) {
             return tag;
         }
         try {
-            final String language = attribute( LANGUAGE_ATTR, tag );
-            final String source = sourceOf( html, tagEnd, language );
-            if ( source == null || !FencePlaceholders.verify( token.group( 1 ), source ) ) {
-                return replaceToken( tag, token, "" );
+            final String source = sourceOf( html, tagEnd, figure.language() );
+            if ( source == null || !FencePlaceholders.verify( figure.token(), source ) ) {
+                return figure.replaceToken( tag, "" );
             }
-            final ServerDrawing d = draw( language, source, budget );
+            final ServerDrawing d = draw( figure.language(), source, budget );
             return d.isDrawn()
-                    ? replaceToken( tag, token, " data-fence-state=\"drawn\"" ) + drawingHtml( d, source )
-                    : replaceToken( tag, token, refusalAttributes( d ) );
+                    ? figure.replaceToken( tag, " data-fence-state=\"drawn\"" ) + drawingHtml( d, source )
+                    : figure.replaceToken( tag, refusalAttributes( d ) );
         } catch ( final RuntimeException e ) {
             LOG.warn( "A server fence could not be resolved; showing its source as render-failed: {}", e.toString(), e );
-            return replaceToken( tag, token, " data-fence-error=\"" + RENDER_FAILED + "\"" );
+            return figure.replaceToken( tag, " data-fence-error=\"" + RENDER_FAILED + "\"" );
         }
     }
 
@@ -169,10 +211,6 @@ public final class ServerFenceResolver {
             return ServerDrawing.refused( RENDER_FAILED, null, 0, true );
         }
         return d;
-    }
-
-    private static String replaceToken( final String tag, final Matcher token, final String replacement ) {
-        return tag.substring( 0, token.start() ) + replacement + tag.substring( token.end() );
     }
 
     private static String refusalAttributes( final ServerDrawing d ) {
@@ -199,26 +237,24 @@ public final class ServerFenceResolver {
         return m.find() ? m.group( 1 ) : DEFAULT_LABEL;
     }
 
-    private static String attribute( final Pattern attr, final String tag ) {
-        final Matcher m = attr.matcher( tag );
-        return m.find() ? m.group( 1 ) : null;
-    }
-
-    /** @return the unescaped text of the figure's {@code language-…} code element, or null when it has none */
+    /**
+     * @return the unescaped source when the figure's body is exactly the envelope the node renderer emits
+     *         ({@code <pre …><code class="language-…">SOURCE</code></pre></figure>}), otherwise null; so a hand-written
+     *         figure wrapping other markup (even a real fence) never receives a drawing
+     */
     private static String sourceOf( final String html, final int from, final String language ) {
-        final int figureEnd = html.indexOf( "</figure>", from );
-        if ( language == null || figureEnd < 0 ) {
+        if ( language == null ) {
             return null;
         }
-        final String wanted = "class=\"language-" + language + "\"";
-        final Matcher code = CODE_OPEN.matcher( html ).region( from, figureEnd );
-        while ( code.find() ) {
-            if ( code.group().contains( wanted ) ) {
-                final int close = html.indexOf( "</code>", code.end() );
-                return close < 0 || close > figureEnd ? null : unescape( html.substring( code.end(), close ) );
-            }
+        final Matcher open = ENVELOPE_OPEN.matcher( html ).region( from, html.length() );
+        if ( !open.lookingAt() || !open.group( 1 ).contains( " class=\"language-" + language + "\"" ) ) {
+            return null;
         }
-        return null;
+        final int close = html.indexOf( "</code>", open.end() );
+        if ( close < 0 || !ENVELOPE_CLOSE.matcher( html ).region( close, html.length() ).lookingAt() ) {
+            return null;
+        }
+        return unescape( html.substring( open.end(), close ) );
     }
 
     /** Decodes the named ({@code lt gt amp quot apos}) and numeric entities an HTML serializer may emit. */

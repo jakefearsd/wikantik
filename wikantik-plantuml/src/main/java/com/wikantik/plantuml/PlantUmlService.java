@@ -260,7 +260,8 @@ public final class PlantUmlService {
                 try {
                     return job.future.get( Math.max( 1L, sliceNanos / 1_000_000L ), TimeUnit.MILLISECONDS );
                 } catch( final TimeoutException e ) {
-                    // re-evaluate the limits
+                    // slice elapsed without a result: loop to re-evaluate the limits
+                    LOG.trace( "PlantUML render {} slice elapsed; re-evaluating limits", key );
                 }
             }
         } catch( final InterruptedException e ) {

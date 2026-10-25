@@ -42,6 +42,22 @@ describe('serverRenderer.draw', () => {
     expect(host.children).toHaveLength(0);
   });
 
+  it('lateResponseAfterStaleIsDiscarded', async () => {
+    let resolveFetch;
+    api.renderFence.mockReturnValue(new Promise((r) => { resolveFetch = r; }));
+    const host = document.createElement('div');
+    host.innerHTML = '<p>untouched</p>';
+    let stale = false;
+    const p = draw(host, 'x', { language: 'plantuml', isStale: () => stale });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(api.renderFence).toHaveBeenCalledTimes(1);
+    stale = true;
+    resolveFetch(OK);
+    await p;
+    expect(host.innerHTML).toBe('<p>untouched</p>');
+    expect(host.hasAttribute('role')).toBe(false);
+  });
+
   it('fillsBothVariants', async () => {
     api.renderFence.mockResolvedValue(OK);
     const host = document.createElement('div');
@@ -72,7 +88,7 @@ describe('serverRenderer.draw', () => {
   it('errorWithoutLineNamesTheReason', async () => {
     api.renderFence.mockResolvedValue({ error: 'too-large' });
     const p = draw(document.createElement('div'), 'x', { language: 'plantuml', isStale: () => false });
-    const assertion = expect(p).rejects.toThrow('PlantUML: too-large');
+    const assertion = expect(p).rejects.toMatchObject({ message: 'PlantUML: too-large', fenceReason: 'too-large' });
     await vi.advanceTimersByTimeAsync(500);
     await assertion;
   });

@@ -81,6 +81,28 @@ describe('WikiFence', () => {
     expect(container.querySelector('#second')).not.toBeNull();
   });
 
+  it('rapidChangesEndShowingTheLastDrawingOnly', async () => {
+    const settlers = [];
+    drawFence.mockImplementation((figure, isStale) => new Promise((resolve) => {
+      settlers.push(() => {
+        if (isStale()) { resolve('stale'); return; }
+        const host = document.createElement('div');
+        host.className = 'wk-fence-drawing';
+        host.dataset.src = figure.querySelector('code').textContent;
+        figure.insertBefore(host, figure.querySelector('pre'));
+        resolve('drawn');
+      });
+    }));
+    const { rerender, container } = render(<WikiFence language="plantuml" source="A" />);
+    rerender(<WikiFence language="plantuml" source="B" />);
+    rerender(<WikiFence language="plantuml" source="C" />);
+    await act(async () => { settlers.forEach((s) => s()); });
+    const drawings = container.querySelectorAll('.wk-fence-drawing');
+    expect(drawings).toHaveLength(1);
+    expect(drawings[0].dataset.src).toBe('C');
+    drawFence.mockImplementation(() => Promise.resolve('drawn'));
+  });
+
   it('browserKindDropsTheOldDrawingImmediately', async () => {
     drawFence.mockImplementationOnce((figure) => {
       const host = document.createElement('div');

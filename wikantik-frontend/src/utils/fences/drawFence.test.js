@@ -396,6 +396,16 @@ describe('server-kind figures', () => {
     return wrap.querySelector('figure');
   }
 
+  it('previewRefusalUsesFriendlyWording', async () => {
+    const err = Object.assign(new Error('PlantUML line 2: nope'), { fenceReason: 'syntax-error', fenceLine: 2, fenceMessage: 'nope' });
+    vi.spyOn(FENCE_RENDERERS.plantuml, 'load').mockResolvedValue({ draw: vi.fn().mockRejectedValue(err) });
+    const fig = envelope('A -> B', { lang: 'plantuml' });
+    await expect(drawFence(fig)).resolves.toBe('refused');
+    expect(errorText(fig)).toContain('This diagram was not drawn: it has a syntax error.');
+    expect(errorText(fig)).toContain('line 2: nope');
+    expect(errorText(fig)).not.toContain('PlantUML:');
+  });
+
   it('decorateServerFenceAddsToolbarOnce', () => {
     const fig = serverFigure();
     decorateServerFence(fig);
@@ -447,6 +457,25 @@ describe('server-kind figures', () => {
     const rect = dialog.querySelector('rect');
     expect(rect.getAttribute('fill')).toBe('url(#g-x)');
     expect(rect.getAttribute('style')).toContain('url(#g-x)');
+  });
+
+  it('expandCloneKeepsMermaidStyleScope', async () => {
+    draw.mockImplementationOnce(async (host) => {
+      // Built with the DOM API: happy-dom drops <style> text parsed through innerHTML inside an <svg>.
+      host.innerHTML = '<svg id="m1" viewBox="0 0 1000 200" width="100%" style="max-width: 1000px;"><g id="m12"/></svg>';
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = '#m1 .node{fill:red}#m12 .x{fill:blue}#m1{font-size:1px}';
+      host.querySelector('svg').prepend(style);
+    });
+    const fig = envelope(FLOW);
+    await drawFence(fig);
+    const btn = fig.querySelector('[data-action="expand"]');
+    btn.hidden = false;
+    btn.click();
+    const cloneStyle = fig.querySelector('dialog style').textContent;
+    expect(cloneStyle).toBe('#m1-x .node{fill:red}#m12-x .x{fill:blue}#m1-x{font-size:1px}');
+    expect(fig.querySelector('.wk-fence-drawing style').textContent).toContain('#m1 .node{fill:red}');
+    expect(fig.querySelector('.wk-fence-drawing style').textContent).not.toContain('-x');
   });
 
   it('expandCloneHasNoDuplicateIds (mermaid svg)', async () => {

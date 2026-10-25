@@ -38,7 +38,12 @@ export async function draw(host, source, { language = 'plantuml', isStale = () =
   if (!result || result.error || typeof result.lightSvg !== 'string' || typeof result.darkSvg !== 'string') {
     const reason = result?.error || 'no drawing returned';
     const where = result?.line ? ` line ${result.line}` : '';
-    throw new Error(result?.message ? `${label}${where}: ${result.message}` : `${label}${where ? where : ''}: ${reason}`);
+    const failure = new Error(result?.message ? `${label}${where}: ${result.message}` : `${label}${where}: ${reason}`);
+    // drawFence turns these into the friendly refusal box (the reader view's wording).
+    failure.fenceReason = result?.error;
+    failure.fenceLine = result?.line;
+    failure.fenceMessage = result?.message;
+    throw failure;
   }
   host.setAttribute('role', 'img');
   host.setAttribute('aria-label', `${label} diagram`);

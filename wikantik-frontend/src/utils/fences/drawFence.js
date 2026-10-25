@@ -118,6 +118,10 @@ function suffixIds(root) {
   idElements.forEach((el) => el.setAttribute('id', el.getAttribute('id') + ID_SUFFIX));
   const rewriteUrls = (text) => text.replace(/url\(\s*(['"]?)#([^)'"\s]+)\1\s*\)/g,
     (m, q, id) => (ids.has(id) ? `url(${q}#${id}${ID_SUFFIX}${q})` : m));
+  const escaped = [...ids].map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  // "#id" followed by a non-identifier character, so "#m1" never matches inside "#m12" or "#m1-x".
+  const selector = new RegExp(`#(${escaped.join('|')})(?![\\w-])`, 'g');
+  const rewriteSelectors = (text) => text.replace(selector, (m, id) => `#${id}${ID_SUFFIX}`);
   [root, ...root.querySelectorAll('*')].forEach((el) => {
     for (const attr of [...el.attributes]) {
       if (attr.name === 'id') continue;
@@ -129,7 +133,8 @@ function suffixIds(root) {
       }
       if (value !== attr.value) el.setAttribute(attr.name, value);
     }
-    if (el.localName === 'style' && el.textContent) el.textContent = rewriteUrls(el.textContent);
+    // Mermaid scopes every rule to its root id ("#mermaid-1 .node {…}"); the selector must follow the renamed id.
+    if (el.localName === 'style' && el.textContent) el.textContent = rewriteSelectors(rewriteUrls(el.textContent));
   });
 }
 
@@ -240,6 +245,11 @@ async function drawOnce(figure, isStale) {
   } catch (e) {
     console.warn(`[fences] ${language} could not draw a diagram`, e);
     if (isStale()) return 'stale';
+    if (e?.fenceReason) {
+      // The server refused it (editor preview): the same friendly wording the reader view shows.
+      const detail = [e.fenceLine ? `line ${e.fenceLine}` : '', e.fenceMessage || ''].filter(Boolean).join(': ');
+      return showProblem(figure, 'refused', refusalMessage(e.fenceReason), detail);
+    }
     const summary = errorSummary(e);
     // A server renderer's message already leads with its label ("PlantUML line 3: …").
     const label = entry.label ?? language;

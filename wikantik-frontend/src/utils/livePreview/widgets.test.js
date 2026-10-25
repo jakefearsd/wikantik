@@ -221,6 +221,7 @@ describe('FenceWidget', () => {
   });
   it('builds the envelope and hands it to drawFence', async () => {
     const dom = new FenceWidget('mermaid', 'flowchart TD').toDOM(undefined);
+    document.body.append(dom); // a detached figure is stale and never drawn
     const figure = dom.querySelector('figure.wk-fence[data-fence="mermaid"][data-fence-kind="browser"]');
     expect(figure.querySelector('pre.wk-fence-source > code.language-mermaid').textContent).toBe('flowchart TD');
     await vi.waitFor(() => expect(figure.dataset.fenceState).toBeTruthy()); // drawFence ran (drawn or failed in happy-dom)

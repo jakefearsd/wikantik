@@ -31,7 +31,7 @@ import { checkMermaid } from './mermaidPolicy';
  *      from the catch-all `vendor` group (MERMAID_FAMILY today; generalise the name when a second library joins),
  *      or those packages land in the eager vendor chunk. A single-file library may get its own lazy group with
  *      `includeDependenciesRecursively: false`. Either way `npm run build` must stay pristine: its post-build guard
- *      (scripts/check-dist.mjs) fails if dist/index.html modulepreloads the library.
+ *      (scripts/check-dist.js) fails if dist/index.html modulepreloads the library.
  *
  * Entries are plain mutable objects on purpose: tests spy on `load` and `check`.
  */

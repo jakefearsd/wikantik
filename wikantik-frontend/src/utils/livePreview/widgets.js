@@ -4,6 +4,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { wikiLinkHref } from '../wikiLinkSyntax';
 import { renderMath } from '../math';
+import { fillFenceEnvelope } from '../fences/envelope';
 
 const el = (tag, cls, text) => {
   const node = document.createElement(tag);
@@ -245,6 +246,24 @@ export class EmbedWidget extends WidgetType {
   ignoreEvent() { return true; } // the widget handles its own mouse events
 }
 
+/** A rendered fence (Mermaid) as a block: the shared envelope, drawn by the same pass as the reader view. */
+export class FenceWidget extends WidgetType {
+  constructor(language, source) { super(); this.language = language; this.source = source; }
+  eq(o) { return o instanceof FenceWidget && o.language === this.language && o.source === this.source; }
+  get estimatedHeight() { return 200; }
+  toDOM(view) {
+    const figure = fillFenceEnvelope(document.createElement('figure'), this.language, this.source);
+    const wrap = el('div', 'cm-lp-fence');
+    wrap.append(figure);
+    // drawFence (policy, registry, toolbar) is loaded on first use so a page without diagrams never fetches it.
+    import('../fences/drawFence').then(({ drawFence }) => drawFence(figure)).then(() => view?.requestMeasure?.())
+      .catch((err) => console.warn('[live-preview] fence draw failed', this.language, err?.message || err));
+    if (view) revealOnMouseDown(view, wrap);
+    return wrap;
+  }
+  ignoreEvent() { return true; }
+}
+
 export function widgetFor(w, context = {}) {
   switch (w.type) {
     case 'bullet': return new BulletWidget();
@@ -254,6 +273,7 @@ export function widgetFor(w, context = {}) {
     case 'image': return new ImageWidget(w);
     case 'math': return new MathWidget(w.tex, !!w.display);
     case 'text': return new TextWidget(w.text, w.cls);
+    case 'fence': return new FenceWidget(w.language, w.source);
     case 'embed': return new EmbedWidget(w.target, w.section, context.loadEmbed);
     default: throw new Error(`unknown live-preview widget type: ${w.type}`);
   }

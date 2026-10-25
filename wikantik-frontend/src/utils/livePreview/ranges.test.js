@@ -259,3 +259,24 @@ describe('blockSpecs', () => {
     expect(specs.map((s) => s.widget)).toEqual([{ type: 'embed', target: 'Other', section: 'Intro' }]);
   });
 });
+describe('fence block widgets', () => {
+  const block = (doc, active = [99]) => { const state = stateOf(doc); return { state, specs: blockSpecs(state, new Set(active), {}) }; };
+  it('fencedMermaidBecomesBlockWidget', () => {
+    const doc = '```mermaid\nflowchart TD\n  A-->B\n```\n\nend';
+    const { specs } = block(doc, [6]);
+    expect(specs).toEqual([{ kind: 'block', from: 0, to: 35, widget: { type: 'fence', language: 'mermaid', source: 'flowchart TD\n  A-->B\n' } }]);
+  });
+  it('unclosedFenceIsNotAWidget', () => {
+    expect(block('```mermaid\nflowchart TD\n').specs).toEqual([]);
+  });
+  it('exampleFenceIsNotAWidget', () => {
+    expect(block('```mermaid example\nflowchart TD\n```').specs).toEqual([]);
+  });
+  it('otherLanguageAndNestedFencesStayCode', () => {
+    expect(block('```java\nint x;\n```').specs).toEqual([]);
+    expect(block('- item\n\n  ```mermaid\n  flowchart TD\n  ```').specs).toEqual([]);
+  });
+  it('activeLineShowsSource', () => {
+    expect(block('```mermaid\nflowchart TD\n```\n\nend', [2]).specs).toEqual([]);
+  });
+});

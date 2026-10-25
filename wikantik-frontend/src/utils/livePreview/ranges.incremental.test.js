@@ -29,8 +29,9 @@ function rng(seed) {
 const BLOCKS = [
   '$$\nx^2\n$$', '![[Other]]', '![[Other#Intro]]', '![[pic.png]]', 'plain paragraph text', '# Heading',
   '- item\n- [ ] task', '```\ncode $$\n```', '> quote\n> more', '   $$\n   y\n   $$', 'Setext\n---', '$$\na\n\nb\n$$',
+  '```mermaid\nflowchart TD\n  A-->B\n```', '```mermaid example\nx\n```', '~~~mermaid\ngraph LR\n~~~',
 ];
-const TOKENS = ['\n', '\n\n', '$$', '$$\n', '\n$$', '```', '```\n', '![[X]]', '![[Y#H]]', 'word', '---', '===', '> ', '- ', '   ', '!['];
+const TOKENS = ['mermaid', '```mermaid\n', '~~~', '\n```\n', '\n', '\n\n', '$$', '$$\n', '\n$$', '```', '```\n', '![[X]]', '![[Y#H]]', 'word', '---', '===', '> ', '- ', '   ', '!['];
 
 function initialDoc(rand) {
   const parts = [];
@@ -121,6 +122,19 @@ describe('updateBlockCandidates', () => {
     candidates = updateBlockCandidates(candidates, tr, context);
     expect(candidates).toEqual(blockCandidates(tr.state, context));
     expect(candidates).toHaveLength(2);
+  });
+
+  it('incrementalUpdateMatchesFullScan for a fence edit (typing inside, closing, unclosing)', () => {
+    let state = EditorState.create({ doc: 'intro\n\n```mermaid\nA-->B\n```\n\n$$\nx\n$$\n', extensions });
+    let candidates = blockCandidates(state, context);
+    expect(candidates.map((c) => c.widget.type)).toEqual(['fence', 'math']);
+    const edits = [{ from: 22, insert: 'C' }, { from: 26, to: 29 }, { from: 26, insert: '```' }, { from: 8, insert: 'x' }];
+    for (const changes of edits) {
+      const tr = state.update({ changes });
+      candidates = updateBlockCandidates(candidates, tr, context);
+      state = tr.state;
+      expect(candidates).toEqual(blockCandidates(state, context));
+    }
   });
 
   it('maps the blocks after an edit without re-reading them', () => {

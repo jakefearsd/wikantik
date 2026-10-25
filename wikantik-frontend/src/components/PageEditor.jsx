@@ -30,6 +30,8 @@ import { WikiEmbedElement } from './WikiEmbed';
 import { useEmbedCacheLifecycle } from '../hooks/useEmbedCacheLifecycle';
 import { useTagSuggestions } from '../hooks/useTagSuggestions';
 import { useLowlight } from '../hooks/useLowlight';
+import { rehypeRenderedFences } from '../utils/fences/rehypeRenderedFences';
+import WikiFence from './WikiFence';
 import { rehypeHighlightCode } from '../utils/codeHighlight';
 import { headingsFromMarkdown } from '../utils/headings';
 import { useAttachments } from '../hooks/useAttachments';
@@ -350,7 +352,7 @@ export default function PageEditor() {
   const previewContent = useMemo(() => stripFrontmatter(body), [body]);
   const missingPages = useMissingPages(previewContent);
   const wikiLinkResolution = useWikiLinkResolution(previewContent);
-  const previewComponents = useMemo(() => ({ 'wiki-embed': WikiEmbedElement }), []);
+  const previewComponents = useMemo(() => ({ 'wiki-embed': WikiEmbedElement, 'wiki-fence': WikiFence }), []);
   const lowlight = useLowlight(/(^|\n)(```|~~~)/.test(previewContent));
   const [previewSource, previewCost] = usePreviewSource(previewContent, name);
 
@@ -603,7 +605,7 @@ export default function PageEditor() {
     [remarkAttachments, { attachments: previewAttachments, pageName: name }],
   ], [wikiLinkResolution, previewAttachments, name, missingPages]);
   const previewRehypePlugins = useMemo(
-    () => [rehypeKatex, [rehypeHighlightCode, { lowlight }], rehypeSourceLine],
+    () => [rehypeKatex, rehypeRenderedFences, [rehypeHighlightCode, { lowlight }], rehypeSourceLine],
     [lowlight],
   );
   const slashSource = useMemo(() => createSlashSource(getCommands, (id) => runCommand(id)), [runCommand]);

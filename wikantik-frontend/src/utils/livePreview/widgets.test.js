@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { history, undo } from '@codemirror/commands';
 import katex from 'katex';
 import {
-  BulletWidget, CheckboxWidget, ImageWidget, MathWidget, EmbedWidget, TextWidget, CalloutTitleWidget, RuleWidget,
+  BulletWidget, CheckboxWidget, ImageWidget, MathWidget, EmbedWidget, FenceWidget, TextWidget, CalloutTitleWidget, RuleWidget,
   widgetFor, toggleTaskAt, toggleTaskBox,
 } from './widgets';
 
@@ -210,5 +210,22 @@ describe('toggleTaskAt', () => {
     const view = viewOf('plain');
     expect(toggleTaskAt(view, 0)).toBe(false);
     expect(view.state.doc.toString()).toBe('plain');
+  });
+});
+
+describe('FenceWidget', () => {
+  it('fenceWidgetEqBySource', () => {
+    expect(new FenceWidget('mermaid', 'a').eq(new FenceWidget('mermaid', 'a'))).toBe(true);
+    expect(new FenceWidget('mermaid', 'a').eq(new FenceWidget('mermaid', 'b'))).toBe(false);
+    expect(new FenceWidget('mermaid', 'a').eq(new FenceWidget('other', 'a'))).toBe(false);
+  });
+  it('builds the envelope and hands it to drawFence', async () => {
+    const dom = new FenceWidget('mermaid', 'flowchart TD').toDOM(undefined);
+    const figure = dom.querySelector('figure.wk-fence[data-fence="mermaid"][data-fence-kind="browser"]');
+    expect(figure.querySelector('pre.wk-fence-source > code.language-mermaid').textContent).toBe('flowchart TD');
+    await vi.waitFor(() => expect(figure.dataset.fenceState).toBeTruthy()); // drawFence ran (drawn or failed in happy-dom)
+  });
+  it('widgetFor builds a FenceWidget', () => {
+    expect(widgetFor({ type: 'fence', language: 'mermaid', source: 'x' }).eq(new FenceWidget('mermaid', 'x'))).toBe(true);
   });
 });

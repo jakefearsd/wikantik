@@ -1,6 +1,8 @@
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { matchInlineMath } from '../inlineMath';
+import { parseFenceInfo } from '../fences/fenceInfo';
+import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
@@ -51,8 +53,42 @@ function blockEmbedAt(state, pos, context) {
   }
   return false;
 }
-/** The block widget a top-level node becomes (display math, whole-line page embed), or null. */
+/**
+ * A top-level, closed fenced code block whose info string names a registered, non-`example` renderer, as a
+ * fence widget candidate (null otherwise). The source is the lines between the fences with the opening fence's
+ * indentation removed, each line newline-terminated: the same text the server puts in the envelope.
+ */
+function fenceCandidateOf(doc, node) {
+  const marks = [];
+  let info = '';
+  for (let c = node.firstChild; c; c = c.nextSibling) {
+    if (c.name === 'CodeMark') marks.push(c);
+    else if (c.name === 'CodeInfo') info = doc.sliceString(c.from, c.to);
+  }
+  if (marks.length !== 2) return null; // unclosed: stays source
+  const fenceInfo = parseFenceInfo(info);
+  if (!rendererFor(fenceInfo)) return null;
+  const open = doc.lineAt(node.from);
+  const close = doc.lineAt(marks[1].from);
+  if (close.number <= open.number) return null;
+  const indent = /^ */.exec(open.text)[0].length;
+  let source = '';
+  for (let n = open.number + 1; n < close.number; n += 1) {
+    const text = doc.line(n).text;
+    let strip = 0;
+    while (strip < indent && text.charCodeAt(strip) === 32) strip += 1;
+    source += `${text.slice(strip)}\n`;
+  }
+  const end = doc.lineAt(node.to);
+  return { kind: 'block', from: open.from, to: end.to, widget: { type: 'fence', language: fenceInfo.language, source } };
+}
+/**
+ * The block widget a top-level node becomes (display math, whole-line page embed, a rendered fence), or null.
+ * Only TOP-LEVEL nodes qualify (we walk the document's direct children), so a fence nested in a list or
+ * blockquote stays code in live preview, the same rule display math follows.
+ */
 function blockCandidateOf(doc, node, context) {
+  if (node.name === 'FencedCode') return fenceCandidateOf(doc, node);
   if (node.name !== 'Paragraph') return null;
   const first = doc.sliceString(node.from, Math.min(node.to, node.from + 3));
   if (!first.startsWith('$$') && !first.startsWith('![')) return null; // cheap prefix test before slicing the paragraph
@@ -68,7 +104,7 @@ function blockCandidateOf(doc, node, context) {
   return embed ? { kind: 'block', from: startLine.from, to: endLine.to, widget: { type: 'embed', target: embed.target, section: embed.heading } } : null;
 }
 /**
- * Every block-widget candidate (display math, whole-line page embed) regardless of the caret: top-level
+ * Every block-widget candidate (display math, whole-line page embed, rendered fence) regardless of the caret: top-level
  * paragraphs only, each covering whole lines, in document order (so both `from` and `to` ascend).
  */
 export function blockCandidates(state, context = {}) {

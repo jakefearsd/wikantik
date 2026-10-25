@@ -99,61 +99,79 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
             return new Analysis( FenceVerdict.refused( "unsafe-link" ), links );
         }
         for ( final String line : source.split( "\\n" ) ) {
-            final List< String > statements = splitStatements( line );
-            if ( line.chars().filter( ch -> ch == '"' ).count() % 2 != 0 ) {
-                // an unbalanced quote can hide a following statement from the quote-aware split
-                statements.addAll( List.of( line.split( ";", -1 ) ) );
+            // Safety runs over the UNION of quote-aware statements and naive ';' pieces: Mermaid tokens such
+            // as sequence message text end at ';' regardless of quotes, so quotes can hide a statement from
+            // the quote-aware split. Page links come from quote-aware statements only.
+            for ( final String statement : splitStatements( line ) ) {
+                final FenceVerdict v = checkStatement( statement.strip(), links );
+                if ( v != null ) {
+                    return new Analysis( v, Set.of() );
+                }
             }
-            for ( final String statement : statements ) {
-                final String s = statement.strip();
-                final List< String > urls = new ArrayList<>();
-                final String first = firstWord( s );
-                if ( first.equals( "click" ) ) {
-                    final Matcher m = CLICK_OK.matcher( s );
-                    if ( !m.matches() ) {
-                        return new Analysis( FenceVerdict.refused( "callback" ), Set.of() );
-                    }
-                    urls.add( m.group( 1 ) );
-                } else if ( first.equals( "callback" ) && CALLBACK_LINE.matcher( s ).matches() ) {
-                    return new Analysis( FenceVerdict.refused( "callback" ), Set.of() );
-                } else if ( first.equals( "link" ) || first.equals( "links" ) ) {
-                    final String rest = s.substring( first.length() );
-                    final int colon = rest.indexOf( ':' );
-                    final int at = colon < 0 ? -1 : rest.indexOf( '@', colon + 1 );
-                    if ( first.equals( "link" ) && at >= 0 ) {
-                        // sequence link: the URL follows the FIRST '@' after the actor's ':'
-                        urls.add( rest.substring( at + 1 ).strip() );
-                    } else if ( first.equals( "link" ) && CLASS_LINK.matcher( s ).matches() ) {
-                        final Matcher m = CLICK_OK.matcher( s );
-                        if ( !m.matches() ) {
-                            return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
-                        }
-                        urls.add( m.group( 1 ) );
-                    } else if ( first.equals( "links" ) && colon >= 0 && rest.substring( colon + 1 ).strip().startsWith( "{" ) ) {
-                        final String json = rest.substring( colon + 1 );
-                        if ( json.indexOf( '\\' ) >= 0 ) {
-                            return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
-                        }
-                        final Matcher v = JSON_VALUE.matcher( json );
-                        while ( v.find() ) {
-                            urls.add( v.group( 1 ) );
-                        }
-                    }
-                }
-                if ( ( first.equals( "click" ) || first.equals( "link" ) || first.equals( "links" ) )
-                        && !quotedStringsSafe( s ) ) {
-                    return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
-                }
-                for ( final String url : urls ) {
-                    final String decoded = decodeEntities( url ).strip();
-                    if ( !safeUrl( decoded ) ) {
-                        return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
-                    }
-                    pageName( decoded ).ifPresent( links::add );
+            for ( final String piece : line.split( ";", -1 ) ) {
+                final FenceVerdict v = checkStatement( piece.strip(), null );
+                if ( v != null ) {
+                    return new Analysis( v, Set.of() );
                 }
             }
         }
         return new Analysis( FenceVerdict.ALLOWED, links );
+    }
+
+    /**
+     * Applies the click/callback/link/links rules to one statement; returns the refusal, or {@code null} when
+     * the statement is safe. Page names of its URLs are added to {@code links} unless that is {@code null}.
+     */
+    private static FenceVerdict checkStatement( final String s, final Set< String > links ) {
+        final List< String > urls = new ArrayList<>();
+        final String first = firstWord( s );
+        if ( first.equals( "click" ) ) {
+            final Matcher m = CLICK_OK.matcher( s );
+            if ( !m.matches() ) {
+                return FenceVerdict.refused( "callback" );
+            }
+            urls.add( m.group( 1 ) );
+        } else if ( first.equals( "callback" ) && CALLBACK_LINE.matcher( s ).matches() ) {
+            return FenceVerdict.refused( "callback" );
+        } else if ( first.equals( "link" ) || first.equals( "links" ) ) {
+            final String rest = s.substring( first.length() );
+            final int colon = rest.indexOf( ':' );
+            final int at = colon < 0 ? -1 : rest.indexOf( '@', colon + 1 );
+            if ( first.equals( "link" ) && at >= 0 ) {
+                // sequence link: the URL follows the FIRST '@' after the actor's ':'
+                urls.add( rest.substring( at + 1 ).strip() );
+            } else if ( first.equals( "link" ) && CLASS_LINK.matcher( s ).matches() ) {
+                final Matcher m = CLICK_OK.matcher( s );
+                if ( !m.matches() ) {
+                    return FenceVerdict.refused( "unsafe-link" );
+                }
+                urls.add( m.group( 1 ) );
+            } else if ( first.equals( "links" ) && colon >= 0 && rest.substring( colon + 1 ).strip().startsWith( "{" ) ) {
+                final String json = rest.substring( colon + 1 );
+                if ( json.indexOf( '\\' ) >= 0 ) {
+                    return FenceVerdict.refused( "unsafe-link" );
+                }
+                final Matcher v = JSON_VALUE.matcher( json );
+                while ( v.find() ) {
+                    urls.add( v.group( 1 ) );
+                }
+            }
+        }
+        if ( ( first.equals( "click" ) || first.equals( "link" ) || first.equals( "links" ) ) && !quotedStringsSafe( s ) ) {
+            return FenceVerdict.refused( "unsafe-link" );
+        }
+        final List< String > names = new ArrayList<>();
+        for ( final String url : urls ) {
+            final String decoded = decodeEntities( url ).strip();
+            if ( !safeUrl( decoded ) ) {
+                return FenceVerdict.refused( "unsafe-link" );
+            }
+            pageName( decoded ).ifPresent( names::add );
+        }
+        if ( links != null ) {
+            links.addAll( names );
+        }
+        return null;
     }
 
     /** Leading ASCII letters of the statement, lower-cased, when followed by a space or the end; else "". */

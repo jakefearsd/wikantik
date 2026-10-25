@@ -93,6 +93,10 @@
     {"source": "flowchart TD\n  A-->B\n  click A \"/wiki/Foo\" \"see this\"", "allowed": true, "reason": null, "pageLinks": ["Foo"]},
     {"source": "flowchart TD\n  A-->|a\"b|B; click B call f()", "allowed": false, "reason": "callback", "pageLinks": []},
     {"source": "flowchart TD\n  A-->|a\"b|B; click B \"data:text/html,x\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
-    {"source": "sequenceDiagram\n  A@x->>Bob: Hi\n  link A@x: Docs @ data:text/html,x", "allowed": false, "reason": "unsafe-link", "pageLinks": []}
+    {"source": "sequenceDiagram\n  A@x->>Bob: Hi\n  link A@x: Docs @ data:text/html,x", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "sequenceDiagram\n  Alice->>Bob: hi\"; link Alice: D @ data:text/html,x; Note over Alice: \"x", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "sequenceDiagram\n  Alice->>Bob: hi\"; links Alice: {\"D\": \"data:text/html,x\"}; Note over Alice: \"x", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A[\"x;y\"]-->B; click B \"/wiki/Foo\"", "allowed": true, "reason": null, "pageLinks": ["Foo"]},
+    {"source": "flowchart TD\n  A[\"a; link Al: D @ /wiki/Bar; b\"]-->B; C-->|x\"y|D", "allowed": true, "reason": null, "pageLinks": []}
   ]
 }

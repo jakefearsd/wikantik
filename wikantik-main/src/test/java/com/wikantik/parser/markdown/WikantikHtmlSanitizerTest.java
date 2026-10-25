@@ -63,4 +63,31 @@ class WikantikHtmlSanitizerTest {
                 "<figure data-fence-kind=\"evil\" data-fence=\"<x>\" data-fence-error=\"A B\">y</figure>" );
         assertFalse( out.contains( "data-fence" ), out );
     }
+
+    private static final String TOKEN = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    @Test
+    void fenceDrawingTokenSurvives() {
+        final String out = WikantikHtmlSanitizer.sanitize(
+                "<figure class=\"wk-fence\" data-fence=\"plantuml\" data-fence-kind=\"server\" data-fence-drawing=\""
+                        + TOKEN + "." + TOKEN + "\"><pre class=\"wk-fence-source\"><code>x</code></pre></figure>" );
+        assertTrue( out.contains( "data-fence-drawing=\"" + TOKEN + "." + TOKEN + "\"" ), out );
+    }
+
+    @Test
+    void malformedFenceDrawingStripped() {
+        for ( final String bad : new String[] { "abc", TOKEN, TOKEN + "." + TOKEN.toUpperCase(), TOKEN + "." + TOKEN + "x", "\"><script>" } ) {
+            final String out = WikantikHtmlSanitizer.sanitize( "<figure data-fence-drawing=\"" + bad.replace( "\"", "&quot;" ) + "\">y</figure>" );
+            assertFalse( out.contains( "data-fence-drawing" ), out );
+        }
+        assertFalse( WikantikHtmlSanitizer.sanitize( "<div data-fence-drawing=\"" + TOKEN + "." + TOKEN + "\">y</div>" )
+                .contains( "data-fence-drawing" ) );
+    }
+
+    @Test
+    void handWrittenSvgStillStripped() {
+        final String out = WikantikHtmlSanitizer.sanitize( "<figure><svg onload=\"x()\"><circle r=\"1\"/></svg></figure>" );
+        assertFalse( out.contains( "<svg" ), out );
+        assertFalse( out.contains( "<circle" ), out );
+    }
 }

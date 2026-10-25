@@ -161,28 +161,30 @@ class RenderedFenceRenderingTest {
     }
 
     @Test
-    void serverKindEmitsDrawingAndSource() {
+    void serverFenceEmitsVerifiablePlaceholderAndSource() {
         final String html = bare( RenderedFenceRegistry.of( new FakeServerRenderer() ), "```fake\nhello\n```\n" );
         assertTrue( html.contains( "data-fence-kind=\"server\"" ), html );
-        assertTrue( html.contains( "<div class=\"wk-fence-drawing\"><svg-ish>drawn:6</svg-ish></div>" ), html );
-        assertTrue( html.indexOf( "wk-fence-drawing" ) < html.indexOf( "wk-fence-source" ), html );
+        final Matcher m = Pattern.compile( "data-fence-drawing=\"([0-9a-f.]+)\"" ).matcher( html );
+        assertTrue( m.find(), html );
+        assertTrue( FencePlaceholders.verify( m.group( 1 ), "hello\n" ), html );
+        assertTrue( html.contains( "<pre class=\"wk-fence-source\">" ), html );
         assertTrue( html.contains( "<code class=\"language-fake\">hello\n</code>" ), html );
+        assertFalse( html.contains( "wk-fence-drawing" ), html );
         assertFalse( html.contains( "data-fence-error" ), html );
     }
 
     @Test
-    void serverKindFailureEmitsRenderFailed() {
-        final String html = bare( RenderedFenceRegistry.of( new FakeServerRenderer() ), "```fake\nboom\n```\n" );
-        assertTrue( html.contains( "data-fence-error=\"render-failed\"" ), html );
-        assertFalse( html.contains( "wk-fence-drawing" ), html );
-        assertTrue( html.contains( "<code class=\"language-fake\">boom\n</code>" ), html );
+    void refusedServerFenceHasNoPlaceholder() {
+        final String html = bare( RenderedFenceRegistry.of( new FakeServerRenderer() ), "```fake\nrefuse\n```\n" );
+        assertTrue( html.contains( "data-fence-error=\"callback\"" ), html );
+        assertFalse( html.contains( "data-fence-drawing" ), html );
     }
 
     @Test
-    void serverKindRefusalHasNoDrawing() {
-        final String html = bare( RenderedFenceRegistry.of( new FakeServerRenderer() ), "```fake\nrefuse\n```\n" );
-        assertTrue( html.contains( "data-fence-error=\"callback\"" ), html );
-        assertFalse( html.contains( "wk-fence-drawing" ), html );
+    void plantumlExampleStaysCode() {
+        final String html = bare( RenderedFenceRegistry.defaults(), "```plantuml example\nA -> B\n```\n" );
+        assertFalse( html.contains( "wk-fence" ), html );
+        assertFalse( html.contains( "data-fence-drawing" ), html );
     }
 
     @Test
@@ -192,10 +194,7 @@ class RenderedFenceRenderingTest {
         assertTrue( out.contains( "data-fence=\"fake\"" ), out );
         assertTrue( out.contains( "data-fence-kind=\"server\"" ), out );
         assertTrue( out.contains( "class=\"wk-fence\"" ), out );
-        assertTrue( out.contains( "<div class=\"wk-fence-drawing\">" ), out );
+        assertTrue( out.contains( "data-fence-drawing=\"" ), out );
         assertTrue( out.contains( "<code class=\"language-fake\">" ), out );
-        final String err = WikantikHtmlSanitizer.sanitize(
-                bare( RenderedFenceRegistry.of( new FakeServerRenderer() ), "```fake\nboom\n```\n" ) );
-        assertTrue( err.contains( "data-fence-error=\"render-failed\"" ), err );
     }
 }

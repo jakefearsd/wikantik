@@ -27,7 +27,7 @@ import java.util.Optional;
 public final class RenderedFenceRegistry {
 
     private static final class Holder {
-        static final RenderedFenceRegistry DEFAULTS = of( new MermaidFenceRenderer() );
+        static final RenderedFenceRegistry DEFAULTS = of( new MermaidFenceRenderer(), new PlantUmlFenceRenderer() );
     }
 
     private final Map< String, RenderedFenceRenderer > byLanguage;
@@ -36,7 +36,7 @@ public final class RenderedFenceRegistry {
         this.byLanguage = byLanguage;
     }
 
-    /** The production registry: Mermaid only. Cached singleton. */
+    /** The production registry: Mermaid and PlantUML. Cached singleton. */
     public static RenderedFenceRegistry defaults() {
         return Holder.DEFAULTS;
     }

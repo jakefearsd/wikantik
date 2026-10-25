@@ -48,13 +48,21 @@ import java.util.Set;
  *
  * <h2>Server kind ({@link FenceKind#SERVER})</h2>
  * <ul>
- *   <li>{@link #renderDrawing(String)} output must pass {@code WikantikHtmlSanitizer}; an SVG
- *       drawing therefore needs a narrow SVG allowlist added there first.</li>
- *   <li>The renderer runs in its sandbox mode (PlantUML: {@code PLANTUML_SECURITY_PROFILE=SANDBOX},
- *       no {@code !include} file or URL access) under a size and time cap.</li>
- *   <li>A failure throws; the node renderer turns that into {@code render-failed}, showing the
- *       source and the error.</li>
- *   <li>Output is cached by the existing render caches.</li>
+ *   <li>At render time the node renderer emits only a <em>placeholder</em>: the usual {@code figure.wk-fence}
+ *       envelope plus a {@code data-fence-drawing} attribute holding a signed, stable token
+ *       ({@link FencePlaceholders#sign(String)}, an HMAC over the source hash). No drawing is produced and none
+ *       reaches the HTML render caches, which therefore hold placeholders only. A refused fence keeps
+ *       {@code data-fence-error} and gets no token.</li>
+ *   <li>{@code ServerFenceResolver} turns each verified placeholder into a drawing after the last sanitize and
+ *       cache read, so the drawing is never sanitized or cached with the page. The drawing comes from a
+ *       {@code ServerFenceDrawer} and is scrubbed by the PlantUML module's SVG scrub; failure leaves the
+ *       source visible with a reason.</li>
+ *   <li>{@code WikantikHtmlSanitizer} lets {@code data-fence-drawing} through on {@code figure} only when it
+ *       matches {@code [0-9a-f]{64}\.[0-9a-f]{64}}; hand-written SVG is still stripped.</li>
+ *   <li>The token secret is generated per JVM. Placeholders cached by another node (the opt-in memcached
+ *       adapter) fail verification here and show their source rather than a drawing.</li>
+ *   <li>The renderer's {@code check} is the parse-time policy and must never throw; the drawer runs in its
+ *       sandbox mode (PlantUML: {@code PLANTUML_SECURITY_PROFILE=SANDBOX}) under size and time caps.</li>
  * </ul>
  *
  * <h2>Rename (deferred)</h2>
@@ -75,9 +83,4 @@ public interface RenderedFenceRenderer {
 
     /** Local page names linked from {@code source}; empty when the source is refused. */
     Set< String > pageLinks( String source );
-
-    /** Server kind only: the drawing HTML for {@code source}. Throws on failure. */
-    default String renderDrawing( final String source ) {
-        throw new UnsupportedOperationException( language() + " is a browser renderer" );
-    }
 }

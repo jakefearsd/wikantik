@@ -20,7 +20,7 @@ package com.wikantik.markdown.extensions.fences;
 
 import java.util.Set;
 
-/** Test-only SERVER-kind renderer: language {@code fake}; source containing {@code boom} makes the drawing throw. */
+/** Test-only SERVER-kind renderer: language {@code fake}. */
 final class FakeServerRenderer implements RenderedFenceRenderer {
     @Override public String language() { return "fake"; }
     @Override public FenceKind kind() { return FenceKind.SERVER; }
@@ -28,10 +28,4 @@ final class FakeServerRenderer implements RenderedFenceRenderer {
         return source.contains( "refuse" ) ? FenceVerdict.refused( "callback" ) : FenceVerdict.ALLOWED;
     }
     @Override public Set< String > pageLinks( final String source ) { return Set.of(); }
-    @Override public String renderDrawing( final String source ) {
-        if ( source.contains( "boom" ) ) {
-            throw new IllegalStateException( "boom" );
-        }
-        return "<svg-ish>drawn:" + source.length() + "</svg-ish>";
-    }
 }

@@ -86,7 +86,7 @@ final class MermaidUrlRules {
         try {
             name = URLDecoder.decode( name.replace( "+", "%2B" ), StandardCharsets.UTF_8 );
         } catch ( final IllegalArgumentException e ) {
-            LOG.warn( "Mermaid link target '{}' has bad percent-encoding; not tracked: {}", url, e.getMessage() );
+            LOG.warn( "Diagram link target '{}' has bad percent-encoding; not tracked: {}", url, e.getMessage() );
             return Optional.empty();
         }
         return name.isBlank() ? Optional.empty() : Optional.of( name );

@@ -36,6 +36,14 @@ class RenderedFenceRegistryTest {
     }
 
     @Test
+    void defaultsHaveMermaidAndPlantuml() {
+        final RenderedFenceRegistry r = RenderedFenceRegistry.defaults();
+        assertEquals( FenceKind.BROWSER, r.forLanguage( "mermaid" ).orElseThrow().kind() );
+        assertEquals( FenceKind.SERVER, r.forLanguage( "plantuml" ).orElseThrow().kind() );
+        assertTrue( r.forInfo( FenceInfo.parse( "PlantUML" ) ).isPresent() );
+    }
+
+    @Test
     void exampleInfoResolvesToNothing() {
         assertTrue( RenderedFenceRegistry.defaults().forInfo( FenceInfo.parse( "mermaid example" ) ).isEmpty() );
     }

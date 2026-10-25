@@ -59,6 +59,7 @@ public final class WikantikHtmlSanitizer {
             .allowAttributes( "data-fence" ).matching( java.util.regex.Pattern.compile( "[a-z0-9][a-z0-9+-]*" ) ).onElements( "figure" )
             .allowAttributes( "data-fence-kind" ).matching( java.util.regex.Pattern.compile( "browser|server" ) ).onElements( "figure" )
             .allowAttributes( "data-fence-error" ).matching( java.util.regex.Pattern.compile( "[a-z-]+" ) ).onElements( "figure" )
+            .allowAttributes( "data-fence-drawing" ).matching( java.util.regex.Pattern.compile( "[0-9a-f]{64}\\.[0-9a-f]{64}" ) ).onElements( "figure" )
             .allowAttributes( "data-embed", "data-section" ).onElements( "div" )
             // GFM task-list checkbox: only type=checkbox, and the disabled/checked flags.
             .allowAttributes( "type" ).matching( java.util.regex.Pattern.compile( "checkbox" ) ).onElements( "input" )

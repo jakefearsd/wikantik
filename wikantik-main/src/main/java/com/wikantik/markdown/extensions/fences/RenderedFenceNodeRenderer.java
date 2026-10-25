@@ -25,16 +25,12 @@ import com.vladsch.flexmark.html.renderer.NodeRendererContext;
 import com.vladsch.flexmark.html.renderer.NodeRendererFactory;
 import com.vladsch.flexmark.html.renderer.NodeRenderingHandler;
 import com.vladsch.flexmark.util.data.DataHolder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Optional;
 import java.util.Set;
 
 /** Emits the {@code wk-fence} envelope for registered fences; delegates every other fence. */
 public class RenderedFenceNodeRenderer implements NodeRenderer {
-
-    private static final Logger LOG = LogManager.getLogger( RenderedFenceNodeRenderer.class );
 
     private final RenderedFenceRegistry registry;
 
@@ -59,29 +55,17 @@ public class RenderedFenceNodeRenderer implements NodeRenderer {
         final String source = node.getContentChars().normalizeEOL();
         final FenceVerdict verdict = renderer.check( source );
 
-        String error = verdict.allowed() ? null : verdict.reason();
-        String drawing = null;
-        if ( error == null && renderer.kind() == FenceKind.SERVER ) {
-            try {
-                drawing = renderer.renderDrawing( source );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Rendered fence '{}' failed to render its drawing: {}", language, e.getMessage(), e );
-                error = "render-failed";
-            }
-        }
+        final String error = verdict.allowed() ? null : verdict.reason();
 
         html.line();
         html.attr( "class", "wk-fence" ).attr( "data-fence", language )
             .attr( "data-fence-kind", renderer.kind() == FenceKind.SERVER ? "server" : "browser" );
         if ( error != null ) {
             html.attr( "data-fence-error", error );
+        } else if ( renderer.kind() == FenceKind.SERVER ) {
+            html.attr( "data-fence-drawing", FencePlaceholders.sign( source ) );
         }
         html.withAttr().tag( "figure" ).line();
-        if ( drawing != null ) {
-            html.attr( "class", "wk-fence-drawing" ).withAttr().tag( "div" );
-            html.raw( drawing );
-            html.tag( "/div" ).line();
-        }
         html.attr( "class", "wk-fence-source" ).withAttr().tag( "pre" ).openPre();
         html.attr( "class", "language-" + language ).withAttr().tag( "code" );
         html.text( source );

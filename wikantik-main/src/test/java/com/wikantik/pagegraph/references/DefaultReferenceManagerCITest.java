@@ -550,6 +550,14 @@ class DefaultReferenceManagerCITest {
     }
 
     @Test
+    void plantumlDiagramLinksCountAsReferences() {
+        final Collection< String > links = mgr.scanWikiLinks( mockPage( "Diagram" ),
+                "Intro\n\n```plantuml\nA -> B\nnote right of A : [[/wiki/Target]]\n```\n" );
+
+        assertTrue( links.contains( "Target" ), links.toString() );
+    }
+
+    @Test
     void scanWikiLinksIgnoresExampleFenceClicks() {
         final Collection< String > links = mgr.scanWikiLinks( mockPage( "Diagram" ),
                 "```mermaid example\nflowchart TD\n  A-->B\n  click A \"/wiki/TargetPage\"\n```\n" );

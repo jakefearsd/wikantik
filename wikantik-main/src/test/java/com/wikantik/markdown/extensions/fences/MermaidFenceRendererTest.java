@@ -59,10 +59,9 @@ class MermaidFenceRendererTest {
     }
 
     @Test
-    void kindIsBrowserAndRenderDrawingThrows() {
+    void kindIsBrowser() {
         assertEquals( "mermaid", renderer.language() );
         assertEquals( FenceKind.BROWSER, renderer.kind() );
-        assertThrows( UnsupportedOperationException.class, () -> renderer.renderDrawing( "x" ) );
     }
 
     @Test

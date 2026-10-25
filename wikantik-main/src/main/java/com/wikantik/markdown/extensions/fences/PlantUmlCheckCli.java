@@ -18,26 +18,17 @@
  */
 package com.wikantik.markdown.extensions.fences;
 
-import com.google.gson.GsonBuilder;
-import com.wikantik.plantuml.PlantUmlSandbox;
-import com.wikantik.plantuml.PlantUmlService;
-import com.wikantik.plantuml.PlantUmlSettings;
-import com.wikantik.plantuml.RenderOutcome;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
 
 /**
  * Corpus checker for PlantUML fences, the counterpart of {@code wikantik-frontend/scripts/check-mermaid.mjs} and
@@ -52,17 +43,17 @@ import java.util.stream.Stream;
  */
 public final class PlantUmlCheckCli {
 
-    private static final Logger LOG = LogManager.getLogger( PlantUmlCheckCli.class );
+    /**
+     * Holder so log4j is first touched after {@link #run} has pointed {@code System.out} at stderr: its default
+     * console appender binds {@code System.out} at initialisation, and stdout is reserved for the report.
+     */
+    private static final class Log {
+        static final Logger LOG = LogManager.getLogger( PlantUmlCheckCli.class );
+    }
+
     private static final String USAGE = "usage: bin/check-plantuml.sh [--json] <file|dir|->...";
 
     private PlantUmlCheckCli() {
-    }
-
-    /** One checked diagram. */
-    private record Diagram( String file, int line, String error ) {
-        boolean ok() {
-            return error == null;
-        }
     }
 
     /** A usage fault: reported with the usage line, exit 2. */
@@ -96,7 +87,7 @@ public final class PlantUmlCheckCli {
             err.println( USAGE );
             return 2;
         } catch ( final IOException | RuntimeException | LinkageError e ) {
-            LOG.warn( "check-plantuml failed: {}", e.toString(), e );
+            Log.LOG.warn( "check-plantuml failed: {}", e.toString(), e );
             err.println( "check-plantuml: " + e );
             return 2;
         } finally {
@@ -106,14 +97,25 @@ public final class PlantUmlCheckCli {
 
     private static int check( final String[] args, final InputStream in, final PrintStream out, final PrintStream err )
             throws UsageException, IOException {
-        boolean json = false;
+        final boolean json = Arrays.asList( args ).contains( "--json" );
+        final List< String > targets = targetsOf( args );
+        final List< PlantUmlCheckReport.Diagram > results = PlantUmlDiagramChecker.checkAll( targets, in );
+        if ( json ) {
+            out.println( PlantUmlCheckReport.json( results ) );
+        } else {
+            PlantUmlCheckReport.printText( results, out );
+        }
+        return results.stream().anyMatch( d -> !d.ok() ) ? 1 : 0;
+    }
+
+    /** The file/dir/{@code -} arguments, validated; throws a usage fault for an unknown option, no target or a missing path. */
+    private static List< String > targetsOf( final String[] args ) throws UsageException {
         final List< String > targets = new ArrayList<>();
         for ( final String a : args ) {
-            if ( "--json".equals( a ) ) {
-                json = true;
-            } else if ( a.startsWith( "--" ) ) {
+            if ( a.startsWith( "--" ) && !"--json".equals( a ) ) {
                 throw new UsageException( "unknown option " + a );
-            } else {
+            }
+            if ( !a.startsWith( "--" ) ) {
                 targets.add( a );
             }
         }
@@ -125,92 +127,7 @@ public final class PlantUmlCheckCli {
                 throw new UsageException( "no such file or directory: " + t );
             }
         }
-        final List< Diagram > results = checkAll( targets, in, err );
-        if ( json ) {
-            final List< Map< String, Object > > rows = new ArrayList<>();
-            for ( final Diagram d : results ) {
-                final Map< String, Object > row = new LinkedHashMap<>();
-                row.put( "file", d.file() );
-                row.put( "line", d.line() );
-                row.put( "ok", d.ok() );
-                row.put( "error", d.error() );
-                rows.add( row );
-            }
-            out.println( new GsonBuilder().setPrettyPrinting().serializeNulls().create().toJson( rows ) );
-        } else {
-            for ( final Diagram d : results ) {
-                out.println( ( d.ok() ? "OK " : "FAIL " ) + d.file() + ":" + d.line() + ( d.ok() ? "" : " " + d.error() ) );
-            }
-            final long bad = results.stream().filter( d -> !d.ok() ).count();
-            out.println( results.size() + " diagrams, " + ( results.size() - bad ) + " ok, " + bad + " failed" );
-        }
-        return results.stream().anyMatch( d -> !d.ok() ) ? 1 : 0;
+        return targets;
     }
 
-    private static List< Diagram > checkAll( final List< String > targets, final InputStream in, final PrintStream err )
-            throws IOException {
-        final Map< String, String > inputs = new LinkedHashMap<>();
-        for ( final String t : targets ) {
-            if ( "-".equals( t ) ) {
-                inputs.put( "-", new String( in.readAllBytes(), StandardCharsets.UTF_8 ) );
-            } else {
-                for ( final Path f : markdownFiles( Path.of( t ) ) ) {
-                    inputs.put( f.toString(), Files.readString( f ) );
-                }
-            }
-        }
-        final List< Diagram > results = new ArrayList<>();
-        PlantUmlService service = null;
-        for ( final Map.Entry< String, String > input : inputs.entrySet() ) {
-            for ( final ScannedFence f : RenderedFenceScanner.scan( input.getValue() ) ) {
-                if ( !"plantuml".equals( f.info().language() ) || f.info().example() ) {
-                    continue;
-                }
-                if ( service == null ) {
-                    service = newService();
-                }
-                results.add( new Diagram( input.getKey(), f.line(), errorOf( draw( service, f.source() ) ) ) );
-            }
-        }
-        return results;
-    }
-
-    private static PlantUmlService newService() throws IOException {
-        if ( !PlantUmlSandbox.ensure() ) {
-            throw new IOException( "the PlantUML sandbox could not be confirmed" );
-        }
-        return new PlantUmlService( PlantUmlSettings.defaults() );
-    }
-
-    /** Renders with a full timeout as the wait budget; a transient refusal (e.g. busy) is retried once. */
-    private static RenderOutcome draw( final PlantUmlService service, final String source ) {
-        final long budget = PlantUmlSettings.defaults().timeoutMs();
-        final RenderOutcome first = service.render( source, budget );
-        return first.transientFailure() ? service.render( source, budget ) : first;
-    }
-
-    private static String errorOf( final RenderOutcome o ) {
-        if ( o.isDrawn() ) {
-            return null;
-        }
-        final StringBuilder sb = new StringBuilder( o.reason() == null ? "render-failed" : o.reason() );
-        if ( o.line() > 0 ) {
-            sb.append( " line " ).append( o.line() );
-        }
-        final String msg = o.message() == null ? "" : o.message().lines().filter( l -> !l.isBlank() ).findFirst().orElse( "" ).trim();
-        if ( !msg.isEmpty() ) {
-            sb.append( ": " ).append( msg );
-        }
-        return sb.toString();
-    }
-
-    private static List< Path > markdownFiles( final Path path ) throws IOException {
-        if ( !Files.isDirectory( path ) ) {
-            return List.of( path );
-        }
-        try ( Stream< Path > walk = Files.walk( path ) ) {
-            return walk.filter( p -> Files.isRegularFile( p ) && p.getFileName().toString().endsWith( ".md" ) )
-                    .sorted( Comparator.comparing( Path::toString ) ).toList();
-        }
-    }
 }

@@ -23,9 +23,25 @@ if [[ ! -d "$CLASSES" ]]; then
 fi
 
 if [[ ! -s "$CPFILE" ]]; then
+    # </dev/null: a piped `-` input must never be consumed by Maven.
     (cd "$ROOT" && mvn -q dependency:build-classpath -pl wikantik-main \
-        -Dmdep.outputFile="$CPFILE") >&2 || { echo "check-plantuml: could not build the classpath" >&2; exit 2; }
+        -Dmdep.outputFile="$CPFILE" </dev/null) >&2 || { echo "check-plantuml: could not build the classpath" >&2; exit 2; }
 fi
 
-exec java -cp "$CLASSES:$(cat "$CPFILE")" \
-    com.wikantik.markdown.extensions.fences.PlantUmlCheckCli "$@"
+if ! command -v java >/dev/null 2>&1; then
+    echo "check-plantuml: java not found on PATH (JDK 25+ required)" >&2
+    exit 2
+fi
+
+# Not exec: a missing-classpath failure (stale cache) is mapped to the documented exit 2 with a hint.
+ERRLOG="$(mktemp)"
+trap 'rm -f "$ERRLOG"' EXIT
+rc=0
+java -cp "$CLASSES:$(cat "$CPFILE")" \
+    com.wikantik.markdown.extensions.fences.PlantUmlCheckCli "$@" 2> >(tee "$ERRLOG" >&2) || rc=$?
+wait
+if grep -qE 'NoClassDefFoundError|ClassNotFoundException' "$ERRLOG"; then
+    echo "check-plantuml: delete $CPFILE if dependencies changed, then re-run" >&2
+    exit 2
+fi
+exit "$rc"

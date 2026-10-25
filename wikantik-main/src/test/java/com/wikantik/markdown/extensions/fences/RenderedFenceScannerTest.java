@@ -72,6 +72,9 @@ class RenderedFenceScannerTest {
         final List< ScannedFence > f = RenderedFenceScanner.scan( "# T\r\n\r\n```java\nx\n```\n> ```mermaid\n> a\n> ```\n" );
         assertEquals( 3, f.get( 0 ).line() );
         assertEquals( 6, f.get( 1 ).line() );
+        final List< ScannedFence > t = RenderedFenceScanner.scan( "a\n\n~~~plantuml\nx\n~~~\n\n- item\n\n  ```plantuml\n  y\n  ```\n" );
+        assertEquals( 3, t.get( 0 ).line() );
+        assertEquals( 9, t.get( 1 ).line() );
     }
 
     @Test

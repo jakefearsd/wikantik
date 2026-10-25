@@ -25,6 +25,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -130,5 +133,42 @@ class PlantUmlCheckCliTest {
         assertEquals( 1, r.exit() );
         assertTrue( r.out().contains( "OK -:1\n" ), r.out() );
         assertTrue( r.out().contains( "FAIL -:5 include" ), r.out() );
+    }
+
+    @Test
+    void syntaxErrorLineIsFileRelativeWithExplicitStartuml() throws IOException {
+        // fence opens on line 3; content line 1 = @startuml (file line 4), "nope nope" is content line 3 = file line 6
+        final Path f = md( "s1.md", "text\n\n```plantuml\n@startuml\nclass A\nnope nope\n@enduml\n```\n" );
+        assertTrue( run( "", f.toString() ).out().contains( ":3 syntax-error line 6" ), "explicit @startuml" );
+    }
+
+    @Test
+    void syntaxErrorLineIsFileRelativeWithoutStartuml() throws IOException {
+        // fence opens on line 3; "class A" is file line 4, "nope nope" is file line 5
+        final Path f = md( "s2.md", "text\n\n```plantuml\nclass A\nnope nope\n```\n" );
+        assertTrue( run( "", f.toString() ).out().contains( ":3 syntax-error line 5" ), "implicit @startuml" );
+    }
+
+    @Test
+    void logOutputNeverReachesStdout() throws Exception {
+        // invalid UTF-8 makes the file read fail, which logs a WARN; with the default log4j console appender that
+        // would land on stdout unless the CLI points System.out at stderr before log4j initialises.
+        final Path bad = dir.resolve( "bad.md" );
+        Files.write( bad, new byte[] { ( byte ) 0xff, ( byte ) 0xfe, ( byte ) 0xfd } );
+        final List< String > cp = new ArrayList<>();
+        for ( final String e : System.getProperty( "java.class.path" ).split( File.pathSeparator ) ) {
+            if ( !e.endsWith( "test-classes" ) ) {   // keep the test log4j2 config out: exercise the default appender
+                cp.add( e );
+            }
+        }
+        final Process p = new ProcessBuilder( Path.of( System.getProperty( "java.home" ), "bin", "java" ).toString(),
+                "-Dlog4j2.level=WARN", "-cp", String.join( File.pathSeparator, cp ),
+                "com.wikantik.markdown.extensions.fences.PlantUmlCheckCli", bad.toString() ).start();
+        p.getOutputStream().close();
+        final byte[] out = p.getInputStream().readAllBytes();
+        final String err = new String( p.getErrorStream().readAllBytes(), StandardCharsets.UTF_8 );
+        assertEquals( 2, p.waitFor(), err );
+        assertEquals( "", new String( out, StandardCharsets.UTF_8 ), "stdout must carry only the report" );
+        assertTrue( err.contains( "check-plantuml" ), err );
     }
 }

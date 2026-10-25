@@ -332,6 +332,16 @@ prod run: 240 findings, 163 pages present only in prod. See the corpus warning i
 [WikantikOperations.md](../admin/WikantikOperations.md#19-the-checkout-and-production-are-different-corpora)
 before planning any corpus-wide change.
 
+### Rendered Fences (Mermaid, PlantUML) — [spec](../superpowers/specs/2026-10-25-plantuml-fences-design.md)
+
+Mermaid shipped 2.5.0 (2026-10-25) as a client-drawn fence. PlantUML followed as the first *server* kind:
+`wikantik-plantuml` (shaded MIT build, Ditaa stripped, Smetana layout, sandbox + SVG scrub, bounded pool,
+light/dark variants; `PlantUmlLicenseArchTest`), signed placeholders from wikantik-main resolved by
+`ServerFenceResolver` at the outermost `textToHTML` (caches hold placeholders only), `POST /api/fences/render`
+for editor previews, `bin/check-plantuml.sh` for the corpus, ten `wikantik.fences.plantuml.*` keys with kill
+switch `wikantik.fences.plantuml.enabled`. Pending after release: push `EditPageHelp` to prod and update the live
+design pages.
+
 ### Other subsystems
 
 - **[PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Canonical explainer distinguishing the Page Graph (wikilink edges) from the Knowledge Graph (LLM-extracted entities). Reference this before touching either subsystem.

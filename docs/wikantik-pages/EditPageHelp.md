@@ -54,6 +54,50 @@ flowchart LR
 * The wiki refuses diagrams that contain `%%{ ... }%%` directives, a `---` front matter block, `click` lines that call a function, links that are not `http(s)` or relative, or `javascript:` anywhere. Tooltips in `click` lines cannot contain a colon.
 * Renaming a page does not yet update `click` links to it in diagrams, so check those after a rename.
 
+### Class and activity diagrams with PlantUML
+
+Use a `plantuml` fence for class diagrams with deep structure, and for activity diagrams that need fork/join bars or swimlanes. Use Mermaid for everything else. This activity diagram is live:
+
+```plantuml
+@startuml
+start
+:Receive request;
+fork
+  :Check permissions;
+fork again
+  :Load page;
+end fork
+:Render response;
+stop
+@enduml
+```
+
+So is this class hierarchy, with an interface, an abstract class, a generic type and composition:
+
+```plantuml
+@startuml
+interface PageProvider
+abstract class AbstractProvider
+class FileProvider
+class Cache<T>
+AbstractProvider ..|> PageProvider
+FileProvider --|> AbstractProvider
+FileProvider *-- Cache
+@enduml
+```
+
+The `example` word works here too, so you can show the source as text:
+
+```plantuml example
+@startuml
+class Page [[/wiki/EditPageHelp]]
+@enduml
+```
+
+* To link a shape to a wiki page, add `[[/wiki/PageName]]` after it, as above. These links count as real page links, so they appear in backlinks.
+* Only `@startuml` diagrams are accepted. `!include` is refused except for `<C4/...>` libraries, images are refused, and a diagram can be at most 64 KB.
+* A diagram that fails shows its source together with the reason, as Mermaid does.
+
 ## Metadata
 
 The **Frontmatter** tab edits the page's metadata (type, tags, cluster, summary and more) and checks it as you type. Save is disabled while an error is showing. See [Frontmatter](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Frontmatter.md).

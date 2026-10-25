@@ -7,6 +7,9 @@ import {
   BulletWidget, CheckboxWidget, ImageWidget, MathWidget, EmbedWidget, FenceWidget, TextWidget, CalloutTitleWidget, RuleWidget,
   widgetFor, toggleTaskAt, toggleTaskBox,
 } from './widgets';
+import { renderFences } from '../fences/renderFences';
+
+vi.mock('../fences/renderFences', () => ({ renderFences: vi.fn(() => Promise.resolve()) }));
 
 const views = [];
 function viewOf(doc) {
@@ -100,6 +103,21 @@ describe('widget DOM', () => {
     await flush();
     expect(dom.querySelector(selector)).not.toBeNull();
     if (text) expect(dom.querySelector(selector).textContent).toBe(text);
+  });
+  it('embed: draws the diagrams inside the embedded page, stopping once the widget is gone', async () => {
+    renderFences.mockClear();
+    const view = viewOf('x');
+    const html = '<figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser">'
+      + '<pre class="wk-fence-source"><code class="language-mermaid">flowchart TD\n A--&gt;B</code></pre></figure>';
+    const dom = new EmbedWidget('Other', null, () => Promise.resolve({ state: 'ok', html })).toDOM(view);
+    document.body.appendChild(dom);
+    await flush();
+    expect(renderFences).toHaveBeenCalledTimes(1);
+    const [root, isStale] = renderFences.mock.calls[0];
+    expect(root.querySelector('figure.wk-fence')).not.toBeNull();
+    expect(isStale()).toBe(false);
+    dom.remove();
+    expect(isStale()).toBe(true);
   });
   it('embed: a rejected loader renders the error state and warns with the target', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

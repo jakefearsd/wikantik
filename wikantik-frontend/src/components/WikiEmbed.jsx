@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadEmbed, clearEmbedCache } from '../utils/embedCache';
 import { slugify } from '../utils/headings';
+import { renderFences } from '../utils/fences/renderFences';
 
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 
@@ -40,7 +41,18 @@ export default function WikiEmbed({ page, target = page, section = null }) {
   const html = result.key === key ? result.html : '';
 
   // React 19 re-applies dangerouslySetInnerHTML on every re-render, wiping DOM mutated since; memoize the host.
-  const host = useMemo(() => <div dangerouslySetInnerHTML={{ __html: html }} />, [html]);
+  const bodyRef = useRef(null);
+  const host = useMemo(() => <div ref={bodyRef} dangerouslySetInnerHTML={{ __html: html }} />, [html]);
+
+  // Draw the diagrams (rendered-fence envelopes) in the embedded body, as PageView does for the article: the
+  // memoized host keeps them across re-renders, and a pass the body has moved on from writes nothing.
+  useEffect(() => {
+    if (!html || !bodyRef.current) return undefined;
+    let stale = false;
+    renderFences(bodyRef.current, () => stale)
+      .catch((e) => console.warn('[fences] drawing the diagrams in an embed failed', e));
+    return () => { stale = true; };
+  }, [html]);
 
   const label = section ? `${page} › ${section}` : page;
   const href = `${BASE}/wiki/${encodeURIComponent(page)}${section ? '#' + slugify(section) : ''}`;

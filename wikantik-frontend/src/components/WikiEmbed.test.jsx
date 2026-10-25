@@ -6,6 +6,8 @@ import ReactMarkdown from 'react-markdown';
 import { remarkWikiLinks } from '../utils/remarkWikiLinks';
 
 vi.mock('../api/client', () => ({ api: { getPageEmbed: vi.fn() } }));
+vi.mock('../utils/fences/renderFences', () => ({ renderFences: vi.fn(() => Promise.resolve()) }));
+import { renderFences } from '../utils/fences/renderFences';
 
 const ok = (html) => ({ html, missing: false, restricted: false, truncated: false });
 
@@ -21,6 +23,25 @@ describe('WikiEmbed', () => {
     await findByText('x');
     expect(container.querySelector('.wiki-embed-title a').getAttribute('href')).toMatch(/\/wiki\/Target#usage$/);
     expect(container.querySelector('.wiki-embed-title').textContent).toBe('Target › Usage');
+  });
+
+  it('draws the diagrams inside the embedded body, and marks the pass stale once the body is replaced', async () => {
+    const fence = '<figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser">'
+      + '<pre class="wk-fence-source"><code class="language-mermaid">flowchart TD</code></pre></figure>';
+    api.getPageEmbed.mockResolvedValueOnce(ok(`<p>one</p>${fence}`)).mockResolvedValueOnce(ok('<p>two</p>'));
+    const { findByText, rerender, unmount } = render(<WikiEmbed page="A" />);
+    await findByText('one');
+    await waitFor(() => expect(renderFences).toHaveBeenCalledTimes(1));
+    const [root, isStale] = renderFences.mock.calls[0];
+    expect(root.querySelector('figure.wk-fence')).not.toBeNull();
+    expect(isStale()).toBe(false);
+    rerender(<WikiEmbed page="B" />);
+    await findByText('two');
+    expect(isStale()).toBe(true);
+    await waitFor(() => expect(renderFences).toHaveBeenCalledTimes(2));
+    const secondStale = renderFences.mock.calls[1][1];
+    unmount();
+    expect(secondStale()).toBe(true);
   });
 
   it('shows the restricted state on 403 with a plain-text title', async () => {

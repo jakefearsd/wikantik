@@ -4,6 +4,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { wikiLinkHref } from '../wikiLinkSyntax';
 import { renderMath } from '../math';
+import { renderFences } from '../fences/renderFences';
 import { fillFenceEnvelope } from '../fences/envelope';
 
 const el = (tag, cls, text) => {
@@ -224,6 +225,12 @@ export class EmbedWidget extends WidgetType {
         body.className = 'cm-lp-embed-body article-prose';
         body.innerHTML = r.html || ''; // server-rendered, view-ACL'd HTML — what the preview's WikiEmbed shows
         renderMath(body);
+        // Diagrams in the embedded page, drawn by the reader's pass; it stops writing once the widget is gone.
+        if (body.querySelector('figure.wk-fence')) {
+          renderFences(body, () => !body.isConnected)
+            .then(() => view?.requestMeasure?.())
+            .catch((err) => console.warn('[live-preview] embed diagrams failed', this.target, err?.message || err));
+        }
       } else if (r?.state === 'missing') show('cm-lp-embed-missing', `"${this.target}" does not exist yet.`);
       else if (r?.state === 'restricted') show('cm-lp-embed-restricted', "You don't have access to this page.");
       else show('cm-lp-embed-error', 'Could not load this embed.');

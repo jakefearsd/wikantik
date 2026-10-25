@@ -47,4 +47,20 @@ class WikantikHtmlSanitizerTest {
         assertTrue( out.contains( "data-embed=\"A B\"" ), out );
         assertTrue( out.contains( "data-section=\"H\"" ), out );
     }
+
+    @Test
+    void keepsFenceEnvelopeAttributes() {
+        final String out = WikantikHtmlSanitizer.sanitize( "<figure class=\"wk-fence\" data-fence=\"mermaid\" data-fence-kind=\"browser\" "
+                + "data-fence-error=\"unsafe-link\"><pre class=\"wk-fence-source\"><code class=\"language-mermaid\">x</code></pre></figure>" );
+        assertTrue( out.contains( "data-fence=\"mermaid\"" ), out );
+        assertTrue( out.contains( "data-fence-kind=\"browser\"" ), out );
+        assertTrue( out.contains( "data-fence-error=\"unsafe-link\"" ), out );
+    }
+
+    @Test
+    void dropsFenceAttributesWithBadValues() {
+        final String out = WikantikHtmlSanitizer.sanitize(
+                "<figure data-fence-kind=\"evil\" data-fence=\"<x>\" data-fence-error=\"A B\">y</figure>" );
+        assertFalse( out.contains( "data-fence" ), out );
+    }
 }

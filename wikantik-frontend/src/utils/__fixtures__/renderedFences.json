@@ -14,7 +14,22 @@
     { "info": "mermaid\u00a0example", "language": "mermaid\u00a0example", "example": false, "modifiers": [] },
     { "info": "{.mermaid}", "language": "{.mermaid}", "example": false, "modifiers": [] }
   ],
-  "documents": [],
+  "documents": [
+    {"name": "top-level fence", "markdown": "```mermaid\nflowchart TD\n  A-->B\n```\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "tilde fence", "markdown": "~~~mermaid\nflowchart TD\n  A-->B\n~~~\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "four-backtick fence with inner triple-backtick line", "markdown": "````mermaid\nflowchart TD\n```\n  A-->B\n````\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n```\n  A-->B\n"}]},
+    {"name": "inside a list item", "markdown": "- item\n\n  ```mermaid\n  flowchart TD\n    A-->B\n  ```\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "inside a blockquote", "markdown": "> ```mermaid\n> flowchart TD\n>   A-->B\n> ```\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "indented three spaces is still a fence", "markdown": "   ```mermaid\n   flowchart TD\n     A-->B\n   ```\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "indented four spaces is a code block", "markdown": "    ```mermaid\n    flowchart TD\n    ```\n", "fences": []},
+    {"name": "example fence is not rendered", "markdown": "```mermaid example\nflowchart TD\n  A-->B\n```\n", "fences": []},
+    {"name": "two fences, one example", "markdown": "```mermaid\nflowchart TD\n  A-->B\n```\n\n```mermaid example\nflowchart LR\n  C-->D\n```\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "unclosed fence at end of file", "markdown": "```mermaid\nflowchart TD\n  A-->B\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "CRLF line endings", "markdown": "```mermaid\r\nflowchart TD\r\n  A-->B\r\n```\r\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
+    {"name": "empty body", "markdown": "```mermaid\n```\n", "fences": [{"language": "mermaid", "source": ""}]},
+    {"name": "other language is not rendered", "markdown": "```java\nint x = 1;\n```\n", "fences": []},
+    {"name": "math fence is not rendered", "markdown": "```math\nx^2\n```\n", "fences": []}
+  ],
   "mermaidPolicy": [
     {"source": "flowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},
     {"source": "flowchart TD\n  A-->B\n  click A \"/wiki/Foo\"", "allowed": true, "reason": null, "pageLinks": ["Foo"]},

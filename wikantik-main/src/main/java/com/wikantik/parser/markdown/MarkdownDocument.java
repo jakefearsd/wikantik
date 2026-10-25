@@ -36,6 +36,8 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.markdown.MarkdownForWikantikExtension;
 import com.wikantik.markdown.extensions.callouts.CalloutExtension;
+import com.wikantik.markdown.extensions.fences.RenderedFenceExtension;
+import com.wikantik.markdown.extensions.fences.RenderedFenceRegistry;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 
@@ -59,6 +61,8 @@ public class MarkdownDocument extends WikiDocument {
     private static final com.vladsch.flexmark.util.misc.Extension DEFINITION_EXT = DefinitionExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension FOOTNOTE_EXT = FootnoteExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension GITLAB_EXT = GitLabExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension RENDERED_FENCE_EXT =
+            RenderedFenceExtension.create( RenderedFenceRegistry.defaults() );
     // GFM strikethrough: double tilde only (StrikethroughExtension), so a single "~x~" stays literal prose.
     private static final com.vladsch.flexmark.util.misc.Extension STRIKETHROUGH_EXT = StrikethroughExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension TASKLIST_EXT = TaskListExtension.create();
@@ -88,7 +92,7 @@ public class MarkdownDocument extends WikiDocument {
         options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
         options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
                                                        ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
-                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
+                                                       GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
                                                        STRIKETHROUGH_EXT, TASKLIST_EXT ) );
         return options;
     }
@@ -132,7 +136,7 @@ public class MarkdownDocument extends WikiDocument {
         options.set( TaskListExtension.TIGHT_ITEM_CLASS, "task-list-item" );
         options.set( TaskListExtension.LOOSE_ITEM_CLASS, "task-list-item" );
         options.set( Parser.EXTENSIONS, Arrays.asList( ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
-                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
+                                                       GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
                                                        STRIKETHROUGH_EXT, TASKLIST_EXT ) );
         return options;
     }

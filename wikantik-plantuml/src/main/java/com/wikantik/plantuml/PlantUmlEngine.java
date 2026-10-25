@@ -23,7 +23,9 @@ import net.sourceforge.plantuml.ErrorUml;
 import net.sourceforge.plantuml.FileFormat;
 import net.sourceforge.plantuml.FileFormatOption;
 import net.sourceforge.plantuml.SourceStringReader;
+import net.sourceforge.plantuml.TitledDiagram;
 import net.sourceforge.plantuml.core.Diagram;
+import net.sourceforge.plantuml.core.ImageData;
 import net.sourceforge.plantuml.error.PSystemError;
 import net.sourceforge.plantuml.klimt.color.ColorMapper;
 import net.sourceforge.plantuml.version.Version;
@@ -68,6 +70,10 @@ public final class PlantUmlEngine {
             return RenderOutcome.transientRefusal( "render-failed" );
         }
         try {
+            if( isEmpty( source ) ) {
+                // PlantUML would draw its welcome image (or an empty canvas) for an empty source; never show that.
+                return RenderOutcome.refused( "syntax-error", "The diagram is empty", 0 );
+            }
             final Prepared prepared = prepare( source );
             final BlockUml block = firstBlock( prepared.text() );
             if( block == null ) {
@@ -77,13 +83,23 @@ public final class PlantUmlEngine {
             if( diagram instanceof PSystemError error ) {
                 return refusal( error, prepared );
             }
-            final String light = export( diagram, new FileFormatOption( FileFormat.SVG ) );
-            final RenderOutcome crash = crashOutcome( light );
-            if( crash != null ) {
-                return crash;
+            if( !( diagram instanceof TitledDiagram ) ) {
+                // Real UML diagrams (class, sequence, activity, state, description...) are TitledDiagrams.
+                // Everything else that is not an error is an info/easter-egg diagram (version, license,
+                // donors, colors, listfonts, welcome...) which must never be returned as a drawing.
+                return RenderOutcome.refused( "unsupported-diagram", "This kind of diagram is not supported", 0 );
             }
-            final String dark = export( diagram, new FileFormatOption( FileFormat.SVG ).withColorMapper( ColorMapper.DARK_MODE ) );
-            return RenderOutcome.drawn( new PlantUmlDrawing( light, dark ) );
+            final Export light = export( diagram, new FileFormatOption( FileFormat.SVG ) );
+            final RenderOutcome lightCrash = crashOutcome( light );
+            if( lightCrash != null ) {
+                return lightCrash;
+            }
+            final Export dark = export( diagram, new FileFormatOption( FileFormat.SVG ).withColorMapper( ColorMapper.DARK_MODE ) );
+            final RenderOutcome darkCrash = crashOutcome( dark );
+            if( darkCrash != null ) {
+                return darkCrash;
+            }
+            return RenderOutcome.drawn( new PlantUmlDrawing( light.svg(), dark.svg() ) );
         } catch( final StackOverflowError e ) {
             LOG.info( "PlantUML diagram too complex (stack exhausted)" );
             return RenderOutcome.refused( "too-complex", "The diagram is too complex to draw", 0 );
@@ -95,20 +111,34 @@ public final class PlantUmlEngine {
 
     /**
      * PlantUML swallows exceptions thrown while laying out/exporting (including StackOverflowError) and
-     * returns its own "has crashed" image instead. That image must never be shown, so it is detected here.
+     * returns its own "has crashed" image instead, reporting it only through {@code ImageData.getStatus()}
+     * (non-zero; 503 for a crash). That image must never be shown. The status is the structural signal;
+     * the English crash text is a secondary check that also catches a changed status convention.
      *
-     * @return a refusal when {@code svg} is PlantUML's crash image, otherwise {@code null}
+     * @return a refusal when {@code export} is PlantUML's crash/error image, otherwise {@code null}
      */
-    private static RenderOutcome crashOutcome( final String svg ) {
-        if( !svg.contains( "An error has occurred : " ) || !svg.contains( " has crashed." ) ) {
+    static RenderOutcome crashOutcome( final Export export ) {
+        final boolean crashText = export.svg().contains( "An error has occurred : " ) && export.svg().contains( " has crashed." );
+        if( export.status() == 0 && !crashText ) {
             return null;
         }
-        if( svg.contains( "StackOverflowError" ) ) {
+        if( export.svg().contains( "StackOverflowError" ) ) {
             LOG.info( "PlantUML diagram too complex (stack exhausted)" );
             return RenderOutcome.refused( "too-complex", "The diagram is too complex to draw", 0 );
         }
-        LOG.warn( "PlantUML produced its crash image for a diagram; refusing it" );
+        LOG.warn( "PlantUML produced a crash/error image (status {}); refusing it", export.status() );
         return RenderOutcome.transientRefusal( "render-failed" );
+    }
+
+    record Export( String svg, int status ) {
+    }
+
+    /** @return true when the source has nothing but whitespace and {@code @startuml}/{@code @enduml} markers */
+    private static boolean isEmpty( final String source ) {
+        return source == null || source.lines().allMatch( l -> {
+            final String t = l.strip();
+            return t.isEmpty() || t.startsWith( "@startuml" ) || t.startsWith( "@enduml" );
+        } );
     }
 
     private static BlockUml firstBlock( final String text ) {
@@ -116,10 +146,10 @@ public final class PlantUmlEngine {
         return blocks.isEmpty() ? null : blocks.get( 0 );
     }
 
-    private static String export( final Diagram diagram, final FileFormatOption option ) throws IOException {
+    private static Export export( final Diagram diagram, final FileFormatOption option ) throws IOException {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        diagram.exportDiagram( out, 0, option );
-        return out.toString( StandardCharsets.UTF_8 );
+        final ImageData data = diagram.exportDiagram( out, 0, option );
+        return new Export( out.toString( StandardCharsets.UTF_8 ), data == null ? 0 : data.getStatus() );
     }
 
     private static RenderOutcome refusal( final PSystemError error, final Prepared prepared ) {

@@ -36,12 +36,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PlantUmlLicenseArchTest {
 
+    private static final String DITAA_CLASS = "org/stathissideris/ascii2image/core/ConversionOptions.class";
     private static final String PLANTUML_MARKER = "net/sourceforge/plantuml/SourceStringReader.class";
 
     @Test
     void noDitaaOnRuntimeClasspath() {
         assertNull( getClass().getClassLoader().getResource( "org/stathissideris" ),
                     "Ditaa (LGPL) classes must be stripped from the shaded PlantUML jar" );
+        // The directory lookup above is null for jars without directory entries, so also probe real class files.
+        assertNull( getClass().getClassLoader().getResource( DITAA_CLASS ),
+                    "Ditaa (LGPL) class files must be stripped from the shaded PlantUML jar" );
     }
 
     @Test

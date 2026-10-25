@@ -23,6 +23,8 @@ import net.sourceforge.plantuml.security.SecurityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Forces PlantUML into its SANDBOX security profile before any PlantUML state is initialised. PlantUML
  * reads {@code PLANTUML_SECURITY_PROFILE} from System properties before the environment and caches the
@@ -32,9 +34,16 @@ import org.apache.logging.log4j.Logger;
 public final class PlantUmlSandbox {
 
     private static final Logger LOG = LogManager.getLogger( PlantUmlSandbox.class );
+    private static final AtomicBoolean ERROR_LOGGED = new AtomicBoolean();
     private static final String PROFILE_PROPERTY = "PLANTUML_SECURITY_PROFILE";
 
     private PlantUmlSandbox() {
+    }
+
+    private static void logOnce( final String message, final Throwable cause ) {
+        if( ERROR_LOGGED.compareAndSet( false, true ) ) {
+            LOG.error( message, cause );
+        }
     }
 
     /**
@@ -47,12 +56,12 @@ public final class PlantUmlSandbox {
             System.setProperty( PROFILE_PROPERTY, SecurityProfile.SANDBOX.name() );
             final SecurityProfile profile = SecurityUtils.getSecurityProfile();
             if( profile != SecurityProfile.SANDBOX ) {
-                LOG.error( "PlantUML security profile is {} rather than SANDBOX; PlantUML rendering is disabled", profile );
+                logOnce( "PlantUML security profile is " + profile + " rather than SANDBOX; PlantUML rendering is disabled", null );
                 return false;
             }
             return true;
         } catch( final RuntimeException | LinkageError e ) {
-            LOG.error( "Could not confirm the PlantUML sandbox; PlantUML rendering is disabled", e );
+            logOnce( "Could not confirm the PlantUML sandbox; PlantUML rendering is disabled", e );
             return false;
         }
     }

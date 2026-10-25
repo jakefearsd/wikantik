@@ -91,4 +91,39 @@ class PlantUmlEngineTest {
         assertFalse( t.isAlive() );
         assertEquals( "too-complex", result.get().reason() );
     }
+
+    @org.junit.jupiter.api.Test
+    void crashStatusIsRefusedEvenWithoutMarkerText() {
+        final RenderOutcome out = PlantUmlEngine.crashOutcome( new PlantUmlEngine.Export( "<svg/>", 503 ) );
+        assertTrue( out.transientFailure() );
+        assertEquals( "render-failed", out.reason() );
+    }
+
+    @org.junit.jupiter.api.Test
+    void crashTextIsRefusedEvenWithZeroStatus() {
+        final String svg = "<svg>An error has occurred : java.lang.StackOverflowError PlantUML (1) has crashed.</svg>";
+        assertEquals( "too-complex", PlantUmlEngine.crashOutcome( new PlantUmlEngine.Export( svg, 0 ) ).reason() );
+    }
+
+    @org.junit.jupiter.api.Test
+    void healthyExportIsNotACrash() {
+        assertEquals( null, PlantUmlEngine.crashOutcome( new PlantUmlEngine.Export( "<svg/>", 0 ) ) );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource( strings = { "", "   \n ", "@startuml\n@enduml", "version", "license", "donors", "listfonts",
+                                                                "colors", "stdlib", "emoji all", "skinparameters", "charlie" } )
+    void infoAndBlankDiagramsAreNeverDrawn( final String source ) {
+        final RenderOutcome out = PlantUmlEngine.render( source );
+        assertFalse( out.isDrawn(), () -> "drawn: " + source );
+        assertTrue( out.reason().equals( "syntax-error" ) || out.reason().equals( "unsupported-diagram" ), out.reason() );
+    }
+
+    @Test
+    void infoDiagramReasonIsUnsupported() {
+        assertEquals( "unsupported-diagram", PlantUmlEngine.render( "version" ).reason() );
+        assertEquals( "unsupported-diagram", PlantUmlEngine.render( "license" ).reason() );
+        assertEquals( "syntax-error", PlantUmlEngine.render( "   " ).reason() );
+        assertEquals( 0, PlantUmlEngine.render( "   " ).line() );
+    }
 }

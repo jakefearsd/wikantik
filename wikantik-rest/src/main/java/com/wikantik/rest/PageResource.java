@@ -887,7 +887,9 @@ public class PageResource extends RestServletBase {
         final String section = request.getParameter( "section" );
         final WikiEmbedRenderer.EmbedResult r = WikiEmbedRenderer.forEngine( engine ).render( context, name, section );
         final Map< String, Object > out = new LinkedHashMap<>();
-        out.put( "html", postTranslate( context, name, r.bodyHtml() == null ? "" : r.bodyHtml() ) );
+        // The body left the rendering manager outside textToHTML, so its server-fence placeholders are resolved here.
+        final String body = postTranslate( context, name, r.bodyHtml() == null ? "" : r.bodyHtml() );
+        out.put( "html", getSubsystems().rendering().renderingManager().resolveServerFences( body ) );
         out.put( "missing", r.missing() );
         out.put( "restricted", r.restricted() );
         out.put( "truncated", r.truncated() );

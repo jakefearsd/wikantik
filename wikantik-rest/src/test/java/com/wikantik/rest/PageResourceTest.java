@@ -1105,6 +1105,17 @@ class PageResourceTest {
         assertTrue( obj.get( "html" ).getAsString().contains( "embed-filter-applied" ), obj.toString() );
     }
 
+    @Test
+    void embedEndpointResolvesServerFences() throws Exception {
+        // the embed preview leaves the rendering manager outside textToHTML: it must splice drawings in itself
+        engine.saveText( "RestEmbedDiagram", "Before.\n\n```plantuml\nA -> B : hi\n```\n" );
+        final JsonObject obj = gson.fromJson( doGet( "RestEmbedDiagram/embed" ), JsonObject.class );
+        final String html = obj.get( "html" ).getAsString();
+        assertTrue( html.contains( "data-fence-state=\"drawn\"" ), html );
+        assertTrue( html.contains( "<svg" ), html );
+        assertFalse( html.contains( "data-fence-drawing" ), html );
+    }
+
     // ----- Display names instead of logins -----
 
     @Test

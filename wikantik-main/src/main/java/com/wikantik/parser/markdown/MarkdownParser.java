@@ -32,6 +32,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
+import com.wikantik.render.RenderDepth;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -84,7 +85,14 @@ public class MarkdownParser extends MarkupParser {
         context.setVariable( com.wikantik.markdown.extensions.wikilinks.postprocessor.AccessRuleLinkNodePostProcessorState
                 .VAR_PARSE_ACCESS_RULES, isParseAccessRules() );
 
-        final Node document = parser.parseReader( new BufferedReader( new StringReader( body ) ) );
+        // Plugins run inside parseReader: a textToHTML they make is nested and must leave server fences unresolved.
+        final Node document;
+        RenderDepth.enter();
+        try {
+            document = parser.parseReader( new BufferedReader( new StringReader( body ) ) );
+        } finally {
+            RenderDepth.leave();
+        }
         final MarkdownDocument md = new MarkdownDocument( context.getPage(), document );
         md.setContext( context );
 

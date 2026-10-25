@@ -222,6 +222,16 @@ Usability niceties.
 | `wikantik.renderingManager.renderer.wysiwyg` | `class` | `com.wikantik.render.markdown.MarkdownRenderer` | `wikantik_renderingManager_renderer_wysiwyg` | WYSIWYG renderer class name used by the editor preview path; it must be a subclass of com.wikantik.render.WikiRenderer. |
 | `wikantik.translatorReader.allowHTML` | `boolean` | `true` | `wikantik_translatorReader_allowHTML` | Allow raw HTML in Markdown page source (needed for <div class="..."> styling blocks). … |
 | `wikantik.embed.maxChars` | `int` | `20000` | `wikantik_embed_maxChars` | Maximum number of characters of Markdown source a `![[Page]]` / `![[Page#Heading]]` embed transcludes. … |
+| `wikantik.fences.plantuml.enabled` | `boolean` | `true` | `wikantik_fences_plantuml_enabled` | Kill switch for server-drawn PlantUML fences (fenced code blocks whose language is plantuml). … |
+| `wikantik.fences.plantuml.threads` | `int` | `2` | `wikantik_fences_plantuml_threads` | Number of PlantUML render threads (daemon threads in a dedicated pool). |
+| `wikantik.fences.plantuml.queueCapacity` | `int` | `8` | `wikantik_fences_plantuml_queueCapacity` | PlantUML renders that may wait for a free render thread; when the queue is full a diagram is refused as "busy" (never cached) instead of blocking the page. |
+| `wikantik.fences.plantuml.threadStackBytes` | `long` | `16777216` | `wikantik_fences_plantuml_threadStackBytes` | Stack size of each PlantUML render thread, in bytes. … |
+| `wikantik.fences.plantuml.timeoutMs` | `long` | `5000` | `wikantik_fences_plantuml_timeoutMs` | Wall-clock limit for one PlantUML render, in milliseconds, measured from when a render thread starts it. A slower diagram is refused as "too-slow". |
+| `wikantik.fences.plantuml.maxSvgBytes` | `int` | `2097152` | `wikantik_fences_plantuml_maxSvgBytes` | Largest scrubbed SVG accepted per theme variant, in bytes; a larger drawing is refused as "output-too-large". |
+| `wikantik.fences.plantuml.slowRetryMinutes` | `int` | `10` | `wikantik_fences_plantuml_slowRetryMinutes` | How long a "too-slow" refusal is remembered before the diagram may be retried once, in minutes. … |
+| `wikantik.fences.plantuml.cacheEntries` | `int` | `500` | `wikantik_fences_plantuml_cacheEntries` | Number of PlantUML outcomes (drawings and deterministic refusals) kept in the in-memory LRU cache, keyed by source hash and PlantUML version. |
+| `wikantik.fences.plantuml.pageMaxDiagrams` | `int` | `20` | `wikantik_fences_plantuml_pageMaxDiagrams` | Most PlantUML diagrams drawn for one page response; later diagrams show their source with the reason "page-budget" (never cached). |
+| `wikantik.fences.plantuml.pageBudgetMs` | `long` | `10000` | `wikantik_fences_plantuml_pageBudgetMs` | Wall-clock budget, in milliseconds, that all PlantUML diagrams of one page response share; diagrams still undrawn when it runs out show "page-budget". |
 
 Full descriptions (truncated above to keep the table scannable):
 
@@ -231,6 +241,9 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.frontPage`** — The name of the front page.  This is the page that gets loaded if no other page is loaded.  Up until Wikantik 1.9.28, it was always called "Main", but now you can easily change the default front page here.
 - **`wikantik.translatorReader.allowHTML`** — Allow raw HTML in Markdown page source (needed for <div class="..."> styling blocks). This is not a raw pass-through: when true, MarkdownRenderer runs the rendered output through WikantikHtmlSanitizer (OWASP Java HTML Sanitizer), which drops <script>, <iframe>, <object>, <embed>, <form> and event-handler attributes and restricts URL schemes to http/https/mailto. When false, Flexmark's ESCAPE_HTML neutralises raw markup instead and the sanitizer pass is skipped. The policy is deliberately permissive about presentation - class, id and style attributes are allowed globally - so an editor can still restyle a page, they just cannot execute script.
 - **`wikantik.embed.maxChars`** — Maximum number of characters of Markdown source a `![[Page]]` / `![[Page#Heading]]` embed transcludes. Longer sources are cut at the last block boundary before the limit and followed by a "Continue reading" link to the embedded page.
+- **`wikantik.fences.plantuml.enabled`** — Kill switch for server-drawn PlantUML fences (fenced code blocks whose language is plantuml). When false, every PlantUML fence shows its source with the reason "plantuml-disabled"; the wiki links inside a diagram still count as page references, so flipping this never changes the reference graph. Read at engine startup.
+- **`wikantik.fences.plantuml.threadStackBytes`** — Stack size of each PlantUML render thread, in bytes. Large so deep layout recursion fails cleanly (refused as "too-complex") instead of on a request thread.
+- **`wikantik.fences.plantuml.slowRetryMinutes`** — How long a "too-slow" refusal is remembered before the diagram may be retried once, in minutes. A diagram that times out again stays refused for the normal cache lifetime.
 
 ## Search & hybrid retrieval
 

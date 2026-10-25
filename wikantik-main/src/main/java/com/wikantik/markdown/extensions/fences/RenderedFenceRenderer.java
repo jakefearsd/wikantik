@@ -53,10 +53,13 @@ import java.util.Set;
  *       ({@link FencePlaceholders#sign(String)}, an HMAC over the source hash). No drawing is produced and none
  *       reaches the HTML render caches, which therefore hold placeholders only. A refused fence keeps
  *       {@code data-fence-error} and gets no token.</li>
- *   <li>{@code ServerFenceResolver} turns each verified placeholder into a drawing after the last sanitize and
- *       cache read, so the drawing is never sanitized or cached with the page. The drawing comes from a
- *       {@code ServerFenceDrawer} and is scrubbed by the PlantUML module's SVG scrub; failure leaves the
- *       source visible with a reason.</li>
+ *   <li>{@link ServerFenceResolver} turns each verified placeholder into a drawing after the last sanitize and
+ *       cache read, so the drawing is never sanitized or cached with the page. It runs in the outermost
+ *       {@code RenderingManager.textToHTML(Context, String)} only (nested renders and parses are counted by
+ *       {@code RenderDepth}), and through {@code RenderingManager.resolveServerFences} for HTML that leaves the
+ *       manager another way (the embed endpoint). The drawing comes from a {@link ServerFenceDrawer} (register one
+ *       per language in {@code DefaultRenderingManager.initialize}) and is scrubbed by the PlantUML module's SVG
+ *       scrub; failure leaves the source visible with a reason.</li>
  *   <li>{@code WikantikHtmlSanitizer} lets {@code data-fence-drawing} through on {@code figure} only when it
  *       matches {@code [0-9a-f]{64}\.[0-9a-f]{64}}; hand-written SVG is still stripped.</li>
  *   <li>The token secret is generated per JVM. Placeholders cached by another node (the opt-in memcached

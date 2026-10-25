@@ -39,6 +39,9 @@ import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.filters.FilterManager;
+import com.wikantik.markdown.extensions.fences.PlantUmlFenceDrawer;
+import com.wikantik.markdown.extensions.fences.ServerFenceDrawer;
+import com.wikantik.markdown.extensions.fences.ServerFenceResolver;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
@@ -55,6 +58,7 @@ import java.lang.reflect.Constructor;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 
@@ -71,7 +75,7 @@ import java.util.Properties;
 public class DefaultRenderingManager implements RenderingManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultRenderingManager.class );
-    private static final String VERSION_DELIMITER = "::";
+    static final String VERSION_DELIMITER = "::";
 
     /**
      * A page view's final HTML, valid only for the raw page data whose hash it carries and, when {@code locale} is
@@ -113,6 +117,13 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     private final Map< String, Constructor< ? > > rendererStrategies = new LinkedHashMap<>();
     private String markupParserClass = DEFAULT_PARSER;
+
+    /**
+     * Resolves server-fence placeholders (PlantUML) into drawings at the outermost render. Built in
+     * {@link #initialize}; volatile because request threads read it after that write. Package-private as a test
+     * seam: a test may replace it after {@code initialize} (for example with a resolver over a counting fake drawer).
+     */
+    volatile ServerFenceResolver serverFences = ServerFenceResolver.NONE;
 
     /**
      * Constructor that accepts all dependencies directly for testability.
@@ -186,9 +197,23 @@ public class DefaultRenderingManager implements RenderingManager {
 
         LOG.info( "Rendering content with {}.", renderImplName );
 
+        serverFences = PlantUmlFenceDrawer.resolver( properties );
+
         WikiEventManager.addWikiEventListener( this.filterManager, this );
         // page deletions: a referrer's cached HTML would otherwise keep a live link to the deleted page
         WikiEventManager.addWikiEventListener( this.pageManager, this );
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String resolveServerFences( final String html ) {
+        return serverFences.resolve( html );
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public Optional< ServerFenceDrawer > serverFenceDrawer( final String language ) {
+        return serverFences.drawer( language );
     }
 
     private Constructor< ? > initRenderer( final String renderImplName, final Class< ? >[] rendererParams ) throws WikiException {
@@ -295,7 +320,7 @@ public class DefaultRenderingManager implements RenderingManager {
             // (a plugin executed or a session-dependent variable resolved) — plugin
             // output is baked into the parsed AST here, so caching it would serve one
             // user's ACL-filtered view to another. The cache is keyed without a principal.
-            if( useCache( context ) && !isViewerSensitive( context ) ) {
+            if( useCache( context ) && !HtmlViewCache.isViewerSensitive( context ) ) {
                 cachingManager.put( CachingManager.CACHE_DOCUMENTS, pageid, doc );
             }
             return doc;
@@ -333,12 +358,6 @@ public class DefaultRenderingManager implements RenderingManager {
                && ContextEnum.PAGE_VIEW.getRequestContext().equals( context.getRequestContext() );
     }
 
-    /** True once a render has flagged itself viewer-sensitive or uncacheable (see {@link Context#VAR_VIEWER_SENSITIVE}, {@link Context#VAR_RENDER_UNCACHEABLE}). */
-    private static boolean isViewerSensitive( final Context context ) {
-        return Boolean.TRUE.equals( context.getVariable( Context.VAR_VIEWER_SENSITIVE ) )
-               || Boolean.TRUE.equals( context.getVariable( Context.VAR_RENDER_UNCACHEABLE ) );
-    }
-
     private boolean useHtmlCache( final Context context ) {
         return cachingManager.enabled( CachingManager.CACHE_HTML )
                && ContextEnum.PAGE_VIEW.getRequestContext().equals( context.getRequestContext() );
@@ -364,9 +383,11 @@ public class DefaultRenderingManager implements RenderingManager {
         // cached instance throw ConcurrentModificationException (or bleed contexts).
         // Serialize per document instance: distinct documents never contend, and
         // repeat renders of a hot page are absorbed by CACHE_HTML before this point.
-        synchronized( doc ) {
-            return createRenderer( mode, context, doc ).getString();
-        }
+        return RenderDepth.nested( () -> {
+            synchronized( doc ) {
+                return createRenderer( mode, context, doc ).getString();
+            }
+        } );
     }
 
     /**
@@ -376,8 +397,9 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String renderEmbedBody( final Context context, final String markdown ) throws IOException {
-        return EmbedBodyCache.render( cachingManager, useHtmlCache( context ), htmlCacheId( context ), context, markdown,
-                () -> getHTML( context, getParser( context, DisplayText.of( context, markdown ) ).parse() ) );
+        return RenderDepth.nested( () -> EmbedBodyCache.render( cachingManager, useHtmlCache( context ),
+                htmlCacheId( context ), context, markdown,
+                () -> getHTML( context, getParser( context, DisplayText.of( context, markdown ) ).parse() ) ) );
     }
 
     /**
@@ -410,6 +432,12 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String textToHTML( final Context context, final String pagedata ) {
+        // The HTML cache holds placeholders only: drawings are spliced in on the way out, by the outermost render.
+        return RenderDepth.outermost( () -> cachedOrRenderedHtml( context, pagedata ), serverFences::resolve );
+    }
+
+    /** The page view's final HTML with server-fence placeholders still unresolved, from the HTML cache when valid. */
+    private String cachedOrRenderedHtml( final Context context, final String pagedata ) {
         // The entry is validated against the RAW page data: the pre-translate filters may rewrite it.
         final String rawHash = useHtmlCache( context ) ? WikiDocument.hashPageData( pagedata ) : null;
         final String locale = rawHash != null ? HtmlViewCache.viewerLocale( context ) : null;
@@ -436,7 +464,7 @@ public class DefaultRenderingManager implements RenderingManager {
         LOG.debug( "Page {} rendered, took {}", context.getRealPage().getName(), sw );
 
         // Store in HTML cache (never a viewer-dependent or filter-less render)
-        if( rawHash != null && !isViewerSensitive( context ) ) {
+        if( rawHash != null && !HtmlViewCache.isViewerSensitive( context ) ) {
             HtmlViewCache.store( cachingManager, htmlCacheId( context ), new HtmlCacheEntry( result, rawHash, locale ) );
         }
         return result;
@@ -462,6 +490,8 @@ public class DefaultRenderingManager implements RenderingManager {
 
         final boolean runFilters = HtmlViewCache.runFilters( context, engine );
 
+        // Counted as a render level (never resolved here): only textToHTML(Context, String) splices drawings in.
+        RenderDepth.enter();
         try {
             final StopWatch sw = new StopWatch();
             sw.start();
@@ -503,6 +533,8 @@ public class DefaultRenderingManager implements RenderingManager {
         } catch( final FilterException e ) {
             LOG.error( "page filter threw exception: ", e );
             // Filter failure is logged; the result computed so far is returned.
+        } finally {
+            RenderDepth.leave();
         }
 
         return result;
@@ -596,26 +628,12 @@ public class DefaultRenderingManager implements RenderingManager {
     public void evictRenderCache( final String pageName ) {
         final Page page = pageManager.getPage( pageName );
         final int version = ( page != null ) ? page.getVersion() : PageProvider.LATEST_VERSION;
-        evictCacheKeysForVersion( pageName, version );
+        HtmlViewCache.evictVersion( cachingManager, pageName, version );
         // Defensive: also try LATEST_VERSION sentinel in case cached under -1
         if ( version != PageProvider.LATEST_VERSION ) {
-            evictCacheKeysForVersion( pageName, PageProvider.LATEST_VERSION );
+            HtmlViewCache.evictVersion( cachingManager, pageName, PageProvider.LATEST_VERSION );
         }
         LOG.debug( "Evicted render cache for {} (version={})", pageName, version );
-    }
-
-    /**
-     * Removes all plugin-variant cache entries for a given page name and version
-     * from the document and HTML caches, including the page's embed-body slot.
-     */
-    private void evictCacheKeysForVersion( final String pageName, final int version ) {
-        for ( final Boolean executePlugins : new Boolean[]{ Boolean.FALSE, Boolean.TRUE, null } ) {
-            final String id = pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + executePlugins;
-            cachingManager.remove( CachingManager.CACHE_DOCUMENTS, id );
-            cachingManager.remove( CachingManager.CACHE_DOCUMENTS, id + DisplayText.WYSIWYG_KEY );
-            cachingManager.remove( CachingManager.CACHE_HTML, id );
-            cachingManager.remove( CachingManager.CACHE_HTML, id + EmbedBodyCache.SLOT_SUFFIX );
-        }
     }
 
     boolean isBeginningAWikiPagePostSaveEventAndCacheIsEnabled( final WikiEvent event ) {

@@ -26,11 +26,13 @@ import com.wikantik.api.engine.Initializable;
 import com.wikantik.api.engine.RenderApi;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEventListener;
+import com.wikantik.markdown.extensions.fences.ServerFenceDrawer;
 import com.wikantik.api.modules.InternalModule;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 
 import java.io.IOException;
+import java.util.Optional;
 
 
 /**
@@ -262,6 +264,28 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
      */
     default void evictRenderCacheAndReferrers( final String name ) {
         evictRenderCache( name );
+    }
+
+
+    /**
+     *  Splices server-drawn fence drawings (PlantUML) into rendered HTML, replacing each verified
+     *  {@code data-fence-drawing} placeholder with the drawing or a refusal reason. {@link #textToHTML(Context, String)}
+     *  already does this at the outermost render; call it only on HTML that left the manager by another route (the
+     *  embed preview endpoint) and only once, after the last sanitize. Never throws.
+     *  @param html rendered HTML holding placeholders; may be {@code null}
+     *  @return the HTML with every placeholder resolved; this default returns {@code html} unchanged
+     */
+    default String resolveServerFences( final String html ) {
+        return html;
+    }
+
+    /**
+     *  The drawer serving a server-kind fence language, for callers that draw one fence on its own (an editor preview).
+     *  @param language the lowercase fence language
+     *  @return the drawer, or empty when the language has none; this default is always empty
+     */
+    default Optional< ServerFenceDrawer > serverFenceDrawer( final String language ) {
+        return Optional.empty();
     }
 
 }

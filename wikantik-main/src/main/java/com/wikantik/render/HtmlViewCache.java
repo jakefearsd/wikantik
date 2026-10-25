@@ -59,6 +59,27 @@ final class HtmlViewCache {
         }
     }
 
+    /** True once a render has flagged itself viewer-sensitive or uncacheable (see {@link Context#VAR_VIEWER_SENSITIVE}, {@link Context#VAR_RENDER_UNCACHEABLE}). */
+    static boolean isViewerSensitive( final Context context ) {
+        return Boolean.TRUE.equals( context.getVariable( Context.VAR_VIEWER_SENSITIVE ) )
+               || Boolean.TRUE.equals( context.getVariable( Context.VAR_RENDER_UNCACHEABLE ) );
+    }
+
+    /**
+     * Removes all plugin-variant cache entries for a given page name and version
+     * from the document and HTML caches, including the page's embed-body slot.
+     */
+    static void evictVersion( final CachingManager caches, final String pageName, final int version ) {
+        for ( final Boolean executePlugins : new Boolean[]{ Boolean.FALSE, Boolean.TRUE, null } ) {
+            final String id = pageName + DefaultRenderingManager.VERSION_DELIMITER + version
+                              + DefaultRenderingManager.VERSION_DELIMITER + executePlugins;
+            caches.remove( CachingManager.CACHE_DOCUMENTS, id );
+            caches.remove( CachingManager.CACHE_DOCUMENTS, id + DisplayText.WYSIWYG_KEY );
+            caches.remove( CachingManager.CACHE_HTML, id );
+            caches.remove( CachingManager.CACHE_HTML, id + EmbedBodyCache.SLOT_SUFFIX );
+        }
+    }
+
     /** The viewer's locale tag (create-page tooltips and other bundle strings are localised), or null if unknown. */
     static String viewerLocale( final Context context ) {
         try {

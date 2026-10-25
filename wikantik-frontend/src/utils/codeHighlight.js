@@ -62,6 +62,17 @@ export function rehypeHighlightCode({ lowlight } = {}) {
   };
 }
 
+// The server's rendered-fence envelope (wikantik-main RenderedFenceNodeRenderer) opens its source exactly so.
+const FENCE_SOURCE_OPEN = /<pre class="wk-fence-source"><code class="language-/g;
+
+/**
+ * Whether server HTML holds language-tagged code worth downloading the highlighter for. A rendered fence's source
+ * (a diagram, drawn by the fence pass and skipped by highlightCodeBlocks) does not count.
+ */
+export function hasHighlightableCode(html) {
+  return typeof html === 'string' && html.replace(FENCE_SOURCE_OPEN, '').includes('class="language-');
+}
+
 /** Converts lowlight's hast (spans with classes, text) to DOM nodes. */
 export function hastToDom(node, doc) {
   if (node.type === 'text') return doc.createTextNode(node.value);

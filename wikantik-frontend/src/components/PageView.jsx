@@ -11,7 +11,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { renderMath } from '../utils/math';
 import { renderFences } from '../utils/fences/renderFences';
 import { addCopyButtons } from '../utils/codeCopy';
-import { highlightCodeBlocks } from '../utils/codeHighlight';
+import { highlightCodeBlocks, hasHighlightableCode } from '../utils/codeHighlight';
 import { useLowlight } from '../hooks/useLowlight';
 import { addHeadingAnchors } from '../utils/headingAnchors';
 import { pinFragmentTarget } from '../utils/fragmentScroll';
@@ -229,7 +229,8 @@ export default function PageView() {
   // language-tagged block. Same DOM-pass pattern as renderMath: idempotent, and it re-runs when
   // the article HTML is re-injected. It only rewrites <code> children, never the <pre> wrapper
   // that addCopyButtons decorates.
-  const lowlight = useLowlight(!!page?.contentHtml && page.contentHtml.includes('class="language-'));
+  // A rendered fence's source (language-mermaid) is drawn, not highlighted, so it alone does not load lowlight.
+  const lowlight = useLowlight(hasHighlightableCode(page?.contentHtml));
   useEffect(() => {
     highlightCodeBlocks(articleRef.current, lowlight);
   }, [page, lowlight]);

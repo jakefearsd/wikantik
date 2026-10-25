@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import { createLowlight, common } from 'lowlight';
-import { codeLanguage, rehypeHighlightCode, highlightCodeBlocks } from './codeHighlight';
+import { codeLanguage, rehypeHighlightCode, highlightCodeBlocks, hasHighlightableCode } from './codeHighlight';
 
 const lowlight = createLowlight(common);
 
@@ -14,6 +14,18 @@ describe('codeLanguage', () => {
     ['', null],
     [undefined, null],
   ])('%s → %s', (cls, lang) => expect(codeLanguage(cls)).toBe(lang));
+});
+
+describe('hasHighlightableCode', () => {
+  const fence = '<figure class="wk-fence"><pre class="wk-fence-source"><code class="language-mermaid">x</code></pre></figure>';
+  it('ignores rendered-fence sources but sees ordinary language-tagged code', () => {
+    expect(hasHighlightableCode(fence)).toBe(false);
+    expect(hasHighlightableCode(fence + fence)).toBe(false);
+    expect(hasHighlightableCode(fence + '<pre><code class="language-js">y</code></pre>')).toBe(true);
+    expect(hasHighlightableCode('<pre><code>plain</code></pre>')).toBe(false);
+    expect(hasHighlightableCode('')).toBe(false);
+    expect(hasHighlightableCode(undefined)).toBe(false);
+  });
 });
 
 describe('rehypeHighlightCode (preview)', () => {

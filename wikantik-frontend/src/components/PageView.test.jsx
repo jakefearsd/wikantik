@@ -7,6 +7,7 @@ import { api } from '../api/client';
 import PageView from './PageView';
 import { renderMath } from '../utils/math';
 import { renderFences } from '../utils/fences/renderFences';
+import { loadLowlight } from '../utils/codeHighlight';
 
 // ---------------------------------------------------------------------------
 // Determinism strategy (see the note at the bottom for the prior-flake history):
@@ -30,7 +31,7 @@ vi.mock('../utils/fences/renderFences', () => ({ renderFences: vi.fn(() => Promi
 vi.mock('../utils/codeHighlight', async () => {
   const actual = await vi.importActual('../utils/codeHighlight');
   const { createLowlight, common } = await vi.importActual('lowlight');
-  return { ...actual, loadLowlight: () => Promise.resolve(createLowlight(common)) };
+  return { ...actual, loadLowlight: vi.fn(() => Promise.resolve(createLowlight(common))) };
 });
 vi.mock('../hooks/usePagePreview', () => ({
   loadPreview: vi.fn(async () => ({ status: 'ok', data: { title: 'Linked Hub', summary: 'About the hub.' } })),
@@ -198,6 +199,26 @@ describe('PageView comment integration', () => {
     expect(call[1]()).toBe(false);
     unmount();
     expect(call[1]()).toBe(true);
+  }, TEST_TIMEOUT);
+
+  it('does not download the highlighter when the only language-tagged code is a rendered-fence source', async () => {
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE,
+      contentHtml: PAGE.contentHtml + '<figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser">\n'
+        + '<pre class="wk-fence-source"><code class="language-mermaid">flowchart TD</code></pre>\n</figure>',
+    }));
+    await mountAndSettle();
+    expect(loadLowlight).not.toHaveBeenCalled();
+  }, TEST_TIMEOUT);
+
+  it('downloads the highlighter for ordinary language-tagged code beside a fence', async () => {
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE,
+      contentHtml: PAGE.contentHtml + '<pre class="wk-fence-source"><code class="language-mermaid">x</code></pre>'
+        + '<pre><code class="language-js">const x = 1;</code></pre>',
+    }));
+    await mountAndSettle();
+    await waitFor(() => expect(loadLowlight).toHaveBeenCalled());
   }, TEST_TIMEOUT);
 
   it('anchors the open thread as a <mark> in the rendered article', async () => {

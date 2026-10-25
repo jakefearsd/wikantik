@@ -107,7 +107,7 @@ class FenceRenderResourceTest {
 
     @Test
     void syntaxErrorReturnsLine() throws Exception {
-        final Reply r = post( "render", body( "plantuml", "@startuml\nclass {{{\nFoo -> \n@enduml" ), true );
+        final Reply r = post( "render", body( "plantuml", "@startuml\nclass {\nFoo -> \n@enduml" ), true );
         assertEquals( "syntax-error", r.json().get( "error" ).getAsString(), r.json().toString() );
         assertTrue( r.json().get( "line" ).getAsInt() > 0, r.json().toString() );
         Mockito.verify( r.response(), Mockito.never() ).setStatus( Mockito.anyInt() );

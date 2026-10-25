@@ -30,8 +30,8 @@
   <name>Wikantik PlantUML (shaded, Ditaa stripped)</name>
 
   <properties>
-    <!-- JaCoCo line-coverage floor (root pom coverage-check); provisional, Task 4 sets the measured floor -->
-    <wikantik.coverage.line.minimum>0.80</wikantik.coverage.line.minimum>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); measured 87.1% after Task 4, rounded down -->
+    <wikantik.coverage.line.minimum>0.87</wikantik.coverage.line.minimum>
   </properties>
 
   <dependencies>

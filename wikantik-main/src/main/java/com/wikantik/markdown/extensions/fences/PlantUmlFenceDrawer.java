@@ -100,12 +100,13 @@ public final class PlantUmlFenceDrawer implements ServerFenceDrawer {
     /** {@link #resolver(Properties)} over a given drawer factory (test seam for the failure path). */
     static ServerFenceResolver resolver( final Properties p, final Function< Properties, ServerFenceDrawer > drawers ) {
         try {
-            return new ServerFenceResolver( Map.of( "plantuml", drawers.apply( p ) ), pageMaxDiagrams( p ), pageBudgetMs( p ) );
+            return new ServerFenceResolver( Map.of( "plantuml", drawers.apply( p ) ), pageMaxDiagrams( p ), pageBudgetMs( p ),
+                    pageMaxBytes( p ) );
         } catch ( final RuntimeException | LinkageError e ) {
             // LOG.error justified: startup-time loss of every PlantUML drawing until an operator fixes the deployment; logged once per engine.
             LOG.error( "Server fence drawing could not be set up; PlantUML fences show their source: {}", e.toString(), e );
             // Unlimited per-page limits: the unavailable drawer answers instantly, so every fence reports render-failed
-            // (as logged) rather than page-budget.
+            // (as logged) rather than page-limit / page-budget.
             return new ServerFenceResolver( Map.of( "plantuml", unavailable() ), Integer.MAX_VALUE, UNAVAILABLE_BUDGET_MS );
         }
     }
@@ -123,14 +124,20 @@ public final class PlantUmlFenceDrawer implements ServerFenceDrawer {
                 TextUtil.getIntegerProperty( p, "wikantik.fences.plantuml.queueCapacity", 8 ),
                 getLong( p, "wikantik.fences.plantuml.threadStackBytes", 16777216L ),
                 getLong( p, "wikantik.fences.plantuml.timeoutMs", 5000L ),
-                TextUtil.getIntegerProperty( p, "wikantik.fences.plantuml.maxSvgBytes", 2097152 ),
+                TextUtil.getIntegerProperty( p, "wikantik.fences.plantuml.maxSvgBytes", 524288 ),
                 TextUtil.getIntegerProperty( p, "wikantik.fences.plantuml.slowRetryMinutes", 10 ) * 60_000L,
-                TextUtil.getIntegerProperty( p, "wikantik.fences.plantuml.cacheEntries", 500 ) );
+                TextUtil.getIntegerProperty( p, "wikantik.fences.plantuml.cacheEntries", 500 ),
+                getLong( p, "wikantik.fences.plantuml.cacheMaxBytes", 67108864L ) );
     }
 
     /** @return the most diagrams one page response draws */
     public static int pageMaxDiagrams( final Properties p ) {
         return TextUtil.getIntegerProperty( p, "wikantik.fences.plantuml.pageMaxDiagrams", 20 );
+    }
+
+    /** @return the most drawing text one page response carries */
+    public static long pageMaxBytes( final Properties p ) {
+        return getLong( p, "wikantik.fences.plantuml.pageMaxBytes", 8388608L );
     }
 
     /** @return the wall-clock budget one page response shares across its diagrams */

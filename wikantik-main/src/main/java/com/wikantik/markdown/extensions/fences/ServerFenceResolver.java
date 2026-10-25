@@ -34,8 +34,10 @@ import java.util.regex.Pattern;
  *   <li>the fence source is read back from the figure's {@code <code class="language-…">} element and HTML-unescaped;
  *       a token that does not {@link FencePlaceholders#verify verify} against it is removed and the source stays
  *       shown (a forged or foreign placeholder draws nothing);</li>
- *   <li>at most {@code pageMaxDiagrams} figures are drawn, all within one shared {@code pageBudgetMs} deadline; each
- *       draw gets the remaining budget, and a figure past either limit is refused as {@code page-budget};</li>
+ *   <li>at most {@code pageMaxDiagrams} figures are drawn, splicing at most {@code pageMaxBytes} of drawing text, all
+ *       within one shared {@code pageBudgetMs} deadline; each draw gets the remaining budget. A figure past the count
+ *       or size limit is refused as {@code page-limit}, one past the deadline as {@code page-budget} (both transient:
+ *       resolution happens per response and is never cached);</li>
  *   <li>a drawing replaces the token with {@code data-fence-state="drawn"} and is inserted straight after the opening
  *       tag (light and dark variants); a refusal replaces it with {@code data-fence-error} plus the optional
  *       {@code data-fence-error-line} and {@code data-fence-error-message}.</li>
@@ -52,6 +54,8 @@ public final class ServerFenceResolver {
 
     private static final String MARKER = "data-fence-drawing=\"";
     private static final String RENDER_FAILED = "render-failed";
+    /** The per-response count or size limit: deterministic for the page, never cached (resolution is per response). */
+    private static final String PAGE_LIMIT = "page-limit";
     private static final String DEFAULT_LABEL = "PlantUML diagram";
     /** A quote-aware tag body: attribute values may hold {@code >} or the token text without ending the tag. */
     private static final String TAG_BODY = "(?:[^>\"']++|\"[^\"]*+\"|'[^']*+')*+";
@@ -76,25 +80,45 @@ public final class ServerFenceResolver {
     private final Map< String, ServerFenceDrawer > drawers;
     private final int pageMaxDiagrams;
     private final long pageBudgetMs;
+    private final long pageMaxBytes;
 
-    /** The draws one {@link #resolve} call may still make. */
+    /** Default {@code pageMaxBytes}: 8 MiB of drawings per page response. */
+    public static final long DEFAULT_PAGE_MAX_BYTES = 8_388_608L;
+
+    /** The draws, time and drawing text one {@link #resolve} call may still spend. */
     private static final class Budget {
         private int drawsLeft;
+        private long bytesLeft;
         private final long deadlineNanos;
 
-        Budget( final int draws, final long budgetMs ) {
+        Budget( final int draws, final long budgetMs, final long maxBytes ) {
             this.drawsLeft = draws;
+            this.bytesLeft = maxBytes;
             this.deadlineNanos = System.nanoTime() + Math.max( 0L, budgetMs ) * 1_000_000L;
         }
 
-        /** @return the milliseconds the next draw may wait, or 0 when the page is out of draws or time */
+        /** @return the milliseconds the next draw may wait (claiming one draw), or 0 when the page is out of time */
         long claim() {
             final long leftMs = ( deadlineNanos - System.nanoTime() ) / 1_000_000L;
-            if ( drawsLeft <= 0 || leftMs <= 0L ) {
+            if ( leftMs <= 0L ) {
                 return 0L;
             }
             drawsLeft--;
             return leftMs;
+        }
+
+        boolean outOfDraws() {
+            return drawsLeft <= 0;
+        }
+
+        /** @return true, spending its size, when {@code d} still fits in the page's drawing-text budget */
+        boolean fits( final ServerDrawing d ) {
+            final long size = (long) d.lightSvg().length() + d.darkSvg().length();
+            if ( size > bytesLeft ) {
+                return false;
+            }
+            bytesLeft -= size;
+            return true;
         }
     }
 
@@ -105,9 +129,21 @@ public final class ServerFenceResolver {
      */
     public ServerFenceResolver( final Map< String, ServerFenceDrawer > drawers, final int pageMaxDiagrams,
                                 final long pageBudgetMs ) {
+        this( drawers, pageMaxDiagrams, pageBudgetMs, DEFAULT_PAGE_MAX_BYTES );
+    }
+
+    /**
+     * @param drawers         drawers by fence language
+     * @param pageMaxDiagrams the most figures one call draws
+     * @param pageBudgetMs    the wall-clock budget one call shares across all its draws
+     * @param pageMaxBytes    the most drawing text (characters of both SVG variants, about one byte each) one call splices
+     */
+    public ServerFenceResolver( final Map< String, ServerFenceDrawer > drawers, final int pageMaxDiagrams,
+                                final long pageBudgetMs, final long pageMaxBytes ) {
         this.drawers = Map.copyOf( drawers );
         this.pageMaxDiagrams = pageMaxDiagrams;
         this.pageBudgetMs = pageBudgetMs;
+        this.pageMaxBytes = pageMaxBytes;
     }
 
     /** @return the drawer for {@code language}, if any */
@@ -132,7 +168,7 @@ public final class ServerFenceResolver {
     }
 
     private String resolveAll( final String html ) {
-        final Budget budget = new Budget( pageMaxDiagrams, pageBudgetMs );
+        final Budget budget = new Budget( pageMaxDiagrams, pageBudgetMs, pageMaxBytes );
         final Matcher m = FIGURE.matcher( html );
         final StringBuilder out = new StringBuilder( html.length() + 8192 );
         int last = 0;
@@ -207,14 +243,20 @@ public final class ServerFenceResolver {
         if ( drawer == null ) {
             return ServerDrawing.refused( RENDER_FAILED, "No server drawer is configured for this fence", 0, true );
         }
+        if ( budget.outOfDraws() ) {
+            return ServerDrawing.refused( PAGE_LIMIT, "This page has more diagrams than can be drawn at once", 0, true );
+        }
         final long budgetMs = budget.claim();
         if ( budgetMs <= 0L ) {
-            return ServerDrawing.refused( "page-budget", "This page has used its diagram drawing budget", 0, true );
+            return ServerDrawing.refused( "page-budget", "This page ran out of time to draw its diagrams", 0, true );
         }
         final ServerDrawing d = drawer.draw( source, budgetMs );
         if ( d == null ) {
             LOG.warn( "The {} drawer returned no outcome; refusing the fence as render-failed", language );
             return ServerDrawing.refused( RENDER_FAILED, null, 0, true );
+        }
+        if ( d.isDrawn() && !budget.fits( d ) ) {
+            return ServerDrawing.refused( PAGE_LIMIT, "This page's diagrams are too large to send at once", 0, true );
         }
         return d;
     }

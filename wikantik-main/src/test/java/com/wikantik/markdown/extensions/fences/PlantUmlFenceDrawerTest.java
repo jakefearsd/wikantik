@@ -48,6 +48,9 @@ class PlantUmlFenceDrawerTest {
         assertEquals( PlantUmlSettings.defaults(), PlantUmlFenceDrawer.settings( empty ) );
         assertEquals( 20, PlantUmlFenceDrawer.pageMaxDiagrams( empty ) );
         assertEquals( 10_000L, PlantUmlFenceDrawer.pageBudgetMs( empty ) );
+        assertEquals( 8_388_608L, PlantUmlFenceDrawer.pageMaxBytes( empty ) );
+        assertEquals( 524_288, PlantUmlFenceDrawer.settings( empty ).maxSvgBytes() );
+        assertEquals( 67_108_864L, PlantUmlFenceDrawer.settings( empty ).cacheMaxBytes() );
         final PlantUmlFenceDrawer drawer = PlantUmlFenceDrawer.fromProperties( empty );
         assertEquals( "plantuml", drawer.language() );
         assertEquals( 5_000L, drawer.defaultBudgetMs() );
@@ -65,11 +68,15 @@ class PlantUmlFenceDrawerTest {
                 "wikantik.fences.plantuml.slowRetryMinutes", "2",
                 "wikantik.fences.plantuml.cacheEntries", "7",
                 "wikantik.fences.plantuml.pageMaxDiagrams", "5",
-                "wikantik.fences.plantuml.pageBudgetMs", "999" );
+                "wikantik.fences.plantuml.pageBudgetMs", "999",
+                "wikantik.fences.plantuml.cacheMaxBytes", "123456",
+                "wikantik.fences.plantuml.pageMaxBytes", "654321" );
 
-        assertEquals( new PlantUmlSettings( false, 3, 4, 1_048_576L, 1234L, 4096, 120_000L, 7 ), PlantUmlFenceDrawer.settings( p ) );
+        assertEquals( new PlantUmlSettings( false, 3, 4, 1_048_576L, 1234L, 4096, 120_000L, 7, 123_456L ),
+                PlantUmlFenceDrawer.settings( p ) );
         assertEquals( 5, PlantUmlFenceDrawer.pageMaxDiagrams( p ) );
         assertEquals( 999L, PlantUmlFenceDrawer.pageBudgetMs( p ) );
+        assertEquals( 654_321L, PlantUmlFenceDrawer.pageMaxBytes( p ) );
         assertEquals( 1234L, PlantUmlFenceDrawer.fromProperties( p ).defaultBudgetMs() );
     }
 

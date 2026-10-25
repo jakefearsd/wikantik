@@ -140,7 +140,15 @@ class PlantUmlServiceTest {
         assertTrue( busy.transientFailure() );
         release.countDown();
         assertTrue( first.get( 2, TimeUnit.SECONDS ).isDrawn() );
-        assertTrue( s.render( SRC2, 5_000 ).isDrawn(), "busy was not cached" );
+        // The single worker thread takes a moment after its task completes before it can take another (a
+        // SynchronousQueue hand-off), so a retry may still meet busy; a cached busy would never clear.
+        RenderOutcome later = s.render( SRC2, 5_000 );
+        final long deadline = System.nanoTime() + 2_000_000_000L;
+        while( "busy".equals( later.reason() ) && System.nanoTime() < deadline ) {
+            Thread.onSpinWait();
+            later = s.render( SRC2, 5_000 );
+        }
+        assertTrue( later.isDrawn(), "busy was not cached" );
     }
 
     @Test
@@ -441,32 +449,126 @@ class PlantUmlServiceTest {
         assertTrue( stillInterrupted.get() );
     }
 
+    /**
+     * R9 + I5: a render that never started is not too-slow (the job stays queued, runs and caches), but its caller does
+     * not wait for it longer than the timeout: it gets a transient {@code busy}.
+     */
     @Test
-    void queuedJobIsNotTooSlow() throws Exception {
+    void queuedJobCallerGetsBusyAfterTheTimeoutAndTheJobStillRunsAndCaches() throws Exception {
         final CountDownLatch firstStarted = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final CountDownLatch secondDone = new CountDownLatch( 1 );
+        final AtomicInteger calls = new AtomicInteger();
         final PlantUmlService s = new PlantUmlService( settings( 1, 4, 200L, 600_000L, 100_000 ), src -> {
+            calls.incrementAndGet();
             if( src.contains( "SLOW" ) ) {
                 firstStarted.countDown();
-                try {
-                    Thread.sleep( 150 ); // under the 200 ms timeout on its own
-                } catch( final InterruptedException e ) {
-                    Thread.currentThread().interrupt();
-                    throw new IllegalStateException( "cancelled", e );
-                }
+                await( release );
             }
             return DRAWN;
         } );
-        final Future< RenderOutcome > j1 = callers.submit( () -> s.render( "@startuml\nSLOW1 -> B\n@enduml", 10_000 ) );
+        // The first caller leaves at once (page-budget), so nobody times the blocked render out.
+        assertEquals( "page-budget", s.render( "@startuml\nSLOW -> B\n@enduml", 1 ).reason() );
         assertTrue( firstStarted.await( 2, TimeUnit.SECONDS ) );
-        final Future< RenderOutcome > j2 = callers.submit( () -> s.render( "@startuml\nSLOW2 -> B\n@enduml", 10_000 ) );
-        awaitQueued( s, 1 );
-        final Future< RenderOutcome > j3 = callers.submit( () -> s.render( SRC, 10_000 ) );
-        awaitQueued( s, 2 );
-        // j3 waits ~300 ms in the queue, longer than timeoutMs, yet must be drawn rather than blacklisted
-        assertTrue( j1.get( 3, TimeUnit.SECONDS ).isDrawn() );
-        assertTrue( j2.get( 3, TimeUnit.SECONDS ).isDrawn() );
-        final RenderOutcome third = j3.get( 3, TimeUnit.SECONDS );
-        assertTrue( third.isDrawn(), () -> "reason=" + third.reason() );
+        s.completionHook = () -> {
+            if( calls.get() == 2 ) {
+                secondDone.countDown();
+            }
+        };
+
+        final long t0 = System.nanoTime();
+        final RenderOutcome queued = s.render( SRC, 10_000 );
+        final long waitedMs = ( System.nanoTime() - t0 ) / 1_000_000L;
+
+        assertEquals( "busy", queued.reason() );
+        assertTrue( queued.transientFailure() );
+        assertTrue( waitedMs < 5_000L, "the caller waited " + waitedMs + " ms of its 10 s budget" );
+        assertEquals( 1, s.queuedCount(), "the queued render was not cancelled" );
+        assertEquals( 1, calls.get() );
+        release.countDown();
+        assertTrue( secondDone.await( 2, TimeUnit.SECONDS ) );
+        assertTrue( s.render( SRC, 0 ).isDrawn(), "the queued render ran and cached its drawing" );
+        assertEquals( 2, calls.get() );
+    }
+
+    /**
+     * I5: when every pool thread is held by a render that is already past its timeout (Java cannot stop it), a new
+     * render is refused as busy at once instead of queueing behind it for the caller's whole budget.
+     */
+    @Test
+    void wedgedPoolFailsFastAsBusy() throws Exception {
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final CountDownLatch zombieDone = new CountDownLatch( 1 );
+        final AtomicInteger calls = new AtomicInteger();
+        final PlantUmlService s = new PlantUmlService( settings( 1, 4, 40L, 600_000L, 100_000 ), src -> {
+            if( calls.incrementAndGet() == 1 ) {
+                ignoreInterruptsUntil( release );
+            }
+            return DRAWN;
+        } );
+        s.completionHook = zombieDone::countDown;
+        assertEquals( "too-slow", s.render( SRC, 5_000 ).reason() );
+
+        final long t0 = System.nanoTime();
+        final RenderOutcome out = s.render( SRC2, 5_000 );
+        final long waitedMs = ( System.nanoTime() - t0 ) / 1_000_000L;
+
+        assertEquals( "busy", out.reason() );
+        assertTrue( out.transientFailure() );
+        assertTrue( waitedMs < 1_000L, "waited " + waitedMs + " ms" );
+        assertEquals( 0, s.queuedCount(), "nothing was queued behind the overdue render" );
+        release.countDown();
+        assertTrue( zombieDone.await( 2, TimeUnit.SECONDS ) );
+        assertTrue( s.render( SRC2, 5_000 ).isDrawn(), "busy was not cached; the freed thread draws" );
+    }
+
+    @Test
+    void crashIsCachedThenRetriedOnceAfterTtlThenPermanent() {
+        final AtomicLong now = new AtomicLong( 1_000L );
+        final AtomicInteger calls = new AtomicInteger();
+        final PlantUmlService s = new PlantUmlService( plain(), src -> {
+            calls.incrementAndGet();
+            return RenderOutcome.refused( "render-crashed", "PlantUML failed while drawing the diagram", 0 );
+        }, now::get );
+        final RenderOutcome first = s.render( SRC, 1_000 );
+        assertEquals( "render-crashed", first.reason() );
+        assertFalse( first.transientFailure() );
+        assertEquals( "render-crashed", s.render( SRC, 1_000 ).reason() );
+        assertEquals( 1, calls.get(), "an unexpired crash does not re-render" );
+
+        now.addAndGet( 600_000_000_001L ); // past slowRetryMs (10 min)
+        assertEquals( "render-crashed", s.render( SRC, 1_000 ).reason() );
+        assertEquals( 2, calls.get(), "exactly one retry after the TTL" );
+
+        now.addAndGet( 1_000_000_000_000_000L ); // far future: the second crash made it permanent
+        assertEquals( "render-crashed", s.render( SRC, 1_000 ).reason() );
+        assertEquals( 2, calls.get() );
+    }
+
+    @Test
+    void cacheIsBoundedByBytes() {
+        final AtomicInteger calls = new AtomicInteger();
+        final String big = "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>" + "x".repeat( 4_000 ) + "</text></svg>";
+        final RenderOutcome drawn = RenderOutcome.drawn( new PlantUmlDrawing( big, big ) );
+        // Room for two scrubbed drawings (about 8 KB each), not three.
+        final PlantUmlSettings s2 = new PlantUmlSettings( true, 1, 1, 1_048_576L, 1_000L, 100_000, 1_000L, 500, 20_000L );
+        final PlantUmlService s = new PlantUmlService( s2, src -> { calls.incrementAndGet(); return drawn; } );
+        final String src3 = "@startuml\nE -> F\n@enduml";
+        assertTrue( s.render( SRC, 1_000 ).isDrawn() );
+        assertTrue( s.render( SRC2, 1_000 ).isDrawn() );
+        assertTrue( s.render( src3, 1_000 ).isDrawn() );
+        assertTrue( s.cachedBytes() <= 20_000L, "cached " + s.cachedBytes() + " bytes" );
+        assertTrue( s.render( src3, 1_000 ).isDrawn() );
+        assertTrue( s.render( SRC2, 1_000 ).isDrawn() );
+        assertEquals( 3, calls.get(), "the two most recent stay cached" );
+        assertTrue( s.render( SRC, 1_000 ).isDrawn() );
+        assertEquals( 4, calls.get(), "the least recently used drawing was evicted to stay under the byte bound" );
+    }
+
+    @Test
+    void shippedDefaultsBoundTheHeap() {
+        assertEquals( 524_288, PlantUmlSettings.defaults().maxSvgBytes() );
+        assertEquals( 67_108_864L, PlantUmlSettings.defaults().cacheMaxBytes() );
     }
 
     private static void awaitQueued( final PlantUmlService s, final int n ) {
@@ -483,6 +585,18 @@ class PlantUmlServiceTest {
         } catch( final InterruptedException e ) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException( "interrupted", e );
+        }
+    }
+
+    /** Blocks like a PlantUML layout stuck in a loop: cancellation (interrupts) is ignored. */
+    private static void ignoreInterruptsUntil( final CountDownLatch release ) {
+        boolean done = false;
+        while( !done ) {
+            try {
+                done = release.await( 5, TimeUnit.SECONDS );
+            } catch( final InterruptedException e ) {
+                // deliberately ignored: the engine does not honour cancellation
+            }
         }
     }
 

@@ -25,8 +25,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
@@ -44,32 +45,36 @@ import java.util.function.LongSupplier;
 
 /**
  * The single, bounded entry point for rendering PlantUML sources. It never throws, never blocks a caller longer than
- * the smaller of the configured timeout and the caller's wait budget, and never caches transient failures.
+ * its wait budget (nor longer than the configured timeout, counted from when a pool thread starts the render or,
+ * for a render still queued, from when the caller began waiting), and never caches transient failures.
  *
  * <p>Cache entries are one of: a drawn outcome; a permanent refusal ({@code syntax-error}, {@code too-complex},
- * {@code output-too-large}); or {@code too-slow}, which is either <em>expiring</em> (first timeout, retried once
- * after {@code slowRetryMs}) or <em>permanent</em> (the retry also timed out). Transient outcomes
+ * {@code output-too-large}); or {@code too-slow} / {@code render-crashed}, which is either <em>expiring</em> (first
+ * occurrence, retried once after {@code slowRetryMs}) or <em>permanent</em> (the retry failed the same way). The
+ * cache is bounded by entry count and by approximate bytes ({@link OutcomeCache}). Transient outcomes
  * ({@code busy}, {@code page-budget}, {@code render-failed}) are never stored. Concurrent callers for one key share
  * a single in-flight render.</p>
+ *
+ * <p>Java cannot stop a CPU-bound PlantUML render, so a timed-out render keeps its pool thread until it finishes.
+ * When every pool thread is held by such an overdue render, a new render is refused as {@code busy} at once instead
+ * of queueing behind them and holding its caller (a request thread) for the whole budget.</p>
  */
 public final class PlantUmlService {
 
     private static final Logger LOG = LogManager.getLogger( PlantUmlService.class );
     private static final String TOO_SLOW = "too-slow";
+    /** PlantUML's own crash report (its "has crashed" image): deterministic, so cached like {@code too-slow}. */
+    static final String RENDER_CRASHED = "render-crashed";
+    private static final String BUSY = "busy";
     /** Idle render threads exit after this long (core threads included). */
     static final long IDLE_KEEP_ALIVE_MS = 60_000L;
 
-    /** A cached outcome; {@code expiresAtNanos == 0} means it never expires (normal LRU lifetime). */
-    private record CacheEntry( RenderOutcome outcome, long expiresAtNanos ) {
-        boolean expiredSlow( final long now ) {
-            return TOO_SLOW.equals( outcome.reason() ) && expiresAtNanos != 0 && now - expiresAtNanos >= 0;
-        }
-    }
-
-    /** One submitted render; {@code cancelled} and the cache/in-flight maps are guarded by the service lock. */
+    /** One submitted render; {@code cancelled} and the cache/in-flight/running state are guarded by the service lock. */
     private static final class Job {
         Future< RenderOutcome > future;
         boolean cancelled;
+        /** True when this render retries an expired {@code too-slow} / {@code render-crashed} entry. */
+        boolean retry;
         /** System.nanoTime() when a pool thread began the render; valid once {@code started} is true. */
         volatile long startedNanos;
         volatile boolean started;
@@ -80,8 +85,10 @@ public final class PlantUmlService {
     private final LongSupplier nanoClock;
     private final ThreadPoolExecutor pool;
     private final Object lock = new Object();
-    private final Map< String, CacheEntry > cache;
+    private final OutcomeCache cache;
     private final Map< String, Job > inFlight = new HashMap<>();
+    /** Jobs a pool thread is executing right now, including cancelled ones Java could not stop. */
+    private final Set< Job > running = new HashSet<>();
     /** Test hooks (package-private): after a job's cache write; before a waiter decides on a timeout; on each join. */
     volatile Runnable completionHook;
     volatile Runnable timeoutDecisionHook;
@@ -112,13 +119,7 @@ public final class PlantUmlService {
         this.settings = settings;
         this.engine = engine;
         this.nanoClock = nanoClock;
-        final int capacity = Math.max( 1, settings.cacheEntries() );
-        this.cache = new LinkedHashMap<>( 16, 0.75f, true ) {
-            @Override
-            protected boolean removeEldestEntry( final Map.Entry< String, CacheEntry > eldest ) {
-                return size() > capacity;
-            }
-        };
+        this.cache = new OutcomeCache( settings.cacheEntries(), settings.cacheMaxBytes() );
         final int threads = Math.max( 1, settings.threads() );
         final BlockingQueue< Runnable > queue = settings.queueCapacity() > 0
             ? new ArrayBlockingQueue<>( settings.queueCapacity() ) : new SynchronousQueue<>();
@@ -144,6 +145,13 @@ public final class PlantUmlService {
     /** @return the number of renders waiting in the pool queue (test aid) */
     int queuedCount() {
         return pool.getQueue().size();
+    }
+
+    /** @return the approximate bytes the outcome cache holds (test aid) */
+    long cachedBytes() {
+        synchronized( lock ) {
+            return cache.bytes();
+        }
     }
 
     /**
@@ -175,31 +183,47 @@ public final class PlantUmlService {
         final Job job;
         final boolean retry;
         synchronized( lock ) {
-            final CacheEntry hit = cache.get( key );
-            final long now = nanoClock.getAsLong();
-            if( hit != null && !hit.expiredSlow( now ) ) {
+            final OutcomeCache.Entry hit = cache.get( key );
+            if( hit != null && !hit.expired( nanoClock.getAsLong() ) ) {
                 return hit.outcome();
             }
             retry = hit != null;
-            final Job running = inFlight.get( key );
-            if( running != null ) {
-                job = running;
+            final Job inFlightJob = inFlight.get( key );
+            if( inFlightJob != null ) {
+                job = inFlightJob;
                 joinCount.incrementAndGet();
             } else if( waitBudgetMs <= 0 ) {
                 return RenderOutcome.transientRefusal( "page-budget" );
+            } else if( overdueCount() >= pool.getMaximumPoolSize() ) {
+                LOG.debug( "Every PlantUML render thread is held by an overdue render; refusing as busy" );
+                return RenderOutcome.transientRefusal( BUSY );
             } else {
-                job = submit( key, source, hash );
+                job = submit( key, source, hash, retry );
                 if( job == null ) {
-                    return RenderOutcome.transientRefusal( "busy" );
+                    return RenderOutcome.transientRefusal( BUSY );
                 }
             }
         }
         return await( job, key, waitBudgetMs, retry );
     }
 
+    /** Must hold {@code lock}. @return how many running renders are past the timeout (Java could not stop them) */
+    private int overdueCount() {
+        final long now = System.nanoTime();
+        final long timeoutNanos = settings.timeoutMs() * 1_000_000L;
+        int overdue = 0;
+        for( final Job j : running ) {
+            if( now - j.startedNanos >= timeoutNanos ) {
+                overdue++;
+            }
+        }
+        return overdue;
+    }
+
     /** Must hold {@code lock}. @return the new job, or null when the pool and queue are full */
-    private Job submit( final String key, final String source, final String hash ) {
+    private Job submit( final String key, final String source, final String hash, final boolean retry ) {
         final Job job = new Job();
+        job.retry = retry;
         try {
             job.future = pool.submit( () -> runJob( job, key, source, hash ) );
         } catch( final RejectedExecutionException e ) {
@@ -211,8 +235,11 @@ public final class PlantUmlService {
     }
 
     private RenderOutcome runJob( final Job job, final String key, final String source, final String hash ) {
-        job.startedNanos = System.nanoTime();
-        job.started = true;
+        synchronized( lock ) {
+            job.startedNanos = System.nanoTime();
+            job.started = true;
+            running.add( job );
+        }
         RenderOutcome outcome;
         try {
             outcome = finish( engine.apply( source ), hash );
@@ -221,9 +248,11 @@ public final class PlantUmlService {
             outcome = RenderOutcome.transientRefusal( "render-failed" );
         }
         synchronized( lock ) {
+            running.remove( job );
             inFlight.remove( key, job );
             if( !job.cancelled && !outcome.transientFailure() ) {
-                cache.put( key, new CacheEntry( outcome, 0L ) );
+                final boolean expiring = RENDER_CRASHED.equals( outcome.reason() ) && !job.retry;
+                cache.put( key, new OutcomeCache.Entry( outcome, expiring ? expiry() : 0L ) );
             }
         }
         final Runnable hook = completionHook;
@@ -234,25 +263,28 @@ public final class PlantUmlService {
     }
 
     /**
-     * Waits for the job. The render timeout is measured from when a pool thread starts the job (queue time only
-     * spends the caller's budget); when the budget runs out first the render is left running.
+     * Waits for the job. The render timeout is measured from when a pool thread starts the job; a job still queued
+     * after the caller has waited the timeout is left queued (it still runs and caches) and the caller gets
+     * {@code busy}. When the caller's budget runs out first the render is left running.
      */
     private RenderOutcome await( final Job job, final String key, final long budgetMs, final boolean retry ) {
-        final long budgetEnd = System.nanoTime() + budgetMs * 1_000_000L;
+        final long waitStart = System.nanoTime();
+        final long budgetEnd = waitStart + budgetMs * 1_000_000L;
         final long timeoutNanos = settings.timeoutMs() * 1_000_000L;
         try {
             while( true ) {
                 final long now = System.nanoTime();
-                final boolean running = job.started;
-                final long runLeft = running ? timeoutNanos - ( now - job.startedNanos ) : Long.MAX_VALUE;
-                if( running && runLeft <= 0L ) {
-                    return tooSlow( job, key, retry );
+                final boolean started = job.started;
+                final long runLeft = started ? timeoutNanos - ( now - job.startedNanos ) : timeoutNanos - ( now - waitStart );
+                if( runLeft <= 0L ) {
+                    return started ? tooSlow( job, key, retry ) : RenderOutcome.transientRefusal( BUSY );
                 }
                 final long budgetLeft = budgetEnd - now;
                 if( budgetLeft <= 0L ) {
                     return RenderOutcome.transientRefusal( "page-budget" );
                 }
-                final long sliceNanos = !running ? Math.min( budgetLeft, 10_000_000L ) : Math.min( budgetLeft, runLeft );
+                final long sliceNanos = !started ? Math.min( Math.min( budgetLeft, runLeft ), 10_000_000L )
+                    : Math.min( budgetLeft, runLeft );
                 final Consumer< Future< RenderOutcome > > before = beforeGetHook;
                 if( before != null ) {
                     before.accept( job.future );
@@ -290,16 +322,21 @@ public final class PlantUmlService {
             inFlight.remove( key, job );
             final RenderOutcome out = RenderOutcome.refused( TOO_SLOW,
                 "The diagram took longer than " + settings.timeoutMs() + " ms to draw", 0 );
-            final long expiry = retry ? 0L : Math.max( 1L, nanoClock.getAsLong() + settings.slowRetryMs() * 1_000_000L );
-            cache.put( key, new CacheEntry( out, expiry ) );
+            cache.put( key, new OutcomeCache.Entry( out, retry ? 0L : expiry() ) );
             return out;
         }
+    }
+
+    /** @return the expiry of a first {@code too-slow} / {@code render-crashed} entry: one retry after slowRetryMs */
+    private long expiry() {
+        final long at = nanoClock.getAsLong() + settings.slowRetryMs() * 1_000_000L;
+        return at == 0L ? 1L : at;
     }
 
     /** A joined render was cancelled by a slower sibling caller: report its too-slow entry if any. */
     private RenderOutcome cachedSlowOr( final String key ) {
         synchronized( lock ) {
-            final CacheEntry e = cache.get( key );
+            final OutcomeCache.Entry e = cache.get( key );
             return e != null ? e.outcome() : RenderOutcome.transientRefusal( "render-failed" );
         }
     }

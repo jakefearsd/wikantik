@@ -25,16 +25,28 @@ package com.wikantik.plantuml;
  * @param threads         render pool size
  * @param queueCapacity   pending renders allowed beyond the running ones (0 = none)
  * @param threadStackBytes stack size of each render thread (PlantUML's layout recurses deeply)
- * @param timeoutMs       longest a single wait for a render may last
- * @param maxSvgBytes     largest accepted SVG variant
- * @param slowRetryMs     how long a {@code too-slow} refusal is remembered before one retry is allowed
- * @param cacheEntries    LRU capacity of the outcome cache
+ * @param timeoutMs       longest a render may run once a pool thread starts it, and longest a caller waits for a
+ *                        render that has not started yet
+ * @param maxSvgBytes     largest accepted raw (pre-scrub) SVG variant, in UTF-8 bytes
+ * @param slowRetryMs     how long a {@code too-slow} or {@code render-crashed} refusal is remembered before one retry
+ * @param cacheEntries    LRU capacity of the outcome cache, in entries
+ * @param cacheMaxBytes   LRU capacity of the outcome cache, in approximate bytes of cached SVG and messages
  */
 public record PlantUmlSettings( boolean enabled, int threads, int queueCapacity, long threadStackBytes, long timeoutMs,
-                                int maxSvgBytes, long slowRetryMs, int cacheEntries ) {
+                                int maxSvgBytes, long slowRetryMs, int cacheEntries, long cacheMaxBytes ) {
+
+    /** Default {@link #cacheMaxBytes}: 64 MiB. */
+    public static final long DEFAULT_CACHE_MAX_BYTES = 67_108_864L;
+
+    /** The settings with the default {@link #cacheMaxBytes}. */
+    public PlantUmlSettings( final boolean enabled, final int threads, final int queueCapacity, final long threadStackBytes,
+                             final long timeoutMs, final int maxSvgBytes, final long slowRetryMs, final int cacheEntries ) {
+        this( enabled, threads, queueCapacity, threadStackBytes, timeoutMs, maxSvgBytes, slowRetryMs, cacheEntries,
+            DEFAULT_CACHE_MAX_BYTES );
+    }
 
     /** @return the shipped defaults */
     public static PlantUmlSettings defaults() {
-        return new PlantUmlSettings( true, 2, 8, 16_777_216L, 5_000L, 2_097_152, 600_000L, 500 );
+        return new PlantUmlSettings( true, 2, 8, 16_777_216L, 5_000L, 524_288, 600_000L, 500, DEFAULT_CACHE_MAX_BYTES );
     }
 }

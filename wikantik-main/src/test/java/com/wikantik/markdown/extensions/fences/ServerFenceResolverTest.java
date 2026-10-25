@@ -239,9 +239,33 @@ class ServerFenceResolverTest {
         final String out = resolver( 20, 60_000L ).resolve( render( md.toString(), false ) );
 
         assertEquals( 20, count( out, "data-fence-state=\"drawn\"" ), out );
-        assertEquals( List.of( "page-budget" ), errors( out ) );
-        assertTrue( out.lastIndexOf( "data-fence-error=\"page-budget\"" ) > out.lastIndexOf( "data-fence-state=\"drawn\"" ), out );
+        assertEquals( List.of( "page-limit" ), errors( out ), "the count limit is deterministic, not a reload-to-retry budget" );
+        assertTrue( out.lastIndexOf( "data-fence-error=\"page-limit\"" ) > out.lastIndexOf( "data-fence-state=\"drawn\"" ), out );
         assertEquals( 20, drawer.calls.get() );
+    }
+
+    @Test
+    void pageMaxBytesEnforced() {
+        final String light = "<svg>" + "l".repeat( 995 ) + "</svg>";
+        final String dark = "<svg>" + "d".repeat( 995 ) + "</svg>";
+        drawer.outcome = s -> ServerDrawing.drawn( light, dark );
+        final StringBuilder md = new StringBuilder();
+        for ( int i = 0; i < 4; i++ ) {
+            md.append( fence( "A -> B" + i + "\n" ) );
+        }
+
+        // Each drawing carries 2 x 1006 characters: two fit in 5000, a third does not.
+        final String out = new ServerFenceResolver( Map.of( "plantuml", drawer ), 20, 60_000L, 5_000L )
+                .resolve( render( md.toString(), false ) );
+
+        assertEquals( 2, count( out, "data-fence-state=\"drawn\"" ), out );
+        assertEquals( List.of( "page-limit", "page-limit" ), errors( out ) );
+        assertEquals( 2, count( out, light ), "only two drawings were spliced" );
+    }
+
+    @Test
+    void defaultPageMaxBytesIsEightMegabytes() {
+        assertEquals( 8_388_608L, ServerFenceResolver.DEFAULT_PAGE_MAX_BYTES );
     }
 
     @Test

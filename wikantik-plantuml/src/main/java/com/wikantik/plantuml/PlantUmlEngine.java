@@ -118,7 +118,8 @@ public final class PlantUmlEngine {
      * (non-zero; 503 for a crash). That image must never be shown. The status is the structural signal;
      * the English crash text is a secondary check that also catches a changed status convention.
      *
-     * @return a refusal when {@code export} is PlantUML's crash/error image, otherwise {@code null}
+     * @return {@code too-complex} for a stack overflow, {@code render-crashed} for any other crash/error image, otherwise
+     *         {@code null}
      */
     static RenderOutcome crashOutcome( final Export export ) {
         final boolean crashText = export.svg().contains( "An error has occurred : " ) && export.svg().contains( " has crashed." );
@@ -129,8 +130,10 @@ public final class PlantUmlEngine {
             LOG.info( "PlantUML diagram too complex (stack exhausted)" );
             return RenderOutcome.refused( "too-complex", "The diagram is too complex to draw", 0 );
         }
-        LOG.warn( "PlantUML produced a crash/error image (status {}); refusing it", export.status() );
-        return RenderOutcome.transientRefusal( "render-failed" );
+        // Deterministic for the source (an SVG sprite, say): cached as render-crashed so a page view does not re-render
+        // and re-log it every time; PlantUmlService retries it once after slowRetryMs.
+        LOG.warn( "PlantUML produced a crash/error image (status {}); refusing it as {}", export.status(), PlantUmlService.RENDER_CRASHED );
+        return RenderOutcome.refused( PlantUmlService.RENDER_CRASHED, "PlantUML failed while drawing the diagram", 0 );
     }
 
     record Export( String svg, int status ) {

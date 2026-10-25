@@ -117,8 +117,17 @@ class PlantUmlEngineTest {
     @org.junit.jupiter.api.Test
     void crashStatusIsRefusedEvenWithoutMarkerText() {
         final RenderOutcome out = PlantUmlEngine.crashOutcome( new PlantUmlEngine.Export( "<svg/>", 503 ) );
-        assertTrue( out.transientFailure() );
-        assertEquals( "render-failed", out.reason() );
+        assertFalse( out.transientFailure(), "a PlantUML crash is deterministic for its source" );
+        assertEquals( "render-crashed", out.reason() );
+    }
+
+    /** An SVG sprite makes PlantUML 1.2026.8 crash (an NPE inside its SVG sprite parser) on every render. */
+    @Test
+    void deterministicPlantUmlCrashIsRenderCrashed() {
+        final RenderOutcome out = PlantUmlEngine.render( "sprite $foo <svg viewBox=\"0 0 10 10\"><circle r=\"5\"/></svg>\nA -> B : <$foo>" );
+        assertFalse( out.isDrawn() );
+        assertEquals( "render-crashed", out.reason() );
+        assertFalse( out.transientFailure() );
     }
 
     @org.junit.jupiter.api.Test

@@ -29,13 +29,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Forces PlantUML into its SANDBOX security profile before any PlantUML state is initialised. PlantUML
  * reads {@code PLANTUML_SECURITY_PROFILE} from System properties before the environment and caches the
  * profile on first use, so the property has to be set first. If the sandbox cannot be confirmed, callers
- * must treat PlantUML as disabled (fail closed).
+ * must treat PlantUML as disabled (fail closed). It also points {@code GRAPHVIZ_DOT} at a path that never exists,
+ * so PlantUML can never execute the Graphviz binary, whatever a diagram asks for.
  */
 public final class PlantUmlSandbox {
 
     private static final Logger LOG = LogManager.getLogger( PlantUmlSandbox.class );
     private static final AtomicBoolean ERROR_LOGGED = new AtomicBoolean();
     private static final String PROFILE_PROPERTY = "PLANTUML_SECURITY_PROFILE";
+    private static final String GRAPHVIZ_PROPERTY = "GRAPHVIZ_DOT";
+    /**
+     * Where PlantUML is told the Graphviz {@code dot} binary lives: a path that never exists, so no diagram, embedded
+     * sub-diagrams included, can make PlantUML execute an external process.
+     */
+    public static final String NO_GRAPHVIZ = "/nonexistent/wikantik-plantuml-no-graphviz/dot";
 
     private PlantUmlSandbox() {
     }
@@ -47,13 +54,16 @@ public final class PlantUmlSandbox {
     }
 
     /**
-     * Idempotently sets the profile property and reports whether PlantUML is actually in SANDBOX.
+     * Idempotently sets the profile and Graphviz properties and reports whether PlantUML is actually in SANDBOX.
      *
      * @return true only when {@code SecurityUtils.getSecurityProfile()} is {@link SecurityProfile#SANDBOX}
      */
     public static boolean ensure() {
         try {
             System.setProperty( PROFILE_PROPERTY, SecurityProfile.SANDBOX.name() );
+            // PlantUML's GraphvizRuntimeEnvironment reads GRAPHVIZ_DOT from System properties before the environment and
+            // on every lookup, so this always wins over an operator's environment and over a dot binary on the PATH.
+            System.setProperty( GRAPHVIZ_PROPERTY, NO_GRAPHVIZ );
             final SecurityProfile profile = SecurityUtils.getSecurityProfile();
             if( profile != SecurityProfile.SANDBOX ) {
                 logOnce( "PlantUML security profile is " + profile + " rather than SANDBOX; PlantUML rendering is disabled", null );

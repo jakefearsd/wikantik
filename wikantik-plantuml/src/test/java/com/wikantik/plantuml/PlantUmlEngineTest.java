@@ -18,8 +18,10 @@
  */
 package com.wikantik.plantuml;
 
+import net.sourceforge.plantuml.dot.GraphvizRuntimeEnvironment;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,6 +68,26 @@ class PlantUmlEngineTest {
         final RenderOutcome out = PlantUmlEngine.render(
             "!include <C4/C4_Container>\nContainer(web, \"Web\", \"Java\", \"The site\")\n" );
         assertTrue( out.isDrawn(), () -> "reason=" + out.reason() + " msg=" + out.message() );
+    }
+
+    /**
+     * An embedded {@code {{ }}} sub-diagram does not inherit the forced Smetana pragma, so PlantUML would lay it out
+     * with the Graphviz binary. The policy refuses it ({@code embedded-diagram}); this pins the second line of defence
+     * with the policy bypassed: PlantUML's resolved {@code dot} executable does not exist, and the sub-diagram's nested
+     * {@code image/svg+xml} image never survives the scrub.
+     */
+    @Test
+    void embeddedSubDiagramCannotRunGraphvizAndItsImageIsScrubbed() throws Exception {
+        final RenderOutcome out = PlantUmlEngine.render( "Alice -> Bob\nnote right\n{{\nclass A\nclass B\nA <|-- B\n}}\nend note" );
+
+        final File dot = GraphvizRuntimeEnvironment.getInstance().getDotExe();
+        assertTrue( dot == null || !dot.exists(), () -> "PlantUML would execute " + dot );
+        assertEquals( PlantUmlSandbox.NO_GRAPHVIZ, System.getProperty( "GRAPHVIZ_DOT" ) );
+        assertTrue( out.isDrawn(), () -> "reason=" + out.reason() + " msg=" + out.message() );
+        assertTrue( out.drawing().lightSvg().contains( "data:image/svg+xml;base64," ), "the raw drawing nests the sub-diagram" );
+        final String scrubbed = SvgScrubber.scrub( out.drawing().lightSvg(), "p-" );
+        assertFalse( scrubbed.contains( "<image" ), scrubbed );
+        assertFalse( scrubbed.contains( "svg+xml" ), scrubbed );
     }
 
     @Test

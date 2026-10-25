@@ -19,6 +19,12 @@
 package com.wikantik.plantuml;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,11 +38,22 @@ class PlantUmlSandboxTest {
         assertTrue( PlantUmlSandbox.ensure() );
     }
 
+    /**
+     * The included file is valid PlantUML, so outside the sandbox PlantUML would include it and draw its class: only the
+     * sandbox turns the include into PlantUML's own "cannot include" error, reported on the author's line 1.
+     */
     @Test
-    void includeOfLocalFileFails() {
-        final RenderOutcome out = PlantUmlEngine.render( "!include /etc/hostname\nclass A" );
-        assertFalse( out.isDrawn() );
+    void includeOfLocalFileFails( @TempDir final Path dir ) throws IOException {
+        final Path leaked = dir.resolve( "leak.puml" );
+        Files.writeString( leaked, "class LeakedFromDisk\n", StandardCharsets.UTF_8 );
+
+        final RenderOutcome out = PlantUmlEngine.render( "!include " + leaked + "\nclass A" );
+
+        assertFalse( out.isDrawn(), "the include was followed: the file's class was drawn" );
         assertEquals( "syntax-error", out.reason() );
+        assertTrue( out.message().contains( "cannot include" ), out.message() );
+        assertFalse( out.message().contains( "LeakedFromDisk" ), out.message() );
+        assertEquals( 1, out.line() );
     }
 
     @Test

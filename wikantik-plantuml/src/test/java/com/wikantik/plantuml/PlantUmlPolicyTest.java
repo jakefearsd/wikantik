@@ -78,6 +78,9 @@ class PlantUmlPolicyTest {
         '@STARTUML\\nA -> B\\n@startuml\\nC -> D' | multiple-diagrams
         '\\t@startuml\\nA -> B\\n\\t@startuml\\nC -> D' | multiple-diagrams
         '@startuml\\n!theme x from y\\n@enduml' | include
+        '@startuml\\nA -> B\\nnote right\\n{{\\nclass A\\n}}\\nend note\\n@enduml' | embedded-diagram
+        'A -> B : {{ digraph G { a -> b } }}'        | embedded-diagram
+        'note as N\\n  {{json\\n  {"a":1}\\n  }}\\nend note' | embedded-diagram
         """ )
     void refusals( final String escaped, final String reason ) {
         assertEquals( reason, reasonOf( escaped.replace( "\\n", "\n" ).replace( "\\t", "\t" ) ) );
@@ -102,6 +105,8 @@ class PlantUmlPolicyTest {
         // Not @startuml beats an include in the same source; include beats file-access.
         assertEquals( "unsupported-diagram", reasonOf( "@startgantt\n!include x\n@endgantt" ) );
         assertEquals( "include", reasonOf( wrap( "!include x\n%getenv(\"X\")" ) ) );
+        // An embedded sub-diagram is refused before anything it might contain is looked at.
+        assertEquals( "embedded-diagram", reasonOf( wrap( "note right\n{{\n!include x\n}}\nend note" ) ) );
     }
 
     /** Every builtin in PlantUML 1.2026.8 net.sourceforge.plantuml.tim.builtin that touches files, env, classpath. */

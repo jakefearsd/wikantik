@@ -50,6 +50,12 @@ public final class PlantUmlPolicy {
     // PlantUML renders these as non-UML Help/Crash diagrams.
     private static final Pattern HELP_OR_CRASH = Pattern.compile( "^\\s*(help\\b|crash\\s*$)", FLAGS );
 
+    /**
+     * An embedded sub-diagram ({@code {{ … }}}, in a note or a label) is laid out on its own: it does not inherit the
+     * forced Smetana pragma (so PlantUML reaches for the Graphviz binary) nor the {@code @startuml}-only, help and
+     * crash checks. Any line holding two consecutive opening braces is refused.
+     */
+    private static final String EMBEDDED = "{{";
     private static final Pattern INCLUDE = Pattern.compile( "(?:^|\\s)!(?:include\\w*|import)\\b", FLAGS );
     /** The bundled C4 standard library is the only include allowed: it is a fixed classpath resource. */
     private static final Pattern ALLOWED_INCLUDE = Pattern.compile( "^\\s*!include\\s+<C4/[\\w/]+>\\s*$", FLAGS );
@@ -121,6 +127,9 @@ public final class PlantUmlPolicy {
 
     private static String firstReason( final List< String > lines ) {
         String reason = diagramKindReason( lines );
+        if( reason == null ) {
+            reason = lineReason( lines, l -> l.contains( EMBEDDED ), "embedded-diagram" );
+        }
         if( reason == null ) {
             reason = lineReason( lines, PlantUmlPolicy::isForbiddenInclude, "include" );
         }

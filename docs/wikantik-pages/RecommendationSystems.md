@@ -78,7 +78,7 @@ graph LR
     U1((User A)) --- I1[Sci-Fi Movie]
     U1 --- I2[Action Movie]
     U2((User B)) --- I1
-    U2 -.-? I2
+    U2 -.->|?| I2
     
     subgraph Message Passing
         I1 -->|Embedding| U2

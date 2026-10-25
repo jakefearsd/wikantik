@@ -33,10 +33,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Mermaid renderer (browser kind). Enforces the safety policy server-side: no callbacks, no
- * script-capable link targets, and no init directive / YAML config touching Mermaid's
- * {@code secure} settings. The JS port in {@code wikantik-frontend} mirrors these rules and both
- * are pinned by the shared fixture.
+ * Mermaid renderer (browser kind). Runs the fail-closed safety policy server-side: no callbacks,
+ * no script-capable link targets, no {@code %%{...}%%} directive of any kind and no front matter.
+ * The JS port in {@code wikantik-frontend} mirrors these rules (and is the only gate for a
+ * hand-written envelope; see {@link RenderedFenceRenderer}); both are pinned by the shared fixture.
  */
 public final class MermaidFenceRenderer implements RenderedFenceRenderer {
 

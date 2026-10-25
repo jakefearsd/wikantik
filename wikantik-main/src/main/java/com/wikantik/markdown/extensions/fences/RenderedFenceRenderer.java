@@ -27,9 +27,14 @@ import java.util.Set;
  * <h2>What every renderer provides</h2>
  * <ul>
  *   <li>{@link #language()} - the lowercase registry key (matches {@link FenceInfo#language()}).</li>
- *   <li>{@link #check(String)} - the safety policy. It is enforced on the server, and the source
- *       is never rewritten: a refused fence is emitted with its original source plus a
- *       {@code data-fence-error} reason. It must never throw.</li>
+ *   <li>{@link #check(String)} - the safety policy. The server runs it on every fence it renders
+ *       and never rewrites the source: a refused fence is emitted with its original source plus a
+ *       {@code data-fence-error} reason. It must never throw. The server is <em>not</em> the only
+ *       gate, and for a browser renderer not even the last one: with {@code allowHTML} on, a
+ *       hand-written {@code <figure class="wk-fence" data-fence-kind="browser">} envelope passes
+ *       {@code WikantikHtmlSanitizer} without ever reaching this method, so the browser port of the
+ *       policy (run by {@code drawFence.js} before every draw) is its only check. Never remove
+ *       that browser check on the grounds that the server already enforces the policy.</li>
  *   <li>{@link #pageLinks(String)} - local page names the source links to, with any
  *       {@code #section} stripped, so they join the page's stored references (backlinks, Page
  *       Graph, broken-links report). It returns an empty set when the source is refused.</li>

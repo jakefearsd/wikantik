@@ -1,6 +1,7 @@
 // JS port of wikantik-main com.wikantik.markdown.extensions.fences.MermaidFenceRenderer's safety policy. The
 // editor previews never reach the server, so the same fail-closed rules run here; the reader view re-runs them
-// as defense in depth. Parity with the Java is enforced by the shared fixture
+// too, and for a hand-written envelope (allowHTML on) that never met the server policy they are the only gate —
+// see drawFence.js. Parity with the Java is enforced by the shared fixture
 // (src/utils/__fixtures__/renderedFences.json, `mermaidPolicy`) — change both sides together, and add a case.
 //
 // Port notes (where JS and Java semantics differ and this file compensates):

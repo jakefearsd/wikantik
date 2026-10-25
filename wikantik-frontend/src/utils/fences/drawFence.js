@@ -29,8 +29,14 @@ function refusalMessage(reason) {
   return why ? `This diagram was not drawn: ${why}` : 'This diagram was not drawn.';
 }
 
-function firstLine(error) {
-  return String(error?.message ?? error ?? '').split('\n')[0].trim();
+/**
+ * A one-line summary of a Mermaid error: its first non-blank line (where) and, when there are more, its last one
+ * (what it expected: "Expecting …, got …"). The source excerpt and caret art in between are dropped.
+ */
+function errorSummary(error) {
+  const lines = String(error?.message ?? error ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return lines[0] ?? '';
+  return `${lines[0]} \u2026 ${lines[lines.length - 1]}`;
 }
 
 /** Writes the error box (text only — never markup from the error) before the source, and the state. */
@@ -154,7 +160,10 @@ async function drawOnce(figure, isStale) {
     return showProblem(figure, 'failed', `No renderer for \u201C${language}\u201D diagrams is available here.`);
   }
   const serverReason = figure.getAttribute('data-fence-error');
-  // Defense in depth: the browser re-runs the policy even when the server let the fence through.
+  // The browser always runs the policy itself, even when the server let the fence through. This is NOT mere
+  // defense in depth: with allowHTML on (the default) a hand-written <figure class="wk-fence" …> envelope passes
+  // the HTML sanitizer without ever meeting the server policy, so for it this check is the only gate. Never
+  // remove it. Pinned by drawFence.test.js 'clientPolicyRefusesEvenWithoutServerFlag'.
   const verdict = serverReason ? { allowed: false, reason: serverReason } : entry.check(source);
   if (!verdict.allowed) {
     if (isStale()) return 'stale';
@@ -178,8 +187,8 @@ async function drawOnce(figure, isStale) {
   } catch (e) {
     console.warn(`[fences] ${language} could not draw a diagram`, e);
     if (isStale()) return 'stale';
-    const line = firstLine(e);
-    return showProblem(figure, 'failed', 'This diagram could not be drawn.', line ? `Mermaid: ${line}` : '');
+    const summary = errorSummary(e);
+    return showProblem(figure, 'failed', 'This diagram could not be drawn.', summary ? `Mermaid: ${summary}` : '');
   }
   if (isStale()) return 'stale';
 
@@ -243,7 +252,8 @@ export async function redrawFence(figure) {
   if (!entry) return 'skipped';
   const source = sourceOf(figure);
   try {
-    // Every draw re-checks its own input (defense in depth), re-draws included.
+    // Every draw re-checks its own input, re-draws included (see drawOnce: for a hand-written envelope the
+    // browser check is the only gate).
     if (!entry.check(source).allowed) {
       console.warn('[fences] a drawn diagram\'s source no longer passes the policy; not re-drawing it');
       return 'refused';

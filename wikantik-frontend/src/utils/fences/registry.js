@@ -17,11 +17,12 @@ import { checkMermaid } from './mermaidPolicy';
  *      link-extraction cases — to the shared fixture src/utils/__fixtures__/renderedFences.json so the Java test and
  *      a vitest both iterate them (mermaidPolicy.test.js is the pattern). The editor previews never reach the
  *      server, so this is what makes a preview refuse exactly what the saved page refuses; the reader view re-runs
- *      it too (defense in depth), before every draw and re-draw.
+ *      it too, before every draw and re-draw — and for a hand-written envelope (allowHTML on) that never met the
+ *      server policy it is the ONLY gate, so it must never be dropped.
  *
  *   3. Lazy load. `load: () => import('./<name>Renderer.js')`, a module exporting
  *      `draw(host, source, { dark }) → Promise<void>` that writes the drawing into `host` only, throws on a parse
- *      error (drawFence shows the message's first line), never runs diagram-supplied script, configures the
+ *      error (drawFence shows the message's first and last lines), never runs diagram-supplied script, configures the
  *      library's own security settings as strictly as it allows, and labels the drawing (role="img" + aria-label).
  *      Import the library ONLY from that module, so a page without such a fence never fetches it.
  *

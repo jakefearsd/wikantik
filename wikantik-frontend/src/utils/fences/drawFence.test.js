@@ -105,6 +105,8 @@ describe('drawFence', () => {
     expect(errorText(fig)).toMatch(re);
   });
 
+  // A hand-written envelope (allowed through the HTML sanitizer when allowHTML is on) never meets the server
+  // policy, so this browser check is its only gate — drawFence.js relies on this test.
   it('clientPolicyRefusesEvenWithoutServerFlag', async () => {
     const fig = envelope('flowchart TD\n  A-->B\n  click A call f()');
     await expect(drawFence(fig)).resolves.toBe('refused');
@@ -115,13 +117,14 @@ describe('drawFence', () => {
   });
 
   it('parseFailureShowsErrorAndSource', async () => {
-    draw.mockRejectedValueOnce(new Error('Parse error on line 3:\n...A-->\n-------^\nExpecting NODE'));
+    draw.mockRejectedValueOnce(new Error("Parse error on line 3:\n...A-->\n-------^\nExpecting 'NODE', got 'EOF'\n  \n"));
     const fig = envelope(FLOW);
     await expect(drawFence(fig)).resolves.toBe('failed');
     expect(fig.dataset.fenceState).toBe('failed');
     expect(errorText(fig)).toMatch(/could not be drawn/i);
-    expect(errorText(fig)).toContain('Parse error on line 3:');
-    expect(errorText(fig)).not.toContain('Expecting NODE');
+    // The first line says where, the last non-blank one what Mermaid expected; the caret art between is dropped.
+    expect(fig.querySelector('.wk-fence-error-detail').textContent)
+      .toBe("Mermaid: Parse error on line 3: \u2026 Expecting 'NODE', got 'EOF'");
     expect(fig.querySelector('.wk-fence-drawing')).toBeNull();
     expect(fig.querySelector('.wk-fence-toolbar')).toBeNull();
     expect(sourcePre(fig).querySelector('code').textContent).toBe(FLOW);
@@ -219,6 +222,13 @@ describe('drawFence', () => {
     const fig = envelope(FLOW);
     await expect(drawFence(fig)).resolves.toBe('failed');
     expect(console.warn).toHaveBeenCalledWith('[fences] drawing a fence failed unexpectedly', expect.any(Error));
+  });
+
+  it('shows a one-line Mermaid error once, not twice', async () => {
+    draw.mockRejectedValueOnce(new Error('\n  No diagram type detected  \n'));
+    const fig = envelope(FLOW);
+    await drawFence(fig);
+    expect(fig.querySelector('.wk-fence-error-detail').textContent).toBe('Mermaid: No diagram type detected');
   });
 
   it('shows no detail line when the parse error has no message', async () => {

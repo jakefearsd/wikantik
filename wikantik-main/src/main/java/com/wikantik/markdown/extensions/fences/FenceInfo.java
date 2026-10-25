@@ -36,10 +36,10 @@ public record FenceInfo( String language, boolean example, List< String > modifi
     }
 
     /**
-     * Parses an info string. Null or blank input yields an empty language and no modifiers.
+     * Parses an info string. Trims with {@link String#trim()} (chars up to U+0020) and splits on ASCII whitespace, matching the JS port. Null or blank input yields an empty language and no modifiers.
      */
     public static FenceInfo parse( final String info ) {
-        final String stripped = info == null ? "" : info.strip();
+        final String stripped = info == null ? "" : info.trim();
         if ( stripped.isEmpty() ) {
             return new FenceInfo( "", false, List.of() );
         }

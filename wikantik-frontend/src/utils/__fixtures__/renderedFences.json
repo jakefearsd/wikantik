@@ -11,8 +11,37 @@
     { "info": null, "language": "", "example": false, "modifiers": [] },
     { "info": "java", "language": "java", "example": false, "modifiers": [] },
     { "info": "math", "language": "math", "example": false, "modifiers": [] },
+    { "info": "mermaid\u00a0example", "language": "mermaid\u00a0example", "example": false, "modifiers": [] },
     { "info": "{.mermaid}", "language": "{.mermaid}", "example": false, "modifiers": [] }
   ],
   "documents": [],
-  "mermaidPolicy": []
+  "mermaidPolicy": [
+    {"source": "flowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"/wiki/Foo\"", "allowed": true, "reason": null, "pageLinks": ["Foo"]},
+    {"source": "flowchart TD\n  A-->B\n  click A href \"/wiki/Foo#Bar\" \"tip\" _blank", "allowed": true, "reason": null, "pageLinks": ["Foo"]},
+    {"source": "flowchart TD\n  A-->B\n  click A \"https://example.com\"", "allowed": true, "reason": null, "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A call doThing()", "allowed": false, "reason": "callback", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A doThing", "allowed": false, "reason": "callback", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"javascript:alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \" JavaScript:alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"data:text/html,x\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"vbscript:x\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"java&#x09;script:alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"javascript&#58;alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"javascript&colon;alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"&#106;avascript:alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"mailto:a@b.c\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"Foo\"", "allowed": true, "reason": null, "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  B-->C; click C call f()", "allowed": false, "reason": "callback", "pageLinks": []},
+    {"source": "sequenceDiagram\n  Alice->>Bob: Hi\n  link Alice: Docs @ javascript:x", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "sequenceDiagram\n  Alice->>Bob: Hi\n  link Alice: Docs @ /wiki/Docs#Top", "allowed": true, "reason": null, "pageLinks": ["Docs"]},
+    {"source": "sequenceDiagram\n  Alice->>Bob: Hi\n  links Alice: {\"Dash\": \"data:text/html,x\"}", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "%%{init: {\"securityLevel\":\"loose\"}}%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{init: {'securityLevel': 'loose'}}%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{ initialize : { startOnLoad : true } }%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{init: {\"theme\":\"dark\"}}%%\nflowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},
+    {"source": "---\nconfig:\n  securityLevel: loose\n---\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "---\ntitle: T\nconfig:\n  theme: dark\n---\nflowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click A \"/wiki/Some%20Page\"", "allowed": true, "reason": null, "pageLinks": ["Some Page"]}
+  ]
 }

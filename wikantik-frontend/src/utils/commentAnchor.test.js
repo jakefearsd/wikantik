@@ -87,6 +87,27 @@ describe('captureSelection', () => {
     expect(captureSelection(root)).toEqual({ error: 'math' });
   });
 
+  it.each([
+    ['the drawing', '.wk-fence-drawing text'],
+    ['the toolbar', '.wk-fence-toolbar button'],
+    ['the hidden source of a drawn diagram', '.wk-fence-source code'],
+  ])('returns a diagram error when the selection touches %s', (_, inner) => {
+    const root = makeRoot('<p>before</p><figure class="wk-fence" data-fence="mermaid" data-fence-state="drawn">'
+      + '<div class="wk-fence-toolbar"><button>Show source</button></div>'
+      + '<div class="wk-fence-drawing"><svg><text>Node A</text></svg></div>'
+      + '<pre class="wk-fence-source"><code>flowchart TD</code></pre></figure>');
+    const tn = root.querySelector(inner).firstChild;
+    stubSelection({ range: rangeOver(tn, 0, 2) });
+    expect(captureSelection(root)).toEqual({ error: 'diagram' });
+  });
+
+  it('lets a comment anchor in the visible source of a diagram that was not drawn', () => {
+    const root = makeRoot('<figure class="wk-fence" data-fence="mermaid" data-fence-state="refused">'
+      + '<pre class="wk-fence-source"><code>flowchart TD</code></pre></figure>');
+    stubSelection({ range: rangeOver(root.querySelector('code').firstChild, 0, 9) });
+    expect(captureSelection(root).selector.exact).toBe('flowchart');
+  });
+
   it('returns selector + rect for a valid selection inside root', () => {
     const root = makeRoot('<p>say hello world to everyone</p>');
     const tn = root.querySelector('p').firstChild;

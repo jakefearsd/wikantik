@@ -329,6 +329,28 @@ describe('PageView comment integration', () => {
     expect(screen.queryByTestId('comment-add-floating')).toBeNull();
   }, TEST_TIMEOUT);
 
+  it('selection over a drawn diagram renders the diagram hint instead of the Comment button', async () => {
+    const { container } = await mountAndSettle();
+    const article = container.querySelector('article.article-prose');
+    const drawing = document.createElement('div');
+    drawing.className = 'wk-fence-drawing';
+    drawing.textContent = 'Node A';
+    article.appendChild(drawing);
+    const range = document.createRange();
+    range.selectNodeContents(drawing);
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      rangeCount: 1,
+      isCollapsed: false,
+      getRangeAt: () => range,
+      removeAllRanges: vi.fn(),
+    });
+
+    fireEvent.mouseUp(article);
+
+    expect(screen.getByText(/Can.t comment on diagrams/)).toBeInTheDocument();
+    expect(screen.queryByTestId('comment-add-floating')).toBeNull();
+  }, TEST_TIMEOUT);
+
   it('drawer Reply and Resolve callbacks call the api then reload threads', async () => {
     await mountAndSettle();
     fireEvent.click(screen.getByTestId('comments-toggle-button'));

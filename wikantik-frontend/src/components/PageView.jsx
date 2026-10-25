@@ -765,6 +765,11 @@ export default function PageView() {
           Can’t comment on math expressions — select plain text.
         </div>
       )}
+      {selection?.error === 'diagram' && (
+        <div className="comment-math-hint" style={{ position: 'fixed', top: 8, right: 8 }}>
+          Can’t comment on diagrams — select plain text.
+        </div>
+      )}
 
       {page.metadata?.tags && (
         <div style={{ marginTop: 'var(--space-2xl)', display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>

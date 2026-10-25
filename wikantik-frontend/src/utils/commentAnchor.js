@@ -1,14 +1,27 @@
 import * as textQuote from 'dom-anchor-text-quote';
 
 const MATH_SELECTOR = '.katex, .katex-display, .math-rendered';
+// A drawn diagram (rendered fence): its SVG, its toolbar, and its source, which is hidden by default once drawn —
+// a comment anchored there would highlight nothing visible after a reload. The source of a refused or failed
+// diagram is shown as ordinary code, so it stays commentable.
+const DIAGRAM_SELECTOR = '.wk-fence-drawing, .wk-fence-toolbar, .wk-fence[data-fence-state="drawn"] .wk-fence-source';
 
-/** True if either endpoint of the range sits inside KaTeX-rendered math. */
-export function selectionTouchesMath(range) {
+function endpointsTouch(range, selector) {
   const ends = [range.startContainer, range.endContainer];
   return ends.some((node) => {
     const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-    return !!(el && el.closest && el.closest(MATH_SELECTOR));
+    return !!(el && el.closest && el.closest(selector));
   });
+}
+
+/** True if either endpoint of the range sits inside KaTeX-rendered math. */
+export function selectionTouchesMath(range) {
+  return endpointsTouch(range, MATH_SELECTOR);
+}
+
+/** True if either endpoint of the range sits inside a drawn diagram (see DIAGRAM_SELECTOR). */
+export function selectionTouchesDiagram(range) {
+  return endpointsTouch(range, DIAGRAM_SELECTOR);
 }
 
 /**
@@ -24,13 +37,14 @@ export function selectorFromRange(root, range) {
 }
 
 /** Capture from the live window selection within `root`. Returns
- *  {selector, rect} | {error:'math'} | null. */
+ *  {selector, rect} | {error:'math'} | {error:'diagram'} | null. */
 export function captureSelection(root) {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
   const range = sel.getRangeAt(0);
   if (!root.contains(range.commonAncestorContainer)) return null;
   if (selectionTouchesMath(range)) return { error: 'math' };
+  if (selectionTouchesDiagram(range)) return { error: 'diagram' };
   const selector = selectorFromRange(root, range);
   if (!selector) return null;
   return { selector, rect: range.getBoundingClientRect() };

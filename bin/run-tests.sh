@@ -4,6 +4,12 @@
 # Runs the suite the ONLY way that is correct and fast here:
 #   Phase 1 (unit): one parallel reactor build that compiles every module, runs
 #     all unit tests, and INSTALLS the artifacts (incl. the WAR) to ~/.m2.
+#   Static checks:  right after Phase 1 (whenever it runs) — the PMD complexity
+#     ratchet (`pmd:check -Pcomplexity-gate`, ~10s, fails the run like CI does)
+#     and `npm audit` in wikantik-frontend (audit-level from its .npmrc). An
+#     advisory can appear with no code change, so npm audit only WARNS on a normal
+#     run and FAILS under --all (the release run). PMD runs after Phase 1, not
+#     before, because it resolves sibling modules from the freshly installed jars.
 #   Phase 2 (IT):   each integration-test module in turn — SEQUENTIALLY by
 #     default. Each runs with `-pl <module>` and NO `-am`, so the ~6000 unit
 #     tests are NOT re-run during the IT phase (they already passed and are
@@ -69,11 +75,16 @@ There are two "everything" levels:
 
 MODES (default, no args: the default gate = unit, then default-gate IT modules)
   --all                  EVERYTHING: unit + default-gate IT modules + scim-fullloop
+                         (and npm audit findings FAIL the run instead of warning)
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
   --module <name>        One IT module: rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
   --fullloop             ONLY the opt-in Authentik SCIM full-loop (-Pscim-fullloop)
   --list                 Show modules and their gate, then exit
+
+STATIC CHECKS (after the unit phase, whenever it runs)
+  PMD complexity ratchet  fails the run on any violation not in the baseline
+  npm audit               warns on a normal run; fails under --all
 
 OPTIONS
   --parallel N, -p N     Run default-gate IT modules in one -T N reactor
@@ -286,6 +297,7 @@ handle_embed_signal() {
 RUN_UNIT=1
 RUN_IT=1
 RUN_FULLLOOP=0
+STRICT_AUDIT=0   # --all: npm audit findings fail the run instead of warning
 ONE_MODULE=""
 
 # Unit-phase build parallelism. Default 1C (one thread per core). The prior
@@ -328,7 +340,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --help|-h) usage; exit 0 ;;
     --list)    list_modules; exit 0 ;;
-    --all)     RUN_UNIT=1; RUN_IT=1; RUN_FULLLOOP=1 ;;
+    --all)     RUN_UNIT=1; RUN_IT=1; RUN_FULLLOOP=1; STRICT_AUDIT=1 ;;
     --fullloop) RUN_UNIT=0; RUN_IT=0; ONE_MODULE="scim-fullloop" ;;
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
@@ -469,6 +481,34 @@ if [ "$RUN_UNIT" = 1 ]; then
   run_step "Phase 1: unit reactor (-T ${UNIT_PARALLELISM} -DskipITs)" "${LOG_DIR}/phase1-unit.log" \
     clean install -T "${UNIT_PARALLELISM}" -DskipITs -Dtests.requireDocker=true
   unit_phase_rc="$last_step_rc"
+fi
+
+# Static checks: CI runs both of these on every push, so a run that skips them
+# can pass here and still turn Quality Gates red. They follow Phase 1 because the
+# PMD goal resolves sibling modules from ~/.m2, which only holds this tree's
+# jars once Phase 1 has installed them; after a failed Phase 1 it would be
+# checking against the previous build's, so it is skipped then.
+if [ "$RUN_UNIT" = 1 ] && [ "$unit_phase_rc" -eq 0 ]; then
+  run_step "Static: PMD complexity ratchet" "${LOG_DIR}/static-pmd.log" \
+    -B -fae pmd:check -Pcomplexity-gate
+  if [ "$last_step_rc" -ne 0 ]; then
+    grep 'PMD Failure' "${LOG_DIR}/static-pmd.log" | sed 's/^\[WARNING\] /        /' | tee -a "$REPORT"
+  fi
+
+  echo ">>> Static: npm audit (wikantik-frontend)"
+  audit_log="${LOG_DIR}/static-npm-audit.log"
+  if ( cd wikantik-frontend && npm audit ) > "$audit_log" 2>&1; then
+    echo "PASS  Static: npm audit" | tee -a "$REPORT"
+  elif [ "$STRICT_AUDIT" = 1 ]; then
+    overall_rc=1
+    echo "FAIL  Static: npm audit (--all fails on advisories; CI's Quality Gates will too)" | tee -a "$REPORT"
+    grep -B1 '^Severity:' "$audit_log" | grep -v '^--$' | head -20 | sed 's/^/        /' | tee -a "$REPORT"
+    echo "        (log: ${audit_log})" | tee -a "$REPORT"
+  else
+    echo "WARN  Static: npm audit — advisories found; CI's Quality Gates will fail until they are fixed" | tee -a "$REPORT"
+    grep -B1 '^Severity:' "$audit_log" | grep -v '^--$' | head -20 | sed 's/^/        /' | tee -a "$REPORT"
+    echo "        (log: ${audit_log})" | tee -a "$REPORT"
+  fi
 fi
 
 # Phase 1 starts with `clean` and ends with `install`. If it fails, THIS tree's

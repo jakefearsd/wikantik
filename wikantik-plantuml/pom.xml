@@ -102,11 +102,26 @@
                     <exclude>META-INF/*.SF</exclude>
                     <exclude>META-INF/*.DSA</exclude>
                     <exclude>META-INF/*.RSA</exclude>
+                    <!-- The standard library is ~17 MB of icon sets the policy never lets a diagram include: keep only
+                         C4 (the one allowed !include <C4/...>) and the library index. -->
+                    <exclude>%regex[stdlib/(?!c4/|home[.]spm$).+]</exclude>
+                  </excludes>
+                </filter>
+                <filter>
+                  <!-- The Apache resource bundle's generic NOTICE would describe the bundled PlantUML/Smetana code as
+                       ASF Apache-2.0 code; it is replaced by src/main/shade/NOTICE below. -->
+                  <artifact>com.wikantik:wikantik-plantuml</artifact>
+                  <excludes>
+                    <exclude>META-INF/NOTICE</exclude>
                   </excludes>
                 </filter>
               </filters>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                  <resource>META-INF/NOTICE</resource>
+                  <file>src/main/shade/NOTICE</file>
+                </transformer>
               </transformers>
             </configuration>
           </execution>

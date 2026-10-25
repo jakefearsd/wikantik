@@ -1,0 +1,10 @@
+Wikantik PlantUML (shaded, Ditaa stripped)
+
+The Wikantik code in this jar (com/wikantik/plantuml/**) is licensed under the Apache License 2.0
+(META-INF/LICENSE).
+
+This jar also bundles third-party code that is NOT Apache Software Foundation code and NOT under the
+Apache License: PlantUML 1.2026.8 (MIT, (C) Arnaud Roques; META-INF/LICENSE-plantuml.txt), including
+Smetana (EPL-1.0, (c) AT&T Intellectual Property; sources in the plantuml-mit-1.2026.8-sources.jar on
+Maven Central) and the C4-PlantUML standard library (MIT). Ditaa (LGPL) is removed. See
+META-INF/NOTICE-plantuml.txt for the full notices and source-code availability.

@@ -542,6 +542,22 @@ class DefaultReferenceManagerCITest {
     }
 
     @Test
+    void scanWikiLinksIncludesDiagramClickTargets() {
+        final Collection< String > links = mgr.scanWikiLinks( mockPage( "Diagram" ),
+                "Intro\n\n```mermaid\nflowchart TD\n  A-->B\n  click A \"/wiki/TargetPage\"\n```\n" );
+
+        assertTrue( links.contains( "TargetPage" ), links.toString() );
+    }
+
+    @Test
+    void scanWikiLinksIgnoresExampleFenceClicks() {
+        final Collection< String > links = mgr.scanWikiLinks( mockPage( "Diagram" ),
+                "```mermaid example\nflowchart TD\n  A-->B\n  click A \"/wiki/TargetPage\"\n```\n" );
+
+        assertFalse( links.contains( "TargetPage" ), links.toString() );
+    }
+
+    @Test
     void scanWikiLinksReturnsEmptyForNoLinks() {
         final Page page = mockPage( "TestPage" );
         final Collection< String > links = mgr.scanWikiLinks( page, "Just plain text, no links." );

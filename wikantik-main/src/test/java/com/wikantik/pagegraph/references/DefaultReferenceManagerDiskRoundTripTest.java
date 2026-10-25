@@ -302,7 +302,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
         fixtureReferredBy.put( "Beta", new java.util.TreeSet<>() );
         try ( java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(
                 new java.io.BufferedOutputStream( new java.io.FileOutputStream( serFile ) ) ) ) {
-            out.writeLong( 4L ); // matches DefaultReferenceManager.serialVersionUID
+            out.writeLong( 5L ); // matches DefaultReferenceManager.serialVersionUID
             out.writeLong( saved );
             out.writeObject( fixtureRefersTo );
             out.writeObject( fixtureReferredBy );
@@ -488,7 +488,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
         final File serFile = new File( workDir, "refmgr.ser" );
         try ( java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(
                 new java.io.BufferedOutputStream( new java.io.FileOutputStream( serFile ) ) ) ) {
-            out.writeLong( 999L ); // does not match DefaultReferenceManager.serialVersionUID (4L)
+            out.writeLong( 999L ); // does not match DefaultReferenceManager.serialVersionUID (5L)
             out.writeLong( System.currentTimeMillis() );
             out.writeObject( new java.util.HashMap<String, java.util.Collection<String>>() );
             out.writeObject( new java.util.HashMap<String, java.util.Set<String>>() );
@@ -533,7 +533,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
     void initialize_attrsCacheNameMismatch_attributeIsNotApplied( @TempDir final File workDir ) throws Exception {
         // File is named after "Alpha" (same MD5 hash file) but its stored page name
         // inside is a different page entirely — a hash collision / stale-cache guard.
-        writeAttrsCacheFixture( workDir, "Alpha", 4L, "SomeoneElse", Map.of( "k", "v" ) );
+        writeAttrsCacheFixture( workDir, "Alpha", 5L, "SomeoneElse", Map.of( "k", "v" ) );
         assertAttrsCacheIsIgnored( workDir, "Alpha" );
     }
 
@@ -544,7 +544,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
         final File serFile = new File( workDir, "refmgr.ser" );
         try ( java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(
                 new java.io.BufferedOutputStream( new java.io.FileOutputStream( serFile ) ) ) ) {
-            out.writeLong( 4L );
+            out.writeLong( 5L );
             out.writeLong( System.currentTimeMillis() - 300_000L );
             out.writeObject( new java.util.HashMap<String, java.util.Collection<String>>() );
             out.writeObject( new java.util.HashMap<String, java.util.Set<String>>() );

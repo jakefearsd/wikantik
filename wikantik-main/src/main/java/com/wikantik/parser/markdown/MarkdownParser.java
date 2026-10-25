@@ -23,6 +23,8 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
 import com.vladsch.flexmark.util.ast.VisitHandler;
+import com.wikantik.markdown.extensions.fences.RenderedFenceRegistry;
+import com.wikantik.markdown.extensions.fences.RenderedFenceScanner;
 import com.wikantik.api.core.Context;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -133,6 +135,11 @@ public class MarkdownParser extends MarkupParser {
                 }
             }
         } ) ).visit( root );
+
+        // Diagram click targets inside rendered fences are page references too (the bare parser sees only code)
+        for ( final String page : RenderedFenceScanner.pageLinks( body, RenderedFenceRegistry.defaults() ) ) {
+            callMutatorChain( localLinkMutatorChain, page );
+        }
     }
 
     private static String readFully( final Reader reader ) throws IOException {

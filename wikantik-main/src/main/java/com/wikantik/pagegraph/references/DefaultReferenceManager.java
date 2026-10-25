@@ -40,6 +40,8 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.parser.MarkdownLinkScanner;
 import com.wikantik.api.parser.WikiLinkSyntax;
+import com.wikantik.markdown.extensions.fences.RenderedFenceRegistry;
+import com.wikantik.markdown.extensions.fences.RenderedFenceScanner;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.util.AtomicFileWriter;
 import com.wikantik.util.TextUtil;
@@ -181,8 +183,16 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     private static final String SERIALIZATION_FILE = "refmgr.ser";
     private static final String SERIALIZATION_DIR  = "refmgr-attr";
 
-    /** We use this also a generic serialization id */
-    private static final long serialVersionUID = 4L;
+    /**
+     * We use this also a generic serialization id.
+     *
+     * <p>Bumped 4 to 5 when Mermaid diagram {@code click} targets began feeding the reference graph. Both
+     * {@code unserializeFromDisk} and the attribute reader compare the stored version to this constant and throw
+     * {@link java.io.IOException} on a mismatch, which makes {@code initialize} discard {@code refmgr.ser} and
+     * rescan every page once at the first startup after deploy; that is how existing pages pick up their diagram
+     * links.
+     */
+    private static final long serialVersionUID = 5L;
 
     /**
      * Set of classes that are safe to deserialize from the reference manager cache.
@@ -662,6 +672,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         // Extract explicit Markdown links from body via regex (microseconds, not milliseconds)
         final Set< String > links = new LinkedHashSet<>( MarkdownLinkScanner.findMarkdownLinks( parsed.body() ) );
         addNativeWikiLinks( links, page, parsed.body() );
+        // Click targets of rendered fences (Mermaid diagrams); the scanner returns at once when no fence marker exists
+        links.addAll( RenderedFenceScanner.pageLinks( parsed.body(), RenderedFenceRegistry.defaults() ) );
 
         // Also extract "related" links from frontmatter metadata
         final Object related = parsed.metadata().get( "related" );

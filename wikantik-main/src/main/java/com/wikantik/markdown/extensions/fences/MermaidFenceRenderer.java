@@ -42,24 +42,15 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
 
     private static final Logger LOG = LogManager.getLogger( MermaidFenceRenderer.class );
 
-    /** Mermaid's default {@code secure} keys plus the settings that would loosen the sandbox. */
-    private static final List< String > UNSAFE_KEYS = List.of( "secure", "securityLevel", "startOnLoad",
-            "maxTextSize", "maxEdges", "suppressErrorRendering", "dompurifyConfig", "htmlLabels" );
-    /** Lower-cased: keys are matched as bare case-insensitive substrings (fail closed; over-refusal is acceptable). */
-    private static final List< String > UNSAFE_KEYS_LC = UNSAFE_KEYS.stream().map( k -> k.toLowerCase( Locale.ROOT ) ).toList();
-
     private static final int FLAGS = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
-    private static final Pattern DIRECTIVE_START = Pattern.compile( "%%\\{\\s*(?:init|initialize)\\b", FLAGS );
-    private static final String DIRECTIVE_END = "}%%";
-    private static final Pattern CLICK_LINE = Pattern.compile( "^click(?:\\s.*)?$", FLAGS );
+    /** All quantifiers are possessive so no statement rule can backtrack quadratically. */
     private static final Pattern CLICK_OK = Pattern.compile(
-            "^(?:click|link)\\s+\\S+\\s+(?:href\\s+)?\"([^\"]*)\"(?:\\s+\"[^\"]*\")?(?:\\s+(?:_self|_blank|_parent|_top))?$", FLAGS );
-    private static final Pattern CLASS_LINK = Pattern.compile( "^link\\s+\\S+\\s+(?:href\\s+)?\".*$", FLAGS );
-    private static final Pattern CALLBACK_LINE = Pattern.compile( "^callback\\s+[^\\s\\-=.<>~].*$", FLAGS );
-    private static final Pattern LINK_LINE = Pattern.compile( "^link\\s+[^:@]+:[^@]*@\\s*(\\S.*)$", FLAGS );
-    private static final Pattern LINKS_LINE = Pattern.compile( "^links\\s+[^:]+:\\s*(\\{.*)$", FLAGS );
-    private static final Pattern JSON_VALUE = Pattern.compile( "\"[^\"]*\"\\s*:\\s*\"([^\"]*)\"" );
-    private static final Pattern ENTITY = Pattern.compile( "&#[xX]([0-9a-fA-F]+);?|&#([0-9]+);?|&(colon|Tab|NewLine|sol);|#([0-9]+);" );
+            "^(?:click|link)\\s++\\S++\\s++(?:href\\s++)?\"([^\"]*+)\"(?:\\s++\"[^\"]*+\")?(?:\\s++(?:_self|_blank|_parent|_top))?+$", FLAGS );
+    private static final Pattern CLASS_LINK = Pattern.compile( "^link\\s++\\S++\\s++(?:href\\s++)?\".*+$", FLAGS );
+    private static final Pattern CALLBACK_LINE = Pattern.compile( "^callback\\s++[^\\s\\-=.<>~].*+$", FLAGS );
+    private static final Pattern JSON_VALUE = Pattern.compile( "\"[^\"]*+\"\\s*+:\\s*+\"([^\"]*+)\"" );
+    private static final Pattern FM_KEY = Pattern.compile( "^(?:title|displayMode):(.*+)$" );
+    private static final Pattern ENTITY = Pattern.compile( "&#[xX]([0-9a-fA-F]++);?+|&#([0-9]++);?+|&(colon|Tab|NewLine|sol);|#([0-9]++);" );
     private static final Map< String, String > NAMED_ENTITIES = Map.of( "colon", ":", "Tab", "\t", "NewLine", "\n", "sol", "/" );
 
     @Override
@@ -95,42 +86,50 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
 
     private record Analysis( FenceVerdict verdict, Set< String > pageLinks ) { }
 
-    private static Analysis analyse( final String source ) {
+    private static Analysis analyse( final String rawSource ) {
         final Set< String > links = new LinkedHashSet<>();
-        if ( source == null || source.isEmpty() ) {
+        if ( rawSource == null || rawSource.isEmpty() ) {
             return new Analysis( FenceVerdict.ALLOWED, links );
         }
-        if ( touchesSecurityConfig( source ) ) {
+        final String source = normalise( rawSource );
+        if ( source.contains( "%%{" ) || !frontMatterAcceptable( source ) ) {
             return new Analysis( FenceVerdict.refused( "unsafe-config" ), links );
         }
-        for ( final String line : source.split( "\\R" ) ) {
+        if ( hasScriptScheme( source ) ) {
+            return new Analysis( FenceVerdict.refused( "unsafe-link" ), links );
+        }
+        for ( final String line : source.split( "\\n" ) ) {
             for ( final String statement : splitStatements( line ) ) {
-                final String s = normaliseWhitespace( statement ).strip();
+                final String s = statement.strip();
                 final List< String > urls = new ArrayList<>();
-                if ( CLICK_LINE.matcher( s ).matches() ) {
+                final String first = firstWord( s );
+                if ( first.equals( "click" ) ) {
                     final Matcher m = CLICK_OK.matcher( s );
                     if ( !m.matches() ) {
                         return new Analysis( FenceVerdict.refused( "callback" ), Set.of() );
                     }
                     urls.add( m.group( 1 ) );
-                } else if ( CALLBACK_LINE.matcher( s ).matches() ) {
+                } else if ( first.equals( "callback" ) && CALLBACK_LINE.matcher( s ).matches() ) {
                     return new Analysis( FenceVerdict.refused( "callback" ), Set.of() );
-                } else if ( CLASS_LINK.matcher( s ).matches() ) {
-                    final Matcher m = CLICK_OK.matcher( s );
-                    if ( !m.matches() ) {
-                        return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
-                    }
-                    urls.add( m.group( 1 ) );
-                } else {
-                    final Matcher link = LINK_LINE.matcher( s );
-                    final Matcher links2 = LINKS_LINE.matcher( s );
-                    if ( link.matches() ) {
-                        urls.add( link.group( 1 ) );
-                    } else if ( links2.matches() ) {
-                        if ( links2.group( 1 ).indexOf( '\\' ) >= 0 ) {
+                } else if ( first.equals( "link" ) || first.equals( "links" ) ) {
+                    final String rest = s.substring( first.length() );
+                    final int colon = rest.indexOf( ':' );
+                    final int at = colon < 0 ? -1 : rest.indexOf( '@', colon + 1 );
+                    if ( first.equals( "link" ) && at >= 0 ) {
+                        // sequence link: the URL follows the FIRST '@' after the actor's ':'
+                        urls.add( rest.substring( at + 1 ).strip() );
+                    } else if ( first.equals( "link" ) && CLASS_LINK.matcher( s ).matches() ) {
+                        final Matcher m = CLICK_OK.matcher( s );
+                        if ( !m.matches() ) {
                             return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
                         }
-                        final Matcher v = JSON_VALUE.matcher( links2.group( 1 ) );
+                        urls.add( m.group( 1 ) );
+                    } else if ( first.equals( "links" ) && colon >= 0 && rest.substring( colon + 1 ).strip().startsWith( "{" ) ) {
+                        final String json = rest.substring( colon + 1 );
+                        if ( json.indexOf( '\\' ) >= 0 ) {
+                            return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
+                        }
+                        final Matcher v = JSON_VALUE.matcher( json );
                         while ( v.find() ) {
                             urls.add( v.group( 1 ) );
                         }
@@ -148,59 +147,100 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
         return new Analysis( FenceVerdict.ALLOWED, links );
     }
 
-    private static boolean touchesSecurityConfig( final String source ) {
-        final Matcher d = DIRECTIVE_START.matcher( source );
-        int pos = 0;
-        while ( pos <= source.length() && d.find( pos ) ) {
-            final int end = source.indexOf( DIRECTIVE_END, d.start() );
-            final int bodyEnd = end < 0 ? source.length() : end;   // unterminated: scan to the end
-            if ( suspicious( source.substring( d.start(), bodyEnd ) ) ) {
-                return true;
-            }
-            if ( end < 0 ) {
-                break;
-            }
-            pos = bodyEnd;
+    /** Leading ASCII letters of the statement, lower-cased, when followed by a space or the end; else "". */
+    private static String firstWord( final String s ) {
+        int i = 0;
+        while ( i < s.length() && ( s.charAt( i ) | 0x20 ) >= 'a' && ( s.charAt( i ) | 0x20 ) <= 'z' ) {
+            i++;
         }
-        final String[] lines = source.split( "\\R", -1 );
+        return i == 0 || ( i < s.length() && s.charAt( i ) != ' ' ) ? "" : s.substring( 0, i ).toLowerCase( Locale.ROOT );
+    }
+
+    /**
+     * Normalises before any analysis: CRLF/CR and Unicode line separators become LF; every other
+     * whitespace, space-separator or format character (NBSP, U+2000-U+200B, U+3000, BOM, ...) becomes a space.
+     */
+    private static String normalise( final String s ) {
+        final StringBuilder sb = new StringBuilder( s.length() );
+        for ( int i = 0; i < s.length(); i++ ) {
+            final char c = s.charAt( i );
+            if ( c == '\r' ) {
+                sb.append( '\n' );
+                if ( i + 1 < s.length() && s.charAt( i + 1 ) == '\n' ) {
+                    i++;
+                }
+            } else if ( c == '\n' || c == '\u2028' || c == '\u2029' || c == '\u0085' || c == '\u000B' || c == '\f' ) {
+                sb.append( '\n' );
+            } else if ( Character.isWhitespace( c ) || Character.isSpaceChar( c ) || Character.getType( c ) == Character.FORMAT ) {
+                sb.append( ' ' );
+            } else {
+                sb.append( c );
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Front matter is allowed only as {@code ---}, single-line {@code title:}/{@code displayMode:}
+     * entries, then a closing {@code ---} at the same indent. Anything else is refused.
+     */
+    private static boolean frontMatterAcceptable( final String source ) {
+        final String[] lines = source.split( "\n", -1 );
         int i = 0;
         while ( i < lines.length && lines[ i ].isBlank() ) {
             i++;
         }
-        if ( i < lines.length && lines[ i ].strip().equals( "---" ) ) {
-            final String l0 = lines[ i ];
-            final String closer = l0.substring( 0, l0.length() - l0.stripLeading().length() ) + "---";
-            final StringBuilder fm = new StringBuilder();
-            for ( int j = i + 1; j < lines.length && !lines[ j ].startsWith( closer ); j++ ) {
-                fm.append( lines[ j ] ).append( '\n' );
-            }
-            return suspicious( fm.toString() );
-        }
-        return false;
-    }
-
-    /** Fail closed: any backslash (JSON/YAML escapes can spell a key) or any unsafe key name as a bare word. */
-    private static boolean suspicious( final String config ) {
-        if ( config.indexOf( '\\' ) >= 0 ) {
+        if ( i >= lines.length || !lines[ i ].strip().startsWith( "---" ) ) {
             return true;
         }
-        final String lc = config.toLowerCase( Locale.ROOT );
-        for ( final String k : UNSAFE_KEYS_LC ) {
-            if ( lc.contains( k ) ) {
-                return true;
+        final String indent = lines[ i ].substring( 0, lines[ i ].length() - lines[ i ].stripLeading().length() );
+        if ( !lines[ i ].strip().equals( "---" ) ) {
+            return false;
+        }
+        for ( int j = i + 1; j < lines.length; j++ ) {
+            final String line = lines[ j ];
+            final String t = line.strip();
+            if ( t.equals( "---" ) ) {
+                return line.stripTrailing().equals( indent + "---" );
+            }
+            if ( t.isEmpty() ) {
+                continue;
+            }
+            if ( !line.startsWith( indent ) || line.length() > indent.length() && Character.isWhitespace( line.charAt( indent.length() ) ) ) {
+                return false;
+            }
+            final Matcher m = FM_KEY.matcher( t );
+            if ( !m.matches() || !plainValue( m.group( 1 ).strip() ) ) {
+                return false;
             }
         }
-        return false;
+        return false; // no closer
     }
 
-    /** Maps Unicode whitespace (including NBSP and BOM, which JS {@code \s} matches) to a plain space. */
-    private static String normaliseWhitespace( final String s ) {
-        final StringBuilder sb = new StringBuilder( s.length() );
-        for ( int i = 0; i < s.length(); i++ ) {
-            final char c = s.charAt( i );
-            sb.append( Character.isWhitespace( c ) || Character.isSpaceChar( c ) || c == '\uFEFF' ? ' ' : c );
+    /** A single-line scalar: no block scalar, anchor, alias, tag or flow collection; quotes must balance. */
+    private static boolean plainValue( final String v ) {
+        if ( v.isEmpty() ) {
+            return true;
         }
-        return sb.toString();
+        final char c = v.charAt( 0 );
+        if ( "|>&*!{[%@`".indexOf( c ) >= 0 ) {
+            return false;
+        }
+        return ( c != '"' && c != '\'' ) || ( v.length() >= 2 && v.charAt( v.length() - 1 ) == c );
+    }
+
+    /** Backstop: after entity decoding and dropping whitespace/control chars, a script scheme anywhere refuses. */
+    private static boolean hasScriptScheme( final String source ) {
+        final String decoded = decodeEntities( source );
+        final StringBuilder sb = new StringBuilder( decoded.length() );
+        for ( int i = 0; i < decoded.length(); i++ ) {
+            final char c = decoded.charAt( i );
+            if ( c > 0x20 && !( c >= 0x7f && c <= 0x9f ) ) {
+                sb.append( c );
+            }
+        }
+        final String u = sb.toString().toLowerCase( Locale.ROOT );
+        return u.contains( "javascript:" ) || u.contains( "vbscript:" );
     }
 
     /** Splits a line on {@code ;} outside double quotes (Mermaid allows several statements per line). */

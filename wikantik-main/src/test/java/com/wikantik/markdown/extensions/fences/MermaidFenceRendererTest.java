@@ -79,4 +79,16 @@ class MermaidFenceRendererTest {
         renderer.pageLinks( src );
         assertTrue( ( System.nanoTime() - t0 ) / 1_000_000 < 1000, "took too long" );
     }
+
+    @Test
+    void statementRulesAreLinearOnWhitespaceFloods() {
+        final String sp = " ".repeat( 65536 );
+        for ( final String src : new String[] { "link" + sp + "x", "links" + sp, "click" + sp, "callback" + sp + "x",
+                "sequenceDiagram\nlink" + sp + ":" + sp + "@" + sp } ) {
+            final long t0 = System.nanoTime();
+            renderer.check( src );
+            renderer.pageLinks( src );
+            assertTrue( ( System.nanoTime() - t0 ) / 1_000_000 < 100, "slow on: " + src.substring( 0, 12 ) );
+        }
+    }
 }

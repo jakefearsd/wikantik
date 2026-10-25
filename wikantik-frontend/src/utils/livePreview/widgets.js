@@ -253,10 +253,10 @@ export class FenceWidget extends WidgetType {
   get estimatedHeight() { return 200; }
   toDOM(view) {
     const figure = fillFenceEnvelope(document.createElement('figure'), this.language, this.source);
-    const wrap = el('div', 'cm-lp-fence');
+    const wrap = el('div', 'cm-lp-fence-block');
     wrap.append(figure);
     // drawFence (policy, registry, toolbar) is loaded on first use so a page without diagrams never fetches it.
-    import('../fences/drawFence').then(({ drawFence }) => drawFence(figure)).then(() => view?.requestMeasure?.())
+    import('../fences/drawFence').then(({ drawFence }) => drawFence(figure, () => !figure.isConnected)).then(() => view?.requestMeasure?.())
       .catch((err) => console.warn('[live-preview] fence draw failed', this.language, err?.message || err));
     if (view) revealOnMouseDown(view, wrap);
     return wrap;

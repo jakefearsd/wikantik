@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState, EditorSelection } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
+import fixture from '../__fixtures__/renderedFences.json';
 import { fullyParsed } from '../../test/fullParse';
 import { editorMarkdownConfig } from '../editorMarkdown';
-import { activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
+import { blockCandidates, activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
 function stateOf(doc, selection) {
   const state = EditorState.create({
     doc, selection,
@@ -278,5 +279,24 @@ describe('fence block widgets', () => {
   });
   it('activeLineShowsSource', () => {
     expect(block('```mermaid\nflowchart TD\n```\n\nend', [2]).specs).toEqual([]);
+  });
+});
+describe('live-preview parity with the shared rendered-fence fixture', () => {
+  // Documented live-preview deviations from the server: only TOP-LEVEL, CLOSED fences become widgets.
+  const EXPECTED_TO_DIFFER = {
+    'inside a list item': [],
+    'inside a blockquote': [],
+    'unclosed fence at end of file': [],
+  };
+  it.each(fixture.documents.map((d) => [d.name, d]))('%s', (name, doc) => {
+    const got = blockCandidates(stateOf(doc.markdown))
+      .filter((c) => c.widget.type === 'fence')
+      .map((c) => ({ language: c.widget.language, source: c.widget.source }));
+    expect(got).toEqual(name in EXPECTED_TO_DIFFER ? EXPECTED_TO_DIFFER[name] : doc.fences);
+  });
+  it('the deviations are real: the server renders those fences', () => {
+    for (const name of Object.keys(EXPECTED_TO_DIFFER)) {
+      expect(fixture.documents.find((d) => d.name === name).fences).toHaveLength(1);
+    }
   });
 });

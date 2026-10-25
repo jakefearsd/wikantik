@@ -211,6 +211,7 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-math-block`]: { display: 'block', textAlign: 'center', padding: '0.4em 0' },
   [`${ROOT} .cm-lp-math-error`]: { color: 'var(--callout-danger)', fontFamily: 'var(--font-mono)' },
   [`${ROOT} .cm-lp-fence`]: { color: 'var(--text-secondary)', backgroundColor: 'var(--code-bg)' },
+  [`${ROOT} .cm-lp-fence-block`]: { display: 'block', margin: '0.4em 0', overflow: 'auto', cursor: 'text' },
   [`${ROOT} .cm-lp-codeblock`]: { backgroundColor: 'var(--code-bg)' },
   [`${ROOT} .cm-lp-plugin`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em' },
   [`${ROOT} .cm-lp-embed`]: { margin: '0.4em 0', padding: '0.5em 0.75em', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-elevated)', cursor: 'text' },

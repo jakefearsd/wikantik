@@ -7,6 +7,11 @@
  * text, never markup.
  */
 export function fillFenceEnvelope(figure, language, source) {
+  // A re-used figure (the editor preview re-fills the same element when the source changes) must look fresh to
+  // drawFence: it records its outcome in data-fence-state (and reads data-fence-error), and replaceChildren below
+  // drops everything else it adds (toolbar, drawing host, error box, dialog).
+  delete figure.dataset.fenceState;
+  figure.removeAttribute('data-fence-error');
   figure.className = 'wk-fence';
   figure.dataset.fence = language;
   figure.dataset.fenceKind = 'browser';

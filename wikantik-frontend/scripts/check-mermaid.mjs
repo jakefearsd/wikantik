@@ -56,42 +56,61 @@ function mermaidFences(text) {
   return out;
 }
 
-const inputs = [];
-for (const t of targets) {
-  if (t === '-') inputs.push({ file: '-', text: readFileSync(0, 'utf8') });
-  else for (const f of markdownFiles(t)) inputs.push({ file: f, text: readFileSync(f, 'utf8') });
-}
+class CheckerError extends Error {}
 
-let mermaid = null;
-async function loadMermaid() {
-  // Mermaid touches the DOM at import time, so the shim must exist first.
-  const w = new Window();
-  globalThis.window = w;
-  globalThis.document = w.document;
-  for (const k of ['DOMParser', 'Element', 'HTMLElement', 'Node', 'DocumentFragment', 'getComputedStyle']) {
-    if (!(k in globalThis)) globalThis[k] = w[k];
+/** Reads every input and checks every diagram; throws CheckerError/other on a checker (not diagram) fault. */
+async function main() {
+  const inputs = [];
+  for (const t of targets) {
+    if (t === '-') inputs.push({ file: '-', text: readFileSync(0, 'utf8') });
+    else for (const f of markdownFiles(t)) inputs.push({ file: f, text: readFileSync(f, 'utf8') });
   }
-  mermaid = (await import('mermaid')).default;
-  mermaid.initialize({ startOnLoad: false, securityLevel: 'antiscript' });
-}
 
-const results = [];
-for (const { file, text } of inputs) {
-  for (const { line, source } of mermaidFences(text)) {
-    const policy = checkMermaid(source);
-    let error = null;
-    if (!policy.allowed) {
-      error = policy.reason;
-    } else {
-      try {
-        if (!mermaid) await loadMermaid();
-        await mermaid.parse(source);
-      } catch (e) {
-        error = String(e?.message ?? e).split('\n').find((l) => l.trim()) ?? 'parse failed';
-      }
+  let mermaid = null;
+  async function loadMermaid() {
+    // Mermaid touches the DOM at import time, so the shim must exist first.
+    const w = new Window();
+    globalThis.window = w;
+    globalThis.document = w.document;
+    for (const k of ['DOMParser', 'Element', 'HTMLElement', 'Node', 'DocumentFragment', 'getComputedStyle']) {
+      if (!(k in globalThis)) globalThis[k] = w[k];
     }
-    results.push({ file, line, ok: error === null, error });
+    try {
+      mermaid = (await import('mermaid')).default;
+    } catch (e) {
+      throw new CheckerError(`cannot load mermaid: ${e?.message ?? e}`);
+    }
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'antiscript' });
   }
+
+  const results = [];
+  for (const { file, text } of inputs) {
+    for (const { line, source } of mermaidFences(text)) {
+      const policy = checkMermaid(source);
+      let error = null;
+      if (!policy.allowed) {
+        error = policy.reason;
+      } else {
+        try {
+          if (!mermaid) await loadMermaid();
+          await mermaid.parse(source);
+        } catch (e) {
+          error = String(e?.message ?? e).split('\n').find((l) => l.trim()) ?? 'parse failed';
+        }
+      }
+      results.push({ file, line, ok: error === null, error });
+    }
+  }
+
+  return results;
+}
+
+let results;
+try {
+  results = await main();
+} catch (e) {
+  process.stderr.write(`check-mermaid: ${e?.message ?? e}\n`);
+  process.exit(2);
 }
 
 if (json) {

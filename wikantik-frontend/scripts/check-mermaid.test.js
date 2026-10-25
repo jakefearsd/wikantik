@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { FENCE_RENDERERS } from '../src/utils/fences/registry.js';
 import { resolve } from 'node:path';
 
 const SCRIPT = resolve(process.cwd(), 'scripts/check-mermaid.mjs');
@@ -58,5 +59,30 @@ describe('check-mermaid', () => {
   it('usageErrorExitsTwo', () => {
     expect(run([]).status).toBe(2);
     expect(run(['/no/such/path-xyz']).status).toBe(2);
+  });
+});
+
+describe('check-mermaid contract', () => {
+  it('exitsTwoWhenCheckerBreaks', () => {
+    // A dangling symlink named *.md: listed as a file, but readFileSync throws ENOENT.
+    symlinkSync(join(dir, 'missing-target'), join(dir, 'broken.md'));
+    const r = run(['--json', dir]);
+    expect(r.status).toBe(2);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toMatch(/check-mermaid:/);
+  });
+
+  it('knowsEveryRegisteredFenceLanguage', () => {
+    expect(Object.keys(FENCE_RENDERERS),
+      'a fence language was added to registry.js: teach scripts/check-mermaid.mjs to check it (it hardcodes mermaid)')
+      .toEqual(['mermaid']);
+  });
+
+  it('stdoutStaysPureJsonWhenLibrariesLog', () => {
+    const preload = join(dir, 'noisy.mjs');
+    writeFileSync(preload, "setTimeout(() => { console.log('noise'); console.info('noise'); console.debug('noise'); }, 0);\n");
+    const r = spawnSync('node', ['--import', preload, SCRIPT, '--json', '-'], { encoding: 'utf8', input: GOOD, timeout: 60000 });
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout)).toHaveLength(1);
   });
 });

@@ -18,9 +18,12 @@
  */
 package com.wikantik.its;
 
+import com.codeborne.selenide.CollectionCondition;
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
+import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
+import com.wikantik.pages.spa.EditWikiPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import com.wikantik.its.environment.Env;
 import org.junit.jupiter.api.AfterAll;
@@ -35,8 +38,10 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$$;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Browser coverage for rendered fences: a Mermaid diagram is drawn as SVG in the real SPA, an {@code example}
@@ -53,6 +58,9 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
     private static final String HANDLER = "FenceHandler" + TS;
     private static final String JSLINK = "FenceJsLink" + TS;
     private static final String FORM = "FenceForm" + TS;
+    private static final String PUML = "FencePuml" + TS;
+    private static final String PUML_BAD = "FencePumlBad" + TS;
+    private static final String WIDE = "FenceWide" + TS;
 
     @BeforeAll
     static void seed() throws Exception {
@@ -70,11 +78,21 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
             + " --> B[\"<span style='position:fixed;inset:0;z-index:99999'>Overlay</span>\"]\n```\n" );
         RestSeedHelper.writePage( JSLINK, "# " + JSLINK + "\n\n"
             + "```mermaid\nflowchart LR\n  A[\"<a href='javascript:alert(1)'>x</a>\"] --> B[End]\n```\n" );
+        RestSeedHelper.writePage( PUML, "# " + PUML + "\n\n"
+            + "```plantuml\n@startuml\nclass Order {\n  +id: int\n}\nclass Customer\nCustomer --> Order\n@enduml\n```\n\n"
+            + "```plantuml\n@startuml\nstart\nfork\n  :a;\nfork again\n  :b;\nend fork\nstop\n@enduml\n```\n" );
+        RestSeedHelper.writePage( PUML_BAD, "# " + PUML_BAD + "\n\n"
+            + "```plantuml\n@startuml\n!include x\nA -> B\n@enduml\n```\n" );
+        final StringBuilder wide = new StringBuilder( "flowchart LR\n  N0[Node number zero]" );
+        for ( int i = 1; i < 14; i++ ) {
+            wide.append( " --> N" ).append( i ).append( "[Node number " ).append( i ).append( ']' );
+        }
+        RestSeedHelper.writePage( WIDE, "# " + WIDE + "\n\n```mermaid\n" + wide + "\n```\n" );
     }
 
     @AfterAll
     static void cleanUp() {
-        for ( final String n : new String[] { SOURCE, HANDLER, JSLINK, FORM, TARGET } ) {
+        for ( final String n : new String[] { PUML, PUML_BAD, WIDE, SOURCE, HANDLER, JSLINK, FORM, TARGET } ) {
             RestSeedHelper.deletePageQuietly( n );
         }
     }
@@ -178,5 +196,65 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
         ViewWikiPage.open( JSLINK );
         $( "figure.wk-fence[data-fence-state=refused]" ).shouldBe( Condition.exist, WAIT );
         $( "figure.wk-fence[data-fence-state=refused] svg" ).shouldNot( Condition.exist );
+    }
+
+    private static final String PUML_FIGURE = "figure.wk-fence[data-fence=plantuml][data-fence-state=drawn]";
+
+    @Test
+    void plantumlClassAndActivityDrawInReader() {
+        ViewWikiPage.open( PUML );
+        $$( PUML_FIGURE + " .wk-fence-variant[data-variant=light] svg" ).shouldHave( CollectionCondition.size( 2 ), WAIT );
+        $( PUML_FIGURE + " .wk-fence-toolbar [data-action=source]" ).shouldBe( Condition.visible, WAIT )
+            .shouldHave( Condition.text( "Show source" ) );
+    }
+
+    @Test
+    void plantumlDarkVariantShownInDarkTheme() {
+        ViewWikiPage.open( PUML );
+        final SelenideElement light = $( PUML_FIGURE + " .wk-fence-variant[data-variant=light]" );
+        final SelenideElement dark = $( PUML_FIGURE + " .wk-fence-variant[data-variant=dark]" );
+        light.shouldBe( Condition.visible, WAIT );
+        dark.shouldNotBe( Condition.visible );
+        Selenide.executeJavaScript( "document.documentElement.setAttribute('data-theme','dark')" );
+        dark.shouldBe( Condition.visible, WAIT );
+        light.shouldNotBe( Condition.visible, WAIT );
+    }
+
+    @Test
+    void plantumlPreviewDrawsInEditor() {
+        Selenide.closeWebDriver();
+        ViewWikiPage.open( "Main" )
+            .clickOnLogin()
+            .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
+        EditWikiPage.open( PUML );
+        $( ".editor-preview figure.wk-fence[data-fence=plantuml][data-fence-state=drawn] svg" )
+            .shouldBe( Condition.exist, Duration.ofSeconds( 60 ) );
+    }
+
+    @Test
+    void plantumlRefusalShowsReason() {
+        ViewWikiPage.open( PUML_BAD );
+        final SelenideElement fig = $( "figure.wk-fence[data-fence-error=include]" );
+        fig.shouldBe( Condition.exist, WAIT );
+        fig.$( ".wk-fence-error" ).shouldBe( Condition.visible, WAIT );
+        fig.$( ".wk-fence-source" ).shouldBe( Condition.visible, WAIT );
+    }
+
+    @Test
+    void mermaidExpandDialogKeepsStyles() {
+        ViewWikiPage.open( WIDE );
+        $( "figure.wk-fence[data-fence-state=drawn] svg" ).shouldBe( Condition.exist, WAIT );
+        final SelenideElement expand = $( "figure.wk-fence[data-fence-state=drawn] .wk-fence-toolbar [data-action=expand]" );
+        assumeTrue( expand.exists() && expand.isDisplayed(), "diagram not scaled down; Expand not shown" );
+        expand.click();
+        $( "dialog.wk-fence-dialog" ).shouldBe( Condition.visible, WAIT );
+        final Object ok = Selenide.executeJavaScript(
+            "const svg = document.querySelector('dialog.wk-fence-dialog svg');"
+            + "const css = [...svg.querySelectorAll('style')].map(s => s.textContent).join('\\n');"
+            + "const refs = [...css.matchAll(/#([A-Za-z_][\\w-]*)/g)].map(m => m[1])"
+            + ".filter(id => !/^[0-9a-f]{3,8}$/i.test(id));"
+            + "if (refs.length === 0) return false;"
+            + "return refs.every(id => svg.id === id || svg.querySelector('[id=\"' + id + '\"]'));" );
+        assertEquals( Boolean.TRUE, ok, "every #id in the clone's <style> must exist in the clone" );
     }
 }

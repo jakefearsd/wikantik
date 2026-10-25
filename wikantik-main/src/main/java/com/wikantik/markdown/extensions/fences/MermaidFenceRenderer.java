@@ -49,7 +49,7 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
     private static final Pattern CLASS_LINK = Pattern.compile( "^link\\s++\\S++\\s++(?:href\\s++)?\".*+$", FLAGS );
     private static final Pattern CALLBACK_LINE = Pattern.compile( "^callback\\s++[^\\s\\-=.<>~].*+$", FLAGS );
     private static final Pattern JSON_VALUE = Pattern.compile( "\"[^\"]*+\"\\s*+:\\s*+\"([^\"]*+)\"" );
-    private static final Pattern FM_KEY = Pattern.compile( "^(?:title|displayMode):(.*+)$" );
+    private static final Pattern QUOTED = Pattern.compile( "\"([^\"]*+)\"" );
     private static final Pattern ENTITY = Pattern.compile( "&#[xX]([0-9a-fA-F]++);?+|&#([0-9]++);?+|&(colon|Tab|NewLine|sol);|#([0-9]++);" );
     private static final Map< String, String > NAMED_ENTITIES = Map.of( "colon", ":", "Tab", "\t", "NewLine", "\n", "sol", "/" );
 
@@ -92,14 +92,19 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
             return new Analysis( FenceVerdict.ALLOWED, links );
         }
         final String source = normalise( rawSource );
-        if ( source.contains( "%%{" ) || !frontMatterAcceptable( source ) ) {
+        if ( source.contains( "%%{" ) || startsFrontMatter( rawSource ) || startsFrontMatter( source ) ) {
             return new Analysis( FenceVerdict.refused( "unsafe-config" ), links );
         }
         if ( hasScriptScheme( source ) ) {
             return new Analysis( FenceVerdict.refused( "unsafe-link" ), links );
         }
         for ( final String line : source.split( "\\n" ) ) {
-            for ( final String statement : splitStatements( line ) ) {
+            final List< String > statements = splitStatements( line );
+            if ( line.chars().filter( ch -> ch == '"' ).count() % 2 != 0 ) {
+                // an unbalanced quote can hide a following statement from the quote-aware split
+                statements.addAll( List.of( line.split( ";", -1 ) ) );
+            }
+            for ( final String statement : statements ) {
                 final String s = statement.strip();
                 final List< String > urls = new ArrayList<>();
                 final String first = firstWord( s );
@@ -135,6 +140,10 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
                         }
                     }
                 }
+                if ( ( first.equals( "click" ) || first.equals( "link" ) || first.equals( "links" ) )
+                        && !quotedStringsSafe( s ) ) {
+                    return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
+                }
                 for ( final String url : urls ) {
                     final String decoded = decodeEntities( url ).strip();
                     if ( !safeUrl( decoded ) ) {
@@ -157,7 +166,7 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
     }
 
     /**
-     * Normalises before any analysis: CRLF/CR and Unicode line separators become LF; every other
+     * Normalises before any analysis: only CRLF/CR become LF; every other (including U+2028, U+2029, U+0085, VT, FF)
      * whitespace, space-separator or format character (NBSP, U+2000-U+200B, U+3000, BOM, ...) becomes a space.
      */
     private static String normalise( final String s ) {
@@ -169,9 +178,9 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
                 if ( i + 1 < s.length() && s.charAt( i + 1 ) == '\n' ) {
                     i++;
                 }
-            } else if ( c == '\n' || c == '\u2028' || c == '\u2029' || c == '\u0085' || c == '\u000B' || c == '\f' ) {
+            } else if ( c == '\n' ) {
                 sb.append( '\n' );
-            } else if ( Character.isWhitespace( c ) || Character.isSpaceChar( c ) || Character.getType( c ) == Character.FORMAT ) {
+            } else if ( Character.isWhitespace( c ) || Character.isSpaceChar( c ) || c == '\u0085' || Character.getType( c ) == Character.FORMAT ) {
                 sb.append( ' ' );
             } else {
                 sb.append( c );
@@ -181,52 +190,33 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
     }
 
     /**
-     * Front matter is allowed only as {@code ---}, single-line {@code title:}/{@code displayMode:}
-     * entries, then a closing {@code ---} at the same indent. Anything else is refused.
+     * Front matter is refused outright (no YAML interpretation): true when, after skipping leading
+     * whitespace, control and format characters (Java or JS definitions), the text begins with {@code ---}.
      */
-    private static boolean frontMatterAcceptable( final String source ) {
-        final String[] lines = source.split( "\n", -1 );
+    private static boolean startsFrontMatter( final String text ) {
         int i = 0;
-        while ( i < lines.length && lines[ i ].isBlank() ) {
-            i++;
-        }
-        if ( i >= lines.length || !lines[ i ].strip().startsWith( "---" ) ) {
-            return true;
-        }
-        final String indent = lines[ i ].substring( 0, lines[ i ].length() - lines[ i ].stripLeading().length() );
-        if ( !lines[ i ].strip().equals( "---" ) ) {
-            return false;
-        }
-        for ( int j = i + 1; j < lines.length; j++ ) {
-            final String line = lines[ j ];
-            final String t = line.strip();
-            if ( t.equals( "---" ) ) {
-                return line.stripTrailing().equals( indent + "---" );
-            }
-            if ( t.isEmpty() ) {
-                continue;
-            }
-            if ( !line.startsWith( indent ) || line.length() > indent.length() && Character.isWhitespace( line.charAt( indent.length() ) ) ) {
-                return false;
-            }
-            final Matcher m = FM_KEY.matcher( t );
-            if ( !m.matches() || !plainValue( m.group( 1 ).strip() ) ) {
-                return false;
+        while ( i < text.length() ) {
+            final char c = text.charAt( i );
+            if ( Character.isWhitespace( c ) || Character.isSpaceChar( c ) || Character.isISOControl( c )
+                    || Character.getType( c ) == Character.FORMAT || c == '\uFEFF' ) {
+                i++;
+            } else {
+                break;
             }
         }
-        return false; // no closer
+        return text.startsWith( "---", i );
     }
 
-    /** A single-line scalar: no block scalar, anchor, alias, tag or flow collection; quotes must balance. */
-    private static boolean plainValue( final String v ) {
-        if ( v.isEmpty() ) {
-            return true;
+    /** Every double-quoted string in a click/link/links statement must be a safe URL or contain no ':'. */
+    private static boolean quotedStringsSafe( final String statement ) {
+        final Matcher m = QUOTED.matcher( statement );
+        while ( m.find() ) {
+            final String decoded = decodeEntities( m.group( 1 ) ).strip();
+            if ( decoded.indexOf( ':' ) >= 0 && !safeUrl( decoded ) ) {
+                return false;
+            }
         }
-        final char c = v.charAt( 0 );
-        if ( "|>&*!{[%@`".indexOf( c ) >= 0 ) {
-            return false;
-        }
-        return ( c != '"' && c != '\'' ) || ( v.length() >= 2 && v.charAt( v.length() - 1 ) == c );
+        return true;
     }
 
     /** Backstop: after entity decoding and dropping whitespace/control chars, a script scheme anywhere refuses. */

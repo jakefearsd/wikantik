@@ -41,7 +41,6 @@ import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.$$;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Browser coverage for rendered fences: a Mermaid diagram is drawn as SVG in the real SPA, an {@code example}
@@ -84,7 +83,7 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
         RestSeedHelper.writePage( PUML_BAD, "# " + PUML_BAD + "\n\n"
             + "```plantuml\n@startuml\n!include x\nA -> B\n@enduml\n```\n" );
         final StringBuilder wide = new StringBuilder( "flowchart LR\n  N0[Node number zero]" );
-        for ( int i = 1; i < 14; i++ ) {
+        for ( int i = 1; i < 24; i++ ) {
             wide.append( " --> N" ).append( i ).append( "[Node number " ).append( i ).append( ']' );
         }
         RestSeedHelper.writePage( WIDE, "# " + WIDE + "\n\n```mermaid\n" + wide + "\n```\n" );
@@ -227,8 +226,9 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
             .clickOnLogin()
             .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
         EditWikiPage.open( PUML );
-        $( ".editor-preview figure.wk-fence[data-fence=plantuml][data-fence-state=drawn] svg" )
-            .shouldBe( Condition.exist, Duration.ofSeconds( 60 ) );
+        $( ".editor-preview figure.wk-fence[data-fence=plantuml][data-fence-state=drawn]"
+            + " .wk-fence-variant[data-variant=light] svg" )
+            .shouldBe( Condition.visible, Duration.ofSeconds( 60 ) );
     }
 
     @Test
@@ -236,16 +236,28 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
         ViewWikiPage.open( PUML_BAD );
         final SelenideElement fig = $( "figure.wk-fence[data-fence-error=include]" );
         fig.shouldBe( Condition.exist, WAIT );
-        fig.$( ".wk-fence-error" ).shouldBe( Condition.visible, WAIT );
+        fig.$( ".wk-fence-error" ).shouldBe( Condition.visible, WAIT )
+            .shouldHave( Condition.text( "it includes another file or URL." ), WAIT );
         fig.$( ".wk-fence-source" ).shouldBe( Condition.visible, WAIT );
     }
 
     @Test
     void mermaidExpandDialogKeepsStyles() {
+        final org.openqa.selenium.Dimension original = WebDriverRunner.getWebDriver().manage().window().getSize();
+        try {
+            expandDialogKeepsStyles();
+        } finally {
+            WebDriverRunner.getWebDriver().manage().window().setSize( original );
+        }
+    }
+
+    private void expandDialogKeepsStyles() {
+        // A narrow window makes the wide diagram scale down regardless of the runner's default size.
+        WebDriverRunner.getWebDriver().manage().window().setSize( new org.openqa.selenium.Dimension( 700, 900 ) );
         ViewWikiPage.open( WIDE );
         $( "figure.wk-fence[data-fence-state=drawn] svg" ).shouldBe( Condition.exist, WAIT );
         final SelenideElement expand = $( "figure.wk-fence[data-fence-state=drawn] .wk-fence-toolbar [data-action=expand]" );
-        assumeTrue( expand.exists() && expand.isDisplayed(), "diagram not scaled down; Expand not shown" );
+        expand.shouldBe( Condition.visible, WAIT );
         expand.click();
         $( "dialog.wk-fence-dialog" ).shouldBe( Condition.visible, WAIT );
         final Object ok = Selenide.executeJavaScript(

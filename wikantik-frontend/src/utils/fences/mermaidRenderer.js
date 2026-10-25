@@ -27,6 +27,17 @@ function initialize(theme) {
     theme,
     // Throw on a parse error instead of leaving Mermaid's error drawing behind in document.body.
     suppressErrorRendering: true,
+    // Mermaid 12 defaults to the ELK layout, a ~456 kB gzip chunk fetched for the first diagram on any page.
+    // Dagre is what GitHub and Obsidian preview, and every corpus diagram draws under it (Expand covers the
+    // denser ones). A diagram cannot pick its own layout: directives and front matter are refused.
+    layout: 'dagre',
+    // Label HTML (htmlLabels) goes through DOMPurify. This REPLACES Mermaid's default config (FORBID_TAGS
+    // ['style']), so 'style' stays listed. Forms and their controls would otherwise give a page author a
+    // working off-site form (a fake sign-in box) on the wiki origin, and inline style a page-covering overlay.
+    dompurifyConfig: {
+      FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select', 'option'],
+      FORBID_ATTR: ['style'],
+    },
     secure: [...SECURE_KEYS],
   });
   initializedTheme = theme;
@@ -40,7 +51,9 @@ function accessibleLabel(svg) {
 
 /**
  * Draws `source` into `host` (replacing its content). Throws when Mermaid cannot parse or draw it. The SVG
- * gets role="img" and an aria-label from the diagram's accTitle, else "Diagram".
+ * gets an aria-label from the diagram's accTitle, else "Diagram", and role="img" unless it holds links:
+ * role="img" makes its children presentational, which would hide click links from screen readers, so a linked
+ * drawing keeps Mermaid's own role (graphics-document).
  *
  * @param {Element} host
  * @param {string} source
@@ -59,7 +72,7 @@ export async function draw(host, source, { dark = false } = {}) {
     host.innerHTML = svg;
     const el = host.querySelector('svg');
     if (el) {
-      el.setAttribute('role', 'img');
+      if (!el.querySelector('a')) el.setAttribute('role', 'img');
       el.setAttribute('aria-label', accessibleLabel(el));
     }
   } finally {

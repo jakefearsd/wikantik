@@ -81,7 +81,9 @@ export default defineConfig({
     // `elk` (elkjs, Mermaid's optional ELK layout engine, 1.46 MB) — monolithic
     // third-party libraries that can't be meaningfully split and are already
     // isolated into their own lazy chunks (editor / graph routes / ELK-layout
-    // diagrams only, never eagerly). Raise the budget to match that reality. The
+    // diagrams only, never eagerly — the wiki's Mermaid layout is dagre, see
+    // mermaidRenderer.js, so only a diagram that itself asks for ELK, such as a
+    // `flowchart-elk` one, fetches `elk`). Raise the budget to match that reality. The
     // old 700 kB budget still holds for every other chunk: scripts/check-dist.js
     // (run by `npm run build`) fails the build on any other chunk above it, so
     // unexpected bloat is still caught.

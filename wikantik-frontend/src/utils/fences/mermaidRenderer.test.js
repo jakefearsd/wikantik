@@ -30,6 +30,11 @@ describe('mermaidRenderer.draw', () => {
     expect(mermaid.initialize).toHaveBeenCalledTimes(1);
     expect(mermaid.initialize).toHaveBeenCalledWith({
       startOnLoad: false, securityLevel: 'antiscript', theme: 'default', suppressErrorRendering: true,
+      layout: 'dagre',
+      dompurifyConfig: {
+        FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select', 'option'],
+        FORBID_ATTR: ['style'],
+      },
       secure: EXPECTED_SECURE,
     });
     await draw(host, 'flowchart TD\n A-->B', { dark: true });
@@ -60,6 +65,21 @@ describe('mermaidRenderer.draw', () => {
     expect(svg.getAttribute('role')).toBe('img');
     expect(svg.getAttribute('aria-label')).toBe('Diagram');
     results.forEach((r) => expect(r.bindFunctions).not.toHaveBeenCalled());
+  });
+
+  it('leaves role="img" off a drawing that holds links, so screen readers still reach them', async () => {
+    const { mermaid, draw } = await load();
+    mermaid.render.mockResolvedValueOnce({
+      svg: '<svg role="graphics-document document" aria-roledescription="flowchart-v2">'
+        + '<g><a href="/wiki/Target"><text>T</text></a></g></svg>',
+    });
+    const host = document.createElement('div');
+    await draw(host, 'flowchart TD\n A-->B\n click A "/wiki/Target"');
+    const svg = host.querySelector('svg');
+    // Mermaid's own role stays: unlike role="img" it does not make the links presentational.
+    expect(svg.getAttribute('role')).toBe('graphics-document document');
+    expect(svg.getAttribute('aria-label')).toBe('Diagram');
+    expect(svg.getAttribute('aria-roledescription')).toBe('flowchart-v2');
   });
 
   it('labels the drawing from its accTitle', async () => {

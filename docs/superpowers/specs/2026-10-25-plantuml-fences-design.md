@@ -123,6 +123,9 @@ guarantee and the policy is defence in depth. It refuses:
 - any `!include*` / `!import` / `!includeurl` / `!includesub` / `!includedef`, except `!include <C4/…>`;
 - any `%getenv`, `%load_json`, `%file_exists`, `%dirpath`, `%filename` or similar file/env built-in;
 - `<img:` and `<img src` in labels;
+- an embedded `{{ … }}` sub-diagram (`embedded-diagram`): it is laid out on its own, outside the forced Smetana
+  pragma and the `@startuml`-only check, so PlantUML would run the Graphviz binary for it. Independently, the
+  sandbox points `GRAPHVIZ_DOT` at a non-existent path, so no source can make PlantUML execute `dot`;
 - `[[…]]` links whose target is not a relative `/wiki/…` path, `#anchor` or `http(s)://`;
 - a source over the size cap.
 
@@ -184,14 +187,17 @@ either.
 **Limits.** All values are configurable. Every key is declared in `ini/wikantik.properties` with section,
 description, `Type:` and default, as required by `ConfigSurfaceDriftTest`.
 - Source size cap: suggested 64 KB.
-- Output size cap per variant: suggested 2 MB.
+- Output size cap per variant: 512 KB, measured on PlantUML's raw SVG before the scrub (final review: 2 MB per
+  variant let one page and the cache pin gigabytes).
 - Wall-clock timeout per render: suggested 5 s.
 - Renders run on a dedicated bounded pool.
   - Suggested maximum of 2 concurrent renders, with a small queue.
   - Threads are created with a large stack (suggested 16 MB), so deep Smetana recursion fails cleanly instead of
     taking a request thread down.
   - Java cannot kill a runaway render, so a timed-out render keeps its pool slot until it finishes.
-  - A full pool refuses with a "busy" reason instead of blocking the page.
+  - A full pool refuses with a "busy" reason instead of blocking the page. So does a pool whose every thread is
+    held by a render already past its timeout, and a caller whose render is still queued after waiting the timeout
+    (that render stays queued, runs and is cached).
 - **Slow and over-complex diagrams.** These rules exist so one bad diagram can't starve the pool. *(My calls.)*
   - A `StackOverflowError` is **deterministic**. It is cached as a refusal (`too-complex`) like a syntax error.
   - A timeout is cached as a refusal (`too-slow`) for a short TTL (suggested 10 min). After that it may be retried
@@ -199,9 +205,10 @@ description, `Type:` and default, as required by `ConfigSurfaceDriftTest`.
   - While that diagram's render is still running, a second request for the same source joins the in-flight
     render instead of starting another one, so one diagram never holds more than one slot.
   - Only "busy" (pool full) and unexpected exceptions are purely transient and uncached.
-  - **Per-page budget:** at most N diagrams resolved per page response (suggested 20), within a total wall-clock
-    budget (suggested 10 s). Diagrams beyond either limit resolve to a `page-budget` refusal, which is also
-    transient. The light and dark variants are produced in one render job, not two.
+  - **Per-page budget:** at most N diagrams resolved per page response (suggested 20), splicing at most
+    `pageMaxBytes` of drawing text (8 MiB), within a total wall-clock budget (suggested 10 s). Diagrams beyond the
+    count or size limit resolve to `page-limit` (the same on every view), beyond the time budget to `page-budget`
+    (reload may help); both are transient and never cached. The light and dark variants are produced in one render job, not two.
 - **Kill switch:** suggested key `wikantik.fences.plantuml.enabled`, default true, read at engine startup.
   - When it is off, the envelope and `check()` still apply and `[[…]]` links **still count as references**. Only
     the drawing is replaced, by a `plantuml-disabled` refusal that shows the source.
@@ -214,7 +221,9 @@ description, `Type:` and default, as required by `ConfigSurfaceDriftTest`.
 
 **Caching.**
 - An in-memory LRU of deterministic outcomes: "drawn" (both variants), syntax errors, `too-complex` and `too-slow`
-  as above. The key is a hash of the source plus the PlantUML version.
+  as above, plus `render-crashed` (PlantUML's own crash report, deterministic for its source), which is retried once
+  after the `too-slow` TTL like a timeout. The LRU is bounded by entries and by approximate bytes
+  (`cacheMaxBytes`, 64 MiB). The key is a hash of the source plus the PlantUML version.
 - Page caches hold placeholders only (see above), so they never hold a PlantUML outcome of any kind.
 
 **Contract change.** `RenderedFenceRenderer.renderDrawing(String) → String`, which throws on failure and which the

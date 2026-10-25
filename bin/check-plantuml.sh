@@ -24,7 +24,8 @@ fi
 
 if [[ ! -s "$CPFILE" ]]; then
     # </dev/null: a piped `-` input must never be consumed by Maven.
-    (cd "$ROOT" && mvn -q dependency:build-classpath -pl wikantik-main \
+    # runtime scope: the shipped (shaded, stripped) PlantUML only, never the test-scope plantuml-mit jar.
+    (cd "$ROOT" && mvn -q dependency:build-classpath -pl wikantik-main -DincludeScope=runtime \
         -Dmdep.outputFile="$CPFILE" </dev/null) >&2 || { echo "check-plantuml: could not build the classpath" >&2; exit 2; }
 fi
 

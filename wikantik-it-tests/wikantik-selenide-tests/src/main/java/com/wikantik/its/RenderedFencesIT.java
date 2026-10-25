@@ -226,9 +226,16 @@ public class RenderedFencesIT extends WithIntegrationTestSetup {
             .clickOnLogin()
             .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
         EditWikiPage.open( PUML );
-        $( ".editor-preview figure.wk-fence[data-fence=plantuml][data-fence-state=drawn]"
-            + " .wk-fence-variant[data-variant=light] svg" )
-            .shouldBe( Condition.visible, Duration.ofSeconds( 60 ) );
+        // Both of the page's diagrams draw in the preview: the class diagram and the activity (fork/join) diagram.
+        final String drawn = ".editor-preview figure.wk-fence[data-fence=plantuml][data-fence-state=drawn]";
+        $$( drawn + " .wk-fence-variant[data-variant=light] svg" )
+            .shouldHave( CollectionCondition.size( 2 ), Duration.ofSeconds( 60 ) );
+        $$( drawn + " .wk-fence-variant[data-variant=light] svg" ).get( 0 ).shouldBe( Condition.visible );
+        $$( drawn + " .wk-fence-variant[data-variant=light] svg" ).get( 1 ).shouldBe( Condition.visible );
+        $$( drawn + " .wk-fence-source code" ).get( 0 )
+            .shouldHave( Condition.attributeMatching( "textContent", "(?s).*class Order.*" ) );
+        $$( drawn + " .wk-fence-source code" ).get( 1 )
+            .shouldHave( Condition.attributeMatching( "textContent", "(?s).*fork again.*" ) );
     }
 
     @Test

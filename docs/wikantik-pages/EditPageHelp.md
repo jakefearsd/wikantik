@@ -34,7 +34,7 @@ The toolbar also has heading, list, inline code, code block and table buttons. T
 
 ## Diagrams
 
-A fenced code block whose language is `mermaid` renders as a diagram when the page is viewed. This one is live:
+A fenced code block whose language is `mermaid` renders as a diagram when the page is viewed. A `plantuml` block works the same way and suits deep class and activity diagrams; see *Class and activity diagrams with PlantUML* below. This Mermaid diagram is live:
 
 ```mermaid
 flowchart LR
@@ -95,7 +95,7 @@ class Page [[/wiki/EditPageHelp]]
 ```
 
 * To link a shape to a wiki page, add `[[/wiki/PageName]]` after it, as above. These links count as real page links, so they appear in backlinks.
-* Only `@startuml` diagrams are accepted. `!include` is refused except for `<C4/...>` libraries, images are refused, and a diagram can be at most 64 KB.
+* Only `@startuml` diagrams are accepted. `!include` is refused except for `<C4/...>` libraries, images and `{{ ... }}` embedded sub-diagrams are refused, and a diagram can be at most 64 KB.
 * A diagram that fails shows its source together with the reason, as Mermaid does.
 
 ## Metadata

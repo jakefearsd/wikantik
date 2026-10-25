@@ -146,6 +146,36 @@ class ServerFenceResolverTest {
     }
 
     @Test
+    void labelStripsTrailingWhitespaceAndIgnoresUntitledText() {
+        assertEquals( "Order flow", ServerFenceResolver.label( "  title   Order flow \t \nA -> B\n" ) );
+        assertEquals( "Order flow", ServerFenceResolver.label( "A -> B\r\nTITLE Order flow\r\n" ) );
+        assertEquals( "PlantUML diagram", ServerFenceResolver.label( "title\nsubtitle x\nA -> B\n" ) );
+    }
+
+    @Test
+    void labelIsCappedAt200Characters() {
+        final String label = ServerFenceResolver.label( "title " + "x".repeat( 5_000 ) + "\nA -> B\n" );
+        assertEquals( 200, label.length() );
+    }
+
+    @Test
+    void pathologicalTitleLinesAreFast() {
+        // The old lazy-dot-then-anchored-whitespace pattern took seconds on these (quadratic backtracking).
+        final String[] sources = {
+            "title a" + " ".repeat( 60_000 ) + "b\nclass A\n",
+            ( "title a" + " \t".repeat( 2_000 ) + "b\n" ).repeat( 15 ),
+            "title " + "a ".repeat( 30_000 ) + "\n",
+            ( "title" + " ".repeat( 10_000 ) ).repeat( 6 ),
+        };
+        for ( final String source : sources ) {
+            final long t0 = System.nanoTime();
+            ServerFenceResolver.label( source );
+            final long ms = ( System.nanoTime() - t0 ) / 1_000_000;
+            assertTrue( ms < 100, "label() took " + ms + " ms on a " + source.length() + "-char source" );
+        }
+    }
+
+    @Test
     void refusalSetsErrorLineAndMessage() {
         drawer.outcome = s -> ServerDrawing.refused( "syntax-error", "Bad \"thing\" <here>", 3, false );
 

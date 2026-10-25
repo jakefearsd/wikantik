@@ -62,8 +62,14 @@ public final class ServerFenceResolver {
     private static final Pattern ENVELOPE_OPEN = Pattern.compile( "\\s*<pre(?=[\\s>])" + TAG_BODY + ">\\s*<code(?=[\\s>])("
             + TAG_BODY + ")>" );
     private static final Pattern ENVELOPE_CLOSE = Pattern.compile( "</code>\\s*</pre>\\s*</figure>" );
-    private static final Pattern TITLE = Pattern.compile( "^[ \\t]*title[ \\t]+(\\S.*?)[ \\t]*$",
+    /**
+     * The first {@code title …} line. Possessive and anchored only at line starts, so it runs in linear time on any
+     * input (it runs on the request thread for every drawn figure); trailing whitespace is stripped in Java.
+     */
+    private static final Pattern TITLE = Pattern.compile( "^[ \\t]*+title[ \\t]++(\\S[^\\r\\n]*+)",
             Pattern.MULTILINE | Pattern.CASE_INSENSITIVE );
+    /** The longest accessible label a drawing gets; a longer title is cut. */
+    static final int MAX_LABEL_CHARS = 200;
     private static final Pattern ENTITY = Pattern.compile( "&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]{2,6});" );
     private static final Map< String, String > NAMED = Map.of( "lt", "<", "gt", ">", "amp", "&", "quot", "\"", "apos", "'" );
 
@@ -231,10 +237,18 @@ public final class ServerFenceResolver {
                 + "<div class=\"wk-fence-variant\" data-variant=\"dark\" hidden>" + d.darkSvg() + "</div></div>";
     }
 
-    /** @return the text of the source's first {@code title …} line, or the generic label */
+    /** @return the text of the source's first {@code title …} line (at most {@value #MAX_LABEL_CHARS} chars), or the generic label */
     static String label( final String source ) {
         final Matcher m = TITLE.matcher( source );
-        return m.find() ? m.group( 1 ) : DEFAULT_LABEL;
+        if ( !m.find() ) {
+            return DEFAULT_LABEL;
+        }
+        final String title = m.group( 1 ).strip();
+        if ( title.length() <= MAX_LABEL_CHARS ) {
+            return title;
+        }
+        final int cut = Character.isHighSurrogate( title.charAt( MAX_LABEL_CHARS - 1 ) ) ? MAX_LABEL_CHARS - 1 : MAX_LABEL_CHARS;
+        return title.substring( 0, cut );
     }
 
     /**

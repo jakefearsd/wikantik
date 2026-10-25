@@ -24,12 +24,66 @@
 <title>Rendered fences</title>
 </head>
 <body>
-Rendered fenced code blocks (for example <code>```mermaid</code>): the info-string grammar in
-{@link com.wikantik.markdown.extensions.fences.FenceInfo}.
+Rendered fences: fenced code blocks whose language has a registered renderer (today only
+<code>```mermaid</code>) are drawn as diagrams instead of shown as code. Every other fence, and
+any fence carrying the <code>example</code> modifier, renders byte-identically to a plain code block.
 
 <h3>Package Specification</h3>
 
+<p>Rendering. {@link com.wikantik.markdown.extensions.fences.RenderedFenceExtension} is registered
+on the wiki's Flexmark pipeline ({@code MarkdownDocument}) with
+{@link com.wikantik.markdown.extensions.fences.RenderedFenceRegistry#defaults()}. Its
+{@link com.wikantik.markdown.extensions.fences.RenderedFenceNodeRenderer} parses each fence's info
+string with {@link com.wikantik.markdown.extensions.fences.FenceInfo}, looks the language up in the
+registry and, for a registered one, emits the fixed envelope:</p>
+<pre>
+&lt;figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser"&gt;
+&lt;pre class="wk-fence-source"&gt;&lt;code class="language-mermaid"&gt;...escaped source...&lt;/code&gt;&lt;/pre&gt;
+&lt;/figure&gt;
+</pre>
+<p>The source is the stored fence content exactly, escaped and never rewritten. A fence that the
+renderer's {@link com.wikantik.markdown.extensions.fences.RenderedFenceRenderer#check(String) check}
+refuses gets a {@code data-fence-error} reason ({@code callback}, {@code unsafe-link},
+{@code unsafe-config}, {@code render-failed}) and is never drawn. A
+{@link com.wikantik.markdown.extensions.fences.FenceKind#BROWSER browser} renderer is drawn by the
+frontend ({@code wikantik-frontend/src/utils/fences/}); a
+{@link com.wikantik.markdown.extensions.fences.FenceKind#SERVER server} renderer would add a
+{@code <div class="wk-fence-drawing">} before the source.</p>
+
+<p>References. Diagram links to wiki pages ({@code click A "/wiki/Page"}) join the page's stored
+references (backlinks, Page Graph, broken-links report) without a full parse:
+{@link com.wikantik.markdown.extensions.fences.RenderedFenceScanner} finds fenced blocks in the raw
+body ({@link com.wikantik.markdown.extensions.fences.ScannedFence}) and asks each renderer for its
+{@link com.wikantik.markdown.extensions.fences.RenderedFenceRenderer#pageLinks(String) pageLinks}.
+Callers: {@code MarkdownParser} and {@code DefaultReferenceManager}.</p>
+
+<p>Main types:</p>
+<ul>
+  <li>{@link com.wikantik.markdown.extensions.fences.RenderedFenceRenderer} - one language: its
+      kind, safety policy and page links. Its Javadoc is the guide for adding a renderer.</li>
+  <li>{@link com.wikantik.markdown.extensions.fences.MermaidFenceRenderer} - the Mermaid policy
+      (fail closed: no click callbacks, no script-capable link targets, no {@code %%{...}%%}
+      directives, no front matter).</li>
+  <li>{@link com.wikantik.markdown.extensions.fences.RenderedFenceRegistry} - renderers by language.</li>
+  <li>{@link com.wikantik.markdown.extensions.fences.FenceInfo},
+      {@link com.wikantik.markdown.extensions.fences.FenceVerdict} - the info-string grammar and a
+      policy outcome.</li>
+</ul>
+
+<p>The shared fixture. {@code wikantik-frontend/src/utils/__fixtures__/renderedFences.json} holds
+the info-string, policy and document cases. The Java tests in this package and the frontend's
+vitests both iterate it, so the server policy and its JS port (which the editor previews run
+without the server, and which is the only gate for a hand-written envelope) cannot drift apart.
+Change a rule on both sides together and add a fixture case.</p>
+
+<p>Adding a renderer: follow the checklist in the
+{@link com.wikantik.markdown.extensions.fences.RenderedFenceRenderer} Javadoc, register it in
+{@link com.wikantik.markdown.extensions.fences.RenderedFenceRegistry#defaults()} and, for a browser
+renderer, in {@code wikantik-frontend/src/utils/fences/registry.js}.</p>
+
 <h3>Related Documentation</h3>
+
+<p>Design: {@code docs/superpowers/specs/2026-10-24-rendered-fences-design.md}.</p>
 
 </body>
 </html>

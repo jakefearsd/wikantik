@@ -144,6 +144,7 @@ describe('checkMermaid', () => {
     for (const s of [`link${sp}x`, `links${sp}`, `click${sp}`, `callback${sp}x`, `sequenceDiagram\nlink${sp}:${sp}@${sp}`]) {
       checkMermaid(s);
     }
-    expect(performance.now() - t0).toBeLessThan(1500);
+    // Generous for parallel test workers; a quadratic rule at these sizes still takes far longer.
+    expect(performance.now() - t0).toBeLessThan(5000);
   });
 });

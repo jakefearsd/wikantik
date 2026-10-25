@@ -77,6 +77,8 @@
 
 /* Full-size view. Padding stays on the body so a click on the dialog element itself means the backdrop. */
 .wk-fence-dialog {
+  /* globals.css's `* { margin: 0 }` beats the UA's dialog:modal { margin: auto }, which centres it. */
+  margin: auto;
   padding: 0;
   max-width: 95vw;
   max-height: 95vh;

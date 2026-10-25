@@ -2,6 +2,12 @@
 
 // Every package only Mermaid (12.1.0) pulls in — exactly what its npm install added to the lockfile. Re-derive it
 // from the lockfile diff when upgrading Mermaid. A regex alternation over package paths.
+//
+// It includes general-purpose packages that nothing else uses TODAY: uuid, marked, dayjs, lodash-es, dompurify,
+// iconv-lite (and the d3-* family). If app code later imports one of them eagerly, check-dist.js fails the build
+// with a "Mermaid-family" message even though no Mermaid code moved. Then: confirm the new import is wanted, and
+// drop that package from this list (it becomes ordinary vendor code, cached in the vendor chunk) — the guard is
+// about Mermaid itself, not about its dependencies being shared. Keep `mermaid` and `@mermaid-js/*` here always.
 export const MERMAID_FAMILY = String.raw`mermaid|@mermaid-js[\\/][^\\/]+|d3[^\\/]*|dagre-d3-es|elkjs|chevrotain|@chevrotain[\\/][^\\/]+|khroma|roughjs|stylis|@iconify[\\/][^\\/]+|@antfu[\\/]install-pkg|@braintree[\\/]sanitize-url|@upsetjs[\\/]venn\.js|cytoscape-fcose|dayjs|delaunator|dompurify|es-toolkit|hachure-fill|internmap|lodash-es|marked|package-manager-detector|path-data-parser|points-on-(?:curve|path)|robust-predicates|ts-dedent|uuid|rw|iconv-lite|safer-buffer|import-meta-resolve`;
 
 /** Regex source matching a module path that lies under one of `family`'s packages (any node_modules depth). */

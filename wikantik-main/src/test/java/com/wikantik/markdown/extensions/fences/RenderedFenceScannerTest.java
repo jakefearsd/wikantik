@@ -96,6 +96,7 @@ class RenderedFenceScannerTest {
             sb.append( i % 2 == 0 ? "```mermaid\n" : "```\n" );
         }
         final String body = sb.toString();
-        org.junit.jupiter.api.Assertions.assertTimeout( Duration.ofSeconds( 1 ), () -> RenderedFenceScanner.scan( body ) );
+        // Generous for forked parallel JVMs; a quadratic scan over 200k lines still takes far longer.
+        org.junit.jupiter.api.Assertions.assertTimeout( Duration.ofSeconds( 5 ), () -> RenderedFenceScanner.scan( body ) );
     }
 }

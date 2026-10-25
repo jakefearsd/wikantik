@@ -85,4 +85,14 @@ describe('check-mermaid contract', () => {
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toHaveLength(1);
   });
+
+  it('exitsTwoWhenMermaidCannotLoad', () => {
+    const r = spawnSync('node', [SCRIPT, '--json', '-'], {
+      encoding: 'utf8', input: `${GOOD}\n${GOOD}`, timeout: 60000,
+      env: { ...process.env, CHECK_MERMAID_TEST_IMPORT: '/nonexistent/mermaid-module.mjs' },
+    });
+    expect(r.status).toBe(2);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toMatch(/check-mermaid: cannot load mermaid/);
+  });
 });

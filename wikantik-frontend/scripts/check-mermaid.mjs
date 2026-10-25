@@ -76,7 +76,7 @@ async function main() {
       if (!(k in globalThis)) globalThis[k] = w[k];
     }
     try {
-      mermaid = (await import('mermaid')).default;
+      mermaid = (await import(process.env.CHECK_MERMAID_TEST_IMPORT || 'mermaid')).default;
     } catch (e) {
       throw new CheckerError(`cannot load mermaid: ${e?.message ?? e}`);
     }
@@ -91,8 +91,9 @@ async function main() {
       if (!policy.allowed) {
         error = policy.reason;
       } else {
+        // A load failure is the checker's fault (CheckerError, exit 2), never a per-diagram FAIL.
+        if (!mermaid) await loadMermaid();
         try {
-          if (!mermaid) await loadMermaid();
           await mermaid.parse(source);
         } catch (e) {
           error = String(e?.message ?? e).split('\n').find((l) => l.trim()) ?? 'parse failed';

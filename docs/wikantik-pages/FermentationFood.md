@@ -1,18 +1,19 @@
 ---
-canonical_id: 01KQ0P44QCBF3K61V1J0AJMRW0
-title: Food Fermentation
+date: '2025-05-15'
+status: active
+summary: Technical reference for food fermentation, covering microbial succession
+  kinetics and precise salinity calculations for lacto-fermentation.
+auto-generated: false
+type: article
 tags:
 - fermentation
 - microbiology
 - food-preservation
 - lacto-fermentation
 - salinity
+canonical_id: 01KQ0P44QCBF3K61V1J0AJMRW0
 cluster: cooking-and-food
-type: article
-date: 2025-05-15T00:00:00Z
-auto-generated: false
-summary: Technical reference for food fermentation, covering microbial succession
-  kinetics and precise salinity calculations for lacto-fermentation.
+title: Food Fermentation
 ---
 
 # Microbial Kinetics and Salinity in Food Fermentation
@@ -51,7 +52,7 @@ $$
 **Example: 3.5% Brine for Pickles**1.  Vegetable Weight: 500g
 2.  Water Weight: 500g
 3.  Total Weight: 1000g
-4.  Salt Needed: $1000g \times 0.035 = 35g$
+4.  Salt Needed: $1000\\text{g} \\times 0.035 = 35\\text{g}$
 
 ## 3. The Biochemistry of "The Crunch"
 Softening in fermented vegetables is caused by the activity of polygalacturonases (enzymes that break down pectin).
@@ -62,3 +63,7 @@ Softening in fermented vegetables is caused by the activity of polygalacturonase
 *   **Kahm Yeast:** A white, pellicle-like film on the surface. While non-toxic, it can raise the pH and introduce off-flavors. It is caused by exposure to oxygen.
 *   **Slippery Brine:** Often caused by *Leuconostoc* species producing excessive dextrans in high-sugar environments (e.g., fermenting carrots). This is usually a texture issue rather than a safety issue.
 *   **Surface Mold:** Any fuzzy growth (black, green, or bright colors) indicates aerobic spoilage and requires the batch to be discarded.
+
+---
+
+**Cluster Hub:** [[CookingAndFoodHub|Cooking and Food Hub]] (`cooking-and-food`)

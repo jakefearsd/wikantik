@@ -1,71 +1,125 @@
 ---
-auto-generated: false
-status: active
-type: article
 kg_include: true
-date: 2026-05-15T00:00:00Z
-cluster: blockchain-tech
-title: Self-Sovereign Identity
+summary: 'Self-Sovereign Identity (SSI) architecture: W3C Decentralized Identifiers
+  (DIDs), Verifiable Credentials, ZK-SNARK selective disclosure, and agent auth.'
+type: article
+audience:
+- humans
+- agents
+status: active
+canonical_id: 01KVJMS215GS0XVY0E6YD833J9
+date: '2026-08-16'
 tags:
+- ssi
 - self-sovereign-identity
 - did
 - verifiable-credentials
+- cryptography
 - zero-knowledge-proofs
-- blockchain
-summary: Self-Sovereign Identity via W3C DIDs, Verifiable Credentials on blockchain,
-  and zk-SNARK zero-knowledge proofs for privacy-preserving attribute verification.
-canonical_id: 01KVJMS215GS0XVY0E6YD833J9
+- security
+- distributed-systems
+auto-generated: false
+cluster:
+- distributed-systems
+- software-architecture
+title: 'Self-Sovereign Identity (SSI): W3C DIDs, Verifiable Credentials, and Zero-Knowledge
+  Proofs'
+---
+# Self-Sovereign Identity (SSI): W3C DIDs, Verifiable Credentials, and Zero-Knowledge Proofs
+
+Traditional digital identity systems rely on centralized authorities (Certificate Authorities, DNS registrars) or federated identity providers (Google/Apple OAuth, SAML, Okta). While convenient, centralized models introduce single points of compromise, surveillance risks, and vendor lock-in.
+
+**Self-Sovereign Identity (SSI)** is a cryptographic paradigm where individuals, organizations, and autonomous AI agents own and control their digital identities without relying on intermediary identity providers. Built upon **W3C Decentralized Identifiers (DIDs)**, **Verifiable Credentials (VCs)**, and **Zero-Knowledge Proofs (ZKPs)**, SSI provides cryptographically verifiable identity claims with selective disclosure.
+
 ---
 
-# Self-Sovereign Identity: Decentralized Trust
+## 1. Quick-Reference: The Trust Triangle Architecture
 
-**Self-Sovereign Identity (SSI)** is a model for digital identity that gives individuals full control over their data. Unlike centralized models (e.g., Google/Facebook Login), SSI relies on Decentralized Identifiers (DIDs) and Verifiable Credentials (VCs) anchored to a blockchain.
+```
++-----------------------------------------------------------------------------------------------------------------------+
+|                                          THE SSI TRUST TRIANGLE                                                       |
++-----------------------------------------------------------------------------------------------------------------------+
+| Role                   | Primary Responsibility                 | Artifact Issued / Checked | Cryptographic Action    |
++------------------------+----------------------------------------+---------------------------+-------------------------+
+| Issuer (e.g., Bank)    | Validates identity & issues claims     | Verifiable Credential (VC)| Signs VC with Issuer Key|
+| Holder (User / Agent)  | Stores credentials in secure wallet    | Verifiable Presentation   | Generates ZKP & signs VP|
+| Verifier (Service)     | Verifies validity of claims for access | Access Token / Decision   | Checks signature vs DID |
+| Verifiable Data Registry| Decentralized ledger / PKI store       | DID Document              | Resolves Public Keys    |
++-----------------------------------------------------------------------------------------------------------------------+
+```
 
-## 1. Decentralized Identifiers (DIDs)
+```
+                     +---------------------------+
+                     |    Issuer (e.g. DMV/Gov)  |
+                     +-------------+-------------+
+                                   |
+                   Issues Signed   |   Registers DID
+                   Credential (VC) |   & Public Key
+                                   |
+                                   v
++-------------------------+                 +---------------------------+
+|  Holder (Edge Wallet /  |                 | Verifiable Data Registry  |
+|  Autonomous Agent)      |                 | (DID Registry / PKI)      |
++------------+------------+                 +-------------+-------------+
+             |                                            ^
+             | Presents Cryptographic                     |
+             | Proof (Verifiable Presentation)            | Resolves Issuer DID
+             v                                            | to Public Key
++---------------------------+                             |
+|  Verifier (Relying Party) +-----------------------------+
++---------------------------+
+```
 
-A **DID** is a new type of identifier that is globally unique, resolvable with high availability, and cryptographically verifiable. Unlike a username or email, it is not "rented" from a service provider.
+---
 
-### Concrete Example: W3C DID Document (JSON-LD)
-When a DID is resolved (e.g., `did:example:123456789abcdefghi`), the system returns a **DID Document** which contains public keys and service endpoints.
+## 2. W3C Decentralized Identifiers (DIDs)
+
+A DID is a globally unique, cryptographically verifiable URI that resolves to a **DID Document** without requiring a central registration authority:
+
+$$
+\text{did}:\text{method}:\text{method-specific-id} \quad (\text{e.g., } \mathtt{did:ion:EiD...} \text{ or } \mathtt{did:key:z6M...})
+$$
+
+### DID Document Structure
+A resolved DID Document contains public verification keys and authorized cryptographic service endpoints:
 
 ```json
 {
-  "@context": [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/suites/ed25519-2020/v1"
-  ],
+  "@context": ["https://www.w3.org/ns/did/v1"],
   "id": "did:example:123456789abcdefghi",
-  "verificationMethod": [{
-    "id": "did:example:123456789abcdefghi#keys-1",
+  "authentication": [{
+    "id": "did:example:123456789abcdefghi#key-1",
     "type": "Ed25519VerificationKey2020",
     "controller": "did:example:123456789abcdefghi",
-    "publicKeyMultibase": "z6MkmjY8GnVqcY8N9TjE5Y8N9TjE5Y8N9TjE5Y8N9TjE"
+    "publicKeyMultibase": "z6MkmL4N5YQ6Pz3tD..."
   }],
-  "authentication": [
-    "did:example:123456789abcdefghi#keys-1"
-  ],
   "service": [{
-    "id": "did:example:123456789abcdefghi#vcs",
-    "type": "VerifiableCredentialService",
-    "serviceEndpoint": "https://example.com/vc-issuer"
+    "id": "did:example:123456789abcdefghi#agent-endpoint",
+    "type": "LinkedDomains",
+    "serviceEndpoint": "https://agent.wikantik.com/mcp"
   }]
 }
 ```
-**Engineering Note**: The `verificationMethod` allows a verifier to check a digital signature from the controller of the DID without querying a central database.
 
-## 2. Zero-Knowledge Proofs (zk-SNARKs)
+---
 
-The most advanced feature of SSI is the ability to prove a claim without revealing the underlying data. This is achieved using **Zero-Knowledge Succinct Non-Interactive Arguments of Knowledge (zk-SNARKs)**.
+## 3. Zero-Knowledge Proofs & Selective Disclosure
 
-### Concrete Example: Age Verification (The "Greater Than X" Proof)
-Suppose a user wants to prove they are over 18 without revealing their exact birthdate.
+Standard identity documents (such as physical driver's licenses) suffer from **over-disclosure**: proving that an individual is over 21 years of age requires exposing their full legal name, date of birth, home address, and license number.
 
-1.  **The Statement**: "I possess a credential signed by the Government (Public Key $P_G$) that contains a birthdate $D$, where $D \le (\text{Current Date} - 18\text{ years})$."
-2.  **The Math**:
-    *   The user generates a proof $\pi$ using a circuit $C$.
-    *$C$takes private inputs (the birthdate$D$and the Government signature$\sigma$) and public inputs (the "threshold" date$T$and the Government's public key$P_G$).
-    *   The circuit verifies:
-        1.$\text{VerifySignature}(D, \sigma, P_G) == \text{true}$2.$D \le T$3.  **The Proof**: The user sends only the proof$\pi$to the verifier (e.g., an online liquor store).
-4.  **Verification**: The verifier runs $\text{Verify}(\pi, T, P_G)$. If it returns `true`, the verifier is mathematically certain the user is over 18, but they **never see the birthdate $D$ or the signature $\sigma$ **.
+Using **BBS+ Signatures** and **ZK-SNARKs**, an SSI wallet can generate a **Verifiable Presentation** containing zero-knowledge predicates:
+- Proves $\text{Age} \ge 21$ without revealing the exact birth date.
+- Proves $\text{CreditScore} \ge 720$ without revealing the raw financial ledger.
+- Proves authorization to call an enterprise MCP tool without revealing the agent operator's legal identity.
 
-**Succinctness**: In 2026, these proofs are typically < 300 bytes and can be verified in milliseconds, making them practical for web-scale applications.
+---
+
+## References
+
+1. Sporny, M., et al. (2022). *Decentralized Identifiers (DIDs) v1.0*. W3C Recommendation.
+2. Sporny, M., et al. (2022). *Verifiable Credentials Data Model v1.1*. W3C Recommendation.
+3. Camenisch, J., & Lysyanskaya, A. (2001). *An Efficient System for Non-transferable Anonymous Credentials with Optional Traceability*. EUROCRYPT 2001.
+
+---
+
+**Cluster Hub:** [[DistributedSystemsHub|Distributed Systems Hub]] (`distributed-systems`)

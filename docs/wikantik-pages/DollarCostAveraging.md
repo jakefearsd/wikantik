@@ -1,25 +1,24 @@
 ---
-type: article
 status: active
 date: '2026-04-26'
-cluster: index-fund-investing
-title: Dollar Cost Averaging
+summary: How DCA actually works, the cases where lump-sum investing beats it on expected
+  value.
 tags:
 - dollar-cost-averaging
 - dca
 - lump-sum
 - index-funds
 - behavioral-finance
-summary: How DCA actually works, the cases where lump-sum investing beats it on expected
-  value, and the behavioral cases where DCA still wins despite being mathematically
-  inferior.
+type: article
+canonical_id: 01KQ0P44PXG39QNES88DP629S9
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - IndexFundPortfolioConstruction
 - BehavioralFinanceForInvestors
 - TheCaseAgainstMarketTiming
 - InvestmentPolicyStatement
-canonical_id: 01KQ0P44PXG39QNES88DP629S9
+title: Dollar Cost Averaging
 ---
 # Dollar Cost Averaging
 
@@ -29,9 +28,9 @@ Both cases are true. They apply in different situations.
 
 ## How DCA actually works
 
-The mechanic: you commit to investing $X every week, month, or paycheck, automatically, into a target investment. You do not adjust based on market movements.
+The mechanic: you commit to investing \$X every week, month, or paycheck, automatically, into a target investment. You do not adjust based on market movements.
 
-A simple example: $1,000/month into a total-stock-market index fund. In a month where the fund is at \$100/share, you buy 10 shares. In a month where it is at $80/share, you buy 12.5 shares. Your average cost per share is lower than the simple average of share prices because you bought more shares when they were cheaper.
+A simple example: \$1,000/month into a total-stock-market index fund. In a month where the fund is at \$100/share, you buy 10 shares. In a month where it is at \$80/share, you buy 12.5 shares. Your average cost per share is lower than the simple average of share prices because you bought more shares when they were cheaper.
 
 This is mathematically true and modestly useful. The bigger benefit is behavioral: automation removes the decision of *when* to invest, which is one of the most common sources of investor underperformance.
 
@@ -49,7 +48,7 @@ The reason: markets rise more often than they fall. By investing all dollars upf
 
 DCA wins in the one-third of periods where the market falls during the DCA window. In a year where the market drops 20%, DCA reduces your average cost meaningfully.
 
-DCA also wins in *behavior-adjusted* terms for some investors. If lump-summing $100K causes you to monitor the market obsessively, panic during the first correction, and sell at a loss, then DCA's lower expected return is dramatically better than the lump-sum's worse-realized return.
+DCA also wins in *behavior-adjusted* terms for some investors. If lump-summing \$100K causes you to monitor the market obsessively, panic during the first correction, and sell at a loss, then DCA's lower expected return is dramatically better than the lump-sum's worse-realized return.
 
 ### Honest answer
 
@@ -63,7 +62,7 @@ The "regret minimization" framing helps: imagine the market drops 30% in the nex
 
 ## DCA in the standard accumulation phase
 
-The lump-sum vs. DCA debate is mostly relevant to windfalls. For the standard case — you receive $X per paycheck and invest a portion of it — you are *already* doing DCA, naturally, because you do not have a lump sum to deploy.
+The lump-sum vs. DCA debate is mostly relevant to windfalls. For the standard case — you receive \$X per paycheck and invest a portion of it — you are *already* doing DCA, naturally, because you do not have a lump sum to deploy.
 
 The right question is not "should I DCA?" but "should I delay investing my paychecks to time the market?"
 
@@ -98,9 +97,9 @@ What DCA does *not* provide:
 
 ## A practical sequencing
 
-For a $100K windfall in a stable life situation:
+For a \$100K windfall in a stable life situation:
 
-1. **Verify your investment policy**: do you actually want $100K invested in your target allocation? If not, this is the moment to clarify.
+1. **Verify your investment policy**: do you actually want \$100K invested in your target allocation? If not, this is the moment to clarify.
 2. **Lump-sum if you can hold**: deploy in one or two transactions over a few days
 3. **DCA over 6 months if you cannot**: equal amounts on the 1st and 15th of each month for 12 transactions
 4. **Do not skip transactions during drawdowns**: if the market drops while you are mid-DCA, buy as scheduled. The whole point is to remove the timing decision.

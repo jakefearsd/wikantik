@@ -1,16 +1,8 @@
 ---
-uses_query_set:
-- eval/retrieval-queries.csv
 kg_include: true
-title: 'Wikantik Search Refinement: Architecture, Implementation, and Best Practices'
-related:
-- WikantikDevelopment
-- LocalRAG
-- RagImplementationPatterns
-- LlmEvaluationMetrics
-canonical_id: 01KQ0P44YYYXZBBJ5Q22N8Q0VD
+date: '2026-08-16'
 cluster: wikantik-development
-type: article
+title: 'Wikantik Hybrid Search Refinement: BM25 + Dense Vector Reciprocal Rank Fusion'
 tags:
 - search
 - retrieval
@@ -20,6 +12,14 @@ tags:
 - tooling
 summary: How to iterate on the retrieval evaluation query set, run the standalone
   search-eval tool against a running wiki, and interpret the report.
+related:
+- WikantikDevelopment
+- LocalRAG
+- RagImplementationPatterns
+- LlmEvaluationMetrics
+canonical_id: 01KQ0P44YYYXZBBJ5Q22N8Q0VD
+type: article
+status: active
 ---
 # Wikantik Search Refinement
 
@@ -308,3 +308,7 @@ The `eval/retrieval-queries.csv` file is the same format as before; moving from 
 - The nightly quality runner and dashboard: [RunningTheRetrievalQualityHarness](RunningTheRetrievalQualityHarness)
 - The search endpoint it calls:
   `wikantik-rest/src/main/java/com/wikantik/rest/SearchResource.java` → `GET /api/search?q=…&limit=…`
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

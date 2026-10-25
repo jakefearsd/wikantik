@@ -1,7 +1,8 @@
 ---
-enables:
-- AI agents
-cluster: wikantik-development
+date: '2026-04-08'
+status: active
+summary: Comprehensive step-by-step guide for administering the Wikantik knowledge
+  graph to maximize its value for AI agents and human users supporting business...
 tags:
 - knowledge-graph
 - administration
@@ -9,37 +10,13 @@ tags:
 - ai
 - graph-management
 - operations
-related_to:
-- IndexFundPortfolioConstruction
-- node
-- RestApi
-- Content
-- Structure
-- provenance
-- AssetAllocation
-produces:
-- Proposals
-title: Wikantik Knowledge Graph Administration
-part_of:
-- Knowledge
-status: active
 type: article
-uses:
-- list_proposals
-- propose_knowledge
-- MCP server
-- rejection history
-- Ollama
-- AI proposals
 canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
-contrasts_with:
-- related
-date: '2026-04-08'
+cluster: wikantik-development
 related:
 - ArtificialIntelligence
 - AiAugmentedWorkflows
-summary: Comprehensive step-by-step guide for administering the Wikantik knowledge
-  graph to maximize its value for AI agents and human users supporting business...
+title: Wikantik Knowledge Graph Administration
 ---
 # Wikantik Knowledge Graph Administration
 
@@ -460,3 +437,7 @@ The short version:
 - **CLI** at `bin/kg-policy.sh` mirrors the dashboard for scripting and emergencies, but its `set` and `clear` do not start reconciliation, and `purge --confirm` (the only destructive operation) is not scoped to one cluster.
 
 System pages (Sandbox, Main, etc.) are always excluded — both from the KG and from the search index — via the existing `SystemPageRegistry`.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

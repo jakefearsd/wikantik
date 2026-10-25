@@ -1,8 +1,14 @@
 ---
-cluster:
-- wikantik-platform
-- wikantik-development
+kg_include: true
 type: article
+summary: How Wikantik evolved from Apache JSPWiki across March–October 2026 into a
+  Java 25, React 19, hybrid-RAG, dual-graph, and 51-tool MCP platform.
+date: '2026-10-24'
+status: active
+canonical_id: 01KQTCC38PBFSD7TD6ACJFCZZ3
+audience:
+- humans
+- agents
 tags:
 - history
 - jspwiki
@@ -10,70 +16,123 @@ tags:
 - evolution
 - migration
 - platform
-title: 'History and Evolution: From JSPWiki to Wikantik'
-canonical_id: 01KQTCC38PBFSD7TD6ACJFCZZ3
-summary: How Wikantik evolved from the Apache JSPWiki fork in 2026 — what changed,
-  what remains, and the philosophical shift to agent-grade knowledge management.
-status: active
-date: '2026-06-20'
+- mcp
+- knowledge-graph
+cluster:
+- wikantik-platform
+- wikantik-development
+title: 'History and Evolution: From Apache JSPWiki to Wikantik 2.4.56 (2026)'
+related:
+- WikantikPlatformHub
+- WikantikDevelopmentHub
+- WikantikArchitecture
+- WikantikDevelopment
+- RemoveJspAndAppPrefix
+- WikiToMarkdownConverter
+- ADR-001
+- ClusterDeclarationDesign
+- ContentIntelligenceDesign
+- About
+verified_at: '2026-10-24T23:02:34.742133635Z'
+verified_by: wikantik-cli
 ---
-# History and Evolution: From JSPWiki to Wikantik
+# History and Evolution: From Apache JSPWiki to Wikantik (2026)
 
-> **Status (2026-10-13):** This page narrates the 2026 fork and its first months. For the release-by-release record through 2.4.56, see the feature timeline on [WikantikDevelopment](WikantikDevelopment) and `CHANGELOG.md` in the repository.
+**Wikantik** began in March 2026 as an ambitious architectural experiment: could **Apache JSPWiki**—one of the oldest, most battle-tested Java wiki engines, originally created by Janne Jalkanen in 2001—be systematically refactored into an **agent-grade semantic knowledge platform** where human engineers and autonomous AI agents share a single source of truth?
 
-While Wikantik is a modern platform built for the agent era, its roots go back to one of the oldest Java-based wiki engines: **Apache JSPWiki**. Understanding this evolution explains several of the platform's architectural continuities and its unique hybrid nature.
+Over a compressed eight-month engineering arc (March–October 2026, culminating in release `2.4.56`), the platform replaced JSPWiki's 2000s-era JSP templates, custom `{{{...}}}` wiki markup, and flat filesystem assumptions with a **Java 25 / Tomcat 11 modular monolith**, a **React 19 SPA**, **PostgreSQL 18 + `pgvector 0.8.6` hybrid retrieval**, a **dual Page Graph + Knowledge Graph + Jena RDF/OWL ontology**, **51 Model Context Protocol (MCP) tools**, and a **closed-loop Content Intelligence engine**.
 
-## The Fork (March–April 2026)
+---
 
-In early 2026, the project began as a radical experiment to see if a legacy enterprise wiki could be transformed into an agentic knowledge base — a system where AI agents are first-class citizens alongside human editors.
+## 1. Chronological Evolution & Architectural Phases (March–October 2026)
 
-The initial modernization was exceptionally compressed, taking place over two months. Key milestones:
+```mermaid
+flowchart LR
+    subgraph P1["Phase I: Core Modernization<br/>(March–April 2026)"]
+        A1["Java 25 + Tomcat 11<br/>Constructor Injection (ADR-001)<br/>JSP -> React 19 SPA (Vite 8)<br/>CommonMark + YAML Frontmatter<br/>KG Core (kg_*) + Dual MCP Servers"]
+    end
 
-- **JSP-to-React Migration:** The entire JSP-based rendering engine was replaced with a Vite-powered React SPA served at `/`.
-- **Security Modernization:** Static XML policy files were replaced with a dynamic, database-backed RBAC system (`policy_grants` table, manageable via admin UI). JAAS-based SSO (OIDC + SAML via pac4j) was added.
-- **The Knowledge Layer:** The `kg_*` tables and pgvector-backed embeddings introduced the Knowledge Graph and hybrid search.
-- **MCP Integration:** Two dedicated Model Context Protocol servers were built to expose wiki internals to AI agents: `/wikantik-admin-mcp` (today 29 write/analytics tools) and `/knowledge-mcp` (today 21 read-only retrieval tools when fully wired).
+    subgraph P2["Phase II: Spine, Ontology & Bundles<br/>(May–June 2026)"]
+        A2["Structural Spine (canonical_id ULIDs)<br/>Page Graph vs KG Separation<br/>SCIM 2.0 (/scim/v2)<br/>Jena RDF/OWL Ontology + SPARQL<br/>Context Bundles (assemble_bundle)<br/>Contextual Embeddings (+14% Recall)"]
+    end
 
-## Continued Evolution (May–June 2026)
+    subgraph P3["Phase III: Briefings & Cluster Architecture<br/>(July–August 2026)"]
+        A3["Session Briefings (get_briefing / SA-13)<br/>7 External Source Connectors<br/>Cluster Declaration (ADR-0009)<br/>hubs: Retired · Sub-Clusters<br/>Content Intelligence Loop (2.4.6)"]
+    end
 
-After the initial fork, the platform continued to grow substantially:
+    subgraph P4["Phase IV: Hardening & Obsidian UX<br/>(September–October 2026)"]
+        A4["wikantik-jdbc Primitive (ADR-0010)<br/>PostgreSQL 18 + pgvector 0.8.6<br/>Public Ontology Guest-ACL Gate<br/>Obsidian Live Preview & Vault Import<br/>Native [[Wikilinks]] & ![[Embeds]]<br/>1,462-Page Corpus Gold Sweep"]
+    end
 
-- **Agent-grade content (2026-04-25):** `type: runbook` pages, page verification metadata, the `get_page_for_agent` token-budgeted projection, and a nightly retrieval-quality run.
-- **Structural spine (2026-05-02):** `canonical_id` (rename-stable page identifiers), `cluster:` hub membership, and the `list_clusters`/`list_tags`/`list_pages_by_filter` structural query tools. The `relations:` frontmatter block was removed at this point — edges are now KG-extracted or wikilink-derived, not YAML-declared.
-- **SCIM 2.0 provisioning (2026-05-xx):** `/scim/v2/*` — IdP-driven user and group onboarding/offboarding.
-- **RDF/OWL ontology (2026-06-08):** The `wikantik-ontology` module added a queryable `wikantik:` T-Box (9 entity + 5 content classes, 21 KG predicates), a SHACL write-time gate, Postgres→RDF projectors, a public SPARQL endpoint at `/sparql`, dereferenceable IRIs at `/id/{type}/{id}`, and RDF dumps at `/export/`. SEO JSON-LD `@type` is now re-sourced from the ontology.
-- **RAG-as-a-Service (2026-06-14):** The context bundle (`GET /api/bundle?q=`, `assemble_bundle` MCP tool) assembles ranked, de-duplicated, version-pinned-cited sections — the wiki acts as a knowledge base that any agent or pipeline can query for grounded retrieval, without answer synthesis. Derived pages (Apache Tika 3.3.0 ingest via `POST /api/ingest`) allow documents to be ingested and machine-reflowed from source attachments.
-- **Bundle hybrid source (2026-06-19):** The context bundle default source switched from dense-only to chunk-level BM25+dense RRF hybrid, improving section recall@12 further.
-- **Cluster declaration (2026-08-15):** The hub page became the authoritative *declaration* of its cluster — a cluster exists iff exactly one page carries `type: hub` plus a `cluster:` value. Non-hub pages may hold multiple memberships (`cluster:` is scalar-or-list; the first entry is primary), sub-clusters are `parent/child` one level deep, and `rename_cluster` rewrites a cluster across every member in one plan-first operation. The older `hubs:` field was retired.
+    P1 --> P2 --> P3 --> P4
+```
 
-## What Remains from JSPWiki
+---
 
-Despite the overhaul, several JSPWiki components remain as load-bearing foundations:
+## 2. Phase I: The Fork and Core Substrate Overhaul (March–April 2026)
 
-1. **Page Provider Logic:** The core patterns for reading and writing page files to the filesystem (`VersioningFileProvider`) still follow the provider interfaces established by JSPWiki, though these are now behind the `PageProvider` abstraction in `wikantik-api`.
-2. **Plugin/Filter Ecosystem:** Wikantik retains the classic `Plugin` and `PageFilter` interfaces. Most have been modernized or replaced by agent-grade variants; the `[{Plugin}]()` syntax is auto-normalized for the Flexmark renderer.
-3. **Lucene BM25 Core:** The fundamental Lucene-based full-text indexing remains the BM25 backbone of hybrid search and its fail-closed fallback when the embedding service (Ollama) is unavailable.
-4. **Flexmark Markdown Rendering:** The Markdown rendering pipeline (Flexmark AST → `MarkdownRenderer`) is Wikantik-built but retains the pre-JSPWiki-era plugin embedding model.
+In March 2026, the fork tackled the four foundational blockers preventing Apache JSPWiki from serving modern web users and AI agents:
+1. **Decoupling the Engine (`ADR-001` & Constructor Injection, March 2026):** Extracted manager interfaces into `wikantik-api` ([[ADR-001|ADR-001]]) and refactored service-locator patterns into constructor injection ([[ConstructorInjection|Constructor Injection]]) and decoupled test stubs ([[TestStubConversion|Test Stub Conversion]]).
+2. **Eliminating JSP Templates for a Single React 19 SPA (`2026-03-28`):** Removed all legacy `.jsp` templates (`Haddock`, `default`) and the transitional `/app/` prefix ([[RemoveJspAndAppPrefix|Remove JSP and /app/ Prefix]]). A single Vite 8 + React 19 + React Router 7 application now serves reading, editing, graph exploration, and administration from `/`, paired with Server-Side Rendered (SSR) `<head>` metadata and JSON-LD so search crawlers and the SPA never diverge.
+3. **JSPWiki Syntax $\to$ CommonMark Markdown + YAML Frontmatter:** Built [[WikiToMarkdownConverter|WikiToMarkdownConverter]] to translate legacy JSPWiki markup (`!!!Heading`, `[alias|Page]`, `{{{code}}}`) into CommonMark Markdown with server-validated YAML frontmatter ([[FrontmatterConventions|Frontmatter Conventions]]).
+4. **Knowledge Graph Core & Dual MCP Servers (April 2026):** Introduced PostgreSQL `kg_*` tables (`2026-04-04`), `type: runbook` pages, page verification stamps (`mark_page_verified`), and the two dedicated MCP endpoints: `/wikantik-admin-mcp` and `/knowledge-mcp` (`2026-04-25`).
 
-Leftovers keep being retired: the SHA-1 password formats were removed in 2.4.24, the unused page-locking API in 2.4.29, and the JSPWiki-era default pages and their translated page sets in 2.4.53.
+---
 
-Note: the `jspwiki.*` property key namespace was progressively renamed to `wikantik.*` during the rebrand. Modern deployments use `wikantik-custom.properties` with `wikantik.*` keys.
+## 3. Phase II: Structural Spine, Formal Ontology, and RAG Bundles (May–June 2026)
 
-## The Philosophical Shift
+As agents began reading and writing hundreds of pages, early experiments revealed that raw vector search and ad-hoc frontmatter relationships were insufficient:
+- **Strict Separation of Page Graph and Knowledge Graph (`2026-05-02`):** Retired `GraphProjector` (which had projected frontmatter keys into `kg_edges`) and cancelled typed frontmatter `relations:` in favor of a clean boundary between the **Page Graph** (`page_links`) and **Knowledge Graph** (`kg_*`), documented in [[PageGraphVsKnowledgeGraph|Page Graph vs. Knowledge Graph]].
+- **The Structural Spine (`2026-05-02`):** Added rename-stable 26-character ULIDs (`canonical_id` in `page_canonical_ids` and `page_slug_history`) and the structural spine MCP tools (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`).
+- **SCIM 2.0 Enterprise Provisioning (`2026-05`):** Added `wikantik-scim` (`/scim/v2/Users`, `/scim/v2/Groups`) alongside OIDC/SAML SSO via `pac4j` ([[WikantikScimProvisioning|Wikantik SCIM Provisioning]], [[WikantikSingleSignOn|Wikantik Single Sign-On]]).
+- **RDF/OWL Ontology & SHACL Gate (`2026-06-08`):** Shipped `wikantik-ontology` backed by Apache Jena TDB2 (`wikantik.ttl` T-Box, write-time `OntologyShaclValidator`, public `/sparql` endpoint, `/id/*` Linked Data dereferencing, and ontology-inferred Schema.org JSON-LD `@type`).
+- **RAG Context Bundles & +14% Recall Lift (`2026-06-14` to `2026-06-19`):** Launched `GET /api/bundle` and `assemble_bundle` (returning ranked, version-pinned, cited section spans without hallucinated LLM synthesis), switched to global chunk-level BM25 + dense RRF fusion, and shipped heading-faithful chunking + contextual embedding prefixes (`Page | Cluster | Section + Summary`), lifting global section `Recall@12` from `0.60` to `0.74`.
 
-| Era | Primary User | Primary Goal | Storage |
-|-----|--------------|--------------|---------|
-| **JSPWiki Era** | Human editors | Documenting for humans | Files + XML |
-| **Wikantik Era** | Humans + AI agents | Knowledge synthesis + agent retrieval | Files + PostgreSQL + pgvector + RDF |
+---
 
-## Why Not Start from Scratch?
+## 4. Phase III: Session Briefings, Cluster Declarations, and Closed-Loop Intelligence (July–August 2026)
 
-JSPWiki provided a battle-tested core for page management, attachment handling, versioning, and basic wiki semantics. This allowed Wikantik to focus engineering energy on the high-value AI integration, hybrid retrieval, Knowledge Graph, and ontology layers rather than reinventing content management.
+- **Project-Scoped Agent Briefings (`get_briefing` & `SA-13`, `2026-07-05`):** Added `/api/briefing` and `get_briefing` ([[ProjectContextSeparationDesign|Project Context Separation Design]]) so coding agents starting a session in any repository receive their cluster's hub spine, member summaries, and cross-cluster `cites:` contracts in a single call.
+- **External Connector Runtime (`2026-07-15`):** Shipped `wikantik-connectors` and `wikantik-ingest` (Apache Tika + Flexmark isolation) supporting 7 connector types with encrypted DB-backed credentials and SSRF egress guards ([[WikantikConnectors|Wikantik Connectors]]).
+- **Deletion of Page-Level KG Rerank (`2026-07`):** Following the `2026-06-16` ceiling experiment showing zero net recall lift from page-level co-mention BFS reranking, the dead stage was cleanly removed ([[GraphRerankStep|Graph Rerank Step]]).
+- **Cluster Declaration Architecture (`ADR-0009`, `2026-08-15`):** Consolidated three rival membership mechanisms (`cluster:`, `hubs:`, and hub `related:`) into a single server-enforced rule: a hub page (`type: hub`) declares its cluster (`cluster: "parent/sub"`), member pages support scalar or list multi-membership, `hubs:` and `HubSyncFilter` were retired, and `rename_cluster` was added to `/wikantik-admin-mcp` ([[ClusterDeclarationDesign|Cluster Declaration Design]]).
+- **Closed-Loop Content Intelligence (`2.4.6`, `2026-08-17`):** Shipped `wikantik-insights` ([[ContentIntelligenceDesign|Content Intelligence Design]]), joining Google Search Console, Bing Webmaster Tools, and `retrieval_query_log` telemetry into a scored opportunity backlog (`list_content_opportunities`) with automated 28-day Difference-in-Differences causal effect evaluation (`EffectEvaluator`).
 
-Today, Wikantik is effectively a "Ship of Theseus" — nearly every visible surface has been replaced, but the page provider foundations and Lucene core remain.
+---
 
-## See Also
+## 5. Phase IV: JDBC Consolidation, PostgreSQL 18, and Obsidian-Grade UX (September–October 2026)
 
-- [WikantikPlatformHub](WikantikPlatformHub) — platform cluster hub
-- [WikantikDevelopment](WikantikDevelopment) — engineering history and feature timeline
-- [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph) — the two graph subsystems explained
+- **Single Data-Access Primitive (`wikantik-jdbc`, `ADR-0010`, `2026-09-07`):** Consolidated all database access behind `com.wikantik.jdbc.Jdbc`, enforced by `JdbcAccessArchTest`, with `bin/db/migrations/V001..V061.sql` as the sole schema definition across production and Testcontainers (`PostgresTestDb`).
+- **PostgreSQL 18 & `pgvector 0.8.6` (`2.4.25`, `2026-09-18`):** Upgraded production and integration test containers to `pgvector/pgvector:pg18` and removed legacy SHA-1 password formats in favor of NIST 800-63B bcrypt (`2.4.24`).
+- **Public Ontology ACL Hardening (`2.4.26`, `2026-09-20`):** Ensured KG entities from ACL-restricted pages and sourceless machine-extracted entities are withheld fail-closed from the public RDF/SPARQL dataset.
+- **Obsidian-Style Editor Workspace & Native Wikilinks (`2.4.30+`, `2026-10-01` to `2026-10-03`):** Shipped the CodeMirror 6 Live Preview editor, command palette, quick switcher, live `[[Page|Alias]]` completion, `![[Page]]` transclusion embeds, daily notes, and zipped Obsidian vault import/export ([[EditorWorkspaceDesign|Editor Workspace Design]], [[LivePreviewDailyNotesDesign|Live Preview & Daily Notes Design]], [[NativeWikilinksDesign|Native Wikilinks Design]]).
+- **Login-Only Bootstrap Auth & SCIM Hardening (`2.4.56`, `2026-10-05` to `2026-10-13`):** Enforced authenticated sessions on bootstrap admin overrides, principal-type matching on `policy_grants`, and refusal of SCIM writes to the `Admin` group.
+
+---
+
+## 6. Architectural Comparison: Apache JSPWiki vs. Wikantik 2.4.56
+
+| Architectural Dimension | Legacy Apache JSPWiki (Pre-Fork) | Wikantik 2.4.56 (October 2026) |
+| :--- | :--- | :--- |
+| **Runtime & Build Baseline** | Java 11/17, legacy monolithic JARs | **Java 25 LTS**, **Apache Tomcat 11**, 24-module Maven reactor with ArchUnit boundary tests |
+| **Frontend & Authoring UI** | Server-rendered JSP templates (`Haddock`), plain textarea | **React 19 SPA (Vite 8)** + CodeMirror 6 **Obsidian-style Live Preview**, command palette, Cytoscape graph viewers |
+| **Markup & Metadata Contract** | Proprietary JSPWiki markup (`!!!`, `{{{...}}}`), no frontmatter | **CommonMark Markdown** + native `[[wikilinks]]`/`![[embeds]]`, KaTeX, Mermaid, and **validated YAML Frontmatter** (`FrontmatterSchema`) |
+| **Identity & Taxonomy** | Fragile CamelCase filename only | **26-char ULID (`canonical_id`)** with `page_slug_history` + **Server-enforced Cluster Declarations (`ADR-0009`)** |
+| **Search & RAG Retrieval** | Keyword-only Lucene page search | **Hybrid BM25 + `pgvector` HNSW (RRF)** with context-prefixed chunk embeddings and cited RAG bundles (`assemble_bundle`) |
+| **Semantic Layer** | None (flat page references only) | **Three Graphs** (Page Graph, LLM-extracted Knowledge Graph `kg_*`, Citation Graph) + **Apache Jena TDB2 RDF/OWL Ontology (`/sparql`)** |
+| **AI Agent Surface** | None | **51 MCP Tools** (`/knowledge-mcp` [22], `/wikantik-admin-mcp` [29]) + **OpenAPI 3.1** (`/tools/*` [2]) + **`SA-13` Session Briefings** |
+| **Content Optimization Loop** | None | **Closed-Loop Content Intelligence (`wikantik-insights`)** joining GSC + Bing + agent query logs with 28-day DiD `EffectEvaluator` |
+
+---
+
+## 7. What Load-Bearing Foundations Remain from JSPWiki
+
+While the presentation, search, database, and AI layers are entirely new, four proven JSPWiki patterns remain load-bearing inside `wikantik-main`:
+1. **`VersioningFileProvider` & Filesystem Page Store:** Storing pages as plain-text `.md` files on disk with `OLD/` version history keeps content human-inspectable, git/rsync-friendly, and decoupled from container image deploys ([[WikantikContentVsCodeDeployment|Content vs. Code Deployment]]).
+2. **`FilterManager` Save/Render Lifecycle:** Pre-save, post-save, and pre-translate filter hooks cleanly orchestrate `FrontmatterSchema` validation, `StructuralSpinePageFilter`, citation extraction, and incremental ontology projection.
+3. **`PluginManager` Extension Seam:** Supporting inline `[{Plugin}]` execution (auto-normalized for Flexmark) for dynamic tables of contents, referrers, and relationship views.
+4. **JAAS Security Primitives:** The foundational `Permission` classes (`PagePermission`, `WikiPermission`, `AllPermission`), now backed by PostgreSQL `policy_grants`, scoped `admin:<area>` permissions, pac4j OIDC/SAML, and SCIM 2.0.
+
+---
+
+**Cluster Hub:** [[WikantikPlatformHub|Wikantik Platform Hub: Knowledge Systems, Hybrid Search, and AI Agent Integrations]] (`wikantik-platform`)

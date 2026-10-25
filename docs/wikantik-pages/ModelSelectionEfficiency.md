@@ -1,23 +1,22 @@
 ---
-canonical_id: 01KQ0P44SMYE17K2A8F0T0ZNKK
-title: Model Selection for Efficiency
-type: article
-cluster: machine-learning
 status: active
 date: '2026-04-26'
 summary: Choosing models with efficiency in mind — the model size / quality tradeoff,
-  efficient architectures, and how to make selection decisions when latency or cost
-  matters more than benchmark accuracy.
+  efficient architectures, and how to make selection decisions when latency...
 tags:
 - model-selection
 - efficiency
 - machine-learning
 - inference
 - cost
+type: article
+canonical_id: 01KQ0P44SMYE17K2A8F0T0ZNKK
+cluster: machine-learning
 related:
 - ModelSelection
 - CostEffectiveInference
 - CPUInference
+title: Model Selection for Efficiency
 ---
 # Model Selection for Efficiency
 
@@ -45,7 +44,7 @@ You can almost always trade quality for cost:
 
 The right tradeoff depends on:
 - Quality threshold (how much can you afford to drop?)
-- Cost sensitivity (how much does latency/$ matter?)
+- Cost sensitivity (how much does latency/\$ matter?)
 - Volume (high volume amplifies cost differences)
 
 ## Efficient architectures

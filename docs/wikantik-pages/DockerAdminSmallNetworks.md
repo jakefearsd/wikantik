@@ -1,7 +1,7 @@
 ---
-applies_to:
-- remote-host
-verified_at: '2026-05-13T06:15:31.620264701Z'
+date: '2026-05-13'
+cluster: wikantik-development
+title: Docker Administration for Small Networks
 tags:
 - docker
 - administration
@@ -9,41 +9,13 @@ tags:
 - networking
 - devops
 - open-source
-verified_by: gemini-cli-mcp-client
-related_to:
-- docker-compose.yml
-- Git
-- Docker Compose
-- CapRover
-- Nginx Proxy Manager
-- Docker Contexts
-- SSH
-- remote-host
-produces:
-- remote-host
-precedes:
-- docker compose up -d
-- docker context use remote-host
-type: article
-uses:
-- docker
-- /etc/docker/daemon.json
-- remote-host
-date: 2026-05-13T00:00:00Z
-contrasts_with:
-- Portainer
-title: Docker Administration for Small Networks
-alternative_to:
-- S3 bucket
-- Nginx Proxy Manager
-- docker run
-- latest
-- Docker Compose
-cluster: wikantik-development
-canonical_id: 01KRFZKPBVD3PJVEY9C9HHQ3PR
 summary: Practical strategies and tooling options for managing 6-10 containers across
   a small network, balancing operational simplicity with production reliability.
+verified_by: gemini-cli-mcp-client
+canonical_id: 01KRFZKPBVD3PJVEY9C9HHQ3PR
 status: active
+verified_at: '2026-05-13T06:15:31.620264701Z'
+type: article
 ---
 
 # Docker Administration for Small Networks
@@ -140,3 +112,7 @@ By default, Docker logs can grow indefinitely. Limit them in your `/etc/docker/d
 | **Easy Web Management** | Dockge + Nginx Proxy Manager |
 | **Full Private Cloud (GitOps)** | Coolify |
 | **High Stability / Multi-Host** | Docker Swarm + CapRover |
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

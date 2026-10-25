@@ -1,17 +1,18 @@
 ---
+date: '2025-05-15'
+status: active
+summary: A deep dive into Kanban as a flow-control system, focusing on WIP limits,
+  Little's Law, and the diagnostic power of Cumulative Flow Diagrams.
+auto-generated: false
+type: article
 tags:
 - agile
 - kanban
 - wip
 - flow
 - metrics
-cluster: software-engineering-practices
-type: article
-date: 2025-05-15T00:00:00Z
-auto-generated: false
 canonical_id: 01KQ0P44RFMB8PECPTBW3RZGKB
-summary: A deep dive into Kanban as a flow-control system, focusing on WIP limits,
-  Little's Law, and the diagnostic power of Cumulative Flow Diagrams.
+cluster: software-engineering-practices
 title: Kanban Methodology & Flow Optimization
 ---
 
@@ -40,7 +41,7 @@ WIP limits are non-negotiable constraints applied to columns on a Kanban board.
 | Stage | WIP Limit | Logic |
 | :--- | :--- | :--- |
 | **Ready** | 5 | Prevents the "Backlog Explosion." |
-| **In Dev** |$2 \times \text{Developers}$| Allows for pairing but prevents context switching. |
+| **In Dev** | $2 \times \text{Developers}$ | Allows for pairing but prevents context switching. |
 | **Review** | 2 | Forces the team to "Stop Starting and Start Finishing." |
 | **Testing** | 3 | Prevents a bottleneck at the QA gate. |
 
@@ -111,3 +112,7 @@ wip_adjustments:
 1.  **Invisible WIP:** Work that isn't on the board (emails, "quick favors") destroys the predictability of the system.
 2.  **Violating Limits:** Treating WIP limits as "suggestions." If you don't stop pulling work when the limit is hit, you aren't doing Kanban.
 3.  **Ignoring the "Done" Column:** If work is finished but not shipped (e.g., waiting for a release train), the "Done" column becomes a hidden inventory of waste.
+
+---
+
+**Cluster Hub:** [[SoftwareEngineeringPracticesHub|Software Engineering Hub: Best Practices for Modern Development]] (`software-engineering-practices`)

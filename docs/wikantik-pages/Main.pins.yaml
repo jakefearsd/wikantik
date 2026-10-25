@@ -14,132 +14,185 @@
 # summary per-page when the frontmatter lacks one or the editorial voice
 # differs from the page's own self-description.
 
-intro: |
-  **Wikantik is an agent-grade knowledge base — a wiki that humans read and AI agents can natively search, retrieve, and cite.** One Markdown source of truth, two kinds of reader, the same content and permissions for both.
+intro: |-
+  **Wikantik is an agent-grade technical knowledge platform — engineered simultaneously for human deep reading and native AI agent retrieval, graph traversal, and software engineering coordination.** Every page is stored as structured Markdown with validated YAML frontmatter, rename-safe ULIDs (`canonical_id`), and explicit cluster declarations.
 
-  **As a human**, browse in-depth, interlinked research articles organized into topic clusters — each cluster has a hub page that introduces the topic and links to its sub-articles. Search in plain language (hybrid keyword + semantic retrieval), and explore how ideas connect through the [page graph](PageGraphVsKnowledgeGraph) of wikilinks and the [knowledge graph](WikantikKnowledgeGraph) of entities extracted from the content.
+  ### Core Platform Capabilities
 
-  **As an AI agent**, connect over the Model Context Protocol: the read-only `/knowledge-mcp` server retrieves and assembles ranked, **citation-bearing** context bundles and traverses the knowledge graph, while `/wikantik-admin-mcp` authors and curates pages — and the whole corpus is queryable as linked data over [SPARQL](Ontology). Agents go through the same save pipeline, permissions, and retrieval index as the human UI; see [Wikantik System Architecture](WikantikArchitecture) for how it all fits together.
+  - **Dual-Graph Architecture (Page Graph + Knowledge Graph):** Browse **91 topic clusters and sub-clusters** anchored by curated Hub pages ([Cluster Declaration Architecture](ClusterDeclarationDesign)). Explore structural relationships through the [Page Graph](PageGraphVsKnowledgeGraph) of bidirectional wikilinks and the [Knowledge Graph](WikantikKnowledgeGraph) of extracted entities, relationships, and formal OWL/SKOS [SPARQL ontology](Ontology).
+  - **Hybrid Contextual Retrieval (`/knowledge-mcp` — 22 read-only tools):** Queries execute across BM25 lexical and dense vector indices fused via Reciprocal Rank Fusion ([Hybrid Retrieval](HybridRetrieval)), with contextual chunk headers (`Cluster + Title + Summary + Heading Path`). Agents assemble version-pinned, citation-bearing bundles via `assemble_bundle` and inspect provenance-scored projections (`AUTHORITATIVE` / `PROVISIONAL` / `STALE`) via `get_page_for_agent`.
+  - **Closed-Loop Content Intelligence (`/wikantik-admin-mcp` — 29 read/write tools):** Curators and agents author pages with optimistic locking (`update_page`), run 7-dimension structural/SEO/retrieval verification (`verify_pages`), curate Knowledge Graph nodes and edges (`curate_nodes`, `curate_edges`), and act on search-telemetry demand signals (`list_content_opportunities` via [Content Intelligence](ContentIntelligenceDesign)).
 
-  New here? Start with [About](About) for the manifesto, or the [Wikantik Platform Hub](WikantikPlatformHub) for the platform deep-dives. Power users: the [Knowledge Graph Admin](WikantikKnowledgeGraphAdmin) guide.
+  ### Software Engineering & Multi-Agent Development Workflows
 
-footer: |
-  Powered by [Wikantik](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.
+  Beyond serving as a reference library, Wikantik acts as the **active architectural control plane** for ongoing software development across multiple repositories ([Simple Agility Stack Hub](SimpleAgilityStackHub)):
 
+  1. **Tiered Session-Start Briefings (`get_briefing` / SA-13):** Rather than relying on static repo-local prompt files that silently drift out of date, coding agents start every session by calling `get_briefing(clusters=["<project>"], prompt="<task>")` ([Project Context Separation Design](ProjectContextSeparationDesign)). The wiki dynamically assembles three tiers of context: the project's core architecture pages (ranked by intra-cluster in-degree), the **cross-project contracts that project cites** ([Architectural Decision Log](SimpleAgilityDecisionLog), [Telemetry Contract](SimpleAgilityTelemetryContract), [Agent Coordination](SimpleAgilityAgentCoordination)), and task-matched sections — while isolating operational incident runbooks from standing coding context.
+  2. **Design-First RFCs & Cross-Repository Contract Propagation:** System designs (`type: design`), RFCs, and cross-repo API/telemetry contracts live in the wiki as versioned, link-verified specifications ([Context Engineering for Coding Agents](ContextEngineeringForCodingAgents)). When a shared contract is updated, every downstream repository whose Hub cites that contract automatically receives the updated specification on its next session briefing.
+  3. **Scenario-Keyed Engineering & Incident Runbooks (`type: runbook`):** Recurring engineering playbooks — exploring module API surfaces, running parallel integration test reactors, planning schema migrations, or triaging production alerts — are encoded as structured runbooks (`when_to_use`, `steps`, `pitfalls`) in the [Agent Cookbook](AgentCookbook) and infrastructure hubs ([Home Lab Infrastructure Hub](HomeLabInfrastructureHub)), ready for on-demand agent execution.
+  4. **Living Documentation & Verification Loops:** As code changes land or incidents are resolved, coding agents update the corresponding architecture pages and runbooks in the same workflow (`update_page` → `verify_pages` → `mark_page_verified`), keeping design documentation, Knowledge Graph entities, and production implementation continuously aligned ([Agentic Coding Hub](AgenticCodingHub)).
+
+  New here? Start with [About](About) for the platform manifesto, the [Wikantik Platform Hub](WikantikPlatformHub) for system internals, the [Agent Cookbook](AgentCookbook) for operational agent runbooks, or the [Simple Agility Stack Hub](SimpleAgilityStackHub) for cross-project engineering workflows. You can also read the [site blog](https://wiki.wikantik.com/blog/).
 sections:
-  - label: "Finance & Retirement"
-    cluster: personal-finance
-    pages:
-      - id: 01KQ0P44R3DT6V9W45AD06JFRW
-        title: "Index Fund Investing for Early Retirement"
-        summary: "Building wealth with low-cost index funds: expense ratios, three-fund portfolios, account strategy, Roth conversion ladders, and a complete early retirement blueprint"
-      - id: 01KQ0P44VPKV01K0CMG0RNZ71A
-        title: "Retirement Planning Guide"
-        summary: "Strategic decision frameworks for decumulation: Roth conversions, Social Security claiming, withdrawal sequencing, Medicare planning, RMDs, and building reliable retirement income"
-      - id: 01KQ0P44Q77D4ZERJ5ZN2N571W
-        title: "EU Retirement Savings Guide"
-        summary: "How EU retirement savings and investing law differs from the US: three-pillar system, capital gains tax, and country deep dives (Germany, France, Netherlands, Italy, Spain)"
-
-  - label: "Geopolitics & Conflict"
-    cluster: geopolitics
-    pages:
-      - id: 01KQ0P44NWKXBXJ0KB3SMAE0QY
-        title: "Conflicts and Global Equity Markets"
-        summary: "How major international conflicts from WWI through the Russia-Ukraine war have shaped global equity markets, with cross-cutting pattern analysis and investment lessons"
-      - id: 01KQ0P44VZN6EV310SWYP621WF
-        title: "The Russia-Ukraine War: Overview"
-        summary: "The state of the conflict in its fourth year: territorial situation, peace negotiations, humanitarian crisis, drone warfare, the energy infrastructure war, and international military support"
-
-  - label: "Technology"
-    cluster: technology
-    pages:
-      - id: 01KQ0P44QNX1DH6SZB0709Y823
-        title: "Generative AI Adoption Guide"
-        summary: "A practitioner's roadmap for adopting generative AI: understanding LLMs, evaluating tools, prompt engineering, running local models, integrating AI into workflows, and accelerating your learning"
-      - id: 01KQ0P44RXMZBD1705M8DV3X2T
-        title: "Linux for Windows Users"
-        summary: "Transitioning from Windows to Linux: choosing a distribution, command line essentials, filesystem and permissions, package management, shell scripting, and system administration"
-      - id: 01KQ0P44RZGC2N51EXZYR2WDT0
-        title: "LLMs Since 2020"
-        summary: "The evolution of large language models from GPT-3 through modern frontier models: scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners"
-      - id: 01KQ0P44XNV18K6ERCY48S21QX
-        title: "The Future of Machine Learning"
-        summary: "Where [machine learning](MachineLearning) is headed: foundation models, data efficiency, edge AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying ML at scale"
-      - id: 01KQ0P44QGFRYPTQM5C4B78S33
-        title: "Foundational Algorithms for Computer Scientists"
-        summary: "The essential algorithms every computer scientist should know: sorting, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression"
-      - id: 01KQ0P44PSDYPG5MY8RH2DM5GT
-        title: "Distributed Computing Evolution"
-        summary: "Thirty years of distributed systems: from CORBA and client-server to cloud-native microservices, event-driven architecture, and modern best practices for reliability, observability, and scale"
-      - id: 01KQ0P44Q20H1X4B9FJ82DB4F7
-        title: "Embedded AI on Limited Hardware"
-        summary: "Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference"
-      - id: 01KQ0P44SAH60A7F88VHYD18BP
-        title: "Mathematical Foundations of Machine Learning"
-        summary: "The math that underpins ML: [linear algebra](LinearAlgebra), calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques"
-
-  - label: "Agent Cookbook"
-    cluster: agent-cookbook
-    pages:
-      - id: 01KQ44QTJGS34S8VKGDMPTK9TC
-        title: "Agent Cookbook"
-        summary: "Scenario-keyed runbooks for AI coding agents: choosing a retrieval mode, finding the right MCP tool, citing pages, debugging integration tests, planning migrations, and a dozen more recurring playbooks"
-
-  - label: "Hobby Woodworking"
-    cluster: hobby-woodworking
-    pages:
-      - id: 01KQ0P44QX7VBB9GES0CDM9EPQ
-        title: "Hobby Woodworking in the Twenty-First Century"
-        summary: "How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000"
-      - id: 01KQ0P44Q86KC8BPPJWCPKWC89
-        title: "Evolution of Hobby Woodworking"
-        summary: "How the craft has changed in tools, materials, knowledge access, and community since 2000"
-      - id: 01KQ0P44NH6753GDGWHP9EEAVJ
-        title: "CNC Routers for the Hobby Workshop"
-        summary: "Desktop CNC routers for hobbyists: machines, software, capabilities, and workflow"
-      - id: 01KQ0P44XP9QHVDGG6JGHFM4P9
-        title: "3D Printing Meets Woodworking"
-        summary: "Jigs, fixtures, workholding, and custom hardware from a 3D printer"
-      - id: 01KQ0P44RPCNAYG7Q684CNB3NK
-        title: "Laser Cutters and Engravers for Wood"
-        summary: "CO2 and diode lasers for cutting, engraving, and inlay in a home shop"
-      - id: 01KQ0P44PNSPVTZXWWHQJWK16B
-        title: "Digital Design Tools for Woodworkers"
-        summary: "CAD, CAM, and laser software: Fusion 360, VCarve Pro, LightBurn, and more"
-      - id: 01KQ0P44SNYJ0EE1SQ0VXQB4C1
-        title: "The Modern Hand Tool Renaissance"
-        summary: "Premium hand tools and a global maker community brought traditional craft back"
-
-  - label: "Warehouse Automation"
-    cluster: warehouse-automation
-    pages:
-      - id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
-        title: "Warehouse Automation Hub"
-        summary: "The technology stack behind modern warehouse automation: robotics, conveyor systems, WMS platforms, AI-driven optimization, and the practical limits of automation"
-
-  - label: "Berlin History"
-    cluster: berlin
-    pages:
-      - id: 01KQ0P44MFPCNAVMXA25W7T3GS
-        title: "Berlin"
-        summary: "The history of Berlin from medieval margraviate to modern capital: Reformation-era urban development, Prussian transformation, and the city's evolving identity"
-
-  - label: "Immigration"
-    cluster: immigration
-    pages:
-      - id: 01KQ0P44WTZC4RJ3S7PJM1VRXR
-        title: "Spousal Green Card Guide"
-        summary: "The complete process for marriage-based US immigration: petition filing, adjustment of status vs. consular processing, financial requirements, interview preparation, and removing conditions"
-
-  - label: "Wikantik Platform"
-    cluster: wikantik-platform
-    pages:
-      - id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
-        title: "Wikantik Platform Hub"
-        summary: "The definitive guide to the Wikantik platform: architecture, hybrid search, knowledge graph, and history."
-      - id: 01KQTCAKV3BVHYPW20PHSFGXJR
-        title: "Wikantik System Architecture"
-        summary: "A deep dive into how Wikantik is built: the module reactor, hybrid file+Postgres storage, retrieval and knowledge layers, and the agent surface — with strengths, an honest critique, and a roadmap."
-      - id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
-        title: "Wikantik Development"
-        summary: "Hub page for platform development — architecture decisions, feature implementations, and engineering history"
+- label: Wikantik Platform, Agent Workflows & Architecture
+  cluster: wikantik-development
+  pages:
+  - id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
+    title: Wikantik Platform Hub
+    summary: 'Master index for the Wikantik platform: hybrid BM25 + vector search, dual Page/Knowledge Graphs, MCP servers, and React SPA architecture'
+  - id: 01KQTCAKV3BVHYPW20PHSFGXJR
+    title: Wikantik System Architecture
+    summary: 'End-to-end engineering architecture: multi-module reactor, hybrid file + PostgreSQL/pgvector storage, retrieval pipeline, and MCP agent surface'
+  - id: 01J7KQTCD38PBFSD7TD6ACJFDA
+    title: Wikantik Platform Development Hub
+    summary: Active engineering specifications, ADRs, MCP authoring conventions, observability, and release/deployment runbooks
+  - id: 01KQ44QTJGS34S8VKGDMPTK9TC
+    title: Agent Cookbook
+    summary: 'Scenario-keyed operational runbooks for AI coding agents: retrieval gating, session briefings, KG curation, testing, and codebase navigation'
+  - id: 01M09QF2RWTWZ89YPXX0SAHY1J
+    title: Simple Agility Stack Hub
+    summary: Cross-project architectural spine connecting Wikantik, JakeMon observability, Roller, Stockroom, and multi-agent coordination contracts
+  - id: 01KTGSV428AK6A68N69X235ZHT
+    title: Page Graph vs. Knowledge Graph
+    summary: How Wikantik separates human-authored wikilink topology and Hub-declared clusters from machine-extracted entity/relation triples
+  - id: 01KQ0P44QZYNK9BZ0FV5NQ9CF8
+    title: Hybrid Retrieval & Contextual Chunking
+    summary: Operator and architectural reference for BM25 + dense vector retrieval, Reciprocal Rank Fusion, and contextual embedding headers
+  - id: 01M5P246EKXASSTV5NZW6DPPN6
+    title: Tiered Agent Session Briefings (SA-13)
+    summary: How get_briefing assembles standing project context, cross-cluster contract citations, and prompt-refined sections while preventing incident noise
+- label: Agentic AI, Foundation Models & Machine Learning
+  cluster: agentic-ai
+  pages:
+  - id: 01KQEKGD6VT29FGWF8YE9TM671
+    title: Agentic AI Hub
+    summary: Cognitive architectures, perceive-reason-act control loops, MCP tool protocols, episodic/semantic memory, and multi-agent orchestration
+  - id: 01KZHDPSMXBFD6PTQG3V5RT2WA
+    title: Agentic Coding Hub
+    summary: 'Autonomous software engineering workflows: context engineering, verification loops, mutation testing, worktree isolation, and failure guardrails'
+  - id: 01KQEKGDAZH3G3X2J4VFM9MP88
+    title: Generative AI Hub
+    summary: Foundation model internals, Transformer attention mechanics, Retrieval-Augmented Generation (RAG), multimodal embeddings, and alignment
+  - id: 01J7KQTCD38PBFSD7TD6ACJFD1
+    title: AI Infrastructure Hub
+    summary: GPU cluster interconnects, PagedAttention inference serving, vLLM/Triton engines, INT4/FP8 quantization, and distributed training
+  - id: 01KQ3P44XMGA8E1E7GAT4AYV43
+    title: Machine Learning Hub
+    summary: 'Classical and modern ML engineering: supervised/unsupervised learning, gradient-boosted trees, anomaly detection, and MLOps pipelines'
+  - id: 01KQ0P44RZGC2N51EXZYR2WDT0
+    title: Large Language Models Since 2020
+    summary: From GPT-3 and Chinchilla scaling laws to o1/R1 reasoning models, DeepSeek MoE/MLA, frontier multimodal agents, and test-time compute
+  - id: 01KQ0P44QNX1DH6SZB0709Y823
+    title: Generative AI Adoption Guide
+    summary: 'Practitioner roadmap for adopting LLMs: model evaluation, structured prompting, local inference, and production workflow integration'
+  - id: 01KQ0P44Q20H1X4B9FJ82DB4F7
+    title: Embedded AI on Edge & Limited Hardware
+    summary: 'Running quantized models on microcontrollers, edge NPUs, and workstations: TinyML, GGUF/llama.cpp, and on-device inference economics'
+- label: Software Architecture, Distributed Systems & Computer Science
+  cluster: software-architecture
+  pages:
+  - id: 01J7KQTCD38PBFSD7TD6ACJFD3
+    title: Software Architecture Hub
+    summary: Distributed systems topology, Domain-Driven Design (DDD), event sourcing, CQRS, cell-based architecture, and evolutionary trade-offs
+  - id: 01KQEKGD9XWDSFGH7TWHH63NZT
+    title: Distributed Systems Hub
+    summary: Consensus protocols (Paxos, Raft), replication topologies, logical clocks, two-phase commit, saga patterns, and fault tolerance
+  - id: 01KZHC6PVR4SBQM9R0F3T7K8Z4
+    title: Software Engineering Practices Hub
+    summary: Trunk-based development, code review rigor, testing pyramids, static analysis, refactoring discipline, and backwards compatibility
+  - id: 01KZHC6PVW4SBQM9R0F3T7K8Z9
+    title: Design Patterns Hub
+    summary: Gang-of-Four creational, structural, and behavioral patterns evaluated for modern multi-paradigm and concurrent systems
+  - id: 01KZGJKDVQQ5F5BV6XDWY3VJHQ
+    title: Programming Languages Hub
+    summary: Comparative language architecture across Rust, C++, Go, Java, Python, Lisp, Smalltalk, Haskell, Erlang, and type-system evolution
+  - id: 01KQEKGD8QYAS6P09AM61S5E2W
+    title: Computer Science Foundations Hub
+    summary: Automata theory, formal grammars, compiler construction, operating system internals, and computational complexity (P vs. NP)
+  - id: 01KQEKGD9BVAXF6X4HZYKF2513
+    title: Data Structures & Algorithms Hub
+    summary: Cache-conscious trees (B+Trees, LSM-Trees), probabilistic structures (Bloom filters, HyperLogLog), graph algorithms, and amortized analysis
+  - id: 01KZHC6PVQ4SBQM9R0F3T7K8Z3
+    title: Java Platform & JVM Internals Hub
+    summary: Modern Java (21+), virtual threads (Project Loom), ZGC/G1GC garbage collection, JIT compilation, and enterprise build tooling
+  - id: 01KZHC6PVT4SBQM9R0F3T7K8Z6
+    title: Frontend Engineering Hub
+    summary: Browser rendering pipelines, Web Components and Shadow DOM, state management, SSR/hydration, TypeScript, and Core Web Vitals
+  - id: 01KZHC6PVS4SBQM9R0F3T7K8Z5
+    title: Web Services & API Architecture Hub
+    summary: REST, GraphQL, gRPC, WebSockets, API gateway rate limiting, idempotency keys, and schema evolution
+  - id: 01KQ0P44QGFRYPTQM5C4B78S33
+    title: Foundational Algorithms Reference
+    summary: Deep dive into sorting, shortest-path and network-flow graph algorithms, dynamic programming, and cryptographic primitives
+  - id: 01KQ0P44PSDYPG5MY8RH2DM5GT
+    title: Thirty Years of Distributed Computing
+    summary: From RPC and CORBA to cloud-native service meshes, durable execution engines, and modern observability
+- label: Cloud, DevOps, Security, Data Engineering & Infrastructure
+  cluster: devops-sre
+  pages:
+  - id: 01KZHC6PVV4SBQM9R0F3T7K8Z8
+    title: DevOps & Site Reliability Engineering Hub
+    summary: SLIs/SLOs and error budgets, CI/CD deployment gates, OpenTelemetry observability, incident response, and chaos engineering
+  - id: 01KQEKBKX2QVEW6716V6Y8N5QT
+    title: Cloud Platforms & Architecture Hub
+    summary: AWS, GCP, and Azure foundational primitives, VPC networking, serverless execution, FinOps cost optimization, and multi-region DR
+  - id: 01KQ0P44M52Z0XGC1BE1R04NFY
+    title: Cybersecurity, AuthN/AuthZ & Container Security Hub
+    summary: OAuth 2.1/OIDC, Passkeys/WebAuthn, Zero-Trust mTLS, Linux container isolation (seccomp/eBPF), and cryptographic key management
+  - id: 01KZHC6PVY4SBQM9R0F3T7K8ZB
+    title: Computer Networking & Protocols Hub
+    summary: OSI/TCP-IP stack, BGP routing, TLS 1.3 handshakes, HTTP/3 QUIC, high-performance kernel bypass (DPDK/XDP), and DNS architecture
+  - id: 01KZHC6PVX4SBQM9R0F3T7K8ZA
+    title: Data Engineering & Lakehouse Hub
+    summary: Idempotent batch/streaming pipelines, Apache Kafka/Pulsar, Iceberg/Delta lakehouses, dbt transformations, and dimensional modeling
+  - id: 01KQ0P44PEJG4KBKH84YFQP91Z
+    title: Database Internals & Performance Hub
+    summary: ACID isolation levels, MVCC lock contention, query planner optimization, connection pooling, and declarative partitioning
+  - id: 01KZG1VN8VRRZD33PBGG6H6Y6R
+    title: Home Lab & Self-Hosted Infrastructure Hub
+    summary: Production fleet topology, Cloudflare Zero Trust ingress, Docker host management, GPU inference nodes, and automated backup verification
+  - id: 01KQ0P44RXMZBD1705M8DV3X2T
+    title: Linux Systems & Command-Line Guide
+    summary: Linux kernel and filesystem hierarchy, POSIX permissions, systemd service management, package managers, and Bash scripting
+- label: Mathematics, Operations Research & Applied Engineering
+  cluster: mathematics
+  pages:
+  - id: 01KQ2P44XMGA8E1E7GAT4AYV43
+    title: Mathematics for Computer Science & ML Hub
+    summary: Linear algebra, multivariable calculus, measure-theoretic probability, abstract algebra, topology, and formal predicate/modal logic
+  - id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
+    title: Operations Research & Mathematical Optimization Hub
+    summary: Linear and mixed-integer programming (MILP), convex optimization, vehicle routing (VRP), queuing theory, and stochastic inventory models
+  - id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
+    title: Warehouse Automation & Industrial Robotics Hub
+    summary: High-density AS/RS kinematics, autonomous mobile robots (AMRs), WMS/WCS orchestration, sortation mechanics, and Lean/Six Sigma flow
+  - id: 01J7KQTCD38PBFSD7TD6ACJFD9
+    title: Physics & Mechanical Engineering Hub
+    summary: Classical and Lagrangian mechanics, thermodynamics, differential geometry, general relativity, and non-destructive physical metrology
+  - id: 01KQ0P44SAH60A7F88VHYD18BP
+    title: Mathematical Foundations of Machine Learning
+    summary: Matrix factorizations, automatic differentiation, information-theoretic divergence, and non-convex optimization landscapes
+- label: Personal Finance, Investing & Geopolitics
+  cluster: personal-finance
+  pages:
+  - id: 01KZHC6PVN4SBQM9R0F3T7K8Y2
+    title: Personal Finance & Tax Strategy Hub
+    summary: Household balance-sheet optimization, marginal tax planning, debt amortization math, estate structures, and risk management
+  - id: 01KQ0P44S4Y86MVCMAK9KJ3P9Y
+    title: Low-Cost Index Fund Investing Hub
+    summary: Modern Portfolio Theory, factor exposure, tax-efficient asset location, tolerance-band rebalancing, and early retirement accumulation
+  - id: 01KQ0P44VPKV01K0CMG0RNZ71A
+    title: Retirement Decumulation & Income Guide
+    summary: Safe withdrawal rates, sequence-of-returns mitigation, Roth conversion ladders, Social Security bend-point math, and ACA/Medicare thresholds
+  - id: 01KQ0P44Q77D4ZERJ5ZN2N571W
+    title: European Retirement & Cross-Border Investing Guide
+    summary: Three-pillar EU pension architecture, UCITS ETF taxation, and country-specific regulatory frameworks across Europe
+  - id: 01J7KQTCD38PBFSD7TD6ACJFD6
+    title: Geopolitics & Global Financial Markets Hub
+    summary: Econometric analysis of sovereign debt cycles, commodity supply shocks, trade corridors, and equity drawdown recovery coefficients
+  - id: 01KQ0P44NWKXBXJ0KB3SMAE0QY
+    title: International Conflicts and Equity Markets
+    summary: Historical market drawdowns, volatility regimes, and sector rotation patterns from WWI through modern geopolitical crises
+  - id: 01KQ0P44VZN6EV310SWYP621WF
+    title: 'The Russia-Ukraine War: Strategic & Economic Analysis'
+    summary: Attrition dynamics, autonomous drone warfare, energy infrastructure targeting, sanctions routing, and defense-industrial scaling

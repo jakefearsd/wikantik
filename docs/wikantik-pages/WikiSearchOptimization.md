@@ -1,28 +1,22 @@
 ---
+status: active
+date: '2026-04-26'
+summary: How to make wiki search work well — relevance, ranking, query understanding,
+  and the patterns that distinguish a wiki users can find things in vs. one...
+tags:
+- wiki
+- search
+- relevance
+- wikantik-development
+type: article
+cluster: wikantik-development
+canonical_id: 01KQ0P44Z5D81GQV4GNZ896036
 related:
 - WikiAnalyticsAndEngagement
 - WikiPageTemplates
 - ElasticsearchFundamentals
 - FullTextSearchInPostgresql
 title: Wiki Search Optimization
-cluster: wikantik-development
-tags:
-- wiki
-- search
-- relevance
-- wikantik-development
-is_comparable_to:
-- Solr
-canonical_id: 01KQ0P44Z5D81GQV4GNZ896036
-uses:
-- BM25
-date: '2026-04-26'
-status: active
-summary: How to make wiki search work well — relevance, ranking, query understanding,
-  and the patterns that distinguish a wiki users can find things in vs. one they can't.
-type: article
-is_alternative_to:
-- MySQL
 ---
 # Wiki Search Optimization
 
@@ -247,3 +241,7 @@ For larger or more complex wikis: dedicated search infrastructure from the start
 - [WikiPageTemplates](WikiPageTemplates) — Templates affect findability
 - [ElasticsearchFundamentals](ElasticsearchFundamentals) — Dedicated search
 - [FullTextSearchInPostgresql](FullTextSearchInPostgresql) — DB search
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

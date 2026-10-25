@@ -1,26 +1,22 @@
 ---
+kg_include: true
+summary: Status of the designed but never built MCP content-audit tools, and the checks
+  that audit the MCP surface itself.
+type: article
 audience:
 - humans
-part-of:
-- McpIntegration
-status: active
-title: MCP Audit Tools
-type: article
-canonical_id: 01KQ0P44SB1JGDBZKMCYXWCNA0
-kg_include: true
 date: '2026-03-20'
-enables:
-- WikiAuditSkill
+canonical_id: 01KQ0P44SB1JGDBZKMCYXWCNA0
+status: active
 tags:
 - development
 - mcp
 - audit
 - tools
+cluster: wikantik-development
+title: MCP Audit Tools
 related:
 - WikantikDevelopment
-summary: Status of the designed but never built MCP content-audit tools, and the checks
-  that audit the MCP surface itself.
-cluster: wikantik-development
 ---
 # MCP Audit Tools
 
@@ -94,3 +90,7 @@ Authentication failures are 403, not 401.
 - `bin/simple-agility-conformance.sh --base-url http://localhost:8080 --prefix wikantik` checks the health, metrics and structured-log contract that the observability plane expects.
 
 [{Relationships}]
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

@@ -1,24 +1,23 @@
 ---
-type: article
-cluster: personal-finance
+status: active
 date: '2026-04-26'
-title: Side Income Strategies
+summary: Realistic ways to add a second income stream — what actually pays, what is
+  marketed but rarely works, and the time-vs-return math that separates real...
 tags:
 - side-income
 - side-hustle
 - personal-finance
 - income-diversification
 - second-income
-summary: Realistic ways to add a second income stream — what actually pays, what is
-  marketed but rarely works, and the time-vs-return math that separates real side
-  income from busywork.
+type: article
+canonical_id: 01KQ0P44WC3HQY3KGZHXR39CJG
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - FinancialResilience
 - BudgetingMethods
 - TaxPlanningFundamentals
-canonical_id: 01KQ0P44WC3HQY3KGZHXR39CJG
-status: active
+title: Side Income Strategies
 ---
 # Side Income Strategies
 
@@ -185,14 +184,14 @@ The transition is rarely linear. Most successful career changes involve a period
 
 Ask three questions:
 
-1. **What is my day-job effective hourly rate after taxes?** ($X/hour)
-2. **What does this side activity pay per hour after taxes and expenses?** ($Y/hour)
+1. **What is my day-job effective hourly rate after taxes?** (\$X/hour)
+2. **What does this side activity pay per hour after taxes and expenses?** (\$Y/hour)
 3. **Does this activity compound (skills, audience, owned assets)?** (Y/N)
 
-If $Y > $X with no compounding, do it modestly.
-If $Y > $X with compounding, prioritize it.
-If $Y < $X with compounding, do it as long as you can sustain it.
-If $Y < $X without compounding, do something else with the time.
+If \$Y > \$X with no compounding, do it modestly.
+If \$Y > \$X with compounding, prioritize it.
+If \$Y < \$X with compounding, do it as long as you can sustain it.
+If \$Y < \$X without compounding, do something else with the time.
 
 ## Further Reading
 

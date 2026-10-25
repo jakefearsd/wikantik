@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQEKGD6WQ8QY6BW22RMKVNAW
-title: Agentic Architecture
-type: article
-cluster: agentic-ai
 status: active
 date: '2026-04-25'
+summary: Higher-level architectural patterns for agentic systems — LLM-as-router,
+  pipeline-with-agent-supervisor, parallel agents, hybrid graph-and-agent — and...
 tags:
 - agent
 - architecture
 - llm
 - autonomous-systems
 - agentic-design
-summary: Higher-level architectural patterns for agentic systems — LLM-as-router,
-  pipeline-with-agent-supervisor, parallel agents, hybrid graph-and-agent —
-  and the trade-offs each makes.
+type: article
+canonical_id: 01KQEKGD6WQ8QY6BW22RMKVNAW
+cluster: agentic-ai
 related:
 - AgenticWorkflowDesign
 - AiAgentArchitectures
 - AgentLoops
 - AgentPlanning
 - ToolUse
+title: Agentic Architecture
 ---
 # Agentic Architecture
 
@@ -141,7 +140,7 @@ For each decision the system makes, ask: deterministic logic, agent decision, or
 | Selecting which tool to call | Agent |
 | Executing a known operation | Deterministic |
 | Composing a response | Agent |
-| Triggering a refund > $threshold | Human approval |
+| Triggering a refund > \$threshold | Human approval |
 | Modifying production data | Deterministic + audit |
 | Acknowledging an alert | Agent or human depending on severity |
 
@@ -153,7 +152,7 @@ This decomposition is the work. Draw the boundaries badly (agent making decision
 
 Agentic architectures cost more than their non-agentic equivalents:
 
-- **Inference cost.** Every agent step is an LLM call. 10 steps × $0.01 per step = $0.10 per task; multiply by traffic.
+- **Inference cost.** Every agent step is an LLM call. 10 steps × \$0.01 per step = \$0.10 per task; multiply by traffic.
 - **Latency.** LLM calls take seconds. Multi-step agents take tens of seconds. User-facing UX needs to handle this — streaming responses, progress indicators, async patterns.
 - **Operational cost.** Observability, evaluation, compliance — agentic systems need more of all three than traditional services.
 
@@ -194,3 +193,7 @@ Stop at the simplest level that works. Don't skip levels.
 - [AgentLoops]() — failure modes
 - [AgentPlanning]() — plan representations
 - [ToolUse] — tool design
+
+---
+
+**Cluster Hub:** [[AgenticAiHub|Agentic AI Hub: Cognitive Architectures, Orchestration, and Autonomous Systems]] (`agentic-ai`)

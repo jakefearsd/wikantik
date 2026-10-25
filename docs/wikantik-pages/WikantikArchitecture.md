@@ -1,16 +1,21 @@
 ---
-title: Wikantik System Architecture
-date: '2026-08-16'
+verified_at: '2026-10-24T22:58:58.427766555Z'
+audience:
+- humans
+- agents
 cluster:
 - wikantik-platform
 - wikantik-development
-status: active
-verified_at: '2026-06-20T20:40:31.893363642Z'
-type: design
-verified_by: jakefear
-canonical_id: 01KQTCAKV3BVHYPW20PHSFGXJR
 summary: 'Wikantik''s architecture: modular Java engine, hybrid file+Postgres storage,
   BM25+dense retrieval, Knowledge Graph + RDF ontology, and the agent MCP surface.'
+related:
+- About
+- WikantikPlatformHub
+- WikantikDevelopmentHub
+- PageGraphVsKnowledgeGraph
+- HybridRetrieval
+- ContentIntelligenceDesign
+verified_by: wikantik-cli
 tags:
 - architecture
 - wikantik
@@ -20,6 +25,12 @@ tags:
 - knowledge-graph
 - ontology
 - mcp
+date: '2026-10-24'
+kg_include: true
+canonical_id: 01KQTCAKV3BVHYPW20PHSFGXJR
+title: Wikantik System Architecture
+type: design
+status: active
 ---
 # Wikantik System Architecture
 
@@ -61,6 +72,41 @@ The guiding principle, repeated throughout the design, is **human–machine pari
         └──────────────────┘  └────────────────────┘    └──────────────────────┘
 ```
 
+```mermaid
+flowchart TB
+    subgraph Clients["Human, Agent & Crawler Consumers"]
+        SPA["React 19 SPA (Vite 8)<br/>Reader · Live Preview Editor · Admin UI"]
+        Agents["AI Coding & Curation Agents<br/>(MCP Streamable HTTP / OpenAPI 3.1)"]
+        Crawlers["Search Engines & Linked Data Clients<br/>(SSR HTML+JSON-LD · Sitemap · SPARQL)"]
+    end
+
+    subgraph Edge["Servlet Filter & Edge Layer (wikantik-http / wikantik-rest / wikantik-mcp)"]
+        Filters["Security & Admission Filters<br/>CSRF · CSP · BackpressureFilter · RateLimitFilter"]
+        Rest["REST & Admin Servlets<br/>/api/* (36) · /admin/* (29) · /scim/v2/*"]
+        Mcp["Agent Tool Endpoints<br/>/wikantik-admin-mcp (29) · /knowledge-mcp (22) · /tools/* (2)"]
+        Rdf["Public Linked Data<br/>/sparql · /id/* · /export/*"]
+    end
+
+    subgraph Core["Modular Monolith Engine (Java 25 / Tomcat 11)"]
+        Engine["WikiEngine & Port Interfaces (wikantik-api / wikantik-main)<br/>PageManager · RenderingManager · FilterManager · HybridSearchService"]
+        Insights["Content Intelligence (wikantik-insights)<br/>GSC + Bing + Query Log -> Opportunity Rules & DiD EffectEvaluator"]
+    end
+
+    subgraph Storage["Three-Store Persistence Architecture"]
+        Files[("Page Corpus (Filesystem)<br/>CommonMark + YAML Frontmatter<br/>VersioningFileProvider")]
+        PG[("PostgreSQL 18 + pgvector 0.8.6<br/>kg_* · embeddings · citations · policy_grants<br/>(via wikantik-jdbc)")]
+        TDB2[("Apache Jena TDB2<br/>Materialized RDF/OWL A-Box<br/>(wikantik.ttl + SHACL Gate)")]
+    end
+
+    SPA --> Filters
+    Agents --> Filters
+    Crawlers --> Filters
+    Filters --> Rest & Mcp & Rdf
+    Rest & Mcp & Rdf --> Engine
+    Engine --> Files & PG & TDB2
+    PG --> Insights
+```
+
 The wiki deploys as a single WAR into Tomcat 11. It is a **modular monolith**: 24 Maven modules in the default reactor (a 25th, `wikantik-coverage-report`, joins under `-Pcoverage`) with strict dependency boundaries enforced by ArchUnit tests, not a microservice fleet. Heavy AI work (embedding, entity extraction, LLM judging) is delegated to external services (Ollama / an OpenAI-compatible endpoint) and to a companion CLI, so the engine itself stays a normal JEE application.
 
 ## 2. The Module Reactor
@@ -80,7 +126,7 @@ Modules are layered: `wikantik-api` defines the contracts (ports); everything el
 | `wikantik-rest` | edge | REST `/api/*` (36 servlets, incl. `POST /api/ingest`, `GET /api/bundle`, `GET /api/briefing`, Obsidian import/export) and admin `/admin/*` (29 servlets: audit, drift, ontology, derived, kg-policy, connectors, insights, cluster rename). Public RDF servlets, `SpaRoutingFilter`, and the `/wiki/{slug}?format=md\|json` content filter. |
 | `wikantik-mcp-core` | agent | Shared MCP substrate — `McpTool`, endpoint bootstrap, access filter, and the two tools both MCP servers register. Extracted to break the `wikantik-knowledge` → `wikantik-admin-mcp` module cycle. |
 | `wikantik-admin-mcp` | agent | MCP server at `/wikantik-admin-mcp` — 29 write/analytics/KG-curation tools. |
-| `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (21 read tools when fully wired) **and** the KG service: pgvector embeddings, co-mention graph, hybrid retriever, the context-bundle assembler. |
+| `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (22 read-only tools when fully wired) **and** the KG service: pgvector embeddings, co-mention graph, hybrid retriever, the context-bundle assembler. |
 | `wikantik-tools` | agent | OpenAPI 3.1 tool server `/tools/*` (2 tools) for non-MCP clients. |
 | `wikantik-scim` | agent | SCIM 2.0 provisioning `/scim/v2/*` — IdP-driven Users + Groups. |
 | `wikantik-ontology` | knowledge | Apache Jena: the `wikantik:` T-Box (`wikantik.ttl`), SHACL shapes, Postgres→RDF projectors, TDB2 store. |
@@ -148,6 +194,18 @@ Retrieval is **hybrid**: lexical BM25 (Apache Lucene, full-page index) fused wit
                                           cited sections, NO answer synthesis
 ```
 
+Mathematically, for each section chunk $c_i$ of page $P$ with heading path $H_i$ and body $B_i$, `EmbeddingTextBuilder.forDocument` constructs a context-prefixed input before computing the dense vector $\vec{u}_i \in \mathbb{R}^d$:
+
+$$
+\vec{u}_i = \text{Embed}\!\left(\text{``Page: ''} \mathbin{\|} P.\text{title} \mathbin{\|} \text{`` | Cluster: ''} \mathbin{\|} P.\text{cluster}_1 \mathbin{\|} \text{`` | Section: ''} \mathbin{\|} H_i \mathbin{\|} \text{`` — ''} \mathbin{\|} P.\text{summary} \mathbin{\|} \text{`` — ''} \mathbin{\|} B_i\right)
+$$
+
+Given a query $q$, the lexical rank $r_{\text{BM25}}(c_i, q)$ from Apache Lucene and the dense cosine-similarity rank $r_{\text{dense}}(c_i, q)$ from `pgvector` HNSW are fused via **Reciprocal Rank Fusion (RRF)** with smoothing constant $k = 60$:
+
+$$
+\text{RRF}(c_i, q) = \frac{w_{\text{lex}}}{k + r_{\text{BM25}}(c_i, q)} + \frac{w_{\text{dense}}}{k + r_{\text{dense}}(c_i, q)}
+$$
+
 Two measured levers, not guesses, moved global section recall@12 from ~0.60 to ~0.74:
 
 1. **Chunker heading-fidelity fix** — `ContentChunker` force-emits its merge-forward buffer at every heading boundary so early/first-H2 sections keep their own `heading_path` (they were previously mis-attributed and mis-cited); plus a sub-floor fragment merge and small overlap.
@@ -177,7 +235,7 @@ Agents are first-class clients, not an afterthought. Every surface enforces the 
 | Endpoint | Protocol | What |
 |----------|----------|------|
 | `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 29 write/analytics/KG-curation tools (incl. admin-bypass reads, orphan listing, real-traffic query log, bulk cluster rename, and the Content Intelligence pair `list_content_opportunities` / `snooze_opportunity`). The count is the `EXPECTED_TOOLS` set in `McpProtocolIT`. |
-| `/knowledge-mcp` | MCP | 21 read tools when fully wired: hybrid retrieval, KG traversal, schema discovery, structural-spine nav, agent-grade page projection, batched reads, `get_ontology`, `sparql_query`, `list_stale_citations`, `get_briefing`, and `assemble_bundle`. Several register conditionally on what a deployment has wired. |
+| `/knowledge-mcp` | MCP | 22 read-only tools when fully wired: hybrid retrieval, KG traversal, schema discovery, structural-spine nav, agent-grade page projection, batched reads, `get_ontology`, `sparql_query`, `list_stale_citations`, `get_briefing`, and `assemble_bundle`. Several register conditionally on what a deployment has wired. |
 | `/tools/*` | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) for OpenWebUI-style non-MCP clients. |
 | `/scim/v2/*` | SCIM 2.0 | IdP-driven Users + Groups provisioning (SCIM Groups never grant Admin). |
 | `/api/*`, `/admin/*` | REST/JSON | 36 + 29 distinct servlets (38 + 37 url-patterns in `web.xml`); `GET /api/bundle`, `GET /api/briefing`, `POST /api/ingest`, `GET /api/export`, `POST /api/import/obsidian/{plan,apply}`, `/api/changes?since=` feed. |
@@ -200,8 +258,8 @@ The frontmatter is the contract that ties these together: a server-authoritative
 ```
  Markdown source
    │  MarkdownParser → Flexmark AST
-   ├─ pre/post filters (FilterManager): structural spine, schema validation,
-   │   math validation, citation parsing, frontmatter → KG projection
+   ├─ pre/post filters (FilterManager): structural spine (canonical_id/cluster),
+   │   FrontmatterSchema validation, math validation, citation parsing, Postgres → RDF ontology sync
    ├─ plugins  [{Plugin}]  (auto-normalized to [{Plugin}]() for Flexmark)
    ▼
  MarkdownRenderer → HTML  ──▶  SSR (title/meta/JSON-LD head) + React SPA hydrate
@@ -233,12 +291,12 @@ The same content is served three ways: rendered HTML for browsers (with an SSR h
 
 An honest architecture page names its own debts.
 
-- **The math/currency validator has blind spots.** It flags `$…$` prose-pairs but misses currency inside tables or long spans that don't form a stopword pair (e.g. `$3,150 … $10,000`), so some pages still mis-render numbers as math. The fix is per-page escaping, not yet systematized.
+- **The math/currency validator has blind spots.** The save-time validator flags `$…$` prose-pairs but misses currency inside tables or long spans that don't form a stopword pair (e.g. `\$3,150 … \$10,000`). While the 1,462-page production corpus was swept to 100% currency-escaped compliance in October 2026, enforcing table/span currency escaping inside the save-time parser itself remains an open engineering item.
 - **KG-as-a-retrieval-signal is a closed question.** A ceiling experiment with a Claude-quality KG measured *zero* net rerank lift — relational section relevance is not entity proximity — so the page-level graph reranker was deleted in 2026-07. The KG earns its keep as a human KB / ontology / MCP surface, not as a ranking signal. Only a section-level redesign could revisit this.
 - **Dual content/derived stores create sync surface.** Page corpus (files) + Postgres (KG/embeddings/citations) + TDB2 (RDF) must stay coherent through event-incremental sync; a dropped re-embed or a missed projection is a real (if monitored) failure mode, mitigated by startup reconciliation.
 - **In-process coupling.** The bundle assembler and KG service live inside the engine (wired at post-startup seams). This keeps latency low and deployment simple but means the "RAG service" cannot scale independently of the wiki.
 - **Operational complexity.** Three stores, external Ollama, an embedding queue, an ontology rebuild scheduler, and a separate monitoring repo are a lot of moving parts for a self-hosted wiki — the price of the agent-grade ambition.
-- **Curation gaps persist.** A long tail of pages still lacks summaries/clusters/tags; clean frontmatter is necessary but not sufficient for retrievability (the live `assemble_bundle` check is the real gate), and that gap is closed by ongoing curation, not by the architecture itself.
+- **Curation requires continuous verification.** Even with 100% frontmatter schema compliance across the corpus (summaries, clusters, tags, ISO dates, and hub backlinks normalized in October 2026), clean frontmatter is necessary but not sufficient for retrievability: the live `assemble_bundle` section-rank check and `ContentIntelligenceDesign` `agent_gap` backlog remain essential ongoing gates.
 
 ## 12. Areas for Future Growth
 

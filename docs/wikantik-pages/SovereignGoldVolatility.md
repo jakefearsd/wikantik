@@ -1,9 +1,9 @@
 ---
-type: article
 status: active
-date: 2026-05-15T00:00:00Z
-cluster: geopolitics-and-finance
-title: 'Sovereign Gold Volatility: The 2026 Trophy Asset Re-Rating'
+date: '2026-05-15'
+summary: 'Gold''s 2026 surge to $5$5,600/oz: central bank reserve shifts, neutral
+  asset demand under sanctions, and the emergence of gold as a private-wealth trophy
+  asset.'
 tags:
 - gold
 - volatility
@@ -11,13 +11,14 @@ tags:
 - centralbanks
 - trophyassets
 - finance
-summary: 'Gold''s 2026 surge to $5,600/oz: central bank reserve shifts, neutral asset
-  demand under sanctions, and the emergence of gold as a private-wealth trophy asset.'
+type: article
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KI
+cluster: geopolitics-and-finance
 related:
 - ConflictMarketPatternsHub
 - MarketRecoveryCoefficients
 - GeopoliticalFinancialBridgeHub
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KI
+title: 'Sovereign Gold Volatility: The 2026 Trophy Asset Re-Rating'
 ---
 
 # Sovereign Gold Volatility: The 2026 Trophy Asset Re-Rating
@@ -31,11 +32,11 @@ The resurgence of conflict in the Middle East and the weaponization of trade rou
 ### 2026 Gold Price Trajectory
 | Period | Price (USD/oz) | Driver |
 | :--- | :--- | :--- |
-| Late 2025 | $2,350 | Basel III implementation baseline. |
-| **Jan 2026** | **$5,600** | **Peak Volatility:** Strait of Hormuz closure and massive short squeeze. |
+| Late 2025 | \$2,350 | Basel III implementation baseline. |
+| **Jan 2026** | **\$5,600** | **Peak Volatility:** Strait of Hormuz closure and massive short squeeze. |
 | mid-2026 | \$4,600 | Stabilization as 'Power Havens' established alternate settlements. |
 
-The [Market Recovery Coefficients](MarketRecoveryCoefficients) modeled in this wiki use the $5,600 peak as the primary 'Geopolitical Stress' anchor for resilience forecasting.
+The [Market Recovery Coefficients](MarketRecoveryCoefficients) modeled in this wiki use the \$5,600 peak as the primary 'Geopolitical Stress' anchor for resilience forecasting.
 
 ## 2. Central Banks: The "Sovereign Floor"
 

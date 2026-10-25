@@ -1,15 +1,11 @@
 ---
-status: active
-date: '2026-05-15'
-title: Graph-Aware Reranking and Semantic Proximity
-canonical_id: 01KRQJ845TTE8DNKNVWC8EBVN3
 cluster: wikantik-platform
-relations:
-- type: component_of
-  target_id: WikantikSearchAndRetrieval
-- type: extension_of
-  target_id: SpectralGraphTheoryConceptual
-type: article
+date: '2026-05-15'
+status: active
+summary: How graph-proximity reranking worked — multi-source BFS over a co-mention
+  graph, max-proximity scoring, stable-sort boost. Removed from Wikantik in 2026-07.
+canonical_id: 01KRQJ845TTE8DNKNVWC8EBVN3
+title: Graph-Aware Reranking and Semantic Proximity
 tags:
 - search
 - graph-theory
@@ -17,8 +13,7 @@ tags:
 - proximity-search
 - bfs
 - algorithms
-summary: How graph-proximity reranking worked — multi-source BFS over a co-mention
-  graph, max-proximity scoring, stable-sort boost. Removed from Wikantik in 2026-07.
+type: article
 ---
 # Graph-Aware Reranking and Semantic Proximity
 
@@ -91,3 +86,7 @@ relate*; it does not answer *which passage answers the question*.
 - [Knowledge Graph Extraction](WikantikKnowledgeGraph) — Generating the co-mention edges.
 - [Knowledge Graph Rerank](KnowledgeGraphRerank) — The measured verdict and the removal.
 - [Hybrid Retrieval](HybridRetrieval) — The BM25 + dense pipeline that actually serves queries.
+
+---
+
+**Cluster Hub:** [[WikantikPlatformHub|Wikantik Platform Hub: Knowledge Systems, Hybrid Search, and AI Agent Integrations]] (`wikantik-platform`)

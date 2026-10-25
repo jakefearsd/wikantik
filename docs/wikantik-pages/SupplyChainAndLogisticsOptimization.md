@@ -1,10 +1,8 @@
 ---
-status: active
-type: article
 part-of:
 - OperationsResearchHub
-date: 2026-03-17T00:00:00Z
-cluster: operations-research/logistics
+date: '2026-03-17'
+cluster: operations-research
 title: Supply Chain and Logistics Optimization
 tags:
 - operations-research
@@ -20,6 +18,8 @@ related:
 - IntegerAndCombinatorialOptimization
 - StochasticModelsInOR
 canonical_id: 01KQ0P44X2319KR5ZEAM39W7TD
+status: active
+type: article
 ---
 # Supply Chain and Logistics Optimization
 
@@ -52,7 +52,7 @@ Q* = sqrt(2KD/h)   (the EOQ formula)
 
 The optimal order quantity balances ordering and holding costs. At Q*, both costs are equal — a property called the **square root law**.
 
-**Example:** Demand D = 10,000 units/year, K = $100/order, h = $2/unit/year.
+**Example:** Demand D = 10,000 units/year, K = \$100/order, h = \$2/unit/year.
 Q* = sqrt(2 × 100 × 10,000 / 2) = sqrt(1,000,000) = 1,000 units per order.
 Order frequency: 10 orders per year, every 5.2 weeks.
 

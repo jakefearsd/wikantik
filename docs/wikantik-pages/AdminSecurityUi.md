@@ -1,12 +1,13 @@
 ---
-status: active
-title: 'Admin Security UI: Groups and Policy Grants'
-type: article
-canonical_id: 01KQ0P44JKW93WGGG83BXCHYMZ
 kg_include: true
+summary: 'Admin Security screen at /admin/security: manage wiki groups and the database-backed
+  policy grants that decide what each role may do.'
+type: article
+audience:
+- humans
 date: '2026-03-28'
-enables:
-- KnowledgeAdminUi
+canonical_id: 01KQ0P44JKW93WGGG83BXCHYMZ
+status: active
 tags:
 - security
 - admin-ui
@@ -14,16 +15,10 @@ tags:
 - groups
 - policy-grants
 - wikantik-development
+cluster: wikantik-development
+title: 'Admin Security UI: Groups and Policy Grants'
 related:
 - WikantikDevelopment
-- DatabaseBackedPermissions
-- JspToReactMigration
-summary: 'Admin Security screen at /admin/security: manage wiki groups and the database-backed
-  policy grants that decide what each role may do.'
-cluster: wikantik-development
-audience:
-- humans
-depends-on:
 - DatabaseBackedPermissions
 - JspToReactMigration
 ---
@@ -70,3 +65,7 @@ Group-membership changes are audited as `group.member.add` and `group.member.rem
 There is no session monitor or "kill switch", no token-lifecycle screen for OAuth2/OIDC tokens (single sign-on through pac4j only establishes a normal login session; Wikantik does not store the identity provider's tokens), no JWT claims cache, no Redis broadcast and no dual-control approval step. Revoking an API key is a soft delete on `/admin/apikeys`, and the in-process verification cache (60-second TTL) is evicted on the node that handled the revoke.
 
 For the operator reference, see `docs/admin/Security.md`, `docs/admin/AdminPanel.md`, `docs/admin/ApiKeys.md` and `docs/admin/AuditLog.md` in the repository.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

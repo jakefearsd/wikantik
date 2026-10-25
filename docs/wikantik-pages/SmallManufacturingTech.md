@@ -1,6 +1,6 @@
 ---
 status: active
-date: 2025-05-15T00:00:00Z
+date: '2025-05-15'
 summary: A technical comparison of 3D printing and injection molding, focusing on
   economies of scale and cross-over points for small manufacturers.
 tags:
@@ -37,7 +37,7 @@ Additive manufacturing (FDM, SLA, SLS) bypasses the need for tooling.
 
 ### 2.1 Cost Structure
 *   **Fixed Cost (CapEx):** Negligible (setup time, software).
-*   **Variable Cost (OpEx):** High. Specialised filaments/resins and long print times (labor/electricity per hour) make per-unit costs significant (\$1 to$20+).
+*   **Variable Cost (OpEx):** High. Specialised filaments/resins and long print times (labor/electricity per hour) make per-unit costs significant (\$1 to \$20+).
 *   **Total Cost:** $TC \approx Variable\_Cost \times Volume$.
 
 ### 2.2 The "Complexity is Free" Paradigm
@@ -65,3 +65,7 @@ $$
 | **Surface Finish** | Layer lines (requires post-proc)| Class A finish out of mold |
 
 For modern small manufacturers, the strategy is often **Hybrid Production**: 3D print for R&D and initial market launch (Beta), then transition to injection molding once the design is frozen and volume justifies the CapEx.
+
+---
+
+**Cluster Hub:** [[WarehouseAutomationHub|Warehouse Automation]] (`warehouse-automation`)

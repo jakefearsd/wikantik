@@ -56,3 +56,7 @@ A 2025 research focus is the **Non-Standard Error**—the uncertainty introduced
 - [Numerical Methods](NumericalMethods) — Finite-precision arithmetic.
 - [Real Analysis](RealAnalysis) — The standard real number system.
 - [Quantitative Finance Research Hub](QuantitativeFinanceResearchHub)
+
+---
+
+**Cluster Hub:** [[MathematicsHub|Mathematics Hub]] (`mathematics`)

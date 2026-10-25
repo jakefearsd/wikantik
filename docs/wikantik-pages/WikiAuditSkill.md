@@ -1,6 +1,13 @@
 ---
-status: active
+kg_include: true
 type: article
+summary: 'The wiki-audit agent skill: on-demand wiki health checks (links, orphans,
+  metadata, SEO), demand and freshness sweeps, and the report it writes.'
+status: active
+audience:
+- humans
+date: '2026-03-20'
+canonical_id: 01KQ0P44YZAEVHTS0BB2KS9ZQX
 tags:
 - wiki-audit
 - broken-links
@@ -8,20 +15,11 @@ tags:
 - wikantik
 - quality-assurance
 - content-curation
-canonical_id: 01KQ0P44YZAEVHTS0BB2KS9ZQX
+cluster: wikantik-development
+title: 'Wiki Audit Skill: On-Demand Link, Metadata, SEO and Staleness Audits'
 related:
 - McpAuditTools
 - WikantikDevelopment
-kg_include: true
-date: '2026-03-20'
-depends-on:
-- McpIntegration
-audience:
-- humans
-cluster: wikantik-development
-title: 'Wiki Audit Skill: On-Demand Link, Metadata, SEO and Staleness Audits'
-summary: 'The wiki-audit agent skill: on-demand wiki health checks (links, orphans,
-  metadata, SEO), demand and freshness sweeps, and the report it writes.'
 ---
 # Wiki Audit Skill: On-Demand Link, Metadata, SEO and Staleness Audits
 
@@ -75,3 +73,7 @@ The skill writes `docs/audits/YYYY-MM-DD-wiki-audit.md` in the repository (it pr
 - [Wiki Audit Demand and Freshness Loop](WikiAuditDemandLoop) — the D1 and D2 runbook
 - [Content Program Policy](ContentProgramPolicy) — the policy the audit enforces
 - [Frontmatter Conventions](FrontmatterConventions) — the schema the metadata checks mirror
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

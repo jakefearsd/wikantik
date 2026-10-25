@@ -1,24 +1,24 @@
 ---
-type: article
 status: active
-cluster: personal-finance
 date: '2026-04-26'
-title: US Tax Treaties with European Countries
+summary: 'How US-European tax treaties work: the savings clause limiting relief for
+  US citizens, totalization agreements, and practical traps for dual-status taxpayers.'
 tags:
 - taxes
 - international-tax
 - tax-treaties
 - expat
 - personal-finance
-summary: 'How US-European tax treaties work: the savings clause limiting relief for
-  US citizens, totalization agreements, and practical traps for dual-status taxpayers.'
+type: article
+canonical_id: 01KQ0P44Y5GZ7T1PVRHQQBCKHN
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - TaxPlanningFundamentals
 - EuRetirementSavingsGuide
 - EuRetirementTaxComparison
 - GermanRetirementSystem
-canonical_id: 01KQ0P44Y5GZ7T1PVRHQQBCKHN
+title: US Tax Treaties with European Countries
 ---
 # US Tax Treaties With European Countries
 
@@ -66,9 +66,9 @@ A dollar-for-dollar credit for income taxes paid to foreign governments. The FTC
 
 The mechanics:
 
-- You owe US tax on $X of foreign income
-- You paid $Y in foreign income tax on the same income
-- You can credit $Y against your US tax (subject to limits)
+- You owe US tax on \$X of foreign income
+- You paid \$Y in foreign income tax on the same income
+- You can credit \$Y against your US tax (subject to limits)
 
 If foreign tax exceeds US tax (common in high-tax European countries like Germany, France, Belgium), the excess can be carried back one year and forward ten years. If US tax exceeds foreign tax (less common in Europe but possible for capital gains), you owe the difference to the US.
 
@@ -178,7 +178,7 @@ This matters mostly for high-net-worth taxpayers or those genuinely on the fence
 Beyond the tax itself, US citizens with foreign accounts or assets face significant reporting obligations:
 
 - **FBAR (FinCEN 114)** — required if aggregate foreign accounts exceed \$10K at any time during the year. Penalties for non-filing are severe.
-- **FATCA (Form 8938)** — required if specified foreign financial assets exceed thresholds ($50K to \$600K depending on filing status and residency).
+- **FATCA (Form 8938)** — required if specified foreign financial assets exceed thresholds (\$50K to \$600K depending on filing status and residency).
 - **PFIC reporting (Form 8621)** — required for any holdings in passive foreign investment companies. Most non-US mutual funds and ETFs are PFICs. The tax treatment is punitive, and the filing burden is substantial.
 
 These reporting requirements exist independently of tax treaties. A US citizen abroad can owe zero US tax but still be required to file FBAR, FATCA, and PFIC forms with severe penalties for omission.
@@ -210,7 +210,7 @@ These reporting requirements exist independently of tax treaties. A US citizen a
 
 - **Assuming the treaty stops US taxation.** The savings clause prevents this for citizens. The treaty helps in specific ways, not as a blanket exemption.
 - **Buying foreign mutual funds.** The PFIC regime is so punitive that no foreign mutual fund is worth holding. Use US-domiciled ETFs even from abroad.
-- **Missing FBAR.** Penalties start at $10K per account per year. Many people learn this when amending years of returns.
+- **Missing FBAR.** Penalties start at \$10K per account per year. Many people learn this when amending years of returns.
 - **Not using the FTC carryback/carryforward.** Excess foreign tax credits can be used in adjacent years — many people lose them by not tracking.
 - **Trying to DIY a complex cross-border situation.** Expat tax preparation is a specialty. The compliance cost of professional help is generally less than the cost of getting it wrong.
 

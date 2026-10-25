@@ -1,19 +1,18 @@
 ---
-status: active
-date: '2025-05-15'
-author: gemini-cli
-title: Agent-Grade Content Design
 cluster: wikantik-development
+date: '2025-05-15'
+status: active
+summary: The definitive standard for "Agent-Grade" content in Wikantik. Defines the
+  Structural Spine, verification metadata, and requirements for RAG-ready...
 canonical_id: 01KQ0P60JSKT204TXF6BTNEDDE
-type: design
+title: Agent-Grade Content Design
 tags:
 - design
 - structural-spine
 - rag
 - agent-context
 - metadata
-summary: The definitive standard for "Agent-Grade" content in Wikantik. Defines the
-  Structural Spine, verification metadata, and requirements for RAG-ready...
+type: design
 ---
 # Agent-Grade Content Design: The Structural Spine
 
@@ -106,3 +105,7 @@ Design spec and implementation plan retired once the work shipped; status is tra
 ## Conclusion: The Goal of Structural Integrity
 
 The Structural Spine is not just about formatting; it is about **Epistemic Reliability**. By adhering to these standards, we ensure that Wikantik remains a high-trust repository where agents can navigate complex technical landscapes without hallucinating or losing context.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

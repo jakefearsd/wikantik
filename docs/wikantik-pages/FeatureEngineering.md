@@ -1,8 +1,8 @@
 ---
-type: article
-cluster: machine-learning
+status: active
 date: '2026-05-10'
-title: 'Feature Engineering: The Practitioner''s High-Fidelity Framework'
+summary: An exhaustive practitioner's guide to 2026-standard feature engineering.
+  Covers Relational Deep Learning (RDL), LLM-driven semantic synthesis, the...
 tags:
 - feature-engineering
 - ml-architecture
@@ -10,16 +10,15 @@ tags:
 - data-leakage
 - automated-fe
 - relational-deep-learning
-summary: An exhaustive practitioner's guide to 2026-standard feature engineering.
-  Covers Relational Deep Learning (RDL), LLM-driven semantic synthesis, the Boruta-SHAP
-  mathematical framework, and production-scale ASOF Join patterns.
+type: article
+canonical_id: 01KQ0P44QBZQFZW2FJB4YSXA2C
+cluster: machine-learning
 related:
 - MachineLearning
 - TimeSeriesForecasting
 - StreamProcessing
 - MLOpsPractices
-canonical_id: 01KQ0P44QBZQFZW2FJB4YSXA2C
-status: active
+title: 'Feature Engineering: The Practitioner''s High-Fidelity Framework'
 ---
 # Feature Engineering: The Practitioner's High-Fidelity Framework
 
@@ -115,3 +114,7 @@ Expert-level pipelines incorporate **Source Delay** offsets. If a feature has a 
 - [StreamProcessing](StreamProcessing) — Real-time materialization (Flink/RisingWave)
 - [TimeSeriesForecasting](TimeSeriesForecasting) — Temporal-specific FE patterns
 - [MLOpsPractices](MLOpsPractices) — Managing the feature lifecycle at scale
+
+---
+
+**Cluster Hub:** [[MLHub|ML Hub]] (`machine-learning`)

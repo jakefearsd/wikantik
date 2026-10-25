@@ -1,6 +1,13 @@
 ---
-status: active
+kg_include: true
 type: article
+summary: How Wikantik stores role permissions in the PostgreSQL policy_grants table,
+  seeds defaults, and lets admins change them without a restart.
+status: active
+audience:
+- humans
+date: '2026-03-28'
+canonical_id: 01KQ0P44PBJAD0YB3EB2MHX9AH
 tags:
 - permissions
 - policy-grants
@@ -8,22 +15,12 @@ tags:
 - authorization
 - acl
 - wikantik-development
-canonical_id: 01KQ0P44PBJAD0YB3EB2MHX9AH
+cluster: wikantik-development
+title: 'Database-Backed Permissions: The policy_grants Table and Admin UI'
 related:
 - WikantikDevelopment
 - AdminSecurityUi
 - KnowledgeGraphCore
-- DatabaseBackedPermissions
-date: '2026-03-28'
-kg_include: true
-audience:
-- humans
-cluster: wikantik-development
-title: 'Database-Backed Permissions: The policy_grants Table and Admin UI'
-enables:
-- AdminSecurityUi
-summary: How Wikantik stores role permissions in the PostgreSQL policy_grants table,
-  seeds defaults, and lets admins change them without a restart.
 ---
 # Database-Backed Permissions
 
@@ -70,3 +67,7 @@ Page actions form a hierarchy: `delete` implies `modify`, `modify` implies `edit
 ## Impact
 
 Database-backed groups and policy were a prerequisite for both the [Admin Security UI](AdminSecurityUi) and the Knowledge Graph, which needed database-backed group membership. For the operator view of the whole model, including scoped `admin` area grants, see `docs/admin/Security.md` in the repository.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

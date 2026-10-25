@@ -1,16 +1,17 @@
 ---
+date: '2025-05-15'
+status: active
+summary: Moving beyond "gut feel" to probabilistic forecasting using PERT distributions
+  and Monte Carlo simulations for high-fidelity project delivery.
+auto-generated: false
+type: article
 tags:
 - estimation
 - agile
 - mathematics
 - forecasting
-cluster: software-engineering-practices
-type: article
-date: 2025-05-15T00:00:00Z
-auto-generated: false
 canonical_id: 01KQ0P44TWA0SYDHD67R20G9ZK
-summary: Moving beyond "gut feel" to probabilistic forecasting using PERT distributions
-  and Monte Carlo simulations for high-fidelity project delivery.
+cluster: software-engineering-practices
 title: Advanced Project Estimation & Forecasting
 ---
 
@@ -119,3 +120,7 @@ Use this schema to capture the raw inputs for a forecasting model.
 1.  **Never Average:** If one dev says 3 and another says 13, do not record 8. Discuss the gap. One of them knows something the other doesn't.
 2.  **Estimate Complexity, Not Time:** Time is a derivative of complexity and team capacity.
 3.  **Update Frequently:** Rerun Monte Carlo simulations after every sprint using actual velocity data to update the P85 date.
+
+---
+
+**Cluster Hub:** [[SoftwareEngineeringPracticesHub|Software Engineering Hub: Best Practices for Modern Development]] (`software-engineering-practices`)

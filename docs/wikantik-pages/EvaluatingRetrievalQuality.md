@@ -1,16 +1,8 @@
 ---
-audience:
-- humans
-relations:
-- type: extension_of
-  target_id: IndustrialSearchSystems
-- type: component_of
-  target_id: 01KQ0P44PK0X731A1NYX3X5B9V
-summary: 'How Wikantik measures retrieval quality: Recall@K, MRR and nDCG over curated
-  query sets, the nightly runner, bin/search-eval, and fusion tuning.'
 kg_include: true
-title: 'Evaluating Retrieval Quality: MRR, NDCG, and Hit Rate in Hybrid Search Systems'
+date: '2026-05-15'
 cluster: wikantik-development
+title: 'Evaluating Retrieval Quality: MRR, NDCG, and Hit Rate in Hybrid Search Systems'
 tags:
 - retrieval-evaluation
 - mrr
@@ -19,9 +11,12 @@ tags:
 - rag
 - hybrid-search
 - wikantik-development
-status: active
+summary: 'How Wikantik measures retrieval quality: Recall@K, MRR and nDCG over curated
+  query sets, the nightly runner, bin/search-eval, and fusion tuning.'
+audience:
+- humans
 canonical_id: 01KRQJ720J8NH33YNC8E83PE8H
-date: '2026-05-15'
+status: active
 type: article
 ---
 # Evaluating Retrieval Quality: MRR, NDCG, and Hit Rate in Hybrid Search Systems
@@ -99,3 +94,7 @@ The RRF constant, the BM25 and dense weights, the fused window and the page-aggr
 **See Also:**
 - [Wikantik Search Refinement](WikantikSearchRefinement) — How to run the `search-eval` tool.
 - [Industrial Search Systems](IndustrialSearchSystems) — The underlying architecture.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

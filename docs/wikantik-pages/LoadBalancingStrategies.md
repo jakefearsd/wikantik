@@ -1,23 +1,24 @@
 ---
-canonical_id: 01KQ0P44S0ZHBGACMEN6RJXJHE
-title: Load Balancing Strategies
-type: article
 cluster: networking
-status: active
 date: '2026-04-26'
-summary: Technical deep-dive into L4/L7 load balancing, health check mechanics, and consistent hashing algorithms for distributed systems.
-auto-generated: false
+title: Load Balancing Strategies
 tags:
 - load-balancing
 - networking
 - consistent-hashing
 - nginx
 - haproxy
+summary: Technical deep-dive into L4/L7 load balancing, health check mechanics, and
+  consistent hashing algorithms for distributed systems.
 related:
 - TcpIpFundamentals
 - ReverseProxyPatterns
 - DnsDeepDive
 - CdnArchitecture
+canonical_id: 01KQ0P44S0ZHBGACMEN6RJXJHE
+auto-generated: false
+type: article
+status: active
 ---
 
 Load balancing is the distribution of network traffic across a pool of backend resources. It is implemented at either the Transport Layer (L4) or the Application Layer (L7).
@@ -69,3 +70,7 @@ Ensures a client is routed to the same backend for the duration of a session.
 - **Aggressive Probing:** Health checks consuming significant backend CPU/bandwidth.
 - **Zombie Backends:** No health checks configured, leading to black-holed traffic when nodes crash.
 - **Herding Effect:** When a node returns to the pool, the "Least Connections" algorithm floods it with traffic, causing an immediate re-failure. Use **Slow Start** ramps.
+
+---
+
+**Cluster Hub:** [[NetworkingHub|Networking Hub]] (`networking`)

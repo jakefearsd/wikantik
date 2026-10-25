@@ -1,8 +1,8 @@
 ---
-date: 2024-05-16T00:00:00Z
+date: '2024-05-16'
+status: active
 summary: A technical deep dive into the Transformer architecture, focusing on the
-  scaled dot-product attention mechanism and the mathematical optimization of KV-caching
-  for efficient inference.
+  scaled dot-product attention mechanism and the mathematical optimization of...
 auto-generated: false
 type: article
 tags:
@@ -11,8 +11,8 @@ tags:
 - attention
 - kv-cache
 - deep-learning
-cluster: machine-learning
 canonical_id: 01KQ0P44SYVZ3S6WKPPPHRQHH0
+cluster: machine-learning
 title: Natural Language Processing
 ---
 # Natural Language Processing: The Transformer Era
@@ -71,3 +71,7 @@ For a 70B parameter model with a 4k context window, the KV cache can consume ten
 *   **Masked Language Modeling (MLM):** Standard for BERT. Predicts randomly masked tokens using bidirectional context.
 
 Modern NLP research is currently focused on **Long-Context** modeling (e.g., Ring Attention) and **Parameter-Efficient Fine-Tuning (PEFT)** techniques like LoRA, which allow adapting these massive models to specific tasks by only updating a tiny fraction of the weights.
+
+---
+
+**Cluster Hub:** [[MLHub|ML Hub]] (`machine-learning`)

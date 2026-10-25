@@ -1,26 +1,21 @@
 ---
-status: active
-type: article
+kg_include: true
+cluster: wikantik-development
+date: '2026-04-04'
+title: 'Knowledge Admin UI: Proposals, Explorers, Extraction and Hubs'
 tags:
 - development
 - knowledge-graph
 - admin
 - ui
 - react
-canonical_id: 01KQ0P44RG9F6EFB0MPVN81K6S
-kg_include: true
-date: '2026-04-04'
-depends-on:
-- AdminSecurityUi
-- KnowledgeProposals
-audience:
-- humans
-cluster: wikantik-development
-part-of:
-- KnowledgeGraphCore
-title: 'Knowledge Admin UI: Proposals, Explorers, Extraction and Hubs'
 summary: 'The Knowledge Graph admin panel at /admin/knowledge-graph: eight tabs for
   proposals, extraction, nodes, edges, embeddings, hubs and LLM activity.'
+audience:
+- humans
+canonical_id: 01KQ0P44RG9F6EFB0MPVN81K6S
+status: active
+type: article
 ---
 # Knowledge Admin UI
 
@@ -47,3 +42,7 @@ A "Clear all KG data" button in the toolbar deletes every node, edge, proposal, 
 - **Page editor:** the Knowledge tab next to Frontmatter shows the entities and relations for one page and lets an editor confirm, retype, add or remove them through `/api/page-knowledge/*`, under the page's edit permission and the same SHACL gate.
 - **Querying the ontology:** there is no in-app SPARQL workbench. Use the public `/sparql` endpoint or the `sparql_query` tool on `/knowledge-mcp` (see [WikantikKnowledgeGraph](WikantikKnowledgeGraph)).
 - **Administering the graph day to day:** [WikantikKnowledgeGraphAdmin](WikantikKnowledgeGraphAdmin).
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

@@ -1,17 +1,17 @@
 ---
 cluster: databases
-type: article
+date: '2026-04-30'
+status: active
+canonical_id: 01KQ0P44PMEYZGGZCXDSXGA3XR
+summary: Using PostgreSQL as the Wikantik backend — schema, JNDI DataSource config,
+  JDBC driver setup, connection pooling, production hardening, and troubleshooting.
+title: Developing with PostgreSQL
 tags:
 - postgresql
 - database
 - setup
 - development
-title: Developing with PostgreSQL
-canonical_id: 01KQ0P44PMEYZGGZCXDSXGA3XR
-summary: Using PostgreSQL as the Wikantik backend — schema, JNDI DataSource config,
-  JDBC driver setup, connection pooling, production hardening, and troubleshooting.
-status: active
-date: '2026-04-30'
+type: article
 ---
 # Developing with PostgreSQL
 
@@ -94,7 +94,7 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 | PostgreSQL | 15 | Production runs 18; the container stack uses `pgvector/pgvector:pg18` |
 | pgvector extension | 0.5 | Required: migration V004 runs `CREATE EXTENSION vector` and V032 builds an HNSW index (HNSW needs pgvector 0.5+). Install the OS package before running the migrations |
 | Java JDK | 25 | `jdk.version` in the root `pom.xml`; the build enforcer fails on an older JDK, and `bin/deploy-local.sh` and `bin/redeploy.sh` refuse to start Tomcat on one |
-| Apache Tomcat | 11.0.27 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; `deploy-local.sh` downloads it for you |
+| Apache Tomcat | 11.0.26 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; `deploy-local.sh` downloads it for you |
 | PostgreSQL JDBC Driver | 42.7.14 | Pinned in the root `pom.xml`; see section 5 |
 | Maven / Node.js | 3.9+ / 20.19+ | Only to build the WAR from source (the WAR build runs `npm install` and `vite build`) |
 
@@ -744,7 +744,7 @@ java.sql.SQLException: No suitable driver found for jdbc:postgresql://
 ```
 
 **Solution:**
-- Ensure postgresql-X.X.X.jar (or `postgresql.jar`) is in $CATALINA_HOME/lib/
+- Ensure postgresql-X.X.X.jar (or `postgresql.jar`) is in `$CATALINA_HOME/lib/`
 - Restart Tomcat after adding the driver
 
 **Error: Authentication failed**
@@ -880,3 +880,7 @@ To reset a forgotten local `admin` password back to `admin123`, use the `UPDATE`
 - [PostgreSQL JDBC Driver Documentation](https://jdbc.postgresql.org/documentation/)
 - [Apache Tomcat JNDI Resources](https://tomcat.apache.org/tomcat-11.0-doc/jndi-resources-howto.html)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+
+---
+
+**Cluster Hub:** [[DatabasePerformanceMonitoringHub|Database Performance Monitoring Hub: Observability, Query Optimization, and Lock Internals]] (`databases`)

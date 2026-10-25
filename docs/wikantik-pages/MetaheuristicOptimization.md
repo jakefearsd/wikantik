@@ -1,18 +1,19 @@
 ---
-canonical_id: 01KQ0P44SFQM7F9TZXPEJTWMYG
-title: 'Metaheuristic Optimization: The Math of SA and GA'
+date: '2025-01-24'
+status: active
+summary: 'SA and GA metaheuristics: Metropolis criterion and cooling schedules for
+  Simulated Annealing; Schemata Theorem and selection pressure for Genetic Algorithms.'
+auto-generated: false
+type: article
 tags:
 - optimization
 - simulated-annealing
 - genetic-algorithms
 - acceptance-probability
 - math
+canonical_id: 01KQ0P44SFQM7F9TZXPEJTWMYG
 cluster: operations-research
-type: article
-date: 2025-01-24T00:00:00Z
-auto-generated: false
-summary: 'SA and GA metaheuristics: Metropolis criterion and cooling schedules for
-  Simulated Annealing; Schemata Theorem and selection pressure for Genetic Algorithms.'
+title: 'Metaheuristic Optimization: The Math of SA and GA'
 ---
 # Metaheuristic Optimization: The Math of SA and GA
 
@@ -82,3 +83,7 @@ The performance of any metaheuristic is a balance between **Exploration** (visit
 *   In GA, this is controlled by the **Mutation Rate** $\mu$ and **Crossover Rate** $P_c$.
 
 Researchers should prioritize SA when the neighborhood structure is well-defined and the "energy" landscape is relatively smooth. Choose GA when the problem can be decomposed into independent sub-components that can be recombined through crossover.
+
+---
+
+**Cluster Hub:** [[OperationsResearchHub|Operations Research Hub]] (`operations-research`)

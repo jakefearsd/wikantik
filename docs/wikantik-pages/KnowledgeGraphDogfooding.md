@@ -1,25 +1,22 @@
 ---
-status: active
+kg_include: true
 type: article
+summary: April 2026 initiative to document Wikantik's own features as wiki pages with
+  rich frontmatter, with a 2026-10 status note on what changed.
+status: active
+audience:
+- humans
+date: '2026-04-05'
+canonical_id: 01KQ0P44RJAHVGMNSEMFWA09NY
 tags:
 - development
 - knowledge-graph
 - dogfooding
-canonical_id: 01KQ0P44RJAHVGMNSEMFWA09NY
+cluster: wikantik-development
+title: Knowledge Graph Dogfooding
 related:
 - KnowledgeGraphCore
 - WikantikDevelopment
-kg_include: true
-date: '2026-04-05'
-depends-on:
-- KnowledgeAdminUi
-- FrontmatterConventions
-audience:
-- humans
-cluster: wikantik-development
-title: Knowledge Graph Dogfooding
-summary: April 2026 initiative to document Wikantik's own features as wiki pages with
-  rich frontmatter, with a 2026-10 status note on what changed.
 ---
 # Knowledge Graph Dogfooding
 
@@ -45,3 +42,7 @@ Rich frontmatter relationships create a navigable graph that reduces the need fo
 Full design: `docs/superpowers/specs/2026-04-05-kg-dogfooding-design.md` (no longer in the repository)
 
 [{Relationships}]
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

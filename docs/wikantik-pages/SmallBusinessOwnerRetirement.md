@@ -1,14 +1,6 @@
 ---
-title: Small Business Owner Retirement
-related:
-- RetirementPlanningForLateStarters
-- BackdoorRothStrategies
-- LowCostIndexFundInvestingHub
-- BusinessMetricsAndKpis
-- MathematicsHub
-cluster: retirement-planning
-type: article
-canonical_id: 01KQ0P44WKKHPEHYRB19P1MSZR
+date: '2026-08-16'
+status: active
 summary: 'Retirement planning for small business owners: self-employment tax asymmetry,
   Solo 401(k) stacking, and integrating succession with longevity risk.'
 tags:
@@ -19,6 +11,16 @@ tags:
 - sep-ira
 - tax-arbitrage
 - succession-planning
+type: article
+cluster: retirement-planning
+canonical_id: 01KQ0P44WKKHPEHYRB19P1MSZR
+related:
+- RetirementPlanningForLateStarters
+- BackdoorRothStrategies
+- LowCostIndexFundInvestingHub
+- BusinessMetricsAndKpis
+- MathematicsHub
+title: Small Business Owner Retirement
 ---
 
 # Small Business Owner Retirement: The Architecture of Self-Sustaining Wealth
@@ -41,7 +43,7 @@ We deconstruct the SBO financial reality into three interacting vectors:
 ## II. Comparative Analysis of Retirement Vehicles
 
 The choice of vehicle dictates the annual contribution "stacking" potential.
-*   **Solo 401(k):** The gold standard for single-owner firms. It allows for a dual contribution: an **Elective Deferral** ($23,000$ in 2024) plus an **Employer Profit-Sharing** component (typically 20% of net adjusted earnings).
+*   **Solo 401(k):** The gold standard for single-owner firms. It allows for a dual contribution: an **Elective Deferral** (\$23,000 in 2024) plus an **Employer Profit-Sharing** component (typically 20% of net adjusted earnings).
 *   **SEP IRA:** Preferred for its administrative simplicity (minimal payroll tracking) but lacks the elective deferral mechanism of the 401(k).
 *   **Defined Benefit (DB) Plans:** The "Actuarial Frontier." For high-earning experts, DB plans allow for significantly higher deductible contributions, requiring annually validated valuations from [Mathematics Hub](MathematicsHub) actuarial models.
 
@@ -64,3 +66,7 @@ Small business retirement is an iterative exercise in financial engineering. By 
 - [Low-Cost Index Fund Investing Hub](LowCostIndexFundInvestingHub) — Passive vehicles for plan assets.
 - [Business Metrics and KPIs](BusinessMetricsAndKpis) — For tracking tax-efficiency performance.
 - [Mathematics Hub](MathematicsHub) — For the actuarial and stochastic modeling of SORR.
+
+---
+
+**Cluster Hub:** [[RetirementPlanningGuide|Retirement Planning Guide]] (`retirement-planning`)

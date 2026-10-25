@@ -1,23 +1,19 @@
 ---
 status: active
-type: article
+date: '2026-03-29'
 summary: Final removal of JSP templates and the /app/ URL prefix for a single SPA
   entry point
-related:
-- WikantikDevelopment
-title: Remove JSP and /app/ Prefix
-cluster: wikantik-development
-supersedes:
-- JspToReactMigration
 tags:
 - development
 - migration
 - jsp
 - routing
-depends-on:
-- JspToReactMigration
+type: article
 canonical_id: 01KQ0P44VGY08Z06TE936CPZCJ
-date: '2026-03-29'
+cluster: wikantik-development
+related:
+- WikantikDevelopment
+title: Remove JSP and /app/ Prefix
 ---
 # Remove JSP and /app/ Prefix
 
@@ -33,3 +29,7 @@ This cleanup step completed the JSP-to-React migration by removing all remaining
 - Cleaned up web.xml servlet and filter mappings for removed JSP servlets
 
 [{Relationships}]
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

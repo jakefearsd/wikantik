@@ -1,18 +1,17 @@
 ---
-type: article
 status: active
-cluster: personal-finance
 date: '2026-04-26'
-title: Real Estate Investing Basics
+summary: How real estate investing actually pays — direct ownership vs. REITs vs.
+  syndications — with honest comparison of returns, operational burden, and the...
 tags:
 - real-estate-investing
 - reits
 - rental-property
 - personal-finance
 - direct-real-estate
-summary: How real estate investing actually pays — direct ownership vs. REITs vs.
-  syndications — with honest comparison of returns, operational burden, and the math
-  that determines whether a specific property is a good investment.
+type: article
+canonical_id: 01KQ0P44V730YRH3RYRYRR4C5J
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - ReitIndexFunds
@@ -20,7 +19,7 @@ related:
 - MortgageStrategies
 - InflationProtectionStrategies
 - LowCostIndexFundInvesting
-canonical_id: 01KQ0P44V730YRH3RYRYRR4C5J
+title: Real Estate Investing Basics
 ---
 # Real Estate Investing Basics
 
@@ -37,11 +36,11 @@ Real estate returns come from four streams. Understanding each separately matter
 Monthly rental income minus monthly expenses (mortgage, taxes, insurance, maintenance, vacancy, management). The most predictable return, taxed as ordinary income offset by depreciation.
 
 A \$400K rental property with 25% down might generate:
-- Rent: $2,400/month
-- Mortgage P&I: $1,800
-- Taxes + insurance: $400
-- Vacancy + maintenance: $300
-- Net cash flow: ~$(100)/month
+- Rent: \$2,400/month
+- Mortgage P&I: \$1,800
+- Taxes + insurance: \$400
+- Vacancy + maintenance: \$300
+- Net cash flow: ~\$(100)/month
 
 That is a *negative* cash-flow rental. Common in expensive markets. Investors accept it because they expect appreciation; whether that math works out depends on the next stream.
 
@@ -49,13 +48,13 @@ That is a *negative* cash-flow rental. Common in expensive markets. Investors ac
 
 Property value increases over time. Highly market-dependent: 0–8%/year is the realistic range, with substantial variation.
 
-Appreciation is leveraged by your mortgage. If you put 25% down on a \$400K property and it appreciates to $440K (10% over time), your equity has grown from \$100K to $140K — a 40% return on equity. This leverage is a major part of the case for direct real estate.
+Appreciation is leveraged by your mortgage. If you put 25% down on a \$400K property and it appreciates to \$440K (10% over time), your equity has grown from \$100K to \$140K — a 40% return on equity. This leverage is a major part of the case for direct real estate.
 
 ### 3. Mortgage paydown
 
 Each month, a portion of the mortgage payment goes to principal. Over 30 years, the tenant effectively pays off your mortgage.
 
-A \$300K mortgage at 6% has ~$300/month going to principal in year 1, rising to ~\$1,500/month by year 30. That is real wealth-building, separate from cash flow and appreciation.
+A \$300K mortgage at 6% has ~\$300/month going to principal in year 1, rising to ~\$1,500/month by year 30. That is real wealth-building, separate from cash flow and appreciation.
 
 ### 4. Tax advantages
 
@@ -101,7 +100,7 @@ REIT exposure via low-cost ETFs (VNQ, SCHH) gives you diversified real estate ex
 
 Pooled investments in larger properties, structured as limited partnerships or via crowdfunding platforms (Fundrise, RealtyMogul, CrowdStreet).
 
-**Capital required**: typically $5K–\$50K minimum; some accredited-investor-only.
+**Capital required**: typically \$5K–\$50K minimum; some accredited-investor-only.
 
 **Time required**: minimal after initial due diligence.
 
@@ -115,7 +114,7 @@ This category requires substantial due diligence and is generally not the right 
 
 | Factor | Direct ownership | REITs | Syndications |
 |--------|------------------|-------|--------------|
-| Capital | High ($75K+ per property) | Any | $5K–$50K min |
+| Capital | High (\$75K+ per property) | Any | \$5K–\$50K min |
 | Time | High (or 8% management fee) | None | Low |
 | Liquidity | Months to sell | Daily | 5–10 year lock |
 | Tax advantages | Maximum | Standard stock taxation | Pass-through, complex |
@@ -131,7 +130,7 @@ Whether a specific property is a good investment requires running the numbers ex
 
 ### The 1% rule (rough screen)
 
-A common heuristic: monthly rent should be at least 1% of purchase price. A \$250K property should rent for $2,500/month.
+A common heuristic: monthly rent should be at least 1% of purchase price. A \$250K property should rent for \$2,500/month.
 
 This is a *screen*, not an analysis. It eliminates clearly bad investments quickly. It does not validate good ones.
 
@@ -139,7 +138,7 @@ This is a *screen*, not an analysis. It eliminates clearly bad investments quick
 
 Net operating income divided by property value. NOI = annual rent − operating expenses (excluding mortgage).
 
-A property generating \$24K/year in rent with $9K in operating expenses has NOI of \$15K. At $250K purchase price, that is a 6% cap rate.
+A property generating \$24K/year in rent with \$9K in operating expenses has NOI of \$15K. At \$250K purchase price, that is a 6% cap rate.
 
 Cap rates vary by market: 4–5% in expensive coastal areas, 7–9% in moderate markets, 10%+ in less-desirable markets.
 
@@ -147,7 +146,7 @@ Cap rates vary by market: 4–5% in expensive coastal areas, 7–9% in moderate 
 
 Annual pre-tax cash flow divided by total cash invested.
 
-A property generating \$3,000/year in cash flow on $75K total cash invested is a 4% cash-on-cash return.
+A property generating \$3,000/year in cash flow on \$75K total cash invested is a 4% cash-on-cash return.
 
 This is the metric most directly comparable to other investments — though it ignores appreciation, mortgage paydown, and tax benefits.
 
@@ -155,10 +154,10 @@ This is the metric most directly comparable to other investments — though it i
 
 The complete picture:
 
-- Cash flow: $3,000/year
-- Mortgage paydown: $4,000/year (year 1, rising over time)
-- Appreciation: \$10,000/year (at 4% on $250K)
-- Tax benefit (depreciation): \$2,000/year (at 22% bracket on $9K depreciation)
+- Cash flow: \$3,000/year
+- Mortgage paydown: \$4,000/year (year 1, rising over time)
+- Appreciation: \$10,000/year (at 4% on \$250K)
+- Tax benefit (depreciation): \$2,000/year (at 22% bracket on \$9K depreciation)
 - Total: \$19,000/year on \$75K invested
 - = 25% total return
 
@@ -230,7 +229,7 @@ REITs make sense when:
 
 - **Buying for appreciation alone in a low-cap-rate market.** When appreciation does not materialize, you have a money-losing property.
 - **Underestimating maintenance costs.** Budget 1–1.5% of property value annually for maintenance; new buyers usually budget less.
-- **Skipping inspections to save money.** A $500 inspection routinely saves $5K–$20K.
+- **Skipping inspections to save money.** A \$500 inspection routinely saves \$5K–\$20K.
 - **Buying out of state without local knowledge.** Distance management is harder than it seems.
 - **Concentrating too much in one market.** A market downturn affects all your properties simultaneously.
 - **Accumulating before optimizing tax structure.** Cost segregation studies, 1031 exchanges, entity structure — these matter as the portfolio grows.

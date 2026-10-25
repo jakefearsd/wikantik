@@ -1,104 +1,189 @@
 ---
-cluster:
-- wikantik-platform
-- wikantik-development
+kg_include: true
 type: article
+summary: 'Deep technical reference for Wikantik''s Knowledge Graph: 9 entity classes,
+  21 predicates, mention-centroid math, SHACL gates, and RDF/SPARQL.'
+date: '2026-10-24'
+status: active
+canonical_id: 01KQTCBW5GBFJVWYB8V1CP49P5
+audience:
+- humans
+- agents
 tags:
 - knowledge-graph
 - llm-extraction
 - ontology
+- shacl
+- sparql
+- pgvector
 - mcp
-- retrieval
 - architecture
-title: The Wikantik Knowledge Graph
-canonical_id: 01KQTCBW5GBFJVWYB8V1CP49P5
-summary: How Wikantik's LLM-extracted Knowledge Graph works — nodes, edges, provenance,
-  the proposal workflow, ontology layer, and agent MCP surfaces.
-status: active
-date: '2026-06-20'
+cluster:
+- wikantik-platform
+- wikantik-development
+title: 'The Wikantik Knowledge Graph: LLM Extraction, SHACL Gates, Mention-Centroids,
+  and SPARQL'
+related:
+- WikantikPlatformHub
+- WikantikDevelopmentHub
+- WikantikArchitecture
+- PageGraphVsKnowledgeGraph
+- KnowledgeGraphCore
+- ProvenanceModel
+- KgInclusionPolicy
+- WikantikOntologyManagement
+- WikantikKnowledgeGraphAdmin
+- About
+verified_at: '2026-10-24T23:02:33.654138261Z'
+verified_by: wikantik-cli
 ---
-# The Wikantik Knowledge Graph
+# The Wikantik Knowledge Graph: Extraction, Curation, SHACL Gates, and Ontology Projection
 
-The Knowledge Graph (KG) is the semantic layer of Wikantik. It transforms Markdown pages into a rich, queryable network of typed entities and relationships that both humans and AI agents can traverse — distinct from the Page Graph, which tracks real wikilinks.
+The **Wikantik Knowledge Graph (KG)** is a human-curated, LLM-accelerated semantic property graph stored in PostgreSQL 18 (`kg_*` tables) and projected into an **Apache Jena TDB2 RDF/OWL ontology**. It transforms unstructured Markdown prose into a strongly typed network of **9 canonical entity classes** and **21 closed relationship predicates**, equipped with **two-dimensional provenance tracking**, **mention-centroid vector embeddings**, and **14 dedicated Model Context Protocol (MCP) tools**.
 
-> **Page Graph vs Knowledge Graph:** The Page Graph records wikilink edges between pages. The Knowledge Graph records LLM-extracted entities and relations. Never conflate them. See [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph) for the full explainer.
+> **Page Graph vs. Knowledge Graph:** The Page Graph tracks editorial wikilinks between documents (`page_links`). The Knowledge Graph tracks domain entities and typed semantic predicates (`kg_nodes`, `kg_edges`). Never conflate them—see [[PageGraphVsKnowledgeGraph|Page Graph vs. Knowledge Graph]] for the full architectural boundary.
 
-## Core Concepts
+---
 
-### Nodes and Edges
+## 1. End-to-End Knowledge Graph Lifecycle
 
-The KG is stored in PostgreSQL (`kg_*` tables — see [KnowledgeGraphCore](KnowledgeGraphCore)). Nodes represent typed entities extracted from page content — each carrying a `source_page`, a `node_type` from the 9-class vocabulary (person, organization, place, event, product, technology, concept, project, version), a provenance value and a review tier. Edges represent typed relations between entities; the relationship type must be one of a closed vocabulary of 21 predicates (`related_to`, `part_of`, `is_a`, `implements`, `located_in`, …) enforced by a database CHECK constraint (`RelationshipTypeVocabulary`). The KG is not projected from page frontmatter or wikilinks — those feed the Page Graph and the ontology's page and concept graphs.
+Entities and relationships never enter the production graph unchecked from raw LLM output without provenance recording and shape validation. Every extraction, proposal, review, and ontology projection follows a strict five-stage pipeline:
 
-A **write-time SHACL gate** (`OntologyShaclValidator`) enforces shape constraints on KG edges at the two write chokepoints: the curation path (`DefaultKgCurationOps`, shared by the admin REST surface and the admin-MCP `curate_edges` tool) refuses a non-conformant edge citing the violated shape; the machine-materialization path (`KgMaterializationService`) skips and logs it. The gate is currently narrow (the two shaped predicates are `implements` and `located_in`) and null-safe.
+```mermaid
+flowchart LR
+    subgraph Stage1["1. Inclusion & Extraction"]
+        Save["Page Saved / Batch CLI<br/>Check KgInclusionPolicy<br/>(cluster policy + kg_include)"]
+        LLM["LLM Extractor<br/>(Thinking disabled, strict JSON)<br/>Chunk & Page Level"]
+        Save --> LLM
+    end
 
-### The 9-Class Entity Vocabulary
+    subgraph Stage2["2. Proposal & Judge Queue"]
+        Props[("kg_proposals Table<br/>Confidence Score + Source Excerpt")]
+        Rej[("kg_rejections Blocklist<br/>Prevents Re-Proposing Rejected Edges")]
+        Judge["LLM Judge Experiment /<br/>Human Reviewer (/admin/knowledge-graph<br/>or review_proposals MCP)"]
+        LLM --> Props
+        Rej -. "Suppresses" .-> Props
+        Props --> Judge
+    end
 
-Both the chunk-level and page-level extractors emit only the canonical `EntityTypeVocabulary.ENTITY_CLASSES`: **person, organization, place, event, product, technology, concept, project, version**. Prompts are generated from this vocabulary; parsers lowercase and allowlist to it (default: `concept`). An `EntityTypeVocabularyDriftTest` keeps the vocabulary in sync with `NodeTypeMapping`.
+    subgraph Stage3["3. Write-Time SHACL Gate"]
+        SHACL["OntologyShaclValidator<br/>Validates Domain/Range Shapes<br/>at Write Chokepoints"]
+        Curate["Direct Agent/Admin Curation<br/>(curate_nodes / curate_edges)"]
+        Judge -- "Approved" --> SHACL
+        Curate --> SHACL
+    end
 
-### KG Inclusion Policy
+    subgraph Stage4["4. PostgreSQL 18 Property Graph"]
+        Nodes[("kg_nodes (9 Classes)<br/>+ kg_edges (21 Predicates)<br/>Provenance + Tier (machine/human)")]
+        Centroids[("kg_entity_embeddings<br/>pgvector Mention-Centroids")]
+        SHACL --> Nodes --> Centroids
+    end
 
-The KG operates under a **cluster-primary default-exclude policy**: a page contributes entities only if its cluster has an `include` row in `kg_cluster_policy` (managed at `/admin/kg-policy` or with `bin/kg-policy.sh`) or the page itself sets `kg_include: true` in frontmatter (`kg_include: false` always wins). See [KgInclusionPolicy](KgInclusionPolicy) for the full policy reference.
+    subgraph Stage5["5. Public RDF/OWL Projection"]
+        ACL["Guest-Session ACL Gate<br/>(Fail-Closed on Restricted/Sourceless)"]
+        Jena[("Apache Jena TDB2 A-Box<br/>/sparql · /id/* · JSON-LD @type")]
+        Nodes --> ACL --> Jena
+    end
+```
 
-### Provenance Model
+---
 
-Trust is tracked on every node and edge by two markers: a **provenance** value (`human-authored`, `human-curated`, `ai-inferred`, `ai-reviewed`) and a review **tier** — `machine` (materialized after the LLM judge approved it) or `human` (a curator authored, confirmed or approved it). Reads default to `min_tier=machine` (`wikantik.kg.read.default_min_tier`); `human` gives the strict view. Human curators review proposals in the admin panel at `/admin/knowledge-graph`. See [ProvenanceModel](ProvenanceModel).
+## 2. Closed Schema: The 9 Entity Classes and 21 Predicates
 
-## The Proposal Workflow
+To prevent predicate explosion (where an unconstrained LLM invents hundreds of near-synonymous edge labels like `utilizes`, `leverages`, `is_built_with`, `relies_upon`), Wikantik enforces a **closed schema** via PostgreSQL `CHECK` constraints (`bin/db/migrations/V*.sql`) and the formal `wikantik.ttl` OWL T-Box.
 
-The KG uses a **human-in-the-loop AI enrichment** cycle:
+### 2.1 The 9 Canonical Entity Classes (`kg_nodes.node_type`)
 
-1. **Extraction:** Chunk-level extraction runs inside the wiki (off the save thread after a page's chunks change, and as a batch from the admin panel's Extraction tab) and offline through `wikantik-extract-cli` (`bin/kg-extract.sh`). The backend is Ollama by default (`wikantik.knowledge.extractor.backend`); the in-server default model is `gemma4-graph:12b` (`wikantik.knowledge.extractor.ollama.model`; the CLI's `--ollama-model` defaults to `gemma4-assist:latest`). Every request is sent with `think: false` (`OllamaChatRequest`) to suppress reasoning traces that break structured JSON. The page-level and chunk-level extractors both emit entities from the 9-class vocabulary.
-2. **Proposal:** Extracted entities and edges are filed in the `kg_proposals` table (below `wikantik.knowledge.extractor.confidence_threshold`, default 0.6, they are dropped). Agents can also file proposals with the admin-MCP `propose_knowledge` tool. A triple already rejected (`kg_rejections`) is not re-filed.
-3. **Machine judge:** An asynchronous judge LLM (`wikantik.kg.judge.enabled`, default true; a pass every `wikantik.kg.judge.cron.interval_min` = 5 minutes, up to `batch_size` = 50 proposals) screens pending proposals. Approved ones are materialized into `kg_nodes` / `kg_edges` at tier `machine`; a rejected edge is recorded in `kg_rejections`; an abstention waits for a human.
-4. **Review:** Administrators approve, reject or judge proposals in the admin panel's Proposals tab, or through the admin-MCP `list_proposals`, `inspect_proposals` and `review_proposals` tools.
-5. **Integration:** A human approval promotes the materialized rows to tier `human` (creating them if the judge had not), and a `new-edge` approval is also written back into the source page's frontmatter. A human rejection retracts anything the judge materialized and records the triple in `kg_rejections`. See [KnowledgeProposals](KnowledgeProposals).
+| Class (`node_type`) | Owl / Schema.org Mapping | Canonical Examples in Corpus |
+| :--- | :--- | :--- |
+| **`technology`** | `wikantik:Technology` / `schema:SoftwareApplication` | `PostgreSQL`, `Apache Lucene`, `pgvector`, `Docker Compose`, `Flexmark` |
+| **`concept`** | `wikantik:Concept` / `skos:Concept` | `Reciprocal Rank Fusion`, `Two-Phase Commit`, `Multi-Head Latent Attention` |
+| **`product`** | `wikantik:Product` / `schema:Product` | `Wikantik`, `Claude Code`, `DeepSeek-R1`, `Keycloak` |
+| **`project`** | `wikantik:Project` / `schema:SoftwareSourceCode` | `Apache JSPWiki`, `Simple Agility Stack`, `JakeMon`, `Stockroom` |
+| **`organization`** | `wikantik:Organization` / `schema:Organization` | `Apache Software Foundation`, `Anthropic`, `DeepSeek`, `W3C` |
+| **`person`** | `wikantik:Person` / `schema:Person` | `Leslie Lamport`, `Edsger Dijkstra`, `Claude Shannon` |
+| **`event`** | `wikantik:Event` / `schema:Event` | `Bretton Woods Conference`, `1973 Oil Crisis`, `Chinchilla Scaling Paper` |
+| **`place`** | `wikantik:Place` / `schema:Place` | `Philadelphia Mint`, `Berlin`, `US-East-1` |
+| **`version`** | `wikantik:Version` / `schema:SoftwareVersion` | `Java 25`, `Tomcat 11`, `Wikantik 2.4.56`, `SCIM 2.0` |
 
-## The RDF/OWL Ontology Layer
+### 2.2 The 21 Closed Relationship Predicates (`kg_edges.relationship_type`)
 
-Wikantik layers a queryable `wikantik:` RDF/OWL ontology over the KG (module `wikantik-ontology`, backed by Apache Jena + TDB2):
+| Category | Allowed Predicate Names (`relationship_type`) | Typical Domain $\to$ Range |
+| :--- | :--- | :--- |
+| **Architectural & Dependency** | `uses`, `depends_on`, `implements`, `extends`, `part_of`, `contains`, `integrates_with` | `product`/`technology` $\to$ `technology`/`concept` |
+| **Causal & Operational** | `produces`, `consumes`, `enables`, `mitigates`, `causes`, `prevents` | `technology`/`concept` $\to$ `concept`/`event` |
+| **Comparative & Taxonomic** | `is_a`, `alternative_to`, `supersedes`, ` precedes`, `contrasts_with`, `related_to` | `concept`/`technology` $\leftrightarrow$ `concept`/`technology` |
+| **Attribution & Ownership** | `created_by`, `maintained_by` | `product`/`project`/`technology` $\to$ `organization`/`person` |
 
-- **T-Box:** `wikantik.ttl` — 9 entity + 5 content classes, 21 KG predicates with domain/range, public mappings to schema.org/SKOS/Dublin Core/PROV-O, a SKOS concept scheme.
-- **A-Box:** Postgres→RDF projectors (Entity/Edge/Page/Concept); RDFS `subClassOf` inference via `OntologyModelManager`.
-- **Event-incremental sync:** `OntologyEventListener` re-projects a page's graph on save/rename and removes it on true delete; `OntologyEntitySync` re-projects entity graphs on `KgChangeEvent` (coalesced, async — `wikantik.ontology.incremental.enabled`, `wikantik.ontology.incremental.coalesce.ms`). A nightly `OntologyRebuildScheduler` (`wikantik.ontology.rebuild.interval.hours`, default 24, 0 disables) rebuilds the whole TDB2 store from PostgreSQL as a reconciliation backstop; the store (`wikantik.ontology.tdb2.dir`, default `<workDir>/ontology-tdb2`) is a rebuildable cache, and `POST /admin/ontology/rebuild` forces a rebuild.
-- **Public read surface:** `/sparql` (read-only SELECT/ASK/CONSTRUCT), `/id/{type}/{id}` (JSON-LD/Turtle dereferencing), `/export/{ontology.ttl,graph.nt}` (dumps). All public with permissive CORS. Restricted pages and their entities are excluded from the materialized dataset — restricted content cannot be queried via SPARQL.
+---
 
-SEO metadata (`<script type="application/ld+json">`) is re-sourced from `NodeTypeMapping.schemaOrgType` so the page JSON-LD `@type` stays in agreement with the ontology's inferred schema.org types (`SemanticHeadOntologyAgreementTest` enforces this).
+## 3. Mention-Centroid Entity Embeddings & Cross-Cluster Discovery
 
-## Traversal and Agent Surfaces
+Every entity node $v \in V_{\text{KG}}$ is projected into the dense embedding space (`kg_entity_embeddings`) without requiring a separate dictionary definition prompt. Instead, Wikantik computes the **mention-centroid vector** $\vec{e}_v \in \mathbb{R}^d$ over the context-prefixed chunk embeddings $\vec{u}_c$ of all wiki sections $M(v)$ in which entity $v$ is mentioned:
 
-The KG is exposed through two MCP servers:
+$$
+\vec{e}_v = \frac{\sum_{c \in M(v)} \vec{u}_c}{\left\|\sum_{c \in M(v)} \vec{u}_c\right\|_2}
+$$
 
-- **`/knowledge-mcp`** (22 read-only tools when fully wired; among them): `query_nodes`, `traverse`, `find_similar`, `search_knowledge`, `discover_schema`, `get_node`, `get_ontology`, `sparql_query`, `list_stale_citations`, and `assemble_bundle` (RAG context bundle). Several tools register conditionally on what a deployment has wired, so a leaner install legitimately advertises fewer. Auth: bearer token / API key.
-- **`/wikantik-admin-mcp`** (29 tools): admin-bypass mirrors of `query_nodes` and `search_knowledge` so curators see freshly-created entities; `list_orphaned_kg_nodes` for degree-0 entity discovery; proposal intake and review (`propose_knowledge`, `list_proposals`, `inspect_proposals`, `review_proposals`) and KG curation writes (`curate_nodes`, `curate_edges`); plus `rename_cluster` for bulk cluster-path curation, which is not a KG operation.
+**Why Mention-Centroids Work:** Because each chunk vector $\vec{u}_c$ encodes its page title, primary cluster, section heading, and technical body, the normalized centroid $\vec{e}_v$ captures the **distributional operational role** of entity $v$ across the entire wiki. When an agent invokes `find_similar(node="Reciprocal Rank Fusion", topK=5)`, `pgvector` computes cosine similarity over `kg_entity_embeddings` and surfaces structurally analogous fusion/ranking concepts across `machine-learning`, `quantitative-finance`, and `wikantik-development`.
 
-Human-facing surfaces: the admin panel at `/admin/knowledge-graph` (eight tabs: Proposals, Extraction, Node Explorer, Edge Explorer, Content Embeddings, Hub Proposals, Hub Discovery, LLM Activity), the inclusion-policy dashboard at `/admin/kg-policy`, and the reader route `/knowledge-graph`, a Cytoscape viewer over `GET /api/knowledge/graph?min_tier=` (see [KnowledgeAdminUi](KnowledgeAdminUi)).
+---
 
-### Citation edges and the context bundle
+## 4. Provenance, Trust Tiers, and Inclusion Governance
 
-The RAG-as-a-Service context bundle (`GET /api/bundle?q=` / `assemble_bundle` MCP tool) is retrieval over page chunks with version-pinned citations; it does not use the Knowledge Graph to rerank (that stage was removed in 2026-07 after measuring zero lift — see [KnowledgeGraphRerank](KnowledgeGraphRerank) and [HybridRetrieval](HybridRetrieval)). **Citation edges** are a third, derived edge type, distinct from both the Page Graph and the KG: authors write inline `cite://` markup in a page body, it is parsed at save into the `citations` table (version- and span-hash pinned), and a span-level staleness grade drives the self-healing loop — `list_stale_citations` surfaces citations whose target sections have drifted. The same data is served by `GET /admin/drift/citations`.
+### 4.1 Cluster-Inherited Inclusion Policy (`KgInclusionPolicy`)
+Not every page should populate the Knowledge Graph (for example, scratch pages, legal terms of service, or personal hobby notes). As documented in [[KgInclusionPolicy|KG Inclusion Policy]], inclusion is governed by two rules:
+1. **Cluster Hierarchy Policy:** Configured at `/admin/knowledge-graph` (`Policy` tab). Sub-clusters (`generative-ai/ai-infrastructure`) inherit their parent cluster's policy unless overridden, and multi-cluster pages resolve **fail-closed** (an explicit `EXCLUDE` on any membership wins).
+2. **Page-Level Frontmatter Override (`kg_include: true | false`):** Explicitly includes or excludes a page. All **91 Hub pages** across Wikantik carry `kg_include: true`.
 
-## Which pages contribute entities (KG inclusion)
+### 4.2 Provenance & Two-Tier Trust (`ProvenanceModel`)
+Every row in `kg_nodes` and `kg_edges` records two orthogonal trust columns (see [[ProvenanceModel|Provenance Model]]):
+- **`provenance`:** `human_authored` (entered via UI or `curate_nodes`/`curate_edges`), `ai_inferred` (auto-promoted above confidence threshold), `ai_reviewed` (LLM-extracted and approved via `review_proposals`), or `auto_projected`.
+- **`tier`:** `machine` (default unreviewed extraction) vs. `human` (vetted by an administrator or trusted curation agent). Read tools (`query_nodes`, `traverse`, `search_knowledge`) accept `min_tier="human"` when an agent requires zero-noise, human-verified graph edges.
 
-**By default a page contributes NO entities to the Knowledge Graph** — inclusion
-is **default-exclude**. A page is included only if its **cluster** has an
-`include` row in `kg_cluster_policy`, OR its frontmatter sets `kg_include: true`.
-A page overrides its cluster either way:
+---
 
-- `kg_include: true` — force the page **in**, regardless of cluster.
-- `kg_include: false` — force the page **out**; this **beats** `cluster: include`.
+## 5. RDF/OWL Ontology & Write-Time SHACL Gate (`wikantik-ontology`)
 
-Cluster policy lookup is **segment-aware**: a sub-cluster inherits its parent's
-policy by walking ancestors (`a/b/c` → `a/b` → `a`), most specific winning. It
-used to be exact-match, which silently excluded every sub-cluster from the KG.
-Where a page holds several cluster memberships, resolution is **fail-closed** —
-an explicit EXCLUDE on *any* membership wins outright, so adding a second
-membership can never quietly pull a page into the graph.
+Above the PostgreSQL `kg_*` tables sits the `wikantik-ontology` module powered by **Apache Jena TDB2** (see [[WikantikOntologyManagement|Wikantik Ontology Management]]):
+1. **Write-Time SHACL Validation (`OntologyShaclValidator`):** Before an edge is committed (either via proposal approval or `curate_edges`), the validator checks the edge against SHACL shapes defined in `wikantik.ttl`, rejecting domain/range violations before they can corrupt the graph.
+2. **Incremental Postgres $\to$ RDF Projectors:** Four projectors (`EntityProjector`, `EdgeProjector`, `PageProjector`, `ConceptProjector`) materialize RDF triples into TDB2 on page save, rename, or KG curation.
+3. **Fail-Closed Public/Restricted ACL Split:** The public ontology endpoints (`GET /sparql`, `GET /id/{type}/{id}`, `GET /export/ontology.ttl`, and `/knowledge-mcp` `sparql_query`) only materialize entities whose source page is readable by an anonymous guest session. Any machine-extracted entity lacking a valid `source_page` is withheld **fail-closed** so restricted knowledge can never leak through SPARQL.
 
-System pages (Sandbox, Main, navigation) are always excluded. Full operator
-guide: `KgInclusionPolicy`.
+---
 
-## See Also
+## 6. Agent MCP Curation & Traversal Examples
 
-- [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph) — canonical explainer for the two graph subsystems
-- [WikantikPlatformHub](WikantikPlatformHub) — platform cluster hub
-- [WikantikArchitecture](WikantikArchitecture) — full module breakdown
+```json
+// 1. Traverse 2 hops from 'Wikantik' on /knowledge-mcp
+{
+  "name": "traverse",
+  "arguments": {
+    "startNode": "Wikantik",
+    "direction": "OUTBOUND",
+    "relationshipTypes": ["uses", "implements", "contains"],
+    "maxDepth": 2,
+    "minTier": "machine"
+  }
+}
+
+// 2. Curate a verified node and edge directly on /wikantik-admin-mcp
+{
+  "name": "curate_edges",
+  "arguments": {
+    "op": "add",
+    "edges": [
+      {
+        "sourceName": "Wikantik",
+        "targetName": "Apache Jena TDB2",
+        "relationshipType": "uses",
+        "sourcePage": "WikantikKnowledgeGraph"
+      }
+    ]
+  }
+}
+```
+
+---
+
+**Cluster Hub:** [[WikantikPlatformHub|Wikantik Platform Hub: Knowledge Systems, Hybrid Search, and AI Agent Integrations]] (`wikantik-platform`)

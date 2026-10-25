@@ -1,20 +1,19 @@
 ---
-type: article
 status: active
 date: '2026-04-26'
-cluster:
-- personal-finance
-- index-fund-investing/rebalancing
-title: Investment Policy Statement
+summary: A written statement of how you will invest, when you will rebalance, and
+  what you will do during downturns — the document that prevents you from...
 tags:
 - investment-policy
 - ips
 - personal-finance
 - portfolio-management
 - behavioral-discipline
-summary: A written statement of how you will invest, when you will rebalance, and
-  what you will do during downturns — the document that prevents you from improvising
-  during the moments when improvising is most expensive.
+type: article
+canonical_id: 01KQ0P44R84C0BFKGQHVJKYHSM
+cluster:
+- personal-finance
+- index-fund-investing/rebalancing
 related:
 - PersonalFinanceGuide
 - LowCostIndexFundInvesting
@@ -22,7 +21,7 @@ related:
 - RebalancingStrategies
 - BehavioralFinanceForInvestors
 - TheCaseAgainstMarketTiming
-canonical_id: 01KQ0P44R84C0BFKGQHVJKYHSM
+title: Investment Policy Statement
 ---
 # Investment Policy Statement
 
@@ -104,10 +103,10 @@ Hybrid: check at fixed intervals, rebalance if thresholds are crossed.
 How much you will contribute, in what order, and from what sources.
 
 > *Annual contribution plan:*
-> 1. *401(k) to employer match: $X*
-> 2. *HSA: $X (max)*
-> 3. *Roth IRA (or backdoor Roth): $X*
-> 4. *401(k) to remainder: $X*
+> 1. *401(k) to employer match: \$X*
+> 2. *HSA: \$X (max)*
+> 3. *Roth IRA (or backdoor Roth): \$X*
+> 4. *401(k) to remainder: \$X*
 > 5. *Taxable brokerage: any surplus*
 
 This codifies the decisions made during calm conditions so that automatic transfers can run on autopilot.
@@ -163,7 +162,7 @@ A complete personal IPS for a 35-year-old, single, retiring at 65:
 
 *Date: 2026-04-26 — Review: 2027-01-01*
 
-**Goals**: Accumulate sufficient assets to retire at age 65 with 4% withdrawal rate covering $80,000/year (target $2.0M in 2026 dollars).
+**Goals**: Accumulate sufficient assets to retire at age 65 with 4% withdrawal rate covering \$80,000/year (target \$2.0M in 2026 dollars).
 
 **Time horizon**: 30-year accumulation phase; 30-year withdrawal phase.
 
@@ -189,7 +188,7 @@ Allocation glides toward 70% stocks / 30% bonds by age 65.
 1. 401(k) to employer match (6% of salary)
 2. HSA: max (\$4,150 single in 2026)
 3. Roth IRA: max (\$7,500)
-4. 401(k) to total $23,500 limit
+4. 401(k) to total \$23,500 limit
 5. Brokerage: surplus, target ≥10% of after-tax income
 
 **Market response**:

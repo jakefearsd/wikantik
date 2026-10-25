@@ -1,52 +1,122 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44RHP0WX33T65KCB5HX4
-title: Knowledge Graph Construction Pipeline
+kg_include: true
+summary: 'Knowledge graph engineering: Named Entity Recognition (NER), Open Information
+  Extraction (OpenIE), entity resolution, and RDF triple curation.'
 type: article
-tags:
-- agentic-ai
-- knowledge-graphs
-- nlp
-- entity-linking
-- ontologies
+audience:
+- humans
+- agents
 status: active
-date: 2025-05-15
-summary: Technical architecture of a Knowledge Graph (KG) construction pipeline. Covers ingestion, disambiguation, and graph embedding.
+canonical_id: 01KQ0P44RHP0WX33T65KCB5HX4
+date: '2026-08-16'
+tags:
+- knowledge-graph
+- ontology
+- entity-resolution
+- ner
+- rdf
+- triples
+- sparql
+- agentic-ai
 auto-generated: false
+cluster:
+- agentic-ai
+- databases
+title: 'Knowledge Graph Construction Pipeline: Entity Extraction and Ontology Linking'
+---
+# Knowledge Graph Construction Pipeline: Entity Extraction, Relation Resolution, and Ontology Linking
+
+Unstructured text documents contain rich semantic relationships, but search engines and LLM agents struggle to navigate complex dependency graphs without structured entity modeling.
+
+A **Knowledge Graph Construction Pipeline** converts raw prose, technical documentation, and tabular corpora into machine-actionable **RDF Triples** $\langle \text{Subject}, \text{Predicate}, \text{Object} \rangle$ bound to a formal ontology (W3C OWL / SKOS). This guide details the 5 stages of the graph construction lifecycle: Document Chunking, Named Entity Recognition (NER), Relation Extraction, Entity Resolution (Deduplication), and Graph Store Projection.
+
 ---
 
-# Knowledge Graph Construction: Architectural Pipeline
+## 1. Quick-Reference: The Graph Construction Lifecycle
 
-A Knowledge Graph (KG) integrates information into an ontology-based network of entities and relationships, providing a structured foundation for reasoning and retrieval.
-
-## 1. The Ingestion Layer: Extracting Triples
-
-The pipeline begins with [Knowledge Extraction From Text](KnowledgeExtractionFromText) (KE).
-*   **Source Diversity:** Ingesting structured (SQL), semi-structured (JSON), and unstructured (Markdown/PDF) data.
-*   **NLP Pipeline:** Tokenization $\to$ NER $\to$ Relation Extraction $\to$ Triple Generation.
-
-## 2. Disambiguation and Entity Linking (EL)
-
-A KG must resolve multiple mentions of the same entity to a single unique node.
-*   **Coreference Resolution:** Linking "he" or "the company" back to the original entity in the document.
-*   **Canonicalization:** Ensuring "IBM," "International Business Machines," and "Big Blue" all map to the same node.
-*   **Concrete Tool:** Using **Wikidata** or a private corporate **Ontology** as the ground-truth namespace.
-
-## 3. Graph Storage and Schema
-
-*   **RDF (Resource Description Framework):** Standard for the semantic web. Uses SPARQL for querying.
-*   **LPG (Labeled Property Graph):** Standard for industrial graphs (e.g., Neo4j). Entities and edges can have properties (key-value pairs).
-*   **Ontology Enforcement:** Using RDFS or OWL to define constraints (e.g., "The `founder_of` relation must connect a `Person` to an `Organization`").
-
-## 4. Graph Embeddings and Reasoning
-
-To make the graph useful for AI, we convert nodes into vectors.
-*   **TransE / RotatE:** Algorithms that learn embeddings such that `vector(Subject) + vector(Relation) ≈ vector(Object)`.
-*   **Link Prediction:** Using embeddings to predict missing relationships (e.g., "There is a 85% probability that Person A knows Person B based on their mutual connections").
-*   **GraphRAG:** A hybrid pattern where the LLM retrieves a "sub-graph" of related entities from the KG to answer complex multi-hop questions (e.g., "Which products from Company X are affected by the new EU regulation?").
+```
++-----------------------------------------------------------------------------------------------------------------------+
+|                                           KNOWLEDGE GRAPH PIPELINE STAGES                                             |
++-----------------------------------------------------------------------------------------------------------------------+
+| Stage                  | Input Payload                          | Primary Technique          | Target Output Format   |
++------------------------+----------------------------------------+----------------------------+------------------------+
+| 1. Document Ingestion  | Raw Markdown / PDFs / HTML             | Structural AST Tokenization| Clean Section Segments |
+| 2. Entity Extraction   | Text Segments                          | Few-shot LLM / GLiNER      | Entity Mentions & Types|
+| 3. Relation Extraction | Entities + Context                     | OpenIE / Schema Constrained| Directed Triples       |
+| 4. Entity Resolution   | Raw Entity Nodes                       | String Distance + Cosine   | Canonical URI / IRI    |
+| 5. Knowledge Store Sync| Validated Triples                      | SPARQL Updates / Jena TDB2 | Persistent Jena Graph  |
++-----------------------------------------------------------------------------------------------------------------------+
+```
 
 ---
-**See Also:**
-- [Knowledge Extraction From Text](KnowledgeExtractionFromText) — The primary data source.
-- [Embeddings Vector DB](EmbeddingsVectorDB) — Storing graph-derived vectors.
-- [Data Lakehouse](DataLakehouse) — Managing the raw data for graph updates.
+
+## 2. Entity & Relation Extraction (LLM vs. Small Specialized Models)
+
+```
+                    +-----------------------------+
+                    | Raw Text Context Segment    |
+                    +--------------+--------------+
+                                   |
+              +--------------------+--------------------+
+              |                                         |
+              v                                         v
++---------------------------+             +---------------------------+
+| Fast Specialized NER      |             | Schema-Constrained LLM    |
+| (GLiNER / Spacy RoBERTa)  |             | (Pydantic Function Call)  |
+| - High Speed (<15ms)      |             | - Rich Context Relations  |
+| - Fixed Entity Types      |             | - Disambiguates Homonyms  |
++-------------+-------------+             +-------------+-------------+
+              |                                         |
+              +--------------------+--------------------+
+                                   |
+                                   v
+                    +-----------------------------+
+                    | Extracted Candidate Triples |
+                    +-----------------------------+
+```
+
+### Structured Extraction Schema (Pydantic / OpenAI Function Calling)
+
+```python
+from pydantic import BaseModel, Field
+from typing import List, Literal
+
+class ExtractedEntity(BaseModel):
+    name: str = Field(description="Canonical entity name")
+    entity_type: Literal["Architecture", "Protocol", "Algorithm", "Framework", "Organization"]
+    description: str = Field(description="One-sentence technical definition")
+
+class ExtractedRelation(BaseModel):
+    subject_entity: str
+    predicate: Literal["implements", "extends", "depends_on", "mitigates", "replaces"]
+    object_entity: str
+    evidence: str = Field(description="Verbatim sentence proving the relation")
+
+class GraphExtractionPayload(BaseModel):
+    entities: List[ExtractedEntity]
+    relations: List[ExtractedRelation]
+```
+
+---
+
+## 3. Entity Resolution & Canonical IRI Grounding
+
+Raw text frequently refers to the same underlying entity using varying lexical forms: `"PostgreSQL"`, `"Postgres"`, `"pg"`, and `"Postgres DB"`. Inserting all 4 as distinct nodes fractures the Knowledge Graph.
+
+### Resolution Protocol
+1. **Exact & Alias Table Lookup**: Fast $O(1)$ mapping against known redirects (`Postgres -> PostgreSQL`).
+2. **Jaro-Winkler & Levenshtein Distance**: Flags slight spelling variations.
+3. **Embedding Cosine Clustering**: For ambiguous abbreviations, compare the candidate mention vector with existing entity description embeddings.
+4. **W3C `owl:sameAs` Projection**: For cross-ontology mapping, link entities via canonical IRIs (`https://wiki.wikantik.com/id/page/01KQ0P...`).
+
+---
+
+## References
+
+1. Hogan, A., et al. (2021). *Knowledge Graphs*. ACM Computing Surveys (CSUR), 54(4), 1-37.
+2. Zaratiana, U., et al. (2024). *GLiNER: Generalist Model for Named Entity Recognition using Bidirectional Transformer*. NAACL 2024.
+3. Brickley, D., & Guha, R. V. (2014). *RDF Schema 1.1*. W3C Recommendation.
+
+---
+
+**Cluster Hub:** [[AgenticAiHub|Agentic AI Hub: Cognitive Architectures, Orchestration, and Autonomous Systems]] (`agentic-ai`)

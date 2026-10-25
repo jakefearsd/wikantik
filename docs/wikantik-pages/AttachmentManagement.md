@@ -1,15 +1,6 @@
 ---
-title: Attachment Management
 date: '2026-04-03'
-cluster: wikantik-development
 status: active
-type: article
-depends-on:
-- JspToReactMigration
-canonical_id: 01KQ0P44M4DND319VRMF10RT6Z
-related:
-- WikantikDevelopment
-- JspToReactMigration
 summary: 'Uploading, listing, renaming and deleting page attachments: editor paste/drop
   and panel UI, /api/attachments endpoints, naming rules and upload limits.'
 tags:
@@ -17,6 +8,13 @@ tags:
 - attachments
 - ui
 - file-management
+type: article
+cluster: wikantik-development
+canonical_id: 01KQ0P44M4DND319VRMF10RT6Z
+related:
+- WikantikDevelopment
+- JspToReactMigration
+title: Attachment Management
 ---
 # Attachment Management
 
@@ -24,9 +22,9 @@ Attachments are files stored with a page. In the React editor an author adds one
 
 ## Features
 
-- **Paste or drag-and-drop upload in the editor.** Files dropped or pasted into the editor upload one at a time. A placeholder `![Uploading name…]()` is inserted at once and replaced by the real markup when the upload finishes (or removed, with an error toast, if it fails). On a new page that has not been saved yet, the placeholders go in immediately and the uploads start after the first save. A pasted clipboard image is named `pasted-YYYYMMDD-HHMMSS.<ext>`.
+- **Paste or drag-and-drop upload in the editor.** Files dropped or pasted into the editor upload one at a time. A placeholder `![Uploading name…]` (with empty `()` link target) is inserted at once and replaced by the real markup when the upload finishes (or removed, with an error toast, if it fails). On a new page that has not been saved yet, the placeholders go in immediately and the uploads start after the first save. A pasted clipboard image is named `pasted-YYYYMMDD-HHMMSS.<ext>`.
 - **Attachments panel.** A file picker with an editable name field that is validated as you type; the page's attachment list with an image preview (the browser loads the stored file from `/attach/{Page}/{file}`, the server does not generate thumbnails); rename; and delete, which asks for confirmation and shows how many times the editor text still references the file. The panel also holds an *Ingest as derived page* form (`POST /api/ingest`) that turns an uploaded document into a page; that is a separate feature from attachments.
-- **Inline Markdown references.** Dragging a row from the panel into the editor inserts `![name](file.png)` for an image or `[name](file.pdf)` for anything else. A pasted or dropped upload inserts the same markup. The reference is the bare file name, which resolves to the page's own attachment.
+- **Inline Markdown references.** Dragging a row from the panel into the editor inserts `![name](#file.png)` (written without `#`) for an image or `[name](#file.pdf)` (written without `#`) for anything else. A pasted or dropped upload inserts the same markup. The reference is the bare file name, which resolves to the page's own attachment.
 - **Filename normalisation.** For a pasted or dropped file the editor cleans the name to fit the rules below (spaces and inner periods become `-`, other disallowed characters are dropped, the name is shortened) and adds `-2`, `-3` and so on when it collides with an existing attachment. The server enforces the same rules and refuses anything else.
 
 ## Naming rules
@@ -53,3 +51,7 @@ The REST servlet `AttachmentResource` (`wikantik-rest`) is mapped to `/api/attac
 | `DELETE /api/attachments/{Page}/{file}` | delete |
 
 [{Relationships}]
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

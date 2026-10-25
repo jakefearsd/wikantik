@@ -1,21 +1,17 @@
 ---
-status: active
 type: article
-depends-on:
-- ProvenanceModel
-canonical_id: 01KQ0P44RMQK7627HQ0J02FE6K
+date: '2026-04-04'
+status: active
 summary: Proposal workflow for AI-suggested knowledge enrichment with human approval
   and frontmatter write-back
+canonical_id: 01KQ0P44RMQK7627HQ0J02FE6K
+title: Knowledge Proposals
 tags:
 - development
 - knowledge-graph
 - ai
 - workflow
-title: Knowledge Proposals
-date: '2026-04-04'
 cluster: wikantik-development
-part-of:
-- KnowledgeGraphCore
 ---
 # Knowledge Proposals
 
@@ -49,3 +45,7 @@ When a `new-edge` proposal with a `source_page` is approved through the admin RE
 The `kg_rejections` table stores negative knowledge — source, target and relationship triples that were rejected by the judge or a person, or removed with `delete_and_reject`. It is enforced at three points: extractors skip a rejected triple, `propose_knowledge` declines it and returns the rejection reason, and `list_proposals` / `inspect_proposals` flag a queued proposal with `edge_previously_rejected`. A later human approval of the same triple deletes the rejection.
 
 [{Relationships}]
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

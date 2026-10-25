@@ -1,18 +1,12 @@
 ---
-title: Cluster Declaration Design
-date: '2026-08-15'
-cluster: wikantik-development
-status: active
 type: design
-canonical_id: 01M02FKWMH48PJDTGTPXMESFXE
-related:
-- StructuralSpineDesign
-- PageGraphVsKnowledgeGraph
-- KgInclusionPolicy
-- HybridRetrieval
-author: claude-opus
 summary: 'Hub pages declare clusters: consolidating three rival membership mechanisms
   (cluster, hubs, related) and rejecting directory-structured content storage.'
+status: active
+date: '2026-08-15'
+canonical_id: 01M02FKWMH48PJDTGTPXMESFXE
+verified_by: jakefear
+verified_at: '2026-10-24T15:40:23.406649131Z'
 tags:
 - design
 - page-graph
@@ -20,6 +14,13 @@ tags:
 - structural-index
 - frontmatter
 - clusters
+cluster: wikantik-development
+title: Cluster Declaration Design
+related:
+- StructuralSpineDesign
+- PageGraphVsKnowledgeGraph
+- KgInclusionPolicy
+- HybridRetrieval
 ---
 # Cluster Declaration Design
 

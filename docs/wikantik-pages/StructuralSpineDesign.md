@@ -1,18 +1,12 @@
 ---
-title: Structural Spine Design
-cluster: wikantik-development
-date: '2026-04-24'
 type: design
-status: active
-canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
-author: claude-opus
-related:
-- AgentGradeContentDesign
-- HybridRetrieval
-- GoodMcpDesign
-- WikantikDevelopment
 summary: Detailed design for a machine-queryable structural index (clusters, tags,
   canonical IDs, typed cross-references) exposed via /api/structure/* and...
+status: active
+date: '2026-04-24'
+canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
+verified_by: jakefear
+verified_at: '2026-10-24T15:40:23.406649131Z'
 tags:
 - design
 - agent-context
@@ -20,6 +14,13 @@ tags:
 - structural-index
 - canonical-id
 - typed-relations
+cluster: wikantik-development
+title: Structural Spine Design
+related:
+- AgentGradeContentDesign
+- HybridRetrieval
+- GoodMcpDesign
+- WikantikDevelopment
 ---
 > **Note (2026-05-02).** The Structural Spine is now a sub-area of the
 > **Page Graph** subsystem. The typed-relation grammar (`relations:`
@@ -413,3 +414,7 @@ Code that queries `StructuralIndexService` for cluster or verification data:
 - [AgentGradeContentDesign](AgentGradeContentDesign) — the companion design that consumes this structural spine for agent-shaped page projections and retrieval-quality CI.
 - [HybridRetrieval](HybridRetrieval) — existing retrieval infrastructure; the structural spine does not replace retrieval, it enriches the result surface.
 - [GoodMcpDesign](GoodMcpDesign) — the design principles all new MCP tools in this plan must follow.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

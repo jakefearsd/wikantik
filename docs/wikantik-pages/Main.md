@@ -8,71 +8,89 @@ canonical_id: 01KQ0P44S61S5AYQJVF4EBFAMM
      to regenerate. Manual edits to Main.md will be reverted by the
      next build and will fail the regression check on CI. -->
 
-**Wikantik is an agent-grade knowledge base — a wiki that humans read and AI agents can natively search, retrieve, and cite.** One Markdown source of truth, two kinds of reader, the same content and permissions for both.
+**Wikantik is an agent-grade technical knowledge platform — engineered simultaneously for human deep reading and native AI agent retrieval, graph traversal, and software engineering coordination.** Every page is stored as structured Markdown with validated YAML frontmatter, rename-safe ULIDs (`canonical_id`), and explicit cluster declarations.
 
-**As a human**, browse in-depth, interlinked research articles organized into topic clusters — each cluster has a hub page that introduces the topic and links to its sub-articles. Search in plain language (hybrid keyword + semantic retrieval), and explore how ideas connect through the [page graph](PageGraphVsKnowledgeGraph) of wikilinks and the [knowledge graph](WikantikKnowledgeGraph) of entities extracted from the content.
+### Core Platform Capabilities
 
-**As an AI agent**, connect over the Model Context Protocol: the read-only `/knowledge-mcp` server retrieves and assembles ranked, **citation-bearing** context bundles and traverses the knowledge graph, while `/wikantik-admin-mcp` authors and curates pages — and the whole corpus is queryable as linked data over [SPARQL](Ontology). Agents go through the same save pipeline, permissions, and retrieval index as the human UI; see [Wikantik System Architecture](WikantikArchitecture) for how it all fits together.
+- **Dual-Graph Architecture (Page Graph + Knowledge Graph):** Browse **91 topic clusters and sub-clusters** anchored by curated Hub pages ([Cluster Declaration Architecture](ClusterDeclarationDesign)). Explore structural relationships through the [Page Graph](PageGraphVsKnowledgeGraph) of bidirectional wikilinks and the [Knowledge Graph](WikantikKnowledgeGraph) of extracted entities, relationships, and formal OWL/SKOS [SPARQL ontology](Ontology).
+- **Hybrid Contextual Retrieval (`/knowledge-mcp` — 22 read-only tools):** Queries execute across BM25 lexical and dense vector indices fused via Reciprocal Rank Fusion ([Hybrid Retrieval](HybridRetrieval)), with contextual chunk headers (`Cluster + Title + Summary + Heading Path`). Agents assemble version-pinned, citation-bearing bundles via `assemble_bundle` and inspect provenance-scored projections (`AUTHORITATIVE` / `PROVISIONAL` / `STALE`) via `get_page_for_agent`.
+- **Closed-Loop Content Intelligence (`/wikantik-admin-mcp` — 29 read/write tools):** Curators and agents author pages with optimistic locking (`update_page`), run 7-dimension structural/SEO/retrieval verification (`verify_pages`), curate Knowledge Graph nodes and edges (`curate_nodes`, `curate_edges`), and act on search-telemetry demand signals (`list_content_opportunities` via [Content Intelligence](ContentIntelligenceDesign)).
 
-New here? Start with [About](About) for the manifesto, or the [Wikantik Platform Hub](WikantikPlatformHub) for the platform deep-dives. Power users: the [Knowledge Graph Admin](WikantikKnowledgeGraphAdmin) guide.
+### Software Engineering & Multi-Agent Development Workflows
+
+Beyond serving as a reference library, Wikantik acts as the **active architectural control plane** for ongoing software development across multiple repositories ([Simple Agility Stack Hub](SimpleAgilityStackHub)):
+
+1. **Tiered Session-Start Briefings (`get_briefing` / SA-13):** Rather than relying on static repo-local prompt files that silently drift out of date, coding agents start every session by calling `get_briefing(clusters=["<project>"], prompt="<task>")` ([Project Context Separation Design](ProjectContextSeparationDesign)). The wiki dynamically assembles three tiers of context: the project's core architecture pages (ranked by intra-cluster in-degree), the **cross-project contracts that project cites** ([Architectural Decision Log](SimpleAgilityDecisionLog), [Telemetry Contract](SimpleAgilityTelemetryContract), [Agent Coordination](SimpleAgilityAgentCoordination)), and task-matched sections — while isolating operational incident runbooks from standing coding context.
+2. **Design-First RFCs & Cross-Repository Contract Propagation:** System designs (`type: design`), RFCs, and cross-repo API/telemetry contracts live in the wiki as versioned, link-verified specifications ([Context Engineering for Coding Agents](ContextEngineeringForCodingAgents)). When a shared contract is updated, every downstream repository whose Hub cites that contract automatically receives the updated specification on its next session briefing.
+3. **Scenario-Keyed Engineering & Incident Runbooks (`type: runbook`):** Recurring engineering playbooks — exploring module API surfaces, running parallel integration test reactors, planning schema migrations, or triaging production alerts — are encoded as structured runbooks (`when_to_use`, `steps`, `pitfalls`) in the [Agent Cookbook](AgentCookbook) and infrastructure hubs ([Home Lab Infrastructure Hub](HomeLabInfrastructureHub)), ready for on-demand agent execution.
+4. **Living Documentation & Verification Loops:** As code changes land or incidents are resolved, coding agents update the corresponding architecture pages and runbooks in the same workflow (`update_page` → `verify_pages` → `mark_page_verified`), keeping design documentation, Knowledge Graph entities, and production implementation continuously aligned ([Agentic Coding Hub](AgenticCodingHub)).
+
+New here? Start with [About](About) for the platform manifesto, the [Wikantik Platform Hub](WikantikPlatformHub) for system internals, the [Agent Cookbook](AgentCookbook) for operational agent runbooks, or the [Simple Agility Stack Hub](SimpleAgilityStackHub) for cross-project engineering workflows. You can also read the [site blog](https://wiki.wikantik.com/blog/).
 
 ## Article Clusters
 
-### Finance & Retirement
+### Wikantik Platform, Agent Workflows & Architecture
 
-- [Index Fund Investing for Early Retirement](IndexFundInvestingForEarlyRetirement) — Building wealth with low-cost index funds: expense ratios, three-fund portfolios, account strategy, Roth conversion ladders, and a complete early retirement blueprint
-- [Retirement Planning Guide](RetirementPlanningGuide) — Strategic decision frameworks for decumulation: Roth conversions, Social Security claiming, withdrawal sequencing, Medicare planning, RMDs, and building reliable retirement income
-- [EU Retirement Savings Guide](EuRetirementSavingsGuide) — How EU retirement savings and investing law differs from the US: three-pillar system, capital gains tax, and country deep dives (Germany, France, Netherlands, Italy, Spain)
+- [Wikantik Platform Hub](WikantikPlatformHub) — Master index for the Wikantik platform: hybrid BM25 + vector search, dual Page/Knowledge Graphs, MCP servers, and React SPA architecture
+- [Wikantik System Architecture](WikantikArchitecture) — End-to-end engineering architecture: multi-module reactor, hybrid file + PostgreSQL/pgvector storage, retrieval pipeline, and MCP agent surface
+- [Wikantik Platform Development Hub](WikantikDevelopmentHub) — Active engineering specifications, ADRs, MCP authoring conventions, observability, and release/deployment runbooks
+- [Agent Cookbook](AgentCookbook) — Scenario-keyed operational runbooks for AI coding agents: retrieval gating, session briefings, KG curation, testing, and codebase navigation
+- [Simple Agility Stack Hub](SimpleAgilityStackHub) — Cross-project architectural spine connecting Wikantik, JakeMon observability, Roller, Stockroom, and multi-agent coordination contracts
+- [Page Graph vs. Knowledge Graph](PageGraphVsKnowledgeGraph) — How Wikantik separates human-authored wikilink topology and Hub-declared clusters from machine-extracted entity/relation triples
+- [Hybrid Retrieval & Contextual Chunking](HybridRetrieval) — Operator and architectural reference for BM25 + dense vector retrieval, Reciprocal Rank Fusion, and contextual embedding headers
+- [Tiered Agent Session Briefings (SA-13)](ProjectContextSeparationDesign) — How get_briefing assembles standing project context, cross-cluster contract citations, and prompt-refined sections while preventing incident noise
 
-### Geopolitics & Conflict
+### Agentic AI, Foundation Models & Machine Learning
 
-- [Conflicts and Global Equity Markets](ConflictsAndEquityMarkets) — How major international conflicts from WWI through the Russia-Ukraine war have shaped global equity markets, with cross-cutting pattern analysis and investment lessons
-- [The Russia-Ukraine War: Overview](RussiaUkraineWarOverview) — The state of the conflict in its fourth year: territorial situation, peace negotiations, humanitarian crisis, drone warfare, the energy infrastructure war, and international military support
+- [Agentic AI Hub](AgenticAiHub) — Cognitive architectures, perceive-reason-act control loops, MCP tool protocols, episodic/semantic memory, and multi-agent orchestration
+- [Agentic Coding Hub](AgenticCodingHub) — Autonomous software engineering workflows: context engineering, verification loops, mutation testing, worktree isolation, and failure guardrails
+- [Generative AI Hub](GenerativeAIHub) — Foundation model internals, Transformer attention mechanics, Retrieval-Augmented Generation (RAG), multimodal embeddings, and alignment
+- [AI Infrastructure Hub](AIInfrastructureHub) — GPU cluster interconnects, PagedAttention inference serving, vLLM/Triton engines, INT4/FP8 quantization, and distributed training
+- [Machine Learning Hub](MLHub) — Classical and modern ML engineering: supervised/unsupervised learning, gradient-boosted trees, anomaly detection, and MLOps pipelines
+- [Large Language Models Since 2020](LlmsSinceTwentyTwenty) — From GPT-3 and Chinchilla scaling laws to o1/R1 reasoning models, DeepSeek MoE/MLA, frontier multimodal agents, and test-time compute
+- [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — Practitioner roadmap for adopting LLMs: model evaluation, structured prompting, local inference, and production workflow integration
+- [Embedded AI on Edge & Limited Hardware](EmbeddedAiOnLimitedHardware) — Running quantized models on microcontrollers, edge NPUs, and workstations: TinyML, GGUF/llama.cpp, and on-device inference economics
 
-### Technology
+### Software Architecture, Distributed Systems & Computer Science
 
-- [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — A practitioner's roadmap for adopting generative AI: understanding LLMs, evaluating tools, prompt engineering, running local models, integrating AI into workflows, and accelerating your learning
-- [Linux for Windows Users](LinuxForWindowsUsers) — Transitioning from Windows to Linux: choosing a distribution, command line essentials, filesystem and permissions, package management, shell scripting, and system administration
-- [LLMs Since 2020](LlmsSinceTwentyTwenty) — The evolution of large language models from GPT-3 through modern frontier models: scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
-- [The Future of Machine Learning](TheFutureOfMachineLearning) — Where [machine learning](MachineLearning) is headed: foundation models, data efficiency, edge AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying ML at scale
-- [Foundational Algorithms for Computer Scientists](FoundationalAlgorithmsForComputerScientists) — The essential algorithms every computer scientist should know: sorting, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression
-- [Distributed Computing Evolution](DistributedComputingEvolution) — Thirty years of distributed systems: from CORBA and client-server to cloud-native microservices, event-driven architecture, and modern best practices for reliability, observability, and scale
-- [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference
-- [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — The math that underpins ML: [linear algebra](LinearAlgebra), calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques
+- [Software Architecture Hub](ArchitectureHub) — Distributed systems topology, Domain-Driven Design (DDD), event sourcing, CQRS, cell-based architecture, and evolutionary trade-offs
+- [Distributed Systems Hub](DistributedSystemsHub) — Consensus protocols (Paxos, Raft), replication topologies, logical clocks, two-phase commit, saga patterns, and fault tolerance
+- [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Trunk-based development, code review rigor, testing pyramids, static analysis, refactoring discipline, and backwards compatibility
+- [Design Patterns Hub](DesignPatternsHub) — Gang-of-Four creational, structural, and behavioral patterns evaluated for modern multi-paradigm and concurrent systems
+- [Programming Languages Hub](ProgrammingLanguagesHub) — Comparative language architecture across Rust, C++, Go, Java, Python, Lisp, Smalltalk, Haskell, Erlang, and type-system evolution
+- [Computer Science Foundations Hub](ComputerScienceFoundationsHub) — Automata theory, formal grammars, compiler construction, operating system internals, and computational complexity (P vs. NP)
+- [Data Structures & Algorithms Hub](DataStructuresHub) — Cache-conscious trees (B+Trees, LSM-Trees), probabilistic structures (Bloom filters, HyperLogLog), graph algorithms, and amortized analysis
+- [Java Platform & JVM Internals Hub](JavaHub) — Modern Java (21+), virtual threads (Project Loom), ZGC/G1GC garbage collection, JIT compilation, and enterprise build tooling
+- [Frontend Engineering Hub](FrontendDevelopmentHub) — Browser rendering pipelines, Web Components and Shadow DOM, state management, SSR/hydration, TypeScript, and Core Web Vitals
+- [Web Services & API Architecture Hub](WebServicesAndApisHub) — REST, GraphQL, gRPC, WebSockets, API gateway rate limiting, idempotency keys, and schema evolution
+- [Foundational Algorithms Reference](FoundationalAlgorithmsForComputerScientists) — Deep dive into sorting, shortest-path and network-flow graph algorithms, dynamic programming, and cryptographic primitives
+- [Thirty Years of Distributed Computing](DistributedComputingEvolution) — From RPC and CORBA to cloud-native service meshes, durable execution engines, and modern observability
 
-### Agent Cookbook
+### Cloud, DevOps, Security, Data Engineering & Infrastructure
 
-- [Agent Cookbook](AgentCookbook) — Scenario-keyed runbooks for AI coding agents: choosing a retrieval mode, finding the right MCP tool, citing pages, debugging integration tests, planning migrations, and a dozen more recurring playbooks
+- [DevOps & Site Reliability Engineering Hub](DevOpsAndSreHub) — SLIs/SLOs and error budgets, CI/CD deployment gates, OpenTelemetry observability, incident response, and chaos engineering
+- [Cloud Platforms & Architecture Hub](CloudPlatformsHub) — AWS, GCP, and Azure foundational primitives, VPC networking, serverless execution, FinOps cost optimization, and multi-region DR
+- [Cybersecurity, AuthN/AuthZ & Container Security Hub](AuthenticationAndAuthorizationHub) — OAuth 2.1/OIDC, Passkeys/WebAuthn, Zero-Trust mTLS, Linux container isolation (seccomp/eBPF), and cryptographic key management
+- [Computer Networking & Protocols Hub](NetworkingHub) — OSI/TCP-IP stack, BGP routing, TLS 1.3 handshakes, HTTP/3 QUIC, high-performance kernel bypass (DPDK/XDP), and DNS architecture
+- [Data Engineering & Lakehouse Hub](DataEngineeringHub) — Idempotent batch/streaming pipelines, Apache Kafka/Pulsar, Iceberg/Delta lakehouses, dbt transformations, and dimensional modeling
+- [Database Internals & Performance Hub](DatabasePerformanceMonitoringHub) — ACID isolation levels, MVCC lock contention, query planner optimization, connection pooling, and declarative partitioning
+- [Home Lab & Self-Hosted Infrastructure Hub](HomeLabInfrastructureHub) — Production fleet topology, Cloudflare Zero Trust ingress, Docker host management, GPU inference nodes, and automated backup verification
+- [Linux Systems & Command-Line Guide](LinuxForWindowsUsers) — Linux kernel and filesystem hierarchy, POSIX permissions, systemd service management, package managers, and Bash scripting
 
-### Hobby Woodworking
+### Mathematics, Operations Research & Applied Engineering
 
-- [Hobby Woodworking in the Twenty-First Century](HobbyWoodworkingInTheTwentyFirstCentury) — How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000
-- [Evolution of Hobby Woodworking](EvolutionOfHobbyWoodworking) — How the craft has changed in tools, materials, knowledge access, and community since 2000
-- [CNC Routers for the Hobby Workshop](CncRoutersForTheHobbyWorkshop) — Desktop CNC routers for hobbyists: machines, software, capabilities, and workflow
-- [3D Printing Meets Woodworking](ThreeDeePrintingMeetsWoodworking) — Jigs, fixtures, workholding, and custom hardware from a 3D printer
-- [Laser Cutters and Engravers for Wood](LaserCuttersAndEngraversForWood) — CO2 and diode lasers for cutting, engraving, and inlay in a home shop
-- [Digital Design Tools for Woodworkers](DigitalDesignToolsForWoodworkers) — CAD, CAM, and laser software: Fusion 360, VCarve Pro, LightBurn, and more
-- [The Modern Hand Tool Renaissance](ModernHandToolRenaissance) — Premium hand tools and a global maker community brought traditional craft back
+- [Mathematics for Computer Science & ML Hub](MathematicsHub) — Linear algebra, multivariable calculus, measure-theoretic probability, abstract algebra, topology, and formal predicate/modal logic
+- [Operations Research & Mathematical Optimization Hub](OperationsResearchHub) — Linear and mixed-integer programming (MILP), convex optimization, vehicle routing (VRP), queuing theory, and stochastic inventory models
+- [Warehouse Automation & Industrial Robotics Hub](WarehouseAutomationHub) — High-density AS/RS kinematics, autonomous mobile robots (AMRs), WMS/WCS orchestration, sortation mechanics, and Lean/Six Sigma flow
+- [Physics & Mechanical Engineering Hub](PhysicsHub) — Classical and Lagrangian mechanics, thermodynamics, differential geometry, general relativity, and non-destructive physical metrology
+- [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — Matrix factorizations, automatic differentiation, information-theoretic divergence, and non-convex optimization landscapes
 
-### Warehouse Automation
+### Personal Finance, Investing & Geopolitics
 
-- [Warehouse Automation Hub](WarehouseAutomationHub) — The technology stack behind modern warehouse automation: robotics, conveyor systems, WMS platforms, AI-driven optimization, and the practical limits of automation
-
-### Berlin History
-
-- [Berlin](Berlin) — The history of Berlin from medieval margraviate to modern capital: Reformation-era urban development, Prussian transformation, and the city's evolving identity
-
-### Immigration
-
-- [Spousal Green Card Guide](SpousalGreenCardGuide) — The complete process for marriage-based US immigration: petition filing, adjustment of status vs. consular processing, financial requirements, interview preparation, and removing conditions
-
-### Wikantik Platform
-
-- [Wikantik Platform Hub](WikantikPlatformHub) — The definitive guide to the Wikantik platform: architecture, hybrid search, knowledge graph, and history.
-- [Wikantik System Architecture](WikantikArchitecture) — A deep dive into how Wikantik is built: the module reactor, hybrid file+Postgres storage, retrieval and knowledge layers, and the agent surface — with strengths, an honest critique, and a roadmap.
-- [Wikantik Development](WikantikDevelopment) — Hub page for platform development — architecture decisions, feature implementations, and engineering history
-
-## About This Wiki
-
-Powered by [Wikantik](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.
-
+- [Personal Finance & Tax Strategy Hub](PersonalFinanceHub) — Household balance-sheet optimization, marginal tax planning, debt amortization math, estate structures, and risk management
+- [Low-Cost Index Fund Investing Hub](LowCostIndexFundInvestingHub) — Modern Portfolio Theory, factor exposure, tax-efficient asset location, tolerance-band rebalancing, and early retirement accumulation
+- [Retirement Decumulation & Income Guide](RetirementPlanningGuide) — Safe withdrawal rates, sequence-of-returns mitigation, Roth conversion ladders, Social Security bend-point math, and ACA/Medicare thresholds
+- [European Retirement & Cross-Border Investing Guide](EuRetirementSavingsGuide) — Three-pillar EU pension architecture, UCITS ETF taxation, and country-specific regulatory frameworks across Europe
+- [Geopolitics & Global Financial Markets Hub](GeopoliticalFinancialBridgeHub) — Econometric analysis of sovereign debt cycles, commodity supply shocks, trade corridors, and equity drawdown recovery coefficients
+- [International Conflicts and Equity Markets](ConflictsAndEquityMarkets) — Historical market drawdowns, volatility regimes, and sector rotation patterns from WWI through modern geopolitical crises
+- [The Russia-Ukraine War: Strategic & Economic Analysis](RussiaUkraineWarOverview) — Attrition dynamics, autonomous drone warfare, energy infrastructure targeting, sanctions routing, and defense-industrial scaling

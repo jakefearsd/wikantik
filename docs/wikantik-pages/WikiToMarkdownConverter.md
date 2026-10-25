@@ -1,27 +1,23 @@
 ---
+kg_include: true
+summary: 'How the JSPWiki-to-Markdown converter works: line-by-line regex rules, the
+  syntax mapping, the wiki-syntax heuristic, and the API and script that use it.'
+type: article
+status: active
+date: '2026-04-01'
 audience:
 - humans
-status: active
-title: 'Wiki to Markdown Converter: JSPWiki Syntax to Markdown'
-type: article
 canonical_id: 01KQ0P44Z5CB0MC0BGG3KXX5XC
-kg_include: true
-date: '2026-04-01'
-enables:
-- KnowledgeGraphCore
 tags:
 - wikantik
 - markdown
 - jspwiki
 - converter
 - wikantik-development
+cluster: wikantik-development
+title: 'Wiki to Markdown Converter: JSPWiki Syntax to Markdown'
 related:
 - WikantikDevelopment
-summary: 'How the JSPWiki-to-Markdown converter works: line-by-line regex rules, the
-  syntax mapping, the wiki-syntax heuristic, and the API and script that use it.'
-cluster: wikantik-development
-uses: [
-  ]
 ---
 # Wiki to Markdown Converter: JSPWiki Syntax to Markdown
 
@@ -40,7 +36,7 @@ uses: [
 | Italic | `''text''` | `*text*` |
 | Inline code | `{{text}}` | `` `text` `` |
 | Code block | `{{{` ... `}}}` | fenced code block |
-| Bare wiki link | `[PageName]` | `[PageName]()` |
+| Bare wiki link | `[WikiName]` | `[WikiName]()` |
 | Plugin, ACL or variable | `[{Name args}]` | `[{Name args}]()` |
 | Escaped bracket | `[[` | `\[` |
 | Unordered list | `* item`, `** item` | `* item`, nested items indented two spaces per level |
@@ -49,7 +45,7 @@ uses: [
 | Definition | `;term:definition` | `**term**: definition` |
 | Line break | `\\` | two trailing spaces |
 
-A labelled link `[Label|Target]` becomes `[Label](Target)`. A bare `[PageName]` becomes `[PageName]()`: an empty-target link that Wikantik's wikilink extension resolves to the page at render time. A wiki table uses `||` for header cells and `|` for data cells, and becomes a GFM pipe table; when the source has no `||` header row the output gets an empty header row so the table is still valid Markdown.
+A labelled link `[Label|WikiName]` becomes `[Label](WikiName)`. A bare `[WikiName]` becomes `[WikiName]()`: an empty-target link that Wikantik's wikilink extension resolves to the page at render time. A wiki table uses `||` for header cells and `|` for data cells, and becomes a GFM pipe table; when the source has no `||` header row the output gets an empty header row so the table is still valid Markdown.
 
 ---
 
@@ -97,3 +93,7 @@ The only warning the converter emits today is for an unclosed code block, which 
 - `bin/wiki2markdown.py <directory> [--dry-run]` bulk-converts `.txt` files to `.md`, using a Python copy of the same heuristic and its own implementation of the conversion rules, and deletes each original `.txt`.
 
 After converting, check any table or math-heavy page by eye. The converter is rule-based, so unusual nesting of bold, italic and links in one line can need a manual touch-up.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

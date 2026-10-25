@@ -1,13 +1,12 @@
 ---
-related:
-- WikantikArchitecture
-- WikantikKnowledgeGraph
-- WikantikEvolutionFromJSPWiki
-- TestDrivenDevelopment
-- HexagonalArchitecture
-- ContinuousIntegration
-title: Wikantik Development
-cluster: wikantik-development
+summary: 'Wikantik platform development: architecture decisions, TDD mandate, CI pipeline,
+  Maven module structure, and the feature timeline through 2.4.x.'
+type: article
+status: active
+date: '2026-06-20'
+canonical_id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
+verified_by: jakefear
+verified_at: '2026-10-24T15:40:23.406649131Z'
 tags:
 - development
 - architecture
@@ -15,18 +14,24 @@ tags:
 - engineering
 - ci
 - history
-verified_at: '2026-05-04T21:10:44.598011331Z'
-verified_by: gemini-cli-mcp-client
-canonical_id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
-status: active
-date: '2026-06-20'
-type: article
-summary: 'Wikantik platform development: architecture decisions, TDD mandate, CI pipeline,
-  Maven module structure, and the feature timeline through 2.4.x.'
+cluster: wikantik-development
+title: Wikantik Development
+related:
+- WikantikArchitecture
+- WikantikKnowledgeGraph
+- WikantikEvolutionFromJSPWiki
+- TestDrivenDevelopment
+- HexagonalArchitecture
+- ContinuousIntegration
+- SimpleAgilityStackHub
+- SimpleAgilityDecisionLog
+- SimpleAgilityAgentCoordination
+- SimpleAgilityTelemetryContract
+- SimpleAgilityTelemetryAdoption
 ---
 # Wikantik Development
 
-This cluster documents the development history of the Wikantik platform itself — the architecture decisions, feature implementations, and engineering patterns that have shaped the system over time. The current release is 2.4.57; `CHANGELOG.md` in the repository is the authoritative record of what shipped when.
+This cluster documents the development history of the Wikantik platform itself — the architecture decisions, feature implementations, and engineering patterns that have shaped the system over time. The current release is 2.4.57; `CHANGELOG.md` and [README](README) in the repository record the release history and quickstart layout.
 
 ## Core Engineering Pillars
 
@@ -89,7 +94,7 @@ Wikantik began as a fork of Apache JSPWiki. Through a sustained modernization ef
 - **Ontology:** RDF/OWL ontology layer (`wikantik-ontology`) — 9 entity + 5 content classes, SHACL write-time gate, public SPARQL endpoint, JSON-LD SEO re-sourced from the ontology
 - **Content Intelligence:** `wikantik-insights` closes a feedback loop from search-visibility data to a ranked opportunity backlog and measured effect
 - **Authoring:** Obsidian-style editing — Live Preview, native `[[wikilinks]]` and `![[embeds]]`, vault import and export
-- **Observability:** Health checks, Prometheus `/metrics`; monitoring handled by the external **jakemon** stack (Grafana Alloy + central Prometheus + Loki + Grafana) on host `docker2`
+- **Observability:** Health checks, Prometheus `/metrics`, and ECS JSON logs per [SimpleAgilityTelemetryContract](SimpleAgilityTelemetryContract) ([SimpleAgilityTelemetryAdoption](SimpleAgilityTelemetryAdoption)); monitoring handled by the external **[jakemon](JakemonHub)** stack ([SimpleAgilityObservabilityPlane](SimpleAgilityObservabilityPlane)) on host [inference](HostInference), coordinated across the [Simple Agility stack](SimpleAgilityStackHub) via [SimpleAgilityAgentCoordination](SimpleAgilityAgentCoordination) and [SimpleAgilityDecisionLog](SimpleAgilityDecisionLog)
 
 ## Key Design Decisions
 
@@ -146,7 +151,6 @@ Wikantik began as a fork of Apache JSPWiki. Through a sustained modernization ef
 - [AdvancedSearchTermEngineering](AdvancedSearchTermEngineering) — Query engineering for RAG systems, beyond basic semantic search.
 - [AttachmentManagement](AttachmentManagement) — Drag-and-drop attachment UI with server-side image processing and inline Markdown references.
 - [ContentFeedback](ContentFeedback) — How publishers receive AI-generated content-quality feedback.
-- [CurationTest](CurationTest) — The curation test suite: frontmatter schema, link integrity and KaTeX math checks for curators.
 - [DockerAdminSmallNetworks](DockerAdminSmallNetworks) — Managing a handful of containers on a small network.
 - [FullOAuth](FullOAuth) — The OAuth SSO implementation plan.
 - [McpServerCritique2026](McpServerCritique2026) — Critique of the Admin and Knowledge MCP servers from active use and robustness/security testing.
@@ -170,3 +174,7 @@ Wikantik began as a fork of Apache JSPWiki. Through a sustained modernization ef
 - [PrivacyPolicy](PrivacyPolicy) — The site privacy policy page.
 - [Sitemap](Sitemap) — The `sitemap.xml` servlet.
 - [SitemapOptimization](SitemapOptimization) — Research notes on the ideal `sitemap.xml` output for Google Search.
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

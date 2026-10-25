@@ -1,13 +1,22 @@
 ---
-title: MCP Integration
-cluster: wikantik-development
-date: '2026-04-29'
+kg_include: true
+summary: Operator and agent guide for wiring Claude Code, Gemini CLI, and OpenAPI
+  clients into Wikantik's three tool surfaces (51 MCP + 2 OpenAPI tools).
 type: article
+date: '2026-10-24'
 status: active
-depends-on:
-- KnowledgeGraphCore
-- StructuralSpineDesign
 canonical_id: 01KQ0P44SBG2CF3EAWZF9SYJND
+audience:
+- humans
+- agents
+tags:
+- development
+- mcp
+- ai
+- agent-integration
+- tools
+cluster: wikantik-development
+title: MCP Integration
 related:
 - WikantikDevelopment
 - KnowledgeGraphCore
@@ -18,14 +27,8 @@ related:
 - KgInclusionPolicy
 - GoodMcpDesign
 - About
-summary: Operator + agent guide for wiring Claude Code, Gemini CLI, and OpenAPI-only
-  clients into Wikantik's three tool surfaces (52 tools when fully wired).
-tags:
-- development
-- mcp
-- ai
-- agent-integration
-- tools
+verified_at: '2026-10-24T22:57:53.750908213Z'
+verified_by: wikantik-cli
 ---
 # MCP Integration
 
@@ -36,10 +39,10 @@ Wikantik exposes three separate agent-facing surfaces. Each is a distinct servle
 | Path | Module | Protocol | Tools | Capabilities | Auth filter | Default scope |
 |---|---|---|---|---|---|---|
 | `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 29 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp_admin` (or `all`) |
-| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 21 read-only retrieval + KG + spine + projection | tools | `McpAccessFilter` (registered as `KnowledgeMcpAccessFilter`, required scope `mcp_read`) | `mcp_read` (or `mcp_admin`, `all`) |
+| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 22 read-only retrieval + KG + spine + projection + ontology + briefing | tools | `McpAccessFilter` (registered as `KnowledgeMcpAccessFilter`, required scope `mcp_read`) | `mcp_read` (or `mcp_admin`, `all`) |
 | `/tools/*` | `wikantik-tools` | OpenAPI 3.1 | 2 (`search_wiki`, `get_page`) | OpenAPI document at `/tools/openapi.json` | `ToolsAccessFilter` | `tools` (or `all`) |
 
-That is 52 tools in all when everything is wired. The counts are maxima; `docs/admin/McpAgents.md` in the repository is the one document that owns them.
+That is **51 MCP tools** (29 admin + 22 knowledge) plus **2 OpenAPI tools** (**53 tools in all**) when everything is wired. The counts are maxima; `docs/admin/McpAgents.md` in the repository is the one document that owns them.
 
 Both MCP endpoints register some tools **conditionally** on what a deployment has wired, so the counts above are the fully-wired maximum and a leaner install legitimately advertises fewer.
 
@@ -47,6 +50,31 @@ Both MCP endpoints register some tools **conditionally** on what a deployment ha
 - `/wikantik-admin-mcp` always registers 19 tools. Nine more need the Knowledge Graph service (`list_proposals`, `inspect_proposals`, `propose_knowledge`, `query_nodes`, `search_knowledge`, `list_orphaned_kg_nodes`, and, when the curation service is also present, `review_proposals`, `curate_edges`, `curate_nodes`) and `list_retrieval_queries` needs a datasource-backed query-log reader. `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are registered unconditionally and refuse at call time when the structural index or the content-intelligence subsystem is missing, so those three never vanish from `tools/list`.
 
 The two MCP endpoints share the same access-filter class and the same `wikantik-mcp.properties` (CIDR allowlist, unrestricted flag, rate limits), and a DB-backed `mcp_admin` key authorises both. The OpenAPI endpoint is independent: it has its own properties file and key scope.
+
+```mermaid
+flowchart LR
+    subgraph Callers["Agent & LLM Clients"]
+        ReadAgent["Coding & Research Agents<br/>(Claude Code, Gemini CLI, agy)"]
+        CuratorAgent["Content & Curation Agents<br/>(wiki-content-agent)"]
+        OpenWebUI["Non-MCP HTTP Clients<br/>(OpenWebUI, Custom GPTs)"]
+    end
+
+    subgraph Auth["Database-Backed API Keys (/admin/apikeys)"]
+        KeyRead["Scope: mcp_read"]
+        KeyAdmin["Scope: mcp_admin / all"]
+        KeyTools["Scope: tools"]
+    end
+
+    subgraph Surfaces["Wikantik Agent Surfaces"]
+        KMCP["/knowledge-mcp<br/>22 Read-Only Tools<br/>(assemble_bundle, get_briefing,<br/>sparql_query, traverse, ...)"]
+        AMCP["/wikantik-admin-mcp<br/>29 Read/Write & Curation Tools<br/>(update_page, verify_pages,<br/>curate_edges, list_content_opportunities, ...)"]
+        OTools["/tools/* (OpenAPI 3.1)<br/>2 Read Tools<br/>(search_wiki, get_page)"]
+    end
+
+    ReadAgent --> KeyRead --> KMCP
+    CuratorAgent --> KeyAdmin --> KMCP & AMCP
+    OpenWebUI --> KeyTools --> OTools
+```
 
 Default to giving an agent **`/knowledge-mcp` only**. Authoring (`/wikantik-admin-mcp`) is a separate trust decision — grant it once you have decided that the agent should be allowed to write pages, mark them verified, propose KG entries, or rename/delete content. The OpenAPI surface exists for clients that cannot speak MCP at all (OpenWebUI, custom HTTP integrations, ChatGPT-style "Custom GPT" tools).
 
@@ -615,3 +643,7 @@ Log streams worth tailing:
 - [ConnectingClaudeCodeToWikantikMcp](ConnectingClaudeCodeToWikantikMcp) — wiring Claude Code to the production servers.
 
 [{Relationships}]
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

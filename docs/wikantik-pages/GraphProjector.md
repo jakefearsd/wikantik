@@ -1,25 +1,21 @@
 ---
-status: active
-type: article
+kg_include: true
+cluster: wikantik-development
+date: '2026-04-04'
+title: Graph Projector (Retired) and the Ontology Projectors
 tags:
 - development
 - knowledge-graph
 - graph-projector
 - ontology
 - apache-jena
-canonical_id: 01KQ0P44QRKREJBW4VZ326B1F7
-kg_include: true
-date: '2026-04-04'
-depends-on:
-- FrontmatterConventions
-audience:
-- humans
-cluster: wikantik-development
-part-of:
-- KnowledgeGraphCore
-title: Graph Projector (Retired) and the Ontology Projectors
 summary: The retired GraphProjector PageFilter (frontmatter to kg_nodes/kg_edges,
   removed 2026-04) and the Postgres-to-RDF ontology projectors of today.
+audience:
+- humans
+canonical_id: 01KQ0P44QRKREJBW4VZ326B1F7
+status: active
+type: article
 ---
 # Graph Projector (Retired) and the Ontology Projectors
 
@@ -50,3 +46,7 @@ The `wikantik-ontology` module (Apache Jena) contains four projectors. They read
 | `EdgeProjector` | A `kg_edges` row | One `wk:` predicate statement between two entity resources; an edge whose relationship type is outside the 21-predicate vocabulary is skipped and logged |
 
 Each page, concept and entity graph is re-projected incrementally (`OntologyEventListener` on page save, rename and delete; `OntologyEntitySync` on Knowledge Graph changes), and a nightly rebuild from PostgreSQL acts as a reconciliation backstop. The operator guide is `docs/admin/OntologyManagement.md`; the layer is summarized in [WikantikKnowledgeGraph](WikantikKnowledgeGraph).
+
+---
+
+**Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

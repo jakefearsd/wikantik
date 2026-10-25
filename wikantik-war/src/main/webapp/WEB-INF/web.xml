@@ -654,6 +654,10 @@
        <servlet-class>com.wikantik.rest.ConvertResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>FenceRenderResource</servlet-name>
+       <servlet-class>com.wikantik.rest.FenceRenderResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>MentionableUsersResource</servlet-name>
        <servlet-class>com.wikantik.rest.MentionableUsersResource</servlet-class>
    </servlet>
@@ -1003,6 +1007,10 @@
    <servlet-mapping>
        <servlet-name>ConvertResource</servlet-name>
        <url-pattern>/api/convert/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>FenceRenderResource</servlet-name>
+       <url-pattern>/api/fences/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminUserResource</servlet-name>

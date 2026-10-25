@@ -284,6 +284,44 @@ class CsrfProtectionFilterTest {
         Mockito.verify( response, Mockito.never() ).sendRedirect( Mockito.anyString() );
     }
 
+    /**
+     * /api/ POSTs (incl. the fence-render preview) are protected by Origin validation rather than the
+     * synchronizer token: a cross-origin browser POST is refused, a same-origin one passes.
+     */
+    @Test
+    void csrfTokenRequired() throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.doReturn( new Properties() ).when( engine ).getWikiProperties();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( ServletContext.class ), Mockito.any() );
+        try( final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( Wiki::engine ).thenReturn( engineSpi );
+
+            final HttpServletRequest cross = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( "POST" ).when( cross ).getMethod();
+            Mockito.doReturn( "/api/fences" ).when( cross ).getServletPath();
+            Mockito.doReturn( "https://evil.example" ).when( cross ).getHeader( "Origin" );
+            Mockito.doReturn( "wiki.example" ).when( cross ).getHeader( "Host" );
+            Mockito.doReturn( "https" ).when( cross ).getScheme();
+            final jakarta.servlet.http.HttpServletResponse crossResp = Mockito.mock( jakarta.servlet.http.HttpServletResponse.class );
+            final jakarta.servlet.FilterChain crossChain = Mockito.mock( jakarta.servlet.FilterChain.class );
+            new CsrfProtectionFilter().doFilter( cross, crossResp, crossChain );
+            Mockito.verify( crossResp ).sendError( Mockito.eq( 403 ), Mockito.anyString() );
+            Mockito.verify( crossChain, Mockito.never() ).doFilter( cross, crossResp );
+
+            final HttpServletRequest same = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( "POST" ).when( same ).getMethod();
+            Mockito.doReturn( "/api/fences" ).when( same ).getServletPath();
+            Mockito.doReturn( "https://wiki.example" ).when( same ).getHeader( "Origin" );
+            Mockito.doReturn( "wiki.example" ).when( same ).getHeader( "Host" );
+            Mockito.doReturn( "https" ).when( same ).getScheme();
+            final jakarta.servlet.http.HttpServletResponse sameResp = Mockito.mock( jakarta.servlet.http.HttpServletResponse.class );
+            final jakarta.servlet.FilterChain sameChain = Mockito.mock( jakarta.servlet.FilterChain.class );
+            new CsrfProtectionFilter().doFilter( same, sameResp, sameChain );
+            Mockito.verify( sameChain ).doFilter( same, sameResp );
+        }
+    }
+
     @Test
     void initIsANoOpAndDoesNotThrow() {
         assertDoesNotThrow( () -> new CsrfProtectionFilter().init( null ) );

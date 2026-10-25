@@ -70,4 +70,13 @@ class MermaidFenceRendererTest {
         assertTrue( renderer.check( null ).allowed() );
         assertTrue( renderer.pageLinks( null ).isEmpty() );
     }
+
+    @Test
+    void pathologicalUnterminatedDirectivesStayLinear() {
+        final String src = "%%{init:".repeat( 12000 );
+        final long t0 = System.nanoTime();
+        renderer.check( src );
+        renderer.pageLinks( src );
+        assertTrue( ( System.nanoTime() - t0 ) / 1_000_000 < 1000, "took too long" );
+    }
 }

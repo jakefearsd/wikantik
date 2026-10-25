@@ -42,6 +42,25 @@
     {"source": "%%{init: {\"theme\":\"dark\"}}%%\nflowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},
     {"source": "---\nconfig:\n  securityLevel: loose\n---\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
     {"source": "---\ntitle: T\nconfig:\n  theme: dark\n---\nflowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},
-    {"source": "flowchart TD\n  A-->B\n  click A \"/wiki/Some%20Page\"", "allowed": true, "reason": null, "pageLinks": ["Some Page"]}
+    {"source": "flowchart TD\n  A-->B\n  click A \"/wiki/Some%20Page\"", "allowed": true, "reason": null, "pageLinks": ["Some Page"]},
+    {"source": "%%{init {\"securityLevel\":\"loose\"}}%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{init: {\"securit\\u0079Level\":\"loose\"}}%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{init: {\"dompurifyConfig\":{}}}%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{INIT: {\"SECURITYLEVEL\":\"loose\"}}%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{init: {\"flowchart\":{\"htmlLabels\":true}}}%%\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "%%{init: {\"theme\":\"dark\"\nflowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},
+    {"source": "---\ntitle: x\n  ---\nconfig:\n  securityLevel: loose\n---\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "---\n? securityLevel\n: loose\n---\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "---\nconfig:\n  htmlLabels: true\n---\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "---\nconfig:\n  \"securit\\u0079Level\": loose\n---\nflowchart TD\n  A-->B\n", "allowed": false, "reason": "unsafe-config", "pageLinks": []},
+    {"source": "sequenceDiagram\n  Alice->>Bob: Hi\n  link Alice: Docs @ javascript:alert(1)//@/x", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "sequenceDiagram\n  Alice->>Bob: Hi\n  LINK Alice: Docs @ javascript:x", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "sequenceDiagram\n  Alice->>Bob: Hi\n  link Alice: Docs @ /wiki/A@B", "allowed": true, "reason": null, "pageLinks": ["A@B"]},
+    {"source": "gantt\n  CLICK t call f()", "allowed": false, "reason": "callback", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  CLICK A call f()", "allowed": false, "reason": "callback", "pageLinks": []},
+    {"source": "flowchart TD\n  A-->B\n  click\u00a0A \"javascript:alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "classDiagram\n  class A\n  callback A \"doThing\"", "allowed": false, "reason": "callback", "pageLinks": []},
+    {"source": "classDiagram\n  class A\n  link A \"javascript:alert(1)\"", "allowed": false, "reason": "unsafe-link", "pageLinks": []},
+    {"source": "classDiagram\n  class A\n  link A \"/wiki/Foo#Bar\" \"tip\"", "allowed": true, "reason": null, "pageLinks": ["Foo"]}
   ]
 }

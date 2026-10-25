@@ -44,18 +44,23 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
 
     /** Mermaid's default {@code secure} keys plus the settings that would loosen the sandbox. */
     private static final List< String > UNSAFE_KEYS = List.of( "secure", "securityLevel", "startOnLoad",
-            "maxTextSize", "maxEdges", "suppressErrorRendering", "dompurifyConfig" );
+            "maxTextSize", "maxEdges", "suppressErrorRendering", "dompurifyConfig", "htmlLabels" );
+    /** Lower-cased: keys are matched as bare case-insensitive substrings (fail closed; over-refusal is acceptable). */
+    private static final List< String > UNSAFE_KEYS_LC = UNSAFE_KEYS.stream().map( k -> k.toLowerCase( Locale.ROOT ) ).toList();
 
-    private static final String KEY_ALT = String.join( "|", UNSAFE_KEYS );
-    private static final Pattern KEY_USE = Pattern.compile( "(?<![A-Za-z0-9_])[\"']?(?:" + KEY_ALT + ")[\"']?\\s*:" );
-    private static final Pattern DIRECTIVE = Pattern.compile( "%%\\{\\s*(?:init|initialize)\\s*:(.*?)\\}%%", Pattern.DOTALL );
-    private static final Pattern CLICK_LINE = Pattern.compile( "^click(?:\\s.*)?$" );
+    private static final int FLAGS = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+    private static final Pattern DIRECTIVE_START = Pattern.compile( "%%\\{\\s*(?:init|initialize)\\b", FLAGS );
+    private static final String DIRECTIVE_END = "}%%";
+    private static final Pattern CLICK_LINE = Pattern.compile( "^click(?:\\s.*)?$", FLAGS );
     private static final Pattern CLICK_OK = Pattern.compile(
-            "^click\\s+\\S+\\s+(?:href\\s+)?\"([^\"]*)\"(?:\\s+\"[^\"]*\")?(?:\\s+(?:_self|_blank|_parent|_top))?$" );
-    private static final Pattern LINK_LINE = Pattern.compile( "^link\\s+[^:@]+:.*@\\s*(\\S.*)$" );
-    private static final Pattern LINKS_LINE = Pattern.compile( "^links\\s+[^:]+:\\s*(\\{.*)$" );
+            "^(?:click|link)\\s+\\S+\\s+(?:href\\s+)?\"([^\"]*)\"(?:\\s+\"[^\"]*\")?(?:\\s+(?:_self|_blank|_parent|_top))?$", FLAGS );
+    private static final Pattern CLASS_LINK = Pattern.compile( "^link\\s+\\S+\\s+(?:href\\s+)?\".*$", FLAGS );
+    private static final Pattern CALLBACK_LINE = Pattern.compile( "^callback\\s+[^\\s\\-=.<>~].*$", FLAGS );
+    private static final Pattern LINK_LINE = Pattern.compile( "^link\\s+[^:@]+:[^@]*@\\s*(\\S.*)$", FLAGS );
+    private static final Pattern LINKS_LINE = Pattern.compile( "^links\\s+[^:]+:\\s*(\\{.*)$", FLAGS );
     private static final Pattern JSON_VALUE = Pattern.compile( "\"[^\"]*\"\\s*:\\s*\"([^\"]*)\"" );
     private static final Pattern ENTITY = Pattern.compile( "&#[xX]([0-9a-fA-F]+);?|&#([0-9]+);?|&(colon|Tab|NewLine|sol);|#([0-9]+);" );
+    private static final Map< String, String > NAMED_ENTITIES = Map.of( "colon", ":", "Tab", "\t", "NewLine", "\n", "sol", "/" );
 
     @Override
     public String language() {
@@ -100,12 +105,20 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
         }
         for ( final String line : source.split( "\\R" ) ) {
             for ( final String statement : splitStatements( line ) ) {
-                final String s = statement.strip();
+                final String s = normaliseWhitespace( statement ).strip();
                 final List< String > urls = new ArrayList<>();
                 if ( CLICK_LINE.matcher( s ).matches() ) {
                     final Matcher m = CLICK_OK.matcher( s );
                     if ( !m.matches() ) {
                         return new Analysis( FenceVerdict.refused( "callback" ), Set.of() );
+                    }
+                    urls.add( m.group( 1 ) );
+                } else if ( CALLBACK_LINE.matcher( s ).matches() ) {
+                    return new Analysis( FenceVerdict.refused( "callback" ), Set.of() );
+                } else if ( CLASS_LINK.matcher( s ).matches() ) {
+                    final Matcher m = CLICK_OK.matcher( s );
+                    if ( !m.matches() ) {
+                        return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
                     }
                     urls.add( m.group( 1 ) );
                 } else {
@@ -114,6 +127,9 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
                     if ( link.matches() ) {
                         urls.add( link.group( 1 ) );
                     } else if ( links2.matches() ) {
+                        if ( links2.group( 1 ).indexOf( '\\' ) >= 0 ) {
+                            return new Analysis( FenceVerdict.refused( "unsafe-link" ), Set.of() );
+                        }
                         final Matcher v = JSON_VALUE.matcher( links2.group( 1 ) );
                         while ( v.find() ) {
                             urls.add( v.group( 1 ) );
@@ -133,16 +149,18 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
     }
 
     private static boolean touchesSecurityConfig( final String source ) {
-        final Matcher d = DIRECTIVE.matcher( source );
-        while ( d.find() ) {
-            if ( KEY_USE.matcher( d.group( 1 ) ).find() ) {
+        final Matcher d = DIRECTIVE_START.matcher( source );
+        int pos = 0;
+        while ( pos <= source.length() && d.find( pos ) ) {
+            final int end = source.indexOf( DIRECTIVE_END, d.start() );
+            final int bodyEnd = end < 0 ? source.length() : end;   // unterminated: scan to the end
+            if ( suspicious( source.substring( d.start(), bodyEnd ) ) ) {
                 return true;
             }
-        }
-        // An unterminated directive is still scanned: be conservative.
-        final int open = lastOpenDirective( source );
-        if ( open >= 0 && KEY_USE.matcher( source.substring( open ) ).find() ) {
-            return true;
+            if ( end < 0 ) {
+                break;
+            }
+            pos = bodyEnd;
         }
         final String[] lines = source.split( "\\R", -1 );
         int i = 0;
@@ -150,22 +168,39 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
             i++;
         }
         if ( i < lines.length && lines[ i ].strip().equals( "---" ) ) {
-            for ( int j = i + 1; j < lines.length && !lines[ j ].strip().equals( "---" ); j++ ) {
-                if ( KEY_USE.matcher( lines[ j ] ).find() ) {
-                    return true;
-                }
+            final String l0 = lines[ i ];
+            final String closer = l0.substring( 0, l0.length() - l0.stripLeading().length() ) + "---";
+            final StringBuilder fm = new StringBuilder();
+            for ( int j = i + 1; j < lines.length && !lines[ j ].startsWith( closer ); j++ ) {
+                fm.append( lines[ j ] ).append( '\n' );
+            }
+            return suspicious( fm.toString() );
+        }
+        return false;
+    }
+
+    /** Fail closed: any backslash (JSON/YAML escapes can spell a key) or any unsafe key name as a bare word. */
+    private static boolean suspicious( final String config ) {
+        if ( config.indexOf( '\\' ) >= 0 ) {
+            return true;
+        }
+        final String lc = config.toLowerCase( Locale.ROOT );
+        for ( final String k : UNSAFE_KEYS_LC ) {
+            if ( lc.contains( k ) ) {
+                return true;
             }
         }
         return false;
     }
 
-    private static int lastOpenDirective( final String source ) {
-        final Matcher m = Pattern.compile( "%%\\{\\s*(?:init|initialize)\\s*:" ).matcher( source );
-        int last = -1;
-        while ( m.find() ) {
-            last = m.start();
+    /** Maps Unicode whitespace (including NBSP and BOM, which JS {@code \s} matches) to a plain space. */
+    private static String normaliseWhitespace( final String s ) {
+        final StringBuilder sb = new StringBuilder( s.length() );
+        for ( int i = 0; i < s.length(); i++ ) {
+            final char c = s.charAt( i );
+            sb.append( Character.isWhitespace( c ) || Character.isSpaceChar( c ) || c == '\uFEFF' ? ' ' : c );
         }
-        return last;
+        return sb.toString();
     }
 
     /** Splits a line on {@code ;} outside double quotes (Mermaid allows several statements per line). */
@@ -197,7 +232,7 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
                 } else if ( m.group( 2 ) != null ) {
                     rep = codePoint( Integer.parseInt( m.group( 2 ) ), rep );
                 } else if ( m.group( 3 ) != null ) {
-                    rep = Map.of( "colon", ":", "Tab", "\t", "NewLine", "\n", "sol", "/" ).get( m.group( 3 ) );
+                    rep = NAMED_ENTITIES.get( m.group( 3 ) );
                 } else if ( m.group( 4 ) != null ) {
                     rep = codePoint( Integer.parseInt( m.group( 4 ) ), rep );
                 }
@@ -219,7 +254,7 @@ public final class MermaidFenceRenderer implements RenderedFenceRenderer {
         final StringBuilder sb = new StringBuilder();
         for ( int i = 0; i < url.length(); i++ ) {
             final char c = url.charAt( i );
-            if ( c > 0x20 && !( c >= 0x7f && c <= 0x9f ) && c != '​' && c != '­' ) {
+            if ( c > 0x20 && !( c >= 0x7f && c <= 0x9f ) && c != '\u200b' && c != '\u00ad' ) {
                 sb.append( c );
             }
         }

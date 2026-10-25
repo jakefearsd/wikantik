@@ -228,8 +228,8 @@ export function drawFence(figure, isStale = () => false) {
 
 /**
  * Re-draws a drawn figure (theme change), swapping in the new drawing only when it succeeds and nothing newer
- * superseded it; on failure the old drawing stays. Resolves (never rejects) to 'drawn', 'stale', 'failed' or
- * 'skipped' (not a drawn figure).
+ * superseded it; on failure the old drawing stays. The source is re-checked first and a refused one is not
+ * re-drawn. Resolves (never rejects) to 'drawn', 'stale', 'failed', 'refused' or 'skipped' (not a drawn figure).
  *
  * @param {Element} figure
  */
@@ -241,11 +241,17 @@ export async function redrawFence(figure) {
     || figure.dataset.fenceState !== 'drawn';
   const entry = rendererForLanguage(figure.dataset.fence || '');
   if (!entry) return 'skipped';
+  const source = sourceOf(figure);
   try {
+    // Every draw re-checks its own input (defense in depth), re-draws included.
+    if (!entry.check(source).allowed) {
+      console.warn('[fences] a drawn diagram\'s source no longer passes the policy; not re-drawing it');
+      return 'refused';
+    }
     const renderer = await entry.load();
     if (stale()) return 'stale';
     const host = newHost();
-    await renderer.draw(host, sourceOf(figure), { dark: isDark() });
+    await renderer.draw(host, source, { dark: isDark() });
     if (stale()) return 'stale';
     figure.querySelector('.wk-fence-drawing')?.replaceWith(host);
     updateExpand(figure);

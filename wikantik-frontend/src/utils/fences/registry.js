@@ -1,22 +1,39 @@
 import { checkMermaid } from './mermaidPolicy';
 
 /**
- * Browser renderers for rendered fences, keyed by the fence language. The server (wikantik-main
- * RenderedFenceRegistry) emits the envelope for every registered, non-`example` fence; this registry draws the
- * `data-fence-kind="browser"` ones.
+ * Browser renderers for rendered fences, keyed by the fence language. The server emits the envelope
+ * (`figure.wk-fence[data-fence][data-fence-kind]`, see wikantik-main RenderedFenceNodeRenderer) for every
+ * registered, non-`example` fence; this registry draws the `data-fence-kind="browser"` ones via renderFences.js.
  *
- * Adding a browser renderer (e.g. Vega-Lite):
- *   - `check(source) → { allowed, reason, pageLinks }`: the same safety policy as the server renderer, pinned by
- *     a shared fixture case table, so the editor previews (which never reach the server) refuse exactly what the
- *     saved page refuses. Fail closed.
- *   - `load() → Promise<{ draw(host, source, { dark }) }>`: a dynamic import, so the library is fetched only by
- *     a page that has such a fence. Give the library its own chunk group in vite.config.js and keep it out of
- *     `dist/index.html`'s modulepreloads. `draw` writes the drawing into `host` (never elsewhere), throws on a
- *     parse error, must not run diagram-supplied script, and labels the drawing for assistive technology.
- *   - Register the language on the server too; an envelope the browser has no entry for is shown as a failure
- *     with its source.
+ * How to add a browser renderer (e.g. Vega-Lite as ```vega-lite):
  *
- * Entries are plain mutable objects on purpose: tests spy on `load`.
+ *   1. Server registration. Implement RenderedFenceRenderer (wikantik-main,
+ *      com.wikantik.markdown.extensions.fences) with kind BROWSER, its check() policy and pageLinks(), and add it to
+ *      RenderedFenceRegistry.defaults(). Without this the fence stays an ordinary code block and the browser never
+ *      sees an envelope. An envelope whose language has no entry here is shown as a failure with its source.
+ *
+ *   2. Policy. Port the server's check() to JS as `check(source) → { allowed, reason, pageLinks }` (fail closed:
+ *      a thrown error refuses with `render-failed`), and add its cases — allowed, every refusal reason, the
+ *      link-extraction cases — to the shared fixture src/utils/__fixtures__/renderedFences.json so the Java test and
+ *      a vitest both iterate them (mermaidPolicy.test.js is the pattern). The editor previews never reach the
+ *      server, so this is what makes a preview refuse exactly what the saved page refuses; the reader view re-runs
+ *      it too (defense in depth), before every draw and re-draw.
+ *
+ *   3. Lazy load. `load: () => import('./<name>Renderer.js')`, a module exporting
+ *      `draw(host, source, { dark }) → Promise<void>` that writes the drawing into `host` only, throws on a parse
+ *      error (drawFence shows the message's first line), never runs diagram-supplied script, configures the
+ *      library's own security settings as strictly as it allows, and labels the drawing (role="img" + aria-label).
+ *      Import the library ONLY from that module, so a page without such a fence never fetches it.
+ *
+ *   4. Chunking (see the codeSplitting comment in vite.config.js). A library that ships its own lazy split (as
+ *      Mermaid does: a core plus one chunk per diagram type) gets NO chunk group — a group would weld its pieces
+ *      into one huge chunk. Instead add every package only it pulls in (diff the lockfile) to the family excluded
+ *      from the catch-all `vendor` group (MERMAID_FAMILY today; generalise the name when a second library joins),
+ *      or those packages land in the eager vendor chunk. A single-file library may get its own lazy group with
+ *      `includeDependenciesRecursively: false`. Either way `npm run build` must stay pristine: its post-build guard
+ *      (scripts/check-dist.mjs) fails if dist/index.html modulepreloads the library.
+ *
+ * Entries are plain mutable objects on purpose: tests spy on `load` and `check`.
  */
 export const FENCE_RENDERERS = {
   mermaid: { check: checkMermaid, load: () => import('./mermaidRenderer.js') },

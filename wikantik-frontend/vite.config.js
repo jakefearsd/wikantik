@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { CHUNK_MODULES_FILE, MERMAID_FAMILY, NOT_UNDER } from './scripts/bundleFamilies.js'
 
 function buildVersionPlugin() {
   const version = Date.now().toString();
@@ -31,13 +34,25 @@ function buildVersionPlugin() {
   };
 }
 
-// Every package only Mermaid (12.1.0) pulls in — the npm install added exactly these. See the codeSplitting comment.
-const MERMAID_FAMILY = String.raw`mermaid|@mermaid-js[\\/][^\\/]+|d3[^\\/]*|dagre-d3-es|elkjs|chevrotain|@chevrotain[\\/][^\\/]+|khroma|roughjs|stylis|@iconify[\\/][^\\/]+|@antfu[\\/]install-pkg|@braintree[\\/]sanitize-url|@upsetjs[\\/]venn\.js|cytoscape-fcose|dayjs|delaunator|dompurify|es-toolkit|hachure-fill|internmap|lodash-es|marked|package-manager-detector|path-data-parser|points-on-(?:curve|path)|robust-predicates|ts-dedent|uuid|rw|iconv-lite|safer-buffer|import-meta-resolve`;
-// True for a module anywhere under a Mermaid-family package, nested node_modules included.
-const NOT_UNDER = (family) => String.raw`^(?!.*[\\/]node_modules[\\/](?:${family})[\\/])`;
+// Records which modules each emitted chunk holds, for scripts/check-dist.js (`npm run build`'s post-build guard),
+// which fails if dist/index.html modulepreloads a chunk with Mermaid-family code in it.
+function chunkModulesPlugin() {
+  return {
+    name: 'chunk-modules',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const map = {};
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === 'chunk') map[chunk.fileName] = chunk.moduleIds;
+      }
+      mkdirSync(dirname(CHUNK_MODULES_FILE), { recursive: true });
+      writeFileSync(CHUNK_MODULES_FILE, JSON.stringify(map));
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react(), buildVersionPlugin()],
+  plugins: [react(), buildVersionPlugin(), chunkModulesPlugin()],
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.js'],
@@ -62,12 +77,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    // The only chunks above the default 500 kB are `codemirror` and `cytoscape`
-    // — monolithic third-party libraries that can't be meaningfully split and
-    // are already isolated into their own lazy chunks (loaded only on the
-    // editor / graph routes, never eagerly). Raise the budget to match that
-    // reality so the warning still fires for genuinely-unexpected bloat.
-    chunkSizeWarningLimit: 700,
+    // The only chunks above the default 500 kB are `codemirror`, `cytoscape` and
+    // `elk` (elkjs, Mermaid's optional ELK layout engine, 1.46 MB) — monolithic
+    // third-party libraries that can't be meaningfully split and are already
+    // isolated into their own lazy chunks (editor / graph routes / ELK-layout
+    // diagrams only, never eagerly). Raise the budget to match that reality. The
+    // old 700 kB budget still holds for every other chunk: scripts/check-dist.js
+    // (run by `npm run build`) fails the build on any other chunk above it, so
+    // unexpected bloat is still caught.
+    chunkSizeWarningLimit: 1500,
     // Split heavy vendor libraries into separate, long-term-cacheable chunks so
     // no single chunk exceeds the ~500 kB budget and app-code edits don't bust
     // the vendor cache. `codeSplitting.groups` is Rolldown's chunk-grouping
@@ -90,13 +108,14 @@ export default defineConfig({
     // Mermaid deliberately has NO group. Its dist is already split into a core plus one lazy chunk per diagram
     // type (flowchart, sequence, ...), loaded through dynamic imports when a diagram of that type is drawn; a
     // group would weld them all into one ~4.3 MB chunk (1.2 MB gzip) that every diagram page downloads. Instead
-    // the whole Mermaid-only package family (MERMAID_FAMILY, nested node_modules included) is excluded from the
-    // catch-all `vendor` — otherwise e.g. dompurify/marked/lodash-es land in the eager vendor chunk, and
-    // cytoscape-fcose there would make vendor import (and so eagerly load) the cytoscape chunk. Left ungrouped,
-    // Rolldown emits them as ordinary lazy chunks behind utils/fences/registry.js's dynamic import. The
-    // `cytoscape` group skips cytoscape-fcose's private cose-base/layout-base copies for the same reason: they
-    // would grow the graph route's chunk with code only Mermaid uses. When upgrading Mermaid, re-derive the
-    // family from the lockfile diff and re-check vendor + index.html.
+    // the whole Mermaid-only package family (MERMAID_FAMILY in scripts/bundleFamilies.js, nested node_modules
+    // included) is excluded from the catch-all `vendor` — otherwise e.g. dompurify/marked/lodash-es land in the
+    // eager vendor chunk, and cytoscape-fcose there would make vendor import (and so eagerly load) the cytoscape
+    // chunk. Left ungrouped, Rolldown emits them as ordinary lazy chunks behind utils/fences/registry.js's dynamic
+    // import. The `cytoscape` group skips cytoscape-fcose's private cose-base/layout-base copies for the same
+    // reason: they would grow the graph route's chunk with code only Mermaid uses. When upgrading Mermaid,
+    // re-derive the family from the lockfile diff. `npm run build` enforces the result: scripts/check-dist.js
+    // fails if dist/index.html modulepreloads any chunk holding a MERMAID_FAMILY module.
     rolldownOptions: {
       output: {
         codeSplitting: {

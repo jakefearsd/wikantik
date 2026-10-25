@@ -1,5 +1,6 @@
-// The Mermaid drawing core. Imported only through registry.js's dynamic `load()`, so Mermaid (its own build
-// chunk, see vite.config.js) is fetched only by a page that has a Mermaid fence.
+// The Mermaid drawing core. Imported only through registry.js's dynamic `load()`, so Mermaid is fetched only by a
+// page that has a Mermaid fence — and then only its core plus the chunk for each diagram type drawn (Mermaid keeps
+// its own lazy split; see the codeSplitting comment in vite.config.js and the chunking rule in registry.js).
 import mermaid from 'mermaid';
 
 // Config keys a diagram may never override. Mermaid 12.1.0's defaults (secure … maxEdges) plus the keys the

@@ -38,6 +38,10 @@ export default [
     },
   },
   {
+    files: ['scripts/**/*.js'],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
     files: ['**/*.test.{js,jsx}', 'src/test/**'],
     plugins: { 'testing-library': testingLibrary },
     languageOptions: {

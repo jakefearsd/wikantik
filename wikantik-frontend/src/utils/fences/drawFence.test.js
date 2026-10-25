@@ -246,6 +246,17 @@ describe('drawFence', () => {
       await expect(redrawFence(drawn)).resolves.toBe('skipped');
     });
 
+    it('re-checks the source before re-drawing and refuses one that no longer passes', async () => {
+      const fig = envelope(FLOW);
+      await drawFence(fig);
+      const drawing = fig.querySelector('.wk-fence-drawing');
+      fig.querySelector('.wk-fence-source code').textContent = 'flowchart TD\n  A-->B\n  click A call f()';
+      await expect(redrawFence(fig)).resolves.toBe('refused');
+      expect(draw).toHaveBeenCalledTimes(1);
+      expect(fig.querySelector('.wk-fence-drawing')).toBe(drawing);
+      expect(console.warn).toHaveBeenCalled();
+    });
+
     it('drops a re-draw superseded by a newer one, keeping exactly one drawing', async () => {
       const fig = envelope(FLOW);
       await drawFence(fig);

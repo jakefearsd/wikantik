@@ -1,4 +1,6 @@
-import { drawFence, redrawFence } from './drawFence';
+// drawFence.js (the pass, the policy and the registry) is loaded on first use, so it stays off the entry chunk for
+// pages without diagrams.
+const loadDrawing = () => import('./drawFence.js');
 
 const PENDING = 'figure.wk-fence[data-fence-kind="browser"]:not([data-fence-state])';
 const DRAWN = 'figure.wk-fence[data-fence-kind="browser"][data-fence-state="drawn"]';
@@ -15,7 +17,11 @@ function watchTheme() {
     const theme = html.getAttribute('data-theme');
     if (theme === lastTheme) return;
     lastTheme = theme;
-    document.querySelectorAll(DRAWN).forEach((figure) => { redrawFence(figure); });
+    const drawn = [...document.querySelectorAll(DRAWN)];
+    if (drawn.length === 0) return;
+    loadDrawing()
+      .then(({ redrawFence }) => drawn.forEach((figure) => { redrawFence(figure); }))
+      .catch((e) => console.warn('[fences] could not load the fence pass to re-draw for the new theme', e));
   });
   themeObserver.observe(html, { attributes: true, attributeFilter: ['data-theme'] });
 }
@@ -35,6 +41,13 @@ export async function renderFences(root, isStale = () => false) {
   watchTheme();
   const figures = [...root.querySelectorAll(PENDING)];
   if (figures.length === 0) return;
+  let drawFence;
+  try {
+    ({ drawFence } = await loadDrawing());
+  } catch (e) {
+    console.warn('[fences] could not load the fence pass; diagrams stay as source', e);
+    return;
+  }
   // drawFence never rejects (each figure reports its own failure), so one bad diagram cannot stop the rest.
   await Promise.all(figures.map((figure) => drawFence(figure, isStale)));
 }

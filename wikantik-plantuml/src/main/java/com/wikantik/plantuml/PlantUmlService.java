@@ -38,6 +38,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
@@ -67,8 +68,9 @@ public final class PlantUmlService {
     private static final class Job {
         Future< RenderOutcome > future;
         boolean cancelled;
-        /** System.nanoTime() when a pool thread began the render; 0 while still queued. */
+        /** System.nanoTime() when a pool thread began the render; valid once {@code started} is true. */
         volatile long startedNanos;
+        volatile boolean started;
     }
 
     private final PlantUmlSettings settings;
@@ -81,6 +83,7 @@ public final class PlantUmlService {
     /** Test hooks (package-private): after a job's cache write; before a waiter decides on a timeout; on each join. */
     volatile Runnable completionHook;
     volatile Runnable timeoutDecisionHook;
+    volatile Consumer< Future< RenderOutcome > > beforeGetHook;
     final AtomicInteger joinCount = new AtomicInteger();
 
     /** @param settings the service settings */
@@ -185,7 +188,8 @@ public final class PlantUmlService {
     }
 
     private RenderOutcome runJob( final Job job, final String key, final String source, final String hash ) {
-        job.startedNanos = Math.max( 1L, System.nanoTime() );
+        job.startedNanos = System.nanoTime();
+        job.started = true;
         RenderOutcome outcome;
         try {
             outcome = finish( engine.apply( source ), hash );
@@ -216,16 +220,20 @@ public final class PlantUmlService {
         try {
             while( true ) {
                 final long now = System.nanoTime();
-                final long started = job.startedNanos;
-                final long runLeft = started == 0L ? Long.MAX_VALUE : timeoutNanos - ( now - started );
-                if( started != 0L && runLeft <= 0L ) {
+                final boolean running = job.started;
+                final long runLeft = running ? timeoutNanos - ( now - job.startedNanos ) : Long.MAX_VALUE;
+                if( running && runLeft <= 0L ) {
                     return tooSlow( job, key, retry );
                 }
                 final long budgetLeft = budgetEnd - now;
                 if( budgetLeft <= 0L ) {
                     return RenderOutcome.transientRefusal( "page-budget" );
                 }
-                final long sliceNanos = started == 0L ? Math.min( budgetLeft, 10_000_000L ) : Math.min( budgetLeft, runLeft );
+                final long sliceNanos = !running ? Math.min( budgetLeft, 10_000_000L ) : Math.min( budgetLeft, runLeft );
+                final Consumer< Future< RenderOutcome > > before = beforeGetHook;
+                if( before != null ) {
+                    before.accept( job.future );
+                }
                 try {
                     return job.future.get( Math.max( 1L, sliceNanos / 1_000_000L ), TimeUnit.MILLISECONDS );
                 } catch( final TimeoutException e ) {

@@ -352,24 +352,52 @@ class PlantUmlServiceTest {
             return DRAWN;
         } );
         final AtomicInteger entrants = new AtomicInteger();
+        final java.util.concurrent.atomic.AtomicReference< Thread > second = new java.util.concurrent.atomic.AtomicReference<>();
         final CountDownLatch secondDone = new CountDownLatch( 1 );
         s.timeoutDecisionHook = () -> {
             if( entrants.incrementAndGet() == 1 ) {
-                await( secondDone ); // the first to decide waits until the other has cancelled
+                await( secondDone ); // the first to decide waits until the second has cancelled and returned
+            } else {
+                second.set( Thread.currentThread() );
             }
         };
-        final Future< RenderOutcome > a = callers.submit( () -> s.render( SRC, 5_000 ) );
-        final Future< RenderOutcome > b = callers.submit( () -> {
-            final RenderOutcome o = s.render( SRC, 5_000 );
-            secondDone.countDown();
-            return o;
-        } );
+        final Future< RenderOutcome > a = callers.submit( () -> finishing( s, second, secondDone ) );
+        final Future< RenderOutcome > b = callers.submit( () -> finishing( s, second, secondDone ) );
         // whichever entered second cancels; the first must then report the same too-slow, not a failure
         final RenderOutcome ra = a.get( 3, TimeUnit.SECONDS );
         final RenderOutcome rb = b.get( 3, TimeUnit.SECONDS );
         assertEquals( "too-slow", ra.reason() );
         assertEquals( "too-slow", rb.reason() );
         assertEquals( 1, calls.get() );
+    }
+
+    private static RenderOutcome finishing( final PlantUmlService s, final java.util.concurrent.atomic.AtomicReference< Thread > second,
+                                            final CountDownLatch secondDone ) {
+        final RenderOutcome o = s.render( SRC, 5_000 );
+        if( Thread.currentThread() == second.get() ) {
+            secondDone.countDown();
+        }
+        return o;
+    }
+
+    @Test
+    void waiterBlockedInGetSeesCancellationAsTransientFailure() throws Exception {
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final PlantUmlService s = new PlantUmlService( plain(), src -> {
+            await( release );
+            return DRAWN;
+        } );
+        final AtomicBoolean cancelled = new AtomicBoolean();
+        // another waiter's cancel(true) lands while this one is entering Future.get
+        s.beforeGetHook = f -> {
+            if( cancelled.compareAndSet( false, true ) ) {
+                f.cancel( true );
+            }
+        };
+        final RenderOutcome out = s.render( SRC, 5_000 );
+        release.countDown();
+        assertEquals( "render-failed", out.reason() );
+        assertTrue( out.transientFailure() );
     }
 
     @Test

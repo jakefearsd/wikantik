@@ -1,0 +1,108 @@
+/* Rendered fences (Mermaid diagrams). The envelope is server HTML:
+     figure.wk-fence[data-fence][data-fence-kind] > pre.wk-fence-source > code
+   The browser pass (utils/fences/drawFence.js) adds a toolbar and a .wk-fence-drawing before the source and
+   records data-fence-state. Until then — and when refused or failed — the source is shown as ordinary code.
+   Only tokens defined for both themes in globals.css are used. */
+
+.wk-fence {
+  display: block;
+  position: relative;
+  margin: var(--space-md) 0;
+}
+
+.wk-fence-drawing {
+  overflow-x: auto;
+  text-align: center;
+}
+
+.wk-fence-drawing svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Drawn: the source stays in the DOM for text-reading tools and copy, hidden until "Show source". */
+.wk-fence[data-fence-state="drawn"] .wk-fence-source:not(.wk-fence-source-open) {
+  display: none;
+}
+
+.wk-fence-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+.wk-fence-btn {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  padding: 0.15rem 0.6rem;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.wk-fence-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.wk-fence-btn[hidden] {
+  display: none;
+}
+
+/* Refused / failed: the existing callout warning palette, then the source below. */
+.wk-fence-error {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 4px solid var(--callout-warning);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--callout-warning) var(--callout-bg-mix), transparent);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+}
+
+.wk-fence-error strong {
+  font-weight: 600;
+}
+
+.wk-fence-error-detail {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Full-size view. Padding stays on the body so a click on the dialog element itself means the backdrop. */
+.wk-fence-dialog {
+  padding: 0;
+  max-width: 95vw;
+  max-height: 95vh;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.wk-fence-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.wk-fence-dialog-close {
+  position: sticky;
+  top: var(--space-sm);
+  float: right;
+  margin: var(--space-sm);
+}
+
+.wk-fence-dialog-body {
+  padding: var(--space-md);
+  overflow: auto;
+}
+
+.wk-fence-dialog-body svg {
+  max-width: none;
+  height: auto;
+}

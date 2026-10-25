@@ -46,6 +46,19 @@ describe('highlightCodeBlocks (page view DOM pass)', () => {
     expect(code.textContent).toBe('const x = 1;');
     expect(root.querySelectorAll('pre')[1].innerHTML).toBe('<code>plain</code>');
   });
+  it('skips the source of a rendered-fence envelope (a diagram, not code to colour)', () => {
+    const fake = { registered: () => true, highlight: vi.fn(() => ({ children: [{ type: 'text', value: 'hl' }] })) };
+    const root = document.createElement('div');
+    root.innerHTML = '<figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser">'
+      + '<pre class="wk-fence-source"><code class="language-mermaid">flowchart TD</code></pre></figure>'
+      + '<pre><code class="language-js">x</code></pre>';
+    highlightCodeBlocks(root, fake);
+    expect(fake.highlight).toHaveBeenCalledTimes(1);
+    expect(fake.highlight).toHaveBeenCalledWith('js', 'x');
+    expect(root.querySelector('.wk-fence-source code').textContent).toBe('flowchart TD');
+    expect(root.querySelector('.wk-fence-source code').dataset.highlighted).toBeUndefined();
+  });
+
   it('does nothing without a container or highlighter', () => {
     expect(() => highlightCodeBlocks(null, lowlight)).not.toThrow();
     expect(() => highlightCodeBlocks(document.createElement('div'), null)).not.toThrow();

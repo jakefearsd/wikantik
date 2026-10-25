@@ -79,8 +79,10 @@ export default defineConfig({
     // imports React from there, and the whole 630 kB editor chunk loads on every page
     // (it did until 2026-10). `lowlight` must not capture its shared dependencies
     // either: the eager `vendor` chunk would import them from — and so eagerly load —
-    // the lowlight chunk. Check `dist/index.html`: its modulepreloads must not list
-    // codemirror, cytoscape or lowlight.
+    // the lowlight chunk. The same holds for `mermaid` (its d3/dagre/elk/chevrotain/... family
+    // too): it is loaded only by utils/fences/registry.js's dynamic import, for a page that has a
+    // diagram. Check `dist/index.html`: its modulepreloads must not list codemirror, cytoscape,
+    // lowlight or mermaid (`grep -c mermaid dist/index.html` → 0).
     rolldownOptions: {
       output: {
         codeSplitting: {
@@ -89,6 +91,10 @@ export default defineConfig({
             { name: 'cytoscape', test: /[\\/]node_modules[\\/](cytoscape|cytoscape-cose-bilkent|cose-base|layout-base|react-cytoscapejs)[\\/]/, priority: 30 },
             { name: 'lowlight', test: /[\\/]node_modules[\\/](lowlight|highlight\.js)[\\/]/, priority: 30, includeDependenciesRecursively: false },
             { name: 'katex', test: /[\\/]node_modules[\\/](katex|rehype-katex)[\\/]/, priority: 20, includeDependenciesRecursively: false },
+            // Mermaid and its whole dependency family — every package only Mermaid pulls in. A Mermaid-only package
+            // left to the catch-all `vendor` group would be shipped eagerly (and cytoscape-fcose there would drag the
+            // cytoscape chunk into the eager imports through its cose-base dependency).
+            { name: 'mermaid', test: /[\\/]node_modules[\\/](mermaid|@mermaid-js[\\/][^\\/]+|d3[^\\/]*|dagre-d3-es|elkjs|chevrotain|@chevrotain[\\/][^\\/]+|khroma|roughjs|stylis|@iconify[\\/][^\\/]+|@antfu[\\/]install-pkg|@braintree[\\/]sanitize-url|@upsetjs[\\/]venn\.js|cytoscape-fcose|dayjs|delaunator|dompurify|es-toolkit|hachure-fill|internmap|lodash-es|marked|package-manager-detector|path-data-parser|points-on-(?:curve|path)|robust-predicates|ts-dedent|uuid|rw|iconv-lite|safer-buffer|import-meta-resolve)[\\/]/, priority: 35, includeDependenciesRecursively: false },
             { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/, priority: 40 },
             // Per-language grammars (@codemirror/language-data's dynamic imports, legacy-modes, lezer grammars) are
             // excluded so Rolldown emits them as separate lazy chunks rather than folding them into this eager catch-all.

@@ -72,11 +72,14 @@ export function hastToDom(node, doc) {
   return el;
 }
 
-/** Page-view DOM pass over server HTML: highlight `pre > code.language-x`; idempotent. */
+/**
+ * Page-view DOM pass over server HTML: highlight `pre > code.language-x`; idempotent. A rendered-fence
+ * envelope's source (`.wk-fence-source code`) is skipped: the fence pass draws it, and its text must stay as-is.
+ */
 export function highlightCodeBlocks(container, lowlight) {
   if (!container || !lowlight) return;
   container.querySelectorAll('pre > code').forEach((code) => {
-    if (code.dataset.highlighted) return;
+    if (code.dataset.highlighted || code.closest('.wk-fence-source')) return;
     const lang = codeLanguage(code.className);
     if (!lang || !lowlight.registered(lang)) return;
     let tree;

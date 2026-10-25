@@ -9,6 +9,7 @@ import { usePageTrail } from '../hooks/usePageTrail';
 import { useToast } from '../hooks/useToast';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { renderMath } from '../utils/math';
+import { renderFences } from '../utils/fences/renderFences';
 import { addCopyButtons } from '../utils/codeCopy';
 import { highlightCodeBlocks } from '../utils/codeHighlight';
 import { useLowlight } from '../hooks/useLowlight';
@@ -35,6 +36,7 @@ import { captureSelection } from '../utils/commentAnchor';
 import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
 import '../styles/article.css';
 import '../styles/admin.css';
+import '../styles/fences.css';
 
 /** Inline composer popover anchored to a selection rect. Replaces window.prompt
  *  so the affordance flows with the page (theme-aware, multi-line, no native
@@ -204,6 +206,20 @@ export default function PageView() {
       let stale = false;
       renderMath(articleRef.current, () => stale)
         .catch((e) => console.warn('Math rendering failed', e));
+      return () => { stale = true; };
+    }
+    return undefined;
+  }, [page]);
+
+  // Draw rendered fences (Mermaid diagrams) in the server's envelope. Same shape as renderMath: keyed on the
+  // `page` reference so it re-runs whenever dangerouslySetInnerHTML re-injects the article (which wipes the
+  // drawings — the fresh envelopes have no data-fence-state, so the idempotent pass draws them again). The
+  // library loads only for a page with a diagram; the cleanup marks an unfinished pass stale so it writes nothing.
+  useEffect(() => {
+    if (articleRef.current && page?.contentHtml) {
+      let stale = false;
+      renderFences(articleRef.current, () => stale)
+        .catch((e) => console.warn('[fences] diagram rendering failed', e));
       return () => { stale = true; };
     }
     return undefined;

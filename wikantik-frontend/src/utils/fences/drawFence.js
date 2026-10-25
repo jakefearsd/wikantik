@@ -1,0 +1,257 @@
+import { rendererForLanguage } from './registry';
+
+// Draws one rendered-fence envelope (see wikantik-main RenderedFenceNodeRenderer):
+//   <figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser" [data-fence-error="reason"]>
+//     <pre class="wk-fence-source"><code class="language-mermaid">…escaped source…</code></pre>
+//   </figure>
+// The source <pre> stays in the DOM in every state (text-reading tools and copy rely on it); a drawn figure
+// only hides it visually (fences.css). `data-fence-state` records the outcome and keeps the pass idempotent.
+
+const REFUSALS = {
+  callback: 'it uses a click callback or an unrecognised click form. Diagram links must be "/wiki/PageName" or an http(s) URL.',
+  'unsafe-link': 'it links to a target that is not a wiki page or an http(s) URL.',
+  'unsafe-config': 'it sets Mermaid configuration (a %%{\u2026}%% directive or --- front matter), which wiki diagrams may not do.',
+};
+
+/** Shown when the drawing is scaled below this share of its natural width. */
+const EXPAND_THRESHOLD = 0.8;
+
+const inFlight = new WeakMap();
+const redrawGeneration = new WeakMap();
+
+const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+const sourceOf = (figure) => figure.querySelector('.wk-fence-source code')?.textContent ?? '';
+const sourcePre = (figure) => figure.querySelector('.wk-fence-source');
+
+function refusalMessage(reason) {
+  if (reason === 'render-failed') return 'This diagram could not be drawn.';
+  const why = REFUSALS[reason];
+  return why ? `This diagram was not drawn: ${why}` : 'This diagram was not drawn.';
+}
+
+function firstLine(error) {
+  return String(error?.message ?? error ?? '').split('\n')[0].trim();
+}
+
+/** Writes the error box (text only — never markup from the error) before the source, and the state. */
+function showProblem(figure, state, message, detail) {
+  const box = document.createElement('div');
+  box.className = 'wk-fence-error';
+  box.setAttribute('role', 'note');
+  const strong = document.createElement('strong');
+  strong.textContent = message;
+  box.append(strong);
+  if (detail) {
+    const span = document.createElement('span');
+    span.className = 'wk-fence-error-detail';
+    span.textContent = detail;
+    box.append(' ', span);
+  }
+  figure.insertBefore(box, sourcePre(figure));
+  figure.dataset.fenceState = state;
+  return state;
+}
+
+function newHost() {
+  const host = document.createElement('div');
+  host.className = 'wk-fence-drawing';
+  return host;
+}
+
+/** The SVG's natural width from its viewBox (Mermaid's own sizing), else a `max-width: Npx` style; else 0. */
+function naturalWidth(svg) {
+  const box = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/);
+  const fromBox = box.length === 4 ? Number(box[2]) : NaN;
+  if (fromBox > 0) return fromBox;
+  const fromStyle = /^(\d+(?:\.\d+)?)px$/.exec(svg.style?.maxWidth || '');
+  return fromStyle ? Number(fromStyle[1]) : 0;
+}
+
+/** Called only once the toolbar exists. */
+function updateExpand(figure) {
+  const button = figure.querySelector('.wk-fence-toolbar [data-action="expand"]');
+  const svg = figure.querySelector('.wk-fence-drawing svg');
+  const natural = svg ? naturalWidth(svg) : 0;
+  const shown = svg ? svg.getBoundingClientRect().width : 0;
+  button.hidden = !(natural > 0 && shown < natural * EXPAND_THRESHOLD);
+}
+
+function openDialog(figure, opener) {
+  const svg = figure.querySelector('.wk-fence-drawing svg');
+  if (!svg) return;
+  const dialog = document.createElement('dialog');
+  dialog.className = 'wk-fence-dialog';
+  dialog.setAttribute('aria-label', svg.getAttribute('aria-label') || 'Diagram');
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'wk-fence-btn wk-fence-dialog-close';
+  close.textContent = 'Close';
+  const body = document.createElement('div');
+  body.className = 'wk-fence-dialog-body';
+  const clone = svg.cloneNode(true);
+  const natural = naturalWidth(svg);
+  if (natural > 0) clone.setAttribute('width', String(natural));
+  clone.style.maxWidth = 'none';
+  body.append(clone);
+  dialog.append(close, body);
+
+  const dismiss = () => {
+    if (dialog.open && typeof dialog.close === 'function') dialog.close();
+    dialog.remove();
+    opener.focus?.();
+  };
+  close.addEventListener('click', dismiss);
+  // A click on the dialog element itself (not its content) is a click on the backdrop.
+  dialog.addEventListener('click', (e) => { if (e.target === dialog) dismiss(); });
+  dialog.addEventListener('cancel', (e) => { e.preventDefault(); dismiss(); });
+
+  figure.append(dialog);
+  try {
+    dialog.showModal();
+  } catch (e) {
+    console.warn('[fences] dialog.showModal is unavailable; opening the full-size view inline', e);
+    dialog.setAttribute('open', '');
+  }
+}
+
+function button(action, label) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'wk-fence-btn';
+  b.dataset.action = action;
+  b.textContent = label;
+  return b;
+}
+
+function buildToolbar(figure, pre) {
+  const toolbar = document.createElement('div');
+  toolbar.className = 'wk-fence-toolbar';
+  const expand = button('expand', 'Expand');
+  expand.hidden = true;
+  expand.addEventListener('click', () => openDialog(figure, expand));
+  toolbar.append(expand);
+  if (pre) {
+    const toggle = button('source', 'Show source');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click', () => {
+      const open = pre.classList.toggle('wk-fence-source-open');
+      toggle.textContent = open ? 'Hide source' : 'Show source';
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+    toolbar.append(toggle);
+  }
+  return toolbar;
+}
+
+async function drawOnce(figure, isStale) {
+  const existing = figure.dataset.fenceState;
+  if (existing) return existing;
+  const language = figure.dataset.fence || '';
+  const source = sourceOf(figure);
+  const entry = rendererForLanguage(language);
+  if (!entry) {
+    if (isStale()) return 'stale';
+    return showProblem(figure, 'failed', `No renderer for \u201C${language}\u201D diagrams is available here.`);
+  }
+  const serverReason = figure.getAttribute('data-fence-error');
+  // Defense in depth: the browser re-runs the policy even when the server let the fence through.
+  const verdict = serverReason ? { allowed: false, reason: serverReason } : entry.check(source);
+  if (!verdict.allowed) {
+    if (isStale()) return 'stale';
+    return showProblem(figure, 'refused', refusalMessage(verdict.reason));
+  }
+
+  let renderer;
+  try {
+    renderer = await entry.load();
+  } catch (e) {
+    console.warn(`[fences] could not load the ${language} renderer; showing the source`, e);
+    if (isStale()) return 'stale';
+    return showProblem(figure, 'failed', 'The diagram library could not be loaded; the source is shown instead.');
+  }
+  if (isStale()) return 'stale';
+
+  const host = newHost();
+  const dark = isDark();
+  try {
+    await renderer.draw(host, source, { dark });
+  } catch (e) {
+    console.warn(`[fences] ${language} could not draw a diagram`, e);
+    if (isStale()) return 'stale';
+    const line = firstLine(e);
+    return showProblem(figure, 'failed', 'This diagram could not be drawn.', line ? `Mermaid: ${line}` : '');
+  }
+  if (isStale()) return 'stale';
+
+  const pre = sourcePre(figure);
+  figure.insertBefore(buildToolbar(figure, pre), figure.firstChild);
+  figure.insertBefore(host, pre);
+  figure.dataset.fenceState = 'drawn';
+  updateExpand(figure);
+  // The theme flipped while this was drawing; the theme observer only re-draws figures already drawn.
+  if (isDark() !== dark) redrawFence(figure);
+  return 'drawn';
+}
+
+async function guardedDraw(figure, isStale) {
+  try {
+    return await drawOnce(figure, isStale);
+  } catch (e) {
+    console.warn('[fences] drawing a fence failed unexpectedly', e);
+    return 'failed';
+  }
+}
+
+/**
+ * Draws one `figure.wk-fence` envelope. Resolves (never rejects) to its outcome:
+ *   'drawn'   — the drawing, a toolbar ("Show source", "Expand" when scaled down) and the hidden source;
+ *   'refused' — the server flag or the browser policy refused it: the reason and the source;
+ *   'failed'  — the library failed to load or could not parse it: the error and the source;
+ *   'stale'   — `isStale()` turned true before the DOM was touched: nothing was written.
+ * A figure that already has a `data-fence-state` resolves to it untouched. Concurrent calls for one figure
+ * run one after another, so a stale pass never leaves a later pass with nothing to do.
+ *
+ * @param {Element} figure
+ * @param {() => boolean} [isStale]
+ * @returns {Promise<'drawn'|'refused'|'failed'|'stale'>}
+ */
+export function drawFence(figure, isStale = () => false) {
+  const previous = inFlight.get(figure);
+  const run = previous
+    ? previous.then(() => guardedDraw(figure, isStale))
+    : guardedDraw(figure, isStale);
+  inFlight.set(figure, run);
+  const settle = () => { if (inFlight.get(figure) === run) inFlight.delete(figure); };
+  run.then(settle, settle);
+  return run;
+}
+
+/**
+ * Re-draws a drawn figure (theme change), swapping in the new drawing only when it succeeds and nothing newer
+ * superseded it; on failure the old drawing stays. Resolves (never rejects) to 'drawn', 'stale', 'failed' or
+ * 'skipped' (not a drawn figure).
+ *
+ * @param {Element} figure
+ */
+export async function redrawFence(figure) {
+  if (figure.dataset.fenceState !== 'drawn') return 'skipped';
+  const generation = (redrawGeneration.get(figure) ?? 0) + 1;
+  redrawGeneration.set(figure, generation);
+  const stale = () => redrawGeneration.get(figure) !== generation || !figure.isConnected
+    || figure.dataset.fenceState !== 'drawn';
+  const entry = rendererForLanguage(figure.dataset.fence || '');
+  if (!entry) return 'skipped';
+  try {
+    const renderer = await entry.load();
+    if (stale()) return 'stale';
+    const host = newHost();
+    await renderer.draw(host, sourceOf(figure), { dark: isDark() });
+    if (stale()) return 'stale';
+    figure.querySelector('.wk-fence-drawing')?.replaceWith(host);
+    updateExpand(figure);
+    return 'drawn';
+  } catch (e) {
+    console.warn('[fences] re-drawing a diagram for the new theme failed; keeping the previous drawing', e);
+    return 'failed';
+  }
+}

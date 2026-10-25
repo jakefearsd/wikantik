@@ -11,7 +11,8 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "bench": "vitest bench --run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check:mermaid": "node scripts/check-mermaid.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

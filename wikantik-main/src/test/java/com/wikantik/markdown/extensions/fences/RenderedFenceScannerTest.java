@@ -68,6 +68,13 @@ class RenderedFenceScannerTest {
     }
 
     @Test
+    void scanReportsOneBasedOpeningFenceLine() {
+        final List< ScannedFence > f = RenderedFenceScanner.scan( "# T\r\n\r\n```java\nx\n```\n> ```mermaid\n> a\n> ```\n" );
+        assertEquals( 3, f.get( 0 ).line() );
+        assertEquals( 6, f.get( 1 ).line() );
+    }
+
+    @Test
     void nestedListAndBacktickInfoRules() {
         assertEquals( "a\n", RenderedFenceScanner.scan( "1. x\n   - y\n\n     ```mermaid\n     a\n     ```\n" ).get( 0 ).source() );
         assertTrue( RenderedFenceScanner.scan( "``` a`b\nx\n" ).isEmpty() );

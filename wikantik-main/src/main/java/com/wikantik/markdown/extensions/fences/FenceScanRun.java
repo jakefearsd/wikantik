@@ -53,6 +53,9 @@ final class FenceScanRun {
     private int container;     // total list-content columns to strip after the blockquote markers
     private int openIndent;    // opener indent relative to the container
     private FenceInfo info;
+    private int openLine;
+    /** 1-based number of the line being processed. */
+    private int lineNo;
     private StringBuilder content;
 
     // open HTML block: 0 none; 1-5 end on a marker; 6-7 end on a blank line
@@ -65,6 +68,7 @@ final class FenceScanRun {
 
     List< ScannedFence > run() {
         for ( final String line : lines ) {
+            lineNo++;
             if ( inFence && continueFence( line ) ) {
                 continue;
             }
@@ -77,7 +81,7 @@ final class FenceScanRun {
     }
 
     private void emitFence() {
-        out.add( new ScannedFence( info, content.toString() ) );
+        out.add( new ScannedFence( info, content.toString(), openLine ) );
         inFence = false;
     }
 
@@ -237,6 +241,7 @@ final class FenceScanRun {
         container = containerCols;
         openIndent = rel;
         info = FenceInfo.parse( infoStr );
+        openLine = lineNo;
         content = new StringBuilder();
     }
 }

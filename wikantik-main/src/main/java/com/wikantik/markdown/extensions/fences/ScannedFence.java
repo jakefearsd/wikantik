@@ -23,6 +23,7 @@ package com.wikantik.markdown.extensions.fences;
  *
  * @param info   the parsed info string
  * @param source the fence content, LF-normalised, each line terminated by a newline (empty for an empty body)
+ * @param line   the 1-based line of the opening fence marker in the scanned text
  */
-public record ScannedFence( FenceInfo info, String source ) {
+public record ScannedFence( FenceInfo info, String source, int line ) {
 }

@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { drawFence } from '../utils/fences/drawFence';
 import { fillFenceEnvelope } from '../utils/fences/envelope';
+import { addCopyButtons } from '../utils/codeCopy';
 
 /**
  * Editor-preview rendering of a rendered fence (the `wiki-fence` element from rehypeRenderedFences). React owns
@@ -15,6 +16,8 @@ function WikiFence({ language, source }) {
     if (!figure) return undefined;
     let stale = false;
     fillFenceEnvelope(figure, language, source);
+    // The same copy button the reader view gives every <pre> (PageView's addCopyButtons pass).
+    addCopyButtons(figure);
     drawFence(figure, () => stale).catch((e) => console.warn('[fences] preview draw failed', e));
     return () => { stale = true; };
   }, [language, source]);

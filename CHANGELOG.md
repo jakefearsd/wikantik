@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-25
+
 ### Added
 - **Mermaid diagrams render.** A ` ```mermaid ` fence now draws as a diagram in the reader, the editor preview,
   the live preview and inside `![[embeds]]`; ` ```mermaid example ` stays code. The source stays in the server

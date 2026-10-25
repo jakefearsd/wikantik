@@ -75,6 +75,12 @@
 
       <dependency>
         <groupId>com.wikantik</groupId>
+        <artifactId>wikantik-plantuml</artifactId>
+        <version>${jspwiki.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.wikantik</groupId>
         <artifactId>wikantik-util</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>

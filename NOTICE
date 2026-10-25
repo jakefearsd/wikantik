@@ -17,3 +17,10 @@ the terms of Mozilla Public License Version 2.0 http://http://www.mozilla.org/MP
 Launch4J (c) 2012 MinGW.org project (see http://www.mingw.org/license)
 
 Flexmark (https://github.com/vsch/flexmark-java/blob/master/LICENSE.txt)
+
+PlantUML (https://plantuml.com) is MIT licensed, (c) Arnaud Roques. Some of its source files still carry
+leftover GPL-3 headers; these are superseded by the MIT grant of the plantuml-mit artifact, published by
+the same sole author. It ships shaded inside wikantik-plantuml. Ditaa (LGPL) is removed from the shipped jar.
+
+Smetana, PlantUML's pure-Java Graphviz layout engine, is EPL-1.0, (c) AT&T. Its sources are in the
+plantuml-mit sources jar on Maven Central.

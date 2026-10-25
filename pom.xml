@@ -100,6 +100,7 @@
     <selenium.version>4.51.0</selenium.version>
     <slf4j.version>2.0.20</slf4j.version>
     <tika.version>3.3.2</tika.version>
+    <plantuml.version>1.2026.8</plantuml.version><!-- plantuml-mit; shaded into wikantik-plantuml with Ditaa (LGPL) stripped; 1.2026.9 is under the 2-week age floor -->
     <tomcat.version>11.0.27</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
     <mcp-sdk.version>2.1.0</mcp-sdk.version>
@@ -234,6 +235,7 @@
     <module>wikantik-cache-memcached</module>
     <module>wikantik-http</module>
     <module>wikantik-ingest</module>
+    <module>wikantik-plantuml</module>
     <module>wikantik-connectors</module>
     <module>wikantik-main</module>
     <module>wikantik-mcp-core</module>
@@ -626,6 +628,12 @@
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-parsers-standard-package</artifactId>
         <version>${tika.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>net.sourceforge.plantuml</groupId>
+        <artifactId>plantuml-mit</artifactId>
+        <version>${plantuml.version}</version>
       </dependency>
 
       <dependency>

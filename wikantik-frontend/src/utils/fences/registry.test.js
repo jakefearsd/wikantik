@@ -13,6 +13,14 @@ describe('fence renderer registry', () => {
     expect(typeof mod.draw).toBe('function');
   });
 
+  it('registers PlantUML as a server kind that the client never gates', async () => {
+    expect(FENCE_RENDERERS.mermaid.kind).toBe('browser');
+    expect(FENCE_RENDERERS.plantuml.kind).toBe('server');
+    expect(FENCE_RENDERERS.plantuml.check('anything')).toEqual({ allowed: true });
+    expect(rendererFor(parseFenceInfo('plantuml'))).toBe(FENCE_RENDERERS.plantuml);
+    expect(rendererFor(parseFenceInfo('plantuml example'))).toBeNull();
+  });
+
   it('dispatches a parsed info string', () => {
     expect(rendererFor(parseFenceInfo('mermaid'))).toBe(FENCE_RENDERERS.mermaid);
     expect(rendererFor(parseFenceInfo('Mermaid title=x'))).toBe(FENCE_RENDERERS.mermaid);

@@ -3,6 +3,7 @@
 const loadDrawing = () => import('./drawFence.js');
 
 const PENDING = 'figure.wk-fence[data-fence-kind="browser"]:not([data-fence-state])';
+const SERVER = 'figure.wk-fence[data-fence-kind="server"]';
 const DRAWN = 'figure.wk-fence[data-fence-kind="browser"][data-fence-state="drawn"]';
 
 let themeObserver = null;
@@ -30,7 +31,7 @@ function watchTheme() {
  * The shared DOM pass over rendered-fence envelopes (reader view and editor previews). Picks up every
  * `figure.wk-fence[data-fence-kind="browser"]` without a `data-fence-state` and draws each independently — one
  * failure never stops the others. Idempotent: drawn/refused/failed figures are skipped. Lazy: with no such
- * figures nothing is imported. Server-kind figures are never touched. `isStale` (optional) stops all DOM writes
+ * figures nothing is imported. Server-kind figures are only decorated (toolbar / refusal box), never drawn here. `isStale` (optional) stops all DOM writes
  * once the view has moved on. The first call also starts re-drawing drawn figures when the theme changes.
  *
  * @param {Element|null|undefined} root
@@ -40,14 +41,24 @@ export async function renderFences(root, isStale = () => false) {
   if (!root) return;
   watchTheme();
   const figures = [...root.querySelectorAll(PENDING)];
-  if (figures.length === 0) return;
+  const serverFigures = [...root.querySelectorAll(SERVER)];
+  if (figures.length === 0 && serverFigures.length === 0) return;
   let drawFence;
+  let decorateServerFence;
   try {
-    ({ drawFence } = await loadDrawing());
+    ({ drawFence, decorateServerFence } = await loadDrawing());
   } catch (e) {
     console.warn('[fences] could not load the fence pass; diagrams stay as source', e);
     return;
   }
+  // Server-drawn figures arrive finished; this only adds the toolbar or the refusal box. No renderer is loaded.
+  serverFigures.forEach((figure) => {
+    try {
+      decorateServerFence(figure);
+    } catch (e) {
+      console.warn('[fences] could not decorate a server-drawn fence', e);
+    }
+  });
   // drawFence never rejects (each figure reports its own failure), so one bad diagram cannot stop the rest.
   await Promise.all(figures.map((figure) => drawFence(figure, isStale)));
 }

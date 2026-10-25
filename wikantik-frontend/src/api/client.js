@@ -258,6 +258,13 @@ export const api = {
       body: JSON.stringify({ content }),
     }),
 
+  // Editor-preview drawing of a server-drawn fence (PlantUML): resolves to {lightSvg, darkSvg} or {error, message?, line?}
+  renderFence: (language, source) =>
+    request('/api/fences/render', {
+      method: 'POST',
+      body: JSON.stringify({ language, source }),
+    }),
+
   // Search
   // `typeahead: true` marks an incremental search-as-you-type request so the backend does not
   // log it to the retrieval query log (only submitted searches should be logged — a single

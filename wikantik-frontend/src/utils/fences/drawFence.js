@@ -10,6 +10,20 @@ import { rendererForLanguage } from './registry';
 const REFUSALS = {
   callback: 'it uses a click callback or an unrecognised click form. Diagram links must be "/wiki/PageName" or an http(s) URL.',
   'unsafe-link': 'it links to a target that is not a wiki page or an http(s) URL.',
+  'too-large': 'its source is too large.',
+  'unsupported-diagram': 'only PlantUML class, sequence, activity and similar @startuml diagrams are supported.',
+  'multiple-diagrams': 'it contains more than one diagram.',
+  include: 'it includes another file or URL.',
+  'file-access': 'it reads a file.',
+  image: 'it embeds an image.',
+  'layout-pragma': 'it selects a layout engine, which wiki diagrams may not do.',
+  'syntax-error': 'it has a syntax error.',
+  'too-complex': 'it is too complex to draw.',
+  'too-slow': 'it took too long to draw.',
+  'output-too-large': 'the drawing came out too large.',
+  busy: 'the diagram renderer is busy; reload to try again.',
+  'page-budget': 'this page has more diagrams than can be drawn at once; reload to try again.',
+  'plantuml-disabled': 'PlantUML drawing is disabled on this wiki.',
   'unsafe-config': 'it sets Mermaid configuration (a %%{\u2026}%% directive or --- front matter), which wiki diagrams may not do.',
 };
 
@@ -22,6 +36,15 @@ const redrawGeneration = new WeakMap();
 const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
 const sourceOf = (figure) => figure.querySelector('.wk-fence-source code')?.textContent ?? '';
 const sourcePre = (figure) => figure.querySelector('.wk-fence-source');
+// A drawing kept visible while its replacement is pending (WikiFence, server kind) is not "the" drawing.
+const DRAWING = '.wk-fence-drawing:not([data-fence-pending])';
+/** The SVG currently shown: a server figure holds a light and a dark variant, the theme picks one. */
+function shownSvg(figure) {
+  const drawing = figure.querySelector(DRAWING);
+  if (!drawing) return null;
+  const variant = drawing.querySelector(`.wk-fence-variant[data-variant="${isDark() ? 'dark' : 'light'}"] svg`);
+  return variant ?? drawing.querySelector('svg');
+}
 
 function refusalMessage(reason) {
   if (reason === 'render-failed') return 'This diagram could not be drawn.';
@@ -76,14 +99,42 @@ function naturalWidth(svg) {
 /** Called only once the toolbar exists. */
 function updateExpand(figure) {
   const button = figure.querySelector('.wk-fence-toolbar [data-action="expand"]');
-  const svg = figure.querySelector('.wk-fence-drawing svg');
+  const svg = shownSvg(figure);
   const natural = svg ? naturalWidth(svg) : 0;
   const shown = svg ? svg.getBoundingClientRect().width : 0;
   button.hidden = !(natural > 0 && shown < natural * EXPAND_THRESHOLD);
 }
 
+const ID_SUFFIX = '-x';
+
+/**
+ * Gives a cloned SVG's ids a suffix and rewrites every reference to them (`#id` in href / xlink:href, `url(#id)`
+ * in any attribute, inline style or <style> text), so the Expand dialog never duplicates ids already in the page.
+ */
+function suffixIds(root) {
+  const idElements = [root, ...root.querySelectorAll('*')].filter((el) => el.hasAttribute('id'));
+  if (idElements.length === 0) return;
+  const ids = new Set(idElements.map((el) => el.getAttribute('id')));
+  idElements.forEach((el) => el.setAttribute('id', el.getAttribute('id') + ID_SUFFIX));
+  const rewriteUrls = (text) => text.replace(/url\(\s*(['"]?)#([^)'"\s]+)\1\s*\)/g,
+    (m, q, id) => (ids.has(id) ? `url(${q}#${id}${ID_SUFFIX}${q})` : m));
+  [root, ...root.querySelectorAll('*')].forEach((el) => {
+    for (const attr of [...el.attributes]) {
+      if (attr.name === 'id') continue;
+      let value = attr.value;
+      if ((attr.name === 'href' || attr.name === 'xlink:href') && value.startsWith('#') && ids.has(value.slice(1))) {
+        value = value + ID_SUFFIX;
+      } else {
+        value = rewriteUrls(value);
+      }
+      if (value !== attr.value) el.setAttribute(attr.name, value);
+    }
+    if (el.localName === 'style' && el.textContent) el.textContent = rewriteUrls(el.textContent);
+  });
+}
+
 function openDialog(figure, opener) {
-  const svg = figure.querySelector('.wk-fence-drawing svg');
+  const svg = shownSvg(figure);
   if (!svg) return;
   const dialog = document.createElement('dialog');
   dialog.className = 'wk-fence-dialog';
@@ -95,6 +146,7 @@ function openDialog(figure, opener) {
   const body = document.createElement('div');
   body.className = 'wk-fence-dialog-body';
   const clone = svg.cloneNode(true);
+  suffixIds(clone);
   const natural = naturalWidth(svg);
   if (natural > 0) clone.setAttribute('width', String(natural));
   clone.style.maxWidth = 'none';
@@ -183,12 +235,16 @@ async function drawOnce(figure, isStale) {
   const host = newHost();
   const dark = isDark();
   try {
-    await renderer.draw(host, source, { dark });
+    // A server renderer also needs the language and the staleness check (it debounces, then fetches).
+    await renderer.draw(host, source, entry.kind === 'server' ? { dark, language, isStale } : { dark });
   } catch (e) {
     console.warn(`[fences] ${language} could not draw a diagram`, e);
     if (isStale()) return 'stale';
     const summary = errorSummary(e);
-    return showProblem(figure, 'failed', 'This diagram could not be drawn.', summary ? `Mermaid: ${summary}` : '');
+    // A server renderer's message already leads with its label ("PlantUML line 3: …").
+    const label = entry.label ?? language;
+    const detail = summary && !summary.startsWith(label) ? `${label}: ${summary}` : summary;
+    return showProblem(figure, 'failed', 'This diagram could not be drawn.', detail);
   }
   if (isStale()) return 'stale';
 
@@ -250,6 +306,8 @@ export async function redrawFence(figure) {
     || figure.dataset.fenceState !== 'drawn';
   const entry = rendererForLanguage(figure.dataset.fence || '');
   if (!entry) return 'skipped';
+  // A server-kind drawing carries both theme variants and CSS shows the right one: nothing to re-draw.
+  if (entry.kind === 'server') return 'skipped';
   const source = sourceOf(figure);
   try {
     // Every draw re-checks its own input, re-draws included (see drawOnce: for a hand-written envelope the
@@ -263,11 +321,40 @@ export async function redrawFence(figure) {
     const host = newHost();
     await renderer.draw(host, source, { dark: isDark() });
     if (stale()) return 'stale';
-    figure.querySelector('.wk-fence-drawing')?.replaceWith(host);
+    figure.querySelector(DRAWING)?.replaceWith(host);
     updateExpand(figure);
     return 'drawn';
   } catch (e) {
     console.warn('[fences] re-drawing a diagram for the new theme failed; keeping the previous drawing', e);
     return 'failed';
   }
+}
+
+/**
+ * Decorates a figure the server already drew or refused (`data-fence-kind="server"`), without loading a renderer:
+ *   drawn   (`data-fence-state="drawn"`)        — adds the shared toolbar (Show source, Expand when scaled down);
+ *   refused (`data-fence-error`, no state)      — shows the reason box, with the line / message the server
+ *                                                 reported, then marks the state `refused`.
+ * Idempotent; a figure with neither is left untouched. Returns the figure's state, or null.
+ *
+ * @param {Element} figure
+ * @returns {'drawn'|'refused'|null}
+ */
+export function decorateServerFence(figure) {
+  const state = figure.dataset.fenceState;
+  if (state === 'drawn') {
+    if (!figure.querySelector(':scope > .wk-fence-toolbar')) {
+      figure.insertBefore(buildToolbar(figure, sourcePre(figure)), figure.firstChild);
+      updateExpand(figure);
+    }
+    return 'drawn';
+  }
+  const reason = figure.getAttribute('data-fence-error');
+  if (reason && !state) {
+    const line = figure.getAttribute('data-fence-error-line');
+    const message = figure.getAttribute('data-fence-error-message');
+    const detail = [line ? `line ${line}` : '', message || ''].filter(Boolean).join(': ');
+    return showProblem(figure, 'refused', refusalMessage(reason), detail);
+  }
+  return state === 'refused' ? 'refused' : null;
 }

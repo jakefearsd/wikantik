@@ -1,3 +1,5 @@
+import { rendererForLanguage } from './registry';
+
 /**
  * Fills a `figure` with the rendered-fence envelope the server emits (see wikantik-main RenderedFenceNodeRenderer):
  *   <figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser">
@@ -12,9 +14,11 @@ export function fillFenceEnvelope(figure, language, source) {
   // drops everything else it adds (toolbar, drawing host, error box, dialog).
   delete figure.dataset.fenceState;
   figure.removeAttribute('data-fence-error');
+  figure.removeAttribute('data-fence-error-line');
+  figure.removeAttribute('data-fence-error-message');
   figure.className = 'wk-fence';
   figure.dataset.fence = language;
-  figure.dataset.fenceKind = 'browser';
+  figure.dataset.fenceKind = rendererForLanguage(language)?.kind ?? 'browser';
   const pre = document.createElement('pre');
   pre.className = 'wk-fence-source';
   const code = document.createElement('code');

@@ -80,6 +80,22 @@ describe('renderFences', () => {
     expect(root.innerHTML).toBe(before);
   });
 
+  it('serverFiguresDecoratedWithoutLoadingRenderers', async () => {
+    const load = vi.spyOn(FENCE_RENDERERS.plantuml, 'load');
+    const root = mount('<figure class="wk-fence" data-fence="plantuml" data-fence-kind="server" data-fence-state="drawn">'
+      + '<div class="wk-fence-drawing"><div class="wk-fence-variant" data-variant="light"><svg></svg></div></div>'
+      + '<pre class="wk-fence-source"><code class="language-plantuml">A -&gt; B</code></pre></figure>'
+      + '<figure class="wk-fence" data-fence="plantuml" data-fence-kind="server" data-fence-error="include">'
+      + '<pre class="wk-fence-source"><code class="language-plantuml">!include x</code></pre></figure>');
+    await renderFences(root);
+    expect(load).not.toHaveBeenCalled();
+    expect(draw).not.toHaveBeenCalled();
+    const [drawn, refused] = root.querySelectorAll('figure');
+    expect(drawn.querySelector('.wk-fence-toolbar')).not.toBeNull();
+    expect(refused.dataset.fenceState).toBe('refused');
+    expect(refused.querySelector('.wk-fence-error')).not.toBeNull();
+  });
+
   it('writes nothing once stale', async () => {
     const root = mount(figure('flowchart TD\n A-->B'));
     let stale = false;

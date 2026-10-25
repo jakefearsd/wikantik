@@ -108,3 +108,18 @@
   max-width: none;
   height: auto;
 }
+
+/* Server-drawn fences (PlantUML) carry a light and a dark SVG; the theme picks one. The dark variant is `hidden`
+   in the markup so it never shows before this stylesheet applies. useDarkMode sets data-theme on <html>. */
+html[data-theme="dark"] .wk-fence-variant[data-variant="light"] {
+  display: none;
+}
+
+html[data-theme="dark"] .wk-fence-variant[data-variant="dark"] {
+  display: block;
+}
+
+/* The previous drawing, kept visible in the editor preview until its replacement has been drawn. */
+.wk-fence-drawing[data-fence-pending] {
+  opacity: 0.55;
+}

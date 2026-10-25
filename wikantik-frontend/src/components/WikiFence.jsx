@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { drawFence } from '../utils/fences/drawFence';
 import { fillFenceEnvelope } from '../utils/fences/envelope';
+import { rendererForLanguage } from '../utils/fences/registry';
 import { addCopyButtons } from '../utils/codeCopy';
 
 /**
@@ -15,10 +16,21 @@ function WikiFence({ language, source }) {
     const figure = ref.current;
     if (!figure) return undefined;
     let stale = false;
+    // A server-drawn fence takes a network round trip per source change (after a debounce), so the previous
+    // drawing stays up, dimmed (data-fence-pending), until the new draw settles; browser-kind draws are local
+    // and fast, so they start from a clean envelope.
+    const keep = rendererForLanguage(language)?.kind === 'server'
+      ? figure.querySelector('.wk-fence-drawing') : null;
     fillFenceEnvelope(figure, language, source);
+    if (keep) {
+      keep.setAttribute('data-fence-pending', '');
+      figure.insertBefore(keep, figure.querySelector('pre.wk-fence-source'));
+    }
     // The same copy button the reader view gives every <pre> (PageView's addCopyButtons pass).
     addCopyButtons(figure);
-    drawFence(figure, () => stale).catch((e) => console.warn('[fences] preview draw failed', e));
+    drawFence(figure, () => stale)
+      .then((state) => { if (state !== 'stale') keep?.remove(); })
+      .catch((e) => console.warn('[fences] preview draw failed', e));
     return () => { stale = true; };
   }, [language, source]);
   return <figure ref={ref} className="wk-fence" />;

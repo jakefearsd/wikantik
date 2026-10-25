@@ -73,8 +73,10 @@ describe('check-mermaid contract', () => {
   });
 
   it('knowsEveryRegisteredFenceLanguage', () => {
-    expect(Object.keys(FENCE_RENDERERS),
-      'a fence language was added to registry.js: teach scripts/check-mermaid.mjs to check it (it hardcodes mermaid)')
+    // Server-kind fences (PlantUML) are checked by the server, so only browser-kind languages need this script.
+    const browserKind = Object.keys(FENCE_RENDERERS).filter((k) => FENCE_RENDERERS[k].kind === 'browser');
+    expect(browserKind,
+      'a browser fence language was added to registry.js: teach scripts/check-mermaid.mjs to check it (it hardcodes mermaid)')
       .toEqual(['mermaid']);
   });
 

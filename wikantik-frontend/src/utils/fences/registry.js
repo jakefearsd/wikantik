@@ -34,10 +34,21 @@ import { checkMermaid } from './mermaidPolicy';
  *      `includeDependenciesRecursively: false`. Either way `npm run build` must stay pristine: its post-build guard
  *      (scripts/check-dist.js) fails if dist/index.html modulepreloads the library.
  *
+ * How to add a SERVER renderer (PlantUML today, ```plantuml). The server draws the diagram itself and emits the
+ * finished envelope (`data-fence-kind="server"`, a `.wk-fence-drawing` holding a light and a dark SVG variant, or
+ * `data-fence-error` when it refused); the browser only decorates it (renderFences.js -> decorateServerFence: the
+ * toolbar and the refusal box) and CSS picks the variant for the theme, so there is no policy to port and no
+ * re-draw on a theme change. The entry is `{ kind: 'server', label, check: () => ({ allowed: true }), load }`
+ * — the server is the policy — and `load()` returns serverRenderer.js, whose `draw(host, source, { language,
+ * isStale })` calls POST /api/fences/render for the editor preview (and for a hand-written browser-kind envelope).
+ * Register the language server-side too (RenderedFenceRegistry). Server SVG is scrubbed there and trusted here.
+ *
  * Entries are plain mutable objects on purpose: tests spy on `load` and `check`.
  */
 export const FENCE_RENDERERS = {
-  mermaid: { check: checkMermaid, load: () => import('./mermaidRenderer.js') },
+  mermaid: { kind: 'browser', label: 'Mermaid', check: checkMermaid, load: () => import('./mermaidRenderer.js') },
+  // The server is the policy for PlantUML (see "How to add a SERVER renderer"); never gated client-side.
+  plantuml: { kind: 'server', label: 'PlantUML', check: () => ({ allowed: true }), load: () => import('./serverRenderer.js') },
 };
 
 /** The registry entry for a language, or null (own properties only, so `constructor` etc. never match). */

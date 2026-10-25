@@ -8,7 +8,7 @@ vi.mock('./mermaidRenderer.js', () => ({
 
 import * as rendererModule from './mermaidRenderer.js';
 import { draw } from './mermaidRenderer.js';
-import { drawFence, redrawFence } from './drawFence';
+import { drawFence, redrawFence, decorateServerFence } from './drawFence';
 import { FENCE_RENDERERS } from './registry';
 
 const FLOW = 'flowchart TD\n  A-->B\n';
@@ -375,5 +375,93 @@ describe('drawFence', () => {
       dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
       expect(document.querySelector('dialog.wk-fence-dialog')).toBeNull();
     });
+  });
+});
+
+describe('server-kind figures', () => {
+  const SERVER_SVG = '<svg id="a" viewBox="0 0 1000 200"><defs><linearGradient id="g"/></defs>'
+    + '<rect id="r" fill="url(#g)" style="stroke:url(#g)"/><use href="#r"/><use xlink:href="#r"/></svg>';
+
+  function serverFigure({ state = 'drawn', error, line, message } = {}) {
+    const wrap = document.createElement('div');
+    const attrs = (state && !error ? ` data-fence-state="${state}"` : '')
+      + (error ? ` data-fence-error="${error}"` : '')
+      + (line ? ` data-fence-error-line="${line}"` : '')
+      + (message ? ` data-fence-error-message="${message}"` : '');
+    const drawing = error ? '' : `<div class="wk-fence-drawing" role="img" aria-label="d"><div class="wk-fence-variant" data-variant="light">${SERVER_SVG}</div>`
+      + '<div class="wk-fence-variant" data-variant="dark" hidden></div></div>';
+    wrap.innerHTML = `<figure class="wk-fence" data-fence="plantuml" data-fence-kind="server"${attrs}>${drawing}`
+      + '<pre class="wk-fence-source"><code class="language-plantuml">A -&gt; B</code></pre></figure>';
+    document.body.appendChild(wrap);
+    return wrap.querySelector('figure');
+  }
+
+  it('decorateServerFenceAddsToolbarOnce', () => {
+    const fig = serverFigure();
+    decorateServerFence(fig);
+    decorateServerFence(fig);
+    expect(fig.querySelectorAll('.wk-fence-toolbar')).toHaveLength(1);
+    expect(fig.querySelector('.wk-fence-toolbar [data-action="source"]')).not.toBeNull();
+    expect(fig.querySelector('.wk-fence-toolbar [data-action="expand"]')).not.toBeNull();
+    expect(fig.dataset.fenceState).toBe('drawn');
+  });
+
+  it('decorateServerFenceShowsRefusalWithLine', () => {
+    const fig = serverFigure({ error: 'syntax-error', line: '4', message: 'Unknown arrow' });
+    decorateServerFence(fig);
+    decorateServerFence(fig);
+    expect(fig.dataset.fenceState).toBe('refused');
+    expect(fig.querySelectorAll('.wk-fence-error')).toHaveLength(1);
+    expect(errorText(fig)).toContain('line 4');
+    expect(errorText(fig)).toContain('Unknown arrow');
+    expect(sourcePre(fig)).not.toBeNull();
+  });
+
+  it('redrawSkipsServerKind', async () => {
+    const fig = serverFigure();
+    const load = vi.spyOn(FENCE_RENDERERS.plantuml, 'load');
+    await expect(redrawFence(fig)).resolves.toBe('skipped');
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  const expandIds = (fig) => {
+    const dialog = fig.querySelector('dialog');
+    const ids = [...dialog.querySelectorAll('[id]')].map((e) => e.id);
+    return { dialog, ids };
+  };
+
+  it('expandCloneHasNoDuplicateIds (server svg)', () => {
+    const fig = serverFigure();
+    decorateServerFence(fig);
+    const btn = fig.querySelector('[data-action="expand"]');
+    btn.hidden = false;
+    btn.click();
+    const { dialog, ids } = expandIds(fig);
+    expect(ids.length).toBeGreaterThan(0);
+    ids.forEach((id) => {
+      expect(id.endsWith('-x')).toBe(true);
+      expect(document.querySelectorAll(`[id="${id}"]`)).toHaveLength(1);
+    });
+    expect(dialog.querySelector('use').getAttribute('href')).toBe('#r-x');
+    expect(dialog.querySelector('use:nth-of-type(2)').getAttribute('xlink:href')).toBe('#r-x');
+    const rect = dialog.querySelector('rect');
+    expect(rect.getAttribute('fill')).toBe('url(#g-x)');
+    expect(rect.getAttribute('style')).toContain('url(#g-x)');
+  });
+
+  it('expandCloneHasNoDuplicateIds (mermaid svg)', async () => {
+    draw.mockImplementationOnce(async (host) => {
+      host.innerHTML = '<svg viewBox="0 0 1000 200" width="100%" style="max-width: 1000px;"><marker id="m"/>'
+        + '<path marker-end="url(#m)"/></svg>';
+    });
+    const fig = envelope(FLOW);
+    await drawFence(fig);
+    const btn = fig.querySelector('[data-action="expand"]');
+    btn.hidden = false;
+    btn.click();
+    const { dialog, ids } = expandIds(fig);
+    expect(ids).toEqual(['m-x']);
+    expect(dialog.querySelector('path').getAttribute('marker-end')).toBe('url(#m-x)');
+    expect(document.querySelectorAll('[id="m"]')).toHaveLength(1);
   });
 });

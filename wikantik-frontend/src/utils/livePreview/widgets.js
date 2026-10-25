@@ -253,7 +253,11 @@ export class EmbedWidget extends WidgetType {
   ignoreEvent() { return true; } // the widget handles its own mouse events
 }
 
-/** A rendered fence (Mermaid) as a block: the shared envelope, drawn by the same pass as the reader view. */
+/**
+ * A rendered fence (Mermaid, PlantUML) as a block: the shared envelope, drawn by the same pass as the reader view.
+ * A server-drawn fence is debounced but does not keep its last drawing: this DOM is recreated on every source
+ * change (the preview pane, WikiFence, is what keeps the last drawing).
+ */
 export class FenceWidget extends WidgetType {
   constructor(language, source) { super(); this.language = language; this.source = source; }
   eq(o) { return o instanceof FenceWidget && o.language === this.language && o.source === this.source; }

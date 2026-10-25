@@ -61,6 +61,10 @@ public final class RenderedFenceScanner {
         FenceInfo info = null;
         StringBuilder content = null;
 
+        // open HTML block: 0 none; 1-5 end on a marker; 6-7 end on a blank line
+        int htmlType = 0;
+        boolean prevParagraph = false;
+
         for ( int i = 0; i < lines.size(); i++ ) {
             final String line = lines.get( i );
             if ( inFence ) {
@@ -142,11 +146,32 @@ public final class RenderedFenceScanner {
                 }
             }
             final int rel = countSpaces( line, pos, Integer.MAX_VALUE );
+            if ( htmlType != 0 ) {
+                // inside an HTML block nothing else is recognised: a fence here is raw HTML, not a code block
+                if ( htmlType >= 6 ? isBlank( line, pos ) : htmlEnds( htmlType, line, pos ) ) {
+                    htmlType = 0;
+                    prevParagraph = false;
+                }
+                continue;
+            }
             if ( rel > MAX_FENCE_INDENT || pos + rel >= line.length() ) {
+                prevParagraph = !blank && rel <= MAX_FENCE_INDENT;
                 continue;
             }
             final char c = line.charAt( pos + rel );
+            if ( c == '<' ) {
+                final int t = htmlStartType( line, pos + rel, prevParagraph );
+                if ( t != 0 ) {
+                    htmlType = t;
+                    if ( t < 6 && htmlEnds( t, line, pos + rel ) ) {
+                        htmlType = 0;
+                    }
+                    prevParagraph = false;
+                    continue;
+                }
+            }
             if ( c != '`' && c != '~' ) {
+                prevParagraph = c != '#';
                 continue;
             }
             int end = pos + rel;
@@ -155,12 +180,15 @@ public final class RenderedFenceScanner {
             }
             final int run = end - ( pos + rel );
             if ( run < 3 ) {
+                prevParagraph = true;
                 continue;
             }
             final String infoStr = line.substring( end ).trim();
             if ( c == '`' && infoStr.indexOf( '`' ) >= 0 ) {
+                prevParagraph = true;
                 continue;
             }
+            prevParagraph = false;
             inFence = true;
             fenceChar = c;
             fenceLen = run;
@@ -242,6 +270,87 @@ public final class RenderedFenceScanner {
             return -1;
         }
         return e >= n || line.charAt( e ) == ' ' ? e : -1;
+    }
+
+    private static final java.util.regex.Pattern TAG_ONLY = java.util.regex.Pattern.compile(
+            "(?:<[A-Za-z][A-Za-z0-9-]*+(?:\\s++[A-Za-z_:][A-Za-z0-9_.:-]*+(?:\\s*+=\\s*+(?:\"[^\"]*+\"|'[^']*+'|[^\\s\"'=<>`]++))?+)*+\\s*+/?>"
+                    + "|</[A-Za-z][A-Za-z0-9-]*+\\s*+>)\\s*+" );
+
+    private static final Set< String > BLOCK_TAGS = Set.of( "address", "article", "aside", "base", "basefont",
+            "blockquote", "body", "caption", "center", "col", "colgroup", "dd", "details", "dialog", "dir", "div",
+            "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "frame", "frameset", "h1", "h2", "h3",
+            "h4", "h5", "h6", "head", "header", "hr", "html", "iframe", "legend", "li", "link", "main", "menu",
+            "menuitem", "nav", "noframes", "ol", "optgroup", "option", "p", "param", "search", "section",
+            "summary", "table", "tbody", "td", "tfoot", "th", "thead", "title", "tr", "track", "ul" );
+
+    /** CommonMark HTML block start type (1-7) for a line whose first non-indent char {@code <} is at {@code p}; 0 if none. */
+    private static int htmlStartType( final String line, final int p, final boolean prevParagraph ) {
+        final int n = line.length();
+        if ( line.startsWith( "<!--", p ) ) {
+            return 2;
+        }
+        if ( line.startsWith( "<?", p ) ) {
+            return 3;
+        }
+        if ( line.startsWith( "<![CDATA[", p ) ) {
+            return 5;
+        }
+        if ( p + 2 < n && line.charAt( p + 1 ) == '!' && Character.isLetter( line.charAt( p + 2 ) )
+                && line.charAt( p + 2 ) < 128 ) {
+            return 4;
+        }
+        int e = p + 1;
+        final boolean closing = e < n && line.charAt( e ) == '/';
+        if ( closing ) {
+            e++;
+        }
+        final int nameStart = e;
+        while ( e < n && ( Character.isLetterOrDigit( line.charAt( e ) ) && line.charAt( e ) < 128 ) ) {
+            e++;
+        }
+        if ( e == nameStart ) {
+            return 0;
+        }
+        final String name = line.substring( nameStart, e ).toLowerCase( java.util.Locale.ROOT );
+        final boolean delimited = e >= n || line.charAt( e ) == ' ' || line.charAt( e ) == '\t'
+                || line.charAt( e ) == '>' || line.startsWith( "/>", e );
+        if ( !closing && delimited && e < n + 1 && ( name.equals( "script" ) || name.equals( "pre" )
+                || name.equals( "style" ) || name.equals( "textarea" ) ) && ( e >= n || line.charAt( e ) != '/' ) ) {
+            return 1;
+        }
+        if ( delimited && BLOCK_TAGS.contains( name ) ) {
+            return 6;
+        }
+        if ( !prevParagraph && TAG_ONLY.matcher( line.substring( p ) ).matches() ) {
+            return 7;
+        }
+        return 0;
+    }
+
+    /** True when {@code line} (from {@code p}) contains the end marker of an HTML block of {@code type} 1-5. */
+    private static boolean htmlEnds( final int type, final String line, final int p ) {
+        return switch ( type ) {
+            case 1 -> containsIgnoreCase( line, p, "</script>" ) || containsIgnoreCase( line, p, "</pre>" )
+                    || containsIgnoreCase( line, p, "</style>" ) || containsIgnoreCase( line, p, "</textarea>" );
+            case 2 -> line.indexOf( "-->", p ) >= 0;
+            case 3 -> line.indexOf( "?>", p ) >= 0;
+            case 4 -> line.indexOf( '>', p ) >= 0;
+            default -> line.indexOf( "]]>", p ) >= 0;
+        };
+    }
+
+    private static boolean containsIgnoreCase( final String line, final int from, final String needle ) {
+        return indexOfIgnoreCase( line, from, needle ) >= 0;
+    }
+
+    private static int indexOfIgnoreCase( final String line, final int from, final String needle ) {
+        final int last = line.length() - needle.length();
+        for ( int i = from; i <= last; i++ ) {
+            if ( line.regionMatches( true, i, needle, 0, needle.length() ) ) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static boolean isCloser( final String line, final int p, final char ch, final int minLen ) {

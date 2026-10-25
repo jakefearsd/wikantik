@@ -28,7 +28,12 @@
     {"name": "CRLF line endings", "markdown": "```mermaid\r\nflowchart TD\r\n  A-->B\r\n```\r\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]},
     {"name": "empty body", "markdown": "```mermaid\n```\n", "fences": [{"language": "mermaid", "source": ""}]},
     {"name": "other language is not rendered", "markdown": "```java\nint x = 1;\n```\n", "fences": []},
-    {"name": "math fence is not rendered", "markdown": "```math\nx^2\n```\n", "fences": []}
+    {"name": "math fence is not rendered", "markdown": "```math\nx^2\n```\n", "fences": []},
+    {"name": "fence inside an HTML comment is not rendered", "markdown": "<!--\n```mermaid\nflowchart TD\n  A-->B\n```\n-->\n", "fences": []},
+    {"name": "fence inside pre is not rendered", "markdown": "<pre>\n```mermaid\nflowchart TD\n  A-->B\n```\n</pre>\n", "fences": []},
+    {"name": "fence inside details without blank line is not rendered", "markdown": "<details>\n<summary>s</summary>\n```mermaid\nflowchart TD\n  A-->B\n```\n</details>\n", "fences": []},
+    {"name": "fence inside div without blank line is not rendered", "markdown": "<div>\n```mermaid\nflowchart TD\n  A-->B\n```\n</div>\n", "fences": []},
+    {"name": "blank line after div lets the fence render", "markdown": "<div>\n\n```mermaid\nflowchart TD\n  A-->B\n```\n\n</div>\n", "fences": [{"language": "mermaid", "source": "flowchart TD\n  A-->B\n"}]}
   ],
   "mermaidPolicy": [
     {"source": "flowchart TD\n  A-->B\n", "allowed": true, "reason": null, "pageLinks": []},

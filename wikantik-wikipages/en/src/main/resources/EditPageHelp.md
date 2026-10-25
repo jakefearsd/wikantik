@@ -28,6 +28,28 @@ The toolbar also has heading, list, inline code, code block and table buttons. T
 * Paste or drag an image into the editor to attach it, or use **Attach**.
 * The side rail lists the page outline, backlinks and **Unlinked mentions**, with one-click linking.
 
+## Diagrams
+
+A fenced code block whose language is `mermaid` renders as a diagram when the page is viewed. This one is live:
+
+```mermaid
+flowchart LR
+  Write --> Preview --> Save
+```
+
+To show diagram syntax as text instead of drawing it, add the word `example` after the language. The block below is written that way, so it appears as code:
+
+```mermaid example
+flowchart LR
+  Draft --> Review
+  click Review "/wiki/EditPageHelp"
+```
+
+* To make a node open a wiki page, add a line `click NodeId "/wiki/PageName"`. These links count as real page links, so they show up in backlinks, the Page Graph and broken-link reports.
+* If a diagram has a syntax error, or is refused, the page shows its source together with the reason instead of a picture.
+* The wiki refuses diagrams that contain `%%{ ... }%%` directives, a `---` front matter block, `click` lines that call a function, links that are not `http(s)` or relative, or `javascript:` anywhere. Tooltips in `click` lines cannot contain a colon.
+* Renaming a page does not yet update `click` links to it in diagrams, so check those after a rename.
+
 ## Metadata
 
 The **Frontmatter** tab edits the page's metadata (type, tags, cluster, summary and more) and checks it as you type. Save is disabled while an error is showing. See [Frontmatter](https://github.com/jakefearsd/wikantik/blob/main/docs/user/Frontmatter.md).

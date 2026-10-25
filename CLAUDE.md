@@ -443,6 +443,8 @@ Naming convention: the bare word "graph" is a code smell. Always say
 3. **Plugins**: Dynamic content insertion via `[{Plugin}]` syntax (auto-normalized to `[{Plugin}]()` for Flexmark)
 4. **Renderer**: `MarkdownRenderer` produces HTML via Flexmark.
 
+- **Rendered fences**: fenced blocks that render as something other than code (today ` ```mermaid `; ` ```mermaid example ` stays code) live in `com.wikantik.markdown.extensions.fences`, validated server-side and in the frontend against one shared fixture (`wikantik-frontend/src/utils/__fixtures__/renderedFences.json`); unsafe sources are refused and shown as source plus reason. To add a renderer, see the `RenderedFenceRenderer` Javadoc.
+
 ### Security Model
 
 - JAAS-based authentication and authorization

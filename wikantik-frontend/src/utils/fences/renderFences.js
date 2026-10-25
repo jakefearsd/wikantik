@@ -31,7 +31,8 @@ function watchTheme() {
  * The shared DOM pass over rendered-fence envelopes (reader view and editor previews). Picks up every
  * `figure.wk-fence[data-fence-kind="browser"]` without a `data-fence-state` and draws each independently — one
  * failure never stops the others. Idempotent: drawn/refused/failed figures are skipped. Lazy: with no such
- * figures nothing is imported. Server-kind figures are only decorated (toolbar / refusal box), never drawn here. `isStale` (optional) stops all DOM writes
+ * figures nothing is imported. Server-kind figures are only decorated (toolbar / refusal box), never drawn here, and a browser-kind envelope for a server
+ * language (hand-written) is left as source. `isStale` (optional) stops all DOM writes
  * once the view has moved on. The first call also starts re-drawing drawn figures when the theme changes.
  *
  * @param {Element|null|undefined} root
@@ -45,8 +46,9 @@ export async function renderFences(root, isStale = () => false) {
   if (figures.length === 0 && serverFigures.length === 0) return;
   let drawFence;
   let decorateServerFence;
+  let drawsInReader;
   try {
-    ({ drawFence, decorateServerFence } = await loadDrawing());
+    ({ drawFence, decorateServerFence, drawsInReader } = await loadDrawing());
   } catch (e) {
     console.warn('[fences] could not load the fence pass; diagrams stay as source', e);
     return;
@@ -59,6 +61,7 @@ export async function renderFences(root, isStale = () => false) {
       console.warn('[fences] could not decorate a server-drawn fence', e);
     }
   });
-  // drawFence never rejects (each figure reports its own failure), so one bad diagram cannot stop the rest.
-  await Promise.all(figures.map((figure) => drawFence(figure, isStale)));
+  // drawFence never rejects (each figure reports its own failure), so one bad diagram cannot stop the rest. A
+  // browser-kind envelope for a server language stays as source (see drawsInReader).
+  await Promise.all(figures.filter(drawsInReader).map((figure) => drawFence(figure, isStale)));
 }

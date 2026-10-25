@@ -40,7 +40,8 @@ import { checkMermaid } from './mermaidPolicy';
  * toolbar and the refusal box) and CSS picks the variant for the theme, so there is no policy to port and no
  * re-draw on a theme change. The entry is `{ kind: 'server', label, check: () => ({ allowed: true }), load }`
  * — the server is the policy — and `load()` returns serverRenderer.js, whose `draw(host, source, { language,
- * isStale })` calls POST /api/fences/render for the editor preview (and for a hand-written browser-kind envelope).
+ * isStale })` calls POST /api/fences/render for the editor previews only (the reader pass leaves a hand-written browser-kind
+ * envelope for a server language as source).
  * Register the language server-side too (RenderedFenceRegistry). Server SVG is scrubbed there and trusted here.
  *
  * Entries are plain mutable objects on purpose: tests spy on `load` and `check`.

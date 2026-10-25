@@ -98,11 +98,21 @@ describe('drawFence', () => {
     ['unsafe-link', /link/i],
     ['unsafe-config', /configuration/i],
     ['render-failed', /could not be drawn/i],
+    ['render-crashed', /PlantUML failed while drawing it/i],
+    ['embedded-diagram', /embeds another diagram/i],
+    ['page-limit', /more diagrams than can be drawn at once/i],
+    ['page-budget', /ran out of time.*reload to try again/i],
     ['something-new', /not drawn/i],
   ])('maps the server reason %s to a human message', async (reason, re) => {
     const fig = envelope(FLOW, { error: reason });
     await expect(drawFence(fig)).resolves.toBe('refused');
     expect(errorText(fig)).toMatch(re);
+  });
+
+  it('does not tell a reader to reload for the deterministic page limit', async () => {
+    const fig = envelope(FLOW, { error: 'page-limit' });
+    await drawFence(fig);
+    expect(errorText(fig)).not.toMatch(/reload/i);
   });
 
   // A hand-written envelope (allowed through the HTML sanitizer when allowHTML is on) never meets the server

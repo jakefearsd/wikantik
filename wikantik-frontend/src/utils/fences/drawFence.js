@@ -21,8 +21,12 @@ const REFUSALS = {
   'too-complex': 'it is too complex to draw.',
   'too-slow': 'it took too long to draw.',
   'output-too-large': 'the drawing came out too large.',
+  'embedded-diagram': 'it embeds another diagram ({{ \u2026 }}), which wiki diagrams may not do.',
+  'render-crashed': 'PlantUML failed while drawing it.',
   busy: 'the diagram renderer is busy; reload to try again.',
-  'page-budget': 'this page has more diagrams than can be drawn at once; reload to try again.',
+  // The count / size limit is the same on every view of the page; the time budget may not be.
+  'page-limit': 'this page has more diagrams than can be drawn at once.',
+  'page-budget': 'this page ran out of time to draw its diagrams; reload to try again.',
   'plantuml-disabled': 'PlantUML drawing is disabled on this wiki.',
   'unsafe-config': 'it sets Mermaid configuration (a %%{\u2026}%% directive or --- front matter), which wiki diagrams may not do.',
 };
@@ -338,6 +342,17 @@ export async function redrawFence(figure) {
     console.warn('[fences] re-drawing a diagram for the new theme failed; keeping the previous drawing', e);
     return 'failed';
   }
+}
+
+/**
+ * Whether the reader pass (renderFences) may draw `figure` in the browser. Server-language figures are drawn by the
+ * server; a browser-kind envelope for one (hand-written, allowHTML on) is left as source rather than having every
+ * reader's browser POST it to /api/fences/render. Editor previews call drawFence directly and are unaffected.
+ *
+ * @param {Element} figure
+ */
+export function drawsInReader(figure) {
+  return rendererForLanguage(figure.dataset.fence || '')?.kind !== 'server';
 }
 
 /**

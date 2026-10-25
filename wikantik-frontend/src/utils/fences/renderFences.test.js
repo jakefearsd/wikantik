@@ -80,6 +80,22 @@ describe('renderFences', () => {
     expect(root.innerHTML).toBe(before);
   });
 
+  // A hand-written browser-kind envelope for a server language (allowHTML on) must not make every reader's browser
+  // POST it to /api/fences/render: the reader pass leaves it as source. Editor previews draw through drawFence.
+  it('leavesBrowserKindServerLanguageAsSource', async () => {
+    const load = vi.spyOn(FENCE_RENDERERS.plantuml, 'load');
+    const handWritten = '<figure class="wk-fence" data-fence="plantuml" data-fence-kind="browser">'
+      + '<pre class="wk-fence-source"><code class="language-plantuml">A -&gt; B</code></pre></figure>';
+    const root = mount(handWritten + figure('flowchart TD\n A-->B'));
+    const before = root.querySelector('figure').outerHTML;
+    await renderFences(root);
+    expect(load).not.toHaveBeenCalled();
+    const [plantuml, mermaid] = root.querySelectorAll('figure');
+    expect(plantuml.outerHTML).toBe(before);
+    expect(plantuml.hasAttribute('data-fence-state')).toBe(false);
+    expect(mermaid.dataset.fenceState).toBe('drawn');
+  });
+
   it('serverFiguresDecoratedWithoutLoadingRenderers', async () => {
     const load = vi.spyOn(FENCE_RENDERERS.plantuml, 'load');
     const root = mount('<figure class="wk-fence" data-fence="plantuml" data-fence-kind="server" data-fence-state="drawn">'

@@ -1,7 +1,8 @@
 // The server-drawn fence client (PlantUML). Imported only through registry.js's dynamic `load()`. The server draws
 // reader-view fences itself and the page HTML arrives finished (drawFence.decorateServerFence only decorates it);
-// this module is for the figures that are NOT in the page HTML: the editor previews, and a hand-written
-// browser-kind envelope. It asks POST /api/fences/render and fills the host with exactly the markup the server
+// this module is for the figures that are NOT in the page HTML: the editor previews (WikiFence, the live-preview
+// FenceWidget). The reader pass never calls it: a hand-written browser-kind envelope for a server language stays as
+// source (drawFence.drawsInReader). It asks POST /api/fences/render and fills the host with exactly the markup the server
 // emits for a drawn fence, so one stylesheet and one toolbar serve both. The returned SVG is scrubbed by the
 // server and trusted here (no client-side sanitizer, by design).
 import { api } from '../../api/client';

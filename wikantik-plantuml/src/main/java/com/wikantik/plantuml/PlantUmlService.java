@@ -67,6 +67,8 @@ public final class PlantUmlService {
     private static final class Job {
         Future< RenderOutcome > future;
         boolean cancelled;
+        /** System.nanoTime() when a pool thread began the render; 0 while still queued. */
+        volatile long startedNanos;
     }
 
     private final PlantUmlSettings settings;
@@ -76,6 +78,10 @@ public final class PlantUmlService {
     private final Object lock = new Object();
     private final Map< String, CacheEntry > cache;
     private final Map< String, Job > inFlight = new HashMap<>();
+    /** Test hooks (package-private): after a job's cache write; before a waiter decides on a timeout; on each join. */
+    volatile Runnable completionHook;
+    volatile Runnable timeoutDecisionHook;
+    final AtomicInteger joinCount = new AtomicInteger();
 
     /** @param settings the service settings */
     public PlantUmlService( final PlantUmlSettings settings ) {
@@ -107,6 +113,11 @@ public final class PlantUmlService {
             t.setDaemon( true );
             return t;
         } );
+    }
+
+    /** @return the number of renders waiting in the pool queue (test aid) */
+    int queuedCount() {
+        return pool.getQueue().size();
     }
 
     /**
@@ -147,6 +158,7 @@ public final class PlantUmlService {
             final Job running = inFlight.get( key );
             if( running != null ) {
                 job = running;
+                joinCount.incrementAndGet();
             } else if( waitBudgetMs <= 0 ) {
                 return RenderOutcome.transientRefusal( "page-budget" );
             } else {
@@ -173,6 +185,7 @@ public final class PlantUmlService {
     }
 
     private RenderOutcome runJob( final Job job, final String key, final String source, final String hash ) {
+        job.startedNanos = Math.max( 1L, System.nanoTime() );
         RenderOutcome outcome;
         try {
             outcome = finish( engine.apply( source ), hash );
@@ -186,16 +199,39 @@ public final class PlantUmlService {
                 cache.put( key, new CacheEntry( outcome, 0L ) );
             }
         }
+        final Runnable hook = completionHook;
+        if( hook != null ) {
+            hook.run();
+        }
         return outcome;
     }
 
+    /**
+     * Waits for the job. The render timeout is measured from when a pool thread starts the job (queue time only
+     * spends the caller's budget); when the budget runs out first the render is left running.
+     */
     private RenderOutcome await( final Job job, final String key, final long budgetMs, final boolean retry ) {
-        final boolean timeoutBinds = settings.timeoutMs() <= budgetMs;
-        final long waitMs = Math.max( 1L, Math.min( settings.timeoutMs(), budgetMs ) );
+        final long budgetEnd = System.nanoTime() + budgetMs * 1_000_000L;
+        final long timeoutNanos = settings.timeoutMs() * 1_000_000L;
         try {
-            return job.future.get( waitMs, TimeUnit.MILLISECONDS );
-        } catch( final TimeoutException e ) {
-            return timeoutBinds ? tooSlow( job, key, retry ) : RenderOutcome.transientRefusal( "page-budget" );
+            while( true ) {
+                final long now = System.nanoTime();
+                final long started = job.startedNanos;
+                final long runLeft = started == 0L ? Long.MAX_VALUE : timeoutNanos - ( now - started );
+                if( started != 0L && runLeft <= 0L ) {
+                    return tooSlow( job, key, retry );
+                }
+                final long budgetLeft = budgetEnd - now;
+                if( budgetLeft <= 0L ) {
+                    return RenderOutcome.transientRefusal( "page-budget" );
+                }
+                final long sliceNanos = started == 0L ? Math.min( budgetLeft, 10_000_000L ) : Math.min( budgetLeft, runLeft );
+                try {
+                    return job.future.get( Math.max( 1L, sliceNanos / 1_000_000L ), TimeUnit.MILLISECONDS );
+                } catch( final TimeoutException e ) {
+                    // re-evaluate the limits
+                }
+            }
         } catch( final InterruptedException e ) {
             Thread.currentThread().interrupt();
             LOG.warn( "Interrupted while waiting for PlantUML render {}", key );
@@ -206,33 +242,25 @@ public final class PlantUmlService {
         }
     }
 
-    /** The binding limit was the timeout: cancel the render and remember that it was too slow. */
+    /** The run exceeded the timeout: cancel the render and remember that it was too slow. */
     private RenderOutcome tooSlow( final Job job, final String key, final boolean retry ) {
+        final Runnable hook = timeoutDecisionHook;
+        if( hook != null ) {
+            hook.run();
+        }
         synchronized( lock ) {
-            if( job.future.isDone() && !job.future.isCancelled() ) {
-                return outcomeOf( job, key );
+            if( inFlight.get( key ) != job ) { // finished (or already handled) while we were deciding
+                return cachedSlowOr( key );
             }
             job.cancelled = true;
             job.future.cancel( true );
+            pool.remove( (Runnable) job.future ); // free the queue slot if it never ran
             inFlight.remove( key, job );
             final RenderOutcome out = RenderOutcome.refused( TOO_SLOW,
                 "The diagram took longer than " + settings.timeoutMs() + " ms to draw", 0 );
             final long expiry = retry ? 0L : Math.max( 1L, nanoClock.getAsLong() + settings.slowRetryMs() * 1_000_000L );
             cache.put( key, new CacheEntry( out, expiry ) );
             return out;
-        }
-    }
-
-    /** Must hold {@code lock}; the job completed just as the wait expired. */
-    private RenderOutcome outcomeOf( final Job job, final String key ) {
-        try {
-            return job.future.get();
-        } catch( final InterruptedException e ) {
-            Thread.currentThread().interrupt();
-            return RenderOutcome.transientRefusal( "render-failed" );
-        } catch( final ExecutionException | CancellationException e ) {
-            LOG.warn( "PlantUML render {} did not complete: {}", key, e.toString() );
-            return RenderOutcome.transientRefusal( "render-failed" );
         }
     }
 

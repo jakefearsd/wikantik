@@ -137,7 +137,11 @@ class PlantUmlServiceTest {
         final Future< RenderOutcome > a = callers.submit( () -> s.render( SRC, 2_000 ) );
         assertTrue( started.await( 2, TimeUnit.SECONDS ) );
         final Future< RenderOutcome > b = callers.submit( () -> s.render( SRC, 2_000 ) );
-        Thread.sleep( 50 ); // let b reach the join; correctness does not depend on it
+        final long deadline = System.nanoTime() + 2_000_000_000L;
+        while( s.joinCount.get() < 1 && System.nanoTime() < deadline ) {
+            Thread.onSpinWait();
+        }
+        assertEquals( 1, s.joinCount.get(), "b joined the in-flight render" );
         release.countDown();
         assertTrue( a.get( 2, TimeUnit.SECONDS ).isDrawn() );
         assertTrue( b.get( 2, TimeUnit.SECONDS ).isDrawn() );
@@ -279,11 +283,150 @@ class PlantUmlServiceTest {
     @Test
     void realRenderScrubbed() {
         final PlantUmlService s = new PlantUmlService( PlantUmlSettings.defaults() );
-        final RenderOutcome out = s.render( "@startuml\nAlice -> Bob: hello\n@enduml", 20_000 );
+        final RenderOutcome out = s.render( "@startuml\nskinparam handwritten false\nskinparam rectangle {\n BackgroundColor #red/blue\n}\nrectangle A [[#top]]\nA -> A\n@enduml", 20_000 );
         assertTrue( out.isDrawn(), () -> "reason=" + out.reason() + " msg=" + out.message() );
         assertFalse( out.drawing().lightSvg().contains( "<?plantuml-src" ) );
-        assertTrue( out.drawing().lightSvg().contains( "id=\"wkf" ) || !out.drawing().lightSvg().contains( " id=\"" ) );
+        final String light = out.drawing().lightSvg();
+        assertTrue( light.contains( "id=\"wkf" ), "at least one prefixed id" );
+        assertFalse( java.util.regex.Pattern.compile( "\\sid=\"(?!wkf)" ).matcher( light ).find(), "no unprefixed ids" );
         assertNotEquals( out.drawing().lightSvg(), out.drawing().darkSvg() );
+    }
+
+    @Test
+    void lateCompletionAfterTimeoutIsDiscarded() throws Exception {
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final CountDownLatch finished = new CountDownLatch( 1 );
+        final AtomicInteger calls = new AtomicInteger();
+        final PlantUmlService s = new PlantUmlService( settings( 1, 1, 40L, 600_000L, 100_000 ), src -> {
+            calls.incrementAndGet();
+            boolean done = false;
+            while( !done ) { // ignores interrupts, like a PlantUML layout stuck in a loop
+                try {
+                    done = release.await( 5, TimeUnit.SECONDS );
+                } catch( final InterruptedException e ) {
+                    // deliberately ignored: the engine does not honour cancellation
+                }
+            }
+            return DRAWN;
+        } );
+        s.completionHook = finished::countDown;
+        assertEquals( "too-slow", s.render( SRC, 5_000 ).reason() );
+        release.countDown();
+        assertTrue( finished.await( 2, TimeUnit.SECONDS ) );
+        assertEquals( "too-slow", s.render( SRC, 5_000 ).reason(), "the late drawing was discarded" );
+        assertEquals( 1, calls.get() );
+    }
+
+    @Test
+    void completionRacingTheTimeoutDecisionKeepsTheDrawing() throws Exception {
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final CountDownLatch cacheWritten = new CountDownLatch( 1 );
+        final CountDownLatch proceed = new CountDownLatch( 1 );
+        final PlantUmlService s = new PlantUmlService( settings( 1, 1, 40L, 600_000L, 100_000 ), src -> {
+            await( release );
+            return DRAWN;
+        } );
+        // The waiter has decided the run timed out; let the render finish and cache before it takes the lock,
+        // while the worker is held before the future completes.
+        s.timeoutDecisionHook = () -> {
+            release.countDown();
+            await( cacheWritten );
+        };
+        s.completionHook = () -> {
+            cacheWritten.countDown();
+            await( proceed );
+        };
+        final Future< RenderOutcome > waiter = callers.submit( () -> s.render( SRC, 5_000 ) );
+        final RenderOutcome out = waiter.get( 3, TimeUnit.SECONDS );
+        proceed.countDown();
+        assertTrue( out.isDrawn(), () -> "reason=" + out.reason() );
+        assertTrue( s.render( SRC, 5_000 ).isDrawn(), "cache still holds the drawing" );
+    }
+
+    @Test
+    void joinerThatLosesTheCancellationRaceSeesTooSlow() throws Exception {
+        final AtomicInteger calls = new AtomicInteger();
+        final PlantUmlService s = new PlantUmlService( settings( 1, 1, 40L, 600_000L, 100_000 ), src -> {
+            calls.incrementAndGet();
+            sleepUntilInterrupted();
+            return DRAWN;
+        } );
+        final AtomicInteger entrants = new AtomicInteger();
+        final CountDownLatch secondDone = new CountDownLatch( 1 );
+        s.timeoutDecisionHook = () -> {
+            if( entrants.incrementAndGet() == 1 ) {
+                await( secondDone ); // the first to decide waits until the other has cancelled
+            }
+        };
+        final Future< RenderOutcome > a = callers.submit( () -> s.render( SRC, 5_000 ) );
+        final Future< RenderOutcome > b = callers.submit( () -> {
+            final RenderOutcome o = s.render( SRC, 5_000 );
+            secondDone.countDown();
+            return o;
+        } );
+        // whichever entered second cancels; the first must then report the same too-slow, not a failure
+        final RenderOutcome ra = a.get( 3, TimeUnit.SECONDS );
+        final RenderOutcome rb = b.get( 3, TimeUnit.SECONDS );
+        assertEquals( "too-slow", ra.reason() );
+        assertEquals( "too-slow", rb.reason() );
+        assertEquals( 1, calls.get() );
+    }
+
+    @Test
+    void interruptedWaiterRestoresInterruptAndFailsTransiently() throws Exception {
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final PlantUmlService s = new PlantUmlService( plain(), src -> {
+            await( release );
+            return DRAWN;
+        } );
+        final java.util.concurrent.atomic.AtomicReference< RenderOutcome > result = new java.util.concurrent.atomic.AtomicReference<>();
+        final AtomicBoolean stillInterrupted = new AtomicBoolean();
+        final Future< ? > f = callers.submit( () -> {
+            Thread.currentThread().interrupt();
+            result.set( s.render( SRC, 5_000 ) );
+            stillInterrupted.set( Thread.currentThread().isInterrupted() );
+        } );
+        f.get( 3, TimeUnit.SECONDS );
+        release.countDown();
+        assertEquals( "render-failed", result.get().reason() );
+        assertTrue( result.get().transientFailure() );
+        assertTrue( stillInterrupted.get() );
+    }
+
+    @Test
+    void queuedJobIsNotTooSlow() throws Exception {
+        final CountDownLatch firstStarted = new CountDownLatch( 1 );
+        final PlantUmlService s = new PlantUmlService( settings( 1, 4, 200L, 600_000L, 100_000 ), src -> {
+            if( src.contains( "SLOW" ) ) {
+                firstStarted.countDown();
+                try {
+                    Thread.sleep( 150 ); // under the 200 ms timeout on its own
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException( "cancelled", e );
+                }
+            }
+            return DRAWN;
+        } );
+        final Future< RenderOutcome > j1 = callers.submit( () -> s.render( "@startuml\nSLOW1 -> B\n@enduml", 10_000 ) );
+        assertTrue( firstStarted.await( 2, TimeUnit.SECONDS ) );
+        final Future< RenderOutcome > j2 = callers.submit( () -> s.render( "@startuml\nSLOW2 -> B\n@enduml", 10_000 ) );
+        awaitQueued( s, 1 );
+        final Future< RenderOutcome > j3 = callers.submit( () -> s.render( SRC, 10_000 ) );
+        awaitQueued( s, 2 );
+        // j3 waits ~300 ms in the queue, longer than timeoutMs, yet must be drawn rather than blacklisted
+        assertTrue( j1.get( 3, TimeUnit.SECONDS ).isDrawn() );
+        assertTrue( j2.get( 3, TimeUnit.SECONDS ).isDrawn() );
+        final RenderOutcome third = j3.get( 3, TimeUnit.SECONDS );
+        assertTrue( third.isDrawn(), () -> "reason=" + third.reason() );
+    }
+
+    private static void awaitQueued( final PlantUmlService s, final int n ) {
+        final long deadline = System.nanoTime() + 2_000_000_000L;
+        while( s.queuedCount() < n && System.nanoTime() < deadline ) {
+            Thread.onSpinWait();
+        }
+        assertEquals( n, s.queuedCount() );
     }
 
     private static void await( final CountDownLatch latch ) {

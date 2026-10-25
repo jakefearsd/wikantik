@@ -1,0 +1,18 @@
+{
+  "infoStrings": [
+    { "info": "mermaid", "language": "mermaid", "example": false, "modifiers": [] },
+    { "info": "mermaid example", "language": "mermaid", "example": true, "modifiers": ["example"] },
+    { "info": "Mermaid EXAMPLE", "language": "mermaid", "example": true, "modifiers": ["example"] },
+    { "info": "  mermaid\texample  ", "language": "mermaid", "example": true, "modifiers": ["example"] },
+    { "info": "mermaid example title=x", "language": "mermaid", "example": true, "modifiers": ["example", "title=x"] },
+    { "info": "mermaid exampled", "language": "mermaid", "example": false, "modifiers": ["exampled"] },
+    { "info": "mermaid future-flag", "language": "mermaid", "example": false, "modifiers": ["future-flag"] },
+    { "info": "", "language": "", "example": false, "modifiers": [] },
+    { "info": null, "language": "", "example": false, "modifiers": [] },
+    { "info": "java", "language": "java", "example": false, "modifiers": [] },
+    { "info": "math", "language": "math", "example": false, "modifiers": [] },
+    { "info": "{.mermaid}", "language": "{.mermaid}", "example": false, "modifiers": [] }
+  ],
+  "documents": [],
+  "mermaidPolicy": []
+}

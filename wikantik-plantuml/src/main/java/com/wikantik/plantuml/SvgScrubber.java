@@ -24,8 +24,10 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
+import org.xml.sax.ErrorHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXParseException;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -44,6 +46,13 @@ import java.util.regex.Pattern;
  * Narrow allow-list filter that makes PlantUML's SVG safe to splice inline into page HTML. Page HTML is not
  * re-sanitized after drawings are inserted, so everything this class emits reaches readers verbatim.
  *
+ * <p><b>Raster images (deviation from "no image").</b> C4 diagrams draw their person icon as an
+ * {@code <image>} carrying a base64 PNG data URI, so {@code image} is allowed, but only when its
+ * {@code href}/{@code xlink:href} fully matches {@code data:image/(png|jpeg|gif);base64,...}. Raster data URIs
+ * can neither run script nor load anything; {@code svg+xml}, every other data type and every non-data URL
+ * (so any {@code http(s)} image) drops the whole element. Only x, y, width, height, preserveAspectRatio and the
+ * href survive on it.
+ *
  * <p>The element and attribute allow-lists below are the union of what PlantUML 1.2026.8 emits for the
  * fixtures in {@code src/test/resources/svg} (class, activity, sequence, use case, component, state, object,
  * deployment, timing, C4-style, and a gradient/shadow/dashed/creole sample). Anything not on them is dropped:
@@ -60,7 +69,7 @@ public final class SvgScrubber {
     /** Elements PlantUML emits. Deliberately excludes style, script, image, use, foreignObject, animate*, set. */
     static final Set< String > ELEMENTS = Set.of(
         "svg", "defs", "g", "a", "title", "text", "rect", "ellipse", "line", "path", "polygon",
-        "linearGradient", "stop",
+        "linearGradient", "stop", "image",
         "filter", "feGaussianBlur", "feColorMatrix", "feOffset", "feBlend" );
 
     /** Attributes PlantUML emits (any on* attribute is refused regardless). href/xlink:href/target/style/id are special-cased. */
@@ -71,13 +80,20 @@ public final class SvgScrubber {
         "title", "type", "values", "version", "viewBox", "width", "x", "x1", "x2", "y", "y1", "y2", "zoomAndPan",
         "xlink:actuate", "xlink:show", "xlink:title", "xlink:type",
         "data-diagram-type", "data-link-type", "data-qualified-name", "data-source-line",
-        "data-visibility-modifier", "data-entity", "data-uid" );
+        "data-visibility-modifier", "data-entity-1", "data-entity-2" );
 
     private static final Set< String > TARGETS = Set.of( "_top", "_blank" );
     private static final Pattern PREFIX = Pattern.compile( "[A-Za-z][A-Za-z0-9_-]*" );
     private static final Pattern URL_CALL = Pattern.compile( "url\\(", Pattern.CASE_INSENSITIVE );
     private static final Pattern LOCAL_URL = Pattern.compile( "url\\(#([A-Za-z0-9_.:-]+)\\)", Pattern.CASE_INSENSITIVE );
-    private static final List< String > STYLE_FORBIDDEN = List.of( "expression", "@import", "\\", "javascript", "-moz-binding", "behavior" );
+    private static final Pattern IMAGE_DATA_URI = Pattern.compile( "data:image/(png|jpeg|gif);base64,[A-Za-z0-9+/=\\s]+" );
+    private static final Set< String > IMAGE_ATTRIBUTES = Set.of( "x", "y", "width", "height", "preserveAspectRatio" );
+
+    /** CSS properties allowed inside a {@code style} attribute: those PlantUML emits plus stroke/fill/font basics. */
+    static final Set< String > STYLE_PROPERTIES = Set.of(
+        "stroke", "stroke-width", "stroke-dasharray", "stroke-linejoin", "stroke-linecap", "stroke-miterlimit",
+        "stroke-opacity", "fill", "fill-opacity", "width", "height", "background", "font-family", "font-size",
+        "font-style", "font-weight" );
 
     /** Thrown when the input is not a well-formed, DOCTYPE-free SVG document. */
     public static final class Rejected extends RuntimeException {
@@ -85,6 +101,24 @@ public final class SvgScrubber {
 
         public Rejected( final String message, final Throwable cause ) {
             super( message, cause );
+        }
+    }
+
+    /** Keeps the JDK parser off stderr; errors still abort the parse and surface as {@link Rejected}. */
+    private static final class QuietErrorHandler implements ErrorHandler {
+        @Override
+        public void warning( final SAXParseException e ) {
+            LOG.debug( "SVG parse warning: {}", e.toString() );
+        }
+
+        @Override
+        public void error( final SAXParseException e ) throws SAXException {
+            throw e;
+        }
+
+        @Override
+        public void fatalError( final SAXParseException e ) throws SAXException {
+            throw e;
         }
     }
 
@@ -131,7 +165,7 @@ public final class SvgScrubber {
             f.setCoalescing( true );
             f.setIgnoringComments( true );
             final DocumentBuilder b = f.newDocumentBuilder();
-            b.setErrorHandler( null );
+            b.setErrorHandler( new QuietErrorHandler() );
             return b.parse( new InputSource( new StringReader( svg ) ) );
         } catch( final SAXException | IOException e ) {
             LOG.warn( "Rejected unparsable PlantUML SVG: {}", e.toString() );
@@ -142,6 +176,27 @@ public final class SvgScrubber {
         }
     }
 
+    private static boolean elementAllowed( final Element el ) {
+        if( !ELEMENTS.contains( el.getTagName() ) ) {
+            return false;
+        }
+        return !"image".equals( el.getTagName() ) || imageHref( el ) != null;
+    }
+
+    /** @return the image's raster data URI, or null when it has none (or any non-raster href) */
+    private static String imageHref( final Element el ) {
+        String found = null;
+        for( final String a : new String[] { "href", "xlink:href" } ) {
+            if( el.hasAttribute( a ) ) {
+                if( !IMAGE_DATA_URI.matcher( el.getAttribute( a ) ).matches() ) {
+                    return null;
+                }
+                found = el.getAttribute( a );
+            }
+        }
+        return found;
+    }
+
     private static void writeElement( final Element el, final String prefix, final StringBuilder out ) {
         final String name = el.getTagName();
         out.append( '<' ).append( name );
@@ -149,7 +204,7 @@ public final class SvgScrubber {
         final boolean root = el.getParentNode() instanceof Document;
         for( int i = 0; i < attrs.getLength(); i++ ) {
             final String an = attrs.item( i ).getNodeName();
-            final String value = scrubAttribute( an, attrs.item( i ).getNodeValue(), root, prefix );
+            final String value = scrubAttribute( name, an, attrs.item( i ).getNodeValue(), root, prefix );
             if( value != null ) {
                 out.append( ' ' ).append( an ).append( "=\"" );
                 escape( value, true, out );
@@ -159,7 +214,7 @@ public final class SvgScrubber {
         final List< Node > kept = new ArrayList<>();
         for( Node c = el.getFirstChild(); c != null; c = c.getNextSibling() ) {
             if( c.getNodeType() == Node.TEXT_NODE || c.getNodeType() == Node.CDATA_SECTION_NODE
-                || c.getNodeType() == Node.ELEMENT_NODE && ELEMENTS.contains( ( (Element) c ).getTagName() ) ) {
+                || c.getNodeType() == Node.ELEMENT_NODE && elementAllowed( (Element) c ) ) {
                 kept.add( c );
             }
         }
@@ -179,7 +234,11 @@ public final class SvgScrubber {
     }
 
     /** @return the (possibly rewritten) value to emit, or {@code null} to drop the attribute */
-    private static String scrubAttribute( final String name, final String value, final boolean root, final String prefix ) {
+    private static String scrubAttribute( final String element, final String name, final String value, final boolean root, final String prefix ) {
+        if( "image".equals( element ) ) {
+            // elementAllowed() already proved every href on an image is a raster data URI
+            return IMAGE_ATTRIBUTES.contains( name ) || "href".equals( name ) || "xlink:href".equals( name ) ? value : null;
+        }
         if( name.toLowerCase( Locale.ROOT ).startsWith( "on" ) ) {
             return null;
         }
@@ -213,14 +272,31 @@ public final class SvgScrubber {
         return null;
     }
 
+    /** Keeps only allow-listed {@code prop:value;} declarations with inert values; null when none survive. */
     private static String scrubStyle( final String value, final String prefix ) {
-        final String lower = value.toLowerCase( Locale.ROOT );
-        for( final String bad : STYLE_FORBIDDEN ) {
-            if( lower.contains( bad ) ) {
-                return null;
+        final StringBuilder kept = new StringBuilder();
+        for( final String decl : value.split( ";" ) ) {
+            final int colon = decl.indexOf( ':' );
+            if( colon <= 0 ) {
+                continue;
+            }
+            final String prop = decl.substring( 0, colon ).trim().toLowerCase( Locale.ROOT );
+            final String val = decl.substring( colon + 1 ).trim();
+            if( STYLE_PROPERTIES.contains( prop ) && !val.isEmpty() && styleValueIsInert( val ) ) {
+                final String rewritten = rewriteUrls( val, prefix );
+                if( rewritten != null ) {
+                    kept.append( prop ).append( ':' ).append( rewritten ).append( ';' );
+                }
             }
         }
-        return rewriteUrls( value, prefix );
+        return kept.length() == 0 ? null : kept.toString();
+    }
+
+    private static boolean styleValueIsInert( final String val ) {
+        if( val.contains( "\\" ) || val.contains( "/*" ) || val.contains( "@" ) || val.contains( ":" ) ) {
+            return false;
+        }
+        return LOCAL_URL.matcher( val ).replaceAll( "" ).indexOf( '(' ) < 0;
     }
 
     /** Prefixes every {@code url(#x)}; returns null when any {@code url(} is anything else. */

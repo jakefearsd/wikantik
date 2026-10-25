@@ -53,6 +53,18 @@ class SvgScrubberTest {
         return parse( xml ).getElementsByTagName( "*" ).getLength();
     }
 
+    private static java.util.Map< String, Integer > attributeCounts( final String xml ) throws Exception {
+        final java.util.Map< String, Integer > counts = new java.util.TreeMap<>();
+        final org.w3c.dom.NodeList all = parse( xml ).getElementsByTagName( "*" );
+        for( int i = 0; i < all.getLength(); i++ ) {
+            final org.w3c.dom.NamedNodeMap attrs = all.item( i ).getAttributes();
+            for( int j = 0; j < attrs.getLength(); j++ ) {
+                counts.merge( all.item( i ).getNodeName() + "@" + attrs.item( j ).getNodeName(), 1, Integer::sum );
+            }
+        }
+        return counts;
+    }
+
     @ParameterizedTest
     @ValueSource( strings = { "class", "class-dark", "styled", "activity", "sequence", "usecase", "component", "state",
                               "object", "deployment", "timing", "c4" } )
@@ -63,6 +75,8 @@ class SvgScrubberTest {
         assertTrue( out.startsWith( "<svg" ), name );
         assertFalse( out.contains( "<?" ), name );
         assertFalse( out.contains( "<!--" ), name );
+        // attributes are retained, not just elements: compare the attribute multiset ignoring ids and their references
+        assertEquals( attributeCounts( in ), attributeCounts( out ), name );
     }
 
     @Test
@@ -130,8 +144,8 @@ class SvgScrubberTest {
             + "<rect x=\"6\" style=\"a:\\75rl(x)\"/><rect x=\"7\" style=\"@import 'x'\"/><rect x=\"8\" style=\"x:javascript:y\"/>"
             + "<rect x=\"9\" style=\"fill:url(#a)\"/></svg>", "p-" );
         assertFalse( out.contains( "evil" ) || out.contains( "expression" ) || out.contains( "@import" ) || out.contains( "javascript" ) || out.contains( "\\" ), out );
-        assertTrue( out.contains( "stroke:red;stroke-width:1" ), out );
-        assertTrue( out.contains( "style=\"fill:url(#p-a)\"" ), out );
+        assertTrue( out.contains( "style=\"stroke:red;stroke-width:1;\"" ), out );
+        assertTrue( out.contains( "style=\"fill:url(#p-a);\"" ), out );
         assertFalse( out.contains( "url('#a')" ), out );
     }
 
@@ -179,5 +193,51 @@ class SvgScrubberTest {
         assertTrue( out.startsWith( "<svg xmlns=\"http://www.w3.org/2000/svg\"" ), out );
         assertTrue( out.contains( "xmlns:xlink=\"http://www.w3.org/1999/xlink\"" ), out );
         assertFalse( out.contains( "evil" ) || out.contains( "<?" ), out );
+    }
+
+    private static final String PNG = "data:image/png;base64,iVBORw0KGgo=";
+
+    @Test
+    void c4FixtureKeepsItsPersonIcon() throws Exception {
+        final String out = SvgScrubber.scrub( fixture( "c4" ), "p-" );
+        assertTrue( out.contains( "<image " ) && out.contains( "href=\"data:image/png;base64," ), out );
+    }
+
+    @Test
+    void dataPngImageSurvivesWithOnlyAllowedAttributes() {
+        final String out = SvgScrubber.scrub( "<svg " + NS + "><image x=\"1\" y=\"2\" width=\"3\" height=\"4\" onload=\"x\" filter=\"url(#a)\" xlink:href=\"" + PNG + "\"/></svg>", "p-" );
+        assertTrue( out.contains( "<image " ) && out.contains( "xlink:href=\"" + PNG + "\"" ) && out.contains( "x=\"1\"" ) && out.contains( "height=\"4\"" ), out );
+        assertFalse( out.contains( "onload" ) || out.contains( "filter" ), out );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "http://e.com/x.png", "https://e.com/x.png", "data:image/svg+xml;base64,PHN2Zz4=", "data:text/html;base64,PHNjcmlwdD4=",
+                              "data:image/png,rawbytes", "data:image/png;base64,AAAA\"onload=x", "javascript:x", "/wiki/x.png" } )
+    void unsafeImageDropped( final String href ) {
+        final String out = SvgScrubber.scrub( "<svg " + NS + "><image href=\"" + href.replace( "\"", "&quot;" ) + "\"/><image xlink:href=\"" + href.replace( "\"", "&quot;" ) + "\"/><image/><g/></svg>", "p-" );
+        assertFalse( out.contains( "image" ), out );
+        assertTrue( out.contains( "<g/>" ), out );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "background:image-set(url(x) 1x)", "cursor:url(x),auto", "position:fixed", "fill:-webkit-image-set(url(x) 1x)",
+                              "fill:red/**/;x:url(y)", "fill:u\\72l(x)", "fill:url(#a) , url(http://e/x)", "fill:@x", "fill:expression(x)" } )
+    void hostileStyleDeclarationsDropped( final String style ) {
+        final String out = SvgScrubber.scrub( "<svg " + NS + "><rect style=\"" + style + "\"/></svg>", "p-" );
+        assertFalse( out.contains( "style" ), out );
+    }
+
+    @Test
+    void styleKeepsOnlyAllowedDeclarations() {
+        final String out = SvgScrubber.scrub( "<svg " + NS + "><rect style=\"stroke:#181818;position:fixed;stroke-width:1;cursor:url(x)\"/></svg>", "p-" );
+        assertTrue( out.contains( "style=\"stroke:#181818;stroke-width:1;\"" ), out );
+        assertFalse( out.contains( "position" ) || out.contains( "cursor" ), out );
+    }
+
+    @Test
+    void namespaceTricksDropped() {
+        final String out = SvgScrubber.scrub( "<svg " + NS + " xmlns:svg=\"http://www.w3.org/2000/svg\"><svg:script>x</svg:script>"
+            + "<a XLINK:HREF=\"javascript:x\" HREF=\"javascript:y\"/><g xmlns=\"http://www.w3.org/1999/xhtml\"/></svg>", "p-" );
+        assertFalse( out.contains( "script" ) || out.contains( "javascript" ) || out.contains( "HREF" ) || out.contains( "xhtml" ) || out.contains( "xmlns:svg" ), out );
     }
 }

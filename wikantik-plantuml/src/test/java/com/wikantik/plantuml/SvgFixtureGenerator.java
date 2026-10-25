@@ -49,7 +49,7 @@ class SvgFixtureGenerator {
         sources.put( "object", "object Foo {\n  id = 1\n  name = \"x\"\n}\nobject Bar\nFoo --> Bar : uses\n" );
         sources.put( "deployment", "node Server {\n  artifact app.war\n}\ndatabase PG\ncloud Net\nServer --> PG\nNet --> Server\n" );
         sources.put( "timing", "robust \"Web\" as W\nconcise \"User\" as U\n@0\nW is Idle\nU is Waiting\n@100\nW is Busy\nU is Active\n@300\nW is Idle\n" );
-        sources.put( "c4", "skinparam rectangle<<person>> {\n  BackgroundColor #08427B\n  FontColor white\n}\nrectangle \"Customer\" <<person>> as C\nrectangle \"Shop\" as S\nrectangle \"Mail\" as M\nC --> S : Orders\nS --> M : Sends\n" );
+        sources.put( "c4", "!include <C4/C4_Container>\nPerson(c, \"Customer\", \"A shopper\")\nContainer(s, \"Shop\", \"Java\", \"Sells\")\nContainerDb(d, \"DB\", \"PG\")\nRel(c, s, \"Orders\")\nRel(s, d, \"Reads\")\n" );
         sources.put( "styled", "class A #red/blue\nclass B <<st>>\nskinparam shadowing true\nA ..> B\nA -[dashed]-> B\nnote left of A\n **bold** <color:red>c</color> <u>u</u> <s>s</s>\nend note\n" );
         final Path dir = Path.of( "src/test/resources/svg" );
         Files.createDirectories( dir );

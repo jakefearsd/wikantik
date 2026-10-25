@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,12 +53,12 @@ public final class PlantUmlPolicy {
     private static final Pattern INCLUDE = Pattern.compile( "(?:^|\\s)!(?:include\\w*|import)\\b", FLAGS );
     /** The bundled C4 standard library is the only include allowed: it is a fixed classpath resource. */
     private static final Pattern ALLOWED_INCLUDE = Pattern.compile( "^\\s*!include\\s+<C4/[\\w/]+>\\s*$", FLAGS );
-    private static final Pattern THEME_FROM = Pattern.compile( "(?:^|\\s)!theme\\b.*\\bfrom\\b", FLAGS );
+    private static final Pattern THEME_FROM = Pattern.compile( "^\\s*!theme\\b[^\\n]*\\bfrom\\b", FLAGS );
     private static final Pattern LAYOUT_PRAGMA = Pattern.compile( "(?:^|\\s)!pragma\\s+(?:layout|graphviz_dot)\\b", FLAGS );
 
     /**
      * Builtins of PlantUML 1.2026.8 ({@code net.sourceforge.plantuml.tim.builtin}) that touch the file system,
-     * environment or classpath, the indirect callers that could reach them by a computed name, plus the {@code !dump_memory} directive. Longer names first so that
+     * environment or classpath, plus the indirect callers that could reach them by a computed name. Longer names first so that
      * {@code filename_no_extension} is not cut short by {@code filename}.
      */
     static final List< String > DENIED_BUILTINS = List.of( "filename_no_extension", "file_exists", "get_all_stdlib",
@@ -159,7 +160,7 @@ public final class PlantUmlPolicy {
         return starts > 1 ? "multiple-diagrams" : null;
     }
 
-    private static String lineReason( final List< String > lines, final java.util.function.Predicate< String > test,
+    private static String lineReason( final List< String > lines, final Predicate< String > test,
                                       final String reason ) {
         return lines.stream().anyMatch( test ) ? reason : null;
     }

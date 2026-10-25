@@ -71,9 +71,16 @@ class PlantUmlPolicyTest {
         '@startuml\\nclass A [[//evil.example/x]]\\n@enduml' | unsafe-link
         '@startuml\\nclass A [[data:x]]\\n@enduml'    | unsafe-link
         '@startuml\\nclass A [[ JAVASCRIPT:x]]\\n@enduml' | unsafe-link
+        '@startuml\\nclass A [[java&#115;cript:x]]\\n@enduml' | unsafe-link
+        '@startuml\\nclass A [[%6Aavascript:x]]\\n@enduml' | unsafe-link
+        '@startuml\\nclass A [[[javascript:x]]]\\n@enduml' | unsafe-link
+        '@startuml\\nclass A [["javascript:x"]]\\n@enduml' | unsafe-link
+        '@STARTUML\\nA -> B\\n@startuml\\nC -> D' | multiple-diagrams
+        '\\t@startuml\\nA -> B\\n\\t@startuml\\nC -> D' | multiple-diagrams
+        '@startuml\\n!theme x from y\\n@enduml' | include
         """ )
     void refusals( final String escaped, final String reason ) {
-        assertEquals( reason, reasonOf( escaped.replace( "\\n", "\n" ) ) );
+        assertEquals( reason, reasonOf( escaped.replace( "\\n", "\n" ).replace( "\\t", "\t" ) ) );
     }
 
     @Test
@@ -145,6 +152,19 @@ class PlantUmlPolicyTest {
         assertNull( a.reason() );
         assertEquals( List.of( "/wiki/PageOne", "/wiki/Page%20Two", "#anchor", "https://example.com/x" ), a.linkTargets() );
         assertEquals( List.of(), PlantUmlPolicy.analyse( wrap( "A -> B" ) ).linkTargets() );
+    }
+
+    @Test
+    void pathologicalInputsAreFast() {
+        final String[] unit = { " !theme", " !include", " !pragma", " %getenv", " <img", " [[", "@startuml ", "\t" };
+        for( final String u : unit ) {
+            final String big = u.repeat( PlantUmlPolicy.MAX_SOURCE_BYTES / u.length() );
+            final long t0 = System.nanoTime();
+            PlantUmlPolicy.analyse( big );
+            PlantUmlPolicy.analyse( big.replace( " ", "\n" ) );
+            final long ms = ( System.nanoTime() - t0 ) / 1_000_000;
+            assertTrue( ms < 200, "'" + u.strip() + "' took " + ms + " ms" );
+        }
     }
 
     @Test

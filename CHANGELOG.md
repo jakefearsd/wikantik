@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Mermaid diagrams render.** A ` ```mermaid ` fence now draws as a diagram in the reader, the editor preview,
+  the live preview and inside `![[embeds]]`; ` ```mermaid example ` stays code. The source stays in the server
+  HTML, `?format=md` and the agent view, with a Show source toggle and copy button. `click Node "/wiki/Page"`
+  makes a node a real page link counted by backlinks, the Page Graph and broken links (renames do not rewrite
+  it yet). Built on a general rendered-fence hook (`com.wikantik.markdown.extensions.fences`) for future
+  renderers.
+- **`wikantik-frontend/scripts/check-mermaid.mjs`** parses every Mermaid diagram in a file or folder
+  (exit 0 ok, 1 broken diagrams, 2 checker failure).
+
+### Security
+- Diagrams are validated fail-closed on the server and in the browser against one shared fixture: `%%{…}%%`
+  directives, front matter, `javascript:` and click callbacks are refused and shown as source with the reason.
+  Mermaid runs at `securityLevel: antiscript` with forms and inline styles stripped from labels.
+
+### Changed
+- The reference manager's cache version is bumped, so the first startup rescans every page's links.
+
 ## [2.4.66] - 2026-10-24
 
 ### Changed

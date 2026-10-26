@@ -66,10 +66,10 @@ export default defineConfig({
       // time it was last raised. Floors only ever go UP (cap 95). Raise them
       // when coverage improves; never lower one to make a red run pass.
       thresholds: {
-        lines: 87,
-        statements: 85,
-        functions: 85,
-        branches: 76,
+        lines: 91,
+        statements: 89,
+        functions: 87,
+        branches: 80,
       },
     },
   },

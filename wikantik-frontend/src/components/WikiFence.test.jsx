@@ -115,4 +115,33 @@ describe('WikiFence', () => {
     rerender(<WikiFence language="mermaid" source="b" />);
     expect(container.querySelector('#first')).toBeNull();
   });
+
+  it('aFailedDrawIsWarnedAboutNotThrown', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const failure = new Error('draw blew up');
+    drawFence.mockImplementationOnce(() => Promise.reject(failure));
+    const { container } = render(<WikiFence language="plantuml" source="A -> B" />);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(warn).toHaveBeenCalledWith('[fences] preview draw failed', failure);
+    expect(container.querySelector('figure.wk-fence')).not.toBeNull();
+    warn.mockRestore();
+  });
+
+  it('aStaleServerDrawKeepsThePreviousDrawingUntilTheNewerOneSettles', async () => {
+    const host = (id) => {
+      const el = document.createElement('div');
+      el.className = 'wk-fence-drawing';
+      el.id = id;
+      return el;
+    };
+    drawFence.mockImplementationOnce((figure) => { figure.insertBefore(host('first'), figure.querySelector('pre')); return Promise.resolve('drawn'); });
+    drawFence.mockImplementationOnce(() => Promise.resolve('stale'));
+    const { rerender, container } = render(<WikiFence language="plantuml" source="a" />);
+    await act(async () => { await Promise.resolve(); });
+    rerender(<WikiFence language="plantuml" source="b" />);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    const kept = container.querySelector('#first');
+    expect(kept).not.toBeNull();
+    expect(kept.hasAttribute('data-fence-pending')).toBe(true);
+  });
 });

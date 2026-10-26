@@ -34,6 +34,8 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /** Reads the targets of {@link PlantUmlCheckCli} and draws every non-example {@code plantuml} fence. */
@@ -43,6 +45,13 @@ final class PlantUmlDiagramChecker {
     }
 
     static List< Diagram > checkAll( final List< String > targets, final InputStream in )
+            throws IOException {
+        return checkAll( targets, in, PlantUmlDiagramChecker::newRenderer );
+    }
+
+    /** {@link #checkAll(List, InputStream)} over a given renderer factory, built lazily on the first diagram (test seam). */
+    static List< Diagram > checkAll( final List< String > targets, final InputStream in,
+                                     final Supplier< Function< String, RenderOutcome > > rendererFactory )
             throws IOException {
         final Map< String, String > inputs = new LinkedHashMap<>();
         for ( final String t : targets ) {
@@ -55,33 +64,34 @@ final class PlantUmlDiagramChecker {
             }
         }
         final List< Diagram > results = new ArrayList<>();
-        PlantUmlService service = null;
+        Function< String, RenderOutcome > renderer = null;
         for ( final Map.Entry< String, String > input : inputs.entrySet() ) {
             for ( final ScannedFence f : RenderedFenceScanner.scan( input.getValue() ) ) {
                 if ( !"plantuml".equals( f.info().language() ) || f.info().example() ) {
                     continue;
                 }
-                if ( service == null ) {
-                    service = newService();
+                if ( renderer == null ) {
+                    renderer = rendererFactory.get();
                 }
-                results.add( new Diagram( input.getKey(), f.line(), errorOf( draw( service, f.source() ), f.line() ) ) );
+                results.add( new Diagram( input.getKey(), f.line(), errorOf( draw( renderer, f.source() ), f.line() ) ) );
             }
         }
         return results;
     }
 
-    private static PlantUmlService newService() throws IOException {
+    private static Function< String, RenderOutcome > newRenderer() {
         if ( !PlantUmlSandbox.ensure() ) {
-            throw new IOException( "the PlantUML sandbox could not be confirmed" );
+            throw new IllegalStateException( "the PlantUML sandbox could not be confirmed" );
         }
-        return new PlantUmlService( PlantUmlSettings.defaults() );
+        final PlantUmlService service = new PlantUmlService( PlantUmlSettings.defaults() );
+        final long budget = PlantUmlSettings.defaults().timeoutMs();
+        return source -> service.render( source, budget );
     }
 
     /** Renders with a full timeout as the wait budget; a transient refusal (e.g. busy) is retried once. */
-    private static RenderOutcome draw( final PlantUmlService service, final String source ) {
-        final long budget = PlantUmlSettings.defaults().timeoutMs();
-        final RenderOutcome first = service.render( source, budget );
-        return first.transientFailure() ? service.render( source, budget ) : first;
+    private static RenderOutcome draw( final Function< String, RenderOutcome > renderer, final String source ) {
+        final RenderOutcome first = renderer.apply( source );
+        return first.transientFailure() ? renderer.apply( source ) : first;
     }
 
     /** The error text; a PlantUML error line is source-relative (1 = first content line), so the file line is fence line + N. */

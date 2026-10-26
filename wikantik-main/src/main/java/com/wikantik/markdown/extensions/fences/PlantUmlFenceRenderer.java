@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * PlantUML renderer (server kind). At parse time it only runs the fail-closed {@link PlantUmlPolicy}; the drawing
@@ -32,6 +33,18 @@ import java.util.Set;
 public final class PlantUmlFenceRenderer implements RenderedFenceRenderer {
 
     private static final Logger LOG = LogManager.getLogger( PlantUmlFenceRenderer.class );
+
+    private final Function< String, PlantUmlPolicy.Analysis > analyser;
+
+    /** The production renderer, backed by {@link PlantUmlPolicy#analyse}. */
+    public PlantUmlFenceRenderer() {
+        this( PlantUmlPolicy::analyse );
+    }
+
+    /** Test seam: a renderer over a given analysis function (to exercise the unexpected-failure paths). */
+    PlantUmlFenceRenderer( final Function< String, PlantUmlPolicy.Analysis > analyser ) {
+        this.analyser = analyser;
+    }
 
     @Override
     public String language() {
@@ -46,7 +59,7 @@ public final class PlantUmlFenceRenderer implements RenderedFenceRenderer {
     @Override
     public FenceVerdict check( final String source ) {
         try {
-            final PlantUmlPolicy.Analysis a = PlantUmlPolicy.analyse( source );
+            final PlantUmlPolicy.Analysis a = analyser.apply( source );
             return a.allowed() ? FenceVerdict.ALLOWED : FenceVerdict.refused( a.reason() );
         } catch ( final RuntimeException e ) {
             LOG.warn( "PlantUML fence policy check failed unexpectedly; refusing the fence: {}", e.toString(), e );
@@ -57,7 +70,7 @@ public final class PlantUmlFenceRenderer implements RenderedFenceRenderer {
     @Override
     public Set< String > pageLinks( final String source ) {
         try {
-            final PlantUmlPolicy.Analysis a = PlantUmlPolicy.analyse( source );
+            final PlantUmlPolicy.Analysis a = analyser.apply( source );
             final Set< String > names = new LinkedHashSet<>();
             if ( a.allowed() ) {
                 for ( final String target : a.linkTargets() ) {

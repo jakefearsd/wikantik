@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 /**
@@ -67,18 +68,24 @@ public final class PlantUmlFenceDrawer implements ServerFenceDrawer {
      * @return a drawing drawer, a {@code plantuml-disabled} one (kill switch off) or an unavailable one
      */
     public static PlantUmlFenceDrawer fromProperties( final Properties p ) {
+        return fromProperties( p, PlantUmlSandbox::ensure, PlantUmlService::new );
+    }
+
+    /** {@link #fromProperties(Properties)} over a given sandbox check and service factory (test seam for the failure paths). */
+    static PlantUmlFenceDrawer fromProperties( final Properties p, final BooleanSupplier sandbox,
+                                               final Function< PlantUmlSettings, PlantUmlService > services ) {
         final PlantUmlSettings settings = settings( p );
         if ( !settings.enabled() ) {
             LOG.info( "PlantUML fences are disabled ({}=false); diagrams show their source", PROP_ENABLED );
             return new PlantUmlFenceDrawer( Mode.DISABLED, null, settings.timeoutMs() );
         }
         try {
-            if ( !PlantUmlSandbox.ensure() ) {
+            if ( !sandbox.getAsBoolean() ) {
                 // LOG.error justified: startup-time loss of every PlantUML drawing until an operator fixes the deployment; logged once per engine.
                 LOG.error( "The PlantUML sandbox could not be confirmed; every PlantUML fence is refused as render-failed" );
                 return new PlantUmlFenceDrawer( Mode.UNAVAILABLE, null, settings.timeoutMs() );
             }
-            return new PlantUmlFenceDrawer( Mode.DRAW, new PlantUmlService( settings ), settings.timeoutMs() );
+            return new PlantUmlFenceDrawer( Mode.DRAW, services.apply( settings ), settings.timeoutMs() );
         } catch ( final RuntimeException | LinkageError e ) {
             // LOG.error justified: startup-time loss of every PlantUML drawing until an operator fixes the deployment; logged once per engine.
             LOG.error( "PlantUML could not be initialised; every PlantUML fence is refused as render-failed: {}", e.toString(), e );

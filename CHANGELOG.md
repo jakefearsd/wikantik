@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-10-26
+
 ### Added
 - PlantUML fences accept `@startsalt` wireframes and `@startnwdiag` network diagrams, which PlantUML only recognises
   under their own start line. Every other policy rule still applies to them.

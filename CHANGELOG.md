@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-10-26
+
 ### Added
 - **PlantUML diagrams render.** A ` ```plantuml ` fence draws server-side as class, object, component,
   deployment, sequence, activity (fork/join, swimlanes), state, use case, timing, C4 and ArchiMate diagrams,

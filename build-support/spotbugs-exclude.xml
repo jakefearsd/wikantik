@@ -90,6 +90,25 @@
     </Match>
 
     <!-- ================================================================
+         UWF_UNWRITTEN_FIELD — PlantUmlService test seams
+         completionHook / timeoutDecisionHook / beforeGetHook are
+         package-private volatile hooks that only unit tests assign, to
+         force the render/timeout race interleavings deterministically.
+         Production code only reads them (null = no-op). Suppressed by
+         field so a genuine UWF on any other PlantUmlService field
+         still surfaces.
+    ================================================================ -->
+    <Match>
+        <Class name="com.wikantik.plantuml.PlantUmlService"/>
+        <Or>
+            <Field name="completionHook"/>
+            <Field name="timeoutDecisionHook"/>
+            <Field name="beforeGetHook"/>
+        </Or>
+        <Bug pattern="UWF_UNWRITTEN_FIELD"/>
+    </Match>
+
+    <!-- ================================================================
          THROWS_METHOD_THROWS_RUNTIMEEXCEPTION
          The codebase deliberately documents the unchecked exceptions a
          method may raise in its `throws` clause (e.g. throws RuntimeException

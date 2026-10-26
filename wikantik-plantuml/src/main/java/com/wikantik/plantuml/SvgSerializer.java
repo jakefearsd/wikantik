@@ -85,7 +85,7 @@ final class SvgSerializer {
                 case '>' -> out.append( "&gt;" );
                 case '"' -> out.append( attribute ? "&quot;" : "\"" );
                 case '\n' -> out.append( attribute ? "&#10;" : "\n" );
-                case '\r' -> out.append( attribute ? "&#13;" : "&#13;" );
+                case '\r' -> out.append( "&#13;" );
                 case '\t' -> out.append( attribute ? "&#9;" : "\t" );
                 default -> out.append( c );
             }

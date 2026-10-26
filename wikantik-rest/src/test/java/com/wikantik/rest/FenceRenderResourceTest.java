@@ -133,6 +133,18 @@ class FenceRenderResourceTest {
     }
 
     @Test
+    void jsonArrayBody400() throws Exception {
+        final Reply r = post( "render", "[]", true );
+        assertEquals( 400, r.json().get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void malformedJsonObject400() throws Exception {
+        final Reply r = post( "render", "{\"language\": ", true );
+        assertEquals( 400, r.json().get( "status" ).getAsInt() );
+    }
+
+    @Test
     void missingSource400() throws Exception {
         final JsonObject o = new JsonObject();
         o.addProperty( "language", "plantuml" );

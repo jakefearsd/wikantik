@@ -123,9 +123,11 @@ guarantee and the policy is defence in depth. It refuses:
 - any `!include*` / `!import` / `!includeurl` / `!includesub` / `!includedef`, except `!include <C4/…>`;
 - any `%getenv`, `%load_json`, `%file_exists`, `%dirpath`, `%filename` or similar file/env built-in;
 - `<img:` and `<img src` in labels;
-- an embedded `{{ … }}` sub-diagram (`embedded-diagram`): it is laid out on its own, outside the forced Smetana
-  pragma and the `@startuml`-only check, so PlantUML would run the Graphviz binary for it. Independently, the
-  sandbox points `GRAPHVIZ_DOT` at a non-existent path, so no source can make PlantUML execute `dot`;
+- a literal embedded `{{ … }}` sub-diagram (`embedded-diagram`), as a first line of defence only: it is laid out on
+  its own, outside the forced Smetana pragma and the `@startuml`-only check. The preprocessor (`%chr(123)`, `$var`,
+  `!define`) can still build one, so the real containment is independent of this rule: the sandbox points
+  `GRAPHVIZ_DOT` at a non-existent path (no source can make PlantUML execute `dot`), any nested image is scrubbed,
+  and rendering is time-bounded;
 - `[[…]]` links whose target is not a relative `/wiki/…` path, `#anchor` or `http(s)://`;
 - a source over the size cap.
 

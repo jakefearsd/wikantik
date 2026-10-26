@@ -53,7 +53,10 @@ public final class PlantUmlPolicy {
     /**
      * An embedded sub-diagram ({@code {{ … }}}, in a note or a label) is laid out on its own: it does not inherit the
      * forced Smetana pragma (so PlantUML reaches for the Graphviz binary) nor the {@code @startuml}-only, help and
-     * crash checks. Any line holding two consecutive opening braces is refused.
+     * crash checks. A line holding two consecutive opening braces is refused as a first line of defence only: the
+     * preprocessor ({@code %chr(123)}, {@code $var}, {@code !define}) can still build one. The real containment is that
+     * Graphviz can never run ({@code GRAPHVIZ_DOT} points nowhere), any nested image is scrubbed, and rendering is
+     * time-bounded.
      */
     private static final String EMBEDDED = "{{";
     private static final Pattern INCLUDE = Pattern.compile( "(?:^|\\s)!(?:include\\w*|import)\\b", FLAGS );
@@ -175,10 +178,8 @@ public final class PlantUmlPolicy {
     }
 
     private static boolean isForbiddenInclude( final String line ) {
-        if( THEME_FROM.matcher( line ).find() ) {
-            return true;
-        }
-        return INCLUDE.matcher( line ).find() && !ALLOWED_INCLUDE.matcher( line ).matches();
+        return THEME_FROM.matcher( line ).find()
+            || ( INCLUDE.matcher( line ).find() && !ALLOWED_INCLUDE.matcher( line ).matches() );
     }
 
     private static boolean hasUnsafeLink( final String line ) {

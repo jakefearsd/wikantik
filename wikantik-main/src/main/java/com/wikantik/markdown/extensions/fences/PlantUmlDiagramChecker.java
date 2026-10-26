@@ -100,12 +100,17 @@ final class PlantUmlDiagramChecker {
         return sb.toString();
     }
 
+    private static boolean isMarkdown( final Path p ) {
+        final Path name = p.getFileName();
+        return name != null && name.toString().endsWith( ".md" );
+    }
+
     private static List< Path > markdownFiles( final Path path ) throws IOException {
         if ( !Files.isDirectory( path ) ) {
             return List.of( path );
         }
         try ( Stream< Path > walk = Files.walk( path ) ) {
-            return walk.filter( p -> Files.isRegularFile( p ) && p.getFileName().toString().endsWith( ".md" ) )
+            return walk.filter( p -> Files.isRegularFile( p ) && isMarkdown( p ) )
                     .sorted( Comparator.comparing( Path::toString ) ).toList();
         }
     }

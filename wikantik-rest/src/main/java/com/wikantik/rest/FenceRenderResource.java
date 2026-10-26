@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import com.wikantik.api.core.Session;
@@ -72,7 +73,7 @@ public class FenceRenderResource extends RestServletBase {
         final JsonObject body;
         try( BufferedReader reader = request.getReader() ) {
             body = JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch( final Exception e ) {
+        } catch( final IOException | JsonParseException | IllegalStateException e ) {
             LOG.warn( "Fence render request rejected: invalid JSON body: {}", e.getMessage() );
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
             return;

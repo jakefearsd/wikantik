@@ -41,9 +41,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Sandboxed PlantUML renderer. Produces raw, unscrubbed SVG (light and dark variants) from author source.
  * The diagram's layout is forced to the pure-Java Smetana engine. That pragma does not reach an embedded
- * {@code {{ … }}} sub-diagram, which {@link PlantUmlPolicy} therefore refuses; independently of the policy,
- * {@link PlantUmlSandbox#ensure()} points {@code GRAPHVIZ_DOT} at a non-existent path, so the Graphviz binary is
- * never executed even for a source that reaches this class directly.
+ * {@code {{ … }}} sub-diagram, which {@link PlantUmlPolicy} refuses as a first line of defence (the preprocessor can still build one). The real containment is independent of the policy: {@link PlantUmlSandbox#ensure()} points
+ * {@code GRAPHVIZ_DOT} at a non-existent path, so the Graphviz binary is never executed even for a source that reaches
+ * this class directly; any nested image is scrubbed; and rendering is time-bounded.
  */
 public final class PlantUmlEngine {
 

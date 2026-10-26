@@ -21,12 +21,12 @@ package com.wikantik.markdown.extensions.fences;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.util.HexFormat;
 
 /**
@@ -40,10 +40,17 @@ public final class FencePlaceholders {
 
     private static final Logger LOG = LogManager.getLogger( FencePlaceholders.class );
     private static final String HMAC = "HmacSHA256";
-    private static final byte[] SECRET = new byte[ 32 ];
+    /** Per-JVM random HMAC key: placeholders signed by one process are never trusted by another. */
+    private static final SecretKey KEY = newKey();
 
-    static {
-        new SecureRandom().nextBytes( SECRET );
+    private static SecretKey newKey() {
+        try {
+            final KeyGenerator generator = KeyGenerator.getInstance( HMAC );
+            generator.init( 256 );
+            return generator.generateKey();
+        } catch ( final GeneralSecurityException e ) {
+            throw new IllegalStateException( "HmacSHA256 unavailable", e );
+        }
     }
 
     private FencePlaceholders() {
@@ -85,7 +92,7 @@ public final class FencePlaceholders {
     private static String mac( final String hash ) {
         try {
             final Mac mac = Mac.getInstance( HMAC );
-            mac.init( new SecretKeySpec( SECRET, HMAC ) );
+            mac.init( KEY );
             return HexFormat.of().formatHex( mac.doFinal( hash.getBytes( StandardCharsets.US_ASCII ) ) );
         } catch ( final GeneralSecurityException e ) {
             throw new IllegalStateException( "HmacSHA256 unavailable", e );

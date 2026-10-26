@@ -74,6 +74,7 @@ public final class PlantUmlCheckCli {
      *
      * @return the process exit code: 0 all OK (or none), 1 any diagram failed, 2 usage or checker error
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // realOut is saved only to be restored, never closed: it is the process stdout
     public static int run( final String[] args, final InputStream in, final PrintStream out, final PrintStream err ) {
         final PrintStream realOut = System.out;
         // stdout is reserved for the report; any library chatter belongs on stderr.

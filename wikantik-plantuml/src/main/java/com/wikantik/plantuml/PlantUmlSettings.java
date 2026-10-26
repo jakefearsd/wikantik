@@ -27,7 +27,7 @@ package com.wikantik.plantuml;
  * @param threadStackBytes stack size of each render thread (PlantUML's layout recurses deeply)
  * @param timeoutMs       longest a render may run once a pool thread starts it, and longest a caller waits for a
  *                        render that has not started yet
- * @param maxSvgBytes     largest accepted raw (pre-scrub) SVG variant, in UTF-8 bytes
+ * @param maxSvgBytes     largest accepted raw (pre-scrub) SVG variant, in UTF-8 bytes; the scrubbed output (ids prefixed) may be slightly larger
  * @param slowRetryMs     how long a {@code too-slow} or {@code render-crashed} refusal is remembered before one retry
  * @param cacheEntries    LRU capacity of the outcome cache, in entries
  * @param cacheMaxBytes   LRU capacity of the outcome cache, in approximate bytes of cached SVG and messages

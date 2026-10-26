@@ -41,7 +41,7 @@ rc=0
 java -cp "$CLASSES:$(cat "$CPFILE")" \
     com.wikantik.markdown.extensions.fences.PlantUmlCheckCli "$@" 2> >(tee "$ERRLOG" >&2) || rc=$?
 wait
-if grep -qE 'NoClassDefFoundError|ClassNotFoundException' "$ERRLOG"; then
+if [ "$rc" -ne 0 ] && grep -qE 'NoClassDefFoundError|ClassNotFoundException' "$ERRLOG"; then
     echo "check-plantuml: delete $CPFILE if dependencies changed, then re-run" >&2
     exit 2
 fi

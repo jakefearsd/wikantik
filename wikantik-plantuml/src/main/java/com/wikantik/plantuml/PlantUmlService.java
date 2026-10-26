@@ -307,6 +307,7 @@ public final class PlantUmlService {
     }
 
     /** The run exceeded the timeout: cancel the render and remember that it was too slow. */
+    @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // inFlight identity: is this exact job still the registered one?
     private RenderOutcome tooSlow( final Job job, final String key, final boolean retry ) {
         final Runnable hook = timeoutDecisionHook;
         if( hook != null ) {

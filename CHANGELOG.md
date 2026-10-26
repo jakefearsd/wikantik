@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **PlantUML diagrams render.** A ` ```plantuml ` fence draws server-side as class, object, component,
+  deployment, sequence, activity (fork/join, swimlanes), state, use case, timing, C4 and ArchiMate diagrams,
+  in light and dark variants, in the reader, server-rendered pages, embeds and both editor previews
+  (`POST /api/fences/render`). ` ```plantuml example ` stays code. `[[/wiki/Page]]` links in a diagram count as
+  page references. Only `@startuml` diagrams are accepted; other `@start…` kinds are refused as unsupported.
+- **`bin/check-plantuml.sh`** checks every PlantUML diagram in a file or folder (same contract as
+  `check-mermaid.mjs`).
+- New module `wikantik-plantuml`; 12 `wikantik.fences.plantuml.*` settings (kill switch
+  `wikantik.fences.plantuml.enabled`).
+
+### Security
+- PlantUML runs in its SANDBOX profile with Graphviz unreachable (Smetana layout only): no file, URL or
+  environment access, `!include` limited to the bundled C4 library, info/help/crash commands refused. Output SVG
+  is scrubbed to an allow-list and spliced in after the HTML sanitizer; render caches hold signed placeholders
+  only. Per-diagram timeout, bounded pool, byte-capped outcome cache and per-page diagram/time/size limits.
+- Licensing: the shaded PlantUML MIT build ships with Ditaa (LGPL) removed and the stdlib stripped to C4, with
+  the MIT and Smetana EPL-1.0 notices in `META-INF`; `PlantUmlLicenseArchTest` guards it.
+
+### Fixed
+- The Mermaid Expand dialog now suffixes `#id` selectors inside cloned styles, so expanded diagrams keep
+  their styling.
+
 ## [2.5.0] - 2026-10-25
 
 ### Added

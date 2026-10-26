@@ -334,8 +334,8 @@ before planning any corpus-wide change.
 
 ### Rendered Fences (Mermaid, PlantUML) — [spec](../superpowers/specs/2026-10-25-plantuml-fences-design.md)
 
-Mermaid shipped 2.5.0 (2026-10-25) as a client-drawn fence. PlantUML is the first *server* kind, **on main and
-unreleased** (2.5.1-SNAPSHOT): `wikantik-plantuml` (shaded MIT build, Ditaa and all stdlib but C4 stripped, Smetana
+Mermaid shipped 2.5.0 (2026-10-25) as a client-drawn fence. PlantUML is the first *server* kind, **shipped
+2.5.1** (2026-10-26): `wikantik-plantuml` (shaded MIT build, Ditaa and all stdlib but C4 stripped, Smetana
 layout, MIT/EPL notices in the jar, sandbox + `GRAPHVIZ_DOT` pointed nowhere + SVG scrub, bounded pool with
 byte-capped cache, light/dark variants; `PlantUmlLicenseArchTest`), signed placeholders from wikantik-main resolved by
 `ServerFenceResolver` at the outermost `textToHTML` (caches hold placeholders only; per-response count, byte and time

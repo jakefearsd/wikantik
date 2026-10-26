@@ -59,7 +59,14 @@ public final class ServerFenceResolver {
     private static final String DEFAULT_LABEL = "PlantUML diagram";
     /** A quote-aware tag body: attribute values may hold {@code >} or the token text without ending the tag. */
     private static final String TAG_BODY = "(?:[^>\"']++|\"[^\"]*+\"|'[^']*+')*+";
+    private static final Pattern FIGURE_START = Pattern.compile( "<figure(?=[\\s>])" );
     private static final Pattern FIGURE = Pattern.compile( "<figure(?=[\\s>])" + TAG_BODY + ">" );
+    /**
+     * The most characters a figure opening tag may span, and the most an envelope's {@code <pre …><code …>} may span.
+     * A genuine placeholder tag is a few hundred characters; the cap keeps a page full of unterminated {@code <figure}
+     * openers from costing a scan to the end of the page each (quadratic time on the request thread).
+     */
+    static final int MAX_TAG_CHARS = 4_096;
     private static final Pattern ATTRIBUTE = Pattern.compile(
             "\\s+([^\\s\"'>/=]+)(?:\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+)))?" );
     /** The only body a placeholder figure may have before its source: {@code <pre …><code …>}. */
@@ -169,12 +176,21 @@ public final class ServerFenceResolver {
 
     private String resolveAll( final String html ) {
         final Budget budget = new Budget( pageMaxDiagrams, pageBudgetMs, pageMaxBytes );
-        final Matcher m = FIGURE.matcher( html );
+        final Matcher starts = FIGURE_START.matcher( html );
+        final Matcher figure = FIGURE.matcher( html );
         final StringBuilder out = new StringBuilder( html.length() + 8192 );
         int last = 0;
-        while ( m.find() ) {
-            out.append( html, last, m.start() ).append( resolveFigure( html, m.group(), m.end(), budget ) );
-            last = m.end();
+        int from = 0;
+        while ( starts.find( from ) ) {
+            final int start = starts.start();
+            figure.region( start, Math.min( html.length(), start + MAX_TAG_CHARS ) );
+            if ( !figure.lookingAt() ) {
+                from = start + 1;
+                continue;
+            }
+            out.append( html, last, start ).append( resolveFigure( html, figure.group(), figure.end(), budget ) );
+            last = figure.end();
+            from = last;
         }
         return out.append( html, last, html.length() ).toString();
     }
@@ -302,7 +318,7 @@ public final class ServerFenceResolver {
         if ( language == null ) {
             return null;
         }
-        final Matcher open = ENVELOPE_OPEN.matcher( html ).region( from, html.length() );
+        final Matcher open = ENVELOPE_OPEN.matcher( html ).region( from, Math.min( html.length(), from + 2 * MAX_TAG_CHARS ) );
         if ( !open.lookingAt() || !open.group( 1 ).contains( " class=\"language-" + language + "\"" ) ) {
             return null;
         }

@@ -99,7 +99,7 @@
     <selenide.version>7.19.0</selenide.version>
     <selenium.version>4.51.0</selenium.version>
     <slf4j.version>2.0.20</slf4j.version>
-    <tika.version>3.3.2</tika.version>
+    <tika.version>4.1.0</tika.version>
     <plantuml.version>1.2026.8</plantuml.version><!-- plantuml-mit; shaded into wikantik-plantuml with Ditaa (LGPL) stripped; 1.2026.9 is under the 2-week age floor -->
     <tomcat.version>11.0.27</tomcat.version>
     <xstream.version>1.4.21</xstream.version>

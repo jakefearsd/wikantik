@@ -4,7 +4,7 @@ type: reference
 summary: 'The Wikantik manifesto and system blueprint: dual Page/Knowledge Graphs,
   MCP retrieval/authoring, SA-13 briefings, and closed-loop workflows.'
 status: active
-date: '2026-10-24'
+date: '2026-10-26'
 canonical_id: 01KQ0P44GFKMNEM5TV6M4VBXQJ
 audience:
 - humans
@@ -152,9 +152,9 @@ This allows `find_similar` to discover semantically isomorphic concepts across c
 
 ---
 
-## 4. Three High-Leverage Workflows Enabled by Wikantik
+## 4. Four High-Leverage Workflows Enabled by Wikantik
 
-Below are three concrete workflows—**two for software engineering** and **one for automated cross-platform publishing**—that demonstrate what becomes possible when your wiki is an active, programmable subsystem rather than passive documentation.
+Below are four concrete workflows—**three for software engineering** and **one for automated cross-platform publishing**—that demonstrate what becomes possible when your wiki is an active, programmable subsystem rather than passive documentation.
 
 ---
 
@@ -232,6 +232,85 @@ Here is how the 5-stage publishing pipeline works end-to-end across the stack:
      - **Instant Search Notification:** Calling `ping_search_engines` on `/wikantik-admin-mcp` pushes updated URLs immediately via **IndexNow** to Bing and Yandex.
 5. **Stage 5 — Closed-Loop Difference-in-Differences Verification (`EffectEvaluator`):**
    - Over the 28-day settle window, `jakemon` ships daily GSC/Bing search-visibility snapshots and Umami conversion events. Wikantik's nightly `EffectEvaluator` compares the updated pages' impression and click trajectory against the site-wide control trend, feeding realized accuracy back into `WeightCalibrator`.
+
+---
+
+### Workflow 4 (Software Engineering): Agent Feature Delivery — From Idea to Live Production
+
+**The Problem:** A coding agent that can write code is not the same as one that can ship it. Without a fixed path, agents skip the design conversation, review their own work, push on a red build, or "finish" a feature that never reaches users — and the wiki that documents the system quietly falls behind it.
+
+**How Wikantik Supports It ([[RenderedFencesDesign]], [[PlantUmlFencesDesign]]):** Wikantik itself is built this way. The agent starts from a briefing, keeps the human on the decisions that are theirs (the design and the release version), delegates each planned task to fresh subagents with independent review, gates on the full test suite, and closes the loop by updating the live wiki through MCP. The diagram below is a ` ```plantuml ` fence, drawn server-side in a sandbox:
+
+```plantuml
+@startuml
+title Agent feature delivery: from idea to live production
+|Human|
+start
+:Describe the feature\n(intent, constraints, anti-goals);
+|Coding agent|
+:get_briefing(clusters, prompt)\nproject pages + cited contracts;
+:Brainstorm: questions, playback,\nlicensing and security checks;
+:Write the design spec;
+|Human|
+if (Approve the design?) then (yes)
+else (revise)
+  |Coding agent|
+  :Revise the spec;
+  |Human|
+endif
+|Coding agent|
+:Publish the design page to the wiki\n(write_pages + verify_pages);
+:Write the implementation plan\n(tasks, interfaces, tests);
+repeat
+  |Subagents|
+  :Implementer: failing test first,\nthen code, commit;
+  fork
+    :Spec-compliance review;
+  fork again
+    :Code-quality review;
+  end fork
+  |Coding agent|
+  if (Findings?) then (yes)
+    :Fix round (escalate model\nafter three rounds);
+  else (no)
+  endif
+repeat while (More tasks?) is (yes) not (no)
+:Final whole-branch review\n(most capable model);
+fork
+  :Unit tests + PMD ratchet\n+ npm audit;
+fork again
+  :Integration + browser tests\n(per-module Postgres, Selenide);
+end fork
+if (Gate green?) then (yes)
+else (no)
+  :Debug the root cause,\nfix forward;
+  stop
+endif
+|Human|
+:Choose the release version;
+|Coding agent|
+:Release notes, cut-release,\npush main + tag;
+|CI / Production|
+:Build and publish the image;
+:deploy-release: pull, recreate,\nhealth check;
+if (Healthy?) then (yes)
+  :Smoke test the live wiki;
+else (no)
+  :Automatic rollback\nto the previous image;
+  stop
+endif
+|Coding agent|
+:Update live pages via MCP\n(design status, help, cross-links);
+:verify_pages + assemble_bundle\nretrieval check;
+stop
+@enduml
+```
+
+1. **Briefing first:** `get_briefing` puts the project's standing pages and the contracts they cite in front of the agent before it writes a line.
+2. **The human owns two decisions:** approving the design spec and choosing the release version. Everything else the agent decides and records, so each ruling can be checked later.
+3. **Fresh context per task:** each plan task goes to an implementer subagent (test first), then to independent spec-compliance and code-quality reviewers; a whole-branch review on the most capable model follows the last task.
+4. **One gate, then ship:** unit tests, the PMD complexity ratchet, `npm audit` and every integration and browser suite must be green before the release is cut; the deploy health-checks and rolls back on its own.
+5. **Close the loop in the wiki:** design pages move from `draft` to shipped, help pages are pushed, and `verify_pages` plus a live `assemble_bundle` check confirm the new knowledge is findable.
 
 ---
 

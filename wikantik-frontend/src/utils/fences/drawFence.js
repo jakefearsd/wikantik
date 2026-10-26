@@ -11,7 +11,7 @@ const REFUSALS = {
   callback: 'it uses a click callback or an unrecognised click form. Diagram links must be "/wiki/PageName" or an http(s) URL.',
   'unsafe-link': 'it links to a target that is not a wiki page or an http(s) URL.',
   'too-large': 'its source is too large.',
-  'unsupported-diagram': 'only PlantUML class, sequence, activity and similar @startuml diagrams are supported.',
+  'unsupported-diagram': 'only PlantUML @startuml diagrams (class, sequence, activity and similar), @startsalt and @startnwdiag are supported.',
   'multiple-diagrams': 'it contains more than one diagram.',
   include: 'it includes another file or URL.',
   'file-access': 'it reads a file.',

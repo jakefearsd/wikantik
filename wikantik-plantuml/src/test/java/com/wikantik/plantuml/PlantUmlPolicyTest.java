@@ -100,6 +100,26 @@ class PlantUmlPolicyTest {
         assertNull( reasonOf( "A -> B : " + "x".repeat( 1000 ) ) );
     }
 
+    @ParameterizedTest
+    @ValueSource( strings = {
+        "@startsalt\n{\n  Login | \"MyName\"\n}\n@endsalt",
+        "@STARTSALT\n{\n  Login\n}\n@endsalt",
+        "@startnwdiag\nnwdiag {\n  network dmz {\n    web01;\n  }\n}\n@endnwdiag",
+        "  @startnwdiag(id=net)\nnwdiag {\n  network dmz {\n    web01;\n  }\n}\n@endnwdiag" } )
+    void saltAndNwdiagStartsAreAllowed( final String source ) {
+        assertNull( reasonOf( source ) );
+    }
+
+    @Test
+    void saltAndNwdiagKeepEveryOtherRule() {
+        assertEquals( "unsupported-diagram", reasonOf( "@startsaltfoo\n{\n}\n@endsalt" ) );
+        assertEquals( "multiple-diagrams", reasonOf( "@startsalt\n{\n}\n@endsalt\n@startnwdiag\nnwdiag {\n}\n@endnwdiag" ) );
+        assertEquals( "multiple-diagrams", reasonOf( "@startuml\nA -> B\n@enduml\n@startsalt\n{\n}\n@endsalt" ) );
+        assertEquals( "include", reasonOf( "@startsalt\n!include x\n{\n}\n@endsalt" ) );
+        assertEquals( "image", reasonOf( "@startsalt\n{\n  <img:http://evil.example/x.png>\n}\n@endsalt" ) );
+        assertEquals( "embedded-diagram", reasonOf( "@startnwdiag\nnwdiag {\n  {{\n}\n@endnwdiag" ) );
+    }
+
     @Test
     void orderingFirstMatchWins() {
         // Not @startuml beats an include in the same source; include beats file-access.

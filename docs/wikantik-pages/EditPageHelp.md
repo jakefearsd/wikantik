@@ -95,7 +95,7 @@ class Page [[/wiki/EditPageHelp]]
 ```
 
 * To link a shape to a wiki page, add `[[/wiki/PageName]]` after it, as above. These links count as real page links, so they appear in backlinks.
-* Only `@startuml` diagrams are accepted. `!include` is refused except for `<C4/...>` libraries, images and `{{ ... }}` embedded sub-diagrams are refused, and a diagram can be at most 64 KB.
+* `@startuml` diagrams are accepted, plus `@startsalt` wireframes and `@startnwdiag` network diagrams (which need their own start line). `!include` is refused except for `<C4/...>` libraries, images and `{{ ... }}` embedded sub-diagrams are refused, and a diagram can be at most 64 KB.
 * A diagram that fails shows its source together with the reason, as Mermaid does.
 
 ## Metadata

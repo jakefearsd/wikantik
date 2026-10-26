@@ -44,15 +44,19 @@ public final class PlantUmlPolicy {
     private static final int FLAGS = Pattern.CASE_INSENSITIVE;
 
     private static final Pattern START_ANY = Pattern.compile( "^\\s*(@start\\w+)", FLAGS );
-    /** The exact token {@code @startuml}, as PlantUML allows {@code @startuml(id=..)} and {@code @startuml name}. */
-    private static final Pattern START_UML = Pattern.compile( "^\\s*@startuml(\\s|\\(|$)", FLAGS );
+    /**
+     * The accepted start tokens: {@code @startuml}, plus {@code @startsalt} (wireframes) and {@code @startnwdiag} (network
+     * diagrams), which PlantUML 1.2026.8 only recognises under their own start line. Exact tokens, as PlantUML allows
+     * {@code @startuml(id=..)} and {@code @startuml name}.
+     */
+    private static final Pattern START_ALLOWED = Pattern.compile( "^\\s*@start(?:uml|salt|nwdiag)(\\s|\\(|$)", FLAGS );
     private static final Pattern DITAA = Pattern.compile( "^\\s*ditaa\\b", FLAGS );
     // PlantUML renders these as non-UML Help/Crash diagrams.
     private static final Pattern HELP_OR_CRASH = Pattern.compile( "^\\s*(help\\b|crash\\s*$)", FLAGS );
 
     /**
      * An embedded sub-diagram ({@code {{ … }}}, in a note or a label) is laid out on its own: it does not inherit the
-     * forced Smetana pragma (so PlantUML reaches for the Graphviz binary) nor the {@code @startuml}-only, help and
+     * forced Smetana pragma (so PlantUML reaches for the Graphviz binary) nor the start-line, help and
      * crash checks. A line holding two consecutive opening braces is refused as a first line of defence only: the
      * preprocessor ({@code %chr(123)}, {@code $var}, {@code !define}) can still build one. The real containment is that
      * Graphviz can never run ({@code GRAPHVIZ_DOT} points nowhere), any nested image is scrubbed, and rendering is
@@ -158,11 +162,11 @@ public final class PlantUmlPolicy {
             final Matcher any = START_ANY.matcher( line );
             if( any.find() && !sawFirstStart ) {
                 sawFirstStart = true;
-                if( !"@startuml".equalsIgnoreCase( any.group( 1 ) ) || !START_UML.matcher( line ).find() ) {
+                if( !START_ALLOWED.matcher( line ).find() ) {
                     return "unsupported-diagram";
                 }
             }
-            if( START_UML.matcher( line ).find() ) {
+            if( START_ALLOWED.matcher( line ).find() ) {
                 starts++;
             }
             if( DITAA.matcher( line ).find() || HELP_OR_CRASH.matcher( line ).find() ) {

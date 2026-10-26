@@ -92,8 +92,10 @@ our own envelope.
 ## Non-goals
 
 - Installing Graphviz anywhere. The ELK layout.
-- PlantUML diagram types other than `@startuml`: no `@startgantt`, `@startmindmap`, `@startjson`, `@startsalt` or
-  `@startditaa`. Within `@startuml`, every UML diagram type and C4 is allowed. *(My call: the scope was UML, and
+- PlantUML diagram types other than `@startuml`: no `@startgantt`, `@startmindmap`, `@startjson` or `@startditaa`.
+  Within `@startuml`, every UML diagram type and C4 is allowed. *(Amended in 2.5.2: `@startsalt` and `@startnwdiag`
+  are also accepted. PlantUML 1.2026.8 recognises salt and nwdiag only under their own start line, and neither uses
+  Graphviz, so they take no layout pragma.)* *(My call: the scope was UML, and
   Mermaid already covers gantt and mindmap. Adding a type later is a one-line policy change.)*
 - Generating diagrams from code.
 - Rewriting diagram links on page rename. This is deferred, as it is for Mermaid.
@@ -115,7 +117,8 @@ our own envelope.
 - The language key is `plantuml`. *(My call: no `puml` alias. The registry rejects duplicate keys, and one name
   keeps the agents consistent.)*
 - `@startuml` / `@enduml` are optional. When the source has none, the renderer wraps it.
-- A source whose first `@start…` line is anything other than `@startuml` is refused (`unsupported-diagram`).
+- A source whose first `@start…` line is anything other than `@startuml`, `@startsalt` or `@startnwdiag` is refused
+  (`unsupported-diagram`).
 - `!pragma layout smetana` is always in force. The renderer forces it; authors don't write it.
 
 **Policy (`check()`), fail-closed, in the same spirit as the Mermaid policy.** The sandbox is the primary

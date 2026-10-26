@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 /**
  * Sandboxed PlantUML renderer. Produces raw, unscrubbed SVG (light and dark variants) from author source.
@@ -49,6 +50,8 @@ public final class PlantUmlEngine {
 
     private static final Logger LOG = LogManager.getLogger( PlantUmlEngine.class );
     private static final String PRAGMA = "!pragma layout smetana";
+    /** Start lines of the accepted diagram kinds that never use Graphviz, so take no layout pragma. */
+    private static final Pattern OWN_LAYOUT_START = Pattern.compile( "^\\s*@start(?:salt|nwdiag)\\b", Pattern.CASE_INSENSITIVE );
     private static final AtomicBoolean DISABLED_LOGGED = new AtomicBoolean();
 
     private PlantUmlEngine() {
@@ -139,11 +142,11 @@ public final class PlantUmlEngine {
     record Export( String svg, int status ) {
     }
 
-    /** @return true when the source has nothing but whitespace and {@code @startuml}/{@code @enduml} markers */
+    /** @return true when the source has nothing but whitespace and {@code @start…}/{@code @end…} markers */
     private static boolean isEmpty( final String source ) {
         return source == null || source.lines().allMatch( l -> {
             final String t = l.strip();
-            return t.isEmpty() || t.startsWith( "@startuml" ) || t.startsWith( "@enduml" );
+            return t.isEmpty() || t.startsWith( "@start" ) || t.startsWith( "@end" );
         } );
     }
 
@@ -184,6 +187,10 @@ public final class PlantUmlEngine {
         final String normalized = source.replace( "\r\n", "\n" ).replace( '\r', '\n' );
         final String[] lines = normalized.split( "\n", -1 );
         for( int i = 0; i < lines.length; i++ ) {
+            if( OWN_LAYOUT_START.matcher( lines[ i ] ).find() ) {
+                // salt and nwdiag lay themselves out (no Graphviz) and are recognised only under their own start line.
+                return new Prepared( normalized, 0, 0 );
+            }
             if( lines[ i ].stripLeading().startsWith( "@startuml" ) ) {
                 final StringBuilder sb = new StringBuilder();
                 for( int j = 0; j < lines.length; j++ ) {

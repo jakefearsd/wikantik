@@ -61,6 +61,7 @@ public class PlantUmlDiagramsIT extends WithIntegrationTestSetup {
     private static final String BEHAVE = "PumlBehave" + TS;
     private static final String MODEL = "PumlModel" + TS;
     private static final String TEXTY = "PumlTexty" + TS;
+    private static final String OWN_START = "PumlOwnStart" + TS;
     private static final String REFUSED = "PumlRefused" + TS;
     private static final String WIDE = "PumlWide" + TS;
     private static final String LINK_TARGET = "PumlLinkTarget" + TS;
@@ -117,6 +118,10 @@ public class PlantUmlDiagramsIT extends WithIntegrationTestSetup {
             + fence( "sprite $foo {\n  FFFFFFFFFFFFFFF\n  F0123456789ABCF\n  FFFFFFFFFFFFFFF\n}\n"
                 + "class SpriteCls <<$foo>>\nSpriteCls --> SpriteOther" )
             + fence( "entity ChenCust {\n  ChenId\n}\nentity ChenOrder\nChenCust -- ChenOrder" ) );
+        // Kinds PlantUML recognises only under their own start line.
+        RestSeedHelper.writePage( OWN_START, "# " + OWN_START + "\n\n"
+            + "```plantuml\n@startsalt\n{\n  SaltLogin | \"SaltName\"\n  [SaltCancel] | [SaltOk]\n}\n@endsalt\n```\n\n"
+            + "```plantuml\n@startnwdiag\nnwdiag {\n  network NetDmz {\n    NetWeb01;\n    NetWeb02;\n  }\n}\n@endnwdiag\n```\n\n" );
         // Refusals, in order: see REFUSALS below.
         RestSeedHelper.writePage( REFUSED, "# " + REFUSED + "\n\n"
             + "```plantuml\n@startditaa\n+--+\n|Dt|\n+--+\n@endditaa\n```\n\n"
@@ -147,7 +152,7 @@ public class PlantUmlDiagramsIT extends WithIntegrationTestSetup {
 
     @AfterAll
     static void cleanUp() {
-        for ( final String n : new String[] { STRUCT, BEHAVE, MODEL, TEXTY, REFUSED, WIDE, LINK, LINK_TARGET, EDIT } ) {
+        for ( final String n : new String[] { STRUCT, BEHAVE, MODEL, TEXTY, OWN_START, REFUSED, WIDE, LINK, LINK_TARGET, EDIT } ) {
             RestSeedHelper.deletePageQuietly( n );
         }
     }
@@ -235,6 +240,16 @@ public class PlantUmlDiagramsIT extends WithIntegrationTestSetup {
         assertDrawn( TEXTY, 3, "CLASS", "ChenCust", "ChenId", "ChenOrder" );
     }
 
+    @Test
+    void saltWireframeDraws() {
+        assertDrawn( OWN_START, 0, "SALT", "SaltLogin", "SaltName", "SaltCancel", "SaltOk" );
+    }
+
+    @Test
+    void nwdiagNetworkDiagramDraws() {
+        assertDrawn( OWN_START, 1, "NWDIAG", "NetDmz", "NetWeb01", "NetWeb02" );
+    }
+
     /**
      * Opens {@code page}, waits for the {@code index}-th PlantUML figure to be drawn and checks: both colour
      * variants hold one SVG, the light one is visible with a non-empty box, PlantUML's own diagram type and the
@@ -290,9 +305,9 @@ public class PlantUmlDiagramsIT extends WithIntegrationTestSetup {
 
     @ParameterizedTest( name = "{1}" )
     @CsvSource( delimiter = '|', value = {
-        "0|unsupported-diagram|only PlantUML class, sequence, activity and similar @startuml diagrams are supported.|@startditaa",
-        "1|unsupported-diagram|only PlantUML class, sequence, activity and similar @startuml diagrams are supported.|@startmindmap",
-        "2|unsupported-diagram|only PlantUML class, sequence, activity and similar @startuml diagrams are supported.|version",
+        "0|unsupported-diagram|only PlantUML @startuml diagrams (class, sequence, activity and similar), @startsalt and @startnwdiag are supported.|@startditaa",
+        "1|unsupported-diagram|only PlantUML @startuml diagrams (class, sequence, activity and similar), @startsalt and @startnwdiag are supported.|@startmindmap",
+        "2|unsupported-diagram|only PlantUML @startuml diagrams (class, sequence, activity and similar), @startsalt and @startnwdiag are supported.|version",
         "3|multiple-diagrams|it contains more than one diagram.|C -> D",
         "4|embedded-diagram|it embeds another diagram|{{",
         "5|include|it includes another file or URL.|!include foo.puml",

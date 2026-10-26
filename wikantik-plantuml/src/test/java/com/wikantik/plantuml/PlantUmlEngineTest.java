@@ -52,6 +52,37 @@ class PlantUmlEngineTest {
     }
 
     @Test
+    void saltWireframeDraws() {
+        final RenderOutcome out = PlantUmlEngine.render( "@startsalt\n{\n  Login | \"MyName   \"\n  [Cancel] | [  OK   ]\n}\n@endsalt\n" );
+        assertTrue( out.isDrawn(), () -> "reason=" + out.reason() + " msg=" + out.message() );
+        assertSvg( out.drawing().lightSvg() );
+        assertTrue( out.drawing().lightSvg().contains( "Login" ) );
+        assertNotEquals( out.drawing().lightSvg(), out.drawing().darkSvg() );
+    }
+
+    @Test
+    void nwdiagDraws() {
+        final RenderOutcome out = PlantUmlEngine.render(
+            "@startnwdiag\nnwdiag {\n  network dmz {\n    address = \"210.x.x.x/24\"\n    web01 [address = \"210.x.x.1\"];\n    web02;\n  }\n}\n@endnwdiag\n" );
+        assertTrue( out.isDrawn(), () -> "reason=" + out.reason() + " msg=" + out.message() );
+        assertTrue( out.drawing().lightSvg().contains( "web01" ) );
+    }
+
+    @Test
+    void brokenSaltIsRefusedNotDrawn() {
+        final RenderOutcome out = PlantUmlEngine.render( "@startsalt\n{\n  Login\n  {{{{ ]]\n@endsalt\n" );
+        // Salt has no parse-error diagram: PlantUML draws its crash image, which is refused, never shown.
+        assertFalse( out.isDrawn() );
+        assertEquals( PlantUmlService.RENDER_CRASHED, out.reason() );
+    }
+
+    @Test
+    void emptySaltIsRefusedNotDrawn() {
+        assertEquals( "syntax-error", PlantUmlEngine.render( "@startsalt\n@endsalt\n" ).reason() );
+        assertEquals( "syntax-error", PlantUmlEngine.render( "@startnwdiag\n\n@endnwdiag" ).reason() );
+    }
+
+    @Test
     void syntaxErrorReportsAuthorLine() {
         final RenderOutcome wrapped = PlantUmlEngine.render( "class A\nclass B\nclass {\nclass D" );
         assertFalse( wrapped.isDrawn() );

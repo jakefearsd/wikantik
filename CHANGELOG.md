@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `bin/check-plantuml.sh` starts about twice as fast and uses about half the CPU per run (≈0.6 s → ≈0.35 s for a
+  page's diagrams): it jars the classes, trains a JDK 25 AOT cache once on a built-in sample (rebuilt when the
+  classes, the classpath or the JVM change) and runs with the C1 compiler only. JVM log output goes to stderr, so
+  `--json` stdout stays a pure report. If the jar or cache cannot be built, the check still runs, without them.
+- `check-mermaid.mjs` caches compiled modules (Node 22.1+, `node_modules/.cache/check-mermaid`), ≈15% faster
+  per run.
+
 ## [2.5.2] - 2026-10-26
 
 ### Added

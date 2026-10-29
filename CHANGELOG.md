@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.3] - 2026-10-28
+
 ### Changed
 - `bin/check-plantuml.sh` starts about twice as fast and uses about half the CPU per run (≈0.6 s → ≈0.35 s for a
   page's diagrams): it jars the classes, trains a JDK 25 AOT cache once on a built-in sample (rebuilt when the

@@ -210,10 +210,7 @@ final class FenceScanRun {
         if ( t == 0 ) {
             return false;
         }
-        htmlType = t;
-        if ( t < 6 && htmlEnds( t, line, at ) ) {
-            htmlType = 0;
-        }
+        htmlType = t < 6 && htmlEnds( t, line, at ) ? 0 : t;
         prevParagraph = false;
         return true;
     }

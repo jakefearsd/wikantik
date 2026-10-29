@@ -154,6 +154,9 @@
     <sec.jsoup.version>1.23.2</sec.jsoup.version>                        <!-- via wikantik-ingest -> flexmark-html2md-converter (1.15.4);
                                                                               GHSA-pmhh-3w7g-xqp8 / CVE-2026-71497. wikantik-connectors already
                                                                               declares 1.23.1 directly, so this only fixes ingest built alone. -->
+    <sec.opentelemetry.version>1.67.0</sec.opentelemetry.version>       <!-- via anthropic-java-core (1.62.0) + selenium-remote-driver (1.66.0);
+                                                                              GHSA-ccrj-gw8r-854m (quadratic W3C tracestate parsing). BOM import
+                                                                              so api/common/context/sdk-* move together. -->
 
     <plugin.antrun.version>3.2.0</plugin.antrun.version>
     <plugin.assembly.version>3.8.0</plugin.assembly.version>
@@ -804,6 +807,13 @@
       </dependency>
 
       <!-- ===== Security pins for vulnerable transitive deps (see sec.*.version) ===== -->
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${sec.opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcprov-jdk18on</artifactId>

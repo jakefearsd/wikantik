@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, symlinkSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import * as nodeModule from 'node:module';
 import { FENCE_RENDERERS } from '../src/utils/fences/registry.js';
 import { resolve } from 'node:path';
 
@@ -86,6 +87,24 @@ describe('check-mermaid contract', () => {
     const r = spawnSync('node', ['--import', preload, SCRIPT, '--json', '-'], { encoding: 'utf8', input: GOOD, timeout: 60000 });
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toHaveLength(1);
+  });
+
+  it.runIf(typeof nodeModule.enableCompileCache === 'function')('cachesCompiledModulesWithoutTouchingStdout', () => {
+    const cache = join(dir, 'cache');
+    const env = { ...process.env, CHECK_MERMAID_COMPILE_CACHE: cache };
+    const r = spawnSync('node', [SCRIPT, '--json', '-'], { encoding: 'utf8', input: GOOD, timeout: 60000, env });
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout)).toHaveLength(1);
+    expect(readdirSync(cache).length).toBeGreaterThan(0);
+  });
+
+  it('unusableCompileCacheNeverFailsTheCheck', () => {
+    const blocker = join(dir, 'not-a-dir');
+    writeFileSync(blocker, 'x');
+    const env = { ...process.env, CHECK_MERMAID_COMPILE_CACHE: join(blocker, 'cache') };
+    const r = spawnSync('node', [SCRIPT, '--json', '-'], { encoding: 'utf8', input: GOOD, timeout: 60000, env });
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout)).toMatchObject([{ ok: true }]);
   });
 
   it('exitsTwoWhenMermaidCannotLoad', () => {

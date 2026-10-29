@@ -8,14 +8,26 @@
 //   noise) goes to stderr. This stdin/--json contract is used by the content agent's linter — keep it stable.
 // Exit: 0 all OK (or no diagrams), 1 any FAIL, 2 usage error.
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { enableCompileCache } from 'node:module';
 import { join } from 'node:path';
-import { Window } from 'happy-dom';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import { visit } from 'unist-util-visit';
-import { parseFenceInfo } from '../src/utils/fences/fenceInfo.js';
-import { checkMermaid } from '../src/utils/fences/mermaidPolicy.js';
+
+// Start-up cost dominates a run (the linter checks one page per launch) and most of it is compiling mermaid's
+// modules: cache their V8 code (Node 22.1+; a no-op where unsupported, and never a reason to fail).
+try {
+  enableCompileCache?.(process.env.CHECK_MERMAID_COMPILE_CACHE
+    || new URL('../node_modules/.cache/check-mermaid', import.meta.url).pathname);
+} catch (e) {
+  process.stderr.write(`check-mermaid: compile cache disabled: ${e?.message ?? e}\n`);
+}
+
+// Loaded after the cache is on (static imports would be compiled before it).
+const { Window } = await import('happy-dom');
+const { unified } = await import('unified');
+const { default: remarkParse } = await import('remark-parse');
+const { default: remarkGfm } = await import('remark-gfm');
+const { visit } = await import('unist-util-visit');
+const { parseFenceInfo } = await import('../src/utils/fences/fenceInfo.js');
+const { checkMermaid } = await import('../src/utils/fences/mermaidPolicy.js');
 
 // stdout is reserved for the report; any library chatter belongs on stderr.
 console.log = console.info = console.debug = (...a) => console.error(...a);

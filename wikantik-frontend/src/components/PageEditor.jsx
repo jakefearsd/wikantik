@@ -46,6 +46,7 @@ import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { formatRelative } from '../utils/datetime';
+import { formatKeys } from '../utils/keyHints';
 import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule } from '../utils/markdownFormat';
 import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
@@ -577,10 +578,38 @@ export default function PageEditor() {
   const togglePreview = useCallback(() => setPreviewOpen((v) => !v), []);
   const foldAll = useCallback(() => editorRef.current?.foldAll?.(), []);
   const unfoldAll = useCallback(() => editorRef.current?.unfoldAll?.(), []);
+  // "Paste as plain text" from the palette: the browser may refuse a programmatic clipboard read (permission prompt
+  // dismissed, insecure context, Firefox), so the failure points at the shortcut, which always works.
+  const pastePlain = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      editorRef.current?.pasteText(text);
+    } catch (err) {
+      console.warn('[editor] clipboard read for plain-text paste failed', err?.message || err);
+      toast.error(`The browser blocked clipboard access — press ${formatKeys('Mod-Shift-V')} to paste as plain text`);
+    }
+  }, [toast]);
   // Built inside the effect (not during render): several actions read refs, which render must not touch.
   useEffect(() => registerCommands(buildEditorCommands({
     format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview: toggleEditorMode,
-  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode]);
+    pastePlain,
+  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain]);
+  // A paste converted to Markdown: the first one of the session says how to get plain text instead; embedded images
+  // (data: URIs from Docs/Word) cannot ride along as links, so say so every time rather than drop them silently.
+  const pasteHintShownRef = useRef(false);
+  const handlePasteConverted = useCallback(({ kind, droppedImages }) => {
+    const notes = [];
+    if (kind === 'markdown' && !pasteHintShownRef.current) {
+      pasteHintShownRef.current = true;
+      notes.push(`Pasted as Markdown — ${formatKeys('Mod-Shift-V')} pastes plain text`);
+    }
+    if (droppedImages > 0) {
+      notes.push(droppedImages === 1
+        ? '1 embedded image was not pasted — upload it as an attachment'
+        : `${droppedImages} embedded images were not pasted — upload them as attachments`);
+    }
+    if (notes.length) toast.info(notes.join('. '));
+  }, [toast]);
   // Memoised on content: the attachments hook may hand back a fresh array each render.
   const attachmentNamesKey = (attachments.list || []).map((a) => a.fileName).join('\n');
   const livePreviewContext = useMemo(() => ({
@@ -1016,6 +1045,8 @@ export default function PageEditor() {
             data-testid="editor-textarea"
             className="editor-textarea"
             value={body}
+            onPasteConverted={handlePasteConverted}
+            pasteAsMarkdown={!isLegacyWiki}
             onChange={handleBodyChange}
             dark={dark}
             livePreview={liveActive}

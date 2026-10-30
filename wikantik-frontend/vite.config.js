@@ -94,7 +94,8 @@ export default defineConfig({
     // mechanism (replaces Rollup's deprecated manualChunks; `advancedChunks` is
     // the older alias). CodeMirror and Cytoscape MUST get their own groups (not
     // the catch-all `vendor`) so they stay lazy — loaded only with the editor /
-    // graph routes, never eagerly with the entry chunk. `test` matches the
+    // graph routes, never eagerly with the entry chunk. Turndown (paste-as-Markdown) is editor-only, so it rides
+    // in the `codemirror` group rather than the eager vendor chunk. `test` matches the
     // module's path and is anchored with a trailing slash so the `react` group
     // matches node_modules/react/ but NOT react-markdown/.
     //
@@ -122,7 +123,7 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
-            { name: 'codemirror', test: /[\\/]node_modules[\\/](@codemirror[\\/](?!language-data|legacy-modes|lang-(?!markdown))|@uiw[\\/]react-codemirror|@lezer[\\/](common|highlight|lr|markdown)[\\/]|crelt|style-mod|w3c-keyname)/, priority: 30 },
+            { name: 'codemirror', test: /[\\/]node_modules[\\/](@codemirror[\\/](?!language-data|legacy-modes|lang-(?!markdown))|@uiw[\\/]react-codemirror|@lezer[\\/](common|highlight|lr|markdown)[\\/]|crelt|style-mod|w3c-keyname|turndown[\\/])/, priority: 30 },
             { name: 'cytoscape', test: new RegExp(NOT_UNDER('cytoscape-fcose') + String.raw`.*[\\/]node_modules[\\/](cytoscape|cytoscape-cose-bilkent|cose-base|layout-base|react-cytoscapejs)[\\/]`), priority: 30 },
             { name: 'lowlight', test: /[\\/]node_modules[\\/](lowlight|highlight\.js)[\\/]/, priority: 30, includeDependenciesRecursively: false },
             { name: 'katex', test: /[\\/]node_modules[\\/](katex|rehype-katex)[\\/]/, priority: 20, includeDependenciesRecursively: false },

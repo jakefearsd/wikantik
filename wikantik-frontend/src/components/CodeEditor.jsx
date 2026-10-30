@@ -14,6 +14,7 @@ import { editorChrome } from '../utils/editorTheme';
 import { createWikiLinkSource } from '../utils/wikiLinkComplete';
 import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
 import { linkInteraction } from '../utils/linkInteraction';
+import { markdownPaste, insertPaste } from '../utils/paste/markdownPaste';
 import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview, liveModeField } from '../utils/livePreview';
 
 /**
@@ -50,6 +51,8 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   slashSource (ctx) => CompletionResult|null  slash-command completion source (optional)
  *   linkCompletion { searchPages(q), getHeadings(page|null), getAttachmentNames() }  link autocomplete sources
  *   onFiles     (files, pos, { pasted }) => void   pasted/dropped OS files (e.g. images to upload)
+ *   onPasteConverted ({ kind, insert, droppedImages }) => void   a paste that was converted to Markdown / a link
+ *   pasteAsMarkdown boolean       convert rich pastes to Markdown (default true; off for legacy wiki-markup pages)
  *   livePreview boolean           render markdown inline (decorations only; the document text is never changed)
  *   livePreviewContext { pageName, attachments, loadEmbed }  context for live-preview widgets (read through a ref)
  *   className   string            applied to the wrapping div
@@ -105,7 +108,7 @@ const BASIC_SETUP = {
 };
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, livePreview = false, livePreviewContext, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, pasteAsMarkdown = true, livePreview = false, livePreviewContext, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -147,6 +150,20 @@ const CodeEditor = forwardRef(function CodeEditor(
       return true;
     },
   }), []);
+
+  // Paste-as-Markdown (rich clipboard HTML → Markdown; Mod-Shift-V pastes plain text). After fileDropExtension in the
+  // extension list, so a file-only paste is still an upload.
+  const onPasteConvertedRef = useRef(onPasteConverted);
+  onPasteConvertedRef.current = onPasteConverted;
+  const pasteAsMarkdownRef = useRef(pasteAsMarkdown);
+  pasteAsMarkdownRef.current = pasteAsMarkdown;
+  const pasteExtension = useMemo(
+    () => markdownPaste({
+      isEnabled: () => pasteAsMarkdownRef.current,
+      onConverted: (decision) => onPasteConvertedRef.current?.(decision),
+    }),
+    [],
+  );
 
   // Live preview (decorations only). The context (page name, attachment names, embed loader) is read through a ref
   // so the extension is built once; the mode itself lives in an editor StateField that survives reconfigures.
@@ -232,6 +249,17 @@ const CodeEditor = forwardRef(function CodeEditor(
       if (!view) return false;
       const at = Math.max(0, Math.min(pos, view.state.doc.length));
       view.dispatch({ changes: { from: at, insert: text } });
+      return true;
+    },
+    /**
+     * Paste `text` verbatim over the selection (the "Paste as plain text" command): one paste transaction, its own
+     * undo step, scrolled into view; focuses the editor. Returns false when there is no view.
+     */
+    pasteText(text) {
+      const view = viewRef.current;
+      if (!view) return false;
+      insertPaste(view, String(text ?? '').replace(/\r\n?/g, '\n'));
+      view.focus();
       return true;
     },
     /**
@@ -444,10 +472,10 @@ const CodeEditor = forwardRef(function CodeEditor(
     () => [
       // Folds: headings, the frontmatter block and fenced code only (editorFoldConfig + frontmatterFold).
       markdown({ ...editorMarkdownConfig, codeLanguages: languages }),
-      EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension,
-      frontmatterFold, calloutMarkers, liveExtension, editorChrome,
+      EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, pasteExtension,
+      linkExtension, frontmatterFold, calloutMarkers, liveExtension, editorChrome,
     ],
-    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension, liveExtension],
+    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, pasteExtension, linkExtension, liveExtension],
   );
 
   return (

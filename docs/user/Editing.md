@@ -59,6 +59,7 @@ Other keys bound while you edit:
 | Keys | Action |
 |------|--------|
 | Mod+S | Save the page |
+| Mod+Shift+V | Paste as plain text (see [Paste formatted text](#paste-formatted-text)) |
 | Ctrl+Alt+[ | Fold all headings |
 | Ctrl+Alt+] | Unfold all headings |
 | Ctrl (Cmd) + hover over a link | Show a preview card for the link |
@@ -69,7 +70,7 @@ Mod+K inserts a link while the cursor is in the editor. Outside the editor it op
 
 Mod+E does nothing while a dialog is open. It is disabled for pages still written in the legacy wiki markup.
 
-The command palette (Mod+P) also lists commands with no key: Heading 1, 2 and 3, five callouts, Insert table, Code block, Math block, Horizontal rule, Insert image, **Toggle preview** (hide or show the preview pane) and **Toggle rail**.
+The command palette (Mod+P) also lists commands with no key: Heading 1, 2 and 3, five callouts, Insert table, Code block, Math block, Horizontal rule, Insert image, **Toggle preview** (hide or show the preview pane), **Toggle rail** and **Paste as plain text**.
 
 ### Insert blocks with the slash menu
 
@@ -97,6 +98,21 @@ Spaces are ignored when matching because page names are CamelCase. See [Linking.
 The side rail has an **Unlinked mentions** section. It scans your text for phrases that match the title or alias of other pages and lists each one with the line it is on. Click **Link** to wrap the phrase as `[phrase](Target)`, **Ignore** to dismiss it, or the line excerpt to jump to it. The section reads "Mentions available shortly" while the title index warms up, and offers **Retry** if the scan fails. The scan calls `POST /api/mentions/scan`.
 
 The same rail lists the page's **Outline** (headings up to level 4, click to jump) and its **Backlinks**.
+
+### Paste formatted text
+
+Text copied from Google Docs, Word, Confluence, GitHub, a web page or another wiki page arrives as Markdown: headings, bold, italic, strikethrough, inline code, links, nested lists, task lists, tables, block quotes, code blocks (with their language when the source names one) and images become their Markdown forms. Copied math rendered by KaTeX, including math copied from this wiki, becomes `$…$` or `$$…$$`. A link to a page on this wiki becomes `[text](PageName)`. Page chrome such as copy buttons, heading permalinks, citation markers and edit links is left out, and a `$` in ordinary text is escaped as `\$` so it is not read as math.
+
+The first converted paste in an editing session shows "Pasted as Markdown — Mod+Shift+V pastes plain text". Other cases:
+
+- **Mod+Shift+V** pastes the clipboard's plain text with no conversion. **Paste as plain text** in the command palette does the same; if the browser does not allow the page to read the clipboard, it says so and suggests the shortcut.
+- Text copied from a code editor or terminal, or plain paragraphs with no formatting, are pasted as they are.
+- Inside a code block or inline code the paste is never converted.
+- On a page still written in the legacy wiki markup, every paste is plain text.
+- Paste a URL while text is selected to turn the selection into a link: `[selection](URL)`, or `[selection](PageName)` for a page on this wiki. With nothing selected, a URL is pasted as it is.
+- Images embedded in the copied document itself (Google Docs and Word put them on the clipboard as data, not as a web address) cannot be pasted as links. A message gives the number left out; save the image and add it as an attachment.
+
+One undo (Mod+Z) removes the whole paste.
 
 ### Add attachments
 
@@ -167,6 +183,7 @@ The action is a page permission such as `view`, `edit`, `comment`, `upload`, `re
 
 - `wikantik-frontend/src/components/PageEditor.jsx`, `CodeEditor.jsx`, `EditorToolbar.jsx`
 - `wikantik-frontend/src/utils/editorCommands.js`, `slashComplete.js`, `wikiLinkComplete.js`, `mentionLink.js`
+- `wikantik-frontend/src/utils/paste/` — paste-as-Markdown: `htmlToMarkdown.js` (clipboard HTML cleanup + Turndown rules), `pasteDecision.js`, `markdownPaste.js` (the CodeMirror handler)
 - `wikantik-frontend/src/components/editor/` — rail, status bar, unlinked-mentions panel
 - `wikantik-frontend/src/components/NewArticleModal.jsx`, `AttachmentPanel.jsx`, `MathValidationSummary.jsx`
 - `wikantik-frontend/src/hooks/useDraft.js`, `useEditorMode.js`, `useAttachmentUpload.js`

@@ -22,6 +22,7 @@ A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctr
 | Insert link | Mod+K |
 | Toggle live preview | Mod+E |
 | Save | Mod+S |
+| Paste as plain text | Mod+Shift+V |
 
 The toolbar also has heading, list, inline code, code block and table buttons. Type `/` at the start of a line for a menu of blocks such as tables, callouts and math.
 
@@ -29,6 +30,7 @@ The toolbar also has heading, list, inline code, code block and table buttons. T
 
 * The editor takes Markdown. See [TextFormattingRules](TextFormattingRules) for the syntax.
 * Type `[[` to search for a page to link, and `[[Page#` to link to one of its headings.
+* Paste from Google Docs, Word, Confluence or a web page and the formatting arrives as Markdown. Mod+Shift+V pastes plain text instead. Pasting a URL over selected text makes it a link.
 * Paste or drag an image into the editor to attach it, or use **Attach**.
 * The side rail lists the page outline, backlinks and **Unlinked mentions**, with one-click linking.
 

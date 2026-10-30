@@ -1,7 +1,7 @@
 const CALLOUTS = [['note', 'Note'], ['tip', 'Tip'], ['warning', 'Warning'], ['danger', 'Danger'], ['info', 'Info']];
 
 /** The editor's command-registry entries; every action is injected so the list stays pure. */
-export function buildEditorCommands({ format, save, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview }) {
+export function buildEditorCommands({ format, save, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview, pastePlain }) {
   const cmd = (id, title, section, run, extra = {}) => ({ id, title, section, run, ...extra });
   return [
     cmd('editor-save', 'Save', 'Editor', save, { keys: 'Mod-S' }),
@@ -9,6 +9,8 @@ export function buildEditorCommands({ format, save, pickImage, togglePreview, to
     cmd('format-italic', 'Italic', 'Editor', () => format('italic'), { keys: 'Mod-I' }),
     cmd('format-code', 'Inline code', 'Editor', () => format('code')),
     cmd('format-list', 'Bulleted list', 'Editor', () => format('list')),
+    // The hint is the browser's own plain-text paste, which the editor honours; the command reads the clipboard.
+    cmd('paste-plain', 'Paste as plain text', 'Editor', pastePlain, { keys: 'Mod-Shift-V', keywords: ['clipboard', 'unformatted'] }),
     cmd('insert-link', 'Insert link', 'Insert', () => format('link'), { keys: 'Mod-K', slash: true }),
     ...[1, 2, 3].map((n) => cmd(`heading-${n}`, `Heading ${n}`, 'Insert', () => format(`h${n}`), { slash: true })),
     ...CALLOUTS.map(([type, label]) => cmd(`callout-${type}`, `Insert callout: ${label}`, 'Insert',

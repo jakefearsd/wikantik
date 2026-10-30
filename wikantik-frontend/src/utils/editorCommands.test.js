@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildEditorCommands } from './editorCommands';
 
 const deps = () => ({ format: vi.fn(), save: vi.fn(), pickImage: vi.fn(), togglePreview: vi.fn(),
-                      toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn(), toggleLivePreview: vi.fn() });
+                      toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn(), toggleLivePreview: vi.fn(),
+                      pastePlain: vi.fn() });
 
 describe('buildEditorCommands', () => {
   it('declares the editor command set with stable ids', () => {
@@ -11,7 +12,7 @@ describe('buildEditorCommands', () => {
       'editor-save', 'format-bold', 'format-italic', 'format-code', 'format-list', 'insert-link',
       'heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-warning', 'callout-danger',
       'callout-info', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
-      'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail', 'toggle-live-preview']));
+      'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail', 'toggle-live-preview', 'paste-plain']));
   });
 
   it('marks only insert commands as slash commands', () => {
@@ -47,5 +48,14 @@ describe('buildEditorCommands', () => {
     expect(cmd).toMatchObject({ title: 'Toggle live preview', section: 'View', keys: 'Mod-E' });
     cmd.run();
     expect(d.toggleLivePreview).toHaveBeenCalled();
+  });
+
+  it('declares "Paste as plain text" with its Mod-Shift-V hint (not a slash command) and runs the injected action', () => {
+    const d = deps();
+    const cmd = buildEditorCommands(d).find((c) => c.id === 'paste-plain');
+    expect(cmd).toMatchObject({ title: 'Paste as plain text', section: 'Editor', keys: 'Mod-Shift-V' });
+    expect(cmd.slash).toBeFalsy();
+    cmd.run();
+    expect(d.pastePlain).toHaveBeenCalled();
   });
 });

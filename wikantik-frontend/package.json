@@ -56,7 +56,7 @@
     "happy-dom": "^21.0.4",
     "remark-rehype": "11.1.2",
     "vite": "^8.3.4",
-    "vitest": "^4.1.12"
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "nanoid": "^3.3.18",

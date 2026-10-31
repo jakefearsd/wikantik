@@ -69,7 +69,12 @@ class BlockIdsTest {
             "- a\n\n  ^x\n",
             "- ^x\n",
             "$$\n$$\n\n^em\n",
-            "> line one\n> line two ^qp\n" );
+            "> line one\n> line two ^qp\n",
+            "Para\n^ll\n",
+            "- Item\n  ^li\n",
+            "> q\n> ^lq\n",
+            "Para\r\n^cr\r\n",
+            "Para  \n^hb\n" );
 
     // ---- list / find ----------------------------------------------------------------------------------------------
 
@@ -438,6 +443,73 @@ class BlockIdsTest {
         assertEquals( "in", BlockIds.list( text ).get( 0 ).id() );
         assertTrue( BlockIds.find( text, "dup" ).isEmpty() );
         assertEquals( "Para\n\n\n", BlockIds.strip( text ) );
+    }
+
+    // ---- a marker alone on a paragraph's last line ---------------------------------------------------------------
+
+    @Test
+    void markerAloneOnLastLineIsInline() {
+        final String text = "Para\n^ll\n";
+        final List< Block > blocks = BlockIds.list( text );
+        assertEquals( 1, blocks.size() );
+        final Block b = blocks.get( 0 );
+        assertEquals( Kind.PARAGRAPH, b.kind() );
+        assertEquals( "ll", b.id() );
+        assertEquals( "Para", b.plainText() );
+        assertEquals( text.indexOf( '^' ), b.markerStart() );
+        assertEquals( text.indexOf( '^' ) + "^ll".length(), b.markerEnd() );
+        assertEquals( "Para", BlockIds.sourceOf( text, b ) );
+        assertEquals( "Para\n\n", BlockIds.strip( text ) );
+    }
+
+    @Test
+    void markerAfterBlankLineStaysStandalone() {
+        final String text = "Para\n\n^sa\n";
+        final Block b = BlockIds.list( text ).get( 0 );
+        assertEquals( Kind.PARAGRAPH, b.kind() );
+        assertEquals( "sa", b.id() );
+        assertEquals( "Para", b.plainText() );
+        assertEquals( text.indexOf( '^' ), b.markerStart() );
+        assertEquals( "Para\n\n\n", BlockIds.strip( text ) );
+    }
+
+    @Test
+    void lastLineMarkerInListItemAndQuote() {
+        final Block item = BlockIds.find( "- Item\n  ^li\n", "li" ).orElseThrow();
+        assertEquals( Kind.LIST_ITEM, item.kind() );
+        assertEquals( "Item", item.plainText() );
+        assertEquals( "- Item", BlockIds.sourceOf( "- Item\n  ^li\n", item ) );
+
+        final String quote = "> q\n> ^lq\n";
+        final Block para = BlockIds.find( quote, "lq" ).orElseThrow();
+        assertEquals( Kind.PARAGRAPH, para.kind() );
+        assertEquals( 1, para.index() );
+        assertEquals( "q", para.plainText() );
+        assertEquals( "q", BlockIds.sourceOf( quote, para ) );
+        assertEquals( "> q\n>\n", BlockIds.strip( quote ) );
+    }
+
+    @Test
+    void lastLineMarkerCrlfAndHardBreak() {
+        final String crlf = "Para\r\n^cr\r\n";
+        final Block b = BlockIds.find( crlf, "cr" ).orElseThrow();
+        assertEquals( "Para", b.plainText() );
+        assertEquals( "Para\r\n\r\n", BlockIds.strip( crlf ) );
+        assertEquals( "Para", BlockIds.find( "Para  \n^hb\n", "hb" ).orElseThrow().plainText() );
+    }
+
+    @Test
+    void lastLineNeedsTheMarkerAlone() {
+        assertNull( BlockIds.list( "Para\n^x more\n" ).get( 0 ).id() );
+        assertEquals( "Para\n^x more", BlockIds.list( "Para\n^x more\n" ).get( 0 ).plainText() );
+    }
+
+    @Test
+    void assignReplacesDuplicateLastLineMarkerInPlace() {
+        final String text = "a ^d\n\n- b\n  ^d\n";
+        final Block item = BlockIds.list( text ).get( 1 );
+        assertNull( item.id() );
+        assertEquals( "a ^d\n\n- b\n  ^e\n", BlockIds.assign( text, item, "e" ) );
     }
 
     @Test

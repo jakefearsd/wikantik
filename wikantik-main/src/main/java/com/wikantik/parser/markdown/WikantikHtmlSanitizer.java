@@ -61,6 +61,9 @@ public final class WikantikHtmlSanitizer {
             .allowAttributes( "data-fence-error" ).matching( java.util.regex.Pattern.compile( "[a-z-]+" ) ).onElements( "figure" )
             .allowAttributes( "data-fence-drawing" ).matching( java.util.regex.Pattern.compile( "[0-9a-f]{64}\\.[0-9a-f]{64}" ) ).onElements( "figure" )
             .allowAttributes( "data-embed", "data-section" ).onElements( "div" )
+            // Block-reference ordinals (BlockIdPostProcessor); the ^id anchor itself rides on the global id
+            .allowAttributes( "data-block" ).matching( java.util.regex.Pattern.compile( "[0-9]+" ) )
+                    .onElements( "p", "li", "ul", "ol", "table", "blockquote", "div", "details", "pre", "figure" )
             // GFM task-list checkbox: only type=checkbox, and the disabled/checked flags.
             .allowAttributes( "type" ).matching( java.util.regex.Pattern.compile( "checkbox" ) ).onElements( "input" )
             .allowAttributes( "disabled", "checked" ).onElements( "input" )

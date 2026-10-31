@@ -18,6 +18,7 @@
  */
 package com.wikantik.render.markdown;
 
+import com.wikantik.markdown.extensions.blockids.BlockOrdinals;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Attachment;
@@ -713,7 +714,7 @@ public class MarkdownRendererTest {
         final MarkdownRenderer conv = new MarkdownRenderer( context, tr.parse() );
         newPage( p.getName(), src );
 
-        return conv.getString();
+        return BlockOrdinals.strip( conv.getString() );
     }
 
     void newPage( final String name ) throws WikiException {

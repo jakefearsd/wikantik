@@ -22,6 +22,7 @@ package com.wikantik.plugin;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.wikantik.markdown.extensions.blockids.BlockIdAttributeProvider;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.PluginException;
@@ -267,9 +268,10 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
                 return "Plugin '" + classname + "' not compatible with this version of JSPWiki";
             }
 
-            //  ...and launch.
+            //  ...and launch. Output rendered from markdown is another parse, numbered from 0 on its own: its block
+            //  ordinals would name the blocks of the page it is spliced into, so they go (its ^id anchors stay).
             try {
-                return plugin.execute( context, params );
+                return BlockIdAttributeProvider.withoutOrdinals( plugin.execute( context, params ) );
             } catch( final PluginException e ) {
                 if( debug ) {
                     return stackTrace( params, e );

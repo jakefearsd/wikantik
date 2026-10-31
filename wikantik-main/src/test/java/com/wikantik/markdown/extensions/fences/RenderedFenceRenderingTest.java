@@ -18,6 +18,7 @@
  */
 package com.wikantik.markdown.extensions.fences;
 
+import com.wikantik.markdown.extensions.blockids.BlockOrdinals;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -72,7 +73,7 @@ class RenderedFenceRenderingTest {
         e.saveText( name, markdown );
         final Page page = e.getManager( PageManager.class ).getPage( name );
         final Context ctx = Wiki.context().create( e, page );
-        return e.getManager( RenderingManager.class ).textToHTML( ctx, markdown );
+        return BlockOrdinals.strip( e.getManager( RenderingManager.class ).textToHTML( ctx, markdown ) );
     }
 
     private static MutableDataSet bareOptions( final RenderedFenceRegistry registry ) {

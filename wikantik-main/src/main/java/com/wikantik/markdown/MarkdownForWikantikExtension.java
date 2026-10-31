@@ -21,6 +21,8 @@ package com.wikantik.markdown;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.data.MutableDataHolder;
+import com.wikantik.markdown.extensions.blockids.BlockIdAttributeProvider;
+import com.wikantik.markdown.extensions.blockids.BlockIdPostProcessor;
 import com.wikantik.markdown.extensions.nativelinks.NativeWikiLinkPostProcessorFactory;
 import com.wikantik.api.core.Context;
 import com.wikantik.markdown.extensions.math.InlineMathParser;
@@ -72,6 +74,7 @@ public class MarkdownForWikantikExtension implements Parser.ParserExtension, Htm
 	    rendererBuilder.nodeRendererFactory( new WikantikNodeRendererFactory( context ) );
         rendererBuilder.attributeProviderFactory( new WikantikLinkAttributeProviderFactory( context, isImageInlining, inlineImagePatterns ) );
         rendererBuilder.attributeProviderFactory( SafeLinkAttributeProvider.Factory.create() );
+        rendererBuilder.attributeProviderFactory( new BlockIdAttributeProvider.Factory() );
 	}
 
     /**
@@ -81,6 +84,7 @@ public class MarkdownForWikantikExtension implements Parser.ParserExtension, Htm
 	public void extend( final Parser.Builder parserBuilder ) {
 	    parserBuilder.postProcessorFactory( new WikantikNodePostProcessorFactory( context, parserBuilder, isImageInlining, inlineImagePatterns ) );
 	    parserBuilder.postProcessorFactory( new NativeWikiLinkPostProcessorFactory( context, isImageInlining, inlineImagePatterns ) );
+	    parserBuilder.postProcessorFactory( new BlockIdPostProcessor.Factory( context ) );
 	    parserBuilder.customInlineParserExtensionFactory( new InlineMathParser.Factory() );
 	}
 

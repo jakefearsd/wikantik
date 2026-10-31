@@ -18,15 +18,8 @@
  */
 package com.wikantik.parser.markdown;
 
-import com.vladsch.flexmark.ast.BlockQuote;
-import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.IndentedCodeBlock;
-import com.vladsch.flexmark.ast.ListBlock;
-import com.vladsch.flexmark.ast.ListItem;
-import com.vladsch.flexmark.ast.Paragraph;
 import com.vladsch.flexmark.ast.Text;
-import com.vladsch.flexmark.ast.TextBase;
-import com.vladsch.flexmark.ext.tables.TableBlock;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
@@ -37,18 +30,13 @@ import com.wikantik.markdown.extensions.callouts.CalloutTitle;
 import com.wikantik.markdown.extensions.math.InlineMathParser;
 
 import java.security.SecureRandom;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Deque;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -64,14 +52,16 @@ import java.util.regex.Pattern;
  * item's own first paragraph — the item is the block), list items, tables, block quotes ({@link CalloutBlock} gives
  * {@link Kind#CALLOUT}), fenced and indented code ({@code math} fences give {@link Kind#MATH}), and a list only when a
  * standalone marker addresses it. Headings are never blocks. Rendered ordinals ({@code data-block}) must equal
- * {@link Block#index()}, so the numbering lives in one place: {@link Walk}.
+ * {@link Block#index()}, so the numbering lives in one place, {@link BlockWalk}, which rendering uses too.
  *
  * <p><b>Markers.</b> An inline marker is whitespace + {@code ^id} ending the last {@link Text} node of a paragraph (or of
- * a list item's first paragraph); a standalone marker is a paragraph that is only {@code ^id}, and tags the block right
- * before it in the same container. Code spans, code blocks, inline and display math and headings never hold a marker,
- * because the marker is only looked for in paragraph text nodes. The first occurrence of an id in source order wins;
- * later duplicates (and standalone markers with nothing to tag) keep their marker range, so {@link #strip} still removes
- * them, but carry no id.
+ * a list item's first paragraph). A marker alone on the <b>last line</b> of a multi-line paragraph ({@code "Para\n^id"})
+ * is inline as well: the line break is the whitespace it needs, as in Obsidian. A standalone marker is a paragraph that
+ * is only {@code ^id} (so {@code "Para\n\n^id"}, after a blank line), and tags the block right before it in the same
+ * container. Code spans, code blocks, inline and display math and headings never hold a marker, because the marker is
+ * only looked for in paragraph text nodes. The first occurrence of an id in source order wins; later duplicates (and
+ * standalone markers with nothing to tag) keep their marker range, so {@link #strip} still removes them, but carry no
+ * id. (The editor's JavaScript mirror follows these same rules.)
  */
 public final class BlockIds {
 
@@ -86,8 +76,8 @@ public final class BlockIds {
      * @param kind        what the block is
      * @param start       start of the block's source in the full text
      * @param end         end of the block's source in the full text, trailing whitespace and line breaks excluded
-     * @param markerStart start of the block's marker (the whitespace before an inline {@code ^id}, or the {@code ^} of a
-     *                    standalone marker line), or {@code -1}
+     * @param markerStart start of the block's marker (the spaces and tabs before an inline {@code ^id} on its line, or
+     *                    the {@code ^} of a standalone marker line), or {@code -1}
      * @param markerEnd   end of the marker, trailing spaces and tabs included, line break excluded; or {@code -1}
      * @param plainText   the block's text with markdown, wikilinks and markers reduced away, trimmed
      */
@@ -96,12 +86,6 @@ public final class BlockIds {
 
     /** A block id, without its {@code ^}. */
     public static final Pattern ID = Pattern.compile( "[A-Za-z0-9-]+" );
-
-    /** An inline marker at the end of a paragraph's last text node. */
-    private static final Pattern INLINE = Pattern.compile( "(?<=[ \\t])\\^([A-Za-z0-9-]+)[ \\t]*\\r?$" );
-
-    /** A paragraph that is only a marker. */
-    private static final Pattern STANDALONE = Pattern.compile( "^\\^([A-Za-z0-9-]+)[ \\t]*\\r?$" );
 
     private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
@@ -253,12 +237,11 @@ public final class BlockIds {
     /**
      * A marker's range in the full text.
      *
-     * @param id         the id it names
-     * @param start      see {@link Block#markerStart()}
-     * @param end        see {@link Block#markerEnd()}
-     * @param standalone whether it is a line of its own
+     * @param id    the id it names
+     * @param start see {@link Block#markerStart()}
+     * @param end   see {@link Block#markerEnd()}
      */
-    private record Marker( String id, int start, int end, boolean standalone ) {
+    private record Marker( String id, int start, int end ) {
     }
 
     /**
@@ -300,29 +283,32 @@ public final class BlockIds {
             final int bodyStart = FrontmatterParser.bodyOffset( fullText );
             final MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( fullText.substring( bodyStart ) );
             final Node document = PARSER.parse( prepared.text() );
-            final Walk walk = new Walk( new Coords( fullText, prepared, bodyStart ) );
-            walk.number( document );
+            final BlockWalk.Result walk = BlockWalk.walk( document );
+            final Coords coords = new Coords( fullText, prepared, bodyStart );
 
-            final List< Marker > markers = new ArrayList<>( walk.orphans );
-            for ( final Entry e : walk.entries ) {
-                if ( e.marker() != null ) {
-                    markers.add( e.marker() );
-                }
+            // Source ranges first, while the tree still holds every marker.
+            final Map< BlockWalk.Marker, Marker > raw = new IdentityHashMap<>();
+            final List< Marker > markers = new ArrayList<>( walk.markers().size() );
+            for ( final BlockWalk.Marker m : walk.markers() ) {   // source order
+                final Marker r = coords.marker( m );
+                raw.put( m, r );
+                markers.add( r );
             }
-            markers.sort( Comparator.comparingInt( Marker::start ) );
-            final Set< Marker > winners = firstPerId( markers );
+            final List< Entry > entries = new ArrayList<>( walk.entries().size() );
+            for ( final BlockWalk.Entry e : walk.entries() ) {
+                entries.add( coords.entry( e, e.marker() == null ? null : raw.get( e.marker() ) ) );
+            }
 
             // Take the markers out of the tree (as rendering does) so a block's plain text never carries one.
-            Walk.detachMarkers( document );
-            final List< Block > blocks = new ArrayList<>( walk.entries.size() );
-            for ( int i = 0; i < walk.entries.size(); i++ ) {
-                final Entry e = walk.entries.get( i );
+            BlockWalk.detach( walk, m -> null );
+            final List< Block > blocks = new ArrayList<>( entries.size() );
+            for ( int i = 0; i < entries.size(); i++ ) {
+                final Entry e = entries.get( i );
                 final Marker m = e.marker();
-                final String id = m != null && winners.contains( m ) ? m.id() : null;
-                blocks.add( new Block( i, id, e.kind(), e.start(), e.end(), m == null ? -1 : m.start(), m == null ? -1 : m.end(),
-                        plainText( e.node() ) ) );
+                blocks.add( new Block( i, walk.idOf( walk.entries().get( i ) ), e.kind(), e.start(), e.end(),
+                        m == null ? -1 : m.start(), m == null ? -1 : m.end(), plainText( e.node() ) ) );
             }
-            return new Model( List.copyOf( walk.entries ), List.copyOf( blocks ), List.copyOf( markers ) );
+            return new Model( List.copyOf( entries ), List.copyOf( blocks ), List.copyOf( markers ) );
         }
 
         private static String plainText( final Node node ) {
@@ -360,212 +346,6 @@ public final class BlockIds {
             }
             return out.toString();
         }
-
-        /** The first marker of each id, in source order: the ones that win. */
-        private static Set< Marker > firstPerId( final List< Marker > sorted ) {
-            final Set< String > seen = new HashSet<>();
-            final Set< Marker > winners = Collections.newSetFromMap( new IdentityHashMap<>() );
-            for ( final Marker m : sorted ) {
-                if ( seen.add( m.id() ) ) {
-                    winners.add( m );
-                }
-            }
-            return winners;
-        }
-    }
-
-    // ---- numbering ----------------------------------------------------------------------------------------------------
-
-    /**
-     * Numbers the addressable blocks of a parsed body in pre-order and finds their markers — the single definition of
-     * block ordinals (rendered {@code data-block} values must equal these indices).
-     */
-    private static final class Walk {
-        private final Coords coords;
-        private final List< Entry > entries = new ArrayList<>();
-        /** Standalone markers that tag no block. */
-        private final List< Marker > orphans = new ArrayList<>();
-        /** Standalone marker paragraphs already taken by the block before them. */
-        private final Set< Node > claimed = Collections.newSetFromMap( new IdentityHashMap<>() );
-
-        Walk( final Coords coords ) {
-            this.coords = coords;
-        }
-
-        /** Visits every node under {@code root} in pre-order (iteratively: nesting depth is unbounded in a page). */
-        void number( final Node root ) {
-            final Deque< Node > stack = new ArrayDeque<>();
-            pushChildren( stack, root );
-            while ( !stack.isEmpty() ) {
-                final Node node = stack.pop();
-                if ( visit( node ) ) {
-                    pushChildren( stack, node );
-                }
-            }
-        }
-
-        private static void pushChildren( final Deque< Node > stack, final Node parent ) {
-            for ( Node c = parent.getLastChild(); c != null; c = c.getPrevious() ) {
-                stack.push( c );
-            }
-        }
-
-        /** Records {@code node} if it is a block; returns whether its children can hold blocks. */
-        private boolean visit( final Node node ) {
-            return switch ( node ) {
-                case Paragraph p -> {
-                    paragraph( p );
-                    yield false;
-                }
-                case ListItem item -> {
-                    listItem( item );
-                    yield true;
-                }
-                case ListBlock list -> {
-                    if ( standaloneAfter( list ) != null ) {
-                        entries.add( tagged( list, Kind.LIST ) );
-                    }
-                    yield true;
-                }
-                case TableBlock table -> {
-                    entries.add( tagged( table, Kind.TABLE ) );
-                    yield false;
-                }
-                case CalloutBlock callout -> {
-                    entries.add( tagged( callout, Kind.CALLOUT ) );
-                    yield true;
-                }
-                case BlockQuote quote -> {
-                    entries.add( tagged( quote, Kind.QUOTE ) );
-                    yield true;
-                }
-                case FencedCodeBlock fence -> {
-                    entries.add( tagged( fence, "math".equals( fence.getInfo().toString().trim() ) ? Kind.MATH : Kind.CODE ) );
-                    yield false;
-                }
-                case IndentedCodeBlock code -> {
-                    // Its chars start after its four-column indent; that indent is what makes it code, so the block
-                    // starts before it (and what precedes that is its container's prefix).
-                    final Entry e = tagged( code, Kind.CODE );
-                    entries.add( new Entry( code, Kind.CODE, coords.codeIndentStart( e.start() ), e.end(), e.marker(), -1 ) );
-                    yield false;
-                }
-                default -> true;
-            };
-        }
-
-        private void paragraph( final Paragraph p ) {
-            if ( standaloneId( p ) != null ) {
-                if ( !claimed.contains( p ) ) {
-                    orphans.add( standaloneMarker( p ) );
-                }
-                return;
-            }
-            if ( p.getParent() instanceof ListItem item && item.getFirstChild() == p ) {
-                return;   // the list item is the block
-            }
-            final Marker inline = inlineMarker( p );
-            final int end = coords.end( p );
-            // From its first inline node: a callout's body paragraph keeps the title's text range in its chars.
-            final int start = p.getFirstChild() != null ? coords.start( p.getFirstChild() ) : coords.start( p );
-            entries.add( new Entry( p, Kind.PARAGRAPH, start, end, inline != null ? inline : claimNext( p ), end ) );
-        }
-
-        private void listItem( final ListItem item ) {
-            final Paragraph first = item.getFirstChild() instanceof Paragraph fp && standaloneId( fp ) == null ? fp : null;
-            Marker marker = null;
-            int inlineAt = -1;
-            if ( first != null ) {
-                final Marker inline = inlineMarker( first );
-                marker = inline != null ? inline : claimNext( first );
-                inlineAt = coords.end( first );
-            }
-            entries.add( new Entry( item, Kind.LIST_ITEM, coords.start( item ), coords.end( item ), marker, inlineAt ) );
-        }
-
-        /** A block that only a standalone marker right after it can tag. */
-        private Entry tagged( final Node node, final Kind kind ) {
-            return new Entry( node, kind, coords.start( node ), coords.end( node ), claimNext( node ), -1 );
-        }
-
-        /** The standalone marker right after {@code node} in its container, now claimed by it; or {@code null}. */
-        private Marker claimNext( final Node node ) {
-            final Paragraph next = standaloneAfter( node );
-            if ( next == null ) {
-                return null;
-            }
-            claimed.add( next );
-            return standaloneMarker( next );
-        }
-
-        private static Paragraph standaloneAfter( final Node node ) {
-            return node.getNext() instanceof Paragraph p && standaloneId( p ) != null ? p : null;
-        }
-
-        /**
-         * The id of a paragraph that is only a marker, else {@code null}. Read from its one {@link Text} child, not its
-         * chars: a callout's body paragraph still spans the title line in its chars.
-         */
-        private static String standaloneId( final Paragraph p ) {
-            if ( !( p.getFirstChild() instanceof Text t ) || t != p.getLastChild() ) {
-                return null;
-            }
-            final Matcher m = STANDALONE.matcher( t.getChars() );
-            return m.matches() ? m.group( 1 ) : null;
-        }
-
-        private Marker standaloneMarker( final Paragraph p ) {
-            final String id = standaloneId( p );
-            final int caret = coords.caret( p.getFirstChild().getStartOffset() );
-            return new Marker( id, caret, coords.spaceAfter( caret + 1 + id.length() ), true );
-        }
-
-        /** The inline marker ending {@code p}'s last text node, or {@code null}. */
-        private Marker inlineMarker( final Paragraph p ) {
-            final Text last = lastText( p );
-            if ( last == null ) {
-                return null;
-            }
-            final Matcher m = INLINE.matcher( last.getChars() );
-            if ( !m.find() ) {
-                return null;
-            }
-            final int caret = coords.caret( last.getStartOffset() + m.start() );
-            return new Marker( m.group( 1 ), coords.spaceBefore( caret ), coords.spaceAfter( caret + m.end( 1 ) - m.start() ), false );
-        }
-
-        private static Text lastText( final Node parent ) {
-            Node last = parent.getLastChild();
-            while ( last instanceof TextBase ) {
-                last = last.getLastChild();
-            }
-            return last instanceof Text t ? t : null;
-        }
-
-        /** Takes every marker out of the tree, as rendering does: trims inline ones, unlinks marker paragraphs. */
-        static void detachMarkers( final Node document ) {
-            final List< Node > markerParagraphs = new ArrayList<>();
-            for ( final Node node : document.getDescendants() ) {
-                if ( node instanceof Paragraph p ) {
-                    if ( standaloneId( p ) != null ) {
-                        markerParagraphs.add( p );
-                    } else {
-                        trimInlineMarker( lastText( p ) );
-                    }
-                }
-            }
-            markerParagraphs.forEach( Node::unlink );
-        }
-
-        private static void trimInlineMarker( final Text last ) {
-            if ( last == null ) {
-                return;
-            }
-            final Matcher m = INLINE.matcher( last.getChars() );
-            if ( m.find() ) {
-                last.setChars( last.getChars().subSequence( 0, m.start() ).trimEnd() );
-            }
-        }
     }
 
     // ---- editing ------------------------------------------------------------------------------------------------------
@@ -577,9 +357,9 @@ public final class BlockIds {
 
         /** {@code fullText} with {@code b} (whose numbered entry is {@code entry}) tagged {@code id}. */
         static String tag( final String fullText, final Block b, final Entry entry, final String id ) {
-            if ( entry.marker() != null ) {   // a duplicate: its marker carries no id, so it is replaced
-                final String marker = entry.marker().standalone() ? "^" + id : " ^" + id;
-                return fullText.substring( 0, b.markerStart() ) + marker + fullText.substring( b.markerEnd() );
+            if ( entry.marker() != null ) {   // a duplicate: its marker carries no id, so its ^id is replaced
+                final int caret = fullText.indexOf( '^', b.markerStart() );
+                return fullText.substring( 0, caret ) + "^" + id + fullText.substring( b.markerEnd() );
             }
             if ( entry.inlineAt() >= 0 ) {
                 return fullText.substring( 0, entry.inlineAt() ) + " ^" + id + fullText.substring( entry.inlineAt() );
@@ -679,6 +459,31 @@ public final class BlockIds {
 
         int start( final Node node ) {
             return map( node.getStartOffset() );
+        }
+
+        /** The marker's range in the full text: an inline one from the spaces and tabs before its {@code ^}. */
+        Marker marker( final BlockWalk.Marker m ) {
+            final int caret = caret( m.caret() );
+            final int start = m.form() == BlockWalk.Form.STANDALONE ? caret : spaceBefore( caret );
+            return new Marker( m.id(), start, spaceAfter( caret + 1 + m.id().length() ) );
+        }
+
+        /** The block's range in the full text, and where an inline marker for it would go. */
+        Entry entry( final BlockWalk.Entry e, final Marker marker ) {
+            final Node node = e.node();
+            if ( e.kind() == Kind.PARAGRAPH ) {
+                final int end = end( node );
+                // From its first inline node: a callout's body paragraph keeps the title's text range in its chars.
+                final int start = node.getFirstChild() != null ? start( node.getFirstChild() ) : start( node );
+                return new Entry( node, e.kind(), start, end, marker, end );
+            }
+            if ( node instanceof IndentedCodeBlock ) {
+                // Its chars start after its four-column indent; that indent is what makes it code, so the block starts
+                // before it (and what precedes that is its container's prefix).
+                return new Entry( node, e.kind(), codeIndentStart( start( node ) ), end( node ), marker, -1 );
+            }
+            final int inlineAt = e.textLine() != null ? end( e.textLine() ) : -1;
+            return new Entry( node, e.kind(), start( node ), end( node ), marker, inlineAt );
         }
 
         /** The node's end, trailing whitespace and line breaks excluded (never before its start). */

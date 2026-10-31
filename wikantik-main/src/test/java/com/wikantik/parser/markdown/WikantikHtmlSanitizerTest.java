@@ -90,4 +90,24 @@ class WikantikHtmlSanitizerTest {
         assertFalse( out.contains( "<svg" ), out );
         assertFalse( out.contains( "<circle" ), out );
     }
+
+    @Test
+    void keepsBlockOrdinalsAndCaretIds() {
+        for ( final String tag : new String[] { "p", "li", "ul", "ol", "table", "blockquote", "div", "details", "pre", "figure" } ) {
+            final String out = WikantikHtmlSanitizer.sanitize( "<" + tag + " id=\"^a-1\" data-block=\"12\">x</" + tag + ">" );
+            assertTrue( out.contains( "data-block=\"12\"" ), tag + ": " + out );
+            assertTrue( out.contains( "id=\"^a-1\"" ), tag + ": " + out );
+        }
+        final String anchor = WikantikHtmlSanitizer.sanitize( "<p>a<span id=\"^lone\" class=\"block-anchor\"></span></p>" );
+        assertTrue( anchor.contains( "id=\"^lone\"" ), anchor );
+    }
+
+    @Test
+    void dropsBadBlockOrdinals() {
+        assertFalse( WikantikHtmlSanitizer.sanitize( "<p data-block=\"1 onload=x\">y</p>" ).contains( "data-block" ) );
+        assertFalse( WikantikHtmlSanitizer.sanitize( "<p data-block=\"-1\">y</p>" ).contains( "data-block" ) );
+        assertFalse( WikantikHtmlSanitizer.sanitize( "<span data-block=\"1\">y</span>" ).contains( "data-block" ) );
+        // data-task arrives with its consumer (Phase 3); until then it is not let through
+        assertFalse( WikantikHtmlSanitizer.sanitize( "<li data-task=\"1\">y</li>" ).contains( "data-task" ) );
+    }
 }

@@ -91,7 +91,7 @@ public class RenderingManagerTest {
         m_engine.saveText( name, text );
 
         final String data = m_engine.getManager( RenderingManager.class ).getHTML( name );
-        Assertions.assertEquals( "<p><em>Foobar.</em></p>\n", data );
+        Assertions.assertEquals( "<p data-block=\"0\"><em>Foobar.</em></p>\n", data );
     }
 
     @Test
@@ -300,7 +300,7 @@ public class RenderingManagerTest {
         Assertions.assertNotNull( html );
         Assertions.assertTrue( html.contains( "Paragraph one" ), "Should contain first paragraph" );
         Assertions.assertTrue( html.contains( "Paragraph two" ), "Should contain second paragraph" );
-        Assertions.assertTrue( html.contains( "<p>" ), "Should contain paragraph tags" );
+        Assertions.assertTrue( html.contains( "<p data-block=\"1\">Paragraph two.</p>" ), "Should contain numbered paragraph tags: " + html );
     }
 
     /**

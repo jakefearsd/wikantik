@@ -18,6 +18,7 @@
 */
 package com.wikantik.markdown.extensions.nativelinks;
 
+import com.wikantik.markdown.extensions.blockids.BlockOrdinals;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Attachment;
@@ -356,7 +357,7 @@ class NativeWikiEmbedRenderingTest {
 
     private String render( final Context context, final String src ) throws Exception {
         final MarkdownParser tr = new MarkdownParser( context, new BufferedReader( new StringReader( src ) ) );
-        return new MarkdownRenderer( context, tr.parse() ).getString();
+        return BlockOrdinals.strip( new MarkdownRenderer( context, tr.parse() ).getString() );
     }
 
     private String renderPage( final String name ) throws Exception {

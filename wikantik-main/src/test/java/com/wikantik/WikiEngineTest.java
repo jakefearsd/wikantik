@@ -304,7 +304,7 @@ class WikiEngineTest {
         m_engine.saveText( "TestPage", "[{SET foo=bar}]()[{SamplePlugin text='{$foo}'}]()");
         final String res = m_engine.getManager( RenderingManager.class ).getHTML( "TestPage" );
 
-        Assertions.assertEquals( "<p>bar</p>\n", res );
+        Assertions.assertEquals( "<p data-block=\"0\">bar</p>\n", res );
     }
 
     /**

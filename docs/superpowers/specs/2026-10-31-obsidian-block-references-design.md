@@ -96,7 +96,7 @@ This **changes today's behaviour**: `[[T#^abc]]` currently slugs to `T#abc`. Bot
 (frontend) and `NativeWikiLinkPostProcessor.pageLink` / `WikiEmbedRenderer` / `WikiPageFormatFilter`
 (server) must pass a `^`-heading through **unslugged**.
 
-### 1.3 Shared block model — `BlockIds` (wikantik-main, new package `com.wikantik.markdown.blocks`)
+### 1.3 Shared block model — `BlockIds` (wikantik-main, package `com.wikantik.parser.markdown`, beside the package-private `MarkdownBodySource` it needs)
 
 One server utility that every consumer uses. It works on page **source** and parses it the way
 rendering does: run the same pre-parse steps the renderer runs (notably `DisplayMathPreProcessor`,
@@ -140,10 +140,12 @@ mask (`MathSpanExtractor` or equivalent): `CodeMask` alone does not mask `$…$`
   The reader's copy-link (§1.7) and task toggle (Phase 3) then send an exact index instead of guessing
   from DOM order. Ordinals depend only on page source, never on the viewer, so they are safe in the
   principal-less render caches.
-  - **Ordinals are emitted only for the outermost page's own source.** Content rendered for
-    `![[embeds]]` (`renderEmbedBody`) or `[{InsertPage}]` carries none: gate on the embed stack /
-    InsertPage recursion attribute.
-  - Otherwise an included page's blocks would collide with the host's indices. Test this with
+  - **Each parse numbers its own blocks from 0. The reader ignores ordinals inside included
+    content.** *(Amended 2026-10-31 during planning.)* Included content is already wrapped:
+    `[{InsertPage}]` in `div.inserted-page`, embeds in `div.wiki-embed`. So the client ignores any
+    `[data-block]`/`[data-task]` whose `closest('.inserted-page, .wiki-embed')` is inside the
+    article. The host's own numbering is unaffected by what it includes, because an include is a
+    single plugin/embed node in the host AST. No server-side gating is needed. Test this with
     InsertPage explicitly.
   - `WikantikHtmlSanitizer` must allow `data-block`/`data-task`.
   - A parity test asserts that rendered ordinals equal `BlockIds.list` indices over a fixture with
@@ -209,9 +211,13 @@ Wherever this table says "strip", the call goes through `ReaderText.derived` (§
   - `fingerprint` is a safety check: the block's text lowercased, reduced to letters and digits, and
     the first 200 chars. The server compares it with `Block.plainText` reduced the same way.
   - A version mismatch → 409 `{ reason: "stale" }`, and the toast offers a reload.
-  - An index out of range or a fingerprint mismatch at the right version → 409
-    `{ reason: "block-not-located" }` (shouldn't happen; logged at WARN), and the toast reads
-    "Couldn't locate this block — add an id in the editor".
+  - An index out of range at the right version → 409 `{ reason: "block-not-located" }`, and the
+    toast reads "Couldn't locate this block — add an id in the editor".
+  - A fingerprint mismatch at the right version is **logged at WARN with both fingerprints but does
+    not block**. *(Amended 2026-10-31 during planning.)* Rendered text of math (KaTeX MathML), links
+    and footnotes legitimately differs from source plain text, while version + ordinal already pin
+    the exact block. The fingerprint is a drift diagnostic, not a gate.
+  - A derived page → 409 `{ reason: "derived" }`.
   - Elements without `data-block` (e.g. plugin output) get no button.
 - Blocks inside `.wiki-embed` get no button (they belong to another page).
 

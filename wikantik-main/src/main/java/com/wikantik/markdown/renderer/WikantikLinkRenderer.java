@@ -98,7 +98,7 @@ public class WikantikLinkRenderer implements NodeRenderer {
         if ( embeds == null ) {
             embeds = WikiEmbedRenderer.forEngine( wikiContext.getEngine() );
         }
-        return embeds.renderBudgeted( wikiContext, node.target(), node.heading() );
+        return embeds.renderBudgeted( wikiContext, node.target(), node.heading(), node.blockId() );
     }
 
     private static void renderLink( final WikantikLink node, final NodeRendererContext context, final HtmlWriter html ) {

@@ -27,7 +27,6 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
-import com.wikantik.export.HeadingSlugs;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
@@ -107,9 +106,10 @@ public final class WikiEmbedRenderer {
         try {
             final WikiLinkResolver.Resolution res = resolver.resolve( target );
             name = res.pageName();
-            final String title = name + ( heading != null ? " › " + heading : "" );
+            // a block embed is titled by its page alone: "› ^id" is noise to a reader
+            final String title = EmbedSections.title( name, heading );
             href = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), name )
-                    + ( heading != null ? "#" + HeadingSlugs.slug( heading ) : "" );
+                    + ( heading != null ? "#" + WikiLinkFragments.of( heading ) : "" );
             final Page page = res.exists() ? pages.getPage( name ) : null;
             if ( page == null ) {
                 return missing( title, href, "<a class=\"createpage\" href=\"" + attr( editUrl( context, name ) )
@@ -134,7 +134,7 @@ public final class WikiEmbedRenderer {
         }
         final Optional< String > text = sourceText( page, heading );
         if ( text.isEmpty() ) {
-            return state( title, href, "wiki-embed-missing", "Section not found: " + attr( heading ), true, false );
+            return state( title, href, "wiki-embed-missing", attr( EmbedSections.notFound( heading ) ), true, false );
         }
         return renderBody( context, page, text.get(), stack, title, href );
     }
@@ -173,8 +173,7 @@ public final class WikiEmbedRenderer {
         // The body of the stripped FULL text (frontmatter can change what the ACL manager counts as code); the body
         // renderer strips again, as every display render does.
         final String text = AclDirectiveText.parseStripped( pages.getPureText( page ) ).body();
-        return heading == null ? Optional.of( text ) : HeadingSlugs.sectionBody( text, HeadingSlugs.slug( heading ) )
-                .filter( s -> !s.isBlank() );
+        return EmbedSections.select( text, heading );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -232,11 +231,17 @@ public final class WikiEmbedRenderer {
 
     /** The full {@code <div class="wiki-embed">} block. */
     public String renderBlock( final Context context, final String target, final String heading ) {
+        return renderBlock( context, target, heading, null );
+    }
+
+    /** As {@link #renderBlock(Context, String, String)}; a non-null {@code blockId} (no {@code ^}) is the wrapper's {@code id="^blockId"}. */
+    public String renderBlock( final Context context, final String target, final String heading, final String blockId ) {
         final EmbedResult r = render( context, target, heading );
+        final String idAttr = blockId == null ? "" : " id=\"^" + attr( blockId ) + "\"";
         final String section = heading != null ? " data-section=\"" + attr( heading ) + "\"" : "";
         final String title = attr( r.title() );
         final String titleHtml = r.restricted() ? title : "<a class=\"wikipage\" href=\"" + attr( r.href() ) + "\">" + title + "</a>";
-        return "<div class=\"wiki-embed\" data-embed=\"" + attr( target ) + "\"" + section
+        return "<div class=\"wiki-embed\"" + idAttr + " data-embed=\"" + attr( target ) + "\"" + section
                 + "><div class=\"wiki-embed-title\">" + titleHtml + "</div><div class=\"wiki-embed-body\">"
                 + r.bodyHtml() + "</div></div>";
     }
@@ -247,13 +252,19 @@ public final class WikiEmbedRenderer {
      * the block, reusing an identical earlier embed of the same render.
      */
     public Optional< String > renderBudgeted( final Context context, final String target, final String heading ) {
+        return renderBudgeted( context, target, heading, null );
+    }
+
+    /** As {@link #renderBudgeted(Context, String, String)}, the wrapper carrying {@code id="^blockId"} when non-null. */
+    public Optional< String > renderBudgeted( final Context context, final String target, final String heading,
+                                              final String blockId ) {
         if ( Boolean.FALSE.equals( context.getVariable( Context.VAR_EXECUTE_PLUGINS ) ) ) {
             return Optional.empty();
         }
         try ( EmbedRenderBudget.Scope scope = EmbedRenderBudget.open( context ) ) {
             context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
-            final String key = String.join( "\u0001", currentStack( context ) ) + '\u0000' + target + '\u0000' + heading;
-            return EmbedRenderBudget.current( context ).render( key, () -> renderBlock( context, target, heading ) );
+            final String key = String.join( "\u0001", currentStack( context ) ) + '\u0000' + target + '\u0000' + heading + '\u0000' + blockId;
+            return EmbedRenderBudget.current( context ).render( key, () -> renderBlock( context, target, heading, blockId ) );
         }
     }
 

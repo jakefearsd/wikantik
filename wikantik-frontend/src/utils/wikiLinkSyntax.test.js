@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  parseWikiLink, findWikiLinks, wikiLinkDisplayText, wikiLinkHref, collectNativeWikiLinkTargets, isImageFileName,
+  parseWikiLink, findWikiLinks, wikiLinkDisplayText, wikiLinkHref, wikiLinkFragment, collectNativeWikiLinkTargets, isImageFileName,
 } from './wikiLinkSyntax';
 
 const one = (t) => parseWikiLink(t);
@@ -70,6 +70,19 @@ describe('wikiLinkSyntax', () => {
     expect(wikiLinkHref(parseWikiLink('[[My Page#Set Up]]'))).toBe('My%20Page#set-up');
     expect(wikiLinkHref(parseWikiLink('[[#Intro Part]]'))).toBe('#intro-part');
     expect(wikiLinkHref(parseWikiLink('[[foo]]'), 'Foo')).toBe('Foo');
+  });
+
+  it('passes a ^block heading through unslugged, same-page and cross-page', () => {
+    expect(wikiLinkHref(parseWikiLink('[[#^abc]]'))).toBe('#^abc');
+    expect(wikiLinkHref(parseWikiLink('[[My Page#^Ab-1]]'))).toBe('My%20Page#^Ab-1');
+    expect(wikiLinkHref(parseWikiLink('[[foo#^x|see]]'), 'Foo')).toBe('Foo#^x');
+  });
+
+  it('wikiLinkFragment slugs headings and keeps block refs', () => {
+    expect(wikiLinkFragment('Set Up')).toBe('set-up');
+    expect(wikiLinkFragment('^abc')).toBe('^abc');
+    expect(wikiLinkFragment(undefined)).toBe('');
+    expect(wikiLinkFragment('')).toBe('');
   });
 
   it('collects page targets outside code only', () => {

@@ -305,6 +305,13 @@ class WikiPageFormatFilterTest {
     }
 
     @Test
+    void rewriteWikiLinksKeepsABlockFragmentVerbatim() {
+        assertEquals( "[see](https://w.example/wiki/T#^abc) [T > ^Ab-1](https://w.example/wiki/T#^Ab-1) [^q](https://w.example/wiki/Cur#^q)",
+                WikiPageFormatFilter.rewriteWikiLinks( "[[T#^abc|see]] [[T#^Ab-1]] [[#^q]]", "https://w.example", "Cur",
+                        java.util.function.UnaryOperator.identity(), n -> false ) );
+    }
+
+    @Test
     void rewriteWikiLinksProducesStandardMarkdownLinks() {
         final String in = "[[Target|A]] [[Target#My H]] [[#Intro]] ![[Target]] ![[Owner/p.png|300]] ![[local.png]] `[[Code]]`";
         final String out = WikiPageFormatFilter.rewriteWikiLinks( in, "https://w.example/", "Cur",

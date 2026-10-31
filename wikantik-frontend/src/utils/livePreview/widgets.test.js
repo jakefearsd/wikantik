@@ -178,6 +178,13 @@ describe('widget DOM', () => {
     dom.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, ctrlKey: true }));
     expect(open).toHaveBeenCalledWith('/wiki/Other%20Page#raw-heading', '_blank', 'noopener');
   });
+  it('a block embed is titled by its page alone and Mod-click opens the unslugged #^id', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const dom = new EmbedWidget('Other Page', '^abc', () => Promise.resolve({ state: 'missing' })).toDOM(viewOf('x'));
+    expect(dom.querySelector('.cm-lp-embed-title').textContent).toBe('Other Page');
+    dom.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, ctrlKey: true }));
+    expect(open).toHaveBeenCalledWith('/wiki/Other%20Page#^abc', '_blank', 'noopener');
+  });
   it('checkbox eq ignores the source offset, so typing above does not rebuild every box', () => {
     expect(new CheckboxWidget(true, 3).eq(new CheckboxWidget(true, 40))).toBe(true);
   });

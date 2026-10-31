@@ -24,7 +24,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.parser.WikiLinkSyntax;
-import com.wikantik.export.HeadingSlugs;
+import com.wikantik.wikilink.WikiLinkFragments;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -405,7 +405,7 @@ public class WikiPageFormatFilter implements Filter {
             }
             final String page = ref.isSamePage() ? currentPage : resolvedPage( resolvePage, ref.target() );
             final String url = base + "/wiki/" + encodeSegment( page )
-                    + ( ref.heading() == null ? "" : "#" + HeadingSlugs.slug( ref.heading() ) );
+                    + ( ref.heading() == null ? "" : "#" + WikiLinkFragments.of( ref.heading() ) );
             final String label = ref.embed() ? "Embedded: " + ref.displayText()
                     : ref.isSamePage() && ref.alias() == null ? ref.heading() : ref.displayText();
             return "[" + escapeLabel( label ) + "](" + url + ")";

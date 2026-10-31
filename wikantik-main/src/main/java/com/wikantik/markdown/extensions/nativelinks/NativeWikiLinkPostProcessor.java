@@ -35,7 +35,7 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.parser.WikiLinkSyntax;
 import com.wikantik.api.parser.WikiLinkSyntax.WikiLinkRef;
-import com.wikantik.export.HeadingSlugs;
+import com.wikantik.markdown.extensions.blockids.BlockIdPostProcessor;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.WikiHtmlInline;
 import com.wikantik.markdown.nodes.NativeWikiLinkNode;
 import com.wikantik.markdown.nodes.NativeWikiLinkNode.Kind;
@@ -43,6 +43,7 @@ import com.wikantik.markdown.nodes.WikiEmbedBlock;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.util.TextUtil;
+import com.wikantik.wikilink.WikiLinkFragments;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.wikilink.WikiLinkResolver.Resolution;
 
@@ -142,10 +143,13 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
      */
     private void replaceParagraphWithEmbeds( final NodeTracker state, final Paragraph paragraph ) {
         final List< WikiEmbedBlock > blocks = new ArrayList<>();
+        String blockId = BlockIdPostProcessor.idOf( paragraph );
         for ( Node child = paragraph.getFirstChild(); child != null; child = child.getNext() ) {
             if ( child instanceof WikiImage || child instanceof WikiLink ) {
                 final WikiLinkRef r = WikiLinkSyntax.parse( child.getChars().toString() ).orElseThrow();
-                blocks.add( new WikiEmbedBlock( r.target(), r.heading(), pageLink( r ) ) );
+                // a block id on the paragraph (`![[X]] ^id`) anchors its first embed: the paragraph itself is gone
+                blocks.add( new WikiEmbedBlock( r.target(), r.heading(), pageLink( r ), blockId ) );
+                blockId = null;
             }
         }
         for ( final WikiEmbedBlock block : blocks ) {
@@ -189,7 +193,7 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
     }
 
     private NativeWikiLinkNode pageLink( final WikiLinkRef r ) {
-        final String fragment = r.heading() != null ? "#" + HeadingSlugs.slug( r.heading() ) : "";
+        final String fragment = r.heading() != null ? "#" + WikiLinkFragments.of( r.heading() ) : "";
         if ( r.isSamePage() ) {
             return linkNode( fragment, r.displayText(), Kind.ANCHOR, "" );
         }

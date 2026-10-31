@@ -78,6 +78,57 @@ class WikiEmbedRendererTest {
         assertEquals( "EmbTarget › Usage", r.title() );
     }
 
+    @Test void blockEmbedTakesOnlyThatBlockWithoutItsMarker() throws Exception {
+        engine.saveText( "EmbBlk", "Intro.\n\nPara ^abc\n\nOther.\n" );
+        final var r = renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "EmbBlk", "^abc" );
+        assertTrue( r.bodyHtml().contains( "Para" ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "^abc" ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "Other." ), r.bodyHtml() );
+        assertEquals( "EmbBlk", r.title() );
+        assertTrue( r.href().endsWith( "/EmbBlk#^abc" ), r.href() );
+        assertFalse( r.missing() );
+    }
+
+    @Test void blockEmbedOfAListItemDropsNestedMarkers() throws Exception {
+        engine.saveText( "EmbBlkList", "- top ^t\n  - child ^c\n- other\n" );
+        final var r = renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "EmbBlkList", "^t" );
+        assertTrue( r.bodyHtml().contains( "child" ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "^c" ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "id=\"^" ), r.bodyHtml() );
+    }
+
+    @Test void missingBlockIsReported() throws Exception {
+        engine.saveText( "EmbBlk", "Para ^abc\n" );
+        final var r = renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "EmbBlk", "^zzz" );
+        assertTrue( r.missing() );
+        assertTrue( r.bodyHtml().contains( "wiki-embed-missing" ), r.bodyHtml() );
+        assertTrue( r.bodyHtml().contains( "Block not found: ^zzz" ), r.bodyHtml() );
+    }
+
+    @Test void restrictedBlockEmbedGetsNoBodyAndFlagsTheContext() throws Exception {
+        engine.saveText( "EmbBlkSecret", "classified ^abc\n" );
+        final Context ctx = hostContext();
+        final var r = renderer( ( c, p ) -> false, 20000 ).render( ctx, "EmbBlkSecret", "^abc" );
+        assertTrue( r.restricted() );
+        assertTrue( r.bodyHtml().contains( "wiki-embed-restricted" ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "classified" ), r.bodyHtml() );
+        assertEquals( Boolean.TRUE, ctx.getVariable( Context.VAR_VIEWER_SENSITIVE ) );
+    }
+
+    @Test void blockEmbedWrapperLinksTheBlockAndNamesThePage() throws Exception {
+        engine.saveText( "EmbBlk", "Para ^abc\n" );
+        final String html = renderer( ( c, p ) -> true, 20000 ).renderBlock( hostContext(), "EmbBlk", "^abc" );
+        assertTrue( html.contains( "data-section=\"^abc\"" ), html );
+        assertTrue( html.contains( "href=\"" ) && html.contains( "/EmbBlk#^abc\">EmbBlk</a>" ), html );
+    }
+
+    @Test void selfEmbedOfABlockIsStoppedAsALoop() throws Exception {
+        engine.saveText( "EmbBlkSelf", "x ![[EmbBlkSelf#^b]] ^b\n" );
+        final Context ctx = Wiki.context().create( engine, HttpMockFactory.createHttpRequest(),
+                engine.getManager( PageManager.class ).getPage( "EmbBlkSelf" ) );
+        assertTrue( renderer( ( c, p ) -> true, 20000 ).render( ctx, "EmbBlkSelf", "^b" ).bodyHtml().contains( "Embed loop stopped" ) );
+    }
+
     @Test void missingPageAndMissingSection() throws Exception {
         assertTrue( renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "NoSuchEmb", null ).missing() );
         engine.saveText( "EmbTarget", "Body.\n" );

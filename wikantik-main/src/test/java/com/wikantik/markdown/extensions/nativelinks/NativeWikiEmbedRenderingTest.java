@@ -302,6 +302,51 @@ class NativeWikiEmbedRenderingTest {
         assertTrue( html.contains( "<strong>text</strong>" ), html );
     }
 
+    @Test void blockEmbedRendersTheBlockAndLinksToIt() throws Exception {
+        engine.saveText( "EmbBlkSrc", "Intro.\n\nPara text ^abc\n\nOther.\n" );
+        final String html = translate( "![[EmbBlkSrc#^abc]]\n" );
+        assertTrue( html.contains( "Para text" ), html );
+        assertFalse( html.contains( "Other." ), html );
+        assertFalse( html.contains( "^abc</p>" ), html );
+        assertTrue( html.contains( "href=\"/test/wiki/EmbBlkSrc#^abc\">EmbBlkSrc</a>" ), html );
+    }
+
+    @Test void embedOnlyParagraphCarriesItsInlineBlockIdOntoTheWrapper() throws Exception {
+        engine.saveText( "EmbBody", "x\n" );
+        final String html = translate( "![[EmbBody]] ^emb1\n" );
+        assertTrue( html.contains( "<div class=\"wiki-embed\" id=\"^emb1\" data-embed=\"EmbBody\">" ), html );
+        assertEquals( 1, count( html, "id=\"^emb1\"" ), html );
+        assertFalse( html.contains( "data-block" ), html );
+    }
+
+    @Test void embedOnlyParagraphCarriesItsStandaloneBlockIdOntoTheWrapper() throws Exception {
+        engine.saveText( "EmbBody", "x\n" );
+        final String html = translate( "![[EmbBody]]\n^emb2\n" );
+        assertTrue( html.contains( "<div class=\"wiki-embed\" id=\"^emb2\" data-embed=\"EmbBody\">" ), html );
+        assertEquals( 1, count( html, "id=\"^emb2\"" ), html );
+    }
+
+    @Test void onlyTheFirstOfSeveralEmbedsGetsTheParagraphsId() throws Exception {
+        engine.saveText( "EmbA", "aaa\n" );
+        engine.saveText( "EmbB", "bbb\n" );
+        final String html = translate( "![[EmbA]]\n![[EmbB]] ^emb3\n" );
+        assertEquals( 1, count( html, "id=\"^emb3\"" ), html );
+        assertTrue( html.indexOf( "id=\"^emb3\"" ) < html.indexOf( "data-embed=\"EmbB\"" ), html );
+        assertTrue( html.indexOf( "id=\"^emb3\"" ) > html.indexOf( "data-embed=\"EmbA\"" ) - 60, html );
+    }
+
+    @Test void aBlockLinkTargetsTheEmbedWrapper() throws Exception {
+        engine.saveText( "EmbBody", "x\n" );
+        final String html = translate( "![[EmbBody]] ^emb4\n\n[[#^emb4]]\n" );
+        assertTrue( html.contains( "id=\"^emb4\"" ), html );
+        assertTrue( html.contains( "href=\"#^emb4\"" ), html );
+    }
+
+    @Test void aBlockEmbedLoopThroughTheHostIsStopped() throws Exception {
+        engine.saveText( "EmbBlkLoop", "![[EmbBlkLoop#^b]] ^b\n" );
+        assertTrue( renderPage( "EmbBlkLoop" ).contains( "Embed loop stopped" ) );
+    }
+
     private static int count( final String haystack, final String needle ) {
         int n = 0;
         for ( int i = haystack.indexOf( needle ); i >= 0; i = haystack.indexOf( needle, i + needle.length() ) ) {

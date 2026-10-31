@@ -78,6 +78,12 @@ public class BlockIdPostProcessor extends DocumentPostProcessor {
     /** The blocks of a rendered document, by node identity. Empty when the document was not processed. */
     public static final DataKey< Map< Node, BlockAttrs > > BLOCK_ATTRS = new DataKey<>( "WIKANTIK_BLOCK_ATTRS", Map.of() );
 
+    /** The block id (without {@code ^}) recorded for {@code node}, or {@code null} when it has none or was not processed. */
+    public static String idOf( final Node node ) {
+        final BlockAttrs attrs = BLOCK_ATTRS.get( node.getDocument() ).get( node );
+        return attrs == null ? null : attrs.id();
+    }
+
     private final String pageName;
     private final Function< Document, BlockWalk.Result > walker;
 

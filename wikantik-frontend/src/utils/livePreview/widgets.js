@@ -215,7 +215,7 @@ export class EmbedWidget extends WidgetType {
   toDOM(view) {
     const box = el('div', 'cm-lp-embed');
     const body = el('div', 'cm-lp-embed-body cm-lp-embed-loading', 'Loading…');
-    box.append(el('div', 'cm-lp-embed-title', this.section ? `${this.target} › ${this.section}` : this.target), body);
+    box.append(el('div', 'cm-lp-embed-title', this.section && !this.section.startsWith('^') ? `${this.target} › ${this.section}` : this.target), body);
     const show = (cls, text) => { body.className = `cm-lp-embed-body ${cls}`; body.textContent = text; };
     const load = this.load
       ? Promise.resolve().then(() => this.load(this.target, this.section))

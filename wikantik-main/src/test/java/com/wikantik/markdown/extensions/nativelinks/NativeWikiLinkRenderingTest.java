@@ -67,6 +67,13 @@ class NativeWikiLinkRenderingTest {
                 translate( "[[WlTarget#My Heading]]" ) );
     }
 
+    @Test void blockRefFragmentIsNeverSlugged() throws Exception {
+        newPage( "WlTarget" );
+        assertEquals( "<p><a href=\"/test/wiki/WlTarget#^abc\" class=\"wikipage\">WlTarget &gt; ^abc</a></p>\n",
+                translate( "[[WlTarget#^abc]]" ) );
+        assertEquals( "<p><a href=\"#^Ab-1\" class=\"wikipage\">^Ab-1</a></p>\n", translate( "[[#^Ab-1]]" ) );
+    }
+
     @Test void samePageHeading() throws Exception {
         assertEquals( "<p><a href=\"#intro-part\" class=\"wikipage\">Intro Part</a></p>\n", translate( "[[#Intro Part]]" ) );
     }

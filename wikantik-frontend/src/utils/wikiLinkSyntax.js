@@ -77,9 +77,19 @@ export function wikiLinkDisplayText(ref) {
 
 /** View href: '#slug' for a same-page link, else the (resolved) page name plus an optional '#slug'. */
 export function wikiLinkHref(ref, resolvedName) {
-  const slug = ref.heading ? slugify(ref.heading) : '';
+  const slug = wikiLinkFragment(ref.heading);
   if (ref.isSamePage) return `#${slug}`;
   return encodeURIComponent(resolvedName || ref.target) + (slug ? `#${slug}` : '');
+}
+
+/**
+ * The URL fragment of a wikilink heading: a `^block` reference is kept verbatim (the rendered block carries
+ * `id="^id"`, and `^` needs no encoding in a fragment), any other heading is slugged. Mirrors the server's
+ * `WikiLinkFragments.of`; the shared wikilinks.json fixture asserts both.
+ */
+export function wikiLinkFragment(heading) {
+  if (!heading) return '';
+  return heading.startsWith('^') ? heading : slugify(heading);
 }
 
 /**

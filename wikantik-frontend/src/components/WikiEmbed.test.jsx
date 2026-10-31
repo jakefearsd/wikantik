@@ -25,6 +25,22 @@ describe('WikiEmbed', () => {
     expect(container.querySelector('.wiki-embed-title').textContent).toBe('Target › Usage');
   });
 
+  it('titles a block embed by its page alone and links to the unslugged #^id', async () => {
+    api.getPageEmbed.mockResolvedValue(ok('<p>Para</p>'));
+    const { container, findByText } = render(<WikiEmbed page="Target" section="^abc" />);
+    await findByText('Para');
+    expect(container.querySelector('.wiki-embed-title').textContent).toBe('Target');
+    expect(container.querySelector('.wiki-embed-title a').getAttribute('href')).toMatch(/\/wiki\/Target#\^abc$/);
+    expect(api.getPageEmbed).toHaveBeenCalledWith('Target', expect.objectContaining({ section: '^abc' }));
+  });
+
+  it('links a whole-page embed without a fragment', async () => {
+    api.getPageEmbed.mockResolvedValue(ok('<p>All</p>'));
+    const { container, findByText } = render(<WikiEmbed page="Target" />);
+    await findByText('All');
+    expect(container.querySelector('.wiki-embed-title a').getAttribute('href')).toMatch(/\/wiki\/Target$/);
+  });
+
   it('draws the diagrams inside the embedded body, and marks the pass stale once the body is replaced', async () => {
     const fence = '<figure class="wk-fence" data-fence="mermaid" data-fence-kind="browser">'
       + '<pre class="wk-fence-source"><code class="language-mermaid">flowchart TD</code></pre></figure>';

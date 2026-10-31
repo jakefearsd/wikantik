@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadEmbed, clearEmbedCache } from '../utils/embedCache';
-import { slugify } from '../utils/headings';
+import { wikiLinkFragment } from '../utils/wikiLinkSyntax';
 import { renderFences } from '../utils/fences/renderFences';
 
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
@@ -54,8 +54,11 @@ export default function WikiEmbed({ page, target = page, section = null }) {
     return () => { stale = true; };
   }, [html]);
 
-  const label = section ? `${page} › ${section}` : page;
-  const href = `${BASE}/wiki/${encodeURIComponent(page)}${section ? '#' + slugify(section) : ''}`;
+  // A block embed (`^id`) is titled by its page alone: "› ^id" is noise to a reader.
+  const isBlock = !!section && section.startsWith('^');
+  const label = section && !isBlock ? `${page} › ${section}` : page;
+  const fragment = wikiLinkFragment(section);
+  const href = `${BASE}/wiki/${encodeURIComponent(page)}${fragment ? '#' + fragment : ''}`;
 
   let body;
   if (state === 'ok') body = host;

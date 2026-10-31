@@ -33,12 +33,24 @@ public class WikiEmbedBlock extends Block {
     private final String target;
     private final String heading;
     private final NativeWikiLinkNode fallbackLink;
+    private final String blockId;
 
     public WikiEmbedBlock( final String target, final String heading, final NativeWikiLinkNode fallbackLink ) {
+        this( target, heading, fallbackLink, null );
+    }
+
+    /** @param blockId the {@code ^id} (without the {@code ^}) the embed's paragraph carried, or null; it becomes the wrapper's anchor */
+    public WikiEmbedBlock( final String target, final String heading, final NativeWikiLinkNode fallbackLink, final String blockId ) {
         super( BasedSequence.NULL );
         this.target = target;
         this.heading = heading;
         this.fallbackLink = fallbackLink;
+        this.blockId = blockId;
+    }
+
+    /** The block id (without {@code ^}) the embed's paragraph carried, or null. */
+    public String blockId() {
+        return blockId;
     }
 
     /** The embedded page name as written. */

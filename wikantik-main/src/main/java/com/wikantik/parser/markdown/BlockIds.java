@@ -216,7 +216,6 @@ public final class BlockIds {
                 + " without changing the blocks around it" );
     }
 
-    /** {@code model}, once {@code b} is checked to be one of its blocks, as listed, and without an id. */
     /**
      * {@link #assign} over a page <em>body</em>, read as {@link #listBody} reads it — behind a frontmatter, so the edit is
      * the one {@link #assign} makes to the saved page: {@code b} is a block of {@code listBody( body )}.
@@ -231,6 +230,7 @@ public final class BlockIds {
         return page.substring( BEHIND.length() );
     }
 
+    /** {@code model}, once {@code b} is checked to be one of its blocks, as listed, and without an id. */
     private static BlockModel.Model untagged( final BlockModel.Model model, final Block b ) {
         if ( b.index() < 0 || b.index() >= model.entries().size() || !model.blocks().get( b.index() ).equals( b ) ) {
             throw new IllegalArgumentException( "Block " + b.index() + " is not a current block of this text" );

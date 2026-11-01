@@ -27,8 +27,11 @@ import com.wikantik.pages.Page;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static com.codeborne.selenide.Selenide.$;
 
@@ -42,6 +45,8 @@ import static com.codeborne.selenide.Selenide.$;
  */
 public class EditWikiPage implements SpaPage {
 
+    private static final Logger LOG = LoggerFactory.getLogger( EditWikiPage.class );
+
     /**
      * Open a given page for edition.
      *
@@ -53,8 +58,8 @@ public class EditWikiPage implements SpaPage {
     }
 
     /**
-     * Open a page for edition with the browser's remembered editor mode pinned first. A server-side preference
-     * (if the user has one) still wins over this.
+     * Open a page for edition with the editor mode pinned first: in this browser, and on the signed-in user's
+     * profile when there is one (so the server preference cannot override the pin).
      *
      * @param pageName Wiki page name to edit (new or existing).
      * @param mode {@code "source"} or {@code "live"}.
@@ -69,21 +74,46 @@ public class EditWikiPage implements SpaPage {
     }
 
     /**
-     * The editor now defaults to live preview, while these tests drive the CodeMirror source text. Each test starts
-     * from a clean browser session, so pin source mode (this browser's remembered choice; the test users have no
-     * server-side preference) before the editor mounts. Must run on the wiki origin to reach its localStorage.
+     * The editor now defaults to live preview, while these tests drive the CodeMirror source text, so pin source
+     * mode before the editor mounts. Must run on the wiki origin to reach its localStorage.
      */
     public static void pinSourceMode() {
         pinMode( "source" );
     }
 
-    /** Pins the browser's remembered editor mode ({@code source} or {@code live}). */
+    /**
+     * Pins the editor mode ({@code source} or {@code live}) so each IT is self-sufficient: whatever an earlier test
+     * left in this browser or on the user's profile, the editor opens in {@code mode}. A signed-in session also gets
+     * the mode PUT to {@code /api/auth/profile} (the server preference wins over the browser's); an anonymous
+     * session's 401 is expected and only logged, any other failure throws.
+     */
     public static void pinMode( final String mode ) {
         final String base = Page.baseUrl();
         if ( !WebDriverRunner.hasWebDriverStarted() || !WebDriverRunner.url().startsWith( base ) ) {
             Selenide.open( base + "/" );
         }
-        Selenide.executeJavaScript( "localStorage.setItem('wikantik.editor.mode', arguments[0])", mode );
+        final String script = """
+            const cb = arguments[arguments.length - 1];
+            const mode = arguments[0];
+            const base = window.__WIKANTIK_BASE__ || '';
+            fetch(base + '/api/auth/profile', { method: 'PUT',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              credentials: 'same-origin', body: JSON.stringify({ editorMode: mode }) })
+              .then(r => {
+                // Mirror what the app records: an account's value after a successful save, else a local choice.
+                localStorage.setItem('wikantik.editor.mode', mode);
+                localStorage.setItem('wikantik.editor.mode.src', r.ok ? 'server' : 'local');
+                cb({ status: r.status });
+              })
+              .catch(err => cb({ status: -1, error: String(err) }));
+            """;
+        final Object r = Selenide.executeAsyncJavaScript( script, mode );
+        final int status = r instanceof Map< ?, ? > m && m.get( "status" ) instanceof Number n ? n.intValue() : -1;
+        if ( status == 401 ) {
+            LOG.info( "pinMode({}): anonymous session (401 from PUT /api/auth/profile); pinned in this browser only", mode );
+        } else if ( status < 200 || status >= 300 ) {
+            throw new IllegalStateException( "pinMode(" + mode + "): PUT /api/auth/profile failed: " + r );
+        }
     }
 
     /**

@@ -62,7 +62,7 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
                 .clickOnLogin()
                 .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
         RestSeedHelper.awaitAdminReady();
-        // Other ITs pin source mode, which useEditorMode migrates to this user's server preference; start clean.
+        // Other ITs pin source mode on this user's server preference (EditWikiPage.pinMode); start clean.
         putEditorMode( "null" );
         RestSeedHelper.writePage( PAGE, BODY );
     }

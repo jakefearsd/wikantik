@@ -52,5 +52,12 @@
 "Para ^b [{allow view x}]\n\nOther ^b\n",
 "    Word [{ALLOW view\nAdmin}] ^b\n\nOther ^b\n",
 "Para.\n\n[{ALLOW view Admin}]\t^b\n\nOther ^b\n",
-"Other ^b\n\n> Para\n>\n> [{ALLOW view Admin}]    ^b\n"
+"Other ^b\n\n> Para\n>\n> [{ALLOW view Admin}]    ^b\n",
+"---\nIntro ^x\n\n---\n\nPara ^x\n\nThird\n",
+"---\nIntro\n---\n\nPara\n",
+"---\n\nIntro para.\n\nSecond para with words.\n\n---\n\nPara\n",
+"---\ntitle: X ^a\n---\nPara one\n\nPara two ^p\n",
+"Title ^t\n---\n\nPara ^p\n",
+"---\r\nIntro ^x\r\n\r\n---\r\n\r\nPara ^y\r\n",
+"---\n[{ALLOW view Admin}]\n---\n\nPara ^p\n"
 ]

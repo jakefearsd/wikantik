@@ -47,18 +47,43 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BlockDraftsTest {
 
+    /** Each shape is tried as a whole page ({@code null}) and as the editor's body behind a saved frontmatter. */
+    private static final List< String > FRONTMATTERS = java.util.Arrays.asList( null, "---\ntitle: T\n---\n" );
+
     private static String nextId( final Set< String > taken ) {
         return BlockIds.newId( taken );
     }
 
-    /** What is wrong with linking the block at {@code offset} of {@code text}, or an empty list. */
+    /** What is wrong with linking the block at {@code offset} of the whole page {@code text}, or an empty list. */
     static List< String > problems( final String text, final int offset ) {
+        return problems( text, offset, null );
+    }
+
+    /**
+     * The reader's blocks of {@code text}: of the page itself when {@code frontmatter} is {@code null}, else of the saved
+     * page — {@code text} as a body behind {@code frontmatter} — with offsets in {@code text}.
+     */
+    static List< Block > reader( final String text, final String frontmatter ) {
+        if ( frontmatter == null ) {
+            return BlockIds.list( text );
+        }
+        final int shift = frontmatter.length();
+        return BlockIds.list( frontmatter + text ).stream().map( b -> new Block( b.index(), b.id(), b.kind(), b.start() - shift,
+                b.end() - shift, b.markerStart() < 0 ? -1 : b.markerStart() - shift, b.markerEnd() < 0 ? -1 : b.markerEnd() - shift,
+                b.plainText() ) ).toList();
+    }
+
+    /**
+     * What is wrong with linking the block at {@code offset} of {@code text} — a whole page when {@code frontmatter} is
+     * {@code null}, else a body checked against what the reader gets for {@code frontmatter + text} — or an empty list.
+     */
+    static List< String > problems( final String text, final int offset, final String frontmatter ) {
         final List< String > out = new ArrayList<>();
-        final List< Block > before = BlockIds.list( text );
+        final List< Block > before = reader( text, frontmatter );
         final Block target = BlockDrafts.blockAt( before, offset ).orElse( null );
         final BlockDrafts.Link link;
         try {
-            link = BlockDrafts.linkAt( "Draft", text, offset, BlockDraftsTest::nextId );
+            link = BlockDrafts.linkAt( "Draft", text, frontmatter != null, offset, BlockDraftsTest::nextId );
         } catch ( final BlockDrafts.Refused e ) {
             if ( e.reason() == BlockDrafts.Refusal.NO_BLOCK && target != null ) {
                 out.add( "no block at " + offset + " though block " + target.index() + " holds it" );
@@ -76,7 +101,7 @@ class BlockDraftsTest {
             return out;
         }
         final String after = text.substring( 0, link.change().from() ) + link.change().insert() + text.substring( link.change().to() );
-        final List< Block > now = BlockIds.list( after );
+        final List< Block > now = reader( after, frontmatter );
         if ( now.size() != before.size() ) {
             out.add( "the blocks changed: " + before.size() + " -> " + now.size() );
             return out;
@@ -121,9 +146,11 @@ class BlockDraftsTest {
         assertTrue( shapes.size() >= 50 );
         final List< String > problems = new ArrayList<>();
         for ( final String text : shapes ) {
-            for ( int offset = 0; offset <= text.length(); offset++ ) {
-                final int at = offset;
-                problems( text, at ).forEach( p -> problems.add( esc( text ) + " @" + at + ": " + p ) );
+            for ( final String fm : FRONTMATTERS ) {
+                for ( int offset = 0; offset <= text.length(); offset++ ) {
+                    final int at = offset;
+                    problems( text, at, fm ).forEach( p -> problems.add( fm + "|" + esc( text ) + " @" + at + ": " + p ) );
+                }
             }
         }
         assertEquals( List.of(), problems, String.join( "\n", problems ) );
@@ -171,6 +198,52 @@ class BlockDraftsTest {
         final List< Block > blocks = BlockIds.list( "- one\n  - two\n> q\n" );
         assertEquals( 1, BlockDrafts.blockAt( blocks, "- one\n  - t".length() ).orElseThrow().index() );
         assertEquals( 0, BlockDrafts.blockAt( blocks, 1 ).orElseThrow().index() );
+    }
+
+    /** The reviewer's shape, in the editor: a body opening with a thematic break, behind the page's frontmatter. */
+    @Test
+    void aBodyOpeningWithAThematicBreakLinksTheBlocksTheReaderShowsBehindTheFrontmatter() throws BlockDrafts.Refused {
+        final String body = "---\nIntro ^x\n\n---\n\nPara ^x\n\nThird\n";
+        final BlockDrafts.Link intro = BlockDrafts.linkAt( "Draft", body, true, body.indexOf( "Intro" ), taken -> "unused" );
+        assertEquals( "x", intro.id() );
+        assertNull( intro.change() );
+        final BlockDrafts.Link para = BlockDrafts.linkAt( "Draft", body, true, body.indexOf( "Para" ), taken -> "nw1234" );
+        assertEquals( "nw1234", para.id() );
+        // the losing duplicate's marker is renamed in place — one minimal edit
+        assertEquals( new BlockDrafts.Change( body.indexOf( "Para ^x" ) + 6, body.indexOf( "Para ^x" ) + 7, "nw1234" ),
+                para.change() );
+        final String hidden = "---\n\nIntro para.\n\nSecond para with words.\n\n---\n\nPara\n";
+        assertNotNull( BlockDrafts.linkAt( "Draft", hidden, true, hidden.indexOf( "Second" ), taken -> "nw1234" ).change() );
+        // the same text as a whole page: its leading pair IS frontmatter, as a save without metadata makes it
+        assertEquals( BlockDrafts.Refusal.NO_BLOCK, assertThrows( BlockDrafts.Refused.class,
+                () -> BlockDrafts.linkAt( "Draft", hidden, false, hidden.indexOf( "Second" ), taken -> "x" ) ).reason() );
+    }
+
+    /**
+     * 2,500 generated bodies — half opening with {@code ---} — behind frontmatter, every action, against the reader (run
+     * at 6,000 when written: 0 problems; trimmed to keep the unit suite quick, the page-mode run above is 6,000).
+     */
+    @Test
+    void generatedBodiesBehindFrontmatterNeverOrphanMisTargetOrDangle() {
+        final BlockTextGenerator generator = new BlockTextGenerator( 0xB0D1E5L );
+        final Random random = new Random( 0x5EED5L );
+        final List< String > problems = new ArrayList<>();
+        int actions = 0;
+        for ( int i = 0; i < 2_500 && problems.size() < 20; i++ ) {
+            final String text = switch ( random.nextInt( 4 ) ) {
+                case 0 -> "---\n" + generator.next();
+                case 1 -> "---\n" + generator.next() + "\n---\n" + generator.next();
+                default -> generator.next();
+            };
+            final String fm = FRONTMATTERS.get( 1 );
+            for ( final int offset : offsets( text, random ) ) {
+                actions++;
+                final int n = i;
+                problems( text, offset, fm ).forEach( p -> problems.add( "#" + n + " " + esc( text ) + " @" + offset + ": " + p ) );
+            }
+        }
+        assertEquals( List.of(), problems, String.join( "\n", problems ) );
+        assertTrue( actions > 12_000, "actions: " + actions );
     }
 
     /** 6,000 generated pages, every action: 0 orphans, 0 mis-targets, 0 dangling markers. */

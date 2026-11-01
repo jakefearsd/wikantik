@@ -85,38 +85,56 @@ public final class BlockDrafts {
     }
 
     /**
+     * {@link #linkAt(String, String, boolean, int, Function)} of a whole page: {@code text} is the page, frontmatter
+     * included.
+     */
+    public static Link linkAt( final String pageName, final String text, final int offset,
+                               final Function< Set< String >, String > newId ) throws Refused {
+        return linkAt( pageName, text, false, offset, newId );
+    }
+
+    /**
      * The id of the block the reader shows at {@code offset} of {@code text}, and the edit that gives it one if it has
      * none.
      *
      * @param pageName for logging
-     * @param text     the unsaved text, frontmatter included
+     * @param text     the unsaved text
+     * @param body     whether {@code text} is a page <em>body</em> that the saved page carries behind its frontmatter
+     *                 (the editor's buffer when the page has metadata): then a leading {@code ---} pair in it is
+     *                 content, read by {@link BlockIds#listBody}; otherwise {@code text} is the whole page, as a save
+     *                 without frontmatter stores it, and a leading {@code ---} pair is its frontmatter
      * @param offset   a position in it
      * @param newId    a fresh id, given every id already on the page
      * @return the link
      * @throws Refused {@link Refusal#NO_BLOCK} when no block holds the offset; {@link Refusal#REFUSED} when the block
      *                 cannot take an id, or the edit would change another block's id
      */
-    public static Link linkAt( final String pageName, final String text, final int offset,
+    public static Link linkAt( final String pageName, final String text, final boolean body, final int offset,
                                final Function< Set< String >, String > newId ) throws Refused {
         if ( text == null || offset < 0 || offset > text.length() ) {
             throw new Refused( Refusal.NO_BLOCK, "no text at offset " + offset );
         }
-        final List< Block > before = BlockIds.list( text );
+        final List< Block > before = list( text, body );
         final Block block = blockAt( before, offset )
                 .orElseThrow( () -> new Refused( Refusal.NO_BLOCK, "no block at offset " + offset ) );
         if ( block.id() != null ) {
             return new Link( block.id(), null, block );
         }
-        final String id = newId.apply( BlockIds.markerIds( text ) );
+        final String id = newId.apply( body ? BlockIds.markerIdsBody( text ) : BlockIds.markerIds( text ) );
         final String after;
         try {
-            after = BlockIds.assign( text, block, id );
+            after = body ? BlockIds.assignBody( text, block, id ) : BlockIds.assign( text, block, id );
         } catch ( final IllegalArgumentException e ) {
             LOG.warn( "Draft of '{}': block {} ({}) cannot take ^{}: {}", pageName, block.index(), block.kind(), id, e.getMessage() );
             throw new Refused( Refusal.REFUSED, e.getMessage() );
         }
-        checkOthersKept( pageName, before, BlockIds.list( after ), block, id );
+        checkOthersKept( pageName, before, list( after, body ), block, id );
         return new Link( id, minimalEdit( text, after ), block );
+    }
+
+    /** The blocks of {@code text}, a body ({@link BlockIds#listBody}) or a whole page ({@link BlockIds#list}). */
+    public static List< Block > list( final String text, final boolean body ) {
+        return body ? BlockIds.listBody( text ) : BlockIds.list( text );
     }
 
     /** Refuses unless {@code block} carries {@code id} in {@code now} and every other block keeps the id it had. */

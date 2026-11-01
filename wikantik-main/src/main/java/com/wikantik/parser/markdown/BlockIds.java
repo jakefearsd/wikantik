@@ -94,6 +94,8 @@ public final class BlockIds {
     private static final int NEW_ID_LENGTH = 6;
     private static final int FINGERPRINT_LENGTH = 200;
     private static final SecureRandom RANDOM = new SecureRandom();
+    /** A frontmatter for a page body to be read behind, as the saved page carries its own. */
+    private static final String BEHIND = "---\nbody: true\n---\n";
 
     private BlockIds() {
     }
@@ -113,6 +115,25 @@ public final class BlockIds {
      */
     public static List< Block > list( final String fullText ) {
         return BlockModel.read( fullText ).blocks();
+    }
+
+    /**
+     * {@link #list} over a page <em>body</em> (frontmatter already split off — the editor's buffer, which the saved page
+     * carries behind its real frontmatter): a leading {@code ---} pair in it is two thematic breaks (or a setext
+     * underline), never frontmatter. It is read <b>behind</b> a frontmatter, as the reader reads the saved page — the
+     * access-rule strip guards a leading {@code ---} block as frontmatter, so a body read on its own can come out of it
+     * with other line ends — and its offsets are shifted back to index {@code body}.
+     *
+     * @param body a page body; may be {@code null}
+     * @return the blocks; never {@code null}
+     */
+    public static List< Block > listBody( final String body ) {
+        return body == null ? List.of() : list( BEHIND + body ).stream().map( b -> shifted( b, -BEHIND.length() ) ).toList();
+    }
+
+    private static Block shifted( final Block b, final int by ) {
+        return new Block( b.index(), b.id(), b.kind(), b.start() + by, b.end() + by,
+                b.markerStart() < 0 ? -1 : b.markerStart() + by, b.markerEnd() < 0 ? -1 : b.markerEnd() + by, b.plainText() );
     }
 
     /**
@@ -196,6 +217,20 @@ public final class BlockIds {
     }
 
     /** {@code model}, once {@code b} is checked to be one of its blocks, as listed, and without an id. */
+    /**
+     * {@link #assign} over a page <em>body</em>, read as {@link #listBody} reads it — behind a frontmatter, so the edit is
+     * the one {@link #assign} makes to the saved page: {@code b} is a block of {@code listBody( body )}.
+     *
+     * @throws IllegalArgumentException as {@link #assign}
+     */
+    public static String assignBody( final String body, final Block b, final String id ) {
+        final String page = assign( BEHIND + ( body == null ? "" : body ), shifted( b, BEHIND.length() ), id );
+        if ( !page.startsWith( BEHIND ) ) {   // an edit only ever goes in at or after its block
+            throw new IllegalStateException( "Tagging block " + b.index() + " reached into the frontmatter" );
+        }
+        return page.substring( BEHIND.length() );
+    }
+
     private static BlockModel.Model untagged( final BlockModel.Model model, final Block b ) {
         if ( b.index() < 0 || b.index() >= model.entries().size() || !model.blocks().get( b.index() ).equals( b ) ) {
             throw new IllegalArgumentException( "Block " + b.index() + " is not a current block of this text" );
@@ -260,6 +295,11 @@ public final class BlockIds {
      */
     public static Set< String > markerIds( final String fullText ) {
         return markerIds( fullText, true );
+    }
+
+    /** {@link #markerIds} over a page <em>body</em>, read as {@link #listBody} reads it (behind a frontmatter). */
+    public static Set< String > markerIdsBody( final String body ) {
+        return body == null ? new HashSet<>() : markerIds( BEHIND + body );
     }
 
     /** Test seam: {@link #markerIds(String)}, with or without the pre-check that skips the parse. */

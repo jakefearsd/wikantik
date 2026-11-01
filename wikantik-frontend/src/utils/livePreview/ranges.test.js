@@ -4,7 +4,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import fixture from '../__fixtures__/renderedFences.json';
 import { fullyParsed } from '../../test/fullParse';
 import { editorMarkdownConfig } from '../editorMarkdown';
-import { blocksFromMarkdown } from '../blockIds';
+import { blocksFromMarkdown, blockMarkers } from '../blockIds';
 import { blockCandidates, activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
 function stateOf(doc, selection) {
   const state = EditorState.create({
@@ -358,5 +358,24 @@ describe('block markers', () => {
     // the losers are the blocks with a marker range but no id
     const losers = blocksFromMarkdown(doc).filter((b) => b.markerFrom >= 0 && b.id == null).map((b) => doc.indexOf('^', b.markerFrom));
     expect(dupCarets).toEqual(losers);
+  });
+});
+
+describe('block markers agree with the block model (blockMarkers: orphans and duplicates included)', () => {
+  const chips = (doc) => {
+    const state = stateOf(doc);
+    return livePreviewSpecs(state, new Set(), {}).filter((s) => s.kind === 'mark' && s.cls.startsWith('cm-lp-blockid'))
+      .map((s) => ({ id: state.sliceDoc(s.from + 1, s.to), caret: s.from, wins: s.cls === 'cm-lp-blockid' }));
+  };
+  it.each([
+    ['an access rule with an inline marker is a tagged paragraph', '[{ALLOW view All}] ^ra\n\nText ^ra\n'],
+    ['an access rule with a last-line marker', '[{ALLOW view All}]\n^rl\n'],
+    ['a standalone after an access-rule-only paragraph is claimed across it', 'Para\n\n[{ALLOW view All}]\n\n^ac\n\nMore ^ac\n'],
+    ['a standalone after only an access rule is an orphan', '[{DENY edit Guest}]\n\n^ro\n\nText ^ro\n'],
+    ['an orphan wins over a later block marker', '^orph\n\nPara ^orph\n'],
+    ['a second standalone is an orphan that loses', 'Para\n\n^x\n\n^x\n'],
+    ['a callout body, a task and a nested list', '> [!tip] T\n> body ^c\n\n- [ ] task ^c\n  - nested ^n\n\n^n\n'],
+  ])('%s', (_name, doc) => {
+    expect(chips(doc)).toEqual(blockMarkers(doc));
   });
 });

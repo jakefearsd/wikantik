@@ -9,7 +9,9 @@
 // Anchors come from headingsFromMarkdown (the page view's ids). Results are ranked server-side, so
 // CodeMirror's own filtering is disabled (filter: false keeps our order).
 import { startCompletion, closeCompletion, pickedCompletion } from '@codemirror/autocomplete';
+import { StateEffect, StateField } from '@codemirror/state';
 import { titleToSlug, isValidSlug } from './slugUtils';
+import { revealEffects } from './markdownFold';
 import { blocksFromMarkdown, isBlockRef, markerChange, newBlockId, takenBlockIds } from './blockIds';
 
 const MAX_OPTIONS = 20;
@@ -56,6 +58,37 @@ function newPageOption(fragment, names, applyFor) {
   return { label: `Link to new page: ${slug}`, type: 'newpage', apply: applyFor(slug, text) };
 }
 
+// The typed `[[Page#^q` spans of picks waiting on a server assign, mapped through every edit made meanwhile, so the
+// link lands where the user left it. A span is `broken` once an edit lands strictly inside it (or replaces any of it);
+// edits elsewhere — including right before or right after it — only move it.
+const trackSpan = StateEffect.define();
+const untrackSpan = StateEffect.define();
+function mapSpan(span, changes) {
+  let broken = false;
+  changes.iterChangedRanges((fromA, toA) => { if (fromA < span.to && toA > span.from) broken = true; });
+  return broken ? { ...span, broken } : { from: changes.mapPos(span.from, 1), to: changes.mapPos(span.to, -1), broken };
+}
+const pendingSpans = StateField.define({
+  create: () => new Map(),
+  update(spans, tr) {
+    let next = spans;
+    if (tr.docChanged && spans.size) next = new Map([...spans].map(([k, sp]) => [k, sp.broken ? sp : mapSpan(sp, tr.changes)]));
+    for (const e of tr.effects) {
+      if (e.is(trackSpan)) next = new Map(next).set(e.value.key, { from: e.value.from, to: e.value.to, broken: false });
+      else if (e.is(untrackSpan)) { next = new Map(next); next.delete(e.value); }
+    }
+    return next;
+  },
+});
+let lastSpanKey = 0;
+/** Starts tracking [from, to) in `view` (installing the field on first use); returns the span's key. */
+function trackPending(view, from, to) {
+  if (view.state.field(pendingSpans, false) === undefined) view.dispatch({ effects: StateEffect.appendConfig.of(pendingSpans) });
+  lastSpanKey += 1;
+  view.dispatch({ effects: trackSpan.of({ key: lastSpanKey, from, to }) });
+  return lastSpanKey;
+}
+
 /** A block's text as one line of at most 120 chars; a block with no text (an empty table, …) shows its kind. */
 function blockLabel(b) {
   const text = (b.text || '').replace(/\s+/g, ' ').trim();
@@ -78,10 +111,12 @@ function currentBlock(doc, b) {
  * @param {(page: string|null) => Promise<Array<{text: string, id: string|null}>>} deps.getHeadings
  *        headings of `page`, or of the page being edited when null
  * @param {() => string[]} [deps.getAttachmentNames]  attachment file names of the page being edited
- * @param {(page: string|null) => Promise<{version?: number, canAssign: boolean, local?: boolean,
- *          blocks: Array<{index: number, id: string|null, kind: string, text: string}>}|null>} [deps.getBlocks]
- *        blocks of `page`, or of the page being edited when null (`local: true` for the live buffer: indices are the
- *        buffer's own, and an id is added by editing it); another page's `index`/`version` are the server's
+ * @param {(page: string|null, q?: string) => Promise<{version?: number, canAssign: boolean, local?: boolean,
+ *          complete?: boolean, blocks: Array<{index: number, id: string|null, kind: string, text: string}>}|null>}
+ *        [deps.getBlocks]  blocks of `page`, or of the page being edited when null (`local: true` for the live buffer:
+ *        indices are the buffer's own, and an id is added by editing it); another page's `index`/`version` are the
+ *        server's. `complete: false` marks a listing cut at its limit: the source then asks again with `q`, the
+ *        server-side search (whose rows it does not filter again)
  * @param {(page: string, version: number, index: number) => Promise<{id: string}>} [deps.assignBlock]
  *        gives block `index` of `page` (at `version`) an id on the server; rejects with the request's error
  * @param {(message: string) => void} [deps.notify]  shows a message to the user (a toast)
@@ -127,19 +162,26 @@ export function createWikiLinkSource({
     const changes = view.state.changes([...edits, { from, to, insert: link }]);
     view.dispatch({
       changes,
+      // never edit text hidden inside a fold (the marker may go under a folded heading): unfold it in the same step
+      effects: edits.flatMap((e) => [...revealEffects(view.state, e.from), ...revealEffects(view.state, e.to)]),
       selection: { anchor: changes.mapPos(from, -1) + link.length },
       annotations: pickedCompletion.of(completion),
       userEvent: 'input.complete',
     });
   }
 
-  /** Asks the server for an id on another page's block, then links it where the completion was. */
+  /**
+   * Asks the server for an id on another page's block, then links it where the completion was: the typed span is
+   * tracked through edits made meanwhile, and the link is dropped only when that span itself was edited.
+   */
   async function linkRemoteBlock(view, page, version, b, linkTo, from, to) {
-    const typed = view.state.sliceDoc(from, to);
+    const key = trackPending(view, from, to);
+    const release = (spec = {}) => view.dispatch({ ...spec, effects: untrackSpan.of(key) });
     let id;
     try {
       ({ id } = await assignBlock(page, version, b.index));
     } catch (err) {
+      release();
       const reason = err?.status === 409 ? err.body?.reason : null;
       console.warn('[link-complete] could not add a block id', page, b.index, reason || err?.message || err);
       if (reason === 'stale') {
@@ -152,23 +194,47 @@ export function createWikiLinkSource({
       }
       return;
     }
-    if (view.state.sliceDoc(from, to) !== typed) {
-      console.warn('[link-complete] text changed while adding a block id; not inserting', page, id);
+    const span = view.state.field(pendingSpans).get(key);
+    if (span.broken) {
+      release();
+      console.warn('[link-complete] the link text was edited while adding a block id; not inserting', page, id);
       notify(TEXT_CHANGED);
       return;
     }
     const link = linkTo(id);
-    view.dispatch({ changes: { from, to, insert: link }, selection: { anchor: from + link.length }, userEvent: 'input.complete' });
+    const { head } = view.state.selection.main;
+    const caretAtSpan = head >= span.from && head <= span.to;   // only then does the caret follow the link
+    release({
+      changes: { from: span.from, to: span.to, insert: link },
+      ...(caretAtSpan ? { selection: { anchor: span.from + link.length } } : {}),
+      userEvent: 'input.complete',
+    });
   }
 
-  async function blockOptions(page, fragment) {
+  /**
+   * The listing to offer: the page's cached listing when it is complete (or there is nothing to search for), else —
+   * after the search debounce — the server's own `q` search, which matches whole block text, not the 120-char
+   * excerpt, so it is not filtered again. `{ listing, narrowed }`, or null.
+   */
+  async function blockListing(page, fragment, context) {
     const listing = await safely('block lookup', () => getBlocks(page || null));
     if (!listing) return null;
+    if (listing.complete !== false || !fragment) return { listing, narrowed: false };
+    await sleep(SEARCH_DEBOUNCE_MS);
+    if (context.aborted) return null;
+    const narrowed = await safely('block search', () => getBlocks(page, fragment));
+    return narrowed ? { listing: narrowed, narrowed: true } : null;
+  }
+
+  async function blockOptions(page, fragment, context) {
+    const found = await blockListing(page, fragment, context);
+    if (!found) return null;
+    const { listing, narrowed } = found;
     const local = !page || listing.local === true;
     const frag = fragment.toLowerCase();
     const linkTo = (id) => `[[${page}#^${id}]]`;
     return (listing.blocks || [])
-      .filter((b) => (b.text || '').toLowerCase().includes(frag) || (b.id || '').toLowerCase().includes(frag))
+      .filter((b) => narrowed || (b.text || '').toLowerCase().includes(frag) || (b.id || '').toLowerCase().includes(frag))
       .slice(0, MAX_OPTIONS)
       .map((b) => {
         const label = blockLabel(b);
@@ -181,7 +247,8 @@ export function createWikiLinkSource({
             label, type: 'block',
             apply: (view, _c, from, to) => {
               closeCompletion(view);   // nothing is inserted until the server answers; a second pick must not re-assign
-              linkRemoteBlock(view, page, listing.version, b, linkTo, from, to);
+              linkRemoteBlock(view, page, listing.version, b, linkTo, from, to)
+                .catch((err) => console.warn('[link-complete] could not link the block', page, b.index, err?.message || err));
             },
           };
         }
@@ -215,7 +282,7 @@ export function createWikiLinkSource({
     const to = autoClosedBrackets(context);
     const [, page, heading] = WIKI_TRIGGER.exec(match.text);
     if (isBlockRef(heading)) {
-      const options = await blockOptions(page, heading.slice(1));
+      const options = await blockOptions(page, heading.slice(1), context);
       return context.aborted ? null : result(match.from, options, to);
     }
     if (heading !== undefined) {

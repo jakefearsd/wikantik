@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   BLOCK_ID_RE, STANDALONE_RE, isBlockRef, blocksFromMarkdown, newBlockId, insertMarker, blockFingerprint,
-  markerChange, blockAt, takenBlockIds, blockLinkEdit,
+  markerChange, blockAt, takenBlockIds, blockLinkEdit, blockMarkers,
 } from './blockIds';
 
 // Mirrors the server's BlockIdsTest (com.wikantik.parser.markdown): the same inputs, the same answers.
@@ -365,5 +365,18 @@ describe('blockLinkEdit', () => {
 
   it('is null away from a block', () => {
     expect(blockLinkEdit('# Heading\n', 3)).toBeNull();
+  });
+});
+
+describe('blockMarkers', () => {
+  it('lists every marker in source order — block markers, losing duplicates, orphans — and which ones win', () => {
+    const md = '---\nt: 1\n---\n^o\n\nA ^o\n\nB ^b\n\n^b\n';
+    expect(blockMarkers(md)).toEqual([
+      { id: 'o', caret: md.indexOf('^o'), wins: true },
+      { id: 'o', caret: md.indexOf('A ^o') + 2, wins: false },
+      { id: 'b', caret: md.indexOf('B ^b') + 2, wins: true },
+      { id: 'b', caret: md.lastIndexOf('^b'), wins: false },
+    ]);
+    expect(blockMarkers('')).toEqual([]);
   });
 });

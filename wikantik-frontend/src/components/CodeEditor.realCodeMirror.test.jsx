@@ -282,7 +282,7 @@ describe('CodeEditor block completion ([[Page#^)', () => {
     const getBlocks = vi.fn(async () => blocks(false));
     const { container } = mountWith({ searchPages: async () => [], getHeadings: async () => [], getBlocks });
     await waitFor(() => expect(rows(container)).toHaveLength(2));
-    expect(getBlocks).toHaveBeenCalledWith('Page');
+    expect(getBlocks).toHaveBeenCalledWith('Page', undefined);
     const [locked, open] = rows(container);
     expect(locked.classList.contains('cm-completion-disabled')).toBe(true);
     expect(locked.textContent).toContain('no id — needs edit access');

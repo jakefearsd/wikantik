@@ -1159,7 +1159,7 @@ describe('derived-page banner + misc', () => {
       api.assignBlockId.mockResolvedValueOnce({ id: 'n1', version: 4 })
         .mockRejectedValueOnce(Object.assign(new Error('409'), { status: 409, body: { reason: 'stale' } }));
       const { getBlocks, assignBlock } = linkSourceDeps.current;
-      expect(await getBlocks('Target')).toEqual(list);
+      expect(await getBlocks('Target')).toEqual({ ...list, complete: true });
       await getBlocks('Target');
       expect(api.getPageBlocks).toHaveBeenCalledTimes(1);
       expect(api.getPageBlocks).toHaveBeenCalledWith('Target', { limit: 100 });
@@ -1172,6 +1172,40 @@ describe('derived-page banner + misc', () => {
       expect(api.getPageBlocks).toHaveBeenCalledTimes(3);
     });
 
+    it('a listing the server cut at the limit is incomplete: a query goes to the server, cached per (page, q)', async () => {
+      renderEditor();
+      await waitForEditor();
+      const rows = (n) => Array.from({ length: n }, (_, i) => ({ index: i, id: null, kind: 'paragraph', text: `b${i}` }));
+      api.getPageBlocks.mockImplementation(async (page, { q } = {}) => (q
+        ? { version: 5, canAssign: true, blocks: rows(1) }
+        : { version: 5, canAssign: true, blocks: rows(page === 'Big' ? 100 : 30) }));
+      api.assignBlockId.mockResolvedValue({ id: 'n', version: 6 });
+      const { getBlocks, assignBlock } = linkSourceDeps.current;
+      expect((await getBlocks('Big')).complete).toBe(false);
+      expect((await getBlocks('Small')).complete).toBe(true);
+      const hit = await getBlocks('Big', 'b14');
+      expect(hit.blocks).toHaveLength(1);
+      expect(api.getPageBlocks).toHaveBeenLastCalledWith('Big', { q: 'b14', limit: 20 });
+      await getBlocks('Big', 'b14');
+      await getBlocks('Big');
+      expect(api.getPageBlocks).toHaveBeenCalledTimes(3);
+      await assignBlock('Big', 5, 140);
+      await getBlocks('Big', 'b14');
+      await getBlocks('Big');
+      expect(api.getPageBlocks).toHaveBeenCalledTimes(5);   // every key of the page was dropped
+      await getBlocks('Small');
+      expect(api.getPageBlocks).toHaveBeenCalledTimes(5);   // other pages keep theirs
+    });
+
+    it('a failed query is not cached', async () => {
+      renderEditor();
+      await waitForEditor();
+      api.getPageBlocks.mockRejectedValueOnce(new Error('503')).mockResolvedValueOnce({ version: 1, canAssign: false, blocks: [] });
+      const { getBlocks } = linkSourceDeps.current;
+      await expect(getBlocks('P', 'x')).rejects.toThrow('503');
+      expect((await getBlocks('P', 'x')).version).toBe(1);
+    });
+
     it('a missing page has no blocks (remembered); any other failure is retried', async () => {
       renderEditor();
       await waitForEditor();
@@ -1179,7 +1213,7 @@ describe('derived-page banner + misc', () => {
         .mockRejectedValueOnce(new Error('503'))
         .mockResolvedValueOnce({ version: 1, canAssign: false, blocks: [] });
       const { getBlocks } = linkSourceDeps.current;
-      expect(await getBlocks('Gone')).toEqual({ version: 0, canAssign: false, blocks: [] });
+      expect(await getBlocks('Gone')).toEqual({ version: 0, canAssign: false, blocks: [], complete: true });
       await getBlocks('Gone');
       expect(api.getPageBlocks).toHaveBeenCalledTimes(1);
       await expect(getBlocks('Flaky')).rejects.toThrow('503');

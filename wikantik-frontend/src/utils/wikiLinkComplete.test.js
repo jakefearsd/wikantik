@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { history, undo } from '@codemirror/commands';
+import { codeFolding, foldEffect, foldedRanges } from '@codemirror/language';
 import { CompletionContext, autocompletion } from '@codemirror/autocomplete';
 import { createWikiLinkSource } from './wikiLinkComplete';
 import { blocksFromMarkdown } from './blockIds';
@@ -338,6 +339,112 @@ describe('block completion', () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  it('maps the typed span through edits made elsewhere while the assign is in flight (before and after it)', async () => {
+    let resolve;
+    const d = blockDeps({ assignBlock: vi.fn(() => new Promise((r) => { resolve = r; })) });
+    const { view } = viewOf('Intro\n[[Page#^\nOutro');
+    view.dispatch({ selection: { anchor: 'Intro\n[[Page#^'.length } });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[1]);
+    view.dispatch({ changes: { from: 0, insert: 'More ' }, selection: { anchor: 5 } });           // before the span
+    view.dispatch({ changes: { from: view.state.doc.length, insert: '!' } });                     // after it
+    view.dispatch({ changes: { from: 'More Intro\n[[Page#^'.length, insert: ' x' } });          // right at its end
+    resolve({ id: 'late', version: 4 });
+    await flush();
+    expect(view.state.doc.toString()).toBe('More Intro\n[[Page#^late]] x\nOutro!');
+    expect(view.state.selection.main.head).toBe(5);   // the caret, now elsewhere, is not yanked to the link
+    expect(d.notify).not.toHaveBeenCalled();
+  });
+
+  it('tracks several pending picks in one editor independently; a span edited twice stays abandoned', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const answers = [];
+    const d = blockDeps({ assignBlock: vi.fn(() => new Promise((r) => { answers.push(r); })) });
+    const { view } = viewOf('[[Page#^\n[[Page#^', 8);
+    const src = createWikiLinkSource(d);
+    const first = await src(contextOf(view));
+    pick(view, first, first.options[1]);
+    view.dispatch({ selection: { anchor: view.state.doc.length } });
+    const second = await src(contextOf(view));
+    pick(view, second, second.options[1]);
+    view.dispatch({ changes: { from: 3, insert: 'X' } });
+    view.dispatch({ changes: { from: 4, insert: 'Y' } });
+    answers[1]({ id: 'two', version: 4 });
+    answers[0]({ id: 'one', version: 4 });
+    await flush();
+    expect(view.state.doc.toString()).toBe('[[PXYage#^\n[[Page#^two]]');
+    expect(d.notify).toHaveBeenCalledWith('The text changed — pick the block again');
+    expect(d.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failure after the assign (the view is gone) is logged, never an unhandled rejection', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let resolve;
+    const d = blockDeps({ assignBlock: vi.fn(() => new Promise((r) => { resolve = r; })) });
+    const { view } = viewOf('[[Page#^');
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[1]);
+    view.dispatch = () => { throw new Error('view is gone'); };
+    resolve({ id: 'late', version: 4 });
+    await flush();
+    expect(warn).toHaveBeenCalledWith('[link-complete] could not link the block', 'Page', 2, 'view is gone');
+  });
+
+  it('a local pick unfolds a fold hiding the block before adding its marker, in the same transaction', async () => {
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(4));
+    const doc = '## Folded\n\nHidden para\n\n## Next\n\n[[#^hid';
+    const { view, changes } = viewOf(doc, doc.length, [codeFolding()]);
+    view.dispatch({ effects: foldEffect.of({ from: 9, to: 22 }) });
+    expect(foldedRanges(view.state).size).toBe(1);
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks(doc)) });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[0]);
+    expect(view.state.doc.toString()).toBe('## Folded\n\nHidden para ^eeeeee\n\n## Next\n\n[[#^eeeeee]]');
+    expect(foldedRanges(view.state).size).toBe(0);
+    expect(changes.count).toBe(1);
+  });
+
+  it('a complete listing is filtered locally; an incomplete one asks the server with q (debounced, not re-filtered)', async () => {
+    const big = { version: 7, canAssign: true, complete: false,
+      blocks: Array.from({ length: 100 }, (_, i) => ({ index: i, id: `b${i}`, kind: 'paragraph', text: `Block ${i}` })) };
+    const narrowed = { version: 8, canAssign: true,
+      blocks: [{ index: 140, id: null, kind: 'paragraph', text: 'An excerpt cut before the match' }] };
+    const getBlocks = vi.fn(async (page, q) => (q ? narrowed : big));
+    const d = blockDeps({ getBlocks });
+    const src = createWikiLinkSource(d);
+
+    const first20 = await src(ctx('[[Page#^'));                       // no query: the cached listing serves it
+    expect(first20.options).toHaveLength(20);
+    expect(getBlocks).toHaveBeenCalledTimes(1);
+
+    const { view } = viewOf('[[Page#^deep');
+    const res = await src(contextOf(view));
+    expect(getBlocks).toHaveBeenLastCalledWith('Page', 'deep');
+    expect(res.options.map((o) => o.label)).toEqual(['An excerpt cut before the match']);
+    pick(view, res, res.options[0]);
+    expect(d.assignBlock).toHaveBeenCalledWith('Page', 8, 140);      // the narrowed listing's own version and index
+
+    const complete = { ...big, complete: true };
+    const local = blockDeps({ getBlocks: vi.fn(async () => complete) });
+    const hits = await createWikiLinkSource(local)(ctx('[[Page#^Block 9'));
+    expect(local.getBlocks).toHaveBeenCalledTimes(1);
+    expect(hits.options.map((o) => o.label)).toEqual(['Block 9', ...Array.from({ length: 10 }, (_, i) => `Block ${90 + i}`)]);
+  });
+
+  it('the server query waits out the debounce and is skipped when the completion is aborted', async () => {
+    const getBlocks = vi.fn(async (page, q) => (q ? { version: 1, canAssign: true, blocks: [] } : { version: 1, complete: false, blocks: [] }));
+    const c = ctx('[[Page#^que');
+    const p = createWikiLinkSource(blockDeps({ getBlocks }))(c);
+    await flush();
+    c.aborted = true;
+    expect(await p).toBeNull();
+    expect(getBlocks).toHaveBeenCalledTimes(1);
+    const failing = vi.fn(async (page, q) => { if (q) throw new Error('503'); return { version: 1, complete: false, blocks: [] }; });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await createWikiLinkSource(blockDeps({ getBlocks: failing }))(ctx('[[Page#^que'))).toBeNull();
+    expect(warn).toHaveBeenCalled();
+  });
+
   it('[[#^ lists the current buffer blocks; an id-less pick adds the marker and the link in ONE undoable transaction', async () => {
     vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(2));
     const doc = 'Alpha para\n\nSee [[#^alp]]';
@@ -402,8 +509,14 @@ describe('block completion', () => {
     const d = blockDeps({ assignBlock: vi.fn(() => Promise.reject({ status: 409, body: { reason: 'stale' } })) });
     const { view } = viewOf('[[Page#^', undefined, [autocompletion({ override: [] })]);
     const res = await createWikiLinkSource(d)(contextOf(view));
-    view.dispatch = () => { throw new Error('view is gone'); };
-    pick(view, res, res.options[1]);
+    const dispatch = view.dispatch.bind(view);
+    let calls = 0;
+    pick(view, res, res.options[1]);   // tracks the typed span (two dispatches)
+    view.dispatch = (...specs) => {   // releasing it works; reopening the completion fails
+      calls += 1;
+      if (calls > 1) throw new Error('view is gone');
+      return dispatch(...specs);
+    };
     await flush();
     expect(d.notify).toHaveBeenCalledWith('This page changed — pick the block again');
     expect(warn).toHaveBeenCalledWith('[link-complete] could not reopen completion', 'view is gone');

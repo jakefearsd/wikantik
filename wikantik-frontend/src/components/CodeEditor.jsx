@@ -455,7 +455,7 @@ const CodeEditor = forwardRef(function CodeEditor(
         searchPages: (q) => linkCompletionRef.current?.searchPages(q) ?? Promise.resolve([]),
         getHeadings: (page) => linkCompletionRef.current?.getHeadings(page) ?? Promise.resolve([]),
         getAttachmentNames: () => linkCompletionRef.current?.getAttachmentNames?.() ?? [],
-        getBlocks: (page) => linkCompletionRef.current?.getBlocks?.(page) ?? Promise.resolve(null),
+        getBlocks: (page, q) => linkCompletionRef.current?.getBlocks?.(page, q) ?? Promise.resolve(null),
         assignBlock: (page, version, index) => (linkCompletionRef.current?.assignBlock
           ? linkCompletionRef.current.assignBlock(page, version, index)
           : Promise.reject(new Error('block ids cannot be assigned here'))),

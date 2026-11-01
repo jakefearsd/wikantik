@@ -71,8 +71,12 @@ import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
 
-/** Blocks fetched per page for [[Page#^ completion (the server's maximum); the list is filtered locally. */
+/**
+ * [[Page#^ completion: a page's first BLOCK_LIST_LIMIT blocks (the server's maximum) are fetched once and filtered
+ * locally; when the server cut the listing there, each query goes to the server instead, BLOCK_QUERY_LIMIT rows.
+ */
 const BLOCK_LIST_LIMIT = 100;
+const BLOCK_QUERY_LIMIT = 20;
 
 export default function PageEditor() {
   const { name } = useParams();
@@ -317,25 +321,33 @@ export default function PageEditor() {
     // [[Page#^ completion. This page's blocks come from the live text (the editor's, which bodyRef lags by a render)
     // and an id is added by editing it; another page's come from the server, cached per page for the session, and
     // only their server index/version are ever sent back (this parser's numbering can differ from the server's).
-    getBlocks: (page) => {
+    getBlocks: (page, q) => {
       if (!page || page === name) {
         const text = editorRef.current?.getText?.() ?? bodyRef.current;
         const blocks = blocksFromMarkdown(text).map(({ index, id, kind, text: t }) => ({ index, id, kind, text: t }));
         return Promise.resolve({ local: true, canAssign: true, blocks });
       }
+      // Per page: '' → the first BLOCK_LIST_LIMIT blocks (complete when the server returned fewer), q → the server's
+      // own search for q (it matches whole block text). The completion asks with q only when the first is incomplete.
       const cache = blockCacheRef.current;
-      if (!cache.has(page)) {
-        cache.set(page, api.getPageBlocks(page, { limit: BLOCK_LIST_LIMIT })
-          .catch((err) => {
-            // A page that doesn't exist (or can't be seen) has no blocks — remember that; evict anything else.
-            if (err?.status === 404) return { version: 0, canAssign: false, blocks: [] };
-            cache.delete(page);
-            throw err;
-          }));
+      if (!cache.has(page)) cache.set(page, new Map());
+      const perPage = cache.get(page);
+      const key = q || '';
+      if (!perPage.has(key)) {
+        const request = q
+          ? api.getPageBlocks(page, { q, limit: BLOCK_QUERY_LIMIT })
+          : api.getPageBlocks(page, { limit: BLOCK_LIST_LIMIT })
+            .then((l) => ({ ...l, complete: (l.blocks || []).length < BLOCK_LIST_LIMIT }));
+        perPage.set(key, request.catch((err) => {
+          // A page that doesn't exist (or can't be seen) has no blocks — remember that; evict anything else.
+          if (err?.status === 404) return { version: 0, canAssign: false, blocks: [], complete: true };
+          perPage.delete(key);
+          throw err;
+        }));
       }
-      return cache.get(page);
+      return perPage.get(key);
     },
-    // The page has a new version after an assign (or a stale listing after a refusal): drop its cached listing.
+    // The page has a new version after an assign (or a stale listing after a refusal): drop every listing of it.
     assignBlock: (page, version, index) => api.assignBlockId(page, { version, index })
       .finally(() => blockCacheRef.current.delete(page)),
     notify: (message) => toast.error(message),

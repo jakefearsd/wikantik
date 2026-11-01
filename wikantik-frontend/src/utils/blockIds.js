@@ -368,6 +368,18 @@ export function blocksFromMarkdown(md) {
   }));
 }
 
+/**
+ * Every marker of `md` in source order — block markers, losing duplicates and orphans — as `{ id, caret, wins }`
+ * (`caret` indexes `md`; `wins` is the first-occurrence rule). The editor's live preview is checked against it.
+ */
+export function blockMarkers(md) {
+  if (!md) return [];
+  const body = stripFrontmatter(md);
+  const bodyStart = md.length - body.length;
+  const walk = walkBlocks(parseBlocksTree(body), body);
+  return walk.markers.map((m) => ({ id: m.id, caret: bodyStart + m.caret, wins: walk.wins(m) }));
+}
+
 // ---- editing ---------------------------------------------------------------------------------------------------------
 
 /** A line prefix turned into the prefix of a continuation line: block-quote `>` and tabs kept, the rest spaces. */

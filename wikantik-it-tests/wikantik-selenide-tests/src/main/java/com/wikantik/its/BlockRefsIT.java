@@ -96,15 +96,49 @@ public class BlockRefsIT extends WithIntegrationTestSetup {
 
     @Test
     void blockFragmentScrollsToAndFlashesTheBlock() {
-        Selenide.open( Env.TESTS_BASE_URL + "/wiki/" + LAND + "#^land1" );
-        $( "[data-testid=page-view]" ).shouldBe( Condition.visible, WAIT );
-        final SelenideElement target = $( By.xpath( "//*[@id='^land1']" ) ).shouldBe( Condition.exist, WAIT );
-        target.shouldHave( Condition.partialText( "Landing paragraph" ) )
-            .shouldHave( Condition.cssClass( "block-target-flash" ), WAIT );
-        final Boolean inView = Selenide.executeJavaScript(
-            "const r = arguments[0].getBoundingClientRect();"
-            + "return r.top >= 0 && r.bottom <= window.innerHeight;", target );
+        // Open without a hash and watch for the flash class, so the 2s flash window cannot be missed by polling.
+        ViewWikiPage.open( LAND );
+        $( By.xpath( "//*[@id='^land1']" ) ).shouldBe( Condition.exist, WAIT );
+        Selenide.executeJavaScript(
+            "window.__flashed = null;"
+            + "const seen = (el) => { if (el.classList && el.classList.contains('block-target-flash')) window.__flashed = el.id; };"
+            + "new MutationObserver((muts) => muts.forEach((m) => seen(m.target)))"
+            + ".observe(document, { attributes: true, attributeFilter: ['class'], subtree: true });"
+            + "location.hash = '#^land1';" );
+        final long deadline = System.currentTimeMillis() + 30_000;
+        Object flashed = Selenide.executeJavaScript( "return window.__flashed;" );
+        while ( flashed == null && System.currentTimeMillis() < deadline ) {
+            Selenide.sleep( 50 );
+            flashed = Selenide.executeJavaScript( "return window.__flashed;" );
+        }
+        assertEquals( "^land1", flashed, "the landed block must gain block-target-flash" );
+
+        final SelenideElement target = $( By.xpath( "//*[@id='^land1']" ) );
+        target.shouldHave( Condition.partialText( "Landing paragraph" ) );
+        final long viewDeadline = System.currentTimeMillis() + 15_000;
+        Boolean inView = Boolean.FALSE;
+        while ( !Boolean.TRUE.equals( inView ) && System.currentTimeMillis() < viewDeadline ) {
+            inView = Selenide.executeJavaScript(
+                "const r = arguments[0].getBoundingClientRect();"
+                + "return r.top >= 0 && r.bottom <= window.innerHeight;", target );
+            if ( !Boolean.TRUE.equals( inView ) ) {
+                Selenide.sleep( 100 );
+            }
+        }
         assertEquals( Boolean.TRUE, inView, "the block must be scrolled into view" );
+    }
+
+    @Test
+    void copyingABlockThatAlreadyHasAnIdMakesNoAssignRequest() {
+        ViewWikiPage.open( SOURCE );
+        final SelenideElement block = $( By.xpath( "//*[@id='^alloc1']" ) ).shouldBe( Condition.visible, WAIT );
+        installClipboardShim();
+        block.hover();
+        block.$( ".block-link-btn" ).shouldBe( Condition.visible, WAIT ).click();
+
+        assertEquals( "[[" + SOURCE + "#^alloc1]]", awaitCopied() );
+        final Object posts = Selenide.executeJavaScript( "return window.__posts.length;" );
+        assertEquals( 0L, ( ( Number ) posts ).longValue(), "an existing id must not trigger a POST to /blocks" );
     }
 
     @Test
@@ -133,7 +167,15 @@ public class BlockRefsIT extends WithIntegrationTestSetup {
             + "  writeText: async (t) => { window.__copied = String(t); },"
             + "  write: async (items) => { const b = await items[0].getType('text/plain'); window.__copied = await b.text(); }"
             + "};"
-            + "Object.defineProperty(navigator, 'clipboard', { value: shim, configurable: true });" );
+            + "Object.defineProperty(navigator, 'clipboard', { value: shim, configurable: true });"
+            + "window.__posts = [];"
+            + "const realFetch = window.fetch.bind(window);"
+            + "window.fetch = (input, init) => {"
+            + "  const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();"
+            + "  const url = String((input && input.url) || input);"
+            + "  if (method === 'POST' && url.includes('/blocks')) window.__posts.push(url);"
+            + "  return realFetch(input, init);"
+            + "};" );
     }
 
     private static String awaitCopied() {

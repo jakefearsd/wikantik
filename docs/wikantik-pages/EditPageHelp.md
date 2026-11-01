@@ -38,7 +38,7 @@ The toolbar also has heading, list, inline code, code block and table buttons. T
 
 Any paragraph, list item, table, quote or callout can carry a short id, so another page can link to or embed exactly that block.
 
-* Add the id at the end of the block's last line, after a space: `The launch date is fixed. ^launch`. Or put `^launch` alone on its own line right after the block.
+* Add the id at the end of the block's last line, after a space: `The launch date is fixed. ^launch`. For a table, list, quote, callout, code or math block, put `^launch` on its own line after a blank line following the block.
 * An id is `^` followed by letters, digits and hyphens. Ids are case-sensitive, so `^Launch` and `^launch` are different blocks.
 * Heading lines don't take ids; link to a heading with `[[Page#Heading]]`.
 * If an id appears twice on a page, the first one wins and the later markers are ignored.

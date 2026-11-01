@@ -168,7 +168,9 @@ public class MarkdownRendererTest {
                                      translate( "Go <https://wikantik.com/a> now." ) );
             Assertions.assertEquals( translate( "Mail [a@wikantik.com](mailto:a@wikantik.com) now." ),
                                      translate( "Mail a@wikantik.com now." ) );
-            Assertions.assertTrue( translate( "Go https://wikantik.com/a now." ).contains( "class=\"outlink\"" ) );
+            final String bare = translate( "Go https://wikantik.com/a now." );
+            Assertions.assertTrue( bare.contains( "class=\"outlink\"" ), bare );
+            Assertions.assertTrue( bare.contains( "rel=\"nofollow\"" ), bare );
         } finally {
             testEngine.getWikiProperties().remove( "wikantik.translatorReader.useOutlinkImage" );
             testEngine.getWikiProperties().remove( "wikantik.translatorReader.useRelNofollow" );
@@ -185,6 +187,37 @@ public class MarkdownRendererTest {
         final String balanced = translate( "See https://en.wikipedia.org/wiki/Foo_(bar)." );
         Assertions.assertTrue( balanced.contains( ">https://en.wikipedia.org/wiki/Foo_(bar)</a>.</p>" ), balanced );
         Assertions.assertEquals( translate( "See [https://en.wikipedia.org/wiki/Foo_(bar)](https://en.wikipedia.org/wiki/Foo_(bar))." ), balanced );
+    }
+
+    /**
+     * Only web addresses and email addresses autolink, as remark-gfm (the editor preview) and GitHub do: any other
+     * {@code scheme://} text stays text (the sanitizer would strip such an href anyway, leaving a dead link).
+     */
+    @Test
+    public void testOtherSchemesAreNotAutolinked() throws Exception {
+        for( final String url : List.of( "ftp://files.wikantik.com/a", "redis://cache.wikantik.com:6379", "cite://Page/x",
+                                         "JavaScript://wikantik.com/a", "s3://bucket.wikantik.com/key" ) ) {
+            Assertions.assertEquals( "<p>Go " + url + " now.</p>\n", translate( "Go " + url + " now." ), url );
+        }
+        Assertions.assertEquals( "<p>Go <a href=\"HTTP://WIKANTIK.COM\" class=\"external\">HTTP://WIKANTIK.COM</a> now.</p>\n",
+                                 translate( "Go HTTP://WIKANTIK.COM now." ) );
+    }
+
+    /** {@code mailto:a@b.co} as text: the address links, the {@code mailto:} prefix stays text (remark-gfm reads it so). */
+    @Test
+    public void testBareMailtoLinksTheAddress() throws Exception {
+        Assertions.assertEquals( "<p>Mail mailto:<a href=\"mailto:a&#64;wikantik.com\" class=\"external\">a&#64;wikantik.com</a> now.</p>\n",
+                                 translate( "Mail mailto:a@wikantik.com now." ) );
+    }
+
+    /** A bare image URL is a link, never an inlined image, even with image inlining on (GFM and the editor link it). */
+    @Test
+    public void testBareImageUrlStaysALink() throws Exception {
+        final String html = translate( "See https://wikantik.com/a.png now." );
+        Assertions.assertTrue( html.contains( "<a href=\"https://wikantik.com/a.png\" class=\"external\">https://wikantik.com/a.png</a>" ), html );
+        Assertions.assertFalse( html.contains( "<img class=\"inline\"" ), html );
+        Assertions.assertTrue( translate( "See [x](https://wikantik.com/a.png) now." ).contains( "<img" ),
+                               "the explicit link is inlined, so inlining is on for this engine" );
     }
 
     @Test

@@ -54,7 +54,11 @@ public class WikantikNodePostProcessorFactory extends NodePostProcessorFactory {
         this.inlineImagePatterns = inlineImagePatterns;
     }
 
-    /** Runs after the GFM autolink pass, so the autolinks it creates are decorated as external links too. */
+    /**
+     * Runs after the GFM autolink pass, so the autolinks it creates are decorated as external links too. Note:
+     * {@link AutolinkNodePostProcessor} lives in flexmark's {@code internal} package (it is the only handle on that pass's
+     * factory); a flexmark upgrade that moves it fails compilation here rather than silently reordering the passes.
+     */
     @Override
     public Set< Class< ? > > getAfterDependents() {
         return Set.of( AutolinkNodePostProcessor.Factory.class );

@@ -22,6 +22,7 @@ import com.vladsch.flexmark.ast.AutoLink;
 import com.vladsch.flexmark.ast.Image;
 import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.ast.MailLink;
+import com.vladsch.flexmark.ast.Text;
 import com.vladsch.flexmark.parser.PostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.util.ast.Document;
@@ -54,6 +55,7 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
     private final List< Pattern > inlineImagePatterns;
     protected boolean useOutlinkImage = true;
     protected final Document document;
+    private static final Pattern WEB_URL = Pattern.compile( "(?i)https?://|www\\." );
 
     public WikantikLinkNodePostProcessor( final Context context,
                                          final Document document,
@@ -76,6 +78,8 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
     public void process( final NodeTracker state, final Node node ) {
         if( node instanceof Image imageNode ) {
             processImageNode( state, imageNode );
+        } else if( node instanceof AutoLink autoLink && isBareNonWebLink( autoLink ) ) {
+            unwrapToText( state, autoLink );
         } else if( node instanceof AutoLink || node instanceof MailLink ) {
             // A GFM autolink (bare URL, www., email) or a <…> autolink is an external link: same outlink icon
             // (its class and rel come from WikantikLinkAttributeProvider). Never inlined as an image: it reads as a link.
@@ -87,6 +91,24 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
                 linkPostProcessor.process( state, link );
             }
         }
+    }
+
+    /**
+     * A GFM text autolink (no {@code <…>} markers) to anything but a web address: GFM, remark-gfm (the editor preview) and
+     * the editor's live preview link only {@code http(s)://} and {@code www.} text (emails are {@link MailLink}s), but the
+     * autolink extension links every {@code scheme://}, whose href the sanitizer would then strip.
+     */
+    static boolean isBareNonWebLink( final AutoLink link ) {
+        return link.getOpeningMarker().isEmpty() && !WEB_URL.matcher( link.getText() ).lookingAt();
+    }
+
+    /** Puts the autolink's source text back in its place. */
+    private static void unwrapToText( final NodeTracker state, final AutoLink link ) {
+        final Text text = new Text( link.getChars() );
+        link.insertBefore( text );
+        link.unlink();
+        state.nodeRemoved( link );
+        state.nodeAdded( text );
     }
 
     /** The post-processing a link with this URL gets; null for a relative path, left as-is for the browser to resolve. */

@@ -210,9 +210,13 @@ Frontend coverage must not drop (project goal ≥ 90% lines; currently ~92%).
    re-joined with `", "` (presentation only).
 6. **Reference-link definitions:** a label set computed lazily — only when a visible line holds a
    possible reference link — by walking the syntax tree for `LinkReference` nodes without descending into
-   leaf blocks, cached per (document, syntax tree) in a `WeakMap` exactly like `firstMarkers`. Same cost
-   class as the existing full top-level scan (≈0.3 ms on 5,000 lines in the bench). Typing a definition
-   re-decorates because the doc/tree changes.
+   leaf blocks (`referenceDefs`). Once something has asked for it, the definition list is carried through
+   edits by the `referenceDefsField` StateField: `updateReferenceDefs` re-walks only the top-level window
+   around each change (the same window as `updateBlockCandidates`), keeps the definitions before it and maps
+   those after it — equal to a full walk by construction, and tested against one. A partial old or new parse
+   tree falls back to the full walk, and a tree-only update (the background parser) drops the field so the
+   next request walks afresh; that walk is memoised per (document, syntax tree). The label `Set` is reused
+   while the labels are unchanged. Typing a definition re-decorates because the label set changes.
 7. **PUT `editorMode: null`** clears the preference (removes the attribute). Any other non-string or
    unknown value → 400. Not exposed on admin or user-list surfaces.
 8. **Footnotes are rendered by both readers** — server flexmark (`FootnoteExtension` in

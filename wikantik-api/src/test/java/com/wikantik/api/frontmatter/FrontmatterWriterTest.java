@@ -61,4 +61,21 @@ class FrontmatterWriterTest {
         assertEquals( meta, parsed.metadata() );
         assertEquals( "Body content.", parsed.body() );
     }
+
+    @Test
+    void writeLikeUsesTheOriginalsCrlfLineEndingsForTheFrontmatter() {
+        final Map< String, Object > meta = new LinkedHashMap<>();
+        meta.put( "title", "T" );
+        meta.put( "tags", java.util.List.of( "a", "b" ) );
+        final String out = FrontmatterWriter.writeLike( "old\r\ntext\r\n", meta, "body\r\n" );
+        assertEquals( "---\r\ntitle: T\r\ntags:\r\n- a\r\n- b\r\n---\r\nbody\r\n", out );
+    }
+
+    @Test
+    void writeLikeKeepsLfForLfOriginals() {
+        final Map< String, Object > meta = new LinkedHashMap<>();
+        meta.put( "title", "T" );
+        assertEquals( FrontmatterWriter.write( meta, "body\n" ), FrontmatterWriter.writeLike( "old\ntext\n", meta, "body\n" ) );
+        assertEquals( FrontmatterWriter.write( meta, "body" ), FrontmatterWriter.writeLike( null, meta, "body" ) );
+    }
 }

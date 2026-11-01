@@ -61,4 +61,23 @@ public final class FrontmatterWriter {
 
         return sb.toString();
     }
+
+    /**
+     * {@link #write} for a rewrite of {@code original}: the frontmatter block takes the original's line endings (CRLF when it
+     * has any), so a save-time filter that rewrites CRLF text (the save path normalises page text to CRLF) does not store
+     * mixed line endings — which would make the next unedited save differ and create a new version. The body is kept as is.
+     *
+     * @param original the text being rewritten (null is treated as LF)
+     * @param metadata the frontmatter fields (null or empty means no frontmatter block)
+     * @param body     the page body text (may be null)
+     * @return the combined page text
+     */
+    public static String writeLike( final String original, final Map< String, Object > metadata, final String body ) {
+        final String safeBody = body == null ? "" : body;
+        final String frontmatter = write( metadata, "" );
+        if ( original == null || !original.contains( "\r\n" ) ) {
+            return frontmatter + safeBody;
+        }
+        return frontmatter.replace( "\n", "\r\n" ) + safeBody;
+    }
 }

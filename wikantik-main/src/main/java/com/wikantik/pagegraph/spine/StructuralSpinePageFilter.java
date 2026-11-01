@@ -120,7 +120,7 @@ public class StructuralSpinePageFilter implements PageFilter {
 
         validateKgInclude( pageName, metadata );
 
-        return rewritten ? FrontmatterWriter.write( metadata, parsed.body() ) : content;
+        return rewritten ? FrontmatterWriter.writeLike( content, metadata, parsed.body() ) : content;
     }
 
     /**

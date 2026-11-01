@@ -156,6 +156,30 @@ class StructuralSpinePageFilterTest {
         assertTrue( out.contains( "body" ) );
     }
 
+    /**
+     * The save path hands pre-save filters CRLF text (TextUtil.normalizePostData); the injected frontmatter must be CRLF
+     * too, or the stored version is mixed and the next unedited save (all CRLF again) differs and makes a new version.
+     */
+    @Test
+    void injected_canonical_id_keeps_the_texts_crlf_line_endings() throws Exception {
+        when( svc.resolveCanonicalIdFromSlug( anyString() ) ).thenReturn( Optional.empty() );
+        final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
+        final String out = f.preSave( ctx, "---\r\ntitle: My Page\r\ntype: article\r\n---\r\nline one\r\nline two\r\n" );
+        assertTrue( out.contains( "canonical_id:" ), out );
+        assertFalse( out.replace( "\r\n", "" ).contains( "\n" ), "a lone LF in CRLF text: " + out.replace( "\r", "\\r" ).replace( "\n", "\\n" ) );
+        assertTrue( out.endsWith( "line one\r\nline two\r\n" ), out );
+        // and it is stable: the next unedited save of the stored text changes nothing
+        assertEquals( out, f.preSave( ctx, out ) );
+    }
+
+    @Test
+    void injected_canonical_id_keeps_lf_text_lf() throws Exception {
+        when( svc.resolveCanonicalIdFromSlug( anyString() ) ).thenReturn( Optional.empty() );
+        final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
+        final String out = f.preSave( ctx, "---\ntitle: My Page\n---\nbody\n" );
+        assertFalse( out.contains( "\r" ), out );
+    }
+
     @Test
     void missing_canonical_id_reuses_slug_bound_id_instead_of_minting_new() throws Exception {
         // Regression: if the slug already has a canonical_id in the structural index,

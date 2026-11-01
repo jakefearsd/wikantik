@@ -126,4 +126,18 @@ class FrontmatterDefaultsFilterTest {
         final String summary = FrontmatterParser.parse( result ).metadata().get( "summary" ).toString();
         assertTrue( summary.contains( "Quarterly planning" ), summary );
     }
+
+    /** Generated frontmatter takes the line endings of the text it is added to (the save path hands filters CRLF). */
+    @Test
+    void generatedFrontmatterKeepsTheTextsCrlfLineEndings() {
+        final String result = filterWithDefaults().applyDefaults( "MyWikiPage", "Some body text about databases.\r\nSecond line.\r\n" );
+        assertTrue( result.startsWith( "---\r\n" ), result );
+        assertFalse( result.replace( "\r\n", "" ).contains( "\n" ), result );
+        assertTrue( result.endsWith( "Second line.\r\n" ), result );
+    }
+
+    @Test
+    void generatedFrontmatterKeepsLfTextLf() {
+        assertFalse( filterWithDefaults().applyDefaults( "MyWikiPage", "Some body text.\nSecond line.\n" ).contains( "\r" ) );
+    }
 }

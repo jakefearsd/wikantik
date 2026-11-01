@@ -127,6 +127,6 @@ public class FrontmatterDefaultsFilter implements PageFilter {
 
         LOG.info( "Generated default frontmatter for page '{}'", pageName );
 
-        return FrontmatterWriter.write( metadata, body );
+        return FrontmatterWriter.writeLike( content, metadata, body );
     }
 }

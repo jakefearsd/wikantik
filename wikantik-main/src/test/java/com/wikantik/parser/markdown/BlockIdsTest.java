@@ -738,4 +738,40 @@ class BlockIdsTest {
         // the blanks around an inline marker go with it, as they always did: the rule then follows the word directly
         assertEquals( "Para.\n\n[{ALLOW view Admin}]\n\nAfter[{DENY edit Guest}]\n\n| a |\n|---|\n| 1 |\n[{ALLOW view All}]\n", stripped );
     }
+
+    /**
+     * Tagging must not change any block's kind. A table whose paragraph runs on into an indented line
+     * ({@code | 1 | 2 |\n\tPara.}) cannot take a standalone marker: the blank line it needs would make that line code.
+     */
+    @Test
+    void assignRefusesAnEditThatWouldChangeTheKindOfABlock() {
+        final String text = "| a | b |\n|---|---|\n| 1 | 2 |\n\tPara.\n";
+        final List< Block > blocks = BlockIds.list( text );
+        assertEquals( List.of( Kind.TABLE, Kind.PARAGRAPH ), blocks.stream().map( Block::kind ).toList() );
+        final IllegalArgumentException e = assertThrows( IllegalArgumentException.class,
+                () -> BlockIds.assign( text, blocks.get( 0 ), "tb" ) );
+        assertTrue( e.getMessage().contains( "without changing the blocks around it" ), e.getMessage() );
+        // the paragraph itself still takes one
+        assertEquals( "pp", BlockIds.list( BlockIds.assign( text, blocks.get( 1 ), "pp" ) ).get( 1 ).id() );
+    }
+
+    /**
+     * A text whose every {@code ^} is preceded or followed by something no marker can have, even once its access rules
+     * are stripped, is not even stripped (the strip parses the text to read its rules).
+     */
+    @Test
+    void aTextNoCaretOfWhichCanBeAMarkerIsNotEvenStripped() {
+        final String text = "Energy $E = mc^2$ [{ALLOW view Admin}] and x^{n+1}.\n\n[{DENY edit Guest}] see[^1].\n";
+        final long before = BlockIds.stripsOnThisThread();
+        assertSame( text, BlockIds.strip( text ) );
+        assertSame( text, BlockIds.stripBody( text ) );
+        assertTrue( BlockIds.find( text, "1" ).isEmpty() );
+        assertEquals( Set.of(), BlockIds.markerIds( text ) );
+        assertEquals( before, BlockIds.stripsOnThisThread(), "stripped although no caret can be a marker" );
+        // a caret right after a rule, or before one, still gets through
+        for ( final String marked : List.of( "Para [{ALLOW view Admin}]^a\n", "Para ^a [{ALLOW view Admin}]\n",
+                "Para ^a\n[{ALLOW view Admin}]\n", "[{ALLOW view Admin}]()^a\n", "x\n[{ALLOW view Admin}]\n^a\n" ) ) {
+            assertTrue( BlockIds.markerIds( marked ).contains( "a" ), marked );
+        }
+    }
 }

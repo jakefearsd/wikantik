@@ -32,7 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code strip}, {@code find} and {@code markerIds} skip the parse when the cheap pre-check says no marker can be in the
  * text. That is only right if the pre-check accepts every text the walk finds a marker in: over seeded token soups —
  * blanks of every kind ({@code \v}, {@code \f}, no-break space), quote and list prefixes, access rules, code, math,
- * escapes, footnotes — the pre-checked answers must equal the unchecked ones, and agree with {@code list}.
+ * escapes, footnotes, access rules in every spelling the strip removes — the pre-checked answers must equal the
+ * unchecked ones, and agree with {@code list}; and the cheap check on the raw text, before any stripping, must accept
+ * every text the walk finds a marker in once its rules are stripped.
  */
 class BlockIdsPreCheckFuzzTest {
 
@@ -41,8 +43,9 @@ class BlockIdsPreCheckFuzzTest {
     private static final String[] TOKENS = {
         "^id", "^ab-1", " ", "\t", "\n", "\r\n", "\n\n", "> ", ">", "- ", "1. ", "  ", "    ", "[{ALLOW view Admin}]",
         "[{DENY edit Guest}]()", "Para", "x", "*", "**", "_", "`", "\\", "#", "## ", "|", "[^1]", "[link](u)", "<b>",
-        "</b>", "\u000B", "\f", " ", "$", "~~", "!", "[[P]]", "==", "<!-- c -->", "&nbsp;", "[{Plugin}]", "\r",
-        "\u0085", " ", "$$",
+        "</b>", "\u000B", "\f", "\u00A0", "$", "~~", "!", "[[P]]", "==", "<!-- c -->", "&nbsp;", "[{Plugin}]", "\r",
+        "\u0085", "\u2028", "$$", "[{ ALLOW view Admin}]", "[{ALLOW view\nAdmin}]", "[{ALLOW edit {x}}]",
+        "[{ALLOW view Admin}](x)", "[{allow view x}]", "[{DENY view a,\n b}]()", "}]", "](", "[{ALLOWED edit Q}]",
     };
 
     @Test
@@ -59,6 +62,9 @@ class BlockIdsPreCheckFuzzTest {
             try {
                 final Set< String > unchecked = BlockIds.markerIds( text, false );
                 withMarkers += unchecked.isEmpty() ? 0 : 1;
+                if ( !unchecked.isEmpty() && !BlockIds.rawMayHoldMarker( text ) ) {
+                    failures.add( "raw pre-check refuses a text with markers " + unchecked + ": " + esc( text ) );
+                }
                 if ( !unchecked.isEmpty() && !BlockIds.mayHoldMarker( text ) ) {
                     failures.add( "pre-check refuses a text with markers " + unchecked + ": " + esc( text ) );
                 }
@@ -83,6 +89,6 @@ class BlockIdsPreCheckFuzzTest {
 
     private static String esc( final String s ) {
         return s.replace( "\r", "\\r" ).replace( "\n", "\\n" ).replace( "\t", "\\t" ).replace( "\u000B", "\\v" )
-                .replace( "\f", "\\f" ).replace( " ", "\\nbsp" ).replace( "\u0085", "\\u0085" ).replace( " ", "\\u2028" );
+                .replace( "\f", "\\f" ).replace( "\u00A0", "\\nbsp" ).replace( "\u0085", "\\u0085" ).replace( "\u2028", "\\u2028" );
     }
 }

@@ -94,6 +94,16 @@ public final class BlockWalk {
     static final Pattern POSSIBLE_MARKER = Pattern.compile( "(?m)(?:^|[ \\t>])" + ID + TRAILING + "$" );
 
     /**
+     * {@link #POSSIBLE_MARKER} for the raw text, before its access rules are stripped — so that a text none of whose
+     * carets can be a marker is not even stripped (the strip parses a text that holds a rule). A superset, because
+     * stripping only cuts (a rule, or the whole line a rule was all of) and inserts nothing a marker could be made of:
+     * a character just before a marker's {@code ^} in the stripped text is the raw one, or the end of what was cut —
+     * a rule's {@code ]} or {@code )}, or a line end; a character just after its blanks is the raw one, or the start of
+     * a cut rule, {@code [{}. Pinned by {@code BlockIdsPreCheckFuzzTest}.
+     */
+    static final Pattern RAW_POSSIBLE_MARKER = Pattern.compile( "(?m)(?:^|[ \\t>\\])])" + ID + TRAILING + "(?:$|\\[\\{)" );
+
+    /**
      * A marker as found in the tree.
      *
      * @param id        the id, without {@code ^}

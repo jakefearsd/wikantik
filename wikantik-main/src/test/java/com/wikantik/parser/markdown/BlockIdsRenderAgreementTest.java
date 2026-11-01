@@ -243,6 +243,9 @@ class BlockIdsRenderAgreementTest {
             }
         }
         assertEquals( List.of(), problems, String.join( "\n", problems ) );
+        // refusals are rare and only of the known kinds (an unknown one is a problem above)
+        final int refused = REFUSALS.values().stream().mapToInt( Integer::intValue ).sum();
+        assertTrue( refused < PROPERTY_CASES / 10 / 10, "assign refused " + refused + " of the tagged cases: " + REFUSALS );
         assertTrue( withRules > PROPERTY_CASES / 3, "too few pages with access rules: " + withRules );
         assertTrue( withIds > PROPERTY_CASES / 3, "too few pages with block ids: " + withIds );
     }
@@ -252,6 +255,9 @@ class BlockIdsRenderAgreementTest {
         final List< String > out = new ArrayList<>();
         final List< Block > blocks = BlockIds.list( raw );
         final Set< String > markerIds = BlockIds.markerIds( raw );
+        if ( !BlockIds.markerIds( raw, false ).isEmpty() && !BlockIds.rawMayHoldMarker( raw ) ) {
+            out.add( "the raw pre-check refuses a text with markers " + BlockIds.markerIds( raw, false ) );
+        }
         for ( final Block b : blocks ) {
             if ( b.start() < 0 || b.start() > b.end() || b.end() > raw.length()
                     || b.markerStart() >= 0 && ( b.markerStart() > b.markerEnd() || b.markerEnd() > raw.length() ) ) {
@@ -280,12 +286,25 @@ class BlockIdsRenderAgreementTest {
         return out;
     }
 
+    /** Why assign refused, by reason, over the property run: only the known refusals may occur. */
+    static final java.util.Map< String, Integer > REFUSALS = new java.util.TreeMap<>();
+
+    /** The reasons assign may refuse a listed, untagged block for. */
+    private static final List< String > KNOWN_REFUSALS = List.of( "has no text line", "without changing the blocks around it" );
+
     private static List< String > afterAssigning( final String raw, final List< Block > blocks, final Block b ) {
         final String tagged;
         try {
             tagged = BlockIds.assign( raw, b, "zz9" );
         } catch ( final IllegalArgumentException e ) {
-            return List.of();   // a block that cannot take an id (a list item with no text line)
+            final String reason = KNOWN_REFUSALS.stream().filter( e.getMessage()::contains ).findFirst().orElse( null );
+            if ( reason == null ) {
+                return List.of( "assign refused block " + b.index() + " for an unknown reason: " + e.getMessage() );
+            }
+            synchronized ( REFUSALS ) {
+                REFUSALS.merge( reason, 1, Integer::sum );
+            }
+            return List.of();
         }
         final List< Block > after = BlockIds.list( tagged );
         final List< String > out = new ArrayList<>();

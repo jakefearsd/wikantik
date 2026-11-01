@@ -275,6 +275,16 @@ public final class BlockIds {
         return ids;
     }
 
+    /** Test seam: the texts stripped of access rules on this thread so far. */
+    static long stripsOnThisThread() {
+        return BlockModel.stripsOnThisThread();
+    }
+
+    /** Test seam: whether the cheap pre-check on the raw text lets {@code fullText} be stripped at all. */
+    static boolean rawMayHoldMarker( final String fullText ) {
+        return BlockModel.rawMayHoldMarker( fullText );
+    }
+
     /** Test seam: whether the pre-check lets {@code fullText} be parsed for markers. */
     static boolean mayHoldMarker( final String fullText ) {
         return BlockModel.mayHoldMarker( fullText );

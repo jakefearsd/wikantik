@@ -59,6 +59,19 @@ final class BlockModel {
         return PARSES.get()[ 0 ];
     }
 
+    /** Test seam: how many texts this thread has stripped of access rules here. */
+    private static final ThreadLocal< long[] > STRIPS = ThreadLocal.withInitial( () -> new long[ 1 ] );
+
+    /** Test seam: the texts stripped on this thread so far. */
+    static long stripsOnThisThread() {
+        return STRIPS.get()[ 0 ];
+    }
+
+    /** The cheap raw pre-check (see {@link BlockWalk#RAW_POSSIBLE_MARKER}). */
+    static boolean rawMayHoldMarker( final String raw ) {
+        return raw != null && raw.indexOf( '^' ) >= 0 && BlockWalk.RAW_POSSIBLE_MARKER.matcher( raw ).find();
+    }
+
 
     /**
      * The text a render parses — {@code raw} with its access rules stripped — tracked back to {@code raw}. A position
@@ -66,17 +79,22 @@ final class BlockModel {
      *
      * @param raw     the text as stored
      * @param tracked the stripped text and its map back to {@code raw}; {@code null} until needed, for a text that cannot
-     *                hold a marker because it has no {@code ^} at all
+     *                hold a marker ({@link #rawMayHoldMarker} says no: not even stripped)
      */
     record Shown( String raw, TrackedText tracked ) {
 
         static Shown of( final String raw ) {
-            return new Shown( raw, raw == null || raw.indexOf( '^' ) < 0 ? null : AclDirectiveText.stripTracked( raw ) );
+            return new Shown( raw, rawMayHoldMarker( raw ) ? strip( raw ) : null );
         }
 
         /** This, stripped if it was not yet. */
         Shown stripped() {
-            return tracked != null ? this : new Shown( raw, AclDirectiveText.stripTracked( raw ) );
+            return tracked != null ? this : new Shown( raw, strip( raw ) );
+        }
+
+        private static TrackedText strip( final String raw ) {
+            STRIPS.get()[ 0 ]++;
+            return AclDirectiveText.stripTracked( raw );
         }
 
         String text() {

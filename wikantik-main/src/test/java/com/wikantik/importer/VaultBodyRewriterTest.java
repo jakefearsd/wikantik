@@ -54,7 +54,13 @@ class VaultBodyRewriterTest {
         { "![[Old name]]", "![[New name]]" },
         { "[[Same]]", "[[Same]]" },
         { "[[Existing]]", "[[Existing]]" },
-        { "[[Same#^abc]]", "[[Same]]" },
+        { "[[Same#^abc]]", "[[Same#^abc]]" },
+        { "![[Same#^abc]]", "![[Same#^abc]]" },
+        { "[[Old name#^abc]]", "[[New name#^abc|Old name]]" },
+        { "![[Old name#^abc]]", "![[New name#^abc]]" },
+        { "[x](Old%20name.md#^abc)", "[[New name#^abc|x]]" },
+        { "[x](Old%20name.md#Intro#^abc)", "[[New name#^abc|x]]" },
+        { "para ^block-1\n\n^solo", "para ^block-1\n\n^solo" },
         { "[[Ghost]]", "[[Ghost]]" },
         { "![[f.png|300]]", "![[Owner/f.png|300]]" },
         { "[[doc.pdf]]", "[[Owner/doc.pdf]]" },
@@ -67,8 +73,7 @@ class VaultBodyRewriterTest {
         { "[x](<Old name.md#Intro>)", "[[New name#Intro|x]]" },
         { "[x](Existing.md)", "[[Existing|x]]" },
         { "[x](https://e.com/a.md)", "[x](https://e.com/a.md)" },
-        { "para ^block-1", "para" },
-        { "a %% hidden\nmore %% b", "a  b" },
+                { "a %% hidden\nmore %% b", "a  b" },
         { "```\n[[Old name]] %% c %%\n```", "```\n[[Old name]] %% c %%\n```" },
         { "`[[Old name]]`", "`[[Old name]]`" },
         { "[[ -f \"$x\" ]]", "[[ -f \"$x\" ]]" },
@@ -93,7 +98,7 @@ class VaultBodyRewriterTest {
         { "[x](evil.svg)", "[x](evil.svg)" },
         { "[x](Old%zzname.md)", "[x](Old%zzname.md)" },
         { "[[#^x]]", "[[#^x]]" },
-        { "[[Old name#a#^x]]", "[[New name#a|Old name > a]]" },
+        { "[[Old name#a#^x]]", "[[New name#^x|Old name]]" },
     };
 
     @Test
@@ -111,11 +116,11 @@ class VaultBodyRewriterTest {
 
     @Test
     void warnings() {
-        assertTrue( rewriter.rewrite( "[[Same#^abc]]", "n.md", FAKE ).warnings().get( 0 ).startsWith( "blockref:" ) );
+        assertTrue( rewriter.rewrite( "[[Same#^abc]]", "n.md", FAKE ).warnings().isEmpty() );
         assertEquals( java.util.List.of( "link: unresolved [[Ghost]]" ),
                 rewriter.rewrite( "[[Ghost]] [[Ghost]]", "n.md", FAKE ).warnings() );
         assertTrue( rewriter.rewrite( "a %%x%% b", "n.md", FAKE ).warnings().get( 0 ).startsWith( "comment: 1" ) );
-        assertTrue( rewriter.rewrite( "para ^block-1", "n.md", FAKE ).warnings().get( 0 ).startsWith( "blockref:" ) );
+        assertTrue( rewriter.rewrite( "para ^block-1", "n.md", FAKE ).warnings().isEmpty() );
         assertTrue( rewriter.rewrite( "[[Old name]]", "n.md", FAKE ).warnings().isEmpty() );
     }
 }

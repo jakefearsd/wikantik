@@ -37,8 +37,7 @@ final class WikiLinkRewriter {
         }
         final String sep = separator( prose, ref, ctx );
         final String t = ref.target();
-        final int before = ctx.blockRefs;
-        final String frag = ctx.cutBlock( ref.heading() );
+        final String frag = RewriteCtx.blockFragment( ref.heading() );
         if ( hasExtension( t ) ) {
             final LinkTarget att = ctx.targets.attachment( t, ctx.fromPath, false );
             if ( att.kind() == LinkTarget.Kind.RENAME ) {
@@ -48,22 +47,22 @@ final class WikiLinkRewriter {
                 return null;
             }
         }
-        return rewritePage( ref, frag, sep, ctx, ctx.blockRefs != before );
+        return rewritePage( ref, frag, sep, ctx, !java.util.Objects.equals( frag, ref.heading() ) );
     }
 
     private static String rewritePage( final WikiLinkRef ref, final String frag, final String sep, final RewriteCtx ctx,
-                                       final boolean blockCut ) {
+                                       final boolean fragChanged ) {
         final String t = ref.target();
         final LinkTarget lt = ctx.targets.page( t, ctx.fromPath, false );
         if ( lt.kind() == LinkTarget.Kind.RENAME && !lt.value().equals( t ) ) {
             final String alias = ref.alias() != null || ref.embed() ? ref.alias()
-                    : frag == null ? t : t + " > " + frag;
+                    : frag == null || frag.startsWith( "^" ) ? t : t + " > " + frag;
             return build( ref, lt.value(), frag, alias, sep );
         }
         if ( lt.kind() == LinkTarget.Kind.UNRESOLVED ) {
             ctx.unresolvedPage( t );
         }
-        return blockCut ? build( ref, t, frag, ref.alias(), sep ) : null;
+        return fragChanged ? build( ref, t, frag, ref.alias(), sep ) : null;
     }
 
     /** The separator the token used (decided by the character before its first pipe), else {@code \\|} in a table row. */

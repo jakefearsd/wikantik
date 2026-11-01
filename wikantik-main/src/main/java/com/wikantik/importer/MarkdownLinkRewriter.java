@@ -68,7 +68,7 @@ final class MarkdownLinkRewriter {
         }
         final int hash = decoded.indexOf( '#' );
         final String path = hash < 0 ? decoded : decoded.substring( 0, hash );
-        final String frag = hash < 0 ? null : ctx.cutBlock( decoded.substring( hash + 1 ) );
+        final String frag = hash < 0 ? null : RewriteCtx.blockFragment( decoded.substring( hash + 1 ) );
         final String out = path.toLowerCase( java.util.Locale.ROOT ).endsWith( ".md" )
                 ? note( bang, aliasPart, path, frag, ctx ) : file( bang, aliasPart, path, frag, ctx );
         return out == null ? whole : out;

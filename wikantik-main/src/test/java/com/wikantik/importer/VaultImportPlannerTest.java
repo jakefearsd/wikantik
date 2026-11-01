@@ -94,7 +94,7 @@ class VaultImportPlannerTest {
         assertEquals( "article", gamma.metadata().get( "type" ) );
         assertTrue( byPath.get( "Projects/Deep/Deeper/Gamma.md" ).warnings().stream().anyMatch( w -> w.startsWith( "type:" ) ) );
         final PageDraft alpha = draft( r, "Alpha" );
-        assertTrue( alpha.body().contains( "[[Gamma]]" ) && !alpha.body().contains( "^b1" ) && !alpha.body().contains( "^a1" ) );
+        assertTrue( alpha.body().contains( "[[Gamma#^b1]]" ) && alpha.body().contains( "A line ^a1" ) );
         assertTrue( alpha.body().contains( "![[evil.svg]]" ) );
         final PageDraft code = draft( r, "Code" );
         assertTrue( code.body().contains( "```\n[[NotALink]]\n```" ) && code.body().contains( "`[[AlsoNot]]`" ) );

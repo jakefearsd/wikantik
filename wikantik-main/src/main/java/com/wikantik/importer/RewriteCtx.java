@@ -25,7 +25,6 @@ import java.util.Set;
 final class RewriteCtx {
     final String fromPath;
     final VaultTargets targets;
-    int blockRefs;
     int comments;
     private static final int NONE = -1;
     private String fullBody;
@@ -46,21 +45,13 @@ final class RewriteCtx {
         unresolved.add( t );
     }
 
-    /** Cuts a block reference off a heading; returns the remaining heading (possibly null) and counts it. */
-    String cutBlock( final String frag ) {
-        if ( frag == null ) {
-            return null;
-        }
-        if ( frag.startsWith( "^" ) ) {
-            blockRefs++;
-            return null;
-        }
-        final int i = frag.indexOf( "#^" );
-        if ( i >= 0 ) {
-            blockRefs++;
-            return frag.substring( 0, i );
-        }
-        return frag;
+    /**
+     * Normalises a link fragment: a block id is page-unique, so in Obsidian's {@code Heading#^id} the heading part
+     * is redundant and the fragment becomes {@code ^id}. Everything else is returned unchanged.
+     */
+    static String blockFragment( final String frag ) {
+        final int i = frag == null ? -1 : frag.indexOf( "#^" );
+        return i > 0 ? frag.substring( i + 1 ) : frag;
     }
 
     /**

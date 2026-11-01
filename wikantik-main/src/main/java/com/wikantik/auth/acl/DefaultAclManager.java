@@ -86,10 +86,25 @@ public class DefaultAclManager implements AclManager {
     /** The {@code [{ } ]} wrapper around a directive — see {@link #ruleLineOf}. */
     private static final Pattern DIRECTIVE_BRACES = Pattern.compile( "^\\[\\{|\\}\\]$" );
 
+    /**
+     * The principal a locked page's ACL grants everything to. No session holds it — it is no role, group or login, and
+     * its name holds a NUL, which no login can — so only {@code AllPermission} (the Admin group) gets past such an ACL.
+     */
+    public static final Principal LOCKED_PRINCIPAL = new LockedPrincipal();
+
+    /** Every page action, for the locked ACL's one entry. */
+    private static final String ALL_PAGE_ACTIONS = String.join( ",", PagePermission.COMMENT_ACTION, PagePermission.DELETE_ACTION,
+            PagePermission.EDIT_ACTION, PagePermission.MODIFY_ACTION, PagePermission.RENAME_ACTION, PagePermission.UPLOAD_ACTION,
+            PagePermission.VIEW_ACTION );
+
     /** Parsed-ACL cache surviving Page-instance churn. Keyed by page name; entry valid only for a matching (version, lastModified). */
     private record CachedAcl( int version, long lastModified, Acl acl ) {}
 
     private final Cache< String, CachedAcl > aclCache =
+        Caffeine.newBuilder().maximumSize( 20_000 ).build();
+
+    /** Page versions whose lock has been logged ({@code name@version}). */
+    private final Cache< String, Boolean > lockWarned =
         Caffeine.newBuilder().maximumSize( 20_000 ).build();
 
     /** {@inheritDoc} */
@@ -101,59 +116,65 @@ public class DefaultAclManager implements AclManager {
 
     /** {@inheritDoc} */
     @Override
-    public Acl parseAcl( final Page page, final String ruleLine ) throws WikiSecurityException {
-        Acl acl = page.getAcl();
-        if (acl == null) {
-            acl = Wiki.acls().acl();
-        }
-
-        try {
-            final StringTokenizer fieldToks = new StringTokenizer(ruleLine);
-            fieldToks.nextToken();
-            final String actions = fieldToks.nextToken();
-
-            while( fieldToks.hasMoreTokens() ) {
-                final String principalName = fieldToks.nextToken(",").trim();
-                final Principal principal = auth.resolvePrincipal(principalName);
-                final AclEntry oldEntry = acl.getAclEntry(principal);
-
-                if( oldEntry != null ) {
-                    LOG.debug( "Adding to old acl list: {}, {}", principal, actions );
-                    oldEntry.addPermission( PermissionFactory.getPagePermission( page, actions ) );
-                } else {
-                    LOG.debug( "Adding new acl entry for {}", actions );
-                    final AclEntry entry = Wiki.acls().entry();
-                    entry.setPrincipal( principal );
-                    entry.addPermission( PermissionFactory.getPagePermission( page, actions ) );
-
-                    acl.addEntry( entry );
-                }
+    public Acl parseAcl( final Page page, final Acl into, final String ruleLine ) throws WikiSecurityException {
+        final Permission permission = checkRuleLine( page, ruleLine );
+        final StringTokenizer fieldToks = new StringTokenizer( ruleLine );
+        fieldToks.nextToken();
+        fieldToks.nextToken();
+        while( fieldToks.hasMoreTokens() ) {
+            final String principalName = fieldToks.nextToken( "," ).trim();
+            final Principal principal = auth.resolvePrincipal( principalName );
+            final AclEntry oldEntry = into.getAclEntry( principal );
+            if( oldEntry != null ) {
+                LOG.debug( "Adding to old acl list: {}, {}", principal, permission );
+                oldEntry.addPermission( permission );
+            } else {
+                LOG.debug( "Adding new acl entry for {}", permission );
+                final AclEntry entry = Wiki.acls().entry();
+                entry.setPrincipal( principal );
+                entry.addPermission( permission );
+                into.addEntry( entry );
             }
+        }
+        return into;
+    }
 
-            page.setAcl( acl );
-            LOG.debug( acl.toString() );
+    /**
+     * Whether {@link #parseAcl} accepts the shape of {@code ruleLine}: a keyword, then an action list naming page
+     * actions (the principals are not resolved). The render path uses it to show an error in place of a rule the ACL
+     * parser would refuse.
+     *
+     * @param page     the page the rule belongs to
+     * @param ruleLine the rule line ({@code ALLOW view Alice})
+     * @return the rule's permission on {@code page}
+     * @throws WikiSecurityException with {@link #parseAcl}'s message when the line is refused
+     */
+    public static Permission checkRuleLine( final Page page, final String ruleLine ) throws WikiSecurityException {
+        final StringTokenizer fieldToks = new StringTokenizer( ruleLine );
+        final String actions;
+        try {
+            fieldToks.nextToken();
+            actions = fieldToks.nextToken();
         } catch( final NoSuchElementException nsee ) {
             LOG.warn( "Invalid access rule: {} - defaults will be used.", ruleLine );
             throw new WikiSecurityException( "Invalid access rule: " + ruleLine, nsee );
-        } catch( final IllegalArgumentException iae ) {
-            throw new WikiSecurityException("Invalid permission type: " + ruleLine, iae);
         }
-
-        return acl;
+        try {
+            return PermissionFactory.getPagePermission( page, actions );
+        } catch( final IllegalArgumentException iae ) {
+            throw new WikiSecurityException( "Invalid permission type: " + ruleLine, iae );
+        }
     }
 
-
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Built from {@link AccessRules#read} of the page text, cached by (name, version, lastModified) as an immutable
+     * ACL. The page's own ACL is never consulted (a render or a caller may have set anything there); it is set to the
+     * result, for callers that read it afterwards.
+     */
     @Override
     public Acl getPermissions( final Page page ) {
-        //  Does the page already have cached ACLs?
-        Acl acl = page.getAcl();
-        LOG.debug( "page={}\n{}", page.getName(), acl );
-        if( acl != null ) {
-            return acl;
-        }
-
-        //  If null, try the parent.
         if( page instanceof Attachment att ) {
             final Page parent = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getParentName() );
             return getPermissions( parent );
@@ -169,51 +190,80 @@ public class DefaultAclManager implements AclManager {
             return hit.acl();
         }
 
-        //  Extract ACLs directly from page text using regex - much faster than full page render
-        acl = extractAclFromPageText( page );
-        page.setAcl( acl );
+        final String pageText;
+        try {
+            pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
+        } catch( final RuntimeException e ) {
+            // Not cached: the next check reads the text again.
+            LOG.warn( "The text of page {} could not be read to find its access rules; it is locked: {}", page.getName(), e.toString() );
+            return lockedAcl( page );
+        }
+        final Acl acl = aclOf( page, pageText );
         aclCache.put( page.getName(), new CachedAcl( page.getVersion(), lastModified, acl ) );
+        page.setAcl( acl );
         return acl;
     }
 
-    /**
-     * Extracts ACL rules directly from page text using regex pattern matching.
-     * This is a lightweight alternative to full page rendering for ACL extraction.
-     *
-     * @param page the page to extract ACLs from
-     * @return the parsed Acl, or an empty Acl if no rules found or page text unavailable
-     */
-    private Acl extractAclFromPageText( final Page page ) {
-        Acl acl = Wiki.acls().acl();
-
-        try {
-            final String pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
-            if( pageText == null || pageText.isEmpty() ) {
-                return acl;
-            }
-
-            for( final String directive : aclDirectives( pageText ) ) {
-                final String ruleLine = ruleLineOf( directive );
-                try {
-                    acl = parseAcl( page, ruleLine );
-                } catch( final WikiSecurityException e ) {
-                    LOG.warn( "Invalid ACL rule in page {}: {}", page.getName(), ruleLine );
-                }
-            }
-        } catch( final Exception e ) {
-            LOG.error( "Error extracting ACL from page {}: {}", page.getName(), e.getMessage() );
+    /** The immutable ACL a page text gives: open when it has no rules, a lock when its rules cannot be read. */
+    Acl aclOf( final Page page, final String pageText ) {
+        if( pageText == null || pageText.isEmpty() ) {
+            return new ReadOnlyAcl( Wiki.acls().acl() );
         }
+        AccessRules.Reading reading;
+        try {
+            reading = AccessRules.read( pageText );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Reading the access rules of page {} failed: {}", page.getName(), e.toString() );
+            reading = new AccessRules.Locked( List.of( new AccessRules.Reason( AccessRules.Shape.UNREADABLE, 1, e.toString() ) ), List.of() );
+        }
+        return aclOf( page, pageText, reading );
+    }
 
-        return acl;
+    /** The immutable ACL {@code reading} gives; a rule line the ACL parser refuses locks the page. */
+    Acl aclOf( final Page page, final String pageText, final AccessRules.Reading reading ) {
+        if( reading instanceof AccessRules.Locked locked ) {
+            warnLocked( page, locked );
+            return lockedAcl( page );
+        }
+        final AccessRules.Rules rules = ( AccessRules.Rules ) reading;
+        final Acl acl = Wiki.acls().acl();
+        for( int i = 0; i < rules.ruleLines().size(); i++ ) {
+            final String ruleLine = rules.ruleLines().get( i );
+            try {
+                parseAcl( page, acl, ruleLine );
+            } catch( final WikiSecurityException e ) {
+                final AccessRules.Span span = rules.spans().get( i );
+                warnLocked( page, new AccessRules.Locked( List.of( new AccessRules.Reason( AccessRules.Shape.BAD_PERMISSION,
+                        AccessRules.lineOf( pageText, span.start() ), ruleLine ) ), rules.spans() ) );
+                return lockedAcl( page );
+            }
+        }
+        return new ReadOnlyAcl( acl );
+    }
+
+    /** Logs a lock once per page version, not on every check. */
+    private void warnLocked( final Page page, final AccessRules.Locked locked ) {
+        if( lockWarned.asMap().putIfAbsent( page.getName() + "@" + page.getVersion(), Boolean.TRUE ) == null ) {
+            LOG.warn( "The access rules of page {} (version {}) cannot be read; only administrators may use it until they are "
+                    + "fixed: {}", page.getName(), page.getVersion(), locked.reasons() );
+        }
+    }
+
+    /** An ACL that grants every page permission to {@link #LOCKED_PRINCIPAL} alone: only {@code AllPermission} gets in. */
+    private static Acl lockedAcl( final Page page ) {
+        final Acl acl = Wiki.acls().acl();
+        final AclEntry entry = Wiki.acls().entry();
+        entry.setPrincipal( LOCKED_PRINCIPAL );
+        entry.addPermission( PermissionFactory.getPagePermission( page, ALL_PAGE_ACTIONS ) );
+        acl.addEntry( entry );
+        return new ReadOnlyAcl( acl );
     }
 
     /**
      * Converts a matched ACL directive ({@code [{ALLOW view Alice,Bob}]}) into the
      * brace-free rule line {@link #parseAcl} expects ({@code ALLOW view Alice,Bob}).
      *
-     * <p>This mirrors what the render path
-     * ({@code AccessRuleLinkNodePostProcessorState}) already does before calling
-     * {@code parseAcl}. Without it, {@code parseAcl}'s {@link StringTokenizer} folds
+     * <p>Without it, {@code parseAcl}'s {@link StringTokenizer} folds
      * the trailing {@code "}]"} into the <em>last</em> principal name, yielding an
      * entry ({@code "Alice}]"}) that can never match a real principal — a non-empty
      * ACL that grants nobody.
@@ -226,15 +276,9 @@ public class DefaultAclManager implements AclManager {
     }
 
     /**
-     * Returns the <em>enforceable</em> ACL directives in {@code pageText}: every
-     * {@code [{ALLOW …}]} match that is NOT inside a Markdown code span or code
-     * block. The identical syntax shown inside backticks or a fenced/indented
-     * block is documentation (e.g. a page that explains how ACLs work) and is
-     * skipped, so such a page no longer accidentally restricts itself.
-     *
-     * <p>The scanner fails closed toward enforcement: a directive in ordinary
-     * page text is always returned, so a genuine restriction is never silently
-     * dropped. Order of appearance is preserved.
+     * The directives the text scan of 2.4.57–2.5.5 enforced in {@code pageText}: every one-line {@code [{ALLOW …}]}
+     * match that is NOT inside a Markdown code span or code block. No longer what is enforced ({@link AccessRules} is);
+     * kept because {@link AclDirectiveText} hides at least these, and the access-rule audit reports the old reading.
      *
      * @param pageText the raw page source (may be {@code null})
      * @return the matched directive strings outside code, in document order
@@ -244,15 +288,27 @@ public class DefaultAclManager implements AclManager {
         return EnforcedAclDirectives.directives( pageText );
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Writes {@code acl} at the top of the page text in place of the spans {@link AccessRules#read} finds. Refused for
+     * a page whose rules cannot be read (rewriting it would drop rules nobody can tell the meaning of) and for a locked
+     * ACL.
+     */
     @Override
     public void setPermissions( final Page page, final Acl acl ) throws WikiSecurityException {
+        if( acl.getAclEntry( LOCKED_PRINCIPAL ) != null ) {
+            throw new WikiSecurityException( "Refusing to write the ACL of a locked page " + page.getName() );
+        }
         final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-
-        // Remove all of the existing ACLs.
-        final String pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
-        final String cleansedText = EnforcedAclDirectives.withoutAnyDirective( pageText );
-        final String newText = DefaultAclManager.printAcl( page.getAcl() ) + cleansedText;
+        final String pageText = pageManager.getPureText( page );
+        final String text = pageText == null ? "" : pageText;
+        final AccessRules.Reading reading = AccessRules.read( text );
+        if( reading instanceof AccessRules.Locked locked ) {
+            throw new WikiSecurityException( "The access rules of page " + page.getName() + " cannot be read, so they are not "
+                    + "rewritten: " + locked.reasons() );
+        }
+        final String newText = DefaultAclManager.printAcl( acl ) + AccessRules.without( text, reading.spans() );
         try {
             pageManager.putPageText( page, newText );
         } catch( final ProviderException e ) {

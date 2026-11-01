@@ -22,13 +22,17 @@ import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.markdown.extensions.wikilinks.postprocessor.AccessRuleLinkNodePostProcessorState;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.markdown.MarkdownRenderer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** {@code textToHTML(..., parseAccessRules=false, ...)} must be honoured by the Markdown parser. */
 class MarkdownAccessRuleToggleTest {
@@ -42,26 +46,31 @@ class MarkdownAccessRuleToggleTest {
         engine.stop();
     }
 
-    private Page render( final boolean parseAccessRules ) throws Exception {
+    private final List< String > read = new ArrayList<>();
+
+    /** A bare parse of the raw text (a display render parses the text without its rules). */
+    private Page parse( final boolean parseAccessRules ) throws Exception {
         final Page page = Wiki.contents().page( engine, "AclToggleScratch" );
         final Context ctx = Wiki.context().create( engine, page );
         ctx.setPage( page );
         ctx.setRealPage( page );
+        ctx.setVariable( AccessRuleLinkNodePostProcessorState.VAR_READ_ACCESS_RULES, read );
         engine.getManager( RenderingManager.class )
-              .textToHTML( ctx, "[{ALLOW view Admin}]\n\nx", null, null, null, parseAccessRules, false );
+              .textToHTML( ctx, "[{ALLOW view Admin}]\n\nx", null, null, null, parseAccessRules, true );
         return page;
     }
 
     @Test
-    void parseAccessRulesFalseLeavesAclUntouched() throws Exception {
-        final Page page = render( false );
-        assertTrue( page.getAcl() == null || page.getAcl().isEmpty(),
-                "access rules were disabled; the ACL must not be applied" );
+    void parseAccessRulesFalseReadsNoRule() throws Exception {
+        final Page page = parse( false );
+        assertEquals( List.of(), read, "access rules were disabled; none is read" );
+        assertNull( page.getAcl(), "a parse never sets the page's ACL" );
     }
 
     @Test
-    void parseAccessRulesTrueAppliesAcl() throws Exception {
-        final Page page = render( true );
-        assertFalse( page.getAcl() == null || page.getAcl().isEmpty(), "ACL line is applied when enabled" );
+    void parseAccessRulesTrueReadsTheRuleAndSetsNoAcl() throws Exception {
+        final Page page = parse( true );
+        assertEquals( List.of( "ALLOW view Admin" ), read, "the rule is read when enabled" );
+        assertNull( page.getAcl(), "a parse never sets the page's ACL: AccessRules alone does (#104)" );
     }
 }

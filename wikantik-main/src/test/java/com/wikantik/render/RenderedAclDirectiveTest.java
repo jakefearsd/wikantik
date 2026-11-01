@@ -61,7 +61,7 @@ class RenderedAclDirectiveTest {
     @AfterAll
     static void stop() {
         engine.deleteQuietly( AclDirectiveFixtures.ALL.stream().map( RenderedAclDirectiveTest::pageName ).toArray( String[]::new ) );
-        engine.deleteQuietly( "RenderedAclHost" );
+        engine.deleteQuietly( "RenderedAclHost", "RenderedAclPlainHost" );
         engine.stop();
     }
 
@@ -147,9 +147,21 @@ class RenderedAclDirectiveTest {
 
     @Test
     void aPageThatEmbedsTheHtmlBlockFixtureShowsNoLogin() throws Exception {
+        // A rule inside an HTML block is disputed (#104): the embedded page is locked, so a reader gets the restricted
+        // notice in place of its body — and never the login either way.
         final Fixture f = AclDirectiveFixtures.HTML_BLOCK;
         engine.saveText( "RenderedAclHost", "Host page.\n\n![[" + pageName( f ) + "]]\n" );
         final Page host = engine.getManager( PageManager.class ).getPage( "RenderedAclHost" );
+        final String html = rm().getHTML( viewContext( host ), host );
+        assertTrue( html.contains( "wiki-embed-restricted" ), "the locked page is not embedded: " + html );
+        assertFalse( html.toLowerCase( Locale.ROOT ).contains( "example.test" ), html );
+    }
+
+    @Test
+    void aPageThatEmbedsAPageWithCanonicalRulesShowsNoLogin() throws Exception {
+        final Fixture f = AclDirectiveFixtures.PLAIN;
+        engine.saveText( "RenderedAclPlainHost", "Host page.\n\n![[" + pageName( f ) + "]]\n" );
+        final Page host = engine.getManager( PageManager.class ).getPage( "RenderedAclPlainHost" );
         final String html = rm().getHTML( viewContext( host ), host );
         assertTrue( html.contains( AclDirectiveFixtures.BODY ), "the embed rendered: " + html );
         assertFalse( html.toLowerCase( Locale.ROOT ).contains( "example.test" ), html );

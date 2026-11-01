@@ -66,6 +66,20 @@ final class MarkdownBodySource {
             return normalized < 0 ? -1 : fromNormalized( normalized );
         }
 
+        /**
+         * Where each display-math ({@code $$}) block the rewrite turned into a fence stands in the body, as
+         * {@code {start, end}}: the whole block, its delimiters included.
+         */
+        List< int[] > displayMathInBody() {
+            final List< int[] > blocks = new java.util.ArrayList<>( mathEdits.size() );
+            for ( final DisplayMathPreProcessor.Edit edit : mathEdits ) {
+                if ( edit.sourceEnd() > edit.sourceStart() ) {
+                    blocks.add( new int[]{ fromNormalized( edit.sourceStart() ), fromNormalized( edit.sourceEnd() - 1 ) + 1 } );
+                }
+            }
+            return blocks;
+        }
+
         /** Binary search: the last edit that starts at or before {@code pos} decides; generated markup gives -1. */
         private int fromMath( final int pos ) {
             int lo = 0;

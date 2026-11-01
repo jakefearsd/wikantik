@@ -47,6 +47,11 @@ class UserManagerTest {
     private static final String SESSION_MESSAGES = "profile";
 
     TestEngine m_engine;
+
+    /** The ACL the wiki enforces on {@code p} (a page read does not carry it: #104). */
+    private com.wikantik.api.core.Acl acl( final Page p ) {
+        return m_engine.getManager( com.wikantik.auth.acl.AclManager.class ).getPermissions( p );
+    }
     UserManager m_mgr;
     UserDatabase m_db;
     String m_groupName;
@@ -124,10 +129,10 @@ class UserManagerTest {
         // 3a. Make sure the page got saved, and that ONLY our test user has permission to read it.
         Page p = m_engine.getManager( PageManager.class ).getPage( pageName );
         Assertions.assertEquals( oldPageCount + 1, pageManager.getTotalPageCount() );
-        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
-        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertNotNull( acl( p ).getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNotNull( acl( p ).getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( newName ) ) );
         Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
         final Session bobSession = WikiSessionTest.authenticatedSession( m_engine, Users.BOB, Users.BOB_PASS );
         Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
@@ -158,10 +163,10 @@ class UserManagerTest {
         // Test 3: our page should not contain the old wiki name OR login name
         // in the ACL any more (the full name is always used)
         p = m_engine.getManager( PageManager.class ).getPage( pageName );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
-        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNotNull( acl( p ).getAclEntry( new WikiPrincipal( newName ) ) );
         Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
         Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
 
@@ -184,10 +189,10 @@ class UserManagerTest {
         m_engine.saveText( pageName, "More test text. [{ALLOW view " + oldName + ", " + oldLogin + ", Alice}] More text." );
         p = m_engine.getManager( PageManager.class ).getPage( pageName );
         Assertions.assertEquals( oldPageCount + 1, pageManager.getTotalPageCount() );
-        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
-        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertNotNull( acl( p ).getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNotNull( acl( p ).getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( newName ) ) );
         Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
         Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
 
@@ -217,10 +222,10 @@ class UserManagerTest {
         // Test 7: our page should not contain the old wiki name OR login name
         // in the ACL any more (the full name is always used)
         p = m_engine.getManager( PageManager.class ).getPage( pageName );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
-        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
-        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNotNull( acl( p ).getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNull( acl( p ).getAclEntry( new WikiPrincipal( newName ) ) );
         Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
         Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
 

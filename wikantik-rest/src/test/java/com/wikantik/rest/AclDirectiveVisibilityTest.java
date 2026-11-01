@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -155,14 +156,11 @@ class AclDirectiveVisibilityTest {
     }
 
     @Test
-    void readerGetsNoLoginFromADirectiveWrappedOverSeveralLinesAndTheEditorGetsItVerbatim() throws Exception {
+    void aDirectiveWrappedOverSeveralLinesLocksThePageForTheReaderAndTheAdminGetsItVerbatim() throws Exception {
+        // A wrapped rule is read by the render path only: disputed, so the page is locked to administrators (#104).
         final JsonObject asReader = getPage( reader( "/api/pages/AclWrappedPage" ), "AclWrappedPage" );
-        final String readerContent = asReader.get( "content" ).getAsString();
-        assertFalse( asReader.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean(),
-                "fixture is vacuous: the reader can edit the page" );
-        assertFalse( readerContent.contains( LOGIN ), readerContent );
-        assertFalse( readerContent.contains( "ALLOW comment" ), readerContent );
-        assertTrue( readerContent.contains( "Public prose." ), readerContent );
+        assertNull( asReader.get( "content" ), "a locked page is refused to a reader: " + asReader );
+        assertFalse( asReader.toString().contains( LOGIN ), asReader.toString() );
 
         final String stored = FrontmatterParser.parse( engine.getManager( PageManager.class )
                 .getPureText( "AclWrappedPage", PageProvider.LATEST_VERSION ) ).body();

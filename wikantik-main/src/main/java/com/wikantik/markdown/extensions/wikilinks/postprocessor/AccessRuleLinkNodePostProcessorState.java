@@ -22,15 +22,19 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.acl.DefaultAclManager;
 import com.wikantik.markdown.nodes.WikantikLink;
+
+import java.util.List;
 
 
 /**
- * {@link NodePostProcessorState} which further post processes access rules links.
+ * {@link NodePostProcessorState} which further post processes access rules links: removes each from the rendered page,
+ * or shows an error in its place when the ACL parser would refuse it. It sets no ACL: the enforced ACL comes from
+ * {@code AccessRules} alone, whatever was rendered (#104).
  */
 public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorState< WikantikLink > {
 
@@ -44,6 +48,12 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
      * else means rules are parsed.
      */
     public static final String VAR_PARSE_ACCESS_RULES = "_Markdown.parseAccessRules";
+
+    /**
+     * Context variable that, when it holds a {@code List<String>}, receives every rule line this post-processor reads,
+     * in order — the render path's reading of the text, for a caller that compares it with another.
+     */
+    public static final String VAR_READ_ACCESS_RULES = "_Markdown.readAccessRules";
 
     public AccessRuleLinkNodePostProcessorState( final Context wikiContext ) {
         this.wikiContext = wikiContext;
@@ -72,9 +82,6 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
     /**
      * {@inheritDoc}
      *
-     * <p>A display render shows text with the rules removed ({@code AclDirectiveText}), and parses the raw text as well,
-     * so that this still sets the rendered page's ACL as it always did (enforcement is unchanged).
-     *
      * @see NodePostProcessorState#process(NodeTracker, Node)
      */
     @Override
@@ -84,16 +91,22 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
             final Page page = wikiContext.getRealPage();
             final String ruleLine = ruleLineOf( target );
             LOG.debug( "page={}, ACL = {}", page.getName(), ruleLine );
-
+            recordRead( ruleLine );
             try {
-                final Acl acl = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( wikiContext.getEngine() ).aclManager().parseAcl( page, ruleLine );
-                page.setAcl( acl );
+                DefaultAclManager.checkRuleLine( page, ruleLine );
                 link.unlink();
                 state.nodeRemoved( link );
-                LOG.debug( acl.toString() );
             } catch( final WikiSecurityException wse ) {
                 NodePostProcessorStateCommonOperations.makeError( state, link, wse.getMessage() );
             }
+        }
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private void recordRead( final String ruleLine ) {
+        final Object read = wikiContext.getVariable( VAR_READ_ACCESS_RULES );
+        if( read instanceof List< ? > list ) {
+            ( ( List< String > ) list ).add( ruleLine );
         }
     }
 

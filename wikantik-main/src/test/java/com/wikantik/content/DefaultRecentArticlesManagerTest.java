@@ -489,10 +489,15 @@ public class DefaultRecentArticlesManagerTest {
 
     @Test
     public void testExcerptShowsNoAccessRuleFromAnHtmlBlock() throws Exception {
+        // A rule inside an HTML block locks the page since #104 (it is not listed for a reader); a page with canonical
+        // rules naming the same login is listed, without the login in its excerpt.
         m_engine.saveText( "ExcerptHtmlBlockRule", com.wikantik.auth.acl.AclDirectiveFixtures.HTML_BLOCK.text() );
+        m_engine.saveText( "ExcerptPlainRule", com.wikantik.auth.acl.AclDirectiveFixtures.PLAIN.text() );
         m_manager.clearCache();
         final List<ArticleSummary> articles = m_manager.getRecentArticles( createContext(), new RecentArticlesQuery().count( 100 ) );
-        final ArticleSummary article = articles.stream().filter( a -> "ExcerptHtmlBlockRule".equals( a.getName() ) ).findFirst()
+        Assertions.assertTrue( articles.stream().noneMatch( a -> "ExcerptHtmlBlockRule".equals( a.getName() ) ),
+                "a locked page is not listed" );
+        final ArticleSummary article = articles.stream().filter( a -> "ExcerptPlainRule".equals( a.getName() ) ).findFirst()
                 .orElseThrow( () -> new AssertionError( "the page is listed" ) );
         Assertions.assertNotNull( article.getExcerpt() );
         Assertions.assertFalse( article.getExcerpt().contains( "example.test" ),

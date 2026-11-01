@@ -18,14 +18,17 @@
  */
 package com.wikantik.auth.acl;
 
+import com.wikantik.auth.acl.AccessRules.Shape;
+
+import java.util.Map;
 import java.util.Set;
 
 /**
  * Page texts that carry access rules in the shapes the text scan and the render path disagree on. Each fixture records
- * the ACL the ACL manager's text scan enforces on it (as {@code principal:action} pairs) — unchanged from 2.4.57, see
- * {@code AclEnforcementUnchangedTest} — and whether its login must be hidden from readers: it must whenever either the
- * text scan or the render path reads a rule naming it. Shared by the enforcement, stripping and rendering tests so each
- * shape is checked on every surface.
+ * the ACL the old text scan enforced on it up to 2.5.5 (as {@code principal:action} pairs), what {@link AccessRules}
+ * makes of it now ({@link #EXPECTED_LOCKS}: absent means a {@code Rules} reading enforcing {@link Fixture#acl}), and
+ * whether its login must be hidden from readers: it must whenever either old reading reads a rule naming it. Shared by
+ * the enforcement, stripping and rendering tests so each shape is checked on every surface.
  */
 public final class AclDirectiveFixtures {
 
@@ -158,6 +161,66 @@ public final class AclDirectiveFixtures {
                     Set.of( "Admin:edit" ), true ),
             new Fixture( "a rule line above a frontmatter-shaped block",
                     "[{ALLOW view All}]\n---\ntype: hub\ncluster: finance\n---\nBody.\n", Set.of( "All:view" ), true ) );
+
+    /**
+     * The shapes {@link AccessRules#read} locks, by fixture name (of {@link #ALL} and {@link #ENFORCEMENT_REPROS}); a
+     * fixture not named here reads as rules and enforces exactly its {@link Fixture#acl}. Every fixture named here
+     * enforced its {@code acl} (or the render path's reading, render first) before #104; it is locked now.
+     */
+    public static final Map< String, Set< Shape > > EXPECTED_LOCKS = Map.ofEntries(
+            Map.entry( HTML_BLOCK.name(), Set.of( Shape.IN_HTML_BLOCK ) ),
+            Map.entry( WRAPPED.name(), Set.of( Shape.WRAPPED ) ),
+            Map.entry( QUOTED_WRAPPED.name(), Set.of( Shape.WRAPPED ) ),
+            Map.entry( DENY.name(), Set.of( Shape.DENY ) ),
+            Map.entry( UPPER_CASE.name(), Set.of( Shape.CASE_VARIANT ) ),
+            Map.entry( KEYWORD_PREFIX.name(), Set.of( Shape.ALLOW_PREFIXED_WORD ) ),
+            Map.entry( INLINE_MATH.name(), Set.of( Shape.IN_MATH ) ),
+            Map.entry( LONG_WRAPPED.name(), Set.of( Shape.WRAPPED ) ),
+            Map.entry( MATH_FENCE.name(), Set.of( Shape.IN_MATH ) ),
+            Map.entry( "footnote that makes the render parse throw", Set.of( Shape.UNREADABLE ) ),
+            Map.entry( "documentation example next to a line that trips the parse budget", Set.of( Shape.UNREADABLE ) ),
+            Map.entry( "an ALLOW and a DENY for the same permission", Set.of( Shape.DENY ) ),
+            Map.entry( "a math-only rule and a wrapped rule for the same permission", Set.of( Shape.IN_MATH, Shape.WRAPPED ) ),
+            Map.entry( "a page whose render parse throws and whose only rule is wrapped", Set.of( Shape.UNREADABLE ) ),
+            Map.entry( "a page whose render parse throws, with a one-line and a wrapped rule", Set.of( Shape.UNREADABLE ) ) );
+
+    /**
+     * One row per access-rule shape of the #104 design (§5.1/§5.3).
+     *
+     * @param name  label
+     * @param text  a page text holding the shape once
+     * @param shape what {@link AccessRules#read} classifies its one span as; {@code null} for literal text (no span)
+     */
+    public record Shaped( String name, String text, Shape shape ) {
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    /** Every shape, each alone on a page with body text after it. */
+    public static final java.util.List< Shaped > SHAPES = java.util.List.of(
+            new Shaped( "canonical", "[{ALLOW view Admin}]\n\n" + BODY + "\n", Shape.CANONICAL ),
+            new Shaped( "canonical, with ()", "[{ALLOW view Admin}]()\n\n" + BODY + "\n", Shape.CANONICAL ),
+            new Shaped( "wrapped", "[{ALLOW view Admin,\n bob}]\n\n" + BODY + "\n", Shape.WRAPPED ),
+            new Shaped( "lower-case keyword", "[{allow view Admin}]\n\n" + BODY + "\n", Shape.CASE_VARIANT ),
+            new Shaped( "upper-case permission", "[{ALLOW VIEW Admin}]\n\n" + BODY + "\n", Shape.CASE_VARIANT ),
+            new Shaped( "space after the brace", "[{ ALLOW view Admin}]\n\n" + BODY + "\n", Shape.LEADING_SPACE ),
+            new Shaped( "escaped", "\\[{ALLOW view Admin}]\n\n" + BODY + "\n", Shape.ESCAPED ),
+            new Shaped( "deny", "[{DENY view Admin}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "ALLOWED", "[{ALLOWED view Admin}]\n\n" + BODY + "\n", Shape.ALLOW_PREFIXED_WORD ),
+            new Shaped( "in an HTML block", "<div>\n[{ALLOW view Admin}]\n</div>\n\n" + BODY + "\n", Shape.IN_HTML_BLOCK ),
+            new Shaped( "in an HTML comment", "<!-- [{ALLOW view Admin}] -->\n\n" + BODY + "\n", Shape.IN_HTML_BLOCK ),
+            new Shaped( "in inline math", "Formula $[{ALLOW view Admin}]$ here.\n\n" + BODY + "\n", Shape.IN_MATH ),
+            new Shaped( "in display math", "$$\n[{ALLOW view Admin}]\n$$\n\n" + BODY + "\n", Shape.IN_MATH ),
+            new Shaped( "in the frontmatter", "---\nsummary: [{ALLOW view Admin}]\n---\n" + BODY + "\n", Shape.IN_FRONTMATTER ),
+            new Shaped( "a link with a target", "[{ALLOW view Admin}](http://example.test)\n\n" + BODY + "\n", Shape.LINK_WITH_TARGET ),
+            new Shaped( "an image", "![{ALLOW view Admin}](x.png)\n\n" + BODY + "\n", Shape.LINK_WITH_TARGET ),
+            new Shaped( "a permission the ACL parser refuses", "[{ALLOW viewbob Admin}]\n\n" + BODY + "\n", Shape.BAD_PERMISSION ),
+            new Shaped( "no permission", "[{ALLOW}]\n\n" + BODY + "\n", Shape.BAD_PERMISSION ),
+            new Shaped( "in a code span", "Write `[{ALLOW view Admin}]` to restrict.\n\n" + BODY + "\n", null ),
+            new Shaped( "in a fenced block", "```\n[{ALLOW view Admin}]\n```\n\n" + BODY + "\n", null ),
+            new Shaped( "lower-case, in a code span", "Write `[{allow VIEW Admin}]` to restrict.\n\n" + BODY + "\n", null ) );
 
     private AclDirectiveFixtures() {
     }

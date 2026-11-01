@@ -46,7 +46,6 @@ import com.wikantik.ui.CommandResolver;
 
 import java.security.Permission;
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
@@ -63,7 +62,7 @@ import java.util.Set;
  *
  * <p>Phase 5 Checkpoint 3 of the wikantik-main subsystem decomposition extracted
  * all implementation logic into those helpers; this class retains only wiring,
- * the {@code actionPerformed} ACL-update listener, and {@link #changeAcl}.</p>
+ * the {@code actionPerformed} ACL-update listener, and {@link #renamedAcl}.</p>
  *
  * @since 2.0
  */
@@ -216,11 +215,11 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
                 int pagesChanged = 0;
                 final Collection<Page> pages = getAllPages();
                 for ( final Page page : pages ) {
-                    final boolean aclChanged = changeAcl( page, oldPrincipals, newPrincipal );
-                    if ( aclChanged ) {
+                    final Acl renamed = renamedAcl( page, oldPrincipals, newPrincipal );
+                    if ( renamed != null ) {
                         // If the Acl needed changing, change it now
                         try {
-                            com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager().setPermissions( page, page.getAcl() );
+                            com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager().setPermissions( page, renamed );
                         } catch ( final WikiSecurityException e ) {
                             LOG.error( "Could not change page ACL for page {}: {}", page.getName(), e.getMessage(), e );
                         }
@@ -236,44 +235,36 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     }
 
     /**
-     * For a single wiki page, replaces all Acl entries matching a supplied array of Principals
-     * with a new Principal.
+     * For a single wiki page, the enforced Acl with every entry matching a supplied array of Principals given to a new
+     * Principal instead. The enforced Acl itself is not changed (it is shared and cached); the result is a new one.
      *
-     * @param page          the wiki page whose Acl is to be modified
+     * @param page          the wiki page whose Acl is to be renamed
      * @param oldPrincipals an array of Principals to replace
      * @param newPrincipal  the Principal that should receive the old Principals' permissions
-     * @return {@code true} if the Acl was actually changed; {@code false} otherwise
+     * @return the renamed Acl, or {@code null} when no entry matched
      */
-    protected boolean changeAcl( final Page page, final Principal[] oldPrincipals, final Principal newPrincipal ) {
-        final Acl acl = page.getAcl();
-        boolean pageChanged = false;
-        if ( acl != null ) {
-            final Enumeration<AclEntry> entries = acl.aclEntries();
-            final Collection<AclEntry> entriesToAdd    = new ArrayList<>();
-            final Collection<AclEntry> entriesToRemove = new ArrayList<>();
-            while ( entries.hasMoreElements() ) {
-                final AclEntry entry = entries.nextElement();
-                if ( ArrayUtils.contains( oldPrincipals, entry.getPrincipal() ) ) {
-                    // Create new entry
-                    final AclEntry newEntry = Wiki.acls().entry();
-                    newEntry.setPrincipal( newPrincipal );
-                    final Enumeration<Permission> permissions = entry.permissions();
-                    while ( permissions.hasMoreElements() ) {
-                        final Permission permission = permissions.nextElement();
-                        newEntry.addPermission( permission );
-                    }
-                    pageChanged = true;
-                    entriesToRemove.add( entry );
-                    entriesToAdd.add( newEntry );
-                }
+    protected Acl renamedAcl( final Page page, final Principal[] oldPrincipals, final Principal newPrincipal ) {
+        final Acl enforced = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager().getPermissions( page );
+        if ( enforced == null ) {
+            return null;
+        }
+        final Acl renamed = Wiki.acls().acl();
+        boolean changed = false;
+        for ( final Enumeration<AclEntry> entries = enforced.aclEntries(); entries.hasMoreElements(); ) {
+            final AclEntry entry = entries.nextElement();
+            final boolean matches = ArrayUtils.contains( oldPrincipals, entry.getPrincipal() );
+            changed |= matches;
+            final Principal principal = matches ? newPrincipal : entry.getPrincipal();
+            AclEntry target = renamed.getAclEntry( principal );
+            if ( target == null ) {
+                target = Wiki.acls().entry();
+                target.setPrincipal( principal );
+                renamed.addEntry( target );
             }
-            for ( final AclEntry entry : entriesToRemove ) {
-                acl.removeEntry( entry );
-            }
-            for ( final AclEntry entry : entriesToAdd ) {
-                acl.addEntry( entry );
+            for ( final Enumeration<Permission> permissions = entry.permissions(); permissions.hasMoreElements(); ) {
+                target.addPermission( permissions.nextElement() );
             }
         }
-        return pageChanged;
+        return changed ? renamed : null;
     }
 }

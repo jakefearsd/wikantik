@@ -361,9 +361,9 @@ public class MarkdownRendererTest {
         final String src = "[{ALLOW view PerryMason}]() This should be visible if the ACL allows you to see it";
         // text is seen because although ACL is added to the page, it is not applied while parsing / rendering
         Assertions.assertEquals( "<p> This should be visible if the ACL allows you to see it</p>\n", translate( src ) );
-        // in any case, we also check that the created wikipage has the ACL added
+        // in any case, we also check that the stored page enforces the ACL
         Assertions.assertEquals( "  user = PerryMason: ((\"com.wikantik.auth.permissions.PagePermission\",\"Wikantik:testpage\",\"view\"))\n",
-                                 ( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).getAcl().toString() );
+                                 testEngine.getManager( com.wikantik.auth.acl.AclManager.class ).getPermissions( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).toString() );
     }
 
     @Test
@@ -391,7 +391,7 @@ public class MarkdownRendererTest {
         final String src = "[{ALLOW view PerryMason}] This should be visible if the ACL allows you to see it";
         Assertions.assertEquals( "<p> This should be visible if the ACL allows you to see it</p>\n", translate( src ) );
         Assertions.assertEquals( "  user = PerryMason: ((\"com.wikantik.auth.permissions.PagePermission\",\"Wikantik:testpage\",\"view\"))\n",
-                                 ( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).getAcl().toString() );
+                                 testEngine.getManager( com.wikantik.auth.acl.AclManager.class ).getPermissions( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).toString() );
     }
 
     @Test

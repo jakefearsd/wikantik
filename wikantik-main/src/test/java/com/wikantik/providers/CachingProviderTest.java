@@ -726,9 +726,9 @@ class CachingProviderTest {
         Assertions.assertEquals( 0, parsers.get() );
     }
 
-    /** [{ALLOW}] and [{SET}] are only understood by the markup parse, so their pages still get one. */
+    /** [{SET}] is only understood by the markup parse, so a page with bracket syntax still gets one. */
     @Test
-    void metadataRefreshWithBracketSyntaxStillParsesAccessRulesAndVariables() throws Exception {
+    void metadataRefreshWithBracketSyntaxStillParsesVariablesAndSetsNoAcl() throws Exception {
         final AtomicInteger parsers = new AtomicInteger();
         final CachingProvider cp = providerCountingParsers( parsers );
         cp.putPageText( Wiki.contents().page( engine, "RuledMeta" ),
@@ -738,7 +738,7 @@ class CachingProviderTest {
 
         Assertions.assertEquals( "ruled", page.getAttribute( "summary" ) );
         Assertions.assertEquals( "blue", page.getAttribute( "colour" ) );
-        Assertions.assertNotNull( page.getAcl(), "the ALLOW rule must still produce an ACL" );
+        Assertions.assertNull( page.getAcl(), "the markup parse sets no ACL (#104): the ACL manager reads the rule itself" );
     }
 
 }

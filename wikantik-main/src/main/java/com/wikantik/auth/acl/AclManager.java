@@ -31,22 +31,23 @@ import com.wikantik.auth.WikiSecurityException;
 public interface AclManager extends Initializable {
 
     /**
-     * A helper method for parsing textual AccessControlLists. The line is in form
-     * "(ALLOW) <permission><principal>, <principal>, <principal>". This method was moved from Authorizer.
+     * Parses one textual access rule into {@code into}. The line is in form
+     * "ALLOW <permission> <principal>, <principal>, <principal>". Nothing but {@code into} is changed: in particular the
+     * page's own ACL is neither read nor set.
      *
-     * @param page The current wiki page. If the page already has an ACL, it will be used as a basis for this ACL in order to avoid the
-     *             creation of a new one.
-     * @param ruleLine The rule line, as described above.
-     * @return A valid Access Control List. May be empty.
-     * @throws WikiSecurityException if the ruleLine was faulty somehow.
+     * @param page     the wiki page the rule belongs to (names the permission's target)
+     * @param into     the ACL to add the rule's entries to
+     * @param ruleLine the rule line, as described above
+     * @return {@code into}
+     * @throws WikiSecurityException if the ruleLine was faulty somehow
      * @since 2.1.121
      */
-    Acl parseAcl( Page page, String ruleLine ) throws WikiSecurityException;
+    Acl parseAcl( Page page, Acl into, String ruleLine ) throws WikiSecurityException;
 
     /**
-     * Returns the access control list for the page. If the ACL has not been parsed yet, it is done on-the-fly. If the page has a
-     * parent page, then that is tried also. This method was moved from Authorizer; it was consolidated with some code from
-     * AuthorizationManager.
+     * Returns the access control list the wiki enforces for the page: what {@link AccessRules#read} makes of the page's
+     * text, for its version. An attachment has its parent page's. The result does not depend on anything else that
+     * happened to the page (a render, an ACL some caller set on it) and must not be modified.
      *
      * @param page the wiki page
      * @since 2.2.121

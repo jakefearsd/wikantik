@@ -32,15 +32,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Which {@code [{ALLOW …}]} spans of a page text the wiki <em>enforces</em>: the ones
+ * The text scan's reading of a page text — which {@code [{ALLOW …}]} spans the wiki enforced up to 2.5.5: the ones
  * {@link AclDirectiveScanner} finds (linear time, match for match what {@link DefaultAclManager#ACL_PATTERN} finds) that
- * do not start inside a Markdown code span or code block, code being located by a real CommonMark parse. The identical
- * syntax shown inside backticks or a fenced/indented block is documentation (a page that explains how ACLs work) and
- * is skipped, so such a page does not accidentally restrict itself.
+ * do not start inside a Markdown code span or code block, code being located by a vanilla CommonMark parse of the whole
+ * text, frontmatter included.
  *
- * <p>The scan fails closed toward enforcement: a directive in ordinary page text is always returned, so a genuine
- * restriction is never silently dropped. {@link AclDirectiveText} removes exactly these spans (and then more) from text
- * shown to readers who may not edit, so what is hidden always includes what is enforced.
+ * <p>It no longer decides enforcement — {@link AccessRules} does — but stays in use: {@link AccessRules} accepts a span
+ * as a rule only where this reading and the render path's agree on it, {@link AclDirectiveText} hides at least these
+ * spans from readers who may not edit, and the access-rule audit reports what this reading enforced.
  */
 final class EnforcedAclDirectives {
 
@@ -94,24 +93,6 @@ final class EnforcedAclDirectives {
             }
         }
         return enforced;
-    }
-
-    /**
-     * {@code pageText} less every {@code [{ALLOW …}]} span, code or not — what
-     * {@code ACL_PATTERN.matcher( pageText ).replaceAll( "" )} gave, without its running time.
-     */
-    static String withoutAnyDirective( final String pageText ) {
-        final List< AclDirectiveScanner.Span > spans = AclDirectiveScanner.findAll( pageText, false );
-        if ( spans.isEmpty() ) {
-            return pageText;
-        }
-        final StringBuilder out = new StringBuilder( pageText.length() );
-        int copiedTo = 0;
-        for ( final AclDirectiveScanner.Span span : spans ) {
-            out.append( pageText, copiedTo, span.start() );
-            copiedTo = span.end();
-        }
-        return out.append( pageText, copiedTo, pageText.length() ).toString();
     }
 
     /**

@@ -60,15 +60,9 @@ public class DefaultAclManagerCacheTest {
     void aclSurvivesPageInstanceChurn() throws Exception {
         m_engine.saveText( "AclCacheProbe", "[{ALLOW view Admin}]\n\nBody." );
 
-        // Note: a Page fetched straight from PageManager already has its ACL
-        // populated as a side effect of the render pass that saveText() triggers
-        // (AccessRuleLinkNodePostProcessorState parses [{ALLOW ...}] wikilinks and
-        // calls page.setAcl() during rendering) — so it would short-circuit
-        // getPermissions() before ever reaching the cache under test. Build two
-        // independent *detached* Page instances instead — same name/version/
-        // lastModified as the stored page, but with getAcl() == null — which is
-        // exactly what the 60s page-cache TTL hands getPermissions() on eviction
-        // and reload: a fresh, unrendered Page instance for an unchanged version.
+        // Two independent *detached* Page instances — same name/version/lastModified as the
+        // stored page — which is exactly what the 60s page-cache TTL hands getPermissions() on
+        // eviction and reload: a fresh Page instance for an unchanged version.
         final Page stored = m_engine.getManager( PageManager.class ).getPage( "AclCacheProbe" );
         final int version = stored.getVersion();
         final java.util.Date lastModified = stored.getLastModified();

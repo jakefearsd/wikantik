@@ -28,6 +28,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.acl.AclDirectiveFixtures;
 import com.wikantik.auth.acl.AclManager;
+import com.wikantik.markdown.extensions.wikilinks.postprocessor.AccessRuleLinkNodePostProcessorState;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -52,8 +53,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link RenderPathAccessRules} reads exactly the access rules the render path reads: for every fixture and for tens of
- * thousands of seeded token soups, the ACL built from its rule lines equals the ACL the real markup parser and its
- * access-rule post-processor set on a page from the same raw text.
+ * thousands of seeded token soups, the ACL built from its rule lines equals the ACL built from the rule lines the real
+ * markup parser's access-rule post-processor reads in the same raw text.
  */
 class RenderPathAccessRulesTest {
 
@@ -88,28 +89,39 @@ class RenderPathAccessRulesTest {
         return out;
     }
 
-    /** What the render path sets: the markup parser, with its access-rule post-processor, over the raw text. */
+    /**
+     * What the render path reads: the rule lines the markup parser's access-rule post-processor reads over the raw text,
+     * built through the same ACL parser (a line it refuses is shown as an error and builds nothing).
+     */
     private static Set< String > renderPath( final String text ) throws Exception {
         final Page scratch = Wiki.contents().page( engine, "RenderPathScratch" );
         final Context ctx = Wiki.context().create( engine, scratch );
+        final List< String > read = new ArrayList<>();
+        ctx.setVariable( AccessRuleLinkNodePostProcessorState.VAR_READ_ACCESS_RULES, read );
         new MarkdownParser( ctx, new StringReader( text ) ).parse();
-        return pairs( scratch.getAcl() );
+        assertTrue( scratch.getAcl() == null, "a render sets no ACL" );
+        return built( scratch, read );
     }
 
-    /** The ACL the rule lines {@link RenderPathAccessRules} found build, through the same ACL parser. */
-    private static Set< String > mirrored( final String text ) {
-        final Page scratch = Wiki.contents().page( engine, "RenderPathScratch" );
+    private static Set< String > built( final Page scratch, final List< String > ruleLines ) {
         final AclManager acls = engine.getManager( AclManager.class );
+        final Acl acl = Wiki.acls().acl();
         final List< String > rejected = new ArrayList<>();
-        for ( final RenderPathAccessRules.Rule rule : RenderPathAccessRules.find( text ) ) {
+        for ( final String ruleLine : ruleLines ) {
             try {
-                acls.parseAcl( scratch, rule.ruleLine() );
+                acls.parseAcl( scratch, acl, ruleLine );
             } catch ( final WikiSecurityException e ) {
                 rejected.add( e.getMessage() );   // the render path shows an error for this rule and applies nothing
             }
         }
         assertTrue( rejected.stream().allMatch( m -> m != null && m.startsWith( "Invalid" ) ), rejected.toString() );
-        return pairs( scratch.getAcl() );
+        return pairs( acl );
+    }
+
+    /** The ACL the rule lines {@link RenderPathAccessRules} found build, through the same ACL parser. */
+    private static Set< String > mirrored( final String text ) {
+        final Page scratch = Wiki.contents().page( engine, "RenderPathScratch" );
+        return built( scratch, RenderPathAccessRules.find( text ).stream().map( RenderPathAccessRules.Rule::ruleLine ).toList() );
     }
 
     static Stream< AclDirectiveFixtures.Fixture > fixtures() {

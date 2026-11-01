@@ -67,7 +67,7 @@ class AtomFeedServletTest {
             pm.deletePage( "FeedTestArticle" );
             pm.deletePage( "FeedTestHub" );
             pm.deletePage( "FeedTestOther" );
-            engine.deleteQuietly( "FeedTestRestricted", "FeedTestByLogin", "FeedTestHtmlBlockRule" );
+            engine.deleteQuietly( "FeedTestRestricted", "FeedTestByLogin", "FeedTestHtmlBlockRule", "FeedTestPlainRule" );
             engine.stop();
         }
     }
@@ -89,12 +89,16 @@ class AtomFeedServletTest {
     @Test
     void testFeedExcerptShowsNoAccessRuleFromAnHtmlBlock() throws Exception {
         // No frontmatter summary, so the entry's summary is the excerpt of the rendered page.
+        // A rule inside an HTML block locks the page since #104, so it leaves the public feed altogether; a page with
+        // canonical rules naming the same login stays, without the login.
         engine.saveText( "FeedTestHtmlBlockRule", com.wikantik.auth.acl.AclDirectiveFixtures.HTML_BLOCK.text() );
+        engine.saveText( "FeedTestPlainRule", com.wikantik.auth.acl.AclDirectiveFixtures.PLAIN.text() );
         engine.getManager( RecentArticlesManager.class ).clearCache();
 
         final String feed = doGetFeed( null, null );
 
-        assertTrue( feed.contains( "FeedTestHtmlBlockRule" ), feed );
+        assertFalse( feed.contains( "FeedTestHtmlBlockRule" ), "a locked page is not in the public feed: " + feed );
+        assertTrue( feed.contains( "FeedTestPlainRule" ), feed );
         assertFalse( feed.contains( "example.test" ), "an enforced access rule's login reached the public feed: " + feed );
     }
 

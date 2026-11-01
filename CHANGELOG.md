@@ -14,6 +14,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   stack. The render's parse now reads through the same budget as the access-rule check; over budget, the page is
   re-parsed without attributes (and, failing that, shown as escaped preformatted text), and the result is cached (#105).
 
+### Security
+- **Page access rules have one reader, and a rule it cannot read locks the page.** Two readings used to set a page's
+  ACL and disagreed on several shapes, so what was enforced depended on whether the page had been rendered first (and
+  could be the union of both). The ACL now comes only from the page text, read once per version; a render never sets
+  it. A one-line `[{ALLOW view Admin}]` in body text is a rule as before; any other directive-shaped text — `DENY`,
+  `ALLOWED`, a rule wrapped over lines, a non-canonical case, a space after the brace, an escaped bracket, a rule in
+  frontmatter, an HTML block, math or a link with a target, a permission the parser refuses, or a page that cannot be
+  parsed within budget — locks the page to administrators until it is fixed (the lock is logged once per version).
+  Rules shown in code spans and code blocks are still documentation. Profile renames and ACL rewrites now edit
+  exactly the rules the reader found, and leave documentation examples in code alone (#104).
+
 ## [2.5.5] - 2026-11-01
 
 ### Added

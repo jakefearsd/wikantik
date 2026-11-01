@@ -319,8 +319,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public boolean hasRoleOrPrincipal( final Session session, final Principal principal ) {
-        // If either parameter is null, always deny
-        if( session == null || principal == null ) {
+        // If either parameter is null, always deny; and no session ever holds the principal of a locked page's ACL
+        if( session == null || principal == null || principal == com.wikantik.auth.acl.DefaultAclManager.LOCKED_PRINCIPAL ) {
             return false;
         }
 

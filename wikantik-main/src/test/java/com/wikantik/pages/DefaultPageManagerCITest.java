@@ -48,17 +48,14 @@ import com.wikantik.ui.CommandResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.security.Permission;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.Vector;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -710,135 +707,105 @@ class DefaultPageManagerCITest {
         verifyNoInteractions( aclManager );
     }
 
-    @Test
-    void actionPerformedUpdatesAclOnProfileNameChange() throws Exception {
-        // Set up two profiles: old and new
+    /** A real ACL granting {@code action} on the page to each of {@code principals}. */
+    private static Acl aclOf( final String action, final String... principals ) {
+        final Acl acl = com.wikantik.api.spi.Wiki.acls().acl();
+        for ( final String name : principals ) {
+            final AclEntry entry = com.wikantik.api.spi.Wiki.acls().entry();
+            entry.setPrincipal( new WikiPrincipal( name ) );
+            entry.addPermission( com.wikantik.auth.permissions.PermissionFactory.getPagePermission( "main:AclPage", action ) );
+            acl.addEntry( entry );
+        }
+        return acl;
+    }
+
+    private static WikiSecurityEvent profileNameChange( final String oldLogin, final String oldName, final String oldWikiName,
+                                                        final String newName ) {
         final UserProfile oldProfile = mock( UserProfile.class );
-        when( oldProfile.getLoginName() ).thenReturn( "oldlogin" );
-        when( oldProfile.getFullname() ).thenReturn( "Old Name" );
-        when( oldProfile.getWikiName() ).thenReturn( "OldName" );
-
+        when( oldProfile.getLoginName() ).thenReturn( oldLogin );
+        when( oldProfile.getFullname() ).thenReturn( oldName );
+        when( oldProfile.getWikiName() ).thenReturn( oldWikiName );
         final UserProfile newProfile = mock( UserProfile.class );
-        when( newProfile.getFullname() ).thenReturn( "New Name" );
-
+        when( newProfile.getFullname() ).thenReturn( newName );
         final WikiSecurityEvent event = mock( WikiSecurityEvent.class );
         when( event.getType() ).thenReturn( WikiSecurityEvent.PROFILE_NAME_CHANGED );
         when( event.getTarget() ).thenReturn( new UserProfile[] { oldProfile, newProfile } );
+        return event;
+    }
 
-        // Set up a page with an ACL that matches one of the old principals
+    @Test
+    void actionPerformedUpdatesAclOnProfileNameChange() throws Exception {
         final Page page = mockPage( "AclPage" );
-        final Acl acl = mock( Acl.class );
-        when( page.getAcl() ).thenReturn( acl );
-
-        final AclEntry entry = mock( AclEntry.class );
-        when( entry.getPrincipal() ).thenReturn( new WikiPrincipal( "Old Name" ) );
-        final Permission perm = mock( Permission.class );
-        final Vector< Permission > perms = new Vector<>();
-        perms.add( perm );
-        when( entry.permissions() ).thenReturn( perms.elements() );
-
-        final Vector< AclEntry > entries = new Vector<>();
-        entries.add( entry );
-        when( acl.aclEntries() ).thenReturn( entries.elements() );
-
+        final Acl enforced = aclOf( "view", "Old Name", "Bystander" );
+        when( aclManager.getPermissions( page ) ).thenReturn( enforced );
         when( pageProvider.getAllPages() ).thenReturn( List.of( page ) );
 
-        mgr.actionPerformed( event );
+        mgr.actionPerformed( profileNameChange( "oldlogin", "Old Name", "OldName", "New Name" ) );
 
-        verify( acl ).removeEntry( entry );
-        verify( acl ).addEntry( any( AclEntry.class ) );
-        verify( aclManager ).setPermissions( eq( page ), eq( acl ) );
+        final org.mockito.ArgumentCaptor< Acl > written = org.mockito.ArgumentCaptor.forClass( Acl.class );
+        verify( aclManager ).setPermissions( eq( page ), written.capture() );
+        assertNotSame( enforced, written.getValue(), "the enforced ACL is not changed in place" );
+        assertNull( written.getValue().getAclEntry( new WikiPrincipal( "Old Name" ) ) );
+        assertNotNull( written.getValue().getAclEntry( new WikiPrincipal( "New Name" ) ) );
+        assertNotNull( written.getValue().getAclEntry( new WikiPrincipal( "Bystander" ) ) );
+        assertNotNull( enforced.getAclEntry( new WikiPrincipal( "Old Name" ) ), "the enforced ACL still reads as before" );
+        verify( page, never() ).getAcl();
     }
 
     @Test
     void actionPerformedHandlesAclManagerException() throws Exception {
-        final UserProfile oldProfile = mock( UserProfile.class );
-        when( oldProfile.getLoginName() ).thenReturn( "old" );
-        when( oldProfile.getFullname() ).thenReturn( "Old" );
-        when( oldProfile.getWikiName() ).thenReturn( "Old" );
-
-        final UserProfile newProfile = mock( UserProfile.class );
-        when( newProfile.getFullname() ).thenReturn( "New" );
-
-        final WikiSecurityEvent event = mock( WikiSecurityEvent.class );
-        when( event.getType() ).thenReturn( WikiSecurityEvent.PROFILE_NAME_CHANGED );
-        when( event.getTarget() ).thenReturn( new UserProfile[] { oldProfile, newProfile } );
-
         final Page page = mockPage( "AclFail" );
-        final Acl acl = mock( Acl.class );
-        when( page.getAcl() ).thenReturn( acl );
-
-        final AclEntry entry = mock( AclEntry.class );
-        when( entry.getPrincipal() ).thenReturn( new WikiPrincipal( "Old" ) );
-        when( entry.permissions() ).thenReturn( new Vector< Permission >().elements() );
-
-        final Vector< AclEntry > entries = new Vector<>();
-        entries.add( entry );
-        when( acl.aclEntries() ).thenReturn( entries.elements() );
-
+        when( aclManager.getPermissions( page ) ).thenReturn( aclOf( "view", "Old" ) );
         when( pageProvider.getAllPages() ).thenReturn( List.of( page ) );
         doThrow( new WikiSecurityException( "fail" ) ).when( aclManager ).setPermissions( any(), any() );
 
         // Should not throw, just log
-        mgr.actionPerformed( event );
+        assertDoesNotThrow( () -> mgr.actionPerformed( profileNameChange( "old", "Old", "Old", "New" ) ) );
     }
 
     @Test
     void actionPerformedNoChangeWhenNoAclMatch() throws Exception {
-        final UserProfile oldProfile = mock( UserProfile.class );
-        when( oldProfile.getLoginName() ).thenReturn( "other" );
-        when( oldProfile.getFullname() ).thenReturn( "Other" );
-        when( oldProfile.getWikiName() ).thenReturn( "Other" );
-
-        final UserProfile newProfile = mock( UserProfile.class );
-        when( newProfile.getFullname() ).thenReturn( "New" );
-
-        final WikiSecurityEvent event = mock( WikiSecurityEvent.class );
-        when( event.getType() ).thenReturn( WikiSecurityEvent.PROFILE_NAME_CHANGED );
-        when( event.getTarget() ).thenReturn( new UserProfile[] { oldProfile, newProfile } );
-
         final Page page = mockPage( "NoMatch" );
-        final Acl acl = mock( Acl.class );
-        when( page.getAcl() ).thenReturn( acl );
-
-        final AclEntry entry = mock( AclEntry.class );
-        when( entry.getPrincipal() ).thenReturn( new WikiPrincipal( "Someone Else" ) );
-
-        final Vector< AclEntry > entries = new Vector<>();
-        entries.add( entry );
-        when( acl.aclEntries() ).thenReturn( entries.elements() );
-
+        when( aclManager.getPermissions( page ) ).thenReturn( aclOf( "view", "Someone Else" ) );
         when( pageProvider.getAllPages() ).thenReturn( List.of( page ) );
 
-        mgr.actionPerformed( event );
+        mgr.actionPerformed( profileNameChange( "other", "Other", "Other", "New" ) );
 
         verify( aclManager, never() ).setPermissions( any(), any() );
     }
 
-    // ==================== changeAcl ====================
+    // ==================== renamedAcl ====================
 
     @Test
-    void changeAclReturnsFalseWhenAclIsNull() {
+    void renamedAclIsNullWhenThereIsNoAcl() {
         final Page page = mockPage( "NoAcl" );
-        when( page.getAcl() ).thenReturn( null );
+        when( aclManager.getPermissions( page ) ).thenReturn( null );
 
-        assertFalse( mgr.changeAcl( page, new Principal[] { new WikiPrincipal( "x" ) }, new WikiPrincipal( "y" ) ) );
+        assertNull( mgr.renamedAcl( page, new Principal[] { new WikiPrincipal( "x" ) }, new WikiPrincipal( "y" ) ) );
     }
 
     @Test
-    void changeAclReturnsFalseWhenNoMatch() {
+    void renamedAclIsNullWhenNoEntryMatches() {
         final Page page = mockPage( "NoMatch" );
-        final Acl acl = mock( Acl.class );
-        when( page.getAcl() ).thenReturn( acl );
+        when( aclManager.getPermissions( page ) ).thenReturn( aclOf( "view", "unrelated" ) );
 
-        final AclEntry entry = mock( AclEntry.class );
-        when( entry.getPrincipal() ).thenReturn( new WikiPrincipal( "unrelated" ) );
+        assertNull( mgr.renamedAcl( page, new Principal[] { new WikiPrincipal( "target" ) }, new WikiPrincipal( "new" ) ) );
+    }
 
-        final Vector< AclEntry > entries = new Vector<>();
-        entries.add( entry );
-        when( acl.aclEntries() ).thenReturn( entries.elements() );
+    @Test
+    void renamedAclMergesIntoAnEntryTheNewPrincipalAlreadyHas() {
+        final Page page = mockPage( "Merge" );
+        final Acl enforced = aclOf( "view", "old" );
+        final AclEntry existing = com.wikantik.api.spi.Wiki.acls().entry();
+        existing.setPrincipal( new WikiPrincipal( "new" ) );
+        existing.addPermission( com.wikantik.auth.permissions.PermissionFactory.getPagePermission( "main:AclPage", "edit" ) );
+        enforced.addEntry( existing );
+        when( aclManager.getPermissions( page ) ).thenReturn( enforced );
 
-        assertFalse( mgr.changeAcl( page, new Principal[] { new WikiPrincipal( "target" ) }, new WikiPrincipal( "new" ) ) );
+        final Acl renamed = mgr.renamedAcl( page, new Principal[] { new WikiPrincipal( "old" ) }, new WikiPrincipal( "new" ) );
+
+        assertEquals( 1, Collections.list( renamed.aclEntries() ).size() );
+        assertEquals( 2, Collections.list( renamed.getAclEntry( new WikiPrincipal( "new" ) ).permissions() ).size() );
     }
 
     // ==================== getPageSorter ====================

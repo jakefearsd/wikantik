@@ -175,8 +175,9 @@ class ExportServiceTest {
 
     /**
      * The converter drops ALLOW/DENY spans with a narrower pattern than the ACL manager's (it stops at the first
-     * closing brace, whereas the manager reads "[{ALLOW edit Admin,x}y}]" as one rule), and its failure fallback
-     * writes raw text. A caller who cannot edit a page therefore never gets the directives to convert at all.
+     * closing brace, whereas the old text scan read "[{ALLOW edit Admin,x}y}]" as one rule), and its failure fallback
+     * writes raw text. A caller who cannot edit a page therefore never gets the directives to convert at all. That
+     * shape is no rule to the render path, so since #104 it locks the page: a guest's export leaves the page out.
      */
     @Test
     void exportOmitsAccessRuleDirectivesTheConverterDoesNotRecognise() throws Exception {
@@ -184,10 +185,13 @@ class ExportServiceTest {
                 + "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}x}]\n# Ruled\n\nOpen prose.\n" );
         subs.pageGraph().structuralIndexService().rebuild();
 
-        final String page = exportedPage( finance( 0 ), "finance/FinanceRuled.md" );
+        final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        service.stream( service.prepare( guest(), finance( 0 ) ), bos );
+        final java.util.Map< String, byte[] > zip = ObsidianVaultWriterTest.unzip( bos.toByteArray() );
 
-        assertTrue( page.contains( "Open prose." ), page );
-        assertFalse( page.contains( "leak-probe@example.test" ), page );
+        assertFalse( zip.containsKey( "finance/FinanceRuled.md" ), "a locked page is not exported to a guest: " + zip.keySet() );
+        assertTrue( zip.values().stream().noneMatch( b -> new String( b, StandardCharsets.UTF_8 ).contains( "leak-probe@example.test" ) ),
+                "the login reached no exported file" );
     }
 
     /**

@@ -18,8 +18,10 @@
  */
 package com.wikantik.markdown.extensions.wikilinks.postprocessor;
 
+import com.vladsch.flexmark.ast.AutoLink;
 import com.vladsch.flexmark.ast.Image;
 import com.vladsch.flexmark.ast.Link;
+import com.vladsch.flexmark.ast.MailLink;
 import com.vladsch.flexmark.parser.PostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.util.ast.Document;
@@ -74,35 +76,41 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
     public void process( final NodeTracker state, final Node node ) {
         if( node instanceof Image imageNode ) {
             processImageNode( state, imageNode );
+        } else if( node instanceof AutoLink || node instanceof MailLink ) {
+            // A GFM autolink (bare URL, www., email) or a <…> autolink is an external link: same outlink icon
+            // (its class and rel come from WikantikLinkAttributeProvider). Never inlined as an image: it reads as a link.
+            NodePostProcessorStateCommonOperations.addOutlinkImage( state, node, context, useOutlinkImage );
         } else if( node instanceof Link linkNode ) {
             final WikantikLink link = replaceLinkWithWikantikLink( state, linkNode );
-
-            final NodePostProcessorState< WikantikLink > linkPostProcessor;
-            if( linkOperations.isAccessRule( link.getUrl().toString() ) ) {
-                linkPostProcessor = new AccessRuleLinkNodePostProcessorState( context );
-            } else if( linkOperations.isMetadata( link.getUrl().toString() ) ) {
-                linkPostProcessor = new MetadataLinkNodePostProcessorState( context );
-            } else if( linkOperations.isPluginLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new PluginLinkNodePostProcessorState( context );
-            } else if( linkOperations.isVariableLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new VariableLinkNodePostProcessorState( context );
-            } else if( linkOperations.isExternalLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new ExternalLinkNodePostProcessorState( context, isImageInlining, inlineImagePatterns );
-            } else if( linkOperations.isInterWikiLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new InterWikiLinkNodePostProcessorState( context, document, isImageInlining, inlineImagePatterns );
-            } else if( Strings.CS.startsWith( link.getUrl().toString(), "#" ) ) {
-                linkPostProcessor = new LocalFootnoteLinkNodePostProcessorState( context );
-            } else if( TextUtil.isNumber( link.getUrl().toString() ) ) {
-                linkPostProcessor = new LocalFootnoteRefLinkNodePostProcessorState( context );
-            } else if( isRelativePathLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = null; // relative paths are left as-is for the browser to resolve
-            } else {
-                linkPostProcessor = new LocalLinkNodePostProcessorState( context, isImageInlining, inlineImagePatterns );
-            }
+            final NodePostProcessorState< WikantikLink > linkPostProcessor = stateFor( link.getUrl().toString() );
             if( linkPostProcessor != null ) {
                 linkPostProcessor.process( state, link );
             }
         }
+    }
+
+    /** The post-processing a link with this URL gets; null for a relative path, left as-is for the browser to resolve. */
+    private NodePostProcessorState< WikantikLink > stateFor( final String url ) {
+        if( linkOperations.isAccessRule( url ) ) {
+            return new AccessRuleLinkNodePostProcessorState( context );
+        } else if( linkOperations.isMetadata( url ) ) {
+            return new MetadataLinkNodePostProcessorState( context );
+        } else if( linkOperations.isPluginLink( url ) ) {
+            return new PluginLinkNodePostProcessorState( context );
+        } else if( linkOperations.isVariableLink( url ) ) {
+            return new VariableLinkNodePostProcessorState( context );
+        } else if( linkOperations.isExternalLink( url ) ) {
+            return new ExternalLinkNodePostProcessorState( context, isImageInlining, inlineImagePatterns );
+        } else if( linkOperations.isInterWikiLink( url ) ) {
+            return new InterWikiLinkNodePostProcessorState( context, document, isImageInlining, inlineImagePatterns );
+        } else if( Strings.CS.startsWith( url, "#" ) ) {
+            return new LocalFootnoteLinkNodePostProcessorState( context );
+        } else if( TextUtil.isNumber( url ) ) {
+            return new LocalFootnoteRefLinkNodePostProcessorState( context );
+        } else if( isRelativePathLink( url ) ) {
+            return null;
+        }
+        return new LocalLinkNodePostProcessorState( context, isImageInlining, inlineImagePatterns );
     }
 
     /**

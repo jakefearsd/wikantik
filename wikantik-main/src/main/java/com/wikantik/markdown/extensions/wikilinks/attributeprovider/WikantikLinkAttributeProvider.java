@@ -18,6 +18,8 @@
  */
 package com.wikantik.markdown.extensions.wikilinks.attributeprovider;
 
+import com.vladsch.flexmark.ast.AutoLink;
+import com.vladsch.flexmark.ast.MailLink;
 import com.vladsch.flexmark.html.AttributeProvider;
 import com.vladsch.flexmark.html.renderer.AttributablePart;
 import com.vladsch.flexmark.util.ast.Node;
@@ -45,6 +47,7 @@ public class WikantikLinkAttributeProvider implements AttributeProvider {
     protected final LinkParsingOperations linkOperations;
     private final boolean isImageInlining;
     private final List< Pattern > inlineImagePatterns;
+    private final boolean useRelNofollow;
 
     public WikantikLinkAttributeProvider( final Context wikiContext,
                                          final boolean isImageInlining,
@@ -53,6 +56,7 @@ public class WikantikLinkAttributeProvider implements AttributeProvider {
         this.linkOperations = new LinkParsingOperations( wikiContext );
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
+        this.useRelNofollow = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USERELNOFOLLOW, false );
     }
 
     /**
@@ -62,7 +66,13 @@ public class WikantikLinkAttributeProvider implements AttributeProvider {
      */
     @Override
     public void setAttributes( final Node node, final AttributablePart part, final MutableAttributes attributes ) {
-        if( node instanceof NativeWikiLinkNode n ) {
+        if( node instanceof AutoLink || node instanceof MailLink ) {
+            // GFM autolinks (bare URL, www., email) and <…> autolinks: the attributes of an external link
+            attributes.replaceValue( "class", MarkupParser.CLASS_EXTERNAL );
+            if( useRelNofollow ) {
+                attributes.replaceValue( "rel", "nofollow" );
+            }
+        } else if( node instanceof NativeWikiLinkNode n ) {
             nativeState( n ).setAttributes( attributes, n );
         } else if( node instanceof WikantikLink link ) {
             final NodeAttributeProviderState< WikantikLink > linkState;

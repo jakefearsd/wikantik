@@ -136,6 +136,77 @@ public class MarkdownRendererTest {
                                  translate( src ) );
     }
 
+    /** GFM autolinks: a bare URL links on the published page, as GitHub, Obsidian and the editor show it. */
+    @Test
+    public void testBareUrlIsLinked() throws Exception {
+        Assertions.assertEquals( "<p>Visit <a href=\"https://wikantik.com/a\" class=\"external\">https://wikantik.com/a</a> today.</p>\n",
+                                 translate( "Visit https://wikantik.com/a today." ) );
+    }
+
+    @Test
+    public void testBareWwwUrlIsLinkedOverHttp() throws Exception {
+        Assertions.assertEquals( "<p>Visit <a href=\"http://www.wikantik.com\" class=\"external\">www.wikantik.com</a> today.</p>\n",
+                                 translate( "Visit www.wikantik.com today." ) );
+    }
+
+    @Test
+    public void testBareEmailIsLinkedAsMailto() throws Exception {
+        // flexmark writes the @ of every mail link as &#64; (the same character to a browser)
+        Assertions.assertEquals( "<p>Mail <a href=\"mailto:someone&#64;wikantik.com\" class=\"external\">someone&#64;wikantik.com</a> today.</p>\n",
+                                 translate( "Mail someone@wikantik.com today." ) );
+    }
+
+    /** An autolinked URL is decorated exactly like the same URL written as an external link (class, rel, outlink icon). */
+    @Test
+    public void testBareUrlDecoratedLikeAnExternalLink() throws Exception {
+        testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.useOutlinkImage", "true" );
+        testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.useRelNofollow", "true" );
+        try {
+            Assertions.assertEquals( translate( "Go [https://wikantik.com/a](https://wikantik.com/a) now." ),
+                                     translate( "Go https://wikantik.com/a now." ) );
+            Assertions.assertEquals( translate( "Go [https://wikantik.com/a](https://wikantik.com/a) now." ),
+                                     translate( "Go <https://wikantik.com/a> now." ) );
+            Assertions.assertEquals( translate( "Mail [a@wikantik.com](mailto:a@wikantik.com) now." ),
+                                     translate( "Mail a@wikantik.com now." ) );
+            Assertions.assertTrue( translate( "Go https://wikantik.com/a now." ).contains( "class=\"outlink\"" ) );
+        } finally {
+            testEngine.getWikiProperties().remove( "wikantik.translatorReader.useOutlinkImage" );
+            testEngine.getWikiProperties().remove( "wikantik.translatorReader.useRelNofollow" );
+        }
+    }
+
+    /** Trailing punctuation stays outside the link, a balanced parenthesis inside it (GFM, as remark-gfm reads it). */
+    @Test
+    public void testBareUrlTrailingPunctuation() throws Exception {
+        Assertions.assertEquals( "<p>See <a href=\"https://wikantik.com/a\" class=\"external\">https://wikantik.com/a</a>.</p>\n",
+                                 translate( "See https://wikantik.com/a." ) );
+        Assertions.assertEquals( "<p>(see <a href=\"https://wikantik.com/a\" class=\"external\">https://wikantik.com/a</a>)</p>\n",
+                                 translate( "(see https://wikantik.com/a)" ) );
+        final String balanced = translate( "See https://en.wikipedia.org/wiki/Foo_(bar)." );
+        Assertions.assertTrue( balanced.contains( ">https://en.wikipedia.org/wiki/Foo_(bar)</a>.</p>" ), balanced );
+        Assertions.assertEquals( translate( "See [https://en.wikipedia.org/wiki/Foo_(bar)](https://en.wikipedia.org/wiki/Foo_(bar))." ), balanced );
+    }
+
+    @Test
+    public void testUrlsInCodeAndLinksAreNotAutolinked() throws Exception {
+        Assertions.assertEquals( "<p>Run <code>curl https://wikantik.com/a</code> now.</p>\n",
+                                 translate( "Run `curl https://wikantik.com/a` now." ) );
+        Assertions.assertEquals( "<pre><code>https://wikantik.com/a\n</code></pre>\n", translate( "```\nhttps://wikantik.com/a\n```" ) );
+        Assertions.assertEquals( "<p>See <a href=\"https://wikantik.com/b\" class=\"external\">https://wikantik.com/a</a>.</p>\n",
+                                 translate( "See [https://wikantik.com/a](https://wikantik.com/b)." ) );
+    }
+
+    /** A URL inside a native wikilink or a plugin line belongs to that markup, never to an autolink. */
+    @Test
+    public void testUrlsInWikiLinksAndPluginsAreNotAutolinked() throws Exception {
+        newPage( "AutolinkTarget" );
+        final String wiki = translate( "See [[AutolinkTarget|docs at https://wikantik.com/a]] now." );
+        Assertions.assertEquals( 1, wiki.split( "<a ", -1 ).length - 1, wiki );
+        Assertions.assertTrue( wiki.contains( ">docs at https://wikantik.com/a</a>" ), wiki );
+        final String plugin = translate( "[{SET site='https://wikantik.com/a'}]\n\nThe site is [{$site}]." );
+        Assertions.assertEquals( "<p>The site is https://wikantik.com/a.</p>\n", plugin.replace( "<p></p>\n", "" ) );
+    }
+
     @Test
     public void testMarkupLinkWithCustomAttributes() throws Exception {
         final String src = "This should be a [link with custom attributes](http://google.com){target=blank}";

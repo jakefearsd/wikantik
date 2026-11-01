@@ -18,8 +18,11 @@
 */
 package com.wikantik.markdown.extensions.wikilinks.postprocessor;
 
+import com.vladsch.flexmark.ast.AutoLink;
 import com.vladsch.flexmark.ast.Image;
 import com.vladsch.flexmark.ast.Link;
+import com.vladsch.flexmark.ast.MailLink;
+import com.vladsch.flexmark.ext.autolink.internal.AutolinkNodePostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessorFactory;
 import com.vladsch.flexmark.util.ast.Document;
@@ -27,6 +30,7 @@ import com.vladsch.flexmark.util.data.DataHolder;
 import com.wikantik.api.core.Context;
 
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 
@@ -44,10 +48,16 @@ public class WikantikNodePostProcessorFactory extends NodePostProcessorFactory {
                                             final boolean isImageInlining,
                                             final List< Pattern > inlineImagePatterns ) {
         super( true );
-        addNodes( Link.class, Image.class ); // needs to be called before create( Document )
+        addNodes( Link.class, Image.class, AutoLink.class, MailLink.class ); // needs to be called before create( Document )
         this.context = context;
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
+    }
+
+    /** Runs after the GFM autolink pass, so the autolinks it creates are decorated as external links too. */
+    @Override
+    public Set< Class< ? > > getAfterDependents() {
+        return Set.of( AutolinkNodePostProcessor.Factory.class );
     }
 
     /**

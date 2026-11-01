@@ -221,6 +221,7 @@ commons-text-1.14.0.jar                     LICENSE
 ehcache-2.10.9.2.jar                        LICENSE
 flexmark-0.64.8.jar                         ./jspwiki-war/src/main/config/doc/LICENSE.flexmark
 flexmark-ext-attributes-0.64.8.jar          ./jspwiki-war/src/main/config/doc/LICENSE.flexmark
+flexmark-ext-autolink-0.64.8.jar            ./jspwiki-war/src/main/config/doc/LICENSE.flexmark
 flexmark-ext-definition-0.64.8.jar          ./jspwiki-war/src/main/config/doc/LICENSE.flexmark
 flexmark-ext-footnotes-0.64.8.jar           ./jspwiki-war/src/main/config/doc/LICENSE.flexmark
 flexmark-ext-tables-0.64.8.jar              ./jspwiki-war/src/main/config/doc/LICENSE.flexmark
@@ -266,6 +267,7 @@ lucene-sandbox-9.12.2.jar                   LICENSE
 javax.mail-1.6.2.jar                        ./jspwiki-war/src/main/config/doc/LICENSE.cddl
 nekohtml-2.0.2.jar (codelibs fork)          LICENSE
 org.suigeneris.jrcs.diff-0.4.2              LICENSE
+autolink-0.6.0.jar (org.nibor.autolink)     ./jspwiki-war/src/main/config/doc/LICENSE.mit
 slf4-api-2.0.17.jar                         ./jspwiki-war/src/main/config/doc/LICENSE.mit
 xercesImpl-2.10.0.jar                       LICENSE
 tika-core-3.2.3.jar                         LICENSE

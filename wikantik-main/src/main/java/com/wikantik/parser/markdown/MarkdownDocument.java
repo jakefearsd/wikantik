@@ -19,6 +19,7 @@
 package com.wikantik.parser.markdown;
 
 import com.vladsch.flexmark.ext.attributes.AttributesExtension;
+import com.vladsch.flexmark.ext.autolink.AutolinkExtension;
 import com.vladsch.flexmark.ext.definition.DefinitionExtension;
 import com.vladsch.flexmark.ext.footnotes.FootnoteExtension;
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension;
@@ -58,6 +59,8 @@ public class MarkdownDocument extends WikiDocument {
     // own guidance is to create them once and share across parsers/renderers.
     // Only MarkdownForWikantikExtension is context-bound and must stay per-call.
     private static final com.vladsch.flexmark.util.misc.Extension ATTRIBUTES_EXT = AttributesExtension.create();
+    // GFM autolinks: a bare URL, www. address or email links, as on GitHub, in Obsidian and in the editor
+    private static final com.vladsch.flexmark.util.misc.Extension AUTOLINK_EXT = AutolinkExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension BLOCK_STRUCTURE_EXT = BlockStructureBarrier.create();
     private static final com.vladsch.flexmark.util.misc.Extension CALLOUT_EXT = CalloutExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension DEFINITION_EXT = DefinitionExtension.create();
@@ -93,7 +96,7 @@ public class MarkdownDocument extends WikiDocument {
         final MutableDataSet options = structuralOptions();
         options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
         options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
-                                                       ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
+                                                       ATTRIBUTES_EXT, AUTOLINK_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
                                                        GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
                                                        STRIKETHROUGH_EXT, TASKLIST_EXT ) );
         return options;
@@ -140,7 +143,7 @@ public class MarkdownDocument extends WikiDocument {
         options.set( TaskListExtension.TIGHT_ITEM_CLASS, "task-list-item" );
         options.set( TaskListExtension.LOOSE_ITEM_CLASS, "task-list-item" );
         // BLOCK_STRUCTURE_EXT first: it stands where the rendered page's block-id post-processor stands (see its doc)
-        options.set( Parser.EXTENSIONS, Arrays.asList( BLOCK_STRUCTURE_EXT, ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
+        options.set( Parser.EXTENSIONS, Arrays.asList( BLOCK_STRUCTURE_EXT, ATTRIBUTES_EXT, AUTOLINK_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
                                                        GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
                                                        STRIKETHROUGH_EXT, TASKLIST_EXT ) );
         return options;

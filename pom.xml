@@ -321,6 +321,12 @@
 
       <dependency>
         <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-ext-autolink</artifactId>
+        <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
         <artifactId>flexmark-ext-definition</artifactId>
         <version>${flexmark.version}</version>
       </dependency>

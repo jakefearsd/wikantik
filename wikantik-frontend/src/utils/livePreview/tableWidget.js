@@ -70,31 +70,62 @@ function sourceLineOf(target, wrap) {
   return [...row.parentElement.children].indexOf(row) + 2;
 }
 
+function buildTable(source) {
+  const { align, header, rows } = parseTableSource(source);
+  const table = document.createElement('table');
+  table.className = 'cm-lp-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  header.forEach((text, i) => headRow.appendChild(cell('th', text, align[i])));
+  thead.appendChild(headRow);
+  const tbody = document.createElement('tbody');
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    r.forEach((text, i) => tr.appendChild(cell('td', text, align[i])));
+    tbody.appendChild(tr);
+  }
+  table.append(thead, tbody);
+  return table;
+}
+
+// Built tables by source, least recently used first: every cell is a remark parse, so a large table costs real time
+// to build, and CodeMirror redraws a widget whenever it scrolls back into view or its line is re-decorated.
+const TABLE_CACHE_SIZE = 20;
+const tableCache = new Map();
+
+/** A fresh copy of the table for `source` (the cached original never enters the document). */
+function tableFor(source) {
+  let table = tableCache.get(source);
+  if (table) {
+    tableCache.delete(source);
+  } else {
+    table = buildTable(source);
+    if (tableCache.size >= TABLE_CACHE_SIZE) tableCache.delete(tableCache.keys().next().value);
+  }
+  tableCache.set(source, table);
+  return table.cloneNode(true);
+}
+
+/** Whether a mousedown on the wrapper itself landed on its own scrollbar (outside the client area). */
+function onOwnScrollbar(e, wrap) {
+  if (e.target !== wrap) return false;
+  const horizontal = wrap.offsetHeight > wrap.clientHeight && e.offsetY >= wrap.clientHeight;
+  const vertical = wrap.offsetWidth > wrap.clientWidth && e.offsetX >= wrap.clientWidth;
+  return horizontal || vertical;
+}
+
 /** A top-level GFM table, drawn as an HTML table; a mousedown on a row puts the caret on that row's source line. */
 export class TableWidget extends WidgetType {
   constructor(source) { super(); this.source = source; }
   eq(o) { return o instanceof TableWidget && o.source === this.source; }
   get estimatedHeight() { return this.source.split('\n').length * 30; } // ≈ one row per source line (the delimiter's share pads the borders)
   toDOM(view) {
-    const { align, header, rows } = parseTableSource(this.source);
     const wrap = document.createElement('div');
     wrap.className = 'cm-lp-table-block';
-    const table = document.createElement('table');
-    table.className = 'cm-lp-table';
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    header.forEach((text, i) => headRow.appendChild(cell('th', text, align[i])));
-    thead.appendChild(headRow);
-    const tbody = document.createElement('tbody');
-    for (const r of rows) {
-      const tr = document.createElement('tr');
-      r.forEach((text, i) => tr.appendChild(cell('td', text, align[i])));
-      tbody.appendChild(tr);
-    }
-    table.append(thead, tbody);
-    wrap.appendChild(table);
+    wrap.appendChild(tableFor(this.source));
     if (view) {
       wrap.addEventListener('mousedown', (e) => {
+        if (onOwnScrollbar(e, wrap)) return; // a wide table's scrollbar: let the browser drag it
         e.preventDefault();
         try {
           const start = view.posAtDOM(wrap);

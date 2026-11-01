@@ -8,6 +8,13 @@ import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
 import { parseTableSource, TableWidget } from './tableWidget';
 import { widgetFor } from './widgets';
+import { renderInlineMarkdown } from './inlineCells';
+
+// The real renderer, wrapped so a test can count how many cells were rendered.
+vi.mock('./inlineCells', async (importOriginal) => {
+  const mod = await importOriginal();
+  return { ...mod, renderInlineMarkdown: vi.fn(mod.renderInlineMarkdown) };
+});
 
 const views = [];
 function liveView(doc, caret = doc.length) {
@@ -131,5 +138,64 @@ describe('TableWidget', () => {
     fireEvent.mouseDown(dom.querySelector('td'));
     expect(view.dispatch).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith('[live-preview] could not place the caret in a table', 'detached');
+  });
+
+  /** A mousedown on the wrapper itself at (offsetX, offsetY), the wrapper sized as a laid-out, scrolling block. */
+  function mouseDownOnWrap(wrap, offsetX, offsetY) {
+    for (const [k, v] of Object.entries({ clientWidth: 300, clientHeight: 100, offsetWidth: 300, offsetHeight: 115 })) {
+      Object.defineProperty(wrap, k, { configurable: true, value: v });
+    }
+    const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'offsetX', { value: offsetX });
+    Object.defineProperty(ev, 'offsetY', { value: offsetY });
+    return wrap.dispatchEvent(ev);
+  }
+
+  it('a mousedown on the wrapper\'s own horizontal scrollbar is left to the browser', () => {
+    const view = { posAtDOM: vi.fn(() => 0), dispatch: vi.fn(), focus: vi.fn(), state: { doc: { lineAt: () => ({ number: 1 }), line: () => ({ from: 0 }), lines: 1 } } };
+    const wrap = new TableWidget(SRC).toDOM(view);
+    expect(mouseDownOnWrap(wrap, 40, 108)).toBe(true); // not default-prevented: the native scrollbar drag proceeds
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('a mousedown inside the wrapper\'s client area still places the caret', () => {
+    const view = { posAtDOM: vi.fn(() => 0), dispatch: vi.fn(), focus: vi.fn(), state: { doc: { lineAt: () => ({ number: 1 }), line: () => ({ from: 0 }), lines: 1 } } };
+    const wrap = new TableWidget(SRC).toDOM(view);
+    expect(mouseDownOnWrap(wrap, 40, 50)).toBe(false);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a second toDOM for the same source reuses the built table instead of re-rendering every cell', () => {
+    const src = '| cache | probe |\n|---|---|\n| **x** | $y$ |\n| 1 | 2 |';
+    renderInlineMarkdown.mockClear();
+    const first = new TableWidget(src).toDOM(undefined);
+    const cellsRendered = renderInlineMarkdown.mock.calls.length;
+    expect(cellsRendered).toBe(6);
+    const second = new TableWidget(src).toDOM(undefined);
+    expect(renderInlineMarkdown.mock.calls.length).toBe(cellsRendered);
+    expect(second.outerHTML).toBe(first.outerHTML);
+    expect(second.querySelector('table')).not.toBe(first.querySelector('table'));
+  });
+
+  it('the table cache keeps only the 20 most recently drawn sources', () => {
+    const srcOf = (i) => `| evict${i} |\n|---|\n| v |`;
+    new TableWidget(srcOf(0)).toDOM(undefined);
+    for (let i = 1; i <= 20; i += 1) new TableWidget(srcOf(i)).toDOM(undefined);
+    renderInlineMarkdown.mockClear();
+    new TableWidget(srcOf(20)).toDOM(undefined); // still cached
+    expect(renderInlineMarkdown).not.toHaveBeenCalled();
+    new TableWidget(srcOf(0)).toDOM(undefined); // evicted: rebuilt
+    expect(renderInlineMarkdown).toHaveBeenCalledTimes(2);
+  });
+
+  it('row clicks work on a table drawn from the cache', () => {
+    const doc = `intro\n\n${SRC}\n\nend`;
+    liveView(doc); // builds (or reuses) the cached table
+    renderInlineMarkdown.mockClear();
+    const view = liveView(doc);
+    expect(renderInlineMarkdown).not.toHaveBeenCalled();
+    const rows = view.dom.querySelectorAll('.cm-lp-table tbody tr');
+    fireEvent.mouseDown(rows[1].querySelector('td'));
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(6).from);
   });
 });

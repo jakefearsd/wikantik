@@ -85,7 +85,8 @@ const PREDICATES = {
     const tag = /<([A-Za-z][A-Za-z0-9-]*)/.exec(firstLine(e));
     return Boolean(tag) && all(o, tag[1]).length > 0 && !o.text.includes('<');
   },
-  'plugin-line': (o) => !o.text.includes('[{') && all(o, '.wiki-plugin-chip').length === 0,
+  'plugin-line': (o, e) => !o.text.includes('[{') && !o.text.includes(/\[\{([^}]+)\}\]/.exec(e.markdown)?.[1] ?? '[{')
+    && all(o, '.wiki-plugin-chip').length === 0,
   'inline-math': (o) => all(o, '.math-inline, .katex').some((m) => !m.parentElement?.closest('.math-display, .katex-display')),
   'display-math': (o) => all(o, '.math-display, .katex-display').length > 0,
   callout: (o) => all(o, '.callout').length > 0,

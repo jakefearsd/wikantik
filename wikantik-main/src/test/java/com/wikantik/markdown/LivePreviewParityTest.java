@@ -95,7 +95,9 @@ class LivePreviewParityTest {
             final Matcher m = TAG.matcher( firstLine( e ) );
             return m.find() && root.any( el -> el.is( m.group( 2 ).toLowerCase() ) ) && !root.text().contains( "<" );
         } );
-        PREDICATES.put( "plugin-line", ( root, e ) -> !root.text().contains( "[{" ) && !root.any( el -> el.hasClass( "wiki-plugin-chip" ) ) );
+        // consumed by the plugin engine: neither the markup nor its inner text is left, and no editor chip
+        PREDICATES.put( "plugin-line", ( root, e ) -> !root.text().contains( "[{" ) && !root.text().contains( pluginInner( e ) )
+                && !root.any( el -> el.hasClass( "wiki-plugin-chip" ) ) );
         PREDICATES.put( "inline-math", ( root, e ) -> root.any( el -> ( el.hasClass( "math-inline" ) || el.hasClass( "katex" ) )
                 && !el.insideClass( "math-display" ) && !el.insideClass( "katex-display" ) ) );
         PREDICATES.put( "display-math", ( root, e ) -> root.any( el -> el.hasClass( "math-display" ) || el.hasClass( "katex-display" ) ) );
@@ -185,6 +187,12 @@ class LivePreviewParityTest {
         // the link text is its own target (GFM writes www.x as http://www.x); trailing sentence punctuation stays outside
         return !text.isEmpty() && !text.matches( ".*[.,:;!?]$" )
                 && ( href.equals( text ) || href.equals( "mailto:" + text ) || href.equals( "http://" + text ) );
+    }
+
+    /** The inside of the first {@code [{…}]} of an entry ({@code "TableOfContents"}, {@code "$pagename"}); never empty. */
+    private static String pluginInner( final JsonObject e ) {
+        final Matcher m = Pattern.compile( "\\[\\{([^}]+)\\}\\]" ).matcher( e.get( "markdown" ).getAsString() );
+        return m.find() ? m.group( 1 ) : "[{";
     }
 
     private static String firstLine( final JsonObject e ) {

@@ -621,6 +621,138 @@ class AuthResourceTest {
                 "passwordMustChange must remain false when the reset email fails to send" );
     }
 
+    // ----- editorMode preference on /api/auth/profile -----
+
+    private UserDatabase realUserDb() {
+        return engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase();
+    }
+
+    private UserProfile createRealUser( final String login, final String password ) throws Exception {
+        final UserDatabase db = realUserDb();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( login );
+        profile.setFullname( "Editor Mode " + login );
+        profile.setEmail( login + "@example.com" );
+        profile.setBio( "a bio" );
+        profile.setPassword( password );
+        db.save( profile );
+        return db.findByLoginName( login );
+    }
+
+    private JsonObject putProfile( final String login, final JsonObject body ) throws Exception {
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( login ) ) ) {
+            return gson.fromJson( doPut( "profile", body ), JsonObject.class );
+        }
+    }
+
+    private JsonObject getProfile( final String login ) throws Exception {
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( login ) ) ) {
+            return gson.fromJson( doGet( "profile" ), JsonObject.class );
+        }
+    }
+
+    @Test
+    void getProfileReportsNullEditorModeWhenUnset() throws Exception {
+        createRealUser( "emunset", "Xk3-Valid-Pass-77!" );
+        final JsonObject obj = getProfile( "emunset" );
+        assertTrue( obj.has( "editorMode" ), "editorMode key must be present" );
+        assertTrue( obj.get( "editorMode" ).isJsonNull() );
+    }
+
+    @Test
+    void putEditorModeLivePersistsAndGetReturnsIt() throws Exception {
+        createRealUser( "emlive", "Xk3-Valid-Pass-77!" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "editorMode", "live" );
+        final JsonObject put = putProfile( "emlive", body );
+        assertEquals( "live", put.get( "editorMode" ).getAsString() );
+        assertEquals( "live", getProfile( "emlive" ).get( "editorMode" ).getAsString() );
+        assertEquals( "live", realUserDb().findByLoginName( "emlive" ).getAttributes().get( "wikantik.editor.mode" ) );
+    }
+
+    @Test
+    void putEditorModeNullClearsIt() throws Exception {
+        createRealUser( "emclear", "Xk3-Valid-Pass-77!" );
+        final JsonObject set = new JsonObject();
+        set.addProperty( "editorMode", "source" );
+        putProfile( "emclear", set );
+        assertEquals( "source", getProfile( "emclear" ).get( "editorMode" ).getAsString() );
+
+        final JsonObject clear = new JsonObject();
+        clear.add( "editorMode", com.google.gson.JsonNull.INSTANCE );
+        putProfile( "emclear", clear );
+        assertTrue( getProfile( "emclear" ).get( "editorMode" ).isJsonNull() );
+        assertFalse( realUserDb().findByLoginName( "emclear" ).getAttributes().containsKey( "wikantik.editor.mode" ) );
+    }
+
+    @Test
+    void putEditorModeInvalidIs400AndSavesNothing() throws Exception {
+        createRealUser( "eminvalid", "Xk3-Valid-Pass-77!" );
+        final JsonObject keep = new JsonObject();
+        keep.addProperty( "editorMode", "live" );
+        putProfile( "eminvalid", keep );
+
+        final java.util.List< com.google.gson.JsonElement > bad = java.util.List.of(
+                new com.google.gson.JsonPrimitive( "rich" ),
+                new com.google.gson.JsonPrimitive( 5 ),
+                new com.google.gson.JsonPrimitive( true ),
+                new JsonObject() );
+        for ( final com.google.gson.JsonElement value : bad ) {
+            final JsonObject body = new JsonObject();
+            body.addProperty( "bio", "should not be saved" );
+            body.add( "editorMode", value );
+            final JsonObject resp = putProfile( "eminvalid", body );
+            assertEquals( 400, resp.get( "status" ).getAsInt(), "value " + value );
+            assertEquals( "editorMode must be 'source' or 'live'", resp.get( "message" ).getAsString() );
+        }
+        final UserProfile after = realUserDb().findByLoginName( "eminvalid" );
+        assertEquals( "live", after.getAttributes().get( "wikantik.editor.mode" ) );
+        assertEquals( "a bio", after.getBio(), "a 400 must save nothing" );
+    }
+
+    @Test
+    void preferenceOnlyPutKeepsPasswordHashAndFullName() throws Exception {
+        final UserProfile before = createRealUser( "empref", "Xk3-Valid-Pass-77!" );
+        final String hash = before.getPassword();
+        final JsonObject body = new JsonObject();
+        body.addProperty( "editorMode", "live" );
+        putProfile( "empref", body );
+        final UserProfile after = realUserDb().findByLoginName( "empref" );
+        assertEquals( hash, after.getPassword() );
+        assertEquals( before.getFullname(), after.getFullname() );
+        assertEquals( before.getEmail(), after.getEmail() );
+        assertEquals( before.getBio(), after.getBio() );
+    }
+
+    @Test
+    void preferenceOnlyPutWorksForPasswordlessSsoProfile() throws Exception {
+        final UserProfile before = createRealUser( "emsso", null );
+        assertNull( before.getPassword() );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "editorMode", "live" );
+        final JsonObject resp = putProfile( "emsso", body );
+        assertEquals( "live", resp.get( "editorMode" ).getAsString() );
+        final UserProfile after = realUserDb().findByLoginName( "emsso" );
+        assertNull( after.getPassword() );
+        assertEquals( before.getFullname(), after.getFullname() );
+        assertEquals( before.getEmail(), after.getEmail() );
+        assertEquals( before.getBio(), after.getBio() );
+    }
+
+    @Test
+    void profileJsonNeverExposesOtherAttributes() throws Exception {
+        final UserProfile p = createRealUser( "emattr", "Xk3-Valid-Pass-77!" );
+        p.getAttributes().put( "sso.subject", "secret-subject" );
+        realUserDb().save( p );
+        final String raw;
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "emattr" ) ) ) {
+            raw = doGet( "profile" );
+        }
+        assertFalse( raw.contains( "sso.subject" ) );
+        assertFalse( raw.contains( "secret-subject" ) );
+        assertFalse( gson.fromJson( raw, JsonObject.class ).has( "attributes" ) );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String action ) throws Exception {

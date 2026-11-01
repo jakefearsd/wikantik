@@ -76,6 +76,10 @@ public class AuthResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AuthResource.class );
 
+    /** Profile attribute holding the user's preferred editor mode. */
+    static final String EDITOR_MODE_ATTRIBUTE = "wikantik.editor.mode";
+    private static final java.util.Set< String > VALID_EDITOR_MODES = java.util.Set.of( "source", "live" );
+
     /** Rate limiter for password reset requests: max 3 per email per hour. */
     private static final TimedCounterList< String > RESET_ATTEMPTS = new TimedCounterList<>();
     private static final int MAX_RESET_PER_HOUR = 3;
@@ -338,7 +342,7 @@ public class AuthResource extends RestServletBase {
             final String loginName = session.getLoginPrincipal().getName();
             final UserDatabase db = getSubsystems().auth().users().getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
-            sendJson( response, profileToMap( profile ) );
+            sendProfile( response, profile );
         } catch ( final NoSuchPrincipalException e ) {
             LOG.warn( "Profile not found for authenticated user: {}", session.getLoginPrincipal().getName() );
             sendNotFound( response, "Profile not found" );
@@ -368,6 +372,19 @@ public class AuthResource extends RestServletBase {
             final String loginName = session.getLoginPrincipal().getName();
             final UserDatabase db = getSubsystems().auth().users().getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
+
+            // Validate the editor-mode preference first so a 400 leaves the profile entirely unchanged.
+            final boolean editorModePresent = body.has( "editorMode" );
+            String editorMode = null; // null + editorModePresent = clear the preference
+            if ( editorModePresent && !body.get( "editorMode" ).isJsonNull() ) {
+                final com.google.gson.JsonElement raw = body.get( "editorMode" );
+                if ( !raw.isJsonPrimitive() || !raw.getAsJsonPrimitive().isString()
+                        || !VALID_EDITOR_MODES.contains( raw.getAsString() ) ) {
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST, "editorMode must be 'source' or 'live'" );
+                    return;
+                }
+                editorMode = raw.getAsString();
+            }
 
             // Update fullName (the display name) if provided
             final String fullName = getJsonString( body, "fullName" );
@@ -407,6 +424,14 @@ public class AuthResource extends RestServletBase {
                 return;
             }
 
+            if ( editorModePresent ) {
+                if ( editorMode == null ) {
+                    profile.getAttributes().remove( EDITOR_MODE_ATTRIBUTE );
+                } else {
+                    profile.getAttributes().put( EDITOR_MODE_ATTRIBUTE, editorMode );
+                }
+            }
+
             db.save( profile );
             ProfileChangeNotifier.profileSaved( engine, loginName );
             if ( newPassword != null && !newPassword.isBlank() ) {
@@ -415,7 +440,7 @@ public class AuthResource extends RestServletBase {
             LOG.info( "User {} updated their own profile", loginName );
 
             // Return updated profile
-            sendJson( response, profileToMap( db.findByLoginName( loginName ) ) );
+            sendProfile( response, db.findByLoginName( loginName ) );
         } catch ( final NoSuchPrincipalException e ) {
             LOG.warn( "Profile not found for authenticated user: {}", session.getLoginPrincipal().getName() );
             sendNotFound( response, "Profile not found" );
@@ -663,8 +688,21 @@ public class AuthResource extends RestServletBase {
 
     // ----- Helper methods -----
 
-    private Map< String, Object > profileToMap( final UserProfile profile ) {
-        return UserProfileMapping.coreFields( profile, this::formatDate );
+    /**
+     * The self-service profile JSON: the shared core fields plus {@code editorMode}, which is emitted as an
+     * explicit JSON null when unset (Gson would otherwise drop the key). Other profile attributes are never exposed.
+     */
+    private com.google.gson.JsonObject profileToJson( final UserProfile profile ) {
+        final com.google.gson.JsonObject tree =
+                GSON.toJsonTree( UserProfileMapping.coreFields( profile, this::formatDate ) ).getAsJsonObject();
+        final Object mode = profile.getAttributes().get( EDITOR_MODE_ATTRIBUTE );
+        tree.add( "editorMode", mode instanceof String m && VALID_EDITOR_MODES.contains( m )
+                ? new com.google.gson.JsonPrimitive( m ) : com.google.gson.JsonNull.INSTANCE );
+        return tree;
+    }
+
+    private void sendProfile( final HttpServletResponse response, final UserProfile profile ) throws IOException {
+        RestJson.sendJsonKeepingNulls( response, profileToJson( profile ) );
     }
 
 }

@@ -132,11 +132,7 @@ public class GetBrokenLinksTool extends AbstractMcpTool {
             return out;
         }
         for ( final BrokenBlockRefs.Entry e : new BrokenBlockRefs().find( pageManager, resolver ) ) {
-            final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "page", e.page() );
-            m.put( "target", e.target() );
-            m.put( "id", e.id() );
-            out.add( m );
+            out.add( e.toMap() );
         }
         return out;
     }

@@ -323,6 +323,21 @@ class AdminContentResourceTest {
     }
 
     @Test
+    void testBlockRefScanFailureLeavesCoreListAndEmptyBlockRefs() throws Exception {
+        engine.saveText( "ScanFailSource", "[NonExistentScanFailTarget](NonExistentScanFailTarget)" );
+        servlet.blockRefScan = () -> {
+            throw new IllegalStateException( "scan exploded" );
+        };
+        try {
+            final JsonObject obj = gson.fromJson( doGet( "/broken-links" ), JsonObject.class );
+            assertTrue( obj.has( "links" ) );
+            assertEquals( 0, obj.getAsJsonArray( "brokenBlockRefs" ).size() );
+        } finally {
+            engine.deleteQuietly( "ScanFailSource" );
+        }
+    }
+
+    @Test
     void testGetStatsHasCacheDetails() throws Exception {
         final String json = doGet( "/stats" );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );

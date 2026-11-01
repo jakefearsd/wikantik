@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +46,16 @@ public final class BrokenBlockRefs {
     private static final Logger LOG = LogManager.getLogger( BrokenBlockRefs.class );
 
     /** One broken reference: {@code page} links to {@code [[target#^id]]} and {@code target} has no block {@code id}. */
-    public record Entry( String page, String target, String id ) {}
+    public record Entry( String page, String target, String id ) {
+        /** JSON-ready form shared by the admin REST and MCP surfaces: {@code {page, target, id}}. */
+        public Map< String, Object > toMap() {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "page", page );
+            m.put( "target", target );
+            m.put( "id", id );
+            return m;
+        }
+    }
 
     private static final Comparator< Entry > ORDER = Comparator.comparing( Entry::page )
             .thenComparing( Entry::target ).thenComparing( Entry::id );

@@ -239,18 +239,17 @@ public class AdminContentResource extends RestServletBase {
         sendJson( response, Map.of( "links", links, "brokenBlockRefs", brokenBlockRefs() ) );
     }
 
+    /** Test seam: replaces the real scan when set. */
+    java.util.function.Supplier< List< BrokenBlockRefs.Entry > > blockRefScan;
+
     /** Block references whose target page exists but has no such block; empty (never an error) on failure. */
     private List< Map< String, Object > > brokenBlockRefs() {
         final List< Map< String, Object > > out = new ArrayList<>();
         try {
-            final PageManager pm = getSubsystems().page().pages();
-            for ( final BrokenBlockRefs.Entry e
-                    : new BrokenBlockRefs().find( pm, WikiLinkResolver.forEngine( getEngine() ) ) ) {
-                final Map< String, Object > m = new LinkedHashMap<>();
-                m.put( "page", e.page() );
-                m.put( "target", e.target() );
-                m.put( "id", e.id() );
-                out.add( m );
+            final List< BrokenBlockRefs.Entry > entries = blockRefScan != null ? blockRefScan.get()
+                    : new BrokenBlockRefs().find( getSubsystems().page().pages(), WikiLinkResolver.forEngine( getEngine() ) );
+            for ( final BrokenBlockRefs.Entry e : entries ) {
+                out.add( e.toMap() );
             }
         } catch ( final RuntimeException e ) {
             LOG.warn( "Broken block reference scan failed: {}", e.getMessage(), e );

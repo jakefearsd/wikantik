@@ -148,5 +148,7 @@ describe('useLinkPreview', () => {
   it('extracts the section from a hash', () => {
     expect(previewTargetOf(anchor('/wiki/Page#usage'))).toEqual({ name: 'Page', section: 'usage', missing: false });
     expect(previewTargetOf(anchor('Page#usage'))).toEqual({ name: 'Page', section: 'usage', missing: false });
+    expect(previewTargetOf(anchor('/wiki/Page#^abc'))).toEqual({ name: 'Page', section: '^abc', missing: false });
+    expect(previewTargetOf(anchor('/wiki/Page#%5Eabc'))).toEqual({ name: 'Page', section: '^abc', missing: false });
   });
 });

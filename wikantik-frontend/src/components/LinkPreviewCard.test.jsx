@@ -68,3 +68,11 @@ describe('LinkPreviewCard', () => {
     });
   });
 });
+
+describe('LinkPreviewCard block preview', () => {
+  it('shows Block not found when the block is missing', () => {
+    render(<LinkPreviewCard rect={rect} result={{ status: 'ok', data: { name: 'P', title: 'P', blockMissing: true } }} />);
+    expect(screen.getByText('Block not found')).toBeInTheDocument();
+    expect(screen.queryByText('P')).toBeNull();
+  });
+});

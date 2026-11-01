@@ -1658,3 +1658,37 @@ describe('api.importVault', () => {
     expect(global.fetch.mock.calls[0][1].body.get('planHash')).toBe('h1');
   });
 });
+
+describe('api block methods', () => {
+  beforeEach(() => { global.fetch = vi.fn(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('getPageBlocks passes q and limit', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { blocks: [] } }));
+    await api.getPageBlocks('My Page', { q: 'a b', limit: 5 });
+    expect(global.fetch.mock.calls[0][0]).toContain('/api/pages/My%20Page/blocks?q=a+b&limit=5');
+  });
+
+  it('getPageBlocks without params has no query string', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { blocks: [] } }));
+    await api.getPageBlocks('P');
+    expect(global.fetch.mock.calls[0][0]).toMatch(/\/api\/pages\/P\/blocks$/);
+  });
+
+  it('assignBlockId POSTs version, index and fingerprint', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { id: 'abc123', version: 4 } }));
+    const r = await api.assignBlockId('P', { version: 3, index: 2, fingerprint: 'fp' });
+    expect(r).toEqual({ id: 'abc123', version: 4 });
+    const [url, init] = global.fetch.mock.calls[0];
+    expect(url).toContain('/api/pages/P/blocks');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ version: 3, index: 2, fingerprint: 'fp' });
+  });
+
+  it('a 409 surfaces status and the parsed reason', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 409, body: { reason: 'stale' } }));
+    const err = await api.assignBlockId('P', { version: 1, index: 0, fingerprint: '' }).catch((e) => e);
+    expect(err.status).toBe(409);
+    expect(err.body.reason).toBe('stale');
+  });
+});

@@ -78,6 +78,7 @@ vi.mock('../api/client', () => ({
     getSimilarPages: vi.fn(),
     getHistory: vi.fn(),
     listMentionableUsers: vi.fn(),
+    assignBlockId: vi.fn(),
   },
 }));
 
@@ -1111,6 +1112,94 @@ describe('PageView section deep links', () => {
 
       expect(await screen.findByText('Link copied')).toBeInTheDocument();
       expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/#second-part$/));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, TEST_TIMEOUT);
+});
+
+describe('PageView block references', () => {
+  const BLOCKS = {
+    ...PAGE,
+    version: 5,
+    contentHtml: '<div class="inserted-page"><p id="^abc" data-block="0" class="inc">included</p></div>'
+      + '<p id="^abc" data-block="0" class="own">own block</p><p data-block="1" class="plain">plain block</p>',
+  };
+  const flashed = () => document.querySelector('.block-target-flash');
+
+  function renderAt(url) {
+    window.history.replaceState(null, '', url);
+    return renderPageView(url);
+  }
+
+  beforeEach(() => {
+    api.getPage.mockImplementation(async () => ({ ...BLOCKS }));
+  });
+
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('lands on an encoded block fragment, on the page own element, and flashes it', async () => {
+    renderAt('/wiki/Foo#%5Eabc');
+    await awaitStableLoaded();
+    await waitFor(() => expect(flashed()).toBeTruthy());
+    expect(flashed().className).toContain('own');
+    expect(Element.prototype.scrollIntoView.mock.contexts.some((el) => el.className.includes('own'))).toBe(true);
+    expect(Element.prototype.scrollIntoView.mock.contexts.some((el) => el.className === 'inc')).toBe(false);
+  }, TEST_TIMEOUT);
+
+  it('toasts when the block is missing', async () => {
+    renderAt('/wiki/Foo#^nope');
+    await awaitStableLoaded();
+    expect(await screen.findByText('Block ^nope not found on this page')).toBeInTheDocument();
+    expect(flashed()).toBeNull();
+  }, TEST_TIMEOUT);
+
+  it('adds block link buttons only to the page own blocks, and edit-capable pages can assign', async () => {
+    const { container } = renderAt('/wiki/Foo');
+    await awaitStableLoaded();
+    await waitFor(() => expect(container.querySelectorAll('.block-link-btn').length).toBe(2));
+    expect(container.querySelector('.inserted-page .block-link-btn')).toBeNull();
+  }, TEST_TIMEOUT);
+
+  it('hides id-less buttons without edit permission or on a derived page', async () => {
+    api.getPage.mockImplementation(async () => ({ ...BLOCKS, permissions: { edit: false } }));
+    const { container, unmount } = renderAt('/wiki/Foo');
+    await awaitStableLoaded();
+    await waitFor(() => expect(container.querySelectorAll('.block-link-btn').length).toBe(1));
+    unmount();
+    api.getPage.mockImplementation(async () => ({ ...BLOCKS, metadata: { derived_from: 'x.pdf' } }));
+    const again = renderAt('/wiki/Foo');
+    await awaitStableLoaded();
+    await waitFor(() => expect(again.container.querySelectorAll('.block-link-btn').length).toBe(1));
+  }, TEST_TIMEOUT);
+
+  it('assigns with the page version, then copies the wikilink and toasts', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    api.assignBlockId.mockResolvedValue({ id: 'new123', version: 6 });
+    try {
+      const { container } = renderAt('/wiki/Foo');
+      await awaitStableLoaded();
+      await waitFor(() => expect(container.querySelector('.plain .block-link-btn')).toBeTruthy());
+      fireEvent.click(container.querySelector('.plain .block-link-btn'));
+      expect(await screen.findByText('Link copied')).toBeInTheDocument();
+      expect(api.assignBlockId).toHaveBeenCalledWith('Foo', expect.objectContaining({ version: 5, index: 1 }));
+      expect(writeText).toHaveBeenCalledWith('[[Foo#^new123]]');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, TEST_TIMEOUT);
+
+  it('shows the error toast for a copy failure', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no')) } });
+    try {
+      const { container } = renderAt('/wiki/Foo');
+      await awaitStableLoaded();
+      await waitFor(() => expect(container.querySelector('.own .block-link-btn')).toBeTruthy());
+      fireEvent.click(container.querySelector('.own .block-link-btn'));
+      expect(await screen.findByText("Couldn't copy link")).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }

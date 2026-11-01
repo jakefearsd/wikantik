@@ -15,6 +15,9 @@ import { highlightCodeBlocks, hasHighlightableCode } from '../utils/codeHighligh
 import { useLowlight } from '../hooks/useLowlight';
 import { addHeadingAnchors } from '../utils/headingAnchors';
 import { pinFragmentTarget } from '../utils/fragmentScroll';
+import { addBlockLinkButtons, findBlockTarget } from '../utils/blockLinks';
+import { isBlockRef } from '../utils/blockIds';
+import { safeDecode } from '../utils/safeDecode';
 import Icon from './ui/Icon';
 import Spinner from './ui/Spinner';
 import PageMeta from './PageMeta';
@@ -124,6 +127,8 @@ function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }
     </div>
   );
 }
+
+const BLOCK_FLASH_MS = 2000;
 
 export default function PageView() {
   const { name = 'Main' } = useParams();
@@ -299,6 +304,23 @@ export default function PageView() {
     });
   }, [page, headings, toast]);
 
+  // Copy-block-link buttons on the page's own blocks. Idempotent and re-applied when the article is re-injected;
+  // the effect's cleanup removes the click listener. The version is the page's own and moves on after each assign,
+  // so a second assign in the same session is not rejected as stale. Id-less blocks need edit rights on a page
+  // that is not machine-generated (derived).
+  useEffect(() => {
+    const root = articleRef.current;
+    if (!root || !page?.contentHtml) return undefined;
+    return addBlockLinkButtons(root, {
+      pageName: name,
+      canAssign: !!page.permissions?.edit && !page.metadata?.derived_from,
+      version: page.version,
+      assign: (args) => api.assignBlockId(name, args),
+      onCopy: () => toast.success('Link copied'),
+      onError: (message) => toast.error(message),
+    });
+  }, [page, name, toast]);
+
   // Section deep links (/wiki/Foo#section). The browser's native fragment
   // scroll ran against the server-rendered layout, which createRoot replaces
   // with a much taller SPA layout, so land the reader on the section here —
@@ -308,10 +330,26 @@ export default function PageView() {
   // `pageReady` is false while a previous route's page is still on screen.
   const pageReady = page?.name === name;
   useEffect(() => {
-    const id = window.location.hash.slice(1);
+    const id = safeDecode(window.location.hash.slice(1));
     if (!pageReady || !id || !articleRef.current) return undefined;
-    return pinFragmentTarget(articleRef.current, id) || undefined;
-  }, [name, pageReady]);
+    let flashTimer;
+    let flashEl;
+    if (isBlockRef(id)) {
+      flashEl = findBlockTarget(articleRef.current, id);
+      if (!flashEl) {
+        toast.error(`Block ${id} not found on this page`);
+        return undefined;
+      }
+      flashEl.classList.add('block-target-flash');
+      flashTimer = setTimeout(() => flashEl.classList.remove('block-target-flash'), BLOCK_FLASH_MS);
+    }
+    const stop = pinFragmentTarget(articleRef.current, id) || undefined;
+    return () => {
+      clearTimeout(flashTimer);
+      flashEl?.classList.remove('block-target-flash');
+      stop?.();
+    };
+  }, [name, pageReady, toast]);
 
   // Stable identity (all deps below are stable refs/setters/imports) so the
   // memoized article element (see `articleEl`) keeps a constant reference across

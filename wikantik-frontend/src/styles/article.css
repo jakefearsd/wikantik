@@ -593,3 +593,52 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
 .editor-preview li.task-list-item > ol {
   padding-left: 1.5em;
 }
+
+/* ── Block links (Obsidian ^id): gutter copy buttons and the landing flash ───────────────── */
+.article-prose [data-block] { position: relative; }
+.block-anchor {
+  position: absolute;
+  left: -2.6rem;
+  top: 0;
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  user-select: none;
+}
+[data-block]:hover > .block-anchor,
+[data-block]:focus-within > .block-anchor,
+.block-anchor:focus-within {
+  opacity: 1;
+}
+.block-link-btn,
+.block-link-url-btn {
+  padding: 0 4px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.block-link-btn:hover,
+.block-link-url-btn:hover,
+.block-link-btn:focus-visible,
+.block-link-url-btn:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+@media (max-width: 900px) {
+  /* No gutter on narrow screens: sit at the block's top-right, shown on focus or touch-hover. */
+  .block-anchor { left: auto; right: 0; }
+}
+.block-target-flash { animation: block-flash 2s ease-out; }
+@keyframes block-flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .block-target-flash {
+    animation: none;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

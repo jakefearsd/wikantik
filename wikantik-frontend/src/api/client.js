@@ -111,6 +111,19 @@ export const api = {
   getPageEmbed: (name, { section, signal } = {}) =>
     request(`/api/pages/${encodeURIComponent(name)}/embed${section ? `?section=${encodeURIComponent(section)}` : ''}`,
       { signal }),
+  getPageBlocks: (name, { q, limit, signal } = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (limit) params.set('limit', String(limit));
+    const qs = params.toString();
+    return request(`/api/pages/${encodeURIComponent(name)}/blocks${qs ? '?' + qs : ''}`, { signal });
+  },
+  /** Gives a block an id: resolves `{id, version}`; a 409 rejects with `err.body.reason` (stale | block-not-located | derived). */
+  assignBlockId: (name, { version, index, fingerprint }) =>
+    request(`/api/pages/${encodeURIComponent(name)}/blocks`, {
+      method: 'POST',
+      body: JSON.stringify({ version, index, fingerprint }),
+    }),
   getPage: (name, { version, render, signal } = {}) => {
     const params = new URLSearchParams();
     if (version) params.set('version', version);

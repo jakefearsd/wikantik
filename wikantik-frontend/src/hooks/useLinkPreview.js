@@ -3,6 +3,14 @@ import LinkPreviewCard from '../components/LinkPreviewCard';
 import { loadPreview } from './usePagePreview';
 import { wikiLinkTarget } from '../utils/wikiLinkTargets';
 import { safeDecode } from '../utils/safeDecode';
+import { isBlockRef } from '../utils/blockIds';
+
+// A block fragment may arrive percent-encoded (`#%5Eabc`); the preview endpoint takes the plain `^id`.
+const sectionOf = (hash) => {
+  if (!hash) return null;
+  const plain = safeDecode(hash);
+  return isBlockRef(plain) ? plain : hash;
+};
 
 const OPEN_MS = 400;
 const GRACE_MS = 200;
@@ -14,16 +22,16 @@ export function previewTargetOf(anchor) {
   const missing = anchor.classList.contains('createpage');
   const local = href.startsWith(`${BASE}/wiki/`) ? href.slice(BASE.length) : href;
   const wiki = /^\/wiki\/([^?#]+)(?:\?[^#]*)?(?:#(.*))?$/.exec(local);
-  if (wiki) return { name: safeDecode(wiki[1]), section: wiki[2] || null, missing };
+  if (wiki) return { name: safeDecode(wiki[1]), section: sectionOf(wiki[2]), missing };
   // The server renders a missing page as <a class="createpage" href="/edit/Name">; a bare /edit/ link is an
   // edit action, not a page reference.
   const localEdit = href.startsWith(`${BASE}/edit/`) ? href.slice(BASE.length) : href;
   const edit = /^\/edit\/([^?#/]+)(?:\?[^#]*)?(?:#(.*))?$/.exec(localEdit);
-  if (edit) return missing ? { name: safeDecode(edit[1]), section: edit[2] || null, missing: true } : null;
+  if (edit) return missing ? { name: safeDecode(edit[1]), section: sectionOf(edit[2]), missing: true } : null;
   const name = wikiLinkTarget(href);
   if (!name) return null;
   const hash = href.includes('#') ? href.slice(href.indexOf('#') + 1) : '';
-  return { name, section: hash || null, missing };
+  return { name, section: sectionOf(hash), missing };
 }
 
 /**

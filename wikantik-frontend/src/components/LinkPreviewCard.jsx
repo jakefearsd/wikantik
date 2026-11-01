@@ -29,6 +29,7 @@ export default function LinkPreviewCard({ rect, result, onMouseEnter, onMouseLea
   let body;
   if (!result) body = <div className="link-preview-loading">Loading…</div>;
   else if (result.status === 'missing') body = <div className="link-preview-missing">Not created yet</div>;
+  else if (result.data?.blockMissing) body = <div className="link-preview-missing">Block not found</div>;
   else {
     // Only non-empty parts render, so the card's flex gap never spaces around an empty element.
     const d = result.data;

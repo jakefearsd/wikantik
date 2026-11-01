@@ -124,3 +124,32 @@ describe('pinFragmentTarget', () => {
       .toEqual(['hashchange', 'keydown', 'pointerdown', 'popstate', 'touchstart', 'wheel']);
   });
 });
+
+describe('pinFragmentTarget block fragments', () => {
+  let root;
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    Element.prototype.getBoundingClientRect = vi.fn(() => ({ top: 0 }));
+    root = document.createElement('article');
+    document.body.appendChild(root);
+  });
+  afterEach(() => { root.remove(); vi.restoreAllMocks(); });
+
+  it('decodes a percent-encoded block fragment', () => {
+    root.innerHTML = '<p id="^abc">x</p>';
+    const stop = pinFragmentTarget(root, '%5Eabc');
+    expect(Element.prototype.scrollIntoView.mock.contexts[0].id).toBe('^abc');
+    stop();
+  });
+
+  it('lands on the page own block, not an earlier included copy', () => {
+    root.innerHTML = '<div class="inserted-page"><p id="^abc" class="inc">i</p></div><p id="^abc" class="own">o</p>';
+    const stop = pinFragmentTarget(root, '^abc');
+    expect(Element.prototype.scrollIntoView.mock.contexts[0].className).toBe('own');
+    stop();
+  });
+
+  it('returns null for a missing block', () => {
+    expect(pinFragmentTarget(root, '^nope')).toBeNull();
+  });
+});

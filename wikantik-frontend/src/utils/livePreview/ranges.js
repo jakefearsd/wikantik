@@ -4,6 +4,7 @@ import { matchInlineMath } from '../inlineMath';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
+import { chipFor } from './chips';
 import { BLOCK_ID_RE, STANDALONE_RE, RULE_TEXT, MARKER_WITH_SPACE } from '../blockIds';
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
@@ -469,7 +470,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         const b = a + m[0].length;
         if (overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
         claimed.push([a, b]);
-        mark(a, b, 'cm-lp-plugin');
+        if (inactive(a)) widget(a, b, { type: 'chip', ...chipFor(m[0]), title: m[0] });
+        else mark(a, b, 'cm-lp-plugin');
       }
     }
     if (text.includes('$')) {

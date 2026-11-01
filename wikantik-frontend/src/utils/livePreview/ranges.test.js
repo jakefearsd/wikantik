@@ -238,10 +238,26 @@ describe('livePreviewSpecs — math and plugins', () => {
     expect(specsOf('$a*b*c$\n\nend', [3]).specs.filter((s) => s.cls === 'cm-lp-em')).toEqual([]);
     expect(replacing(specsOf('$x$', [1]).specs)).toEqual([]);
   });
-  it('marks wiki plugins as a pill and leaves them visible', () => {
-    const { state, specs } = specsOf('[{TableOfContents}] and [{Image src=a}]()\n\nend', [3]);
+  it('marks wiki plugins as a pill on the caret line and leaves them visible', () => {
+    const { state, specs } = specsOf('[{TableOfContents}] and [{Image src=a}]()\n\nend', [1]);
     expect(show(state, specs)).toEqual(expect.arrayContaining(['mark cm-lp-plugin "[{TableOfContents}]"', 'mark cm-lp-plugin "[{Image src=a}]()"']));
+    expect(specs.filter((s) => s.widget?.type === 'chip')).toEqual([]);
     expect(visible(state, specs, 1)).toBe('[{TableOfContents}] and [{Image src=a}]()');
+  });
+  it('replaces each [{...}] match with its own chip off the caret line', () => {
+    const { state, specs } = specsOf('a [{ALLOW view Admin}] b [{$x}]\n\nend', [3]);
+    const chips = specs.filter((s) => s.widget?.type === 'chip');
+    expect(chips.map((s) => state.sliceDoc(s.from, s.to))).toEqual(['[{ALLOW view Admin}]', '[{$x}]']);
+    expect(chips[0].widget).toEqual({ type: 'chip', text: 'view: Admin', cls: 'cm-lp-chip cm-lp-chip-acl', title: '[{ALLOW view Admin}]' });
+  });
+  it('makes no chip for [{...}] inside inline code or a fence', () => {
+    const { specs } = specsOf('`[{ALLOW view A}]`\n\n```\n[{ALLOW view A}]\n```\n\nend', [7]);
+    expect(specs.filter((s) => s.widget?.type === 'chip')).toEqual([]);
+  });
+  it('a block-id marker paragraph keeps its blockid mark and gets a chip', () => {
+    const { state, specs } = specsOf('[{ALLOW view Admin}] ^abc\n\nend', [3]);
+    expect(specs.filter((s) => s.widget?.type === 'chip')).toHaveLength(1);
+    expect(specs.some((s) => s.kind === 'mark' && s.cls === 'cm-lp-blockid' && state.sliceDoc(s.from, s.to) === '^abc')).toBe(true);
   });
   it('a $$ block paragraph gets no inline specs', () => {
     expect(specsOf('$$\na*b*c\n$$\n\nend', [5]).specs).toEqual([]);

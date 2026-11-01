@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { history, undo } from '@codemirror/commands';
 import katex from 'katex';
 import {
-  BulletWidget, CheckboxWidget, ImageWidget, MathWidget, EmbedWidget, FenceWidget, TextWidget, CalloutTitleWidget, RuleWidget,
+  BulletWidget, CheckboxWidget, ImageWidget, MathWidget, EmbedWidget, FenceWidget, TextWidget, CalloutTitleWidget, RuleWidget, ChipWidget,
   widgetFor, toggleTaskAt, toggleTaskBox,
 } from './widgets';
 import { renderFences } from '../fences/renderFences';
@@ -253,5 +253,21 @@ describe('FenceWidget', () => {
   });
   it('widgetFor builds a FenceWidget', () => {
     expect(widgetFor({ type: 'fence', language: 'mermaid', source: 'x' }).eq(new FenceWidget('mermaid', 'x'))).toBe(true);
+  });
+});
+
+describe('ChipWidget', () => {
+  it('renders a span with the classes, text and title, and compares on all three', () => {
+    const w = widgetFor({ type: 'chip', text: 'view: Admin', cls: 'cm-lp-chip cm-lp-chip-acl', title: '[{ALLOW view Admin}]' });
+    expect(w).toBeInstanceOf(ChipWidget);
+    const dom = w.toDOM();
+    expect(dom.tagName).toBe('SPAN');
+    expect(dom.className).toBe('cm-lp-chip cm-lp-chip-acl');
+    expect(dom.textContent).toBe('view: Admin');
+    expect(dom.getAttribute('title')).toBe('[{ALLOW view Admin}]');
+    expect(w.ignoreEvent()).toBe(false);
+    expect(w.eq(new ChipWidget('view: Admin', 'cm-lp-chip cm-lp-chip-acl', '[{ALLOW view Admin}]'))).toBe(true);
+    expect(w.eq(new ChipWidget('view: Admin', 'cm-lp-chip', '[{ALLOW view Admin}]'))).toBe(false);
+    expect(w.eq(new ChipWidget('view: Admin', 'cm-lp-chip cm-lp-chip-acl', 'x'))).toBe(false);
   });
 });

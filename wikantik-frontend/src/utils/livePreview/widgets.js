@@ -34,6 +34,17 @@ export class TextWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
+export class ChipWidget extends WidgetType {
+  constructor(text, cls, title) { super(); this.text = text; this.cls = cls; this.title = title; }
+  eq(other) { return other instanceof ChipWidget && other.text === this.text && other.cls === this.cls && other.title === this.title; }
+  toDOM() {
+    const s = el('span', this.cls, this.text);
+    if (this.title) s.setAttribute('title', this.title);
+    return s;
+  }
+  ignoreEvent() { return false; } // a mousedown places the caret, which reveals the source
+}
+
 export class CalloutTitleWidget extends WidgetType {
   constructor(style, title) { super(); this.style = style; this.title = title; }
   eq(other) { return other instanceof CalloutTitleWidget && other.style === this.style && other.title === this.title; }
@@ -285,6 +296,7 @@ export function widgetFor(w, context = {}) {
     case 'image': return new ImageWidget(w);
     case 'math': return new MathWidget(w.tex, !!w.display);
     case 'text': return new TextWidget(w.text, w.cls);
+    case 'chip': return new ChipWidget(w.text, w.cls, w.title);
     case 'fence': return new FenceWidget(w.language, w.source);
     case 'embed': return new EmbedWidget(w.target, w.section, context.loadEmbed);
     default: throw new Error(`unknown live-preview widget type: ${w.type}`);

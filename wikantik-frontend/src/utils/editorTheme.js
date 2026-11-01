@@ -217,6 +217,10 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-fence-block`]: { display: 'block', margin: '0.4em 0', overflow: 'auto', cursor: 'text' },
   [`${ROOT} .cm-lp-codeblock`]: { backgroundColor: 'var(--code-bg)' },
   [`${ROOT} .cm-lp-plugin`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em' },
+  [`${ROOT} .cm-lp-chip`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em', cursor: 'text' },
+  [`${ROOT} .cm-lp-chip-acl::before`]: { content: '"\\1F512"', marginRight: '0.3em', fontSize: '0.85em' },
+  [`${ROOT} .cm-lp-chip-var`]: { fontFamily: 'var(--font-mono)', color: 'var(--accent)' },
+  [`${ROOT} .cm-lp-chip-plugin`]: { color: 'var(--text)' },
   // A block marker (`^id`) off the caret's line: a small muted chip; a later duplicate of an id: a warning chip.
   [`${ROOT} .cm-lp-blockid`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', backgroundColor: 'color-mix(in srgb, var(--text) 5%, transparent)', fontFamily: 'var(--font-mono)', fontSize: '0.8em' },
   [`${ROOT} .cm-lp-blockid-dup`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--warning)', backgroundColor: 'var(--warning-bg)', textDecoration: 'underline wavy', textDecorationColor: 'var(--warning)', fontFamily: 'var(--font-mono)', fontSize: '0.8em', cursor: 'help' },

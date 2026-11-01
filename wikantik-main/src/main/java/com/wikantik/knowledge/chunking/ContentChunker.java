@@ -104,7 +104,7 @@ public class ContentChunker {
     /** The page body exactly as it is parsed for chunking: access-rule directives removed, then trimmed. */
     static String chunkableBody(String body) {
         // ACL strip first, then block markers: the same order as the render path, so BlockIds parses the same text.
-        final String derived = ReaderText.derived(AclDirectiveText.strip(body));
+        final String derived = ReaderText.derivedBody(AclDirectiveText.strip(body));
         return derived == null ? "" : derived.strip();
     }
 

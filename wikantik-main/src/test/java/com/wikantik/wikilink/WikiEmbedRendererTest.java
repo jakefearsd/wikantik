@@ -97,6 +97,12 @@ class WikiEmbedRendererTest {
         assertFalse( r.bodyHtml().contains( "id=\"^" ), r.bodyHtml() );
     }
 
+    /** The embed source is a body: a leading "---" pair is two thematic breaks, never frontmatter. */
+    @Test void aBlockOfABodyOpeningWithAThematicBreakIsFound() {
+        assertEquals( "Para", EmbedSections.select( "---\nPara ^h\n\n---\n\nMore ^m2\n", "^h" ).orElseThrow() );
+        assertEquals( "More", EmbedSections.select( "---\nPara ^h\n\n---\n\nMore ^m2\n", "^m2" ).orElseThrow() );
+    }
+
     @Test void missingBlockIsReported() throws Exception {
         engine.saveText( "EmbBlk", "Para ^abc\n" );
         final var r = renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "EmbBlk", "^zzz" );

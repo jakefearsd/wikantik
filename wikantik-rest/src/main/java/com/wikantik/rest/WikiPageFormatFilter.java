@@ -238,7 +238,7 @@ public class WikiPageFormatFilter implements Filter {
                                  final ParsedPage parsed, final String baseUrl ) throws IOException {
         final String title = extractTitle( page, parsed );
         // Reader text: block markers are source, not content. Stripped before link rewriting; frontmatter was already split off.
-        String body = ReaderText.derived( parsed.body() == null ? "" : parsed.body() );
+        String body = ReaderText.derivedBody( parsed.body() == null ? "" : parsed.body() );
         body = stripLeadingH1( body, title );
         final WikiLinkResolver resolver = WikiLinkResolver.forEngine( eng );
         body = rewriteWikiLinks( body, baseUrl, page.getName(), t -> resolver.resolve( t ).pageName(),
@@ -256,7 +256,7 @@ public class WikiPageFormatFilter implements Filter {
 
     private void writeJson( final HttpServletResponse resp, final Page page,
                              final ParsedPage source, final String baseUrl ) throws IOException {
-        final ParsedPage parsed = new ParsedPage( source.metadata(), ReaderText.derived( source.body() ) );
+        final ParsedPage parsed = new ParsedPage( source.metadata(), ReaderText.derivedBody( source.body() ) );
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "slug", page.getName() );
         out.put( "title", extractTitle( page, parsed ) );

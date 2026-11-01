@@ -71,6 +71,13 @@ class NodeTextAssemblerTest {
     }
 
     @Test
+    void stripMarkdownStripsMarkersOfABodyOpeningWithAThematicBreak() {
+        final String result = NodeTextAssembler.stripMarkdown( "---\ntitle: T\n---\n---\nPara ^h\n\n---\n\nMore ^m2\n" );
+        assertFalse( result.contains( "^h" ) || result.contains( "^m2" ), result );
+        assertTrue( result.contains( "Para" ) && result.contains( "More" ), result );
+    }
+
+    @Test
     void stripMarkdownRemovesHeadings() {
         final String md = "# Heading One\n## Heading Two\nParagraph text.";
         final String result = NodeTextAssembler.stripMarkdown( md );

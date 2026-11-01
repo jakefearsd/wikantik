@@ -36,7 +36,7 @@ final class EmbedSections {
         }
         if ( BlockIds.isBlockRef( heading ) ) {
             // strip: a nested block's marker would otherwise render as a second id="^x" anchor inside the embed
-            return BlockIds.find( text, BlockIds.idOf( heading ) ).map( b -> BlockIds.strip( BlockIds.sourceOf( text, b ) ) )
+            return BlockIds.findBody( text, BlockIds.idOf( heading ) ).map( b -> BlockIds.stripBody( BlockIds.sourceOf( text, b ) ) )
                     .filter( s -> !s.isBlank() );
         }
         return HeadingSlugs.sectionBody( text, HeadingSlugs.slug( heading ) ).filter( s -> !s.isBlank() );

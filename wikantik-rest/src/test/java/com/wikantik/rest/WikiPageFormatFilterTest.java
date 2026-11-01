@@ -95,6 +95,7 @@ class WikiPageFormatFilterTest {
             "See [Other](OtherPage) and [External](https://example.com).\n" );
 
         engine.saveText( "BlockPage", "Para one ^abc\n\nSee [[FormatPage#^zz|claim]] here.\n" );
+        engine.saveText( "BlockHrPage", "---\ntitle: Rules\n---\n---\nPara ^h\n\n---\n\nMore ^m2\n" );
 
         filter = new WikiPageFormatFilter();
         final FilterConfig config = Mockito.mock( FilterConfig.class );
@@ -162,6 +163,37 @@ class WikiPageFormatFilterTest {
         assertTrue( md.contains( "Para one" ), md );
         assertFalse( md.contains( "one ^abc" ), "the block marker is source, not reader text: " + md );
         assertTrue( md.contains( "#^zz" ), "a block-link fragment must survive the rewrite: " + md );
+    }
+
+    /** The body is never read for frontmatter again: its leading "---" pair is two thematic breaks. */
+    @Test
+    void formatMdAndJsonStripMarkersOfABodyOpeningWithAThematicBreak() throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/wiki/BlockHrPage" );
+        when( req.getParameter( "format" ) ).thenReturn( "md" );
+        when( req.getRequestURI() ).thenReturn( "/wiki/BlockHrPage" );
+        when( req.getContextPath() ).thenReturn( "" );
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        when( resp.getOutputStream() ).thenReturn( new ServletOutputStream() {
+            @Override public void write( final int b ) { baos.write( b ); }
+            @Override public boolean isReady() { return true; }
+            @Override public void setWriteListener( final WriteListener listener ) {}
+        } );
+        filter.doFilter( req, resp, mock( FilterChain.class ) );
+        final String md = baos.toString( StandardCharsets.UTF_8 );
+        assertTrue( md.contains( "Para" ) && md.contains( "More" ), md );
+        assertFalse( md.contains( "^h" ) || md.contains( "^m2" ), md );
+
+        final HttpServletRequest jreq = HttpMockFactory.createHttpRequest( "/wiki/BlockHrPage" );
+        when( jreq.getParameter( "format" ) ).thenReturn( "json" );
+        when( jreq.getRequestURI() ).thenReturn( "/wiki/BlockHrPage" );
+        when( jreq.getContextPath() ).thenReturn( "" );
+        final HttpServletResponse jresp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        when( jresp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+        filter.doFilter( jreq, jresp, mock( FilterChain.class ) );
+        final String content = gson.fromJson( sw.toString(), JsonObject.class ).get( "content" ).getAsString();
+        assertFalse( content.contains( "^h" ) || content.contains( "^m2" ), content );
     }
 
     @Test

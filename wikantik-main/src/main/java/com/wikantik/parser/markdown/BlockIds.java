@@ -131,10 +131,22 @@ public final class BlockIds {
      * @return the block, or empty
      */
     public static Optional< Block > find( final String fullText, final String id ) {
-        if ( id == null || !mayHoldMarker( fullText ) ) {
+        return find( fullText, id, false );
+    }
+
+    /**
+     * {@link #find} over a page <em>body</em> (frontmatter already split off): a leading {@code ---} pair in it is two
+     * thematic breaks, never frontmatter. Offsets index {@code body}.
+     */
+    public static Optional< Block > findBody( final String body, final String id ) {
+        return find( body, id, true );
+    }
+
+    private static Optional< Block > find( final String text, final String id, final boolean body ) {
+        if ( id == null || !mayHoldMarker( text ) ) {
             return Optional.empty();
         }
-        return ModelReader.model( fullText, id::equals ).blocks().stream().filter( b -> id.equals( b.id() ) ).findFirst();
+        return ModelReader.model( text, id::equals, body ).blocks().stream().filter( b -> id.equals( b.id() ) ).findFirst();
     }
 
     /**
@@ -196,10 +208,26 @@ public final class BlockIds {
      *         one is not even parsed)
      */
     public static String strip( final String fullText ) {
+        return strip( fullText, false );
+    }
+
+    /**
+     * {@link #strip} over a page <em>body</em> (frontmatter already split off, as excerpt, chunk, export and embed
+     * callers hold it): a leading {@code ---} pair in it is two thematic breaks, never frontmatter, so markers inside
+     * it are stripped too.
+     *
+     * @param body a page body; may be {@code null}
+     * @return the stripped body; the very same instance when it holds no marker
+     */
+    public static String stripBody( final String body ) {
+        return strip( body, true );
+    }
+
+    private static String strip( final String fullText, final boolean body ) {
         if ( !mayHoldMarker( fullText ) ) {
             return fullText;
         }
-        final List< Marker > markers = ModelReader.model( fullText, NO_TEXT ).markers();
+        final List< Marker > markers = ModelReader.model( fullText, NO_TEXT, body ).markers();
         if ( markers.isEmpty() ) {
             return fullText;
         }
@@ -224,7 +252,7 @@ public final class BlockIds {
         if ( !mayHoldMarker( fullText ) ) {
             return ids;
         }
-        for ( final Marker m : ModelReader.model( fullText, NO_TEXT ).markers() ) {
+        for ( final Marker m : ModelReader.model( fullText, NO_TEXT, false ).markers() ) {
             ids.add( m.id() );
         }
         return ids;
@@ -295,7 +323,7 @@ public final class BlockIds {
     private static final Model EMPTY = new Model( List.of(), List.of(), List.of() );
 
     private static Model model( final String fullText ) {
-        return ModelReader.model( fullText, id -> true );
+        return ModelReader.model( fullText, id -> true, false );
     }
 
     /** For a model whose block texts are never read: no block's plain text is worked out. */
@@ -324,17 +352,19 @@ public final class BlockIds {
         /**
          * @param withText which blocks get their plain text worked out, by id (a block without one is asked with
          *                 {@code null}); the others get {@code ""}
+         * @param body     whether the text is a body only: then a leading {@code ---} pair is content, not frontmatter
          */
-        static Model model( final String fullText, final java.util.function.Predicate< String > withText ) {
+        static Model model( final String fullText, final java.util.function.Predicate< String > withText,
+                            final boolean body ) {
             if ( fullText == null || fullText.isEmpty() ) {
                 return EMPTY;
             }
-            final int bodyStart = FrontmatterParser.bodyOffset( fullText );
-            final String body = fullText.substring( bodyStart );
-            MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( body );
+            final int bodyStart = body ? 0 : FrontmatterParser.bodyOffset( fullText );
+            final String source = fullText.substring( bodyStart );
+            MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( source );
             Node document = PARSER.parse( prepared.text() );
             PARSES.get()[ 0 ]++;
-            final String emptied = EmptyRuleItems.blank( body, prepared, document );
+            final String emptied = EmptyRuleItems.blank( source, prepared, document );
             if ( emptied != null ) {   // read those list items as empty, as the render does: parse again
                 prepared = MarkdownBodySource.prepare( emptied );
                 document = PARSER.parse( prepared.text() );

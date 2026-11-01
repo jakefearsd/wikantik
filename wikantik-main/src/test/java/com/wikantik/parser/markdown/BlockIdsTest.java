@@ -652,4 +652,17 @@ class BlockIdsTest {
         assertEquals( "Second shown text", b.plainText() );
         assertEquals( 1, b.index() );
     }
+
+    @Test
+    void bodyEntryPointsReadALeadingDashPairAsThematicBreaks() {
+        final String body = "---\nPara ^h\n\n---\n\nMore ^m2\n";
+        assertEquals( "---\nPara\n\n---\n\nMore\n", BlockIds.stripBody( body ) );
+        final Block h = BlockIds.findBody( body, "h" ).orElseThrow();
+        assertEquals( "Para", h.plainText() );
+        assertEquals( body.indexOf( "Para" ), h.start() );
+        assertEquals( "More", BlockIds.findBody( body, "m2" ).orElseThrow().plainText() );
+        assertTrue( BlockIds.find( body, "h" ).isEmpty(), "as a full text those lines are frontmatter" );
+        assertSame( "No marker.\n", BlockIds.stripBody( "No marker.\n" ) );
+        assertTrue( BlockIds.findBody( "No marker.\n", "h" ).isEmpty() );
+    }
 }

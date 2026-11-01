@@ -59,7 +59,7 @@ public final class NodeTextAssembler {
         if( markdown == null || markdown.isEmpty() ) return "";
         String s = markdown;
         s = FRONTMATTER.matcher( s ).replaceAll( "" );
-        s = ReaderText.derived( s );
+        s = ReaderText.derivedBody( s );
         s = CODE_FENCE.matcher( s ).replaceAll( " " );
         s = WikiLinkSyntax.toPlainText( s );
         s = IMAGE.matcher( s ).replaceAll( "$1" );

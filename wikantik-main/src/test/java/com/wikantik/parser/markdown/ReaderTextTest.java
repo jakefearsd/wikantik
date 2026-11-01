@@ -54,4 +54,13 @@ class ReaderTextTest {
     void aCaretInsideFrontmatterIsLeftUntouched() {
         assertEquals( "---\nsummary: see ^x\n---\nBody\n", ReaderText.derived( "---\nsummary: see ^x\n---\nBody ^abc\n" ) );
     }
+
+    @Test
+    void aBodyIsNeverReadForFrontmatter() {
+        final String body = "---\nPara ^h\n\n---\n\nMore ^m2\n";
+        assertEquals( "---\nPara\n\n---\n\nMore\n", ReaderText.derivedBody( body ) );
+        assertNull( ReaderText.derivedBody( null ) );
+        // as a full text, the same lines are frontmatter: only the body's marker goes
+        assertEquals( "---\nPara ^h\n\n---\n\nMore\n", ReaderText.derived( body ) );
+    }
 }

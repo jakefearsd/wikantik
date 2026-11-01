@@ -39,6 +39,13 @@ class ContentChunkerTest {
     private final ContentChunker flooredChunker = new ContentChunker(
         new ContentChunker.Config(512, 150, 24, 0));
 
+    /** A body is never read for frontmatter: a leading "---" pair is two thematic breaks, and both markers go. */
+    @Test
+    void chunkableBodyStripsMarkersOfABodyOpeningWithAThematicBreak() {
+        final String body = ContentChunker.chunkableBody( "---\nPara ^h\n\n---\n\nMore ^m2\n" );
+        assertFalse( body.contains( "^h" ) || body.contains( "^m2" ), body );
+    }
+
     /** The chunker shares one flexmark parser across threads; concurrent chunking must match sequential chunking. */
     @Test
     void concurrentChunkingMatchesSequentialChunking() throws Exception {

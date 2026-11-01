@@ -226,7 +226,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 frontmatter = parsed.metadata();
                 // Derived text: block markers are source, not content (spec 1.11a). The runbook block is built from
                 // frontmatter only, so this single point covers key_facts and the heading outline.
-                body = ReaderText.derived( parsed.body() );
+                body = ReaderText.derivedBody( parsed.body() );
             }
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: getPureText({}) failed — body & key_facts & headings will degrade: {}",

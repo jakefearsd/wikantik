@@ -40,11 +40,23 @@ public final class ReaderText {
     }
 
     /**
-     * @param fullText page text (or a body cut from it); may be {@code null}
+     * @param fullText full page text, frontmatter included (a body goes to {@link #derivedBody}); may be {@code null}
      * @return the text with markers removed (line count preserved); never throws
      */
     public static String derived( final String fullText ) {
         return derived( fullText, BlockIds::strip );
+    }
+
+    /**
+     * {@link #derived} for a page <em>body</em> — frontmatter already split off, as excerpt, chunk, export, agent and
+     * embed callers hold it. A leading {@code ---} pair in a body is two thematic breaks, never frontmatter, so the
+     * markers inside it are stripped too (reading it as a full text would skip them).
+     *
+     * @param body a page body; may be {@code null}
+     * @return the body with markers removed (line count preserved); never throws
+     */
+    public static String derivedBody( final String body ) {
+        return derived( body, BlockIds::stripBody );
     }
 
     /** Test seam: lets a test inject a failing derivation. */

@@ -37,6 +37,11 @@ class PageExcerptsTest {
         assertEquals( "alpha beta…", PageExcerpts.excerpt( md, 14 ) );
     }
 
+    /** A body is never read for frontmatter: a leading "---" pair is two thematic breaks, and the markers are content. */
+    @Test void aBodyOpeningWithThematicBreaksLosesBothMarkers() {
+        assertEquals( "Para More", PageExcerpts.excerpt( "---\nPara ^h\n\n---\n\nMore ^m2\n", 280 ) );
+    }
+
     @Test void emptyBodyGivesEmptyExcerpt() {
         assertEquals( "", PageExcerpts.excerpt( "", 280 ) );
         assertEquals( "", PageExcerpts.excerpt( "## Only a heading\n", 280 ) );

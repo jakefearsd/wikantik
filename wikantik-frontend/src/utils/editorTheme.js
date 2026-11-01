@@ -212,6 +212,7 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-image-wrap`]: { display: 'inline-block', maxWidth: '100%', verticalAlign: 'middle' },
   [`${ROOT} .cm-lp-image`]: { maxWidth: '100%', verticalAlign: 'middle', borderRadius: 'var(--radius-sm)' },
   [`${ROOT} .cm-lp-image-missing`]: { color: 'var(--text-secondary)', fontStyle: 'italic' },
+  [`${ROOT} .cm-lp-cell-img`]: { fontStyle: 'italic', color: 'var(--text-muted)' },
   [`${ROOT} .cm-lp-math`]: { cursor: 'text' },
   [`${ROOT} .cm-lp-math-block`]: { display: 'block', textAlign: 'center', padding: '0.4em 0' },
   [`${ROOT} .cm-lp-math-error`]: { color: 'var(--callout-danger)', fontFamily: 'var(--font-mono)' },

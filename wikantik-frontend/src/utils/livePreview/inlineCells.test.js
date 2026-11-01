@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderInlineMarkdown } from './inlineCells';
 
 const html = (md) => {
@@ -44,5 +44,26 @@ describe('renderInlineMarkdown', () => {
   });
   it('returns an empty fragment for empty input', () => {
     expect(html('').childNodes.length).toBe(0);
+  });
+  it('shows the source of invalid inline math', () => {
+    expect(html('$\\frac$').textContent).toBe('$\\frac$');
+  });
+  it('shows the file name for an image without alt text', () => {
+    expect(html('![](dir/x.png)').querySelector('span.cm-lp-cell-img').textContent).toBe('x.png');
+  });
+  it('renders non-paragraph and embed-only cells as raw text', () => {
+    for (const src of ['# h', '- x', '![[X]]']) expect(html(src).textContent).toBe(src);
+  });
+  it('logs and falls back to raw text when rendering throws', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.resetModules();
+    vi.doMock('./mathRender', () => ({ renderedMath: () => { throw new Error('boom'); } }));
+    const mod = await import('./inlineCells');
+    const host = document.createElement('div');
+    host.appendChild(mod.renderInlineMarkdown('a $x$ b'));
+    expect(host.textContent).toBe('a $x$ b');
+    expect(warn).toHaveBeenCalledWith('[live-preview] inline cell render failed', 'boom');
+    vi.doUnmock('./mathRender');
+    warn.mockRestore();
   });
 });

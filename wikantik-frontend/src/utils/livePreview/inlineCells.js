@@ -42,7 +42,7 @@ function renderNode(node, source) {
     case 'delete': return wrap('del', node, source);
     case 'inlineCode': { const e = el('code'); e.textContent = node.value; return e; }
     case 'link': return wrap('span', node, source, 'cm-lp-link');
-    case 'image': { const e = el('span', 'cm-lp-cell-img'); e.textContent = node.alt || ''; return e; }
+    case 'image': { const e = el('span', 'cm-lp-cell-img'); e.textContent = node.alt || (node.url || '').split(/[?#]/)[0].split('/').pop() || ''; return e; }
     case 'inlineMath': {
       const math = renderedMath(node.value, false);
       if (math.fragment) {

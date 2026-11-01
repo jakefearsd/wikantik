@@ -1,3 +1,4 @@
+import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { matchInlineMath } from '../inlineMath';
@@ -138,6 +139,16 @@ function topLevelStartingAt(tree, pos) {
   while (n.parent && n.parent.parent) n = n.parent;
   return n.parent && n.from === pos ? n : null;
 }
+/** Index of the first entry of `list` (ascending in `key`) whose `key` is at least `pos`. */
+function firstAtLeast(list, pos, key) {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid][key] < pos) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
 /**
  * `blockCandidates` for `tr.state`, given `prev` = the candidates of `tr.startState`: only the top-level
  * nodes from the one before the edit up to the first node past it that the old tree also had (same type,
@@ -162,8 +173,9 @@ export function updateBlockCandidates(prev, tr, context = {}) {
   let node = top.childBefore(fromB) || top.firstChild;
   if (!node) return [];
   if (node.prevSibling) node = node.prevSibling; // a change can re-shape the block just before it (setext, merges)
-  const start = node.from;
-  const out = prev.filter((c) => c.to < start); // untouched: wholly before the first change
+  // Untouched: wholly before the first re-examined node and the first change. (The first node can start past the
+  // change when the change sits in the space above or before it, e.g. blank lines pasted at the top of the page.)
+  const out = prev.slice(0, firstAtLeast(prev, Math.min(node.from, fromB), 'to'));
   const inverted = changes.invertedDesc;
   for (; node; node = node.nextSibling) {
     // Past the edit including the node's line prefix (indentation), so the mapped candidate spans are exact.
@@ -171,13 +183,13 @@ export function updateBlockCandidates(prev, tr, context = {}) {
       const oldFrom = inverted.mapPos(node.from);
       const old = topLevelStartingAt(oldTree, oldFrom);
       if (old && old.name === node.name && old.to - old.from === node.to - node.from) {
-        for (const c of prev) {
-          // Block nodes span whole lines, so a candidate at or after the matched node ends at or after its
-          // start (its own `from` may sit before it: a paragraph can be indented).
-          if (c.to < oldFrom) continue;
+        // Block nodes span whole lines, so a candidate at or after the matched node ends at or after its
+        // start (its own `from` may sit before it: a paragraph can be indented).
+        for (let i = firstAtLeast(prev, oldFrom, 'to'); i < prev.length; i += 1) {
+          const c = prev[i];
           const to = changes.mapPos(c.to);
           // Past a partial new parse's end a full scan sees no blocks yet; neither does this.
-          if (to <= tree.length) out.push({ ...c, from: changes.mapPos(c.from), to });
+          if (to <= tree.length) out.push({ kind: c.kind, from: changes.mapPos(c.from), to, widget: c.widget });
         }
         return out;
       }
@@ -288,34 +300,115 @@ function firstMarkers(state, upTo) {
   firstMarkerCache.set(state.doc, { tree, upTo, firsts });
   return firsts;
 }
-const refLabelCache = new WeakMap(); // doc → { tree, labels }
+const refLabelCache = new WeakMap(); // doc → { tree, defs, labels }
 /** CommonMark label matching: whitespace collapsed, case-insensitive. */
 export const normalizeLabel = (s) => s.trim().replace(/\s+/g, ' ').toLowerCase();
 /** The `[label]` of a LinkReference or LinkLabel node's text, brackets off. */
 const labelText = (raw) => raw.replace(/^\[/, '').replace(/\]$/, '');
-/**
- * Normalised labels of every link reference definition (`[label]: url`) in the document, footnote definitions
- * (`^…`) excluded. Walks only the block structure (a text block is never descended into), once per (document,
- * parse tree).
- */
-export function referenceLabels(state) {
-  const tree = syntaxTree(state);
-  const hit = refLabelCache.get(state.doc);
-  if (hit && hit.tree === tree) return hit.labels;
-  const labels = new Set();
+/** Pushes onto `out` each link reference definition `tree.iterate` meets in [from, to] whose start lies in it. */
+function collectDefs(state, tree, from, to, out) {
   tree.iterate({
+    from,
+    to,
     enter: (node) => {
       if (node.name === 'LinkReference') {
         const l = node.node.getChild('LinkLabel');
         const raw = l ? labelText(state.doc.sliceString(l.from, l.to)) : '';
-        if (raw && !raw.startsWith('^')) labels.add(normalizeLabel(raw));
+        if (raw && !raw.startsWith('^') && node.from >= from && node.from <= to) out.push({ from: node.from, label: normalizeLabel(raw) });
         return false;
       }
       return !(SKIP.has(node.name) || NOT_A_HOLDER.test(node.name) || TEXT_BLOCK.has(node.name));
     },
   });
-  refLabelCache.set(state.doc, { tree, labels });
-  return labels;
+  return out;
+}
+/**
+ * Every link reference definition (`[label]: url`) in the document as `{ from, label }` (normalised label), in document
+ * order, footnote definitions (`^…`) excluded. Walks only the block structure (a text block is never descended into).
+ */
+export function referenceDefs(state) {
+  const tree = syntaxTree(state);
+  return collectDefs(state, tree, 0, tree.length, []);
+}
+/**
+ * `referenceDefs` for `tr.state`, given `prev` = the definitions of `tr.startState`: the same top-level window as
+ * updateBlockCandidates (the node before the edit up to the first node past it that the old tree also had) is
+ * re-walked; definitions before it are kept and those after are mapped. Equal to a full walk by construction (tested);
+ * a partial old or new tree falls back to the full walk.
+ */
+export function updateReferenceDefs(prev, tr) {
+  const { changes } = tr;
+  const doc = tr.state.doc;
+  let fromB = Infinity;
+  let toB = -1;
+  changes.iterChangedRanges((_fa, _ta, fb, tb) => { fromB = Math.min(fromB, fb); toB = Math.max(toB, tb); });
+  if (toB < 0) return prev;
+  const tree = syntaxTree(tr.state);
+  const oldTree = syntaxTree(tr.startState);
+  if (oldTree.length < tr.startState.doc.length || tree.length < doc.length) return referenceDefs(tr.state);
+  const top = tree.topNode;
+  let node = top.childBefore(fromB) || top.firstChild;
+  if (!node) return [];
+  if (node.prevSibling) node = node.prevSibling;
+  const start = node.from;
+  const out = prev.slice(0, firstAtLeast(prev, Math.min(start, fromB), 'from')); // as updateBlockCandidates
+  let end = -1;
+  let oldFrom = -1;
+  for (; node; node = node.nextSibling) {
+    if (doc.lineAt(node.from).from > toB) {
+      const at = changes.invertedDesc.mapPos(node.from);
+      const old = topLevelStartingAt(oldTree, at);
+      if (old && old.name === node.name && old.to - old.from === node.to - node.from) { oldFrom = at; break; }
+    }
+    end = node.to;
+  }
+  if (end >= start) collectDefs(tr.state, tree, start, end, out);
+  if (oldFrom >= 0) {
+    for (let i = firstAtLeast(prev, oldFrom, 'from'); i < prev.length; i += 1) {
+      out.push({ from: changes.mapPos(prev[i].from), label: prev[i].label });
+    }
+  }
+  return out;
+}
+const labelsOf = (defs) => new Set(defs.map((d) => d.label));
+/**
+ * The link reference definitions of each state, carried through edits (updateReferenceDefs) once something has asked
+ * for them (null until then, so a page whose view never shows a reference-shaped link never walks for them). A
+ * tree-only change (the background parser) drops them: the next request walks afresh.
+ */
+export const referenceDefsField = StateField.define({
+  create: () => null,
+  update(value, tr) {
+    const startTree = syntaxTree(tr.startState);
+    let base = value && value.tree === startTree ? value : null;
+    if (!base) {
+      const hit = refLabelCache.get(tr.startState.doc);
+      base = hit && hit.tree === startTree ? hit : null;
+    }
+    if (!base) return null;
+    const tree = syntaxTree(tr.state);
+    if (tree === startTree) return base;
+    if (!tr.docChanged) return null;
+    const defs = updateReferenceDefs(base.defs, tr);
+    const same = defs.length === base.defs.length && defs.every((d, i) => d.label === base.defs[i].label);
+    return { tree, defs, labels: same ? base.labels : labelsOf(defs) };
+  },
+});
+/**
+ * Normalised labels of every link reference definition (`[label]: url`) in the document, footnote definitions
+ * (`^…`) excluded: from referenceDefsField when it holds this parse tree's, else a full walk once per (document, parse
+ * tree).
+ */
+export function referenceLabels(state) {
+  const tree = syntaxTree(state);
+  const kept = state.field(referenceDefsField, false);
+  if (kept && kept.tree === tree) return kept.labels;
+  const hit = refLabelCache.get(state.doc);
+  if (hit && hit.tree === tree) return hit.labels;
+  const defs = referenceDefs(state);
+  const entry = { tree, defs, labels: labelsOf(defs) };
+  refLabelCache.set(state.doc, entry);
+  return entry.labels;
 }
 /** The block widgets to show: every candidate none of whose lines is active. */
 export function blockSpecs(state, activeLines, context = {}) {

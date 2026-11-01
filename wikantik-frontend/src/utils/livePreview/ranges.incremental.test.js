@@ -9,7 +9,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
 import { history, undo, redo } from '@codemirror/commands';
 import { editorMarkdownConfig } from '../editorMarkdown';
-import { blockCandidates, updateBlockCandidates } from './ranges';
+import { blockCandidates, updateBlockCandidates, referenceDefs, updateReferenceDefs, referenceDefsField, referenceLabels } from './ranges';
+import { livePreview } from './index';
 
 const context = { attachments: ['pic.png'] };
 const extensions = [markdown(editorMarkdownConfig), history(), EditorState.allowMultipleSelections.of(true)];
@@ -172,9 +173,86 @@ describe('updateBlockCandidates', () => {
     expect(after.map((c) => c.widget)).toEqual(before.map((c) => c.widget));
   });
 
+  it('blank lines pasted above a leading block push it down instead of keeping a stale copy at the top', () => {
+    for (const doc of ['![[P]]\n', '$$\nx\n$$\n\ntext', '| a |\n|---|\n| 1 |\n']) {
+      const state = EditorState.create({ doc, extensions });
+      const tr = state.update({ changes: { from: 0, insert: '\n'.repeat(30) } });
+      expect(updateBlockCandidates(blockCandidates(state, context), tr, context), doc).toEqual(blockCandidates(tr.state, context));
+    }
+  });
+
   it('returns an empty list for an emptied document', () => {
     const state = EditorState.create({ doc: '$$\nx\n$$', extensions });
     const tr = state.update({ changes: { from: 0, to: state.doc.length } });
     expect(updateBlockCandidates(blockCandidates(state, context), tr, context)).toEqual([]);
+  });
+});
+
+const REF_BLOCKS = [
+  '[foo]: /u', '[Foo  Bar]: <x> "t"', '> [q]: /u', '- [li]: /u\n- item', '[^fn]: note', 'see [foo] and [bar][foo]',
+  '```\n[code]: /u\n```', '| a |\n|---|\n| [t]: u |', 'para\n[lazy]: /u', '[multi\nline]: /u', '# [h]: /u', 'plain text',
+  '> quote\n> [deep]: /x', '    [indented]: /u',
+];
+const REF_TOKENS = ['[', ']', ']: /u', '[x]: y\n', '\n', '\n\n', '> ', '- ', '^', '```\n', '\n```\n', 'word', '    ', '|---|', '[^'];
+
+describe('updateReferenceDefs', () => {
+  it('equals a full walk after every random edit (typing, merges, quotes, lists, fences, multi-cursor)', () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const rand = rng(seed);
+      const parts = [];
+      for (let i = 0; i < 30; i += 1) parts.push(REF_BLOCKS[Math.floor(rand() * REF_BLOCKS.length)]);
+      let state = EditorState.create({ doc: parts.join('\n\n'), extensions });
+      let defs = referenceDefs(state);
+      for (let step = 0; step < 60; step += 1) {
+        const len = state.doc.length;
+        const insert = REF_TOKENS[Math.floor(rand() * REF_TOKENS.length)];
+        const a = Math.floor(rand() * (len + 1));
+        const b = Math.floor(rand() * (len + 1));
+        const roll = rand();
+        let changes;
+        if (roll < 0.3 && len > 0) changes = { from: a, to: Math.min(len, a + 1 + Math.floor(rand() * 12)) };
+        else if (roll < 0.5) changes = [{ from: Math.min(a, b), insert }, ...(a === b ? [] : [{ from: Math.max(a, b), insert }])];
+        else changes = { from: a, insert };
+        const tr = state.update({ changes });
+        defs = updateReferenceDefs(defs, tr);
+        state = tr.state;
+        expect(defs, `seed ${seed} step ${step}`).toEqual(referenceDefs(state));
+      }
+    }
+  });
+
+  it('an edit in the indentation before the first block re-reads it (no stale definition kept at the top)', () => {
+    for (const insert of ['    ', '\n'.repeat(30)]) {
+      const state = EditorState.create({ doc: '[foo]: /u\n\n[bar]: /b\n', extensions });
+      const tr = state.update({ changes: { from: 0, insert } });
+      expect(updateReferenceDefs(referenceDefs(state), tr), JSON.stringify(insert)).toEqual(referenceDefs(tr.state));
+    }
+  });
+
+  it('falls back to a full walk when the old tree did not cover the document (a partial parse)', () => {
+    const doc = Array.from({ length: 300 }, (_, i) => `para ${i}\n\n[ref${i}]: /u${i}`).join('\n\n');
+    const state = EditorState.create({ doc, extensions });
+    expect(syntaxTree(state).length).toBeLessThan(doc.length);
+    const prev = referenceDefs(state);
+    ensureSyntaxTree(state, doc.length, 5000);
+    const tr = state.update({ changes: { from: 0, insert: 'x' } });
+    const full = referenceDefs(tr.state);
+    expect(full).toHaveLength(300);
+    expect(updateReferenceDefs(prev, tr)).toEqual(full);
+  });
+
+  it('the live-preview extension carries the definitions through an edit once asked, instead of re-walking the page', () => {
+    const doc = 'see [foo]\n\n[foo]: /u\n\n> [Bar]: /b\n';
+    let state = EditorState.create({ doc, extensions: [...extensions, livePreview()] });
+    expect(state.field(referenceDefsField)).toBeNull(); // nothing asked yet: no walk at all
+    expect([...referenceLabels(state)]).toEqual(['foo', 'bar']);
+    state = state.update({ changes: { from: 0, insert: 'x' } }).state;
+    const kept = state.field(referenceDefsField);
+    expect(kept.tree).toBe(syntaxTree(state));
+    expect(kept.defs).toEqual(referenceDefs(state));
+    expect(referenceLabels(state)).toBe(kept.labels);
+    state = state.update({ changes: { from: state.doc.length, insert: '\n[baz]: /z\n' } }).state;
+    expect([...referenceLabels(state)]).toEqual(['foo', 'bar', 'baz']);
+    expect(state.field(referenceDefsField).labels).toBe(referenceLabels(state));
   });
 });

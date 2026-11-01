@@ -476,3 +476,49 @@ describe('UserPreferencesPage — display name', () => {
     expect(screen.queryByTestId('display-name-error')).not.toBeInTheDocument();
   });
 });
+
+describe('UserPreferencesPage — default editing mode', () => {
+  beforeEach(() => { localStorage.removeItem('wikantik.editor.mode'); });
+
+  it('shows Live preview when no preference is stored', async () => {
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: null });
+    renderPage();
+    const select = await screen.findByLabelText('Default editing mode');
+    expect(select.value).toBe('live');
+    expect(select.selectedOptions[0].textContent).toBe('Live preview');
+  });
+
+  it('shows Source when the stored preference is source', async () => {
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: 'source' });
+    renderPage();
+    const select = await screen.findByLabelText('Default editing mode');
+    expect(select.value).toBe('source');
+    expect(select.selectedOptions[0].textContent).toBe('Source');
+  });
+
+  it('saves only editorMode on change and mirrors it to localStorage', async () => {
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: null });
+    api.updateProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: 'source' });
+    renderPage();
+    const select = await screen.findByLabelText('Default editing mode');
+    fireEvent.change(select, { target: { value: 'source' } });
+    await waitFor(() => expect(api.updateProfile).toHaveBeenCalledWith({ editorMode: 'source' }));
+    expect(api.updateProfile).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(localStorage.getItem('wikantik.editor.mode')).toBe('source'));
+    expect(await screen.findByText('Default editing mode saved')).toBeInTheDocument();
+  });
+
+  it('shows the error and logs a warning when the save is rejected', async () => {
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: null });
+    api.updateProfile.mockRejectedValue(new Error('boom'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderPage();
+    const select = await screen.findByLabelText('Default editing mode');
+    fireEvent.change(select, { target: { value: 'source' } });
+    expect(await screen.findByText('boom')).toBeInTheDocument();
+    expect(warn).toHaveBeenCalled();
+    expect(localStorage.getItem('wikantik.editor.mode')).toBeNull();
+    expect(select.value).toBe('live');
+    warn.mockRestore();
+  });
+});

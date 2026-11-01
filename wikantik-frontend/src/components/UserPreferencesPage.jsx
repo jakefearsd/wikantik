@@ -20,6 +20,7 @@ export default function UserPreferencesPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editorMode, setEditorMode] = useState('live');
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   // Display name feedback: the server's 400/409 message, and whether the field has been left once
@@ -49,6 +50,7 @@ export default function UserPreferencesPage() {
         setFullName(data.fullName || '');
         setEmail(data.email || '');
         setBio(data.bio || '');
+        setEditorMode(data.editorMode === 'source' ? 'source' : 'live');
       })
       .catch((err) => { if (!ignore) setError(err.message || 'Failed to load profile'); })
       .finally(() => { if (!ignore) setLoading(false); });
@@ -102,6 +104,27 @@ export default function UserPreferencesPage() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Saves on change, independently of the profile form's Save button: only editorMode is sent.
+  const handleEditorModeChange = async (e) => {
+    const next = e.target.value;
+    const previous = editorMode;
+    setError(null);
+    setMessage(null);
+    setEditorMode(next);
+    try {
+      await api.updateProfile({ editorMode: next });
+      // The editor hook keeps this browser's mirror of the server value under this key.
+      try { localStorage.setItem('wikantik.editor.mode', next); } catch (err) {
+        console.warn('[preferences] could not mirror editor mode locally:', err?.message || err);
+      }
+      setMessage('Default editing mode saved');
+    } catch (err) {
+      console.warn('[preferences] saving editor mode failed:', err?.message || err);
+      setEditorMode(previous);
+      setError(err.body?.message || err.message || 'Failed to save default editing mode');
     }
   };
 
@@ -393,6 +416,39 @@ export default function UserPreferencesPage() {
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
+
+      <fieldset style={{
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-lg)',
+        marginTop: 'var(--space-lg)',
+      }}>
+        <legend style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '1.1rem',
+          fontWeight: 600,
+          padding: '0 var(--space-sm)',
+          color: 'var(--text)',
+        }}>
+          Editor
+        </legend>
+        <div style={fieldStyle}>
+          <label htmlFor="pref-editor-mode" style={labelStyle}>Default editing mode</label>
+          <select
+            id="pref-editor-mode"
+            aria-label="Default editing mode"
+            value={editorMode}
+            onChange={handleEditorModeChange}
+            style={inputStyle}
+          >
+            <option value="live">Live preview</option>
+            <option value="source">Source</option>
+          </select>
+          <p style={helpStyle}>
+            Which editor opens when you edit a page. Saved as soon as you change it.
+          </p>
+        </div>
+      </fieldset>
 
       <MyApiKeys />
 

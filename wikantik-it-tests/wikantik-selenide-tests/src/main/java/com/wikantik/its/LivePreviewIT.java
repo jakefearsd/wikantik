@@ -46,6 +46,9 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
 
     private static final String PAGE = "LivePreviewIT";
     private static final Duration WAIT = Duration.ofSeconds( 15 );
+    // Must stay recognisably Markdown: WikiToMarkdownConverter.isLikelyWikiSyntax scores [{TableOfContents}] at 2 of
+    // a threshold 3, so one more wiki marker (e.g. __bold__, ''x'') would flip the page to legacy syntax and
+    // disable live mode.
     private static final String BODY = "# Live Preview\n\n"
         + "| Alpha | Beta |\n| --- | --- |\n| one | two |\n| three | four |\n\n"
         + "[{TableOfContents}]\n\n"
@@ -59,6 +62,8 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
                 .clickOnLogin()
                 .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
         RestSeedHelper.awaitAdminReady();
+        // Other ITs pin source mode, which useEditorMode migrates to this user's server preference; start clean.
+        putEditorMode( "null" );
         RestSeedHelper.writePage( PAGE, BODY );
     }
 
@@ -66,10 +71,9 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
     void cleanup() {
         try {
             putEditorMode( "null" );
-        } catch ( final RuntimeException e ) {
-            System.err.println( "LivePreviewIT: failed to clear editorMode preference: " + e );
+        } finally {
+            RestSeedHelper.deletePageQuietly( PAGE );
         }
-        RestSeedHelper.deletePageQuietly( PAGE );
     }
 
     @Test

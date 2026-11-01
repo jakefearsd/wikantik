@@ -35,7 +35,7 @@ import { rehypeRenderedFences } from '../utils/fences/rehypeRenderedFences';
 import WikiFence from './WikiFence';
 import { rehypeHighlightCode } from '../utils/codeHighlight';
 import { headingsFromMarkdown } from '../utils/headings';
-import { blocksFromMarkdown, blockLinkEdit } from '../utils/blockIds';
+import { blocksFromMarkdown, blockLinkEdit, ACCESS_RULES } from '../utils/blockIds';
 import { useAttachments } from '../hooks/useAttachments';
 import { useAttachmentUpload } from '../hooks/useAttachmentUpload';
 import { dragCarriesFiles, filesFromDrop } from '../utils/editorFileEvents';
@@ -324,7 +324,7 @@ export default function PageEditor() {
     getBlocks: (page, q) => {
       if (!page || page === name) {
         const text = editorRef.current?.getText?.() ?? bodyRef.current;
-        const blocks = blocksFromMarkdown(text).map(({ index, id, kind, text: t }) => ({ index, id, kind, text: t }));
+        const blocks = blocksFromMarkdown(text).map(({ index, id, kind, text: t, rules }) => ({ index, id, kind, text: t, rules }));
         return Promise.resolve({ local: true, canAssign: true, blocks });
       }
       // Per page: '' → the first BLOCK_LIST_LIMIT blocks (complete when the server returned fewer), q → the server's
@@ -643,6 +643,10 @@ export default function PageEditor() {
     try {
       edit = blockLinkEdit(text, pos);
     } catch (err) {
+      if (err?.code === ACCESS_RULES) {   // the page view strips them before it reads ids: link the block from there
+        toast.error('This block contains access rules — save, then copy its link from the page view');
+        return;
+      }
       // a block that can't carry a marker (a list item with no text line) or one the text would not read back as tagged
       console.warn('[editor] could not add a block id', name, pos, err?.message || err);
       toast.error("Couldn't add a block id here");

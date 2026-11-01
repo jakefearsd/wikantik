@@ -193,7 +193,7 @@ describe('block completion', () => {
   const localBlocks = (md) => ({
     local: true,
     canAssign: true,
-    blocks: blocksFromMarkdown(md).map(({ index, id, kind, text }) => ({ index, id, kind, text })),
+    blocks: blocksFromMarkdown(md).map(({ index, id, kind, text, rules }) => ({ index, id, kind, text, rules })),
   });
 
   let views = [];
@@ -478,6 +478,31 @@ describe('block completion', () => {
     pick(view, res, res.options[0]);
     expect(view.state.doc.toString()).toBe('Gamma ^dddddd\n\n[[Self#^dddddd]]');
     expect(d.assignBlock).not.toHaveBeenCalled();
+  });
+
+  it('[[#^ lists a block holding access rules disabled, with or without an id, and picking it edits nothing', async () => {
+    const doc = 'Para ^id [{ ALLOW view Admin}]\n\nOther [{ALLOW view Admin}]\n\n[[#^';
+    const { view, changes } = viewOf(doc);
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks(doc)) });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    const [tagged, untagged] = res.options;
+    for (const off of [tagged, untagged]) {
+      expect(off).toMatchObject({ detail: 'contains access rules — link it from the page view', disabled: true });
+      off.apply(view, off, res.from, res.to ?? view.state.selection.main.head);
+    }
+    expect(changes.count).toBe(0);
+  });
+
+  it('a local pick whose block came to hold access rules by the time it applies is refused', async () => {
+    const { view, changes } = viewOf('Alpha\n\n[[#^');
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks('Alpha\n\n[[#^')) });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    view.dispatch({ changes: { from: 5, insert: ' [{ ALLOW view Admin}]' } });
+    const before = changes.count;
+    const opt = res.options[0];
+    opt.apply(view, opt, res.from + 22, (res.to ?? res.from) + 22);
+    expect(changes.count).toBe(before);
+    expect(d.notify).toHaveBeenCalledWith('This block contains access rules — link it from the page view');
   });
 
   it('a local pick whose block is gone by the time it applies warns and leaves the text alone', async () => {

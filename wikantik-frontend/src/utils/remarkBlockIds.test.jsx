@@ -64,7 +64,7 @@ function describeBlocks(host) {
       copy.querySelectorAll('[class*="math"], [class*="katex"]').forEach((m) => m.remove());
       // an access rule's chip: the editor shows it, the reader never renders the rule
       copy.querySelectorAll('.wiki-plugin-chip').forEach((m) => {
-        if (/^\[\{(ALLOW|DENY)/.test(m.getAttribute('title') || '')) m.remove();
+        if (/^\[\{\s*(ALLOW|DENY)/.test(m.getAttribute('title') || '')) m.remove();
       });
       text = copy.textContent.replace(/\s+/g, ' ').trim();
     }

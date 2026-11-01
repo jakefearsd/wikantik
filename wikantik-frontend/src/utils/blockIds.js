@@ -23,8 +23,12 @@
 // Where it can still differ (pinned per case in the fixture's "editor" entries, with the reason), and why it may:
 //   - a rule that is the text of a setext heading (`[{ALLOW …}]\n===`): the reader shows `===` as a paragraph;
 //   - indentation left by stripping inside a container (a quote, a list item): the reader may see code there;
-//   - a rule wrapped over lines, in lower case, or with a spelling only the server's two readings know;
+//   - a rule in lower case, or in a spelling only the server's two readings know (a rule with a space after `[{`,
+//     wrapped over lines or holding a brace IS read, as RULE_TEXT says; the preview draws the last two as text);
 //   - the preview's drawing of a rule-only list item and of what the reader shows as code (ids agree there).
+// So the editor never acts on this reading where it might be wrong: on a block whose source holds `[{` (every rule the
+// reader strips starts so), markerChange and blockLinkEdit refuse with code ACCESS_RULES and the link completion lists
+// the block disabled — such a block is linked from the page view, which asks the server.
 // None of this reaches the server: the editor's block indices are its own (the picker's local list, a marker inserted
 // into the buffer and read back here); a block on another page is listed and tagged by the server's index and version.
 import { unified } from 'unified';
@@ -50,9 +54,16 @@ export const MARKER_WITH_SPACE = /^[ \t\r\n]*\^([A-Za-z0-9-]+)[ \t\r\n]*$/;
 const TRAILING_BLANKS = /[ \t\r\n]+$/;
 
 const ID_RE = /^[A-Za-z0-9-]+$/;
-/** An access rule written as text (`[{ALLOW …}]`, `[{DENY …}]`, with or without `()`). Global: use with replace. */
-export const RULE_TEXT = /\[\{(?:ALLOW|DENY)[^}\n]*\}\](?:\(\))?/g;
-const RULE_LINK_TEXT = /^\{(?:ALLOW|DENY)/;
+/**
+ * An access rule written as text, with or without `()`, in every spelling the server strips (AclDirectiveScanner in
+ * wide mode, and the render path's links): whitespace may follow the opener (`[{ ALLOW …}]`), the rule may wrap over
+ * lines but never across a blank line, and it runs to the FIRST `}]` — so a `}` inside it (`[{ALLOW edit {x}}]`) is
+ * part of it. Global: use with replace.
+ */
+export const RULE_TEXT = /\[\{[ \t\n\v\f\r]*(?:ALLOW|DENY)(?:(?!\r?\n[ \t]*\r?\n)[\s\S])*?\}\](?:\(\))?/g;
+const RULE_LINK_TEXT = /^\{[ \t\n\v\f\r]*(?:ALLOW|DENY)/;
+/** What a refusal to add or copy a marker on a block holding `[{` carries as its `code`. */
+export const ACCESS_RULES = 'access-rules';
 const NEW_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const NEW_ID_LENGTH = 6;
 const FINGERPRINT_LENGTH = 200;
@@ -513,6 +524,7 @@ function coordsOf(md, bodyStart, body) {
 }
 
 const lineStart = (text, pos) => text.lastIndexOf('\n', pos - 1) + 1;
+const lineEnd = (text, pos) => { const nl = text.indexOf('\n', pos); return nl < 0 ? text.length : nl; };
 
 /**
  * Every addressable block of `md` (the editor buffer; leading frontmatter is skipped), in the server's order:
@@ -564,6 +576,10 @@ export function blocksFromMarkdown(md) {
     markerTo: located[index].range[1],
     inlineAt: located[index].inlineAt,
     text: plainText(e.node),
+    // the block's lines, to the end of its marker's: anything the reader might strip starts with `[{`, and where it
+    // does, this raw reading may not be the reader's — the editor then neither adds nor copies a marker
+    rules: md.slice(lineStart(md, located[index].from),
+      lineEnd(md, Math.max(located[index].to, located[index].range[1]))).includes('[{'),
   }));
 }
 
@@ -611,14 +627,20 @@ function standaloneMarkerChange(text, b, id) {
 
 const applyChange = (md, c) => md.slice(0, c.from) + c.insert + md.slice(c.to);
 
+/** The refusal to add or copy a marker on `b`, a block holding `[{` (see blocksFromMarkdown's `rules`). */
+function accessRulesRefusal(b) {
+  return Object.assign(new Error(`Block ${b.index} contains access rules: link it from the page view`), { code: ACCESS_RULES });
+}
+
 /**
  * The one edit that tags `block` (from `blocksFromMarkdown(md)`) with `id`, as `{ from, to, insert }` over `md`: an
  * inline ` ^id` at the end of a paragraph or of a list item's first line, otherwise a standalone marker line after the
  * block; a losing duplicate's marker is replaced. Mirrors the server's BlockIds.assign. The editor applies it as one
  * transaction, so it is one undo step and the caret maps through it.
  *
- * @throws Error when `id` is malformed, `block` is not a current block of `md`, it already has an id or can't take
- *   one, or the edited text does not read back with the block tagged.
+ * @throws Error when `id` is malformed, `block` is not a current block of `md`, it holds access rules (`code`
+ *   ACCESS_RULES: the reader may read it otherwise than this mirror, so no marker is added from this reading), it
+ *   already has an id or can't take one, or the edited text does not read back with the block tagged.
  */
 export function markerChange(md, block, id) {
   if (typeof id !== 'string' || !ID_RE.test(id)) throw new Error(`Not a block id: ${id}`);
@@ -626,6 +648,7 @@ export function markerChange(md, block, id) {
   if (!b || b.kind !== block.kind || b.from !== block.from || b.to !== block.to) {
     throw new Error(`Block ${block?.index} is not a current block of this text`);
   }
+  if (b.rules) throw accessRulesRefusal(b);
   if (b.id != null) throw new Error(`Block ${b.index} already has id ^${b.id}`);
   let change;
   if (b.markerFrom >= 0) {   // a duplicate: its marker carries no id, so its ^id is replaced
@@ -667,11 +690,14 @@ export function takenBlockIds(md) {
 
 /**
  * What "copy a link to the block at `pos`" needs: `{ id, change }`, where `change` is the marker edit for a block
- * without an id (null when it already has one), or null when no block holds `pos`.
+ * without an id (null when it already has one), or null when no block holds `pos`. Throws (`code` ACCESS_RULES) for a
+ * block holding `[{`, id or not: the reader strips access rules before it reads markers, and this mirror may read
+ * that block otherwise — a marker it added could orphan the id the reader shows, an id it copied could be none.
  */
 export function blockLinkEdit(md, pos) {
   const b = blockAt(md, pos);
   if (!b) return null;
+  if (b.rules) throw accessRulesRefusal(b);   // neither add a marker nor copy one this reading may have wrong
   if (b.id) return { id: b.id, change: null };
   const id = newBlockId(takenBlockIds(md));
   return { id, change: markerChange(md, b, id) };

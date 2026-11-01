@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   BLOCK_ID_RE, STANDALONE_RE, isBlockRef, blocksFromMarkdown, newBlockId, insertMarker, blockFingerprint,
-  markerChange, blockAt, takenBlockIds, blockLinkEdit, blockMarkers,
+  markerChange, blockAt, takenBlockIds, blockLinkEdit, blockMarkers, ACCESS_RULES,
 } from './blockIds';
 
 // Mirrors the server's BlockIdsTest (com.wikantik.parser.markdown): the same inputs, the same answers.
@@ -53,7 +53,7 @@ describe('blocksFromMarkdown', () => {
     expect(blocksFromMarkdown(md)).toEqual([{
       index: 0, id: 'abc', kind: 'paragraph', from: 0, to: 'Alpha beta ^abc'.length,
       markerFrom: 'Alpha beta'.length, markerTo: 'Alpha beta ^abc'.length, inlineAt: 'Alpha beta ^abc'.length,
-      text: 'Alpha beta',
+      text: 'Alpha beta', rules: false,
     }]);
   });
 
@@ -224,9 +224,11 @@ describe('blocksFromMarkdown', () => {
     const b = blocksFromMarkdown(md)[0];
     expect([b.markerFrom, b.markerTo]).toEqual([4, 9]);
     expect(blockMarkers(md)).toEqual([{ id: 'id', caret: 5, wins: true }]);
-    // so copying a link reuses the id the reader shows, and never adds a second marker that would orphan it
-    expect(blockLinkEdit(md, 1)).toEqual({ id: 'id', change: null });
-    expect(blockLinkEdit('Para ^id\n[{ALLOW view Admin}]\n', 1)).toEqual({ id: 'id', change: null });
+    // and copying a link neither adds a second marker (which would orphan the id the reader shows) nor copies this
+    // reading's id: a block holding [{ is linked from the page view
+    for (const text of [md, 'Para ^id\n[{ALLOW view Admin}]\n']) {
+      expect(() => blockLinkEdit(text, 1)).toThrow(expect.objectContaining({ code: ACCESS_RULES }));
+    }
     // only blanks and rules may follow: other text keeps the caret literal
     expect(ids('Para ^id [{ALLOW view Admin}] more\n')).toEqual([null]);
     expect(ids('Para ^id\n[{ALLOW view Admin}] more\n')).toEqual([null]);
@@ -469,5 +471,47 @@ describe('blockMarkers', () => {
       { id: 'b', caret: md.lastIndexOf('^b'), wins: false },
     ]);
     expect(blockMarkers('')).toEqual([]);
+  });
+});
+
+// Spellings of an access rule the reader strips that a narrow pattern misses, and shapes this mirror still reads
+// otherwise than the reader. On any block whose source holds `[{` the editor neither adds nor copies a marker.
+describe('blocks holding access rules', () => {
+  const SPELLINGS = [
+    ['a space after the opener', 'Para ^id [{ ALLOW view Admin}]\n'],
+    ['a space after the opener, in a list item', '- Item ^id [{ ALLOW view Admin}]\n'],
+    ['a rule wrapped over two lines', 'Para ^id [{ALLOW view\nAdmin}]\n'],
+    ['a wrapped rule on the next line', 'Para ^id\n[{ALLOW view\nAdmin}]\n'],
+    ['a brace inside the rule', 'Para ^id [{ALLOW edit {x}}]\n'],
+  ];
+  const LESSER = [
+    ['a quote whose standalone marker stripping indents into code', '> Para\n>\n> [{ALLOW view Admin}]    ^id\n'],
+    ['a list item whose standalone marker stripping indents into code', '- Item\n\n  [{ALLOW view Admin}]    ^id\n'],
+  ];
+  const refusal = (fn) => {
+    try { fn(); } catch (e) { return e.code; }
+    return 'no refusal';
+  };
+
+  it.each(SPELLINGS)('reads the marker before %s as the reader does', (_n, md) => {
+    expect(blocksFromMarkdown(md).map((b) => b.id)).toEqual(['id']);
+    expect(blockMarkers(md).map((m) => m.id)).toEqual(['id']);
+  });
+
+  it.each([...SPELLINGS, ...LESSER])('neither adds nor copies a marker beside %s', (_n, md) => {
+    const at = md.search(/Para|Item/) + 1;
+    const blocks = blocksFromMarkdown(md);
+    expect(blocks.filter((b) => b.from <= at && at <= b.to).every((b) => b.rules)).toBe(true);
+    expect(refusal(() => blockLinkEdit(md, at))).toBe(ACCESS_RULES);
+    for (const b of blocks) expect(refusal(() => markerChange(md, { ...b, id: null }, 'zzzzzz'))).toBe(ACCESS_RULES);
+  });
+
+  it('marks only the blocks whose own source holds [{', () => {
+    const md = 'Para.\n\n[{ALLOW view Admin}]\n\nAfter.\n\nSee [{TableOfContents}] here\n';
+    expect(blocksFromMarkdown(md).map((b) => [b.text, b.rules])).toEqual([['Para.', false], ['After.', false],
+      ['See [{TableOfContents}] here', true]]);
+    // a standalone marker beside a rule makes its block hold one: the marker's line is part of it
+    expect(blocksFromMarkdown('Para.\n\n[{ALLOW view Admin}] ^id\n').map((b) => b.rules)).toEqual([true]);
+    expect(blockLinkEdit('Para ^abc\n', 2)).toEqual({ id: 'abc', change: null });
   });
 });

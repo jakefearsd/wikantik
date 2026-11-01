@@ -1143,8 +1143,8 @@ describe('derived-page banner + misc', () => {
       typeInEditor('Alpha ^abc\n\nBeta');
       const { getBlocks } = linkSourceDeps.current;
       const expected = { local: true, canAssign: true, blocks: [
-        { index: 0, id: 'abc', kind: 'paragraph', text: 'Alpha' },
-        { index: 1, id: null, kind: 'paragraph', text: 'Beta' },
+        { index: 0, id: 'abc', kind: 'paragraph', text: 'Alpha', rules: false },
+        { index: 1, id: null, kind: 'paragraph', text: 'Beta', rules: false },
       ] };
       expect(await getBlocks(null)).toEqual(expected);
       expect(await getBlocks('TestPage')).toEqual(expected);

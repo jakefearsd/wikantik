@@ -131,4 +131,12 @@ describe('PageEditor "Copy block link"', () => {
     expect(view.state.doc.toString()).toBe('- ^x');
     expect(warn).toHaveBeenCalled();
   });
+  it('a block holding access rules is refused with a toast, nothing copied and the text left alone', async () => {
+    const view = await editorView('Para ^id [{ ALLOW view Admin}]\n\nnext');
+    caretAt(view, 2);
+    await run();
+    expect(toast.error).toHaveBeenCalledWith('This block contains access rules — save, then copy its link from the page view');
+    expect(writeText).not.toHaveBeenCalled();
+    expect(view.state.doc.toString()).toBe('Para ^id [{ ALLOW view Admin}]\n\nnext');
+  });
 });

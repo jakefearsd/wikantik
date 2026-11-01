@@ -23,6 +23,9 @@ const HAS_SCHEME_OR_ROOT = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 
 const BLOCK_LABEL_CHARS = 120;
 const NO_ID_DETAIL = 'no id — needs edit access';
+/** A block of this buffer whose source holds `[{`: its raw reading may not be the reader's (blockIds.js `rules`). */
+const RULES_DETAIL = 'contains access rules — link it from the page view';
+const RULES_NOTE = 'This block contains access rules — link it from the page view';
 const PICK_AGAIN = 'This page changed — pick the block again';
 const TEXT_CHANGED = 'The text changed — pick the block again';
 const ASSIGN_REASONS = {
@@ -145,6 +148,10 @@ export function createWikiLinkSource({
       notify(TEXT_CHANGED);
       return;
     }
+    if (block.rules) {   // came to hold access rules since it was listed
+      notify(RULES_NOTE);
+      return;
+    }
     let id = block.id;
     const edits = [];
     if (!id) {
@@ -238,6 +245,14 @@ export function createWikiLinkSource({
       .slice(0, MAX_OPTIONS)
       .map((b) => {
         const label = blockLabel(b);
+        if (local && b.rules) {
+          // id or not: the reader strips the rules before it reads markers, and this buffer's reading may differ
+          return {
+            label, detail: RULES_DETAIL, type: 'block', disabled: true,
+            info: 'This block contains access rules, which the page view strips before it reads block ids. Save, then copy its link from the page view.',
+            apply: () => {},
+          };
+        }
         if (b.id) return { label, detail: `^${b.id}`, type: 'block', apply: linkTo(b.id) };
         if (local) {
           return { label, type: 'block', apply: (view, completion, from, to) => linkLocalBlock(view, b, linkTo, from, to, completion) };

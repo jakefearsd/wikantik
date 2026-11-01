@@ -185,23 +185,31 @@ public class LivePreviewRoundTripIT extends WithIntegrationTestSetup {
     }
 
     /**
-     * Whether CodeMirror has drawn the document's last line: its viewport reaches the end of the document and the
-     * DOM position of the document's end sits in a connected {@code .cm-line} showing that line's text.
+     * Whether CodeMirror has drawn the end of the document: its viewport reaches the end of the document, the DOM
+     * position of the document's end sits in a connected {@code .cm-line} showing that line's text, and — because the
+     * fixture ends with a newline, so its last line is empty and that comparison alone is vacuous — the last
+     * non-empty line ({@code "Final line"}) is drawn too, in a connected {@code .cm-line} showing exactly its text.
      */
     private static Map< ?, ? > lastLineState() {
         return EditWikiPage.evaluateOnView( """
             const doc = view.state.doc;
             const last = doc.line(doc.lines);
+            let lastText = last;
+            while (lastText.number > 1 && lastText.text.trim() === '') lastText = doc.line(lastText.number - 1);
             const inViewport = view.viewport.to >= doc.length;
-            let lineText = null;
-            if (inViewport) {
-              const { node } = view.domAtPos(doc.length);
+            const drawnLine = (pos) => {
+              const { node } = view.domAtPos(pos);
               const start = node.nodeType === 1 ? node : node.parentElement;
               const line = start && start.closest('.cm-line');
-              if (line && line.isConnected && view.contentDOM.contains(line)) lineText = line.textContent;
-            }
-            return { rendered: inViewport && lineText === last.text, viewportTo: view.viewport.to,
-                     docLength: doc.length, lastLine: last.number, lastLineText: last.text, drawnText: lineText };
+              return line && line.isConnected && view.contentDOM.contains(line) ? line.textContent : null;
+            };
+            const lineText = inViewport ? drawnLine(doc.length) : null;
+            const lastTextDrawn = inViewport && lastText.from >= view.viewport.from ? drawnLine(lastText.to) : null;
+            return { rendered: inViewport && lineText === last.text && lastText.text.trim() !== ''
+                               && lastTextDrawn === lastText.text,
+                     viewportTo: view.viewport.to, docLength: doc.length, lastLine: last.number,
+                     lastLineText: last.text, drawnText: lineText, lastNonEmptyLine: lastText.number,
+                     lastNonEmptyText: lastText.text, lastNonEmptyDrawn: lastTextDrawn };
             """ );
     }
 

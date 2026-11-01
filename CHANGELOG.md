@@ -6,6 +6,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Obsidian block references.** End a paragraph or list item with ` ^id` (or put `^id` alone on the
+  paragraph's last line; for a table, list, quote, callout, code or math block put it on its own line after a
+  blank line) to give that block an anchor. `[[Page#^id]]` and `[[#^id]]` link to it and `![[Page#^id]]`
+  embeds just that block. Heading lines take no ids; ids are case-sensitive and the first occurrence wins.
+  - **Reader:** a gutter button on each block copies `[[Page#^id]]` (or the URL), adding a 6-character id when
+    the block has none and you can edit the page (a new page version, refused with a reload hint if the page
+    changed meanwhile). Opening a `#^id` link lands on the block and briefly highlights it; hover previews show
+    the block.
+  - **Editor:** `[[Page#^` completes blocks (assigning an id on pick when needed), a "Copy block link"
+    command, block ids in the preview and live preview (duplicates flagged).
+  - **API/agents:** `GET /api/pages/{name}/blocks` lists a page's blocks; `POST` assigns an id
+    (version-checked); `POST /api/pages/{name}/blocks/draft` reads the editor's unsaved text with the server's
+    block model, so every id the editor adds or copies is the one readers will see. `/preview` and `/embed`
+    accept `section=^id`. `get_broken_links` and the admin content
+    page list links to missing blocks. Agents read and write markers as page text (no new MCP tools).
+  - Block markers are removed from excerpts, search, chunk text and embeddings, `?format=md|json` and the
+    for-agent projection, and kept in page source.
+- **Paste as Markdown** in the editor: rich clipboard HTML (Google Docs, Word, Confluence, GitHub, web pages and
+  this wiki) converts to Markdown. Mod-Shift-V and "Paste as plain text" paste verbatim; pasting a URL over a
+  selection links it. Never converts inside code or on legacy wiki-markup pages.
+
+### Changed
+- The Obsidian vault importer keeps `^id` block markers and `[[x#^id]]` / `![[x#^id]]` links instead of
+  stripping them (a combined `Heading#^id` fragment becomes `#^id`). Vaults imported before this release lost
+  their block ids; re-import a vault to recover them.
+- Rendered pages carry `data-block` ordinals on their own blocks (plugin output has none).
+
+### Fixed
+- Toasts no longer re-run reader effects: a toast after opening a `#fragment` link no longer scrolls back to
+  the target.
+
+### Security
+- OpenTelemetry pinned to 1.67.0 (GHSA-ccrj-gw8r-854m, via anthropic-java-core and Selenium).
+
 ## [2.5.3] - 2026-10-28
 
 ### Changed

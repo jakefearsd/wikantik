@@ -21,7 +21,6 @@ package com.wikantik.auth;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Acl;
-import com.wikantik.api.core.AclEntry;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
@@ -74,6 +73,8 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
+
+import static com.wikantik.auth.acl.DefaultAclManager.LOCKED_PRINCIPAL;
 
 
 /**
@@ -210,8 +211,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /**
      * Pure authorization evaluation — no events fired. Single source of truth for both
      * {@link #checkPermission} (which fires + audits) and {@link #isPermitted} (silent).
-     * Resolving unresolved ACL principals here is an intentional, idempotent side effect
-     * preserved from the original checkPermission logic.
+     * Unresolved ACL principals are resolved per decision; the enforced ACL is never changed.
      */
     private Decision decide( final Session session, final Permission permission ) {
         if( session == null || permission == null ) {
@@ -269,21 +269,17 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     }
 
     /**
-     * Evaluates a non-empty page ACL: resolves any still-unresolved principals in place
-     * (an intentional, idempotent side effect preserved from the original logic), then
-     * grants when the session matches any principal the ACL lists for this permission.
+     * Evaluates a non-empty page ACL: grants when the session matches any principal the ACL
+     * lists for this permission. A still-unresolved principal is resolved again for this
+     * decision only — the ACL is the shared, read-only enforced one (#104), never re-bound.
      */
     private Decision decideByAcl( final Session session, final Permission permission, final Acl acl ) {
         final Principal[] aclPrincipals = acl.findPrincipals( permission );
         for( Principal aclPrincipal : aclPrincipals ) {
             if ( aclPrincipal instanceof UnresolvedPrincipal unresolvedPrincipal ) {
-                final AclEntry aclEntry = acl.getAclEntry( aclPrincipal );
                 // A name that named no one when the ACL was read may since have become a role, a
                 // group or an account's login.
                 aclPrincipal = resolvePrincipal( unresolvedPrincipal.getName() );
-                if ( aclEntry != null && !( aclPrincipal instanceof UnresolvedPrincipal ) ) {
-                    aclEntry.setPrincipal( aclPrincipal );
-                }
             }
             if ( hasRoleOrPrincipal( session, aclPrincipal ) ) {
                 return new Decision( true, null );
@@ -320,7 +316,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     @Override
     public boolean hasRoleOrPrincipal( final Session session, final Principal principal ) {
         // If either parameter is null, always deny; and no session ever holds the principal of a locked page's ACL
-        if( session == null || principal == null || principal == com.wikantik.auth.acl.DefaultAclManager.LOCKED_PRINCIPAL ) {
+        if( session == null || principal == null || principal == LOCKED_PRINCIPAL ) {
             return false;
         }
 

@@ -24,6 +24,7 @@ import com.wikantik.api.core.AclEntry;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.WikiPrincipal;
@@ -87,7 +88,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void parseAclThrowsOnInvalidRuleLine() {
+    void parseAclThrowsOnInvalidRuleLine() throws Exception {
         final Page page = mock( Page.class );
         when( page.getAcl() ).thenReturn( null );
 
@@ -101,7 +102,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void parseAclThrowsOnInvalidPermissionType() {
+    void parseAclThrowsOnInvalidPermissionType() throws Exception {
         final Page page = mock( Page.class );
         when( page.getAcl() ).thenReturn( null );
         when( page.getWiki() ).thenReturn( "" );
@@ -148,7 +149,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getPermissionsIgnoresAnAclSetOnThePage() {
+    void getPermissionsIgnoresAnAclSetOnThePage() throws Exception {
         final Page page = aclPage( "PresetAclPage", "No rules here." );
         final Acl preset = Wiki.acls().acl();
         final AclEntry entry = Wiki.acls().entry();
@@ -163,19 +164,109 @@ class DefaultAclManagerCITest {
     }
 
     @Test
-    void getPermissionsServesTheSameVersionFromItsCacheWithoutRereading() {
+    void getPermissionsServesTheSameVersionFromItsCacheWithoutRereading() throws Exception {
         final Page page = aclPage( "CachedAclPage", "[{ALLOW view Alice}]" );
         final Acl first = aclMgr.getPermissions( page );
         final Acl second = aclMgr.getPermissions( page );
         assertSame( first, second );
-        verify( pageMgr, times( 1 ) ).getPureText( any( Page.class ) );
+        verify( pageMgr, times( 1 ) ).getPageText( eq( "CachedAclPage" ), anyInt() );
     }
 
     @Test
-    void theEnforcedAclCannotBeChanged() {
+    void theEnforcedAclCannotBeChanged() throws Exception {
         final Acl acl = aclMgr.getPermissions( aclPage( "ReadOnlyAclPage", "[{ALLOW view Alice}]" ) );
         assertThrows( UnsupportedOperationException.class, () -> acl.addEntry( Wiki.acls().entry() ) );
         assertThrows( UnsupportedOperationException.class, () -> acl.removeEntry( acl.aclEntries().nextElement() ) );
+
+        // Nor through an entry: widening one would widen the cached ACL for everyone.
+        final java.security.Permission edit = PermissionFactory.getPagePermission( "main:ReadOnlyAclPage", "edit" );
+        final java.security.Permission view = PermissionFactory.getPagePermission( "main:ReadOnlyAclPage", "view" );
+        for ( final AclEntry entry : java.util.List.of( acl.aclEntries().nextElement(), acl.getAclEntry( new WikiPrincipal( "Alice" ) ) ) ) {
+            assertThrows( UnsupportedOperationException.class, () -> entry.addPermission( edit ) );
+            assertThrows( UnsupportedOperationException.class, () -> entry.removePermission( view ) );
+            assertThrows( UnsupportedOperationException.class, () -> entry.setPrincipal( new WikiPrincipal( "Mallory" ) ) );
+        }
+        assertEquals( 0, aclMgr.getPermissions( aclPage( "ReadOnlyAclPage", "[{ALLOW view Alice}]" ) )
+                .findPrincipals( edit ).length, "nothing widened the cached ACL" );
+        assertTrue( acl.getAclEntry( new WikiPrincipal( "Alice" ) ).checkPermission( view ), "the view answers like the entry" );
+    }
+
+    @Test
+    void printAclPrintsAMultiActionRuleAsOneRulePerAction() throws Exception {
+        final Acl acl = aclMgr.getPermissions( aclPage( "MultiActionPage", "[{ALLOW edit,view Alice}]\n[{ALLOW view Bob}]" ) );
+        assertEquals( "[{ALLOW edit Alice}]\n[{ALLOW view Alice,Bob}]\n", DefaultAclManager.printAcl( acl ) );
+    }
+
+    @Test
+    void setPermissionsPutsTheRulesAfterTheFrontmatter() throws Exception {
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "FrontPage" );
+        when( page.getWiki() ).thenReturn( "" );
+        when( pageMgr.getPageText( anyString(), anyInt() ) )
+                .thenReturn( "---\ncanonical_id: 01ABC\ncluster: finance\n---\n[{ALLOW view Old}]\nBody.\n" );
+        final Acl acl = Wiki.acls().acl();
+        final AclEntry entry = Wiki.acls().entry();
+        entry.setPrincipal( new WikiPrincipal( "New" ) );
+        entry.addPermission( PermissionFactory.getPagePermission( "test:FrontPage", "view" ) );
+        acl.addEntry( entry );
+
+        aclMgr.setPermissions( page, acl );
+
+        verify( pageMgr ).putPageText( eq( page ),
+                eq( "---\ncanonical_id: 01ABC\ncluster: finance\n---\n[{ALLOW view New}]\n\nBody.\n" ) );
+    }
+
+    /** Page texts for the frontmatter-preservation check: name, stored text. */
+    static java.util.stream.Stream< org.junit.jupiter.params.provider.Arguments > frontmatterShapes() {
+        return java.util.stream.Stream.of(
+                org.junit.jupiter.params.provider.Arguments.of( "LF frontmatter",
+                        "---\ncanonical_id: 01ABC\ncluster: finance\ntags: [a, b]\nsummary: \"S: x\"\n---\n[{ALLOW view Old}]\nBody.\n" ),
+                org.junit.jupiter.params.provider.Arguments.of( "CRLF frontmatter",
+                        "---\r\ncanonical_id: 01ABC\r\ncluster: finance\r\n---\r\n[{ALLOW view Old}]\r\nBody.\r\n" ),
+                org.junit.jupiter.params.provider.Arguments.of( "no frontmatter", "[{ALLOW view Old}]\nBody.\n" ),
+                org.junit.jupiter.params.provider.Arguments.of( "only frontmatter", "---\ncanonical_id: 01ABC\ncluster: finance\n---\n" ),
+                org.junit.jupiter.params.provider.Arguments.of( "only frontmatter, no line end after it",
+                        "---\ncanonical_id: 01ABC\ncluster: finance\n---" ),
+                org.junit.jupiter.params.provider.Arguments.of( "only frontmatter, CRLF, no line end after it",
+                        "---\r\ncanonical_id: 01ABC\r\n---" ),
+                org.junit.jupiter.params.provider.Arguments.of( "empty frontmatter block", "---\n---\nBody.\n" ) );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest( name = "{0}" )
+    @org.junit.jupiter.params.provider.MethodSource( "frontmatterShapes" )
+    void setPermissionsKeepsTheFrontmatterByteForByte( final String name, final String stored ) throws Exception {
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "ShapePage" );
+        when( page.getWiki() ).thenReturn( "" );
+        when( pageMgr.getPageText( anyString(), anyInt() ) ).thenReturn( stored );
+        final Acl acl = Wiki.acls().acl();
+        final AclEntry entry = Wiki.acls().entry();
+        entry.setPrincipal( new WikiPrincipal( "New" ) );
+        entry.addPermission( PermissionFactory.getPagePermission( "test:ShapePage", "view" ) );
+        acl.addEntry( entry );
+
+        aclMgr.setPermissions( page, acl );
+
+        final ArgumentCaptor< String > written = ArgumentCaptor.forClass( String.class );
+        verify( pageMgr ).putPageText( eq( page ), written.capture() );
+        final String out = written.getValue();
+        final int head = com.wikantik.api.frontmatter.FrontmatterParser.bodyOffset( stored );
+        final String frontmatter = stored.substring( 0, head );
+        assertTrue( out.startsWith( frontmatter ), "the frontmatter bytes come first, unchanged: " + out );
+        assertEquals( com.wikantik.api.frontmatter.FrontmatterParser.parse( stored ).metadata(),
+                com.wikantik.api.frontmatter.FrontmatterParser.parse( out ).metadata(), "the frontmatter reads the same: " + out );
+        assertEquals( new AccessRules.Rules( java.util.List.of( "ALLOW view New" ), AccessRules.read( out ).spans() ),
+                AccessRules.read( out ), "the new rule is the page's one rule, in its body: " + out );
+        assertTrue( out.endsWith( stored.substring( head ).replace( "[{ALLOW view Old}]", "" ) ), "the body is kept: " + out );
+    }
+
+    @Test
+    void setPermissionsWritesNothingWhenThePageCannotBeRead() throws Exception {
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "UnreadablePage" );
+        when( pageMgr.getPageText( anyString(), anyInt() ) ).thenThrow( new ProviderException( "provider down" ) );
+        assertThrows( WikiSecurityException.class, () -> aclMgr.setPermissions( page, Wiki.acls().acl() ) );
+        verify( pageMgr, never() ).putPageText( any(), anyString() );
     }
 
     // -------------------------------------------------------------------------
@@ -183,7 +274,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void aDisputedShapeLocksThePage() {
+    void aDisputedShapeLocksThePage() throws Exception {
         final Page page = aclPage( "DenyPage", "[{DENY view Alice}]\n\nBody." );
         final Acl acl = aclMgr.getPermissions( page );
         assertEquals( 1, java.util.Collections.list( acl.aclEntries() ).size() );
@@ -196,7 +287,7 @@ class DefaultAclManagerCITest {
     }
 
     @Test
-    void aRuleLineTheAclParserRefusesLocksThePage() {
+    void aRuleLineTheAclParserRefusesLocksThePage() throws Exception {
         final Page page = aclPage( "RefusedPage", "x" );
         final AccessRules.Rules rules = new AccessRules.Rules( java.util.List.of( "ALLOW nonsense Alice" ),
                 java.util.List.of( new AccessRules.Span( 0, 1, AccessRules.Shape.CANONICAL ) ) );
@@ -205,17 +296,27 @@ class DefaultAclManagerCITest {
     }
 
     @Test
-    void anUnreadablePageTextLocksThePageWithoutCachingIt() {
+    void aProviderFailureLocksThePageWithoutCachingIt() throws Exception {
         final Page page = aclPage( "BrokenPage", "x" );
-        when( pageMgr.getPureText( any( Page.class ) ) ).thenThrow( new IllegalStateException( "provider down" ) );
+        when( pageMgr.getPageText( eq( "BrokenPage" ), anyInt() ) ).thenThrow( new ProviderException( "provider down" ) );
         final Acl acl = aclMgr.getPermissions( page );
         assertNotNull( acl.getAclEntry( DefaultAclManager.LOCKED_PRINCIPAL ) );
         aclMgr.getPermissions( page );
-        verify( pageMgr, times( 2 ) ).getPureText( any( Page.class ) );
+        verify( pageMgr, times( 2 ) ).getPageText( eq( "BrokenPage" ), anyInt() );
     }
 
     @Test
-    void theLockedPrincipalIsNoLogin() {
+    void aPrincipalThatCannotBeResolvedLocksThePageWithoutCachingIt() throws Exception {
+        final Page page = aclPage( "ResolverDownPage", "[{ALLOW view Alice}]" );
+        doThrow( new IllegalStateException( "user database down" ) ).when( authMgr ).resolvePrincipal( anyString() );
+        assertNotNull( aclMgr.getPermissions( page ).getAclEntry( DefaultAclManager.LOCKED_PRINCIPAL ), "fail closed" );
+
+        doAnswer( inv -> new WikiPrincipal( inv.getArgument( 0, String.class ) ) ).when( authMgr ).resolvePrincipal( anyString() );
+        assertNotNull( aclMgr.getPermissions( page ).getAclEntry( new WikiPrincipal( "Alice" ) ), "not cached: read again" );
+    }
+
+    @Test
+    void theLockedPrincipalIsNoLogin() throws Exception {
         assertTrue( DefaultAclManager.LOCKED_PRINCIPAL.getName().indexOf( '\u0000' ) >= 0 );
         assertNotEquals( DefaultAclManager.LOCKED_PRINCIPAL, new WikiPrincipal( DefaultAclManager.LOCKED_PRINCIPAL.getName() ) );
     }
@@ -225,7 +326,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getPermissionsDelegatesToParentPageForAttachment() {
+    void getPermissionsDelegatesToParentPageForAttachment() throws Exception {
         final Page parentPage = aclPage( "ParentPage", "[{ALLOW view Alice}]" );
         when( pageMgr.getPage( eq( "ParentPage" ) ) ).thenReturn( parentPage );
 
@@ -242,7 +343,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getPermissionsExtractsMultipleAclRulesFromPageText() {
+    void getPermissionsExtractsMultipleAclRulesFromPageText() throws Exception {
         final Page page = mock( Page.class );
         when( page.getWiki() ).thenReturn( "main" );
         when( page.getName() ).thenReturn( "MultiAclPage" );
@@ -254,9 +355,9 @@ class DefaultAclManagerCITest {
         when( page.getAcl() ).thenAnswer( inv -> holder[0] );
 
         // Stub both the overloaded String+int form AND the default Page form
-        when( pageMgr.getPureText( eq( "MultiAclPage" ), anyInt() ) )
+        when( pageMgr.getPageText( eq( "MultiAclPage" ), anyInt() ) )
                 .thenReturn( "[{ALLOW view Alice}] some text [{ALLOW edit Bob}]" );
-        when( pageMgr.getPureText( any( Page.class ) ) )
+        when( pageMgr.getPageText( anyString(), anyInt() ) )
                 .thenReturn( "[{ALLOW view Alice}] some text [{ALLOW edit Bob}]" );
 
         // extractAclFromPageText strips the [{ }] braces before handing the rule line to
@@ -297,7 +398,7 @@ class DefaultAclManagerCITest {
      * resolved.
      */
     @Test
-    void getPermissionsResolvesSolePrincipalWithoutTheRuleTerminator() {
+    void getPermissionsResolvesSolePrincipalWithoutTheRuleTerminator() throws Exception {
         final Page page = aclPage( "SoleAclPage", "[{ALLOW view Alice}]" );
 
         final Acl result = aclMgr.getPermissions( page );
@@ -310,7 +411,7 @@ class DefaultAclManagerCITest {
     }
 
     @Test
-    void getPermissionsResolvesLastOfSeveralCommaSeparatedPrincipals() {
+    void getPermissionsResolvesLastOfSeveralCommaSeparatedPrincipals() throws Exception {
         final Page page = aclPage( "MultiPrincipalPage", "[{ALLOW view Alice,Bob}]" );
 
         final Acl result = aclMgr.getPermissions( page );
@@ -327,7 +428,7 @@ class DefaultAclManagerCITest {
      * accumulates entries) and whose text is {@code pageText}, with an echoing
      * principal resolver installed on the shared {@link #authMgr} mock.
      */
-    private Page aclPage( final String name, final String pageText ) {
+    private Page aclPage( final String name, final String pageText ) throws Exception {
         final Page page = mock( Page.class );
         when( page.getWiki() ).thenReturn( "main" );
         when( page.getName() ).thenReturn( name );
@@ -337,8 +438,8 @@ class DefaultAclManagerCITest {
                 .when( page ).setAcl( any( Acl.class ) );
         when( page.getAcl() ).thenAnswer( inv -> holder[ 0 ] );
 
-        when( pageMgr.getPureText( eq( name ), anyInt() ) ).thenReturn( pageText );
-        when( pageMgr.getPureText( any( Page.class ) ) ).thenReturn( pageText );
+        when( pageMgr.getPageText( eq( name ), anyInt() ) ).thenReturn( pageText );
+        when( pageMgr.getPageText( anyString(), anyInt() ) ).thenReturn( pageText );
         when( authMgr.resolvePrincipal( anyString() ) )
                 .thenAnswer( inv -> new WikiPrincipal( inv.getArgument( 0, String.class ) ) );
         return page;
@@ -349,12 +450,12 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getPermissionsReturnsEmptyAclForEmptyPageText() {
+    void getPermissionsReturnsEmptyAclForEmptyPageText() throws Exception {
         final Page page = mock( Page.class );
         when( page.getAcl() ).thenReturn( null );
         when( page.getName() ).thenReturn( "EmptyPage" );
-        when( pageMgr.getPureText( eq( "EmptyPage" ), anyInt() ) ).thenReturn( "" );
-        when( pageMgr.getPureText( any( Page.class ) ) ).thenReturn( "" );
+        when( pageMgr.getPageText( eq( "EmptyPage" ), anyInt() ) ).thenReturn( "" );
+        when( pageMgr.getPageText( anyString(), anyInt() ) ).thenReturn( "" );
 
         final Acl result = aclMgr.getPermissions( page );
         assertNotNull( result );
@@ -371,10 +472,10 @@ class DefaultAclManagerCITest {
         when( page.getName() ).thenReturn( "LocklessPage" );
         when( page.getWiki() ).thenReturn( "" );
 
-        // Stub both forms of getPureText so the default method works too
-        when( pageMgr.getPureText( eq( "LocklessPage" ), anyInt() ) )
+        // Stub the text read (by name and by any name)
+        when( pageMgr.getPageText( eq( "LocklessPage" ), anyInt() ) )
                 .thenReturn( "Some content without any ACL rules." );
-        when( pageMgr.getPureText( any( Page.class ) ) )
+        when( pageMgr.getPageText( anyString(), anyInt() ) )
                 .thenReturn( "Some content without any ACL rules." );
 
         // Build an ACL with one entry
@@ -401,9 +502,9 @@ class DefaultAclManagerCITest {
         when( page.getName() ).thenReturn( "LockedPage" );
         when( page.getWiki() ).thenReturn( "" );
 
-        when( pageMgr.getPureText( eq( "LockedPage" ), anyInt() ) )
+        when( pageMgr.getPageText( eq( "LockedPage" ), anyInt() ) )
                 .thenReturn( "Content. [{ALLOW view OldUser}]" );
-        when( pageMgr.getPureText( any( Page.class ) ) )
+        when( pageMgr.getPageText( anyString(), anyInt() ) )
                 .thenReturn( "Content. [{ALLOW view OldUser}]" );
 
         final Acl acl = Wiki.acls().acl();
@@ -427,7 +528,7 @@ class DefaultAclManagerCITest {
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "DisputedPage" );
         when( page.getWiki() ).thenReturn( "" );
-        when( pageMgr.getPureText( any( Page.class ) ) ).thenReturn( "[{DENY view OldUser}]\nContent." );
+        when( pageMgr.getPageText( anyString(), anyInt() ) ).thenReturn( "[{DENY view OldUser}]\nContent." );
 
         final Acl acl = Wiki.acls().acl();
         final AclEntry entry = Wiki.acls().entry();
@@ -440,7 +541,7 @@ class DefaultAclManagerCITest {
     }
 
     @Test
-    void setPermissionsRefusesALockedAcl() {
+    void setPermissionsRefusesALockedAcl() throws Exception {
         final Page locked = aclPage( "LockedAclPage", "[{DENY view x}]" );
         final Acl acl = aclMgr.getPermissions( locked );
         assertThrows( WikiSecurityException.class, () -> aclMgr.setPermissions( locked, acl ) );
@@ -451,7 +552,7 @@ class DefaultAclManagerCITest {
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "DocPage" );
         when( page.getWiki() ).thenReturn( "" );
-        when( pageMgr.getPureText( any( Page.class ) ) ).thenReturn( "[{ALLOW view Old}]()\nWrite `[{ALLOW edit Bob}]` to restrict." );
+        when( pageMgr.getPageText( anyString(), anyInt() ) ).thenReturn( "[{ALLOW view Old}]()\nWrite `[{ALLOW edit Bob}]` to restrict." );
 
         final Acl acl = Wiki.acls().acl();
         final AclEntry entry = Wiki.acls().entry();
@@ -469,7 +570,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void printAclReturnsEmptyStringForEmptyAcl() {
+    void printAclReturnsEmptyStringForEmptyAcl() throws Exception {
         final Acl emptyAcl = Wiki.acls().acl();
         assertEquals( "", DefaultAclManager.printAcl( emptyAcl ) );
     }
@@ -479,7 +580,7 @@ class DefaultAclManagerCITest {
     // -------------------------------------------------------------------------
 
     @Test
-    void printAclFormatsCorrectlyForSingleEntry() {
+    void printAclFormatsCorrectlyForSingleEntry() throws Exception {
         final Acl acl = Wiki.acls().acl();
         final AclEntry entry = Wiki.acls().entry();
         entry.setPrincipal( new WikiPrincipal( "Zara" ) );

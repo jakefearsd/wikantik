@@ -42,10 +42,12 @@ import java.security.Permission;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
@@ -190,33 +192,30 @@ public class DefaultAclManager implements AclManager {
             return hit.acl();
         }
 
-        final String pageText;
+        final Acl acl;
         try {
-            pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
-        } catch( final RuntimeException e ) {
-            // Not cached: the next check reads the text again.
-            LOG.warn( "The text of page {} could not be read to find its access rules; it is locked: {}", page.getName(), e.toString() );
+            acl = aclOf( page, PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPageText( page.getName(), page.getVersion() ) );
+        } catch( final ProviderException | RuntimeException e ) {
+            // Fail closed, and not cached: the next check reads (and resolves) again.
+            LOG.warn( "The access rules of page {} could not be read (text or principals); it is locked for now: {}",
+                    page.getName(), e.toString() );
             return lockedAcl( page );
         }
-        final Acl acl = aclOf( page, pageText );
         aclCache.put( page.getName(), new CachedAcl( page.getVersion(), lastModified, acl ) );
         page.setAcl( acl );
         return acl;
     }
 
-    /** The immutable ACL a page text gives: open when it has no rules, a lock when its rules cannot be read. */
+    /**
+     * The immutable ACL a page text gives: open when it has no text or no rules, a lock when its rules cannot be read.
+     * A failure to read them at all (a principal that cannot be resolved, say) is thrown, for the caller to lock without
+     * caching.
+     */
     Acl aclOf( final Page page, final String pageText ) {
         if( pageText == null || pageText.isEmpty() ) {
             return new ReadOnlyAcl( Wiki.acls().acl() );
         }
-        AccessRules.Reading reading;
-        try {
-            reading = AccessRules.read( pageText );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "Reading the access rules of page {} failed: {}", page.getName(), e.toString() );
-            reading = new AccessRules.Locked( List.of( new AccessRules.Reason( AccessRules.Shape.UNREADABLE, 1, e.toString() ) ), List.of() );
-        }
-        return aclOf( page, pageText, reading );
+        return aclOf( page, pageText, AccessRules.read( pageText ) );
     }
 
     /** The immutable ACL {@code reading} gives; a rule line the ACL parser refuses locks the page. */
@@ -301,14 +300,19 @@ public class DefaultAclManager implements AclManager {
             throw new WikiSecurityException( "Refusing to write the ACL of a locked page " + page.getName() );
         }
         final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-        final String pageText = pageManager.getPureText( page );
+        final String pageText;
+        try {
+            pageText = pageManager.getPageText( page.getName(), page.getVersion() );
+        } catch( final ProviderException e ) {
+            throw new WikiSecurityException( "Could not read page " + page.getName() + " to rewrite its ACL: " + e.getMessage(), e );
+        }
         final String text = pageText == null ? "" : pageText;
         final AccessRules.Reading reading = AccessRules.read( text );
         if( reading instanceof AccessRules.Locked locked ) {
             throw new WikiSecurityException( "The access rules of page " + page.getName() + " cannot be read, so they are not "
                     + "rewritten: " + locked.reasons() );
         }
-        final String newText = DefaultAclManager.printAcl( acl ) + AccessRules.without( text, reading.spans() );
+        final String newText = AccessRules.withRules( AccessRules.without( text, reading.spans() ), DefaultAclManager.printAcl( acl ) );
         try {
             pageManager.putPageText( page, newText );
         } catch( final ProviderException e ) {
@@ -325,32 +329,25 @@ public class DefaultAclManager implements AclManager {
      */
     protected static String printAcl( final Acl acl ) {
         // Extract the ACL entries into a Map with keys == permissions, values == principals
-        final Map< String, List< Principal > > permissionPrincipals = new TreeMap<>();
+        final Map< String, Set< Principal > > permissionPrincipals = new TreeMap<>();
         final Enumeration< AclEntry > entries = acl.aclEntries();
         while( entries.hasMoreElements() ) {
             final AclEntry entry = entries.nextElement();
             final Principal principal = entry.getPrincipal();
             final Enumeration< Permission > permissions = entry.permissions();
             while( permissions.hasMoreElements() ) {
-                final Permission permission = permissions.nextElement();
-                List< Principal > principals = permissionPrincipals.get( permission.getActions() );
-                if (principals == null) {
-                    principals = new ArrayList<>();
-                    final String action = permission.getActions();
-                    if( action.indexOf(',') != -1 ) {
-                        throw new IllegalStateException("AclEntry permission cannot have multiple targets.");
-                    }
-                    permissionPrincipals.put( action, principals );
+                // A rule may name several actions ("edit,view"); each is printed as a rule of its own.
+                for( final String action : permissions.nextElement().getActions().split( "," ) ) {
+                    permissionPrincipals.computeIfAbsent( action, a -> new LinkedHashSet<>() ).add( principal );
                 }
-                principals.add( principal );
             }
         }
 
         // Now, iterate through each permission in the map and generate an ACL string
         final StringBuilder aclText = new StringBuilder();
-        for( final Map.Entry< String, List< Principal > > entry : permissionPrincipals.entrySet() ) {
+        for( final Map.Entry< String, Set< Principal > > entry : permissionPrincipals.entrySet() ) {
             final String action = entry.getKey();
-            final List< Principal > principals = entry.getValue();
+            final List< Principal > principals = new ArrayList<>( entry.getValue() );
             principals.sort( new PrincipalComparator() );
             aclText.append( "[{ALLOW " ).append( action ).append(' ');
             for( int i = 0; i < principals.size(); i++ ) {

@@ -262,8 +262,8 @@ class DefaultAuthorizationManagerCITest {
         doReturn( false ).doReturn( true ).when( spy ).checkStaticPermission( any(), any() );
 
         assertTrue( spy.checkPermission( session, perm ) );
-        // The AclEntry should have been updated with the resolved principal
-        verify( aclEntry ).setPrincipal( Role.AUTHENTICATED );
+        // Resolved for this decision only: the enforced ACL is read-only and is never re-bound (#104)
+        verify( aclEntry, never() ).setPrincipal( any() );
     }
 
     // ==================== resolvePrincipal ====================

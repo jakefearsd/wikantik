@@ -23,32 +23,51 @@ import com.wikantik.api.core.AclEntry;
 
 import java.security.Permission;
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * A view of an ACL whose entry list cannot change: what {@link DefaultAclManager#getPermissions} hands out and caches. (Entries still
- * resolve a principal named before it existed in place — {@code DefaultAuthorizationManager} does, idempotently.)
+ * A view of an ACL that cannot change, entries included: what {@link DefaultAclManager#getPermissions} hands out and
+ * caches. Every caller shares it, so nothing may widen or narrow it — not its entry list, and not an entry's principal or
+ * permissions.
  */
 final class ReadOnlyAcl implements Acl {
+
+    private static final String REFUSED = "the enforced ACL of a page cannot be changed";
+
     private final Acl acl;
+    private final List< AclEntry > views;
+    private final Map< AclEntry, AclEntry > viewOf = new IdentityHashMap<>();
 
     ReadOnlyAcl( final Acl acl ) {
         this.acl = acl;
+        final List< AclEntry > out = new ArrayList<>();
+        for ( final Enumeration< AclEntry > entries = acl.aclEntries(); entries.hasMoreElements(); ) {
+            final AclEntry entry = entries.nextElement();
+            final AclEntry view = new ReadOnlyEntry( entry );
+            viewOf.put( entry, view );
+            out.add( view );
+        }
+        views = List.copyOf( out );
     }
 
     @Override
     public boolean addEntry( final AclEntry entry ) {
-        throw new UnsupportedOperationException( "the enforced ACL of a page cannot be changed" );
+        throw new UnsupportedOperationException( REFUSED );
     }
 
     @Override
     public boolean removeEntry( final AclEntry entry ) {
-        throw new UnsupportedOperationException( "the enforced ACL of a page cannot be changed" );
+        throw new UnsupportedOperationException( REFUSED );
     }
 
     @Override
     public Enumeration< AclEntry > aclEntries() {
-        return acl.aclEntries();
+        return Collections.enumeration( views );
     }
 
     @Override
@@ -63,11 +82,56 @@ final class ReadOnlyAcl implements Acl {
 
     @Override
     public AclEntry getAclEntry( final Principal principal ) {
-        return acl.getAclEntry( principal );
+        final AclEntry entry = acl.getAclEntry( principal );
+        return entry == null ? null : viewOf.get( entry );
     }
 
     @Override
     public String toString() {
         return acl.toString();
+    }
+
+    /** An entry that answers like its delegate and refuses every change. */
+    private static final class ReadOnlyEntry implements AclEntry {
+        private final AclEntry entry;
+
+        ReadOnlyEntry( final AclEntry entry ) {
+            this.entry = entry;
+        }
+
+        @Override
+        public boolean addPermission( final Permission permission ) {
+            throw new UnsupportedOperationException( REFUSED );
+        }
+
+        @Override
+        public boolean removePermission( final Permission permission ) {
+            throw new UnsupportedOperationException( REFUSED );
+        }
+
+        @Override
+        public boolean setPrincipal( final Principal user ) {
+            throw new UnsupportedOperationException( REFUSED );
+        }
+
+        @Override
+        public boolean checkPermission( final Permission permission ) {
+            return entry.checkPermission( permission );
+        }
+
+        @Override
+        public Principal getPrincipal() {
+            return entry.getPrincipal();
+        }
+
+        @Override
+        public Enumeration< Permission > permissions() {
+            return entry.permissions();
+        }
+
+        @Override
+        public String toString() {
+            return entry.toString();
+        }
     }
 }

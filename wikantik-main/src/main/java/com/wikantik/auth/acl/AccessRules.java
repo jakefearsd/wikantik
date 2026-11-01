@@ -305,6 +305,20 @@ public final class AccessRules {
         return out.append( text, Math.min( copiedTo, text.length() ), text.length() ).toString();
     }
 
+    /**
+     * @param text  a page text
+     * @param rules printed rules to add
+     * @return {@code rules} put at the start of {@code text}'s body: after its frontmatter, which stays what it was
+     *         (a closing {@code ---} with no line end after it gets one, in the frontmatter's own style, so the rules
+     *         start a line of their own and the block still closes)
+     */
+    static String withRules( final String text, final String rules ) {
+        final int bodyStart = FrontmatterParser.bodyOffset( text );
+        final String head = text.substring( 0, bodyStart );
+        final String lineEnd = bodyStart == 0 || head.endsWith( "\n" ) ? "" : head.contains( "\r\n" ) ? "\r\n" : "\n";
+        return head + lineEnd + rules + text.substring( bodyStart );
+    }
+
     private static String excerpt( final String text, final int start, final int end ) {
         return end - start <= MAX_REASON_TEXT ? text.substring( start, end ) : text.substring( start, start + MAX_REASON_TEXT ) + "…";
     }

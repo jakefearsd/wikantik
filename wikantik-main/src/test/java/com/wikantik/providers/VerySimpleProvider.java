@@ -160,7 +160,7 @@ public class VerySimpleProvider implements PageProvider {
      *  Stores the page and version into public fields of this class, then returns an empty string.
      */
     @Override
-    public String getPageText( final String page, final int version ) {
+    public String getPageText( final String page, final int version ) throws ProviderException {
         m_latestReq  = page;
         m_latestVers = version;
         m_latestReqBy = captureRequester();

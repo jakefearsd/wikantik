@@ -289,6 +289,14 @@ public class MarkdownRendererTest {
                                  translate( "| a | b |\n| - | :-: |\n| 1 | 2 |" ) );
     }
 
+    /** A delimiter row with no header row above it is not a table (GFM, remark-gfm, the editor): its text stays. */
+    @Test
+    public void testHeaderlessDelimiterRowIsNotATable() throws Exception {
+        Assertions.assertEquals( "<p>|-|</p>\n", translate( "|-|" ) );
+        Assertions.assertEquals( "<p>| - |</p>\n", translate( "| - |" ) );
+        Assertions.assertEquals( "<ul><li>| -</li></ul>\n", translate( "- | -" ) );
+    }
+
     @Test
     public void testMarkupTableMissingNewlineAfterSeparator() throws Exception {
         // Malformed: separator and first data row on same line

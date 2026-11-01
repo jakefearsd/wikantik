@@ -117,6 +117,10 @@ class ObsidianPageConverterTest {
         final String raw = "| a | b |\n|-|:-:|\n| [x](Foo) | y |\n";
         assertEquals( "| a | b |\n|-|:-:|\n| [[Foo\\|x]] | y |\n", body( raw ) );
     }
+    /** A lone delimiter row is text, as the reader renders it: a link on it is not treated as a table cell. */
+    @Test void headerlessDelimiterRowIsNotATable() {
+        assertEquals( "|-| [[Foo|x]] |\n", body( "|-| [x](Foo) |\n" ) );
+    }
     @Test void mathUntouched() {
         final String raw = "Inline $x_1$ and\n\n$$\n\\mathbb{E}[X]\n$$\n";
         assertEquals( raw, body( raw ) );

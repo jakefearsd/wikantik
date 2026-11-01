@@ -261,6 +261,18 @@ Wherever this table says "strip", the call goes through `ReaderText.derived` (§
   block itself was edited. `blocksFromMarkdown`, `remarkBlockIds` and the live preview's chips remain
   for drawing only; the client has no marker-edit path any more (`markerChange`, `insertMarker`,
   `blockLinkEdit` are gone). Other pages are unchanged (`GET`/`POST …/blocks`).
+- *Amendment (fix wave 2, round 4): the draft is what a save would store.* CodeMirror holds the
+  **body** only; the frontmatter is the structured editor's `metadata`, and a PUT writes it in front of
+  the body only when it is non-empty. So the editor sends `metadata` with every draft request, and the
+  server reads `text` as a PUT of `{content: text, metadata}` would store it: behind a non-empty
+  metadata object, `text` is a body and a leading `---` pair in it is content — two thematic breaks or
+  a setext underline — read by `BlockIds.listBody` / `markerIdsBody` / `assignBody` (the body read
+  behind a frontmatter, exactly as the reader reads the saved page; a property test pins
+  `listBody(body)` to `list(frontmatter + body)`); without metadata, `text` is the whole page. A page
+  not saved yet takes a draft from whoever passes PUT-create's own check (`edit` on the name, audited
+  403); an existing page the caller cannot view stays 404, and the editor shows a remaining 404 as
+  "Save the page first to link its blocks". The body is read no further than the cap allows, with or
+  without a `Content-Length` (413).
 - **Live preview:** a block marker renders as a small muted chip (`cm-lp-blockid`) when the cursor is
   off its line, and as raw text when it's on. A duplicate id gets a warning style and title.
 - **Source-mode Ctrl-click** (`linkInteraction.js`): works through `wikiLinkHref`'s new `^` handling.

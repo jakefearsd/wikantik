@@ -113,7 +113,8 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
     private static void awaitServerMode( final String expected ) {
         final String script = """
             const cb = arguments[arguments.length - 1];
-            fetch('/api/auth/profile', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            const base = window.__WIKANTIK_BASE__ || '';
+            fetch(base + '/api/auth/profile', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
               .then(r => r.json()).then(j => cb({ mode: j.editorMode === undefined ? null : j.editorMode }))
               .catch(err => cb({ mode: 'ERR ' + err }));
             """;
@@ -130,7 +131,8 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
     private static void putEditorMode( final String jsonValue ) {
         final String script = """
             const cb = arguments[arguments.length - 1];
-            fetch('/api/auth/profile', { method: 'PUT',
+            const base = window.__WIKANTIK_BASE__ || '';
+            fetch(base + '/api/auth/profile', { method: 'PUT',
               headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
               credentials: 'same-origin', body: '{"editorMode":' + arguments[0] + '}' })
               .then(r => cb({ status: r.status })).catch(err => cb({ status: -1, error: String(err) }));

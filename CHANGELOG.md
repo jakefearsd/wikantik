@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.5] - 2026-11-01
+
 ### Added
 - **Live preview is complete, and it is the default editing mode.** Off the cursor's line the editor now draws
   GFM tables as tables (click a row to edit its source), `[{…}]` plugin, variable and access-rule lines as

@@ -350,6 +350,45 @@ public class AuthResource extends RestServletBase {
     }
 
     /**
+     * The {@code editorMode} of a profile PUT: absent ({@code present == false}) leaves the preference alone, a JSON
+     * null ({@code mode == null}) clears it, {@code "source"}/{@code "live"} sets it.
+     */
+    private record EditorModeChange( boolean present, String mode ) {
+        static final EditorModeChange ABSENT = new EditorModeChange( false, null );
+
+        void applyTo( final UserProfile profile ) {
+            if ( !present ) {
+                return;
+            }
+            if ( mode == null ) {
+                profile.getAttributes().remove( EDITOR_MODE_ATTRIBUTE );
+            } else {
+                profile.getAttributes().put( EDITOR_MODE_ATTRIBUTE, mode );
+            }
+        }
+    }
+
+    /**
+     * Reads {@code editorMode} from a profile PUT body. Anything but absent, JSON null, {@code "source"} or
+     * {@code "live"} sends a 400 and returns {@code null}.
+     */
+    private EditorModeChange parseEditorMode( final JsonObject body, final HttpServletResponse response )
+            throws IOException {
+        if ( !body.has( "editorMode" ) ) {
+            return EditorModeChange.ABSENT;
+        }
+        final com.google.gson.JsonElement raw = body.get( "editorMode" );
+        if ( raw.isJsonNull() ) {
+            return new EditorModeChange( true, null );
+        }
+        if ( raw.isJsonPrimitive() && raw.getAsJsonPrimitive().isString() && VALID_EDITOR_MODES.contains( raw.getAsString() ) ) {
+            return new EditorModeChange( true, raw.getAsString() );
+        }
+        sendError( response, HttpServletResponse.SC_BAD_REQUEST, "editorMode must be 'source' or 'live'" );
+        return null;
+    }
+
+    /**
      * Updates the authenticated user's own profile (self-service).
      */
     private void handleUpdateProfile( final HttpServletRequest request, final HttpServletResponse response )
@@ -374,17 +413,8 @@ public class AuthResource extends RestServletBase {
             final UserProfile profile = db.findByLoginName( loginName );
 
             // Validate the editor-mode preference first so a 400 leaves the profile entirely unchanged.
-            final boolean editorModePresent = body.has( "editorMode" );
-            String editorMode = null; // null + editorModePresent = clear the preference
-            if ( editorModePresent && !body.get( "editorMode" ).isJsonNull() ) {
-                final com.google.gson.JsonElement raw = body.get( "editorMode" );
-                if ( !raw.isJsonPrimitive() || !raw.getAsJsonPrimitive().isString()
-                        || !VALID_EDITOR_MODES.contains( raw.getAsString() ) ) {
-                    sendError( response, HttpServletResponse.SC_BAD_REQUEST, "editorMode must be 'source' or 'live'" );
-                    return;
-                }
-                editorMode = raw.getAsString();
-            }
+            final EditorModeChange editorMode = parseEditorMode( body, response );
+            if ( editorMode == null ) return;
 
             // Update fullName (the display name) if provided
             final String fullName = getJsonString( body, "fullName" );
@@ -424,13 +454,7 @@ public class AuthResource extends RestServletBase {
                 return;
             }
 
-            if ( editorModePresent ) {
-                if ( editorMode == null ) {
-                    profile.getAttributes().remove( EDITOR_MODE_ATTRIBUTE );
-                } else {
-                    profile.getAttributes().put( EDITOR_MODE_ATTRIBUTE, editorMode );
-                }
-            }
+            editorMode.applyTo( profile );
 
             db.save( profile );
             ProfileChangeNotifier.profileSaved( engine, loginName );

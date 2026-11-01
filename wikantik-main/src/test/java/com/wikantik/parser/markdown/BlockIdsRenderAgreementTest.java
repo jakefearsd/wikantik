@@ -89,6 +89,88 @@ class BlockIdsRenderAgreementTest {
         assertEquals( List.of(), problems );
     }
 
+    /**
+     * A paragraph (or list item) holding access rules and one marker is, once the rules are stripped, a standalone marker
+     * paragraph: it tags the block before it in its container, or is an orphan. The raw reading must say the same.
+     */
+    @Test
+    void aDirectiveWithAMarkerReadsAsTheStandaloneMarkerItStripsTo() {
+        final String[] cases = {
+            "Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter.",
+            "Para.\n\n[{ALLOW view Admin}]\n^id\n\nAfter.",
+            "> [{ALLOW view Admin}] ^q\n\nAfter.",
+            "- item\n- [{ALLOW view Admin}] ^id",
+            "Para.\n\n^id [{DENY edit Guest}]\n\nAfter.",
+            "Para.\n\n^id\n[{DENY edit Guest}]\n\nAfter.",
+            "Para.\n\n[{ALLOW view Admin}] [{DENY edit Guest}] ^id\n\nAfter.",
+        };
+        final List< String > problems = new ArrayList<>();
+        for ( final String c : cases ) {
+            disagreements( c ).forEach( d -> problems.add( c.replace( "\n", "\\n" ) + " -> " + d ) );
+        }
+        assertEquals( List.of(), problems );
+        final List< Block > tagged = BlockIds.list( "Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter." );
+        assertEquals( 2, tagged.size() );
+        assertEquals( "id", tagged.get( 0 ).id() );
+        assertEquals( "Para.", tagged.get( 0 ).plainText() );
+    }
+
+    /** Where a directive can sit. Each takes the directive line {@code %s}; {@code %p} is its container's line prefix. */
+    private static final String[][] POSITIONS = {
+        { "top", "%s\n\nAfter.\n" },
+        { "between paragraphs", "Before.\n\n%s\n\nAfter.\n" },
+        { "after a heading", "# Heading\n%s\n\nAfter.\n" },
+        { "after a heading, blank line", "# Heading\n\n%s\n\nAfter.\n" },
+        { "in a blockquote", "> %s\n\nAfter.\n" },
+        { "later in a blockquote", "> Quoted.\n>\n> %s\n\nAfter.\n" },
+        { "in a callout", "> [!note] Title\n> %s\n\nAfter.\n" },
+        { "in a callout body", "> [!note] Title\n> Body.\n>\n> %s\n\nAfter.\n" },
+        { "first list item", "- %s\n- two\n\nAfter.\n" },
+        { "later list item", "- one\n- %s\n\nAfter.\n" },
+        { "nested list item", "- one\n  - %s\n  - three\n- four\n" },
+        { "later nested list item", "- one\n  - two\n  - %s\n- four\n" },
+    };
+
+    /** The continuation prefix of each position's directive line, for the marker forms that add lines. */
+    private static String prefixOf( final String position ) {
+        if ( position.contains( "quote" ) || position.contains( "callout" ) ) {
+            return "> ";
+        }
+        if ( position.contains( "nested" ) ) {
+            return "    ";
+        }
+        return position.contains( "list" ) ? "  " : "";
+    }
+
+    @Test
+    void everyDirectivePositionAndMarkerFormAgrees() {
+        final String rule = "[{ALLOW view Admin}]";
+        final List< String > problems = new ArrayList<>();
+        int checked = 0;
+        for ( final String[] position : POSITIONS ) {
+            final String p = prefixOf( position[ 0 ] );
+            final String[] forms = {
+                rule + " ^mk",                                          // inline, same line
+                rule + "\n" + p + "^mk",                                // next line (last-line form)
+                rule + "\n" + p.stripTrailing() + "\n" + p + "^mk",     // standalone after a blank line
+                rule,                                                   // no marker
+            };
+            for ( final String form : forms ) {
+                for ( final boolean crlf : new boolean[]{ false, true } ) {
+                    String text = position[ 1 ].replace( "%s", form );
+                    if ( crlf ) {
+                        text = text.replace( "\n", "\r\n" );
+                    }
+                    checked++;
+                    final String shown = text.replace( "\r", "\\r" ).replace( "\n", "\\n" );
+                    disagreements( text ).forEach( d -> problems.add( position[ 0 ] + ": " + shown + " -> " + d ) );
+                }
+            }
+        }
+        assertEquals( POSITIONS.length * 4 * 2, checked );
+        assertEquals( List.of(), problems, String.join( "\n", problems ) );
+    }
+
     @Test
     void aDirectiveOnlyParagraphIsNotABlock() {
         final List< Block > blocks = BlockIds.list( "[{ALLOW view Admin}]\n\nFirst.\n\nSecond.\n" );

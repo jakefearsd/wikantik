@@ -68,7 +68,9 @@ import java.util.regex.Pattern;
  *       tags that paragraph like an inline marker. Separated by a blank line instead ({@code "Para\n\n^id"}) it is a
  *       paragraph of its own: standalone.</li>
  *   <li>{@link Form#STANDALONE}: a paragraph that is only {@code ^id}; it tags the block right before it in the same
- *       container, or is an orphan when there is none.</li>
+ *       container, or is an orphan when there is none. A paragraph of access rules and one marker
+ *       ({@code [{ALLOW view Admin}] ^id}, or the rule on the line before) is one too: the render strips the rules
+ *       before it parses, which leaves exactly that.</li>
  * </ul>
  */
 public final class BlockWalk {
@@ -335,6 +337,9 @@ public final class BlockWalk {
         /** A text node that is only a marker. */
         private static final Pattern ALONE = Pattern.compile( "^\\^([A-Za-z0-9-]+)[ \\t]*\\r?$" );
 
+        /** A text node that is a marker and whitespace: next to access rules, all that is left once they are stripped. */
+        private static final Pattern ALONE_WITH_SPACE = Pattern.compile( "^\\s*\\^([A-Za-z0-9-]+)\\s*$" );
+
         private Markers() {
         }
 
@@ -351,16 +356,45 @@ public final class BlockWalk {
          * chars: a callout's body paragraph still spans the title line in its chars.
          */
         static String standaloneId( final Paragraph p ) {
-            if ( !( p.getFirstChild() instanceof Text t ) || t != p.getLastChild() ) {
+            final Text t = standaloneText( p );
+            if ( t == null ) {
                 return null;
             }
-            final Matcher m = ALONE.matcher( t.getChars() );
+            final Matcher m = ALONE_WITH_SPACE.matcher( t.getChars() );
             return m.matches() ? m.group( 1 ) : null;
         }
 
         static Marker standalone( final Paragraph p ) {
-            final Text t = ( Text ) p.getFirstChild();
-            return new Marker( standaloneId( p ), Form.STANDALONE, p, t, t.getStartOffset() );
+            final Text t = standaloneText( p );
+            final int caret = t.getStartOffset() + t.getChars().toString().indexOf( '^' );
+            return new Marker( standaloneId( p ), Form.STANDALONE, p, t, caret );
+        }
+
+        /**
+         * The text node holding a standalone marker: the paragraph's only child when it is just {@code ^id}, or — in a
+         * paragraph of access rules and one marker ({@code [{ALLOW view Admin}] ^id}, the rule on the line before) — the
+         * marker's node. The render strips the rules before it parses, which leaves exactly a standalone marker
+         * paragraph; reading it so here keeps the raw numbering equal to the rendered one.
+         */
+        private static Text standaloneText( final Paragraph p ) {
+            if ( p.getFirstChild() instanceof Text t && t == p.getLastChild() ) {
+                return ALONE.matcher( t.getChars() ).matches() ? t : null;
+            }
+            Text found = null;
+            boolean rule = false;
+            for ( Node c = p.getFirstChild(); c != null; c = c.getNext() ) {
+                if ( isAccessRuleLink( c ) ) {
+                    rule = true;
+                } else if ( c instanceof Text t && !t.getChars().isBlank() ) {
+                    if ( found != null || !ALONE_WITH_SPACE.matcher( t.getChars() ).matches() ) {
+                        return null;
+                    }
+                    found = t;
+                } else if ( !isLineBreak( c ) && !( c instanceof Text ) ) {
+                    return null;
+                }
+            }
+            return rule ? found : null;
         }
 
         /** The inline or last-line marker ending {@code p}, or {@code null}. */

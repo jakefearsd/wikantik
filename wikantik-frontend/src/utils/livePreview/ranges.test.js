@@ -368,7 +368,16 @@ describe('block markers agree with the block model (blockMarkers: orphans and du
       .map((s) => ({ id: state.sliceDoc(s.from + 1, s.to), caret: s.from, wins: s.cls === 'cm-lp-blockid' }));
   };
   it.each([
-    ['an access rule with an inline marker is a tagged paragraph', '[{ALLOW view All}] ^ra\n\nText ^ra\n'],
+    ['an access rule with an inline marker is a standalone marker (here an orphan)', '[{ALLOW view All}] ^ra\n\nText ^ra\n'],
+    ['an access rule with an inline marker tags the paragraph before it', 'Para\n\n[{ALLOW view Admin}] ^ar\n\nMore ^ar\n'],
+    ['an access rule then a marker on the next line', 'Para\n\n[{ALLOW view Admin}]\n^n2\n\nMore ^n2\n'],
+    ['a marker before an access rule is a standalone marker', 'Para\n\n^bx [{DENY edit Guest}]\n\nMore ^bx\n'],
+    ['a marker on the line before an access rule', 'Para\n\n^by\n[{DENY edit Guest}]\n\nMore ^by\n'],
+    ['an access rule with a marker in a quote', '> [{ALLOW view Admin}] ^q\n\nText ^q\n'],
+    ['an access rule with a marker in a list item', '- item\n- [{ALLOW view Admin}] ^li\n\nText ^li\n'],
+    ['an access rule and other text keep the inline marker', 'Para\n\n[{ALLOW view Admin}] text ^t\n\nMore ^t\n'],
+    ['a plugin beside a marker is not an access rule', '[{TableOfContents}] ^p\n\nMore ^p\n'],
+    ['a list item of only an access rule reads as empty', '- one\n  - [{ALLOW view Admin}]\n    ^mk\n  - three ^mk\n'],
     ['an access rule with a last-line marker', '[{ALLOW view All}]\n^rl\n'],
     ['a standalone after an access-rule-only paragraph is claimed across it', 'Para\n\n[{ALLOW view All}]\n\n^ac\n\nMore ^ac\n'],
     ['a standalone after only an access rule is an orphan', '[{DENY edit Guest}]\n\n^ro\n\nText ^ro\n'],

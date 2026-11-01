@@ -4,7 +4,7 @@ import { matchInlineMath } from '../inlineMath';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
-import { BLOCK_ID_RE, STANDALONE_RE } from '../blockIds';
+import { BLOCK_ID_RE, STANDALONE_RE, RULE_TEXT, MARKER_WITH_SPACE } from '../blockIds';
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
 const HEADING = /^ATXHeading([1-6])$/;
@@ -184,6 +184,8 @@ const TEXT_BLOCK = new Set(['Paragraph', 'Task']);
  */
 function paragraphMarker(doc, node) {
   if (doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) return null;
+  const beside = besideRulesMarker(doc.sliceString(node.from, node.to));
+  if (beside) return { id: beside.id, from: node.from + beside.at };
   const last = doc.lineAt(node.to);
   const onFirstLine = last.from <= node.from;
   let start = onFirstLine ? node.from : last.from;
@@ -199,6 +201,19 @@ function paragraphMarker(doc, node) {
   if (alone) return { id: alone[1], from: start };
   const m = BLOCK_ID_RE.exec(seg);
   return m ? { id: m[1], from: start + m.index } : null;
+}
+/**
+ * A paragraph of access rules and one marker (`[{ALLOW view Admin}] ^id`, `^id [{DENY edit Guest}]`, either on its own
+ * line): the render strips the rules first, which leaves a standalone marker — blockIds.js reads it so, and so does
+ * this. `{ id, at }` with `at` the caret's offset in `text`, or null.
+ */
+function besideRulesMarker(text) {
+  if (!text.includes('[{')) return null;
+  let rule = false;
+  const masked = text.replace(RULE_TEXT, (r) => { rule = true; return ' '.repeat(r.length); })
+    .replace(/\n[ \t>]*/g, (x) => `\n${' '.repeat(x.length - 1)}`);   // continuation lines' prefixes
+  const m = rule ? MARKER_WITH_SPACE.exec(masked) : null;
+  return m ? { id: m[1], at: masked.indexOf('^') } : null;
 }
 const firstMarkerCache = new WeakMap(); // doc → { tree, upTo, firsts }
 /**

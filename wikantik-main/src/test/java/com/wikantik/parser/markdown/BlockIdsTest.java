@@ -590,4 +590,34 @@ class BlockIdsTest {
         assertNull( BlockIds.strip( null ) );
         assertTrue( BlockIds.find( "x ^a\n", null ).isEmpty() );
     }
+
+    @Test
+    void aMarkerBesideAnAccessRuleIsStandaloneAndStripsWithItsSpaces() {
+        assertEquals( "Para.\n\n[{ALLOW view Admin}]\n\nAfter.\n",
+                BlockIds.strip( "Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter.\n" ) );
+        assertEquals( "Para.\r\n\r\n[{ALLOW view Admin}]\r\n\r\nAfter.\r\n",
+                BlockIds.strip( "Para.\r\n\r\n[{ALLOW view Admin}] ^id\r\n\r\nAfter.\r\n" ) );
+        assertEquals( "Para.\n\n[{DENY edit Guest}]\n", BlockIds.strip( "Para.\n\n^id [{DENY edit Guest}]\n" ) );
+        assertEquals( "Para.\n\n[{ALLOW view Admin}]\n\n", BlockIds.strip( "Para.\n\n[{ALLOW view Admin}]\n^id\n" ) );
+        final List< Block > blocks = BlockIds.list( "Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter.\n" );
+        assertEquals( 2, blocks.size() );
+        assertEquals( "id", blocks.get( 0 ).id() );
+        assertEquals( "[{ALLOW view Admin}] ^id".indexOf( '^' ) + "Para.\n\n".length() - 1, blocks.get( 0 ).markerStart() );
+    }
+
+    @Test
+    void aListItemOfOnlyAccessRulesIsReadAsTheEmptyItemTheRenderSees() {
+        // "  - " (empty once the rule is stripped) cannot interrupt the paragraph "one": no nested item there
+        final String text = "- one\n  - [{ALLOW view Admin}]\n  - three\n- four\n";
+        final List< Block > blocks = BlockIds.list( text );
+        assertEquals( 3, blocks.size() );
+        assertEquals( "three", blocks.get( 1 ).plainText() );
+        assertEquals( text.indexOf( "- three" ), blocks.get( 1 ).start() );
+        final String tagged = BlockIds.assign( text, blocks.get( 1 ), "t3" );
+        assertEquals( "- one\n  - [{ALLOW view Admin}]\n  - three ^t3\n- four\n", tagged );
+        // ... and a blank line after an empty item ends it: the marker below tags the list
+        final List< Block > ended = BlockIds.list( "- one\n- [{ALLOW view Admin}]\n\n  ^mk\n\nAfter.\n" );
+        assertEquals( Kind.LIST, ended.get( 0 ).kind() );
+        assertEquals( "mk", ended.get( 0 ).id() );
+    }
 }

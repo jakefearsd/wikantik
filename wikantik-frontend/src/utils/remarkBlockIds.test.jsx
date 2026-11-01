@@ -62,6 +62,10 @@ function describeBlocks(host) {
     if (tag === 'p' || tag === 'li') {
       const copy = el.cloneNode(true);
       copy.querySelectorAll('[class*="math"], [class*="katex"]').forEach((m) => m.remove());
+      // an access rule's chip: the editor shows it, the reader never renders the rule
+      copy.querySelectorAll('.wiki-plugin-chip').forEach((m) => {
+        if (/^\[\{(ALLOW|DENY)/.test(m.getAttribute('title') || '')) m.remove();
+      });
       text = copy.textContent.replace(/\s+/g, ' ').trim();
     }
     out.push({ tag, id: blockId, text });

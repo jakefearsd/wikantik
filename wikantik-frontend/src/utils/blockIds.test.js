@@ -184,6 +184,52 @@ describe('blocksFromMarkdown', () => {
     expect(blocksFromMarkdown('[Link]()\n').map((b) => b.kind)).toEqual(['paragraph']);
   });
 
+  it('reads access rules and one marker as the standalone marker the render sees once the rules are stripped', () => {
+    const md = 'Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter.\n';
+    const blocks = blocksFromMarkdown(md);
+    expect(blocks.map((b) => [b.id, b.text])).toEqual([['id', 'Para.'], [null, 'After.']]);
+    // beside a rule on its line, the marker goes with the blanks before it; on a line of its own it keeps them
+    expect([blocks[0].markerFrom, blocks[0].markerTo]).toEqual([md.indexOf(' ^id'), md.indexOf(' ^id') + 4]);
+    const own = 'Para.\n\n[{ALLOW view Admin}]\n^id\n';
+    expect(blocksFromMarkdown(own)[0].markerFrom).toBe(own.indexOf('^id'));
+    expect(ids('Para.\n\n^id [{DENY edit Guest}]\n')).toEqual(['id']);
+    expect(ids('Para.\n\n^id\n[{DENY edit Guest}]\n')).toEqual(['id']);
+    expect(ids('Para.\n\n[{ALLOW view Admin}]() ^id\n')).toEqual(['id']);
+    expect(ids('Para.\n\n[{ALLOW view Admin}] [{DENY edit Guest}] ^id\n')).toEqual(['id']);
+    expect(ids('Para.\r\n\r\n[{ALLOW view Admin}] ^id\r\n')).toEqual(['id']);
+    expect(blocksFromMarkdown('> [{ALLOW view Admin}] ^q\n\nAfter.\n').map((b) => [b.kind, b.id])).toEqual([['quote', null], ['paragraph', null]]);
+    expect(blockMarkers('> [{ALLOW view Admin}] ^q\n')).toEqual([{ id: 'q', caret: 23, wins: true }]);
+    expect(blocksFromMarkdown('- item\n- [{ALLOW view Admin}] ^li\n').map((b) => [b.kind, b.id])).toEqual([['list-item', null], ['list-item', null]]);
+    // not that form: an escaped caret, two markers, other text, or a marker in emphasis
+    expect(ids('Para.\n\n[{ALLOW view Admin}] \\^id\n')).toEqual([null, null]);
+    expect(ids('Para.\n\n[{ALLOW view Admin}] ^a\n^b\n')).toEqual([null, 'b']);
+    expect(ids('Para.\n\n[{ALLOW view Admin}] text ^id\n')).toEqual([null, 'id']);
+    expect(ids('Para.\n\n[{ALLOW view Admin}] *^id*\n')).toEqual([null, null]);
+    expect(ids('Para.\n\n^x ^y\n')).toEqual([null, 'y']);
+  });
+
+  it('tags the block before a rule-and-marker paragraph, and strips only the marker from the text', () => {
+    const md = 'Para.\n\n[{ALLOW view Admin}]\n\nAfter.\n';
+    const tagged = insertMarker(md, blocksFromMarkdown(md)[0], 'pp');
+    expect(tagged).toBe('Para. ^pp\n\n[{ALLOW view Admin}]\n\nAfter.\n');
+    const beside = 'Para.\n\n[{ALLOW view Admin}] ^dup\n\nAfter. ^dup\n';
+    expect(blocksFromMarkdown(beside).map((b) => b.id)).toEqual(['dup', null]);
+  });
+
+  it('reads a list item of only access rules as the empty item the render sees', () => {
+    // "  - " (empty once the rule is stripped) cannot interrupt the paragraph "one": no nested item there
+    const md = '- one\n  - [{ALLOW view Admin}]\n  - three\n- four\n';
+    const blocks = blocksFromMarkdown(md);
+    expect(blocks.map((b) => [b.kind, b.text])).toEqual([['list-item', 'one\nthree'], ['list-item', 'three'], ['list-item', 'four']]);
+    expect(blocks[1].from).toBe(md.indexOf('- three'));
+    expect(insertMarker(md, blocks[1], 't3')).toBe('- one\n  - [{ALLOW view Admin}]\n  - three ^t3\n- four\n');
+    // a blank line after an empty item ends it: the marker below tags the list
+    const ended = blocksFromMarkdown('- one\n- [{ALLOW view Admin}]\n\n  ^mk\n\nAfter.\n');
+    expect(ended.map((b) => [b.kind, b.id])).toEqual([['list', 'mk'], ['list-item', null], ['list-item', null], ['paragraph', null]]);
+    // other text on the item's line keeps it an ordinary item
+    expect(blocksFromMarkdown('- one\n  - [{ALLOW view Admin}] x\n').map((b) => b.kind)).toEqual(['list-item', 'list-item']);
+  });
+
   it('gives a block plain text, wikilinks reduced to their display text and embeds dropped', () => {
     expect(find('See [[Foo|Bar]] and **bold** ^w\n', 'w').text).toBe('See Bar and bold');
     expect(blocksFromMarkdown('![[Other]] and [[A#B]]\n')[0].text).toBe('and A > B');

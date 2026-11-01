@@ -9,7 +9,9 @@
 //
 // Markers: inline (whitespace + `^id` ending a paragraph's last text node), last-line (`^id` alone on the last line of
 // a multi-line paragraph — the line break is the whitespace it needs) and standalone (a paragraph that is only `^id`,
-// tagging the block right before it in the same container, or an orphan). Code, math and headings never hold one.
+// tagging the block right before it in the same container, or an orphan; so is a paragraph of access rules and one
+// marker, which is what the render's rule stripping leaves of it). Code, math and headings never hold one. A list item
+// whose first line is only access rules is numbered as the empty item the render sees.
 // The first occurrence of an id in source order wins.
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -25,9 +27,12 @@ import { findWikiLinks, wikiLinkDisplayText } from './wikiLinkSyntax';
 export const BLOCK_ID_RE = /(?<=[ \t])\^([A-Za-z0-9-]+)[ \t]*\r?$/;
 /** A line (or text node) that is only a marker; group 1 is the id. */
 export const STANDALONE_RE = /^\^([A-Za-z0-9-]+)[ \t]*\r?$/;
+/** A text that is a marker and whitespace: beside access rules, all that is left once they are stripped. */
+export const MARKER_WITH_SPACE = /^\s*\^([A-Za-z0-9-]+)\s*$/;
 
 const ID_RE = /^[A-Za-z0-9-]+$/;
-const RULE_TEXT = /\[\{(?:ALLOW|DENY)[^}\n]*\}\](?:\(\))?/g;
+/** An access rule written as text (`[{ALLOW …}]`, `[{DENY …}]`, with or without `()`). Global: use with replace. */
+export const RULE_TEXT = /\[\{(?:ALLOW|DENY)[^}\n]*\}\](?:\(\))?/g;
 const RULE_LINK_TEXT = /^\{(?:ALLOW|DENY)/;
 const NEW_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const NEW_ID_LENGTH = 6;
@@ -82,19 +87,55 @@ function tailAt(node, source, tail) {
 
 const charBefore = (source, at) => (typeof source === 'string' ? source[at - 1] ?? '' : null);
 
-/** The id of a paragraph that is only a marker, else null. */
-function standaloneId(p, source) {
-  if (p.children.length !== 1 || p.children[0].type !== 'text') return null;
-  const t = p.children[0];
-  const m = STANDALONE_RE.exec(t.value);
-  if (!m) return null;
+/**
+ * The standalone marker of a paragraph, as `{ id, text, cut, caret, beside }`, else null: a paragraph that is only
+ * `^id`, or one of access rules and one marker (`[{ALLOW view Admin}] ^id`, or the rule on the line before) — the render
+ * strips the rules before it parses, which leaves exactly a standalone marker. `cut` is the `^`'s index in the text
+ * node's value; `beside` says an access rule shares the marker's line (so the blanks before it go with it).
+ */
+function standaloneOf(p, source) {
+  const t = p.children.length === 1 && p.children[0].type === 'text' ? p.children[0] : null;
+  const m = t && STANDALONE_RE.exec(t.value);
+  if (!m) return besideRules(p, source);
   const at = tailAt(t, source, t.value);
-  return at >= 0 && charBefore(source, at) !== '\\' ? m[1] : null;
+  return at >= 0 && charBefore(source, at) !== '\\' ? { id: m[1], text: t, cut: 0, caret: at, beside: false } : null;
+}
+
+/** The marker of a paragraph of access rules and one `^id` (see standaloneOf), else null. */
+function besideRules(p, source) {
+  let rule = false;
+  let found = null;
+  for (let i = 0; i < p.children.length; i++) {
+    const c = p.children[i];
+    if (isAccessRule(c)) { rule = true; continue; }
+    if (c.type === 'break') continue;
+    if (c.type !== 'text') return null;
+    const masked = c.value.replace(RULE_TEXT, (r) => { rule = true; return ' '.repeat(r.length); });
+    if (masked.trim() === '') continue;
+    const m = MARKER_WITH_SPACE.exec(masked);
+    if (found || !m) return null;
+    const cut = masked.indexOf('^');
+    const lineStart = c.value.lastIndexOf('\n', cut - 1) + 1;
+    const prev = p.children[i - 1];
+    const beside = masked.slice(lineStart, cut) !== c.value.slice(lineStart, cut)
+      || (lineStart === 0 && prev != null && prev.type !== 'break');
+    found = { id: m[1], text: c, cut, beside };
+  }
+  if (!rule || !found) return null;
+  const at = tailAt(found.text, source, found.text.value.slice(found.cut));
+  if (at < 0 || charBefore(source, at) === '\\') return null;
+  return { ...found, caret: at };
+}
+
+/** The id of a paragraph that is only a standalone marker, else null. */
+function standaloneId(p, source) {
+  return standaloneOf(p, source)?.id ?? null;
 }
 
 function standalone(p, parent, source) {
-  const t = p.children[0];
-  return { id: standaloneId(p, source), form: 'standalone', paragraph: p, parent, text: t, caret: tailAt(t, source, t.value) };
+  const s = standaloneOf(p, source);
+  return { id: s.id, form: 'standalone', paragraph: p, parent, text: s.text, caret: s.caret, cut: s.cut,
+    beside: s.beside, rules: s.cut > 0 || p.children.length > 1 };
 }
 
 /** The inline or last-line marker ending `p`, or null. */
@@ -218,7 +259,13 @@ export function detachMarkers(walk, orphanAnchor = () => null) {
     const p = m.paragraph;
     if (m.form === 'standalone') {
       const anchor = orphans.has(m) && walk.wins(m) ? orphanAnchor(m) : null;
-      m.parent.children.splice(m.parent.children.indexOf(p), 1, ...(anchor ? [anchor] : []));
+      if (m.rules) {   // beside access rules: the rules stay (the editor shows them), only the marker goes
+        const v = m.text.value;
+        m.text.value = v.slice(0, m.cut) + v.slice(m.cut + 1 + m.id.length);
+        m.parent.children.splice(m.parent.children.indexOf(p) + 1, 0, ...(anchor ? [anchor] : []));
+      } else {
+        m.parent.children.splice(m.parent.children.indexOf(p), 1, ...(anchor ? [anchor] : []));
+      }
     } else if (m.cut >= 0) {
       m.text.value = m.text.value.slice(0, m.cut).trimEnd();
     } else {   // a last-line marker that is a text node of its own: it is the last child, after a hard break
@@ -241,9 +288,44 @@ const markdownParser = () => {
 };
 
 /** The parsed tree of `body`, with callouts built. */
-function parseBlocksTree(body) {
+function parseTree(body) {
   const p = markdownParser();
   return p.runSync(p.parse(body), body);
+}
+
+/**
+ * `body` with the access rules blanked to spaces on every list item's first line that holds nothing else
+ * (`- [{ALLOW view Admin}]`), or null when there is none. The render strips those rules before it parses, which leaves
+ * an empty item — and an empty item parses differently (it cannot interrupt a paragraph; a blank line after it ends it).
+ * Spaces keep every offset where it is. The server's BlockIds does the same.
+ */
+function emptyRuleItems(body, tree) {
+  let out = null;
+  const visit = (node) => {
+    for (const item of node.children || []) {
+      const p = item.type === 'listItem' ? item.children[0] : null;
+      if (p?.type === 'paragraph' && p.position && p.position.start.line === item.position?.start?.line) {
+        const from = p.position.start.offset;
+        const nl = body.indexOf('\n', from);
+        const to = Math.min(nl < 0 ? body.length : nl, p.position.end.offset);
+        const line = body.slice(from, to);
+        const blanked = line.replace(RULE_TEXT, (r) => ' '.repeat(r.length));
+        if (blanked !== line && blanked.trim() === '') {
+          out = (out ?? body).slice(0, from) + blanked + (out ?? body).slice(to);
+        }
+      }
+      visit(item);
+    }
+  };
+  visit(tree);
+  return out;
+}
+
+/** The tree the blocks of `body` are numbered in: list items of only access rules read as empty, as rendered. */
+function parseBlocksTree(body) {
+  const tree = parseTree(body);
+  const emptied = emptyRuleItems(body, tree);
+  return emptied == null ? { tree, source: body } : { tree: parseTree(emptied), source: emptied };
 }
 
 const isBlank = (c) => c === ' ' || c === '\t';
@@ -326,9 +408,9 @@ export function blocksFromMarkdown(md) {
   if (!md) return [];
   const body = stripFrontmatter(md);
   const bodyStart = md.length - body.length;
-  const tree = parseBlocksTree(body);
-  const walk = walkBlocks(tree, body);
-  const c = coordsOf(md, bodyStart, body);
+  const { tree, source } = parseBlocksTree(body);
+  const walk = walkBlocks(tree, source);
+  const c = coordsOf(md, bodyStart, source);
 
   const calloutLines = new Map();   // callout content wrapper → the callout's first line
   const noteCallouts = (node) => (node.children || []).forEach((child) => {
@@ -340,7 +422,7 @@ export function blocksFromMarkdown(md) {
   const rangeOf = (m) => {
     if (!m) return [-1, -1];
     const caret = bodyStart + m.caret;
-    return [m.form === 'standalone' ? caret : c.spaceBefore(caret), c.spaceAfter(caret + 1 + m.id.length)];
+    return [m.form === 'standalone' && !m.beside ? caret : c.spaceBefore(caret), c.spaceAfter(caret + 1 + m.id.length)];
   };
   const located = walk.entries.map((e) => {
     const node = e.node;
@@ -376,7 +458,8 @@ export function blockMarkers(md) {
   if (!md) return [];
   const body = stripFrontmatter(md);
   const bodyStart = md.length - body.length;
-  const walk = walkBlocks(parseBlocksTree(body), body);
+  const { tree, source } = parseBlocksTree(body);
+  const walk = walkBlocks(tree, source);
   return walk.markers.map((m) => ({ id: m.id, caret: bodyStart + m.caret, wins: walk.wins(m) }));
 }
 

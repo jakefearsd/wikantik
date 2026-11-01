@@ -18,7 +18,11 @@
  */
 package com.wikantik.parser.markdown;
 
+import com.vladsch.flexmark.ast.HardLineBreak;
 import com.vladsch.flexmark.ast.IndentedCodeBlock;
+import com.vladsch.flexmark.ast.ListItem;
+import com.vladsch.flexmark.ast.Paragraph;
+import com.vladsch.flexmark.ast.SoftLineBreak;
 import com.vladsch.flexmark.ast.Text;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
@@ -281,8 +285,14 @@ public final class BlockIds {
                 return EMPTY;
             }
             final int bodyStart = FrontmatterParser.bodyOffset( fullText );
-            final MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( fullText.substring( bodyStart ) );
-            final Node document = PARSER.parse( prepared.text() );
+            final String body = fullText.substring( bodyStart );
+            MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( body );
+            Node document = PARSER.parse( prepared.text() );
+            final String emptied = EmptyRuleItems.blank( body, prepared, document );
+            if ( emptied != null ) {   // read those list items as empty, as the render does: parse again
+                prepared = MarkdownBodySource.prepare( emptied );
+                document = PARSER.parse( prepared.text() );
+            }
             final BlockWalk.Result walk = BlockWalk.walk( document );
             final Coords coords = new Coords( fullText, prepared, bodyStart );
 
@@ -353,6 +363,57 @@ public final class BlockIds {
                 }
             }
             return out.toString();
+        }
+    }
+
+    /**
+     * List items whose first line holds nothing but access rules ({@code - [{ALLOW view Admin}]}). The render strips
+     * those rules before it parses, which leaves an <em>empty</em> list item ({@code - }) — and an empty item parses
+     * differently: it cannot interrupt a paragraph, and a blank line after it ends it. To number blocks as the render does,
+     * the raw text is parsed again with those rules blanked out (spaces, so every offset stays where it is).
+     */
+    private static final class EmptyRuleItems {
+        private EmptyRuleItems() {
+        }
+
+        /** {@code body} with the rules of such item lines turned into spaces, or {@code null} when there are none. */
+        static String blank( final String body, final MarkdownBodySource.Prepared prepared, final Node document ) {
+            char[] out = null;
+            for ( final Node n : document.getDescendants() ) {
+                if ( !( n instanceof ListItem item ) || !( item.getFirstChild() instanceof Paragraph first )
+                        || !onlyRulesOnFirstLine( prepared.text(), item, first ) ) {
+                    continue;
+                }
+                for ( Node c = first.getFirstChild(); c != null && !isLineBreak( c ); c = c.getNext() ) {
+                    final int from = prepared.toBody( c.getStartOffset() );
+                    final int to = prepared.toBody( c.getEndOffset() );
+                    if ( BlockWalk.isAccessRuleLink( c ) && from >= 0 && to > from && body.indexOf( '\n', from ) >= to ) {
+                        out = out == null ? body.toCharArray() : out;
+                        java.util.Arrays.fill( out, from, to, ' ' );
+                    }
+                }
+            }
+            return out == null ? null : new String( out );
+        }
+
+        /** Whether {@code first} starts on the item's marker line and that line holds only access rules and blanks. */
+        private static boolean onlyRulesOnFirstLine( final String text, final ListItem item, final Paragraph first ) {
+            if ( text.substring( item.getStartOffset(), first.getStartOffset() ).indexOf( '\n' ) >= 0 ) {
+                return false;
+            }
+            boolean rule = false;
+            for ( Node c = first.getFirstChild(); c != null && !isLineBreak( c ); c = c.getNext() ) {
+                if ( BlockWalk.isAccessRuleLink( c ) ) {
+                    rule = true;
+                } else if ( !( c instanceof Text t && t.getChars().isBlank() ) ) {
+                    return false;
+                }
+            }
+            return rule;
+        }
+
+        private static boolean isLineBreak( final Node n ) {
+            return n instanceof SoftLineBreak || n instanceof HardLineBreak;
         }
     }
 
@@ -469,10 +530,17 @@ public final class BlockIds {
             return map( node.getStartOffset() );
         }
 
-        /** The marker's range in the full text: an inline one from the spaces and tabs before its {@code ^}. */
+        /**
+         * The marker's range in the full text: an inline one from the spaces and tabs before its {@code ^}, and so a
+         * standalone one that shares its line with an access rule ({@code [{ALLOW view Admin}] ^id}); a standalone one
+         * that starts its line keeps its container's prefix.
+         */
         Marker marker( final BlockWalk.Marker m ) {
             final int caret = caret( m.caret() );
-            final int start = m.form() == BlockWalk.Form.STANDALONE ? caret : spaceBefore( caret );
+            final boolean ownLine = m.form() == BlockWalk.Form.STANDALONE
+                    && ( m.text().getPrevious() == null || m.text().getPrevious() instanceof SoftLineBreak
+                         || m.text().getPrevious() instanceof HardLineBreak );
+            final int start = ownLine ? caret : spaceBefore( caret );
             return new Marker( m.id(), start, spaceAfter( caret + 1 + m.id().length() ) );
         }
 

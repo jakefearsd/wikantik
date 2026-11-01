@@ -90,6 +90,8 @@ vi.mock('../api/client', () => ({
     confirmEdge: vi.fn(() => Promise.resolve(null)),
     deleteEdge: vi.fn(() => Promise.resolve(null)),
     rejectEdge: vi.fn(() => Promise.resolve(null)),
+    getPageBlocks: vi.fn(),
+    assignBlockId: vi.fn(),
   },
 }));
 vi.mock('../hooks/usePagePreview', () => ({ loadPreview: vi.fn(), evictPreview: vi.fn() }));
@@ -1133,6 +1135,62 @@ describe('derived-page banner + misc', () => {
 
       await getHeadings('Target');
       expect(api.getPage).toHaveBeenCalledTimes(2);
+    });
+
+    it('blocks of the page being edited come from the live text, assignable locally', async () => {
+      renderEditor('TestPage');
+      await waitForEditor();
+      typeInEditor('Alpha ^abc\n\nBeta');
+      const { getBlocks } = linkSourceDeps.current;
+      const expected = { local: true, canAssign: true, blocks: [
+        { index: 0, id: 'abc', kind: 'paragraph', text: 'Alpha' },
+        { index: 1, id: null, kind: 'paragraph', text: 'Beta' },
+      ] };
+      expect(await getBlocks(null)).toEqual(expected);
+      expect(await getBlocks('TestPage')).toEqual(expected);
+      expect(api.getPageBlocks).not.toHaveBeenCalled();
+    });
+
+    it('blocks of another page are fetched once per page; an assign to it invalidates that entry', async () => {
+      renderEditor();
+      await waitForEditor();
+      const list = { version: 3, canAssign: true, blocks: [{ index: 0, id: null, kind: 'paragraph', text: 'x' }] };
+      api.getPageBlocks.mockResolvedValue(list);
+      api.assignBlockId.mockResolvedValueOnce({ id: 'n1', version: 4 })
+        .mockRejectedValueOnce(Object.assign(new Error('409'), { status: 409, body: { reason: 'stale' } }));
+      const { getBlocks, assignBlock } = linkSourceDeps.current;
+      expect(await getBlocks('Target')).toEqual(list);
+      await getBlocks('Target');
+      expect(api.getPageBlocks).toHaveBeenCalledTimes(1);
+      expect(api.getPageBlocks).toHaveBeenCalledWith('Target', { limit: 100 });
+      expect(await assignBlock('Target', 3, 0)).toEqual({ id: 'n1', version: 4 });
+      expect(api.assignBlockId).toHaveBeenCalledWith('Target', { version: 3, index: 0 });
+      await getBlocks('Target');
+      expect(api.getPageBlocks).toHaveBeenCalledTimes(2);
+      await expect(assignBlock('Target', 3, 0)).rejects.toThrow('409');
+      await getBlocks('Target');
+      expect(api.getPageBlocks).toHaveBeenCalledTimes(3);
+    });
+
+    it('a missing page has no blocks (remembered); any other failure is retried', async () => {
+      renderEditor();
+      await waitForEditor();
+      api.getPageBlocks.mockRejectedValueOnce(Object.assign(new Error('404'), { status: 404 }))
+        .mockRejectedValueOnce(new Error('503'))
+        .mockResolvedValueOnce({ version: 1, canAssign: false, blocks: [] });
+      const { getBlocks } = linkSourceDeps.current;
+      expect(await getBlocks('Gone')).toEqual({ version: 0, canAssign: false, blocks: [] });
+      await getBlocks('Gone');
+      expect(api.getPageBlocks).toHaveBeenCalledTimes(1);
+      await expect(getBlocks('Flaky')).rejects.toThrow('503');
+      expect((await getBlocks('Flaky')).version).toBe(1);
+    });
+
+    it('completion notices are shown as error toasts', async () => {
+      renderEditor();
+      await waitForEditor();
+      linkSourceDeps.current.notify('This page changed — pick the block again');
+      expect(mockToastError).toHaveBeenCalledWith('This page changed — pick the block again');
     });
   });
 });

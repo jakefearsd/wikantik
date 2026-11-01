@@ -455,7 +455,15 @@ const CodeEditor = forwardRef(function CodeEditor(
         searchPages: (q) => linkCompletionRef.current?.searchPages(q) ?? Promise.resolve([]),
         getHeadings: (page) => linkCompletionRef.current?.getHeadings(page) ?? Promise.resolve([]),
         getAttachmentNames: () => linkCompletionRef.current?.getAttachmentNames?.() ?? [],
+        getBlocks: (page) => linkCompletionRef.current?.getBlocks?.(page) ?? Promise.resolve(null),
+        assignBlock: (page, version, index) => (linkCompletionRef.current?.assignBlock
+          ? linkCompletionRef.current.assignBlock(page, version, index)
+          : Promise.reject(new Error('block ids cannot be assigned here'))),
+        notify: (message) => (linkCompletionRef.current?.notify
+          ? linkCompletionRef.current.notify(message) : console.warn(`[link-complete] ${message}`)),
       }), (ctx) => slashSourceRef.current?.(ctx) ?? null],
+      // A block that cannot be linked (no id, no edit access) is listed but greyed; its detail says why.
+      optionClass: (completion) => (completion.disabled ? 'cm-completion-disabled' : ''),
     }),
     [],
   );

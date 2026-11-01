@@ -3,7 +3,7 @@ import { buildEditorCommands } from './editorCommands';
 
 const deps = () => ({ format: vi.fn(), save: vi.fn(), pickImage: vi.fn(), togglePreview: vi.fn(),
                       toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn(), toggleLivePreview: vi.fn(),
-                      pastePlain: vi.fn() });
+                      pastePlain: vi.fn(), copyBlockLink: vi.fn() });
 
 describe('buildEditorCommands', () => {
   it('declares the editor command set with stable ids', () => {
@@ -12,7 +12,7 @@ describe('buildEditorCommands', () => {
       'editor-save', 'format-bold', 'format-italic', 'format-code', 'format-list', 'insert-link',
       'heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-warning', 'callout-danger',
       'callout-info', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
-      'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail', 'toggle-live-preview', 'paste-plain']));
+      'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail', 'toggle-live-preview', 'paste-plain', 'copy-block-link']));
   });
 
   it('marks only insert commands as slash commands', () => {
@@ -57,5 +57,14 @@ describe('buildEditorCommands', () => {
     expect(cmd.slash).toBeFalsy();
     cmd.run();
     expect(d.pastePlain).toHaveBeenCalled();
+  });
+
+  it('offers "Copy block link" in the palette (not the slash menu), findable by block words', () => {
+    const d = deps();
+    const c = buildEditorCommands(d).find((x) => x.id === 'copy-block-link');
+    expect(c).toMatchObject({ title: 'Copy block link', section: 'Editor', keywords: ['block', 'reference', 'anchor'] });
+    expect(c.slash).toBeUndefined();
+    c.run();
+    expect(d.copyBlockLink).toHaveBeenCalled();
   });
 });

@@ -17,6 +17,8 @@ import rehypeSourceLine from './rehypeSourceLine';
 import remarkBlockIds, { rehypeBlockIds } from './remarkBlockIds';
 import { WikiEmbedElement } from '../components/WikiEmbed';
 import WikiFence from '../components/WikiFence';
+import { createLowlight, common } from 'lowlight';
+import { rehypeHighlightCode } from './codeHighlight';
 import cases from './__fixtures__/block-ids.json';
 
 // The editor preview's plugin stack, as PageEditor builds it (resolution-only plugins left out).
@@ -154,4 +156,27 @@ describe('rehypeBlockIds', () => {
     rehypeBlockIds()(plain);
     expect(plain.children[0].properties).toEqual({});
   });
+});
+
+// rehypeBlockIds is meant to run first, but nothing can enforce the order of PageEditor's rehype list, so every
+// order must still put each block id where the reader has it.
+describe('preview rehype order', () => {
+  const lowlight = createLowlight(common);
+  const MD = 'Para ^p\n\n```js\nconst x = 1;\n```\n\n^cj\n\n```mermaid\nflowchart TD\n```\n\n^fg\n\n$$\nx^2\n$$\n\n^mt\n';
+  const PLUGINS = [['blockIds', rehypeBlockIds], ['katex', rehypeKatex], ['fences', rehypeRenderedFences],
+    ['highlight', [rehypeHighlightCode, { lowlight }]]];
+  const permutations = (xs) => (xs.length <= 1 ? [xs]
+    : xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((rest) => [x, ...rest])));
+
+  it.each(permutations(PLUGINS).map((p) => [p.map(([n]) => n).join(' > '), p.map(([, plugin]) => plugin)]))(
+    'ids survive: %s', (_name, rehype) => {
+      const host = document.createElement('div');
+      host.innerHTML = renderToStaticMarkup(
+        <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={[...rehype, rehypeSourceLine]} components={components}>
+          {MD}
+        </ReactMarkdown>);
+      const tagOf = (id) => host.querySelector(`[id="${id}"]`)?.tagName.toLowerCase();
+      expect([tagOf('^p'), tagOf('^cj'), tagOf('^fg'), tagOf('^mt')]).toEqual(['p', 'pre', 'figure', 'div']);
+      expect(host.querySelector('code[id]')).toBeNull();
+    });
 });

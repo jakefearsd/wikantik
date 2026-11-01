@@ -5,7 +5,8 @@
  * That latch is why editor commands must go through the view (applyEdit) instead of the `value` prop.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { render, act, waitFor } from '@testing-library/react';
+import { startCompletion, acceptCompletion } from '@codemirror/autocomplete';
 import { createRef } from 'react';
 import { EditorView } from '@codemirror/view';
 import { StateEffect } from '@codemirror/state';
@@ -255,5 +256,63 @@ describe('CodeEditor live preview', () => {
     expect(view.dom.querySelector('img.cm-lp-image').getAttribute('src')).toBe('pic.png');
     rerender(<CodeEditor value={doc} onChange={vi.fn()} livePreview livePreviewContext={{ pageName: 'P', attachments: ['pic.png'] }} />);
     expect(view.dom.querySelector('img.cm-lp-image').getAttribute('src')).toBe('/attach/P/pic.png');
+  });
+});
+
+describe('CodeEditor block completion ([[Page#^)', () => {
+  const blocks = (canAssign) => ({ version: 2, canAssign, blocks: [
+    { index: 0, id: null, kind: 'paragraph', text: 'Locked block' },
+    { index: 1, id: 'ok', kind: 'paragraph', text: 'Open block' },
+  ] });
+  function mountWith(linkCompletion) {
+    const utils = render(<CodeEditor value="[[Page#^" onChange={() => {}} linkCompletion={linkCompletion} />);
+    const view = EditorView.findFromDOM(utils.container.querySelector('.cm-editor'));
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.length } }); });
+    act(() => { startCompletion(view); });
+    return { view, ...utils };
+  }
+  const rows = (container) => [...container.querySelectorAll('.cm-tooltip-autocomplete li')];
+  // acceptCompletion ignores a popup younger than its interactionDelay (75 ms)
+  const accept = async (view) => {
+    await act(async () => { await new Promise((r) => { setTimeout(r, 100); }); });
+    act(() => { acceptCompletion(view); });
+  };
+
+  it('greys an id-less block on a page you cannot edit, and its detail says why', async () => {
+    const getBlocks = vi.fn(async () => blocks(false));
+    const { container } = mountWith({ searchPages: async () => [], getHeadings: async () => [], getBlocks });
+    await waitFor(() => expect(rows(container)).toHaveLength(2));
+    expect(getBlocks).toHaveBeenCalledWith('Page');
+    const [locked, open] = rows(container);
+    expect(locked.classList.contains('cm-completion-disabled')).toBe(true);
+    expect(locked.textContent).toContain('no id — needs edit access');
+    expect(open.classList.contains('cm-completion-disabled')).toBe(false);
+    expect(open.textContent).toContain('^ok');
+  });
+
+  it('routes the assign and its failure notice through linkCompletion, with fallbacks when they are absent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let answer;
+    const assignBlock = vi.fn(() => new Promise((r) => { answer = r; }));
+    const withAll = mountWith({ searchPages: async () => [], getHeadings: async () => [], getBlocks: async () => blocks(true), assignBlock, notify: vi.fn() });
+    await waitFor(() => expect(rows(withAll.container)).toHaveLength(2));
+    await accept(withAll.view);
+    await waitFor(() => expect(rows(withAll.container)).toHaveLength(0));   // closed while the server is asked
+    await act(async () => { answer({ id: 'given', version: 3 }); });
+    await waitFor(() => expect(withAll.view.state.doc.toString()).toBe('[[Page#^given]]'));
+    expect(assignBlock).toHaveBeenCalledWith('Page', 2, 0);
+    withAll.unmount();
+
+    const bare = mountWith({ searchPages: async () => [], getHeadings: async () => [], getBlocks: async () => blocks(true) });
+    await waitFor(() => expect(rows(bare.container)).toHaveLength(2));
+    await accept(bare.view);
+    await waitFor(() => expect(warn).toHaveBeenCalledWith("[link-complete] Couldn't add a block id to Page"));
+    expect(bare.view.state.doc.toString()).toBe('[[Page#^');
+    bare.unmount();
+
+    const none = mountWith({ searchPages: async () => [], getHeadings: async () => [] });
+    await act(async () => { await new Promise((r) => { setTimeout(r, 20); }); });
+    expect(rows(none.container)).toHaveLength(0);
+    warn.mockRestore();
   });
 });

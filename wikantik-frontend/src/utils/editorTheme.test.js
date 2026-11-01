@@ -77,4 +77,14 @@ describe('editor chrome theme', () => {
     const unstyled = [...emitted].filter((c) => !prefixes.has(c) && !keys.some((k) => k.split(/[\s,:]/).includes(`.${c}`)));
     expect(unstyled).toEqual([]);
   });
+
+  it('styles block markers, duplicate markers and disabled completion rows with two-theme tokens', () => {
+    for (const cls of ['.cm-lp-blockid', '.cm-lp-blockid-dup', '.cm-completion-disabled']) {
+      const rule = Object.entries(editorChromeSpec).find(([k]) => k.endsWith(cls))?.[1];
+      expect(rule, cls).toBeDefined();
+      expect(JSON.stringify(rule)).toMatch(/var\(--/);
+    }
+    const dup = JSON.stringify(editorChromeSpec['&.cm-editor .cm-lp-blockid-dup']);
+    expect(dup).toContain('var(--warning)');
+  });
 });

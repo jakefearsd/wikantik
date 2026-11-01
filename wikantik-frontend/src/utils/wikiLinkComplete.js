@@ -1,11 +1,16 @@
 // CodeMirror 6 completion source for internal links. Triggers:
 //   [[frag           → live page search (spaces ignored: page names are CamelCase); inserts native [[Name]]
 //   [[Page#frag      → the target page's h2/h3 headings; inserts [[Page#Heading]] ([[#Heading]] on this page)
+//   [[Page#^frag     → the target page's blocks; inserts [[Page#^id]] ([[#^id]] lists this buffer's blocks), first
+//                      giving an id-less block an id: a marker in this buffer (same transaction as the link), or a
+//                      server assign for another page (only when it says canAssign; otherwise listed disabled)
 //   ](frag           → pages + this page's attachments; replaces only the link target
 //   ](Page#frag      → headings of Page; ](#frag → headings of the page being edited
 // Anchors come from headingsFromMarkdown (the page view's ids). Results are ranked server-side, so
 // CodeMirror's own filtering is disabled (filter: false keeps our order).
+import { startCompletion, closeCompletion, pickedCompletion } from '@codemirror/autocomplete';
 import { titleToSlug, isValidSlug } from './slugUtils';
+import { blocksFromMarkdown, isBlockRef, markerChange, newBlockId, takenBlockIds } from './blockIds';
 
 const MAX_OPTIONS = 20;
 const SEARCH_DEBOUNCE_MS = 150;
@@ -13,6 +18,16 @@ const SEARCH_DEBOUNCE_MS = 150;
 const WIKI_TRIGGER = /\[\[([^\]\n#|]*)(?:#([^\]\n|]*))?$/;
 const TARGET_TRIGGER = /\]\(([^)\s#]*)(?:#([^)\s]*))?$/;
 const HAS_SCHEME_OR_ROOT = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
+
+const BLOCK_LABEL_CHARS = 120;
+const NO_ID_DETAIL = 'no id — needs edit access';
+const PICK_AGAIN = 'This page changed — pick the block again';
+const TEXT_CHANGED = 'The text changed — pick the block again';
+const ASSIGN_REASONS = {
+  stale: PICK_AGAIN,
+  derived: "This page is generated; block ids can't be added here",
+  'block-not-located': "Couldn't locate this block — pick it again",
+};
 
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
@@ -41,14 +56,41 @@ function newPageOption(fragment, names, applyFor) {
   return { label: `Link to new page: ${slug}`, type: 'newpage', apply: applyFor(slug, text) };
 }
 
+/** A block's text as one line of at most 120 chars; a block with no text (an empty table, …) shows its kind. */
+function blockLabel(b) {
+  const text = (b.text || '').replace(/\s+/g, ' ').trim();
+  if (!text) return `(${b.kind})`;
+  return text.length > BLOCK_LABEL_CHARS ? `${text.slice(0, BLOCK_LABEL_CHARS - 1)}…` : text;
+}
+
+/** The block of `doc` that the listed block `b` (from an earlier read of the buffer) is: same index, kind and text,
+ * else the first of the same kind and text; null when the text no longer has it. */
+function currentBlock(doc, b) {
+  const blocks = blocksFromMarkdown(doc);
+  const same = (x) => x.kind === b.kind && x.text === b.text;
+  const at = blocks[b.index];
+  return at && same(at) ? at : blocks.find(same) || null;
+}
+
 /**
  * @param {object} deps
  * @param {(q: string) => Promise<string[]>} deps.searchPages  ranked, ACL-filtered page names
  * @param {(page: string|null) => Promise<Array<{text: string, id: string|null}>>} deps.getHeadings
  *        headings of `page`, or of the page being edited when null
  * @param {() => string[]} [deps.getAttachmentNames]  attachment file names of the page being edited
+ * @param {(page: string|null) => Promise<{version?: number, canAssign: boolean, local?: boolean,
+ *          blocks: Array<{index: number, id: string|null, kind: string, text: string}>}|null>} [deps.getBlocks]
+ *        blocks of `page`, or of the page being edited when null (`local: true` for the live buffer: indices are the
+ *        buffer's own, and an id is added by editing it); another page's `index`/`version` are the server's
+ * @param {(page: string, version: number, index: number) => Promise<{id: string}>} [deps.assignBlock]
+ *        gives block `index` of `page` (at `version`) an id on the server; rejects with the request's error
+ * @param {(message: string) => void} [deps.notify]  shows a message to the user (a toast)
  */
-export function createWikiLinkSource({ searchPages, getHeadings, getAttachmentNames = () => [] }) {
+export function createWikiLinkSource({
+  searchPages, getHeadings, getAttachmentNames = () => [], getBlocks = async () => null,
+  assignBlock = async () => { throw new Error('block ids cannot be assigned here'); },
+  notify = (message) => console.warn(`[link-complete] ${message}`),
+}) {
   async function headingOptions(page, fragment, applyFor) {
     const headings = await safely('heading lookup', () => getHeadings(page || null));
     if (!headings) return null;
@@ -57,6 +99,99 @@ export function createWikiLinkSource({ searchPages, getHeadings, getAttachmentNa
       .filter((h) => h.id && h.text.toLowerCase().includes(frag))
       .slice(0, MAX_OPTIONS)
       .map((h) => ({ label: h.text, detail: `#${h.id}`, type: 'heading', apply: applyFor(h) }));
+  }
+
+  /** Links the picked block of this buffer, adding its marker first when it has none: ONE transaction, one undo. */
+  function linkLocalBlock(view, b, linkTo, from, to, completion) {
+    const doc = view.state.doc.toString();
+    const block = currentBlock(doc, b);
+    if (!block) {
+      console.warn('[link-complete] the picked block is no longer in the text', b.index, b.kind);
+      notify(TEXT_CHANGED);
+      return;
+    }
+    let id = block.id;
+    const edits = [];
+    if (!id) {
+      id = newBlockId(takenBlockIds(doc));
+      try {
+        edits.push(markerChange(doc, block, id));
+      } catch (err) {
+        // a block that can't carry a marker (a list item with no text line), or text that would not read back tagged
+        console.warn('[link-complete] could not add a block id', b.index, b.kind, err?.message || err);
+        notify("Couldn't add a block id here");
+        return;
+      }
+    }
+    const link = linkTo(id);
+    const changes = view.state.changes([...edits, { from, to, insert: link }]);
+    view.dispatch({
+      changes,
+      selection: { anchor: changes.mapPos(from, -1) + link.length },
+      annotations: pickedCompletion.of(completion),
+      userEvent: 'input.complete',
+    });
+  }
+
+  /** Asks the server for an id on another page's block, then links it where the completion was. */
+  async function linkRemoteBlock(view, page, version, b, linkTo, from, to) {
+    const typed = view.state.sliceDoc(from, to);
+    let id;
+    try {
+      ({ id } = await assignBlock(page, version, b.index));
+    } catch (err) {
+      const reason = err?.status === 409 ? err.body?.reason : null;
+      console.warn('[link-complete] could not add a block id', page, b.index, reason || err?.message || err);
+      if (reason === 'stale') {
+        // the listing was taken at an older version: fetch it again (the assign dropped the cached one) and reopen it
+        await safely('block re-fetch', () => getBlocks(page));
+      }
+      notify(ASSIGN_REASONS[reason] || `Couldn't add a block id to ${page}`);
+      if (reason === 'stale') {
+        try { startCompletion(view); } catch (e) { console.warn('[link-complete] could not reopen completion', e?.message || e); }
+      }
+      return;
+    }
+    if (view.state.sliceDoc(from, to) !== typed) {
+      console.warn('[link-complete] text changed while adding a block id; not inserting', page, id);
+      notify(TEXT_CHANGED);
+      return;
+    }
+    const link = linkTo(id);
+    view.dispatch({ changes: { from, to, insert: link }, selection: { anchor: from + link.length }, userEvent: 'input.complete' });
+  }
+
+  async function blockOptions(page, fragment) {
+    const listing = await safely('block lookup', () => getBlocks(page || null));
+    if (!listing) return null;
+    const local = !page || listing.local === true;
+    const frag = fragment.toLowerCase();
+    const linkTo = (id) => `[[${page}#^${id}]]`;
+    return (listing.blocks || [])
+      .filter((b) => (b.text || '').toLowerCase().includes(frag) || (b.id || '').toLowerCase().includes(frag))
+      .slice(0, MAX_OPTIONS)
+      .map((b) => {
+        const label = blockLabel(b);
+        if (b.id) return { label, detail: `^${b.id}`, type: 'block', apply: linkTo(b.id) };
+        if (local) {
+          return { label, type: 'block', apply: (view, completion, from, to) => linkLocalBlock(view, b, linkTo, from, to, completion) };
+        }
+        if (listing.canAssign) {
+          return {
+            label, type: 'block',
+            apply: (view, _c, from, to) => {
+              closeCompletion(view);   // nothing is inserted until the server answers; a second pick must not re-assign
+              linkRemoteBlock(view, page, listing.version, b, linkTo, from, to);
+            },
+          };
+        }
+        // Listed so the block can be found, but it cannot be linked: picking it does nothing (the popup stays open).
+        return {
+          label, detail: NO_ID_DETAIL, type: 'block', disabled: true,
+          info: 'This block has no id yet, and you need edit access to that page to give it one.',
+          apply: () => {},
+        };
+      });
   }
 
   async function pageNames(fragment, context) {
@@ -79,6 +214,10 @@ export function createWikiLinkSource({ searchPages, getHeadings, getAttachmentNa
   async function completeWiki(match, context) {
     const to = autoClosedBrackets(context);
     const [, page, heading] = WIKI_TRIGGER.exec(match.text);
+    if (isBlockRef(heading)) {
+      const options = await blockOptions(page, heading.slice(1));
+      return context.aborted ? null : result(match.from, options, to);
+    }
     if (heading !== undefined) {
       const options = await headingOptions(page, heading, (h) => `[[${page}#${wikiHeadingText(h.text)}]]`);
       return context.aborted ? null : result(match.from, options, to);

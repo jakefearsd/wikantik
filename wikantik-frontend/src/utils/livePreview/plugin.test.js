@@ -241,3 +241,16 @@ describe('live preview incremental updates', () => {
   });
 });
 
+describe('live preview block markers', () => {
+  it('renders a marker as a muted chip and a duplicate with its warning title', () => {
+    const view = liveView('One ^dup\n\nTwo ^dup\n\nend', { caret: 0 });
+    // line 1 is active: raw; line 3 is a duplicate
+    expect(view.contentDOM.querySelector('.cm-lp-blockid')).toBeNull();
+    const dup = view.contentDOM.querySelector('.cm-lp-blockid-dup');
+    expect(dup.textContent).toBe('^dup');
+    expect(dup.getAttribute('title')).toBe('Duplicate block id — only the first ^dup is linkable');
+    view.dispatch({ selection: { anchor: view.state.doc.length } });
+    expect(view.contentDOM.querySelector('.cm-lp-blockid').textContent).toBe('^dup');
+    expect(view.contentDOM.querySelector('.cm-lp-blockid').getAttribute('title')).toBeNull();
+  });
+});

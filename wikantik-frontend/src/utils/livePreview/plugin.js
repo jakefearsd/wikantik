@@ -35,6 +35,7 @@ function toDecorations(specs, context) {
   const ranges = [];
   for (const s of specs) {
     if (s.kind === 'line') ranges.push(cached(lineDecos, s.cls, (c) => Decoration.line({ class: c })).range(s.from));
+    else if (s.kind === 'mark' && s.title) ranges.push(cached(markDecos, `${s.cls}\n${s.title}`, () => Decoration.mark({ class: s.cls, attributes: { title: s.title } })).range(s.from, s.to));
     else if (s.kind === 'mark') ranges.push(cached(markDecos, s.cls, (c) => Decoration.mark({ class: c })).range(s.from, s.to));
     else if (s.kind === 'hide') ranges.push(hidden.range(s.from, s.to));
     else if (s.kind === 'widget') ranges.push(Decoration.replace({ widget: widgetFor(s.widget, context) }).range(s.from, s.to));

@@ -4,6 +4,7 @@ import { matchInlineMath } from '../inlineMath';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
+import { BLOCK_ID_RE, STANDALONE_RE } from '../blockIds';
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
 const HEADING = /^ATXHeading([1-6])$/;
@@ -170,6 +171,62 @@ export function updateBlockCandidates(prev, tr, context = {}) {
   }
   return out;
 }
+const LINE_PREFIX = /^[ \t>]*/;   // a continuation line's indentation and block-quote marks
+const NOT_A_HOLDER = /^(?:ATXHeading\d|SetextHeading\d|FencedCode)$/;
+/** Lezer's text blocks: a paragraph, or a task item's text (GFM gives a task item a Task node, not a Paragraph). */
+const TEXT_BLOCK = new Set(['Paragraph', 'Task']);
+/**
+ * The `^id` block marker ending a text block (a Paragraph or Task node), as `{ id, from }` (`from` = the caret), or null. The same marker
+ * forms blockIds.js reads — inline (whitespace + `^id` ending the last line), last-line (`^id` alone on the last line)
+ * and standalone (a paragraph that is only `^id`), with its regexes — but over the Lezer block structure, which costs a
+ * line slice instead of a remark parse. Code, tables, HTML and headings are never Paragraph nodes; display math and a
+ * callout's title line are ruled out here. (The inline tree is not consulted, so a `^x^` superscript cannot mis-tint.)
+ */
+function paragraphMarker(doc, node) {
+  if (doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) return null;
+  const last = doc.lineAt(node.to);
+  const onFirstLine = last.from <= node.from;
+  let start = onFirstLine ? node.from : last.from;
+  let seg = doc.sliceString(start, node.to);
+  if (!onFirstLine) {
+    const prefix = LINE_PREFIX.exec(seg)[0].length;
+    start += prefix;
+    seg = seg.slice(prefix);
+  } else if (node.parent?.name === 'Blockquote' && MARKER.test(seg)) {
+    return null; // a callout's title line, which the server never reads a marker from
+  }
+  const alone = STANDALONE_RE.exec(seg);
+  if (alone) return { id: alone[1], from: start };
+  const m = BLOCK_ID_RE.exec(seg);
+  return m ? { id: m[1], from: start + m.index } : null;
+}
+const firstMarkerCache = new WeakMap(); // doc → { tree, upTo, firsts }
+/**
+ * Each id's first marker position (Map id → caret) among the markers up to `upTo`: enough to apply the server's
+ * first-wins rule (all markers ordered by position) to any marker at or before `upTo`, since an earlier marker of the
+ * same id is in a block that starts before it. Walks only the block structure from the top (a text block is never
+ * descended into), once per (document, parse tree) — the walk ends at the last marker in view, so it is short while
+ * the viewport is near the top — and only when a marker is in view at all.
+ */
+function firstMarkers(state, upTo) {
+  const tree = syntaxTree(state);
+  const hit = firstMarkerCache.get(state.doc);
+  if (hit && hit.tree === tree && hit.upTo >= upTo) return hit.firsts;
+  const firsts = new Map();
+  tree.iterate({
+    from: 0,
+    to: upTo,
+    enter: (node) => {
+      if (SKIP.has(node.name) || NOT_A_HOLDER.test(node.name)) return false;
+      if (!TEXT_BLOCK.has(node.name)) return undefined;
+      const m = paragraphMarker(state.doc, node.node);
+      if (m && !firsts.has(m.id)) firsts.set(m.id, m.from);
+      return false;
+    },
+  });
+  firstMarkerCache.set(state.doc, { tree, upTo, firsts });
+  return firsts;
+}
 /** The block widgets to show: every candidate none of whose lines is active. */
 export function blockSpecs(state, activeLines, context = {}) {
   const doc = state.doc;
@@ -196,6 +253,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const doc = state.doc;
   const specs = [];
   const excluded = []; // code/table/etc. ranges the line-regex pass must not touch
+  const markers = []; // block markers (`^id`) ending the paragraphs in range
   const lineClasses = new Map(); // line start -> Set<cls>
   const inactive = (pos) => !activeLines.has(doc.lineAt(pos).number);
   const spaceAfter = (pos) => (doc.sliceString(pos, pos + 1) === ' ' ? 1 : 0);
@@ -290,6 +348,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
       if (name === 'Paragraph' && doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) { excluded.push([node.from, node.to]); return false; }
+      if (TEXT_BLOCK.has(name)) { const m = paragraphMarker(doc, node.node); if (m) markers.push(m); }
       if (name === 'Image') { image(node); return false; }
       const h = HEADING.exec(name);
       if (h) { heading(node, h[1]); return undefined; }
@@ -388,6 +447,18 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const kept = specs.filter((sp, i) => i >= treeCount || !cutGroups.has(sp.group ?? sp));
   specs.length = 0;
   specs.push(...kept);
+  // A block marker reads as a muted chip off the caret's line; a later duplicate of an id (first wins) is flagged.
+  const firsts = markers.length ? firstMarkers(state, Math.max(...markers.map((m) => m.from))) : null;
+  for (const m of markers) {
+    if (!inactive(m.from)) continue;
+    const first = firsts.get(m.id);
+    const end = m.from + 1 + m.id.length;
+    if (first !== undefined && first < m.from) {
+      specs.push({ kind: 'mark', from: m.from, to: end, cls: 'cm-lp-blockid-dup', title: `Duplicate block id — only the first ^${m.id} is linkable` });
+    } else {
+      specs.push({ kind: 'mark', from: m.from, to: end, cls: 'cm-lp-blockid' });
+    }
+  }
   for (const [lineStart, classes] of lineClasses) {
     for (const cls of classes) specs.push({ kind: 'line', from: lineStart, to: lineStart, cls });
   }

@@ -33,6 +33,7 @@ const TEXT_ICONS = {
   'slash-heading-2': 'H2',
   'slash-heading-3': 'H3',
   heading: '#',
+  block: '^',
 };
 
 /** Callout colour styles (the values of remarkCallouts' alias map); each has a --callout-<style> token. */
@@ -103,6 +104,8 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-tooltip.cm-tooltip-autocomplete-disabled > ul > li[aria-selected]`]: {
     backgroundColor: 'color-mix(in srgb, var(--text) 8%, transparent)',
   },
+  // A completion that cannot be picked (a block without an id on a page you can't edit): muted, its detail says why.
+  [`${ROW}.cm-completion-disabled`]: { color: 'var(--text-muted)', cursor: 'not-allowed' },
   [`${ROOT} .cm-completionLabel`]: {
     flex: '1 1 auto',
     minWidth: '0',
@@ -214,6 +217,9 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-fence-block`]: { display: 'block', margin: '0.4em 0', overflow: 'auto', cursor: 'text' },
   [`${ROOT} .cm-lp-codeblock`]: { backgroundColor: 'var(--code-bg)' },
   [`${ROOT} .cm-lp-plugin`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em' },
+  // A block marker (`^id`) off the caret's line: a small muted chip; a later duplicate of an id: a warning chip.
+  [`${ROOT} .cm-lp-blockid`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', backgroundColor: 'color-mix(in srgb, var(--text) 5%, transparent)', fontFamily: 'var(--font-mono)', fontSize: '0.8em' },
+  [`${ROOT} .cm-lp-blockid-dup`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--warning)', backgroundColor: 'var(--warning-bg)', textDecoration: 'underline wavy', textDecorationColor: 'var(--warning)', fontFamily: 'var(--font-mono)', fontSize: '0.8em', cursor: 'help' },
   [`${ROOT} .cm-lp-embed`]: { margin: '0.4em 0', padding: '0.5em 0.75em', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-elevated)', cursor: 'text' },
   [`${ROOT} .cm-lp-embed-title`]: { fontFamily: 'var(--font-ui)', fontSize: '0.8em', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.3em' },
   [`${ROOT} .cm-lp-embed-body`]: { lineHeight: '1.5' },

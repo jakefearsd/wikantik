@@ -4,6 +4,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import fixture from '../__fixtures__/renderedFences.json';
 import { fullyParsed } from '../../test/fullParse';
 import { editorMarkdownConfig } from '../editorMarkdown';
+import { blocksFromMarkdown } from '../blockIds';
 import { blockCandidates, activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
 function stateOf(doc, selection) {
   const state = EditorState.create({
@@ -298,5 +299,64 @@ describe('live-preview parity with the shared rendered-fence fixture', () => {
     for (const name of Object.keys(EXPECTED_TO_DIFFER)) {
       expect(fixture.documents.find((d) => d.name === name).fences).toHaveLength(1);
     }
+  });
+});
+
+describe('block markers', () => {
+  const DUP_TITLE = 'Duplicate block id — only the first ^dup is linkable';
+  const markers = (state, specs) => specs.filter((s) => s.kind === 'mark' && s.cls.startsWith('cm-lp-blockid'))
+    .map((s) => [s.cls, state.sliceDoc(s.from, s.to), s.title ?? null]);
+
+  it('marks an inline marker off the active line, and leaves it raw on the active line', () => {
+    const doc = 'A paragraph ^abc\n\nOther';
+    const off = specsOf(doc, [3]);
+    expect(markers(off.state, off.specs)).toEqual([['cm-lp-blockid', '^abc', null]]);
+    const on = specsOf(doc, [1]);
+    expect(markers(on.state, on.specs)).toEqual([]);
+  });
+
+  it('marks standalone, last-line, list-item and quoted markers; never code, math, headings or escapes', () => {
+    const doc = [
+      '| a |', '|---|', '| 1 |', '', '^tbl', '',            // 1-6: standalone after a table
+      'two', 'lines', '^last', '',                         // 7-10: last-line marker
+      '- item ^li', '', '> quoted ^qq', '',                // 11-14
+      '## Heading ^hh', '', '```', 'code ^cc', '```', '',  // 15-20
+      'Uses `code ^ic`', '', '$$', 'x ^mm', '$$', '',      // 21-26
+      'escaped \\^esc', '', 'tight^no', '',                // 27-30
+      '> [!note] Title ^ct', '> body ^cb', '',            // 31-33: a callout title never holds one
+      '- [ ] a task ^tk',                                  // 34: a task item (a Task node, not a Paragraph)
+    ].join('\n');
+    const { state, specs } = specsOf(doc, []);
+    expect(markers(state, specs).map((m) => m[1])).toEqual(['^tbl', '^last', '^li', '^qq', '^cb', '^tk']);
+    const ids = blocksFromMarkdown(doc).filter((b) => b.id).map((b) => `^${b.id}`);
+    expect(ids).toEqual(['^tbl', '^last', '^li', '^qq', '^cb', '^tk']);   // what the server model reads
+  });
+
+  it('flags a later duplicate (by marker position, the first wins) with a warning class and title', () => {
+    const doc = 'First ^dup\n\nSecond ^dup\n\n^dup\n\nOther ^ok';
+    const { state, specs } = specsOf(doc, []);
+    expect(markers(state, specs)).toEqual([
+      ['cm-lp-blockid', '^dup', null],
+      ['cm-lp-blockid-dup', '^dup', DUP_TITLE],
+      ['cm-lp-blockid-dup', '^dup', DUP_TITLE],
+      ['cm-lp-blockid', '^ok', null],
+    ]);
+  });
+
+  it('judges a duplicate against the whole document even when only a later range is scanned', () => {
+    const doc = `First ^dup\n\n${'filler\n\n'.repeat(20)}Again ^dup`;
+    const state = stateOf(doc);
+    const last = state.doc.line(state.doc.lines);
+    const specs = livePreviewSpecs(state, new Set(), { from: last.from, to: last.to });
+    expect(markers(state, specs)).toEqual([['cm-lp-blockid-dup', '^dup', 'Duplicate block id — only the first ^dup is linkable']]);
+  });
+
+  it('agrees with blocksFromMarkdown on which markers are duplicates', () => {
+    const doc = 'a ^x\n\n- b ^x\n- c ^y\n\n> d\n>\n> ^y\n\ne ^z\n\n- [x] done ^z';
+    const { specs } = specsOf(doc, []);
+    const dupCarets = specs.filter((s) => s.cls === 'cm-lp-blockid-dup').map((s) => s.from);
+    // the losers are the blocks with a marker range but no id
+    const losers = blocksFromMarkdown(doc).filter((b) => b.markerFrom >= 0 && b.id == null).map((b) => doc.indexOf('^', b.markerFrom));
+    expect(dupCarets).toEqual(losers);
   });
 });

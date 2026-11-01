@@ -4,6 +4,8 @@ import { rendererFor } from './registry';
 
 const classesOf = (cls) => (Array.isArray(cls) ? cls : String(cls || '').split(/\s+/).filter(Boolean));
 
+const blockIdOf = (pre, code) => pre.properties?.id ?? code.properties?.id;
+
 function hastText(node) {
   if (node.type === 'text') return node.value;
   return (node.children || []).map(hastText).join('');
@@ -32,8 +34,9 @@ export function rehypeRenderedFences() {
         properties: {
           language: parseFenceInfo(info).language,
           source: hastText(code).replace(/\r\n?/g, '\n'),
-          // a block id (rehypeBlockIds put it on the pre) goes on the figure, as the server's does
-          ...(node.properties?.id ? { id: node.properties.id } : {}),
+          // a block id goes on the figure, as the server's does: read from the pre (where rehypeBlockIds moves it) or,
+          // when this plugin runs first, from the code element (where mdast-util-to-hast put it)
+          ...(blockIdOf(node, code) ? { id: blockIdOf(node, code) } : {}),
         },
         children: [],
       };

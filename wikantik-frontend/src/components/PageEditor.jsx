@@ -35,6 +35,7 @@ import { rehypeRenderedFences } from '../utils/fences/rehypeRenderedFences';
 import WikiFence from './WikiFence';
 import { rehypeHighlightCode } from '../utils/codeHighlight';
 import { headingsFromMarkdown } from '../utils/headings';
+import { blocksFromMarkdown, blockLinkEdit } from '../utils/blockIds';
 import { useAttachments } from '../hooks/useAttachments';
 import { useAttachmentUpload } from '../hooks/useAttachmentUpload';
 import { dragCarriesFiles, filesFromDrop } from '../utils/editorFileEvents';
@@ -69,6 +70,9 @@ import { createSlashSource } from '../utils/slashComplete';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
+
+/** Blocks fetched per page for [[Page#^ completion (the server's maximum); the list is filtered locally. */
+const BLOCK_LIST_LIMIT = 100;
 
 export default function PageEditor() {
   const { name } = useParams();
@@ -287,6 +291,7 @@ export default function PageEditor() {
   // Live link completion: server-ranked, ACL-filtered page search; heading lists per target page are
   // fetched once per editing session (the page being edited uses the live draft).
   const headingCacheRef = useRef(new Map());
+  const blockCacheRef = useRef(new Map());
   const attachmentNamesRef = useRef([]);
   useEffect(() => {
     attachmentNamesRef.current = (attachments.list || []).map((a) => a.fileName);
@@ -309,7 +314,32 @@ export default function PageEditor() {
       return cache.get(page);
     },
     getAttachmentNames: () => attachmentNamesRef.current,
-  }), []);
+    // [[Page#^ completion. This page's blocks come from the live text (the editor's, which bodyRef lags by a render)
+    // and an id is added by editing it; another page's come from the server, cached per page for the session, and
+    // only their server index/version are ever sent back (this parser's numbering can differ from the server's).
+    getBlocks: (page) => {
+      if (!page || page === name) {
+        const text = editorRef.current?.getText?.() ?? bodyRef.current;
+        const blocks = blocksFromMarkdown(text).map(({ index, id, kind, text: t }) => ({ index, id, kind, text: t }));
+        return Promise.resolve({ local: true, canAssign: true, blocks });
+      }
+      const cache = blockCacheRef.current;
+      if (!cache.has(page)) {
+        cache.set(page, api.getPageBlocks(page, { limit: BLOCK_LIST_LIMIT })
+          .catch((err) => {
+            // A page that doesn't exist (or can't be seen) has no blocks — remember that; evict anything else.
+            if (err?.status === 404) return { version: 0, canAssign: false, blocks: [] };
+            cache.delete(page);
+            throw err;
+          }));
+      }
+      return cache.get(page);
+    },
+    // The page has a new version after an assign (or a stale listing after a refusal): drop its cached listing.
+    assignBlock: (page, version, index) => api.assignBlockId(page, { version, index })
+      .finally(() => blockCacheRef.current.delete(page)),
+    notify: (message) => toast.error(message),
+  }), [name, toast]);
 
   // Search-backed option source for the `related` field's page picker.
   const pageSearch = useCallback((q) =>
@@ -590,11 +620,40 @@ export default function PageEditor() {
       toast.error(`The browser blocked clipboard access — press ${formatKeys('Mod-Shift-V')} to paste as plain text`);
     }
   }, [toast]);
+  // "Copy block link": the block at the caret gets an id if it has none (one edit, one undo step), then
+  // `[[ThisPage#^id]]` is copied. The clipboard write starts before any await, inside the palette's user gesture.
+  const copyBlockLink = useCallback(async () => {
+    const editor = editorRef.current;
+    if (!editor) return;   // still loading: there is no text to add an id to
+    const text = editor.getText();
+    const pos = editor.getSelection().selStart;
+    let edit;
+    try {
+      edit = blockLinkEdit(text, pos);
+    } catch (err) {
+      // a block that can't carry a marker (a list item with no text line) or one the text would not read back as tagged
+      console.warn('[editor] could not add a block id', name, pos, err?.message || err);
+      toast.error("Couldn't add a block id here");
+      return;
+    }
+    if (!edit) {
+      toast.info('Put the cursor in a paragraph, list item or table');
+      return;
+    }
+    if (edit.change) editor.replaceRange(edit.change.from, edit.change.to, edit.change.insert);
+    try {
+      await navigator.clipboard.writeText(`[[${name}#^${edit.id}]]`);
+      toast.success('Block link copied');
+    } catch (err) {
+      console.warn('[editor] could not copy the block link', name, edit.id, err?.message || err);
+      toast.error("Couldn't copy link");
+    }
+  }, [name, toast]);
   // Built inside the effect (not during render): several actions read refs, which render must not touch.
   useEffect(() => registerCommands(buildEditorCommands({
     format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview: toggleEditorMode,
-    pastePlain,
-  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain]);
+    pastePlain, copyBlockLink,
+  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain, copyBlockLink]);
   // A paste converted to Markdown: the first one of the session says how to get plain text instead; embedded images
   // (data: URIs from Docs/Word) cannot ride along as links, so say so every time rather than drop them silently.
   const pasteHintShownRef = useRef(false);

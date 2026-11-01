@@ -381,52 +381,88 @@ function isBlankLine(text, at) {
   return true;
 }
 
-/** `^id` as a marker line of its own after `b`, inside `b`'s container, set apart by blank lines. */
-function withStandaloneMarker(text, b, id) {
+/** The insertion that puts `^id` on a marker line of its own after `b`, inside `b`'s container, set apart by blank lines. */
+function standaloneMarkerChange(text, b, id) {
   const prefix = continuationPrefix(text.slice(lineStart(text, b.from), b.from));
   const blank = prefix.trimEnd();
   const nl = text.indexOf('\n', b.to);
   if (nl < 0) {
     const eol = text.includes('\r\n') ? '\r\n' : '\n';
-    return `${text}${eol}${blank}${eol}${prefix}^${id}`;
+    return { from: text.length, to: text.length, insert: `${eol}${blank}${eol}${prefix}^${id}` };
   }
   const eol = nl > 0 && text[nl - 1] === '\r' ? '\r\n' : '\n';
   const at = nl + 1;
   let insert = `${blank}${eol}${prefix}^${id}${eol}`;
   if (!isBlankLine(text, at)) insert += `${blank}${eol}`;   // keep the marker its own paragraph
-  return text.slice(0, at) + insert + text.slice(at);
+  return { from: at, to: at, insert };
 }
 
+const applyChange = (md, c) => md.slice(0, c.from) + c.insert + md.slice(c.to);
+
 /**
- * `md` with `block` (from `blocksFromMarkdown(md)`) tagged `id`: an inline ` ^id` at the end of a paragraph or of a
- * list item's first line, otherwise a standalone marker line after the block; a losing duplicate's marker is replaced.
- * Mirrors the server's BlockIds.assign.
+ * The one edit that tags `block` (from `blocksFromMarkdown(md)`) with `id`, as `{ from, to, insert }` over `md`: an
+ * inline ` ^id` at the end of a paragraph or of a list item's first line, otherwise a standalone marker line after the
+ * block; a losing duplicate's marker is replaced. Mirrors the server's BlockIds.assign. The editor applies it as one
+ * transaction, so it is one undo step and the caret maps through it.
  *
  * @throws Error when `id` is malformed, `block` is not a current block of `md`, it already has an id or can't take
  *   one, or the edited text does not read back with the block tagged.
  */
-export function insertMarker(md, block, id) {
+export function markerChange(md, block, id) {
   if (typeof id !== 'string' || !ID_RE.test(id)) throw new Error(`Not a block id: ${id}`);
   const b = blocksFromMarkdown(md)[block?.index];
   if (!b || b.kind !== block.kind || b.from !== block.from || b.to !== block.to) {
     throw new Error(`Block ${block?.index} is not a current block of this text`);
   }
   if (b.id != null) throw new Error(`Block ${b.index} already has id ^${b.id}`);
-  let out;
+  let change;
   if (b.markerFrom >= 0) {   // a duplicate: its marker carries no id, so its ^id is replaced
-    const caret = md.indexOf('^', b.markerFrom);
-    out = `${md.slice(0, caret)}^${id}${md.slice(b.markerTo)}`;
+    change = { from: md.indexOf('^', b.markerFrom), to: b.markerTo, insert: `^${id}` };
   } else if (b.inlineAt >= 0) {
-    out = `${md.slice(0, b.inlineAt)} ^${id}${md.slice(b.inlineAt)}`;
+    change = { from: b.inlineAt, to: b.inlineAt, insert: ` ^${id}` };
   } else if (b.kind === 'list-item') {
     throw new Error(`List item ${b.index} has no text line to carry an id`);
   } else {
-    out = withStandaloneMarker(md, b, id);
+    change = standaloneMarkerChange(md, b, id);
   }
-  if (blocksFromMarkdown(out)[b.index]?.id !== id) {
+  if (blocksFromMarkdown(applyChange(md, change))[b.index]?.id !== id) {
     throw new Error(`Adding ^${id} to block ${b.index} (${b.kind}) did not tag it`);
   }
-  return out;
+  return change;
+}
+
+/** `md` with `block` tagged `id`: `markerChange` applied. Same contract and errors. */
+export function insertMarker(md, block, id) {
+  return applyChange(md, markerChange(md, block, id));
+}
+
+/** The innermost block of `md` whose range holds `pos` (ends included), or null (a heading, a blank line, …). */
+export function blockAt(md, pos) {
+  let best = null;
+  for (const b of blocksFromMarkdown(md)) {
+    if (b.from <= pos && pos <= b.to && (!best || b.to - b.from <= best.to - best.from)) best = b;
+  }
+  return best;
+}
+
+/**
+ * Every `^word` in `md` — ids, losing duplicates, orphans, even look-alikes in code — so a fresh id cannot collide with
+ * any of them (over-collecting only narrows the choice).
+ */
+export function takenBlockIds(md) {
+  return new Set([...(md || '').matchAll(/\^([A-Za-z0-9-]+)/g)].map((m) => m[1]));
+}
+
+/**
+ * What "copy a link to the block at `pos`" needs: `{ id, change }`, where `change` is the marker edit for a block
+ * without an id (null when it already has one), or null when no block holds `pos`.
+ */
+export function blockLinkEdit(md, pos) {
+  const b = blockAt(md, pos);
+  if (!b) return null;
+  if (b.id) return { id: b.id, change: null };
+  const id = newBlockId(takenBlockIds(md));
+  return { id, change: markerChange(md, b, id) };
 }
 
 /** A fresh id: six chars of [a-z0-9], not in `existing` (a Set, an array, or nothing). */

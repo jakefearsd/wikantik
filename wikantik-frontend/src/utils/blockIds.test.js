@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   BLOCK_ID_RE, STANDALONE_RE, isBlockRef, blocksFromMarkdown, newBlockId, insertMarker, blockFingerprint,
+  markerChange, blockAt, takenBlockIds, blockLinkEdit,
 } from './blockIds';
 
 // Mirrors the server's BlockIdsTest (com.wikantik.parser.markdown): the same inputs, the same answers.
@@ -306,5 +307,63 @@ describe('blockFingerprint', () => {
     expect(blockFingerprint('a'.repeat(250))).toHaveLength(200);
     expect(blockFingerprint(null)).toBe('');
     expect(blockFingerprint(undefined)).toBe('');
+  });
+});
+
+describe('markerChange', () => {
+  const apply = (md, c) => md.slice(0, c.from) + c.insert + md.slice(c.to);
+
+  it('is the one edit insertMarker makes: inline, standalone, a duplicate replaced', () => {
+    for (const [md, i] of [['a\n\nPara\n', 1], [TABLE, 0], ['a ^d\n\nb ^d\n', 1], ['> q', 0], ['- a\n- b\n', 1]]) {
+      const b = blocksFromMarkdown(md)[i];
+      const c = markerChange(md, b, 'zz');
+      expect(apply(md, c)).toBe(insertMarker(md, b, 'zz'));
+    }
+    expect(markerChange('Para\n', blocksFromMarkdown('Para\n')[0], 'x')).toEqual({ from: 4, to: 4, insert: ' ^x' });
+    expect(markerChange('a ^d\n\nb ^d\n', blocksFromMarkdown('a ^d\n\nb ^d\n')[1], 'e')).toEqual({ from: 8, to: 10, insert: '^e' });
+  });
+
+  it('validates as insertMarker does', () => {
+    const md = 'a ^abc\n\nb\n';
+    expect(() => markerChange(md, blocksFromMarkdown(md)[0], 'n')).toThrow(/already has id/);
+    expect(() => markerChange(md, blocksFromMarkdown(md)[1], 'abc')).toThrow(/did not tag it/);
+  });
+});
+
+describe('blockAt', () => {
+  it('is the innermost block whose range holds the position, or null', () => {
+    const md = '# H\n\n> quoted para\n\n- item\n\n  more\n';
+    expect(blockAt(md, 1)).toBeNull();                       // a heading
+    expect(blockAt(md, 4)).toBeNull();                       // the blank line
+    expect(blockAt(md, md.indexOf('quoted')).kind).toBe('paragraph');
+    expect(blockAt(md, md.indexOf('item') + 2).kind).toBe('list-item');
+    expect(blockAt(md, md.indexOf('more')).kind).toBe('paragraph');
+    expect(blockAt('', 0)).toBeNull();
+  });
+});
+
+describe('takenBlockIds', () => {
+  it('collects every ^id-looking token (orphans and losers too), so a fresh id never collides', () => {
+    expect([...takenBlockIds('a ^one\n\n^two\n\nx^y\n')].sort()).toEqual(['one', 'two', 'y']);
+    expect(takenBlockIds('')).toEqual(new Set());
+  });
+});
+
+describe('blockLinkEdit', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('reuses the id of the block at the position, with no edit', () => {
+    expect(blockLinkEdit('Para ^abc\n', 2)).toEqual({ id: 'abc', change: null });
+  });
+
+  it('gives an id-less block a fresh id that avoids every id on the page', () => {
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementationOnce((arr) => arr.fill(0))
+      .mockImplementationOnce((arr) => arr.fill(1));
+    const md = 'Para\n\nUse `x ^aaaaaa` here\n';   // only a look-alike in code, but still avoided
+    expect(blockLinkEdit(md, 1)).toEqual({ id: 'bbbbbb', change: { from: 4, to: 4, insert: ' ^bbbbbb' } });
+  });
+
+  it('is null away from a block', () => {
+    expect(blockLinkEdit('# Heading\n', 3)).toBeNull();
   });
 });

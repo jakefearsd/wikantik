@@ -1,5 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import { history, undo } from '@codemirror/commands';
+import { CompletionContext, autocompletion } from '@codemirror/autocomplete';
 import { createWikiLinkSource } from './wikiLinkComplete';
+import { blocksFromMarkdown } from './blockIds';
 
 // Minimal CodeMirror CompletionContext stand-in.
 function ctx(textBefore, textAfter = '') {
@@ -171,5 +176,272 @@ describe('createWikiLinkSource', () => {
     const res = await createWikiLinkSource(deps())(ctx('![[Mach'));
     expect(res.from).toBe(1);
     expect(res.options[0].apply).toBe('[[MachineLearning]]');
+  });
+});
+
+// ── Block completion: [[Page#^q and [[#^q ─────────────────────────────────────────────────────────────────────────────
+describe('block completion', () => {
+  const REMOTE = {
+    version: 3,
+    canAssign: true,
+    blocks: [
+      { index: 0, id: 'abc', kind: 'paragraph', text: 'Alpha text' },
+      { index: 2, id: null, kind: 'list-item', text: 'Beta item' },
+    ],
+  };
+  const localBlocks = (md) => ({
+    local: true,
+    canAssign: true,
+    blocks: blocksFromMarkdown(md).map(({ index, id, kind, text }) => ({ index, id, kind, text })),
+  });
+
+  let views = [];
+  /** A real EditorView with history, the caret at the end (or at `at`), and a count of document changes. */
+  function viewOf(doc, at = doc.length, extra = []) {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const changes = { count: 0 };
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc,
+        selection: { anchor: at },
+        extensions: [...extra, history(), EditorView.updateListener.of((u) => { if (u.docChanged) changes.count += u.transactions.length; })],
+      }),
+    });
+    views.push(view);
+    return { view, changes };
+  }
+  const contextOf = (view) => new CompletionContext(view.state, view.state.selection.main.head, true);
+  const blockDeps = (overrides = {}) => deps({
+    getBlocks: vi.fn(async () => REMOTE),
+    assignBlock: vi.fn(async () => ({ id: 'newid1', version: 4 })),
+    notify: vi.fn(),
+    ...overrides,
+  });
+  const flush = () => new Promise((r) => { setTimeout(r, 0); });
+  /** Picks `opt` as CodeMirror does: over [from, to), `to` defaulting to the caret. */
+  const pick = (view, res, opt) => opt.apply(view, opt, res.from, res.to ?? view.state.selection.main.head);
+
+  afterEach(() => {
+    views.forEach((v) => { v.destroy(); v.dom.parentNode?.remove(); });
+    views = [];
+    vi.restoreAllMocks();
+  });
+
+  it('[[Page#^ lists the page blocks, labelled with their text and ^id, filtered by text or id', async () => {
+    const d = blockDeps();
+    const src = createWikiLinkSource(d);
+    const all = await src(ctx('[[Page#^'));
+    expect(d.getBlocks).toHaveBeenCalledWith('Page');
+    expect(d.getHeadings).not.toHaveBeenCalled();
+    expect(all.options.map((o) => [o.label, o.detail])).toEqual([['Alpha text', '^abc'], ['Beta item', undefined]]);
+    expect((await src(ctx('[[Page#^bet'))).options.map((o) => o.label)).toEqual(['Beta item']);
+    expect((await src(ctx('[[Page#^AB'))).options.map((o) => o.label)).toEqual(['Alpha text']);
+    expect(await src(ctx('[[Page#^zzz'))).toBeNull();
+  });
+
+  it('picking a block with an id inserts [[Page#^id]], replacing an auto-closed ]]', async () => {
+    const res = await createWikiLinkSource(blockDeps())(ctx('[[Page#^alp', ']]'));
+    expect(res.options[0].apply).toBe('[[Page#^abc]]');
+    expect(res.to).toBe('[[Page#^alp'.length + 2);
+  });
+
+  it('[[Page# (no caret) still lists headings only', async () => {
+    const d = blockDeps();
+    const res = await createWikiLinkSource(d)(ctx('[[Page#inst'));
+    expect(d.getBlocks).not.toHaveBeenCalled();
+    expect(res.options[0].type).toBe('heading');
+  });
+
+  it('labels a long block by its first 120 chars and an empty one by its kind', async () => {
+    const getBlocks = vi.fn(async () => ({ canAssign: false, blocks: [
+      { index: 0, id: 'l', kind: 'paragraph', text: `${'w'.repeat(130)}\nsecond` },
+      { index: 1, id: 't', kind: 'table', text: '  ' },
+    ] }));
+    const res = await createWikiLinkSource(blockDeps({ getBlocks }))(ctx('[[P#^'));
+    expect(res.options[0].label).toBe(`${'w'.repeat(119)}…`);
+    expect(res.options[1].label).toBe('(table)');
+  });
+
+  it('an id-less block on a page you cannot edit is listed disabled, and picking it does nothing', async () => {
+    const getBlocks = vi.fn(async () => ({ ...REMOTE, canAssign: false }));
+    const d = blockDeps({ getBlocks });
+    const res = await createWikiLinkSource(d)(ctx('[[Page#^'));
+    const off = res.options[1];
+    expect(off).toMatchObject({ label: 'Beta item', detail: 'no id — needs edit access', disabled: true });
+    expect(off.info).toMatch(/edit access/);
+    const { view, changes } = viewOf('[[Page#^');
+    off.apply(view, off, 0, 8);
+    expect(changes.count).toBe(0);
+    expect(d.assignBlock).not.toHaveBeenCalled();
+    expect(res.options[0].disabled).toBeUndefined();
+  });
+
+  it('an id-less block on another page is assigned with the server index and version, then linked', async () => {
+    const d = blockDeps();
+    const { view } = viewOf('See [[Page#^]]', 'See [[Page#^'.length);
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[1]);
+    expect(d.assignBlock).toHaveBeenCalledWith('Page', 3, 2);
+    await flush();
+    expect(view.state.doc.toString()).toBe('See [[Page#^newid1]]');
+    expect(view.state.selection.main.head).toBe('See [[Page#^newid1]]'.length);
+    expect(d.notify).not.toHaveBeenCalled();
+  });
+
+  it('a stale assign re-fetches the block list once and asks to pick again, inserting nothing', async () => {
+    const stale = Object.assign(new Error('409'), { status: 409, body: { reason: 'stale' } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const d = blockDeps({ assignBlock: vi.fn(async () => { throw stale; }) });
+    const { view, changes } = viewOf('[[Page#^');
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[1]);
+    await flush();
+    expect(d.getBlocks).toHaveBeenCalledTimes(2);
+    expect(d.notify).toHaveBeenCalledWith('This page changed — pick the block again');
+    expect(changes.count).toBe(0);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('other assign failures toast and insert nothing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const derived = Object.assign(new Error('409'), { status: 409, body: { reason: 'derived' } });
+    for (const [err, message] of [
+      [derived, "This page is generated; block ids can't be added here"],
+      [new Error('boom'), "Couldn't add a block id to Page"],
+    ]) {
+      const d = blockDeps({ assignBlock: vi.fn(async () => { throw err; }) });
+      const { view, changes } = viewOf('[[Page#^');
+      const res = await createWikiLinkSource(d)(contextOf(view));
+      pick(view, res, res.options[1]);
+      await flush();
+      expect(d.notify).toHaveBeenCalledWith(message);
+      expect(d.getBlocks).toHaveBeenCalledTimes(1);
+      expect(changes.count).toBe(0);
+    }
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('does not overwrite text typed while the assign was in flight', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let resolve;
+    const d = blockDeps({ assignBlock: vi.fn(() => new Promise((r) => { resolve = r; })) });
+    const { view } = viewOf('[[Page#^');
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[1]);
+    view.dispatch({ changes: { from: 2, insert: 'X' } });
+    resolve({ id: 'late', version: 4 });
+    await flush();
+    expect(view.state.doc.toString()).toBe('[[XPage#^');
+    expect(d.notify).toHaveBeenCalledWith('The text changed — pick the block again');
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('[[#^ lists the current buffer blocks; an id-less pick adds the marker and the link in ONE undoable transaction', async () => {
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(2));
+    const doc = 'Alpha para\n\nSee [[#^alp]]';
+    const { view, changes } = viewOf(doc, 'Alpha para\n\nSee [[#^alp'.length);
+    const getBlocks = vi.fn(async () => localBlocks(view.state.doc.toString()));
+    const d = blockDeps({ getBlocks });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    expect(getBlocks).toHaveBeenCalledWith(null);
+    expect(res.options[0].label).toBe('Alpha para');
+    pick(view, res, res.options[0]);
+    expect(view.state.doc.toString()).toBe('Alpha para ^cccccc\n\nSee [[#^cccccc]]');
+    expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    expect(changes.count).toBe(1);
+    expect(d.assignBlock).not.toHaveBeenCalled();
+    undo(view);
+    expect(view.state.doc.toString()).toBe(doc);
+  });
+
+  it('[[#^ on a block with an id inserts [[#^id]]', async () => {
+    const getBlocks = vi.fn(async () => localBlocks('Alpha ^abc\n'));
+    const res = await createWikiLinkSource(blockDeps({ getBlocks }))(ctx('x [[#^al'));
+    expect(res.options[0].apply).toBe('[[#^abc]]');
+  });
+
+  it('a page the buffer IS (local) is linked by name and edited locally', async () => {
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(3));
+    const { view } = viewOf('Gamma\n\n[[Self#^ga');
+    const getBlocks = vi.fn(async () => localBlocks(view.state.doc.toString()));
+    const d = blockDeps({ getBlocks });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[0]);
+    expect(view.state.doc.toString()).toBe('Gamma ^dddddd\n\n[[Self#^dddddd]]');
+    expect(d.assignBlock).not.toHaveBeenCalled();
+  });
+
+  it('a local pick whose block is gone by the time it applies warns and leaves the text alone', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { view, changes } = viewOf('Alpha\n\n[[#^');
+    const getBlocks = vi.fn(async () => localBlocks('Alpha\n\n[[#^'));
+    const d = blockDeps({ getBlocks });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    view.dispatch({ changes: { from: 0, to: 5, insert: '# Now a heading' } });
+    const before = changes.count;
+    res.options[0].apply(view, res.options[0], res.from + 10, res.to + 10);
+    expect(changes.count).toBe(before);
+    expect(d.notify).toHaveBeenCalledWith('The text changed — pick the block again');
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('returns null when aborted while the blocks load, or when a listing has no blocks', async () => {
+    const c = ctx('[[Page#^');
+    const p = createWikiLinkSource(blockDeps())(c);
+    c.aborted = true;
+    expect(await p).toBeNull();
+    expect(await createWikiLinkSource(blockDeps({ getBlocks: vi.fn(async () => ({ canAssign: true })) }))(ctx('[[P#^'))).toBeNull();
+    const textless = await createWikiLinkSource(blockDeps({ getBlocks: vi.fn(async () => ({ blocks: [{ index: 0, id: 'x', kind: 'math' }] })) }))(ctx('[[P#^x'));
+    expect(textless.options[0]).toMatchObject({ label: '(math)', apply: '[[P#^x]]' });
+  });
+
+  it('a stale assign still toasts when the completion cannot be reopened (a non-Error rejection is logged too)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const d = blockDeps({ assignBlock: vi.fn(() => Promise.reject({ status: 409, body: { reason: 'stale' } })) });
+    const { view } = viewOf('[[Page#^', undefined, [autocompletion({ override: [] })]);
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    view.dispatch = () => { throw new Error('view is gone'); };
+    pick(view, res, res.options[1]);
+    await flush();
+    expect(d.notify).toHaveBeenCalledWith('This page changed — pick the block again');
+    expect(warn).toHaveBeenCalledWith('[link-complete] could not reopen completion', 'view is gone');
+    const odd = blockDeps({ assignBlock: vi.fn(() => Promise.reject('nope')) });
+    const second = viewOf('[[Page#^');
+    const res2 = await createWikiLinkSource(odd)(contextOf(second.view));
+    pick(second.view, res2, res2.options[1]);
+    await flush();
+    expect(warn).toHaveBeenCalledWith('[link-complete] could not add a block id', 'Page', 2, 'nope');
+  });
+
+  it('a local block that cannot carry a marker is reported, and nothing is inserted', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { view, changes } = viewOf('- ^x\n\n[[#^');
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks('- ^x\n\n[[#^')) });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    const item = res.options.find((o) => !o.detail);
+    pick(view, res, item);
+    expect(changes.count).toBe(0);
+    expect(d.notify).toHaveBeenCalledWith("Couldn't add a block id here");
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('returns null when the block lookup fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await createWikiLinkSource(blockDeps({ getBlocks: vi.fn(async () => { throw new Error('503'); }) }))(ctx('[[P#^x'));
+    expect(res).toBeNull();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('without block deps, [[Page#^ offers nothing; without assign/notify, an assign fails into a warning', async () => {
+    expect(await createWikiLinkSource(deps())(ctx('[[Page#^x'))).toBeNull();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { view, changes } = viewOf('[[Page#^');
+    const res = await createWikiLinkSource(deps({ getBlocks: vi.fn(async () => REMOTE) }))(contextOf(view));
+    pick(view, res, res.options[1]);
+    await flush();
+    expect(warn).toHaveBeenCalledWith("[link-complete] Couldn't add a block id to Page");
+    expect(changes.count).toBe(0);
   });
 });

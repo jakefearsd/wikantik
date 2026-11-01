@@ -87,3 +87,30 @@ for (const lines of [2000, 5000]) {
     bench('updateBlockCandidates (one keystroke)', () => { updateBlockCandidates(before, keystroke, context); }, { ...OPTS, setup });
   });
 }
+
+// Block markers (`^id`): every section paragraph ends in one, and every tenth repeats an earlier id. A marker in view
+// costs the duplicate check a walk of the document's block structure once per edit; compare with the keystroke above.
+for (const lines of [2000, 5000]) {
+  let n = 0;
+  const doc = makeDoc(lines).split('\n')
+    .map((l) => (l.startsWith('It continues ') ? `${l} ^p${(n += 1) % 10 === 0 ? 1 : n}` : l)).join('\n');
+  describe(`${lines} lines with block markers — live ON — EditorView.dispatch`, () => {
+    let view;
+    const setup = () => { view = makeView(doc, true); };
+    const teardown = () => { view.destroy(); view.dom.parentNode?.remove(); };
+    bench('keystroke on an ordinary line', () => {
+      const pos = view.state.selection.main.head;
+      view.dispatch({ changes: { from: pos, insert: 'a' }, selection: { anchor: pos + 1 }, userEvent: 'input.type' });
+    }, { ...OPTS, setup, teardown });
+    // the worst case: markers in view at the bottom, so the duplicate check walks the whole document per keystroke
+    const nearEnd = lineStart(doc, lines - 40) + 2;
+    const setupEnd = () => {
+      setup();
+      view.dispatch({ selection: { anchor: nearEnd }, effects: EditorView.scrollIntoView(nearEnd, { y: 'center' }) });
+    };
+    bench('keystroke near the end of the page', () => {
+      const pos = view.state.selection.main.head;
+      view.dispatch({ changes: { from: pos, insert: 'a' }, selection: { anchor: pos + 1 }, userEvent: 'input.type' });
+    }, { ...OPTS, setup: setupEnd, teardown });
+  });
+}

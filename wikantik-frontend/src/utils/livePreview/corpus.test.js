@@ -66,6 +66,10 @@ const failures = { throwing: [], noisy: [], crossing: [], overlap: [], ascend: [
 const timings = [];
 const swept = [];
 
+// The plan's budget is <= 30 s locally; this is headroom for coverage instrumentation and parallel CI workers,
+// which push the full sweep past vitest's 5 s default without anything being wrong.
+const HEAVY_TEST_TIMEOUT_MS = 60_000;
+
 describe('live preview corpus sweep', () => {
   it('finds the corpus and skips only a small legacy minority', () => {
     expect(all.length).toBeGreaterThan(1000);
@@ -141,7 +145,7 @@ describe('live preview corpus sweep', () => {
     console.info(`live-preview corpus: ${pages.length} pages scanned, ${legacy} skipped (legacy syntax), slowest livePreviewSpecs: `
       + slowest.map(([n, ms]) => `${n} ${ms.toFixed(0)}ms`).join(', '));
     for (const [k, v] of Object.entries(failures)) expect(v, `invariant "${k}" failed on: ${v.slice(0, 20).join('; ')}`).toEqual([]);
-  });
+  }, HEAVY_TEST_TIMEOUT_MS);
 
   // happy-dom has no layout, so CodeMirror renders only the first screenful of each page: this part exercises less
   // than the state-level sweep above, which covers every page in full.
@@ -179,7 +183,7 @@ describe('live preview corpus sweep', () => {
     }
     expect(sample.length).toBeGreaterThan(0);
     expect(bad, `toggle changed the document of: ${bad.join('; ')}`).toEqual([]);
-  });
+  }, HEAVY_TEST_TIMEOUT_MS);
 
   afterAll(() => { console.info(`live-preview corpus: toggle sweep covered ${swept.length} pages`); });
 });

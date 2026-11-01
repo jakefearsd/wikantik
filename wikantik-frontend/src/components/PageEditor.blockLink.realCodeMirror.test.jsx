@@ -42,8 +42,8 @@ import { useAttachments } from '../hooks/useAttachments';
 import { useToast } from '../hooks/useToast';
 import { getCommand } from '../commands/registry';
 
-async function editorView(content) {
-  api.getPage.mockResolvedValue({ content, metadata: {}, version: 1, markupSyntax: 'markdown' });
+async function editorView(content, metadata = {}) {
+  api.getPage.mockResolvedValue({ content, metadata, version: 1, markupSyntax: 'markdown' });
   render(
     <MemoryRouter initialEntries={['/edit/Existing']}>
       <NavigationGuardProvider>
@@ -89,7 +89,7 @@ describe('PageEditor "Copy block link"', () => {
     const view = await editorView('# Title\n\nhello world\n\nnext');
     caretAt(view, 12);
     await run();
-    expect(api.draftBlocks).toHaveBeenCalledWith('Existing', { text: '# Title\n\nhello world\n\nnext', offset: 12 });
+    expect(api.draftBlocks).toHaveBeenCalledWith('Existing', { text: '# Title\n\nhello world\n\nnext', metadata: {}, offset: 12 });
     expect(view.state.doc.toString()).toBe('# Title\n\nhello world ^aaaaaa\n\nnext');
     expect(writeText).toHaveBeenCalledWith('[[Existing#^aaaaaa]]');
     expect(toast.success).toHaveBeenCalledWith('Block link copied');
@@ -117,6 +117,27 @@ describe('PageEditor "Copy block link"', () => {
     expect(toast[kind]).toHaveBeenCalledWith(message);
     expect(writeText).not.toHaveBeenCalled();
     expect(view.state.doc.toString()).toBe('# Only a heading');
+  });
+
+  it('sends the page\'s metadata, so the server reads the text as the body it is saved behind', async () => {
+    api.draftBlocks.mockResolvedValue({ id: 'x', change: null, block: { index: 1, from: 4, to: 12 } });
+    const view = await editorView('---\nIntro ^x\n\n---\n', { title: 'T' });
+    caretAt(view, 5);
+    await run();
+    expect(api.draftBlocks).toHaveBeenCalledWith('Existing', { text: '---\nIntro ^x\n\n---\n', metadata: { title: 'T' }, offset: 5 });
+    expect(writeText).toHaveBeenCalledWith('[[Existing#^x]]');
+  });
+
+  it('a page the server does not know yet says to save it first; nothing is copied', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.draftBlocks.mockRejectedValue(Object.assign(new Error('404'), { status: 404 }));
+    const view = await editorView('para');
+    caretAt(view, 1);
+    await run();
+    expect(toast.info).toHaveBeenCalledWith('Save the page first to link its blocks');
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(writeText).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('a server that cannot answer is a toast, and nothing is copied', async () => {

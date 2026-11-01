@@ -1699,6 +1699,14 @@ describe('api block methods', () => {
     expect(global.fetch.mock.calls[1][1].signal).toBe(signal);
   });
 
+  it('draftBlocks sends the metadata the text is saved behind, when given', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { blocks: [] } }));
+    await api.draftBlocks('P', { text: '---\nIntro\n', metadata: { title: 'T' }, limit: 5 });
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ text: '---\nIntro\n', metadata: { title: 'T' }, limit: 5 });
+    await api.draftBlocks('P', { text: 'x', metadata: {}, offset: 0 });
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toEqual({ text: 'x', metadata: {}, offset: 0 });
+  });
+
   it('a 409 surfaces status and the parsed reason', async () => {
     global.fetch.mockResolvedValue(mockFetchResponse({ status: 409, body: { reason: 'stale' } }));
     const err = await api.assignBlockId('P', { version: 1, index: 0, fingerprint: '' }).catch((e) => e);

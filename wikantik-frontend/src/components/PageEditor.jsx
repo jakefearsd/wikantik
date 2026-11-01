@@ -184,6 +184,12 @@ export default function PageEditor() {
   useEffect(() => {
     bodyRef.current = body;
   });
+  // The metadata the body is saved behind: the server's draft reading of the body needs it (a body behind frontmatter
+  // reads a leading `---` pair as content; without any, the body is the whole page, as a save without metadata stores it).
+  const metadataRef = useRef(metadata);
+  useEffect(() => {
+    metadataRef.current = metadata;
+  });
 
   // Wraps setBody to also clear stale math violations so they don't persist after the user edits.
   const handleBodyChange = useCallback((newBody) => {
@@ -336,7 +342,8 @@ export default function PageEditor() {
     getBlocks: (page, q) => {
       if (!page || page === name) {
         const text = editorRef.current?.getText?.() ?? bodyRef.current;
-        return (q ? api.draftBlocks(name, { text, q, limit: BLOCK_QUERY_LIMIT }) : api.draftBlocks(name, { text, limit: BLOCK_LIST_LIMIT }))
+        const metadata = metadataRef.current;
+        return (q ? api.draftBlocks(name, { text, metadata, q, limit: BLOCK_QUERY_LIMIT }) : api.draftBlocks(name, { text, metadata, limit: BLOCK_LIST_LIMIT }))
           .then((l) => ({ local: true, canAssign: true, complete: q ? true : (l.blocks || []).length < BLOCK_LIST_LIMIT, text, blocks: l.blocks || [] }));
       }
       // Per page: '' → the first BLOCK_LIST_LIMIT blocks (complete when the server returned fewer), q → the server's
@@ -360,7 +367,7 @@ export default function PageEditor() {
       return perPage.get(key);
     },
     // The page has a new version after an assign (or a stale listing after a refusal): drop every listing of it.
-    draftLink: (text, offset) => api.draftBlocks(name, { text, offset }),
+    draftLink: (text, offset) => api.draftBlocks(name, { text, metadata: metadataRef.current, offset }),
     assignBlock: (page, version, index) => api.assignBlockId(page, { version, index })
       .finally(() => blockCacheRef.current.delete(page)),
     notify: (message) => toast.error(message),
@@ -652,7 +659,7 @@ export default function PageEditor() {
     const view = editorRef.current?.getView?.();
     if (!view) return;   // still loading: there is no text to read
     const pos = view.state.selection.main.head;
-    const linked = draftBlockLink(view, pos, (text, offset) => api.draftBlocks(name, { text, offset }))
+    const linked = draftBlockLink(view, pos, (text, offset) => api.draftBlocks(name, { text, metadata: metadataRef.current, offset }))
       .then(({ id, change }) => {
         if (change) {
           view.dispatch({
@@ -669,6 +676,7 @@ export default function PageEditor() {
     } catch (err) {
       copied.catch((e) => console.debug('[editor] block link not copied', e?.message || e));
       if (err?.code === 'no-block') toast.info('Put the cursor in a paragraph, list item or table');
+      else if (err?.code === 'no-page') toast.info('Save the page first to link its blocks');
       else if (err?.code === 'refused') toast.error("Couldn't add a block id here");
       else if (err?.code === 'changed') toast.error('The text changed — copy the block link again');
       else {

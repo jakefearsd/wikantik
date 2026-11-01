@@ -1147,12 +1147,12 @@ describe('derived-page banner + misc', () => {
       const { getBlocks, draftLink } = linkSourceDeps.current;
       const listing = await getBlocks(null);
       expect(listing).toEqual({ local: true, canAssign: true, complete: true, text: 'Alpha ^abc\n\nBeta', blocks: rows });
-      expect(api.draftBlocks).toHaveBeenCalledWith('TestPage', { text: 'Alpha ^abc\n\nBeta', limit: 100 });
+      expect(api.draftBlocks).toHaveBeenCalledWith('TestPage', { text: 'Alpha ^abc\n\nBeta', metadata: {}, limit: 100 });
       await getBlocks('TestPage', 'alp');
-      expect(api.draftBlocks).toHaveBeenLastCalledWith('TestPage', { text: 'Alpha ^abc\n\nBeta', q: 'alp', limit: 20 });
+      expect(api.draftBlocks).toHaveBeenLastCalledWith('TestPage', { text: 'Alpha ^abc\n\nBeta', metadata: {}, q: 'alp', limit: 20 });
       api.draftBlocks.mockResolvedValue({ id: 'abc', change: null });
       expect(await draftLink('Alpha ^abc', 2)).toEqual({ id: 'abc', change: null });
-      expect(api.draftBlocks).toHaveBeenLastCalledWith('TestPage', { text: 'Alpha ^abc', offset: 2 });
+      expect(api.draftBlocks).toHaveBeenLastCalledWith('TestPage', { text: 'Alpha ^abc', metadata: {}, offset: 2 });
       expect(api.getPageBlocks).not.toHaveBeenCalled();
     });
 

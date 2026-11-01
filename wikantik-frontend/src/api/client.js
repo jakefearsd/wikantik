@@ -124,8 +124,10 @@ export const api = {
    * `offset`: the block the reader shows there, `{ id, change: { from, to, insert } | null, block: { index, from, to } }`;
    * a 409 rejects with `err.body.reason` (no-block | refused). Nothing is saved.
    */
-  draftBlocks: (name, { text, offset, q, limit, signal } = {}) => {
+  draftBlocks: (name, { text, metadata, offset, q, limit, signal } = {}) => {
     const body = { text };
+    // the frontmatter the text is saved behind (a PUT's metadata): with any, the text is a body, else the whole page
+    if (metadata != null) body.metadata = metadata;
     if (offset != null) body.offset = offset;
     if (q) body.q = q;
     if (limit) body.limit = limit;

@@ -537,6 +537,7 @@ describe('block completion', () => {
     ['refused', Object.assign(new Error('409'), { status: 409, body: { reason: 'refused' } }), "Couldn't add a block id here"],
     ['no-block', Object.assign(new Error('409'), { status: 409, body: { reason: 'no-block' } }), "Couldn't locate this block — pick it again"],
     ['down', Object.assign(new Error('503'), { status: 503 }), "Couldn't add a block id — try again"],
+    ['not found', Object.assign(new Error('404'), { status: 404 }), 'Save the page first to link its blocks'],
   ])('a local pick the server answers %s edits nothing and says so', async (_n, err, message) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { view, changes } = viewOf('- ^x\n\n[[#^');

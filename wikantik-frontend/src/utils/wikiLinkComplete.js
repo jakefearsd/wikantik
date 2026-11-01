@@ -32,6 +32,7 @@ const LOCAL_REASONS = {
   changed: TEXT_CHANGED,
   'no-block': "Couldn't locate this block — pick it again",
   refused: "Couldn't add a block id here",
+  'no-page': 'Save the page first to link its blocks',
 };
 const ASSIGN_REASONS = {
   stale: PICK_AGAIN,

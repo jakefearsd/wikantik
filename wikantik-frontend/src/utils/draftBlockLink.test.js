@@ -77,4 +77,14 @@ describe('draftBlockLink', () => {
     expect(err.code).toBe('failed');
     expect(err.cause.status).toBe(503);
   });
+
+  it('a page the server cannot find (not saved, or not readable) is code "no-page"', async () => {
+    const view = viewOf('Para\n');
+    const missing = deferredDraft();
+    const p = draftBlockLink(view, 1, missing.draft);
+    missing.reject(Object.assign(new Error('404'), { status: 404 }));
+    const err = await p.catch((e) => e);
+    expect(err.code).toBe('no-page');
+    expect(err.cause.status).toBe(404);
+  });
 });

@@ -23,14 +23,20 @@ const inFlight = StateField.define({
 let lastKey = 0;
 
 const failure = (code, cause) => Object.assign(new Error(`Block link: ${code}`), { code, cause });
+/** A 409's reason; `no-page` for a page the server cannot find (never saved, or not readable); else `failed`. */
+const refusalCode = (err) => {
+  if (err?.status === 409 && err.body?.reason) return err.body.reason;
+  return err?.status === 404 ? 'no-page' : 'failed';
+};
 
 /**
  * Asks `draft(text, offset)` — the server's draft call — for the link to the block at `offset` of `view`'s text.
  *
  * @returns {Promise<{id: string, change: {from: number, to: number, insert: string}|null}>} the id, and the edit to
  *   apply (in the CURRENT text) for a block that has none
- * @throws Error with `code`: the server's refusal (`no-block`, `refused`); `changed` when an edit made meanwhile touched
- *   the block or the place of the change; `failed` for anything else (`cause` holds the request's error)
+ * @throws Error with `code`: the server's refusal (`no-block`, `refused`); `no-page` when the server finds no such page
+ *   (never saved, or not readable); `changed` when an edit made meanwhile touched the block or the place of the change;
+ *   `failed` for anything else (`cause` holds the request's error)
  */
 export async function draftBlockLink(view, offset, draft) {
   if (view.state.field(inFlight, false) === undefined) view.dispatch({ effects: StateEffect.appendConfig.of(inFlight) });
@@ -46,7 +52,7 @@ export async function draftBlockLink(view, offset, draft) {
   }
   const edits = view.state.field(inFlight).get(key);
   view.dispatch({ effects: untrack.of(key) });
-  if (failed) throw failure((failed?.status === 409 && failed.body?.reason) || 'failed', failed);
+  if (failed) throw failure(refusalCode(failed), failed);
   const { id, change, block } = answer;
   const from = Math.min(block.from, change ? change.from : block.from);
   const to = Math.max(block.to, change ? change.to : block.to);

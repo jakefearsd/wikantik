@@ -551,11 +551,14 @@ class PageBlocksHandlerTest {
     @Test
     void draftHasThePostureOfPostBlocks() throws Exception {
         engine.saveText( "RestBlkPage", "Saved text.\n" );
-        assertEquals( 404, post( spy( true, true ), "RestBlkMissing/blocks/draft", draft( "x", null ) ).status() );
+        // a missing page is a page not saved yet: PUT-create's posture (aPageNotSavedYetTakesADraft…)
         assertEquals( 404, post( spy( false, true ), "RestBlkPage/blocks/draft", draft( "x", null ) ).status() );
         assertEquals( 403, post( spy( true, false ), "RestBlkPage/blocks/draft", draft( "x", null ) ).status() );
         assertEquals( 400, post( spy( true, true ), "RestBlkPage/blocks/draft", "{}" ).status() );
         assertEquals( 400, post( spy( true, true ), "RestBlkPage/blocks/draft", "not json" ).status() );
+        assertEquals( 400, post( spy( true, true ), "RestBlkPage/blocks/draft", "{\"text\":\"x\",\"metadata\":\"t\"}" ).status() );
+        assertEquals( 200, post( spy( true, true ), "RestBlkPage/blocks/draft", "{\"text\":\"x\",\"metadata\":null}" ).status() );
+        assertEquals( 404, post( spy( true, true ), "Bad:Name/blocks/draft", draft( "x", null ) ).status(), "no such page can be saved" );
         final String big = "x".repeat( PageResource.DEFAULT_MAX_PAGE_BYTES + 1 );
         assertEquals( 413, post( spy( true, true ), "RestBlkPage/blocks/draft", draft( big, null ) ).status() );
     }
@@ -585,5 +588,131 @@ class PageBlocksHandlerTest {
             assertEquals( 409, at.status(), at.body() );
             assertEquals( "refused", at.json().get( "reason" ).getAsString() );
         }
+    }
+
+    // ----- round 4: the draft is a BODY behind the editor's frontmatter; chunked bodies; a page not saved yet -----
+
+    /** The reviewer's shape: a body opening with a thematic break, and a later one, each id twice. */
+    private static final String HR_BODY = "---\nIntro ^x\n\n---\n\nPara ^x\n\nThird\n";
+
+    private static String draft( final String text, final Integer offset, final Map< String, Object > metadata ) {
+        final JsonObject o = new Gson().fromJson( draft( text, offset ), JsonObject.class );
+        if ( metadata != null ) {
+            o.add( "metadata", new Gson().toJsonTree( metadata ) );
+        }
+        return o.toString();
+    }
+
+    /** The blocks a reader gets for the page a PUT of {@code {content: body, metadata}} saves, in the body's offsets. */
+    private static java.util.List< int[] > readerSpans( final String body, final Map< String, Object > metadata ) {
+        final String saved = com.wikantik.api.frontmatter.FrontmatterWriter.write( metadata, body );
+        final int shift = saved.length() - body.length();
+        return BlockIds.list( saved ).stream().map( b -> new int[]{ b.start() - shift, b.end() - shift } ).toList();
+    }
+
+    @Test
+    void aDraftWithMetadataIsABodyBehindItsFrontmatterAsTheReaderReadsTheSavedPage() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final Map< String, Object > meta = Map.of( "title", "T" );
+        final String saved = com.wikantik.api.frontmatter.FrontmatterWriter.write( meta, HR_BODY );
+        final int shift = saved.length() - HR_BODY.length();
+        final java.util.List< BlockIds.Block > reader = BlockIds.list( saved );
+
+        final JsonArray rows = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( HR_BODY, null, meta ) )
+                .json().getAsJsonArray( "blocks" );
+        assertEquals( reader.size(), rows.size(), rows.toString() );
+        for ( int i = 0; i < reader.size(); i++ ) {
+            final JsonObject row = rows.get( i ).getAsJsonObject();
+            assertEquals( reader.get( i ).start() - shift, row.get( "from" ).getAsInt(), "block " + i );
+            assertEquals( reader.get( i ).id() == null, row.get( "id" ).isJsonNull(), "block " + i );
+        }
+
+        // "Intro ^x" is a paragraph between two thematic breaks on the saved page: its id is x
+        final Reply intro = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( HR_BODY, HR_BODY.indexOf( "Intro" ), meta ) );
+        assertEquals( 200, intro.status(), intro.body() );
+        assertEquals( "x", intro.json().get( "id" ).getAsString() );
+        assertTrue( intro.json().get( "change" ).isJsonNull() );
+        // "Para ^x" is the losing duplicate: copying ^x would link Intro — it gets a new id instead
+        final Reply para = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( HR_BODY, HR_BODY.indexOf( "Para" ), meta ) );
+        assertEquals( 200, para.status(), para.body() );
+        final String id = para.json().get( "id" ).getAsString();
+        assertNotEquals( "x", id );
+        final JsonObject change = para.json().getAsJsonObject( "change" );
+        final String edited = HR_BODY.substring( 0, change.get( "from" ).getAsInt() ) + change.get( "insert" ).getAsString()
+                + HR_BODY.substring( change.get( "to" ).getAsInt() );
+        assertEquals( id, BlockIds.list( com.wikantik.api.frontmatter.FrontmatterWriter.write( meta, edited ) ).stream()
+                .filter( b -> b.plainText().equals( "Para" ) ).findFirst().orElseThrow().id() );
+    }
+
+    @Test
+    void aDraftWithoutMetadataIsTheWholePageAsAPutWithoutMetadataSavesIt() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        for ( final Map< String, Object > meta : java.util.Arrays.< Map< String, Object > >asList( null, Map.of() ) ) {
+            final JsonArray rows = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( HR_BODY, null, meta ) )
+                    .json().getAsJsonArray( "blocks" );
+            final java.util.List< int[] > reader = readerSpans( HR_BODY, meta );
+            assertEquals( reader.size(), rows.size(), meta + " " + rows );
+            for ( int i = 0; i < reader.size(); i++ ) {
+                assertEquals( reader.get( i )[ 0 ], rows.get( i ).getAsJsonObject().get( "from" ).getAsInt() );
+            }
+            final Reply intro = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( HR_BODY, HR_BODY.indexOf( "Intro" ), meta ) );
+            assertEquals( 409, intro.status(), "Intro is frontmatter on a page saved without metadata" );
+            assertEquals( "x", post( spy( true, true ), "RestBlkPage/blocks/draft", draft( HR_BODY, HR_BODY.indexOf( "Para" ), meta ) )
+                    .json().get( "id" ).getAsString() );
+        }
+    }
+
+    @Test
+    void aChunkedDraftBodyIsReadNoFurtherThanTheCap() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/RestBlkPage/blocks/draft" );
+        Mockito.doReturn( "/RestBlkPage/blocks/draft" ).when( request ).getPathInfo();
+        Mockito.doReturn( -1L ).when( request ).getContentLengthLong();
+        // a short text, but padding far past any body a draft may have: without a Content-Length nothing refuses it early
+        final long[] served = { 0 };
+        final long padding = 20L * PageResource.DEFAULT_MAX_PAGE_BYTES;
+        final java.io.Reader endless = new java.io.Reader() {
+            private final String head = "{\"text\":\"Para.\",\"pad\":\"";
+            @Override
+            public int read( final char[] buf, final int off, final int len ) {
+                if ( served[ 0 ] >= head.length() + padding ) {
+                    return -1;
+                }
+                int n = 0;
+                while ( n < len && served[ 0 ] < head.length() + padding ) {
+                    buf[ off + n++ ] = served[ 0 ] < head.length() ? head.charAt( ( int ) served[ 0 ] ) : 'x';
+                    served[ 0 ]++;
+                }
+                return n;
+            }
+            @Override
+            public void close() {
+            }
+        };
+        Mockito.doReturn( new BufferedReader( endless ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+        spy( true, true ).doPost( request, response );
+        assertEquals( 413, statusOf( response ) );
+        assertTrue( served[ 0 ] < 7L * PageResource.DEFAULT_MAX_PAGE_BYTES + 65_536, "read " + served[ 0 ] + " chars" );
+    }
+
+    @Test
+    void aPageNotSavedYetTakesADraftFromWhoeverMayCreateItAsPutDoes() throws Exception {
+        final PageResource canEdit = spy( false, true );   // view of a missing page is never asked
+        final Reply list = post( canEdit, "RestBlkMissing/blocks/draft", draft( "Para ^p\n\nNext\n", null, Map.of( "title", "T" ) ) );
+        assertEquals( 200, list.status(), list.body() );
+        assertEquals( 2, list.json().getAsJsonArray( "blocks" ).size() );
+        final Reply at = post( canEdit, "RestBlkMissing/blocks/draft", draft( "Para ^p\n\nNext\n", 0, Map.of( "title", "T" ) ) );
+        assertEquals( 200, at.status(), at.body() );
+        assertEquals( "p", at.json().get( "id" ).getAsString() );
+        assertNull( engine.getManager( PageManager.class ).getPage( "RestBlkMissing" ), "a draft creates nothing" );
+        // PUT-create's own check: edit on the name, audited — a 403 without it
+        final PageResource cannot = spy( true, false );
+        assertEquals( 403, post( cannot, "RestBlkMissing/blocks/draft", draft( "Para\n", null ) ).status() );
+        Mockito.verify( cannot ).checkPagePermission( Mockito.any(), Mockito.any(), Mockito.eq( "RestBlkMissing" ), Mockito.eq( "edit" ) );
+        // an existing page the caller cannot see stays a plain 404, whatever it may edit
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        assertEquals( 404, post( spy( false, true ), "RestBlkPage/blocks/draft", draft( "Para\n", null ) ).status() );
     }
 }

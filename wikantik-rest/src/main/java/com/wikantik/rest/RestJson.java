@@ -140,6 +140,37 @@ public final class RestJson {
     }
 
     /**
+     * {@link #parseJsonBody(HttpServletRequest, HttpServletResponse)}, reading no more than {@code maxChars} characters
+     * of the body whatever its {@code Content-Length} says — a chunked request carries none: a longer body is refused
+     * with a 413 once {@code maxChars + 1} characters are in, the rest never read.
+     *
+     * @return the parsed object, or {@code null} once a 413 or 400 has been sent
+     */
+    public static JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response,
+                                            final long maxChars ) throws IOException {
+        final StringBuilder sb = new StringBuilder();
+        try ( BufferedReader reader = request.getReader() ) {
+            final char[] buf = new char[ 8192 ];
+            int n;
+            while ( ( n = reader.read( buf, 0, ( int ) Math.min( buf.length, maxChars + 1 - sb.length() ) ) ) > 0 ) {
+                sb.append( buf, 0, n );
+                if ( sb.length() > maxChars ) {
+                    LOG.warn( "Rejecting a JSON body over {} characters for {}", maxChars, request.getRequestURI() );
+                    sendError( response, 413, "Request body is limited to " + maxChars + " characters" );
+                    return null;
+                }
+            }
+        }
+        try {
+            return JsonParser.parseString( sb.toString() ).getAsJsonObject();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Rejecting malformed JSON body for {}: {}", request.getRequestURI(), e.getMessage() );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + sanitizeParseError( e.getMessage() ) );
+            return null;
+        }
+    }
+
+    /**
      * D23: returns a short, library-neutral description of the parser failure. Strips
      * any URLs (e.g. links to GSON's documentation) and Java class names, so the
      * client never sees that we use GSON.

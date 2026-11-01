@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.wikantik.api.content.ContentValidationException;
@@ -87,7 +88,7 @@ final class PageBlocksHandler {
         }
         final String text = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         final int limit = Math.min( MAX_LIMIT, Math.max( 1, servlet.parseIntParam( request, "limit", DEFAULT_LIMIT ) ) );
-        final JsonArray rows = rows( blocksOf( pageName, text ), request.getParameter( "q" ), limit, false );
+        final JsonArray rows = rows( blocksOf( pageName, text, false ), request.getParameter( "q" ), limit, false );
         final JsonObject body = new JsonObject();
         body.addProperty( "version", Math.max( page.getVersion(), 1 ) );
         body.addProperty( "canAssign", text != null && servlet.hasPagePermission( request, pageName, "edit" )
@@ -130,30 +131,33 @@ final class PageBlocksHandler {
 
     /**
      * {@code POST /blocks/draft}: the server's block model of the caller's unsaved text (the editor's buffer), which is
-     * the one authority for block identity — the editor never decides an id from its own parse. {@code {text}} lists
-     * the blocks (with {@code from}/{@code to} in that text; optional {@code q}, {@code limit}); {@code {text, offset}}
-     * answers the block the reader shows at {@code offset}: {@code {id, change: null}} when it carries an id, else
+     * the one authority for block identity — the editor never decides an id from its own parse. The draft is what a PUT
+     * of {@code {content: text, metadata}} (with {@code replaceMetadata}) would save: with a non-empty {@code metadata}
+     * object, {@code text} is a body behind that frontmatter, so a leading {@code ---} pair in it is content
+     * ({@link BlockIds#listBody}); without one, {@code text} is the whole page. {@code {text}} lists the blocks (with
+     * {@code from}/{@code to} in that text; optional {@code q}, {@code limit}); {@code {text, offset}} answers the block
+     * the reader shows at {@code offset}: {@code {id, change: null}} when it carries an id, else
      * {@code {id, change: {from, to, insert}}}, the one edit that gives it one — or 409 {@code no-block} /
-     * {@code refused}. Nothing is saved. Same posture as {@code POST /blocks}: 404 for a missing or unviewable page,
-     * an audited 403 without edit; the text is capped like a page body (413).
+     * {@code refused}. Nothing is saved.
+     *
+     * <p>An existing page has the posture of {@code POST /blocks}: 404 when the caller cannot view it, an audited 403
+     * without edit. A page not saved yet takes a draft from whoever passes PUT-create's own check — {@code edit} on the
+     * name, audited, 403 without it — so its editor can link blocks before the first save. The body is read no further
+     * than the cap allows, with or without a {@code Content-Length} (413), and the text is capped like a page body.
      */
     void handleDraft( final HttpServletRequest request, final HttpServletResponse response, final String pageName )
             throws IOException {
-        final PageManager pm = servlet.getSubsystems().page().pages();
-        if ( viewablePage( request, pm, pageName ) == null ) {
-            servlet.sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
-            return;
-        }
-        if ( !servlet.checkPagePermission( request, response, pageName, "edit" ) ) {
+        if ( !draftAllowed( request, response, pageName ) ) {
             return;
         }
         final int maxBytes = PageResource.parseMaxPageBytes( servlet.getEngine() );
         // JSON can spell a character in up to six (a u-escape): a body beyond that bound cannot hold an allowed text
-        if ( request.getContentLengthLong() > DRAFT_ESCAPE_FACTOR * ( long ) maxBytes + DRAFT_SLACK ) {
+        final long maxBody = DRAFT_ESCAPE_FACTOR * ( long ) maxBytes + DRAFT_SLACK;
+        if ( request.getContentLengthLong() > maxBody ) {
             servlet.sendError( response, 413, "Draft text is limited to " + maxBytes + " bytes" );
             return;
         }
-        final JsonObject body = servlet.parseJsonBody( request, response );
+        final JsonObject body = RestJson.parseJsonBody( request, response, maxBody );
         if ( body == null ) {
             return;
         }
@@ -166,24 +170,47 @@ final class PageBlocksHandler {
             servlet.sendError( response, 413, "Draft text is limited to " + maxBytes + " bytes" );
             return;
         }
+        final JsonElement metadata = body.get( "metadata" );
+        if ( metadata != null && !metadata.isJsonNull() && !metadata.isJsonObject() ) {
+            servlet.sendError( response, HttpServletResponse.SC_BAD_REQUEST, "metadata must be an object" );
+            return;
+        }
+        // a PUT writes frontmatter only for a non-empty metadata object; then the text is a body behind it
+        final boolean behindFrontmatter = metadata != null && metadata.isJsonObject() && !metadata.getAsJsonObject().isEmpty();
         response.setHeader( "Cache-Control", "private, no-store" );
         final int offset = servlet.getJsonInt( body, "offset", ABSENT );
         if ( offset == ABSENT ) {
             final int limit = Math.min( MAX_LIMIT, Math.max( 1, servlet.getJsonInt( body, "limit", MAX_LIMIT ) ) );
             final JsonObject out = new JsonObject();
-            out.add( "blocks", rows( blocksOf( pageName, text ), servlet.getJsonString( body, "q" ), limit, true ) );
+            out.add( "blocks", rows( blocksOf( pageName, text, behindFrontmatter ), servlet.getJsonString( body, "q" ), limit, true ) );
             RestJson.sendJsonKeepingNulls( response, out );
             return;
         }
-        draftLink( response, pageName, text, offset );
+        draftLink( response, pageName, text, behindFrontmatter, offset );
+    }
+
+    /**
+     * Whether the caller may have a draft of {@code pageName} read; when not, the 404 or 403 has been sent. An existing
+     * page: view (else 404), then the audited edit check (else 403). A page not saved yet: PUT-create's own check, the
+     * audited edit on a valid name (an invalid one is a 404 — no such page can be saved).
+     */
+    private boolean draftAllowed( final HttpServletRequest request, final HttpServletResponse response, final String pageName )
+            throws IOException {
+        final PageManager pm = servlet.getSubsystems().page().pages();
+        final boolean exists = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION ) != null;
+        if ( exists ? viewablePage( request, pm, pageName ) == null : PageResource.isInvalidPageName( pageName ) ) {
+            servlet.sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
+            return false;
+        }
+        return servlet.checkPagePermission( request, response, pageName, "edit" );
     }
 
     /** Answers the block at {@code offset} of the draft {@code text}: its id, or the edit that gives it one, or a 409. */
-    private void draftLink( final HttpServletResponse response, final String pageName, final String text, final int offset )
-            throws IOException {
+    private void draftLink( final HttpServletResponse response, final String pageName, final String text, final boolean body,
+                            final int offset ) throws IOException {
         final BlockDrafts.Link link;
         try {
-            link = BlockDrafts.linkAt( pageName, text, offset, BlockIds::newId );
+            link = BlockDrafts.linkAt( pageName, text, body, offset, BlockIds::newId );
         } catch ( final BlockDrafts.Refused e ) {
             conflict( response, e.reason() == BlockDrafts.Refusal.NO_BLOCK ? "no-block" : "refused" );
             return;
@@ -212,16 +239,16 @@ final class PageBlocksHandler {
     }
 
     /**
-     * The page's blocks, or none when its text is gone (deleted since it was looked up) or cannot be read into blocks:
-     * a listing never fails the request.
+     * The blocks of {@code text} — a whole page, or a body behind frontmatter when {@code body} — or none when its text
+     * is gone (deleted since it was looked up) or cannot be read into blocks: a listing never fails the request.
      */
-    private static java.util.List< BlockIds.Block > blocksOf( final String pageName, final String text ) {
+    private static java.util.List< BlockIds.Block > blocksOf( final String pageName, final String text, final boolean body ) {
         if ( text == null ) {
             LOG.warn( "Block list of '{}': the page has no text; listing no blocks", pageName );
             return java.util.List.of();
         }
         try {
-            return BlockIds.list( text );
+            return BlockDrafts.list( text, body );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Block list of '{}' could not be read ({}); listing no blocks", pageName, e.toString(), e );
             return java.util.List.of();

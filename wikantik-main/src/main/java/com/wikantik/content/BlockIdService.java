@@ -127,7 +127,7 @@ public final class BlockIdService {
                 LOG.warn( "Block fingerprint mismatch on '{}' block {} at v{}: client='{}' server='{}'; assigning anyway",
                         pageName, block.index(), current, sent, actual );
             }
-            final String id = newId.apply( BlockIds.markerIds( text ) );
+            final String id = newId.apply( takenIds( pageName, text ) );
             final String edited = tag( pageName, text, block, id );
             final Page saved = saver.saveText( pageName, edited, SaveOptions.builder()
                     .changeNote( "Added block id ^" + id )
@@ -150,7 +150,13 @@ public final class BlockIdService {
         if ( DerivedPage.isDerived( FrontmatterParser.parse( text ).metadata() ) ) {
             throw new Refused( Reason.DERIVED );
         }
-        final List< BlockIds.Block > blocks = BlockIds.list( text );
+        final List< BlockIds.Block > blocks;
+        try {
+            blocks = BlockIds.list( text );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "The blocks of '{}' could not be read ({}); block {} is not located", pageName, e.toString(), index, e );
+            throw new Refused( Reason.NOT_LOCATED );
+        }
         if ( index < 0 || index >= blocks.size() ) {
             throw new Refused( Reason.NOT_LOCATED );
         }
@@ -178,9 +184,19 @@ public final class BlockIdService {
         } catch ( final IllegalArgumentException e ) {
             LOG.warn( "Block {} of '{}' cannot take an id: {}", block.index(), pageName, e.getMessage() );
             throw new Refused( Reason.NOT_LOCATED );
-        } catch ( final IllegalStateException e ) {
-            LOG.warn( "Tagging block {} of '{}' with ^{} did not read back: {}", block.index(), pageName, id, e.getMessage() );
-            throw e;
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Tagging block {} of '{}' with ^{} failed ({}); block not located", block.index(), pageName, id, e.toString(), e );
+            throw new Refused( Reason.NOT_LOCATED );
+        }
+    }
+
+    /** Every marker id on the page, so a new id collides with none; a text whose markers cannot be read is refused. */
+    private static java.util.Set< String > takenIds( final String pageName, final String text ) throws Refused {
+        try {
+            return BlockIds.markerIds( text );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "The block markers of '{}' could not be read ({}); block not located", pageName, e.toString(), e );
+            throw new Refused( Reason.NOT_LOCATED );
         }
     }
 }

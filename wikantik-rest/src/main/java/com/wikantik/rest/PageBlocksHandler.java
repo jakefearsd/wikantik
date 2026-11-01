@@ -121,8 +121,8 @@ final class PageBlocksHandler {
         }
         try {
             return BlockIds.list( text );
-        } catch ( final IllegalStateException e ) {
-            LOG.warn( "Block list of '{}' could not be read ({}); listing no blocks", pageName, e.getMessage(), e );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Block list of '{}' could not be read ({}); listing no blocks", pageName, e.toString(), e );
             return java.util.List.of();
         }
     }
@@ -200,11 +200,19 @@ final class PageBlocksHandler {
      * The excerpt for {@code section=^id} on {@code /preview}: the block's plain text, or empty when the page holds no
      * such block (the caller then falls back to the page excerpt and flags {@code blockMissing}).
      */
-    static Optional< String > blockExcerpt( final String rawText, final String section ) {
+    static Optional< String > blockExcerpt( final String pageName, final String rawText, final String section ) {
         if ( !BlockIds.isBlockRef( section ) ) {
             return Optional.empty();
         }
-        return BlockIds.find( rawText, BlockIds.idOf( section ) ).map( b -> {
+        final Optional< BlockIds.Block > block;
+        try {
+            block = BlockIds.find( rawText, BlockIds.idOf( section ) );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Block {} of '{}' could not be read for a preview ({}); showing the page excerpt", section, pageName,
+                    e.toString(), e );
+            return Optional.empty();
+        }
+        return block.map( b -> {
             final String shown = shownText( b );
             return shown.length() > PageExcerpts.MAX_CHARS ? shown.substring( 0, PageExcerpts.MAX_CHARS ).trim() + "\u2026" : shown;
         } );

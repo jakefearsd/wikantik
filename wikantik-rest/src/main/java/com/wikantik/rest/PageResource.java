@@ -865,7 +865,7 @@ public class PageResource extends RestServletBase {
         String blockExcerpt = null;
         boolean blockMissing = false;
         if ( section != null && BlockIds.isBlockRef( section ) ) {
-            blockExcerpt = PageBlocksHandler.blockExcerpt( rawText, section ).orElse( null );
+            blockExcerpt = PageBlocksHandler.blockExcerpt( pageName, rawText, section ).orElse( null );
             blockMissing = blockExcerpt == null;
         } else if ( section != null && !section.isBlank() ) {
             body = HeadingSlugs.sectionBody( body, section ).orElse( body );

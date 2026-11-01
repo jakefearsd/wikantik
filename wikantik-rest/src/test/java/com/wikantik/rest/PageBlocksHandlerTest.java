@@ -408,4 +408,63 @@ class PageBlocksHandlerTest {
         final JsonObject o = get( servlet, "RestBlkPage/embed", Map.of( "section", "^gone" ) ).json();
         assertTrue( o.get( "missing" ).getAsBoolean(), o.toString() );
     }
+
+    // ----- never a 500 from the block model -----
+
+    /** Texts ending in an access rule or a plugin, which preparation follows with an appended {@code ()}. */
+    private static final String[] ENDING_IN_A_RULE = {
+        "Text [{ALLOW view Admin}]", "- [{ALLOW view Admin}]", "Para ^id\n\nx[{ALLOW view Admin}]", "Para ^id\n\nx[{Plugin}]",
+    };
+
+    /**
+     * A servlet whose page manager reads {@code text} as RestBlkPage's stored text, byte for byte (a save would add the
+     * final line end that these texts lack).
+     */
+    private PageResource readingStoredText( final String text ) {
+        final PageResource s = spy( true, true );
+        final PageManager real = engine.getManager( PageManager.class );
+        final PageManager pages = Mockito.mock( PageManager.class, AdditionalAnswers.delegatesTo( real ) );
+        Mockito.doReturn( text ).when( pages ).getPureText( Mockito.eq( "RestBlkPage" ), Mockito.anyInt() );
+        final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class, AdditionalAnswers.delegatesTo( servlet.getSubsystems() ) );
+        final PageSubsystem.Services page = Mockito.mock( PageSubsystem.Services.class,
+                AdditionalAnswers.delegatesTo( servlet.getSubsystems().page() ) );
+        Mockito.doReturn( pages ).when( page ).pages();
+        Mockito.doReturn( page ).when( subs ).page();
+        Mockito.doReturn( subs ).when( s ).getSubsystems();
+        return s;
+    }
+
+    @Test
+    void textsEndingInARuleNeverFailTheBlockEndpoints() throws Exception {
+        engine.saveText( "RestBlkPage", "Placeholder.\n" );
+        for ( final String text : ENDING_IN_A_RULE ) {
+            final Reply list = get( readingStoredText( text ), "RestBlkPage/blocks", Map.of() );
+            assertEquals( 200, list.status(), text + " " + list.body() );
+            assertTrue( list.json().getAsJsonArray( "blocks" ).size() > 0, text + " " + list.body() );
+            final Reply assigned = post( readingStoredText( text ), "RestBlkPage/blocks", payload( 1, 0, null ) );
+            assertTrue( assigned.status() == 200 || assigned.status() == 409, text + " -> " + assigned.status() + " " + assigned.body() );
+            final Reply preview = get( readingStoredText( text ), "RestBlkPage/preview", Map.of( "section", "^id" ) );
+            assertEquals( 200, preview.status(), text + " " + preview.body() );
+        }
+        assertEquals( "Para", get( readingStoredText( "Para ^id\n\nx[{ALLOW view Admin}]" ), "RestBlkPage/preview",
+                Map.of( "section", "^id" ) ).json().get( "excerpt" ).getAsString() );
+    }
+
+    @Test
+    void anyFailureOfTheBlockModelIsAnEmptyListingAndA409NeverA500() throws Exception {
+        engine.saveText( "RestBlkPage", "Alpha.\n\nBeta. ^b\n" );
+        try ( MockedStatic< BlockIds > ids = Mockito.mockStatic( BlockIds.class, Mockito.CALLS_REAL_METHODS ) ) {
+            ids.when( () -> BlockIds.list( Mockito.anyString() ) ).thenThrow( new StringIndexOutOfBoundsException( "past the end" ) );
+            ids.when( () -> BlockIds.find( Mockito.anyString(), Mockito.anyString() ) ).thenThrow( new IllegalArgumentException( "odd" ) );
+            final Reply list = get( spy( true, true ), "RestBlkPage/blocks", Map.of() );
+            assertEquals( 200, list.status(), list.body() );
+            assertEquals( 0, list.json().getAsJsonArray( "blocks" ).size() );
+            final Reply assigned = post( spy( true, true ), "RestBlkPage/blocks", payload( 1, 0, "alpha" ) );
+            assertEquals( 409, assigned.status(), assigned.body() );
+            assertEquals( "block-not-located", assigned.json().get( "reason" ).getAsString() );
+            final Reply preview = get( spy( true, true ), "RestBlkPage/preview", Map.of( "section", "^b" ) );
+            assertEquals( 200, preview.status(), preview.body() );
+            assertTrue( preview.json().get( "blockMissing" ).getAsBoolean() );
+        }
+    }
 }

@@ -77,9 +77,14 @@ class BlockIdsCorpusTest {
                 continue;
             }
             try {
-                final List< Block > after = BlockIds.list( BlockIds.assign( text, b, "zz9zz9" ) );
+                final String assigned = BlockIds.assign( text, b, "zz9zz9" );
+                final List< Block > after = BlockIds.list( assigned );
                 if ( after.size() != blocks.size() ) {
                     problems.add( name + ": assigning block " + i + " changed the block count" );
+                }
+                // strip's and markerIds' pre-check lets every placement assign makes through
+                if ( BlockIds.strip( assigned ).contains( "^zz9zz9" ) || !BlockIds.markerIds( assigned ).contains( "zz9zz9" ) ) {
+                    problems.add( name + ": the marker added to block " + i + " (" + b.kind() + ") was not seen" );
                 }
             } catch ( final IllegalArgumentException e ) {
                 if ( b.kind() != Kind.LIST_ITEM ) {   // an item that opens with a nested block has no line to carry an id

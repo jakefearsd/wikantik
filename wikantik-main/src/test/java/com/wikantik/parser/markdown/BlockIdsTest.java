@@ -29,6 +29,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -626,5 +627,29 @@ class BlockIdsTest {
         assertEquals( Set.of( "o", "b", "q" ), BlockIds.markerIds( "^o\n\nA ^o\n\nB ^b\n\n> ^q\n" ) );
         assertEquals( Set.of(), BlockIds.markerIds( null ) );
         assertEquals( Set.of(), BlockIds.markerIds( "`^code` only\n" ) );
+    }
+
+    @Test
+    void textWithoutAPossibleMarkerIsNeverParsedByStripOrFind() {
+        final String text = "Energy $E = mc^2$ and $x^{n+1}$, see the note[^1].\n\n[^1]: Footnote 2^10.\n";
+        final long before = BlockIds.parsesOnThisThread();
+        assertSame( text, BlockIds.strip( text ) );
+        assertTrue( BlockIds.find( text, "1" ).isEmpty() );
+        assertTrue( BlockIds.find( text, "2" ).isEmpty() );
+        assertEquals( Set.of(), BlockIds.markerIds( text ) );
+        assertEquals( before, BlockIds.parsesOnThisThread(), "parsed although no marker can be there" );
+        // every marker form still gets through the pre-check
+        for ( final String marked : List.of( "Para ^a\n", "Para\n^a\n", ">^a\n", "[{ALLOW view Admin}]^a\n",
+                "^a [{DENY edit Guest}]\n", "Para ^a\r\n", "- item\t^a\n" ) ) {
+            assertFalse( BlockIds.strip( marked ).contains( "^a" ), marked );
+            assertTrue( BlockIds.markerIds( marked ).contains( "a" ), marked );
+        }
+    }
+
+    @Test
+    void findComputesTheTextOfTheFoundBlock() {
+        final Block b = BlockIds.find( "First **bold** one.\n\nSecond [[Page|shown]] text ^s2\n", "s2" ).orElseThrow();
+        assertEquals( "Second shown text", b.plainText() );
+        assertEquals( 1, b.index() );
     }
 }

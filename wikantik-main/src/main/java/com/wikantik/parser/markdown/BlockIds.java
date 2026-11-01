@@ -100,7 +100,15 @@ public final class BlockIds {
     private static final int FINGERPRINT_LENGTH = 200;
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    /** Test seam: how many times this thread has parsed a page here (per thread, so other tests' engines can't count). */
+    private static final ThreadLocal< long[] > PARSES = ThreadLocal.withInitial( () -> new long[ 1 ] );
+
     private BlockIds() {
+    }
+
+    /** Test seam: the pages parsed on this thread so far. */
+    static long parsesOnThisThread() {
+        return PARSES.get()[ 0 ];
     }
 
     // ---- public API ---------------------------------------------------------------------------------------------------
@@ -123,10 +131,10 @@ public final class BlockIds {
      * @return the block, or empty
      */
     public static Optional< Block > find( final String fullText, final String id ) {
-        if ( id == null ) {
+        if ( id == null || !mayHoldMarker( fullText ) ) {
             return Optional.empty();
         }
-        return list( fullText ).stream().filter( b -> id.equals( b.id() ) ).findFirst();
+        return ModelReader.model( fullText, id::equals ).blocks().stream().filter( b -> id.equals( b.id() ) ).findFirst();
     }
 
     /**
@@ -184,13 +192,14 @@ public final class BlockIds {
      * a standalone marker's line keeps its line break (and any container prefix such as {@code "> "}).
      *
      * @param fullText raw page text; may be {@code null}
-     * @return the stripped text; the very same instance when it holds no {@code ^}
+     * @return the stripped text; the very same instance when it holds no marker (a text in which no {@code ^} could be
+     *         one is not even parsed)
      */
     public static String strip( final String fullText ) {
-        if ( fullText == null || fullText.indexOf( '^' ) < 0 ) {
+        if ( !mayHoldMarker( fullText ) ) {
             return fullText;
         }
-        final List< Marker > markers = model( fullText ).markers();
+        final List< Marker > markers = ModelReader.model( fullText, NO_TEXT ).markers();
         if ( markers.isEmpty() ) {
             return fullText;
         }
@@ -212,7 +221,10 @@ public final class BlockIds {
      */
     public static Set< String > markerIds( final String fullText ) {
         final Set< String > ids = new java.util.HashSet<>();
-        for ( final Marker m : model( fullText ).markers() ) {
+        if ( !mayHoldMarker( fullText ) ) {
+            return ids;
+        }
+        for ( final Marker m : ModelReader.model( fullText, NO_TEXT ).markers() ) {
             ids.add( m.id() );
         }
         return ids;
@@ -283,7 +295,21 @@ public final class BlockIds {
     private static final Model EMPTY = new Model( List.of(), List.of(), List.of() );
 
     private static Model model( final String fullText ) {
-        return ModelReader.model( fullText );
+        return ModelReader.model( fullText, id -> true );
+    }
+
+    /** For a model whose block texts are never read: no block's plain text is worked out. */
+    private static final java.util.function.Predicate< String > NO_TEXT = id -> false;
+
+    /**
+     * Whether a marker could be in the text at all: a {@code ^id} after a line start, a blank, a block-quote
+     * {@code >} or an access rule's closing {@code ]} / {@code )}, and at the end of its line or before an access rule.
+     * A superset of every marker form, so a text without one (math superscripts, footnotes) is never parsed for markers.
+     */
+    private static final Pattern POSSIBLE_MARKER = Pattern.compile( "(?m)(?:^|[\\s>\\])])\\^[A-Za-z0-9-]+[ \\t]*(?:\\r?$|\\[\\{)" );
+
+    private static boolean mayHoldMarker( final String text ) {
+        return text != null && text.indexOf( '^' ) >= 0 && POSSIBLE_MARKER.matcher( text ).find();
     }
 
     private static boolean isBlank( final char c ) {
@@ -295,7 +321,11 @@ public final class BlockIds {
         private ModelReader() {
         }
 
-        static Model model( final String fullText ) {
+        /**
+         * @param withText which blocks get their plain text worked out, by id (a block without one is asked with
+         *                 {@code null}); the others get {@code ""}
+         */
+        static Model model( final String fullText, final java.util.function.Predicate< String > withText ) {
             if ( fullText == null || fullText.isEmpty() ) {
                 return EMPTY;
             }
@@ -303,6 +333,7 @@ public final class BlockIds {
             final String body = fullText.substring( bodyStart );
             MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( body );
             Node document = PARSER.parse( prepared.text() );
+            PARSES.get()[ 0 ]++;
             final String emptied = EmptyRuleItems.blank( body, prepared, document );
             if ( emptied != null ) {   // read those list items as empty, as the render does: parse again
                 prepared = MarkdownBodySource.prepare( emptied );
@@ -338,8 +369,9 @@ public final class BlockIds {
             for ( int i = 0; i < entries.size(); i++ ) {
                 final Entry e = entries.get( i );
                 final Marker m = e.marker();
-                blocks.add( new Block( i, walk.idOf( walk.entries().get( i ) ), e.kind(), e.start(), e.end(),
-                        m == null ? -1 : m.start(), m == null ? -1 : m.end(), plainText( e.node() ) ) );
+                final String id = walk.idOf( walk.entries().get( i ) );
+                blocks.add( new Block( i, id, e.kind(), e.start(), e.end(), m == null ? -1 : m.start(),
+                        m == null ? -1 : m.end(), withText.test( id ) ? plainText( e.node() ) : "" ) );
             }
             return new Model( List.copyOf( entries ), List.copyOf( blocks ), List.copyOf( markers ) );
         }

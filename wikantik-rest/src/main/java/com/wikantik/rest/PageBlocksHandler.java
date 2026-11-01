@@ -141,8 +141,8 @@ final class PageBlocksHandler {
      * {@code refused}. Nothing is saved.
      *
      * <p>An existing page has the posture of {@code POST /blocks}: 404 when the caller cannot view it, an audited 403
-     * without edit. A page not saved yet takes a draft from whoever passes PUT-create's own check — {@code edit} on the
-     * name, audited, 403 without it — so its editor can link blocks before the first save. The body is read no further
+     * without edit. A page not saved yet takes a draft from whoever holds PUT-create's permission — {@code edit} on the
+     * name — so its editor can link blocks before the first save; without it, the same 404 as a hidden page. The body is read no further
      * than the cap allows, with or without a {@code Content-Length} (413), and the text is capped like a page body.
      */
     void handleDraft( final HttpServletRequest request, final HttpServletResponse response, final String pageName )
@@ -191,18 +191,21 @@ final class PageBlocksHandler {
 
     /**
      * Whether the caller may have a draft of {@code pageName} read; when not, the 404 or 403 has been sent. An existing
-     * page: view (else 404), then the audited edit check (else 403). A page not saved yet: PUT-create's own check, the
-     * audited edit on a valid name (an invalid one is a 404 — no such page can be saved).
+     * page: view (else 404), then the audited edit check (else 403). A page not saved yet: PUT-create's own permission,
+     * edit on a valid name — asked quietly, and without it the very 404 a hidden page gets, so the endpoint never tells
+     * a page that is missing from one the caller may not see (as {@code GET}/{@code POST /blocks} do not).
      */
     private boolean draftAllowed( final HttpServletRequest request, final HttpServletResponse response, final String pageName )
             throws IOException {
         final PageManager pm = servlet.getSubsystems().page().pages();
         final boolean exists = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION ) != null;
-        if ( exists ? viewablePage( request, pm, pageName ) == null : PageResource.isInvalidPageName( pageName ) ) {
+        final boolean found = exists ? viewablePage( request, pm, pageName ) != null
+                : !PageResource.isInvalidPageName( pageName ) && servlet.hasPagePermission( request, pageName, "edit" );
+        if ( !found ) {
             servlet.sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
             return false;
         }
-        return servlet.checkPagePermission( request, response, pageName, "edit" );
+        return !exists || servlet.checkPagePermission( request, response, pageName, "edit" );
     }
 
     /** Answers the block at {@code offset} of the draft {@code text}: its id, or the edit that gives it one, or a 409. */

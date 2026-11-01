@@ -707,12 +707,39 @@ class PageBlocksHandlerTest {
         assertEquals( 200, at.status(), at.body() );
         assertEquals( "p", at.json().get( "id" ).getAsString() );
         assertNull( engine.getManager( PageManager.class ).getPage( "RestBlkMissing" ), "a draft creates nothing" );
-        // PUT-create's own check: edit on the name, audited — a 403 without it
-        final PageResource cannot = spy( true, false );
-        assertEquals( 403, post( cannot, "RestBlkMissing/blocks/draft", draft( "Para\n", null ) ).status() );
-        Mockito.verify( cannot ).checkPagePermission( Mockito.any(), Mockito.any(), Mockito.eq( "RestBlkMissing" ), Mockito.eq( "edit" ) );
+        // without edit on the name, a missing page is the plain 404 a hidden one is (no existence oracle)
+        assertEquals( 404, post( spy( true, false ), "RestBlkMissing/blocks/draft", draft( "Para\n", null ) ).status() );
         // an existing page the caller cannot see stays a plain 404, whatever it may edit
         engine.saveText( "RestBlkPage", "Saved text.\n" );
         assertEquals( 404, post( spy( false, true ), "RestBlkPage/blocks/draft", draft( "Para\n", null ) ).status() );
+    }
+
+    /** Everything a call wrote to its response: status, body, and every header / content-type call. */
+    private String wholeReply( final PageResource s, final String path ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/" + path );
+        Mockito.doReturn( "/" + path ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( draft( "Para ^p\n", 0 ) ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        s.doPost( request, response );
+        final StringBuilder out = new StringBuilder( "status=" ).append( statusOf( response ) ).append( '\n' );
+        for ( final var inv : Mockito.mockingDetails( response ).getInvocations() ) {
+            final String m = inv.getMethod().getName();
+            if ( m.startsWith( "set" ) && !m.equals( "setStatus" ) || m.startsWith( "add" ) || m.equals( "sendError" ) ) {
+                out.append( m ).append( java.util.Arrays.toString( inv.getArguments() ) ).append( '\n' );
+            }
+        }
+        return out.append( "body=" ).append( sw ).toString();
+    }
+
+    @Test
+    void aMissingPageWithoutEditAnswersExactlyAsAHiddenOne() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final String missing = wholeReply( spy( true, false ), "RestBlkMissing/blocks/draft" );
+        assertTrue( missing.startsWith( "status=404" ), missing );
+        assertEquals( wholeReply( spy( false, false ), "RestBlkPage/blocks/draft" ), missing );
+        assertEquals( wholeReply( spy( false, true ), "RestBlkPage/blocks/draft" ), missing );
+        assertEquals( wholeReply( spy( false, false ), "RestBlkMissing/blocks/draft" ), missing );
     }
 }

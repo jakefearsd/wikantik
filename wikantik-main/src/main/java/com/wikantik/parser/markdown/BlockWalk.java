@@ -22,7 +22,6 @@ import com.vladsch.flexmark.ast.BlockQuote;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.HardLineBreak;
 import com.vladsch.flexmark.ast.IndentedCodeBlock;
-import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.ast.ListBlock;
 import com.vladsch.flexmark.ast.ListItem;
 import com.vladsch.flexmark.ast.Paragraph;
@@ -32,8 +31,6 @@ import com.vladsch.flexmark.ast.TextBase;
 import com.vladsch.flexmark.ext.tables.TableBlock;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.markdown.extensions.callouts.CalloutBlock;
-import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.parser.LinkParsingOperations;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -60,6 +57,10 @@ import java.util.regex.Pattern;
  * (callouts already built, inline math parsed), and walked <b>before</b> any post-processor that changes block
  * structure further (the native-wikilink embed replacement).
  *
+ * <p>The text is the one a render parses: access rules already stripped ({@code AclDirectiveText.strip}, which a render
+ * applies before it parses, and {@link BlockIds} applies before it reads). So the walk knows nothing of access rules: on
+ * the same text it is the same function, wherever it runs.
+ *
  * <p>Marker forms ({@link Form}):
  * <ul>
  *   <li>{@link Form#INLINE}: whitespace + {@code ^id} ending the last text node of a paragraph;</li>
@@ -68,15 +69,29 @@ import java.util.regex.Pattern;
  *       tags that paragraph like an inline marker. Separated by a blank line instead ({@code "Para\n\n^id"}) it is a
  *       paragraph of its own: standalone.</li>
  *   <li>{@link Form#STANDALONE}: a paragraph that is only {@code ^id}; it tags the block right before it in the same
- *       container, or is an orphan when there is none. A paragraph of access rules and one marker
- *       ({@code [{ALLOW view Admin}] ^id}, or the rule on the line before) is one too: the render strips the rules
- *       before it parses, which leaves exactly that.</li>
+ *       container, or is an orphan when there is none.</li>
  * </ul>
  */
 public final class BlockWalk {
 
     /** How a marker sits in the tree. */
     public enum Form { INLINE, LAST_LINE, STANDALONE }
+
+    /** A marker's {@code ^id}, the id in group 1. Every marker pattern, and the pre-check, is built from it. */
+    private static final String ID = "\\^([A-Za-z0-9-]+)";
+
+    /** What may follow a marker on its line: spaces and tabs (never other whitespace), then the line end. */
+    private static final String TRAILING = "[ \\t]*\\r?";
+
+    /**
+     * Whether a marker could be in a text the walk is given (its {@link MarkdownBodySource#prepare preparation} only adds
+     * {@code ()} after <code>[{…}]</code> and rewrites display math, where no marker is read). A superset of every
+     * marker the walk accepts, built from the same parts: the {@code ^} of a marker is preceded, in its text node, by a
+     * space or tab (inline), or starts its text node, which starts a line or follows its container's prefix — a blank or
+     * a block-quote {@code >} — and it is followed by {@link #TRAILING} and the end of the paragraph, so of the line. A
+     * text without a match (math superscripts, footnotes, {@code 2^10}) has no marker and need not be parsed.
+     */
+    static final Pattern POSSIBLE_MARKER = Pattern.compile( "(?m)(?:^|[ \\t>])" + ID + TRAILING + "$" );
 
     /**
      * A marker as found in the tree.
@@ -156,29 +171,6 @@ public final class BlockWalk {
     }
 
     private BlockWalk() {
-    }
-
-    /** Whether {@code node} is an access-rule link ({@code [{ALLOW …}]} / {@code [{DENY …}]}), which a render never shows. */
-    public static boolean isAccessRuleLink( final Node node ) {
-        return node instanceof Link link && LinkParsingOperations.isAccessRuleLink( WikantikLink.wikiLinkOf( link ) );
-    }
-
-    /**
-     * Whether {@code p} holds nothing but access-rule links (and whitespace or line breaks). The render path strips those
-     * lines before parsing, so such a paragraph is not there when a page is displayed: it must not be a block, or the
-     * raw text and the rendered text would number their blocks differently.
-     */
-    public static boolean isRuleOnly( final Paragraph p ) {
-        boolean any = false;
-        for ( Node c = p.getFirstChild(); c != null; c = c.getNext() ) {
-            if ( isAccessRuleLink( c ) ) {
-                any = true;
-            } else if ( !( c instanceof SoftLineBreak || c instanceof HardLineBreak
-                    || c instanceof Text t && t.getChars().isBlank() ) ) {
-                return false;
-            }
-        }
-        return any;
     }
 
     /**
@@ -284,9 +276,6 @@ public final class BlockWalk {
         }
 
         private void paragraph( final Paragraph p ) {
-            if ( isRuleOnly( p ) ) {
-                return;   // not displayed, so not a block
-            }
             if ( Markers.standaloneId( p ) != null ) {
                 if ( !claimed.contains( p ) ) {
                     orphans.add( Markers.standalone( p ) );
@@ -301,7 +290,7 @@ public final class BlockWalk {
         }
 
         private void listItem( final ListItem item ) {
-            final Paragraph first = item.getFirstChild() instanceof Paragraph fp && Markers.standaloneId( fp ) == null && !isRuleOnly( fp ) ? fp : null;
+            final Paragraph first = item.getFirstChild() instanceof Paragraph fp && Markers.standaloneId( fp ) == null ? fp : null;
             Marker marker = null;
             if ( first != null ) {
                 final Marker inline = Markers.inline( first );
@@ -331,24 +320,17 @@ public final class BlockWalk {
     /** Finding markers in paragraph text, and taking them out. */
     private static final class Markers {
 
-        /** An inline marker at the end of a paragraph's last text node. */
-        private static final Pattern INLINE = Pattern.compile( "(?<=[ \\t])\\^([A-Za-z0-9-]+)[ \\t]*\\r?$" );
+        /** An inline marker at the end of a paragraph's last text node (the very end: {@code \\z}, not {@code $}). */
+        private static final Pattern INLINE = Pattern.compile( "(?<=[ \\t])" + ID + TRAILING + "\\z" );
 
         /** A text node that is only a marker. */
-        private static final Pattern ALONE = Pattern.compile( "^\\^([A-Za-z0-9-]+)[ \\t]*\\r?$" );
-
-        /** A text node that is a marker and whitespace: next to access rules, all that is left once they are stripped. */
-        private static final Pattern ALONE_WITH_SPACE = Pattern.compile( "^\\s*\\^([A-Za-z0-9-]+)\\s*$" );
+        private static final Pattern ALONE = Pattern.compile( "^" + ID + TRAILING + "\\z" );
 
         private Markers() {
         }
 
         static Paragraph standaloneAfter( final Node node ) {
-            Node next = node.getNext();
-            while ( next instanceof Paragraph rule && isRuleOnly( rule ) ) {   // not displayed: look past it
-                next = next.getNext();
-            }
-            return next instanceof Paragraph p && standaloneId( p ) != null ? p : null;
+            return node.getNext() instanceof Paragraph p && standaloneId( p ) != null ? p : null;
         }
 
         /**
@@ -360,41 +342,19 @@ public final class BlockWalk {
             if ( t == null ) {
                 return null;
             }
-            final Matcher m = ALONE_WITH_SPACE.matcher( t.getChars() );
-            return m.matches() ? m.group( 1 ) : null;
+            final Matcher m = ALONE.matcher( t.getChars() );
+            return m.find() ? m.group( 1 ) : null;
         }
 
         static Marker standalone( final Paragraph p ) {
             final Text t = standaloneText( p );
-            final int caret = t.getStartOffset() + t.getChars().toString().indexOf( '^' );
+            final int caret = offsetOf( t, t.getChars().toString().indexOf( '^' ) );
             return new Marker( standaloneId( p ), Form.STANDALONE, p, t, caret );
         }
 
-        /**
-         * The text node holding a standalone marker: the paragraph's only child when it is just {@code ^id}, or — in a
-         * paragraph of access rules and one marker ({@code [{ALLOW view Admin}] ^id}, the rule on the line before) — the
-         * marker's node. The render strips the rules before it parses, which leaves exactly a standalone marker
-         * paragraph; reading it so here keeps the raw numbering equal to the rendered one.
-         */
+        /** The text node of a paragraph that is only {@code ^id}: its one child. */
         private static Text standaloneText( final Paragraph p ) {
-            if ( p.getFirstChild() instanceof Text t && t == p.getLastChild() ) {
-                return ALONE.matcher( t.getChars() ).matches() ? t : null;
-            }
-            Text found = null;
-            boolean rule = false;
-            for ( Node c = p.getFirstChild(); c != null; c = c.getNext() ) {
-                if ( isAccessRuleLink( c ) ) {
-                    rule = true;
-                } else if ( c instanceof Text t && !t.getChars().isBlank() ) {
-                    if ( found != null || !ALONE_WITH_SPACE.matcher( t.getChars() ).matches() ) {
-                        return null;
-                    }
-                    found = t;
-                } else if ( !isLineBreak( c ) && !( c instanceof Text ) ) {
-                    return null;
-                }
-            }
-            return rule ? found : null;
+            return p.getFirstChild() instanceof Text t && t == p.getLastChild() && ALONE.matcher( t.getChars() ).find() ? t : null;
         }
 
         /** The inline or last-line marker ending {@code p}, or {@code null}. */
@@ -405,11 +365,11 @@ public final class BlockWalk {
             }
             final Matcher m = INLINE.matcher( last.getChars() );
             if ( m.find() ) {
-                return new Marker( m.group( 1 ), Form.INLINE, p, last, last.getStartOffset() + m.start() );
+                return new Marker( m.group( 1 ), Form.INLINE, p, last, offsetOf( last, m.start() ) );
             }
             final Matcher alone = ALONE.matcher( last.getChars() );
-            if ( last.getParent() == p && isLineBreak( last.getPrevious() ) && alone.matches() ) {
-                return new Marker( alone.group( 1 ), Form.LAST_LINE, p, last, last.getStartOffset() );
+            if ( last.getParent() == p && isLineBreak( last.getPrevious() ) && alone.find() ) {
+                return new Marker( alone.group( 1 ), Form.LAST_LINE, p, last, offsetOf( last, 0 ) );
             }
             return null;
         }
@@ -431,6 +391,15 @@ public final class BlockWalk {
             if ( m.paragraph().getLastChild() instanceof Text t ) {
                 t.setChars( t.getChars().trimEnd() );
             }
+        }
+
+        /**
+         * The parsed-text offset of character {@code index} of {@code text}: asked of its chars, not added to its start
+         * offset, because a text node's chars need not be one run of the parsed text (a tab after a hard line break is
+         * expanded to padding that is in no text); -1 when the character is such padding.
+         */
+        private static int offsetOf( final Text text, final int index ) {
+            return text.getChars().getIndexOffset( index );
         }
 
         private static boolean isLineBreak( final Node n ) {

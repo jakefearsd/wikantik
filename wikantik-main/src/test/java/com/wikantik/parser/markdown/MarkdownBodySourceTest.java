@@ -79,4 +79,22 @@ class MarkdownBodySourceTest {
             assertTrue( text.endsWith( "}]()" ) );
         } );
     }
+
+    @Test
+    void anEndAfterAnInsertedPairIsItsInsertionPointNeverPastTheBody() {
+        final String body = "Text [{ALLOW view Admin}]";
+        final MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( body );
+        assertEquals( body.length() + 2, prepared.text().length() );
+        assertEquals( body.length(), prepared.toBodyEnd( prepared.text().length() ), "the ) closes the text: its end is the body's" );
+        assertEquals( body.length(), prepared.toBodyEnd( prepared.text().length() - 1 ) );
+        assertEquals( body.length(), prepared.toBodyEnd( body.length() ), "just past }] is just past }]" );
+        assertEquals( 4, prepared.toBodyEnd( 4 ) );
+        assertEquals( 0, prepared.toBodyEnd( 0 ) );
+        final String mid = "a [{P}] b";
+        final MarkdownBodySource.Prepared m = MarkdownBodySource.prepare( mid );
+        assertEquals( mid.length(), m.toBodyEnd( m.text().length() ) );
+        assertEquals( mid.indexOf( " b" ), m.toBodyEnd( m.text().indexOf( " b" ) ) );
+        final MarkdownBodySource.Prepared math = MarkdownBodySource.prepare( "$$\nx\n$$\n" );
+        assertEquals( -1, math.toBodyEnd( 3 ), "inside the generated fence markup there is no body end" );
+    }
 }

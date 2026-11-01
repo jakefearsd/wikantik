@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -169,6 +170,137 @@ class BlockIdsRenderAgreementTest {
         }
         assertEquals( POSITIONS.length * 4 * 2, checked );
         assertEquals( List.of(), problems, String.join( "\n", problems ) );
+    }
+
+    /**
+     * Shapes where a raw-text reading and the render once parted: the render strips the rules first, and what that leaves
+     * — an indented line (code), a tab, a setext underline with nothing to underline, a vertical tab after a marker — is
+     * what decides. Block numbering parses that same stripped text, so these agree by construction.
+     */
+    @Test
+    void theReviewersShapesAgree() {
+        final String[] cases = {
+            "Para ^id\n[{ALLOW view Admin}]\n\nAfter.",
+            "Para ^id [{ALLOW view Admin}]",
+            "- item ^id\n  [{ALLOW view Admin}]",
+            "> quote ^q\n> [{ALLOW view Admin}]",
+            "Para.\n^id [{DENY edit Guest}]",
+            "Para.\n^id\n[{DENY edit Guest}]",
+            "Para.\n\n[{ALLOW view Admin}]\n===\n\nAfter ^x",
+            "Para.\n\n[{ALLOW view Admin}]\t^id\n\nAfter.",
+            "Para.\n\n[{ALLOW view Admin}]    ^id\n\nAfter.",
+            "Para.\n\n  [{ALLOW view Admin}]  ^id\n\nAfter.",
+            "Para.\n\n[{ALLOW view Admin}]\n    ^id\n\nAfter.",
+            "Para.\n\n[{ALLOW view Admin}] ^id\u000B\n\nAfter.",
+            "> quote\n[{ALLOW view Admin}]\n> body ^i",
+        };
+        final List< String > problems = new ArrayList<>();
+        for ( final String c : cases ) {
+            for ( final String text : new String[]{ c, c.replace( "\n", "\r\n" ) } ) {
+                disagreements( text ).forEach( d -> problems.add( esc( text ) + " -> " + d ) );
+            }
+        }
+        assertEquals( List.of(), problems, String.join( "\n", problems ) );
+        // what the render shows: an indented "^id" is code, not a marker; a tab after the rule makes one too
+        final List< Block > tab = BlockIds.list( "Para.\n\n[{ALLOW view Admin}]\t^id\n\nAfter." );
+        assertEquals( List.of( BlockIds.Kind.PARAGRAPH, BlockIds.Kind.CODE, BlockIds.Kind.PARAGRAPH ),
+                tab.stream().map( Block::kind ).toList() );
+        assertEquals( null, tab.get( 0 ).id() );
+        // a setext underline under a rule that is stripped underlines nothing: it is a paragraph of its own
+        assertEquals( 3, BlockIds.list( "Para.\n\n[{ALLOW view Admin}]\n===\n\nAfter ^x" ).size() );
+        // the quote's paragraph reads "quote body" once the rule line between is gone: one fingerprint for both
+        final Block body = BlockIds.find( "> quote\n[{ALLOW view Admin}]\n> body ^i", "i" ).orElseThrow();
+        assertEquals( "quotebody", BlockIds.fingerprint( body.plainText() ) );
+    }
+
+    /** Cases for the property test: enough that every shape the generator can make comes up many times. */
+    private static final int PROPERTY_CASES = 30_000;
+
+    /**
+     * The property behind the endpoints, over generated pages: {@code list(raw)} equals the list of the text a render
+     * parses, block by block; every range lies in the raw text; stripping markers removes them all and no access rule;
+     * every listed id is found and is among the marker ids; and tagging a block changes no other block. (Stripping can
+     * reveal a marker — {@code "^a\\n^b"} is a paragraph tagged {@code b} whose text reads {@code ^a} — so the stripped
+     * text is not asked to hold none.)
+     */
+    @Test
+    void generatedPagesAgreeWithTheTextTheRenderParses() {
+        final BlockTextGenerator generator = new BlockTextGenerator( 0xB10C5L );
+        final List< String > problems = new ArrayList<>();
+        int withRules = 0;
+        int withIds = 0;
+        for ( int i = 0; i < PROPERTY_CASES && problems.size() < 20; i++ ) {
+            final String raw = generator.next();
+            try {
+                final List< String > found = new ArrayList<>( disagreements( raw ) );
+                found.addAll( invariantsOf( raw, i % 10 == 0 ) );
+                final int n = i;
+                found.forEach( d -> problems.add( "#" + n + " " + esc( raw ) + " -> " + d ) );
+                withRules += BlockTextGenerator.ruleCount( raw ) > 0 ? 1 : 0;
+                withIds += BlockIds.list( raw ).stream().anyMatch( b -> b.id() != null ) ? 1 : 0;
+            } catch ( final RuntimeException e ) {
+                problems.add( "#" + i + " " + esc( raw ) + " -> threw " + e );
+            }
+        }
+        assertEquals( List.of(), problems, String.join( "\n", problems ) );
+        assertTrue( withRules > PROPERTY_CASES / 3, "too few pages with access rules: " + withRules );
+        assertTrue( withIds > PROPERTY_CASES / 3, "too few pages with block ids: " + withIds );
+    }
+
+    /** What must hold for {@code raw} on its own; {@code assign} also tags its first untagged block. */
+    static List< String > invariantsOf( final String raw, final boolean assign ) {
+        final List< String > out = new ArrayList<>();
+        final List< Block > blocks = BlockIds.list( raw );
+        final Set< String > markerIds = BlockIds.markerIds( raw );
+        for ( final Block b : blocks ) {
+            if ( b.start() < 0 || b.start() > b.end() || b.end() > raw.length()
+                    || b.markerStart() >= 0 && ( b.markerStart() > b.markerEnd() || b.markerEnd() > raw.length() ) ) {
+                out.add( "block " + b.index() + " has a range outside the text: " + b );
+            }
+            if ( b.id() != null && ( !markerIds.contains( b.id() )
+                    || BlockIds.find( raw, b.id() ).map( Block::index ).orElse( -1 ) != b.index() ) ) {
+                out.add( "id " + b.id() + " of block " + b.index() + " is not found as listed" );
+            }
+        }
+        final String stripped = BlockIds.strip( raw );
+        if ( BlockTextGenerator.ruleCount( stripped ) != BlockTextGenerator.ruleCount( raw ) ) {
+            out.add( "stripping markers removed an access rule: " + esc( stripped ) );
+        }
+        if ( ( stripped == raw ) != markerIds.isEmpty() ) {
+            out.add( "stripping " + ( stripped == raw ? "kept" : "changed" ) + " a text with markers " + markerIds );
+        }
+        if ( assign ) {
+            for ( final Block b : blocks ) {
+                if ( b.id() == null && b.markerStart() < 0 && !( b.kind() == BlockIds.Kind.LIST_ITEM && b.plainText().isEmpty() ) ) {
+                    out.addAll( afterAssigning( raw, blocks, b ) );
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    private static List< String > afterAssigning( final String raw, final List< Block > blocks, final Block b ) {
+        final String tagged;
+        try {
+            tagged = BlockIds.assign( raw, b, "zz9" );
+        } catch ( final IllegalArgumentException e ) {
+            return List.of();   // a block that cannot take an id (a list item with no text line)
+        }
+        final List< Block > after = BlockIds.list( tagged );
+        final List< String > out = new ArrayList<>();
+        if ( !after.stream().map( Block::kind ).toList().equals( blocks.stream().map( Block::kind ).toList() ) ) {
+            out.add( "tagging block " + b.index() + " changed the blocks: " + esc( tagged ) );
+        }
+        if ( BlockTextGenerator.ruleCount( tagged ) != BlockTextGenerator.ruleCount( raw ) ) {
+            out.add( "tagging block " + b.index() + " removed an access rule: " + esc( tagged ) );
+        }
+        return out;
+    }
+
+    static String esc( final String s ) {
+        return s.replace( "\r", "\\r" ).replace( "\n", "\\n" ).replace( "\t", "\\t" ).replace( "\u000B", "\\v" )
+                .replace( "\f", "\\f" );
     }
 
     @Test

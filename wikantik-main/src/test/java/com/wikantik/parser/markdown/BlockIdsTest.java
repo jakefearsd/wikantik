@@ -18,6 +18,7 @@
  */
 package com.wikantik.parser.markdown;
 
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.parser.markdown.BlockIds.Block;
 import com.wikantik.parser.markdown.BlockIds.Kind;
 import org.junit.jupiter.api.Test;
@@ -664,5 +665,77 @@ class BlockIdsTest {
         assertTrue( BlockIds.find( body, "h" ).isEmpty(), "as a full text those lines are frontmatter" );
         assertSame( "No marker.\n", BlockIds.stripBody( "No marker.\n" ) );
         assertTrue( BlockIds.findBody( "No marker.\n", "h" ).isEmpty() );
+    }
+
+    /**
+     * Preparation appends {@code ()} to a text ending in <code>[{…}]</code>: a block ending there ends at the text's end,
+     * never one past it. Nothing here may throw, whatever the text ends in.
+     */
+    @Test
+    void aTextEndingInAnAccessRuleOrAPluginNeverThrows() {
+        final String[] cases = {
+            "Text [{ALLOW view Admin}]", "- [{ALLOW view Admin}]", "Para ^id\n\nx[{ALLOW view Admin}]", "x[{Plugin}]",
+            "Para ^id\n\nx[{Plugin}]", "Para ^id\n\n- [{Plugin}]", "Para ^id\n\n|[{ALLOW view Admin}]",
+            "Para ^id\n\n==[{ALLOW view Admin}]", "Para ^id\n\nText [{ALLOW view Admin}]", "[{ALLOW view Admin}]",
+            "Para ^id\n\n[{ALLOW view Admin}]", "Para ^id\r\n\r\nx[{Plugin}]",
+        };
+        for ( final String text : cases ) {
+            final List< Block > blocks = BlockIds.list( text );
+            for ( final Block b : blocks ) {
+                assertTrue( b.start() >= 0 && b.start() <= b.end() && b.end() <= text.length(), text + " " + b );
+                if ( b.id() == null && b.markerStart() < 0 ) {
+                    try {
+                        assertEquals( "zz", BlockIds.list( BlockIds.assign( text, b, "zz" ) ).get( b.index() ).id() );
+                    } catch ( final IllegalArgumentException e ) {
+                        assertTrue( e.getMessage().contains( "no text line" ), e.getMessage() );
+                    }
+                }
+            }
+            BlockIds.markerIds( text );
+            BlockIds.find( text, "id" ).ifPresent( b -> assertEquals( "Para", b.plainText() ) );
+            assertFalse( BlockIds.strip( text ).contains( "^id" ), text );
+        }
+        assertEquals( "Para\n\nx[{ALLOW view Admin}]", BlockIds.strip( "Para ^id\n\nx[{ALLOW view Admin}]" ) );
+        assertEquals( "x[{Plugin}]".length(), BlockIds.list( "x[{Plugin}]" ).get( 0 ).end() );
+        assertEquals( "Text".length(), BlockIds.list( "Text [{ALLOW view Admin}]" ).get( 0 ).end() );
+        assertEquals( "Text ^t [{ALLOW view Admin}]",
+                BlockIds.assign( "Text [{ALLOW view Admin}]", BlockIds.list( "Text [{ALLOW view Admin}]" ).get( 0 ), "t" ) );
+    }
+
+    /** A marker the render sees once a rule inside it is stripped is a marker; taking it out leaves the rule alone. */
+    @Test
+    void aMarkerSplicedAroundAnAccessRuleIsStrippedWithoutTheRule() {
+        final String text = "Para ^i[{ALLOW view Admin}]d\n";
+        assertEquals( "Para ^id\n", AclDirectiveText.strip( text ) );
+        assertEquals( "id", BlockIds.list( text ).get( 0 ).id() );
+        assertEquals( "Para[{ALLOW view Admin}]\n", BlockIds.strip( text ) );
+    }
+
+    /** A {@code ^id} inside an access rule is stripped with the rule before the render parses: it is no marker. */
+    @Test
+    void aMarkerInsideAnAccessRuleIsNoMarker() {
+        final String text = "Para [{ALLOW view ^id}]\n";
+        assertNull( BlockIds.list( text ).get( 0 ).id() );
+        assertEquals( Set.of(), BlockIds.markerIds( text ) );
+        assertSame( text, BlockIds.strip( text ) );
+        assertTrue( BlockIds.find( text, "id" ).isEmpty() );
+    }
+
+    /** Editing markers into or out of raw text never touches its access rules. */
+    @Test
+    void assigningAndStrippingKeepEveryAccessRule() {
+        final String text = "Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter [{DENY edit Guest}]\n\n| a |\n|---|\n| 1 |\n[{ALLOW view All}]\n";
+        final List< Block > blocks = BlockIds.list( text );
+        assertEquals( List.of( Kind.PARAGRAPH, Kind.PARAGRAPH, Kind.TABLE ), blocks.stream().map( Block::kind ).toList() );
+        assertEquals( "id", blocks.get( 0 ).id() );
+        final String after = BlockIds.assign( text, blocks.get( 1 ), "af" );
+        assertEquals( "Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter ^af [{DENY edit Guest}]\n\n| a |\n|---|\n| 1 |\n[{ALLOW view All}]\n", after );
+        final String table = BlockIds.assign( text, blocks.get( 2 ), "tb" );
+        assertEquals( "tb", BlockIds.list( table ).get( 2 ).id() );
+        assertTrue( table.contains( "[{ALLOW view All}]" ) && table.contains( "[{DENY edit Guest}]" ), table );
+        assertEquals( "Para.\n\n ^id\n\nAfter \n\n| a |\n|---|\n| 1 |\n\n^tb\n", AclDirectiveText.strip( table ) );
+        final String stripped = BlockIds.strip( after );
+        // the blanks around an inline marker go with it, as they always did: the rule then follows the word directly
+        assertEquals( "Para.\n\n[{ALLOW view Admin}]\n\nAfter[{DENY edit Guest}]\n\n| a |\n|---|\n| 1 |\n[{ALLOW view All}]\n", stripped );
     }
 }

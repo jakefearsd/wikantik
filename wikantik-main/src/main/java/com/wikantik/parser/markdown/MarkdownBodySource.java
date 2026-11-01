@@ -91,24 +91,53 @@ final class MarkdownBodySource {
             return inContent >= 0 && inContent <= edit.contentLength() ? edit.sourceContent() + inContent : -1;
         }
 
+        /**
+         * The body offset of the exclusive end {@code pos} (a position in {@link #text}): just past the body character of
+         * the character before it — or, when that character is an inserted {@code ()}, the insertion point itself, which
+         * has nothing of the body after it to step past (a body ending in <code>[{…}]</code> must not map one past its
+         * end). {@code -1} when the character before is generated math-fence markup.
+         */
+        int toBodyEnd( final int pos ) {
+            if ( pos <= 0 ) {
+                return 0;
+            }
+            final int normalized = fromMath( pos - 1 );
+            if ( normalized < 0 ) {
+                return -1;
+            }
+            final int last = lastInsertionAtOrBefore( normalized );
+            return isInserted( last, normalized ) ? insertions[ last ] : fromNormalized( normalized ) + 1;
+        }
+
         /** Binary search: insertion k sits at {@code insertions[k] + 2k} in the normalised text. */
         private int fromNormalized( final int pos ) {
+            final int last = lastInsertionAtOrBefore( pos );
+            if ( isInserted( last, pos ) ) {
+                return insertions[ last ];
+            }
+            return pos - INSERTED.length() * ( last + 1 );
+        }
+
+        /** The last insertion that starts at or before normalised position {@code pos}, or -1. */
+        private int lastInsertionAtOrBefore( final int pos ) {
             int lo = 0;
             int hi = insertions.length - 1;
             int last = -1;
             while ( lo <= hi ) {
                 final int mid = ( lo + hi ) >>> 1;
-                if ( normalizedStart( mid ) < pos ) {
+                if ( normalizedStart( mid ) <= pos ) {
                     last = mid;
                     lo = mid + 1;
                 } else {
                     hi = mid - 1;
                 }
             }
-            if ( last >= 0 && pos < normalizedStart( last ) + INSERTED.length() ) {
-                return insertions[ last ];
-            }
-            return pos - INSERTED.length() * ( last + 1 );
+            return last;
+        }
+
+        /** Whether normalised position {@code pos} is a character of insertion {@code k}'s {@code ()}. */
+        private boolean isInserted( final int k, final int pos ) {
+            return k >= 0 && pos < normalizedStart( k ) + INSERTED.length();
         }
 
         private int normalizedStart( final int k ) {

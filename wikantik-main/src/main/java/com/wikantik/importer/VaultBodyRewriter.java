@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 
 /**
  * Turns an Obsidian note body into wiki markdown: renamed {@code [[ ]]} targets, attachment references as
- * {@code Owner/file}, markdown links to notes as {@code [[ ]]}, and and {@code %% comments %%} stripped.
+ * {@code Owner/file}, markdown links to notes as {@code [[ ]]}, and {@code %% comments %%} stripped.
  * Block ids ({@code ^id}) and {@code [[x#^id]]} links are kept verbatim. Code (fenced, indented, inline) is never touched.
  */
 public final class VaultBodyRewriter {

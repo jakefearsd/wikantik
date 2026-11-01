@@ -35,6 +35,7 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.markdown.MarkdownForWikantikExtension;
+import com.wikantik.markdown.extensions.callouts.BlockStructureBarrier;
 import com.wikantik.markdown.extensions.callouts.CalloutExtension;
 import com.wikantik.markdown.extensions.fences.RenderedFenceExtension;
 import com.wikantik.markdown.extensions.fences.RenderedFenceRegistry;
@@ -57,6 +58,7 @@ public class MarkdownDocument extends WikiDocument {
     // own guidance is to create them once and share across parsers/renderers.
     // Only MarkdownForWikantikExtension is context-bound and must stay per-call.
     private static final com.vladsch.flexmark.util.misc.Extension ATTRIBUTES_EXT = AttributesExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension BLOCK_STRUCTURE_EXT = BlockStructureBarrier.create();
     private static final com.vladsch.flexmark.util.misc.Extension CALLOUT_EXT = CalloutExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension DEFINITION_EXT = DefinitionExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension FOOTNOTE_EXT = FootnoteExtension.create();
@@ -135,7 +137,8 @@ public class MarkdownDocument extends WikiDocument {
                      "<input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled=\"\" /> " );
         options.set( TaskListExtension.TIGHT_ITEM_CLASS, "task-list-item" );
         options.set( TaskListExtension.LOOSE_ITEM_CLASS, "task-list-item" );
-        options.set( Parser.EXTENSIONS, Arrays.asList( ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
+        // BLOCK_STRUCTURE_EXT first: it stands where the rendered page's block-id post-processor stands (see its doc)
+        options.set( Parser.EXTENSIONS, Arrays.asList( BLOCK_STRUCTURE_EXT, ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
                                                        GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
                                                        STRIKETHROUGH_EXT, TASKLIST_EXT ) );
         return options;

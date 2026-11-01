@@ -434,4 +434,20 @@ class BlockIdRenderTest {
         }
         return n;
     }
+
+    /**
+     * A callout whose body holds {@code {.attributes}}: the render builds the callout before attributes are attached (an
+     * attribute-wrapped text across the title would otherwise read as a malformed marker). The parse BlockIds reads must
+     * do the same, or a reader's ordinal 0 is a CALLOUT while BlockIds lists a QUOTE.
+     */
+    @Test
+    void aCalloutWithAttributesInItsBodyIsACalloutForBothReadings() throws Exception {
+        for ( final String raw : new String[]{ "> [!note] Title\n> Text {.cls} more\n", "> [!note] Title\n  Text {.cls} more\n\n^c\n" } ) {
+            final List< Block > blocks = BlockIds.list( raw );
+            assertEquals( Kind.CALLOUT, blocks.get( 0 ).kind(), raw );
+            final String html = render( raw );
+            assertTrue( html.contains( "callout" ) && html.contains( "data-block=\"0\"" ), html );
+        }
+        assertEquals( "c", BlockIds.list( "> [!note] Title\n  Text {.cls} more\n\n^c\n" ).get( 0 ).id() );
+    }
 }

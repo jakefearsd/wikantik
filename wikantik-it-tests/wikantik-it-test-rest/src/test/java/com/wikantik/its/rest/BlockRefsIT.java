@@ -259,4 +259,45 @@ class BlockRefsIT {
         final Matcher marker = Pattern.compile( "Para one\\s+\\^abc" ).matcher( b );
         assertFalse( marker.find(), "the inline marker is stripped: " + b );
     }
+
+    private static String draftBody( final String text, final Integer offset ) {
+        final JsonObject o = new JsonObject();
+        o.addProperty( "text", text );
+        if ( offset != null ) {
+            o.addProperty( "offset", offset );
+        }
+        return o.toString();
+    }
+
+    @Test
+    @Order( 7 )
+    void draftListsTheBlocksOfUnsavedTextAsTheServerReadsThem() throws Exception {
+        // the reader reads the indented ^b as code, so ^b belongs to "Other" — the editor's own parse once said otherwise
+        final String text = "> Para\n>\n> [{ALLOW view Admin}]    ^b\n\nOther ^b\n";
+        final HttpResponse< String > r = post( "/api/pages/" + SELF + "/blocks/draft", draftBody( text, null ) );
+        assertEquals( 200, r.statusCode(), r.body() );
+        final JsonObject other = blockContaining( json( r ), "Other" );
+        assertEquals( "b", other.get( "id" ).getAsString(), r.body() );
+        assertEquals( text.indexOf( "Other" ), other.get( "from" ).getAsInt(), r.body() );
+        final JsonObject para = blockContaining( json( r ), "Para" );
+        assertTrue( para.get( "id" ).isJsonNull(), r.body() );
+    }
+
+    @Test
+    @Order( 8 )
+    void draftAtAnOffsetAnswersTheEditThatGivesTheBlockAnIdAndSavesNothing() throws Exception {
+        final int version = blocks( SELF ).get( "version" ).getAsInt();
+        final String text = "First draft para.\n\nSecond draft para.\n";
+        final HttpResponse< String > r = post( "/api/pages/" + SELF + "/blocks/draft",
+                draftBody( text, text.indexOf( "Second" ) + 2 ) );
+        assertEquals( 200, r.statusCode(), r.body() );
+        final String id = json( r ).get( "id" ).getAsString();
+        final JsonObject change = json( r ).getAsJsonObject( "change" );
+        assertEquals( text.indexOf( "Second draft para." ) + "Second draft para.".length(), change.get( "from" ).getAsInt(), r.body() );
+        assertEquals( " ^" + id, change.get( "insert" ).getAsString(), r.body() );
+        assertEquals( version, blocks( SELF ).get( "version" ).getAsInt(), "a draft saves nothing" );
+        final HttpResponse< String > none = post( "/api/pages/" + SELF + "/blocks/draft", draftBody( "# Heading\n", 2 ) );
+        assertEquals( 409, none.statusCode(), none.body() );
+        assertEquals( "no-block", json( none ).get( "reason" ).getAsString() );
+    }
 }

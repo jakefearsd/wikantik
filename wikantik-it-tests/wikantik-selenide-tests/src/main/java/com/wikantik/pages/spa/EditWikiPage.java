@@ -215,6 +215,90 @@ public class EditWikiPage implements SpaPage {
     }
 
     /**
+     * The caret's document offset ({@code state.selection.main.head}).
+     *
+     * @return the main selection's head.
+     * @throws IllegalStateException when the editor's CodeMirror state cannot be reached.
+     */
+    public static int caretOffset() {
+        final Object head = evaluateOnView( "return view.state.selection.main.head;" );
+        if ( !( head instanceof Number n ) ) {
+            throw new IllegalStateException( "state.selection.main.head was not a number: " + head );
+        }
+        return n.intValue();
+    }
+
+    /**
+     * Focuses the editor and puts a collapsed caret at document offset {@code pos} (a selection-only transaction: the
+     * document is untouched), then waits until the editor reports focus, so key presses sent with
+     * {@link #pressKeys} land in it at that caret.
+     *
+     * @param pos document offset, {@code 0..doc.length}.
+     */
+    public static void setCaret( final int pos ) {
+        evaluateOnView( """
+            const pos = arguments[0];
+            if (pos < 0 || pos > view.state.doc.length) {
+              throw new Error('caret ' + pos + ' outside the document (length ' + view.state.doc.length + ')');
+            }
+            view.focus();
+            view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+            return null;
+            """, pos );
+        $( EDITOR ).shouldHave( Condition.cssClass( "cm-focused" ), Duration.ofSeconds( 5 ) );
+        final int head = caretOffset();
+        if ( head != pos ) {
+            throw new IllegalStateException( "setCaret(" + pos + ") left the caret at " + head );
+        }
+    }
+
+    /**
+     * The on-screen text of the editor line ({@code .cm-line}) that renders document offset {@code pos} — what the
+     * reader sees there (hidden markup absent, widgets as their text), as opposed to {@link #documentText()}.
+     *
+     * @param pos a document offset on a line CodeMirror has drawn.
+     * @return that line element's {@code textContent}.
+     */
+    public static String renderedLineText( final int pos ) {
+        return evaluateOnView( """
+            const { node } = view.domAtPos(arguments[0]);
+            const start = node.nodeType === 1 ? node : node.parentElement;
+            const line = start && start.closest('.cm-line');
+            if (!line) throw new Error('no .cm-line renders document offset ' + arguments[0]);
+            return line.textContent;
+            """, pos );
+    }
+
+    /**
+     * Sends key presses to whatever has focus — the editor after {@link #setCaret} — without moving the caret
+     * (WebDriver's element {@code sendKeys} would first move a contenteditable's caret to its end). Fails when the
+     * editor does not hold focus, so a press can never silently land elsewhere.
+     *
+     * @param keys the keys to press, in order.
+     */
+    public static void pressKeys( final CharSequence... keys ) {
+        requireEditorFocus();
+        Selenide.actions().sendKeys( keys ).perform();
+    }
+
+    /**
+     * Presses {@code Mod+key} (Command on macOS, Control elsewhere) with the editor focused.
+     *
+     * @param key the key pressed with {@code Mod}, e.g. {@code "z"}.
+     */
+    public static void pressMod( final String key ) {
+        requireEditorFocus();
+        Selenide.actions().keyDown( PlatformKeys.mod() ).sendKeys( key ).keyUp( PlatformKeys.mod() ).perform();
+    }
+
+    private static void requireEditorFocus() {
+        final Object focused = evaluateOnView( "return view.hasFocus;" );
+        if ( !Boolean.TRUE.equals( focused ) ) {
+            throw new IllegalStateException( "the page editor does not have keyboard focus (view.hasFocus=" + focused + ")" );
+        }
+    }
+
+    /**
      * Waits until the editor document contains {@code expected}.
      *
      * @param expected substring of the document.

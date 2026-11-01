@@ -66,4 +66,14 @@ public final class PlatformKeys {
         return IS_MACOS ? Keys.chord( Keys.COMMAND, "a" ) : Keys.chord( Keys.CONTROL, "a" );
     }
 
+    /**
+     * The key CodeMirror (and the editor's own shortcuts) resolve {@code Mod} to: Command on macOS, Control elsewhere.
+     * For {@code Actions.keyDown}/{@code keyUp} chords such as Mod+Z or Mod+E.
+     *
+     * @return the platform's {@code Mod} key.
+     */
+    public static Keys mod() {
+        return IS_MACOS ? Keys.COMMAND : Keys.CONTROL;
+    }
+
 }

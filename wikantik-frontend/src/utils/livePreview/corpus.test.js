@@ -25,7 +25,7 @@ const VIEW_SAMPLE = 100;
 // 'likely-wiki' from it; the editor then forces source mode). Keep in step with the Java patterns and
 // HEURISTIC_THRESHOLD = 3; the 'drift guard' test below mirrors cases from WikiToMarkdownConverterTest.
 const WIKI_SIGNALS = [
-  [/^!{1,3}\s/m, 2], [/''[^']+?''/, 2], [/\[([^\]|]+)\|([^\]]+)\]/, 2], [/\[\{[^}]+\}\](?!\()/, 2], [/\{\{\{/, 1], [/__[^_]+?__/, 1],
+  [/^!{1,3}\s/m, 2], [/''[^']+?''/, 2], [/(?<!\[)\[(?!\[)([^\]|]+)\|([^\]]+)\](?!\])/, 2], [/\[\{[^}]+\}\](?!\()/, 2], [/\{\{\{/, 1], [/__[^_]+?__/, 1],
 ];
 function isLikelyWikiSyntax(body) {
   if (!body || !body.trim()) return false;
@@ -78,6 +78,10 @@ describe('live preview corpus sweep', () => {
     expect(isLikelyWikiSyntax('# Heading\n\nSome *italic* text with [Link](Page).')).toBe(false);
     expect(isLikelyWikiSyntax('Some __bold__ text here.')).toBe(false);
     expect(isLikelyWikiSyntax('Some text with [{TableOfContents}] plugin.\n! And a heading.')).toBe(true);
+    expect(isLikelyWikiSyntax('See [[OtherPage|the other page]].\n\n[{TableOfContents}]')).toBe(false);
+    expect(isLikelyWikiSyntax('[[A|a]] and [[B#Heading|b]]\n\n[{ALLOW view All}]')).toBe(false);
+    expect(isLikelyWikiSyntax('See [[OtherPage|alias]] and [Link|Page].\n\n[{TableOfContents}]')).toBe(true);
+    expect(isLikelyWikiSyntax('Some [Link|Page] here.\n! A heading.')).toBe(true);
     expect(isLikelyWikiSyntax(null)).toBe(false);
     expect(isLikelyWikiSyntax('')).toBe(false);
     expect(isLikelyWikiSyntax('   ')).toBe(false);

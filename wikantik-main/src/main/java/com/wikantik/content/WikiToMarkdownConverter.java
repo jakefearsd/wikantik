@@ -46,7 +46,8 @@ public final class WikiToMarkdownConverter {
     // --- Heuristic detection patterns ---
     private static final Pattern WIKI_HEADING = Pattern.compile( "^!{1,3}\\s" , Pattern.MULTILINE );
     private static final Pattern WIKI_ITALIC = Pattern.compile( "''[^']+?''" );
-    private static final Pattern WIKI_PIPE_LINK = Pattern.compile( "\\[([^\\]|]+)\\|([^\\]]+)\\]" );
+    // JSPWiki's single-bracket [text|Page]; never the Obsidian alias wikilink [[Page|alias]], which is Markdown here
+    private static final Pattern WIKI_PIPE_LINK = Pattern.compile( "(?<!\\[)\\[(?!\\[)([^\\]|]+)\\|([^\\]]+)\\](?!\\])" );
     private static final Pattern WIKI_PLUGIN_UNCONVERTED = Pattern.compile( "\\[\\{[^}]+\\}\\](?!\\()" );
     private static final Pattern WIKI_CODE_BLOCK_DELIM = Pattern.compile( "\\{\\{\\{" );
     private static final Pattern WIKI_BOLD = Pattern.compile( "__[^_]+?__" );

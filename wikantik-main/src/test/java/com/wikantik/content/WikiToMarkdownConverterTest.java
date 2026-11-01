@@ -308,6 +308,16 @@ public class WikiToMarkdownConverterTest {
         assertFalse( WikiToMarkdownConverter.isLikelyWikiSyntax( "   " ) );
     }
 
+    /** An Obsidian alias wikilink {@code [[Page|alias]]} is Markdown, not the JSPWiki pipe link {@code [text|Page]}. */
+    @Test
+    void testIsLikelyWikiSyntax_AliasWikiLinkIsNotAPipeLink() {
+        assertFalse( WikiToMarkdownConverter.isLikelyWikiSyntax( "See [[OtherPage|the other page]].\n\n[{TableOfContents}]" ) );
+        assertFalse( WikiToMarkdownConverter.isLikelyWikiSyntax( "[[A|a]] and [[B#Heading|b]]\n\n[{ALLOW view All}]" ) );
+        // the single-bracket JSPWiki form still counts, also beside an alias wikilink
+        assertTrue( WikiToMarkdownConverter.isLikelyWikiSyntax( "See [[OtherPage|alias]] and [Link|Page].\n\n[{TableOfContents}]" ) );
+        assertTrue( WikiToMarkdownConverter.isLikelyWikiSyntax( "Some [Link|Page] here.\n! A heading." ) );
+    }
+
     @Test
     void testIsLikelyWikiSyntax_WithUnconvertedPlugins() {
         final String wiki = "Some text with [{TableOfContents}] plugin.\n! And a heading.";

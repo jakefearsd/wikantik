@@ -22,6 +22,8 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
 import com.wikantik.util.AclDirectiveScanner;
 import com.wikantik.util.OffsetRanges;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -142,6 +144,8 @@ public final class AccessRules {
         }
     }
 
+    private static final Logger LOG = LogManager.getLogger( AccessRules.class );
+
     /** Longest span text a {@link Reason} carries. */
     static final int MAX_REASON_TEXT = 200;
 
@@ -182,6 +186,8 @@ public final class AccessRules {
         try {
             structure = RenderPathAccessRules.structure( fullText );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
+            // Not an error here: the lock it becomes is what is reported (DefaultAclManager warns once per version).
+            LOG.debug( "Access rules read as unreadable: {}", e.getMessage() );
             return unreadable( fullText, bodyStart, candidates, e.getMessage() );
         }
         final Map< Integer, RenderPathAccessRules.Rule > rules = new HashMap<>();

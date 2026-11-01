@@ -143,7 +143,7 @@ public final class BlockIds {
     }
 
     private static Optional< Block > find( final String text, final String id, final boolean body ) {
-        if ( id == null || !mayHoldMarker( text ) ) {
+        if ( id == null || !ModelReader.mayHoldMarker( text ) ) {
             return Optional.empty();
         }
         return ModelReader.model( text, id::equals, body ).blocks().stream().filter( b -> id.equals( b.id() ) ).findFirst();
@@ -224,7 +224,7 @@ public final class BlockIds {
     }
 
     private static String strip( final String fullText, final boolean body ) {
-        if ( !mayHoldMarker( fullText ) ) {
+        if ( !ModelReader.mayHoldMarker( fullText ) ) {
             return fullText;
         }
         final List< Marker > markers = ModelReader.model( fullText, NO_TEXT, body ).markers();
@@ -249,7 +249,7 @@ public final class BlockIds {
      */
     public static Set< String > markerIds( final String fullText ) {
         final Set< String > ids = new java.util.HashSet<>();
-        if ( !mayHoldMarker( fullText ) ) {
+        if ( !ModelReader.mayHoldMarker( fullText ) ) {
             return ids;
         }
         for ( final Marker m : ModelReader.model( fullText, NO_TEXT, false ).markers() ) {
@@ -329,16 +329,6 @@ public final class BlockIds {
     /** For a model whose block texts are never read: no block's plain text is worked out. */
     private static final java.util.function.Predicate< String > NO_TEXT = id -> false;
 
-    /**
-     * Whether a marker could be in the text at all: a {@code ^id} after a line start, a blank, a block-quote
-     * {@code >} or an access rule's closing {@code ]} / {@code )}, and at the end of its line or before an access rule.
-     * A superset of every marker form, so a text without one (math superscripts, footnotes) is never parsed for markers.
-     */
-    private static final Pattern POSSIBLE_MARKER = Pattern.compile( "(?m)(?:^|[\\s>\\])])\\^[A-Za-z0-9-]+[ \\t]*(?:\\r?$|\\[\\{)" );
-
-    private static boolean mayHoldMarker( final String text ) {
-        return text != null && text.indexOf( '^' ) >= 0 && POSSIBLE_MARKER.matcher( text ).find();
-    }
 
     private static boolean isBlank( final char c ) {
         return c == ' ' || c == '\t';
@@ -346,7 +336,20 @@ public final class BlockIds {
 
     /** Reads a page into its {@link Model}: parse, number, settle duplicate ids, compute plain text. */
     private static final class ModelReader {
+
+        /**
+         * Whether a marker could be in the text at all: a {@code ^id} after a line start, a blank, a block-quote
+         * {@code >} or an access rule's closing {@code ]} / {@code )}, and at the end of its line or before an access
+         * rule. A superset of every marker form, so a text without one (math superscripts, footnotes) is never parsed.
+         */
+        private static final Pattern POSSIBLE_MARKER =
+                Pattern.compile( "(?m)(?:^|[\\s>\\])])\\^[A-Za-z0-9-]+[ \\t]*(?:\\r?$|\\[\\{)" );
+
         private ModelReader() {
+        }
+
+        static boolean mayHoldMarker( final String text ) {
+            return text != null && text.indexOf( '^' ) >= 0 && POSSIBLE_MARKER.matcher( text ).find();
         }
 
         /**
@@ -360,17 +363,9 @@ public final class BlockIds {
                 return EMPTY;
             }
             final int bodyStart = body ? 0 : FrontmatterParser.bodyOffset( fullText );
-            final String source = fullText.substring( bodyStart );
-            MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( source );
-            Node document = PARSER.parse( prepared.text() );
-            PARSES.get()[ 0 ]++;
-            final String emptied = EmptyRuleItems.blank( source, prepared, document );
-            if ( emptied != null ) {   // read those list items as empty, as the render does: parse again
-                prepared = MarkdownBodySource.prepare( emptied );
-                document = PARSER.parse( prepared.text() );
-            }
-            final BlockWalk.Result walk = BlockWalk.walk( document );
-            final Coords coords = new Coords( fullText, prepared, bodyStart );
+            final Parsed parsed = parse( fullText.substring( bodyStart ) );
+            final BlockWalk.Result walk = BlockWalk.walk( parsed.document() );
+            final Coords coords = new Coords( fullText, parsed.prepared(), bodyStart );
 
             // Source ranges first, while the tree still holds every marker.
             final Map< BlockWalk.Marker, Marker > raw = new IdentityHashMap<>();
@@ -387,7 +382,29 @@ public final class BlockIds {
 
             // Take the markers out of the tree (as rendering does) so a block's plain text never carries one.
             BlockWalk.detach( walk, m -> null );
-            // ... and the access-rule links, which a render strips before it parses.
+            unlinkAccessRules( parsed.document() );
+            final List< Block > blocks = blocks( entries, walk, withText );
+            return new Model( List.copyOf( entries ), List.copyOf( blocks ), List.copyOf( markers ) );
+        }
+
+        /** A body prepared and parsed; parsed again with rule-only list items emptied when it has any. */
+        private record Parsed( MarkdownBodySource.Prepared prepared, Node document ) {
+        }
+
+        private static Parsed parse( final String source ) {
+            final MarkdownBodySource.Prepared prepared = MarkdownBodySource.prepare( source );
+            final Node document = PARSER.parse( prepared.text() );
+            PARSES.get()[ 0 ]++;
+            final String emptied = EmptyRuleItems.blank( source, prepared, document );
+            if ( emptied == null ) {
+                return new Parsed( prepared, document );
+            }
+            final MarkdownBodySource.Prepared again = MarkdownBodySource.prepare( emptied );   // read as the render does
+            return new Parsed( again, PARSER.parse( again.text() ) );
+        }
+
+        /** Takes the access-rule links out of the tree, as a render strips them before it parses. */
+        private static void unlinkAccessRules( final Node document ) {
             final List< Node > ruleLinks = new ArrayList<>();
             for ( final Node n : document.getDescendants() ) {
                 if ( BlockWalk.isAccessRuleLink( n ) ) {
@@ -395,6 +412,10 @@ public final class BlockIds {
                 }
             }
             ruleLinks.forEach( Node::unlink );
+        }
+
+        private static List< Block > blocks( final List< Entry > entries, final BlockWalk.Result walk,
+                                             final java.util.function.Predicate< String > withText ) {
             final List< Block > blocks = new ArrayList<>( entries.size() );
             for ( int i = 0; i < entries.size(); i++ ) {
                 final Entry e = entries.get( i );
@@ -403,7 +424,7 @@ public final class BlockIds {
                 blocks.add( new Block( i, id, e.kind(), e.start(), e.end(), m == null ? -1 : m.start(),
                         m == null ? -1 : m.end(), withText.test( id ) ? plainText( e.node() ) : "" ) );
             }
-            return new Model( List.copyOf( entries ), List.copyOf( blocks ), List.copyOf( markers ) );
+            return blocks;
         }
 
         private static String plainText( final Node node ) {

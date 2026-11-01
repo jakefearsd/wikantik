@@ -30,8 +30,13 @@ function rng(seed) { // mulberry32
 const BLOCKS = [
   '$$\nx^2\n$$', '![[Other]]', '![[Other#Intro]]', '![[pic.png]]', 'plain paragraph text', '# Heading',
   '- item\n- [ ] task', '```\ncode $$\n```', '> quote\n> more', '   $$\n   y\n   $$', 'Setext\n---',
+  '| a | b |\n|---|:-:|\n| 1 | **2** |', '| h |\n|---|\n| [[Other]] |\n| x \\| y |', '[{TableOfContents}]', 'text [{Image src=\'a.png\'}] more',
+  'note[^1] and[^n]\n\n[^1]: footnote text\n[^n]: another', '[ref]: https://example.com "t"\n\nsee [text][ref] and [ref]',
+  '<https://example.com/a> and https://example.com/bare', 'escaped \\* star \\[x\\]', 'Setext one\n===', 'Setext two\n---',
+  '<div>html block</div>',
 ];
-const TOKENS = ['\n', '\n\n', '$$', '$$\n', '\n$$', '```\n', '![[X]]', 'word', '---', '> ', '- ', '   '];
+const TOKENS = ['\n', '\n\n', '$$', '$$\n', '\n$$', '```\n', '![[X]]', 'word', '---', '> ', '- ', '   ',
+  '|', '| a |', '\n|---|\n', '[{', '}]', '[^1]', '\n[^1]: n\n', '[r]: u', '<http://x.y>', '\\', '===', '<div>'];
 
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
 const pos = (rand, state) => Math.floor(rand() * (state.doc.length + 1));

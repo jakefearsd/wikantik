@@ -91,7 +91,8 @@ class AclDirectiveVisibilityTest {
                 "[{ALLOW view All}]\na `b\nc` [{ALLOW edit Admin," + LOGIN + "}] `d\n\nPublic prose.\n" );
         // A long principal list wrapped over two lines: the renderer reads this link label, the enforcement scanner
         // does not match it, and a reader must not be shown either login all the same.
-        engine.saveText( "AclWrappedPage", "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n"
+        // (A wrapped rule is refused on save now, #104: stored past the save filters, as a page saved before that.)
+        engine.saveTextUnfiltered( "AclWrappedPage", "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n"
                 + "[{ALLOW comment " + LOGIN + ",\n other-" + LOGIN + "}]\nPublic prose.\n" );
         engine.saveText( "AclDiffPage", RULES + "First revision.\n" );
         engine.saveText( "AclDiffPage",

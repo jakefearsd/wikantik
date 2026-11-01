@@ -21,6 +21,7 @@ package com.wikantik.mcp.tools;
 import com.wikantik.mcp.ToolSchemas;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -70,6 +71,29 @@ class WritePagesToolTest {
         assertTrue( text.contains( "\"createdCount\":2" ) );
 
         verify( helper, times( 2 ) ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
+    }
+
+    /** #104: a page carrying an access rule the wiki cannot read is not created; the result cites the reason. */
+    @Test
+    void execute_refusesAPageWithAnUnreadableAccessRuleCitingTheReason() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        when( pm.getPage( anyString() ) ).thenReturn( null );
+        doThrow( new AccessRuleShapeException( List.of( new AccessRuleShapeException.Violation(
+                AccessRuleShapeException.CODE, "DENY", 1, "[{DENY view Bob}]", "line 1: no DENY; put it in `code`" ) ) ) )
+            .when( helper ).saveText( eq( "Locked" ), anyString(), any( SaveOptions.class ) );
+
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+        final String text = ( (McpSchema.TextContent) tool.execute( Map.of( "pages", List.of(
+                Map.of( "slug", "Locked", "content", "[{DENY view Bob}]\n\nbody" ),
+                Map.of( "slug", "Fine", "content", "body" ) ) ) ).content().get( 0 ) ).text();
+
+        assertTrue( text.contains( "access rule shape refused" ), text );
+        assertTrue( text.contains( "\"code\":\"ACCESS_RULE_SHAPE\"" ), text );
+        assertTrue( text.contains( "\"shape\":\"DENY\"" ), text );
+        assertTrue( text.contains( "\"createdCount\":1" ), text );
+        assertTrue( text.contains( "\"failedCount\":1" ), text );
     }
 
     @Test

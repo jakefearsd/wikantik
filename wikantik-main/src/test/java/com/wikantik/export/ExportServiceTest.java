@@ -181,7 +181,7 @@ class ExportServiceTest {
      */
     @Test
     void exportOmitsAccessRuleDirectivesTheConverterDoesNotRecognise() throws Exception {
-        engine.saveText( "FinanceRuled", "---\ntype: article\ncluster: finance\n---\n"
+        engine.saveTextUnfiltered( "FinanceRuled", "---\ntype: article\ncluster: finance\n---\n"
                 + "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}x}]\n# Ruled\n\nOpen prose.\n" );
         subs.pageGraph().structuralIndexService().rebuild();
 
@@ -200,7 +200,7 @@ class ExportServiceTest {
      */
     @Test
     void anEditorsExportIsGivenTheStoredTextUnstripped() throws Exception {
-        engine.saveText( "FinanceRuledForEditor", "---\ntype: article\ncluster: finance\n---\n"
+        engine.saveTextUnfiltered( "FinanceRuledForEditor", "---\ntype: article\ncluster: finance\n---\n"
                 + "[{ALLOW view All}]\n[{ALLOW edit Admin,leak-probe@example.test}x}]\n# Ruled\n\nOpen prose.\n" );
         subs.pageGraph().structuralIndexService().rebuild();
         assertTrue( new PermissionFilter( engine ).canAccessQuietly( engine.adminSession(), "FinanceRuledForEditor", "edit" ),

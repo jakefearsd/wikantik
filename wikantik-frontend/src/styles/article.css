@@ -644,3 +644,11 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
     outline-offset: 2px;
   }
 }
+
+/* Administrator-only banner for a page locked by unreadable access rules (#104) */
+.locked-rules-banner { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0 1rem; border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-bg); border-radius: 4px; font-size: 0.85rem; }
+.locked-rules-banner-icon { flex: none; margin-top: 0.15rem; color: var(--color-warning); }
+.locked-rules-banner-reasons { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+.locked-rules-banner-shape { opacity: 0.75; }

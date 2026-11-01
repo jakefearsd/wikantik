@@ -27,6 +27,7 @@ import { extractHeadings } from '../utils/headings';
 import useScrollSpy from '../hooks/useScrollSpy';
 import MetadataPanel from './MetadataPanel';
 import DerivedProvenanceBanner from './DerivedProvenanceBanner';
+import LockedAccessRulesBanner from './LockedAccessRulesBanner';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import BacklinksPanel from './BacklinksPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
@@ -693,6 +694,7 @@ export default function PageView() {
           initialCluster={pageCluster}
         />
       )}
+      <LockedAccessRulesBanner accessRules={page.accessRules} />
       <DerivedProvenanceBanner metadata={page.metadata} lastModified={page.lastModified} />
       <MetadataPanel metadata={page.metadata} />
       <ChangeNotesPanel pageName={name} canEdit={!!page?.permissions?.edit} />

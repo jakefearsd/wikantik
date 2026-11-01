@@ -28,6 +28,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -344,6 +345,17 @@ public class UpdatePageTool extends DefaultAuthorTool {
             refused.put( "pageName", rejectedPage );
             refused.put( "updated", false );
             refused.put( "error", "math validation failed" );
+            refused.put( "violations", e.violations() );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
+        } catch ( final AccessRuleShapeException e ) {
+            // The write would add an access rule the wiki cannot read, locking the page to administrators (#104).
+            // Cite each refused span (shape, line, how to write it instead) so the agent can fix and retry.
+            final String rejectedPage = McpToolUtils.pageSlug( arguments );
+            LOG.debug( "update_page rejected by the access-rule shape check for {}: {}", rejectedPage, e.getMessage() );
+            final Map< String, Object > refused = new LinkedHashMap<>();
+            refused.put( "pageName", rejectedPage );
+            refused.put( "updated", false );
+            refused.put( "error", "access rule shape refused" );
             refused.put( "violations", e.violations() );
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
         } catch ( final FrontmatterValidationException e ) {

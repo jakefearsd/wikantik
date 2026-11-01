@@ -54,7 +54,7 @@ class RenderedAclDirectiveTest {
     static void start() throws Exception {
         engine = TestEngine.build();
         for ( final Fixture f : AclDirectiveFixtures.ALL ) {
-            engine.saveText( pageName( f ), f.text() );
+            engine.saveTextUnfiltered( pageName( f ), f.text() );
         }
     }
 

@@ -829,7 +829,11 @@ export default function PageEditor() {
           setError('Version conflict, and failed to fetch the current server version.');
         }
       } else if (err.status === 422) {
-        if (err.body?.error === 'math_validation_failed') {
+        if (err.body?.error === 'access_rule_shape') {
+          // The save would add an access rule the server cannot read (it would lock the page, #104).
+          setError((err.body.violations || []).map((v) => v.message).join(' ') || 'An access rule on this page cannot be read.');
+          toast.error('An access rule on this page cannot be read');
+        } else if (err.body?.error === 'math_validation_failed') {
           setMathViolations((err.body && err.body.violations) || []);
           toast.error('Fix the highlighted math errors');
         } else {

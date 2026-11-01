@@ -77,6 +77,24 @@ class AdminContentResourceTest {
         assertTrue( obj.get( "pageCount" ).getAsInt() >= 0, "Page count should be non-negative" );
     }
 
+    /** #104: administrators can list every page whose access rules lock it, with the reasons and their lines. */
+    @Test
+    void testLockedPagesListsEveryLockedPageWithItsReasons() throws Exception {
+        engine.saveText( "AdminOpenRulesPage", "[{ALLOW view All}]\n\nOpen.\n" );
+        engine.saveTextUnfiltered( "AdminLockedRulesPage", "Intro.\n\n[{DENY view Bob}]\n\nBody.\n" );
+
+        final JsonObject obj = gson.fromJson( doGet( "/locked-pages" ), JsonObject.class );
+
+        final JsonArray pages = obj.getAsJsonArray( "pages" );
+        assertEquals( 1, pages.size(), obj.toString() );
+        final JsonObject page = pages.get( 0 ).getAsJsonObject();
+        assertEquals( "AdminLockedRulesPage", page.get( "name" ).getAsString() );
+        final JsonObject reason = page.getAsJsonArray( "reasons" ).get( 0 ).getAsJsonObject();
+        assertEquals( "DENY", reason.get( "shape" ).getAsString() );
+        assertEquals( 3, reason.get( "line" ).getAsInt() );
+        assertEquals( "[{DENY view Bob}]", reason.get( "text" ).getAsString() );
+    }
+
     @Test
     void testGetOrphanedPages() throws Exception {
         final String json = doGet( "/orphaned-pages" );

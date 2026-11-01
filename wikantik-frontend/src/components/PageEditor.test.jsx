@@ -703,6 +703,28 @@ describe('math validation', () => {
     expect(screen.getByText(/frontmatter valid/i)).toBeInTheDocument();
   });
 
+  it('a 422 access_rule_shape shows the refusal message, not frontmatter field errors', async () => {
+    const message = 'The access rule on line 3 ([{DENY view Bob}]) cannot be read: access rules only allow: there is no DENY '
+      + '(DENY). To restrict the page, write `[{ALLOW …}]`; to show the syntax, put it in `code`.';
+    api.savePage.mockRejectedValueOnce({
+      status: 422,
+      body: {
+        error: 'access_rule_shape',
+        violations: [{ code: 'ACCESS_RULE_SHAPE', shape: 'DENY', line: 3, text: '[{DENY view Bob}]', message }],
+      },
+    });
+
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByTestId('editor-save'));
+
+    expect(await screen.findByTestId('editor-error')).toHaveTextContent('line 3');
+    expect(screen.getByTestId('editor-error')).toHaveTextContent('put it in `code`');
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('An access rule on this page cannot be read'));
+    expect(screen.getByText(/frontmatter valid/i)).toBeInTheDocument();
+  });
+
   it('a 422 math_validation_failed shows an error toast', async () => {
     api.savePage.mockRejectedValueOnce({
       status: 422,

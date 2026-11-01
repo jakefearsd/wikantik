@@ -1271,3 +1271,33 @@ describe('PageView block references', () => {
     expect(Element.prototype.scrollIntoView.mock.contexts.some((el) => el.id === 'xA')).toBe(false);
   }, TEST_TIMEOUT);
 });
+
+describe('PageView locked access rules banner (#104)', () => {
+  it('shows administrators why the page is locked, each reason with its line', async () => {
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE,
+      accessRules: {
+        locked: true,
+        reasons: [
+          { shape: 'DENY', line: 3, text: '[{DENY view Bob}]' },
+          { shape: 'IN_FRONTMATTER', line: 2, text: '[{ALLOW view Admin}]' },
+        ],
+      },
+    }));
+    await mountAndSettle();
+    const banner = screen.getByTestId('locked-access-rules-banner');
+    expect(banner).toHaveTextContent("Access rules on this page can't be read");
+    const items = banner.querySelectorAll('li');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Line 3');
+    expect(items[0]).toHaveTextContent('[{DENY view Bob}]');
+    expect(items[0]).toHaveTextContent('DENY');
+    expect(items[1]).toHaveTextContent('Line 2');
+    expect(items[1]).toHaveTextContent('IN_FRONTMATTER');
+  }, TEST_TIMEOUT);
+
+  it('renders no banner when the payload carries no accessRules key', async () => {
+    await mountAndSettle();
+    expect(screen.queryByTestId('locked-access-rules-banner')).not.toBeInTheDocument();
+  }, TEST_TIMEOUT);
+});

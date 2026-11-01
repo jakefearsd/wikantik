@@ -23,6 +23,7 @@ import com.wikantik.util.WikiPageNameValidator;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.content.ContentValidationException;
 import com.wikantik.api.content.ContentWarningSink;
+import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
@@ -225,6 +226,13 @@ public class WritePagesTool extends DefaultAuthorTool {
                 entry.put( "created", false );
                 entry.put( "error", "math validation failed" );
                 entry.put( "violations", cve.violations() );
+                results.add( entry );
+                failedCount++;
+            } catch ( final AccessRuleShapeException are ) {
+                // The page would carry an access rule the wiki cannot read, locking it to administrators (#104).
+                entry.put( "created", false );
+                entry.put( "error", "access rule shape refused" );
+                entry.put( "violations", are.violations() );
                 results.add( entry );
                 failedCount++;
             } catch ( final FrontmatterValidationException fve ) {

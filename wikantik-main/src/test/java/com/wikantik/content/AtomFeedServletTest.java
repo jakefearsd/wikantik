@@ -91,7 +91,7 @@ class AtomFeedServletTest {
         // No frontmatter summary, so the entry's summary is the excerpt of the rendered page.
         // A rule inside an HTML block locks the page since #104, so it leaves the public feed altogether; a page with
         // canonical rules naming the same login stays, without the login.
-        engine.saveText( "FeedTestHtmlBlockRule", com.wikantik.auth.acl.AclDirectiveFixtures.HTML_BLOCK.text() );
+        engine.saveTextUnfiltered( "FeedTestHtmlBlockRule", com.wikantik.auth.acl.AclDirectiveFixtures.HTML_BLOCK.text() );
         engine.saveText( "FeedTestPlainRule", com.wikantik.auth.acl.AclDirectiveFixtures.PLAIN.text() );
         engine.getManager( RecentArticlesManager.class ).clearCache();
 

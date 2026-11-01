@@ -616,6 +616,21 @@ public class TestEngine extends WikiEngine {
         getManager( PageManager.class ).saveText( context, content );
     }
 
+    /**
+     * Stores {@code content} as the page's next version straight through the page provider, past every save filter: how
+     * a test sets up a page saved before a filter existed. Use it for a page whose access rules the wiki cannot read
+     * (locked, #104), which {@link #saveText} refuses now; reference and search indexes are not told.
+     *
+     * @param pageName page name
+     * @param content page content
+     * @throws ProviderException the provider could not store it
+     */
+    public void saveTextUnfiltered( final String pageName, final String content ) throws ProviderException {
+        final PageManager pages = getManager( PageManager.class );
+        final Page stored = pages.getPage( pageName );
+        pages.getProvider().putPageText( stored != null ? stored : Wiki.contents().page( this, pageName ), content );
+    }
+
     public void saveTextAsJanne( final String pageName, final String content ) throws WikiException {
         // Build new request and associate our Janne session
         final HttpServletRequest request = HttpMockFactory.createHttpRequest();

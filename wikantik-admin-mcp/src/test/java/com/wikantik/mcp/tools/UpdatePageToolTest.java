@@ -21,6 +21,7 @@ package com.wikantik.mcp.tools;
 import com.wikantik.mcp.ToolSchemas;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
@@ -82,6 +83,35 @@ class UpdatePageToolTest {
         assertTrue( text.contains( "\"newContentHash\"" ) );
         verify( helper, times( 1 ) ).saveText(
             eq( "P" ), eq( "new body" ), any( SaveOptions.class ) );
+    }
+
+    /** #104: an access rule the wiki cannot read is refused, citing its shape, line and how to write it instead. */
+    @Test
+    void execute_refusesAnUnreadableAccessRuleCitingTheReason() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "current body" );
+        final String currentHash = McpToolUtils.computeContentHash( "current body" );
+
+        doThrow( new AccessRuleShapeException( List.of( new AccessRuleShapeException.Violation(
+                AccessRuleShapeException.CODE, "DENY", 3, "[{DENY view Bob}]",
+                "The access rule on line 3 ([{DENY view Bob}]) cannot be read: access rules only allow: there is no DENY "
+                        + "(DENY). To restrict the page, write `[{ALLOW …}]`; to show the syntax, put it in `code`." ) ) ) )
+            .when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
+
+        final McpSchema.CallToolResult result = new UpdatePageTool( helper, pm, null ).execute( Map.of(
+            "slug", "P", "content", "body\n\n[{DENY view Bob}]\n", "expectedContentHash", currentHash ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"updated\":false" ), text );
+        assertTrue( text.contains( "access rule shape refused" ), text );
+        assertTrue( text.contains( "\"code\":\"ACCESS_RULE_SHAPE\"" ), text );
+        assertTrue( text.contains( "\"shape\":\"DENY\"" ), text );
+        assertTrue( text.contains( "\"line\":3" ), text );
+        assertTrue( text.contains( "put it in `code`" ), text );
     }
 
     @Test

@@ -29,6 +29,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -54,6 +55,7 @@ import com.wikantik.content.PageRenamer;
 import com.wikantik.export.HeadingSlugs;
 import com.wikantik.preview.PageExcerpts;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.util.TextUtil;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.content.WikiToMarkdownConverter;
@@ -357,7 +359,19 @@ public class PageResource extends RestServletBase {
             result.put( "cluster_status", clusterStatus );
         }
 
+        // Why the page is locked (#104), for administrators only: the reasons quote the rule text, logins included.
+        final Map< String, Object > accessRules = isAdministrator( request ) ? LockedAccessRules.of( rawText ) : null;
+        if ( accessRules != null ) {
+            result.put( "accessRules", accessRules );
+        }
+
         sendJson( response, result );
+    }
+
+    /** Whether the caller holds {@link AllPermission}: a silent check, no audit row. */
+    boolean isAdministrator( final HttpServletRequest request ) {
+        final Session session = Wiki.session().find( getEngine(), request );
+        return getSubsystems().auth().authorization().isPermitted( session, new AllPermission( getEngine().getApplicationName() ) );
     }
 
     /**
@@ -523,6 +537,11 @@ public class PageResource extends RestServletBase {
             LOG.debug( "Math validation rejected save of {}: {}", pageName, e.getMessage() );
             response.setStatus( 422 );
             sendJson( response, mathValidationErrorBody( e ) );
+        } catch ( final AccessRuleShapeException e ) {
+            // The save would add an access rule the wiki cannot read (it would lock the page) — not written.
+            LOG.debug( "Access-rule shape check rejected save of {}: {}", pageName, e.getMessage() );
+            response.setStatus( 422 );
+            sendJson( response, accessRuleShapeErrorBody( e ) );
         } catch ( final FrontmatterValidationException e ) {
             // Schema validation produced ERROR-severity violations — the page was not written.
             // Return the structured, field-addressable violations so the form can map them inline.
@@ -551,6 +570,17 @@ public class PageResource extends RestServletBase {
     static Map< String, Object > validationErrorBody( final FrontmatterValidationException e ) {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "error", "frontmatter_validation_failed" );
+        body.put( "violations", e.violations() );
+        return body;
+    }
+
+    /**
+     * Builds the HTTP 422 body for a save that adds an unreadable access rule: {@code { error, violations }}, each
+     * violation {@code { code: "ACCESS_RULE_SHAPE", shape, line, text, message }}.
+     */
+    static Map< String, Object > accessRuleShapeErrorBody( final AccessRuleShapeException e ) {
+        final Map< String, Object > body = new LinkedHashMap<>();
+        body.put( "error", "access_rule_shape" );
         body.put( "violations", e.violations() );
         return body;
     }
@@ -758,6 +788,10 @@ public class PageResource extends RestServletBase {
 
             sendJson( response, result );
 
+        } catch ( final AccessRuleShapeException e ) {
+            LOG.debug( "Access-rule shape check rejected metadata patch of {}: {}", pageName, e.getMessage() );
+            response.setStatus( 422 );
+            sendJson( response, accessRuleShapeErrorBody( e ) );
         } catch ( final WikiException e ) {
             LOG.error( "Error patching page {}: {}", pageName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

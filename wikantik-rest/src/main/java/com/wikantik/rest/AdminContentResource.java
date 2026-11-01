@@ -58,6 +58,7 @@ import java.util.Set;
  *   <li>{@code GET  /admin/content/stats} — wiki health dashboard</li>
  *   <li>{@code GET  /admin/content/orphaned-pages} — unreferenced pages</li>
  *   <li>{@code GET  /admin/content/broken-links} — missing link targets</li>
+ *   <li>{@code GET  /admin/content/locked-pages} — pages whose access rules cannot be read, so only admins may use them</li>
  *   <li>{@code POST /admin/content/bulk-delete} — delete multiple pages</li>
  *   <li>{@code POST /admin/content/purge-versions} — purge old page versions</li>
  *   <li>{@code POST /admin/content/reindex} — force full search index rebuild (deprecated — use {@code /rebuild-indexes})</li>
@@ -122,6 +123,7 @@ public class AdminContentResource extends RestServletBase {
             .exact( "stats",              Route.get( ( req, resp ) -> handleStats( resp ) ) )
             .exact( "orphaned-pages",     Route.get( ( req, resp ) -> handleOrphanedPages( resp ) ) )
             .exact( "broken-links",       Route.get( ( req, resp ) -> handleBrokenLinks( resp ) ) )
+            .exact( "locked-pages",       Route.get( ( req, resp ) -> handleLockedPages( resp ) ) )
             .exact( "index-status",       Route.get( ( req, resp ) -> handleIndexStatus( resp ) ) )
             .exact( "chunks",             Route.get( this::handleChunksByPage ) )
             .exact( "chunks/outliers",    Route.get( ( req, resp ) -> handleChunkOutliers( resp ) ) )
@@ -237,6 +239,42 @@ public class AdminContentResource extends RestServletBase {
             ( int ) b.get( "referrerCount" ), ( int ) a.get( "referrerCount" ) ) );
 
         sendJson( response, Map.of( "links", links, "brokenBlockRefs", brokenBlockRefs() ) );
+    }
+
+    /**
+     * Every page whose access rules lock it (#104): {@code { pages: [{name, version, reasons: [{shape, line, text}]}] }},
+     * by name. A page whose text cannot be read is skipped (and logged): its lock is a provider failure, not its text.
+     */
+    private void handleLockedPages( final HttpServletResponse response ) throws IOException {
+        final PageManager pm = getSubsystems().page().pages();
+        final Collection< Page > pages;
+        try {
+            pages = pm.getAllPages();
+        } catch ( final ProviderException e ) {
+            LOG.warn( "Locked-pages report: page enumeration failed: {}", e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Could not list the pages." );
+            return;
+        }
+        final List< Map< String, Object > > locked = new ArrayList<>();
+        for ( final Page page : pages ) {
+            final String text;
+            try {
+                text = pm.getPureText( page );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Locked-pages report: could not read page {}, skipping it: {}", page.getName(), e.getMessage() );
+                continue;
+            }
+            final Map< String, Object > rules = LockedAccessRules.of( text );
+            if ( rules != null ) {
+                final Map< String, Object > entry = new LinkedHashMap<>();
+                entry.put( "name", page.getName() );
+                entry.put( "version", Math.max( page.getVersion(), 1 ) );
+                entry.put( "reasons", rules.get( "reasons" ) );
+                locked.add( entry );
+            }
+        }
+        locked.sort( ( a, b ) -> ( ( String ) a.get( "name" ) ).compareToIgnoreCase( ( String ) b.get( "name" ) ) );
+        sendJson( response, Map.of( "pages", locked ) );
     }
 
     /** Test seam: replaces the real scan when set. */

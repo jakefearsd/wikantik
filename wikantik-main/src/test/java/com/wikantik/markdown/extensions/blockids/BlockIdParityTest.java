@@ -108,7 +108,7 @@ class BlockIdParityTest {
     }
 
     private String render( final String markdown ) throws Exception {
-        testEngine.saveText( HOST, markdown );
+        testEngine.saveTextUnfiltered( HOST, markdown );   // some fixtures hold access rules a save would refuse (#104)
         final Page p = Wiki.contents().page( testEngine, HOST );
         final Context context = Wiki.context().create( testEngine, HttpMockFactory.createHttpRequest(), p );
         return testEngine.getManager( RenderingManager.class ).textToHTML( context, markdown );

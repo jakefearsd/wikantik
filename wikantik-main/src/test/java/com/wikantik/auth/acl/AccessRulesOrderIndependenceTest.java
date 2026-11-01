@@ -95,10 +95,10 @@ class AccessRulesOrderIndependenceTest {
         engine = TestEngine.build();
         for ( final Fixture f : all() ) {
             for ( final String order : ORDERS ) {
-                engine.saveText( pageName( f, order ), f.text() );
+                engine.saveTextUnfiltered( pageName( f, order ), f.text() );
             }
         }
-        engine.saveText( LOCKED_PAGE, AclDirectiveFixtures.DENY.text() );
+        engine.saveTextUnfiltered( LOCKED_PAGE, AclDirectiveFixtures.DENY.text() );
         engine.saveText( OPEN_PAGE, "Nothing restricts this page.\n" );
     }
 

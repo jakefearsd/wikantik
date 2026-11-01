@@ -196,6 +196,15 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
      * Listens for {@link WikiSecurityEvent#PROFILE_NAME_CHANGED} events. If a user
      * profile's name changes, each page ACL is inspected. If an entry contains a name
      * that has changed, it is replaced with the new one.
+     *
+     * <p><b>Unreachable today, deliberately.</b> No production path fires
+     * {@code PROFILE_NAME_CHANGED}: only {@code DefaultUserManager.setUserProfile} does, and nothing calls it — the
+     * profile endpoints ({@code PUT /api/auth/profile}, {@code PUT /admin/users/{login}}) save the profile directly.
+     * Do not wire the event to them as this sweep stands: it replaces the old login, full name and wiki name with the
+     * new <em>full name</em>, but ACL user entries match logins only, so a display-name change would turn a working
+     * {@code [{ALLOW edit alice@x}]} into a rule that grants nobody. Wiring it needs a rework that substitutes the new
+     * login (on a login rename) first. The rewrite itself ({@code AclManager.setPermissions}) keeps the frontmatter
+     * and is pinned by {@code AclProfileRenameRoundTripTest} and {@code DefaultAclManagerCITest}.</p>
      */
     @Override
     public void actionPerformed( final WikiEvent event ) {

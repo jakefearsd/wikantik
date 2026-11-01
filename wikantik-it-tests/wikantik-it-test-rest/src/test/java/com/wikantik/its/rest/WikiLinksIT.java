@@ -275,7 +275,11 @@ class WikiLinksIT {
     void seedPages() throws Exception {
         loginAsAdmin();
         try {
-            save( TARGET, "## Section A\n\nalpha text\n", Map.of( "aliases", List.of( ALIAS ) ) );
+            // Frontmatter, access rules and a wikilink of its own: the rename (Order 7) must carry all of it over
+            // unchanged — it re-saves the page outside the save filters.
+            save( TARGET, "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n\n## Section A\n\nalpha text, see [[" + LINKER + "]].\n",
+                    Map.of( "aliases", List.of( ALIAS ), "cluster", "wikilinks-it", "tags", List.of( "wikilinks", "rename" ),
+                            "summary", "Rename fixture: its frontmatter and body must survive a rename byte for byte" ) );
             save( SECRET, "[{ALLOW view Admin}]\n\nclassified text\n", null );
             final String lower = TARGET.toLowerCase();
             pollUntil( "structural index to resolve " + lower, 60,
@@ -390,9 +394,24 @@ class WikiLinksIT {
     void renameRewritesNativeLinks() throws Exception {
         loginAsAdmin();
         try {
+            final HttpResponse< String > before = getString( "/api/pages/" + TARGET );
+            assertEquals( 200, before.statusCode(), before.body() );
+            final JsonObject metadataBefore = json( before ).getAsJsonObject( "metadata" );
+            final String bodyBefore = json( before ).get( "content" ).getAsString();
+            assertTrue( metadataBefore.has( "canonical_id" ) && metadataBefore.has( "cluster" ) && metadataBefore.has( "tags" )
+                    && metadataBefore.has( "summary" ), "premise: the fixture has the frontmatter under test: " + metadataBefore );
+            assertTrue( bodyBefore.contains( "[{ALLOW edit Admin}]" ) && bodyBefore.contains( "[[" + LINKER + "]]" ),
+                    "premise: the fixture body has a rule and a wikilink: " + bodyBefore );
+
             final HttpResponse< String > r = post( "/api/pages/" + TARGET + "/rename",
                     GSON.toJson( Map.of( "newName", RENAMED ) ) );
             assertEquals( 200, r.statusCode(), r.body() );
+
+            final HttpResponse< String > after = getString( "/api/pages/" + RENAMED );
+            assertEquals( 200, after.statusCode(), after.body() );
+            assertEquals( metadataBefore, json( after ).getAsJsonObject( "metadata" ),
+                    "the renamed page's frontmatter is unchanged (canonical_id, cluster, tags, summary, aliases)" );
+            assertEquals( bodyBefore, json( after ).get( "content" ).getAsString(), "the renamed page's body is unchanged" );
             final HttpResponse< String > page = getString( "/api/pages/" + LINKER );
             assertEquals( 200, page.statusCode(), page.body() );
             final String content = json( page ).get( "content" ).getAsString();

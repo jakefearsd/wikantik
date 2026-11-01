@@ -99,6 +99,10 @@ public class DefaultPageRenamer implements PageRenamer {
             throw new WikiException( "Page already exists " + renameToClean );
         }
         
+        // Read the text before anything moves: the rename re-saves it under the new name, and a text that cannot be read
+        // must abort the rename with nothing changed — never be re-saved as "" (getPureText answers "" on a provider error).
+        final String pageText = RenameTextReader.textOf( engine, renameFrom );
+
         final Set< String > referrers = getReferencesToChange( fromPage, engine );
         final Set< String > newNameReferrers = RenameRenderEviction.referrersOf( engine, renameToClean );
 
@@ -122,7 +126,7 @@ public class DefaultPageRenamer implements PageRenamer {
         }
         toPage.setAttribute( Page.CHANGENOTE, fromPage.getName() + " ==> " + toPage.getName() );
         toPage.setAuthor( AuthorKeys.authorKeyFor( context.getWikiSession() ) );
-        PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( toPage, PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( toPage ) );
+        PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( toPage, pageText );
 
         //  Update the references
         com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().pageRemoved( fromPage );
@@ -185,9 +189,9 @@ public class DefaultPageRenamer implements PageRenamer {
                 pageName = toPage.getName();
             }
             
+            //  An unreadable referrer yields "" here, which no rewrite changes, so it is never written.
+            final String sourceText = RenameTextReader.referrerText( engine, pageName );
             final Page referrerPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
-
-            final String sourceText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( referrerPage );
             String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
             newText = rewriteWikiLinks( newText, fromPage.getName(), toPage.getName() );
 

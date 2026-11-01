@@ -75,10 +75,10 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
  *
  * <p>Pages: {@code editedPage} (two versions by the probe, no frontmatter author), {@code aclPage}
  * (version 1 plain, version 2 adds {@code [{ALLOW view All}]} and {@code [{ALLOW edit <login>}]}),
- * {@code trickyPage} (version 2 puts the directive inside an HTML block that opens with {@code <details>}
- * and contains a code fence: CommonMark ends such a block only at a blank line, so the fence is plain text and
- * the ACL manager's scan enforces the directive, which a scanner that treats every fence as code would miss.
- * The renderer does not parse a directive inside an HTML block, so its output must not carry it either) and {@code ontoPage} (frontmatter {@code author:} set to the login, to exercise the ontology's
+ * {@code trickyPage} (version 2 puts the directive between two code spans that each open on one line and close on
+ * the next: a lone backtick on the first line pairs with the first one on the second, so the rule is plain text and is
+ * enforced, which a scanner that reads one line at a time would take for code. Since #104 a rule inside an HTML block
+ * locks its page to administrators, so that shape no longer makes a readable fixture) and {@code ontoPage} (frontmatter {@code author:} set to the login, to exercise the ontology's
  * {@code dct:creator} and the display substitution of the SSR data island; it carries an access rule so that
  * readers are not editors, because an editor is handed the frontmatter as written). Free text typed into a page
  * body or into the frontmatter of a page the caller may edit is shown as written (see the design's "Out of
@@ -181,12 +181,12 @@ public class DisplayNameLeakProbeIT {
         savePage( probe, aclPage, aclBody, "first version" );
         savePage( probe, aclPage, "[{ALLOW view All}]\n[{ALLOW edit " + probeLogin + "}]\n\n" + aclBody, "adds an access rule" );
 
-        // trickyPage: the enforced directive sits inside an HTML block whose first line is <details>, so the
-        // fence in it is not code. Version 1 is plain, so the probe may save version 2 and then owns the page.
+        // trickyPage: the enforced directive sits between code spans that open on one line and close on the next, so
+        // it is plain text. Version 1 is plain, so the probe may save version 2 and then owns the page.
         final String trickyBody = "The " + marker + " tricky access-rule fixture page.\n";
         savePage( probe, trickyPage, trickyBody, "first version" );
-        savePage( probe, trickyPage, "[{ALLOW view All}]\n\n<details>\n```\n[{ALLOW edit Admin," + probeLogin
-                + "}]\n```\n</details>\n\n" + trickyBody, "adds an access rule inside an HTML block" );
+        savePage( probe, trickyPage, "[{ALLOW view All}]\n\na `b\nc` [{ALLOW edit Admin," + probeLogin
+                + "}] `d\n\n" + trickyBody, "adds an access rule between line-spanning code spans" );
 
         // embedderPage: a reader sees the tricky page's rendered body through the embed.
         savePage( probe, embedderPage, "Embeds the tricky page:\n\n![[" + trickyPage + "]]\n", "embeds the tricky page" );
@@ -471,7 +471,7 @@ public class DisplayNameLeakProbeIT {
             new Surface( "GET /api/diff/{acl}?from=1&to=2", "/api/diff/" + aclPage + "?from=1&to=2", json, false, aclPage, false, true ),
             new Surface( "GET /api/pages/for-agent/{acl-id}", "/api/pages/for-agent/" + aclId, json, false, aclPage, false, true ),
             new Surface( "GET /api/search (access-rule page)", "/api/search?q=" + marker, json, false, aclPage, false, false ),
-            // The page whose enforced directive hides inside an HTML block that a naive scanner reads as code.
+            // The page whose enforced directive sits between line-spanning code spans that a naive scanner reads as code.
             new Surface( "GET /api/pages/{tricky}", "/api/pages/" + trickyPage, json, false, trickyPage, true, true ),
             new Surface( "GET /api/pages/{tricky}?version=2", "/api/pages/" + trickyPage + "?version=2", json, false, trickyPage, true, true ),
             new Surface( "GET /wiki/{tricky}?format=md", "/wiki/" + trickyPage + "?format=md", "text/markdown", false, marker, false, true ),
@@ -480,7 +480,7 @@ public class DisplayNameLeakProbeIT {
             new Surface( "GET /api/diff/{tricky}?from=1&to=2", "/api/diff/" + trickyPage + "?from=1&to=2", json, false, trickyPage, false, true ),
             new Surface( "GET /api/pages/for-agent/{tricky-id}", "/api/pages/for-agent/" + trickyId, json, false, trickyPage, false, true ),
             new Surface( "GET /api/search (tricky page)", "/api/search?q=" + marker, json, false, trickyPage, false, false ),
-            // Rendered surfaces of the tricky page: the renderer prints a directive inside an HTML block unless display
+            // Rendered surfaces of the tricky page: the renderer prints a directive it does not read as a rule unless display
             // rendering parses the text without the rules the ACL manager enforces.
             new Surface( "GET /api/pages/{tricky}?render=true", "/api/pages/" + trickyPage + "?render=true", json, false, trickyPage, true, true ),
             new Surface( "GET /api/pages/{tricky}/preview", "/api/pages/" + trickyPage + "/preview", json, false, marker, false, true ),
@@ -880,7 +880,7 @@ public class DisplayNameLeakProbeIT {
 
     /**
      * Neither a signed-in non-editor nor an anonymous visitor may be handed access-rule text by the page API, for the page
-     * whose directive sits in an HTML block.
+     * whose directive sits between line-spanning code spans.
      */
     @Test
     void thePageApiHandsNonEditorsNoAccessRuleTextForTheTrickyPage() throws Exception {
@@ -895,10 +895,8 @@ public class DisplayNameLeakProbeIT {
 
     /**
      * Rendering the tricky page first (server-side HTML, the rendered page API, a page that embeds it) never makes the
-     * second user an editor of it, nor hands them its rule. (Who else may edit it is deliberately not asserted:
-     * enforcement is unchanged from 2.4.57, where the ACL manager's text scan grants the probe edit but the render path,
-     * which cannot see a rule inside an HTML block, sets an ACL without it on the instance it renders. That disagreement is
-     * pre-existing and has its own issue; either reading leaves the second user without edit.)
+     * second user an editor of it, nor hands them its rule. (Since #104 a render sets no ACL at all, so the order of
+     * render and check cannot matter; this pins that end to end.)
      */
     @Test
     void renderingTheTrickyPageFirstNeverMakesTheSecondUserAnEditor() throws Exception {

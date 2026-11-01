@@ -26,6 +26,14 @@ A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctr
 
 The toolbar also has heading, list, inline code, code block and table buttons. Type `/` at the start of a line for a menu of blocks such as tables, callouts and math.
 
+## Live preview
+
+Live preview shows your Markdown as it will look. Headings, emphasis, tables, diagrams, math, images, embeds and task checkboxes display formatted, and plugin and access-rule lines such as `[{ALLOW view Admin}]` appear as labelled chips. The page text stays plain Markdown.
+
+* Press Mod+E, choose the toolbar button, or pick **Toggle live preview** from the command palette. Switching modes never changes the page text.
+* The line your cursor is on always shows its raw source. To edit a table, chip, diagram or formula, click into it.
+* Your choice is saved to your account. To change the default, open **Preferences**, go to **Editor** and set **Default editing mode**. New users start in live preview.
+
 ## Writing
 
 * The editor takes Markdown. See [TextFormattingRules](TextFormattingRules) for the syntax.

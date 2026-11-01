@@ -27,7 +27,7 @@ package com.wikantik.parser.markdown;
  *
  * <p>Shared by the read-path rule check ({@link RenderPathAccessRules}, which fails closed) and the render
  * ({@link MarkdownParser}, which falls back to a parse without attributes). The budget is {@link #BUDGET_BASE} plus
- * {@link #BUDGET_PER_CHAR} reads per character; the repo page corpus needs at most about 7 per character (asserted by
+ * {@link #BUDGET_PER_CHAR} reads per character; the repo page corpus needs at most about 11 per character (asserted by
  * {@code MarkdownParserRenderBudgetTest#repoCorpusNeverExhaustsTheBudget}).
  */
 public final class BudgetedText implements CharSequence {

@@ -60,7 +60,7 @@ import java.util.List;
  * quadratic on, for example, <code>{edit</code> followed by a long run of spaces, and overflows the stack on a long run
  * of attribute-like words. The parse therefore reads its input through a counter and is cut off at
  * {@value BudgetedText#BUDGET_PER_CHAR} character reads per character plus {@value BudgetedText#BUDGET_BASE} (see
- * {@link BudgetedText}; the page corpus needs at most about 7 per character). A cut-off parse, a
+ * {@link BudgetedText}; the page corpus needs at most about 11 per character). A cut-off parse, a
  * stack overflow, any other exception from the parse, and a rule that maps to no source text all end in
  * {@link Unreadable}: the caller then fails closed; it never gets a partial answer.
  */

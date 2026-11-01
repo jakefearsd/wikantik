@@ -18,6 +18,7 @@
  */
 package com.wikantik.preview;
 
+import com.wikantik.parser.markdown.ReaderText;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.Heading;
 import com.vladsch.flexmark.ast.HtmlBlock;
@@ -55,7 +56,7 @@ public final class PageExcerpts {
         // Access rules go first, through the one place that knows their syntax; PLUGIN then drops every other span.
         // The caller cuts the body (or a section) from the stripped FULL text (AclDirectiveText.parseStripped);
         // this strip is the last line of defence.
-        final String withoutRules = AclDirectiveText.strip( markdownBody, " " );
+        final String withoutRules = ReaderText.derived( AclDirectiveText.strip( markdownBody, " " ) );
         final String masked = WikiLinkSyntax.toPlainText(
                 CALLOUT_MARKER.matcher( PLUGIN.matcher( withoutRules ).replaceAll( " " ) ).replaceAll( "$1" ) );
         final StringBuilder text = new StringBuilder();

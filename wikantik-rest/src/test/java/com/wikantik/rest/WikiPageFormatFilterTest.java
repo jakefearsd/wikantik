@@ -94,6 +94,8 @@ class WikiPageFormatFilterTest {
             "Body content goes here.\n\n" +
             "See [Other](OtherPage) and [External](https://example.com).\n" );
 
+        engine.saveText( "BlockPage", "Para one ^abc\n\nSee [[FormatPage#^zz|claim]] here.\n" );
+
         filter = new WikiPageFormatFilter();
         final FilterConfig config = Mockito.mock( FilterConfig.class );
         Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
@@ -138,6 +140,46 @@ class WikiPageFormatFilterTest {
         final String md = baos.toString( StandardCharsets.UTF_8 );
         assertTrue( md.startsWith( "# Format Page" ), "Markdown must start with H1 title, got: " + md );
         assertTrue( md.contains( "Body content goes here." ) );
+    }
+
+    @Test
+    void formatMdStripsBlockMarkersButKeepsBlockLinkFragments() throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/wiki/BlockPage" );
+        when( req.getParameter( "format" ) ).thenReturn( "md" );
+        when( req.getRequestURI() ).thenReturn( "/wiki/BlockPage" );
+        when( req.getContextPath() ).thenReturn( "" );
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        when( resp.getOutputStream() ).thenReturn( new ServletOutputStream() {
+            @Override public void write( final int b ) { baos.write( b ); }
+            @Override public boolean isReady() { return true; }
+            @Override public void setWriteListener( final WriteListener listener ) {}
+        } );
+
+        filter.doFilter( req, resp, mock( FilterChain.class ) );
+
+        final String md = baos.toString( StandardCharsets.UTF_8 );
+        assertTrue( md.contains( "Para one" ), md );
+        assertFalse( md.contains( "one ^abc" ), "the block marker is source, not reader text: " + md );
+        assertTrue( md.contains( "#^zz" ), "a block-link fragment must survive the rewrite: " + md );
+    }
+
+    @Test
+    void formatJsonContentAndSummaryOmitBlockMarkers() throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/wiki/BlockPage" );
+        when( req.getParameter( "format" ) ).thenReturn( "json" );
+        when( req.getRequestURI() ).thenReturn( "/wiki/BlockPage" );
+        when( req.getContextPath() ).thenReturn( "" );
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        filter.doFilter( req, resp, mock( FilterChain.class ) );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "content" ).getAsString().contains( "Para one" ) );
+        assertFalse( obj.get( "content" ).getAsString().contains( "^abc" ) );
+        assertFalse( obj.get( "summary" ).getAsString().contains( "^abc" ) );
     }
 
     @Test

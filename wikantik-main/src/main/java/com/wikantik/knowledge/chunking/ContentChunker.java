@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.chunking;
 
+import com.wikantik.parser.markdown.ReaderText;
 import com.vladsch.flexmark.ast.BulletList;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.Heading;
@@ -102,8 +103,9 @@ public class ContentChunker {
 
     /** The page body exactly as it is parsed for chunking: access-rule directives removed, then trimmed. */
     static String chunkableBody(String body) {
-        final String withoutRules = AclDirectiveText.strip(body);
-        return withoutRules == null ? "" : withoutRules.strip();
+        // ACL strip first, then block markers: the same order as the render path, so BlockIds parses the same text.
+        final String derived = ReaderText.derived(AclDirectiveText.strip(body));
+        return derived == null ? "" : derived.strip();
     }
 
     public List<Chunk> chunk(String pageName, ParsedPage page) {

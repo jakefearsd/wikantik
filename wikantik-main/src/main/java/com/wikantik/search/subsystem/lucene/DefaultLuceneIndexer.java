@@ -18,6 +18,7 @@
  */
 package com.wikantik.search.subsystem.lucene;
 
+import com.wikantik.parser.markdown.ReaderText;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -563,7 +564,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         // Access-rule directives name people by login and are not searchable content; indexing the text
         // without them keeps them out of hits and highlighted snippets. The frontmatter parse below still
         // reads the original text.
-        final String indexedText = AclDirectiveText.strip( text )
+        final String indexedText = ReaderText.derived( AclDirectiveText.strip( text ) )
                 .replace( "__", " " ); // be nice to Language Analyzers - cfr. JSPWIKI-893
 
         Field field = new Field( LUCENE_ID, page.getName(), StringField.TYPE_STORED );

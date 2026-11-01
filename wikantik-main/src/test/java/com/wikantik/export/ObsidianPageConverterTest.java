@@ -55,6 +55,10 @@ class ObsidianPageConverterTest {
         return md.substring( md.indexOf( "---\n", 4 ) + 4 );   // strip the generated frontmatter block
     }
 
+    @Test void blockIdsAndBlockLinksSurviveExport() {
+        final String raw = "Claim text ^abc\n\nSee [[Foo#^abc|the claim]] and ![[Foo#^abc]].\n\n^xyz\n";
+        assertEquals( raw, body( raw ) );
+    }
     @Test void internalLink() { assertEquals( "See [[Foo|the foo]].\n", body( "See [the foo](Foo).\n" ) ); }
     @Test void internalLinkSameText() { assertEquals( "[[Foo]]\n", body( "[Foo](Foo)\n" ) ); }
     @Test void anchorResolved() { assertEquals( "[[Foo#Setup Steps|go]]\n", body( "[go](Foo#setup-steps)\n" ) ); }

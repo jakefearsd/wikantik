@@ -159,4 +159,9 @@ class NodeTextAssemblerTest {
     void stripMarkdownReadsNativeWikiLinksAsText() {
         assertEquals( "a Alias b c T > H", NodeTextAssembler.stripMarkdown( "a [[T|Alias]] b ![[X]] c [[T#H]]" ) );
     }
+
+    @Test
+    void stripMarkdownDropsBlockMarkers() {
+        assertEquals( "Para", NodeTextAssembler.stripMarkdown( "Para ^abc\n" ) );
+    }
 }

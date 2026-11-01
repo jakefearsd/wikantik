@@ -66,4 +66,8 @@ class PageExcerptsTest {
     @Test void dropsTheEmptyParenthesesOfANormalisedAccessRule() {
         assertEquals( "Hello there.", PageExcerpts.excerpt( "[{ALLOW view Admin}]()\n\nHello there.\n", 280 ) );
     }
+
+    @Test void blockMarkersAreNotPartOfTheExcerpt() {
+        assertEquals( "Para", PageExcerpts.excerpt( "Para ^abc\n", 280 ) );
+    }
 }

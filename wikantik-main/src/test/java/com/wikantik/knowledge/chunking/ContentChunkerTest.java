@@ -412,4 +412,14 @@ class ContentChunkerTest {
         }
         assertTrue(chunks.stream().anyMatch(c -> c.text().contains("Public prose")));
     }
+
+    @Test
+    void blockMarkersDoNotChangeChunkTextOrHash() {
+        final List<Chunk> plain = chunker.chunk("P", new ParsedPage(Map.of(), "Para\n"));
+        final List<Chunk> marked = chunker.chunk("P", new ParsedPage(Map.of(), "Para ^abc\n"));
+        assertEquals(1, marked.size());
+        assertEquals(plain.get(0).text(), marked.get(0).text());
+        assertEquals(plain.get(0).contentHash(), marked.get(0).contentHash());
+        assertFalse(marked.get(0).text().contains("^abc"));
+    }
 }

@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.parser.markdown.ReaderText;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.wikantik.api.core.Engine;
@@ -236,7 +237,8 @@ public class WikiPageFormatFilter implements Filter {
     private void writeMarkdown( final HttpServletResponse resp, final Engine eng, final Page page,
                                  final ParsedPage parsed, final String baseUrl ) throws IOException {
         final String title = extractTitle( page, parsed );
-        String body = parsed.body() == null ? "" : parsed.body();
+        // Reader text: block markers are source, not content. Stripped before link rewriting; frontmatter was already split off.
+        String body = ReaderText.derived( parsed.body() == null ? "" : parsed.body() );
         body = stripLeadingH1( body, title );
         final WikiLinkResolver resolver = WikiLinkResolver.forEngine( eng );
         body = rewriteWikiLinks( body, baseUrl, page.getName(), t -> resolver.resolve( t ).pageName(),
@@ -253,7 +255,8 @@ public class WikiPageFormatFilter implements Filter {
     }
 
     private void writeJson( final HttpServletResponse resp, final Page page,
-                             final ParsedPage parsed, final String baseUrl ) throws IOException {
+                             final ParsedPage source, final String baseUrl ) throws IOException {
+        final ParsedPage parsed = new ParsedPage( source.metadata(), ReaderText.derived( source.body() ) );
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "slug", page.getName() );
         out.put( "title", extractTitle( page, parsed ) );

@@ -330,6 +330,22 @@ class DefaultLuceneIndexerTest {
     }
 
     @Test
+    void luceneIndexPage_indexesPageTextWithoutBlockMarkersButKeepsFrontmatterMetadata() throws Exception {
+        final String text = "---\ntags: [alpha]\n---\nPublic prose ^abc\n";
+        final Page page = mockPage( "BlockMarkedPage" );
+
+        try ( Directory dir = LuceneDirectoryFactory.open( tmp, false );
+              IndexWriter writer = new IndexWriter( dir, new IndexWriterConfig( new StandardAnalyzer() ) ) ) {
+            final Document doc = newIndexer().luceneIndexPage( page, text, writer );
+
+            final String contents = doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS );
+            assertTrue( contents.contains( "Public prose" ), contents );
+            assertFalse( contents.contains( "^abc" ), contents );
+            assertEquals( "alpha", doc.get( DefaultLuceneIndexer.LUCENE_PAGE_TAGS ) );
+        }
+    }
+
+    @Test
     void luceneIndexPage_indexesPageTextWithoutAccessRuleDirectives() throws Exception {
         final String text = "[{ALLOW view All}]()\n[{ALLOW edit leak-probe@example.test}]\n"
                 + "Public prose. Example: `[{ALLOW edit Bob}]`.";

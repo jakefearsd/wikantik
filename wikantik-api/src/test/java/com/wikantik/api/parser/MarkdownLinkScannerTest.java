@@ -127,4 +127,9 @@ class MarkdownLinkScannerTest {
     void findMarkdownLinksIgnoresNativeWikilinks() {
         assertEquals( Set.of( "Legacy" ), MarkdownLinkScanner.findMarkdownLinks( "[a](Legacy) [[Native]]" ) );
     }
+
+    @Test
+    void findLocalLinksKeepsOnlyTheTargetOfABlockReference() {
+        assertEquals( Set.of( "T" ), MarkdownLinkScanner.findLocalLinks( "see [[T#^a]] and ![[T#^a|alias]]" ) );
+    }
 }

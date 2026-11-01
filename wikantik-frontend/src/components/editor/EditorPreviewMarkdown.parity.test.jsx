@@ -60,7 +60,8 @@ const isUrlLink = (a) => {
   if (isBroken(a)) return false;
   const href = a.getAttribute('href') || '';
   const text = a.textContent.trim();
-  return text !== '' && [text, `mailto:${text}`, `http://${text}`].includes(href); // GFM: www.x → http://www.x
+  // GFM: www.x → http://www.x; trailing sentence punctuation is never part of the link
+  return text !== '' && !/[.,:;!?]$/.test(text) && [text, `mailto:${text}`, `http://${text}`].includes(href);
 };
 const hasTextLink = (o) => all(o, 'a[href^="http"]').some((a) => !isBroken(a) && !isUrlLink(a));
 const hasFootnoteRef = (o) => all(o, 'sup a[href^="#"]').length > 0;

@@ -182,8 +182,9 @@ class LivePreviewParityTest {
         }
         final String href = a.attrs.getOrDefault( "href", "" );
         final String text = a.text().trim();
-        // the link text is its own target (GFM writes www.x as http://www.x)
-        return !text.isEmpty() && ( href.equals( text ) || href.equals( "mailto:" + text ) || href.equals( "http://" + text ) );
+        // the link text is its own target (GFM writes www.x as http://www.x); trailing sentence punctuation stays outside
+        return !text.isEmpty() && !text.matches( ".*[.,:;!?]$" )
+                && ( href.equals( text ) || href.equals( "mailto:" + text ) || href.equals( "http://" + text ) );
     }
 
     private static String firstLine( final JsonObject e ) {
@@ -302,6 +303,6 @@ class LivePreviewParityTest {
         return s.replace( "&lt;", "<" ).replace( "&gt;", ">" ).replace( "&quot;", "\"" ).replace( "&#34;", "\"" )
                 .replace( "&#39;", "'" ).replace( "&#x27;", "'" ).replace( "&#61;", "=" ).replace( "&#91;", "[" )
                 .replace( "&#93;", "]" ).replace( "&#123;", "{" ).replace( "&#125;", "}" ).replace( "&#92;", "\\" )
-                .replace( "&#94;", "^" ).replace( "&#42;", "*" ).replace( "&nbsp;", " " ).replace( "&amp;", "&" );
+                .replace( "&#94;", "^" ).replace( "&#64;", "@" ).replace( "&#42;", "*" ).replace( "&nbsp;", " " ).replace( "&amp;", "&" );
     }
 }

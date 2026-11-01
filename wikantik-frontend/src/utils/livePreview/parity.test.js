@@ -46,6 +46,8 @@ function visibleFirstLine(o) {
 }
 const links = (o) => marks(o, 'cm-lp-link');
 const looksLikeUrl = (t) => /^(?:[a-z][a-z0-9+.-]*:|www\.)/i.test(t);
+/** Link marks over whole URLs: trailing sentence punctuation is never part of the link. */
+const urlLinks = (o) => links(o).filter((s) => !/[.,:;!?]$/.test(textOf(o.state, s)));
 
 /** Label → whether the live decorations of an entry show it. */
 const PREDICATES = {
@@ -56,8 +58,8 @@ const PREDICATES = {
   'ref-link': (o) => links(o).length > 0 && !visibleFirstLine(o).includes('['),
   'shortcut-link': (o) => links(o).length > 0 && !visibleFirstLine(o).includes('['),
   'ref-link-undefined': (o) => links(o).length === 0 && hides(o).length === 0,
-  autolink: (o) => links(o).length > 0 && hides(o).includes('<') && hides(o).includes('>'),
-  'bare-url': (o) => links(o).length > 0 && hides(o).length === 0,
+  autolink: (o) => urlLinks(o).length > 0 && hides(o).includes('<') && hides(o).includes('>'),
+  'bare-url': (o) => urlLinks(o).length > 0 && hides(o).length === 0,
   escaped: (o) => hides(o).length > 0 && hides(o).every((t) => t === '\\')
     && ['cm-lp-em', 'cm-lp-strong', 'cm-lp-del'].every((c) => marks(o, c).length === 0)
     && links(o).every((s) => looksLikeUrl(textOf(o.state, s))),

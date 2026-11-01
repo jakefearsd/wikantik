@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Live preview is complete, and it is the default editing mode.** Off the cursor's line the editor now draws
+  GFM tables as tables (click a row to edit its source), `[{…}]` plugin, variable and access-rule lines as
+  labelled chips, footnotes, reference-style links (when the definition exists), `<url>` and bare-URL links,
+  backslash escapes, underlined headings, and HTML blocks as muted markup. ArrowUp/ArrowDown move into tables,
+  diagrams, math and embeds instead of jumping over them. Switching modes never changes the page text.
+- **The editing mode is a per-user preference**, saved to your account (Preferences → Editor → "Default editing
+  mode"; `editorMode` on `GET/PUT /api/auth/profile`). New users start in live preview; a choice made in a
+  browser before this release moves to the account once. Pages in legacy JSPWiki syntax stay in source mode.
+
+### Changed
+- **Bare URLs, `www.` addresses and email addresses in page text are now links on the published page**, styled
+  like other external links (as on GitHub and Obsidian, and as the editor already showed them). Only web and
+  email addresses are linked — never inside code, existing links, wikilinks or plugin lines.
+- **Tables whose separator row uses fewer than three dashes (`|--|`) now render as tables** on the published page
+  and in the Obsidian export (GFM rule); a separator row with no header row stays text.
+
+### Fixed
+- An Obsidian alias link `[[Page|alias]]` no longer makes a page look like legacy JSPWiki syntax (which made the
+  editor refuse live preview).
+- Saving a page without edits no longer creates a new version when save-time frontmatter (`canonical_id`,
+  defaults) was added with different line endings from the page.
+- `mailto:` and other scheme links are no longer shown as missing attachments in the editor preview.
+- Live preview typing cost on large pages is back to the earlier baseline (link-reference definitions are carried
+  through edits instead of re-scanned per keystroke).
+
+### Testing
+- New editor-mode compatibility suite: live preview over every repo page; every editor browser test runs in
+  source and live mode; real-browser keyboard and whole-page round-trip tests; one fixture that checks the
+  editor's live preview, its preview pane and the published page agree.
+
 ## [2.5.4] - 2026-11-01
 
 ### Added

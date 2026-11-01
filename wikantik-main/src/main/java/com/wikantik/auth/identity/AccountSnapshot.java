@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -70,7 +71,7 @@ record AccountSnapshot( Instant expires, long generation, Map< String, AccountSu
 
     private static Set< String > lowerCased( final Set< String > logins ) {
         final Set< String > lower = new HashSet<>();
-        logins.forEach( login -> lower.add( login.toLowerCase( java.util.Locale.ROOT ) ) );
+        logins.forEach( login -> lower.add( login.toLowerCase( Locale.ROOT ) ) );
         return Set.copyOf( lower );
     }
 

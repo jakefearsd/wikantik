@@ -36,6 +36,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -439,7 +440,7 @@ class DefaultPublicIdentityTest {
 
     @Test
     void aDeletedLoginShowsAsFormerMemberButNeverAccountValuesStayAsWritten() throws Exception {
-        doReturn( java.util.Set.of( "alice", "bob@example.com" ) ).when( db ).deletedLogins();
+        doReturn( Set.of( "alice", "bob@example.com" ) ).when( db ).deletedLogins();
 
         assertEquals( PublicIdentity.FORMER_MEMBER, identity.displayName( "alice" ) );
         assertEquals( PublicIdentity.FORMER_MEMBER, identity.displayName( "bob@example.com" ),
@@ -450,7 +451,7 @@ class DefaultPublicIdentityTest {
 
     @Test
     void aCaseVariantOfADeletedLoginIsAlsoAFormerMember() throws Exception {
-        doReturn( java.util.Set.of( "alice" ) ).when( db ).deletedLogins();
+        doReturn( Set.of( "alice" ) ).when( db ).deletedLogins();
 
         assertEquals( PublicIdentity.FORMER_MEMBER, identity.displayName( "Alice" ) );
     }
@@ -458,7 +459,7 @@ class DefaultPublicIdentityTest {
     @Test
     void aLiveAccountWinsOverAStaleTombstone() throws Exception {
         account( "alice", "Alice A", "u1" );
-        doReturn( java.util.Set.of( "alice" ) ).when( db ).deletedLogins();
+        doReturn( Set.of( "alice" ) ).when( db ).deletedLogins();
 
         assertEquals( "Alice A", identity.displayName( "alice" ) );
     }

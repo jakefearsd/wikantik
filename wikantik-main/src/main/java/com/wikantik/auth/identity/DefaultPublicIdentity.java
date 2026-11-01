@@ -28,6 +28,7 @@ import com.wikantik.event.WikiSecurityEvent;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -76,7 +77,7 @@ public final class DefaultPublicIdentity implements PublicIdentity, WikiEventLis
         }
         final AccountSummary account = current.byLogin().get( stored );
         if ( account == null ) {
-            if ( current.deleted().contains( stored.toLowerCase( java.util.Locale.ROOT ) ) ) {
+            if ( current.deleted().contains( stored.toLowerCase( Locale.ROOT ) ) ) {
                 return FORMER_MEMBER;   // a hard-deleted account: neither its login nor its name is shown
             }
             return emailShaped ? UNKNOWN_CONTRIBUTOR : stored;

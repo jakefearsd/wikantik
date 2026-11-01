@@ -25,6 +25,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.user.DuplicateUserException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.filters.FilterManager;
@@ -413,8 +414,8 @@ class DefaultUserManagerCITest {
         profile.setEmail( login + "@example.com" );
         profile.setPassword( Users.ALICE_PASS );
 
-        final com.wikantik.auth.user.DuplicateUserException e =
-                assertThrows( com.wikantik.auth.user.DuplicateUserException.class, () -> m_mgr.setUserProfile( ctx, profile ) );
+        final DuplicateUserException e =
+                assertThrows( DuplicateUserException.class, () -> m_mgr.setUserProfile( ctx, profile ) );
 
         assertEquals( "security.error.login.deleted", e.getMessage() );
         assertThrows( NoSuchPrincipalException.class, () -> m_db.findByLoginName( login ) );

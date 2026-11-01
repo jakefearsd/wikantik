@@ -49,7 +49,19 @@ public class EditWikiPage implements SpaPage {
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
     public static EditWikiPage open( final String pageName ) {
-        pinSourceMode();
+        return openInMode( pageName, "source" );
+    }
+
+    /**
+     * Open a page for edition with the browser's remembered editor mode pinned first. A server-side preference
+     * (if the user has one) still wins over this.
+     *
+     * @param pageName Wiki page name to edit (new or existing).
+     * @param mode {@code "source"} or {@code "live"}.
+     * @return {@link EditWikiPage} instance, to allow chaining of actions.
+     */
+    public static EditWikiPage openInMode( final String pageName, final String mode ) {
+        pinMode( mode );
         final EditWikiPage page = Page.withUrl( Page.baseUrl() + "/edit/" + pageName ).openAs( new EditWikiPage() );
         $( "[data-testid=page-editor]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         $( "[data-testid=editor-textarea]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
@@ -62,11 +74,16 @@ public class EditWikiPage implements SpaPage {
      * server-side preference) before the editor mounts. Must run on the wiki origin to reach its localStorage.
      */
     public static void pinSourceMode() {
+        pinMode( "source" );
+    }
+
+    /** Pins the browser's remembered editor mode ({@code source} or {@code live}). */
+    public static void pinMode( final String mode ) {
         final String base = Page.baseUrl();
         if ( !WebDriverRunner.hasWebDriverStarted() || !WebDriverRunner.url().startsWith( base ) ) {
             Selenide.open( base + "/" );
         }
-        Selenide.executeJavaScript( "localStorage.setItem('wikantik.editor.mode','source')" );
+        Selenide.executeJavaScript( "localStorage.setItem('wikantik.editor.mode', arguments[0])", mode );
     }
 
     /**

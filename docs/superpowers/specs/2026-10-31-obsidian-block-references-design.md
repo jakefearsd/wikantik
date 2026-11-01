@@ -248,6 +248,19 @@ Wherever this table says "strip", the call goes through `ReaderText.derived` (§
   - `[[Page#` (no `^`) keeps listing headings only.
 - **Command "Copy block link"** (palette + block context menu in live preview): on the block at the
   cursor, adds a marker if needed and copies `[[ThisPage#^id]]`.
+- *Amendment (fix wave 2, round 3): the server decides block identity in the editor too.* The client's
+  own parse could disagree with the reader (access-rule stripping, cross-block duplicate resolution,
+  remark vs flexmark on some table and hard-break shapes) and then orphaned or mis-targeted ids. So the
+  current page's blocks, and the edit that gives one an id, come from
+  `POST /api/pages/{name}/blocks/draft` over the unsaved buffer (edit-gated like `POST …/blocks`; text
+  capped like a page body, 413; nothing saved): `{text}` → `{ blocks:[{ index, id|null, kind, text,
+  from, to }] }`; `{text, offset}` → the block the reader shows there, `{ id, change:{from,to,insert}
+  | null, block }`, or 409 `no-block` / `refused`. "Copy block link" and the `[[#^` / `[[ThisPage#^`
+  completion apply the answered edit in one transaction with the link (one undo step, unfolding what
+  hides it), mapping it through edits made while the request was in flight and abandoning it when the
+  block itself was edited. `blocksFromMarkdown`, `remarkBlockIds` and the live preview's chips remain
+  for drawing only; the client has no marker-edit path any more (`markerChange`, `insertMarker`,
+  `blockLinkEdit` are gone). Other pages are unchanged (`GET`/`POST …/blocks`).
 - **Live preview:** a block marker renders as a small muted chip (`cm-lp-blockid`) when the cursor is
   off its line, and as raw text when it's on. A duplicate id gets a warning style and title.
 - **Source-mode Ctrl-click** (`linkInteraction.js`): works through `wikiLinkHref`'s new `^` handling.
@@ -256,8 +269,8 @@ Wherever this table says "strip", the call goes through `ReaderText.derived` (§
 
 ### 1.9 Client rendering (editor preview)
 
-- `utils/blockIds.js`: the marker regexes, `blocksFromMarkdown(md)` (via the remark/mdast tree the
-  preview already builds), `newBlockId`, and `insertMarker`.
+- `utils/blockIds.js`: the marker regexes and `blocksFromMarkdown(md)` (via the remark/mdast tree the
+  preview already builds) — for drawing only since round 3 of fix wave 2 (see §1.8's amendment).
 - `remarkBlockIds` plugin: the same AST rules as §1.4, setting `data.hProperties.id`. It runs before
   `remarkWikiLinks`.
 - `wikiLinkSyntax.wikiLinkHref`: a `^` heading gives `#^id`, unslugged.

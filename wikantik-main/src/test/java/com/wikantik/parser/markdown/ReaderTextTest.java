@@ -49,4 +49,9 @@ class ReaderTextTest {
         final UnaryOperator< String > broken = t -> { throw new IllegalStateException( "invariant breach" ); };
         assertEquals( "Para ^abc\n", ReaderText.derived( "Para ^abc\n", broken ) );
     }
+
+    @Test
+    void aCaretInsideFrontmatterIsLeftUntouched() {
+        assertEquals( "---\nsummary: see ^x\n---\nBody\n", ReaderText.derived( "---\nsummary: see ^x\n---\nBody ^abc\n" ) );
+    }
 }

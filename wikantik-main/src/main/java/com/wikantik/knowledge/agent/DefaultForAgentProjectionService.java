@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.agent;
 
+import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.api.agent.AgentHintsBlock;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
@@ -223,7 +224,9 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 // Strip the FULL text and take the body of that: enforcement is judged on the full text.
                 final ParsedPage parsed = AclDirectiveText.parseStripped( raw );
                 frontmatter = parsed.metadata();
-                body = parsed.body();
+                // Derived text: block markers are source, not content (spec 1.11a). The runbook block is built from
+                // frontmatter only, so this single point covers key_facts and the heading outline.
+                body = ReaderText.derived( parsed.body() );
             }
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: getPureText({}) failed — body & key_facts & headings will degrade: {}",

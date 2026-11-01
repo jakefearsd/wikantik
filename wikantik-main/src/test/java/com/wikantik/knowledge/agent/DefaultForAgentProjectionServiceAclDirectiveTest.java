@@ -99,4 +99,31 @@ class DefaultForAgentProjectionServiceAclDirectiveTest {
         p.keyFacts().forEach( f -> assertFalse( f.text().contains( "leak-probe@example.test" ), f.text() ) );
         assertTrue( p.headingsOutline().stream().anyMatch( h -> "Steps".equals( h.text() ) ), "headings are untouched" );
     }
+
+    /** Block markers are source, not reader text (spec 1.11a): the projection is derived text. */
+    @Test
+    void blockMarkersNeverReachBodyDerivedFields() {
+        final StructuralIndexService idx = mock( StructuralIndexService.class );
+        final PageManager pm = mock( PageManager.class );
+        final CachingManager cache = mock( CachingManager.class );
+        when( cache.enabled( anyString() ) ).thenReturn( false );
+        final DefaultForAgentProjectionService svc =
+                new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), null, null, null );
+
+        final PageDescriptor d = new PageDescriptor( "01BLOCKS", "BlockOps", "Block Ops", PageType.ARTICLE,
+                "ops", List.of( "ops" ), "Operator notes.",
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+        when( idx.getByCanonicalId( "01BLOCKS" ) ).thenReturn( Optional.of( d ) );
+        when( pm.getPureText( "BlockOps", -1 ) ).thenReturn(
+                "---\ntitle: Block Ops\nsummary: Operator notes.\ntags: [ops]\n---\n"
+                + "The service restarts nightly at 02:00 and retains 7 backups ^abc\n\n## Steps\n\n"
+                + "1. Run the restart script. ^step1\n2. Verify the service.\n" );
+
+        final ForAgentProjection p = svc.project( "01BLOCKS" ).orElseThrow();
+
+        assertFalse( p.keyFacts().isEmpty() );
+        assertEquals( "The service restarts nightly at 02:00 and retains 7 backups", p.keyFacts().get( 0 ).text() );
+        assertFalse( p.toString().contains( "^abc" ), p.toString() );
+        assertFalse( p.toString().contains( "^step1" ), p.toString() );
+    }
 }

@@ -34,6 +34,7 @@ import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.content.BlockDrafts;
 import com.wikantik.content.BlockIdService;
 import com.wikantik.derived.DerivedPage;
 import com.wikantik.preview.PageExcerpts;
@@ -64,6 +65,10 @@ final class PageBlocksHandler {
     static final int MAX_LIMIT = 100;
     static final int TEXT_CHARS = 120;
     private static final int ABSENT = Integer.MIN_VALUE;
+    /** A JSON body may spell each character of the text in up to this many (a backslash-u escape). */
+    private static final int DRAFT_ESCAPE_FACTOR = 6;
+    /** Room in a draft body for everything but the text. */
+    private static final int DRAFT_SLACK = 4096;
 
     private final RestServletBase servlet;
 
@@ -81,11 +86,26 @@ final class PageBlocksHandler {
             return;
         }
         final String text = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
-        final String q = request.getParameter( "q" );
-        final String needle = q == null ? "" : q.trim().toLowerCase( Locale.ROOT );
         final int limit = Math.min( MAX_LIMIT, Math.max( 1, servlet.parseIntParam( request, "limit", DEFAULT_LIMIT ) ) );
+        final JsonArray rows = rows( blocksOf( pageName, text ), request.getParameter( "q" ), limit, false );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "version", Math.max( page.getVersion(), 1 ) );
+        body.addProperty( "canAssign", text != null && servlet.hasPagePermission( request, pageName, "edit" )
+                && !DerivedPage.isDerived( FrontmatterParser.parse( text ).metadata() ) );
+        body.add( "blocks", rows );
+        response.setHeader( "Cache-Control", "private, no-cache" );
+        RestJson.sendJsonKeepingNulls( response, body );
+    }
+
+    /**
+     * The listing rows of {@code blocks} matching {@code q} (in their text or id, any case; all when blank), at most
+     * {@code limit}; with each block's {@code from}/{@code to} in its text when {@code withRange}.
+     */
+    private static JsonArray rows( final java.util.List< BlockIds.Block > blocks, final String q, final int limit,
+                                   final boolean withRange ) {
+        final String needle = q == null ? "" : q.trim().toLowerCase( Locale.ROOT );
         final JsonArray rows = new JsonArray();
-        for ( final BlockIds.Block b : blocksOf( pageName, text ) ) {
+        for ( final BlockIds.Block b : blocks ) {
             final String shown = shownText( b );
             if ( !needle.isEmpty() && !shown.toLowerCase( Locale.ROOT ).contains( needle )
                     && ( b.id() == null || !b.id().toLowerCase( Locale.ROOT ).contains( needle ) ) ) {
@@ -96,18 +116,99 @@ final class PageBlocksHandler {
             row.add( "id", b.id() == null ? JsonNull.INSTANCE : new com.google.gson.JsonPrimitive( b.id() ) );
             row.addProperty( "kind", b.kind().name().toLowerCase( Locale.ROOT ).replace( '_', '-' ) );
             row.addProperty( "text", shown.length() > TEXT_CHARS ? shown.substring( 0, TEXT_CHARS ) : shown );
+            if ( withRange ) {
+                row.addProperty( "from", b.start() );
+                row.addProperty( "to", b.end() );
+            }
             rows.add( row );
             if ( rows.size() >= limit ) {
                 break;
             }
         }
-        final JsonObject body = new JsonObject();
-        body.addProperty( "version", Math.max( page.getVersion(), 1 ) );
-        body.addProperty( "canAssign", text != null && servlet.hasPagePermission( request, pageName, "edit" )
-                && !DerivedPage.isDerived( FrontmatterParser.parse( text ).metadata() ) );
-        body.add( "blocks", rows );
-        response.setHeader( "Cache-Control", "private, no-cache" );
-        RestJson.sendJsonKeepingNulls( response, body );
+        return rows;
+    }
+
+    /**
+     * {@code POST /blocks/draft}: the server's block model of the caller's unsaved text (the editor's buffer), which is
+     * the one authority for block identity — the editor never decides an id from its own parse. {@code {text}} lists
+     * the blocks (with {@code from}/{@code to} in that text; optional {@code q}, {@code limit}); {@code {text, offset}}
+     * answers the block the reader shows at {@code offset}: {@code {id, change: null}} when it carries an id, else
+     * {@code {id, change: {from, to, insert}}}, the one edit that gives it one — or 409 {@code no-block} /
+     * {@code refused}. Nothing is saved. Same posture as {@code POST /blocks}: 404 for a missing or unviewable page,
+     * an audited 403 without edit; the text is capped like a page body (413).
+     */
+    void handleDraft( final HttpServletRequest request, final HttpServletResponse response, final String pageName )
+            throws IOException {
+        final PageManager pm = servlet.getSubsystems().page().pages();
+        if ( viewablePage( request, pm, pageName ) == null ) {
+            servlet.sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
+            return;
+        }
+        if ( !servlet.checkPagePermission( request, response, pageName, "edit" ) ) {
+            return;
+        }
+        final int maxBytes = PageResource.parseMaxPageBytes( servlet.getEngine() );
+        // JSON can spell a character in up to six (a u-escape): a body beyond that bound cannot hold an allowed text
+        if ( request.getContentLengthLong() > DRAFT_ESCAPE_FACTOR * ( long ) maxBytes + DRAFT_SLACK ) {
+            servlet.sendError( response, 413, "Draft text is limited to " + maxBytes + " bytes" );
+            return;
+        }
+        final JsonObject body = servlet.parseJsonBody( request, response );
+        if ( body == null ) {
+            return;
+        }
+        final String text = servlet.getJsonString( body, "text" );
+        if ( text == null ) {
+            servlet.sendError( response, HttpServletResponse.SC_BAD_REQUEST, "text is required" );
+            return;
+        }
+        if ( text.getBytes( java.nio.charset.StandardCharsets.UTF_8 ).length > maxBytes ) {
+            servlet.sendError( response, 413, "Draft text is limited to " + maxBytes + " bytes" );
+            return;
+        }
+        response.setHeader( "Cache-Control", "private, no-store" );
+        final int offset = servlet.getJsonInt( body, "offset", ABSENT );
+        if ( offset == ABSENT ) {
+            final int limit = Math.min( MAX_LIMIT, Math.max( 1, servlet.getJsonInt( body, "limit", MAX_LIMIT ) ) );
+            final JsonObject out = new JsonObject();
+            out.add( "blocks", rows( blocksOf( pageName, text ), servlet.getJsonString( body, "q" ), limit, true ) );
+            RestJson.sendJsonKeepingNulls( response, out );
+            return;
+        }
+        draftLink( response, pageName, text, offset );
+    }
+
+    /** Answers the block at {@code offset} of the draft {@code text}: its id, or the edit that gives it one, or a 409. */
+    private void draftLink( final HttpServletResponse response, final String pageName, final String text, final int offset )
+            throws IOException {
+        final BlockDrafts.Link link;
+        try {
+            link = BlockDrafts.linkAt( pageName, text, offset, BlockIds::newId );
+        } catch ( final BlockDrafts.Refused e ) {
+            conflict( response, e.reason() == BlockDrafts.Refusal.NO_BLOCK ? "no-block" : "refused" );
+            return;
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Draft block link of '{}' at {} could not be read ({}); refused", pageName, offset, e.toString(), e );
+            conflict( response, "refused" );
+            return;
+        }
+        final JsonObject out = new JsonObject();
+        out.addProperty( "id", link.id() );
+        if ( link.change() == null ) {
+            out.add( "change", JsonNull.INSTANCE );
+        } else {
+            final JsonObject change = new JsonObject();
+            change.addProperty( "from", link.change().from() );
+            change.addProperty( "to", link.change().to() );
+            change.addProperty( "insert", link.change().insert() );
+            out.add( "change", change );
+        }
+        final JsonObject block = new JsonObject();
+        block.addProperty( "index", link.block().index() );
+        block.addProperty( "from", link.block().start() );
+        block.addProperty( "to", link.block().end() );
+        out.add( "block", block );
+        RestJson.sendJsonKeepingNulls( response, out );
     }
 
     /**

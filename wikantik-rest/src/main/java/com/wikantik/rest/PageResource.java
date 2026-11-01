@@ -774,6 +774,12 @@ public class PageResource extends RestServletBase {
             handleRename( request, response, pageName );
             return;
         }
+        // POST /api/pages/{name}/blocks/draft — the server's block model of the editor's unsaved text
+        if ( pathParam != null && pathParam.endsWith( "/blocks/draft" ) ) {
+            new PageBlocksHandler( this ).handleDraft( request, response,
+                    pathParam.substring( 0, pathParam.length() - "/blocks/draft".length() ) );
+            return;
+        }
         // POST /api/pages/{name}/blocks — give a block a ^id
         if ( pathParam != null && pathParam.endsWith( "/blocks" ) ) {
             new PageBlocksHandler( this ).handlePost( request, response,

@@ -467,4 +467,123 @@ class PageBlocksHandlerTest {
             assertTrue( preview.json().get( "blockMissing" ).getAsBoolean() );
         }
     }
+
+    // ----- POST /blocks/draft: the editor's buffer, read by the server's block model -----
+
+    /** The shape where the editor's own parse orphaned an id: the reader reads A's marker as code, so ^b is Other's. */
+    private static final String ORPHAN_SHAPE = "> Para\n>\n> [{ALLOW view Admin}]    ^b\n\nOther ^b\n";
+
+    private static String draft( final String text, final Integer offset ) {
+        final JsonObject o = new JsonObject();
+        o.addProperty( "text", text );
+        if ( offset != null ) {
+            o.addProperty( "offset", offset );
+        }
+        return o.toString();
+    }
+
+    @Test
+    void draftListsTheBlocksTheReaderShowsForTheGivenText() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final Reply r = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( ORPHAN_SHAPE, null ) );
+        assertEquals( 200, r.status(), r.body() );
+        final JsonArray blocks = r.json().getAsJsonArray( "blocks" );
+        final java.util.List< BlockIds.Block > model = BlockIds.list( ORPHAN_SHAPE );
+        assertEquals( model.size(), blocks.size() );
+        for ( int i = 0; i < model.size(); i++ ) {
+            final JsonObject row = blocks.get( i ).getAsJsonObject();
+            assertEquals( i, row.get( "index" ).getAsInt() );
+            assertEquals( model.get( i ).start(), row.get( "from" ).getAsInt() );
+            assertEquals( model.get( i ).end(), row.get( "to" ).getAsInt() );
+            assertEquals( model.get( i ).id() == null, row.get( "id" ).isJsonNull() );
+        }
+        assertEquals( "b", blocks.get( blocks.size() - 1 ).getAsJsonObject().get( "id" ).getAsString() );
+        final JsonObject q = new JsonObject();
+        q.addProperty( "text", ORPHAN_SHAPE );
+        q.addProperty( "q", "other" );
+        q.addProperty( "limit", 5 );
+        final Reply narrowed = post( spy( true, true ), "RestBlkPage/blocks/draft", q.toString() );
+        assertEquals( 1, narrowed.json().getAsJsonArray( "blocks" ).size() );
+    }
+
+    @Test
+    void draftAtAnOffsetGivesTheReadersIdOrTheOneEditThatAddsOne() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final PageManager pm = engine.getManager( PageManager.class );
+        final String saved = pm.getPureText( "RestBlkPage", PageProvider.LATEST_VERSION );
+        final int version = pm.getPage( "RestBlkPage" ).getVersion();
+        final Reply other = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( ORPHAN_SHAPE, ORPHAN_SHAPE.indexOf( "Other" ) ) );
+        assertEquals( 200, other.status(), other.body() );
+        assertEquals( "b", other.json().get( "id" ).getAsString() );
+        assertTrue( other.json().get( "change" ).isJsonNull() );
+        final Reply para = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( ORPHAN_SHAPE, 3 ) );
+        assertEquals( 200, para.status(), para.body() );
+        final String id = para.json().get( "id" ).getAsString();
+        final JsonObject change = para.json().getAsJsonObject( "change" );
+        final String after = ORPHAN_SHAPE.substring( 0, change.get( "from" ).getAsInt() ) + change.get( "insert" ).getAsString()
+                + ORPHAN_SHAPE.substring( change.get( "to" ).getAsInt() );
+        final java.util.List< BlockIds.Block > before = BlockIds.list( ORPHAN_SHAPE );
+        final java.util.List< BlockIds.Block > now = BlockIds.list( after );
+        final BlockIds.Block target = before.stream().filter( b -> b.start() <= 3 && 3 <= b.end() )
+                .max( java.util.Comparator.comparingInt( BlockIds.Block::start ) ).orElseThrow();
+        assertEquals( id, now.get( target.index() ).id() );
+        for ( int i = 0; i < before.size(); i++ ) {
+            if ( i != target.index() ) {
+                assertEquals( before.get( i ).id(), now.get( i ).id(), "block " + i );
+            }
+        }
+        assertEquals( saved, pm.getPureText( "RestBlkPage", PageProvider.LATEST_VERSION ), "a draft saves nothing" );
+        assertEquals( version, pm.getPage( "RestBlkPage" ).getVersion() );
+    }
+
+    @Test
+    void draftRefusalsAre409WithTheirReason() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final Reply none = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( "# Heading\n\nPara.\n", 3 ) );
+        assertEquals( 409, none.status() );
+        assertEquals( "no-block", none.json().get( "reason" ).getAsString() );
+        final Reply refused = post( spy( true, true ), "RestBlkPage/blocks/draft",
+                draft( "| a | b |\n|---|---|\n| 1 | 2 |\n\tPara.\n", 3 ) );
+        assertEquals( 409, refused.status() );
+        assertEquals( "refused", refused.json().get( "reason" ).getAsString() );
+    }
+
+    @Test
+    void draftHasThePostureOfPostBlocks() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        assertEquals( 404, post( spy( true, true ), "RestBlkMissing/blocks/draft", draft( "x", null ) ).status() );
+        assertEquals( 404, post( spy( false, true ), "RestBlkPage/blocks/draft", draft( "x", null ) ).status() );
+        assertEquals( 403, post( spy( true, false ), "RestBlkPage/blocks/draft", draft( "x", null ) ).status() );
+        assertEquals( 400, post( spy( true, true ), "RestBlkPage/blocks/draft", "{}" ).status() );
+        assertEquals( 400, post( spy( true, true ), "RestBlkPage/blocks/draft", "not json" ).status() );
+        final String big = "x".repeat( PageResource.DEFAULT_MAX_PAGE_BYTES + 1 );
+        assertEquals( 413, post( spy( true, true ), "RestBlkPage/blocks/draft", draft( big, null ) ).status() );
+    }
+
+    @Test
+    void anOversizedDraftBodyIsRefusedBeforeItIsRead() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/RestBlkPage/blocks/draft" );
+        Mockito.doReturn( "/RestBlkPage/blocks/draft" ).when( request ).getPathInfo();
+        Mockito.doReturn( 100L * PageResource.DEFAULT_MAX_PAGE_BYTES ).when( request ).getContentLengthLong();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+        spy( true, true ).doPost( request, response );
+        assertEquals( 413, statusOf( response ) );
+        Mockito.verify( request, Mockito.never() ).getReader();
+    }
+
+    @Test
+    void aFailingBlockModelNeverFailsADraft() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        try ( MockedStatic< BlockIds > ids = Mockito.mockStatic( BlockIds.class, Mockito.CALLS_REAL_METHODS ) ) {
+            ids.when( () -> BlockIds.list( Mockito.anyString() ) ).thenThrow( new StringIndexOutOfBoundsException( "past the end" ) );
+            final Reply list = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( "Para.\n", null ) );
+            assertEquals( 200, list.status(), list.body() );
+            assertEquals( 0, list.json().getAsJsonArray( "blocks" ).size() );
+            final Reply at = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( "Para.\n", 1 ) );
+            assertEquals( 409, at.status(), at.body() );
+            assertEquals( "refused", at.json().get( "reason" ).getAsString() );
+        }
+    }
 }

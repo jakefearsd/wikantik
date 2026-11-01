@@ -95,19 +95,20 @@ public class EditWikiPage implements SpaPage {
         final String script = """
             const cb = arguments[arguments.length - 1];
             const mode = arguments[0];
-            const base = window.__WIKANTIK_BASE__ || '';
-            fetch(base + '/api/auth/profile', { method: 'PUT',
+            fetch(arguments[1], { method: 'PUT',
               headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
               credentials: 'same-origin', body: JSON.stringify({ editorMode: mode }) })
               .then(r => {
                 // Mirror what the app records: an account's value after a successful save, else a local choice.
                 localStorage.setItem('wikantik.editor.mode', mode);
                 localStorage.setItem('wikantik.editor.mode.src', r.ok ? 'server' : 'local');
-                cb({ status: r.status });
+                return r.text().then(body => cb({ status: r.status, url: r.url, page: location.href, body: body.slice(0, 300) }));
               })
               .catch(err => cb({ status: -1, error: String(err) }));
             """;
-        final Object r = Selenide.executeAsyncJavaScript( script, mode );
+        // The URL comes from the configured base, not window.__WIKANTIK_BASE__: only SPA documents define that, and the
+        // driver may be on any same-origin page (e.g. the context root), where a root-relative URL misses the webapp.
+        final Object r = Selenide.executeAsyncJavaScript( script, mode, base + "/api/auth/profile" );
         final int status = r instanceof Map< ?, ? > m && m.get( "status" ) instanceof Number n ? n.intValue() : -1;
         if ( status == 401 ) {
             LOG.info( "pinMode({}): anonymous session (401 from PUT /api/auth/profile); pinned in this browser only", mode );

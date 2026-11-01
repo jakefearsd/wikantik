@@ -46,6 +46,7 @@ import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.parser.markdown.BlockIds;
 import com.wikantik.auth.AuthorKeys;
 import com.wikantik.wikilink.WikiEmbedRenderer;
 import com.wikantik.wikilink.WikiLinkResolver;
@@ -177,6 +178,13 @@ public class PageResource extends RestServletBase {
         // GET /api/pages/{name}/preview — link-preview card data; missing and unviewable are the same 404
         if ( pathParam.endsWith( "/preview" ) ) {
             handlePreview( request, response, pathParam.substring( 0, pathParam.length() - "/preview".length() ) );
+            return;
+        }
+
+        // GET /api/pages/{name}/blocks — addressable blocks for the ^id picker; missing and unviewable are the same 404
+        if ( pathParam.endsWith( "/blocks" ) ) {
+            new PageBlocksHandler( this ).handleGet( request, response,
+                    pathParam.substring( 0, pathParam.length() - "/blocks".length() ) );
             return;
         }
 
@@ -766,6 +774,12 @@ public class PageResource extends RestServletBase {
             handleRename( request, response, pageName );
             return;
         }
+        // POST /api/pages/{name}/blocks — give a block a ^id
+        if ( pathParam != null && pathParam.endsWith( "/blocks" ) ) {
+            new PageBlocksHandler( this ).handlePost( request, response,
+                    pathParam.substring( 0, pathParam.length() - "/blocks".length() ) );
+            return;
+        }
         sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint" );
     }
 
@@ -843,11 +857,17 @@ public class PageResource extends RestServletBase {
             return;
         }
         // The excerpt is cut from the stripped FULL text (a section is cut from that, not stripped on its own).
-        final ParsedPage parsed = AclDirectiveText.parseStripped( pm.getPureText( pageName, PageProvider.LATEST_VERSION ), " " );
+        final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
+        final ParsedPage parsed = AclDirectiveText.parseStripped( rawText, " " );
         final Map< String, Object > fm = parsed.metadata();
         String body = parsed.body();
         final String section = request.getParameter( "section" );
-        if ( section != null && !section.isBlank() ) {
+        String blockExcerpt = null;
+        boolean blockMissing = false;
+        if ( section != null && BlockIds.isBlockRef( section ) ) {
+            blockExcerpt = PageBlocksHandler.blockExcerpt( rawText, section ).orElse( null );
+            blockMissing = blockExcerpt == null;
+        } else if ( section != null && !section.isBlank() ) {
             body = HeadingSlugs.sectionBody( body, section ).orElse( body );
         }
         final Map< String, Object > out = new LinkedHashMap<>();
@@ -859,7 +879,10 @@ public class PageResource extends RestServletBase {
         final Object cluster = fm.get( "cluster" );
         putIfText( out, "cluster", cluster instanceof List< ? > l && !l.isEmpty() ? l.get( 0 ) : cluster );
         putIfText( out, "summary", fm.get( "summary" ) );
-        out.put( "excerpt", PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ) );
+        out.put( "excerpt", blockExcerpt != null ? blockExcerpt : PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ) );
+        if ( blockMissing ) {
+            out.put( "blockMissing", true );
+        }
         out.put( "lastModified", page.getLastModified() );
         // Per-viewer (ACL-filtered) and stale after a save: always revalidate, never reuse from the HTTP cache.
         response.setHeader( "Cache-Control", "private, no-cache" );

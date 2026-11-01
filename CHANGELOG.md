@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Configuration reference: wiki directive syntax in description prose is now shown as code.** Text such as
+  `[{ALLOW edit Charlie}]` or `[{TableOfContents}]` in a key's description was published bare, where the wiki
+  renderer would execute it. It is now quoted as an inline code span (#106).
+
 ## [2.5.5] - 2026-11-01
 
 ### Added

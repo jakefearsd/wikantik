@@ -156,7 +156,8 @@ class GenerateConfigReferenceCliTest {
             new GenerateConfigReferenceCli.SourceFile( "Wikantik core settings", "path", "note", DOLLAR_DESCRIPTION ) );
         for ( final String template : List.of( "ConfigurationReference.md.mustache", "WikantikConfigurationReference.md.mustache" ) ) {
             final String md = cli.render( sources, template );
-            assertTrue( md.contains( "the [{\\$var}] syntax; files go in \\$wikantik.workDir/cookies." ), md );
+            // The directive is quoted as code (#106), so its $ is literal (no backslash); the bare $ stays escaped.
+            assertTrue( md.contains( "the `[{$var}]` syntax; files go in \\$wikantik.workDir/cookies." ), md );
             assertTrue( md.contains( "Code `${x}` stays." ), "a $ inside a code span must not gain a backslash: " + md );
         }
     }
@@ -346,6 +347,25 @@ class GenerateConfigReferenceCliTest {
         assertTrue( dr.summary().length() <= 160, dr.summary() );
         assertEquals( longSentence, dr.full() );
         assertFalse( dr.summary().contains( "  " ), "no double space at the cut point: " + dr.summary() );
+    }
+
+    /** Wiki directive syntax ({@code [{ALLOW …}]}, {@code [{TableOfContents}]}) in prose would be
+     *  executed by the wiki renderer when the page is published, so it must render as code. */
+    @Test
+    void pluginAndDirectiveSyntaxInProseIsRenderedAsCode() {
+        final DescriptionRenderer.DescriptionRender dr = DescriptionRenderer.renderDescription(
+            List.of( "For example: \"[{ALLOW edit Charlie}]\". Also [{TableOfContents}]." ) );
+        assertTrue( dr.full().contains( "`[{ALLOW edit Charlie}]`" ), dr.full() );
+        assertTrue( dr.full().contains( "`[{TableOfContents}]`" ), dr.full() );
+        assertTrue( dr.summary().contains( "`[{ALLOW edit Charlie}]`" ), dr.summary() );
+    }
+
+    @Test
+    void a_directive_already_in_a_code_span_is_not_double_wrapped() {
+        final DescriptionRenderer.DescriptionRender dr = DescriptionRenderer.renderDescription(
+            List.of( "Write `[{ALLOW view Admin}]` to restrict it." ) );
+        assertTrue( dr.full().contains( "`[{ALLOW view Admin}]`" ), dr.full() );
+        assertFalse( dr.full().contains( "``" ), "no doubled backticks: " + dr.full() );
     }
 
     // --- Secrets index --------------------------------------------------

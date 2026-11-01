@@ -39,6 +39,8 @@ final class DescriptionRenderer {
 
     private static final Pattern EXAMPLE_LINE = Pattern.compile( "^Example:.*$" );
     private static final Pattern SENTENCE_END = Pattern.compile( "[.!?](?=\\s|$)" );
+    /** A code span (left untouched) or a wiki directive {@code [{…}]} (to be wrapped). */
+    private static final Pattern CODE_SPAN_OR_DIRECTIVE = Pattern.compile( "`[^`]*`|\\[\\{.*?\\}\\]" );
 
     private record Segment( boolean example, String text ) {}
 
@@ -58,7 +60,7 @@ final class DescriptionRenderer {
         for ( final String line : lines ) {
             if ( EXAMPLE_LINE.matcher( line ).matches() ) {
                 if ( !prose.isEmpty() ) {
-                    segments.add( new Segment( false, escapeProseDollars( String.join( " ", prose ) ) ) );
+                    segments.add( new Segment( false, escapeProseDollars( codeSpanDirectives( String.join( " ", prose ) ) ) ) );
                     prose.clear();
                 }
                 segments.add( new Segment( true, line ) );
@@ -67,9 +69,27 @@ final class DescriptionRenderer {
             }
         }
         if ( !prose.isEmpty() ) {
-            segments.add( new Segment( false, escapeProseDollars( String.join( " ", prose ) ) ) );
+            segments.add( new Segment( false, escapeProseDollars( codeSpanDirectives( String.join( " ", prose ) ) ) ) );
         }
         return segments;
+    }
+
+    /**
+     * Wiki directive syntax such as {@code [{ALLOW edit Charlie}]} or {@code [{TableOfContents}]}
+     * would be executed by the wiki renderer if it appeared bare in prose, so each one outside a
+     * code span is wrapped in backticks. Existing code spans are passed through unchanged, so a
+     * directive the author already quoted is not double-wrapped.
+     */
+    static String codeSpanDirectives( final String prose ) {
+        final Matcher m = CODE_SPAN_OR_DIRECTIVE.matcher( prose );
+        final StringBuilder out = new StringBuilder( prose.length() + 16 );
+        while ( m.find() ) {
+            final String hit = m.group();
+            final String replacement = hit.startsWith( "`" ) ? hit : "`" + hit + "`";
+            m.appendReplacement( out, Matcher.quoteReplacement( replacement ) );
+        }
+        m.appendTail( out );
+        return out.toString();
     }
 
     /**

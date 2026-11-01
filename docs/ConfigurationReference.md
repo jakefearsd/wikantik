@@ -471,15 +471,15 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.password.minLength` | `int` | `8` | `wikantik_password_minLength` | Minimum acceptable password length (NIST 800-63B: length over complexity rules). |
 | `wikantik.password.maxLength` | `int` | `128` | `wikantik_password_maxLength` | Maximum acceptable password length. |
 | `wikantik.password.blocklist.enabled` | `boolean` | `true` | `wikantik_password_blocklist_enabled` | Whether new/changed passwords are checked against a bundled common-passwords blocklist and rejected if found. |
-| `wikantik.plugin.jdbc.enabled` | `boolean` | `false` | `wikantik_plugin_jdbc_enabled` | Kill switch for JDBCPlugin, which executes page-authored SQL (via [{JDBC ...}]) against the wiki's own datasource using the high-privilege application DB … |
+| `wikantik.plugin.jdbc.enabled` | `boolean` | `false` | `wikantik_plugin_jdbc_enabled` | Kill switch for JDBCPlugin, which executes page-authored SQL (via `[{JDBC ...}]`) against the wiki's own datasource using the high-privilege application DB … |
 | `wikantik.admin.bootstrap` | `string` | *(blank: no bootstrap admin override is active.)* | `wikantik_admin_bootstrap` | Bootstrap admin override: the named user bypasses all policy checks (gets AllPermission) for wikantik.admin.bootstrap.maxAgeSeconds after startup. … |
 | `wikantik.admin.bootstrap.maxAgeSeconds` | `long` | *(blank: 86400 seconds (24 hours).)* | `wikantik_admin_bootstrap_maxAgeSeconds` | Lifetime, in seconds, of the wikantik.admin.bootstrap override, starting at server startup. |
 
 Full descriptions (truncated above to keep the table scannable):
 
-- **`wikantik.auth.masterpassword`** — Wiki-variable name for a legacy master-password override. DefaultVariableManager unconditionally blocks this exact name from ever resolving through the [{\$var}] wiki-variable syntax (THE_BIG_NO_NO_LIST), regardless of whether a value is set here - so a value in this file would never be exposed to page markup either way. Kept blank; nothing in this codebase otherwise reads this key.
+- **`wikantik.auth.masterpassword`** — Wiki-variable name for a legacy master-password override. DefaultVariableManager unconditionally blocks this exact name from ever resolving through the `[{$var}]` wiki-variable syntax (THE_BIG_NO_NO_LIST), regardless of whether a value is set here - so a value in this file would never be exposed to page markup either way. Kept blank; nothing in this codebase otherwise reads this key.
 - **`wikantik.auth.password.verifyCache.ttlSeconds`** — TTL, in seconds, of the short-lived cache of successful bcrypt password verifications (AbstractUserDatabase). Speeds up stateless HTTP Basic clients (monitoring pollers, cron jobs, CI scripts) that resend credentials on every request and would otherwise pay a full ~150-250ms bcrypt key-stretch each time. A value <= 0 disables the cache entirely. Read via System.getProperty, not from this file - set it as a JVM system property (-Dwikantik.auth.password.verifyCache.ttlSeconds=...).
-- **`wikantik.plugin.jdbc.enabled`** — Kill switch for JDBCPlugin, which executes page-authored SQL (via [{JDBC ...}]) against the wiki's own datasource using the high-privilege application DB role. Ships disabled: enabling it means any editor with edit permission on a page can run arbitrary SQL as that role. Turn it on only if you accept that exposure, and pair it with the plugin's own admin-permission check.
+- **`wikantik.plugin.jdbc.enabled`** — Kill switch for JDBCPlugin, which executes page-authored SQL (via `[{JDBC ...}]`) against the wiki's own datasource using the high-privilege application DB role. Ships disabled: enabling it means any editor with edit permission on a page can run arbitrary SQL as that role. Turn it on only if you accept that exposure, and pair it with the plugin's own admin-permission check.
 - **`wikantik.admin.bootstrap`** — Bootstrap admin override: the named user bypasses all policy checks (gets AllPermission) for wikantik.admin.bootstrap.maxAgeSeconds after startup. Intended only for recovering access to a fresh or locked-out installation; remove this property once a real admin account is confirmed working.
 
 ## Cookies & sessions
@@ -566,7 +566,7 @@ Full descriptions (truncated above to keep the table scannable):
 
 Full descriptions (truncated above to keep the table scannable):
 
-- **`wikantik.aclManager`** — ACCESS CONTROL LISTS Last but not least, Wikantik needs a way of reading and persisting page access control lists. The default implementation reads these from the page markup. For example: "[{ALLOW edit Charlie}]". If using a custom ACL manager, specify the AclManager implementation class here:
+- **`wikantik.aclManager`** — ACCESS CONTROL LISTS Last but not least, Wikantik needs a way of reading and persisting page access control lists. The default implementation reads these from the page markup. For example: "`[{ALLOW edit Charlie}]`". If using a custom ACL manager, specify the AclManager implementation class here:
 
 ## REST API, MCP & agent surfaces
 

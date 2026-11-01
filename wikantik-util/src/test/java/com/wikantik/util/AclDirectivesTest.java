@@ -25,10 +25,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link AclDirectives#strip(String)} removes exactly the access-rule directives
@@ -424,5 +426,45 @@ class AclDirectivesTest {
     void replacementLeavesCodeAlone() {
         final String text = "`[{ALLOW view All}]`";
         assertSame( text, AclDirectives.strip( text, " " ) );
+    }
+
+    // ---- tracked stripping ----
+
+    @Test
+    void trackedStripIsTheStripAndMapsEveryKeptCharacterBack() {
+        final String[] texts = {
+            "Para [{ALLOW view Admin}] more\n",
+            "Para.\n[{ALLOW view Admin}]\nAfter.\n",
+            "Para.\r\n[{ALLOW view Admin}]\r\n",
+            "a[{ALLOW vi[{ALLOW view a}]ew a}]b",
+            "`[{ALLOW view All}]` and [{DENY edit Bob}]()",
+            "[{ALLOW edit alice,\n bob}]\nText",
+            "No rule at all.",
+        };
+        for ( final String text : texts ) {
+            for ( final String replacement : new String[]{ "", " " } ) {
+                final TrackedText tracked = AclDirectives.strip( TrackedText.of( text ), replacement, true );
+                assertEquals( AclDirectives.strip( text, replacement, true ), tracked.text(), text );
+                for ( int i = 0; i < tracked.length(); i++ ) {
+                    if ( tracked.isCopied( i ) ) {
+                        assertEquals( text.charAt( tracked.toSource( i ) ), tracked.text().charAt( i ), text + " @" + i );
+                    } else {
+                        assertEquals( replacement, String.valueOf( tracked.text().charAt( i ) ), "only the replacement is inserted" );
+                    }
+                }
+            }
+        }
+        final TrackedText untouched = TrackedText.of( "No rule." );
+        assertSame( untouched, AclDirectives.strip( untouched, "", true ) );
+    }
+
+    @Test
+    void aWholeLineDirectiveIsCutWithItsLineEnd() {
+        final String text = "Para.\n[{ALLOW view Admin}]\nAfter.";
+        final TrackedText tracked = AclDirectives.strip( TrackedText.of( text ), "", true );
+        assertEquals( "Para.\nAfter.", tracked.text() );
+        assertTrue( tracked.cutBefore( "Para.\n".length() ) );
+        assertFalse( tracked.cutBefore( 1 ) );
+        assertEquals( text.indexOf( "After" ), tracked.toSource( "Para.\n".length() ) );
     }
 }

@@ -108,9 +108,27 @@ public final class AclDirectives {
         if ( markdown == null || markdown.indexOf( "[{" ) < 0 ) {
             return markdown;
         }
-        String current = markdown;
+        return strip( TrackedText.of( markdown ), replacement, wrapped ).text();
+    }
+
+    /**
+     * {@link #strip(String, String, boolean)} of a tracked text: the result is tracked back to {@code text}'s source, so
+     * a caller can tell where every character it keeps came from and what was cut. The string result is exactly the
+     * string overload's (that overload is this one).
+     *
+     * @param text        the text to strip
+     * @param replacement text put in place of each directive (see {@link #strip(String, String)})
+     * @param wrapped     see {@link #strip(String, String, boolean)}
+     * @return the stripped text; {@code text} itself when there was nothing to remove
+     */
+    public static TrackedText strip( final TrackedText text, final String replacement, final boolean wrapped ) {
+        Objects.requireNonNull( replacement, "replacement" );
+        if ( text.text().indexOf( "[{" ) < 0 ) {
+            return text;
+        }
+        TrackedText current = text;
         for ( int pass = 0; pass < MAX_PASSES; pass++ ) {
-            final String next = stripOnce( current, replacement, wrapped );
+            final TrackedText next = stripOnce( current, replacement, wrapped );
             if ( next == null ) {
                 break;
             }
@@ -120,7 +138,8 @@ public final class AclDirectives {
     }
 
     /** One left-to-right pass; {@code null} when no directive outside code was found. */
-    private static String stripOnce( final String text, final String replacement, final boolean wrapped ) {
+    private static TrackedText stripOnce( final TrackedText tracked, final String replacement, final boolean wrapped ) {
+        final String text = tracked.text();
         // Wide mode (for body text): this pass only hides, and the renderer hands a directive wrapped over several
         // lines to the ACL parser as readily as a one-line one, so the multi-line shape must go too.
         final AclDirectiveScanner scanner = new AclDirectiveScanner( text, true, wrapped );
@@ -129,7 +148,7 @@ public final class AclDirectives {
             return null;
         }
         final OffsetRanges code = OffsetRanges.of( codeRegions( text ) );
-        final StringBuilder out = new StringBuilder( text.length() );
+        final TrackedText.Builder out = tracked.builder();
         int copiedTo = 0;
         boolean changed = false;
         while ( span != null ) {
@@ -142,7 +161,7 @@ public final class AclDirectives {
             }
             final Removal removal = removal( text, span.start(), AclDirectiveScanner.endWithEmptyParentheses( text, span ),
                     copiedTo, text.length() );
-            out.append( text, copiedTo, removal.start() ).append( removal.wholeLine() ? "" : replacement );
+            out.copy( copiedTo, removal.start() ).insert( removal.wholeLine() ? "" : replacement );
             copiedTo = removal.end();
             changed = true;
             span = scanner.next( copiedTo );
@@ -150,7 +169,7 @@ public final class AclDirectives {
         if ( !changed ) {
             return null;
         }
-        return out.append( text, copiedTo, text.length() ).toString();
+        return out.copy( copiedTo, text.length() ).build();
     }
 
     /**

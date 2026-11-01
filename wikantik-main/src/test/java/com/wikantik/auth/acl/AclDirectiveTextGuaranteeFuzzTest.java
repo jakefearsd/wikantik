@@ -20,6 +20,7 @@ package com.wikantik.auth.acl;
 
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
+import com.wikantik.util.TrackedText;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -86,6 +87,52 @@ class AclDirectiveTextGuaranteeFuzzTest {
             }
         }
         assertTrue( failures.isEmpty(), failures.size() + " violation(s): " + String.join( "\n", failures ) );
+    }
+
+    /**
+     * The tracked strip is the strip, and its map is exact: every character it kept is the source character it maps to,
+     * kept characters ascend, and the only inserted text is a line end or the empty frontmatter the strip writes itself.
+     * Block numbering (BlockIds) parses the stripped text and edits the raw one through this map.
+     */
+    @Test
+    void theTrackedStripIsTheStripWithAnExactMapBack() {
+        final Random random = new Random( 0x7AC4L );
+        final List< String > failures = new ArrayList<>();
+        for ( int i = 0; i < INPUTS / 4 && failures.size() < 10; i++ ) {
+            final StringBuilder sb = new StringBuilder();
+            for ( int p = random.nextInt( 16 ); p >= 0; p-- ) {
+                sb.append( FRAGMENTS[ random.nextInt( FRAGMENTS.length ) ] );
+            }
+            final String in = sb.toString();
+            final String why = mapProblem( in, AclDirectiveText.stripTracked( in ), AclDirectiveText.strip( in ) );
+            final String closed = mapProblem( in, AclDirectiveText.failClosed( TrackedText.of( in ), "" ),
+                    AclDirectiveText.failClosed( in, "" ) );
+            if ( why != null || closed != null ) {
+                failures.add( "#" + i + " " + ( why != null ? why : "fail-closed: " + closed ) + " in=" + esc( in ) );
+            }
+        }
+        assertTrue( failures.isEmpty(), failures.size() + " violation(s): " + String.join( "\n", failures ) );
+    }
+
+    private static String mapProblem( final String in, final TrackedText tracked, final String expected ) {
+        if ( !tracked.text().equals( expected ) ) {
+            return "tracked text " + esc( tracked.text() ) + " is not the strip " + esc( expected );
+        }
+        int last = -1;
+        final StringBuilder inserted = new StringBuilder();
+        for ( int i = 0; i < tracked.length(); i++ ) {
+            if ( !tracked.isCopied( i ) ) {
+                inserted.append( tracked.text().charAt( i ) );
+                continue;
+            }
+            final int s = tracked.toSource( i );
+            if ( s <= last || in.charAt( s ) != tracked.text().charAt( i ) ) {
+                return "char " + i + " maps to source " + s + " (last " + last + ")";
+            }
+            last = s;
+        }
+        return inserted.toString().replace( "---", "" ).replace( "\r", "" ).replace( "\n", "" ).isEmpty()
+                ? null : "inserted " + esc( inserted.toString() );
     }
 
     /** Why {@code in} breaks the guarantee, or {@code null}. */

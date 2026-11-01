@@ -34,6 +34,18 @@ The toolbar also has heading, list, inline code, code block and table buttons. T
 * Paste or drag an image into the editor to attach it, or use **Attach**.
 * The side rail lists the page outline, backlinks and **Unlinked mentions**, with one-click linking.
 
+## Block references
+
+Any paragraph, list item, table, quote or callout can carry a short id, so another page can link to or embed exactly that block.
+
+* Add the id at the end of the block's last line, after a space: `The launch date is fixed. ^launch`. Or put `^launch` alone on its own line right after the block.
+* An id is `^` followed by letters, digits and hyphens. Ids are case-sensitive, so `^Launch` and `^launch` are different blocks.
+* Heading lines don't take ids; link to a heading with `[[Page#Heading]]`.
+* If an id appears twice on a page, the first one wins and the later markers are ignored.
+* Link to a block with `[[Page#^launch]]`, or `[[#^launch]]` from the same page. Embed it with `![[Page#^launch]]`.
+* In the reader, hover a block and use the paragraph-mark button to copy its `[[Page#^id]]` link; the arrow button copies the web address instead. A block without an id gets one added when you copy.
+* In the editor, type `[[Page#^` and pick a block from the list; a block without an id gets one. The **Copy block link** command copies the link for the block under the cursor.
+
 ## Diagrams
 
 A fenced code block whose language is `mermaid` renders as a diagram when the page is viewed. A `plantuml` block works the same way and suits deep class and activity diagrams; see *Class and activity diagrams with PlantUML* below. This Mermaid diagram is live:

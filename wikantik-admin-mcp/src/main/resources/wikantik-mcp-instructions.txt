@@ -122,6 +122,13 @@ The target is a CamelCase page name, not a URL. Examples:
   [security policy](SecurityPolicy)
   [see the threat model](ThreatModel)
 
+== Block references ==
+
+A block (paragraph, list item, table, quote) can carry an id written as ^id at the end of its last line
+(or alone on the next line). Ids are ^ plus letters, digits and hyphens, case-sensitive; headings take none.
+Link to one with [[Page#^id]] and embed it with ![[Page#^id]]. To give a block an id through update_page or
+write_pages, add the marker to the page text yourself, for example "The launch date is fixed. ^launch".
+
 == Tool usage guide ==
 
 Read tools

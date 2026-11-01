@@ -10,7 +10,7 @@ inserted natively by the editor's `[[` completion.
 **Sequence:** first of three (this → `2026-10-01-obsidian-vault-import-design.md` →
 `2026-10-01-live-preview-daily-notes-design.md`). The importer keeps vault links verbatim because of
 this work; live preview renders this syntax.
-**Explicitly out of scope:** block references (`^id`, `[[Page#^id]]`), vault-wide bare-filename
+**Explicitly out of scope:** block references (`^id`, `[[Page#^id]]`; see `2026-10-31-obsidian-block-references-design.md`), vault-wide bare-filename
 attachment lookup (`![[file.png]]` resolves on the current page only), `[[Page|300]]`-style sizing of
 page embeds, highlight `==x==`, Obsidian comments `%%`, converting existing `[Text](Page)` links (both
 syntaxes are first-class forever), `[{InsertPage}]` reference tracking.

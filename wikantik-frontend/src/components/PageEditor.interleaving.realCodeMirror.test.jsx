@@ -11,6 +11,8 @@ import { act, cleanup, fireEvent } from '@testing-library/react';
 
 vi.mock('../api/client', () => ({
   api: {
+    getProfile: vi.fn().mockResolvedValue({ editorMode: null }),
+    updateProfile: vi.fn().mockResolvedValue({}),
     getPage: vi.fn(),
     getBacklinks: vi.fn(() => Promise.resolve({ backlinks: [] })),
     savePage: vi.fn(),
@@ -90,6 +92,7 @@ let renameAttachment;
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  localStorage.setItem('wikantik.editor.mode', 'source'); // these tests exercise source mode; the default is live
   window.matchMedia = vi.fn(() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   useToast.mockReturnValue({ success: vi.fn(), error: vi.fn(), info: vi.fn() });
   useAuth.mockReturnValue({ user: { authenticated: true, loginPrincipal: 'alice', roles: ['Admin'] } });

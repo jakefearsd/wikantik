@@ -49,10 +49,24 @@ public class EditWikiPage implements SpaPage {
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
     public static EditWikiPage open( final String pageName ) {
+        pinSourceMode();
         final EditWikiPage page = Page.withUrl( Page.baseUrl() + "/edit/" + pageName ).openAs( new EditWikiPage() );
         $( "[data-testid=page-editor]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         $( "[data-testid=editor-textarea]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         return page;
+    }
+
+    /**
+     * The editor now defaults to live preview, while these tests drive the CodeMirror source text. Each test starts
+     * from a clean browser session, so pin source mode (this browser's remembered choice; the test users have no
+     * server-side preference) before the editor mounts. Must run on the wiki origin to reach its localStorage.
+     */
+    public static void pinSourceMode() {
+        final String base = Page.baseUrl();
+        if ( !WebDriverRunner.hasWebDriverStarted() || !WebDriverRunner.url().startsWith( base ) ) {
+            Selenide.open( base + "/" );
+        }
+        Selenide.executeJavaScript( "localStorage.setItem('wikantik.editor.mode','source')" );
     }
 
     /**

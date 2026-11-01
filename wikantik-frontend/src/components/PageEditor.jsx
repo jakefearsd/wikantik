@@ -118,9 +118,13 @@ export default function PageEditor() {
   const editorRef = useRef(null);
   const [cursorStore] = useState(createEditorCursorStore);
   const [railOpen, toggleRail] = useRailOpen();
-  const [editorMode, toggleEditorMode] = useEditorMode();
-  // Legacy JSPWiki syntax is not Markdown: never live-render it as such.
+  const { user } = useAuth();
+  // Legacy JSPWiki syntax is not Markdown: never live-render it as such (and never persist a mode choice from it).
   const isLegacyWiki = markupSyntax === 'wiki' || markupSyntax === 'likely-wiki';
+  const [editorMode, toggleEditorMode] = useEditorMode({
+    authenticated: user?.authenticated === true,
+    persist: !isLegacyWiki,
+  });
   const liveActive = editorMode === 'live' && !isLegacyWiki;
   const dropContainerRef = useRef(null);
   const previewRef = useRef(null);
@@ -155,7 +159,6 @@ export default function PageEditor() {
     editorRef.current.focus();
   };
 
-  const { user } = useAuth();
   const login = user?.authenticated ? user.loginPrincipal : null;
   const { draft, saveDraft, clearDraft } = useDraft({
     login,

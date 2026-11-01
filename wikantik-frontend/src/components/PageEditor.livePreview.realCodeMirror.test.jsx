@@ -9,6 +9,8 @@ import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 
 vi.mock('../api/client', () => ({
   api: {
+    getProfile: vi.fn().mockResolvedValue({ editorMode: null }),
+    updateProfile: vi.fn().mockResolvedValue({}),
     getPage: vi.fn(),
     getBacklinks: vi.fn(() => Promise.resolve({ backlinks: [] })),
     savePage: vi.fn(),
@@ -44,6 +46,7 @@ const INITIAL = '# Title\n\n- [ ] task **b**\n\nend';
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  localStorage.setItem('wikantik.editor.mode', 'source'); // most cases start from source; live ones set it explicitly
   window.matchMedia = vi.fn(() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   useToast.mockReturnValue({ success: vi.fn(), error: vi.fn(), info: vi.fn() });
   useAuth.mockReturnValue({ user: { authenticated: true, loginPrincipal: 'alice', roles: ['Admin'] } });
@@ -139,7 +142,7 @@ describe('live preview mode toggle', () => {
     fireEvent.keyDown(window, { key: 'e', code: 'KeyE', ctrlKey: true, isComposing: true });
     await flush();
     expect(isLive()).toBe(false);
-    expect(localStorage.getItem('wikantik.editor.mode')).toBeNull();
+    expect(localStorage.getItem('wikantik.editor.mode')).toBe('source'); // unchanged: no toggle happened
     fireEvent.keyDown(window, { key: 'e', code: 'KeyE', ctrlKey: true });
     await until(isLive);
   });

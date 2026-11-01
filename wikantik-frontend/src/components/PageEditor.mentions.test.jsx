@@ -25,6 +25,8 @@ vi.mock('./CodeEditor', async () => {
 
 vi.mock('../api/client', () => ({
   api: {
+    getProfile: vi.fn().mockResolvedValue({ editorMode: null }),
+    updateProfile: vi.fn().mockResolvedValue({}),
     getPage: vi.fn(),
     getBacklinks: vi.fn(() => Promise.resolve({ backlinks: [] })),
     savePage: vi.fn(),
@@ -82,6 +84,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   localStorage.clear();
+  localStorage.setItem('wikantik.editor.mode', 'source'); // these tests exercise source mode; the default is live
   window.matchMedia = vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })); // wide: rail open
   toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
   useToast.mockReturnValue(toast);

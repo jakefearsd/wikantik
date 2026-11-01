@@ -25,6 +25,8 @@ vi.mock('./CodeEditor', async () => {
 
 vi.mock('../api/client', () => ({
   api: {
+    getProfile: vi.fn().mockResolvedValue({ editorMode: null }),
+    updateProfile: vi.fn().mockResolvedValue({}),
     getPage: vi.fn(),
     getBacklinks: vi.fn(() => Promise.resolve({ backlinks: [] })),
     savePage: vi.fn(),
@@ -69,6 +71,7 @@ function renderEditor(pageName) {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  localStorage.setItem('wikantik.editor.mode', 'source'); // these tests exercise source mode; the default is live
   useAuth.mockReturnValue({ user: { authenticated: true, loginPrincipal: 'alice', roles: ['Admin'] } });
   useDraft.mockReturnValue({ draft: null, saveDraft: vi.fn(), clearDraft: vi.fn() });
   useAttachments.mockImplementation((pageName) => ({

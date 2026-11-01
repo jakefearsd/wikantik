@@ -44,6 +44,8 @@ vi.mock('@uiw/react-codemirror', async () => {
 // ── Module mocks ─────────────────────────────────────────────────────────────
 vi.mock('../api/client', () => ({
   api: {
+    getProfile: vi.fn().mockResolvedValue({ editorMode: null }),
+    updateProfile: vi.fn().mockResolvedValue({}),
     getPage: vi.fn(),
     savePage: vi.fn(),
     listAttachments: vi.fn(),

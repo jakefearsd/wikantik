@@ -109,6 +109,7 @@ public class ViewWikiPage implements SpaPage {
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
     public EditWikiPage editPage() {
+        EditWikiPage.pinSourceMode();
         $( "[data-testid=edit-page-link]" )
             .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
             .click();

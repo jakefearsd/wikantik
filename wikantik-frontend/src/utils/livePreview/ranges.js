@@ -184,12 +184,15 @@ const TEXT_BLOCK = new Set(['Paragraph', 'Task']);
  */
 function paragraphMarker(doc, node) {
   if (doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) return null;
-  const beside = besideRulesMarker(doc.sliceString(node.from, node.to));
+  const text = doc.sliceString(node.from, node.to);
+  if (node.parent?.name === 'Document' && strippedToCode(doc, node.from, text)) return null;
+  const beside = besideRulesMarker(text);
   if (beside) return { id: beside.id, from: node.from + beside.at };
-  const last = doc.lineAt(node.to);
+  const end = node.from + keptBeforeRules(text);
+  const last = doc.lineAt(end);
   const onFirstLine = last.from <= node.from;
   let start = onFirstLine ? node.from : last.from;
-  let seg = doc.sliceString(start, node.to);
+  let seg = doc.sliceString(start, end);
   if (!onFirstLine) {
     const prefix = LINE_PREFIX.exec(seg)[0].length;
     start += prefix;
@@ -201,6 +204,32 @@ function paragraphMarker(doc, node) {
   if (alone) return { id: alone[1], from: start };
   const m = BLOCK_ID_RE.exec(seg);
   return m ? { id: m[1], from: start + m.index } : null;
+}
+/**
+ * Whether a top-level paragraph is code once its access rules are stripped: its first character that is not a rule sits
+ * four columns into its line (a tab counts to the next multiple of four). blockIds.js reads it so too.
+ */
+function strippedToCode(doc, from, text) {
+  if (!text.includes('[{')) return false;
+  const first = text.replace(RULE_TEXT, (r) => ' '.repeat(r.length)).search(/[^ \t\r\n]/);
+  if (first < 0) return false;
+  const at = from + first;
+  const prefix = doc.sliceString(doc.lineAt(at).from, at).replace(RULE_TEXT, '');
+  if (!/^[ \t]*$/.test(prefix)) return false;
+  let columns = 0;
+  for (const ch of prefix) columns = ch === '\t' ? columns + 4 - (columns % 4) : columns + 1;
+  return columns >= 4;
+}
+/**
+ * How much of a paragraph's text is left at its end once trailing access rules (on the last line, or on lines of their
+ * own) and the blanks around them are taken away — the render strips the rules before it parses, so a marker before
+ * them ends the paragraph. blockIds.js reads it so too.
+ */
+function keptBeforeRules(text) {
+  if (!text.includes('[{')) return text.length;
+  return text.replace(RULE_TEXT, (r) => ' '.repeat(r.length))
+    .replace(/\n[ \t>]*/g, (x) => `\n${' '.repeat(x.length - 1)}`)   // continuation lines' prefixes
+    .replace(/[ \t\r\n]+$/, '').length;
 }
 /**
  * A paragraph of access rules and one marker (`[{ALLOW view Admin}] ^id`, `^id [{DENY edit Guest}]`, either on its own

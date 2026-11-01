@@ -1,6 +1,6 @@
 // Obsidian-style `^id` block markers: the editor's mirror of the server's BlockIds / BlockWalk
-// (com.wikantik.parser.markdown), rule for rule. The shared fixture __fixtures__/block-ids.json pins the editor
-// preview (remarkBlockIds) and the reader's render to the same anchors; blockIds.test.js mirrors BlockIdsTest.
+// (com.wikantik.parser.markdown). The shared fixture __fixtures__/block-ids.json pins the editor preview
+// (remarkBlockIds) and the reader's render to the same anchors; blockIds.test.js mirrors BlockIdsTest.
 //
 // Blocks, in pre-order: paragraphs (not a list item's own first paragraph — the item is the block), list items,
 // tables, block quotes (a callout is a 'callout'), fenced and indented code (a `math` fence and `$$…$$` are 'math'),
@@ -9,10 +9,24 @@
 //
 // Markers: inline (whitespace + `^id` ending a paragraph's last text node), last-line (`^id` alone on the last line of
 // a multi-line paragraph — the line break is the whitespace it needs) and standalone (a paragraph that is only `^id`,
-// tagging the block right before it in the same container, or an orphan; so is a paragraph of access rules and one
-// marker, which is what the render's rule stripping leaves of it). Code, math and headings never hold one. A list item
-// whose first line is only access rules is numbered as the empty item the render sees.
+// tagging the block right before it in the same container, or an orphan). Code, math and headings never hold one.
 // The first occurrence of an id in source order wins.
+//
+// Access rules. The server reads the text a render parses — the page with its access rules stripped — so whatever
+// stripping does to the structure is in its numbering by construction. This mirror reads the raw buffer (the preview
+// draws it, rules as chips) and reads the rules as the stripping would leave things, for the shapes that matter:
+//   - a paragraph of only rules is no block, and a standalone marker looks past it;
+//   - rules and one marker are a standalone marker (`[{ALLOW view Admin}] ^id`, the marker before or after);
+//   - rules after a marker, on its line or on lines of their own, end the paragraph before them (`Para ^id [{…}]`);
+//   - a list item whose first line is only rules is the empty item the render sees;
+//   - a top-level paragraph whose first non-rule character stripping leaves four columns in is code.
+// Where it can still differ (pinned per case in the fixture's "editor" entries, with the reason), and why it may:
+//   - a rule that is the text of a setext heading (`[{ALLOW …}]\n===`): the reader shows `===` as a paragraph;
+//   - indentation left by stripping inside a container (a quote, a list item): the reader may see code there;
+//   - a rule wrapped over lines, in lower case, or with a spelling only the server's two readings know;
+//   - the preview's drawing of a rule-only list item and of what the reader shows as code (ids agree there).
+// None of this reaches the server: the editor's block indices are its own (the picker's local list, a marker inserted
+// into the buffer and read back here); a block on another page is listed and tagged by the server's index and version.
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -27,8 +41,13 @@ import { findWikiLinks, wikiLinkDisplayText } from './wikiLinkSyntax';
 export const BLOCK_ID_RE = /(?<=[ \t])\^([A-Za-z0-9-]+)[ \t]*\r?$/;
 /** A line (or text node) that is only a marker; group 1 is the id. */
 export const STANDALONE_RE = /^\^([A-Za-z0-9-]+)[ \t]*\r?$/;
-/** A text that is a marker and whitespace: beside access rules, all that is left once they are stripped. */
-export const MARKER_WITH_SPACE = /^\s*\^([A-Za-z0-9-]+)\s*$/;
+/**
+ * A text that is a marker and blanks: beside access rules, all that is left once they are stripped. Blanks are spaces,
+ * tabs and line breaks only (the server's walk takes no other whitespace beside a marker: a vertical tab is text).
+ */
+export const MARKER_WITH_SPACE = /^[ \t\r\n]*\^([A-Za-z0-9-]+)[ \t\r\n]*$/;
+/** Trailing blanks (spaces, tabs, line breaks). */
+const TRAILING_BLANKS = /[ \t\r\n]+$/;
 
 const ID_RE = /^[A-Za-z0-9-]+$/;
 /** An access rule written as text (`[{ALLOW …}]`, `[{DENY …}]`, with or without `()`). Global: use with replace. */
@@ -85,6 +104,31 @@ function tailAt(node, source, tail) {
   return source.slice(at, end) === tail ? at : -1;
 }
 
+/**
+ * Where character `index` of the text node `node` sits in the source, or -1 when the source there reads otherwise. On
+ * the value's last line that is tailAt's answer. On an earlier line (a marker with access rules on the lines after it)
+ * it is found from the end of its own line, counted from the node's start — the value's lines lose their container
+ * prefixes (`> `, a list item's indent), so offsets within the value say nothing about a later line: the rest of that
+ * line of the value, trailing blanks aside, must be what the source line ends with.
+ */
+function sourceAt(node, source, index) {
+  const v = node.value;
+  const lineStart = v.lastIndexOf('\n', index - 1) + 1;
+  const nl = v.indexOf('\n', index);
+  const tail = v.slice(index, nl < 0 ? v.length : nl).replace(/[ \t\r]+$/, '');
+  const start = node.position?.start?.offset;
+  if (nl < 0 || start == null || typeof source !== 'string') return tailAt(node, source, v.slice(index));
+  let from = start;
+  for (let i = v.indexOf('\n'); i >= 0 && i < lineStart; i = v.indexOf('\n', i + 1)) {
+    from = source.indexOf('\n', from) + 1;
+    if (from === 0) return -1;
+  }
+  let to = source.indexOf('\n', from);
+  if (to < 0) to = source.length;
+  while (to > from && ' \t\r'.includes(source[to - 1])) to--;
+  return source.slice(to - tail.length, to) === tail ? to - tail.length : -1;
+}
+
 const charBefore = (source, at) => (typeof source === 'string' ? source[at - 1] ?? '' : null);
 
 /**
@@ -93,16 +137,33 @@ const charBefore = (source, at) => (typeof source === 'string' ? source[at - 1] 
  * strips the rules before it parses, which leaves exactly a standalone marker. `cut` is the `^`'s index in the text
  * node's value; `beside` says an access rule shares the marker's line (so the blanks before it go with it).
  */
-function standaloneOf(p, source) {
+function standaloneOf(p, source, parent) {
   const t = p.children.length === 1 && p.children[0].type === 'text' ? p.children[0] : null;
   const m = t && STANDALONE_RE.exec(t.value);
-  if (!m) return besideRules(p, source);
+  if (!m) return besideRules(p, source, parent?.type === 'root');
   const at = tailAt(t, source, t.value);
   return at >= 0 && charBefore(source, at) !== '\\' ? { id: m[1], text: t, cut: 0, caret: at, beside: false } : null;
 }
 
-/** The marker of a paragraph of access rules and one `^id` (see standaloneOf), else null. */
-function besideRules(p, source) {
+/**
+ * Whether stripping the access rules before the caret at `at` leaves its line indented four columns or more (a tab
+ * counts to the next multiple of four): a top-level paragraph then starts an indented code block, not a marker.
+ */
+function strippedIntoCode(source, at) {
+  if (typeof source !== 'string') return false;
+  const prefix = source.slice(source.lastIndexOf('\n', at - 1) + 1, at).replace(RULE_TEXT, '');
+  if (!/^[ \t]*$/.test(prefix)) return false;
+  let columns = 0;
+  for (const ch of prefix) columns = ch === '\t' ? columns + 4 - (columns % 4) : columns + 1;
+  return columns >= 4;
+}
+
+/**
+ * The marker of a paragraph of access rules and one `^id` (see standaloneOf), else null. `topLevel`: the paragraph is
+ * not in a container, so a line the stripping leaves indented four columns is code (in a container the indent counts
+ * from the container's content, which this mirror does not work out — see the fixture's editor notes).
+ */
+function besideRules(p, source, topLevel) {
   let rule = false;
   let found = null;
   for (let i = 0; i < p.children.length; i++) {
@@ -123,41 +184,88 @@ function besideRules(p, source) {
   }
   if (!rule || !found) return null;
   const at = tailAt(found.text, source, found.text.value.slice(found.cut));
-  if (at < 0 || charBefore(source, at) === '\\') return null;
+  if (at < 0 || charBefore(source, at) === '\\' || (topLevel && strippedIntoCode(source, at))) return null;
   return { ...found, caret: at };
 }
 
+/**
+ * Whether a top-level paragraph is, once its access rules are stripped, an indented code block: its first character that
+ * is not a rule sits four columns in (`[{ALLOW view Admin}]\t^id`, or `    text` on the line after a rule line).
+ */
+function startsAsCode(p, source) {
+  for (const c of p.children) {
+    if (isAccessRule(c) || c.type === 'break') continue;
+    if (c.type !== 'text') return false;
+    const first = c.value.replace(RULE_TEXT, (r) => ' '.repeat(r.length)).search(/[^ \t\r\n]/);
+    if (first >= 0) {
+      const at = sourceAt(c, source, first);
+      return at >= 0 && strippedIntoCode(source, at);
+    }
+  }
+  return false;
+}
+
 /** The id of a paragraph that is only a standalone marker, else null. */
-function standaloneId(p, source) {
-  return standaloneOf(p, source)?.id ?? null;
+function standaloneId(p, source, parent) {
+  return standaloneOf(p, source, parent)?.id ?? null;
 }
 
 function standalone(p, parent, source) {
-  const s = standaloneOf(p, source);
+  const s = standaloneOf(p, source, parent);
   return { id: s.id, form: 'standalone', paragraph: p, parent, text: s.text, caret: s.caret, cut: s.cut,
     beside: s.beside, rules: s.cut > 0 || p.children.length > 1 };
 }
 
-/** The inline or last-line marker ending `p`, or null. */
+/**
+ * The text node that ends `p` once trailing access rules are taken away, with the length of its value that is left —
+ * what the render's rule stripping leaves at the end of the paragraph: rule links, line breaks and texts of only rules
+ * and blanks after it are skipped, and rules and blanks at the end of its own value are cut off. Null when something
+ * else ends the paragraph.
+ */
+function lastTextBeforeRules(p) {
+  for (let i = p.children.length - 1; i >= 0; i--) {
+    const c = p.children[i];
+    if (isAccessRule(c) || c.type === 'break') continue;
+    if (c.type !== 'text') return null;
+    const kept = c.value.replace(RULE_TEXT, (r) => ' '.repeat(r.length)).replace(TRAILING_BLANKS, '').length;
+    if (kept > 0) return { text: c, kept };
+  }
+  return null;
+}
+
+/** Index just past the id at `caret` in `value` and the spaces and tabs after it. */
+function markerEnd(value, caret, id) {
+  let end = caret + 1 + id.length;
+  while (isBlank(value[end])) end++;
+  return end;
+}
+
+/**
+ * The inline or last-line marker ending `p`, or null. Access rules after it — on its line or on lines of their own — are
+ * read as gone, as the render strips them before it parses. `cut` is where the marker (with the blanks before it, or
+ * the line break before a last-line one) starts in its text node's value, `end` where it ends.
+ */
 function inlineMarker(p, source) {
-  const last = p.children[p.children.length - 1];
-  if (!last || last.type !== 'text') return null;
+  const found = lastTextBeforeRules(p);
+  if (!found) return null;
+  const last = found.text;
   const v = last.value;
-  const m = BLOCK_ID_RE.exec(v);
+  const head = v.slice(0, found.kept);
+  const m = BLOCK_ID_RE.exec(head);
   if (m) {
-    const at = tailAt(last, source, v.slice(m.index));
+    const at = sourceAt(last, source, m.index);
     const before = charBefore(source, at);
     if (at < 0 || (before !== null && before !== ' ' && before !== '\t')) return null;
-    return { id: m[1], form: 'inline', paragraph: p, text: last, caret: at, cut: m.index };
+    return { id: m[1], form: 'inline', paragraph: p, text: last, caret: at, cut: m.index, end: markerEnd(v, m.index, m[1]) };
   }
-  const nl = v.lastIndexOf('\n');
-  const line = v.slice(nl + 1);
+  const nl = head.lastIndexOf('\n');
+  const line = head.slice(nl + 1);
   const alone = STANDALONE_RE.exec(line);
-  const prev = p.children[p.children.length - 2];
+  const prev = p.children[p.children.indexOf(last) - 1];
   if (!alone || (nl < 0 && prev?.type !== 'break')) return null;
-  const at = tailAt(last, source, line);
+  const at = sourceAt(last, source, nl + 1);
   if (at < 0 || charBefore(source, at) === '\\') return null;
-  return { id: alone[1], form: 'last-line', paragraph: p, text: last, caret: at, cut: nl };
+  return { id: alone[1], form: 'last-line', paragraph: p, text: last, caret: at, cut: nl, end: markerEnd(v, nl + 1, alone[1]) };
 }
 
 /**
@@ -175,7 +283,7 @@ export function walkBlocks(root, source) {
     let i = siblings.indexOf(node) + 1;
     while (siblings[i]?.type === 'paragraph' && isRuleOnly(siblings[i])) i++;
     const next = siblings[i];
-    return next?.type === 'paragraph' && standaloneId(next, source) != null ? next : null;
+    return next?.type === 'paragraph' && standaloneId(next, source, parent) != null ? next : null;
   };
   const claimNext = (node, parent) => {
     const next = standaloneAfter(node, parent);
@@ -187,7 +295,11 @@ export function walkBlocks(root, source) {
 
   const paragraph = (p, parent) => {
     if (isCalloutTitle(p) || isRuleOnly(p)) return;
-    if (standaloneId(p, source) != null) {
+    if (parent.type === 'root' && startsAsCode(p, source)) {   // what the render's rule stripping makes of it
+      entries.push(tagged(p, parent, 'code'));
+      return;
+    }
+    if (standaloneId(p, source, parent) != null) {
       if (!claimed.has(p)) orphans.push(standalone(p, parent, source));
       return;
     }
@@ -197,7 +309,7 @@ export function walkBlocks(root, source) {
 
   const listItem = (item, parent) => {
     const fp = item.children[0];
-    const first = fp?.type === 'paragraph' && standaloneId(fp, source) == null && !isRuleOnly(fp) ? fp : null;
+    const first = fp?.type === 'paragraph' && standaloneId(fp, source, item) == null && !isRuleOnly(fp) ? fp : null;
     const marker = first ? inlineMarker(first, source) || claimNext(first, item) : null;
     entries.push({ node: item, parent, kind: 'list-item', marker, textLine: first });
   };
@@ -267,10 +379,15 @@ export function detachMarkers(walk, orphanAnchor = () => null) {
         m.parent.children.splice(m.parent.children.indexOf(p), 1, ...(anchor ? [anchor] : []));
       }
     } else if (m.cut >= 0) {
-      m.text.value = m.text.value.slice(0, m.cut).trimEnd();
-    } else {   // a last-line marker that is a text node of its own: it is the last child, after a hard break
-      p.children.splice(-2, 2);
-      const last = p.children[p.children.length - 1];
+      // the access rules after it (if any) stay: the editor shows them
+      const v = m.text.value;
+      const after = v.slice(m.end);
+      m.text.value = v.slice(0, m.cut).trimEnd() + (after.trim() === '' ? '' : after);
+    } else {   // a last-line marker that is a text node of its own, after a hard break
+      const at = p.children.indexOf(m.text);
+      const after = m.text.value.slice(m.end);
+      p.children.splice(at - 1, 2, ...(after.trim() === '' ? [] : [{ type: 'text', value: after }]));
+      const last = p.children[at - 2];
       if (last?.type === 'text') last.value = last.value.trimEnd();
     }
   }

@@ -74,8 +74,17 @@ function describeBlocks(host) {
 }
 
 describe('remarkBlockIds', () => {
+  // A case the editor preview deliberately draws otherwise names it in its own "editor" entry, with the reason: the
+  // preview draws the raw buffer (rules as chips), the reader the text with its rules stripped. Never silent.
   it.each(cases.map((c) => [c.name, c]))('matches the shared server fixture: %s', (_n, c) => {
-    expect(describeBlocks(preview(c.markdown))).toEqual(c.expected);
+    expect(describeBlocks(preview(c.markdown))).toEqual(c.editor ? c.editor.expected : c.expected);
+  });
+
+  it('says why wherever the preview differs from the reader, and only where it does', () => {
+    for (const c of cases.filter((x) => x.editor)) {
+      expect(c.editor.why.trim().length, c.name).toBeGreaterThan(20);
+      expect(c.editor.expected, c.name).not.toEqual(c.expected);
+    }
   });
 
   it('leaves no marker text behind', () => {

@@ -384,6 +384,19 @@ describe('block markers agree with the block model (blockMarkers: orphans and du
     ['an orphan wins over a later block marker', '^orph\n\nPara ^orph\n'],
     ['a second standalone is an orphan that loses', 'Para\n\n^x\n\n^x\n'],
     ['a callout body, a task and a nested list', '> [!tip] T\n> body ^c\n\n- [ ] task ^c\n  - nested ^n\n\n^n\n'],
+    ['a marker then an access rule on its line', 'Para ^id [{ALLOW view Admin}]\n\nMore ^id\n'],
+    ['a marker, then an access rule on the next line', 'Para ^id\n[{ALLOW view Admin}]\n\nMore ^id\n'],
+    ['a list item marker with a rule on its continuation line', '- item ^id\n  [{ALLOW view Admin}]\n\nMore ^id\n'],
+    ['a quote marker with a rule on the next quote line', '> quote ^q\n> [{ALLOW view Admin}]\n\nMore ^q\n'],
+    ['a last-line marker before a rule', 'Para.\n^id [{DENY edit Guest}]\n\nMore ^id\n'],
+    ['a last-line marker, the rule on the line after', 'Para.\n^id\n[{DENY edit Guest}]\n\nMore ^id\n'],
+    ['other text after the rule keeps the caret literal', 'Para ^id [{ALLOW view Admin}] more\n\nMore ^id\n'],
+    ['a vertical tab after a marker beside a rule is no marker', 'Para.\n\n[{ALLOW view Admin}] ^id\u000b\n\nAfter ^id\n'],
+    ['a tab between a rule and a marker leaves code', 'Para.\n\n[{ALLOW view Admin}]\t^id\n\nAfter ^id\n'],
+    ['four spaces between a rule and a marker leave code', 'Para.\n\n[{ALLOW view Admin}]    ^id\n\nAfter ^id\n'],
+    ['an indented rule and two spaces leave code', 'Para.\n\n  [{ALLOW view Admin}]  ^id\n\nAfter ^id\n'],
+    ['an indented marker after a rule line is code', 'Para.\n\n[{ALLOW view Admin}]\n    ^id\n\nAfter ^id\n'],
+    ['two spaces after a rule keep the marker', 'Para.\n\n[{ALLOW view Admin}]  ^id\n\nAfter ^id\n'],
   ])('%s', (_name, doc) => {
     expect(chips(doc)).toEqual(blockMarkers(doc));
   });

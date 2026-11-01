@@ -209,6 +209,50 @@ describe('blocksFromMarkdown', () => {
     expect(ids('Para.\n\n^x ^y\n')).toEqual([null, 'y']);
   });
 
+  it('reads a marker followed by access rules as the render does: the rules are stripped first', () => {
+    // a rule after the marker, on its line or on lines of its own, is gone before the render parses
+    expect(ids('Para ^id\n[{ALLOW view Admin}]\n\nAfter.\n')).toEqual(['id', null]);
+    expect(ids('Para ^id [{ALLOW view Admin}]\n')).toEqual(['id']);
+    expect(ids('Para ^id [{ALLOW view Admin}]() [{DENY edit Guest}]\n')).toEqual(['id']);
+    expect(blocksFromMarkdown('- item ^id\n  [{ALLOW view Admin}]\n').map((b) => [b.kind, b.id, b.text])).toEqual([['list-item', 'id', 'item']]);
+    expect(blocksFromMarkdown('> quote ^q\n> [{ALLOW view Admin}]\n').map((b) => [b.kind, b.id])).toEqual([['quote', null], ['paragraph', 'q']]);
+    expect(blocksFromMarkdown('Para.\n^id [{DENY edit Guest}]\n').map((b) => [b.id, b.text])).toEqual([['id', 'Para.']]);
+    expect(ids('Para.\n^id\n[{DENY edit Guest}]\n')).toEqual(['id']);
+    expect(ids('Para.\r\n^id\r\n[{DENY edit Guest}]\r\n')).toEqual(['id']);
+    // its range is the server's: the blanks before the caret and after the id, never the rule
+    const md = 'Para ^id [{ALLOW view Admin}]\n';
+    const b = blocksFromMarkdown(md)[0];
+    expect([b.markerFrom, b.markerTo]).toEqual([4, 9]);
+    expect(blockMarkers(md)).toEqual([{ id: 'id', caret: 5, wins: true }]);
+    // so copying a link reuses the id the reader shows, and never adds a second marker that would orphan it
+    expect(blockLinkEdit(md, 1)).toEqual({ id: 'id', change: null });
+    expect(blockLinkEdit('Para ^id\n[{ALLOW view Admin}]\n', 1)).toEqual({ id: 'id', change: null });
+    // only blanks and rules may follow: other text keeps the caret literal
+    expect(ids('Para ^id [{ALLOW view Admin}] more\n')).toEqual([null]);
+    expect(ids('Para ^id\n[{ALLOW view Admin}] more\n')).toEqual([null]);
+  });
+
+  it('reads a top-level paragraph that stripping leaves indented four columns as the code the render sees', () => {
+    for (const md of ['Para.\n\n[{ALLOW view Admin}]\t^id\n\nAfter.\n', 'Para.\n\n[{ALLOW view Admin}]    ^id\n\nAfter.\n',
+      'Para.\n\n  [{ALLOW view Admin}]  ^id\n\nAfter.\n', 'Para.\n\n[{ALLOW view Admin}]\n    ^id\n\nAfter.\n']) {
+      expect(blocksFromMarkdown(md).map((b) => [b.kind, b.id])).toEqual([['paragraph', null], ['code', null], ['paragraph', null]]);
+      expect(blockMarkers(md)).toEqual([]);
+    }
+    expect(blocksFromMarkdown('[{ALLOW view Admin}]    text\n').map((b) => [b.kind, b.text])).toEqual([['code', 'text']]);
+    // three columns, or a rule that is not before it, are no code
+    expect(ids('Para.\n\n[{ALLOW view Admin}]   ^id\n')).toEqual(['id']);
+    expect(ids('Para.\n\n[{ALLOW view Admin}]  ^id\n')).toEqual(['id']);
+    // a standalone marker after such code tags it
+    expect(blocksFromMarkdown('[{ALLOW view Admin}]\tx\n\n^c\n').map((b) => [b.kind, b.id])).toEqual([['code', 'c']]);
+  });
+
+  it('takes only spaces, tabs and line breaks as the blanks beside a rule and a marker', () => {
+    // a vertical tab after the marker is text: the render shows "^id" as a paragraph of its own
+    const md = 'Para.\n\n[{ALLOW view Admin}] ^id\u000b\n\nAfter.\n';
+    expect(blocksFromMarkdown(md).map((b) => [b.id, b.text])).toEqual([[null, 'Para.'], [null, '^id'], [null, 'After.']]);
+    expect(blockMarkers(md)).toEqual([]);
+  });
+
   it('tags the block before a rule-and-marker paragraph, and strips only the marker from the text', () => {
     const md = 'Para.\n\n[{ALLOW view Admin}]\n\nAfter.\n';
     const tagged = insertMarker(md, blocksFromMarkdown(md)[0], 'pp');

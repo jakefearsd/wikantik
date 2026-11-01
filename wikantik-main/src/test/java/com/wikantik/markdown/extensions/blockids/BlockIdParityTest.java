@@ -49,7 +49,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Renders the shared {@code block-ids.json} cases through the reader's render path; the editor preview
- * ({@code remarkBlockIds.test.jsx}) asserts the same fixture, so the two render block ids alike.
+ * ({@code remarkBlockIds.test.jsx}) asserts the same fixture, so the two render block ids alike. A case may carry an
+ * {@code editor} entry: what the preview draws instead, and why — the preview draws the raw buffer, rules as chips, the
+ * reader the text with its rules stripped. {@code expected} is always the reader's, checked here.
  *
  * <p>What is compared, in document order: every {@code <p>} and {@code <li>}, and every element whose {@code id} starts
  * with {@code ^}, as {@code {tag, id, text}}. {@code text} is the element's text (whitespace collapsed) for a {@code p}
@@ -90,6 +92,10 @@ class BlockIdParityTest {
                 for ( final JsonElement page : c.getAsJsonArray( "pages" ) ) {
                     testEngine.saveText( page.getAsString(), "Embedded body.\n" );
                 }
+            }
+            if ( c.has( "editor" ) && ( !c.getAsJsonObject( "editor" ).has( "why" )
+                    || c.getAsJsonObject( "editor" ).get( "why" ).getAsString().isBlank() ) ) {
+                mismatches.add( c.get( "name" ).getAsString() + ": an editor-only expectation must say why it differs" );
             }
             final String html = render( c.get( "markdown" ).getAsString() );
             final JsonArray actual = describe( html );
@@ -191,6 +197,6 @@ class BlockIdParityTest {
 
     private static String decode( final String s ) {
         return s.replace( "&lt;", "<" ).replace( "&gt;", ">" ).replace( "&quot;", "\"" ).replace( "&#34;", "\"" )
-                .replace( "&#39;", "'" ).replace( "&#x27;", "'" ).replace( "&nbsp;", " " ).replace( "&amp;", "&" );
+                .replace( "&#39;", "'" ).replace( "&#x27;", "'" ).replace( "&#61;", "=" ).replace( "&nbsp;", " " ).replace( "&amp;", "&" );
     }
 }

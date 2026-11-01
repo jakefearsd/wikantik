@@ -112,6 +112,8 @@ public class MarkdownDocument extends WikiDocument {
         options.set( AttributesExtension.ASSIGN_TEXT_ATTRIBUTES, true );
         // align style of Markdown's footnotes extension with wikantik footnotes refs
         options.set( FootnoteExtension.FOOTNOTE_LINK_REF_CLASS, MarkupParser.CLASS_FOOTNOTE_REF );
+        // GFM tables: a delimiter cell needs only one dash (`|-|`, `| :-: |`), as GFM, Obsidian and the editor accept
+        options.set( TablesExtension.MIN_SEPARATOR_DASHES, 1 );
         // GitLab extension: enable only block math rendering (```math fenced blocks).
         // Disable the GitLab inline math parser ($`...`$ syntax) — we register our own
         // InlineMathParser for the standard $...$ convention instead.

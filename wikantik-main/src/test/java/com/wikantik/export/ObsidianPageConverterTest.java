@@ -112,6 +112,11 @@ class ObsidianPageConverterTest {
         final String raw = "| a | b |\n|---|---|\n| [x](Foo) | y |\n";
         assertEquals( "| a | b |\n|---|---|\n| [[Foo\\|x]] | y |\n", body( raw ) );
     }
+    /** A table with a short delimiter row (one dash) is still a table, as the reader renders it: its cell pipes are escaped. */
+    @Test void tableWithShortDelimiterRowCellPipeEscaped() {
+        final String raw = "| a | b |\n|-|:-:|\n| [x](Foo) | y |\n";
+        assertEquals( "| a | b |\n|-|:-:|\n| [[Foo\\|x]] | y |\n", body( raw ) );
+    }
     @Test void mathUntouched() {
         final String raw = "Inline $x_1$ and\n\n$$\n\\mathbb{E}[X]\n$$\n";
         assertEquals( raw, body( raw ) );

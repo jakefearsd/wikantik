@@ -39,6 +39,7 @@ import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
 import com.vladsch.flexmark.util.ast.VisitHandler;
+import com.vladsch.flexmark.util.data.MutableDataSet;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 
@@ -54,7 +55,9 @@ import com.wikantik.api.frontmatter.ParsedPage;
  */
 public final class ObsidianPageConverter {
 
-    private static final Parser PARSER = Parser.builder().extensions( List.of( TablesExtension.create() ) ).build();
+    /** Tables as the reader parses them (a delimiter cell needs one dash), so cell pipes are escaped wherever the page has a table. */
+    private static final Parser PARSER = Parser.builder( new MutableDataSet().set( TablesExtension.MIN_SEPARATOR_DASHES, 1 ) )
+            .extensions( List.of( TablesExtension.create() ) ).build();
 
     private static final Pattern PLUGIN_PATTERN = Pattern.compile( "\\[\\{([^}]*)\\}\\](\\(\\))?" );
     private static final Pattern PAGE_PARAM = Pattern.compile( "page\\s*=\\s*(['\"]?)([^'\"\\s]+)\\1" );

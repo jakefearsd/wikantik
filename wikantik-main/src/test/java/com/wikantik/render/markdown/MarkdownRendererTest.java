@@ -176,6 +176,15 @@ public class MarkdownRendererTest {
                                  "<tr><td align=\"left\" colspan=\"2\"></td><td>g, h and f</td></tr></tbody></table>\n", translate( src ) );
     }
 
+    /** GFM (and Obsidian, and the editor's live preview and preview pane) accept a delimiter cell of a single dash. */
+    @Test
+    public void testMarkupTableShortDelimiterRow() throws Exception {
+        Assertions.assertEquals( "<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>\n",
+                                 translate( "| a | b |\n|--|-|\n| 1 | 2 |" ) );
+        Assertions.assertEquals( "<table><thead><tr><th>a</th><th align=\"center\">b</th></tr></thead><tbody><tr><td>1</td><td align=\"center\">2</td></tr></tbody></table>\n",
+                                 translate( "| a | b |\n| - | :-: |\n| 1 | 2 |" ) );
+    }
+
     @Test
     public void testMarkupTableMissingNewlineAfterSeparator() throws Exception {
         // Malformed: separator and first data row on same line

@@ -30,7 +30,9 @@ import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.references.BrokenBlockRefs;
 import com.wikantik.search.SearchManager;
+import com.wikantik.wikilink.WikiLinkResolver;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -214,7 +216,7 @@ public class AdminContentResource extends RestServletBase {
     private void handleBrokenLinks( final HttpServletResponse response ) throws IOException {
         final ReferenceManager rm = getSubsystems().page().referenceManager();
         if ( rm == null ) {
-            sendJson( response, Map.of( "links", List.of() ) );
+            sendJson( response, Map.of( "links", List.of(), "brokenBlockRefs", List.of() ) );
             return;
         }
 
@@ -234,7 +236,26 @@ public class AdminContentResource extends RestServletBase {
         links.sort( ( a, b ) -> Integer.compare(
             ( int ) b.get( "referrerCount" ), ( int ) a.get( "referrerCount" ) ) );
 
-        sendJson( response, Map.of( "links", links ) );
+        sendJson( response, Map.of( "links", links, "brokenBlockRefs", brokenBlockRefs() ) );
+    }
+
+    /** Block references whose target page exists but has no such block; empty (never an error) on failure. */
+    private List< Map< String, Object > > brokenBlockRefs() {
+        final List< Map< String, Object > > out = new ArrayList<>();
+        try {
+            final PageManager pm = getSubsystems().page().pages();
+            for ( final BrokenBlockRefs.Entry e
+                    : new BrokenBlockRefs().find( pm, WikiLinkResolver.forEngine( getEngine() ) ) ) {
+                final Map< String, Object > m = new LinkedHashMap<>();
+                m.put( "page", e.page() );
+                m.put( "target", e.target() );
+                m.put( "id", e.id() );
+                out.add( m );
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Broken block reference scan failed: {}", e.getMessage(), e );
+        }
+        return out;
     }
 
     // ---- POST handlers ----

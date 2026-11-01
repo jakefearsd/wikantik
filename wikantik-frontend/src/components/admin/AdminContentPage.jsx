@@ -266,12 +266,17 @@ function OrphanedPagesTab() {
 
 function BrokenLinksTab() {
   const [links, setLinks] = useState([]);
+  const [blockRefs, setBlockRefs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     api.admin.getBrokenLinks()
-      .then(data => setLinks(data.links || []))
+      .then(data => {
+        setLinks(data.links || []);
+        // Older servers do not send brokenBlockRefs.
+        setBlockRefs(data.brokenBlockRefs || []);
+      })
       .catch((err) => setError(err.message || 'Failed to scan for broken links'))
       .finally(() => setLoading(false));
   }, []);
@@ -309,6 +314,34 @@ function BrokenLinksTab() {
                     ))}
                     <span className="admin-count-badge">{l.referrerCount}</span>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h3 className="admin-section-title">Broken block references</h3>
+      {blockRefs.length === 0 ? (
+        <div className="admin-empty-state">No broken block references.</div>
+      ) : (
+        <div className="admin-table-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Page</th>
+                <th>Link</th>
+                <th>Missing id</th>
+              </tr>
+            </thead>
+            <tbody>
+              {blockRefs.map(r => (
+                <tr key={`${r.page}|${r.target}|${r.id}`}>
+                  <td>
+                    <Link to={`/wiki/${r.page}`} className="admin-page-link">{r.page}</Link>
+                  </td>
+                  <td className="admin-cell-primary">{`[[${r.target}#^${r.id}]]`}</td>
+                  <td>{`^${r.id}`}</td>
                 </tr>
               ))}
             </tbody>

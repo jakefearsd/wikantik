@@ -22,7 +22,10 @@ import com.wikantik.mcp.AbstractMcpTool;
 
 
 import io.modelcontextprotocol.spec.McpSchema;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.references.BrokenBlockRefs;
+import com.wikantik.wikilink.WikiLinkResolver;
 
 import java.util.*;
 
@@ -41,9 +44,19 @@ public class GetBrokenLinksTool extends AbstractMcpTool {
     }
 
     private final ReferenceManager referenceManager;
+    private final PageManager pageManager;
+    private final WikiLinkResolver resolver;
 
+    /** Page-link report only; {@code brokenBlockRefs} is always empty. */
     public GetBrokenLinksTool( final ReferenceManager referenceManager ) {
+        this( referenceManager, null, null );
+    }
+
+    public GetBrokenLinksTool( final ReferenceManager referenceManager, final PageManager pageManager,
+                               final WikiLinkResolver resolver ) {
         this.referenceManager = referenceManager;
+        this.pageManager = pageManager;
+        this.resolver = resolver;
     }
 
     @Override
@@ -61,13 +74,17 @@ public class GetBrokenLinksTool extends AbstractMcpTool {
                                 "referencedBy", List.of( "Main" )
                         )
                 ),
-                "count", 2
+                "count", 2,
+                "brokenBlockRefs", List.of( Map.of( "page", "HybridRetrieval", "target", "AgentMemory", "id", "a1b2c3" ) ),
+                "blockRefCount", 1
         ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Find all broken links across the wiki — pages that are referenced " +
-                        "but do not exist. Returns {brokenLinks: [{pageName, referencedBy: [...]}], count}. " +
+                        "but do not exist. Returns {brokenLinks: [{pageName, referencedBy: [...]}], count, " +
+                        "brokenBlockRefs: [{page, target, id}], blockRefCount} — brokenBlockRefs are [[Page#^id]] " +
+                        "references whose target page exists but has no such block id. " +
                         "Use this for wiki maintenance to identify pages that need to be created or " +
                         "links that need to be fixed." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
@@ -103,7 +120,25 @@ public class GetBrokenLinksTool extends AbstractMcpTool {
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "brokenLinks", brokenLinks );
         result.put( "count", brokenLinks.size() );
+        final List< Map< String, Object > > blockRefs = brokenBlockRefs();
+        result.put( "brokenBlockRefs", blockRefs );
+        result.put( "blockRefCount", blockRefs.size() );
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
+    }
+
+    private List< Map< String, Object > > brokenBlockRefs() {
+        final List< Map< String, Object > > out = new ArrayList<>();
+        if ( pageManager == null || resolver == null ) {
+            return out;
+        }
+        for ( final BrokenBlockRefs.Entry e : new BrokenBlockRefs().find( pageManager, resolver ) ) {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "page", e.page() );
+            m.put( "target", e.target() );
+            m.put( "id", e.id() );
+            out.add( m );
+        }
+        return out;
     }
 
     /**

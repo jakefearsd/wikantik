@@ -148,7 +148,8 @@ get_outbound_links  Pages that a given page links to.
                   Returns {pageName, links: [...]} sorted alphabetically.
 
 get_broken_links  All references in the wiki that point to non-existent pages.
-                  Returns {brokenLinks: [{pageName, referencedBy: [...]}], count}.
+                  Returns {brokenLinks: [{pageName, referencedBy: [...]}], count,
+                  brokenBlockRefs: [{page, target, id}], blockRefCount}.
                   No arguments.
 
 get_orphaned_pages  Pages with no incoming links (system pages excluded).

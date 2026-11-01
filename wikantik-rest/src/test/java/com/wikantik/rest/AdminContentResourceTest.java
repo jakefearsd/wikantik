@@ -299,6 +299,30 @@ class AdminContentResourceTest {
     }
 
     @Test
+    void testBrokenLinksReportsBrokenBlockRefs() throws Exception {
+        engine.saveText( "BlockRefSource", "see [[BlockRefTarget#^nope]] and [[BlockRefTarget#^ok]]" );
+        engine.saveText( "BlockRefTarget", "Para ^ok" );
+        try {
+            final JsonObject obj = gson.fromJson( doGet( "/broken-links" ), JsonObject.class );
+            assertTrue( obj.has( "brokenBlockRefs" ), "Response should contain 'brokenBlockRefs'" );
+            final JsonArray refs = obj.getAsJsonArray( "brokenBlockRefs" );
+            boolean found = false;
+            for ( int i = 0; i < refs.size(); i++ ) {
+                final JsonObject e = refs.get( i ).getAsJsonObject();
+                if ( "BlockRefSource".equals( e.get( "page" ).getAsString() ) ) {
+                    found = true;
+                    assertEquals( "BlockRefTarget", e.get( "target" ).getAsString() );
+                    assertEquals( "nope", e.get( "id" ).getAsString() );
+                }
+            }
+            assertTrue( found, "BlockRefSource -> nope should be reported" );
+        } finally {
+            engine.deleteQuietly( "BlockRefSource" );
+            engine.deleteQuietly( "BlockRefTarget" );
+        }
+    }
+
+    @Test
     void testGetStatsHasCacheDetails() throws Exception {
         final String json = doGet( "/stats" );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );

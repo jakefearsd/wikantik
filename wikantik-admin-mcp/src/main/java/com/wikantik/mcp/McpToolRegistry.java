@@ -75,7 +75,8 @@ public class McpToolRegistry {
         final GetPageHistoryTool getPageHistory = new GetPageHistoryTool( pageManager );
         final DiffPageTool diffPage = new DiffPageTool( engine, pageManager, differenceManager );
         final GetOutboundLinksTool getOutboundLinks = new GetOutboundLinksTool( referenceManager );
-        final GetBrokenLinksTool getBrokenLinks = new GetBrokenLinksTool( referenceManager );
+        final GetBrokenLinksTool getBrokenLinks = new GetBrokenLinksTool( referenceManager, pageManager,
+                com.wikantik.wikilink.WikiLinkResolver.forEngine( engine ) );
         final GetOrphanedPagesTool getOrphanedPages = new GetOrphanedPagesTool( referenceManager, systemPageRegistry );
         final GetWikiStatsTool getWikiStats = new GetWikiStatsTool( pageManager, referenceManager );
         final VerifyPagesTool verifyPages = new VerifyPagesTool( pageManager, referenceManager );

@@ -82,6 +82,33 @@ class GetBrokenLinksToolTest {
     }
 
     @Test
+    @SuppressWarnings( "unchecked" )
+    void testReportsBrokenBlockRefs() throws Exception {
+        pm.savePage( "Src", "see [[Tgt#^gone]] and [[Tgt#^ok]]" );
+        pm.savePage( "Tgt", "Para ^ok" );
+        final GetBrokenLinksTool withBlocks = new GetBrokenLinksTool( refMgr, pm,
+                new com.wikantik.wikilink.WikiLinkResolver( n -> pm.getPage( n ) != null ? n : null,
+                        java.util.Optional::empty ) );
+
+        final McpSchema.CallToolResult result = withBlocks.execute( Map.of() );
+        final Map< String, Object > data = gson.fromJson( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text(), Map.class );
+
+        final List< Map< String, Object > > refs = ( List< Map< String, Object > > ) data.get( "brokenBlockRefs" );
+        assertEquals( 1, refs.size() );
+        assertEquals( Map.of( "page", "Src", "target", "Tgt", "id", "gone" ), refs.get( 0 ) );
+        assertEquals( 1.0, ( ( Number ) data.get( "blockRefCount" ) ).doubleValue() );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testBlockRefsEmptyWhenNotWired() throws Exception {
+        final McpSchema.CallToolResult result = tool.execute( Map.of() );
+        final Map< String, Object > data = gson.fromJson( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text(), Map.class );
+        assertEquals( List.of(), data.get( "brokenBlockRefs" ) );
+        assertEquals( 0.0, ( ( Number ) data.get( "blockRefCount" ) ).doubleValue() );
+    }
+
+    @Test
     void testToolDefinition() {
         final McpSchema.Tool def = tool.definition();
         assertEquals( "get_broken_links", def.name() );

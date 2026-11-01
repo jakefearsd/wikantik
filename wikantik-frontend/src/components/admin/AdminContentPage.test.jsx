@@ -248,6 +248,30 @@ describe('AdminContentPage — Broken Links', () => {
     expect(screen.getByText('0 broken links')).toBeTruthy();
   });
 
+  it('lists broken block references with page links, the link text and the missing id', async () => {
+    api.admin.getBrokenLinks.mockResolvedValueOnce({
+      links: [],
+      brokenBlockRefs: [{ page: 'Src', target: 'Tgt', id: 'gone' }],
+    });
+    await openTab();
+    await screen.findByText('[[Tgt#^gone]]');
+    expect(screen.getByText('^gone')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Src' }).getAttribute('href')).toBe('/wiki/Src');
+    expect(screen.queryByText('No broken block references.')).toBeNull();
+  });
+
+  it('shows the block-reference empty state for an empty list', async () => {
+    api.admin.getBrokenLinks.mockResolvedValueOnce({ links: [], brokenBlockRefs: [] });
+    await openTab();
+    await screen.findByText('No broken block references.');
+  });
+
+  it('shows the block-reference empty state when an older server omits the field', async () => {
+    await openTab();
+    await screen.findByText('Missing');
+    expect(screen.getByText('No broken block references.')).toBeTruthy();
+  });
+
   it('shows an error, not the clean empty state, when the scan fails', async () => {
     api.admin.getBrokenLinks.mockRejectedValueOnce(new Error('scan boom'));
     await openTab();

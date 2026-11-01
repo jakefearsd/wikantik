@@ -24,7 +24,6 @@ import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.its.environment.Env;
-import com.wikantik.its.environment.PlatformKeys;
 import com.wikantik.pages.spa.EditWikiPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.AfterAll;
@@ -32,7 +31,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.openqa.selenium.Keys;
 
 import java.time.Duration;
 import java.util.List;
@@ -407,12 +405,7 @@ public class PlantUmlDiagramsIT extends WithIntegrationTestSetup {
         final String drawn = ".editor-preview " + FIGURE + "[data-fence-state=drawn] " + LIGHT + " svg";
         $( drawn ).shouldBe( Condition.exist, WAIT ).shouldHave( Condition.attributeMatching( "textContent", "(?s).*EditOriginal.*" ) );
 
-        final SelenideElement cm = $( "[data-testid=editor-textarea] .cm-content" ).shouldBe( Condition.visible );
-        cm.click();
-        $( "[data-testid=editor-textarea] .cm-editor" ).shouldHave( Condition.cssClass( "cm-focused" ), Duration.ofSeconds( 5 ) );
-        cm.sendKeys( PlatformKeys.selectAll() );
-        cm.sendKeys( Keys.DELETE );
-        cm.shouldHave( Condition.exactText( "" ), Duration.ofSeconds( 5 ) );
+        final SelenideElement cm = EditWikiPage.clearDocument();
         cm.sendKeys( "```plantuml\n@startuml\nclass EditRenamed\nclass EditPeer\nEditRenamed --> EditPeer\n@enduml\n```\n" );
 
         // The preview must settle on the new label alone; the old drawing is replaced, not appended to.

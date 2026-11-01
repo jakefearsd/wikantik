@@ -58,6 +58,8 @@ public class EditWikiPage implements SpaPage {
 
     private static final String CONTENT = "[data-testid=editor-textarea] .cm-content";
     private static final String EDITOR = "[data-testid=editor-textarea] .cm-editor";
+    /** The toolbar's Live toggle; its {@code aria-pressed} mirrors whether live preview is active. */
+    private static final String LIVE_TOGGLE = "[data-testid=page-editor] #toggle-live-preview";
     private static final Duration MODE_WAIT = Duration.ofSeconds( 10 );
 
     /**
@@ -108,15 +110,21 @@ public class EditWikiPage implements SpaPage {
     }
 
     /**
-     * Asserts the mounted editor is in {@code mode}: the CodeMirror editor is visible first (so the check below is
-     * never vacuous), then {@code .cm-editor} carries {@code cm-live-preview} exactly when the mode is live.
+     * Asserts the mounted editor is in {@code mode}, with a positive signal for every mode: first the toolbar's Live
+     * toggle reports the mode the editor resolved ({@code aria-pressed}, driven by the same {@code liveActive} state
+     * that configures CodeMirror — {@code "true"} only for live), waited for until it holds; then {@code .cm-editor}
+     * carries {@code cm-live-preview} exactly when the mode is live. Waiting on the toggle first means a SOURCE check
+     * cannot pass on a bare absence while the editor is still settling into live.
      *
      * @param mode the expected mode.
      * @return this page object.
      */
     public EditWikiPage assertMode( final EditorMode mode ) {
         final SelenideElement editor = $( EDITOR ).shouldBe( Condition.visible, MODE_WAIT );
-        if ( mode == EditorMode.LIVE ) {
+        final boolean live = mode == EditorMode.LIVE;
+        $( LIVE_TOGGLE ).shouldBe( Condition.visible, MODE_WAIT )
+            .shouldHave( Condition.attribute( "aria-pressed", String.valueOf( live ) ), MODE_WAIT );
+        if ( live ) {
             editor.shouldHave( Condition.cssClass( "cm-live-preview" ), MODE_WAIT );
         } else {
             editor.shouldNotHave( Condition.cssClass( "cm-live-preview" ), MODE_WAIT );

@@ -13,15 +13,17 @@ import { markdown } from '@codemirror/lang-markdown';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { stripFrontmatter } from '../frontmatterUtils';
 import { blockCandidates, updateBlockCandidates, livePreviewSpecs } from './ranges';
-import { livePreview, setLivePreview } from './index';
+import { livePreview, setLivePreview, liveModeField } from './index';
 import { fullyParsed, parseFully } from '../../test/fullParse';
 
 const PAGES_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/wikantik-pages');
 const MAX_SPECS_MS = 250;
 const VIEW_SAMPLE = 100;
 
-// Port of WikiToMarkdownConverter.isLikelyWikiSyntax (the server sets markupSyntax 'likely-wiki' from it; the
-// editor then forces source mode). Keep in step with the Java patterns and HEURISTIC_THRESHOLD = 3.
+// Port of WikiToMarkdownConverter.isLikelyWikiSyntax(String) in
+// wikantik-main/src/main/java/com/wikantik/content/WikiToMarkdownConverter.java (the server sets markupSyntax
+// 'likely-wiki' from it; the editor then forces source mode). Keep in step with the Java patterns and
+// HEURISTIC_THRESHOLD = 3; the 'drift guard' test below mirrors cases from WikiToMarkdownConverterTest.
 const WIKI_SIGNALS = [
   [/^!{1,3}\s/m, 2], [/''[^']+?''/, 2], [/\[([^\]|]+)\|([^\]]+)\]/, 2], [/\[\{[^}]+\}\](?!\()/, 2], [/\{\{\{/, 1], [/__[^_]+?__/, 1],
 ];
@@ -65,9 +67,20 @@ const timings = [];
 const swept = [];
 
 describe('live preview corpus sweep', () => {
-  it('finds the corpus', () => {
+  it('finds the corpus and skips only a small legacy minority', () => {
     expect(all.length).toBeGreaterThan(1000);
-    expect(pages.length).toBeGreaterThan(0);
+    expect(pages.length).toBeGreaterThan(1000);
+    expect(legacy).toBeLessThan(all.length * 0.1);
+  });
+
+  it('legacy-syntax port agrees with the Java heuristic (drift guard, cases from WikiToMarkdownConverterTest)', () => {
+    expect(isLikelyWikiSyntax("!!! Heading\n\nSome ''italic'' text with [Link|Page].")).toBe(true);
+    expect(isLikelyWikiSyntax('# Heading\n\nSome *italic* text with [Link](Page).')).toBe(false);
+    expect(isLikelyWikiSyntax('Some __bold__ text here.')).toBe(false);
+    expect(isLikelyWikiSyntax('Some text with [{TableOfContents}] plugin.\n! And a heading.')).toBe(true);
+    expect(isLikelyWikiSyntax(null)).toBe(false);
+    expect(isLikelyWikiSyntax('')).toBe(false);
+    expect(isLikelyWikiSyntax('   ')).toBe(false);
   });
 
   it('state-level invariants hold for every page', () => {
@@ -100,8 +113,11 @@ describe('live preview corpus sweep', () => {
           let cands = candidates;
           for (const edit of editsFor(name)) {
             const tr = edit(st);
+            // updateBlockCandidates reads syntaxTree(tr.startState) and syntaxTree(tr.state); `st` is fully parsed, and
+            // tr.state's own tree would be partial under load, so hand it a transaction view onto the fully parsed
+            // successor: both sides of the comparison then see complete trees and a slow machine cannot mismatch.
             const next = fullyParsed(tr.state);
-            const inc = updateBlockCandidates(cands, tr, context);
+            const inc = updateBlockCandidates(cands, { changes: tr.changes, startState: tr.startState, state: next }, context);
             const full = blockCandidates(next, context);
             if (JSON.stringify(inc) !== JSON.stringify(full)) { failures.incremental.push(name); break; }
             st = next;
@@ -123,6 +139,8 @@ describe('live preview corpus sweep', () => {
     for (const [k, v] of Object.entries(failures)) expect(v, `invariant "${k}" failed on: ${v.slice(0, 20).join('; ')}`).toEqual([]);
   });
 
+  // happy-dom has no layout, so CodeMirror renders only the first screenful of each page: this part exercises less
+  // than the state-level sweep above, which covers every page in full.
   it('toggling live on/off/on dispatches no document change (deterministic sample)', () => {
     const step = Math.max(1, Math.floor(pages.length / VIEW_SAMPLE));
     const sample = pages.filter((_, i) => i % step === 0).slice(0, VIEW_SAMPLE);
@@ -142,9 +160,10 @@ describe('live preview corpus sweep', () => {
       try {
         parseFully(view);
         const baseline = view.state.doc.toString(); // CodeMirror normalises CRLF on load; the toggle must not alter that
-        setLivePreview(view, true);
-        setLivePreview(view, false);
-        setLivePreview(view, true);
+        const live = () => view.state.field(liveModeField) && view.dom.classList.contains('cm-live-preview');
+        const modes = [];
+        for (const on of [true, false, true]) { setLivePreview(view, on); modes.push(live()); }
+        if (modes.join() !== 'true,false,true') { bad.push(`${name}: mode did not follow the toggle (${modes.join()})`); continue; }
         if (changed.length > 0 || view.state.doc.toString() !== baseline) bad.push(name);
       } catch (e) {
         bad.push(`${name}: ${e && e.message}`);

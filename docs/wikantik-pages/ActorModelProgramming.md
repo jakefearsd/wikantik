@@ -1,14 +1,14 @@
 ---
-canonical_id: 01KQEBFEF393K97NXXAY5F2BCA
-title: Actor Model Programming
+status: active
+date: '2026-04-30'
+cluster: distributed-systems
+type: article
 tags:
 - actor
 - messag
 - process
-cluster: distributed-systems
-type: article
-date: 2026-04-30T00:00:00Z
-status: active
+title: Actor Model Programming
+canonical_id: 01KQEBFEF393K97NXXAY5F2BCA
 summary: 'The actor model: isolated processes communicating only via message passing
   — the basis of Erlang/Elixir and Akka, with built-in failure isolation.'
 ---
@@ -128,6 +128,93 @@ Akka provides multiple ways to communicate, and choosing the wrong one is a reci
 For an expert audience, merely knowing *how* to send messages is insufficient. We must discuss *how* to build systems that survive failure, scale across nodes, and manage complex state transitions reliably.
 
 ### 3.1 Supervision Hierarchies
+
+```plantuml
+@startuml
+skinparam BoxPadding 10
+
+|Caller / Client|
+start
+:Dispatch Message via tell() or ask();
+
+|Actor Mailbox|
+:Enqueue Message in FIFO Mailbox;
+
+|Actor Instance [[/wiki/ActorModelProgramming]]|
+:Dequeue Message;
+:Execute Pattern Matching in receive();
+
+if (Message Handling Succeeded?) then (yes)
+  :Update Private Mutable State;
+  if (Reply Expected via ask()?) then (yes)
+    |Caller / Client|
+    :Complete Future with Result Payload;
+  else (no)
+    |Actor Instance [[/wiki/ActorModelProgramming]]|
+    :Log Trace Event / Emit Integration Event;
+  endif
+  stop
+
+else (unhandled exception / failure)
+  |Actor Instance [[/wiki/ActorModelProgramming]]|
+  :Catch Unhandled Exception;
+  
+  |Actor Mailbox|
+  :Suspend Mailbox Processing;
+  note right
+    Halts message delivery
+    to isolate failure domain
+  end note
+
+  |Supervisor Actor [[/wiki/AgentLoops]]|
+  :Receive ChildFailed(ChildRef, Throwable);
+  :Evaluate OneForOneStrategy or AllForOneStrategy;
+
+  if (Supervisor Directive Decision) then (Resume)
+    :Directive: Resume;
+    note right
+      Keeps current state;
+      discards faulted message
+    end note
+    |Actor Instance [[/wiki/ActorModelProgramming]]|
+    :Retain In-Memory State;
+    |Actor Mailbox|
+    :Resume Mailbox Processing;
+    stop
+
+  else if (Restart)
+    :Directive: Restart;
+    |Actor Instance [[/wiki/ActorModelProgramming]]|
+    :Invoke preRestart(reason, message);
+    :Terminate Broken Child Instance;
+    :Instantiate Fresh Actor Instance;
+    :Invoke postRestart();
+    |Actor Mailbox|
+    :Resume Mailbox Processing;
+    stop
+
+  else if (Stop)
+    :Directive: Stop;
+    |Actor Instance [[/wiki/ActorModelProgramming]]|
+    :Invoke postStop();
+    :Terminate Child Actor Lifecycle;
+    |Actor Mailbox|
+    :Dead-Letter Unprocessed Messages;
+    stop
+
+  else (Escalate)
+    :Directive: Escalate;
+    note right
+      Failure domain exceeds local boundary;
+      bubble to parent supervisor
+    end note
+    |Supervisor Actor [[/wiki/AgentLoops]]|
+    :Rethrow Failure to Parent Supervisor;
+    stop
+  endif
+endif
+@enduml
+```
 
 The concept of supervision is perhaps the most powerful, yet least understood, feature of the model. It formalizes failure handling by structuring actors into a hierarchy.
 
@@ -250,7 +337,7 @@ For researchers researching new techniques, understanding *why* the Actor Model 
 
 ---
 
-## Conclusion
+## Synthesis: Operationalizing the Actor Model in Production
 
 The Akka Actor Model, when utilized correctly, represents a profound shift in how we conceptualize concurrent computation. It forces the developer to think in terms of **message causality** rather than **shared memory access**.
 
@@ -264,3 +351,7 @@ For the expert researching advanced techniques, the takeaway is that the model p
 By respecting the boundaries—never blocking the dispatcher, always using supervision strategies, and treating state changes as immutable events—the developer can build systems whose complexity scales gracefully with the number of nodes and the volume of messages, a feat that remains an exercise in controlled chaos using traditional thread management.
 
 The model is powerful precisely because it abstracts away the most dangerous aspects of concurrency, leaving the developer to focus solely on the business logic encapsulated within the message handlers. Now, go build something that doesn't crash when the network hiccups.
+
+---
+
+**Cluster Hub:** [[DistributedSystemsHub|Distributed Systems Hub]] (`distributed-systems`)

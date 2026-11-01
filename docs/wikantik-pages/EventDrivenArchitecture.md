@@ -1,9 +1,7 @@
 ---
-type: article
-status: active
+canonical_id: 01KQ12YDTV1P29FG8NWTY40E9K
 cluster: software-architecture
-date: '2026-04-25'
-title: Event-Driven Architecture
+type: article
 tags:
 - event-driven
 - messaging
@@ -12,13 +10,15 @@ tags:
 - outbox-pattern
 summary: Events vs commands, the outbox pattern, and how to keep an event-driven system
   from becoming an unprovable mess.
+status: active
+date: '2026-04-25'
+title: Event-Driven Architecture
 related:
 - DomainAndIntegrationEvents
 - ApacheKafkaFundamentals
 - MicroservicesArchitecture
 - CqrsPattern
 - DistributedTracing
-canonical_id: 01KQ12YDTV1P29FG8NWTY40E9K
 ---
 # Event-Driven Architecture
 
@@ -55,6 +55,47 @@ COMMIT;
 ```
 
 A worker polls or CDC-tails the outbox and publishes. At-least-once delivery; consumers must be idempotent. Standard pattern; widely applicable; non-negotiable if you care about exactly-once-state.
+
+```plantuml
+@startuml
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+package "Producer Service Boundary [[/wiki/MicroservicesArchitecture]]" {
+  [Order API Service] as OrderSvc
+  database "Local PostgreSQL [[/wiki/PostgreSQLLocalDeployment]]" {
+    [Orders Table] as OrdersTbl
+    [Outbox Table] as OutboxTbl
+  }
+}
+
+queue "Kafka Event Broker [[/wiki/ApacheKafkaFundamentals]]" {
+  [orders.events.v1\n(Partition Key: OrderId)] as KafkaTopic
+  [orders.events.dlq\n(Dead Letter Queue)] as KafkaDLQ
+}
+
+component "Debezium CDC / Poller" as CDCWorker
+
+package "Consumer Service Boundary" {
+  [Fulfillment Worker] as ConsumerSvc
+  database "Consumer Storage" {
+    [Processed Messages\n(Deduplication Table)] as DedupTbl
+    [Inventory Allocations] as AllocTbl
+  }
+}
+
+OrderSvc --> OrdersTbl : 1. Update Order State
+OrderSvc --> OutboxTbl : 2. Insert Event in SAME ACID TX
+
+OutboxTbl <-- CDCWorker : 3. Tail WAL / Poll Unsent Rows
+CDCWorker --> KafkaTopic : 4. Publish Event (At-Least-Once)
+
+KafkaTopic --> ConsumerSvc : 5. Consume Stream (Batch)
+ConsumerSvc --> DedupTbl : 6. Check Idempotency Key
+ConsumerSvc --> AllocTbl : 7. Apply Business Side Effect
+ConsumerSvc ..> KafkaDLQ : 8. Route Poison Pills (After 3 Retries)
+@enduml
+```
 
 ### Idempotent consumers
 
@@ -173,3 +214,7 @@ Don't use it for:
 - [MicroservicesArchitecture]() — events as the cross-service glue
 - [CqrsPattern]() — separating command and query sides
 - [DistributedTracing]() — observability for event flows
+
+---
+
+**Cluster Hub:** [[ArchitectureHub|Software Architecture Hub: Distributed Systems, Domain-Driven Design, and Event-Driven Systems]] (`software-architecture`)

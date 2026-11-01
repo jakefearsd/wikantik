@@ -1,24 +1,24 @@
 ---
-status: active
-date: '2026-05-15'
-title: PostgreSQL Local Deployment
-related:
-- DevelopingWithPostgresql
-- DockerDeployment
-- ObservabilityDesign
 canonical_id: 01KQ0P44TNFQMPBHGY5R4G4A4F
 cluster:
 - wikantik-development
 - devops-sre
-type: article
+related:
+- DevelopingWithPostgresql
+- DockerDeployment
+- ObservabilityDesign
+title: PostgreSQL Local Deployment
+status: active
+date: '2026-05-15'
+summary: 'End-to-end guide for a fresh Wikantik PostgreSQL deployment: database bootstrap,
+  WAR build, Tomcat setup, legacy JSPWiki corpus import, and index rebuild.'
 tags:
 - postgresql
 - deployment
 - tomcat
 - wikantik-development
 - pgvector
-summary: 'End-to-end guide for a fresh Wikantik PostgreSQL deployment: database bootstrap,
-  WAR build, Tomcat setup, legacy JSPWiki corpus import, and index rebuild.'
+type: article
 ---
 # Fresh Deployment & Legacy Article Import
 
@@ -188,7 +188,9 @@ Conversions performed:
 | ``[PageName]`` | ``[PageName]`()` (Flexmark plugin syntax — Wikantik resolves the empty URL on render) |
 | `[text|url]` | `[text](http://example.com)` |
 | `[{Plugin args}]` | `[{Plugin args}]()` |
-| `{{{ code block }}}` | triple-backtick fenced block |
+| ````
+code block 
+```` | triple-backtick fenced block |
 | `|| header || cells ||` / `|| row |` | GFM tables |
 
 Any unconverted constructs (`%%style`, old-style footnotes, etc.) are flagged as warnings next to the filename. Resolve these by hand or leave them — Flexmark will render them as literal text.
@@ -393,3 +395,7 @@ bin/deploy-local.sh
 - [Search Index and Knowledge Graph Rebuild](SearchIndexAndKnowledgeGraphRebuild) — Lucene, chunk, embedding and Knowledge Graph rebuild runbook
 - `bin/db/migrations/README.md` — migration conventions for schema changes
 - `CLAUDE.md` — sole-developer workflow notes, test credentials, and dev shortcuts
+
+---
+
+**Cluster Hub:** [Wikantik Platform Development Hub](WikantikDevelopmentHub) (`wikantik-development`)

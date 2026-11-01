@@ -1,9 +1,7 @@
 ---
-type: article
-status: active
+canonical_id: 01KQ12YDWB16GH9VTKNN1WKAB1
 cluster: agentic-ai
-date: '2026-04-24'
-title: RAG Implementation Patterns
+type: article
 tags:
 - rag
 - retrieval-augmented-generation
@@ -12,6 +10,9 @@ tags:
 - rerank
 summary: 'Production RAG beyond "embed, retrieve, prompt": chunking strategies, hybrid
   retrieval, reranking, and the moves from 80% demo to 95% production system.'
+status: active
+date: '2026-04-24'
+title: RAG Implementation Patterns
 related:
 - HybridRetrieval
 - VectorDatabases
@@ -20,13 +21,75 @@ related:
 - LLMFineTuning
 - AgenticWorkflowDesign
 - KnowledgeGraphCompletion
-canonical_id: 01KQ12YDWB16GH9VTKNN1WKAB1
 ---
 # RAG Implementation Patterns
 
 Naive RAG is four lines of code: embed the query, top-k nearest neighbours, stuff them in the prompt, generate. It usually scores around 60–75% on a task-specific eval — good enough for a demo, nowhere near good enough for production.
 
 Getting from 75 to 95 is the whole discipline. This page is that delta, in concrete steps, ranked by how much return each move produces.
+
+```plantuml
+@startuml
+skinparam BoxPadding 10
+
+|User / Client Interface|
+start
+:Submit Domain Query;
+
+|Query Pipeline [[/wiki/AiPoweredSearch]]|
+:Analyze Intent & Preprocess;
+if (Requires Query Transformation?) then (yes)
+  :Generate HyDE or Decompose into Sub-Queries;
+else (no)
+  :Normalize Query String;
+endif
+
+|Hybrid Retrieval Engine [[/wiki/HybridRetrieval]]|
+fork
+  :Generate Dense Embedding Vector;
+  :Execute HNSW Approximate Nearest Neighbors [[/wiki/VectorDatabases]];
+  :Surface Top-K Dense Semantic Candidates;
+fork again
+  :Tokenize & Stem Query Terms;
+  :Execute BM25 Inverted Index Keyword Scan;
+  :Surface Top-K Sparse Lexical Candidates;
+fork again
+  :Evaluate Metadata & Security Constraints;
+  :Construct Tenant & Permission Filter Bitmask;
+end fork
+
+:Apply Permission Bitmask Filtering;
+:Execute Reciprocal Rank Fusion (RRF);
+note right
+  Combines dense & sparse ranks:
+  score = sum(1 / (k + rank_i))
+end note
+
+|Precision Scoring & Reranking|
+:Pass Top-N Candidates to Cross-Encoder Model;
+:Compute Deep Query-Document Attention Scores;
+:Sort Candidates by Relevance Probability;
+:Apply Context Compression & Token Budgeting;
+
+|Synthesis & Verification [[/wiki/AgentPlanning]]|
+:Inject Grounded Context Chunks into Prompt Template;
+:Execute LLM Inference for Response Generation;
+
+if (Grounding Verification Passed?) then (yes)
+  :Bind Inline Citations to Chunk Provenance;
+  |User / Client Interface|
+  :Deliver Verified Response with Citations;
+  stop
+else (no)
+  |Synthesis & Verification [[/wiki/AgentPlanning]]|
+  :Flag Low Grounding / Uncertainty;
+  :Trigger Query Refinement or Fallback;
+  |User / Client Interface|
+  :Deliver Guarded Response with Warning;
+  stop
+endif
+@enduml
+```
 
 ## The biggest single lever: hybrid retrieval
 
@@ -123,6 +186,23 @@ Build a frozen eval set of 100–500 queries with gold-labelled relevant chunks 
 
 Long context is the right answer for some tasks (e.g. summarising a single 500-page contract). RAG is the right answer for retrieval over a knowledge base. They compose — use RAG to narrow to the relevant subset, then long-context for the deep analysis.
 
+
+## Architectural Latency Budgets and Production Trade-Offs
+
+Deploying the complete multi-stage RAG pipeline requires balancing accuracy against inference latency. In interactive search or agentic workflows, end-to-end latency should typically remain under 1,500ms. 
+
+| Pipeline Stage | Subsystem | Typical Latency Budget | Fallback Strategy on Timeout |
+| :--- | :--- | :--- | :--- |
+| **Query Transformation** | Small Speculative LLM (HyDE / Multi-Query) | 150–250ms | Bypass HyDE; use raw normalized query string |
+| **Sparse Lexical Search** | BM25 / Inverted Lucene Index | 10–25ms | Proceed with dense-only candidates if Lucene unresponsive |
+| **Dense Semantic Search** | HNSW Index on Vector Store | 20–60ms | Proceed with sparse-only candidates if vector index lags |
+| **Rank Fusion (RRF)** | In-Memory Score Combiner | 2–5ms | None (deterministic CPU operation) |
+| **Cross-Encoder Rerank** | BGE-Reranker / Cohere Rerank API | 80–180ms | Skip reranking; take top-$K$ directly from RRF scoring |
+| **Context Compression** | Token Slicer / Selective Context Filter | 15–30ms | Truncate context to hard token ceiling |
+| **LLM Generation** | Frontier Model Streaming Inference | 600–1,200ms | Stream tokens immediately with progressive citation markers |
+
+By decoupling each stage with explicit fallback thresholds, the system degrades gracefully under heavy load without degrading user-facing uptime.
+
 ## Production debugging
 
 When RAG quality regresses in prod, look in this order:
@@ -143,3 +223,7 @@ Instrument each layer with a trace span so a single query shows retrieval, reran
 - [KnowledgeGraphCompletion]() — when graphs complement vector retrieval
 - [LLMFineTuning]() — when the generator needs training
 - [AgenticWorkflowDesign]() — agents that retrieve as part of larger loops
+
+---
+
+**Cluster Hub:** [[AgenticAiHub|Agentic AI Hub: Cognitive Architectures, Orchestration, and Autonomous Systems]] (`agentic-ai`)

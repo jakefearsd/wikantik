@@ -1,14 +1,19 @@
 ---
-kg_include: true
-summary: 'Knowledge graph engineering: Named Entity Recognition (NER), Open Information
-  Extraction (OpenIE), entity resolution, and RDF triple curation.'
-type: article
 audience:
 - humans
 - agents
-status: active
 canonical_id: 01KQ0P44RHP0WX33T65KCB5HX4
+status: active
 date: '2026-08-16'
+summary: 'Knowledge graph engineering: Named Entity Recognition (NER), Open Information
+  Extraction (OpenIE), entity resolution, and RDF triple curation.'
+type: article
+kg_include: true
+title: 'Knowledge Graph Construction Pipeline: Entity Extraction and Ontology Linking'
+cluster:
+- agentic-ai
+- databases
+auto-generated: false
 tags:
 - knowledge-graph
 - ontology
@@ -18,11 +23,6 @@ tags:
 - triples
 - sparql
 - agentic-ai
-auto-generated: false
-cluster:
-- agentic-ai
-- databases
-title: 'Knowledge Graph Construction Pipeline: Entity Extraction and Ontology Linking'
 ---
 # Knowledge Graph Construction Pipeline: Entity Extraction, Relation Resolution, and Ontology Linking
 
@@ -52,27 +52,45 @@ A **Knowledge Graph Construction Pipeline** converts raw prose, technical docume
 
 ## 2. Entity & Relation Extraction (LLM vs. Small Specialized Models)
 
-```
-                    +-----------------------------+
-                    | Raw Text Context Segment    |
-                    +--------------+--------------+
-                                   |
-              +--------------------+--------------------+
-              |                                         |
-              v                                         v
-+---------------------------+             +---------------------------+
-| Fast Specialized NER      |             | Schema-Constrained LLM    |
-| (GLiNER / Spacy RoBERTa)  |             | (Pydantic Function Call)  |
-| - High Speed (<15ms)      |             | - Rich Context Relations  |
-| - Fixed Entity Types      |             | - Disambiguates Homonyms  |
-+-------------+-------------+             +-------------+-------------+
-              |                                         |
-              +--------------------+--------------------+
-                                   |
-                                   v
-                    +-----------------------------+
-                    | Extracted Candidate Triples |
-                    +-----------------------------+
+```plantuml
+@startuml
+skinparam BoxPadding 10
+
+|Stage 1: Ingestion & Tokenization|
+start
+:Ingest Raw Document (Markdown / PDF / HTML);
+:Parse AST & Segment into Semantic Chunks;
+
+|Stage 2: Hybrid Extraction|
+fork
+  :Fast Specialized NER (GLiNER / RoBERTa);
+  :Extract High-Confidence Entity Spans (<15ms);
+fork again
+  :Schema-Constrained LLM Extraction;
+  :Extract Context Relations & Disambiguate;
+end fork
+:Assemble Candidate Triples <Subject, Predicate, Object>;
+
+|Stage 3: Entity Resolution & IRI Grounding|
+:Lookup Known Alias & Redirect Table;
+if (Exact match found?) then (yes)
+  :Assign Existing Canonical IRI;
+else (no)
+  :Compute Levenshtein & Embedding Cosine Sim;
+  if (Similarity >= Threshold?) then (yes)
+    :Merge Entity & Link via owl:sameAs;
+  else (no)
+    :Mint New Canonical IRI;
+  endif
+endif
+
+|Stage 4: Triple Store Projection|
+:Construct Validated W3C RDF Triples [[/wiki/LinkedDataAndTripleStores]];
+:Execute Atomic SPARQL Update Transaction;
+:Commit to Jena TDB2 Triple Store;
+
+stop
+@enduml
 ```
 
 ### Structured Extraction Schema (Pydantic / OpenAI Function Calling)

@@ -1,28 +1,74 @@
 ---
-status: active
-date: '2026-04-25'
-summary: Higher-level architectural patterns for agentic systems — LLM-as-router,
-  pipeline-with-agent-supervisor, parallel agents, hybrid graph-and-agent — and...
 tags:
 - agent
 - architecture
 - llm
 - autonomous-systems
 - agentic-design
-type: article
+part_of:
+- Operational cost
+- Pipeline with embedded agent
+- AiAgentArchitectures
+determined_by:
+- LLM call
 canonical_id: 01KQEKGD6WQ8QY6BW22RMKVNAW
+precedes:
+- Submit
+- Review
+- Execute
+- Plan
+- Research
 cluster: agentic-ai
+requires:
+- agentic systems
+- LLM call
+title: Agentic Architecture
+mitigates:
+- Email send tool
+uses:
+- Calendar tool
+- Email send tool
+- HTTP fetch tool
+- DB query tool
+alternative_to:
+- Tool of an agent
+- Agent
+- Deterministic
+related_to:
+- AiAgentArchitectures
+- AgenticWorkflowDesign
+enables:
+- Long-running agent with checkpoints
+- Execute
+- Synthesiser LLM
+- specialised handlers
+- Escalate to human
+- Refund request
+- Account lookup
+- FAQ handler
+type: article
 related:
 - AgenticWorkflowDesign
 - AiAgentArchitectures
 - AgentLoops
 - AgentPlanning
 - ToolUse
-title: Agentic Architecture
+date: '2026-04-25'
+contrasts_with:
+- Non-agentic equivalents
+- embedded-agent pattern
+summary: Higher-level architectural patterns for agentic systems — LLM-as-router,
+  pipeline-with-agent-supervisor, parallel agents, hybrid graph-and-agent — and...
+implements:
+- LLM
+instance_of:
+- Long-running agent with checkpoints
+- ReAct
+status: active
 ---
 # Agentic Architecture
 
-Where [AgenticWorkflowDesign]() focuses on the loop and [AiAgentArchitectures]() on the named patterns (ReAct, Plan-and-Execute, etc.), this page is about how agentic components fit into a larger system. Most production deployments aren't pure agents — they're traditional services with agents embedded at specific points.
+Where [Agentic Workflow Design](AgenticWorkflowDesign) focuses on the loop and [AI Agent Architectures](AiAgentArchitectures) on the named patterns (ReAct, Plan-and-Execute, etc.), this page is about how agentic components fit into a larger system. Most production deployments aren't pure agents — they're traditional services with agents embedded at specific points.
 
 ## The composition spectrum
 
@@ -70,12 +116,38 @@ This is the dominant pattern for chatbots, support agents, and most "smart" feat
 
 For tasks where multiple perspectives or modalities help, run agents in parallel; synthesise.
 
-```
-Question → 
-  ├─ Search-the-web agent
-  ├─ Search-internal-docs agent  
-  ├─ Search-recent-conversations agent
-  → Synthesiser LLM → Final answer
+```plantuml
+@startuml
+|Caller|
+start
+:Submit Multi-Domain Query;
+
+|Agent Supervisor [[/wiki/AgentLoops]]|
+:Analyze Query Intent & Decompose;
+fork
+  |Web Search Worker|
+  :Retrieve External Live Sources;
+fork again
+  |Knowledge Graph Worker|
+  :Query Entity Triple Store [[/wiki/LinkedDataAndTripleStores]];
+fork again
+  |Vector Retrieval Worker|
+  :Dense Semantic Embedding Scan [[/wiki/VectorIndexingInternals]];
+end fork
+
+|Synthesizer Agent [[/wiki/AgentPlanning]]|
+:Reconcile & Cross-Verify Findings;
+if (Conflicting evidence detected?) then (yes)
+  :Flag Dissonance & Weight Provenance;
+else (no)
+  :Merge Consistent Claims;
+endif
+:Synthesize Authoritative Briefing;
+
+|Caller|
+:Deliver Response with Citations;
+stop
+@enduml
 ```
 
 Wins on questions where the right answer is a combination of sources. Costs more (multiple agents); is fast in wall-clock if parallelised.
@@ -188,8 +260,8 @@ Stop at the simplest level that works. Don't skip levels.
 
 ## Further reading
 
-- [AgenticWorkflowDesign]() — the per-loop engineering
-- [AiAgentArchitectures]() — named architectural patterns
+- [Agentic Workflow Design](AgenticWorkflowDesign) — the per-loop engineering
+- [AI Agent Architectures](AiAgentArchitectures) — named architectural patterns
 - [AgentLoops]() — failure modes
 - [AgentPlanning]() — plan representations
 - [ToolUse] — tool design

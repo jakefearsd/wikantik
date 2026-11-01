@@ -1,5 +1,20 @@
 ---
+canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
+auto-generated: false
+tags:
+- wikantik-platform
+- knowledge-base
+- hybrid-search
+- knowledge-graphs
+- mcp
+- agentic-ai
+- architecture
+- simple-agility
+title: 'Wikantik Platform Hub: Knowledge Systems, Hybrid Search, and AI Agent Integrations'
+cluster: wikantik-platform
+type: hub
 verified_at: '2026-10-24T23:02:37.552893905Z'
+date: '2026-10-24'
 related:
 - About
 - SimpleAgilityStackHub
@@ -20,23 +35,8 @@ audience:
 verified_by: wikantik-cli
 status: active
 kg_include: true
-canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
 summary: 'Wikantik platform hub: system architecture, BM25+pgvector hybrid search,
   Dual Graphs and SPARQL ontology, 51 MCP tools, and the RAG roadmap.'
-auto-generated: false
-tags:
-- wikantik-platform
-- knowledge-base
-- hybrid-search
-- knowledge-graphs
-- mcp
-- agentic-ai
-- architecture
-- simple-agility
-title: 'Wikantik Platform Hub: Knowledge Systems, Hybrid Search, and AI Agent Integrations'
-cluster: wikantik-platform
-type: hub
-date: '2026-10-24'
 ---
 # Wikantik Platform Hub: Knowledge Systems, Hybrid Search, and AI Agent Integrations
 
@@ -106,6 +106,11 @@ flowchart TB
 - **[[WikantikKnowledgeGraph|The Wikantik Knowledge Graph]]** — The 9 entity classes, 21 relationship predicates, mention-centroid vector math, human/judge proposal workflow, write-time SHACL gate, and SPARQL projection.
 - **[[PageGraphVsKnowledgeGraph|Page Graph vs. Knowledge Graph]]** — Canonical boundary between editorial wikilinks (`page_links`), semantic entities (`kg_*`), section-pinned citations (`citations`), and the RDF ontology.
 - **[[GraphRerankStep|Graph Rerank Step (Historical)]]** — Why page-level co-mention BFS reranking measured zero net recall lift in the `2026-06-16` ceiling experiment and was deleted in `2026-07`.
+
+### III. Architectural Governance & Normative Contracts
+- **[[SimpleAgilityStackHub|Simple Agility Stack Hub]]** (`simple-agility`) — Ecosystem architecture and cross-repo coordination.
+- **[[SimpleAgilityDecisionLog|Simple Agility Architectural Decision Log]]** — Normative architectural decisions (SA-1 through SA-13) governing Wikantik APIs, storage, and cross-repo boundaries.
+- **[[SimpleAgilityTelemetryAdoption|Simple Agility Telemetry Adoption Matrix]]** — Stack-wide observability, OpenTelemetry, and structured JSON logging contracts.
 
 ### III. Companion Hubs & RAG-as-a-Service Roadmap
 - **[[WikantikDevelopmentHub|Wikantik Platform Development Hub]]** (`wikantik-development`) — Developer internals, MCP protocol specifications ([[McpIntegration|MCP Integration]]), operator runbooks ([[WikantikOperations|Wikantik Operations]]), and feature design records.

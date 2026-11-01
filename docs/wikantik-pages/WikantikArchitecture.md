@@ -1,4 +1,19 @@
 ---
+tags:
+- architecture
+- wikantik
+- java
+- modular-monolith
+- hybrid-retrieval
+- knowledge-graph
+- ontology
+- mcp
+date: '2026-10-24'
+kg_include: true
+canonical_id: 01KQTCAKV3BVHYPW20PHSFGXJR
+title: Wikantik System Architecture
+type: design
+status: active
 verified_at: '2026-10-24T22:58:58.427766555Z'
 audience:
 - humans
@@ -16,21 +31,6 @@ related:
 - HybridRetrieval
 - ContentIntelligenceDesign
 verified_by: wikantik-cli
-tags:
-- architecture
-- wikantik
-- java
-- modular-monolith
-- hybrid-retrieval
-- knowledge-graph
-- ontology
-- mcp
-date: '2026-10-24'
-kg_include: true
-canonical_id: 01KQTCAKV3BVHYPW20PHSFGXJR
-title: Wikantik System Architecture
-type: design
-status: active
 ---
 # Wikantik System Architecture
 
@@ -309,6 +309,8 @@ An honest architecture page names its own debts.
 
 ## See Also
 
+- [Simple Agility Decision Log](SimpleAgilityDecisionLog) — normative architectural decisions (SA-1 through SA-13)
+- [Simple Agility Telemetry Adoption](SimpleAgilityTelemetryAdoption) — stack-wide structured logging and observability contract
 - [Wikantik Platform Hub](WikantikPlatformHub) — index of platform documentation
 - [Wikantik Development](WikantikDevelopment) — module overview, test strategy and the feature timeline
 - [Page Graph vs Knowledge Graph](PageGraphVsKnowledgeGraph) — the two-graphs distinction, in depth

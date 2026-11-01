@@ -1,11 +1,4 @@
 ---
-type: design
-summary: 'Hub pages declare clusters: consolidating three rival membership mechanisms
-  (cluster, hubs, related) and rejecting directory-structured content storage.'
-status: active
-date: '2026-08-15'
-canonical_id: 01M02FKWMH48PJDTGTPXMESFXE
-verified_by: jakefear
 verified_at: '2026-10-24T15:40:23.406649131Z'
 tags:
 - design
@@ -21,6 +14,13 @@ related:
 - PageGraphVsKnowledgeGraph
 - KgInclusionPolicy
 - HybridRetrieval
+type: design
+summary: 'Hub pages declare clusters: consolidating three rival membership mechanisms
+  (cluster, hubs, related) and rejecting directory-structured content storage.'
+status: active
+date: '2026-08-15'
+canonical_id: 01M02FKWMH48PJDTGTPXMESFXE
+verified_by: jakefear
 ---
 # Cluster Declaration Design
 
@@ -735,3 +735,8 @@ ACLs, retrieval behavior, and the anonymous render path.
 - [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph) - which graph is which
 - [KgInclusionPolicy](KgInclusionPolicy) - the cluster-primary KG gate
 - [HybridRetrieval](HybridRetrieval) - the recall evidence cited above
+
+
+---
+
+**Cluster Hub:** [Wikantik Platform Development Hub](WikantikDevelopmentHub) ()

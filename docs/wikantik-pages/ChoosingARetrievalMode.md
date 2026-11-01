@@ -194,6 +194,16 @@ $$
 3. **Confusing `find_similar` with Chunk Search:** `find_similar` compares entity mention-centroid vectors ($\vec{e}_v$) in the Knowledge Graph; use `assemble_bundle` or `retrieve_context` for document sections.
 4. **Encoding Recency in the Query String:** Passing `"recent pages updated in October 2026"` into a vector query matches pages that literally contain the word `"October"`. Always use structural date filters (`updated_since` on `list_pages_by_filter` or `filters.modifiedAfter` on `retrieve_context`).
 
+5. **Ignoring Retrieval Health Signals in Telemetry:** Agents diagnosing content discoverability should correlate low retrieval confidence with live search telemetry. When `assemble_bundle` returns sparse results or low score margins ($\Delta S < 0.05$), inspect Google Search Console index status via `./bin/wikantik gsc inspect <slug>` to determine whether unretrieved sections reflect embedding rank dilution or actual crawler omission.
+
+---
+
+## References & Related Documentation
+
+- [[AgentCookbook|Agent Cookbook]] — Central index of engineering patterns, retrieval recipes, and operational runbooks for AI agents.
+- [[SearchConsoleContentOptimizationWorkflow|Search Console Content Optimization Workflow]] — Closed-loop search console inspection, query alignment, and recrawl dispatch.
+- [[ContentPipelineHub|Content Pipeline Hub]] — Architecture and operational lifecycle of Wikantik content ingestion and curation.
+
 ---
 
 **Cluster Hub:** [[AgentCookbook|Agent Cookbook]] (`agent-cookbook`)

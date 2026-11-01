@@ -76,10 +76,13 @@ describe('live preview round trip', () => {
       // which makes the observer re-enter the view; hold those events back for the sweep.
       const holdSelectionChange = (e) => e.stopImmediatePropagation();
       window.addEventListener('selectionchange', holdSelectionChange, true);
-      for (const el of widgets) {
-        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      try {
+        for (const el of widgets) {
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        }
+      } finally {
+        window.removeEventListener('selectionchange', holdSelectionChange, true);
       }
-      window.removeEventListener('selectionchange', holdSelectionChange, true);
       await flush();
 
       setLivePreview(view, false);
@@ -94,8 +97,10 @@ describe('live preview round trip', () => {
   });
 
   it('mounted every widget kind across the slices', () => {
-    for (const kind of ['cm-lp-rule', 'cm-lp-math-block', 'cm-lp-embed', 'cm-lp-table-block', 'cm-lp-fence-block', 'cm-lp-callout-icon', 'cm-lp-image-wrap']) {
-      expect(seen.some((c) => c.includes(kind)), kind).toBe(true);
+    const kinds = ['cm-lp-rule', 'cm-lp-math-block', 'cm-lp-math', 'cm-lp-embed', 'cm-lp-table-block', 'cm-lp-fence-block',
+      'cm-lp-callout-icon', 'cm-lp-image-wrap', 'cm-lp-chip'];
+    for (const kind of kinds) {
+      expect(seen.some((c) => c.split(/\s+/).includes(kind)), kind).toBe(true);
     }
   });
 });

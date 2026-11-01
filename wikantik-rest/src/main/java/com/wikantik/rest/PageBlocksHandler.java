@@ -21,7 +21,11 @@ package com.wikantik.rest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.wikantik.api.content.ContentValidationException;
+import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
+import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.PageManager;
@@ -114,8 +118,7 @@ final class PageBlocksHandler {
             servlet.sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
             return;
         }
-        if ( !servlet.hasPagePermission( request, pageName, "edit" ) ) {
-            servlet.sendError( response, HttpServletResponse.SC_FORBIDDEN, "Forbidden" );
+        if ( !servlet.checkPagePermission( request, response, pageName, "edit" ) ) {   // audited 403, as PUT
             return;
         }
         final JsonObject body = servlet.parseJsonBody( request, response );
@@ -132,11 +135,22 @@ final class PageBlocksHandler {
         final Session session = Wiki.session().find( servlet.getEngine(), request );
         final String author = session.isAuthenticated() ? AuthorKeys.authorKeyFor( session ) : null;
         final BlockIdService service = new BlockIdService( pm, new PageSaveHelper( servlet.getEngine(), pm ) );
+        assign( response, service, pageName, version, index, fingerprint, author );
+    }
+
+    /** Runs the assignment and maps each way it can end to its status and body. */
+    private void assign( final HttpServletResponse response, final BlockIdService service, final String pageName,
+                         final int version, final int index, final String fingerprint, final String author )
+            throws IOException {
         try {
+            FrontmatterWarningSink.clear();
+            ContentWarningSink.clear();
             final BlockIdService.Assigned a = service.assign( pageName, version, index, fingerprint, author );
             final Map< String, Object > out = new LinkedHashMap<>();
             out.put( "id", a.id() );
             out.put( "version", a.version() );
+            FrontmatterWarningSink.drain( pageName );
+            ContentWarningSink.drain();
             servlet.sendJson( response, out );
         } catch ( final BlockIdService.Refused e ) {
             conflict( response, switch ( e.reason() ) {
@@ -144,10 +158,22 @@ final class PageBlocksHandler {
                 case NOT_LOCATED -> "block-not-located";
                 case DERIVED -> "derived";
             } );
+        } catch ( final ContentValidationException e ) {
+            ContentWarningSink.clear();
+            LOG.debug( "Math validation rejected block id on '{}': {}", pageName, e.getMessage() );
+            response.setStatus( 422 );
+            servlet.sendJson( response, PageResource.mathValidationErrorBody( e ) );
+        } catch ( final FrontmatterValidationException e ) {
+            FrontmatterWarningSink.clear();
+            LOG.debug( "Frontmatter validation rejected block id on '{}': {}", pageName, e.getMessage() );
+            response.setStatus( 422 );
+            servlet.sendJson( response, PageResource.validationErrorBody( e ) );
         } catch ( final VersionConflictException e ) {
             LOG.debug( "Block id assignment on '{}' lost a version race: {}", pageName, e.getMessage() );
             conflict( response, "stale" );
         } catch ( final WikiException | RuntimeException e ) {
+            FrontmatterWarningSink.clear();
+            ContentWarningSink.clear();
             LOG.error( "Block id assignment on '{}' (block {}) failed: {}", pageName, index, e.getMessage(), e );
             servlet.sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Could not add a block id." );
         }

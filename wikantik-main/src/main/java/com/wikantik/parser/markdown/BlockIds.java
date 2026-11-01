@@ -301,6 +301,14 @@ public final class BlockIds {
 
             // Take the markers out of the tree (as rendering does) so a block's plain text never carries one.
             BlockWalk.detach( walk, m -> null );
+            // ... and the access-rule links, which a render strips before it parses.
+            final List< Node > ruleLinks = new ArrayList<>();
+            for ( final Node n : document.getDescendants() ) {
+                if ( BlockWalk.isAccessRuleLink( n ) ) {
+                    ruleLinks.add( n );
+                }
+            }
+            ruleLinks.forEach( Node::unlink );
             final List< Block > blocks = new ArrayList<>( entries.size() );
             for ( int i = 0; i < entries.size(); i++ ) {
                 final Entry e = entries.get( i );

@@ -83,6 +83,46 @@ class BlockIdRenderTest {
         return testEngine.getManager( RenderingManager.class ).textToHTML( context, markdown );
     }
 
+    // ---- rendered ordinals agree with BlockIds.list(raw) on access-rule pages ---------------------------------------
+
+    /** Every stamped ordinal, with the text of the element it sits on (tags stripped), in document order. */
+    private static List< String[] > stamped( final String html ) {
+        final List< String[] > out = new ArrayList<>();
+        final Matcher m = STAMPED.matcher( html );
+        while ( m.find() ) {
+            final int close = html.indexOf( "</" + m.group( 1 ) + ">", m.end() );
+            final String inner = html.substring( m.end(), close < 0 ? html.length() : close );
+            out.add( new String[] { m.group( 3 ), inner.replaceAll( "<[^>]*>", "" ).trim() } );
+        }
+        return out;
+    }
+
+    @Test
+    void renderedOrdinalsEqualTheRawListIndexOnAnAccessRulePage() throws Exception {
+        final String raw = "[{ALLOW view Admin}]\n\nFirst.\n\n[{DENY edit Guest}]\n\nSecond.\n\nThird [{ALLOW edit Admin}] bit.\n";
+        final String html = render( raw );
+        final List< Block > blocks = BlockIds.list( raw );
+        final List< String[] > rendered = stamped( html );
+        assertEquals( blocks.size(), rendered.size(), html );
+        for ( final String[] r : rendered ) {
+            final Block b = blocks.get( Integer.parseInt( r[ 0 ] ) );
+            assertEquals( BlockIds.fingerprint( b.plainText() ), BlockIds.fingerprint( r[ 1 ] ),
+                    "data-block " + r[ 0 ] + " in " + html );
+        }
+    }
+
+    @Test
+    void assigningByTheRenderedOrdinalTagsTheBlockTheReaderClicked() throws Exception {
+        final String raw = "[{ALLOW view Admin}]\n\nFirst.\n\nSecond.\n";
+        final String html = render( raw );
+        final String ordinal = stamped( html ).stream().filter( r -> r[ 1 ].equals( "Second." ) )
+                .map( r -> r[ 0 ] ).findFirst().orElseThrow( () -> new AssertionError( html ) );
+        final Block b = BlockIds.list( raw ).get( Integer.parseInt( ordinal ) );
+        final String edited = BlockIds.assign( raw, b, "zz9zz9" );
+        assertTrue( edited.contains( "Second. ^zz9zz9" ), edited );
+        assertFalse( edited.contains( "First. ^" ), edited );
+    }
+
     // ---- anchors ------------------------------------------------------------------------------------------------------
 
     @Test

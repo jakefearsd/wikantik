@@ -77,6 +77,17 @@ class PageBlocksHandlerTest {
         final PageResource spy = Mockito.spy( servlet );
         Mockito.doReturn( view ).when( spy ).hasPagePermission( Mockito.any(), Mockito.anyString(), Mockito.eq( "view" ) );
         Mockito.doReturn( edit ).when( spy ).hasPagePermission( Mockito.any(), Mockito.anyString(), Mockito.eq( "edit" ) );
+        // POST enforces edit through the audited check, as PUT does: a denial is a 403 it sends itself.
+        try {
+            Mockito.doAnswer( inv -> {
+                if ( !edit ) {
+                    RestJson.sendError( inv.getArgument( 1 ), HttpServletResponse.SC_FORBIDDEN, "Forbidden" );
+                }
+                return edit;
+            } ).when( spy ).checkPagePermission( Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.eq( "edit" ) );
+        } catch ( final java.io.IOException e ) {
+            throw new IllegalStateException( e );
+        }
         return spy;
     }
 
@@ -218,6 +229,80 @@ class PageBlocksHandlerTest {
         assertEquals( 404, post( spy( true, true ), "RestBlkNoSuchPage/blocks", payload( 1, 0, "" ) ).status() );
         assertEquals( 404, post( spy( false, false ), "RestBlkPage/blocks", payload( 1, 0, "" ) ).status() );
         assertEquals( 403, post( spy( true, false ), "RestBlkPage/blocks", payload( 1, 0, "" ) ).status() );
+    }
+
+    @Test
+    void postDeniesEditThroughTheAuditedCheck() throws Exception {
+        engine.saveText( "RestBlkPage", "Alpha.\n" );
+        final PageResource s = spy( true, false );
+        assertEquals( 403, post( s, "RestBlkPage/blocks", payload( 1, 0, "" ) ).status() );
+        Mockito.verify( s ).checkPagePermission( Mockito.any(), Mockito.any(), Mockito.eq( "RestBlkPage" ),
+                Mockito.eq( "edit" ) );
+    }
+
+    /** Vetoes a save of a page carrying the marker text, the way the validating filters do. */
+    private static final java.util.concurrent.atomic.AtomicReference< java.util.function.Supplier< com.wikantik.api.exceptions.FilterException > >
+            VETO = new java.util.concurrent.atomic.AtomicReference<>();
+    private static boolean vetoInstalled;
+
+    private static synchronized void installVeto() {
+        if ( vetoInstalled ) {
+            return;
+        }
+        engine.getManager( com.wikantik.filters.FilterManager.class ).addPageFilter( new com.wikantik.api.filters.PageFilter() {
+            @Override
+            public String preSave( final com.wikantik.api.core.Context context, final String content )
+                    throws com.wikantik.api.exceptions.FilterException {
+                final var veto = VETO.get();
+                if ( veto != null && content.contains( "VETO-ME" ) ) {
+                    throw veto.get();
+                }
+                return content;
+            }
+        }, 0 );
+        vetoInstalled = true;
+    }
+
+    @Test
+    void postMapsValidationRefusalsToTheSame422BodiesAsPut() throws Exception {
+        installVeto();
+        engine.saveText( "RestBlkPage", "VETO-ME alpha.\n" );
+        final PageResource s = spy( true, true );
+        try {
+            VETO.set( () -> new com.wikantik.api.exceptions.FrontmatterValidationException( java.util.List.of(
+                    com.wikantik.api.frontmatter.schema.FieldViolation.of( "type", com.wikantik.api.frontmatter.schema.Severity.ERROR,
+                            "bad", "Bad type" ) ) ) );
+            final Reply fm = post( s, "RestBlkPage/blocks", payload( 1, 0, "" ) );
+            assertEquals( 422, fm.status() );
+            assertEquals( "frontmatter_validation_failed", fm.json().get( "error" ).getAsString() );
+
+            VETO.set( () -> new com.wikantik.api.content.ContentValidationException( java.util.List.of(
+                    new com.wikantik.api.content.ContentViolation( "body", com.wikantik.api.frontmatter.schema.Severity.ERROR,
+                            "bad", "Bad math", null ) ) ) );
+            final Reply math = post( s, "RestBlkPage/blocks", payload( 1, 0, "" ) );
+            assertEquals( 422, math.status() );
+            assertEquals( "math_validation_failed", math.json().get( "error" ).getAsString() );
+
+            VETO.set( () -> new com.wikantik.api.exceptions.FilterException( "vetoed" ) );
+            assertEquals( 500, post( s, "RestBlkPage/blocks", payload( 1, 0, "" ) ).status() );
+        } finally {
+            VETO.set( null );
+        }
+        assertEquals( 1, get( s, "RestBlkPage/blocks", Map.of() ).json().get( "version" ).getAsInt() );
+    }
+
+    @Test
+    void listOmitsADirectiveOnlyParagraphAndNumbersLikeTheRender() throws Exception {
+        engine.saveText( "RestBlkPage", "[{ALLOW view Admin}]\n\nFirst.\n\nSecond.\n" );
+        final JsonArray blocks = get( spy( true, true ), "RestBlkPage/blocks", Map.of() ).json().getAsJsonArray( "blocks" );
+        assertEquals( 2, blocks.size() );
+        assertEquals( "First.", blocks.get( 0 ).getAsJsonObject().get( "text" ).getAsString() );
+        assertEquals( "Second.", blocks.get( 1 ).getAsJsonObject().get( "text" ).getAsString() );
+        final Reply r = post( spy( true, true ), "RestBlkPage/blocks", payload( 1, 1, "second" ) );
+        assertEquals( 200, r.status() );
+        final String text = engine.getManager( PageManager.class ).getPureText( "RestBlkPage", PageProvider.LATEST_VERSION );
+        assertTrue( text.contains( "Second. ^" + r.json().get( "id" ).getAsString() ), text );
+        assertFalse( text.contains( "First. ^" ), text );
     }
 
     @Test

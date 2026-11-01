@@ -22,6 +22,7 @@ import com.vladsch.flexmark.ast.BlockQuote;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.HardLineBreak;
 import com.vladsch.flexmark.ast.IndentedCodeBlock;
+import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.ast.ListBlock;
 import com.vladsch.flexmark.ast.ListItem;
 import com.vladsch.flexmark.ast.Paragraph;
@@ -31,6 +32,8 @@ import com.vladsch.flexmark.ast.TextBase;
 import com.vladsch.flexmark.ext.tables.TableBlock;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.markdown.extensions.callouts.CalloutBlock;
+import com.wikantik.markdown.nodes.WikantikLink;
+import com.wikantik.parser.LinkParsingOperations;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -153,6 +156,29 @@ public final class BlockWalk {
     private BlockWalk() {
     }
 
+    /** Whether {@code node} is an access-rule link ({@code [{ALLOW …}]} / {@code [{DENY …}]}), which a render never shows. */
+    public static boolean isAccessRuleLink( final Node node ) {
+        return node instanceof Link link && LinkParsingOperations.isAccessRuleLink( WikantikLink.wikiLinkOf( link ) );
+    }
+
+    /**
+     * Whether {@code p} holds nothing but access-rule links (and whitespace or line breaks). The render path strips those
+     * lines before parsing, so such a paragraph is not there when a page is displayed: it must not be a block, or the
+     * raw text and the rendered text would number their blocks differently.
+     */
+    public static boolean isRuleOnly( final Paragraph p ) {
+        boolean any = false;
+        for ( Node c = p.getFirstChild(); c != null; c = c.getNext() ) {
+            if ( isAccessRuleLink( c ) ) {
+                any = true;
+            } else if ( !( c instanceof SoftLineBreak || c instanceof HardLineBreak
+                    || c instanceof Text t && t.getChars().isBlank() ) ) {
+                return false;
+            }
+        }
+        return any;
+    }
+
     /**
      * Numbers the addressable blocks under {@code root} in pre-order and finds their markers. Read-only: the tree is
      * not changed.
@@ -256,6 +282,9 @@ public final class BlockWalk {
         }
 
         private void paragraph( final Paragraph p ) {
+            if ( isRuleOnly( p ) ) {
+                return;   // not displayed, so not a block
+            }
             if ( Markers.standaloneId( p ) != null ) {
                 if ( !claimed.contains( p ) ) {
                     orphans.add( Markers.standalone( p ) );
@@ -270,7 +299,7 @@ public final class BlockWalk {
         }
 
         private void listItem( final ListItem item ) {
-            final Paragraph first = item.getFirstChild() instanceof Paragraph fp && Markers.standaloneId( fp ) == null ? fp : null;
+            final Paragraph first = item.getFirstChild() instanceof Paragraph fp && Markers.standaloneId( fp ) == null && !isRuleOnly( fp ) ? fp : null;
             Marker marker = null;
             if ( first != null ) {
                 final Marker inline = Markers.inline( first );
@@ -310,7 +339,11 @@ public final class BlockWalk {
         }
 
         static Paragraph standaloneAfter( final Node node ) {
-            return node.getNext() instanceof Paragraph p && standaloneId( p ) != null ? p : null;
+            Node next = node.getNext();
+            while ( next instanceof Paragraph rule && isRuleOnly( rule ) ) {   // not displayed: look past it
+                next = next.getNext();
+            }
+            return next instanceof Paragraph p && standaloneId( p ) != null ? p : null;
         }
 
         /**

@@ -19,6 +19,7 @@
 package com.wikantik.content;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
@@ -118,7 +119,11 @@ public final class BlockIdService {
                     .expectedVersion( expectedVersion )
                     .author( author )
                     .build() );
-            return new Assigned( id, saved == null ? current + 1 : Math.max( saved.getVersion(), 1 ) );
+            if ( saved == null ) {   // e.g. vetoed by a filter: not a success, whatever the block looks like
+                LOG.warn( "Saving block id ^{} on '{}' did not persist a page (saveText returned null)", id, pageName );
+                throw new ProviderException( "Page save did not persist" );
+            }
+            return new Assigned( id, Math.max( saved.getVersion(), 1 ) );
         }
     }
 

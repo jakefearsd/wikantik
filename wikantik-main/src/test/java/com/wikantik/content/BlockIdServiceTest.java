@@ -182,6 +182,42 @@ class BlockIdServiceTest {
         assertEquals( 6, version( "BidPage" ) );
     }
 
+    @Test
+    void aSaveThatDidNotPersistIsNotASuccess() throws Exception {
+        engine.saveText( "BidPage", "Alpha.\n" );
+        final PageSaveHelper helper = Mockito.mock( PageSaveHelper.class );
+        Mockito.when( helper.saveText( Mockito.anyString(), Mockito.anyString(), Mockito.any() ) ).thenReturn( null );
+        final List< LogEvent > events = capture();
+        assertThrows( com.wikantik.api.exceptions.ProviderException.class,
+                () -> new BlockIdService( pm, helper ).assign( "BidPage", 1, 0, "alpha", "a" ) );
+        assertTrue( events.stream().anyMatch( e -> e.getLevel() == Level.WARN
+                && e.getMessage().getFormattedMessage().contains( "did not persist" ) ) );
+    }
+
+    private static AbstractAppender captureAppender;
+    private static LoggerConfig captureConfig;
+    private static boolean captureCreated;
+    private static Level captureOldLevel;
+
+    @AfterEach
+    void releaseCapture() {
+        if ( captureAppender == null ) {
+            return;
+        }
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext( false );
+        final Configuration config = ctx.getConfiguration();
+        captureConfig.removeAppender( captureAppender.getName() );
+        config.getAppenders().remove( captureAppender.getName() );
+        captureAppender.stop();
+        if ( captureCreated ) {
+            config.removeLogger( BlockIdService.class.getName() );
+        } else {
+            captureConfig.setLevel( captureOldLevel );
+        }
+        ctx.updateLoggers();
+        captureAppender = null;
+    }
+
     private static List< LogEvent > capture() {
         final List< LogEvent > captured = new CopyOnWriteArrayList<>();
         final LoggerContext ctx = (LoggerContext) LogManager.getContext( false );
@@ -195,13 +231,17 @@ class BlockIdServiceTest {
         };
         appender.start();
         config.addAppender( appender );
+        captureAppender = appender;
         final String name = BlockIdService.class.getName();
         LoggerConfig lc = config.getLoggerConfig( name );
-        if ( !lc.getName().equals( name ) ) {
+        captureCreated = !lc.getName().equals( name );
+        captureOldLevel = lc.getLevel();
+        if ( captureCreated ) {
             lc = LoggerConfig.newBuilder().setAdditivity( false ).setLevel( Level.WARN ).setLoggerName( name )
                     .setIncludeLocation( "true" ).setRefs( new AppenderRef[ 0 ] ).setConfig( config ).build();
             config.addLogger( name, lc );
         }
+        captureConfig = lc;
         lc.setLevel( Level.WARN );
         lc.addAppender( appender, Level.WARN, null );
         ctx.updateLoggers();

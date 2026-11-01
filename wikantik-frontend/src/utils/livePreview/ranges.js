@@ -9,6 +9,8 @@ import { BLOCK_ID_RE, STANDALONE_RE, RULE_TEXT, MARKER_WITH_SPACE } from '../blo
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
 const HEADING = /^ATXHeading([1-6])$/;
+const SETEXT = /^SetextHeading([12])$/;
+const LINKED_URL_PARENT = new Set(['Link', 'Image', 'Autolink']);
 const BLOCK_MATH = /^\$\$[ \t]*\n[\s\S]*\n[ \t]*\$\$[ \t]*$/;
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const PLUGIN = /\[\{[^\n]*?\}\](?:\(\))?/g;
@@ -326,6 +328,18 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     const m = node.node.firstChild;
     if (m && m.name === 'HeaderMark') hide(m.from, m.to + spaceAfter(m.to));
   };
+  const setextHeading = (node, level) => {
+    const mk = node.node.getChild('HeaderMark');
+    const underline = mk ? doc.lineAt(mk.from).number : -1;
+    eachLine(node.from, node.to, (line) => addLine(line.from, line.number === underline ? 'cm-lp-setext-underline' : `cm-lp-h${level}`));
+  };
+  const autolink = (node) => {
+    const n = node.node;
+    const url = n.getChild('URL');
+    const g = `Autolink@${n.from}`;
+    if (url) mark(url.from, url.to, 'cm-lp-link', g);
+    for (const m of n.getChildren('LinkMark')) hide(m.from, m.to, g);
+  };
   const link = (node) => {
     const n = node.node;
     const marks = n.getChildren('LinkMark');
@@ -390,6 +404,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     from, to,
     enter: (node) => {
       const { name } = node;
+      if (name === 'HTMLBlock') eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-html'));
       if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
@@ -398,7 +413,12 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (name === 'Image') { image(node); return false; }
       const h = HEADING.exec(name);
       if (h) { heading(node, h[1]); return undefined; }
+      const setext = SETEXT.exec(name);
+      if (setext) { setextHeading(node, setext[1]); return undefined; }
       switch (name) {
+        case 'Autolink': autolink(node); break;
+        case 'URL': if (!LINKED_URL_PARENT.has(node.node.parent?.name)) mark(node.from, node.to, 'cm-lp-link'); break;
+        case 'Escape': hide(node.from, node.from + 1, `Escape@${node.from}`); break;
         case 'Emphasis': markedInline(node, 'cm-lp-em', 'EmphasisMark'); break;
         case 'StrongEmphasis': markedInline(node, 'cm-lp-strong', 'EmphasisMark'); break;
         case 'Strikethrough': markedInline(node, 'cm-lp-del', 'StrikethroughMark'); break;

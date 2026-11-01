@@ -136,10 +136,11 @@ describe('livePreviewSpecs — blocks', () => {
     expect(Math.min(...lines)).toBeGreaterThanOrEqual(1000);
     expect(Math.max(...lines)).toBeLessThanOrEqual(1003);
   });
-  it('tables, HTML and frontmatter stay untouched source', () => {
+  it('tables, HTML and frontmatter stay untouched source (HTML only gains its line class)', () => {
     const doc = '---\ntitle: x\n---\n\n| a | **b** |\n|---|---|\n| 1 | 2 |\n\n<div>**x**</div>\n\nend';
     const { specs } = specsOf(doc, [11]);
-    expect(specs).toEqual([]);
+    expect(specs.filter((s) => s.kind !== 'line')).toEqual([]);
+    expect(specs.filter((s) => s.kind === 'line').map((s) => s.cls)).toEqual(['cm-lp-html']);
   });
   it('limits the walk to the requested range', () => {
     const state = stateOf('**a**\n\n**b**\n');
@@ -415,5 +416,63 @@ describe('block markers agree with the block model (blockMarkers: orphans and du
     ['two spaces after a rule keep the marker', 'Para.\n\n[{ALLOW view Admin}]  ^id\n\nAfter ^id\n'],
   ])('%s', (_name, doc) => {
     expect(chips(doc)).toEqual(blockMarkers(doc));
+  });
+});
+
+describe('less common markdown (autolinks, bare URLs, escapes, setext, HTML blocks)', () => {
+  const links = (state, specs) => specs.filter((s) => s.cls === 'cm-lp-link').map((s) => state.sliceDoc(s.from, s.to));
+  const hidden = (state, specs) => specs.filter((s) => s.kind === 'hide').map((s) => state.sliceDoc(s.from, s.to));
+  const lines = (state, specs) => specs.filter((s) => s.kind === 'line').map((s) => `${state.doc.lineAt(s.from).number}:${s.cls}`).sort();
+
+  it('autolinks hide the angle brackets off the caret line and style the URL', () => {
+    const { state, specs } = specsOf('<https://x.org> and <a@b.co>\n\nend', [3]);
+    expect(hidden(state, specs)).toEqual(['<', '>', '<', '>']);
+    expect(links(state, specs)).toEqual(['https://x.org', 'a@b.co']);
+  });
+  it('autolinks keep their brackets on the caret line but still style the URL', () => {
+    const { state, specs } = specsOf('<https://x.org>\n\nend', [1]);
+    expect(hidden(state, specs)).toEqual([]);
+    expect(links(state, specs)).toEqual(['https://x.org']);
+  });
+  it('a bare URL is styled as a link, in either line state', () => {
+    for (const active of [[1], [3]]) {
+      const { state, specs } = specsOf('see https://x.org/a now\n\nend', active);
+      expect(links(state, specs)).toEqual(['https://x.org/a']);
+      expect(hidden(state, specs)).toEqual([]);
+    }
+  });
+  it('a URL inside a link, image or autolink is not double-marked', () => {
+    const { state, specs } = specsOf('[t](https://x.org) ![i](https://y.org) <https://z.org>\n\nend', [3]);
+    expect(links(state, specs)).toEqual(['t', 'https://z.org']);
+  });
+  it('a backslash escape hides only its backslash (off the caret line)', () => {
+    const { state, specs } = specsOf('\\*not em\\* and \\\\\n\nend', [3]);
+    expect(specs.filter((s) => s.kind === 'hide').map((s) => [s.from, s.to])).toEqual([[0, 1], [8, 9], [15, 16]]);
+    expect(visible(state, specs, 1)).toBe('*not em* and \\');
+    expect(specs.some((s) => s.cls === 'cm-lp-em')).toBe(false);
+  });
+  it('an escape stays source on the caret line', () => {
+    const { specs } = specsOf('\\*a\\*\n\nend', [1]);
+    expect(specs.filter((s) => s.kind === 'hide')).toEqual([]);
+  });
+  it('setext headings: text lines get the heading class, the underline its own, nothing hidden', () => {
+    for (const active of [[1], [5]]) {
+      const { state, specs } = specsOf('Title\n=====\n\nSub\n---\n\nend', active);
+      expect(lines(state, specs)).toEqual(['1:cm-lp-h1', '2:cm-lp-setext-underline', '4:cm-lp-h2', '5:cm-lp-setext-underline']);
+      expect(hidden(state, specs)).toEqual([]);
+    }
+  });
+  it('a two-line setext heading styles both text lines', () => {
+    const { state, specs } = specsOf('One\nTwo\n===\n\nend', [5]);
+    expect(lines(state, specs)).toEqual(['1:cm-lp-h1', '2:cm-lp-h1', '3:cm-lp-setext-underline']);
+  });
+  it('an HTML block marks every line and produces no other specs inside', () => {
+    const { state, specs } = specsOf('<div>\n**x** [[A]]\n</div>\n\nend', [5]);
+    expect(lines(state, specs)).toEqual(['1:cm-lp-html', '2:cm-lp-html', '3:cm-lp-html']);
+    expect(specs.filter((s) => s.kind !== 'line')).toEqual([]);
+  });
+  it('an inactive line with three rules yields exactly three chips', () => {
+    const { specs } = specsOf('[{ALLOW view A}][{ALLOW edit B}] x [{$v}]\n\nend', [3]);
+    expect(specs.filter((s) => s.widget?.type === 'chip')).toHaveLength(3);
   });
 });

@@ -198,6 +198,8 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-del`]: { textDecoration: 'line-through', color: 'var(--text-secondary)' },
   [`${ROOT} .cm-lp-code`]: { fontFamily: 'var(--font-mono)', backgroundColor: 'var(--code-bg)', borderRadius: 'var(--radius-sm)', padding: '0 3px' },
   [`${ROOT} .cm-lp-link`]: { color: 'var(--accent)', textDecoration: 'underline', textDecorationColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' },
+  [`${ROOT} .cm-lp-setext-underline`]: { color: 'var(--text-muted)', fontSize: '0.8em' },
+  [`${ROOT} .cm-lp-html`]: { fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' },
   [`${ROOT} .cm-lp-quote`]: { borderLeft: '3px solid var(--border)', paddingLeft: '0.75em', color: 'var(--text-secondary)' },
   [`${ROOT} .cm-lp-callout`]: { '--cm-callout-tint': 'var(--callout-note)', borderLeft: '3px solid var(--cm-callout-tint)', paddingLeft: '0.75em', backgroundColor: 'color-mix(in srgb, var(--cm-callout-tint) 8%, transparent)' },
   [`${ROOT} .cm-lp-callout-title`]: { fontWeight: '600', color: 'var(--cm-callout-tint)' },

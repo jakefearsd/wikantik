@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, createContext } from 'react';
+import { useState, useCallback, useMemo, useRef, createContext } from 'react';
 
 export const ToastContext = createContext(null);
 
@@ -55,8 +55,11 @@ export function ToastProvider({ children }) {
   const error = useCallback((message) => addToast('error', message), [addToast]);
   const info = useCallback((message) => addToast('info', message), [addToast]);
 
+  // Stable identity: consumers list `toast` in effect deps, and a new object per render re-ran them on every toast.
+  const value = useMemo(() => ({ success, error, info, dismiss }), [success, error, info, dismiss]);
+
   return (
-    <ToastContext.Provider value={{ success, error, info, dismiss }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className="wk-toast-container" aria-live="polite">
         {toasts.map(toast => (

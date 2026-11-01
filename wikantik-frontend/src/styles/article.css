@@ -622,6 +622,8 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
   color: var(--text-secondary);
   cursor: pointer;
 }
+.block-link-btn::before { content: '¶'; }
+.block-link-url-btn::before { content: '↗'; }
 .block-link-btn:hover,
 .block-link-url-btn:hover,
 .block-link-btn:focus-visible,

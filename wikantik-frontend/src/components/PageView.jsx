@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
@@ -132,6 +132,7 @@ const BLOCK_FLASH_MS = 2000;
 
 export default function PageView() {
   const { name = 'Main' } = useParams();
+  const routerHash = useLocation().hash;
   const { user } = useAuth();
   const toast = useToast();
   const recent = useRecentlyViewed({
@@ -329,15 +330,20 @@ export default function PageView() {
   // pin short, and so in-page hash changes (TOC clicks) keep their own scroll.
   // `pageReady` is false while a previous route's page is still on screen.
   const pageReady = page?.name === name;
+  // Runs once per (page, fragment): `toast` is read through a ref so a toast appearing (or being dismissed) can't
+  // re-land the reader, re-flash the block or raise the not-found toast again. The router's hash is authoritative
+  // (a same-page link click changes it); window.location covers a cold load before the router has one.
+  const toastRef = useRef(toast);
+  useEffect(() => { toastRef.current = toast; }, [toast]);
   useEffect(() => {
-    const id = safeDecode(window.location.hash.slice(1));
+    const id = safeDecode((routerHash || window.location.hash).slice(1));   // the one place the fragment is decoded
     if (!pageReady || !id || !articleRef.current) return undefined;
     let flashTimer;
     let flashEl;
     if (isBlockRef(id)) {
       flashEl = findBlockTarget(articleRef.current, id);
       if (!flashEl) {
-        toast.error(`Block ${id} not found on this page`);
+        toastRef.current.error(`Block ${id} not found on this page`);
         return undefined;
       }
       flashEl.classList.add('block-target-flash');
@@ -349,7 +355,7 @@ export default function PageView() {
       flashEl?.classList.remove('block-target-flash');
       stop?.();
     };
-  }, [name, pageReady, toast]);
+  }, [name, pageReady, routerHash]);
 
   // Stable identity (all deps below are stable refs/setters/imports) so the
   // memoized article element (see `articleEl`) keeps a constant reference across

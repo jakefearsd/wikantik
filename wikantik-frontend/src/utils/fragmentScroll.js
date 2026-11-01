@@ -1,4 +1,3 @@
-import { safeDecode } from './safeDecode';
 import { findBlockTarget } from './blockLinks';
 import { isBlockRef } from './blockIds';
 
@@ -17,16 +16,15 @@ const READER_SCROLL_INPUTS = ['wheel', 'touchstart', 'keydown', 'pointerdown', '
  * refetch that replaces the article DOM does not lose it.
  *
  * @param {Element} root - Only an element inside root counts as the target.
- * @param {string} id - The fragment, without its leading '#' (percent-encoded or not).
+ * @param {string} id - The fragment, without its leading '#' (already percent-decoded by the caller).
  * @param {{ settleMs?: number }} [options]
  * @returns {(() => void) | null} stop function, or null when the target is not rendered.
  */
 export function pinFragmentTarget(root, id, { settleMs = 4000 } = {}) {
-  const fragmentId = safeDecode(id);
   // A block fragment is resolved against the page's own blocks: an included copy may share the id and come first.
   const find = () => {
-    if (isBlockRef(fragmentId)) return findBlockTarget(root, fragmentId);
-    const el = document.getElementById(fragmentId);
+    if (isBlockRef(id)) return findBlockTarget(root, id);
+    const el = document.getElementById(id);
     return el && root.contains(el) ? el : null;
   };
   const land = (el) => {

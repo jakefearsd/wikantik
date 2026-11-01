@@ -116,3 +116,13 @@ describe('ToastProvider', () => {
     spy.mockRestore();
   });
 });
+
+describe('ToastProvider value identity', () => {
+  it('keeps the same context value across a toast add and dismiss', () => {
+    const { result } = renderHook(() => useToast(), { wrapper });
+    const first = result.current;
+    act(() => { result.current.error('boom'); });
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+    expect(result.current).toBe(first);
+  });
+});

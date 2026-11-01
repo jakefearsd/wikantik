@@ -6,7 +6,8 @@ import { blockFingerprint } from './blockIds';
 
 const FOREIGN = '.inserted-page, .wiki-embed';
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
-const NOT_BUTTON_TEXT = '.block-anchor, .katex-mathml, .code-copy-btn';
+// Our own buttons, the KaTeX MathML twin of a formula, the copy button, and a drawn fence's picture and toolbar.
+const NOT_BUTTON_TEXT = '.block-anchor, .katex-mathml, .code-copy-btn, .wk-fence-drawing, .wk-fence-toolbar';
 
 const REASON_MESSAGES = {
   stale: 'This page changed — reload to copy a block link',
@@ -38,36 +39,62 @@ export function findBlockTarget(root, id) {
     || null;
 }
 
-function makeButton(className, label, title, glyph) {
+// The glyphs are CSS `::before` content, so the buttons add no text nodes to the article (comment anchoring reads them).
+function makeButton(className, label, title) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = className;
   b.setAttribute('aria-label', label);
   b.title = title;
-  b.textContent = glyph;
   return b;
 }
 
 function addButtons(el) {
   const holder = document.createElement('span');
   holder.className = 'block-anchor';
-  holder.appendChild(makeButton('block-link-btn', 'Copy link to this block', 'Copy block link', '¶'));
-  holder.appendChild(makeButton('block-link-url-btn', 'Copy URL of this block', 'Copy URL', '↗'));
+  holder.appendChild(makeButton('block-link-btn', 'Copy link to this block', 'Copy block link'));
+  // One tab stop per block: the second button is reached with the arrow keys.
+  const url = makeButton('block-link-url-btn', 'Copy URL of this block', 'Copy URL');
+  url.setAttribute('tabindex', '-1');
+  holder.appendChild(url);
   el.appendChild(holder);
 }
 
-/** Assigns an id to `el` via the server, updating the shared version; throws a message-bearing Error on refusal. */
-async function ensureId(el, ctx) {
-  if (el.id.startsWith('^')) return el.id.slice(1);
-  if (!ctx.canAssign) return null;
+function removeButtons(el) {
+  el.querySelectorAll(':scope > .block-anchor').forEach((n) => n.remove());
+  delete el.dataset.blocklinkInjected;
+}
+
+const pending = new WeakMap();   // block element → the assignment in flight
+
+const NO_LINK = new Error('no block link');
+
+/** One assignment at a time per root, each using the version the previous one returned. */
+async function assignNow(el, ctx) {
   const result = await ctx.assign({
     version: ctx.version,
     index: Number(el.dataset.block),
     fingerprint: blockFingerprint(blockText(el)),
   });
-  ctx.version = result.version;
+  ctx.version = Math.max(ctx.version ?? 0, result.version ?? 0);
   el.id = `^${result.id}`;
   return result.id;
+}
+
+/** The block's id: its own, one in flight (shared by repeat clicks), or a freshly assigned one. */
+function ensureId(el, ctx) {
+  if (el.id.startsWith('^')) return Promise.resolve(el.id.slice(1));
+  if (!ctx.canAssign) return Promise.reject(NO_LINK);
+  let p = pending.get(el);
+  if (p) return p;
+  ctx.chain = (ctx.chain || Promise.resolve()).then(() => assignNow(el, ctx));
+  p = ctx.chain;
+  ctx.chain = p.catch(() => {});   // a failed assign must not block the next one
+  pending.set(el, p);
+  el.setAttribute('aria-busy', 'true');
+  const done = () => { pending.delete(el); el.removeAttribute('aria-busy'); };
+  p.then(done, done);
+  return p;
 }
 
 function messageFor(err) {
@@ -76,16 +103,25 @@ function messageFor(err) {
   return GENERIC_ERROR;
 }
 
+/** Writes `textPromise`'s text. ClipboardItem takes the promise, so the write starts inside the user gesture. */
+async function writeClipboard(textPromise) {
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    const blob = textPromise.then((t) => new Blob([t], { type: 'text/plain' }));
+    await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+    return;
+  }
+  await navigator.clipboard.writeText(await textPromise);
+}
+
 async function copyLink(el, url, ctx) {
+  const text = ensureId(el, ctx).then((id) => (url
+    ? `${window.location.origin}${BASE}/wiki/${encodeURIComponent(ctx.pageName)}#^${id}`
+    : `[[${ctx.pageName}#^${id}]]`));
   try {
-    const id = await ensureId(el, ctx);
-    if (id == null) return;
-    const text = url
-      ? `${window.location.origin}${BASE}/wiki/${encodeURIComponent(ctx.pageName)}#^${id}`
-      : `[[${ctx.pageName}#^${id}]]`;
-    await navigator.clipboard.writeText(text);
+    await writeClipboard(text);
     ctx.onCopy?.();
   } catch (err) {
+    if (err === NO_LINK) return;
     ctx.onError?.(messageFor(err));
   }
 }
@@ -102,13 +138,22 @@ async function copyLink(el, url, ctx) {
  */
 export function addBlockLinkButtons(root, options = {}) {
   if (!root) return () => {};
-  const ctx = contexts.get(root) || {};
-  Object.assign(ctx, options);
+  let ctx = contexts.get(root);
+  // The article element outlives a page change: another page starts with its own version and queue.
+  if (!ctx || ctx.pageName !== options.pageName) ctx = {};
+  // The known version only moves forward: a refetch can hand back the version from before an assign we made.
+  const version = Math.max(ctx.version ?? 0, options.version ?? 0);
+  Object.assign(ctx, options, { version });
   contexts.set(root, ctx);
 
   root.querySelectorAll('[data-block]').forEach((el) => {
-    if (!isOwn(el) || el.dataset.blocklinkInjected) return;
-    if (!el.id.startsWith('^') && !ctx.canAssign) return;
+    if (!isOwn(el)) return;
+    const eligible = el.id.startsWith('^') || ctx.canAssign;
+    if (el.dataset.blocklinkInjected) {
+      if (!eligible) removeButtons(el);
+      return;
+    }
+    if (!eligible) return;
     el.dataset.blocklinkInjected = '1';
     addButtons(el);
   });
@@ -120,6 +165,17 @@ export function addBlockLinkButtons(root, options = {}) {
     e.preventDefault();
     copyLink(el, button.classList.contains('block-link-url-btn'), ctx);
   };
+  const onKeyDown = (e) => {
+    const from = e.target.closest?.('.block-link-btn, .block-link-url-btn');
+    if (!from || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+    const holder = from.closest('.block-anchor');
+    const to = holder?.querySelector(e.key === 'ArrowRight' ? '.block-link-url-btn' : '.block-link-btn');
+    if (to) { e.preventDefault(); to.focus(); }
+  };
   root.addEventListener('click', onClick);
-  return () => root.removeEventListener('click', onClick);
+  root.addEventListener('keydown', onKeyDown);
+  return () => {
+    root.removeEventListener('click', onClick);
+    root.removeEventListener('keydown', onKeyDown);
+  };
 }

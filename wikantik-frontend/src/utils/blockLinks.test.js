@@ -115,7 +115,7 @@ describe('blockLinks', () => {
     run(opts());
     cleanup();
     const o = run(opts({ canAssign: false }));
-    root.querySelector('.block-link-btn').click();
+    expect(root.querySelector('.block-link-btn')).toBeNull();
     await flush();
     expect(o.assign).not.toHaveBeenCalled();
   });
@@ -187,6 +187,149 @@ describe('blockLinks', () => {
     root = mount('<p data-block="0">E <span class="katex"><span class="katex-mathml">MATHML</span><span class="katex-html">x</span></span></p>');
     run(opts());
     expect(blockText(root.querySelector('p'))).toBe('E x');
+  });
+
+  describe('fix round 1', () => {
+    const deferred = () => { let resolve; let reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+
+    it('keeps the known version monotonic across a re-run with a stale page version', async () => {
+      root = mount('<p data-block="0">a</p><p data-block="1">b</p>');
+      const o = opts({ version: 3 });
+      run(o);
+      root.querySelectorAll('.block-link-btn')[0].click(); await flush();
+      cleanup();
+      run({ ...o, version: 3 });
+      root.querySelectorAll('.block-link-btn')[1].click(); await flush();
+      expect(o.assign.mock.calls[1][0].version).toBe(4);
+    });
+
+    it('starts afresh when the page name changes', async () => {
+      root = mount('<p data-block="0">a</p>');
+      const o = opts({ version: 9 });
+      run(o);
+      cleanup();
+      const o2 = run(opts({ pageName: 'Q', version: 2 }));
+      root.querySelector('.block-link-btn').click(); await flush();
+      expect(o2.assign.mock.calls[0][0].version).toBe(2);
+    });
+
+    it('repeat clicks share one assignment and mark the block busy', async () => {
+      root = mount('<p data-block="0">a</p>');
+      const d = deferred();
+      const o = opts({ assign: vi.fn(() => d.promise) });
+      run(o);
+      const p = root.querySelector('p');
+      root.querySelector('.block-link-btn').click();
+      root.querySelector('.block-link-btn').click();
+      root.querySelector('.block-link-url-btn').click();
+      expect(p.getAttribute('aria-busy')).toBe('true');
+      d.resolve({ id: 'zzz111', version: 4 });
+      await flush();
+      expect(o.assign).toHaveBeenCalledTimes(1);
+      expect(o.onError).not.toHaveBeenCalled();
+      expect(p.hasAttribute('aria-busy')).toBe(false);
+      expect(o.onCopy).toHaveBeenCalled();
+    });
+
+    it('serializes assigns so the second carries the first returned version', async () => {
+      root = mount('<p data-block="0">a</p><p data-block="1">b</p>');
+      const d1 = deferred();
+      const d2 = deferred();
+      const o = opts({ version: 3, assign: vi.fn().mockReturnValueOnce(d1.promise).mockReturnValueOnce(d2.promise) });
+      run(o);
+      const [b0, b1] = root.querySelectorAll('.block-link-btn');
+      b0.click(); b1.click();
+      await flush();
+      expect(o.assign).toHaveBeenCalledTimes(1);
+      d1.resolve({ id: 'aaa111', version: 4 });
+      await flush();
+      expect(o.assign).toHaveBeenCalledTimes(2);
+      expect(o.assign.mock.calls[1][0].version).toBe(4);
+      d2.resolve({ id: 'bbb222', version: 5 });
+      await flush();
+      expect(o.onError).not.toHaveBeenCalled();
+    });
+
+    it('a failed assign does not block the next one', async () => {
+      root = mount('<p data-block="0">a</p><p data-block="1">b</p>');
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const o = opts({ assign: vi.fn().mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce({ id: 'ok1', version: 4 }) });
+      run(o);
+      const [b0, b1] = root.querySelectorAll('.block-link-btn');
+      b0.click(); b1.click(); await flush();
+      expect(o.assign).toHaveBeenCalledTimes(2);
+      expect(root.querySelectorAll('p')[1].id).toBe('^ok1');
+    });
+
+    it('writes through ClipboardItem when available (inside the gesture)', async () => {
+      root = mount('<p data-block="0" id="^abc">one</p>');
+      const write = vi.fn(() => Promise.resolve());
+      Object.defineProperty(navigator, 'clipboard', { value: { write, writeText: clip }, configurable: true });
+      class FakeItem { constructor(data) { this.data = data; } }
+      vi.stubGlobal('ClipboardItem', FakeItem);
+      try {
+        const o = run(opts());
+        root.querySelector('.block-link-btn').click();
+        await flush();
+        expect(write).toHaveBeenCalledTimes(1);
+        expect(clip).not.toHaveBeenCalled();
+        const blob = await write.mock.calls[0][0][0].data['text/plain'];
+        expect(await blob.text()).toBe('[[P#^abc]]');
+        expect(o.onCopy).toHaveBeenCalled();
+      } finally { vi.unstubAllGlobals(); }
+    });
+
+    it('reports a failed ClipboardItem write', async () => {
+      root = mount('<p data-block="0" id="^abc">one</p>');
+      Object.defineProperty(navigator, 'clipboard', { value: { write: vi.fn(() => Promise.reject(new Error('no'))), writeText: clip }, configurable: true });
+      vi.stubGlobal('ClipboardItem', class { constructor(d) { this.d = d; } });
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const o = run(opts());
+        root.querySelector('.block-link-btn').click();
+        await flush();
+        expect(o.onError).toHaveBeenCalledWith("Couldn't copy link");
+      } finally { vi.unstubAllGlobals(); }
+    });
+
+    it('removes buttons from id-less blocks when assigning stops being allowed', () => {
+      root = mount('<p data-block="0" id="^a">one</p><p data-block="1">two</p>');
+      const o = run(opts());
+      expect(root.querySelectorAll('.block-link-btn')).toHaveLength(2);
+      cleanup();
+      run({ ...o, canAssign: false });
+      expect(root.querySelectorAll('.block-link-btn')).toHaveLength(1);
+      expect(root.querySelector('[data-block="1"]').dataset.blocklinkInjected).toBeUndefined();
+    });
+
+    it('adds no text nodes to a block', () => {
+      root = mount('<p data-block="0">hello</p>');
+      run(opts());
+      expect(root.querySelector('p').textContent).toBe('hello');
+      expect(root.querySelector('.block-link-btn').textContent).toBe('');
+    });
+
+    it('has one tab stop per block and arrow keys move between the two buttons', () => {
+      root = mount('<p data-block="0" id="^a">one</p>');
+      run(opts());
+      const main = root.querySelector('.block-link-btn');
+      const url = root.querySelector('.block-link-url-btn');
+      expect(url.getAttribute('tabindex')).toBe('-1');
+      expect(main.hasAttribute('tabindex')).toBe(false);
+      main.focus();
+      main.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      expect(document.activeElement).toBe(url);
+      url.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+      expect(document.activeElement).toBe(main);
+      main.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+      expect(document.activeElement).toBe(main);
+      root.querySelector('p').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    });
+
+    it('excludes drawn fence chrome from the fingerprint text', () => {
+      root = mount('<figure data-block="0"><div class="wk-fence-drawing"><svg><text>DRAWN</text></svg></div><div class="wk-fence-toolbar">Copy</div><pre>src</pre></figure>');
+      expect(blockText(root.querySelector('figure'))).toBe('src');
+    });
   });
 
   describe('findBlockTarget', () => {

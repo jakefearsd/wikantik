@@ -1204,4 +1204,70 @@ describe('PageView block references', () => {
       vi.unstubAllGlobals();
     }
   }, TEST_TIMEOUT);
+
+  it('a toast after landing does not re-scroll, re-flash or re-toast, and a dismissed missing-block toast stays dismissed', async () => {
+    renderAt('/wiki/Foo#^nope');
+    await awaitStableLoaded();
+    const toastText = 'Block ^nope not found on this page';
+    expect(await screen.findByText(toastText)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+    expect(screen.queryByText(toastText)).toBeNull();
+    // another toast re-renders the provider
+    const writeText = vi.fn().mockRejectedValue(new Error('no'));
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    try {
+      const own = document.querySelector('.own .block-link-btn');
+      await waitFor(() => expect(document.querySelector('.own .block-link-btn')).toBeTruthy());
+      fireEvent.click(own);
+      expect(await screen.findByText("Couldn't copy link")).toBeInTheDocument();
+      expect(screen.queryByText(toastText)).toBeNull();
+    } finally { vi.unstubAllGlobals(); }
+  }, TEST_TIMEOUT);
+
+  it('does not scroll again when a toast appears after landing', async () => {
+    renderAt('/wiki/Foo#^abc');
+    await awaitStableLoaded();
+    await waitFor(() => expect(flashed()).toBeTruthy());
+    const scrolls = Element.prototype.scrollIntoView.mock.calls.length;
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no')) } });
+    try {
+      fireEvent.click(document.querySelector('.own .block-link-btn'));
+      expect(await screen.findByText("Couldn't copy link")).toBeInTheDocument();
+      expect(Element.prototype.scrollIntoView.mock.calls.length).toBe(scrolls);
+    } finally { vi.unstubAllGlobals(); }
+  }, TEST_TIMEOUT);
+
+  it('two consecutive assigns send the bumped version the second time', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    api.getPage.mockImplementation(async () => ({ ...BLOCKS, contentHtml: '<p data-block="0" class="a">a</p><p data-block="1" class="b">b</p>' }));
+    api.assignBlockId.mockResolvedValueOnce({ id: 'aaa111', version: 6 }).mockResolvedValueOnce({ id: 'bbb222', version: 7 });
+    try {
+      const { container } = renderAt('/wiki/Foo');
+      await awaitStableLoaded();
+      await waitFor(() => expect(container.querySelector('.b .block-link-btn')).toBeTruthy());
+      fireEvent.click(container.querySelector('.a .block-link-btn'));
+      expect(await screen.findByText('Link copied')).toBeInTheDocument();
+      fireEvent.click(container.querySelector('.b .block-link-btn'));
+      await waitFor(() => expect(api.assignBlockId).toHaveBeenCalledTimes(2));
+      expect(api.assignBlockId.mock.calls[1][1].version).toBe(6);
+    } finally { vi.unstubAllGlobals(); }
+  }, TEST_TIMEOUT);
+
+  it('lands and flashes when a same-page block link is clicked', async () => {
+    api.getPage.mockImplementation(async () => ({ ...BLOCKS,
+      contentHtml: '<a class="lnk" href="/wiki/Foo#^abc">jump</a><p id="^abc" data-block="0" class="own">own</p>' }));
+    const { container } = renderAt('/wiki/Foo');
+    await awaitStableLoaded();
+    expect(flashed()).toBeNull();
+    fireEvent.click(container.querySelector('a.lnk'));
+    await waitFor(() => expect(flashed()).toBeTruthy());
+  }, TEST_TIMEOUT);
+
+  it('decodes the fragment exactly once (an id containing %)', async () => {
+    api.getPage.mockImplementation(async () => ({ ...BLOCKS, contentHtml: '<p id="x%41">t</p><p id="xA">u</p>' }));
+    renderAt('/wiki/Foo#x%2541');
+    await awaitStableLoaded();
+    await waitFor(() => expect(Element.prototype.scrollIntoView.mock.contexts.some((el) => el.id === 'x%41')).toBe(true));
+    expect(Element.prototype.scrollIntoView.mock.contexts.some((el) => el.id === 'xA')).toBe(false);
+  }, TEST_TIMEOUT);
 });

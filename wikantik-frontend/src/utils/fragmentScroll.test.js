@@ -135,10 +135,10 @@ describe('pinFragmentTarget block fragments', () => {
   });
   afterEach(() => { root.remove(); vi.restoreAllMocks(); });
 
-  it('decodes a percent-encoded block fragment', () => {
-    root.innerHTML = '<p id="^abc">x</p>';
-    const stop = pinFragmentTarget(root, '%5Eabc');
-    expect(Element.prototype.scrollIntoView.mock.contexts[0].id).toBe('^abc');
+  it('takes the id as given — the caller decodes once (an id containing %)', () => {
+    root.innerHTML = '<p id="x%41">x</p><p id="xA">y</p>';
+    const stop = pinFragmentTarget(root, 'x%41');
+    expect(Element.prototype.scrollIntoView.mock.contexts[0].id).toBe('x%41');
     stop();
   });
 

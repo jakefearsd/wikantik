@@ -23,6 +23,7 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
 import com.vladsch.flexmark.util.ast.VisitHandler;
+import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.wikantik.markdown.extensions.fences.RenderedFenceRegistry;
 import com.wikantik.markdown.extensions.fences.RenderedFenceScanner;
 import com.wikantik.api.core.Context;
@@ -47,6 +48,14 @@ import java.util.Map;
 public class MarkdownParser extends MarkupParser {
 
     private final Parser parser;
+
+    /** Built on first need: the parse without the attributes extension, the render's fallback. */
+    private Parser noAttributesParser;
+
+    /** Bare parser for the preformatted last resort. */
+    private static final Parser PLAIN = Parser.builder().build();
+
+    private static final org.apache.logging.log4j.Logger LOG = org.apache.logging.log4j.LogManager.getLogger( MarkdownParser.class );
 
     /** Bare Flexmark parser (no JSPWiki extensions) used solely for link collection. */
     private static final Parser LINK_SCANNER = Parser.builder().build();
@@ -89,7 +98,7 @@ public class MarkdownParser extends MarkupParser {
         final Node document;
         RenderDepth.enter();
         try {
-            document = parser.parseReader( new BufferedReader( new StringReader( body ) ) );
+            document = parseBounded( body );
         } finally {
             RenderDepth.leave();
         }
@@ -97,6 +106,40 @@ public class MarkdownParser extends MarkupParser {
         md.setContext( context );
 
         return md;
+    }
+
+    /**
+     * Parses {@code body} through a read budget ({@link BudgetedText}). A crafted body can make the attributes
+     * extension's expression quadratic or overflow the stack, so on exhaustion (or any parse failure) it is parsed again
+     * without that extension (cosmetic only), and if that fails too the body is shown as escaped preformatted text.
+     * The fallback is a pure function of the text, so the render caches keep it.
+     */
+    private Node parseBounded( final String body ) {
+        try {
+            return parser.parse( BasedSequence.of( BudgetedText.of( body, BudgetedText.budgetFor( body.length() ) ) ) );
+        } catch ( final RuntimeException | StackOverflowError e ) {
+            LOG.warn( "render budget: page {} ({} chars) fell back to a parse without attributes after {}",
+                    context.getPage().getName(), body.length(), e.toString() );
+        }
+        try {
+            return noAttributesParser().parse( BasedSequence.of( BudgetedText.of( body, BudgetedText.budgetFor( body.length() ) ) ) );
+        } catch ( final RuntimeException | StackOverflowError e ) {
+            LOG.warn( "render budget: page {} ({} chars) fell back to preformatted text after {}",
+                    context.getPage().getName(), body.length(), e.toString() );
+        }
+        return preformatted( body );
+    }
+
+    private Parser noAttributesParser() {
+        if ( noAttributesParser == null ) {
+            noAttributesParser = Parser.builder( MarkdownDocument.options( context, isImageInlining(), getInlineImagePatterns(), false ) ).build();
+        }
+        return noAttributesParser;
+    }
+
+    /** The body as one indented code block: nothing in it is interpreted, and the renderer escapes it. */
+    static Node preformatted( final String body ) {
+        return PLAIN.parse( "    " + body.replace( "\r\n", "\n" ).replace( "\n", "\n    " ) );
     }
 
     /**

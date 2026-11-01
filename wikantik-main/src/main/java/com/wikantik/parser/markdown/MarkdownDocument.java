@@ -93,12 +93,29 @@ public class MarkdownDocument extends WikiDocument {
      * @return configuration options for MarkdownRenderers.
      */
     public static MutableDataSet options( final Context context, final boolean isImageInlining, final List< Pattern > inlineImagePatterns ) {
+        return options( context, isImageInlining, inlineImagePatterns, true );
+    }
+
+    /**
+     * As {@link #options(Context, boolean, List)}, optionally without the attributes extension ({@code {.class #id}}).
+     * The render's fallback after a parse over budget: attributes are cosmetic, and their backtracking expression is
+     * what a crafted page makes expensive (see {@link BudgetedText}).
+     *
+     * @param withAttributes whether to include the attributes extension
+     */
+    public static MutableDataSet options( final Context context, final boolean isImageInlining, final List< Pattern > inlineImagePatterns,
+                                          final boolean withAttributes ) {
         final MutableDataSet options = structuralOptions();
         options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
-        options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
-                                                       ATTRIBUTES_EXT, AUTOLINK_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
-                                                       GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
-                                                       STRIKETHROUGH_EXT, TASKLIST_EXT ) );
+        final List< com.vladsch.flexmark.util.misc.Extension > extensions = new java.util.ArrayList<>(
+                Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
+                               ATTRIBUTES_EXT, AUTOLINK_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
+                               GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
+                               STRIKETHROUGH_EXT, TASKLIST_EXT ) );
+        if ( !withAttributes ) {
+            extensions.remove( ATTRIBUTES_EXT );
+        }
+        options.set( Parser.EXTENSIONS, extensions );
         return options;
     }
 

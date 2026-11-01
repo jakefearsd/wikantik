@@ -10,6 +10,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Configuration reference: wiki directive syntax in description prose is now shown as code.** Text such as
   `[{ALLOW edit Charlie}]` or `[{TableOfContents}]` in a key's description was published bare, where the wiki
   renderer would execute it. It is now quoted as an inline code span (#106).
+- **Markdown render cost is bounded.** A crafted `{…}` run could make the attributes extension quadratic or overflow the
+  stack. The render's parse now reads through the same budget as the access-rule check; over budget, the page is
+  re-parsed without attributes (and, failing that, shown as escaped preformatted text), and the result is cached (#105).
 
 ## [2.5.5] - 2026-11-01
 

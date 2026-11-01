@@ -59,18 +59,12 @@ import java.util.List;
  * a render can: the renderer's attributes extension matches <code>{…}</code> with a backtracking expression that is
  * quadratic on, for example, <code>{edit</code> followed by a long run of spaces, and overflows the stack on a long run
  * of attribute-like words. The parse therefore reads its input through a counter and is cut off at
- * {@value #BUDGET_PER_CHAR} character reads per character plus {@value #BUDGET_BASE} (the page corpus needs at most about
- * 7 per character). A cut-off parse, a
+ * {@value BudgetedText#BUDGET_PER_CHAR} character reads per character plus {@value BudgetedText#BUDGET_BASE} (see
+ * {@link BudgetedText}; the page corpus needs at most about 7 per character). A cut-off parse, a
  * stack overflow, any other exception from the parse, and a rule that maps to no source text all end in
  * {@link Unreadable}: the caller then fails closed; it never gets a partial answer.
  */
 public final class RenderPathAccessRules {
-
-    /** Character reads allowed per character of the prepared body, plus {@link #BUDGET_BASE}. */
-    static final int BUDGET_PER_CHAR = 128;
-
-    /** Character reads every parse may make whatever the length (a few milliseconds of parsing). */
-    static final int BUDGET_BASE = 4_000_000;
 
     /**
      * One rule: {@code ruleLine} is what the render path hands the ACL parser; {@code text.substring( start, end )} is
@@ -116,9 +110,8 @@ public final class RenderPathAccessRules {
 
     private static List< Rule > parsedRules( final MarkdownBodySource.Prepared prepared, final int bodyStart, final int bodyLength ) {
         final String text = prepared.text();
-        final long budget = BUDGET_BASE + ( long ) BUDGET_PER_CHAR * text.length();
         final List< Rule > rules = new ArrayList<>();
-        for ( final Node node : PARSER.parse( BasedSequence.of( new CountedText( text, new long[ 1 ], budget, 0, text.length() ) ) )
+        for ( final Node node : PARSER.parse( BasedSequence.of( BudgetedText.of( text, BudgetedText.budgetFor( text.length() ) ) ) )
                 .getDescendants() ) {
             if ( node instanceof Link link ) {
                 final String target = WikantikLink.wikiLinkOf( link );
@@ -141,61 +134,6 @@ public final class RenderPathAccessRules {
 
         Unreadable( final String message, final Throwable cause ) {
             super( message, cause );
-        }
-    }
-
-    /** Thrown when a parse has read its budget of characters. */
-    static final class BudgetExceeded extends RuntimeException {
-        private static final long serialVersionUID = 1L;
-
-        BudgetExceeded( final long budget ) {
-            super( "parse read more than " + budget + " characters", null, false, false );
-        }
-    }
-
-    /** A text that counts every character read, through every subsequence, and stops the reader at the budget. */
-    private static final class CountedText implements CharSequence {
-        private final String text;
-        private final long[] reads;
-        private final long budget;
-        private final int from;
-        private final int to;
-
-        CountedText( final String text, final long[] reads, final long budget, final int from, final int to ) {
-            this.text = text;
-            this.reads = reads;
-            this.budget = budget;
-            this.from = from;
-            this.to = to;
-        }
-
-        private void count( final long n ) {
-            reads[ 0 ] += n;
-            if ( reads[ 0 ] > budget ) {
-                throw new BudgetExceeded( budget );
-            }
-        }
-
-        @Override
-        public int length() {
-            return to - from;
-        }
-
-        @Override
-        public char charAt( final int index ) {
-            count( 1 );
-            return text.charAt( from + index );
-        }
-
-        @Override
-        public CharSequence subSequence( final int start, final int end ) {
-            return new CountedText( text, reads, budget, from + start, from + end );
-        }
-
-        @Override
-        public String toString() {
-            count( to - from );
-            return text.substring( from, to );
         }
     }
 

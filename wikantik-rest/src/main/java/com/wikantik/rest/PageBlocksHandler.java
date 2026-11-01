@@ -85,7 +85,7 @@ final class PageBlocksHandler {
         final String needle = q == null ? "" : q.trim().toLowerCase( Locale.ROOT );
         final int limit = Math.min( MAX_LIMIT, Math.max( 1, servlet.parseIntParam( request, "limit", DEFAULT_LIMIT ) ) );
         final JsonArray rows = new JsonArray();
-        for ( final BlockIds.Block b : BlockIds.list( text ) ) {
+        for ( final BlockIds.Block b : blocksOf( pageName, text ) ) {
             final String shown = shownText( b );
             if ( !needle.isEmpty() && !shown.toLowerCase( Locale.ROOT ).contains( needle )
                     && ( b.id() == null || !b.id().toLowerCase( Locale.ROOT ).contains( needle ) ) ) {
@@ -103,11 +103,28 @@ final class PageBlocksHandler {
         }
         final JsonObject body = new JsonObject();
         body.addProperty( "version", Math.max( page.getVersion(), 1 ) );
-        body.addProperty( "canAssign", servlet.hasPagePermission( request, pageName, "edit" )
+        body.addProperty( "canAssign", text != null && servlet.hasPagePermission( request, pageName, "edit" )
                 && !DerivedPage.isDerived( FrontmatterParser.parse( text ).metadata() ) );
         body.add( "blocks", rows );
         response.setHeader( "Cache-Control", "private, no-cache" );
         RestJson.sendJsonKeepingNulls( response, body );
+    }
+
+    /**
+     * The page's blocks, or none when its text is gone (deleted since it was looked up) or cannot be read into blocks:
+     * a listing never fails the request.
+     */
+    private static java.util.List< BlockIds.Block > blocksOf( final String pageName, final String text ) {
+        if ( text == null ) {
+            LOG.warn( "Block list of '{}': the page has no text; listing no blocks", pageName );
+            return java.util.List.of();
+        }
+        try {
+            return BlockIds.list( text );
+        } catch ( final IllegalStateException e ) {
+            LOG.warn( "Block list of '{}' could not be read ({}); listing no blocks", pageName, e.getMessage(), e );
+            return java.util.List.of();
+        }
     }
 
     /** {@code POST}: assigns an id to the located block. */

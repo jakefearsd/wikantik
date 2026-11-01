@@ -25,12 +25,17 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.WikiSubsystems;
+import com.wikantik.page.subsystem.PageSubsystem;
+import com.wikantik.parser.markdown.BlockIds;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.AdditionalAnswers;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.io.BufferedReader;
@@ -193,6 +198,38 @@ class PageBlocksHandlerTest {
         assertFalse( hidden.body().contains( "Secret" ) );
     }
 
+    @Test
+    void listWhereTheBlockModelFailsIsAnEmptyListingNotA500() throws Exception {
+        engine.saveText( "RestBlkPage", "Alpha.\n" );
+        try ( MockedStatic< BlockIds > ids = Mockito.mockStatic( BlockIds.class, Mockito.CALLS_REAL_METHODS ) ) {
+            ids.when( () -> BlockIds.list( Mockito.anyString() ) ).thenThrow( new IllegalStateException( "unmappable" ) );
+            final Reply r = get( spy( true, true ), "RestBlkPage/blocks", Map.of() );
+            assertEquals( 200, r.status() );
+            assertEquals( 0, r.json().getAsJsonArray( "blocks" ).size() );
+            assertEquals( 1, r.json().get( "version" ).getAsInt() );
+        }
+    }
+
+    @Test
+    void listOfAPageWhoseTextIsGoneIsAnEmptyListingNotA500() throws Exception {
+        engine.saveText( "RestBlkPage", "Alpha.\n" );
+        final PageResource s = spy( true, true );
+        final PageManager real = engine.getManager( PageManager.class );
+        final PageManager pages = Mockito.mock( PageManager.class, AdditionalAnswers.delegatesTo( real ) );
+        Mockito.doReturn( null ).when( pages ).getPureText( Mockito.eq( "RestBlkPage" ), Mockito.anyInt() );
+        final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class, AdditionalAnswers.delegatesTo( servlet.getSubsystems() ) );
+        final PageSubsystem.Services page = Mockito.mock( PageSubsystem.Services.class,
+                AdditionalAnswers.delegatesTo( servlet.getSubsystems().page() ) );
+        Mockito.doReturn( pages ).when( page ).pages();
+        Mockito.doReturn( page ).when( subs ).page();
+        Mockito.doReturn( subs ).when( s ).getSubsystems();
+        final Reply r = get( s, "RestBlkPage/blocks", Map.of() );
+        assertEquals( 200, r.status() );
+        assertEquals( 0, r.json().getAsJsonArray( "blocks" ).size() );
+        assertEquals( 1, r.json().get( "version" ).getAsInt() );
+        assertFalse( r.json().get( "canAssign" ).getAsBoolean() );
+    }
+
     // ----- POST /blocks -----
 
     private static String payload( final int version, final int index, final String fp ) {
@@ -221,6 +258,16 @@ class PageBlocksHandlerTest {
         final Reply r = post( spy( true, true ), "RestBlkPage/blocks", payload( 1, 0, "alpha" ) );
         assertEquals( 200, r.status() );
         assertEquals( "abc123", r.json().get( "id" ).getAsString() );
+    }
+
+    @Test
+    void postOnATaggedBlockTheClientSawAsOtherTextIs409BlockNotLocated() throws Exception {
+        engine.saveText( "RestBlkPage", "Alpha. ^abc123\n\nBeta.\n" );
+        final Reply r = post( spy( true, true ), "RestBlkPage/blocks", payload( 1, 0, "beta" ) );
+        assertEquals( 409, r.status() );
+        assertEquals( "block-not-located", r.json().get( "reason" ).getAsString() );
+        final String text = engine.getManager( PageManager.class ).getPureText( "RestBlkPage", PageProvider.LATEST_VERSION );
+        assertFalse( text.contains( "Beta. ^" ), text );
     }
 
     @Test

@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import MyApiKeys from './MyApiKeys';
 import { displayNameChanged, displayNameError, isDisplayNameRejection } from '../utils/displayName';
+import { readStoredEditorMode, rememberEditorMode } from '../hooks/useEditorMode';
 
 
 export default function UserPreferencesPage() {
@@ -21,6 +22,7 @@ export default function UserPreferencesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editorMode, setEditorMode] = useState('live');
+  const [savingEditorMode, setSavingEditorMode] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   // Display name feedback: the server's 400/409 message, and whether the field has been left once
@@ -50,7 +52,9 @@ export default function UserPreferencesPage() {
         setFullName(data.fullName || '');
         setEmail(data.email || '');
         setBio(data.bio || '');
-        setEditorMode(data.editorMode === 'source' ? 'source' : 'live');
+        // The same resolution the editor uses: the account's value, else this browser's remembered choice, else live.
+        const accountMode = data.editorMode === 'live' || data.editorMode === 'source' ? data.editorMode : null;
+        setEditorMode(accountMode ?? readStoredEditorMode() ?? 'live');
       })
       .catch((err) => { if (!ignore) setError(err.message || 'Failed to load profile'); })
       .finally(() => { if (!ignore) setLoading(false); });
@@ -114,17 +118,17 @@ export default function UserPreferencesPage() {
     setError(null);
     setMessage(null);
     setEditorMode(next);
+    setSavingEditorMode(true);
     try {
       await api.updateProfile({ editorMode: next });
-      // The editor hook keeps this browser's mirror of the server value under this key.
-      try { localStorage.setItem('wikantik.editor.mode', next); } catch (err) {
-        console.warn('[preferences] could not mirror editor mode locally:', err?.message || err);
-      }
+      rememberEditorMode(next, 'server'); // just saved to the account: this browser mirrors the account's value
       setMessage('Default editing mode saved');
     } catch (err) {
       console.warn('[preferences] saving editor mode failed:', err?.message || err);
       setEditorMode(previous);
       setError(err.body?.message || err.message || 'Failed to save default editing mode');
+    } finally {
+      setSavingEditorMode(false);
     }
   };
 
@@ -439,6 +443,7 @@ export default function UserPreferencesPage() {
             aria-label="Default editing mode"
             value={editorMode}
             onChange={handleEditorModeChange}
+            disabled={savingEditorMode}
             style={inputStyle}
           >
             <option value="live">Live preview</option>

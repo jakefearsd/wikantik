@@ -2,14 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 
 const KEY = 'wikantik.editor.mode';
+// Where the stored mode came from: 'server' (a signed-in account's value, mirrored or just saved to it) or 'local'
+// (an explicit choice made in this browser while signed out). Only a local choice is ever migrated into a profile,
+// so one account's mirrored value can't leak into the next account that signs in on a shared browser. A legacy
+// value with no provenance counts as local: migrating it is what the migration is for.
+const SRC_KEY = 'wikantik.editor.mode.src';
 const DEFAULT_MODE = 'live';
 
 function isMode(v) {
   return v === 'live' || v === 'source';
 }
 
-/** The browser's remembered choice, or null when there is none (or storage is unavailable). */
-function storedMode() {
+/** This browser's remembered editor mode, or null when there is none (or storage is unavailable). */
+export function readStoredEditorMode() {
   try {
     const stored = localStorage.getItem(KEY);
     if (isMode(stored)) return stored;
@@ -19,9 +24,21 @@ function storedMode() {
   return null;
 }
 
-function saveLocal(mode) {
+/** Whether this browser's remembered mode is an account's value ('server') rather than a local choice. */
+function storedIsServerValue() {
+  try {
+    return localStorage.getItem(SRC_KEY) === 'server';
+  } catch (err) {
+    console.warn('[editor-mode] could not read where the saved editor mode came from', err?.message || err);
+    return false;
+  }
+}
+
+/** Remembers `mode` in this browser, with its provenance: 'server' (an account's value) or 'local'. */
+export function rememberEditorMode(mode, source) {
   try {
     localStorage.setItem(KEY, mode);
+    localStorage.setItem(SRC_KEY, source);
   } catch (err) {
     console.warn('[editor-mode] could not save the editor mode', err?.message || err);
   }
@@ -33,12 +50,13 @@ function saveLocal(mode) {
  * anywhere and never migrates.
  */
 export function useEditorMode({ authenticated = false, persist = true } = {}) {
-  const [mode, setMode] = useState(() => storedMode() ?? DEFAULT_MODE);
+  const [mode, setMode] = useState(() => readStoredEditorMode() ?? DEFAULT_MODE);
   const modeRef = useRef(mode);
   modeRef.current = mode;
   // Persist from an effect, not the state updater: StrictMode double-invokes updaters. Only after a toggle,
   // so merely mounting never writes the default.
   const dirty = useRef(false);
+  const toggledSource = useRef('local'); // the provenance of the latest toggle, recorded with it
   const fetched = useRef(false);
   const persistRef = useRef(persist);
   persistRef.current = persist; // the fetch resolves later; the page may have turned out to be legacy meanwhile
@@ -51,7 +69,7 @@ export function useEditorMode({ authenticated = false, persist = true } = {}) {
 
   useEffect(() => {
     if (!dirty.current || !persist) return;
-    saveLocal(mode);
+    rememberEditorMode(mode, toggledSource.current);
   }, [mode, persist]);
 
   useEffect(() => {
@@ -62,11 +80,11 @@ export function useEditorMode({ authenticated = false, persist = true } = {}) {
       const server = profile?.editorMode;
       if (isMode(server)) {
         setMode(server);
-        saveLocal(server);
+        rememberEditorMode(server, 'server');
         return;
       }
-      const local = storedMode();
-      if (local) {
+      const local = readStoredEditorMode();
+      if (local && !storedIsServerValue()) {
         // One-time migration of this browser's explicit choice to the account.
         Promise.resolve(api.updateProfile({ editorMode: local })).catch((err) => {
           console.warn('[editor-mode] could not migrate the editor mode to the profile', err?.message || err);
@@ -81,6 +99,8 @@ export function useEditorMode({ authenticated = false, persist = true } = {}) {
   const toggle = useCallback(() => {
     dirty.current = true;
     const next = modeRef.current === 'live' ? 'source' : 'live';
+    // A signed-in toggle is saved to the account, so this browser holds that account's value, not a local choice.
+    toggledSource.current = authenticated ? 'server' : 'local';
     setMode(next);
     if (authenticated && persist) {
       Promise.resolve(api.updateProfile({ editorMode: next })).catch((err) => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StrictMode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
@@ -6,10 +6,22 @@ vi.mock('../api/client', () => ({
   api: { getProfile: vi.fn(), updateProfile: vi.fn() },
 }));
 import { api } from '../api/client';
-import { useEditorMode } from './useEditorMode';
+import { useEditorMode, readStoredEditorMode, rememberEditorMode } from './useEditorMode';
 
 const KEY = 'wikantik.editor.mode';
+const SRC = 'wikantik.editor.mode.src';
 const auth = { authenticated: true };
+
+// happy-dom's localStorage is a Proxy that swallows the delete vi.restoreAllMocks uses to undo a spy on an inherited
+// method, so a throwing storage spy would outlive its test. Break storage through this helper instead: it puts the
+// real method back itself.
+const storageRestores = [];
+function breakStorage(method) {
+  const original = Storage.prototype[method];
+  vi.spyOn(window.localStorage, method).mockImplementation(() => { throw new Error('denied'); });
+  storageRestores.push(() => Object.defineProperty(window.localStorage, method, { configurable: true, writable: true, value: original }));
+}
+afterEach(() => { while (storageRestores.length) storageRestores.pop()(); });
 
 beforeEach(() => {
   localStorage.clear();
@@ -116,8 +128,8 @@ describe('useEditorMode', () => {
   });
   it('still works (and warns) when storage throws', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => { throw new Error('denied'); });
-    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('denied'); });
+    breakStorage('getItem');
+    breakStorage('setItem');
     const { result } = renderHook(() => useEditorMode());
     act(() => result.current[1]());
     expect(result.current[0]).toBe('source');
@@ -130,7 +142,7 @@ describe('useEditorMode', () => {
     const { result } = renderHook(() => useEditorMode(), { wrapper: StrictMode });
     act(() => result.current[1]());
     expect(result.current[0]).toBe('source');
-    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls.filter(([k]) => k === KEY)).toHaveLength(1);
   });
   it('persist flipping to false before the profile resolves neither PUTs nor mirrors', async () => {
     let resolve;
@@ -159,5 +171,58 @@ describe('useEditorMode', () => {
     await act(async () => {});
     rerender({ authenticated: true });
     expect(api.getProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('a mirrored server value is never migrated into the next account on this browser', async () => {
+    api.getProfile.mockResolvedValue({ editorMode: 'source' }); // user A
+    const a = renderHook(() => useEditorMode(auth));
+    await waitFor(() => expect(localStorage.getItem(KEY)).toBe('source'));
+    expect(localStorage.getItem(SRC)).toBe('server');
+    a.unmount();
+    let resolveB;
+    api.getProfile.mockReturnValue(new Promise((r) => { resolveB = r; })); // user B, no preference yet
+    renderHook(() => useEditorMode(auth));
+    await waitFor(() => expect(api.getProfile).toHaveBeenCalledTimes(2));
+    await act(async () => { resolveB({ editorMode: null }); });
+    expect(api.updateProfile).not.toHaveBeenCalled();
+  });
+  it('an authenticated toggle is the account\'s value, not a local choice to migrate elsewhere', async () => {
+    const a = renderHook(() => useEditorMode(auth));
+    act(() => a.result.current[1]()); // live -> source, PUT to A's profile
+    expect(api.updateProfile).toHaveBeenCalledWith({ editorMode: 'source' });
+    expect(localStorage.getItem(SRC)).toBe('server');
+    a.unmount();
+    api.updateProfile.mockClear();
+    let resolveB;
+    api.getProfile.mockReturnValue(new Promise((r) => { resolveB = r; }));
+    renderHook(() => useEditorMode(auth)); // user B, server null
+    await waitFor(() => expect(api.getProfile).toHaveBeenCalledTimes(2));
+    await act(async () => { resolveB({ editorMode: null }); });
+    expect(api.updateProfile).not.toHaveBeenCalled();
+  });
+  it('an explicit toggle made while signed out migrates on sign-in', async () => {
+    const anon = renderHook(() => useEditorMode({ authenticated: false }));
+    act(() => anon.result.current[1]()); // live -> source, this browser only
+    expect(localStorage.getItem(KEY)).toBe('source');
+    expect(localStorage.getItem(SRC)).toBe('local');
+    anon.unmount(); // signing in happens on the login page; the editor mounts again afterwards
+    renderHook(() => useEditorMode(auth));
+    await waitFor(() => expect(api.updateProfile).toHaveBeenCalledWith({ editorMode: 'source' }));
+  });
+});
+
+describe('stored editor mode helpers', () => {
+  it('rememberEditorMode records the mode and where it came from; readStoredEditorMode reads it back', () => {
+    expect(readStoredEditorMode()).toBeNull();
+    rememberEditorMode('source', 'server');
+    expect(readStoredEditorMode()).toBe('source');
+    expect(localStorage.getItem(KEY)).toBe('source');
+    expect(localStorage.getItem(SRC)).toBe('server');
+  });
+  it('rememberEditorMode warns instead of throwing when storage is unavailable', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    breakStorage('setItem');
+    expect(() => rememberEditorMode('live', 'local')).not.toThrow();
+    expect(warn).toHaveBeenCalledWith('[editor-mode] could not save the editor mode', 'denied');
   });
 });

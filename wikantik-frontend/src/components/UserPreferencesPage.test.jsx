@@ -478,7 +478,37 @@ describe('UserPreferencesPage — display name', () => {
 });
 
 describe('UserPreferencesPage — default editing mode', () => {
-  beforeEach(() => { localStorage.removeItem('wikantik.editor.mode'); });
+  beforeEach(() => {
+    localStorage.removeItem('wikantik.editor.mode');
+    localStorage.removeItem('wikantik.editor.mode.src');
+  });
+
+  it('shows this browser\'s remembered choice when the account has no preference', async () => {
+    localStorage.setItem('wikantik.editor.mode', 'source');
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: null });
+    renderPage();
+    const select = await screen.findByLabelText('Default editing mode');
+    expect(select.value).toBe('source');
+  });
+
+  it('the account\'s preference wins over this browser\'s remembered choice', async () => {
+    localStorage.setItem('wikantik.editor.mode', 'source');
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: 'live' });
+    renderPage();
+    expect((await screen.findByLabelText('Default editing mode')).value).toBe('live');
+  });
+
+  it('disables the select while its save is in flight', async () => {
+    api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: null });
+    let resolve;
+    api.updateProfile.mockReturnValue(new Promise((r) => { resolve = r; }));
+    renderPage();
+    const select = await screen.findByLabelText('Default editing mode');
+    fireEvent.change(select, { target: { value: 'source' } });
+    expect(select).toBeDisabled();
+    resolve({ ...FAKE_PROFILE, editorMode: 'source' });
+    await waitFor(() => expect(select).not.toBeDisabled());
+  });
 
   it('shows Live preview when no preference is stored', async () => {
     api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: null });
@@ -505,6 +535,8 @@ describe('UserPreferencesPage — default editing mode', () => {
     await waitFor(() => expect(api.updateProfile).toHaveBeenCalledWith({ editorMode: 'source' }));
     expect(api.updateProfile).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(localStorage.getItem('wikantik.editor.mode')).toBe('source'));
+    // Just saved to the account: this browser now holds the account's value, never a local choice to migrate.
+    expect(localStorage.getItem('wikantik.editor.mode.src')).toBe('server');
     expect(await screen.findByText('Default editing mode saved')).toBeInTheDocument();
   });
 

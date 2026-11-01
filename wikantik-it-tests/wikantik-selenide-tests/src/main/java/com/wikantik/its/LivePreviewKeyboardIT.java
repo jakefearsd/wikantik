@@ -30,6 +30,7 @@ import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Keys;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import static com.codeborne.selenide.Condition.checked;
@@ -67,6 +68,16 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
     private static final String TASK_LINE = "- [ ] open task";
     private static final String TABLE_FIRST_LINE = "| A | B |";
 
+    /**
+     * A heading long enough to wrap onto several visual rows, directly above a table (a heading, not a paragraph: a
+     * table cannot interrupt a paragraph line, which would become its header row instead).
+     */
+    private static final String WRAPPED_LINE = "## " + "A long heading that keeps going across the editor pane so that "
+        .repeat( 8 ).trim();
+    private static final String WRAP_PAGE = "LivePreviewKeyboardWrapIT";
+    private static final String WRAP_BODY = "# Wrapping\n\n" + WRAPPED_LINE + "\n"
+        + TABLE_FIRST_LINE + "\n| --- | --- |\n| one | two |\n\nAfter the table\n";
+
     private static final String PAGE = "LivePreviewKeyboardIT";
     // One plugin call and no aliased link: a recognisably-Markdown page (WikiToMarkdownConverter.isLikelyWikiSyntax
     // stays below its threshold), so the editor offers live mode.
@@ -92,6 +103,7 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
     void cleanup() {
         RestSeedHelper.deletePageQuietly( PAGE );
         RestSeedHelper.deletePageQuietly( MIXED_PAGE );
+        RestSeedHelper.deletePageQuietly( WRAP_PAGE );
     }
 
     @Test
@@ -211,6 +223,96 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
         awaitRenderedLine( tableFrom, TABLE_FIRST_LINE );
         $( ".cm-lp-table-block" ).shouldNot( exist, WAIT );
         assertEquals( doc, documentText(), "moving into the table must not change the document" );
+    }
+
+    /**
+     * The wrapped-line edge of the vertical-motion redirect: only the LAST visual row of a wrapped line is next to the
+     * table below it. ArrowDown from the first row moves to the line's next row (CodeMirror's own motion) and leaves
+     * the table drawn; ArrowDown from the last row lands at the start of the table's first line, revealing it.
+     */
+    @Test
+    void arrowDownOnAWrappedLineAboveATableEntersItOnlyFromTheLastVisualRow() throws Exception {
+        RestSeedHelper.writePage( WRAP_PAGE, WRAP_BODY );
+        final String doc = openLive( WRAP_PAGE, WRAP_BODY );
+        final int from = lineStart( doc, WRAPPED_LINE );
+        final int to = from + WRAPPED_LINE.length();
+        final int tableFrom = lineStart( doc, TABLE_FIRST_LINE );
+        assertEquals( to + 1, tableFrom, "the table's first line must directly follow the wrapped line" );
+
+        $( ".cm-lp-table-block table.cm-lp-table" ).shouldBe( visible, WAIT );
+        final int firstRowCaret = from + 3; // just after the revealed "## ", on the first visual row
+        setCaret( firstRowCaret );
+        awaitRenderedLine( from, WRAPPED_LINE ); // the caret's line shows its source, so its rows are final
+        final Map< ?, ? > rows = visualRows( from, to );
+        assertTrue( ( ( Number ) rows.get( "rows" ) ).intValue() >= 3, "the heading above the table must wrap onto at "
+            + "least three visual rows, or there is no first/last row to tell apart: " + rows );
+        assertEquals( 0, rowOf( rows, firstRowCaret ), "the first caret must sit on the first visual row: " + rows );
+
+        pressKeys( Keys.ARROW_DOWN );
+        final int afterFirst = caretOffset();
+        assertTrue( afterFirst > firstRowCaret && afterFirst <= to, "ArrowDown from the wrapped line's first visual row "
+            + "stays on that line; it landed at " + afterFirst + " on line " + lineNumber( doc, afterFirst ) + " ["
+            + lineAt( doc, afterFirst ) + "]" );
+        assertEquals( 1, rowOf( rows, afterFirst ), "ArrowDown from the first row moves to the second row: " + rows );
+        $( ".cm-lp-table-block table.cm-lp-table" ).shouldBe( visible ); // the table is still drawn, not revealed
+
+        final int lastRowStart = ( ( Number ) rows.get( "lastRowStart" ) ).intValue();
+        final int lastRowCaret = Math.min( to, lastRowStart + Math.max( 1, ( to - lastRowStart ) / 2 ) );
+        setCaret( lastRowCaret );
+        assertEquals( ( ( Number ) rows.get( "rows" ) ).intValue() - 1, rowOf( rows, lastRowCaret ),
+            "the second caret must sit on the last visual row: " + rows );
+        pressKeys( Keys.ARROW_DOWN );
+        final int landed = caretOffset();
+        assertEquals( tableFrom, landed, "ArrowDown from the wrapped line's last visual row lands at the start of the "
+            + "table's first line; it landed on line " + lineNumber( doc, landed ) + " [" + lineAt( doc, landed ) + "]" );
+        awaitRenderedLine( tableFrom, TABLE_FIRST_LINE );
+        $( ".cm-lp-table-block" ).shouldNot( exist, WAIT );
+        assertEquals( doc, documentText(), "moving the caret must not change the document" );
+    }
+
+    /**
+     * The visual rows CodeMirror draws the line {@code from..to} on: {@code rows} (count), {@code tops} (each row's
+     * top relative to the line's first row, ascending — client coordinates shift whenever a key press scrolls the
+     * editor) and {@code lastRowStart} (the first document offset drawn on the last row).
+     */
+    private static Map< ?, ? > visualRows( final int from, final int to ) {
+        return EditWikiPage.evaluateOnView( """
+            const [from, to] = [arguments[0], arguments[1]];
+            const half = view.defaultLineHeight / 2;
+            const topOf = (pos, side) => {
+              const c = view.coordsAtPos(pos, side);
+              if (!c) throw new Error('offset ' + pos + ' is not drawn');
+              return c.top;
+            };
+            const origin = topOf(from, 1);
+            const tops = [];
+            let lastRowStart = from;
+            for (let pos = from; pos <= to; pos++) {
+              const top = topOf(pos, pos === to ? -1 : 1) - origin;
+              if (!tops.length || top - tops[tops.length - 1] > half) { tops.push(top); lastRowStart = pos; }
+            }
+            return { from, rows: tops.length, tops, lastRowStart, lineHeight: view.defaultLineHeight,
+                     contentWidth: view.contentDOM.clientWidth };
+            """, from, to );
+    }
+
+    /** The 0-based visual row (of {@code rows}, from {@link #visualRows}) offset {@code pos} is drawn on. */
+    private static int rowOf( final Map< ?, ? > rows, final int pos ) {
+        final double top = ( ( Number ) EditWikiPage.evaluateOnView( """
+            const c = view.coordsAtPos(arguments[0], view.state.selection.main.head === arguments[0]
+              ? (view.state.selection.main.assoc || 1) : 1);
+            const origin = view.coordsAtPos(arguments[1], 1);
+            if (!c || !origin) throw new Error('offset ' + arguments[0] + ' or ' + arguments[1] + ' is not drawn');
+            return c.top - origin.top;
+            """, pos, ( ( Number ) rows.get( "from" ) ).intValue() ) ).doubleValue();
+        final double half = ( ( Number ) rows.get( "lineHeight" ) ).doubleValue() / 2;
+        final List< ? > tops = ( List< ? > ) rows.get( "tops" );
+        for ( int i = 0; i < tops.size(); i++ ) {
+            if ( Math.abs( ( ( Number ) tops.get( i ) ).doubleValue() - top ) < half ) {
+                return i;
+            }
+        }
+        throw new IllegalStateException( "offset " + pos + " (top " + top + ") is on none of the rows " + rows );
     }
 
     /** Opens {@code page} in live mode and returns its document, after proving it is the seeded {@code body}. */

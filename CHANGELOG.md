@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.4] - 2026-11-01
+
 ### Added
 - **Obsidian block references.** End a paragraph or list item with ` ^id` (or put `^id` alone on the
   paragraph's last line; for a table, list, quote, callout, code or math block put it on its own line after a

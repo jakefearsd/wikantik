@@ -10,7 +10,7 @@ import { BLOCK_ID_RE, STANDALONE_RE, RULE_TEXT, MARKER_WITH_SPACE } from '../blo
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
 const HEADING = /^ATXHeading([1-6])$/;
 const SETEXT = /^SetextHeading([12])$/;
-const FOOTNOTE_DEF = /^( {0,3})\[\^([^\]\s]+)\]:/;
+const FOOTNOTE_DEF = /^((?:> ?)* {0,3}(?:(?:[-*+]|\d+[.)])[ \t]+)?)\[\^([^\]\s]+)\]:/;
 const FOOTNOTE_REF = /\[\^([^\]\s]+)\]/g;
 const LINKED_URL_PARENT = new Set(['Link', 'Image', 'Autolink']);
 const BLOCK_MATH = /^\$\$[ \t]*\n[\s\S]*\n[ \t]*\$\$[ \t]*$/;
@@ -378,7 +378,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     if (!n.getChild('URL')) {
       // A reference link: only when the document defines its label. `[^…]` is a footnote (the line pass), never a link.
       const text = doc.sliceString(marks[0].to, marks[1].from);
-      if (text.startsWith('^')) return;
+      if (text.startsWith('^') || text.startsWith('!')) return; // footnote / callout marker
       const l = n.getChild('LinkLabel');
       const given = l ? labelText(doc.sliceString(l.from, l.to)) : '';
       if (!referenceLabels(state).has(normalizeLabel(given || text))) return;
@@ -446,7 +446,13 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (name === 'HTMLBlock') eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-html'));
       if (name === 'LinkReference') {
         const l = node.node.getChild('LinkLabel');
-        if (!l || !doc.sliceString(l.from + 1, l.from + 2).startsWith('^')) eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-linkdef'));
+        if (l && doc.sliceString(l.from + 1, l.from + 2) === '^') {
+          // A footnote definition: only the text after `[^id]:` is excluded, so the line pass can chip the label.
+          const colon = node.node.getChild('LinkMark');
+          excluded.push([colon ? colon.to : l.to, node.to]);
+          return false;
+        }
+        eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-linkdef'));
       }
       if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }

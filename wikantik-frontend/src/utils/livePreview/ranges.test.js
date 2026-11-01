@@ -508,7 +508,7 @@ describe('reference-style links and footnotes', () => {
     const w = specs.filter((s) => s.kind === 'widget');
     expect(w[0].widget).toMatchObject({ type: 'chip', text: '1', cls: 'cm-lp-chip cm-lp-footnote-ref' });
     expect(state.sliceDoc(w[0].from, w[0].to)).toBe('[^1]');
-    expect(show(state, specs)).toEqual(['widget chip "[^1]"', 'line cm-lp-linkdef @4']);
+    expect(show(state, specs)).toEqual(['widget chip "[^1]"', 'widget chip "[^1]:"', 'line cm-lp-linkdef @4']);
   });
   it('footnote definition label becomes a chip, with no linkdef class', () => {
     const { state, specs } = specsOf('x[^note]\n\n[^note]: Some text\n', [1]);
@@ -537,6 +537,40 @@ describe('reference-style links and footnotes', () => {
   });
 });
 
+describe('footnote definitions Lezer reads as LinkReference', () => {
+  const defs = (doc) => {
+    const { state, specs } = specsOf(`${doc}\n\nz\n`, [doc.split('\n').length + 2]);
+    return { state, specs, w: specs.filter((x) => x.widget?.cls?.includes('footnote-def')) };
+  };
+  for (const [name, doc, label] of [
+    ['a URL', '[^1]: https://x.org', '[^1]:'],
+    ['a single word', '[^1]: word', '[^1]:'],
+    ['an indented continuation', '[^1]:\n    indented para', '[^1]:'],
+    ['an indented label', '  [^n]: ind', '[^n]:'],
+  ]) {
+    it(`chips ${name}`, () => {
+      const { state, specs, w } = defs(doc);
+      expect(w).toHaveLength(1);
+      expect(state.sliceDoc(w[0].from, w[0].to)).toBe(label);
+      expect(show(state, specs).filter((x) => x.includes('linkdef'))).toEqual([]);
+    });
+  }
+  it('chips a list-item footnote definition as a definition', () => {
+    const { w } = defs('- [^n]: text');
+    expect(w).toHaveLength(1);
+  });
+  it('chips a blockquote footnote definition as a definition', () => {
+    const { w } = defs('> [^n]: text');
+    expect(w).toHaveLength(1);
+  });
+});
+describe('callout markers are never reference links', () => {
+  it('leaves > [!NOTE] undecorated even with a [!note] definition', () => {
+    const { state, specs } = specsOf('> [!NOTE]\n> body\n\n[!note]: u\n\nz\n', [6]);
+    expect(show(state, specs).filter((x) => x.includes('cm-lp-link"'))).toEqual([]);
+    expect(specs.some((x) => x.kind === 'hide' && state.sliceDoc(x.from, x.to) === '[')).toBe(false);
+  });
+});
 describe('overlap regressions (bare URL, escaped wikilink)', () => {
   it('a bare URL inside a wikilink or plugin chip yields no overlapping replacing specs', () => {
     for (const doc of ['[[https://x.org]]\n', '[{INSERT https://x.org/a}]\n']) {

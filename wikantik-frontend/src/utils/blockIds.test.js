@@ -197,6 +197,7 @@ describe('blocksFromMarkdown', () => {
     expect(ids('Para.\n\n[{ALLOW view Admin}]() ^id\n')).toEqual(['id']);
     expect(ids('Para.\n\n[{ALLOW view Admin}] [{DENY edit Guest}] ^id\n')).toEqual(['id']);
     expect(ids('Para.\r\n\r\n[{ALLOW view Admin}] ^id\r\n')).toEqual(['id']);
+    expect(ids('Para.\n\n[{ALLOW view Admin}]  \n^hb\n')).toEqual(['hb']);   // after a hard break
     expect(blocksFromMarkdown('> [{ALLOW view Admin}] ^q\n\nAfter.\n').map((b) => [b.kind, b.id])).toEqual([['quote', null], ['paragraph', null]]);
     expect(blockMarkers('> [{ALLOW view Admin}] ^q\n')).toEqual([{ id: 'q', caret: 23, wins: true }]);
     expect(blocksFromMarkdown('- item\n- [{ALLOW view Admin}] ^li\n').map((b) => [b.kind, b.id])).toEqual([['list-item', null], ['list-item', null]]);

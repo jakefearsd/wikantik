@@ -203,6 +203,21 @@ public final class BlockIds {
         return out.append( fullText, copied, fullText.length() ).toString();
     }
 
+    /**
+     * The id of every marker in the text — block ids, losing duplicates and orphans alike — so a new id can collide with
+     * none of them.
+     *
+     * @param fullText raw page text; may be {@code null}
+     * @return the ids; never {@code null}
+     */
+    public static Set< String > markerIds( final String fullText ) {
+        final Set< String > ids = new java.util.HashSet<>();
+        for ( final Marker m : model( fullText ).markers() ) {
+            ids.add( m.id() );
+        }
+        return ids;
+    }
+
     /** A fresh id: {@value #NEW_ID_LENGTH} chars of {@code [a-z0-9]}, not in {@code existing} (which may be {@code null}). */
     public static String newId( final Set< String > existing ) {
         while ( true ) {

@@ -620,4 +620,11 @@ class BlockIdsTest {
         assertEquals( Kind.LIST, ended.get( 0 ).kind() );
         assertEquals( "mk", ended.get( 0 ).id() );
     }
+
+    @Test
+    void markerIdsCoverBlockIdsLosingDuplicatesAndOrphans() {
+        assertEquals( Set.of( "o", "b", "q" ), BlockIds.markerIds( "^o\n\nA ^o\n\nB ^b\n\n> ^q\n" ) );
+        assertEquals( Set.of(), BlockIds.markerIds( null ) );
+        assertEquals( Set.of(), BlockIds.markerIds( "`^code` only\n" ) );
+    }
 }

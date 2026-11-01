@@ -42,7 +42,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -108,6 +112,66 @@ class BlockIdServiceTest {
         assertEquals( 1, a.version() );
         Mockito.verify( helper, Mockito.never() ).saveText( Mockito.anyString(), Mockito.anyString(), Mockito.any() );
         assertEquals( 1, version( "BidPage" ) );
+    }
+
+    @Test
+    void anExistingIdWithAMatchingFingerprintIsReturnedWithoutSaving() throws Exception {
+        engine.saveText( "BidPage", "Tagged para. ^keep1\n\nOther.\n" );
+        final PageSaveHelper helper = helper();
+        // the client's text, not yet normalised: it is fingerprinted before comparing
+        final BlockIdService.Assigned a = new BlockIdService( pm, helper ).assign( "BidPage", 1, 0, "Tagged Para!", "alice" );
+        assertEquals( "keep1", a.id() );
+        assertEquals( 1, a.version() );
+        Mockito.verify( helper, Mockito.never() ).saveText( Mockito.anyString(), Mockito.anyString(), Mockito.any() );
+        assertEquals( "keep1", new BlockIdService( pm, helper ).assign( "BidPage", 1, 0, null, "alice" ).id() );
+    }
+
+    @Test
+    void anExistingIdWhereTheClientSawOtherTextIsNumberingDriftAndRefused() throws Exception {
+        engine.saveText( "BidPage", "Tagged para. ^keep1\n\nOther.\n" );
+        final PageSaveHelper helper = helper();
+        final List< LogEvent > events = capture();
+        final BlockIdService.Refused r = assertThrows( BlockIdService.Refused.class,
+                () -> new BlockIdService( pm, helper ).assign( "BidPage", 1, 0, "other", "alice" ) );
+        assertEquals( BlockIdService.Reason.NOT_LOCATED, r.reason() );
+        Mockito.verify( helper, Mockito.never() ).saveText( Mockito.anyString(), Mockito.anyString(), Mockito.any() );
+        final String warn = events.stream().filter( e -> e.getLevel() == Level.WARN )
+                .map( e -> e.getMessage().getFormattedMessage() ).filter( m -> m.contains( "keep1" ) )
+                .findFirst().orElseThrow( () -> new AssertionError( "no drift WARN logged" ) );
+        assertTrue( warn.contains( "BidPage" ) && warn.contains( "'other'" ) && warn.contains( "'taggedpara'" ), warn );
+    }
+
+    @Test
+    void theClientFingerprintIsNormalisedBeforeItIsComparedOrLogged() throws Exception {
+        engine.saveText( "BidPage", "Actual text here.\n\nSecond.\n" );
+        final List< LogEvent > events = capture();
+        new BlockIdService( pm, helper() ).assign( "BidPage", 1, 0, "Actual TEXT, here!", "a" );
+        assertTrue( events.stream().noneMatch( e -> e.getMessage().getFormattedMessage().contains( "fingerprint" ) ),
+                "a fingerprint equal once normalised is no mismatch" );
+
+        final String hostile = ( "Forged\r\nERROR fake log line\r\n" ).repeat( 400 );   // ~10k chars of CR/LF
+        assertTrue( hostile.length() >= 10_000 );
+        new BlockIdService( pm, helper() ).assign( "BidPage", 2, 1, hostile, "a" );
+        final String warn = events.stream().filter( e -> e.getLevel() == Level.WARN )
+                .map( e -> e.getMessage().getFormattedMessage() ).filter( m -> m.contains( "fingerprint" ) )
+                .findFirst().orElseThrow( () -> new AssertionError( "no fingerprint WARN logged" ) );
+        assertFalse( warn.contains( "\r" ) || warn.contains( "\n" ), warn );
+        assertTrue( warn.length() < 1_000, "bounded: " + warn.length() );
+    }
+
+    @Test
+    void aNewIdAvoidsOrphanAndLosingDuplicateMarkerIds() throws Exception {
+        // ^aaaaaa is an orphan; ^bbbbbb's orphan wins, so the paragraph's ^bbbbbb loses: neither is a block id
+        engine.saveText( "BidPage", "^aaaaaa\n\n> ^bbbbbb\n\nNote ^bbbbbb\n\nTarget.\n" );
+        final List< Set< String > > seen = new ArrayList<>();
+        final Function< Set< String >, String > rng = taken -> {
+            seen.add( Set.copyOf( taken ) );
+            return Stream.of( "aaaaaa", "bbbbbb", "cccccc" ).filter( c -> !taken.contains( c ) ).findFirst().orElseThrow();
+        };
+        final BlockIdService.Assigned a = new BlockIdService( pm, helper(), rng ).assign( "BidPage", 1, 2, "target", "a" );
+        assertEquals( "cccccc", a.id() );
+        assertTrue( seen.get( 0 ).containsAll( Set.of( "aaaaaa", "bbbbbb" ) ), seen.toString() );
+        assertTrue( text( "BidPage" ).contains( "Target. ^cccccc" ), text( "BidPage" ) );
     }
 
     @Test

@@ -32,14 +32,15 @@ import com.wikantik.parser.markdown.BlockIds;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Gives a block of a page a stable {@code ^id}: locates the block by version and index, tags it through
  * {@link BlockIds#assign} and saves the page through the normal save path (optimistic version check included).
- * A block that already has an id is answered with that id and no save.
+ * A block that already has an id is answered with that id and no save — unless the caller's fingerprint says it was
+ * looking at another block (see {@link #assign}).
  */
 public final class BlockIdService {
 
@@ -77,10 +78,17 @@ public final class BlockIdService {
 
     private final PageManager pages;
     private final PageSaveHelper saver;
+    private final Function< Set< String >, String > newId;
 
     public BlockIdService( final PageManager pages, final PageSaveHelper saver ) {
+        this( pages, saver, BlockIds::newId );
+    }
+
+    /** Test seam: {@code newId} picks a fresh id not in the set it is given (as {@link BlockIds#newId} does). */
+    BlockIdService( final PageManager pages, final PageSaveHelper saver, final Function< Set< String >, String > newId ) {
         this.pages = pages;
         this.saver = saver;
+        this.newId = newId;
     }
 
     /**
@@ -89,7 +97,9 @@ public final class BlockIdService {
      * @param pageName        the page
      * @param expectedVersion the version the caller's block list came from
      * @param index           the block's {@link BlockIds#list} index
-     * @param fingerprint     the caller's fingerprint of the block's text; a mismatch is logged, never refused
+     * @param fingerprint     the caller's fingerprint of the block's text (normalised here; blank means none). On a block
+     *                        without an id a mismatch is only logged; on one that already has an id it is refused as
+     *                        {@code NOT_LOCATED}, since the caller saw no id there
      * @param author          the save's author (may be {@code null})
      * @throws Refused                  {@code NOT_LOCATED} (no such page or block) or {@code DERIVED}
      * @throws VersionConflictException when the page is no longer at {@code expectedVersion}
@@ -108,11 +118,16 @@ public final class BlockIdService {
             }
             final String text = pages.getPureText( pageName, PageProvider.LATEST_VERSION );
             final BlockIds.Block block = locate( pageName, text, index );
+            final String sent = fingerprint == null || fingerprint.isBlank() ? null : BlockIds.fingerprint( fingerprint );
+            final String actual = BlockIds.fingerprint( block.plainText() );
             if ( block.id() != null ) {
-                return new Assigned( block.id(), current );
+                return existing( pageName, block, sent, actual, current );
             }
-            warnOnDrift( pageName, block, fingerprint, current );
-            final String id = BlockIds.newId( takenIds( text ) );
+            if ( sent != null && !sent.equals( actual ) ) {   // a diagnostic, not a gate: version and index decide
+                LOG.warn( "Block fingerprint mismatch on '{}' block {} at v{}: client='{}' server='{}'; assigning anyway",
+                        pageName, block.index(), current, sent, actual );
+            }
+            final String id = newId.apply( BlockIds.markerIds( text ) );
             final String edited = tag( pageName, text, block, id );
             final Page saved = saver.saveText( pageName, edited, SaveOptions.builder()
                     .changeNote( "Added block id ^" + id )
@@ -142,24 +157,18 @@ public final class BlockIdService {
         return blocks.get( index );
     }
 
-    /** The fingerprint is a drift diagnostic, not a gate: version and index decide. */
-    private static void warnOnDrift( final String pageName, final BlockIds.Block block, final String fingerprint,
-                                     final int version ) {
-        final String actual = BlockIds.fingerprint( block.plainText() );
-        if ( fingerprint != null && !fingerprint.equals( actual ) ) {
-            LOG.warn( "Block fingerprint mismatch on '{}' block {} at v{}: client='{}' server='{}'; assigning anyway",
-                    pageName, block.index(), version, fingerprint, actual );
+    /**
+     * A block that already has an id. At the version the caller listed, a caller that saw no id there and sent other
+     * text was looking at another block: the numbering drifted, so its id is not handed out.
+     */
+    private static Assigned existing( final String pageName, final BlockIds.Block block, final String sent,
+                                      final String actual, final int version ) throws Refused {
+        if ( sent != null && !sent.equals( actual ) ) {
+            LOG.warn( "Block {} of '{}' at v{} already has id ^{} but the client sent other text (client='{}' server='{}'); "
+                    + "refusing: the block numbering drifted", block.index(), pageName, version, block.id(), sent, actual );
+            throw new Refused( Reason.NOT_LOCATED );
         }
-    }
-
-    private static Set< String > takenIds( final String text ) {
-        final Set< String > taken = new HashSet<>();
-        for ( final BlockIds.Block b : BlockIds.list( text ) ) {
-            if ( b.id() != null ) {
-                taken.add( b.id() );
-            }
-        }
-        return taken;
+        return new Assigned( block.id(), version );
     }
 
     private static String tag( final String pageName, final String text, final BlockIds.Block block, final String id )

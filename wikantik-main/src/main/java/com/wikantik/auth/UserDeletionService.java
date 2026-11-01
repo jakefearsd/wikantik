@@ -55,7 +55,8 @@ import java.security.Principal;
  *   <li>Orphaning owned pages is <b>best-effort</b> (logged, never aborts): the pages stay valid and an admin can
  *       reassign orphans later. It runs only once the fail-closed steps passed, so an aborted delete never leaves
  *       a still-existing account's pages orphaned.</li>
- *   <li>The profile row is deleted; then the user's live sessions are demoted to guest (best-effort).</li>
+ *   <li>The login is tombstoned in {@code deleted_logins} (<b>fail-closed</b>, before the row goes: shown as "former member",
+ *       never registrable again); the profile row is deleted; then the user's live sessions are demoted to guest (best-effort).</li>
  * </ol>
  *
  * <p>SCIM never hard-deletes (it routes decommission through {@link UserLifecycleService#deactivate}), so it does
@@ -104,9 +105,22 @@ public class UserDeletionService {
         removeTrustedAuthor( loginName );
         revokeRememberMeCookies( loginName );
         orphanOwnedPages( loginName );
+        recordTombstone( loginName );
         users.deleteByLoginName( loginName );
         endLiveSessions( loginName );
         ProfileChangeNotifier.profileDeleted( engine, loginName );
+    }
+
+    /** Fail-closed: a deleted account must never be left without its tombstone, so a failure aborts before the row goes. */
+    private void recordTombstone( final String loginName ) throws WikiSecurityException {
+        try {
+            users.recordDeletedLogin( loginName );
+        } catch ( final WikiSecurityException | RuntimeException e ) {
+            LOG.warn( "User delete aborted: failed to record the deleted-login tombstone of user={}: {}",
+                    loginName, e.getMessage(), e );
+            throw new WikiSecurityException( "Could not record the deleted-login tombstone of '" + loginName
+                    + "'; account not deleted", e );
+        }
     }
 
     private void revokeRememberMeCookies( final String loginName ) throws WikiSecurityException {

@@ -75,6 +75,7 @@ final class UserProfileValidator {
             }
         } catch( final NoSuchPrincipalException e ) {
             LOG.debug( "Login name '{}' is available (no existing profile found)", profile.getLoginName() );
+            assertLoginNotDeleted( profile.getLoginName() );
         }
         try {
             otherProfile = userDatabase.get().findByFullName( profile.getFullname() );
@@ -83,6 +84,18 @@ final class UserProfileValidator {
             }
         } catch( final NoSuchPrincipalException e ) {
             LOG.debug( "Full name '{}' is available (no existing profile found)", profile.getFullname() );
+        }
+    }
+
+    /** A login that belonged to a deleted account cannot be registered again: the new holder would inherit its attribution. */
+    private void assertLoginNotDeleted( final String login ) throws DuplicateUserException {
+        try {
+            if ( userDatabase.get().isLoginDeleted( login ) ) {
+                throw new DuplicateUserException( "security.error.login.deleted", login );
+            }
+        } catch ( final WikiSecurityException e ) {
+            LOG.warn( "Could not check whether login '{}' belonged to a deleted account; the save-time check still applies: {}",
+                    login, e.getMessage(), e );
         }
     }
 

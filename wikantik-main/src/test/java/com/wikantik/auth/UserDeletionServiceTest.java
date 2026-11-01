@@ -213,4 +213,22 @@ class UserDeletionServiceTest {
             SessionMonitor.getInstance( engine ).remove( "deleted-user-live-session" );
         }
     }
+
+    @Test
+    void deleteRecordsTheLoginTombstoneBeforeRemovingTheProfileRow() throws Exception {
+        service().delete( session, LOGIN );
+
+        final InOrder order = inOrder( users );
+        order.verify( users ).recordDeletedLogin( LOGIN );
+        order.verify( users ).deleteByLoginName( LOGIN );
+    }
+
+    @Test
+    void failedTombstoneAbortsDeleteSoNoDeletedAccountIsLeftWithoutOne() throws Exception {
+        doThrow( new WikiSecurityException( "deleted_logins write failed" ) ).when( users ).recordDeletedLogin( LOGIN );
+
+        assertThrows( WikiSecurityException.class, () -> service().delete( session, LOGIN ) );
+
+        verify( users, never() ).deleteByLoginName( anyString() );
+    }
 }

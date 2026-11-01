@@ -122,6 +122,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
     private Jdbc jdbc;
 
+    private DeletedLoginRepository deletedLogins;
+
     private boolean supportsCommits;
 
     /** ResultSet-row mapping + PreparedStatement parameter binding, split out for complexity. */
@@ -167,6 +169,24 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
         // Evict the now-deleted login so the next lookup goes to the DB.
         byLoginCache.invalidate( loginNameToDelete );
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void recordDeletedLogin( final String login ) throws WikiSecurityException {
+        deletedLogins.record( login );
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isLoginDeleted( final String login ) throws WikiSecurityException {
+        return deletedLogins.isDeleted( login );
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public java.util.Set< String > deletedLogins() throws WikiSecurityException {
+        return deletedLogins.all();
     }
 
     /**
@@ -317,6 +337,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         final String jndiName = AbstractJDBCDatabase.datasourceName( props );
         ds = com.wikantik.auth.JndiDataSources.lookup( jndiName, "JDBCUserDatabase", AbstractJDBCDatabase.PROP_DATASOURCE );
         jdbc = new Jdbc( ds );
+        deletedLogins = new DeletedLoginRepository( jdbc );
 
         // Test connection by doing a quickie select
         if( !jdbc.ping() ) {
@@ -401,6 +422,11 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             // Existing profile will be null
         }
         final UserProfile finalExistingProfile = existingProfile;
+        if ( finalExistingProfile == null && deletedLogins.isDeleted( loginName ) ) {
+            // A new account may not take a deleted account's login: it would inherit that account's attribution (#107).
+            LOG.warn( "Profile save for '{}' refused: the login name belonged to a deleted account", loginName );
+            throw new DeletedLoginException();
+        }
 
         // Get a clean password from the passed profile.
         // Blank password is the same as null, which means we re-use the existing one.

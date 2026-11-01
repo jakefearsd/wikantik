@@ -128,7 +128,8 @@ final class AccountSnapshotCache {
         final long loading = generation.get();
         try {
             final Collection< AccountSummary > accounts = db == null ? List.of() : db.accountSummaries();
-            final AccountSnapshot loaded = AccountSnapshot.build( clock.instant().plus( ttl ), loading, accounts );
+            final AccountSnapshot loaded = AccountSnapshot.build( clock.instant().plus( ttl ), loading, accounts,
+                    db == null ? Set.of() : db.deletedLogins() );
             snapshot = loaded;
             retryAt = null;
             warnWhenAmbiguousNamesChanged( held, loaded );

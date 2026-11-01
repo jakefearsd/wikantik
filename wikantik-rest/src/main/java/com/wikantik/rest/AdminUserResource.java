@@ -548,6 +548,9 @@ public class AdminUserResource extends RestServletBase {
         } catch ( final ProfileConflictException e ) {
             LOG.warn( "Creation of user {} conflicts with an existing account", loginName, e );
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, ProfileConflictException.MESSAGE );
+        } catch ( final com.wikantik.auth.user.DeletedLoginException e ) {
+            LOG.warn( "Creation of user {} refused: the login belonged to a deleted account", loginName );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, com.wikantik.auth.user.DeletedLoginException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             LOG.error( "Failed to create user {}: {}", loginName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_CONFLICT, "Failed to create user" );

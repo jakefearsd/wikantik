@@ -41,11 +41,13 @@ import java.util.Set;
  * @param loginByUid     stored uid -> login; an account with a NULL/blank uid is absent
  * @param loginByName    display-name key -> login
  * @param ambiguousNames the display-name keys held by more than one account
+ * @param deleted        the tombstoned (hard-deleted) logins
  */
 record AccountSnapshot( Instant expires, long generation, Map< String, AccountSummary > byLogin,
-        Map< String, String > loginByUid, Map< String, String > loginByName, Set< String > ambiguousNames ) {
+        Map< String, String > loginByUid, Map< String, String > loginByName, Set< String > ambiguousNames, Set< String > deleted ) {
 
-    static AccountSnapshot build( final Instant expires, final long generation, final Collection< AccountSummary > accounts ) {
+    static AccountSnapshot build( final Instant expires, final long generation, final Collection< AccountSummary > accounts,
+            final Set< String > deleted ) {
         final Map< String, AccountSummary > byLogin = new HashMap<>();
         final Map< String, String > loginByUid = new HashMap<>();
         final Map< String, String > loginByName = new HashMap<>();
@@ -63,7 +65,7 @@ record AccountSnapshot( Instant expires, long generation, Map< String, AccountSu
         }
         ambiguousNames.forEach( loginByName::remove );
         return new AccountSnapshot( expires, generation, Map.copyOf( byLogin ), Map.copyOf( loginByUid ),
-                Map.copyOf( loginByName ), Set.copyOf( ambiguousNames ) );
+                Map.copyOf( loginByName ), Set.copyOf( ambiguousNames ), Set.copyOf( deleted ) );
     }
 
     private static AccountSummary withoutBlankUid( final AccountSummary account ) {

@@ -33,7 +33,7 @@ import java.util.Optional;
 /**
  * {@link PublicIdentity} backed by an in-memory snapshot of the account table.
  *
- * <p>One cheap query ({@link UserDatabase#accountSummaries()}: login, display name, stored uid) fills three hash maps, so every
+ * <p>One cheap query ({@link UserDatabase#accountSummaries()}: login, display name, stored uid) plus the tombstoned logins (hard-deleted accounts, shown as {@link #FORMER_MEMBER}) fills the hash maps, so every
  * lookup afterwards — including "this author is not an account" — is O(1) with no database access; that matters because
  * callers resolve one value per result row. The snapshot is trusted for {@link #TTL} on the injected {@link Clock}, so a rename
  * made on another node or directly in the database shows within a minute; {@link #invalidate} and the profile events
@@ -76,6 +76,9 @@ public final class DefaultPublicIdentity implements PublicIdentity, WikiEventLis
         }
         final AccountSummary account = current.byLogin().get( stored );
         if ( account == null ) {
+            if ( current.deleted().contains( stored ) ) {
+                return FORMER_MEMBER;   // a hard-deleted account: neither its login nor its name is shown
+            }
             return emailShaped ? UNKNOWN_CONTRIBUTOR : stored;
         }
         final String name = account.fullName() == null ? "" : account.fullName().trim();

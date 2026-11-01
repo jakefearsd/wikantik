@@ -221,6 +221,21 @@ class AdminUserResourceTest {
     }
 
     @Test
+    void testCreateUserRefusesALoginThatBelongedToADeletedAccount() throws Exception {
+        engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase().recordDeletedLogin( "tombstonedAdminCreate" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "loginName", "tombstonedAdminCreate" );
+        body.addProperty( "fullName", "Tombstoned Person" );
+        body.addProperty( "password", "StrongPassword123!" );
+
+        final JsonObject obj = gson.fromJson( doPost( null, body ), JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean(), "creating a tombstoned login must be refused: " + obj );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "this login name belonged to a deleted account" ), obj.toString() );
+    }
+
+    @Test
     void testCreateUserDuplicateHandled() throws Exception {
         // Create the first user
         final JsonObject body = new JsonObject();
@@ -1389,7 +1404,8 @@ class AdminUserResourceTest {
         assertEquals( "Identity User Two", identity.displayName( "identityUser" ), "an admin edit must not wait for the TTL" );
 
         doDelete( "identityUser" );
-        assertEquals( "identityUser", identity.displayName( "identityUser" ), "a deleted account no longer resolves" );
+        assertEquals( com.wikantik.api.identity.PublicIdentity.FORMER_MEMBER, identity.displayName( "identityUser" ),
+                "a deleted account no longer resolves; its tombstone shows it as a former member (#107)" );
     }
 
     // ----- Helper methods -----

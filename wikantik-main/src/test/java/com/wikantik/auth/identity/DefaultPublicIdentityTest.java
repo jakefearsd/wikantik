@@ -434,4 +434,30 @@ class DefaultPublicIdentityTest {
         identity.displayName( "jane" );
         verify( db, times( 3 ) ).accountSummaries();   // an unrelated event changed nothing
     }
+
+    // ---- tombstoned (hard-deleted) logins, #107 ----
+
+    @Test
+    void aDeletedLoginShowsAsFormerMemberButNeverAccountValuesStayAsWritten() throws Exception {
+        doReturn( java.util.Set.of( "alice", "bob@example.com" ) ).when( db ).deletedLogins();
+
+        assertEquals( PublicIdentity.FORMER_MEMBER, identity.displayName( "alice" ) );
+        assertEquals( PublicIdentity.FORMER_MEMBER, identity.displayName( "bob@example.com" ),
+                "a tombstone wins over the email-shaped mask: it names what the value is" );
+        assertEquals( "Imported Author", identity.displayName( "Imported Author" ) );
+        assertEquals( PublicIdentity.UNKNOWN_CONTRIBUTOR, identity.displayName( "someone@else.com" ) );
+    }
+
+    @Test
+    void aLiveAccountWinsOverAStaleTombstone() throws Exception {
+        account( "alice", "Alice A", "u1" );
+        doReturn( java.util.Set.of( "alice" ) ).when( db ).deletedLogins();
+
+        assertEquals( "Alice A", identity.displayName( "alice" ) );
+    }
+
+    @Test
+    void formerMemberConstantIsTheDocumentedLabel() {
+        assertEquals( "former member", PublicIdentity.FORMER_MEMBER );
+    }
 }

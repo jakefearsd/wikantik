@@ -41,9 +41,12 @@ public interface PublicIdentity {
     /** Shown in place of an email-shaped value (or an account that has no display name) so a login can never leak. */
     String UNKNOWN_CONTRIBUTOR = "unknown contributor";
 
+    /** Shown for a login whose account was hard-deleted (a {@code deleted_logins} tombstone exists); its name is never shown. */
+    String FORMER_MEMBER = "former member";
+
     /**
      * Stored principal (a login, a legacy full name, an agent label) → the name shown to non-admins.
-     * A login → that account's current display name (full name); any other value unchanged, except an email-shaped value
+     * A login → that account's current display name (full name); a tombstoned (deleted) login → {@link #FORMER_MEMBER}; any other value unchanged, except an email-shaped value
      * (contains {@code '@'}) → {@link #UNKNOWN_CONTRIBUTOR}; null/blank → {@link #UNKNOWN}. Never null, never throws.
      */
     String displayName( String storedPrincipal );

@@ -138,6 +138,7 @@ public class JDBCUserDatabaseTest {
         try( final Connection conn = m_ds.getConnection();
              final Statement stmt = conn.createStatement() ) {
             stmt.executeUpdate( "DELETE FROM users;" );
+            stmt.executeUpdate( "DELETE FROM deleted_logins;" );
             stmt.executeUpdate( INSERT_JANNE );
             stmt.executeUpdate( INSERT_USER );
         } catch( final SQLException e ) {
@@ -1228,5 +1229,40 @@ public class JDBCUserDatabaseTest {
         final String message = errors.get( 0 ).getMessage().getFormattedMessage();
         Assertions.assertTrue( message.contains( login ),
                 "The ERROR must name the affected login so an operator can tell which account is broken; got: " + message );
+    }
+
+    // ---- tombstoned logins (#107) ----
+
+    private UserProfile newProfileFor( final String login ) {
+        final UserProfile profile = m_db.newProfile();
+        profile.setEmail( login + "@mailinator.com" );
+        profile.setLoginName( login );
+        profile.setFullname( "Name of " + login );
+        profile.setPassword( "aTestPassword1!" );
+        return profile;
+    }
+
+    @Test
+    public void testSaveRefusesANewAccountWhoseLoginWasDeleted() throws Exception {
+        m_db.recordDeletedLogin( "ghost" );
+        Assertions.assertTrue( m_db.isLoginDeleted( "ghost" ) );
+        Assertions.assertEquals( java.util.Set.of( "ghost" ), m_db.deletedLogins() );
+
+        final DeletedLoginException e = Assertions.assertThrows( DeletedLoginException.class,
+                () -> m_db.save( newProfileFor( "ghost" ) ) );
+
+        Assertions.assertEquals( "this login name belonged to a deleted account", e.getMessage() );
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> m_db.findByLoginName( "ghost" ) );
+    }
+
+    @Test
+    public void testPlainDeleteByLoginNameRecordsNoTombstone() throws Exception {
+        // PolicyVerifier's self-test deletes through the database directly; that must stay tombstone-free.
+        m_db.save( newProfileFor( "selftest" ) );
+        m_db.deleteByLoginName( "selftest" );
+
+        Assertions.assertFalse( m_db.isLoginDeleted( "selftest" ) );
+        m_db.save( newProfileFor( "selftest" ) );   // the name is free again
+        Assertions.assertEquals( "selftest", m_db.findByLoginName( "selftest" ).getLoginName() );
     }
 }

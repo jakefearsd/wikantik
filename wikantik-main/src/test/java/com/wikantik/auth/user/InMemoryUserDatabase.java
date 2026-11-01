@@ -203,6 +203,9 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
         final UserProfile existing = byLogin.get( login );
         final Date modDate = new Date( System.currentTimeMillis() );
 
+        if ( existing == null && deleted.contains( login ) ) {
+            throw new DeletedLoginException();
+        }
         final UserProfile stored = copy( profile );
         if ( existing == null ) {
             stored.setCreated( modDate );
@@ -226,6 +229,23 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
             profile.setCreated( modDate );
         }
         profile.setLastModified( modDate );
+    }
+
+    private final java.util.Set< String > deleted = new java.util.HashSet<>();
+
+    @Override
+    public synchronized void recordDeletedLogin( final String login ) {
+        deleted.add( login );
+    }
+
+    @Override
+    public synchronized boolean isLoginDeleted( final String login ) {
+        return deleted.contains( login );
+    }
+
+    @Override
+    public synchronized java.util.Set< String > deletedLogins() {
+        return java.util.Set.copyOf( deleted );
     }
 
     @Override

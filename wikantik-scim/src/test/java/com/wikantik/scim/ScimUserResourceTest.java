@@ -169,6 +169,23 @@ class ScimUserResourceTest {
     }
 
     @Test
+    void createDeletedLogin_returns409WithTheReason() throws Exception {
+        final UserProfile newProfile = mock( UserProfile.class );
+        when( newProfile.getAttributes() ).thenReturn( new HashMap<>() );
+        when( mockDb.newProfile() ).thenReturn( newProfile );
+        doThrow( new NoSuchPrincipalException( "ghost" ) ).when( mockDb ).findByLoginName( "ghost" );
+        doThrow( new com.wikantik.auth.user.DeletedLoginException() ).when( mockDb ).save( newProfile );
+
+        final String body = "{\"userName\":\"ghost\",\"displayName\":\"Ghost User\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        assertTrue( sw.toString().contains( "this login name belonged to a deleted account" ), sw.toString() );
+    }
+
+    @Test
     void createSuccess_returns201() throws Exception {
         // newProfile() returns a mock that behaves like a fresh profile
         final UserProfile newProfile = mock( UserProfile.class );

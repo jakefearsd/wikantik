@@ -186,6 +186,9 @@ public class ScimUserResource extends AbstractScimServlet {
         } catch ( final ProfileConflictException e ) {
             LOG.warn( "SCIM create user={} conflicts with an existing account", f.userName(), e );
             sendError( resp, 409, "uniqueness", ProfileConflictException.MESSAGE );
+        } catch ( final com.wikantik.auth.user.DeletedLoginException e ) {
+            LOG.warn( "SCIM create user={} refused: the login belonged to a deleted account", f.userName() );
+            sendError( resp, 409, "uniqueness", com.wikantik.auth.user.DeletedLoginException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             // The store's message can carry SQL detail; log it, never echo it.
             LOG.warn( "SCIM create user={} failed: {}", f.userName(), e.getMessage(), e );

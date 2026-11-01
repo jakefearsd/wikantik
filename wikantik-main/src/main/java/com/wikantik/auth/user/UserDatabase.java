@@ -204,6 +204,27 @@ public interface UserDatabase {
     }
 
     /**
+     * Records {@code login} as belonging to a deleted account (a tombstone): it is shown as "former member" and a new account
+     * may not take it. Called by {@code UserDeletionService} before {@link #deleteByLoginName}; a failure must abort the delete.
+     * The default does nothing (stores without tombstones).
+     *
+     * @throws WikiSecurityException if the tombstone could not be written
+     */
+    default void recordDeletedLogin( final String login ) throws WikiSecurityException {
+        // no tombstones in this store
+    }
+
+    /** Whether {@code login} was hard-deleted (see {@link #recordDeletedLogin}). Default: never. */
+    default boolean isLoginDeleted( final String login ) throws WikiSecurityException {
+        return false;
+    }
+
+    /** Every tombstoned login (see {@link #recordDeletedLogin}). Default: none. */
+    default java.util.Set< String > deletedLogins() throws WikiSecurityException {
+        return java.util.Set.of();
+    }
+
+    /**
      * Counts the number of users whose account is currently locked. A user is considered locked when its lock-expiry
      * timestamp is non-{@code null} and lies in the future (i.e. {@code lockExpiry != null && lockExpiry.after(now)}).
      * <p>

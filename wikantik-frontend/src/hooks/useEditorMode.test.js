@@ -132,4 +132,32 @@ describe('useEditorMode', () => {
     expect(result.current[0]).toBe('source');
     expect(set).toHaveBeenCalledTimes(1);
   });
+  it('persist flipping to false before the profile resolves neither PUTs nor mirrors', async () => {
+    let resolve;
+    api.getProfile.mockReturnValue(new Promise((r) => { resolve = r; }));
+    localStorage.setItem(KEY, 'source');
+    const set = vi.spyOn(window.localStorage, 'setItem');
+    const { rerender } = renderHook(({ persist }) => useEditorMode({ authenticated: true, persist }), { initialProps: { persist: true } });
+    rerender({ persist: false });
+    await act(async () => { resolve({ editorMode: null }); });
+    expect(api.updateProfile).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
+  });
+  it('persist flipping to false before a server value arrives does not mirror it', async () => {
+    let resolve;
+    api.getProfile.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const set = vi.spyOn(window.localStorage, 'setItem');
+    const { rerender } = renderHook(({ persist }) => useEditorMode({ authenticated: true, persist }), { initialProps: { persist: true } });
+    rerender({ persist: false });
+    await act(async () => { resolve({ editorMode: 'source' }); });
+    expect(set).not.toHaveBeenCalled();
+  });
+  it('authenticated flipping false to true fetches exactly once', async () => {
+    const { rerender } = renderHook(({ authenticated }) => useEditorMode({ authenticated }), { initialProps: { authenticated: false } });
+    expect(api.getProfile).not.toHaveBeenCalled();
+    rerender({ authenticated: true });
+    await act(async () => {});
+    rerender({ authenticated: true });
+    expect(api.getProfile).toHaveBeenCalledTimes(1);
+  });
 });

@@ -40,6 +40,8 @@ export function useEditorMode({ authenticated = false, persist = true } = {}) {
   // so merely mounting never writes the default.
   const dirty = useRef(false);
   const fetched = useRef(false);
+  const persistRef = useRef(persist);
+  persistRef.current = persist; // the fetch resolves later; the page may have turned out to be legacy meanwhile
   const mounted = useRef(true);
   // A mount flag (not a per-effect flag): StrictMode runs effect cleanup between its two passes.
   useEffect(() => {
@@ -56,7 +58,7 @@ export function useEditorMode({ authenticated = false, persist = true } = {}) {
     if (!authenticated || !persist || fetched.current) return undefined;
     fetched.current = true;
     Promise.resolve().then(() => api.getProfile()).then((profile) => {
-      if (!mounted.current || dirty.current) return; // a toggle made meanwhile is newer than the server's answer
+      if (!mounted.current || dirty.current || !persistRef.current) return; // a toggle made meanwhile is newer than the server's answer
       const server = profile?.editorMode;
       if (isMode(server)) {
         setMode(server);

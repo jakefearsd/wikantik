@@ -20,11 +20,13 @@ package com.wikantik.its;
 
 import com.codeborne.selenide.Condition;
 import com.wikantik.pages.spa.EditWikiPage;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 
 import static com.codeborne.selenide.Selenide.$;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * UI test for the editor insert helpers — the Table and Code-block toolbar
@@ -32,36 +34,38 @@ import static com.codeborne.selenide.Selenide.$;
  *
  * <p>Opening a fresh page editor and clicking each button must inject the
  * corresponding markdown skeleton into the editor source: a GFM table and a
- * fenced code block. Assertions read the CodeMirror source (which updates
- * synchronously on insert) rather than the debounced live preview.</p>
+ * fenced code block. Runs in every {@link EditorMode}; assertions read the
+ * CodeMirror document (which updates synchronously on insert) rather than the
+ * screen — in live mode the inserted table may be drawn as a widget — or the
+ * debounced preview.</p>
  */
 public class EditorInsertHelpersIT extends WithIntegrationTestSetup {
 
-    @Test
-    void tableButtonInsertsAGfmTable() {
-        EditWikiPage.open( "EditorTable" + System.currentTimeMillis() );
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void tableButtonInsertsAGfmTable( final EditorMode mode ) {
+        EditWikiPage.openInMode( "EditorTable" + mode.name() + System.currentTimeMillis(), mode );
 
         // Wait for the new-page boilerplate to settle before interacting, then
         // focus the document and insert a table via the toolbar.
         focusReadyEditor();
         $( "[aria-label='Table']" ).click();
 
-        // The table skeleton lands in the editor source.
-        $( "[data-testid=editor-textarea] .cm-content" )
-            .shouldHave( Condition.text( "Header 1" ), Duration.ofSeconds( 5 ) )
-            .shouldHave( Condition.text( "Cell 1" ) );
+        // The table skeleton lands in the editor document.
+        final String doc = EditWikiPage.awaitDocumentContaining( "Header 1", Duration.ofSeconds( 5 ) );
+        assertTrue( doc.contains( "Cell 1" ), "the table skeleton must carry its body cells; document:\n" + doc );
     }
 
-    @Test
-    void codeBlockButtonInsertsAFencedBlock() {
-        EditWikiPage.open( "EditorCodeBlock" + System.currentTimeMillis() );
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void codeBlockButtonInsertsAFencedBlock( final EditorMode mode ) {
+        EditWikiPage.openInMode( "EditorCodeBlock" + mode.name() + System.currentTimeMillis(), mode );
 
         focusReadyEditor();
         $( "[aria-label='Code block']" ).click();
 
-        // The fenced block's language placeholder appears in the editor source.
-        $( "[data-testid=editor-textarea] .cm-content" )
-            .shouldHave( Condition.text( "language" ), Duration.ofSeconds( 5 ) );
+        // The fenced block's language placeholder appears in the editor document.
+        EditWikiPage.awaitDocumentContaining( "language", Duration.ofSeconds( 5 ) );
     }
 
     /**
@@ -70,9 +74,9 @@ public class EditorInsertHelpersIT extends WithIntegrationTestSetup {
      * into the CodeMirror surface to focus it.
      */
     private static void focusReadyEditor() {
+        EditWikiPage.awaitDocumentContaining( EditWikiPage.NEW_PAGE_BOILERPLATE, Duration.ofSeconds( 10 ) );
         $( "[data-testid=editor-textarea] .cm-content" )
             .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) )
-            .shouldHave( Condition.text( "Write your content here" ), Duration.ofSeconds( 10 ) )
             .click();
     }
 }

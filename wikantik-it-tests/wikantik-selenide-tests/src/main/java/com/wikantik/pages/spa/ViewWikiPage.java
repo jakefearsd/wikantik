@@ -21,6 +21,7 @@ package com.wikantik.pages.spa;
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
+import com.wikantik.its.EditorMode;
 import com.wikantik.pages.Page;
 import org.openqa.selenium.By;
 
@@ -104,17 +105,28 @@ public class ViewWikiPage implements SpaPage {
     }
 
     /**
-     * Clicks the edit link in the page header and waits for the editor to mount.
+     * Clicks the edit link in the page header and waits for the editor to mount in source mode.
      *
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
     public EditWikiPage editPage() {
-        EditWikiPage.pinSourceMode();
+        return editPage( EditorMode.SOURCE );
+    }
+
+    /**
+     * Pins {@code mode}, clicks the edit link in the page header, waits for the editor to mount and asserts it is in
+     * {@code mode}.
+     *
+     * @param mode the editor mode to edit in.
+     * @return {@link EditWikiPage} instance, to allow chaining of actions.
+     */
+    public EditWikiPage editPage( final EditorMode mode ) {
+        EditWikiPage.pinMode( mode );
         $( "[data-testid=edit-page-link]" )
             .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
             .click();
         $( "[data-testid=page-editor]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
-        return new EditWikiPage();
+        return new EditWikiPage().assertMode( mode );
     }
 
     /**

@@ -23,26 +23,29 @@ import com.codeborne.selenide.Selenide;
 import com.wikantik.pages.spa.EditWikiPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 
 /**
- * Edit-related tests for Apache JSPWiki
+ * Edit-related tests for Apache JSPWiki, run in every {@link EditorMode}: the first save is made signed out, the
+ * second signed in, both in the same mode (each editor open asserts it).
  */
 public class EditIT extends WithIntegrationTestSetup {
 
-    @Test
-    void createPageAndTestEditPermissions() {
-        final String pageName = "RandomPage" + System.currentTimeMillis();
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void createPageAndTestEditPermissions( final EditorMode mode ) {
+        final String pageName = "RandomPage" + mode.name() + System.currentTimeMillis();
 
-        final ViewWikiPage randomPage = EditWikiPage.open( pageName )
+        final ViewWikiPage randomPage = EditWikiPage.openInMode( pageName, mode )
                                                     .saveText( "random page [{ALLOW edit janne}] [{ALLOW view All}]", "random page" );
         Assertions.assertEquals( pageName, randomPage.wikiTitle() );
         Assertions.assertEquals( "random page", randomPage.wikiPageContent() );
 
         final ViewWikiPage requiresJannesAccess = randomPage.clickOnLogin().performLogin();
-        requiresJannesAccess.editPage().saveText( "random page [{ALLOW edit janne}]", "random page" );
+        requiresJannesAccess.editPage( mode ).saveText( "random page [{ALLOW edit janne}]", "random page" );
         Assertions.assertEquals( pageName, requiresJannesAccess.wikiTitle() );
         Assertions.assertEquals( "random page", requiresJannesAccess.wikiPageContent() );
 

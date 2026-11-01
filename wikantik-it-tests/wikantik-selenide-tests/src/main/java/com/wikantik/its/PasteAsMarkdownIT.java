@@ -23,13 +23,12 @@ import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import com.wikantik.its.environment.PlatformKeys;
 import com.wikantik.pages.spa.EditWikiPage;
-import org.junit.jupiter.api.Test;
-import org.openqa.selenium.Keys;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 
 import static com.codeborne.selenide.Selenide.$;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -40,7 +39,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>The paste is a synthetic {@code ClipboardEvent} carrying a real {@code DataTransfer}: headless Chrome has no
  * system clipboard to copy from, but the event reaches CodeMirror's handler chain exactly as a user's paste does.
- * Buffer assertions read the source-mode editor's (the default mode's) lines.</p>
+ * Every test runs in each {@link EditorMode}; assertions read the CodeMirror document, never the screen (live mode
+ * hides the pasted markup off the caret's line).</p>
  */
 public class PasteAsMarkdownIT extends WithIntegrationTestSetup {
 
@@ -65,14 +65,15 @@ public class PasteAsMarkdownIT extends WithIntegrationTestSetup {
         "| --- | --- |",
         "| Platform \\| Infra | March |" );
 
-    @Test
-    void richPasteBecomesMarkdownAndRendersBack() {
-        final String pageName = "PasteAsMarkdown" + System.currentTimeMillis();
-        EditWikiPage.open( pageName );
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void richPasteBecomesMarkdownAndRendersBack( final EditorMode mode ) {
+        final String pageName = "PasteAsMarkdown" + mode.name() + System.currentTimeMillis();
+        EditWikiPage.openInMode( pageName, mode );
         final SelenideElement content = clearedEditor();
 
         assertTrue( paste( content, DOCS_TEXT, DOCS_HTML ), "a converted paste must take over the browser's default paste" );
-        awaitBuffer( content, DOCS_MARKDOWN );
+        awaitDocument( DOCS_MARKDOWN );
         $( ".wk-toast-message" ).shouldHave( Condition.text( "Pasted as Markdown" ), Duration.ofSeconds( 5 ) );
 
         $( "[data-testid=editor-save]" ).click();
@@ -85,41 +86,36 @@ public class PasteAsMarkdownIT extends WithIntegrationTestSetup {
         view.$( "table td" ).shouldHave( Condition.exactText( "Platform | Infra" ) );
     }
 
-    @Test
-    void modShiftVPastesThePlainText() {
-        EditWikiPage.open( "PastePlain" + System.currentTimeMillis() );
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void modShiftVPastesThePlainText( final EditorMode mode ) {
+        EditWikiPage.openInMode( "PastePlain" + mode.name() + System.currentTimeMillis(), mode );
         final SelenideElement content = clearedEditor();
 
         Selenide.executeJavaScript(
             "arguments[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'V', code: 'KeyV', ctrlKey: true, shiftKey: true, "
             + "bubbles: true, cancelable: true }));", content );
         paste( content, DOCS_TEXT, DOCS_HTML );
-        awaitBuffer( content, DOCS_TEXT );
+        awaitDocument( DOCS_TEXT );
     }
 
-    @Test
-    void urlPastedOverASelectionLinksIt() {
-        EditWikiPage.open( "PasteLink" + System.currentTimeMillis() );
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void urlPastedOverASelectionLinksIt( final EditorMode mode ) {
+        EditWikiPage.openInMode( "PasteLink" + mode.name() + System.currentTimeMillis(), mode );
         final SelenideElement content = clearedEditor();
         content.sendKeys( "the docs" );
-        awaitBuffer( content, "the docs" );
+        awaitDocument( "the docs" );
         content.sendKeys( PlatformKeys.selectAll() );
 
         paste( content, "https://example.com/docs", "" );
-        awaitBuffer( content, "[the docs](https://example.com/docs)" );
+        awaitDocument( "[the docs](https://example.com/docs)" );
     }
 
     /** Waits for the new-page boilerplate, focuses the editor and empties it. */
     private static SelenideElement clearedEditor() {
-        final SelenideElement content = $( "[data-testid=editor-textarea] .cm-content" )
-            .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) )
-            .shouldHave( Condition.text( "Write your content here" ), Duration.ofSeconds( 10 ) );
-        content.click();
-        $( "[data-testid=editor-textarea] .cm-editor" ).shouldHave( Condition.cssClass( "cm-focused" ), Duration.ofSeconds( 5 ) );
-        content.sendKeys( PlatformKeys.selectAll() );
-        content.sendKeys( Keys.DELETE );
-        content.shouldHave( Condition.exactText( "" ), Duration.ofSeconds( 5 ) );
-        return content;
+        EditWikiPage.awaitDocumentContaining( EditWikiPage.NEW_PAGE_BOILERPLATE, Duration.ofSeconds( 10 ) );
+        return EditWikiPage.clearDocument();
     }
 
     /** Dispatches a paste carrying text/plain and (when non-empty) text/html; returns whether it was default-prevented. */
@@ -134,21 +130,7 @@ public class PasteAsMarkdownIT extends WithIntegrationTestSetup {
         return Boolean.TRUE.equals( prevented );
     }
 
-    private static void awaitBuffer( final SelenideElement content, final String expected ) {
-        final long deadline = System.currentTimeMillis() + 5_000;
-        String actual = buffer( content );
-        while ( !expected.equals( actual ) && System.currentTimeMillis() < deadline ) {
-            Selenide.sleep( 100 );
-            actual = buffer( content );
-        }
-        assertEquals( expected, actual, "CodeMirror source after the paste" );
-    }
-
-    private static String buffer( final SelenideElement content ) {
-        // One .cm-line per logical line; textContent (not innerText) so an empty line is "" rather than a <br>'s
-        // extra newline. Short documents only — CodeMirror renders just the viewport's lines.
-        final String text = Selenide.executeJavaScript(
-            "return Array.from(arguments[0].querySelectorAll('.cm-line')).map(l => l.textContent).join('\\n');", content );
-        return text == null ? null : text.stripTrailing();
+    private static void awaitDocument( final String expected ) {
+        EditWikiPage.awaitDocumentEquals( expected, Duration.ofSeconds( 5 ) );
     }
 }

@@ -78,7 +78,7 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
 
     @Test
     void liveModeRendersTableAndChipsAndRevealsSourceOnClick() {
-        EditWikiPage.openInMode( PAGE, "live" );
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
         $( "[data-testid=page-editor] .cm-editor" ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
 
         $( ".cm-lp-table-block table.cm-lp-table thead th" ).shouldBe( visible, WAIT ).shouldHave( text( "Alpha" ) );
@@ -92,7 +92,7 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
 
     @Test
     void editorModePersistsOnTheServerPerUser() {
-        EditWikiPage.openInMode( PAGE, "live" );
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
         final var editor = $( "[data-testid=page-editor] .cm-editor" );
         editor.shouldHave( cssClass( "cm-live-preview" ), WAIT );
 

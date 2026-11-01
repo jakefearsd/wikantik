@@ -22,16 +22,18 @@ import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
+import com.wikantik.its.EditorMode;
 import com.wikantik.its.environment.PlatformKeys;
 import com.wikantik.pages.Page;
+import org.openqa.selenium.JavascriptException;
 import org.openqa.selenium.Keys;
-import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import static com.codeborne.selenide.Selenide.$;
 
@@ -42,56 +44,105 @@ import static com.codeborne.selenide.Selenide.$;
  * filter. The component renders a two-pane layout with a CodeMirror 6 editor
  * ({@code [data-testid=editor-textarea] .cm-content}) and a markdown preview.
  * Save/Cancel buttons are located in the toolbar.
+ *
+ * <p>The editor runs in one of the {@link EditorMode}s. In live mode the screen hides markup off the caret's line,
+ * so what the editor <em>holds</em> is read from the CodeMirror document ({@link #documentText()}), never from the
+ * rendered text.
  */
 public class EditWikiPage implements SpaPage {
 
     private static final Logger LOG = LoggerFactory.getLogger( EditWikiPage.class );
 
+    /** The body line of a new page's boilerplate ({@code # Name\n\nWrite your content here.}). */
+    public static final String NEW_PAGE_BOILERPLATE = "Write your content here";
+
+    private static final String CONTENT = "[data-testid=editor-textarea] .cm-content";
+    private static final String EDITOR = "[data-testid=editor-textarea] .cm-editor";
+    private static final Duration MODE_WAIT = Duration.ofSeconds( 10 );
+
     /**
-     * Open a given page for edition.
+     * Resolves the CodeMirror {@code EditorView} behind the page editor, as {@code view}, through the DOM
+     * back-reference @codemirror/view keeps on its content element ({@code .cm-content.cmTile} is the document
+     * tile, whose {@code view} — or its {@code root.view} — is the {@code EditorView}; the same path
+     * {@code EditorView.findFromDOM} takes). There is no fallback: if the internals move, this throws.
+     */
+    private static final String RESOLVE_VIEW = """
+        const host = document.querySelector('[data-testid=editor-textarea] .cm-content');
+        if (!host) throw new Error('no [data-testid=editor-textarea] .cm-content on the page');
+        const tile = host.cmTile;
+        const view = tile && (tile.view || (tile.root && tile.root.view));
+        if (!view || !view.state || !view.state.doc) {
+          throw new Error('.cm-content has no CodeMirror view back-reference (cmTile.view / cmTile.root.view); '
+            + 'did the @codemirror/view internals change?');
+        }
+        """;
+
+    /** Set by {@link #pinMode} and consumed by the IT cleanup extension, which then clears the server preference. */
+    private static volatile boolean modePinned;
+
+    /**
+     * Open a given page for edition in {@link EditorMode#SOURCE source} mode.
      *
      * @param pageName Wiki page name to edit (new or existing).
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
     public static EditWikiPage open( final String pageName ) {
-        return openInMode( pageName, "source" );
+        return openInMode( pageName, EditorMode.SOURCE );
     }
 
     /**
-     * Open a page for edition with the editor mode pinned first: in this browser, and on the signed-in user's
-     * profile when there is one (so the server preference cannot override the pin).
+     * Open a page for edition with the editor mode pinned first (in this browser, and on the signed-in user's profile
+     * when there is one, so the server preference cannot override the pin), then assert the editor really is in that
+     * mode.
      *
      * @param pageName Wiki page name to edit (new or existing).
-     * @param mode {@code "source"} or {@code "live"}.
+     * @param mode the editor mode to open in.
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
-    public static EditWikiPage openInMode( final String pageName, final String mode ) {
+    public static EditWikiPage openInMode( final String pageName, final EditorMode mode ) {
         pinMode( mode );
         final EditWikiPage page = Page.withUrl( Page.baseUrl() + "/edit/" + pageName ).openAs( new EditWikiPage() );
         $( "[data-testid=page-editor]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         $( "[data-testid=editor-textarea]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
-        return page;
+        return page.assertMode( mode );
     }
 
     /**
-     * The editor now defaults to live preview, while these tests drive the CodeMirror source text, so pin source
-     * mode before the editor mounts. Must run on the wiki origin to reach its localStorage.
+     * Asserts the mounted editor is in {@code mode}: the CodeMirror editor is visible first (so the check below is
+     * never vacuous), then {@code .cm-editor} carries {@code cm-live-preview} exactly when the mode is live.
+     *
+     * @param mode the expected mode.
+     * @return this page object.
      */
+    public EditWikiPage assertMode( final EditorMode mode ) {
+        final SelenideElement editor = $( EDITOR ).shouldBe( Condition.visible, MODE_WAIT );
+        if ( mode == EditorMode.LIVE ) {
+            editor.shouldHave( Condition.cssClass( "cm-live-preview" ), MODE_WAIT );
+        } else {
+            editor.shouldNotHave( Condition.cssClass( "cm-live-preview" ), MODE_WAIT );
+        }
+        return this;
+    }
+
+    /** Pins {@link EditorMode#SOURCE}; see {@link #pinMode}. */
     public static void pinSourceMode() {
-        pinMode( "source" );
+        pinMode( EditorMode.SOURCE );
     }
 
     /**
-     * Pins the editor mode ({@code source} or {@code live}) so each IT is self-sufficient: whatever an earlier test
-     * left in this browser or on the user's profile, the editor opens in {@code mode}. A signed-in session also gets
-     * the mode PUT to {@code /api/auth/profile} (the server preference wins over the browser's); an anonymous
-     * session's 401 is expected and only logged, any other failure throws.
+     * Pins the editor mode so each IT is self-sufficient: whatever an earlier test left in this browser or on the
+     * user's profile, the editor opens in {@code mode}. A signed-in session also gets the mode PUT to
+     * {@code /api/auth/profile} (the server preference wins over the browser's); an anonymous session's 401 is
+     * expected and only logged, any other failure throws. Either way the pin is recorded, so the IT cleanup extension
+     * clears the server preference after the test (a signed-out local choice is migrated into the profile at the
+     * next sign-in).
      */
-    public static void pinMode( final String mode ) {
+    public static void pinMode( final EditorMode mode ) {
         final String base = Page.baseUrl();
         if ( !WebDriverRunner.hasWebDriverStarted() || !WebDriverRunner.url().startsWith( base ) ) {
             Selenide.open( base + "/" );
         }
+        modePinned = true;
         final String script = """
             const cb = arguments[arguments.length - 1];
             const mode = arguments[0];
@@ -108,13 +159,117 @@ public class EditWikiPage implements SpaPage {
             """;
         // The URL comes from the configured base, not window.__WIKANTIK_BASE__: only SPA documents define that, and the
         // driver may be on any same-origin page (e.g. the context root), where a root-relative URL misses the webapp.
-        final Object r = Selenide.executeAsyncJavaScript( script, mode, base + "/api/auth/profile" );
+        final Object r = Selenide.executeAsyncJavaScript( script, mode.id(), base + "/api/auth/profile" );
         final int status = r instanceof Map< ?, ? > m && m.get( "status" ) instanceof Number n ? n.intValue() : -1;
         if ( status == 401 ) {
-            LOG.info( "pinMode({}): anonymous session (401 from PUT /api/auth/profile); pinned in this browser only", mode );
+            LOG.info( "pinMode({}): anonymous session (401 from PUT /api/auth/profile); pinned in this browser only", mode.id() );
         } else if ( status < 200 || status >= 300 ) {
-            throw new IllegalStateException( "pinMode(" + mode + "): PUT /api/auth/profile failed: " + r );
+            throw new IllegalStateException( "pinMode(" + mode.id() + "): PUT /api/auth/profile failed: " + r );
         }
+    }
+
+    /**
+     * Whether a mode was pinned since the last call, resetting the flag. For the IT cleanup extension.
+     *
+     * @return {@code true} when {@link #pinMode} ran since the last call.
+     */
+    public static boolean takeModePinned() {
+        final boolean pinned = modePinned;
+        modePinned = false;
+        return pinned;
+    }
+
+    /**
+     * The document the editor holds ({@code view.state.doc.toString()}), whatever the mode shows on screen.
+     *
+     * @return the CodeMirror document text.
+     * @throws IllegalStateException when the editor's CodeMirror state cannot be reached.
+     */
+    public static String documentText() {
+        return evaluateOnView( "return view.state.doc.toString();" );
+    }
+
+    /**
+     * Runs {@code body} with {@code view} bound to the page editor's CodeMirror {@code EditorView} and returns its
+     * result. Throws (never falls back to rendered text) when the view cannot be reached.
+     *
+     * @param body JavaScript statements using {@code view} (and {@code arguments}); must {@code return} the result.
+     * @param args script arguments.
+     * @param <T> the result type.
+     * @return the script's result.
+     */
+    public static < T > T evaluateOnView( final String body, final Object... args ) {
+        try {
+            return Selenide.executeJavaScript( RESOLVE_VIEW + body, args );
+        } catch ( final JavascriptException e ) {
+            throw new IllegalStateException( "Could not read the page editor's CodeMirror state: " + e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Waits until the editor document contains {@code expected}.
+     *
+     * @param expected substring of the document.
+     * @param timeout how long to wait.
+     * @return the document text that matched.
+     */
+    public static String awaitDocumentContaining( final String expected, final Duration timeout ) {
+        return awaitDocument( doc -> doc.contains( expected ), "contain [" + expected + "]", timeout );
+    }
+
+    /**
+     * Waits until the editor document equals {@code expected}, ignoring line-ending style and trailing whitespace.
+     *
+     * @param expected the whole document.
+     * @param timeout how long to wait.
+     * @return the document text that matched.
+     */
+    public static String awaitDocumentEquals( final String expected, final Duration timeout ) {
+        final String want = normalizeTrailing( expected );
+        return awaitDocument( doc -> normalizeTrailing( doc ).equals( want ), "equal [" + expected + "]", timeout );
+    }
+
+    /**
+     * Polls {@link #documentText()} until {@code condition} holds; fails with the last document read otherwise.
+     *
+     * @param condition what the document must satisfy.
+     * @param description the condition, for the failure message ("contain [x]").
+     * @param timeout how long to wait.
+     * @return the document text that matched.
+     */
+    public static String awaitDocument( final Predicate< String > condition, final String description, final Duration timeout ) {
+        final long deadline = System.currentTimeMillis() + timeout.toMillis();
+        String doc = documentText();
+        while ( !condition.test( doc ) && System.currentTimeMillis() < deadline ) {
+            Selenide.sleep( 100 );
+            doc = documentText();
+        }
+        if ( !condition.test( doc ) ) {
+            throw new AssertionError( "editor document did not " + description + " within " + timeout + "; it was:\n[" + doc + "]" );
+        }
+        return doc;
+    }
+
+    /**
+     * Focuses the editor and empties its document via the keyboard (select-all, Delete), proving it empty through the
+     * document. Callers editing a NEW page first wait for {@link #NEW_PAGE_BOILERPLATE}, so the boilerplate's async
+     * load cannot land after the clear.
+     *
+     * @return the focused, empty {@code .cm-content} element, ready for {@code sendKeys}.
+     */
+    public static SelenideElement clearDocument() {
+        // CodeMirror is driven through its contenteditable .cm-content: it handles keyboard events natively and fires
+        // its onChange prop, updating React state (the wrapper is not an <input>/<textarea>, so value setters don't work).
+        final SelenideElement cmContent = $( CONTENT ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+        cmContent.click();
+        // CodeMirror routes keyboard events through its focused editor only, and the click's focus can lag under
+        // machine load. Without this wait the select-all chord lands unfocused and silently no-ops, the DELETE deletes
+        // nothing, and new text APPENDS to the old content.
+        $( EDITOR ).shouldHave( Condition.cssClass( "cm-focused" ), Duration.ofSeconds( 5 ) );
+        cmContent.sendKeys( PlatformKeys.selectAll() );
+        cmContent.sendKeys( Keys.DELETE );
+        awaitDocumentEquals( "", Duration.ofSeconds( 5 ) );
+        return cmContent;
     }
 
     /**
@@ -149,52 +304,19 @@ public class EditWikiPage implements SpaPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage saveText( final String text, final String preview ) {
-        // The editor is now a CodeMirror 6 instance. The wrapper div carries
-        // data-testid="editor-textarea" but is not an <input> or <textarea>,
-        // so the old ReactInputs.setTextareaValue() JS prototype trick throws
-        // "Illegal invocation". Drive CodeMirror via its contenteditable
-        // .cm-content element instead: click to focus, select-all, delete any
-        // existing content, then send the new text. CodeMirror handles keyboard
-        // events natively and fires its onChange prop, updating React state.
-        final SelenideElement cmContent = $( "[data-testid=editor-textarea] .cm-content" )
-            .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
-        cmContent.click();
-        // CodeMirror routes keyboard events through its focused editor only, and
-        // the click's focus can lag under machine load. Without this wait the
-        // select-all chord lands unfocused and silently no-ops, the DELETE
-        // deletes nothing, and the new text APPENDS to the old content — which
-        // the preview check below cannot catch (it is a contains-, not equals-check).
-        $( "[data-testid=editor-textarea] .cm-editor" )
-            .shouldHave( Condition.cssClass( "cm-focused" ), Duration.ofSeconds( 5 ) );
-        cmContent.sendKeys( PlatformKeys.selectAll() );
-        cmContent.sendKeys( Keys.DELETE );
-        // Prove the buffer is empty before typing the replacement.
-        cmContent.shouldHave( Condition.exactText( "" ), Duration.ofSeconds( 5 ) );
+        final SelenideElement cmContent = clearDocument();
         cmContent.sendKeys( text );
 
-        // Prove the typed text actually landed before we sink more time into the
-        // preview check and Save below. This is the check that would have caught
-        // the macOS select-all bug directly (old content left in the buffer) at
-        // its source, instead of it surfacing several calls later as a confusing
-        // exact-text assertion failure on rendered output. Read the buffer via JS
-        // rather than Selenide's own text extraction — Selenide can normalise/
-        // collapse whitespace on a contenteditable, which would mask a real
-        // mismatch with a false pass. CodeMirror 6 renders each LOGICAL line as
-        // its own .cm-line div (visual wrapping never adds one), so innerText
-        // already maps multi-line text to newline-separated content; we still
-        // normalise line endings and trim only trailing whitespace so a harmless
-        // trailing-newline difference doesn't fail the check.
-        final String expectedBuffer = normalizeTrailing( text );
+        // Prove the typed text actually landed before we sink more time into the preview check and Save below. This
+        // is the check that catches the macOS select-all bug (old content left in the buffer — see PlatformKeys) or a
+        // dropped/duplicated keystroke at its source, instead of it surfacing later as a confusing exact-text failure
+        // on rendered output. It reads the CodeMirror document, so it holds in live mode too, where the screen hides
+        // markup.
         try {
-            new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 5 ) )
-                .until( driver -> normalizeTrailing( editorBufferText( cmContent ) ).equals( expectedBuffer ) );
-        } catch ( final TimeoutException e ) {
-            throw new AssertionError(
-                "CodeMirror buffer did not match the text just typed, 5s after sendKeys() returned. "
-                + "This is the failure mode of the macOS select-all bug (old content left in the "
-                + "buffer — see PlatformKeys) or a dropped/duplicated keystroke.\n"
-                + "Typed:  [" + text + "]\n"
-                + "Buffer: [" + editorBufferText( cmContent ) + "]", e );
+            awaitDocumentEquals( text, Duration.ofSeconds( 5 ) );
+        } catch ( final AssertionError e ) {
+            throw new AssertionError( "CodeMirror document did not match the text just typed, 5s after sendKeys() returned "
+                + "(old content left behind, or a dropped/duplicated keystroke). Typed: [" + text + "]; " + e.getMessage(), e );
         }
 
         // The preview pane is a live-updated ReactMarkdown render; give it
@@ -216,19 +338,8 @@ public class EditWikiPage implements SpaPage {
     }
 
     /**
-     * Reads the raw markdown source currently held by the CodeMirror buffer,
-     * via {@code innerText} on its contenteditable {@code .cm-content} element.
-     *
-     * @param cmContent the {@code .cm-content} element.
-     * @return the buffer's current text.
-     */
-    private static String editorBufferText( final SelenideElement cmContent ) {
-        return Selenide.executeJavaScript( "return arguments[0].innerText;", cmContent );
-    }
-
-    /**
      * Normalises line endings and strips trailing whitespace, so a harmless
-     * trailing-newline/whitespace difference does not fail a buffer-content
+     * trailing-newline/whitespace difference does not fail a document
      * comparison. Deliberately does not touch leading or interior whitespace —
      * that is exactly what a dropped/duplicated keystroke would corrupt.
      *
@@ -236,9 +347,6 @@ public class EditWikiPage implements SpaPage {
      * @return the normalised text.
      */
     private static String normalizeTrailing( final String value ) {
-        // Null-safe: this runs inside a WebDriverWait predicate, which does not
-        // swallow NPEs — a null buffer read would surface as a bare
-        // NullPointerException instead of the diagnostic AssertionError below.
         return value == null ? "" : value.replace( "\r\n", "\n" ).stripTrailing();
     }
 

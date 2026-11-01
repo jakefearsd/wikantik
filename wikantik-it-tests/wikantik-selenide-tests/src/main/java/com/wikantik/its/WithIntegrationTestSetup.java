@@ -24,7 +24,7 @@ import com.wikantik.its.environment.Env;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-@ExtendWith( ScreenShooterExtension.class )
+@ExtendWith( { ScreenShooterExtension.class, EditorModeCleanupExtension.class } )
 public class WithIntegrationTestSetup {
 
     /**

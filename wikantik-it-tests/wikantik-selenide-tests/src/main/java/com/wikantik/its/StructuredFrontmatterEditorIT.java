@@ -26,6 +26,8 @@ import com.wikantik.pages.spa.EditWikiPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 
@@ -34,6 +36,8 @@ import static com.codeborne.selenide.Condition.value;
 import static com.codeborne.selenide.Condition.visible;
 import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.$$;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Selenide IT for the structured frontmatter editor introduced in the page editor.
@@ -216,10 +220,19 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
     /**
      * Switching from Form to Raw YAML must show the raw textarea containing
      * the frontmatter keys; switching back to Form must still show the values.
+     *
+     * <p>Runs in every {@link EditorMode}: the CodeMirror body sits beside the
+     * frontmatter editor, and opening it in either mode must neither alter the
+     * body document nor dirty the editor (the final Cancel would otherwise
+     * raise the unsaved-changes guard instead of returning to the page).</p>
      */
-    @Test
-    void rawYamlRoundTrip() {
-        EditWikiPage.open( FIXTURE );
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void rawYamlRoundTrip( final EditorMode mode ) {
+        EditWikiPage.openInMode( FIXTURE, mode );
+        // The editor holds the BODY only (frontmatter lives in the structured editor).
+        final String body = EditWikiPage.awaitDocumentContaining( "# Semantic Article", ASYNC_WAIT );
+        assertFalse( body.startsWith( "---" ), "the CodeMirror document must not carry the frontmatter block:\n" + body );
 
         // Activate the Frontmatter top-tab (default, but click defensively).
         $$( "[role=tab]" ).findBy( text( "Frontmatter" ) )
@@ -247,6 +260,9 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
                 .shouldHave( Condition.or( "type still present",
                         value( "article" ),
                         text( "article" ) ) );
+
+        // The frontmatter round trip left the body document exactly as loaded.
+        assertEquals( body, EditWikiPage.documentText(), "the body document must be untouched in " + mode + " mode" );
 
         // Cancel to leave the fixture unmodified.
         $( "[data-testid=editor-cancel]" )

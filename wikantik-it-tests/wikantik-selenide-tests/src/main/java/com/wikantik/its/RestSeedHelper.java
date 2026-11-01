@@ -94,6 +94,25 @@ public final class RestSeedHelper {
         }
     }
 
+    /**
+     * Clears Janne's server editor preference ({@code PUT /api/auth/profile {"editorMode":null}}) out of the browser.
+     * Throws on any non-2xx so a test cannot leave its mode behind for the next one unnoticed.
+     */
+    public static void clearEditorModePreference() throws Exception {
+        final HttpRequest req = HttpRequest.newBuilder( URI.create( Env.TESTS_BASE_URL + "/api/auth/profile" ) )
+            .header( "Authorization", authHeader() )
+            .header( "Accept", "application/json" )
+            .header( "Content-Type", "application/json" )
+            .PUT( HttpRequest.BodyPublishers.ofString( "{\"editorMode\":null}" ) )
+            .build();
+        final HttpResponse< String > resp = CLIENT.send( req, HttpResponse.BodyHandlers.ofString() );
+        if ( resp.statusCode() < 200 || resp.statusCode() >= 300
+                || !resp.body().matches( "(?s).*\"editorMode\"\\s*:\\s*null.*" ) ) {
+            throw new IllegalStateException( "clearEditorModePreference: PUT /api/auth/profile did not clear the mode: "
+                + resp.statusCode() + " " + resp.body() );
+        }
+    }
+
     /** POST /admin/knowledge-graph/hub-discovery/run; returns the raw JSON body. */
     public static String runDiscovery() throws Exception {
         return post( "/admin/knowledge-graph/hub-discovery/run", "" );

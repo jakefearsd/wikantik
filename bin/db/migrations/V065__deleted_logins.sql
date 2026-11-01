@@ -10,4 +10,5 @@ CREATE TABLE IF NOT EXISTS deleted_logins (
     login_name TEXT        PRIMARY KEY,
     deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_deleted_logins_lower ON deleted_logins ( lower( login_name ) );
 GRANT SELECT, INSERT ON deleted_logins TO :app_user;

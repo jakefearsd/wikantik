@@ -35,7 +35,7 @@ public final class DeletedLoginRepository {
 
     private static final String INSERT =
             "INSERT INTO deleted_logins ( login_name ) VALUES ( ? ) ON CONFLICT ( login_name ) DO NOTHING";
-    private static final String EXISTS = "SELECT 1 FROM deleted_logins WHERE login_name = ?";
+    private static final String EXISTS = "SELECT 1 FROM deleted_logins WHERE lower( login_name ) = lower( ? )";
     private static final String ALL = "SELECT login_name FROM deleted_logins";
 
     private final Jdbc jdbc;
@@ -53,7 +53,7 @@ public final class DeletedLoginRepository {
         }
     }
 
-    /** Whether {@code login} was hard-deleted. */
+    /** Whether {@code login} was hard-deleted; compared case-insensitively, like live login uniqueness. */
     public boolean isDeleted( final String login ) throws WikiSecurityException {
         if ( login == null || login.isBlank() ) {
             return false;

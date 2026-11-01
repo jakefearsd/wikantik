@@ -185,7 +185,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
     /** {@inheritDoc} */
     @Override
-    public java.util.Set< String > deletedLogins() throws WikiSecurityException {
+    public Set< String > deletedLogins() throws WikiSecurityException {
         return deletedLogins.all();
     }
 
@@ -361,6 +361,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public void rename( final String oldLoginName, final String newName ) throws DuplicateUserException, WikiSecurityException {
         // Get the existing user (uncached: this is a write path); if not found, throws NoSuchPrincipalException
         final UserProfile profile = findByPreparedStatement( FIND_BY_LOGIN_NAME, oldLoginName );
+
+        // A deleted account's login cannot be taken by renaming either: the account would inherit its attribution (#107).
+        if ( deletedLogins.isDeleted( newName ) ) {
+            LOG.warn( "Rename of '{}' refused: '{}' belonged to a deleted account", oldLoginName, newName );
+            throw new DeletedLoginException();
+        }
 
         // Get user with the proposed name; if found, it's a collision. Uncached so a stale entry
         // for a since-deleted login can't falsely block the rename.

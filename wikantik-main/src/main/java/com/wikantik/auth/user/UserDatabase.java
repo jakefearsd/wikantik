@@ -33,6 +33,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Defines an interface for loading, persisting and storing users.
@@ -220,8 +221,8 @@ public interface UserDatabase {
     }
 
     /** Every tombstoned login (see {@link #recordDeletedLogin}). Default: none. */
-    default java.util.Set< String > deletedLogins() throws WikiSecurityException {
-        return java.util.Set.of();
+    default Set< String > deletedLogins() throws WikiSecurityException {
+        return Set.of();
     }
 
     /**

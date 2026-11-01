@@ -449,6 +449,13 @@ class DefaultPublicIdentityTest {
     }
 
     @Test
+    void aCaseVariantOfADeletedLoginIsAlsoAFormerMember() throws Exception {
+        doReturn( java.util.Set.of( "alice" ) ).when( db ).deletedLogins();
+
+        assertEquals( PublicIdentity.FORMER_MEMBER, identity.displayName( "Alice" ) );
+    }
+
+    @Test
     void aLiveAccountWinsOverAStaleTombstone() throws Exception {
         account( "alice", "Alice A", "u1" );
         doReturn( java.util.Set.of( "alice" ) ).when( db ).deletedLogins();

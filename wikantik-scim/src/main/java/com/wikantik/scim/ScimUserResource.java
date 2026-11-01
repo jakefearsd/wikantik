@@ -33,6 +33,7 @@ import com.wikantik.auth.UserLifecycleService;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.sso.SSOAutoProvisionService;
+import com.wikantik.auth.user.DeletedLoginException;
 import com.wikantik.auth.user.ProfileConflictException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -186,9 +187,9 @@ public class ScimUserResource extends AbstractScimServlet {
         } catch ( final ProfileConflictException e ) {
             LOG.warn( "SCIM create user={} conflicts with an existing account", f.userName(), e );
             sendError( resp, 409, "uniqueness", ProfileConflictException.MESSAGE );
-        } catch ( final com.wikantik.auth.user.DeletedLoginException e ) {
+        } catch ( final DeletedLoginException e ) {
             LOG.warn( "SCIM create user={} refused: the login belonged to a deleted account", f.userName() );
-            sendError( resp, 409, "uniqueness", com.wikantik.auth.user.DeletedLoginException.MESSAGE );
+            sendError( resp, 409, "uniqueness", DeletedLoginException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             // The store's message can carry SQL detail; log it, never echo it.
             LOG.warn( "SCIM create user={} failed: {}", f.userName(), e.getMessage(), e );

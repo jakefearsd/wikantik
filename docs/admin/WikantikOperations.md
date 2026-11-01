@@ -317,6 +317,23 @@ snapshot it was given was incomplete, and 1 when divergence is found under `--ch
 
 ---
 
+### 1.10 Releasing a deleted account's login
+
+Hard-deleting an account records its login in the `deleted_logins` table. Old content by that login shows as
+"former member", and the login cannot be registered again (self-registration, admin create, SCIM create, SSO
+first sign-in and rename all refuse it; matching ignores case), so a new account cannot inherit the old one's edits
+and comments. Accounts deleted before this table existed (V065) have no tombstone.
+
+To deliberately reuse a name, delete its row as the migrate/superuser role (the application role is granted only
+`SELECT, INSERT` on the table):
+
+```bash
+psql -h localhost -U postgres -d wikantik -c "DELETE FROM deleted_logins WHERE login_name = 'alice';"
+```
+
+The identity cache holds the tombstone set for up to 60 seconds, so the released name may keep showing "former member"
+until it refreshes (or the app restarts). Once released, the name's old content attributes to its next holder.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

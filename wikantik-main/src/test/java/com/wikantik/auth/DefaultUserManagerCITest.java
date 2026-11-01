@@ -401,4 +401,22 @@ class DefaultUserManagerCITest {
         }
     }
 
+
+    @Test
+    void selfRegistrationOfADeletedAccountsLoginIsRefusedAndCreatesNoRow() throws Exception {
+        final String login = "tombstoned" + System.currentTimeMillis();
+        m_db.recordDeletedLogin( login );
+        final Context ctx = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile profile = m_db.newProfile();
+        profile.setLoginName( login );
+        profile.setFullname( "Tombstoned " + login );
+        profile.setEmail( login + "@example.com" );
+        profile.setPassword( Users.ALICE_PASS );
+
+        final com.wikantik.auth.user.DuplicateUserException e =
+                assertThrows( com.wikantik.auth.user.DuplicateUserException.class, () -> m_mgr.setUserProfile( ctx, profile ) );
+
+        assertEquals( "security.error.login.deleted", e.getMessage() );
+        assertThrows( NoSuchPrincipalException.class, () -> m_db.findByLoginName( login ) );
+    }
 }

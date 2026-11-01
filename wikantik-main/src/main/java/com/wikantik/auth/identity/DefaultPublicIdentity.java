@@ -76,7 +76,7 @@ public final class DefaultPublicIdentity implements PublicIdentity, WikiEventLis
         }
         final AccountSummary account = current.byLogin().get( stored );
         if ( account == null ) {
-            if ( current.deleted().contains( stored ) ) {
+            if ( current.deleted().contains( stored.toLowerCase( java.util.Locale.ROOT ) ) ) {
                 return FORMER_MEMBER;   // a hard-deleted account: neither its login nor its name is shown
             }
             return emailShaped ? UNKNOWN_CONTRIBUTOR : stored;

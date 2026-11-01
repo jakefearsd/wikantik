@@ -34,6 +34,7 @@ import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.validate.PasswordValidator;
+import com.wikantik.auth.user.DeletedLoginException;
 import com.wikantik.auth.user.ProfileConflictException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -548,9 +549,9 @@ public class AdminUserResource extends RestServletBase {
         } catch ( final ProfileConflictException e ) {
             LOG.warn( "Creation of user {} conflicts with an existing account", loginName, e );
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, ProfileConflictException.MESSAGE );
-        } catch ( final com.wikantik.auth.user.DeletedLoginException e ) {
+        } catch ( final DeletedLoginException e ) {
             LOG.warn( "Creation of user {} refused: the login belonged to a deleted account", loginName );
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, com.wikantik.auth.user.DeletedLoginException.MESSAGE );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, DeletedLoginException.MESSAGE );
         } catch ( final WikiSecurityException e ) {
             LOG.error( "Failed to create user {}: {}", loginName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_CONFLICT, "Failed to create user" );

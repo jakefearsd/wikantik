@@ -15,6 +15,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   re-parsed without attributes (and, failing that, shown as escaped preformatted text), and the result is cached (#105).
 
 ### Security
+- **Deleted accounts show as "former member", and their logins cannot be registered again.** A hard delete now records
+  the login in `deleted_logins` (V065) before the account row goes (a failed write aborts the delete). Old content by
+  that login shows "former member" instead of the raw login, and self-registration, admin create, SCIM create and a
+  rename onto it all refuse it ("this login name belonged to a deleted account"); matching ignores case, like live login
+  uniqueness. Deletions made before this release have no tombstone and stay as written. An SSO sign-in with a deleted
+  account's login is refused until an admin releases the name (see the operations runbook) (#107).
 - **Page access rules have one reader, and a rule it cannot read locks the page.** Two readings used to set a page's
   ACL and disagreed on several shapes, so what was enforced depended on whether the page had been rendered first (and
   could be the union of both). The ACL now comes only from the page text, read once per version; a render never sets

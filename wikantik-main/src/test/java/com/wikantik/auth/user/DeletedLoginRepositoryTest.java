@@ -18,7 +18,6 @@
  */
 package com.wikantik.auth.user;
 
-import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.testing.FaultInjectingDataSource;
 import com.wikantik.jdbc.testing.MigrationApplier;
@@ -56,7 +55,7 @@ class DeletedLoginRepositoryTest {
         repo.record( "alice" );
         assertTrue( repo.isDeleted( "alice" ) );
         assertFalse( repo.isDeleted( "bob" ) );
-        assertFalse( repo.isDeleted( "Alice" ), "logins are exact-case, like the account snapshot" );
+        assertTrue( repo.isDeleted( "Alice" ), "compared case-insensitively, like live login uniqueness" );
         assertFalse( repo.isDeleted( null ) );
     }
 
@@ -69,7 +68,7 @@ class DeletedLoginRepositoryTest {
     }
 
     @Test
-    void aFailedWriteSurfacesAsWikiSecurityException() {
+    void aFailedWriteIsNotSwallowed() {
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( PostgresTestDb.createDataSource() );
         faulty.failOn( 1, new RuntimeException( "boom" ) );
         final DeletedLoginRepository failing = new DeletedLoginRepository( new Jdbc( faulty ) );

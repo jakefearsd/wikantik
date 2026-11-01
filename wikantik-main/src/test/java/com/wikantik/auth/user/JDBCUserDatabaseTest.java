@@ -1256,6 +1256,25 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
+    public void testSaveRefusesACaseVariantOfADeletedLogin() throws Exception {
+        m_db.recordDeletedLogin( "ghost" );
+
+        Assertions.assertThrows( DeletedLoginException.class, () -> m_db.save( newProfileFor( "Ghost" ) ) );
+    }
+
+    @Test
+    public void testRenameRefusesADeletedLogin() throws Exception {
+        m_db.save( newProfileFor( "renamer" ) );
+        m_db.recordDeletedLogin( "ghost" );
+
+        final DeletedLoginException e = Assertions.assertThrows( DeletedLoginException.class,
+                () -> m_db.rename( "renamer", "ghost" ) );
+
+        Assertions.assertEquals( DeletedLoginException.MESSAGE, e.getMessage() );
+        Assertions.assertEquals( "renamer", m_db.findByLoginName( "renamer" ).getLoginName() );
+    }
+
+    @Test
     public void testPlainDeleteByLoginNameRecordsNoTombstone() throws Exception {
         // PolicyVerifier's self-test deletes through the database directly; that must stay tombstone-free.
         m_db.save( newProfileFor( "selftest" ) );

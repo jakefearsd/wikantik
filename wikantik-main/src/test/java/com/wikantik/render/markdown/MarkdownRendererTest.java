@@ -240,6 +240,43 @@ public class MarkdownRendererTest {
         Assertions.assertEquals( "<p>The site is https://wikantik.com/a.</p>\n", plugin.replace( "<p></p>\n", "" ) );
     }
 
+    /**
+     * With allowHTML on, a bare URL that is the text of an author's raw {@code <a>} belongs to that anchor: autolinking it
+     * would nest one {@code <a>} inside another. A bare URL after the anchor closes still links.
+     */
+    @Test
+    public void testBareUrlInsideRawHtmlAnchorIsNotAutolinked() throws Exception {
+        final String html = translate( "See <a href=\"https://wikantik.com/a\">https://wikantik.com/a</a> now." );
+        Assertions.assertEquals( 1, html.split( "<a", -1 ).length - 1, html );
+        Assertions.assertTrue( html.contains( "<a href=\"https://wikantik.com/a\">https://wikantik.com/a</a>" ), html );
+
+        final String upper = translate( "See <A HREF=\"https://wikantik.com/a\">docs: https://wikantik.com/a</A> now." );
+        Assertions.assertEquals( 1, upper.toLowerCase().split( "<a", -1 ).length - 1, upper );
+
+        final String emphasised = translate( "See <a href=\"https://wikantik.com/a\">**https://wikantik.com/a**</a> now." );
+        Assertions.assertEquals( 1, emphasised.split( "<a", -1 ).length - 1, emphasised );
+
+        final String after = translate( "See <a href=\"https://wikantik.com/a\">docs</a> and https://wikantik.com/b now." );
+        Assertions.assertEquals( 2, after.split( "<a", -1 ).length - 1, after );
+        Assertions.assertTrue( after.contains( ">https://wikantik.com/b</a>" ), after );
+
+        final String abbr = translate( "An <abbr title=\"x\">https://wikantik.com/c</abbr> link." );
+        Assertions.assertTrue( abbr.contains( ">https://wikantik.com/c</a>" ), "an element merely starting with 'a' is no anchor: " + abbr );
+    }
+
+    /** With allowHTML off the raw anchor is escaped text, so the URL inside it still autolinks (it is the only link). */
+    @Test
+    public void testBareUrlInsideEscapedRawAnchorStillLinksWhenHtmlIsOff() throws Exception {
+        testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.allowHTML", "false" );
+        try {
+            final String html = translate( "See <a href=\"https://wikantik.com/a\">https://wikantik.com/a</a> now." );
+            Assertions.assertTrue( html.contains( "&lt;a" ), html );
+            Assertions.assertTrue( html.contains( ">https://wikantik.com/a</a>" ), html );
+        } finally {
+            testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.allowHTML", "true" );
+        }
+    }
+
     @Test
     public void testMarkupLinkWithCustomAttributes() throws Exception {
         final String src = "This should be a [link with custom attributes](http://google.com){target=blank}";

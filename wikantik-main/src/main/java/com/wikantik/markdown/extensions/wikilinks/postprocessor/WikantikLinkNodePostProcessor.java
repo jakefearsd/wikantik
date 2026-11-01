@@ -19,12 +19,14 @@
 package com.wikantik.markdown.extensions.wikilinks.postprocessor;
 
 import com.vladsch.flexmark.ast.AutoLink;
+import com.vladsch.flexmark.ast.HtmlInline;
 import com.vladsch.flexmark.ast.Image;
 import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.ast.MailLink;
 import com.vladsch.flexmark.ast.Text;
 import com.vladsch.flexmark.parser.PostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
+import com.vladsch.flexmark.util.ast.Block;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
@@ -56,6 +58,8 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
     protected boolean useOutlinkImage = true;
     protected final Document document;
     private static final Pattern WEB_URL = Pattern.compile( "(?i)https?://|www\\." );
+    private static final Pattern RAW_ANCHOR_OPEN = Pattern.compile( "(?i)<a[\\s>/]" );
+    private static final Pattern RAW_ANCHOR_CLOSE = Pattern.compile( "(?i)</a\\s*>" );
 
     public WikantikLinkNodePostProcessor( final Context context,
                                          final Document document,
@@ -78,7 +82,8 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
     public void process( final NodeTracker state, final Node node ) {
         if( node instanceof Image imageNode ) {
             processImageNode( state, imageNode );
-        } else if( node instanceof AutoLink autoLink && isBareNonWebLink( autoLink ) ) {
+        } else if( node instanceof AutoLink autoLink
+                   && ( isBareNonWebLink( autoLink ) || isBareLinkInsideRawAnchor( autoLink ) ) ) {
             unwrapToText( state, autoLink );
         } else if( node instanceof AutoLink || node instanceof MailLink ) {
             // A GFM autolink (bare URL, www., email) or a <…> autolink is an external link: same outlink icon
@@ -100,6 +105,33 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
      */
     static boolean isBareNonWebLink( final AutoLink link ) {
         return link.getOpeningMarker().isEmpty() && !WEB_URL.matcher( link.getText() ).lookingAt();
+    }
+
+    /**
+     * A GFM text autolink that is (part of) the text of an author's raw {@code <a>}: with allowHTML on that anchor is
+     * real markup, so linking the URL again would nest one {@code <a>} inside another (which the sanitizer then
+     * splits, leaving an empty anchor). With allowHTML off the raw anchor is escaped text and the autolink stays.
+     */
+    boolean isBareLinkInsideRawAnchor( final AutoLink link ) {
+        if( !link.getOpeningMarker().isEmpty()
+            || !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) ) {
+            return false;
+        }
+        // Walk back through the inline content of the enclosing block, out of any emphasis the URL sits in.
+        for( Node level = link; level != null && !( level instanceof Block ); level = level.getParent() ) {
+            for( Node sibling = level.getPrevious(); sibling != null; sibling = sibling.getPrevious() ) {
+                if( sibling instanceof HtmlInline html && !( sibling instanceof WikiHtmlInline ) ) {
+                    final String tag = html.getChars().toString();
+                    if( RAW_ANCHOR_CLOSE.matcher( tag ).lookingAt() ) {
+                        return false;
+                    }
+                    if( RAW_ANCHOR_OPEN.matcher( tag ).lookingAt() && !tag.endsWith( "/>" ) ) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** Puts the autolink's source text back in its place. */

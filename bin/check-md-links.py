@@ -16,7 +16,8 @@ from urllib.parse import unquote
 
 EXCLUDE_ALWAYS = ("docs/wikantik-pages/",)
 EXCLUDE_DEFAULT = ("docs/superpowers/", "docs/archive/", "docs/clusters/", "eval/", "marketing/", "src/site/",
-                   "wikantik-wikipages/", "wikantik-it-tests/wikantik-selenide-tests/src/test/resources/test-repo/")  # wiki-page resources use wikilinks, not file links
+                   "wikantik-wikipages/", "wikantik-it-tests/wikantik-selenide-tests/src/test/resources/test-repo/",  # wiki-page resources use wikilinks, not file links
+                   "wikantik-frontend/src/utils/__fixtures__/")  # test fixtures reference deliberately fake targets
 EXCLUDE_DEFAULT_FILES = {"CHANGELOG.md"}
 
 INLINE = re.compile(r"\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")

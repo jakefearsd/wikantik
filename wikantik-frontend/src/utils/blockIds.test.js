@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
-  BLOCK_ID_RE, STANDALONE_RE, isBlockRef, blocksFromMarkdown, newBlockId, insertMarker, blockFingerprint,
-  markerChange, blockAt, takenBlockIds, blockLinkEdit, blockMarkers, ACCESS_RULES,
+  BLOCK_ID_RE, STANDALONE_RE, isBlockRef, blocksFromMarkdown, blockFingerprint, blockMarkers,
 } from './blockIds';
 
 // Mirrors the server's BlockIdsTest (com.wikantik.parser.markdown): the same inputs, the same answers.
@@ -53,7 +52,7 @@ describe('blocksFromMarkdown', () => {
     expect(blocksFromMarkdown(md)).toEqual([{
       index: 0, id: 'abc', kind: 'paragraph', from: 0, to: 'Alpha beta ^abc'.length,
       markerFrom: 'Alpha beta'.length, markerTo: 'Alpha beta ^abc'.length, inlineAt: 'Alpha beta ^abc'.length,
-      text: 'Alpha beta', rules: false,
+      text: 'Alpha beta',
     }]);
   });
 
@@ -224,11 +223,6 @@ describe('blocksFromMarkdown', () => {
     const b = blocksFromMarkdown(md)[0];
     expect([b.markerFrom, b.markerTo]).toEqual([4, 9]);
     expect(blockMarkers(md)).toEqual([{ id: 'id', caret: 5, wins: true }]);
-    // and copying a link neither adds a second marker (which would orphan the id the reader shows) nor copies this
-    // reading's id: a block holding [{ is linked from the page view
-    for (const text of [md, 'Para ^id\n[{ALLOW view Admin}]\n']) {
-      expect(() => blockLinkEdit(text, 1)).toThrow(expect.objectContaining({ code: ACCESS_RULES }));
-    }
     // only blanks and rules may follow: other text keeps the caret literal
     expect(ids('Para ^id [{ALLOW view Admin}] more\n')).toEqual([null]);
     expect(ids('Para ^id\n[{ALLOW view Admin}] more\n')).toEqual([null]);
@@ -255,10 +249,7 @@ describe('blocksFromMarkdown', () => {
     expect(blockMarkers(md)).toEqual([]);
   });
 
-  it('tags the block before a rule-and-marker paragraph, and strips only the marker from the text', () => {
-    const md = 'Para.\n\n[{ALLOW view Admin}]\n\nAfter.\n';
-    const tagged = insertMarker(md, blocksFromMarkdown(md)[0], 'pp');
-    expect(tagged).toBe('Para. ^pp\n\n[{ALLOW view Admin}]\n\nAfter.\n');
+  it('reads a rule-and-marker paragraph after a block as that block\'s marker', () => {
     const beside = 'Para.\n\n[{ALLOW view Admin}] ^dup\n\nAfter. ^dup\n';
     expect(blocksFromMarkdown(beside).map((b) => b.id)).toEqual(['dup', null]);
   });
@@ -269,7 +260,6 @@ describe('blocksFromMarkdown', () => {
     const blocks = blocksFromMarkdown(md);
     expect(blocks.map((b) => [b.kind, b.text])).toEqual([['list-item', 'one\nthree'], ['list-item', 'three'], ['list-item', 'four']]);
     expect(blocks[1].from).toBe(md.indexOf('- three'));
-    expect(insertMarker(md, blocks[1], 't3')).toBe('- one\n  - [{ALLOW view Admin}]\n  - three ^t3\n- four\n');
     // a blank line after an empty item ends it: the marker below tags the list
     const ended = blocksFromMarkdown('- one\n- [{ALLOW view Admin}]\n\n  ^mk\n\nAfter.\n');
     expect(ended.map((b) => [b.kind, b.id])).toEqual([['list', 'mk'], ['list-item', null], ['list-item', null], ['paragraph', null]]);
@@ -303,96 +293,6 @@ describe('blocksFromMarkdown', () => {
   });
 });
 
-describe('insertMarker', () => {
-  it('adds an inline marker to a paragraph and a list item', () => {
-    const md = '$$\na\n$$\n\nPara\n';
-    const blocks = blocksFromMarkdown(md);
-    expect(insertMarker(md, blocks[1], 'q1')).toBe('$$\na\n$$\n\nPara ^q1\n');
-    expect(insertMarker('- one\n- two\n', blocksFromMarkdown('- one\n- two\n')[1], 'x')).toBe('- one\n- two ^x\n');
-    const nested = '- a\n  - child\n- b\n';
-    expect(insertMarker(nested, blocksFromMarkdown(nested)[0], 'ai')).toBe('- a ^ai\n  - child\n- b\n');
-  });
-
-  it('adds a standalone marker after a block that cannot take an inline one', () => {
-    const math = '$$\na\n$$\n\nPara\n';
-    expect(insertMarker(math, blocksFromMarkdown(math)[0], 'q2')).toBe('$$\na\n$$\n\n^q2\n\nPara\n');
-    expect(insertMarker(TABLE, blocksFromMarkdown(TABLE)[0], 't2')).toBe(`${TABLE}\n^t2\n`);
-    const code = '```\nc\n```\nNext\n';
-    expect(insertMarker(code, blocksFromMarkdown(code)[0], 'cc')).toBe('```\nc\n```\n\n^cc\n\nNext\n');
-    expect(insertMarker('> q', blocksFromMarkdown('> q')[0], 'e1')).toBe('> q\n\n^e1');
-    const quoted = '> ```\n> c\n> ```\n';
-    const qc = blocksFromMarkdown(quoted).find((b) => b.kind === 'code');
-    expect(insertMarker(quoted, qc, 'qc')).toBe('> ```\n> c\n> ```\n>\n> ^qc\n');
-    const quotedMore = '> ```\n> c\n> ```\n> after\n';
-    const qm = blocksFromMarkdown(quotedMore).find((b) => b.kind === 'code');
-    expect(insertMarker(quotedMore, qm, 'qm')).toBe('> ```\n> c\n> ```\n>\n> ^qm\n>\n> after\n');
-    const listCode = '- a\n\n      code\n';
-    const lc = blocksFromMarkdown(listCode).find((b) => b.kind === 'code');
-    expect(insertMarker(listCode, lc, 'lc')).toBe('- a\n\n      code\n\n  ^lc\n');
-  });
-
-  it('keeps CRLF line endings', () => {
-    const crlf = '| a |\r\n|---|\r\n| 1 |\r\n';
-    expect(insertMarker(crlf, blocksFromMarkdown(crlf)[0], 't')).toBe(`${crlf}\r\n^t\r\n`);
-    const noEol = '| a |\r\n|---|\r\n| 1 |';
-    expect(insertMarker(noEol, blocksFromMarkdown(noEol)[0], 't')).toBe(`${noEol}\r\n\r\n^t`);
-  });
-
-  it('replaces the marker of a losing duplicate', () => {
-    const md = 'a ^d\n\nb ^d\n';
-    expect(insertMarker(md, blocksFromMarkdown(md)[1], 'e')).toBe('a ^d\n\nb ^e\n');
-    const inItem = 'Top ^x\n\n- a\n\n  ^x\n';
-    const item = blocksFromMarkdown(inItem).find((b) => b.kind === 'list-item');
-    expect(insertMarker(inItem, item, 'y')).toBe('Top ^x\n\n- a\n\n  ^y\n');
-  });
-
-  it('refuses bad input', () => {
-    const md = 'Alpha ^abc\n\nBeta\n';
-    const blocks = blocksFromMarkdown(md);
-    expect(() => insertMarker(md, blocks[0], 'new')).toThrow(/already has id \^abc/);
-    expect(() => insertMarker(md, blocks[1], 'bad id')).toThrow(/Not a block id/);
-    expect(() => insertMarker(md, blocks[1], null)).toThrow(/Not a block id/);
-    expect(() => insertMarker('Other\n', blocks[1], 'x')).toThrow(/not a current block/);
-    expect(() => insertMarker(md, null, 'x')).toThrow(/not a current block/);
-    const orphan = '- ^x\n';
-    expect(() => insertMarker(orphan, blocksFromMarkdown(orphan)[0], 'y')).toThrow(/no text line/);
-  });
-
-  it('tags a paragraph that ends in inline markup', () => {
-    const code = 'Use `code`\n';
-    expect(insertMarker(code, blocksFromMarkdown(code)[0], 'x')).toBe('Use `code` ^x\n');
-    const em = 'Ends with *em*\n';
-    expect(insertMarker(em, blocksFromMarkdown(em)[0], 'x')).toBe('Ends with *em* ^x\n');
-  });
-
-  it('refuses an edit that does not read back with the block tagged', () => {
-    // the id is already taken earlier on the page: the new marker would be a losing duplicate
-    const md = 'a ^x\n\nb\n';
-    expect(() => insertMarker(md, blocksFromMarkdown(md)[1], 'x')).toThrow(/did not tag it/);
-  });
-});
-
-describe('newBlockId', () => {
-  afterEach(() => { vi.restoreAllMocks(); });
-
-  it('makes six chars of [a-z0-9]', () => {
-    for (let i = 0; i < 50; i++) expect(newBlockId(new Set())).toMatch(/^[a-z0-9]{6}$/);
-    expect(newBlockId()).toMatch(/^[a-z0-9]{6}$/);
-  });
-
-  it('avoids ids already on the page (a Set or an array)', () => {
-    const seq = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2];
-    let n = 0;
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => {
-      for (let i = 0; i < arr.length; i++) arr[i] = seq[n++];
-      return arr;
-    });
-    expect(newBlockId(new Set(['aaaaaa']))).toBe('bbbbbb');
-    n = 0;
-    expect(newBlockId(['aaaaaa', 'bbbbbb'])).toBe('cccccc');
-  });
-});
-
 describe('blockFingerprint', () => {
   it('lowercases and keeps letters and digits, first 200', () => {
     expect(blockFingerprint('Hello, World! 42')).toBe('helloworld42');
@@ -400,64 +300,6 @@ describe('blockFingerprint', () => {
     expect(blockFingerprint('a'.repeat(250))).toHaveLength(200);
     expect(blockFingerprint(null)).toBe('');
     expect(blockFingerprint(undefined)).toBe('');
-  });
-});
-
-describe('markerChange', () => {
-  const apply = (md, c) => md.slice(0, c.from) + c.insert + md.slice(c.to);
-
-  it('is the one edit insertMarker makes: inline, standalone, a duplicate replaced', () => {
-    for (const [md, i] of [['a\n\nPara\n', 1], [TABLE, 0], ['a ^d\n\nb ^d\n', 1], ['> q', 0], ['- a\n- b\n', 1]]) {
-      const b = blocksFromMarkdown(md)[i];
-      const c = markerChange(md, b, 'zz');
-      expect(apply(md, c)).toBe(insertMarker(md, b, 'zz'));
-    }
-    expect(markerChange('Para\n', blocksFromMarkdown('Para\n')[0], 'x')).toEqual({ from: 4, to: 4, insert: ' ^x' });
-    expect(markerChange('a ^d\n\nb ^d\n', blocksFromMarkdown('a ^d\n\nb ^d\n')[1], 'e')).toEqual({ from: 8, to: 10, insert: '^e' });
-  });
-
-  it('validates as insertMarker does', () => {
-    const md = 'a ^abc\n\nb\n';
-    expect(() => markerChange(md, blocksFromMarkdown(md)[0], 'n')).toThrow(/already has id/);
-    expect(() => markerChange(md, blocksFromMarkdown(md)[1], 'abc')).toThrow(/did not tag it/);
-  });
-});
-
-describe('blockAt', () => {
-  it('is the innermost block whose range holds the position, or null', () => {
-    const md = '# H\n\n> quoted para\n\n- item\n\n  more\n';
-    expect(blockAt(md, 1)).toBeNull();                       // a heading
-    expect(blockAt(md, 4)).toBeNull();                       // the blank line
-    expect(blockAt(md, md.indexOf('quoted')).kind).toBe('paragraph');
-    expect(blockAt(md, md.indexOf('item') + 2).kind).toBe('list-item');
-    expect(blockAt(md, md.indexOf('more')).kind).toBe('paragraph');
-    expect(blockAt('', 0)).toBeNull();
-  });
-});
-
-describe('takenBlockIds', () => {
-  it('collects every ^id-looking token (orphans and losers too), so a fresh id never collides', () => {
-    expect([...takenBlockIds('a ^one\n\n^two\n\nx^y\n')].sort()).toEqual(['one', 'two', 'y']);
-    expect(takenBlockIds('')).toEqual(new Set());
-  });
-});
-
-describe('blockLinkEdit', () => {
-  afterEach(() => { vi.restoreAllMocks(); });
-
-  it('reuses the id of the block at the position, with no edit', () => {
-    expect(blockLinkEdit('Para ^abc\n', 2)).toEqual({ id: 'abc', change: null });
-  });
-
-  it('gives an id-less block a fresh id that avoids every id on the page', () => {
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementationOnce((arr) => arr.fill(0))
-      .mockImplementationOnce((arr) => arr.fill(1));
-    const md = 'Para\n\nUse `x ^aaaaaa` here\n';   // only a look-alike in code, but still avoided
-    expect(blockLinkEdit(md, 1)).toEqual({ id: 'bbbbbb', change: { from: 4, to: 4, insert: ' ^bbbbbb' } });
-  });
-
-  it('is null away from a block', () => {
-    expect(blockLinkEdit('# Heading\n', 3)).toBeNull();
   });
 });
 
@@ -474,9 +316,8 @@ describe('blockMarkers', () => {
   });
 });
 
-// Spellings of an access rule the reader strips that a narrow pattern misses, and shapes this mirror still reads
-// otherwise than the reader. On any block whose source holds `[{` the editor neither adds nor copies a marker.
-describe('blocks holding access rules', () => {
+// Spellings of an access rule the reader strips that a narrow pattern misses: the preview reads them as the reader does.
+describe('access rules in every spelling the reader strips', () => {
   const SPELLINGS = [
     ['a space after the opener', 'Para ^id [{ ALLOW view Admin}]\n'],
     ['a space after the opener, in a list item', '- Item ^id [{ ALLOW view Admin}]\n'],
@@ -484,34 +325,9 @@ describe('blocks holding access rules', () => {
     ['a wrapped rule on the next line', 'Para ^id\n[{ALLOW view\nAdmin}]\n'],
     ['a brace inside the rule', 'Para ^id [{ALLOW edit {x}}]\n'],
   ];
-  const LESSER = [
-    ['a quote whose standalone marker stripping indents into code', '> Para\n>\n> [{ALLOW view Admin}]    ^id\n'],
-    ['a list item whose standalone marker stripping indents into code', '- Item\n\n  [{ALLOW view Admin}]    ^id\n'],
-  ];
-  const refusal = (fn) => {
-    try { fn(); } catch (e) { return e.code; }
-    return 'no refusal';
-  };
 
   it.each(SPELLINGS)('reads the marker before %s as the reader does', (_n, md) => {
     expect(blocksFromMarkdown(md).map((b) => b.id)).toEqual(['id']);
     expect(blockMarkers(md).map((m) => m.id)).toEqual(['id']);
-  });
-
-  it.each([...SPELLINGS, ...LESSER])('neither adds nor copies a marker beside %s', (_n, md) => {
-    const at = md.search(/Para|Item/) + 1;
-    const blocks = blocksFromMarkdown(md);
-    expect(blocks.filter((b) => b.from <= at && at <= b.to).every((b) => b.rules)).toBe(true);
-    expect(refusal(() => blockLinkEdit(md, at))).toBe(ACCESS_RULES);
-    for (const b of blocks) expect(refusal(() => markerChange(md, { ...b, id: null }, 'zzzzzz'))).toBe(ACCESS_RULES);
-  });
-
-  it('marks only the blocks whose own source holds [{', () => {
-    const md = 'Para.\n\n[{ALLOW view Admin}]\n\nAfter.\n\nSee [{TableOfContents}] here\n';
-    expect(blocksFromMarkdown(md).map((b) => [b.text, b.rules])).toEqual([['Para.', false], ['After.', false],
-      ['See [{TableOfContents}] here', true]]);
-    // a standalone marker beside a rule makes its block hold one: the marker's line is part of it
-    expect(blocksFromMarkdown('Para.\n\n[{ALLOW view Admin}] ^id\n').map((b) => b.rules)).toEqual([true]);
-    expect(blockLinkEdit('Para ^abc\n', 2)).toEqual({ id: 'abc', change: null });
   });
 });

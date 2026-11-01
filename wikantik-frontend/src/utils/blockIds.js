@@ -1,6 +1,10 @@
-// Obsidian-style `^id` block markers: the editor's mirror of the server's BlockIds / BlockWalk
-// (com.wikantik.parser.markdown). The shared fixture __fixtures__/block-ids.json pins the editor preview
-// (remarkBlockIds) and the reader's render to the same anchors; blockIds.test.js mirrors BlockIdsTest.
+// Obsidian-style `^id` block markers: the editor's VISUAL mirror of the server's BlockIds / BlockWalk
+// (com.wikantik.parser.markdown). It draws: the editor preview's anchors (remarkBlockIds) and the live preview's marker
+// chips (livePreview/ranges.js) read markers by these rules. It decides nothing: block identity — which block a
+// reader sees where, which id it carries, the edit that gives it one — is the server's, also for the unsaved buffer
+// (POST /api/pages/{name}/blocks/draft, used by "Copy block link" and the [[#^ completion; see draftBlockLink.js). The
+// shared fixture __fixtures__/block-ids.json pins this mirror's drawing to the reader's render; blockIds.test.js
+// mirrors BlockIdsTest.
 //
 // Blocks, in pre-order: paragraphs (not a list item's own first paragraph — the item is the block), list items,
 // tables, block quotes (a callout is a 'callout'), fenced and indented code (a `math` fence and `$$…$$` are 'math'),
@@ -26,11 +30,7 @@
 //   - a rule in lower case, or in a spelling only the server's two readings know (a rule with a space after `[{`,
 //     wrapped over lines or holding a brace IS read, as RULE_TEXT says; the preview draws the last two as text);
 //   - the preview's drawing of a rule-only list item and of what the reader shows as code (ids agree there).
-// So the editor never acts on this reading where it might be wrong: on a block whose source holds `[{` (every rule the
-// reader strips starts so), markerChange and blockLinkEdit refuse with code ACCESS_RULES and the link completion lists
-// the block disabled — such a block is linked from the page view, which asks the server.
-// None of this reaches the server: the editor's block indices are its own (the picker's local list, a marker inserted
-// into the buffer and read back here); a block on another page is listed and tagged by the server's index and version.
+// The editor therefore never acts on this reading: it only draws from it.
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -53,7 +53,6 @@ export const MARKER_WITH_SPACE = /^[ \t\r\n]*\^([A-Za-z0-9-]+)[ \t\r\n]*$/;
 /** Trailing blanks (spaces, tabs, line breaks). */
 const TRAILING_BLANKS = /[ \t\r\n]+$/;
 
-const ID_RE = /^[A-Za-z0-9-]+$/;
 /**
  * An access rule written as text, with or without `()`, in every spelling the server strips (AclDirectiveScanner in
  * wide mode, and the render path's links): whitespace may follow the opener (`[{ ALLOW …}]`), the rule may wrap over
@@ -62,10 +61,6 @@ const ID_RE = /^[A-Za-z0-9-]+$/;
  */
 export const RULE_TEXT = /\[\{[ \t\n\v\f\r]*(?:ALLOW|DENY)(?:(?!\r?\n[ \t]*\r?\n)[\s\S])*?\}\](?:\(\))?/g;
 const RULE_LINK_TEXT = /^\{[ \t\n\v\f\r]*(?:ALLOW|DENY)/;
-/** What a refusal to add or copy a marker on a block holding `[{` carries as its `code`. */
-export const ACCESS_RULES = 'access-rules';
-const NEW_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
-const NEW_ID_LENGTH = 6;
 const FINGERPRINT_LENGTH = 200;
 
 /** Whether a wikilink heading part addresses a block: it starts with `^`. The one discriminator, as on the server. */
@@ -523,8 +518,6 @@ function coordsOf(md, bodyStart, body) {
   return { startOf, endOf, spaceBefore, spaceAfter, paragraphStart };
 }
 
-const lineStart = (text, pos) => text.lastIndexOf('\n', pos - 1) + 1;
-const lineEnd = (text, pos) => { const nl = text.indexOf('\n', pos); return nl < 0 ? text.length : nl; };
 
 /**
  * Every addressable block of `md` (the editor buffer; leading frontmatter is skipped), in the server's order:
@@ -576,10 +569,6 @@ export function blocksFromMarkdown(md) {
     markerTo: located[index].range[1],
     inlineAt: located[index].inlineAt,
     text: plainText(e.node),
-    // the block's lines, to the end of its marker's: anything the reader might strip starts with `[{`, and where it
-    // does, this raw reading may not be the reader's — the editor then neither adds nor copies a marker
-    rules: md.slice(lineStart(md, located[index].from),
-      lineEnd(md, Math.max(located[index].to, located[index].range[1]))).includes('[{'),
   }));
 }
 
@@ -594,124 +583,6 @@ export function blockMarkers(md) {
   const { tree, source } = parseBlocksTree(body);
   const walk = walkBlocks(tree, source);
   return walk.markers.map((m) => ({ id: m.id, caret: bodyStart + m.caret, wins: walk.wins(m) }));
-}
-
-// ---- editing ---------------------------------------------------------------------------------------------------------
-
-/** A line prefix turned into the prefix of a continuation line: block-quote `>` and tabs kept, the rest spaces. */
-const continuationPrefix = (prefix) => [...prefix].map((ch) => (ch === '>' || ch === '\t' ? ch : ' ')).join('');
-
-/** Whether the line at `at` holds nothing but whitespace and block-quote markers (or there is no line). */
-function isBlankLine(text, at) {
-  for (let i = at; i < text.length && text[i] !== '\n'; i++) {
-    if (text[i] !== '>' && !/\s/.test(text[i])) return false;
-  }
-  return true;
-}
-
-/** The insertion that puts `^id` on a marker line of its own after `b`, inside `b`'s container, set apart by blank lines. */
-function standaloneMarkerChange(text, b, id) {
-  const prefix = continuationPrefix(text.slice(lineStart(text, b.from), b.from));
-  const blank = prefix.trimEnd();
-  const nl = text.indexOf('\n', b.to);
-  if (nl < 0) {
-    const eol = text.includes('\r\n') ? '\r\n' : '\n';
-    return { from: text.length, to: text.length, insert: `${eol}${blank}${eol}${prefix}^${id}` };
-  }
-  const eol = nl > 0 && text[nl - 1] === '\r' ? '\r\n' : '\n';
-  const at = nl + 1;
-  let insert = `${blank}${eol}${prefix}^${id}${eol}`;
-  if (!isBlankLine(text, at)) insert += `${blank}${eol}`;   // keep the marker its own paragraph
-  return { from: at, to: at, insert };
-}
-
-const applyChange = (md, c) => md.slice(0, c.from) + c.insert + md.slice(c.to);
-
-/** The refusal to add or copy a marker on `b`, a block holding `[{` (see blocksFromMarkdown's `rules`). */
-function accessRulesRefusal(b) {
-  return Object.assign(new Error(`Block ${b.index} contains access rules: link it from the page view`), { code: ACCESS_RULES });
-}
-
-/**
- * The one edit that tags `block` (from `blocksFromMarkdown(md)`) with `id`, as `{ from, to, insert }` over `md`: an
- * inline ` ^id` at the end of a paragraph or of a list item's first line, otherwise a standalone marker line after the
- * block; a losing duplicate's marker is replaced. Mirrors the server's BlockIds.assign. The editor applies it as one
- * transaction, so it is one undo step and the caret maps through it.
- *
- * @throws Error when `id` is malformed, `block` is not a current block of `md`, it holds access rules (`code`
- *   ACCESS_RULES: the reader may read it otherwise than this mirror, so no marker is added from this reading), it
- *   already has an id or can't take one, or the edited text does not read back with the block tagged.
- */
-export function markerChange(md, block, id) {
-  if (typeof id !== 'string' || !ID_RE.test(id)) throw new Error(`Not a block id: ${id}`);
-  const b = blocksFromMarkdown(md)[block?.index];
-  if (!b || b.kind !== block.kind || b.from !== block.from || b.to !== block.to) {
-    throw new Error(`Block ${block?.index} is not a current block of this text`);
-  }
-  if (b.rules) throw accessRulesRefusal(b);
-  if (b.id != null) throw new Error(`Block ${b.index} already has id ^${b.id}`);
-  let change;
-  if (b.markerFrom >= 0) {   // a duplicate: its marker carries no id, so its ^id is replaced
-    change = { from: md.indexOf('^', b.markerFrom), to: b.markerTo, insert: `^${id}` };
-  } else if (b.inlineAt >= 0) {
-    change = { from: b.inlineAt, to: b.inlineAt, insert: ` ^${id}` };
-  } else if (b.kind === 'list-item') {
-    throw new Error(`List item ${b.index} has no text line to carry an id`);
-  } else {
-    change = standaloneMarkerChange(md, b, id);
-  }
-  if (blocksFromMarkdown(applyChange(md, change))[b.index]?.id !== id) {
-    throw new Error(`Adding ^${id} to block ${b.index} (${b.kind}) did not tag it`);
-  }
-  return change;
-}
-
-/** `md` with `block` tagged `id`: `markerChange` applied. Same contract and errors. */
-export function insertMarker(md, block, id) {
-  return applyChange(md, markerChange(md, block, id));
-}
-
-/** The innermost block of `md` whose range holds `pos` (ends included), or null (a heading, a blank line, …). */
-export function blockAt(md, pos) {
-  let best = null;
-  for (const b of blocksFromMarkdown(md)) {
-    if (b.from <= pos && pos <= b.to && (!best || b.to - b.from <= best.to - best.from)) best = b;
-  }
-  return best;
-}
-
-/**
- * Every `^word` in `md` — ids, losing duplicates, orphans, even look-alikes in code — so a fresh id cannot collide with
- * any of them (over-collecting only narrows the choice).
- */
-export function takenBlockIds(md) {
-  return new Set([...(md || '').matchAll(/\^([A-Za-z0-9-]+)/g)].map((m) => m[1]));
-}
-
-/**
- * What "copy a link to the block at `pos`" needs: `{ id, change }`, where `change` is the marker edit for a block
- * without an id (null when it already has one), or null when no block holds `pos`. Throws (`code` ACCESS_RULES) for a
- * block holding `[{`, id or not: the reader strips access rules before it reads markers, and this mirror may read
- * that block otherwise — a marker it added could orphan the id the reader shows, an id it copied could be none.
- */
-export function blockLinkEdit(md, pos) {
-  const b = blockAt(md, pos);
-  if (!b) return null;
-  if (b.rules) throw accessRulesRefusal(b);   // neither add a marker nor copy one this reading may have wrong
-  if (b.id) return { id: b.id, change: null };
-  const id = newBlockId(takenBlockIds(md));
-  return { id, change: markerChange(md, b, id) };
-}
-
-/** A fresh id: six chars of [a-z0-9], not in `existing` (a Set, an array, or nothing). */
-export function newBlockId(existing) {
-  const taken = existing instanceof Set ? existing : new Set(existing || []);
-  for (;;) {
-    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(NEW_ID_LENGTH));
-    if (bytes.some((v) => v >= 252)) continue;   // 252 = 7 × 36: keep every char equally likely
-    const id = [...bytes].map((v) => NEW_ID_CHARS[v % NEW_ID_CHARS.length]).join('');
-    if (!taken.has(id)) return id;
-  }
 }
 
 /** The text lowercased, reduced to letters and digits, first 200 chars ('' for none) — the server's fingerprint. */

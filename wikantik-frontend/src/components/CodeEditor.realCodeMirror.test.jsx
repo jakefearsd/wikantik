@@ -310,6 +310,21 @@ describe('CodeEditor block completion ([[Page#^)', () => {
     expect(bare.view.state.doc.toString()).toBe('[[Page#^');
     bare.unmount();
 
+    // this page's block: the link comes from the server's draft reading, through linkCompletion.draftLink
+    const local = { local: true, canAssign: true, text: '[[Page#^', blocks: [{ index: 0, id: null, kind: 'paragraph', text: 'Here', from: 0, to: 8 }] };
+    const draftLink = vi.fn(async () => ({ id: 'srv', change: null, block: { index: 0, from: 0, to: 8 } }));
+    const drafted = mountWith({ searchPages: async () => [], getHeadings: async () => [], getBlocks: async () => local, draftLink });
+    await waitFor(() => expect(rows(drafted.container)).toHaveLength(1));
+    await accept(drafted.view);
+    await waitFor(() => expect(drafted.view.state.doc.toString()).toBe('[[Page#^srv]]'));
+    expect(draftLink).toHaveBeenCalledWith('[[Page#^', 0);
+    drafted.unmount();
+    const undrafted = mountWith({ searchPages: async () => [], getHeadings: async () => [], getBlocks: async () => local, notify: vi.fn() });
+    await waitFor(() => expect(rows(undrafted.container)).toHaveLength(1));
+    await accept(undrafted.view);
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('[link-complete] could not link a block of this page', 0, 'failed', 'block ids cannot be read here'));
+    undrafted.unmount();
+
     const none = mountWith({ searchPages: async () => [], getHeadings: async () => [] });
     await act(async () => { await new Promise((r) => { setTimeout(r, 20); }); });
     expect(rows(none.container)).toHaveLength(0);

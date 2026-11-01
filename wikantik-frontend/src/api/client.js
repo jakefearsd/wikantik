@@ -118,6 +118,19 @@ export const api = {
     const qs = params.toString();
     return request(`/api/pages/${encodeURIComponent(name)}/blocks${qs ? '?' + qs : ''}`, { signal });
   },
+  /**
+   * The server's block model of unsaved `text` (the editor's buffer) — the one authority for block identity. Without
+   * `offset`: `{ blocks: [{ index, id, kind, text, from, to }] }` (optionally narrowed by `q`, capped by `limit`). With
+   * `offset`: the block the reader shows there, `{ id, change: { from, to, insert } | null, block: { index, from, to } }`;
+   * a 409 rejects with `err.body.reason` (no-block | refused). Nothing is saved.
+   */
+  draftBlocks: (name, { text, offset, q, limit, signal } = {}) => {
+    const body = { text };
+    if (offset != null) body.offset = offset;
+    if (q) body.q = q;
+    if (limit) body.limit = limit;
+    return request(`/api/pages/${encodeURIComponent(name)}/blocks/draft`, { method: 'POST', body: JSON.stringify(body), signal });
+  },
   /** Gives a block an id: resolves `{id, version}`; a 409 rejects with `err.body.reason` (stale | block-not-located | derived). */
   assignBlockId: (name, { version, index, fingerprint }) =>
     request(`/api/pages/${encodeURIComponent(name)}/blocks`, {

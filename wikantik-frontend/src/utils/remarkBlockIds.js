@@ -1,7 +1,8 @@
 // `^id` block markers in the editor preview, rendered as the reader renders them (the server's BlockIdPostProcessor):
 // the block's element gets id="^id", the marker text is taken out, and an orphan standalone marker leaves an empty
 // <span id="^id" class="block-anchor"></span>. __fixtures__/block-ids.json pins the two together. The preview stamps no
-// data-block ordinals: only the reader uses them.
+// data-block ordinals: only the reader uses them. Visuals only: no id the editor links to or adds comes from here —
+// block identity is the server's (POST /blocks/draft, see draftBlockLink.js).
 //
 // Runs after remarkCallouts (a callout's id goes on its outer element) and before remarkWikiMarkup (access rules are
 // still `[{…}]` text, not chips) and remarkWikiLinks (which moves an embed-only paragraph's id onto its embed).

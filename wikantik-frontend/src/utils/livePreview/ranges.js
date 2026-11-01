@@ -181,6 +181,7 @@ const TEXT_BLOCK = new Set(['Paragraph', 'Task']);
  * and standalone (a paragraph that is only `^id`), with its regexes — but over the Lezer block structure, which costs a
  * line slice instead of a remark parse. Code, tables, HTML and headings are never Paragraph nodes; display math and a
  * callout's title line are ruled out here. (The inline tree is not consulted, so a `^x^` superscript cannot mis-tint.)
+ * Visuals only: the chips this tints decide nothing — block identity is the server's (POST /blocks/draft).
  */
 function paragraphMarker(doc, node) {
   if (doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) return null;

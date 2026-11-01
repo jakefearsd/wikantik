@@ -190,11 +190,15 @@ describe('block completion', () => {
       { index: 2, id: null, kind: 'list-item', text: 'Beta item' },
     ],
   };
+  /** The listing PageEditor's getBlocks gives for this buffer (the server's draft listing; plain cases agree). */
   const localBlocks = (md) => ({
     local: true,
     canAssign: true,
-    blocks: blocksFromMarkdown(md).map(({ index, id, kind, text, rules }) => ({ index, id, kind, text, rules })),
+    text: md,
+    blocks: blocksFromMarkdown(md).map(({ index, id, kind, text, from, to }) => ({ index, id, kind, text, from, to })),
   });
+  /** A server draft answer: block `[from, to)` gets ` ^id` at its end. */
+  const tagEnd = (id, from, to) => ({ id, change: { from: to, to, insert: ` ^${id}` }, block: { index: 0, from, to } });
 
   let views = [];
   /** A real EditorView with history, the caret at the end (or at `at`), and a count of document changes. */
@@ -390,20 +394,6 @@ describe('block completion', () => {
     expect(warn).toHaveBeenCalledWith('[link-complete] could not link the block', 'Page', 2, 'view is gone');
   });
 
-  it('a local pick unfolds a fold hiding the block before adding its marker, in the same transaction', async () => {
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(4));
-    const doc = '## Folded\n\nHidden para\n\n## Next\n\n[[#^hid';
-    const { view, changes } = viewOf(doc, doc.length, [codeFolding()]);
-    view.dispatch({ effects: foldEffect.of({ from: 9, to: 22 }) });
-    expect(foldedRanges(view.state).size).toBe(1);
-    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks(doc)) });
-    const res = await createWikiLinkSource(d)(contextOf(view));
-    pick(view, res, res.options[0]);
-    expect(view.state.doc.toString()).toBe('## Folded\n\nHidden para ^eeeeee\n\n## Next\n\n[[#^eeeeee]]');
-    expect(foldedRanges(view.state).size).toBe(0);
-    expect(changes.count).toBe(1);
-  });
-
   it('a complete listing is filtered locally; an incomplete one asks the server with q (debounced, not re-filtered)', async () => {
     const big = { version: 7, canAssign: true, complete: false,
       blocks: Array.from({ length: 100 }, (_, i) => ({ index: i, id: `b${i}`, kind: 'paragraph', text: `Block ${i}` })) };
@@ -445,78 +435,10 @@ describe('block completion', () => {
     expect(warn).toHaveBeenCalled();
   });
 
-  it('[[#^ lists the current buffer blocks; an id-less pick adds the marker and the link in ONE undoable transaction', async () => {
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(2));
-    const doc = 'Alpha para\n\nSee [[#^alp]]';
-    const { view, changes } = viewOf(doc, 'Alpha para\n\nSee [[#^alp'.length);
-    const getBlocks = vi.fn(async () => localBlocks(view.state.doc.toString()));
-    const d = blockDeps({ getBlocks });
-    const res = await createWikiLinkSource(d)(contextOf(view));
-    expect(getBlocks).toHaveBeenCalledWith(null);
-    expect(res.options[0].label).toBe('Alpha para');
-    pick(view, res, res.options[0]);
-    expect(view.state.doc.toString()).toBe('Alpha para ^cccccc\n\nSee [[#^cccccc]]');
-    expect(view.state.selection.main.head).toBe(view.state.doc.length);
-    expect(changes.count).toBe(1);
-    expect(d.assignBlock).not.toHaveBeenCalled();
-    undo(view);
-    expect(view.state.doc.toString()).toBe(doc);
-  });
-
   it('[[#^ on a block with an id inserts [[#^id]]', async () => {
     const getBlocks = vi.fn(async () => localBlocks('Alpha ^abc\n'));
     const res = await createWikiLinkSource(blockDeps({ getBlocks }))(ctx('x [[#^al'));
     expect(res.options[0].apply).toBe('[[#^abc]]');
-  });
-
-  it('a page the buffer IS (local) is linked by name and edited locally', async () => {
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(3));
-    const { view } = viewOf('Gamma\n\n[[Self#^ga');
-    const getBlocks = vi.fn(async () => localBlocks(view.state.doc.toString()));
-    const d = blockDeps({ getBlocks });
-    const res = await createWikiLinkSource(d)(contextOf(view));
-    pick(view, res, res.options[0]);
-    expect(view.state.doc.toString()).toBe('Gamma ^dddddd\n\n[[Self#^dddddd]]');
-    expect(d.assignBlock).not.toHaveBeenCalled();
-  });
-
-  it('[[#^ lists a block holding access rules disabled, with or without an id, and picking it edits nothing', async () => {
-    const doc = 'Para ^id [{ ALLOW view Admin}]\n\nOther [{ALLOW view Admin}]\n\n[[#^';
-    const { view, changes } = viewOf(doc);
-    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks(doc)) });
-    const res = await createWikiLinkSource(d)(contextOf(view));
-    const [tagged, untagged] = res.options;
-    for (const off of [tagged, untagged]) {
-      expect(off).toMatchObject({ detail: 'contains access rules — link it from the page view', disabled: true });
-      off.apply(view, off, res.from, res.to ?? view.state.selection.main.head);
-    }
-    expect(changes.count).toBe(0);
-  });
-
-  it('a local pick whose block came to hold access rules by the time it applies is refused', async () => {
-    const { view, changes } = viewOf('Alpha\n\n[[#^');
-    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks('Alpha\n\n[[#^')) });
-    const res = await createWikiLinkSource(d)(contextOf(view));
-    view.dispatch({ changes: { from: 5, insert: ' [{ ALLOW view Admin}]' } });
-    const before = changes.count;
-    const opt = res.options[0];
-    opt.apply(view, opt, res.from + 22, (res.to ?? res.from) + 22);
-    expect(changes.count).toBe(before);
-    expect(d.notify).toHaveBeenCalledWith('This block contains access rules — link it from the page view');
-  });
-
-  it('a local pick whose block is gone by the time it applies warns and leaves the text alone', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { view, changes } = viewOf('Alpha\n\n[[#^');
-    const getBlocks = vi.fn(async () => localBlocks('Alpha\n\n[[#^'));
-    const d = blockDeps({ getBlocks });
-    const res = await createWikiLinkSource(d)(contextOf(view));
-    view.dispatch({ changes: { from: 0, to: 5, insert: '# Now a heading' } });
-    const before = changes.count;
-    res.options[0].apply(view, res.options[0], res.from + 10, res.to + 10);
-    expect(changes.count).toBe(before);
-    expect(d.notify).toHaveBeenCalledWith('The text changed — pick the block again');
-    expect(warn).toHaveBeenCalled();
   });
 
   it('returns null when aborted while the blocks load, or when a listing has no blocks', async () => {
@@ -553,15 +475,127 @@ describe('block completion', () => {
     expect(warn).toHaveBeenCalledWith('[link-complete] could not add a block id', 'Page', 2, 'nope');
   });
 
-  it('a local block that cannot carry a marker is reported, and nothing is inserted', async () => {
+  it('a local pick asks the server for the id of the block at its offset, and unfolds a fold hiding it, in one step', async () => {
+    const doc = '## Folded\n\nHidden para\n\n## Next\n\n[[#^hid';
+    const { view, changes } = viewOf(doc, doc.length, [codeFolding()]);
+    view.dispatch({ effects: foldEffect.of({ from: 9, to: 22 }) });
+    expect(foldedRanges(view.state).size).toBe(1);
+    const draftLink = vi.fn(async () => tagEnd('eeeeee', 11, 22));
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks(doc)), draftLink });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[0]);
+    await flush();
+    expect(draftLink).toHaveBeenCalledWith(doc, 11);
+    expect(view.state.doc.toString()).toBe('## Folded\n\nHidden para ^eeeeee\n\n## Next\n\n[[#^eeeeee]]');
+    expect(foldedRanges(view.state).size).toBe(0);
+    expect(changes.count).toBe(1);
+  });
+
+  it('[[#^ lists the buffer blocks as the server reads them; an id-less pick edits and links in ONE undoable transaction', async () => {
+    const doc = 'Alpha para\n\nSee [[#^alp]]';
+    const { view, changes } = viewOf(doc, 'Alpha para\n\nSee [[#^alp'.length);
+    const getBlocks = vi.fn(async () => localBlocks(view.state.doc.toString()));
+    const d = blockDeps({ getBlocks, draftLink: vi.fn(async () => tagEnd('cccccc', 0, 10)) });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    expect(getBlocks).toHaveBeenCalledWith(null);
+    expect(res.options[0].label).toBe('Alpha para');
+    pick(view, res, res.options[0]);
+    await flush();
+    expect(view.state.doc.toString()).toBe('Alpha para ^cccccc\n\nSee [[#^cccccc]]');
+    expect(view.state.selection.main.head).toBe('Alpha para ^cccccc\n\nSee [[#^cccccc]]'.length);
+    expect(changes.count).toBe(1);
+    expect(d.assignBlock).not.toHaveBeenCalled();
+    undo(view);
+    expect(view.state.doc.toString()).toBe(doc);
+  });
+
+  it('a block the server already reads an id for is linked with it, with no edit', async () => {
+    const { view, changes } = viewOf('Gamma\n\n[[Self#^ga');
+    const listing = localBlocks('Gamma\n\n[[Self#^ga');
+    const d = blockDeps({ getBlocks: vi.fn(async () => listing), draftLink: vi.fn(async () => ({ id: 'srv1', change: null, block: { index: 0, from: 0, to: 5 } })) });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[0]);
+    await flush();
+    expect(view.state.doc.toString()).toBe('Gamma\n\n[[Self#^srv1]]');
+    expect(changes.count).toBe(1);
+  });
+
+  it('a local pick after the text changed since the listing asks to pick again, and asks the server nothing', async () => {
+    const { view, changes } = viewOf('Alpha\n\n[[#^');
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks('Alpha\n\n[[#^')), draftLink: vi.fn() });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    view.dispatch({ changes: { from: 0, to: 5, insert: '# Now a heading' } });
+    const before = changes.count;
+    res.options[0].apply(view, res.options[0], res.from + 10, res.to + 10);
+    await flush();
+    expect(changes.count).toBe(before);
+    expect(d.draftLink).not.toHaveBeenCalled();
+    expect(d.notify).toHaveBeenCalledWith('The text changed — pick the block again');
+  });
+
+  it.each([
+    ['refused', Object.assign(new Error('409'), { status: 409, body: { reason: 'refused' } }), "Couldn't add a block id here"],
+    ['no-block', Object.assign(new Error('409'), { status: 409, body: { reason: 'no-block' } }), "Couldn't locate this block — pick it again"],
+    ['down', Object.assign(new Error('503'), { status: 503 }), "Couldn't add a block id — try again"],
+  ])('a local pick the server answers %s edits nothing and says so', async (_n, err, message) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { view, changes } = viewOf('- ^x\n\n[[#^');
-    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks('- ^x\n\n[[#^')) });
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks('- ^x\n\n[[#^')), draftLink: vi.fn(async () => { throw err; }) });
     const res = await createWikiLinkSource(d)(contextOf(view));
-    const item = res.options.find((o) => !o.detail);
-    pick(view, res, item);
+    pick(view, res, res.options.find((o) => !o.detail));
+    await flush();
     expect(changes.count).toBe(0);
-    expect(d.notify).toHaveBeenCalledWith("Couldn't add a block id here");
+    expect(d.notify).toHaveBeenCalledWith(message);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['the block', { from: 2, insert: 'x' }],
+    ['the typed link', { from: 'Alpha\n\n[[#^'.length - 1, insert: 'y' }],
+  ])('an edit to %s while the server answers inserts nothing and asks to pick again', async (_n, edit) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const doc = 'Alpha\n\n[[#^';
+    const { view } = viewOf(doc);
+    let answer;
+    const draftLink = vi.fn(() => new Promise((r) => { answer = r; }));
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks(doc)), draftLink });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[0]);
+    await flush();
+    view.dispatch({ changes: edit });
+    const edited = view.state.doc.toString();
+    answer(tagEnd('ffffff', 0, 5));
+    await flush();
+    expect(view.state.doc.toString()).toBe(edited);
+    expect(d.notify).toHaveBeenCalledWith('The text changed — pick the block again');
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('a failure while linking a local block (the view is gone) is logged, never an unhandled rejection', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let answer;
+    const doc = 'Alpha\n\n[[#^';
+    const { view } = viewOf(doc);
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks(doc)), draftLink: vi.fn(() => new Promise((r) => { answer = r; })) });
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[0]);
+    await flush();
+    view.dispatch = () => { throw new Error('view is gone'); };
+    answer(tagEnd('gggggg', 0, 5));
+    await flush();
+    expect(warn).toHaveBeenCalledWith('[link-complete] could not link the block', 0, 'view is gone');
+  });
+
+  it('without a draft dep, a local pick fails into a toast and edits nothing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { view, changes } = viewOf('Alpha\n\n[[#^');
+    const d = blockDeps({ getBlocks: vi.fn(async () => localBlocks('Alpha\n\n[[#^')) });
+    delete d.draftLink;
+    const res = await createWikiLinkSource(d)(contextOf(view));
+    pick(view, res, res.options[0]);
+    await flush();
+    expect(changes.count).toBe(0);
+    expect(d.notify).toHaveBeenCalledWith("Couldn't add a block id — try again");
     expect(warn).toHaveBeenCalled();
   });
 

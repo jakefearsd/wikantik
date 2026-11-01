@@ -192,6 +192,10 @@ const CodeEditor = forwardRef(function CodeEditor(
     getText() {
       return viewRef.current ? viewRef.current.state.doc.toString() : null;
     },
+    /** The CodeMirror view, for edits that must track the document while they wait (a server-decided block link). */
+    getView() {
+      return viewRef.current || null;
+    },
     getSelection() {
       const view = viewRef.current;
       if (!view) return { selStart: 0, selEnd: 0 };
@@ -456,6 +460,9 @@ const CodeEditor = forwardRef(function CodeEditor(
         getHeadings: (page) => linkCompletionRef.current?.getHeadings(page) ?? Promise.resolve([]),
         getAttachmentNames: () => linkCompletionRef.current?.getAttachmentNames?.() ?? [],
         getBlocks: (page, q) => linkCompletionRef.current?.getBlocks?.(page, q) ?? Promise.resolve(null),
+        draftLink: (text, offset) => (linkCompletionRef.current?.draftLink
+          ? linkCompletionRef.current.draftLink(text, offset)
+          : Promise.reject(new Error('block ids cannot be read here'))),
         assignBlock: (page, version, index) => (linkCompletionRef.current?.assignBlock
           ? linkCompletionRef.current.assignBlock(page, version, index)
           : Promise.reject(new Error('block ids cannot be assigned here'))),

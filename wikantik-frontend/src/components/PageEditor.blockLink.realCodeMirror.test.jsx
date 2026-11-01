@@ -1,6 +1,7 @@
 /**
- * "Copy block link" inside the full PageEditor with the REAL CodeMirror: the block at the caret gets a marker when it
- * has none (one undo step) and `[[Page#^id]]` is copied; without a block at the caret the toast says where to put it.
+ * "Copy block link" inside the full PageEditor with the REAL CodeMirror. The server decides the block at the caret and
+ * its id (POST /blocks/draft over the buffer): the edit it answers is applied as one undo step and `[[Page#^id]]` is
+ * copied; its refusals, and edits to the block while it answers, are toasts that leave the text alone.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- flush async state between tests
@@ -22,6 +23,7 @@ vi.mock('../api/client', () => ({
     validateFrontmatter: vi.fn(() => Promise.resolve({ metadata: {}, violations: [] })),
     search: vi.fn(() => Promise.resolve({ results: [] })),
     getPageKnowledge: vi.fn(() => Promise.resolve({ entities: [], edges: [] })),
+    draftBlocks: vi.fn(),
   },
 }));
 vi.mock('../hooks/usePagePreview', () => ({ loadPreview: vi.fn(), evictPreview: vi.fn() }));
@@ -79,12 +81,15 @@ afterEach(async () => {
   await act(async () => { await Promise.resolve(); });
 });
 
+const refusal = (reason) => Object.assign(new Error('409'), { status: 409, body: { reason } });
+
 describe('PageEditor "Copy block link"', () => {
-  it('adds a marker to an id-less block as one undo step and copies [[Page#^id]]', async () => {
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(0));
+  it('applies the edit the server answers as one undo step and copies [[Page#^id]]', async () => {
+    api.draftBlocks.mockResolvedValue({ id: 'aaaaaa', change: { from: 20, to: 20, insert: ' ^aaaaaa' }, block: { index: 0, from: 9, to: 20 } });
     const view = await editorView('# Title\n\nhello world\n\nnext');
     caretAt(view, 12);
     await run();
+    expect(api.draftBlocks).toHaveBeenCalledWith('Existing', { text: '# Title\n\nhello world\n\nnext', offset: 12 });
     expect(view.state.doc.toString()).toBe('# Title\n\nhello world ^aaaaaa\n\nnext');
     expect(writeText).toHaveBeenCalledWith('[[Existing#^aaaaaa]]');
     expect(toast.success).toHaveBeenCalledWith('Block link copied');
@@ -92,7 +97,8 @@ describe('PageEditor "Copy block link"', () => {
     expect(view.state.doc.toString()).toBe('# Title\n\nhello world\n\nnext');
   });
 
-  it('copies the existing id of a block without editing the text', async () => {
+  it('copies the id the server reads for the block without editing the text', async () => {
+    api.draftBlocks.mockResolvedValue({ id: 'abc', change: null, block: { index: 0, from: 0, to: 11 } });
     const view = await editorView('- item ^abc\n- other');
     caretAt(view, 3);
     await run();
@@ -100,18 +106,48 @@ describe('PageEditor "Copy block link"', () => {
     expect(writeText).toHaveBeenCalledWith('[[Existing#^abc]]');
   });
 
-  it('with no block at the caret, says where to put it and copies nothing', async () => {
+  it.each([
+    ['no-block', 'info', 'Put the cursor in a paragraph, list item or table'],
+    ['refused', 'error', "Couldn't add a block id here"],
+  ])('a %s answer is a toast; nothing is copied and the text is left alone', async (reason, kind, message) => {
+    api.draftBlocks.mockRejectedValue(refusal(reason));
     const view = await editorView('# Only a heading');
     caretAt(view, 4);
     await run();
-    expect(toast.info).toHaveBeenCalledWith('Put the cursor in a paragraph, list item or table');
+    expect(toast[kind]).toHaveBeenCalledWith(message);
     expect(writeText).not.toHaveBeenCalled();
     expect(view.state.doc.toString()).toBe('# Only a heading');
   });
 
-  it('a clipboard failure is reported (the new id stays in the text)', async () => {
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => arr.fill(1));
+  it('a server that cannot answer is a toast, and nothing is copied', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.draftBlocks.mockRejectedValue(Object.assign(new Error('503'), { status: 503 }));
+    const view = await editorView('para');
+    caretAt(view, 1);
+    await run();
+    expect(toast.error).toHaveBeenCalledWith("Couldn't get a block link — try again");
+    expect(writeText).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('an edit to the block while the server answers is a toast, and the answer is not applied', async () => {
+    let answer;
+    api.draftBlocks.mockImplementation(() => new Promise((r) => { answer = r; }));
+    const view = await editorView('para');
+    caretAt(view, 1);
+    let done;
+    act(() => { done = getCommand('copy-block-link').run(); });
+    await waitFor(() => expect(api.draftBlocks).toHaveBeenCalled());
+    act(() => { view.dispatch({ changes: { from: 2, insert: 'X' } }); });
+    await act(async () => { answer({ id: 'bbbbbb', change: { from: 4, to: 4, insert: ' ^bbbbbb' }, block: { index: 0, from: 0, to: 4 } }); await done; });
+    expect(toast.error).toHaveBeenCalledWith('The text changed — copy the block link again');
+    expect(view.state.doc.toString()).toBe('paXra');
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('a clipboard failure is reported (the new id stays in the text)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.draftBlocks.mockResolvedValue({ id: 'bbbbbb', change: { from: 4, to: 4, insert: ' ^bbbbbb' }, block: { index: 0, from: 0, to: 4 } });
     writeText.mockRejectedValueOnce(new Error('denied'));
     const view = await editorView('para');
     caretAt(view, 1);
@@ -121,22 +157,26 @@ describe('PageEditor "Copy block link"', () => {
     expect(view.state.doc.toString()).toBe('para ^bbbbbb');
   });
 
-  it('a block that cannot carry a marker is reported and the text is left alone', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const view = await editorView('- ^x');
-    caretAt(view, 0);
-    await run();
-    expect(toast.error).toHaveBeenCalledWith("Couldn't add a block id here");
-    expect(writeText).not.toHaveBeenCalled();
-    expect(view.state.doc.toString()).toBe('- ^x');
-    expect(warn).toHaveBeenCalled();
-  });
-  it('a block holding access rules is refused with a toast, nothing copied and the text left alone', async () => {
-    const view = await editorView('Para ^id [{ ALLOW view Admin}]\n\nnext');
-    caretAt(view, 2);
-    await run();
-    expect(toast.error).toHaveBeenCalledWith('This block contains access rules — save, then copy its link from the page view');
-    expect(writeText).not.toHaveBeenCalled();
-    expect(view.state.doc.toString()).toBe('Para ^id [{ ALLOW view Admin}]\n\nnext');
+  it('writes through a ClipboardItem when the browser has one, so the copy keeps the user gesture', async () => {
+    const write = vi.fn(async (items) => { await items[0].data['text/plain']; });
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText, write }, configurable: true });
+    globalThis.ClipboardItem = function ClipboardItem(data) { this.data = data; };
+    try {
+      api.draftBlocks.mockResolvedValue({ id: 'abc', change: null, block: { index: 0, from: 0, to: 4 } });
+      const view = await editorView('para ^abc');
+      caretAt(view, 1);
+      await run();
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(writeText).not.toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith('Block link copied');
+      // a refusal rejects the item's data: the write fails quietly, the refusal is what is said
+      api.draftBlocks.mockRejectedValue(refusal('refused'));
+      toast.success.mockClear();
+      await run();
+      expect(toast.error).toHaveBeenCalledWith("Couldn't add a block id here");
+      expect(toast.success).not.toHaveBeenCalled();
+    } finally {
+      delete globalThis.ClipboardItem;
+    }
   });
 });

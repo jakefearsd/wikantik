@@ -35,7 +35,8 @@ import { rehypeRenderedFences } from '../utils/fences/rehypeRenderedFences';
 import WikiFence from './WikiFence';
 import { rehypeHighlightCode } from '../utils/codeHighlight';
 import { headingsFromMarkdown } from '../utils/headings';
-import { blocksFromMarkdown, blockLinkEdit, ACCESS_RULES } from '../utils/blockIds';
+import { draftBlockLink } from '../utils/draftBlockLink';
+import { revealEffects } from '../utils/markdownFold';
 import { useAttachments } from '../hooks/useAttachments';
 import { useAttachmentUpload } from '../hooks/useAttachmentUpload';
 import { dragCarriesFiles, filesFromDrop } from '../utils/editorFileEvents';
@@ -75,6 +76,16 @@ import '../styles/admin.css';
  * [[Page#^ completion: a page's first BLOCK_LIST_LIMIT blocks (the server's maximum) are fetched once and filtered
  * locally; when the server cut the listing there, each query goes to the server instead, BLOCK_QUERY_LIMIT rows.
  */
+/**
+ * Writes the text `pending` resolves to onto the clipboard: as a ClipboardItem of the pending text where the browser has
+ * one (the write starts now, inside the user gesture, and the text follows), else with writeText once it is known.
+ */
+function writeClipboard(pending) {
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    return navigator.clipboard.write([new ClipboardItem({ 'text/plain': pending.then((t) => new Blob([t], { type: 'text/plain' })) })]);
+  }
+  return pending.then((t) => navigator.clipboard.writeText(t));
+}
 const BLOCK_LIST_LIMIT = 100;
 const BLOCK_QUERY_LIMIT = 20;
 
@@ -318,14 +329,15 @@ export default function PageEditor() {
       return cache.get(page);
     },
     getAttachmentNames: () => attachmentNamesRef.current,
-    // [[Page#^ completion. This page's blocks come from the live text (the editor's, which bodyRef lags by a render)
-    // and an id is added by editing it; another page's come from the server, cached per page for the session, and
-    // only their server index/version are ever sent back (this parser's numbering can differ from the server's).
+    // [[Page#^ completion. Block identity is the server's, for this page too: this page's blocks are the server's
+    // reading of the live text (the editor's, which bodyRef lags by a render — POST /blocks/draft, never cached, the
+    // buffer changes), and an id is added by the edit the server answers (draftLink); another page's come from its
+    // saved text, cached per page for the session, and are tagged by the server's index/version.
     getBlocks: (page, q) => {
       if (!page || page === name) {
         const text = editorRef.current?.getText?.() ?? bodyRef.current;
-        const blocks = blocksFromMarkdown(text).map(({ index, id, kind, text: t, rules }) => ({ index, id, kind, text: t, rules }));
-        return Promise.resolve({ local: true, canAssign: true, blocks });
+        return (q ? api.draftBlocks(name, { text, q, limit: BLOCK_QUERY_LIMIT }) : api.draftBlocks(name, { text, limit: BLOCK_LIST_LIMIT }))
+          .then((l) => ({ local: true, canAssign: true, complete: q ? true : (l.blocks || []).length < BLOCK_LIST_LIMIT, text, blocks: l.blocks || [] }));
       }
       // Per page: '' → the first BLOCK_LIST_LIMIT blocks (complete when the server returned fewer), q → the server's
       // own search for q (it matches whole block text). The completion asks with q only when the first is incomplete.
@@ -348,6 +360,7 @@ export default function PageEditor() {
       return perPage.get(key);
     },
     // The page has a new version after an assign (or a stale listing after a refusal): drop every listing of it.
+    draftLink: (text, offset) => api.draftBlocks(name, { text, offset }),
     assignBlock: (page, version, index) => api.assignBlockId(page, { version, index })
       .finally(() => blockCacheRef.current.delete(page)),
     notify: (message) => toast.error(message),
@@ -632,36 +645,43 @@ export default function PageEditor() {
       toast.error(`The browser blocked clipboard access — press ${formatKeys('Mod-Shift-V')} to paste as plain text`);
     }
   }, [toast]);
-  // "Copy block link": the block at the caret gets an id if it has none (one edit, one undo step), then
-  // `[[ThisPage#^id]]` is copied. The clipboard write starts before any await, inside the palette's user gesture.
+  // "Copy block link": the server reads the buffer and answers the block at the caret — its id, or the edit that gives
+  // it one (applied as one undo step) — then `[[ThisPage#^id]]` is copied. The clipboard write starts before the
+  // request is answered (a ClipboardItem of a pending link), inside the palette's user gesture, where the browser has one.
   const copyBlockLink = useCallback(async () => {
-    const editor = editorRef.current;
-    if (!editor) return;   // still loading: there is no text to add an id to
-    const text = editor.getText();
-    const pos = editor.getSelection().selStart;
-    let edit;
+    const view = editorRef.current?.getView?.();
+    if (!view) return;   // still loading: there is no text to read
+    const pos = view.state.selection.main.head;
+    const linked = draftBlockLink(view, pos, (text, offset) => api.draftBlocks(name, { text, offset }))
+      .then(({ id, change }) => {
+        if (change) {
+          view.dispatch({
+            changes: change,
+            effects: [...revealEffects(view.state, change.from), ...revealEffects(view.state, change.to)],
+            userEvent: 'input',
+          });
+        }
+        return `[[${name}#^${id}]]`;
+      });
+    const copied = writeClipboard(linked);
     try {
-      edit = blockLinkEdit(text, pos);
+      await linked;
     } catch (err) {
-      if (err?.code === ACCESS_RULES) {   // the page view strips them before it reads ids: link the block from there
-        toast.error('This block contains access rules — save, then copy its link from the page view');
-        return;
+      copied.catch((e) => console.debug('[editor] block link not copied', e?.message || e));
+      if (err?.code === 'no-block') toast.info('Put the cursor in a paragraph, list item or table');
+      else if (err?.code === 'refused') toast.error("Couldn't add a block id here");
+      else if (err?.code === 'changed') toast.error('The text changed — copy the block link again');
+      else {
+        console.warn('[editor] could not get a block link', name, pos, err?.cause?.message || err?.message || err);
+        toast.error("Couldn't get a block link — try again");
       }
-      // a block that can't carry a marker (a list item with no text line) or one the text would not read back as tagged
-      console.warn('[editor] could not add a block id', name, pos, err?.message || err);
-      toast.error("Couldn't add a block id here");
       return;
     }
-    if (!edit) {
-      toast.info('Put the cursor in a paragraph, list item or table');
-      return;
-    }
-    if (edit.change) editor.replaceRange(edit.change.from, edit.change.to, edit.change.insert);
     try {
-      await navigator.clipboard.writeText(`[[${name}#^${edit.id}]]`);
+      await copied;
       toast.success('Block link copied');
     } catch (err) {
-      console.warn('[editor] could not copy the block link', name, edit.id, err?.message || err);
+      console.warn('[editor] could not copy the block link', name, err?.message || err);
       toast.error("Couldn't copy link");
     }
   }, [name, toast]);

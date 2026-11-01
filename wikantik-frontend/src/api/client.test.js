@@ -1685,6 +1685,20 @@ describe('api block methods', () => {
     expect(JSON.parse(init.body)).toEqual({ version: 3, index: 2, fingerprint: 'fp' });
   });
 
+  it('draftBlocks POSTs the text, and the offset, query and limit when given', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { blocks: [] } }));
+    await api.draftBlocks('My Page', { text: 'Para.\n', q: 'pa', limit: 5 });
+    const [url, init] = global.fetch.mock.calls[0];
+    expect(url).toMatch(/\/api\/pages\/My%20Page\/blocks\/draft$/);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ text: 'Para.\n', q: 'pa', limit: 5 });
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { id: 'a', change: null } }));
+    const signal = new AbortController().signal;
+    expect(await api.draftBlocks('P', { text: 'x', offset: 0, signal })).toEqual({ id: 'a', change: null });
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toEqual({ text: 'x', offset: 0 });
+    expect(global.fetch.mock.calls[1][1].signal).toBe(signal);
+  });
+
   it('a 409 surfaces status and the parsed reason', async () => {
     global.fetch.mockResolvedValue(mockFetchResponse({ status: 409, body: { reason: 'stale' } }));
     const err = await api.assignBlockId('P', { version: 1, index: 0, fingerprint: '' }).catch((e) => e);

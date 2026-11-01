@@ -2,17 +2,19 @@
 //   [[frag           → live page search (spaces ignored: page names are CamelCase); inserts native [[Name]]
 //   [[Page#frag      → the target page's h2/h3 headings; inserts [[Page#Heading]] ([[#Heading]] on this page)
 //   [[Page#^frag     → the target page's blocks; inserts [[Page#^id]] ([[#^id]] lists this buffer's blocks), first
-//                      giving an id-less block an id: a marker in this buffer (same transaction as the link), or a
-//                      server assign for another page (only when it says canAssign; otherwise listed disabled)
+//                      giving an id-less block an id. The server decides both: for another page its saved text (GET
+//                      and POST /blocks; only when it says canAssign, otherwise listed disabled), for this page the
+//                      unsaved buffer (POST /blocks/draft — a marker edit applied in the same transaction as the link)
 //   ](frag           → pages + this page's attachments; replaces only the link target
 //   ](Page#frag      → headings of Page; ](#frag → headings of the page being edited
 // Anchors come from headingsFromMarkdown (the page view's ids). Results are ranked server-side, so
 // CodeMirror's own filtering is disabled (filter: false keeps our order).
-import { startCompletion, closeCompletion, pickedCompletion } from '@codemirror/autocomplete';
+import { startCompletion, closeCompletion } from '@codemirror/autocomplete';
 import { StateEffect, StateField } from '@codemirror/state';
 import { titleToSlug, isValidSlug } from './slugUtils';
 import { revealEffects } from './markdownFold';
-import { blocksFromMarkdown, isBlockRef, markerChange, newBlockId, takenBlockIds } from './blockIds';
+import { isBlockRef } from './blockIds';
+import { draftBlockLink } from './draftBlockLink';
 
 const MAX_OPTIONS = 20;
 const SEARCH_DEBOUNCE_MS = 150;
@@ -23,11 +25,14 @@ const HAS_SCHEME_OR_ROOT = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 
 const BLOCK_LABEL_CHARS = 120;
 const NO_ID_DETAIL = 'no id — needs edit access';
-/** A block of this buffer whose source holds `[{`: its raw reading may not be the reader's (blockIds.js `rules`). */
-const RULES_DETAIL = 'contains access rules — link it from the page view';
-const RULES_NOTE = 'This block contains access rules — link it from the page view';
 const PICK_AGAIN = 'This page changed — pick the block again';
 const TEXT_CHANGED = 'The text changed — pick the block again';
+/** What a refused draft link of this buffer's block says (draftBlockLink's codes). */
+const LOCAL_REASONS = {
+  changed: TEXT_CHANGED,
+  'no-block': "Couldn't locate this block — pick it again",
+  refused: "Couldn't add a block id here",
+};
 const ASSIGN_REASONS = {
   stale: PICK_AGAIN,
   derived: "This page is generated; block ids can't be added here",
@@ -99,15 +104,6 @@ function blockLabel(b) {
   return text.length > BLOCK_LABEL_CHARS ? `${text.slice(0, BLOCK_LABEL_CHARS - 1)}…` : text;
 }
 
-/** The block of `doc` that the listed block `b` (from an earlier read of the buffer) is: same index, kind and text,
- * else the first of the same kind and text; null when the text no longer has it. */
-function currentBlock(doc, b) {
-  const blocks = blocksFromMarkdown(doc);
-  const same = (x) => x.kind === b.kind && x.text === b.text;
-  const at = blocks[b.index];
-  return at && same(at) ? at : blocks.find(same) || null;
-}
-
 /**
  * @param {object} deps
  * @param {(q: string) => Promise<string[]>} deps.searchPages  ranked, ACL-filtered page names
@@ -120,12 +116,15 @@ function currentBlock(doc, b) {
  *        indices are the buffer's own, and an id is added by editing it); another page's `index`/`version` are the
  *        server's. `complete: false` marks a listing cut at its limit: the source then asks again with `q`, the
  *        server-side search (whose rows it does not filter again)
+ * @param {(text: string, offset: number) => Promise<{id: string, change: object|null, block: object}>} [deps.draftLink]
+ *        the server's link to the block at `offset` of this buffer's `text` (POST /blocks/draft); rejects as the request
  * @param {(page: string, version: number, index: number) => Promise<{id: string}>} [deps.assignBlock]
  *        gives block `index` of `page` (at `version`) an id on the server; rejects with the request's error
  * @param {(message: string) => void} [deps.notify]  shows a message to the user (a toast)
  */
 export function createWikiLinkSource({
   searchPages, getHeadings, getAttachmentNames = () => [], getBlocks = async () => null,
+  draftLink = async () => { throw new Error('block ids cannot be read here'); },
   assignBlock = async () => { throw new Error('block ids cannot be assigned here'); },
   notify = (message) => console.warn(`[link-complete] ${message}`),
 }) {
@@ -139,40 +138,43 @@ export function createWikiLinkSource({
       .map((h) => ({ label: h.text, detail: `#${h.id}`, type: 'heading', apply: applyFor(h) }));
   }
 
-  /** Links the picked block of this buffer, adding its marker first when it has none: ONE transaction, one undo. */
-  function linkLocalBlock(view, b, linkTo, from, to, completion) {
-    const doc = view.state.doc.toString();
-    const block = currentBlock(doc, b);
-    if (!block) {
-      console.warn('[link-complete] the picked block is no longer in the text', b.index, b.kind);
+  /**
+   * Links the picked block of this buffer. The server reads the buffer (as it is now — it must still be the text the
+   * listing came from) and answers the block's id, or the edit that gives it one; that edit and the link go in ONE
+   * transaction (one undo step), unfolding whatever hides the edit. Edits made meanwhile are mapped; one to the block,
+   * or to the typed link, abandons the pick.
+   */
+  async function linkLocalBlock(view, listing, b, linkTo, from, to) {
+    if (listing.text != null && view.state.doc.toString() !== listing.text) {
       notify(TEXT_CHANGED);
       return;
     }
-    if (block.rules) {   // came to hold access rules since it was listed
-      notify(RULES_NOTE);
+    const key = trackPending(view, from, to);
+    const release = (spec = {}) => view.dispatch({ ...spec, effects: [...(spec.effects || []), untrackSpan.of(key)] });
+    let link;
+    try {
+      link = await draftBlockLink(view, b.from, draftLink);
+    } catch (err) {
+      release();
+      console.warn('[link-complete] could not link a block of this page', b.index, err?.code, err?.cause?.message || err?.message || err);
+      notify(LOCAL_REASONS[err?.code] || "Couldn't add a block id — try again");
       return;
     }
-    let id = block.id;
-    const edits = [];
-    if (!id) {
-      id = newBlockId(takenBlockIds(doc));
-      try {
-        edits.push(markerChange(doc, block, id));
-      } catch (err) {
-        // a block that can't carry a marker (a list item with no text line), or text that would not read back tagged
-        console.warn('[link-complete] could not add a block id', b.index, b.kind, err?.message || err);
-        notify("Couldn't add a block id here");
-        return;
-      }
+    const span = view.state.field(pendingSpans).get(key);
+    if (span.broken) {
+      release();
+      console.warn('[link-complete] the link text was edited while the block id was read; not inserting', link.id);
+      notify(TEXT_CHANGED);
+      return;
     }
-    const link = linkTo(id);
-    const changes = view.state.changes([...edits, { from, to, insert: link }]);
-    view.dispatch({
+    const edits = link.change ? [link.change] : [];
+    const text = linkTo(link.id);
+    const changes = view.state.changes([...edits, { from: span.from, to: span.to, insert: text }]);
+    release({
       changes,
       // never edit text hidden inside a fold (the marker may go under a folded heading): unfold it in the same step
       effects: edits.flatMap((e) => [...revealEffects(view.state, e.from), ...revealEffects(view.state, e.to)]),
-      selection: { anchor: changes.mapPos(from, -1) + link.length },
-      annotations: pickedCompletion.of(completion),
+      selection: { anchor: changes.mapPos(span.from, -1) + text.length },
       userEvent: 'input.complete',
     });
   }
@@ -245,17 +247,16 @@ export function createWikiLinkSource({
       .slice(0, MAX_OPTIONS)
       .map((b) => {
         const label = blockLabel(b);
-        if (local && b.rules) {
-          // id or not: the reader strips the rules before it reads markers, and this buffer's reading may differ
-          return {
-            label, detail: RULES_DETAIL, type: 'block', disabled: true,
-            info: 'This block contains access rules, which the page view strips before it reads block ids. Save, then copy its link from the page view.',
-            apply: () => {},
-          };
-        }
         if (b.id) return { label, detail: `^${b.id}`, type: 'block', apply: linkTo(b.id) };
         if (local) {
-          return { label, type: 'block', apply: (view, completion, from, to) => linkLocalBlock(view, b, linkTo, from, to, completion) };
+          return {
+            label, type: 'block',
+            apply: (view, _c, from, to) => {
+              closeCompletion(view);   // nothing is inserted until the server answers; a second pick must not re-link
+              linkLocalBlock(view, listing, b, linkTo, from, to)
+                .catch((err) => console.warn('[link-complete] could not link the block', b.index, err?.message || err));
+            },
+          };
         }
         if (listing.canAssign) {
           return {

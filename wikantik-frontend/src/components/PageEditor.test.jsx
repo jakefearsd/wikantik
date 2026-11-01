@@ -92,6 +92,7 @@ vi.mock('../api/client', () => ({
     rejectEdge: vi.fn(() => Promise.resolve(null)),
     getPageBlocks: vi.fn(),
     assignBlockId: vi.fn(),
+    draftBlocks: vi.fn(),
   },
 }));
 vi.mock('../hooks/usePagePreview', () => ({ loadPreview: vi.fn(), evictPreview: vi.fn() }));
@@ -1137,17 +1138,21 @@ describe('derived-page banner + misc', () => {
       expect(api.getPage).toHaveBeenCalledTimes(2);
     });
 
-    it('blocks of the page being edited come from the live text, assignable locally', async () => {
+    it('blocks of the page being edited are the server\'s reading of the live text, and links come from it too', async () => {
       renderEditor('TestPage');
       await waitForEditor();
       typeInEditor('Alpha ^abc\n\nBeta');
-      const { getBlocks } = linkSourceDeps.current;
-      const expected = { local: true, canAssign: true, blocks: [
-        { index: 0, id: 'abc', kind: 'paragraph', text: 'Alpha', rules: false },
-        { index: 1, id: null, kind: 'paragraph', text: 'Beta', rules: false },
-      ] };
-      expect(await getBlocks(null)).toEqual(expected);
-      expect(await getBlocks('TestPage')).toEqual(expected);
+      const rows = [{ index: 0, id: 'abc', kind: 'paragraph', text: 'Alpha', from: 0, to: 10 }];
+      api.draftBlocks.mockResolvedValue({ blocks: rows });
+      const { getBlocks, draftLink } = linkSourceDeps.current;
+      const listing = await getBlocks(null);
+      expect(listing).toEqual({ local: true, canAssign: true, complete: true, text: 'Alpha ^abc\n\nBeta', blocks: rows });
+      expect(api.draftBlocks).toHaveBeenCalledWith('TestPage', { text: 'Alpha ^abc\n\nBeta', limit: 100 });
+      await getBlocks('TestPage', 'alp');
+      expect(api.draftBlocks).toHaveBeenLastCalledWith('TestPage', { text: 'Alpha ^abc\n\nBeta', q: 'alp', limit: 20 });
+      api.draftBlocks.mockResolvedValue({ id: 'abc', change: null });
+      expect(await draftLink('Alpha ^abc', 2)).toEqual({ id: 'abc', change: null });
+      expect(api.draftBlocks).toHaveBeenLastCalledWith('TestPage', { text: 'Alpha ^abc', offset: 2 });
       expect(api.getPageBlocks).not.toHaveBeenCalled();
     });
 

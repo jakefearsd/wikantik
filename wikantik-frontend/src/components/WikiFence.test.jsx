@@ -144,4 +144,11 @@ describe('WikiFence', () => {
     expect(kept).not.toBeNull();
     expect(kept.hasAttribute('data-fence-pending')).toBe(true);
   });
+
+  it('puts a block id on the figure', () => {
+    const { container } = render(<WikiFence language="mermaid" source="a" id="^fg" />);
+    expect(container.querySelector('figure.wk-fence').getAttribute('id')).toBe('^fg');
+    const plain = render(<WikiFence language="mermaid" source="b" />);
+    expect(plain.container.querySelector('figure.wk-fence').hasAttribute('id')).toBe(false);
+  });
 });

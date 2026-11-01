@@ -43,4 +43,15 @@ describe('rehypeRenderedFences', () => {
   it('leaves unregistered languages alone', () => {
     expect(fencesIn(run('```java\nint x;\n```\n'))).toEqual([]);
   });
+
+  it('carries the block id of the pre onto the wiki-fence', () => {
+    const processor = unified().use(remarkParse).use(remarkRehype).use(() => (tree) => {
+      visit(tree, 'element', (n) => { if (n.tagName === 'pre') n.properties.id = '^fg'; });
+    }).use(rehypeRenderedFences);
+    const tree = processor.runSync(processor.parse('```mermaid\nflowchart TD\n```\n\n```mermaid\nx\n```\n'));
+    const ids = [];
+    visit(tree, 'element', (n) => { if (n.tagName === 'wiki-fence') ids.push(n.properties.id); });
+    expect(ids).toEqual(['^fg', '^fg']);
+    expect(Object.keys(run('```mermaid\nx\n```\n').children[0].properties)).not.toContain('id');
+  });
 });

@@ -10,7 +10,7 @@ import { addCopyButtons } from '../utils/codeCopy';
  * against DOM that drawFence rewrote. Memoized on (language, source): a keystroke elsewhere in the page does not
  * redraw the diagram.
  */
-function WikiFence({ language, source }) {
+function WikiFence({ language, source, id = undefined }) {
   const ref = useRef(null);
   useEffect(() => {
     const figure = ref.current;
@@ -33,7 +33,7 @@ function WikiFence({ language, source }) {
       .catch((e) => console.warn('[fences] preview draw failed', e));
     return () => { stale = true; };
   }, [language, source]);
-  return <figure ref={ref} className="wk-fence" />;
+  return <figure ref={ref} className="wk-fence" id={id || undefined} />;
 }
 
 export default memo(WikiFence);

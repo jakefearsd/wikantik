@@ -14,6 +14,7 @@ import remarkMath from 'remark-math';
 import remarkInlineMath from '../utils/remarkInlineMath';
 import rehypeKatex from 'rehype-katex';
 import remarkCallouts from '../utils/remarkCallouts';
+import remarkBlockIds, { rehypeBlockIds } from '../utils/remarkBlockIds';
 import { remarkWikiMarkup } from '../utils/remarkWikiMarkup';
 import { remarkWikiLinks } from '../utils/remarkWikiLinks';
 import { remarkMissingLinks } from '../utils/wikiLinkTargets';
@@ -67,10 +68,10 @@ describe('editor preview pipeline', () => {
   bench('one react-markdown pass, 2,000-line page (editor plugin stack, static render)', () => {
     renderToStaticMarkup(
       <ReactMarkdown
-        remarkPlugins={[[remarkGfm, { singleTilde: false }], [remarkMath, { singleDollarTextMath: false }], remarkInlineMath, remarkCallouts, remarkWikiMarkup,
+        remarkPlugins={[[remarkGfm, { singleTilde: false }], [remarkMath, { singleDollarTextMath: false }], remarkInlineMath, remarkCallouts, remarkBlockIds, remarkWikiMarkup,
           [remarkWikiLinks, { resolved: new Map(), attachments: [], pageName: 'Bench' }],
           [remarkMissingLinks, { missing: new Set() }], [remarkAttachments, { attachments: [], pageName: 'Bench' }]]}
-        rehypePlugins={[rehypeKatex, rehypeSourceLine]}
+        rehypePlugins={[rehypeBlockIds, rehypeKatex, rehypeSourceLine]}
       >
         {DOC}
       </ReactMarkdown>,

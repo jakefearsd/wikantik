@@ -80,4 +80,20 @@ describe('remarkWikiLinks', () => {
     expect(c.querySelector('a')).toBeNull();
     expect(c.textContent).toContain('[[a b c]]');
   });
+
+  it('carries a block id from an embed-only paragraph onto its first embed', () => {
+    const { container } = render(
+      <ReactMarkdown remarkPlugins={[[remarkWikiLinks, {}]]}
+        components={{ 'wiki-embed': (p) => <section data-testid="embed" data-id={p.id}>{p['data-page']}</section> }}>
+        {'![[A]]\n\nplain ![[C]]'}
+      </ReactMarkdown>);
+    expect(container.querySelector('[data-testid="embed"]').hasAttribute('data-id')).toBe(false);
+    const tree = { type: 'root', children: [{
+      type: 'paragraph', data: { hProperties: { id: '^x' } },
+      children: [{ type: 'text', value: '![[A]] ![[B]]' }],
+    }] };
+    remarkWikiLinks({})(tree, undefined);
+    expect(tree.children.map((n) => n.data.hProperties.id)).toEqual(['^x', undefined]);
+    expect(Object.keys(tree.children[1].data.hProperties)).not.toContain('id');
+  });
 });

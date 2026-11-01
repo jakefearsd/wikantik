@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadEmbed, clearEmbedCache } from '../utils/embedCache';
 import { wikiLinkFragment } from '../utils/wikiLinkSyntax';
+import { isBlockRef } from '../utils/blockIds';
 import { renderFences } from '../utils/fences/renderFences';
 
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
@@ -16,7 +17,7 @@ export function clearWikiEmbedCache() {
  * when allowHtml is on, built from escaped markdown otherwise) — the same trust posture as PageView
  * rendering page.contentHtml. The title is rendered here, not by the server.
  */
-export default function WikiEmbed({ page, target = page, section = null }) {
+export default function WikiEmbed({ page, target = page, section = null, id = undefined }) {
   const [result, setResult] = useState({ key: null, state: 'loading', html: '' });
   const key = `${target}#${section || ''}`;
 
@@ -55,7 +56,7 @@ export default function WikiEmbed({ page, target = page, section = null }) {
   }, [html]);
 
   // A block embed (`^id`) is titled by its page alone: "› ^id" is noise to a reader.
-  const isBlock = !!section && section.startsWith('^');
+  const isBlock = isBlockRef(section);
   const label = section && !isBlock ? `${page} › ${section}` : page;
   const fragment = wikiLinkFragment(section);
   const href = `${BASE}/wiki/${encodeURIComponent(page)}${fragment ? '#' + fragment : ''}`;
@@ -67,7 +68,7 @@ export default function WikiEmbed({ page, target = page, section = null }) {
   else body = <p className="wiki-embed-loading">Loading…</p>;
 
   return (
-    <div className="wiki-embed" data-embed={page} data-section={section || undefined}>
+    <div className="wiki-embed" id={id || undefined} data-embed={page} data-section={section || undefined}>
       <div className="wiki-embed-title">
         {state === 'restricted' ? label : <a className="wikipage" href={href}>{label}</a>}
       </div>
@@ -79,5 +80,5 @@ export default function WikiEmbed({ page, target = page, section = null }) {
 /** react-markdown components adapter for the {@code wiki-embed} element emitted by remarkWikiLinks. */
 export function WikiEmbedElement(props) {
   const page = props['data-page'];
-  return <WikiEmbed page={page} target={props['data-target'] || page} section={props['data-section'] || null} />;
+  return <WikiEmbed page={page} target={props['data-target'] || page} section={props['data-section'] || null} id={props.id} />;
 }

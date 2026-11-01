@@ -4,6 +4,7 @@
 import { visit } from 'unist-util-visit';
 import { slugify } from './headings';
 import { parseGfm } from './gfmParse';
+import { isBlockRef } from './blockIds';
 
 export const WIKILINK_TOKEN = /(!?)\[\[([^[\]\n]+?)\]\]/g;
 export const isImageFileName = /\.(png|jpe?g|gif|svg|webp|bmp|avif)$/i;
@@ -89,7 +90,7 @@ export function wikiLinkHref(ref, resolvedName) {
  */
 export function wikiLinkFragment(heading) {
   if (!heading) return '';
-  return heading.startsWith('^') ? heading : slugify(heading);
+  return isBlockRef(heading) ? heading : slugify(heading);
 }
 
 /**

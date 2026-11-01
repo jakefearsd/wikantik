@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkInlineMath from '../utils/remarkInlineMath';
 import remarkCallouts from '../utils/remarkCallouts';
+import remarkBlockIds, { rehypeBlockIds } from '../utils/remarkBlockIds';
 import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
 import { reconstructContent, stripFrontmatter, frontmatterOffsetLines } from '../utils/frontmatterUtils';
@@ -628,13 +629,14 @@ export default function PageEditor() {
     [remarkMath, { singleDollarTextMath: false }],
     remarkInlineMath,
     remarkCallouts,
+    remarkBlockIds,
     remarkWikiMarkup,
     [remarkWikiLinks, { resolved: wikiLinkResolution, attachments: previewAttachments, pageName: name }],
     [remarkMissingLinks, { missing: missingPages }],
     [remarkAttachments, { attachments: previewAttachments, pageName: name }],
   ], [wikiLinkResolution, previewAttachments, name, missingPages]);
   const previewRehypePlugins = useMemo(
-    () => [rehypeKatex, rehypeRenderedFences, [rehypeHighlightCode, { lowlight }], rehypeSourceLine],
+    () => [rehypeBlockIds, rehypeKatex, rehypeRenderedFences, [rehypeHighlightCode, { lowlight }], rehypeSourceLine],
     [lowlight],
   );
   const slashSource = useMemo(() => createSlashSource(getCommands, (id) => runCommand(id)), [runCommand]);

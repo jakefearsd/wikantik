@@ -29,7 +29,12 @@ export function rehypeRenderedFences() {
       parent.children[index] = {
         type: 'element',
         tagName: 'wiki-fence',
-        properties: { language: parseFenceInfo(info).language, source: hastText(code).replace(/\r\n?/g, '\n') },
+        properties: {
+          language: parseFenceInfo(info).language,
+          source: hastText(code).replace(/\r\n?/g, '\n'),
+          // a block id (rehypeBlockIds put it on the pre) goes on the figure, as the server's does
+          ...(node.properties?.id ? { id: node.properties.id } : {}),
+        },
         children: [],
       };
     });

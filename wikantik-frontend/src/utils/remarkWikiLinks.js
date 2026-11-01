@@ -78,7 +78,7 @@ function embedOnlyRefs(paragraph, source, attachments, pageName) {
   return embeds.length ? embeds : null;
 }
 
-function embedElement(ref, resolved, paragraph) {
+function embedElement(ref, resolved, paragraph, blockId) {
   const name = resolved.get(ref.target.toLowerCase());
   return {
     type: 'wikiEmbed',
@@ -91,6 +91,8 @@ function embedElement(ref, resolved, paragraph) {
         'data-page': typeof name === 'string' ? name : ref.target,
         'data-target': ref.target,
         'data-section': ref.heading || '',
+        // the paragraph's block id (`![[X]] ^id`) anchors its first embed, as on the server: the paragraph is gone
+        ...(blockId ? { id: blockId } : {}),
       },
     },
     position: paragraph.position,
@@ -105,7 +107,8 @@ export function remarkWikiLinks({ resolved = new Map(), attachments = [], pageNa
       if (!parent || index == null) return;
       const embeds = embedOnlyRefs(paragraph, source, attachments, pageName);
       if (!embeds) return;
-      const replacement = embeds.map((ref) => embedElement(ref, resolved, paragraph));
+      const blockId = paragraph.data?.hProperties?.id;
+      const replacement = embeds.map((ref, i) => embedElement(ref, resolved, paragraph, i === 0 ? blockId : undefined));
       parent.children.splice(index, 1, ...replacement);
       return [SKIP, index + replacement.length];
     });

@@ -118,5 +118,15 @@ describe('WikiEmbed', () => {
     expect(api.getPageEmbed).toHaveBeenCalledTimes(1);
     expect(api.getPageEmbed).toHaveBeenCalledWith('target page', expect.objectContaining({ section: 'Usage' }));
   });
+
+  it('puts a block id on the wrapper, from the adapter too', async () => {
+    api.getPageEmbed.mockResolvedValue(ok('<p>q</p>'));
+    const { findByText, container } = render(<WikiEmbedElement data-page="P" id="^em" />);
+    await findByText('q');
+    expect(container.querySelector('.wiki-embed').getAttribute('id')).toBe('^em');
+    const plain = render(<WikiEmbed page="P" />);
+    await plain.findAllByText('q');
+    expect(plain.container.querySelector('.wiki-embed').hasAttribute('id')).toBe(false);
+  });
 });
 

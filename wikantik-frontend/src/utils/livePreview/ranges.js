@@ -89,12 +89,23 @@ function fenceCandidateOf(doc, node) {
   return { kind: 'block', from: open.from, to: end.to, widget: { type: 'fence', language: fenceInfo.language, source } };
 }
 /**
- * The block widget a top-level node becomes (display math, whole-line page embed, a rendered fence), or null.
+ * A top-level GFM table as a table widget candidate: whole lines from the header row to Lezer's end of the `Table`
+ * node (which includes lazy-continuation rows). Anything Lezer does not parse as `Table` (a bad delimiter row,
+ * mid-edit) never reaches here, so it stays source.
+ */
+function tableCandidateOf(doc, node) {
+  const from = doc.lineAt(node.from).from;
+  const to = doc.lineAt(node.to).to;
+  return { kind: 'block', from, to, widget: { type: 'table', source: doc.sliceString(from, to) } };
+}
+/**
+ * The block widget a top-level node becomes (display math, whole-line page embed, a rendered fence, a table), or null.
  * Only TOP-LEVEL nodes qualify (we walk the document's direct children), so a fence nested in a list or
  * blockquote stays code in live preview, the same rule display math follows.
  */
 function blockCandidateOf(doc, node, context) {
   if (node.name === 'FencedCode') return fenceCandidateOf(doc, node);
+  if (node.name === 'Table') return tableCandidateOf(doc, node);
   if (node.name !== 'Paragraph') return null;
   const first = doc.sliceString(node.from, Math.min(node.to, node.from + 3));
   if (!first.startsWith('$$') && !first.startsWith('![')) return null; // cheap prefix test before slicing the paragraph
@@ -110,7 +121,7 @@ function blockCandidateOf(doc, node, context) {
   return embed ? { kind: 'block', from: startLine.from, to: endLine.to, widget: { type: 'embed', target: embed.target, section: embed.heading } } : null;
 }
 /**
- * Every block-widget candidate (display math, whole-line page embed, rendered fence) regardless of the caret: top-level
+ * Every block-widget candidate (display math, whole-line page embed, rendered fence, table) regardless of the caret: top-level
  * paragraphs only, each covering whole lines, in document order (so both `from` and `to` ascend).
  */
 export function blockCandidates(state, context = {}) {

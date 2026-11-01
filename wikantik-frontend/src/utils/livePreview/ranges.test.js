@@ -299,6 +299,42 @@ describe('fence block widgets', () => {
     expect(block('```mermaid\nflowchart TD\n```\n\nend', [2]).specs).toEqual([]);
   });
 });
+describe('table block widgets', () => {
+  const block = (doc, active = [99]) => { const state = stateOf(doc); return { state, specs: blockSpecs(state, new Set(active), {}) }; };
+  const TABLE = '| a | b |\n|:--|--:|\n| 1 | 2 |\n| 3 | 4 |';
+  it('a top-level table off the caret is one block spec spanning exactly its lines', () => {
+    const doc = `intro\n\n${TABLE}\n\nend`;
+    const { specs } = block(doc, [1]);
+    const from = doc.indexOf('| a');
+    expect(specs).toEqual([{ kind: 'block', from, to: from + TABLE.length, widget: { type: 'table', source: TABLE } }]);
+  });
+  it('a caret or selection on any table line reveals the whole table', () => {
+    const doc = `intro\n\n${TABLE}\n\nend`;
+    for (const line of [3, 4, 5, 6]) expect(block(doc, [line]).specs).toEqual([]);
+  });
+  it('a table nested in a list or blockquote stays source', () => {
+    expect(block(`- item\n\n  ${TABLE.replace(/\n/g, '\n  ')}`).specs).toEqual([]);
+    expect(block(`> ${TABLE.replace(/\n/g, '\n> ')}`).specs).toEqual([]);
+  });
+  it('a table whose delimiter row is invalid stays source', () => {
+    expect(block('| a | b |\n|--|x|\n| 1 | 2 |').specs).toEqual([]);
+  });
+  it('a non-blank line right after the last row is inside the widget (GFM lazy continuation)', () => {
+    const doc = `${TABLE}\nlazy line\n\nafter`;
+    const { specs } = block(doc);
+    expect(specs).toEqual([{ kind: 'block', from: 0, to: TABLE.length + 10, widget: { type: 'table', source: `${TABLE}\nlazy line` } }]);
+    expect(block(doc, [5]).specs).toEqual([]); // the caret on the lazy line reveals the table
+  });
+  it('a table at the end of the document without a trailing newline is covered exactly', () => {
+    const doc = `x\n\n${TABLE}`;
+    expect(block(doc).specs).toEqual([{ kind: 'block', from: 3, to: doc.length, widget: { type: 'table', source: TABLE } }]);
+  });
+  it('the inline pass never decorates inside a table', () => {
+    const doc = `${TABLE.replace('| 1 |', '| **b** [[P]] $x$ |')}\n\nend`;
+    const { specs } = specsOf(doc, [99]);
+    expect(specs.filter((s) => s.from < doc.indexOf('\n\nend'))).toEqual([]);
+  });
+});
 describe('live-preview parity with the shared rendered-fence fixture', () => {
   // Documented live-preview deviations from the server: only TOP-LEVEL, CLOSED fences become widgets.
   const EXPECTED_TO_DIFFER = {
@@ -478,7 +514,6 @@ describe('less common markdown (autolinks, bare URLs, escapes, setext, HTML bloc
 });
 
 describe('reference-style links and footnotes', () => {
-  const link = (state, specs) => show(state, specs).filter((s) => s.includes('cm-lp-link"') || s.startsWith('hide'));
   it('decorates [Text][Ref] when a definition exists anywhere below', () => {
     const doc = `see [Text][Ref] here\n${'filler\n\n'.repeat(1500)}[ref]: https://x\n`;
     const { state, specs } = specsOf(doc, [2]);

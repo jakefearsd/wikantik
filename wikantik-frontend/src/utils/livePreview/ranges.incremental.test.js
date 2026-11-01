@@ -30,8 +30,10 @@ const BLOCKS = [
   '$$\nx^2\n$$', '![[Other]]', '![[Other#Intro]]', '![[pic.png]]', 'plain paragraph text', '# Heading',
   '- item\n- [ ] task', '```\ncode $$\n```', '> quote\n> more', '   $$\n   y\n   $$', 'Setext\n---', '$$\na\n\nb\n$$',
   '```mermaid\nflowchart TD\n  A-->B\n```', '```mermaid example\nx\n```', '~~~mermaid\ngraph LR\n~~~',
+  '| a | b |\n|:--|--:|\n| 1 | 2 |', 'h1 | h2\n---|---\nc | d', '| a |\n|---|\n| 1 |\nlazy',
 ];
-const TOKENS = ['mermaid', '```mermaid\n', '~~~', '\n```\n', '\n', '\n\n', '$$', '$$\n', '\n$$', '```', '```\n', '![[X]]', '![[Y#H]]', 'word', '---', '===', '> ', '- ', '   ', '!['];
+const TOKENS = ['mermaid', '```mermaid\n', '~~~', '\n```\n', '\n', '\n\n', '$$', '$$\n', '\n$$', '```', '```\n', '![[X]]', '![[Y#H]]', 'word', '---', '===', '> ', '- ', '   ', '![',
+  '|', ' | ', '|---|', '\n| x | y |', ':-:', '\\|'];
 
 function initialDoc(rand) {
   const parts = [];
@@ -134,6 +136,30 @@ describe('updateBlockCandidates', () => {
       candidates = updateBlockCandidates(candidates, tr, context);
       state = tr.state;
       expect(candidates).toEqual(blockCandidates(state, context));
+    }
+  });
+
+  it('incrementalUpdateMatchesFullScan for edits inside, before, after and adjacent to a table', () => {
+    const doc = 'intro\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n$$\nx\n$$\n';
+    const at = (s) => doc.indexOf(s);
+    const edits = [
+      { from: at('| 1') + 2, insert: 'Z' }, // inside a body cell
+      { from: at('|---'), to: at('|---') + 4, insert: '|x' }, // breaks the delimiter row: no longer a table
+      { from: 0, insert: 'pre ' }, // before
+      { from: at('$$'), insert: 'after\n\n' }, // after
+      { from: at('| 2 |') + 5, insert: '\nlazy' }, // adjacent: a lazy-continuation row
+      { from: at('| 2 |') + 5, insert: '\n' }, // adjacent: a blank line ends the table
+      { from: at('intro') + 5, insert: '\n' }, // adjacent above: the blank line before it removed/added
+      { from: at('intro') + 5, to: at('| a') }, // the paragraph above runs into the header row
+    ];
+    for (const changes of edits) {
+      let state = EditorState.create({ doc, extensions });
+      let candidates = blockCandidates(state, context);
+      expect(candidates.map((c) => c.widget.type)).toEqual(['table', 'math']);
+      const tr = state.update({ changes });
+      candidates = updateBlockCandidates(candidates, tr, context);
+      state = tr.state;
+      expect(candidates, JSON.stringify(changes)).toEqual(blockCandidates(state, context));
     }
   });
 

@@ -218,6 +218,12 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-math-error`]: { color: 'var(--callout-danger)', fontFamily: 'var(--font-mono)' },
   [`${ROOT} .cm-lp-fence`]: { color: 'var(--text-secondary)', backgroundColor: 'var(--code-bg)' },
   [`${ROOT} .cm-lp-fence-block`]: { display: 'block', margin: '0.4em 0', overflow: 'auto', cursor: 'text' },
+  // Tables mirror the reader's (.article-prose table in styles/article.css); cell alignment is set inline per column.
+  [`${ROOT} .cm-lp-table-block`]: { display: 'block', margin: '0.4em 0', overflowX: 'auto', cursor: 'text' },
+  [`${ROOT} .cm-lp-table`]: { width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem', lineHeight: '1.5' },
+  [`${ROOT} .cm-lp-table thead th`]: { fontFamily: 'var(--font-ui)', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', textAlign: 'left', padding: 'var(--space-sm) var(--space-md)', borderBottom: '2px solid var(--border-strong)' },
+  [`${ROOT} .cm-lp-table tbody td`]: { padding: 'var(--space-sm) var(--space-md)', borderBottom: '1px solid var(--border)', verticalAlign: 'top' },
+  [`${ROOT} .cm-lp-table tbody tr:hover`]: { background: 'var(--bg-sidebar)' },
   [`${ROOT} .cm-lp-codeblock`]: { backgroundColor: 'var(--code-bg)' },
   [`${ROOT} .cm-lp-plugin`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em' },
   [`${ROOT} .cm-lp-chip`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em', cursor: 'text' },

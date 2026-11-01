@@ -10,7 +10,7 @@ function block(selector) {
   return start < 0 ? '' : css.slice(start, css.indexOf('\n}', start));
 }
 // Typography / geometry tokens are theme-independent and only live in :root.
-const THEME_INDEPENDENT = new Set(['--font-ui', '--font-mono', '--font-display', '--radius-sm', '--radius-md']);
+const THEME_INDEPENDENT = new Set(['--font-ui', '--font-mono', '--font-display', '--radius-sm', '--radius-md', '--space-sm', '--space-md']);
 
 const flat = JSON.stringify(editorChromeSpec);
 const used = new Set([...flat.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]));

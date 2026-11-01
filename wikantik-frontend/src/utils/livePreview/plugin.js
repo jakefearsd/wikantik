@@ -97,8 +97,10 @@ function activeBlockKey(state, candidates) {
   return [...hit].sort((x, y) => x - y).join(',');
 }
 
+// Every widget-data field: a programmatic edit (find/replace, undo, multi-cursor) inside an inactive table or fence
+// keeps its range shape, so a field left out here would keep the stale drawing.
 const sameWidget = (a, b) => a.type === b.type && a.tex === b.tex && a.display === b.display
-  && a.target === b.target && a.section === b.section;
+  && a.target === b.target && a.section === b.section && a.source === b.source && a.language === b.language;
 
 /** True when `decos` holds exactly the `shown` block specs (same ranges and widget data, in order). */
 function decosMatch(decos, shown) {
@@ -146,7 +148,7 @@ function nextBlocks(prev, tr, state) {
   }
 }
 
-/** Block widgets (display math, page embeds) must come from a StateField: plugins may not provide block decorations. */
+/** Block widgets (display math, page embeds, fences, tables) must come from a StateField: plugins may not provide block decorations. */
 export const blockField = StateField.define({
   create: (state) => nextBlocks(NO_BLOCKS, null, state),
   // Not on tr.reconfigured: react-codemirror reconfigures when a config prop (theme, onChange…) changes; context changes arrive as

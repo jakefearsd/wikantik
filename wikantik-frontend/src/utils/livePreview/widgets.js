@@ -7,6 +7,7 @@ import { isBlockRef } from '../blockIds';
 import { renderMath } from '../math';
 import { renderFences } from '../fences/renderFences';
 import { fillFenceEnvelope } from '../fences/envelope';
+import { TableWidget } from './tableWidget';
 
 const el = (tag, cls, text) => {
   const node = document.createElement(tag);
@@ -270,6 +271,7 @@ export function widgetFor(w, context = {}) {
     case 'text': return new TextWidget(w.text, w.cls);
     case 'chip': return new ChipWidget(w.text, w.cls, w.title);
     case 'fence': return new FenceWidget(w.language, w.source);
+    case 'table': return new TableWidget(w.source);
     case 'embed': return new EmbedWidget(w.target, w.section, context.loadEmbed);
     default: throw new Error(`unknown live-preview widget type: ${w.type}`);
   }

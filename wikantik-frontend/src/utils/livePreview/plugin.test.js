@@ -9,6 +9,8 @@ import { fireEvent } from '@testing-library/react';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
 import { livePreviewPlugin, refreshLivePreview, blockField } from './plugin';
+
+vi.mock('../fences/drawFence', () => ({ drawFence: vi.fn(() => Promise.resolve('drawn')) }));
 const views = [];
 function liveView(doc, { context = {}, live = true, caret = doc.length } = {}) {
   const parent = document.createElement('div');
@@ -229,6 +231,26 @@ describe('live preview incremental updates', () => {
     redo(view);
     view.dispatch({ selection: { anchor: 0 } });
     expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
+  });
+
+  it('programmatic edit inside an inactive table/fence redraws it', () => {
+    const shown = (view) => {
+      const out = [];
+      for (const it = blocksOf(view).iter(); it.value; it.next()) out.push(it.value.spec.lpWidget);
+      return out;
+    };
+    const doc = 'top\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```mermaid\nflowchart TD\n  A-->B\n```\n\nend';
+    const view = liveView(doc, { caret: 1 });
+    expect(shown(view).map((w) => w.type)).toEqual(['table', 'fence']);
+    // A find/replace-style change: no selection moves into either block, so both stay inactive.
+    view.dispatch({ changes: { from: doc.indexOf('| 1') + 2, insert: '9' } });
+    expect(view.state.selection.main.head).toBe(1);
+    expect(shown(view)[0].source).toBe('| a | b |\n|---|---|\n| 91 | 2 |');
+    expect(view.dom.querySelector('.cm-lp-table tbody td').textContent).toBe('91');
+    const at = view.state.doc.toString().indexOf('A-->B');
+    view.dispatch({ changes: { from: at + 4, insert: 'C' } });
+    expect(shown(view)[1]).toEqual({ type: 'fence', language: 'mermaid', source: 'flowchart TD\n  A-->CB\n' });
+    expect(view.dom.querySelector('.cm-lp-fence-block code').textContent).toBe('flowchart TD\n  A-->CB\n');
   });
 
   it('turning live mode off and on again rebuilds the block widgets from scratch', () => {

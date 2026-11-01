@@ -104,7 +104,18 @@ which rewrites `$$` blocks into ```` ```math ```` fences, with offsets tracked b
 then parse with `MarkdownDocument`'s structural options. That way tables, callouts, display math and
 fences are recognised exactly as rendering sees them. All `sourceStart`/`sourceEnd`/`markerStart`
 offsets are mapped back to the **raw** source through `MarkdownBodySource`, because `assign` and
-`strip` edit raw text. Code/math exclusion for the marker regexes uses `CodeMask` **plus** a math-span
+`strip` edit raw text.
+
+*Amendment (fix wave 2):* "the way rendering does" includes the first step of every display render,
+`AclDirectiveText.strip`. `BlockIds` parses `AclDirectiveText.stripTracked(raw)` — the very text a render
+parses, through the same `MarkdownBodySource.prepare` and `BlockWalk` — and maps offsets back to raw
+through the strip's own record of what it cut (`TrackedText`), never by emulating stripping on raw
+text. Plain text and fingerprints come from that stripped parse. `assign`/`strip` insert text, or
+delete only characters the stripped text holds, so an access rule is never edited; a `^id` inside a
+rule is no marker. The editor's JS mirror reads the raw buffer and emulates the shapes that matter;
+where it can still differ is listed in `blockIds.js` and pinned per case in `block-ids.json`.
+
+Code/math exclusion for the marker regexes uses `CodeMask` **plus** a math-span
 mask (`MathSpanExtractor` or equivalent): `CodeMask` alone does not mask `$…$` / `$$…$$`.
 
 - `List<Block> list(String markdown)`: every addressable block in document order. `Block(id | null,

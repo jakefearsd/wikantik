@@ -225,6 +225,9 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-chip-var`]: { fontFamily: 'var(--font-mono)', color: 'var(--accent)' },
   [`${ROOT} .cm-lp-chip-plugin`]: { color: 'var(--text)' },
   // A block marker (`^id`) off the caret's line: a small muted chip; a later duplicate of an id: a warning chip.
+  [`${ROOT} .cm-lp-linkdef`]: { color: 'var(--text-muted)' },
+  [`${ROOT} .cm-lp-footnote-ref`]: { fontSize: '0.75em', verticalAlign: 'super', color: 'var(--accent)' },
+  [`${ROOT} .cm-lp-footnote-def`]: { color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' },
   [`${ROOT} .cm-lp-blockid`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', backgroundColor: 'color-mix(in srgb, var(--text) 5%, transparent)', fontFamily: 'var(--font-mono)', fontSize: '0.8em' },
   [`${ROOT} .cm-lp-blockid-dup`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--warning)', backgroundColor: 'var(--warning-bg)', textDecoration: 'underline wavy', textDecorationColor: 'var(--warning)', fontFamily: 'var(--font-mono)', fontSize: '0.8em', cursor: 'help' },
   [`${ROOT} .cm-lp-embed`]: { margin: '0.4em 0', padding: '0.5em 0.75em', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-elevated)', cursor: 'text' },

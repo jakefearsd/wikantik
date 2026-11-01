@@ -75,9 +75,9 @@ describe('livePreviewSpecs — links and images', () => {
     expect(visible(state, specs, 1)).toBe('see the hub now');
     expect(show(state, specs)).toContain('mark cm-lp-link "the hub"');
   });
-  it('leaves reference, shortcut and callout-marker brackets as source', () => {
+  it('decorates a defined reference but leaves an undefined shortcut as source', () => {
     const { state, specs } = specsOf('[x][r] and [y]\n\n[r]: http://a.example\n\nend', [5]);
-    expect(visible(state, specs, 1)).toBe('[x][r] and [y]');
+    expect(visible(state, specs, 1)).toBe('x and [y]');
   });
   it('attachmentUrl encodes each path segment so a # in a file name resolves', () => {
     expect(attachmentUrl('My Page', 'a#b.png')).toBe('/attach/My%20Page/a%23b.png');
@@ -474,5 +474,81 @@ describe('less common markdown (autolinks, bare URLs, escapes, setext, HTML bloc
   it('an inactive line with three rules yields exactly three chips', () => {
     const { specs } = specsOf('[{ALLOW view A}][{ALLOW edit B}] x [{$v}]\n\nend', [3]);
     expect(specs.filter((s) => s.widget?.type === 'chip')).toHaveLength(3);
+  });
+});
+
+describe('reference-style links and footnotes', () => {
+  const link = (state, specs) => show(state, specs).filter((s) => s.includes('cm-lp-link"') || s.startsWith('hide'));
+  it('decorates [Text][Ref] when a definition exists anywhere below', () => {
+    const doc = `see [Text][Ref] here\n${'filler\n\n'.repeat(1500)}[ref]: https://x\n`;
+    const { state, specs } = specsOf(doc, [2]);
+    expect(visible(state, specs, 1)).toBe('see Text here');
+    expect(show(state, specs)).toContain('mark cm-lp-link "Text"');
+  });
+  it('decorates [Text][] and shortcut [Text] against a case-insensitive definition', () => {
+    const a = specsOf('[Text][] and [Other]\n\n[text]: u\n[OTHER]: v\n', [3]);
+    expect(visible(a.state, a.specs, 1)).toBe('Text and Other');
+  });
+  it('leaves source untouched without a definition', () => {
+    const { specs } = specsOf('[Text][Ref] and [Short]\n\n[other]: u\n', [3]);
+    expect(specs.filter((s) => s.kind !== 'line')).toEqual([]);
+  });
+  it('definition lines get cm-lp-linkdef and nothing is hidden', () => {
+    const { state, specs } = specsOf('x\n\n[ref]: https://x\n', [1]);
+    expect(show(state, specs)).toEqual(['line cm-lp-linkdef @3']);
+  });
+  it('typing a definition decorates a previously plain reference', () => {
+    const before = specsOf('[Text][ref]\n\n', [2]);
+    expect(before.specs).toEqual([]);
+    const after = specsOf('[Text][ref]\n\n[ref]: u\n', [2]);
+    expect(visible(after.state, after.specs, 1)).toBe('Text');
+  });
+  it('footnote reference becomes a chip, never a link', () => {
+    const { state, specs } = specsOf('word[^1] more\n\n[^1]: note\n[1]: u\n', [2]);
+    const w = specs.filter((s) => s.kind === 'widget');
+    expect(w[0].widget).toMatchObject({ type: 'chip', text: '1', cls: 'cm-lp-chip cm-lp-footnote-ref' });
+    expect(state.sliceDoc(w[0].from, w[0].to)).toBe('[^1]');
+    expect(show(state, specs)).toEqual(['widget chip "[^1]"', 'line cm-lp-linkdef @4']);
+  });
+  it('footnote definition label becomes a chip, with no linkdef class', () => {
+    const { state, specs } = specsOf('x[^note]\n\n[^note]: Some text\n', [1]);
+    const w = specs.filter((s) => s.kind === 'widget' && s.widget.cls?.includes('footnote-def'));
+    expect(w).toHaveLength(1);
+    expect(w[0].widget).toMatchObject({ type: 'chip', text: 'note:', cls: 'cm-lp-chip cm-lp-footnote-def' });
+    expect(state.sliceDoc(w[0].from, w[0].to)).toBe('[^note]:');
+    expect(show(state, specs)).not.toContain('line cm-lp-linkdef @3');
+  });
+  it('referenceLabels excludes footnote labels', async () => {
+    const { referenceLabels } = await import('./ranges');
+    const state = stateOf('[^note]: x\n\n[Ref  One]: u\n[^a]: y\n');
+    expect([...referenceLabels(state)]).toEqual(['ref one']);
+  });
+  it('wikilink block refs and block markers are not footnotes', () => {
+    const { specs } = specsOf('see [[#^abc]]\n\ntext ^abc\n', [2]);
+    expect(specs.filter((s) => s.widget?.cls?.includes('footnote'))).toEqual([]);
+  });
+  it('nothing in inline code or fences', () => {
+    const { specs } = specsOf('`a[^1]` x\n\n```\n[^2]\n[^3]: z\n```\n', [2]);
+    expect(specs.filter((s) => s.kind === 'widget')).toEqual([]);
+  });
+  it('active line keeps footnote source', () => {
+    const { specs } = specsOf('word[^1]\n', [1]);
+    expect(specs.filter((s) => s.kind === 'widget')).toEqual([]);
+  });
+});
+
+describe('overlap regressions (bare URL, escaped wikilink)', () => {
+  it('a bare URL inside a wikilink or plugin chip yields no overlapping replacing specs', () => {
+    for (const doc of ['[[https://x.org]]\n', '[{INSERT https://x.org/a}]\n']) {
+      const { specs } = specsOf(`${doc}\nz\n`, [3]);
+      const r = replacing(specs).sort((a, b) => a.from - b.from);
+      for (let i = 1; i < r.length; i += 1) expect(r[i].from).toBeGreaterThanOrEqual(r[i - 1].to);
+    }
+    const chip = specsOf('[{INSERT https://x.org/a}]\n\nz\n', [3]);
+    expect(chip.specs.filter((s) => s.kind !== 'line').map((s) => s.kind)).toEqual(['widget']);
+  });
+  it('\\[[A]] hides only the backslash', () => {
+    const { state, specs } = specsOf('\\[[A]]\n\nz\n', [3]);
+    expect(show(state, specs)).toEqual(['hide "\\\\"']);
   });
 });

@@ -10,6 +10,8 @@ import { BLOCK_ID_RE, STANDALONE_RE, RULE_TEXT, MARKER_WITH_SPACE } from '../blo
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
 const HEADING = /^ATXHeading([1-6])$/;
 const SETEXT = /^SetextHeading([12])$/;
+const FOOTNOTE_DEF = /^( {0,3})\[\^([^\]\s]+)\]:/;
+const FOOTNOTE_REF = /\[\^([^\]\s]+)\]/g;
 const LINKED_URL_PARENT = new Set(['Link', 'Image', 'Autolink']);
 const BLOCK_MATH = /^\$\$[ \t]*\n[\s\S]*\n[ \t]*\$\$[ \t]*$/;
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
@@ -275,6 +277,35 @@ function firstMarkers(state, upTo) {
   firstMarkerCache.set(state.doc, { tree, upTo, firsts });
   return firsts;
 }
+const refLabelCache = new WeakMap(); // doc → { tree, labels }
+/** CommonMark label matching: whitespace collapsed, case-insensitive. */
+export const normalizeLabel = (s) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+/** The `[label]` of a LinkReference or LinkLabel node's text, brackets off. */
+const labelText = (raw) => raw.replace(/^\[/, '').replace(/\]$/, '');
+/**
+ * Normalised labels of every link reference definition (`[label]: url`) in the document, footnote definitions
+ * (`^…`) excluded. Walks only the block structure (a text block is never descended into), once per (document,
+ * parse tree).
+ */
+export function referenceLabels(state) {
+  const tree = syntaxTree(state);
+  const hit = refLabelCache.get(state.doc);
+  if (hit && hit.tree === tree) return hit.labels;
+  const labels = new Set();
+  tree.iterate({
+    enter: (node) => {
+      if (node.name === 'LinkReference') {
+        const l = node.node.getChild('LinkLabel');
+        const raw = l ? labelText(state.doc.sliceString(l.from, l.to)) : '';
+        if (raw && !raw.startsWith('^')) labels.add(normalizeLabel(raw));
+        return false;
+      }
+      return !(SKIP.has(node.name) || NOT_A_HOLDER.test(node.name) || TEXT_BLOCK.has(node.name));
+    },
+  });
+  refLabelCache.set(state.doc, { tree, labels });
+  return labels;
+}
 /** The block widgets to show: every candidate none of whose lines is active. */
 export function blockSpecs(state, activeLines, context = {}) {
   const doc = state.doc;
@@ -343,7 +374,15 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const link = (node) => {
     const n = node.node;
     const marks = n.getChildren('LinkMark');
-    if (!n.getChild('URL') || marks.length < 2 || doc.sliceString(marks[0].from, marks[0].to) !== '[') return;
+    if (marks.length < 2 || doc.sliceString(marks[0].from, marks[0].to) !== '[') return;
+    if (!n.getChild('URL')) {
+      // A reference link: only when the document defines its label. `[^…]` is a footnote (the line pass), never a link.
+      const text = doc.sliceString(marks[0].to, marks[1].from);
+      if (text.startsWith('^')) return;
+      const l = n.getChild('LinkLabel');
+      const given = l ? labelText(doc.sliceString(l.from, l.to)) : '';
+      if (!referenceLabels(state).has(normalizeLabel(given || text))) return;
+    }
     const g = `Link@${n.from}`;
     mark(marks[0].to, marks[1].from, 'cm-lp-link', g);
     hide(marks[0].from, marks[0].to, g);
@@ -405,6 +444,10 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     enter: (node) => {
       const { name } = node;
       if (name === 'HTMLBlock') eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-html'));
+      if (name === 'LinkReference') {
+        const l = node.node.getChild('LinkLabel');
+        if (!l || !doc.sliceString(l.from + 1, l.from + 2).startsWith('^')) eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-linkdef'));
+      }
       if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
@@ -492,6 +535,24 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         claimed.push([a, b]);
         if (inactive(a)) widget(a, b, { type: 'chip', ...chipFor(m[0]), title: m[0] });
         else mark(a, b, 'cm-lp-plugin');
+      }
+    }
+    if (text.includes('[^')) {
+      const def = FOOTNOTE_DEF.exec(text);
+      if (def) {
+        const a = line.from + def[1].length;
+        const b = a + def[2].length + 4; // `[^id]:`
+        if (!overlaps(excluded, a, b) && !overlaps(claimed, a, b)) {
+          claimed.push([a, b]);
+          widget(a, b, { type: 'chip', text: `${def[2]}:`, cls: 'cm-lp-chip cm-lp-footnote-def', title: `Footnote ${def[2]}` });
+        }
+      }
+      for (const m of text.matchAll(FOOTNOTE_REF)) {
+        const a = line.from + m.index;
+        const b = a + m[0].length;
+        if (overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
+        claimed.push([a, b]);
+        widget(a, b, { type: 'chip', text: m[1], cls: 'cm-lp-chip cm-lp-footnote-ref', title: `Footnote ${m[1]}` });
       }
     }
     if (text.includes('$')) {

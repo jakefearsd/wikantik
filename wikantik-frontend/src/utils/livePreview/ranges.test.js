@@ -566,6 +566,20 @@ describe('reference-style links and footnotes', () => {
     const { specs } = specsOf('`a[^1]` x\n\n```\n[^2]\n[^3]: z\n```\n', [2]);
     expect(specs.filter((s) => s.kind === 'widget')).toEqual([]);
   });
+  it('an escaped footnote reference stays literal text, as the reader shows it', () => {
+    const { state, specs } = specsOf('word\\[^1] more\n\n[^1]: note\n', [2]);
+    expect(specs.filter((s) => s.widget?.cls?.includes('footnote-ref'))).toEqual([]);
+    expect(visible(state, specs, 1)).toBe('word[^1] more');
+  });
+  it('a callout-looking reference link with a label still links when the label is defined', () => {
+    const { state, specs } = specsOf('see [!x][r] here\n\n[r]: u\n', [2]);
+    expect(visible(state, specs, 1)).toBe('see !x here');
+    expect(show(state, specs)).toContain('mark cm-lp-link "!x"');
+  });
+  it('a shortcut [!x] is never a reference link, even when defined', () => {
+    const { specs } = specsOf('see [!x] here\n\n[!x]: u\n', [2]);
+    expect(specs.filter((s) => s.cls === 'cm-lp-link')).toEqual([]);
+  });
   it('active line keeps footnote source', () => {
     const { specs } = specsOf('word[^1]\n', [1]);
     expect(specs.filter((s) => s.kind === 'widget')).toEqual([]);

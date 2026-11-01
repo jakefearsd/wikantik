@@ -482,8 +482,9 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     if (!n.getChild('URL')) {
       // A reference link: only when the document defines its label. `[^…]` is a footnote (the line pass), never a link.
       const text = doc.sliceString(marks[0].to, marks[1].from);
-      if (text.startsWith('^') || text.startsWith('!')) return; // footnote / callout marker
       const l = n.getChild('LinkLabel');
+      if (text.startsWith('^')) return; // footnote
+      if (!l && text.startsWith('!')) return; // a shortcut `[!type]` is a callout marker; `[!x][r]` is a real reference
       const given = l ? labelText(doc.sliceString(l.from, l.to)) : '';
       if (!referenceLabels(state).has(normalizeLabel(given || text))) return;
     }
@@ -658,6 +659,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         }
       }
       for (const m of text.matchAll(FOOTNOTE_REF)) {
+        if (m.index > 0 && text[m.index - 1] === '\\') continue; // `\[^1]` is literal text to the reader
         const a = line.from + m.index;
         const b = a + m[0].length;
         if (overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;

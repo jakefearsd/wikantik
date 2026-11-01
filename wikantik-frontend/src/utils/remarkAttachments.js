@@ -1,7 +1,10 @@
 import { visit } from 'unist-util-visit';
 
+const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+/** A URL with a scheme (`https:`, `mailto:`, `ftp:`, …) or a root-relative path: never an attachment name. */
 function isAbsoluteUrl(url) {
-  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/');
+  return SCHEME.test(url) || url.startsWith('/');
 }
 
 export function remarkAttachments({ attachments = [], pageName }) {

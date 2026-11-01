@@ -44,6 +44,20 @@ describe('remarkAttachments', () => {
     expect(imageUrl).toBe('/images/logo.png');
   });
 
+  it.each([
+    ['an email autolink', '<someone@example.com>', 'mailto:someone@example.com'],
+    ['a mailto link', '[mail](mailto:a.b@example.com)', 'mailto:a.b@example.com'],
+    ['an ftp link', '[file](ftp://files.example.com/report.pdf)', 'ftp://files.example.com/report.pdf'],
+    ['a tel link', '[call](tel:+1.555.0100)', 'tel:+1.555.0100'],
+    ['a custom-scheme link', '[open](obsidian://open?vault=a.b)', 'obsidian://open?vault=a.b'],
+  ])('never treats %s (a URL with a scheme) as an attachment', (_what, md, url) => {
+    const tree = transformMarkdown(md, attachments, 'TestPage');
+    let node;
+    visit(tree, 'link', (n) => { node = n; });
+    expect(node.url).toBe(url);
+    expect(node.data?.hProperties?.['data-attachment-missing']).toBeUndefined();
+  });
+
   it('marks missing attachment with data attribute', () => {
     const tree = transformMarkdown('![img](missing.jpg)', attachments, 'TestPage');
     let node;

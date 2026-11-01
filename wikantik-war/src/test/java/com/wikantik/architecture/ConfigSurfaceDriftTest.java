@@ -88,7 +88,8 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.search.hybrid.vector_index.size", "metric" ),   // Micrometer gauge name
         // Task 10: ToolsAccessFilter.SURFACE label (same pattern as "mcp.access" above) - not a
         // config key, the real tools.access.* keys are declared separately.
-        Map.entry( "tools.access", "access-surface label" )
+        Map.entry( "tools.access", "access-surface label" ),
+        Map.entry( "wikantik.editor.mode", "user-profile attribute key (AuthResource.EDITOR_MODE_ATTRIBUTE)" )
     );
 
     /** Config keys physically declared in {@link #MCP_INI} even though the code reads them with a {@code wikantik.} prefix. */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { htmlToMarkdown, wikiPageTarget } from './htmlToMarkdown';
+import { htmlToMarkdown, wikiPageTarget, MAX_PASTED_IMAGES } from './htmlToMarkdown';
 import googleDocs from './__fixtures__/google-docs.html?raw';
 import word from './__fixtures__/word.html?raw';
 import githubReadme from './__fixtures__/github-readme.html?raw';
@@ -13,7 +13,7 @@ const md = (html, opts) => htmlToMarkdown(html, opts)?.markdown;
 describe('htmlToMarkdown — real clipboard sources', () => {
   it('Google Docs: styled spans become emphasis, nested lists nest, the guid wrapper is not bold', () => {
     const result = htmlToMarkdown(googleDocs);
-    expect(result.markdown).toBe([
+    expect(result.markdown.replace(/\n\n\uE000WKIMG0\uE001$/, '')).toBe([
       '# Quarterly Plan',
       '',
       'We will ship **three** *major* features, run `make release`~~twice~~ and see [the roadmap](https://example.com/roadmap).',
@@ -31,7 +31,9 @@ describe('htmlToMarkdown — real clipboard sources', () => {
       '| --- | --- |',
       '| Platform \\| Infra | March (tentative) |',
     ].join('\n'));
-    expect(result.droppedImages).toBe(1); // the inline data: image cannot be pasted as a link
+    expect(result.droppedImages).toBe(0); // the inline data: image is extracted for upload, its token ends the text
+    expect(result.images).toHaveLength(1);
+    expect(result.markdown.endsWith(`\n\n${result.images[0].token}`)).toBe(true);
   });
 
   it('Word: mso-list paragraphs become real (nested) lists, o:p and conditional comments vanish', () => {
@@ -152,7 +154,7 @@ describe('htmlToMarkdown — rules', () => {
   });
 
   it('an inline fragment stays inline (no surrounding blank lines) and says so', () => {
-    expect(htmlToMarkdown('<span>some </span><b>bold</b><span> text</span>')).toEqual({ markdown: 'some **bold** text', droppedImages: 0, inline: true });
+    expect(htmlToMarkdown('<span>some </span><b>bold</b><span> text</span>')).toEqual({ markdown: 'some **bold** text', droppedImages: 0, images: [], inline: true });
     expect(htmlToMarkdown('<h2>Title</h2>').inline).toBe(false);
   });
 
@@ -195,11 +197,11 @@ describe('htmlToMarkdown — rules', () => {
 
   it('images: http(s) kept, data:/blob:/file: dropped and counted', () => {
     const result = htmlToMarkdown('<p><img src="https://x.test/a.png" alt="A"><img src="blob:https://x.test/1"><img src="file:///C:/a.png"></p>');
-    expect(result).toEqual({ markdown: '![A](https://x.test/a.png)', droppedImages: 2, inline: false });
+    expect(result).toEqual({ markdown: '![A](https://x.test/a.png)', droppedImages: 2, images: [], inline: false });
   });
 
   it('a page of only dropped images converts to nothing (caller falls back to plain text)', () => {
-    expect(htmlToMarkdown('<img src="data:image/png;base64,AAAA">')).toBeNull();
+    expect(htmlToMarkdown('<img src="blob:https://x.test/1"><img src="data:image/svg+xml;base64,PHN2Zy8+">')).toBeNull();
   });
 
   it('a single-cell layout table yields its content', () => {
@@ -246,8 +248,8 @@ describe('htmlToMarkdown — review fixes', () => {
   });
 
   it('a dropped image inside a table is counted once', () => {
-    expect(htmlToMarkdown('<table><tr><th>a</th><th>b</th></tr><tr><td><img src="data:image/png;base64,AAA"></td><td>x</td></tr></table>').droppedImages).toBe(1);
-    expect(htmlToMarkdown('<table><tr><td><h2>H</h2><img src="data:image/png;base64,AAA"></td></tr></table>').droppedImages).toBe(1);
+    expect(htmlToMarkdown('<table><tr><th>a</th><th>b</th></tr><tr><td><img src="blob:https://x.test/1"></td><td>x</td></tr></table>').droppedImages).toBe(1);
+    expect(htmlToMarkdown('<table><tr><td><h2>H</h2><img src="blob:https://x.test/1"></td></tr></table>').droppedImages).toBe(1);
   });
 
   it('prose that looks like an HTML tag is escaped, a lone < is not', () => {
@@ -276,5 +278,63 @@ describe('wikiPageTarget', () => {
     expect(wikiPageTarget('https://wiki.wikantik.com/wiki/Has%20Space', origin)).toBeNull();
     expect(wikiPageTarget('https://wiki.wikantik.com/wiki/Main', '')).toBeNull();
     expect(wikiPageTarget('::not a url', origin)).toBeNull();
+  });
+});
+
+describe('embedded data: images', () => {
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const png = (extra = '') => `<img src="data:image/png;base64,${PNG}"${extra}>`;
+
+  it('two images between paragraphs become two tokens at their positions, with decoded files', () => {
+    const result = htmlToMarkdown(`<p>before</p>${png()}<p>middle</p><img src="data:image/JPEG;base64,${PNG}"><p>after</p>`);
+    expect(result.images).toHaveLength(2);
+    expect(result.images.map((i) => i.file.type)).toEqual(['image/png', 'image/jpeg']);
+    expect(result.images[0].file.size).toBeGreaterThan(0);
+    expect(result.droppedImages).toBe(0);
+    const [t0, t1] = result.images.map((i) => i.token);
+    expect(result.markdown).toBe(`before\n\n${t0}\n\nmiddle\n\n${t1}\n\nafter`);
+  });
+
+  it('an image-only paste still converts (the image is the structure)', () => {
+    const result = htmlToMarkdown(png());
+    expect(result.images).toHaveLength(1);
+    expect(result.markdown).toBe(result.images[0].token);
+  });
+
+  it('gif and webp are accepted; svg, blob:, file:, cid: and non-base64 data are dropped and counted', () => {
+    const html = `<p>x</p><img src="data:image/gif;base64,${PNG}"><img src="data:image/webp;base64,${PNG}">`
+      + '<img src="data:image/svg+xml;base64,PHN2Zy8+"><img src="blob:https://x.test/1"><img src="file:///a.png">'
+      + '<img src="cid:abc"><img src="data:image/png,%89PNG">';
+    const result = htmlToMarkdown(html);
+    expect(result.images.map((i) => i.file.type)).toEqual(['image/gif', 'image/webp']);
+    expect(result.droppedImages).toBe(5);
+  });
+
+  it('malformed base64 and empty payloads are dropped and counted, never thrown', () => {
+    const html = '<h2>x</h2><img src="data:image/png;base64,!!!not-base64!!!"><img src="data:image/png;base64,A"><img src="data:image/png;base64,">';
+    let result;
+    expect(() => { result = htmlToMarkdown(html); }).not.toThrow();
+    expect(result.images).toEqual([]);
+    expect(result.droppedImages).toBe(3);
+    expect(result.markdown).toBe('## x');
+  });
+
+  it('at most MAX_PASTED_IMAGES are extracted; the rest are dropped and counted', () => {
+    expect(MAX_PASTED_IMAGES).toBe(20);
+    const result = htmlToMarkdown(`<p>x</p>${png().repeat(21)}`);
+    expect(result.images).toHaveLength(20);
+    expect(result.droppedImages).toBe(1);
+  });
+
+  it('an oversize image is dropped and counted', () => {
+    const big = 'A'.repeat(36 * 1024 * 1024); // ~27 MB decoded
+    const result = htmlToMarkdown(`<h2>x</h2><img src="data:image/png;base64,${big}">`);
+    expect(result.images).toEqual([]);
+    expect(result.droppedImages).toBe(1);
+  });
+
+  it('tokens inside a table cell and a link survive conversion', () => {
+    const result = htmlToMarkdown(`<table><tr><th>a</th><th>b</th></tr><tr><td>${png()}</td><td>x</td></tr></table>`);
+    expect(result.markdown).toContain(`| ${result.images[0].token} | x |`);
   });
 });

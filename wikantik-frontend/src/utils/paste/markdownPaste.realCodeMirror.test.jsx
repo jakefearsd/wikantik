@@ -55,7 +55,36 @@ describe('paste as Markdown (real CodeMirror)', () => {
     expect(view.state.doc.toString()).toBe('Intro: Ship **three** features');
     expect(view.state.selection.main.head).toBe(view.state.doc.length);
     expect(onChange).toHaveBeenLastCalledWith('Intro: Ship **three** features', expect.anything());
-    expect(onPasteConverted).toHaveBeenCalledWith({ kind: 'markdown', insert: 'Ship **three** features', droppedImages: 0 });
+    expect(onPasteConverted).toHaveBeenCalledWith({ kind: 'markdown', insert: 'Ship **three** features', droppedImages: 0, images: [] });
+  });
+
+  describe('embedded data: images', () => {
+    const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const HTML = `<h2>Plan</h2><p>before</p><img src="data:image/png;base64,${PNG}"><p>after</p>`;
+
+    it('onPasteImages swaps the tokens before insertion and begin() runs once the text is in the document', () => {
+      let docAtBegin;
+      const begin = vi.fn(() => { docAtBegin = view.state.doc.toString(); });
+      const placeImages = vi.fn((images, text) => ({ text: text.split(images[0].token).join('![Uploading a.png…]()'), begin }));
+      const onPasteConverted = vi.fn();
+      const { view } = mount('', { onPasteImages: placeImages, onPasteConverted });
+      paste(view, { text: 'Plan before after', html: HTML });
+      expect(placeImages).toHaveBeenCalledTimes(1);
+      expect(placeImages.mock.calls[0][0]).toHaveLength(1);
+      expect(view.state.doc.toString()).toBe('## Plan\n\nbefore\n\n![Uploading a.png…]()\n\nafter');
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(docAtBegin).toBe(view.state.doc.toString());
+      expect(onPasteConverted.mock.calls[0][0].droppedImages).toBe(0);
+    });
+
+    it('without an image handler the tokens never reach the document and the images count as dropped', () => {
+      const onPasteConverted = vi.fn();
+      const { view } = mount('', { onPasteConverted });
+      paste(view, { text: 'Plan before after', html: HTML });
+      expect(view.state.doc.toString()).toBe('## Plan\n\nbefore\n\n\n\nafter');
+      expect(view.state.doc.toString()).not.toMatch(/\uE000/);
+      expect(onPasteConverted.mock.calls[0][0].droppedImages).toBe(1);
+    });
   });
 
   it('one undo removes the whole converted paste', () => {

@@ -105,11 +105,28 @@ describe('PageEditor paste as Markdown', () => {
   it('reports embedded images the paste could not carry, every time', async () => {
     const view = await editorView();
     caretAtEnd(view);
-    const html = '<p><b>Chart</b></p><img src="data:image/png;base64,AAAA"><img src="data:image/png;base64,BBBB">';
+    const html = '<p><b>Chart</b></p><img src="blob:https://x.test/1"><img src="data:image/svg+xml;base64,PHN2Zy8+">';
     paste(view, { text: 'Chart', html });
     paste(view, { text: 'Chart', html });
     const messages = toast.info.mock.calls.map((c) => c[0]);
-    expect(messages.filter((m) => /2 embedded images were not pasted.*attachments/.test(m))).toHaveLength(2);
+    expect(messages.filter((m) => /2 embedded images could not be pasted.*attachments/.test(m))).toHaveLength(2);
+  });
+
+  it('an embedded data: image uploads in place on a saved page and becomes attachment markup', async () => {
+    const uploadAttachment = vi.fn(() => Promise.resolve({}));
+    useAttachments.mockImplementation(() => ({ list: [], uploadAttachment, renameAttachment: vi.fn(), deleteAttachment: vi.fn() }));
+    const view = await editorView();
+    caretAtEnd(view);
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    paste(view, { text: 'x', html: `<h2>Pic</h2><p>above</p><img src="data:image/png;base64,${png}"><p>below</p>` });
+    await waitFor(() => expect(uploadAttachment).toHaveBeenCalledTimes(1));
+    const name = uploadAttachment.mock.calls[0][1];
+    expect(name).toMatch(/^pasted-image-\d{8}-\d{6}-1\.png$/);
+    expect(uploadAttachment.mock.calls[0][0]).toBeInstanceOf(File);
+    await waitFor(() => expect(view.state.doc.toString()).toBe(
+      `hello world## Pic\n\nabove\n\n![${name.replace('.png', '')}](${name})\n\nbelow`,
+    ));
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it('"Paste as plain text" inserts the clipboard text verbatim over the selection', async () => {

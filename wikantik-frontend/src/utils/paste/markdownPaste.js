@@ -34,8 +34,11 @@ export function insertPaste(view, text) {
  *   getOrigin()            this wiki's origin, for rewriting links to its own pages
  *   isEnabled()            false turns conversion off (legacy wiki-markup pages): every paste is plain
  *   onConverted(decision)  called after a converted paste with { kind, insert, droppedImages }
+ *   placeImages(images, text)  embedded images ({ file, token }) ride in `text` as tokens; returns `{ text, begin }` —
+ *                          the text to insert (tokens swapped for upload placeholders) and a `begin()` to call once it
+ *                          is in the document. Without it the tokens are removed and the images count as dropped.
  */
-export function markdownPaste({ getOrigin = () => window.location.origin, isEnabled = () => true, onConverted } = {}) {
+export function markdownPaste({ getOrigin = () => window.location.origin, isEnabled = () => true, onConverted, placeImages } = {}) {
   let plainUntil = 0;
   return EditorView.domEventHandlers({
     keydown(event) {
@@ -58,8 +61,19 @@ export function markdownPaste({ getOrigin = () => window.location.origin, isEnab
       });
       if (!decision) return false;
       event.preventDefault();
-      insertPaste(view, decision.insert);
-      onConverted?.(decision);
+      const { images = [] } = decision;
+      let { insert, droppedImages } = decision;
+      let begin;
+      const placed = images.length ? placeImages?.(images, insert) : null;
+      if (placed) {
+        ({ text: insert, begin } = placed);
+      } else if (images.length) {
+        insert = images.reduce((text, { token }) => text.split(token).join(''), insert);
+        droppedImages += images.length;
+      }
+      insertPaste(view, insert);
+      begin?.();
+      onConverted?.({ ...decision, insert, droppedImages });
       return true;
     },
   });

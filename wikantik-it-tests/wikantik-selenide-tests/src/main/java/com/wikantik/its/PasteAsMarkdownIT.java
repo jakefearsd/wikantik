@@ -27,6 +27,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.codeborne.selenide.Selenide.$;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -110,6 +112,78 @@ public class PasteAsMarkdownIT extends WithIntegrationTestSetup {
 
         paste( content, "https://example.com/docs", "" );
         awaitDocument( "[the docs](https://example.com/docs)" );
+    }
+
+    /** A 1x1 PNG, the shape Google Docs / Word embed as a {@code data:} URI. */
+    private static final String PNG_DATA_URI = "data:image/png;base64,"
+        + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    private static final Pattern UPLOADING_PLACEHOLDER = Pattern.compile( "!\\[Uploading pasted-image-[^\\]]*\\.png\u2026\\]\\(\\)" );
+    private static final Pattern IMAGE_MARKUP = Pattern.compile( "!\\[pasted-image-[^\\]]*\\]\\((pasted-image-[^)]*\\.png)\\)" );
+
+    /**
+     * An embedded {@code data:} image rides along with the pasted HTML: it lands in the body at its own position as an
+     * upload placeholder, and after "Save and upload" (a new page must exist before it can hold attachments) the
+     * placeholder is the attachment markup and the page's attachment list holds {@code pasted-image-*.png}.
+     */
+    @ParameterizedTest
+    @EnumSource( EditorMode.class )
+    void pastedDataUriImageBecomesAnAttachment( final EditorMode mode ) {
+        final String pageName = "PasteImage" + mode.name() + System.currentTimeMillis();
+        EditWikiPage.openInMode( pageName, mode );
+        final SelenideElement content = clearedEditor();
+
+        final String html = "<meta charset=\"utf-8\"><b style=\"font-weight:normal;\" id=\"docs-internal-guid-it-img\">"
+            + "<h2 dir=\"ltr\"><span>Pasted Picture</span></h2>"
+            + "<p dir=\"ltr\"><span>Before the picture</span></p>"
+            + "<p dir=\"ltr\"><img src=\"" + PNG_DATA_URI + "\" width=\"1\" height=\"1\"></p>"
+            + "<p dir=\"ltr\"><span>After the picture</span></p></b>";
+        assertTrue( paste( content, "Pasted Picture\nBefore the picture\nAfter the picture", html ),
+            "a converted paste must take over the browser's default paste" );
+
+        // The placeholder sits between the two paragraphs, where the image was.
+        final String pasted = EditWikiPage.awaitDocument( doc -> UPLOADING_PLACEHOLDER.matcher( doc ).find(),
+            "contain an upload placeholder", Duration.ofSeconds( 5 ) );
+        final int before = pasted.indexOf( "Before the picture" );
+        final int placeholder = pasted.indexOf( "![Uploading " );
+        final int after = pasted.indexOf( "After the picture" );
+        assertTrue( before >= 0 && before < placeholder && placeholder < after,
+            "the placeholder must sit between the paragraphs; the document was:\n[" + pasted + "]" );
+
+        // A new page cannot hold attachments yet: the editor offers to save first, then uploads.
+        $( "[data-testid=upload-needs-save] button.btn-primary" ).shouldBe( Condition.visible, Duration.ofSeconds( 5 ) ).click();
+
+        final String uploaded = EditWikiPage.awaitDocument(
+            doc -> IMAGE_MARKUP.matcher( doc ).find() && !doc.contains( "Uploading" ),
+            "link the uploaded image in place of the placeholder", Duration.ofSeconds( 20 ) );
+        final Matcher markup = IMAGE_MARKUP.matcher( uploaded );
+        assertTrue( markup.find() );
+        final String fileName = markup.group( 1 );
+
+        assertTrue( awaitAttachment( pageName, fileName ),
+            "the page's attachment list must contain " + fileName + " after the upload" );
+    }
+
+    /** Polls {@code GET /api/attachments/<page>} from the signed-in browser until it lists {@code fileName}. */
+    private static boolean awaitAttachment( final String pageName, final String fileName ) {
+        final String script = """
+            const cb = arguments[arguments.length - 1];
+            const base = window.__WIKANTIK_BASE__ || '';
+            fetch(base + '/api/attachments/' + encodeURIComponent(arguments[0]), {
+                headers: { 'Accept': 'application/json' }, credentials: 'same-origin'
+            })
+            .then(r => r.ok ? r.json() : { attachments: [] })
+            .then(j => cb((j.attachments || []).map(a => a.fileName)))
+            .catch(() => cb([]));
+            """;
+        final long deadline = System.currentTimeMillis() + 10_000;
+        while ( System.currentTimeMillis() < deadline ) {
+            final Object names = Selenide.executeAsyncJavaScript( script, pageName );
+            if ( names instanceof java.util.List< ? > list && list.contains( fileName ) ) {
+                return true;
+            }
+            Selenide.sleep( 250 );
+        }
+        return false;
     }
 
     /** Waits for the new-page boilerplate, focuses the editor and empties it. */

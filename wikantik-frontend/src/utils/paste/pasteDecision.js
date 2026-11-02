@@ -17,7 +17,8 @@ export function singleUrl(text) {
  *   plain        the user asked for a plain-text paste (Mod-Shift-V)
  *   origin       this wiki's origin, so links to its own pages become wiki links
  *
- * Returns { kind: 'link' | 'markdown', insert, droppedImages }.
+ * Returns { kind: 'link' | 'markdown', insert, droppedImages, images } — `images` are `{ file, token }` for embedded
+ * raster images, each token sitting in `insert` where the image was.
  */
 export function decidePaste({ text = '', html = '', selection = '', inCode = false, plain = false, origin = '' } = {}) {
   if (plain || inCode) return null;
@@ -28,12 +29,12 @@ export function decidePaste({ text = '', html = '', selection = '', inCode = fal
     const [lead] = /^\s*/.exec(selection);
     const [trail] = /\s*$/.exec(selection);
     const target = linkDestination(wikiPageTarget(url, origin) ?? url);
-    return { kind: 'link', insert: `${lead}[${label}](${target})${trail}`, droppedImages: 0 };
+    return { kind: 'link', insert: `${lead}[${label}](${target})${trail}`, droppedImages: 0, images: [] };
   }
   const converted = htmlToMarkdown(html, { origin });
   if (!converted) return null;
   let insert = converted.markdown;
   // An inline fragment ("…the <b>word</b> ") keeps the spaces at its edges, which conversion trims.
   if (converted.inline) insert = `${/^[ \t]*/.exec(text)[0]}${insert}${/[ \t]*$/.exec(text)[0]}`;
-  return { kind: 'markdown', insert, droppedImages: converted.droppedImages };
+  return { kind: 'markdown', insert, droppedImages: converted.droppedImages, images: converted.images };
 }

@@ -209,17 +209,63 @@ function tidyStructure(body) {
   }
 }
 
-/** Removes embedded images a Markdown link cannot carry; returns how many. */
-function dropEmbeddedImages(body) {
-  const dropped = all(body, 'img').filter((img) => DROPPED_IMAGE.test((img.getAttribute('src') || '').trim()));
-  dropped.forEach((img) => img.remove());
-  return dropped.length;
+/** A paste uploads at most this many embedded images; the rest are dropped and counted. */
+export const MAX_PASTED_IMAGES = 20;
+/**
+ * Memory guard on one decoded image. The server's `wikantik.attachment.maxsize` is operator-set (blank = no limit) and
+ * is not exposed to the browser, so the real limit still applies per file at upload; this only keeps a pathological
+ * clipboard from being decoded into memory.
+ */
+export const MAX_PASTED_IMAGE_BYTES = 25 * 1024 * 1024;
+
+const RASTER_DATA_URI = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=\s]*)$/i;
+const DROPPED_IMAGE = /^(data|blob|file|cid):/i;
+
+/** The text left in the clipboard DOM (and so in the Markdown) where extracted image `index` sat; private-use chars survive escaping. */
+export const imageToken = (index) => `\uE000WKIMG${index}\uE001`;
+
+/** base64 → File, or null when it is empty, oversize or malformed (never throws). */
+function decodeImage(mime, base64, index) {
+  const clean = base64.replace(/\s+/g, '');
+  if (!clean || Math.floor((clean.length * 3) / 4) > MAX_PASTED_IMAGE_BYTES) return null;
+  try {
+    const binary = atob(clean);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new File([bytes], `pasted-${index}`, { type: mime.toLowerCase() });
+  } catch {
+    return null; // malformed base64: counted as dropped by the caller
+  }
 }
 
-/** Cleans the clipboard DOM in place; returns the number of embedded images dropped. */
+/**
+ * Pulls embedded raster `data:` images (png/jpeg/gif/webp) out of the clipboard DOM, leaving `imageToken(i)` text where
+ * each one sat; `files[i]` is the image for token i. Everything else a Markdown link cannot carry (svg, blob:, file:,
+ * cid:, malformed or oversize data, anything past MAX_PASTED_IMAGES) is removed and counted in `dropped`.
+ */
+export function extractEmbeddedImages(body) {
+  const files = [];
+  let dropped = 0;
+  for (const img of all(body, 'img')) {
+    const src = (img.getAttribute('src') || '').trim();
+    if (!DROPPED_IMAGE.test(src)) continue;
+    const m = RASTER_DATA_URI.exec(src);
+    const file = m && files.length < MAX_PASTED_IMAGES ? decodeImage(m[1], m[2], files.length) : null;
+    if (file) {
+      files.push(file);
+      img.replaceWith(body.ownerDocument.createTextNode(imageToken(files.length - 1)));
+    } else {
+      dropped += 1;
+      img.remove();
+    }
+  }
+  return { files, dropped };
+}
+
+/** Cleans the clipboard DOM in place; returns the extracted images and the number of embedded images dropped. */
 function normalise(body) {
   removeNoise(body);
-  const droppedImages = dropEmbeddedImages(body);
+  const { files, dropped } = extractEmbeddedImages(body);
   wordLists(body);
   styledSpans(body);
   tidyFormatting(body);
@@ -229,12 +275,11 @@ function normalise(body) {
     const t = walker.currentNode;
     if (t.textContent.includes('\u00a0')) t.textContent = t.textContent.replace(/\u00a0/g, ' ');
   }
-  return droppedImages;
+  return { files, dropped };
 }
 
 // ---- stage 3: convert ---------------------------------------------------------------------------------------------
 
-const DROPPED_IMAGE = /^(data|blob|file|cid):/i;
 const LANGUAGE_PATTERNS = [/(?:^|\s)(?:language|lang)-([\w+#-]+)/, /(?:^|\s)highlight-source-([\w+#-]+)/, /brush:\s*([\w+#-]+)/];
 
 function codeLanguage(pre) {
@@ -372,19 +417,21 @@ function tidyOutput(markdown) {
 }
 
 /**
- * Converts clipboard HTML to Markdown. Returns `{ markdown, droppedImages, inline }`, or null when the HTML carries
- * no structure worth converting (the caller should then paste the plain text). `droppedImages` counts embedded images
- * (data:/blob:/file: sources) that a Markdown link cannot carry; `inline` is true when the HTML held no block
- * element (a fragment of a sentence).
+ * Converts clipboard HTML to Markdown. Returns `{ markdown, droppedImages, images, inline }`, or null when the HTML
+ * carries no structure worth converting (the caller should then paste the plain text). `images` are the embedded
+ * raster data: images as `{ file, token }` — the token sits in `markdown` where the image was, for the caller to swap
+ * for an upload placeholder; `droppedImages` counts embedded images that could not become one (svg, blob:/file:/cid:,
+ * malformed, oversize, over MAX_PASTED_IMAGES); `inline` is true when the HTML held no block element.
  */
 export function htmlToMarkdown(html, { origin = '' } = {}) {
   if (!html || typeof html !== 'string') return null;
   const body = new DOMParser().parseFromString(html, 'text/html').body;
   if (!body) return null;
-  const droppedImages = normalise(body);
-  if (!body.querySelector(STRUCTURE_SELECTOR)) return null;
+  const { files, dropped: droppedImages } = normalise(body);
+  if (files.length === 0 && !body.querySelector(STRUCTURE_SELECTOR)) return null;
   const markdown = tidyOutput(buildService(origin).turndown(body.innerHTML));
   if (!markdown) return null;
   const inline = !Array.from(body.querySelectorAll('*')).some((el) => BLOCK_TAGS.has(el.nodeName));
-  return { markdown, droppedImages, inline };
+  const images = files.map((file, i) => ({ file, token: imageToken(i) }));
+  return { markdown, droppedImages, images, inline };
 }

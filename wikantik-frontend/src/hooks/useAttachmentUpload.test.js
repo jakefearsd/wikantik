@@ -154,3 +154,69 @@ describe('useAttachmentUpload with an editor adapter', () => {
     expect(editor.replaceText).toHaveBeenCalledWith('![Uploading a.pdf…]()', '');
   });
 });
+
+describe('useAttachmentUpload placed images (paste with embedded data: images)', () => {
+  const T1 = 'WKIMG0';
+  const T2 = 'WKIMG1';
+  const text = `intro\n\n${T1}\n\nmiddle\n\n${T2}\n\nend`;
+  const images = [{ file: img('a.png'), token: T1 }, { file: new File(['y'], 'b.jpg', { type: 'image/jpeg' }), token: T2 }];
+
+  function placedHarness({ upload, existingNames = [] } = {}) {
+    let body = '';
+    const updateBody = (fn) => { body = fn(body); };
+    const toast = { error: vi.fn() };
+    const up = upload || vi.fn(async () => ({ success: true }));
+    const { result } = renderHook(() => useAttachmentUpload({ existingNames, upload: up, updateBody, toast }));
+    return { place: (...a) => result.current.uploadPlaced(...a), setBody: (b) => { body = b; }, body: () => body, toast, upload: up };
+  }
+
+  it('swaps each token for its placeholder in position, with pasted-image-<stamp>-<n> names', () => {
+    const h = placedHarness();
+    const { text: placed } = h.place(images, text);
+    const names = [...placed.matchAll(/!\[Uploading (pasted-image-\d{8}-\d{6}-\d\.\w+)…\]\(\)/g)].map((m) => m[1]);
+    expect(names).toHaveLength(2);
+    expect(names[0]).toMatch(/-1\.png$/);
+    expect(names[1]).toMatch(/-2\.jpg$/);
+    expect(placed).toBe(`intro\n\n![Uploading ${names[0]}…]()\n\nmiddle\n\n![Uploading ${names[1]}…]()\n\nend`);
+    expect(h.upload).not.toHaveBeenCalled(); // nothing uploads until start()
+  });
+
+  it('start() uploads in order and each placeholder becomes its attachment markup', async () => {
+    const h = placedHarness();
+    const { text: placed, start } = h.place(images, text);
+    h.setBody(placed);
+    await act(() => start());
+    const names = h.upload.mock.calls.map((c) => c[1]);
+    expect(names).toHaveLength(2);
+    expect(h.upload.mock.calls[0][0]).toBeInstanceOf(File);
+    expect(h.body()).toBe(`intro\n\n![${names[0].replace('.png', '')}](${names[0]})\n\nmiddle\n\n![${names[1].replace('.jpg', '')}](${names[1]})\n\nend`);
+  });
+
+  it('a failed upload removes only its own placeholder and toasts; the other still lands', async () => {
+    const upload = vi.fn().mockRejectedValueOnce(new Error('too big')).mockResolvedValueOnce({});
+    const h = placedHarness({ upload });
+    const { text: placed, start } = h.place(images, text);
+    h.setBody(placed);
+    await act(() => start());
+    expect(h.toast.error).toHaveBeenCalledTimes(1);
+    expect(h.toast.error.mock.calls[0][0]).toMatch(/failed: too big/);
+    const second = upload.mock.calls[1][1];
+    expect(h.body()).toBe(`intro\n\n\n\nmiddle\n\n![${second.replace('.jpg', '')}](${second})\n\nend`);
+  });
+
+  it('cancel() (deferred paste on an unsaved page) removes the placeholders without uploading', () => {
+    const h = placedHarness();
+    const { text: placed, cancel } = h.place(images, text);
+    h.setBody(placed);
+    cancel();
+    expect(h.body()).toBe('intro\n\n\n\nmiddle\n\n\n\nend');
+    expect(h.upload).not.toHaveBeenCalled();
+  });
+
+  it('avoids names already on the page or claimed by an earlier paste', () => {
+    const h = placedHarness();
+    const first = h.place([images[0]], T1).text;
+    const second = h.place([images[0]], T1).text;
+    expect(second).not.toBe(first);
+  });
+});

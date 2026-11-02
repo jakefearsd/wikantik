@@ -28,7 +28,7 @@ describe('decidePaste', () => {
   });
 
   it('rich HTML → converted Markdown', () => {
-    expect(decidePaste({ text: 'See this', html: RICH, origin })).toEqual({ kind: 'markdown', insert: 'See **this**', droppedImages: 0 });
+    expect(decidePaste({ text: 'See this', html: RICH, origin })).toEqual({ kind: 'markdown', insert: 'See **this**', droppedImages: 0, images: [] });
   });
 
   it('an inline fragment keeps the spaces at its edges; block content does not', () => {
@@ -44,12 +44,12 @@ describe('decidePaste', () => {
 
   it('a URL over a selection links the selection', () => {
     expect(decidePaste({ text: 'https://example.com/x', selection: 'the docs' }))
-      .toEqual({ kind: 'link', insert: '[the docs](https://example.com/x)', droppedImages: 0 });
+      .toEqual({ kind: 'link', insert: '[the docs](https://example.com/x)', droppedImages: 0, images: [] });
   });
 
   it('a wiki URL over a selection becomes a wiki link', () => {
     expect(decidePaste({ text: 'https://wiki.wikantik.com/wiki/HybridRetrieval#bm25', selection: 'retrieval', origin }))
-      .toEqual({ kind: 'link', insert: '[retrieval](HybridRetrieval#bm25)', droppedImages: 0 });
+      .toEqual({ kind: 'link', insert: '[retrieval](HybridRetrieval#bm25)', droppedImages: 0, images: [] });
   });
 
   it('a URL link keeps the selection\'s surrounding spaces outside the brackets and escapes parentheses', () => {

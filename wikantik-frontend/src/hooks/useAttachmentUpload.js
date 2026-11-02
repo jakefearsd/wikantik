@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { pastedImageName, normalizeAttachmentName, uniqueAttachmentName, attachmentMarkup } from '../utils/attachmentNameValidator';
 
 const isImage = (file) => /^image\//.test(file.type || '');
@@ -34,7 +34,51 @@ export function useAttachmentUpload({ existingNames, upload, updateBody, toast, 
     updateBody((prev) => prev.replace(find, () => replacement));
   }, [editor, updateBody]);
 
-  return useCallback(async (files, pos, { pasted = false, defer = false } = {}) => {
+  // Uploads each planned file in turn: its placeholder becomes the attachment markup, or is removed (and the failure
+  // toasted) if the upload fails. Shared by the stacked path and the placed path.
+  const runPlan = useCallback(async (plan) => {
+    for (const { file, name, placeholder } of plan) {
+      try {
+        // The multipart filename must carry the chosen name's extension (server checks they match).
+        await upload(new File([file], name, { type: file.type }), name);
+        replaceOnce(placeholder, attachmentMarkup(name, isImage(file)));
+      } catch (err) {
+        replaceOnce(placeholder, '');
+        toast.error(`Upload of ${name} failed: ${err?.message || err}`);
+      }
+    }
+  }, [upload, replaceOnce, toast]);
+  const cancelPlan = useCallback((plan) => {
+    for (const { name, placeholder } of plan) {
+      reservedRef.current.delete(name);
+      replaceOnce(placeholder, '');
+    }
+  }, [replaceOnce]);
+
+  /**
+   * Pasted images that already sit at a position in `text` (a `{ file, token }` per image; the token is where the image
+   * was in the converted Markdown). Names are picked now (`pasted-image-<stamp>-<n>.<ext>`) and each token is swapped for
+   * its `![Uploading name…]()` placeholder, so the returned `text` is what the caller inserts. Nothing uploads until
+   * `start()` is called — after the caller has inserted `text` — and `cancel()` (a deferred paste on an unsaved page that
+   * is abandoned) removes the placeholders again. Synchronous: returns `{ text, start, cancel }`.
+   */
+  const uploadPlaced = useCallback((images, text) => {
+    const taken = [...(namesRef.current || []), ...reservedRef.current];
+    const plan = [];
+    let placed = text;
+    images.forEach(({ file, token }, i) => {
+      const base = pastedImageName(file.type).replace(/^pasted-/, 'pasted-image-').replace(/(\.\w+)$/, `-${i + 1}$1`);
+      const name = uniqueAttachmentName(base, taken);
+      taken.push(name);
+      reservedRef.current.add(name);
+      const placeholder = `![Uploading ${name}…]()`;
+      plan.push({ file, name, placeholder });
+      placed = placed.split(token).join(placeholder);
+    });
+    return { text: placed, start: () => runPlan(plan), cancel: () => cancelPlan(plan) };
+  }, [runPlan, cancelPlan]);
+
+  const uploadFiles = useCallback(async (files, pos, { pasted = false, defer = false } = {}) => {
     const taken = [...(namesRef.current || []), ...reservedRef.current];
     const plan = [];
     for (const file of files) {
@@ -50,29 +94,17 @@ export function useAttachmentUpload({ existingNames, upload, updateBody, toast, 
     }
     if (plan.length === 0) return undefined;
     insertAt(pos, plan.map((p) => p.placeholder).join('\n'));
-    const start = async () => {
-      for (const { file, name, placeholder } of plan) {
-        try {
-          // The multipart filename must carry the chosen name's extension (server checks they match).
-          await upload(new File([file], name, { type: file.type }), name);
-          replaceOnce(placeholder, attachmentMarkup(name, isImage(file)));
-        } catch (err) {
-          replaceOnce(placeholder, '');
-          toast.error(`Upload of ${name} failed: ${err?.message || err}`);
-        }
-      }
-    };
+    const start = () => runPlan(plan);
     if (!defer) {
       await start();
       return undefined;
     }
     // Deferred (unsaved page): placeholders are in place; the caller starts or cancels the uploads.
-    const cancel = () => {
-      for (const { name, placeholder } of plan) {
-        reservedRef.current.delete(name);
-        replaceOnce(placeholder, '');
-      }
-    };
+    const cancel = () => cancelPlan(plan);
     return { start, cancel };
-  }, [upload, insertAt, replaceOnce, toast]);
+  }, [insertAt, runPlan, cancelPlan, toast]);
+
+  // One callable (the stacked path, unchanged) that also carries the placed-image entry point.
+  // eslint-disable-next-line react-hooks/refs -- both callbacks read their refs only when invoked (paste/drop handlers), never during render
+  return useMemo(() => Object.assign((...args) => uploadFiles(...args), { uploadPlaced }), [uploadFiles, uploadPlaced]);
 }

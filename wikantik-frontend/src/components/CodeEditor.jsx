@@ -51,6 +51,7 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   slashSource (ctx) => CompletionResult|null  slash-command completion source (optional)
  *   linkCompletion { searchPages(q), getHeadings(page|null), getAttachmentNames() }  link autocomplete sources
  *   onFiles     (files, pos, { pasted }) => void   pasted/dropped OS files (e.g. images to upload)
+ *   onPasteImages (images, text) => ({ text, begin })   embedded images of a converted paste; see markdownPaste's placeImages
  *   onPasteConverted ({ kind, insert, droppedImages }) => void   a paste that was converted to Markdown / a link
  *   pasteAsMarkdown boolean       convert rich pastes to Markdown (default true; off for legacy wiki-markup pages)
  *   livePreview boolean           render markdown inline (decorations only; the document text is never changed)
@@ -108,7 +109,7 @@ const BASIC_SETUP = {
 };
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, pasteAsMarkdown = true, livePreview = false, livePreviewContext, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -155,12 +156,15 @@ const CodeEditor = forwardRef(function CodeEditor(
   // extension list, so a file-only paste is still an upload.
   const onPasteConvertedRef = useRef(onPasteConverted);
   onPasteConvertedRef.current = onPasteConverted;
+  const onPasteImagesRef = useRef(onPasteImages);
+  onPasteImagesRef.current = onPasteImages;
   const pasteAsMarkdownRef = useRef(pasteAsMarkdown);
   pasteAsMarkdownRef.current = pasteAsMarkdown;
   const pasteExtension = useMemo(
     () => markdownPaste({
       isEnabled: () => pasteAsMarkdownRef.current,
       onConverted: (decision) => onPasteConvertedRef.current?.(decision),
+      placeImages: (images, text) => onPasteImagesRef.current?.(images, text),
     }),
     [],
   );

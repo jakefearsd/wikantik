@@ -704,8 +704,9 @@ export default function PageEditor() {
     format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview: toggleEditorMode,
     pastePlain, copyBlockLink,
   })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain, copyBlockLink]);
-  // A paste converted to Markdown: the first one of the session says how to get plain text instead; embedded images
-  // (data: URIs from Docs/Word) cannot ride along as links, so say so every time rather than drop them silently.
+  // A paste converted to Markdown: the first one of the session says how to get plain text instead. Embedded raster
+  // images upload in place (handlePasteImages); the ones that cannot (svg, blob:/file:/cid:, unreadable, oversize, past the
+  // per-paste cap) are reported every time rather than dropped silently.
   const pasteHintShownRef = useRef(false);
   const handlePasteConverted = useCallback(({ kind, droppedImages }) => {
     const notes = [];
@@ -715,8 +716,8 @@ export default function PageEditor() {
     }
     if (droppedImages > 0) {
       notes.push(droppedImages === 1
-        ? '1 embedded image was not pasted — upload it as an attachment'
-        : `${droppedImages} embedded images were not pasted — upload them as attachments`);
+        ? '1 embedded image could not be pasted — upload it as an attachment'
+        : `${droppedImages} embedded images could not be pasted — upload them as attachments`);
     }
     if (notes.length) toast.info(notes.join('. '));
   }, [toast]);
@@ -900,6 +901,16 @@ export default function PageEditor() {
       return;
     }
     uploadFiles(files, pos, opts);
+  }, [isNew, uploadFiles]);
+
+  // Embedded data: images of a converted paste: placeholders go in with the pasted text, at each image's position.
+  // On a new page the uploads wait for the first save, exactly as handleFiles defers them.
+  const handlePasteImages = useCallback((images, text) => {
+    const placed = uploadFiles.uploadPlaced(images, text);
+    const begin = isNew
+      ? () => setPendingUpload((prev) => ({ handles: [...(prev?.handles || []), { start: placed.start, cancel: placed.cancel }] }))
+      : () => { placed.start(); };
+    return { text: placed.text, begin };
   }, [isNew, uploadFiles]);
 
   const handleDragEnter = useCallback((e) => {
@@ -1173,6 +1184,7 @@ export default function PageEditor() {
             className="editor-textarea"
             value={body}
             onPasteConverted={handlePasteConverted}
+            onPasteImages={handlePasteImages}
             pasteAsMarkdown={!isLegacyWiki}
             onChange={handleBodyChange}
             dark={dark}

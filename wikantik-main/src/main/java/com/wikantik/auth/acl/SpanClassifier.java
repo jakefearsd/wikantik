@@ -18,11 +18,13 @@
  */
 package com.wikantik.auth.acl;
 
+import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.auth.acl.AccessRules.Shape;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
 import com.wikantik.util.OffsetRanges;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,7 +47,101 @@ final class SpanClassifier {
     /** Every rule-shaped label the parse sees — the render path's rules and the labels it does not read — by start. */
     private final Map< Integer, RenderPathAccessRules.Rule > labels = new HashMap<>();
 
-    SpanClassifier( final String text, final int bodyStart, final RenderPathAccessRules.Structure structure ) {
+    /** The body's comments and what the render, which parses the body without them, sees; {@code null} when it has none. */
+    private final Comments comments;
+
+    /**
+     * The body's Obsidian comments, and the structure of the body without them: what the render parses. Built only for a
+     * body that holds a comment, at the cost of one more parse.
+     */
+    static final class Comments {
+        /** Comment ranges, in full-text offsets, ascending. */
+        private final int[] starts;
+        private final int[] ends;
+        /** Characters the strip removes before the end of each range, in total. */
+        private final int[] removedThrough;
+        private final OffsetRanges strippedCode;
+        private final java.util.Set< Integer > strippedRules = new java.util.HashSet<>();
+
+        private Comments( final List< int[] > ranges, final String text, final int bodyStart,
+                          final RenderPathAccessRules.Structure stripped ) {
+            starts = new int[ ranges.size() ];
+            ends = new int[ ranges.size() ];
+            removedThrough = new int[ ranges.size() ];
+            int removed = 0;
+            for ( int i = 0; i < ranges.size(); i++ ) {
+                starts[ i ] = bodyStart + ranges.get( i )[ 0 ];
+                ends[ i ] = bodyStart + ranges.get( i )[ 1 ];
+                for ( int p = starts[ i ]; p < ends[ i ]; p++ ) {
+                    if ( text.charAt( p ) != '\n' ) {
+                        removed++;
+                    }
+                }
+                removedThrough[ i ] = removed;
+            }
+            strippedCode = OffsetRanges.of( stripped.code() );
+            for ( final RenderPathAccessRules.Rule rule : stripped.rules() ) {
+                strippedRules.add( rule.start() );
+            }
+        }
+
+        /**
+         * @param text      raw page text
+         * @param bodyStart where its body starts
+         * @return the body's comments, or {@code null} when it has none
+         * @throws RenderPathAccessRules.Unreadable when the body without its comments cannot be parsed
+         */
+        static Comments of( final String text, final int bodyStart ) {
+            final List< int[] > ranges = ObsidianComments.ranges( text.substring( bodyStart ) );
+            return ranges.isEmpty() ? null
+                    : new Comments( ranges, text, bodyStart, RenderPathAccessRules.commentStrippedStructure( text ) );
+        }
+
+        /** Index of the last range starting at or before {@code offset}, or -1. */
+        private int floor( final int offset ) {
+            int low = 0;
+            int high = starts.length - 1;
+            int found = -1;
+            while ( low <= high ) {
+                final int mid = ( low + high ) >>> 1;
+                if ( starts[ mid ] <= offset ) {
+                    found = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return found;
+        }
+
+        boolean contains( final int offset ) {
+            final int i = floor( offset );
+            return i >= 0 && offset < ends[ i ];
+        }
+
+        /** Where a raw offset outside every comment is in the stripped text. */
+        private int stripped( final int offset ) {
+            final int i = floor( offset );
+            return i < 0 ? offset : offset - removedThrough[ i ];
+        }
+
+        /**
+         * Whether removing the comments moves a span at {@code offset} into or out of code, or makes the render read a
+         * rule there: then the render and the reader, on the stored text, disagree about it.
+         */
+        boolean renderDisagrees( final int offset, final boolean rawCode ) {
+            final int at = stripped( offset );
+            return strippedCode.contains( at ) != rawCode;
+        }
+
+        boolean renderReadsARule( final int offset ) {
+            return strippedRules.contains( stripped( offset ) );
+        }
+    }
+
+    SpanClassifier( final String text, final int bodyStart, final RenderPathAccessRules.Structure structure,
+                    final Comments comments ) {
+        this.comments = comments;
         this.text = text;
         this.bodyStart = bodyStart;
         this.code = OffsetRanges.of( structure.code() );
@@ -70,10 +166,28 @@ final class SpanClassifier {
      * @return the candidate's shape, or {@code null} when it is literal text that neither old reading took for a rule
      */
     Shape classify( final int start, final int end, final Integer scannedEnd ) {
+        final Shape shape = shapeOf( start, end, scannedEnd );
+        if ( shape != null && shape != Shape.ESCAPED && comments != null && start >= bodyStart && comments.contains( start ) ) {
+            // A comment is not reader text, but the reader reads it: what would be a rule (or a lock) without the comment
+            // markers locks, so "commented out" never silently grants, nor silently drops a rule.
+            return Shape.IN_COMMENT;
+        }
+        return shape;
+    }
+
+    /** {@link #classify}, as if no comment held the span. */
+    private Shape shapeOf( final int start, final int end, final Integer scannedEnd ) {
         final boolean readByEither = rules.containsKey( start ) || scannedEnd != null;
         final Shape region = region( start );
         if ( region == Shape.ESCAPED ) {
             return region;
+        }
+        if ( comments != null && start >= bodyStart && !comments.contains( start )
+                && comments.renderDisagrees( start, code.contains( start ) )
+                && ( readByEither || comments.renderReadsARule( start ) || DirectiveSpelling.isDeny( text, start, end ) ) ) {
+            // Removing a comment changes the block structure here (a comment-only line becomes blank, so an indented rule
+            // after it is code to the render, which then shows it): the two readings disagree, so the page locks.
+            return Shape.UNREADABLE;
         }
         final boolean inBodyCode = region == Shape.UNREADABLE;
         if ( !inBodyCode && DirectiveSpelling.isDeny( text, start, end )

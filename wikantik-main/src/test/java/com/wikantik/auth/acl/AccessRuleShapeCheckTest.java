@@ -162,6 +162,17 @@ class AccessRuleShapeCheckTest {
         assertTrue( v.message().contains( "comma" ), v.message() );
     }
 
+    /** I4: "commenting out" a rule does not disable it, so the save says so and how to keep it as a note. */
+    @Test
+    void aRuleInsideACommentIsRefusedWithGuidance() {
+        final AccessRuleShapeException e = assertThrows( AccessRuleShapeException.class,
+                () -> save( "Intro.\n\n%% later: [{ALLOW view All}] %%\n" ) );
+        final AccessRuleShapeException.Violation v = e.violations().get( 0 );
+        assertEquals( "IN_COMMENT", v.shape() );
+        assertTrue( v.message().contains( "a rule inside a %% comment is still read as a rule; delete it, or put it in `code` "
+                + "to keep it as a note" ), v.message() );
+    }
+
     /** Every shape that locks a page has its own explanation, and no shape that does not lock keeps one. */
     @Test
     void everyDisputedShapeAndOnlyThoseHaveAReason() {

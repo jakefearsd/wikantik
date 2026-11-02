@@ -320,6 +320,15 @@ public final class AclDirectiveFixtures {
             new Shaped( "in inline math", "Formula $[{ALLOW view Admin}]$ here.\n\n" + BODY + "\n", Shape.IN_MATH ),
             new Shaped( "in display math", "$$\n[{ALLOW view Admin}]\n$$\n\n" + BODY + "\n", Shape.IN_MATH ),
             new Shaped( "in the frontmatter", "---\nsummary: [{ALLOW view Admin}]\n---\n" + BODY + "\n", Shape.IN_FRONTMATTER ),
+            new Shaped( "in a comment", "Intro %% [{ALLOW view Admin}] later %%.\n\n" + BODY + "\n", Shape.IN_COMMENT ),
+            new Shaped( "in a multi-line comment", "%%\nDraft: [{ALLOW view All}]\n%%\n\n" + BODY + "\n", Shape.IN_COMMENT ),
+            new Shaped( "lower-case, in a comment", "%% [{allow view Admin}] %%\n\n" + BODY + "\n", Shape.IN_COMMENT ),
+            new Shaped( "a comment in a code span", "Write `%% [{ALLOW view Admin}] %%` to restrict.\n\n" + BODY + "\n", null ),
+            new Shaped( "escaped, in a comment", "%% \\[{ALLOW view Admin}] %%\n\n" + BODY + "\n", Shape.ESCAPED ),
+            // A comment-only line ending a paragraph: stripped, it leaves a blank line, so the render reads the indented
+            // rule after it as code (and shows it) where the reader, on the stored text, reads a paragraph line.
+            new Shaped( "a comment line before an indented rule", "Prose.\n%% note %%\n    [{ALLOW view Admin}]\n\n" + BODY + "\n",
+                    Shape.UNREADABLE ),
             new Shaped( "a link with a target", "[{ALLOW view Admin}](http://example.test)\n\n" + BODY + "\n", Shape.LINK_WITH_TARGET ),
             new Shaped( "an image", "![{ALLOW view Admin}](x.png)\n\n" + BODY + "\n", Shape.LINK_WITH_TARGET ),
             new Shaped( "a permission the ACL parser refuses", "[{ALLOW viewbob Admin}]\n\n" + BODY + "\n", Shape.BAD_PERMISSION ),

@@ -94,22 +94,31 @@ class CommentsParityTest {
     }
 
     /**
-     * Reading (a): comments are stripped for display, index and render — never for the access-rule reader, which reads the
-     * stored text. A rule inside a comment is enforced exactly as it is without the comment markers.
+     * Comments are stripped for display, index and render, never for the access-rule reader, which reads the stored
+     * text. So a rule inside a comment would be enforced while it reads as disabled: it locks the page instead
+     * ({@code IN_COMMENT}), and stays hidden from readers.
      */
     @Test
-    void anAccessRuleInsideACommentIsStillReadButNotDisplayed() throws Exception {
+    void anAccessRuleInsideACommentLocksThePageAndIsNotDisplayed() throws Exception {
         final String text = "Public prose.\n%%[{ALLOW view Admin}] private note%%\nMore prose.\n";
 
-        final AccessRules.Rules reading = assertInstanceOf( AccessRules.Rules.class, AccessRules.read( text ) );
-        assertEquals( List.of( "ALLOW view Admin" ), reading.ruleLines(), "the reader still sees the rule in a comment" );
-        assertEquals( reading.ruleLines(), ( (AccessRules.Rules) AccessRules.read( "Public prose.\n[{ALLOW view Admin}]\nMore prose.\n" ) ).ruleLines() );
+        final AccessRules.Locked locked = assertInstanceOf( AccessRules.Locked.class, AccessRules.read( text ),
+                "a commented-out rule must not silently take effect" );
+        assertEquals( List.of( AccessRules.Shape.IN_COMMENT ), locked.reasons().stream().map( AccessRules.Reason::shape ).toList() );
 
         final String shown = ObsidianComments.strip( AclDirectiveText.strip( text ) );
         assertFalse( shown.contains( "ALLOW" ) || shown.contains( "private note" ), shown );
-        final String html = render( text );
+        final String html = renderUnfiltered( text );
         assertFalse( html.contains( "ALLOW" ) || html.contains( "private note" ), html );
         assertTrue( html.contains( "Public prose." ) && html.contains( "More prose." ), html );
+    }
+
+    /** The save path refuses such a rule, so only a stored page (or an administrator's unchanged span) can hold one. */
+    private String renderUnfiltered( final String markdown ) throws Exception {
+        testEngine.saveTextUnfiltered( "CommentsHost", markdown );
+        final Page p = Wiki.contents().page( testEngine, "CommentsHost" );
+        final Context context = Wiki.context().create( testEngine, HttpMockFactory.createHttpRequest(), p );
+        return testEngine.getManager( RenderingManager.class ).textToHTML( context, markdown );
     }
 
     private String render( final String markdown ) throws Exception {

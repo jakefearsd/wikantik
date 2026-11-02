@@ -40,7 +40,10 @@ import java.util.List;
  * </ul>
  *
  * <p>Comments are <em>hidden, not secret</em>: this is a presentation rule. It is never applied to what the access-rule
- * reader sees (an {@code [{ALLOW …}]} inside a comment is still enforced) nor to page history an editor reads.
+ * reader sees nor to page history an editor reads. So an access rule inside a comment is not "commented out": the reader
+ * still reads it, and it locks the page to administrators ({@code AccessRules.Shape.IN_COMMENT}) rather than take effect
+ * unseen; the save check refuses one. Where removing a comment changes the block structure around a rule (a comment-only
+ * line becomes blank, so an indented rule after it is code to the render), the page locks too.
  *
  * <p>Linear in the text: a text with no {@code %%} costs one {@code indexOf} and is returned as the very same instance.
  * The editor's copy, {@code obsidianComments.js}, follows the same rules, pinned by the shared fixture

@@ -63,6 +63,8 @@ public class AccessRuleShapeCheck {
         WHY.put( Shape.ALLOW_PREFIXED_WORD, "its first word is not exactly ALLOW" );
         WHY.put( Shape.IN_HTML_BLOCK, "it is inside HTML" );
         WHY.put( Shape.IN_MATH, "it is inside math" );
+        WHY.put( Shape.IN_COMMENT, "a rule inside a %% comment is still read as a rule; delete it, or put it in `code` "
+                + "to keep it as a note" );
         WHY.put( Shape.IN_FRONTMATTER, "it is in the frontmatter, not the page body" );
         WHY.put( Shape.LINK_WITH_TARGET, "it is a link with a target, or an image" );
         WHY.put( Shape.BAD_PERMISSION, "it does not name a page permission (view, comment, edit, modify, upload, rename, delete)" );

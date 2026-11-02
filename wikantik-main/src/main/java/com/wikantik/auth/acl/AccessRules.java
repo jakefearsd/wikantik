@@ -67,6 +67,11 @@ import java.util.regex.Pattern;
  *   <li>A rule shape is read from its label as the render parse sees it (a blockquote's continuation markers left
  *       out); a wrapped one whose line break falls inside a name, with no comma beside it, is {@link Shape#WRAPPED_NAME}. A clean spelling is {@link Shape#CANONICAL} only where both old readings take it for the same rule over
  *       the same span; any rule shape whose span the parse does not see as one label is {@link Shape#UNREADABLE}.</li>
+ *   <li>A body that holds an Obsidian {@code %%comment%%} is parsed a second time without its comments, as the render
+ *       parses it. A span inside a comment that would be a span without the comment markers is {@link Shape#IN_COMMENT}
+ *       (unless escaped): "commented out" never silently grants. A span outside the comments that the removal moves
+ *       into or out of code, where either reading takes it for a rule, is {@link Shape#UNREADABLE}: the render would show
+ *       a rule the reader enforces, or read one it does not.</li>
  * </ul>
  * A text with no <code>{allow</code> or <code>{deny</code> (any case, any whitespace after the brace) is not parsed.
  */
@@ -99,6 +104,11 @@ public final class AccessRules {
         IN_HTML_BLOCK,
         /** Inside inline or display math: only the text scan read it. */
         IN_MATH,
+        /**
+         * Inside an Obsidian {@code %%comment%%}. The reader reads the stored text, comments included, so the rule would
+         * be enforced while it reads as "commented out" and every reader is blind to it: it locks the page instead.
+         */
+        IN_COMMENT,
         /** In the frontmatter, which is never rendered: only the text scan read it. */
         IN_FRONTMATTER,
         /** The text of a link that has a target, an image, or a link reference: only the text scan read it. */
@@ -260,7 +270,15 @@ public final class AccessRules {
         for ( final RenderPathAccessRules.Rule rule : structure.rules() ) {
             candidates.putIfAbsent( rule.start(), rule.end() );
         }
-        final SpanClassifier classifier = new SpanClassifier( fullText, bodyStart, structure );
+        final SpanClassifier.Comments comments;
+        try {
+            comments = SpanClassifier.Comments.of( fullText, bodyStart );
+        } catch ( final RenderPathAccessRules.Unreadable e ) {
+            LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them once "
+                    + "its comments are removed; the page locks to administrators: {}", fullText.length(), e.getMessage() );
+            return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e );
+        }
+        final SpanClassifier classifier = new SpanClassifier( fullText, bodyStart, structure, comments );
         final List< Span > spans = new ArrayList<>( candidates.size() );
         for ( final Map.Entry< Integer, Integer > candidate : candidates.entrySet() ) {
             final Shape shape = classifier.classify( candidate.getKey(), candidate.getValue(), scanned.get( candidate.getKey() ) );

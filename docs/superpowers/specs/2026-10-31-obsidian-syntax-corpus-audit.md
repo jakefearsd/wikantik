@@ -70,3 +70,18 @@ or alone, and all are inside code spans, a YAML title, or fall outside the marke
 escape (`\^`) fixes are needed before deploy. The only residual risk is the 1 to 2 prod pages not
 enumerated and any page created or edited after 2026-10-31; re-run the scan against the live index at
 deploy time if a stricter guarantee is wanted.
+
+## Phase 2 — `==highlight==` and `%% comments %%` (2026-11-01)
+
+The detectors from OBR §5 match a `==…==` span (non-space at both inner edges, not part of `===`), and any `%%`
+outside frontmatter, fenced code, inline code, and block or inline math. They ran over a byte-exact copy of the
+production page store (copied read-only out of the running container, prod at 2.5.5) and over the repo corpora.
+
+| Corpus | Pages | `==…==` hits | `%%` hits | Action |
+|---|---|---|---|---|
+| production | 1466 | 0 | 0 real (1 false positive, see below) | none |
+| `docs/wikantik-pages/` | 1197 | 0 | 0 | none |
+| `wikantik-wikipages/` | 38 | 0 | 0 | none |
+
+The one detector hit is `RenderedFencesDesign` line 118, `` `%%{ … }%%` `` (a Mermaid init directive). It is already
+inside an inline code span, so it stays literal under Phase 2. No page needed escaping.

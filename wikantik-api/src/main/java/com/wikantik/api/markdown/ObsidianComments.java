@@ -108,7 +108,7 @@ public final class ObsidianComments {
     }
 
     /** Offsets inside code or math: where a {@code %%} opens or closes nothing. */
-    private static boolean[] mask( final String text ) {
+    static boolean[] mask( final String text ) {
         final boolean[] masked = CodeMask.of( text );
         quotedFences( text, masked );
         displayMath( text, masked );

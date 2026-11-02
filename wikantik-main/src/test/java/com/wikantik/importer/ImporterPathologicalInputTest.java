@@ -36,6 +36,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
+import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.attachment.AttachmentUploadPolicy;
 
 /**
@@ -103,10 +104,10 @@ class ImporterPathologicalInputTest {
     @Test
     void inlineTagScanIsLinearOnLongRuns() {
         assertTimeoutPreemptively( BUDGET, () -> {
-            InlineTags.scan( fill( "a" ) );
-            InlineTags.scan( "://" + fill( "a" ) );
-            InlineTags.scan( fill( "[[a " ) );
-            InlineTags.scan( fill( "](a" ) );
+            InlineTagSyntax.scan( fill( "a" ) );
+            InlineTagSyntax.scan( "://" + fill( "a" ) );
+            InlineTagSyntax.scan( fill( "[[a " ) );
+            InlineTagSyntax.scan( fill( "](a" ) );
         } );
     }
 }

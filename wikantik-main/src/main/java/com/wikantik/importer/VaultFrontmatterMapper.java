@@ -36,6 +36,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.frontmatter.schema.FieldSpec;
 import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.frontmatter.schema.Widget;
+import com.wikantik.api.markdown.InlineTagSyntax;
 
 /** Maps an Obsidian note's frontmatter and inline tags onto wiki frontmatter (spec 5.2). */
 public final class VaultFrontmatterMapper {
@@ -54,11 +55,7 @@ public final class VaultFrontmatterMapper {
 
     /** Strip a leading {@code #}, turn {@code /} into {@code -}, lowercase. */
     public static String normaliseTag( final String raw ) {
-        String t = raw.strip();
-        while ( t.startsWith( "#" ) ) {
-            t = t.substring( 1 );
-        }
-        return t.replace( '/', '-' ).toLowerCase( Locale.ROOT );
+        return InlineTagSyntax.normalise( raw );
     }
 
     public MappedNote map( final String noteText, final NoteContext ctx ) {
@@ -104,7 +101,7 @@ public final class VaultFrontmatterMapper {
             }
         }
         // A malformed-YAML block is kept as a fenced code block in the body, so its tags are deliberately not scanned.
-        tags.addAll( InlineTags.scan( body ) );
+        tags.addAll( InlineTagSyntax.normalisedTags( body ) );
         if ( !tags.isEmpty() ) {
             meta.put( "tags", new ArrayList<>( tags ) );
         }

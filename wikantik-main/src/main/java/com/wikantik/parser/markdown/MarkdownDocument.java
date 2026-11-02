@@ -41,6 +41,7 @@ import com.wikantik.markdown.extensions.callouts.CalloutExtension;
 import com.wikantik.markdown.extensions.fences.RenderedFenceExtension;
 import com.wikantik.markdown.extensions.fences.RenderedFenceRegistry;
 import com.wikantik.markdown.extensions.highlight.HighlightExtension;
+import com.wikantik.markdown.extensions.inlinetags.InlineTagExtension;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 
@@ -71,6 +72,7 @@ public class MarkdownDocument extends WikiDocument {
             RenderedFenceExtension.create( RenderedFenceRegistry.defaults() );
     // GFM strikethrough: double tilde only (StrikethroughExtension), so a single "~x~" stays literal prose.
     private static final com.vladsch.flexmark.util.misc.Extension HIGHLIGHT_EXT = HighlightExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension INLINE_TAG_EXT = InlineTagExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension STRIKETHROUGH_EXT = StrikethroughExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension TASKLIST_EXT = TaskListExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension TABLES_EXT = TablesExtension.create();
@@ -113,7 +115,7 @@ public class MarkdownDocument extends WikiDocument {
                 Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
                                ATTRIBUTES_EXT, AUTOLINK_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
                                GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
-                               STRIKETHROUGH_EXT, HIGHLIGHT_EXT, TASKLIST_EXT ) );
+                               STRIKETHROUGH_EXT, HIGHLIGHT_EXT, INLINE_TAG_EXT, TASKLIST_EXT ) );
         if ( !withAttributes ) {
             extensions.remove( ATTRIBUTES_EXT );
         }
@@ -166,7 +168,7 @@ public class MarkdownDocument extends WikiDocument {
         // BLOCK_STRUCTURE_EXT first: it stands where the rendered page's block-id post-processor stands (see its doc)
         options.set( Parser.EXTENSIONS, Arrays.asList( BLOCK_STRUCTURE_EXT, ATTRIBUTES_EXT, AUTOLINK_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
                                                        GITLAB_EXT, RENDERED_FENCE_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT, WIKILINK_EXT,
-                                                       STRIKETHROUGH_EXT, HIGHLIGHT_EXT, TASKLIST_EXT ) );
+                                                       STRIKETHROUGH_EXT, HIGHLIGHT_EXT, INLINE_TAG_EXT, TASKLIST_EXT ) );
         return options;
     }
 

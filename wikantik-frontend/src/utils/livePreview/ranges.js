@@ -3,6 +3,7 @@ import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { matchInlineMath } from '../inlineMath';
 import { findHighlights } from '../highlightSyntax';
+import { commentRanges } from '../obsidianComments';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
@@ -19,6 +20,17 @@ const BLOCK_MATH = /^\$\$[ \t]*\n[\s\S]*\n[ \t]*\$\$[ \t]*$/;
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const PLUGIN = /\[\{[^\n]*?\}\](?:\(\))?/g;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+/** The whole document's `%%comments%%`, cached per document (a keystroke's decoration pass scans no unchanged text twice). */
+const commentCache = new WeakMap();
+function commentsOf(doc) {
+  let hit = commentCache.get(doc);
+  if (hit) return hit;
+  let marked = false;
+  for (const chunk of doc.iter()) if (chunk.includes('%%')) { marked = true; break; }
+  hit = marked ? commentRanges(doc.toString()) : [];
+  commentCache.set(doc, hit);
+  return hit;
+}
 export function activeLinesOf(state) {
   const lines = new Set();
   for (const r of state.selection.ranges) {
@@ -691,6 +703,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       }
     }
   });
+  // A comment is dimmed with its delimiters showing: the editor must show that it is there (the reader hides it).
+  for (const r of commentsOf(doc)) mark(Math.max(r.from, from), Math.min(r.to, to), 'cm-lp-comment', `Comment@${r.from}`);
   // A tree construct that cuts through a claimed range is dropped whole (its group); one that contains it is kept.
   const cuts = (sp) => claimed.some(([x, y]) => sp.from < y && sp.to > x && !(sp.from <= x && sp.to >= y));
   const cutGroups = new Set(specs.slice(0, treeCount).filter((sp) => sp.kind !== 'line' && cuts(sp)).map((sp) => sp.group ?? sp));

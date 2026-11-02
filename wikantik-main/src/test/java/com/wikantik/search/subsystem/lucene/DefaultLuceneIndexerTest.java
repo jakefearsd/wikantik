@@ -385,4 +385,18 @@ class DefaultLuceneIndexerTest {
         assertEquals( 0, stats.indexed() );
         assertEquals( 0, stats.failed() );
     }
+
+    @Test
+    void luceneIndexPage_doesNotIndexComments() throws Exception {
+        final Page page = mockPage( "CommentedPage" );
+
+        try ( Directory dir = LuceneDirectoryFactory.open( tmp, false );
+              IndexWriter writer = new IndexWriter( dir, new IndexWriterConfig( new StandardAnalyzer() ) ) ) {
+            final Document doc = newIndexer().luceneIndexPage( page, "Public prose %%secretprobe%% here\n", writer );
+
+            final String contents = doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS );
+            assertTrue( contents.contains( "Public prose" ), contents );
+            assertFalse( contents.contains( "secretprobe" ), contents );
+        }
+    }
 }

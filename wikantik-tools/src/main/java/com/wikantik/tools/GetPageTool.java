@@ -28,6 +28,7 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.parser.markdown.ReaderText;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -97,7 +98,8 @@ class GetPageTool {
         }
 
         // Access-rule directives name people by login: only a caller who may edit the page gets them.
-        final String body = ResultShaper.bodyOnly( AclDirectiveText.forViewer( canEdit( request, resolvedName ), raw ) );
+        final boolean canEdit = canEdit( request, resolvedName );
+        final String body = ResultShaper.bodyOnly( ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, raw ) ) );
         final int limit = resolveLimit( maxChars );
         final boolean truncated = ResultShaper.wasTruncated( body, limit );
         final String shown = ResultShaper.truncateBody( body, limit );

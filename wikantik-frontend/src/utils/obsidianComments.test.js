@@ -1,0 +1,32 @@
+import { describe, it, expect } from 'vitest';
+import { stripComments, commentRanges } from './obsidianComments';
+import fixture from './__fixtures__/comments.json';
+
+describe('obsidianComments (shared fixture comments.json, also run by CommentsParityTest)', () => {
+  it('has rows', () => expect(fixture.length).toBeGreaterThan(10));
+  it.each(fixture.map((r) => [r.name, r]))('%s', (_name, row) => {
+    expect(stripComments(row.input)).toBe(row.output);
+  });
+});
+
+describe('commentRanges', () => {
+  it('locates each comment, delimiters included', () => {
+    const text = 'a %%x%% b %%y\nz%% c';
+    expect(commentRanges(text).map((r) => text.slice(r.from, r.to))).toEqual(['%%x%%', '%%y\nz%%']);
+  });
+  it('is empty without a comment, for an unterminated one, and for null', () => {
+    expect(commentRanges('plain 100% text')).toEqual([]);
+    expect(commentRanges('a %%b')).toEqual([]);
+    expect(commentRanges(null)).toEqual([]);
+  });
+  it('returns the very same string when nothing is removed', () => {
+    const text = 'no comments here';
+    expect(stripComments(text)).toBe(text);
+  });
+  it('is linear on a long run of unpaired openers', () => {
+    const text = `${'a $b '.repeat(20000)}\n%%\n`;
+    const start = Date.now();
+    stripComments(text);
+    expect(Date.now() - start).toBeLessThan(3000);
+  });
+});

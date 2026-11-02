@@ -126,4 +126,29 @@ class DefaultForAgentProjectionServiceAclDirectiveTest {
         assertFalse( p.toString().contains( "^abc" ), p.toString() );
         assertFalse( p.toString().contains( "^step1" ), p.toString() );
     }
+
+    /** Comments are hidden from every derived surface, the agent projection included. */
+    @Test
+    void commentsNeverReachBodyDerivedFields() {
+        final StructuralIndexService idx = mock( StructuralIndexService.class );
+        final PageManager pm = mock( PageManager.class );
+        final CachingManager cache = mock( CachingManager.class );
+        when( cache.enabled( anyString() ) ).thenReturn( false );
+        final DefaultForAgentProjectionService svc =
+                new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), null, null, null );
+
+        final PageDescriptor d = new PageDescriptor( "01COMMENT", "CommentOps", "Comment Ops", PageType.ARTICLE,
+                "ops", List.of( "ops" ), "Operator notes.",
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+        when( idx.getByCanonicalId( "01COMMENT" ) ).thenReturn( Optional.of( d ) );
+        when( pm.getPureText( "CommentOps", -1 ) ).thenReturn(
+                "---\ntitle: Comment Ops\nsummary: Operator notes.\ntags: [ops]\n---\n"
+                + "The service restarts nightly %%internalprobe%% at 02:00 and retains 7 backups\n\n## Steps\n\n"
+                + "1. Run the restart script.\n2. Verify the service.\n" );
+
+        final ForAgentProjection p = svc.project( "01COMMENT" ).orElseThrow();
+
+        assertFalse( p.keyFacts().isEmpty() );
+        assertFalse( p.toString().contains( "internalprobe" ), p.toString() );
+    }
 }

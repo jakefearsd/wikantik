@@ -30,6 +30,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.RenderDepth;
@@ -84,7 +85,9 @@ public class MarkdownParser extends MarkupParser {
 
         // [{...}] wiki-syntax references get () appended so Flexmark parses them as inline links, and $$...$$ display
         // math blocks become ```math fences for the GitLab extension (one place: RenderPathAccessRules reads the same)
-        final String body = MarkdownBodySource.prepare( parsed.body() ).text();
+        // Obsidian %%comments%% are not reader text: removed first (newlines kept), so nothing in one is parsed, linked or
+        // budgeted. The access-rule reader does not go through here; it reads the stored text.
+        final String body = MarkdownBodySource.prepare( ObsidianComments.strip( parsed.body() ) ).text();
 
         // Collect links from a clean AST (before JSPWiki post-processors modify URLs)
         collectLinks( body );

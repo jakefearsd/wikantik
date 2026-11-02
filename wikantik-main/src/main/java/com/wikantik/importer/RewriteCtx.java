@@ -25,7 +25,6 @@ import java.util.Set;
 final class RewriteCtx {
     final String fromPath;
     final VaultTargets targets;
-    int comments;
     private static final int NONE = -1;
     private String fullBody;
     private int bodyCursor;

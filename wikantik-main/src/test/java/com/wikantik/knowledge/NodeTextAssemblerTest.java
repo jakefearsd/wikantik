@@ -176,4 +176,9 @@ class NodeTextAssemblerTest {
     void stripMarkdownDropsHighlightDelimitersButKeepsLoneEquals() {
         assertEquals( "Mark this and a == b stays.", NodeTextAssembler.stripMarkdown( "Mark ==this== and a == b stays." ) );
     }
+
+    @Test
+    void stripMarkdownDropsComments() {
+        assertEquals( "Shown text.", NodeTextAssembler.stripMarkdown( "Shown %%hidden%% text." ) );
+    }
 }

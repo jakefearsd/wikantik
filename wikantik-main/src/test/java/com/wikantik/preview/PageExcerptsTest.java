@@ -80,4 +80,9 @@ class PageExcerptsTest {
         assertEquals( "Mark this and a == b stays.", PageExcerpts.excerpt( "Mark ==this== and a == b stays.", 280 ) );
         assertEquals( "x", PageExcerpts.excerpt( "==x==", 280 ) );
     }
+
+    @Test void commentsAreNotPartOfTheExcerpt() {
+        assertEquals( "Shown text.", PageExcerpts.excerpt( "Shown %%hidden%% text.", 280 ) );
+        assertEquals( "After.", PageExcerpts.excerpt( "%%multi\nline\nhidden%%\n\nAfter.\n", 280 ) );
+    }
 }

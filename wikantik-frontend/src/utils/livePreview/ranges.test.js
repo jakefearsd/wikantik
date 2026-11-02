@@ -240,6 +240,23 @@ describe('livePreviewSpecs — highlight', () => {
     }
   });
 });
+describe('livePreviewSpecs — comments', () => {
+  const commentMarks = (o) => o.specs.filter((s) => s.cls === 'cm-lp-comment').map((s) => o.state.sliceDoc(s.from, s.to));
+  it('dims a comment and keeps its delimiters visible, even off the caret line', () => {
+    const o = specsOf('a %%note%% b\n\nend', [3]);
+    expect(commentMarks(o)).toEqual(['%%note%%']);
+    expect(visible(o.state, o.specs, 1)).toBe('a %%note%% b');
+  });
+  it('dims a multi-line comment as one range', () => {
+    const o = specsOf('a %%one\ntwo%% b\n\nend', [4]);
+    expect(commentMarks(o)).toEqual(['%%one\ntwo%%']);
+  });
+  it('leaves code, math, an unterminated marker and a Mermaid comment undimmed', () => {
+    for (const doc of ['`%%x%%`', '$a %%x%% b$', '$$\nx %% y %%\n$$', 'a %%b', '```mermaid\ngraph TD\n%% c\nA-->B\n```']) {
+      expect(commentMarks(specsOf(`${doc}\n\nend`, [99]))).toEqual([]);
+    }
+  });
+});
 describe('livePreviewSpecs — math and plugins', () => {
   it('renders inline math on inactive lines', () => {
     const { specs } = specsOf('a $x+y$ b\n\nend', [3]);

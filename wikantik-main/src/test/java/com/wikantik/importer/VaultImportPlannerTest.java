@@ -88,7 +88,7 @@ class VaultImportPlannerTest {
         assertTrue( welcome.body().contains( "[[Beta v2|the beta]]" ) );
         assertTrue( welcome.body().contains( "[[Missing Note]]" ) );
         assertTrue( welcome.body().contains( "![[Welcome/diagram.png|300]]" ) );
-        assertFalse( welcome.body().contains( "private" ) );
+        assertTrue( welcome.body().contains( "%% private %%" ), "an Obsidian comment is kept: the reader hides it, the editor shows it" );
         assertEquals( List.of( "start", "root-tag" ), welcome.metadata().get( "tags" ) );
         final PageDraft gamma = draft( r, "Gamma" );
         assertEquals( "article", gamma.metadata().get( "type" ) );

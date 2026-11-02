@@ -63,4 +63,27 @@ class ReaderTextTest {
         // as a full text, the same lines are frontmatter: only the body's marker goes
         assertEquals( "---\nPara ^h\n\n---\n\nMore\n", ReaderText.derived( body ) );
     }
+
+    @Test
+    void stripsCommentsAndMarkersTogether() {
+        assertEquals( "Para  tail\n", ReaderText.derived( "Para %%hidden%% tail ^abc\n" ) );
+        assertEquals( "Para  tail\n", ReaderText.derivedBody( "Para %%hidden%% tail ^abc\n" ) );
+    }
+
+    @Test
+    void aCommentSpanningLinesKeepsTheLineCount() {
+        assertEquals( "a\n%%x\ny%%\nb\n".chars().filter( c -> c == '\n' ).count(),
+                ReaderText.derived( "a\n%%x\ny%%\nb\n" ).chars().filter( c -> c == '\n' ).count() );
+    }
+
+    @Test
+    void aPercentPairInFrontmatterIsNotAComment() {
+        final String text = "---\nsummary: 100%% sure %% really\n---\nBody %%gone%% here\n";
+        assertEquals( "---\nsummary: 100%% sure %% really\n---\nBody  here\n", ReaderText.derived( text ) );
+    }
+
+    @Test
+    void aCommentHidesAMarkerInsideItAndNeverExposesOne() {
+        assertEquals( "Para \n", ReaderText.derived( "Para %%note ^abc%%\n" ) );
+    }
 }

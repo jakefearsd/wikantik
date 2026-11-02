@@ -19,6 +19,8 @@ A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctr
 | Toggle live preview | Mod+E |
 | Save | Mod+S |
 | Paste as plain text | Mod+Shift+V |
+| Highlight the selection | Mod+Shift+H |
+| Comment the selection | Mod+/ |
 
 The toolbar also has heading, list, inline code, code block and table buttons. Type `/` at the start of a line for a menu of blocks such as tables, callouts and math.
 
@@ -49,6 +51,13 @@ Any paragraph, list item, table, quote or callout can carry a short id, so anoth
 * Link to a block with `[[Page#^launch]]`, or `[[#^launch]]` from the same page. Embed it with `![[Page#^launch]]`.
 * In the reader, hover a block and use the paragraph-mark button to copy its `[[Page#^id]]` link; the arrow button copies the web address instead. A block without an id gets one added when you copy.
 * In the editor, type `[[Page#^` and pick a block from the list; a block without an id gets one. The **Copy block link** command copies the link for the block under the cursor.
+
+## Highlight and comments
+
+* Write `==text==` to highlight it; the reader shows it marked, like a highlighter pen. Mod+Shift+H wraps or unwraps the selection. The marker pair must hug the text, so `== x ==` and `a == b` stay as they are.
+* Write `%%a note%%` for a comment that readers do not see. A comment can run over several lines. Mod+/ wraps or unwraps the selection in `%%`. The editor shows comments dimmed, with their `%%` marks visible.
+* Comments are hidden from the rendered page, search, excerpts, exports of the reader text and AI agents that read the page, but they are not private. Anyone who can edit the page or view its history sees them, so never put a secret in one.
+* A `%%` inside a code span, a code block, a diagram or a formula is ordinary text, and a `%%` with no closing partner is left alone.
 
 ## Diagrams
 

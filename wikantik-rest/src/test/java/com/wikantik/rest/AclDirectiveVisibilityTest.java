@@ -99,6 +99,7 @@ class AclDirectiveVisibilityTest {
         // did not, and the access-rule reader enforces it (#104); a reader must not be shown either login.
         engine.saveText( "AclWrappedPage", "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n"
                 + "[{ALLOW comment " + LOGIN + ",\n other-" + LOGIN + "}]\nPublic prose.\n" );
+        engine.saveText( "AclCommentPage", RULES + "Public prose %%editornote%% here.\n" );
         engine.saveText( "AclDiffPage", RULES + "First revision.\n" );
         engine.saveText( "AclDiffPage",
                 "[{ALLOW view All}]\n[{ALLOW edit Admin,other-" + LOGIN + "}]\nSecond revision.\n" );
@@ -112,7 +113,7 @@ class AclDirectiveVisibilityTest {
     @AfterAll
     static void stopEngine() {
         if ( engine != null ) {
-            engine.deleteQuietly( "AclVisibilityPage", "AclDiffPage", "AclVersionedPage", "AclTrickyPage", "AclWrappedPage" );
+            engine.deleteQuietly( "AclCommentPage", "AclVisibilityPage", "AclDiffPage", "AclVersionedPage", "AclTrickyPage", "AclWrappedPage" );
             engine.stop();
         }
     }
@@ -188,6 +189,18 @@ class AclDirectiveVisibilityTest {
         assertTrue( stored.contains( "other-" + LOGIN + "}]" ), "fixture is vacuous: the wrapped directive is not stored" );
         assertEquals( stored, getPage( editor( "/api/pages/AclWrappedPage" ), "AclWrappedPage" ).get( "content" ).getAsString(),
                 "an editor gets the stored text byte for byte" );
+    }
+
+    /** Comments (spec 1.11a): an editor round-trips them, everyone else reads the page without them. */
+    @Test
+    void commentsReachOnlyCallersWhoMayEdit() throws Exception {
+        final JsonObject asReader = getPage( reader( "/api/pages/AclCommentPage" ), "AclCommentPage" );
+        assertFalse( asReader.getAsJsonObject( "permissions" ).get( "edit" ).getAsBoolean(), "fixture is vacuous: the reader can edit" );
+        assertTrue( asReader.get( "content" ).getAsString().contains( "Public prose" ), asReader.toString() );
+        assertFalse( asReader.get( "content" ).getAsString().contains( "editornote" ), asReader.toString() );
+
+        final String asEditor = getPage( editor( "/api/pages/AclCommentPage" ), "AclCommentPage" ).get( "content" ).getAsString();
+        assertTrue( asEditor.contains( "%%editornote%%" ), "an editor gets the stored text, comment included: " + asEditor );
     }
 
     @Test

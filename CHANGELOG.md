@@ -12,6 +12,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `== x ==` stay text, `==**x**==` nests, only a run of exactly two `=` pairs; code and math are never processed.
   `Mod-Shift-H` highlights or un-highlights the selection; excerpts and summaries drop the delimiters. Paste-as-Markdown
   `<mark>` conversion follows with the paste work.
+- **`%%comments%%` (Obsidian) are hidden from every reader surface.** A comment, inline or over several lines, is removed
+  from the rendered page, `?format=md|json`, excerpts and summaries, the for-agent projection, chunks and embeddings and the
+  search index, and from the editor preview. Live preview dims it with its `%%` visible, and `Mod-/` wraps or unwraps the
+  selection (it replaces the stock HTML-comment toggle). Code, Mermaid fences and math are never read, and an unterminated
+  `%%` stays literal. Comments are hidden, not private: editors and page history show them, and an access rule inside one
+  is still enforced. The vault importer now keeps `%%` comments instead of stripping them.
 
 ### Fixed
 - **Configuration reference: wiki directive syntax in description prose is now shown as code.** Text such as

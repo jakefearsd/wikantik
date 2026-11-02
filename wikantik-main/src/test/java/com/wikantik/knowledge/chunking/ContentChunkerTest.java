@@ -429,4 +429,12 @@ class ContentChunkerTest {
         assertEquals(plain.get(0).contentHash(), marked.get(0).contentHash());
         assertFalse(marked.get(0).text().contains("^abc"));
     }
+
+    @Test
+    void commentsNeverReachChunkText() {
+        final List<Chunk> chunks = chunker.chunk("P", new ParsedPage(Map.of(), "Visible prose %%secret note%% continues.\n"));
+        assertEquals(1, chunks.size());
+        assertFalse(chunks.get(0).text().contains("secret"), chunks.get(0).text());
+        assertTrue(chunks.get(0).text().contains("Visible prose"));
+    }
 }

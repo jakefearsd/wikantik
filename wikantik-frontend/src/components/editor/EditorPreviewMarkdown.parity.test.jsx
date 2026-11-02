@@ -93,6 +93,9 @@ const PREDICATES = {
   task: (o) => all(o, 'input[type="checkbox"]').length > 0,
   wikilink: (o) => all(o, 'a').some((a) => (a.getAttribute('href') || '').includes('OtherPage')) && !o.text.includes('[['),
   highlight: (o) => all(o, 'mark').length > 0 && !o.text.includes('=='),
+  // A comment is hidden, not shown: its text (always the word `hidden` in the fixture) and its markers are gone.
+  comment: (o) => !o.text.includes('hidden') && !o.text.includes('%%'),
+  'no-comment': (o) => o.text.includes('hidden'),
   'no-highlight': (o) => all(o, 'mark').length === 0,
   chip: (o) => all(o, '.wiki-plugin-chip').length > 0,
   // Shown as its source text, not as the construct.

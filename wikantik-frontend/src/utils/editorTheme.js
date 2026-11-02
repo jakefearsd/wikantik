@@ -197,6 +197,7 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-em`]: { fontStyle: 'italic' },
   [`${ROOT} .cm-lp-del`]: { textDecoration: 'line-through', color: 'var(--text-secondary)' },
   [`${ROOT} .cm-lp-mark`]: { backgroundColor: 'var(--highlight-bg)', borderRadius: '2px' },
+  [`${ROOT} .cm-lp-comment`]: { color: 'var(--text-muted)', fontStyle: 'italic' },
   [`${ROOT} .cm-lp-code`]: { fontFamily: 'var(--font-mono)', backgroundColor: 'var(--code-bg)', borderRadius: 'var(--radius-sm)', padding: '0 3px' },
   [`${ROOT} .cm-lp-link`]: { color: 'var(--accent)', textDecoration: 'underline', textDecorationColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' },
   [`${ROOT} .cm-lp-setext-underline`]: { color: 'var(--text-muted)', fontSize: '0.8em' },

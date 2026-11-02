@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkHighlight from '../../utils/remarkHighlight';
+import { stripComments } from '../../utils/obsidianComments';
 
 /**
  * The editor preview's markdown render. react-markdown has no memoization of its own: every render re-parses
@@ -9,12 +10,13 @@ import remarkHighlight from '../../utils/remarkHighlight';
  * cost is written to `costMeter` (usePreviewSource reads it to decide between live and settled previews).
  *
  * The Obsidian syntax the reader renders is added here, after the caller's stack, so every preview has it:
- * `==highlight==` (remarkHighlight).
+ * `==highlight==` (remarkHighlight), and `%%comments%%`, which the preview hides as the reader does (replaced by
+ * the newlines they held, so the preview's source-line scroll sync is unchanged).
  */
 function EditorPreviewMarkdown({ content, remarkPlugins, rehypePlugins, components, costMeter }) {
   const start = performance.now();
   // Called directly (it is a hook-free function component) so the timing covers the parse/transform pipeline.
-  const tree = ReactMarkdown({ children: content, components, remarkPlugins: [...(remarkPlugins || []), remarkHighlight], rehypePlugins });
+  const tree = ReactMarkdown({ children: stripComments(content), components, remarkPlugins: [...(remarkPlugins || []), remarkHighlight], rehypePlugins });
   if (costMeter) costMeter.ms = performance.now() - start;
   return tree;
 }

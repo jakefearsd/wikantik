@@ -73,7 +73,8 @@ class VaultBodyRewriterTest {
         { "[x](<Old name.md#Intro>)", "[[New name#Intro|x]]" },
         { "[x](Existing.md)", "[[Existing|x]]" },
         { "[x](https://e.com/a.md)", "[x](https://e.com/a.md)" },
-                { "a %% hidden\nmore %% b", "a  b" },
+                { "a %% hidden\nmore %% b", "a %% hidden\nmore %% b" },
+        { "%% see [[Old name]] %%", "%% see [[New name|Old name]] %%" },
         { "```\n[[Old name]] %% c %%\n```", "```\n[[Old name]] %% c %%\n```" },
         { "`[[Old name]]`", "`[[Old name]]`" },
         { "[[ -f \"$x\" ]]", "[[ -f \"$x\" ]]" },
@@ -119,7 +120,7 @@ class VaultBodyRewriterTest {
         assertTrue( rewriter.rewrite( "[[Same#^abc]]", "n.md", FAKE ).warnings().isEmpty() );
         assertEquals( java.util.List.of( "link: unresolved [[Ghost]]" ),
                 rewriter.rewrite( "[[Ghost]] [[Ghost]]", "n.md", FAKE ).warnings() );
-        assertTrue( rewriter.rewrite( "a %%x%% b", "n.md", FAKE ).warnings().get( 0 ).startsWith( "comment: 1" ) );
+        assertTrue( rewriter.rewrite( "a %%x%% b", "n.md", FAKE ).warnings().isEmpty(), "comments are kept, so none is reported removed" );
         assertTrue( rewriter.rewrite( "para ^block-1", "n.md", FAKE ).warnings().isEmpty() );
         assertTrue( rewriter.rewrite( "[[Old name]]", "n.md", FAKE ).warnings().isEmpty() );
     }

@@ -95,6 +95,7 @@ class WikiPageFormatFilterTest {
             "See [Other](OtherPage) and [External](https://example.com).\n" );
 
         engine.saveText( "BlockPage", "Para one ^abc\n\nSee [[FormatPage#^zz|claim]] here.\n" );
+        engine.saveText( "CommentPage", "Shown prose %%commentprobe%% here.\n" );
         engine.saveText( "BlockHrPage", "---\ntitle: Rules\n---\n---\nPara ^h\n\n---\n\nMore ^m2\n" );
 
         filter = new WikiPageFormatFilter();
@@ -412,5 +413,34 @@ class WikiPageFormatFilterTest {
         final String out = WikiPageFormatFilter.rewriteWikiLinks( "[[Some Page]] [[Other]]", "https://w.example", "Cur",
                 t -> t.equals( "Other" ) ? "" : null, t -> false );
         assertEquals( "[Some Page](https://w.example/wiki/Some%20Page) [Other](https://w.example/wiki/Other)", out );
+    }
+
+    @Test
+    void formatMdAndJsonOmitComments() throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/wiki/CommentPage" );
+        when( req.getParameter( "format" ) ).thenReturn( "md" );
+        when( req.getRequestURI() ).thenReturn( "/wiki/CommentPage" );
+        when( req.getContextPath() ).thenReturn( "" );
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        when( resp.getOutputStream() ).thenReturn( new ServletOutputStream() {
+            @Override public void write( final int b ) { baos.write( b ); }
+            @Override public boolean isReady() { return true; }
+            @Override public void setWriteListener( final WriteListener listener ) {}
+        } );
+        filter.doFilter( req, resp, mock( FilterChain.class ) );
+        final String md = baos.toString( StandardCharsets.UTF_8 );
+        assertTrue( md.contains( "Shown prose" ), md );
+        assertFalse( md.contains( "commentprobe" ), "a comment is hidden, not reader text: " + md );
+
+        final HttpServletRequest jreq = HttpMockFactory.createHttpRequest( "/wiki/CommentPage" );
+        when( jreq.getParameter( "format" ) ).thenReturn( "json" );
+        when( jreq.getRequestURI() ).thenReturn( "/wiki/CommentPage" );
+        when( jreq.getContextPath() ).thenReturn( "" );
+        final HttpServletResponse jresp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        when( jresp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+        filter.doFilter( jreq, jresp, mock( FilterChain.class ) );
+        assertFalse( sw.toString().contains( "commentprobe" ), sw.toString() );
     }
 }

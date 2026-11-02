@@ -55,6 +55,7 @@ import com.wikantik.content.PageRenamer;
 import com.wikantik.export.HeadingSlugs;
 import com.wikantik.preview.PageExcerpts;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.util.TextUtil;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -285,7 +286,7 @@ public class PageResource extends RestServletBase {
         // The text is stripped once, here, and everything a reader is shown (body, frontmatter, hash) derives from it;
         // the rendered HTML below starts from rawText because the renderer consumes the directives itself.
         final boolean canEdit = hasPagePermission( request, pageName, "edit" );
-        final String visibleText = AclDirectiveText.forViewer( canEdit, rawText );
+        final String visibleText = ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, rawText ) );
         final ParsedPage parsed = FrontmatterParser.parse( visibleText );
 
         final Map< String, Object > result = new LinkedHashMap<>();

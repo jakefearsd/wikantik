@@ -81,7 +81,7 @@ class AdminContentResourceTest {
     @Test
     void testLockedPagesListsEveryLockedPageWithItsReasons() throws Exception {
         engine.saveText( "AdminOpenRulesPage", "[{ALLOW view All}]\n\nOpen.\n" );
-        engine.saveTextUnfiltered( "AdminLockedRulesPage", "Intro.\n\n[{DENY view Bob}]\n\nBody.\n" );
+        engine.saveTextUnfiltered( "AdminLockedRulesPage", "---\ntitle: Locked\ntype: article\n---\nIntro.\n\n[{DENY view Bob}]\n\nBody.\n" );
 
         final JsonObject obj = gson.fromJson( doGet( "/locked-pages" ), JsonObject.class );
 
@@ -91,7 +91,7 @@ class AdminContentResourceTest {
         assertEquals( "AdminLockedRulesPage", page.get( "name" ).getAsString() );
         final JsonObject reason = page.getAsJsonArray( "reasons" ).get( 0 ).getAsJsonObject();
         assertEquals( "DENY", reason.get( "shape" ).getAsString() );
-        assertEquals( 3, reason.get( "line" ).getAsInt() );
+        assertEquals( 3, reason.get( "line" ).getAsInt(), "the body line, below the frontmatter: " + obj );
         assertEquals( "[{DENY view Bob}]", reason.get( "text" ).getAsString() );
     }
 

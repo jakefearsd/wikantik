@@ -142,6 +142,26 @@ class PageResourceAccessRulesTest {
         assertEquals( "Open body.\n", stored(), "nothing was written" );
     }
 
+    /** The editor sends the body and the frontmatter fields apart: the line is the body line the editor shows. */
+    @Test
+    void aPutFromTheEditorReportsTheLineOfTheBodyItSent() throws Exception {
+        engine.saveText( PAGE, "Open body.\n" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Intro.\n\n" + DENY + "\n" );
+        final JsonObject metadata = new JsonObject();
+        metadata.addProperty( "title", "Access rules" );
+        metadata.addProperty( "type", "article" );
+        metadata.addProperty( "summary", "A page about access rules." );
+        body.add( "metadata", metadata );
+
+        final Reply reply = send( "PUT", body );
+
+        verify( reply.response() ).setStatus( 422 );
+        final JsonObject violation = reply.json().getAsJsonArray( "violations" ).get( 0 ).getAsJsonObject();
+        assertEquals( 3, violation.get( "line" ).getAsInt(), reply.body() );
+        assertTrue( violation.get( "message" ).getAsString().contains( "line 3" ), reply.body() );
+    }
+
     @Test
     void aMetadataPatchThatPutsARuleInTheFrontmatterIs422() throws Exception {
         engine.saveText( PAGE, "---\ntype: article\n---\nBody.\n" );
@@ -153,23 +173,31 @@ class PageResourceAccessRulesTest {
         final Reply reply = send( "PATCH", body );
 
         verify( reply.response() ).setStatus( 422 );
-        assertEquals( "IN_FRONTMATTER", reply.json().getAsJsonArray( "violations" ).get( 0 ).getAsJsonObject()
-                .get( "shape" ).getAsString(), reply.body() );
+        final JsonObject violation = reply.json().getAsJsonArray( "violations" ).get( 0 ).getAsJsonObject();
+        assertEquals( "IN_FRONTMATTER", violation.get( "shape" ).getAsString(), reply.body() );
+        assertEquals( "summary", violation.get( "field" ).getAsString(), reply.body() );
+        assertFalse( violation.has( "line" ), "a frontmatter field has no body line: " + reply.body() );
     }
 
     @Test
     void anAdministratorSeesWhyAPageIsLocked() throws Exception {
-        engine.saveTextUnfiltered( PAGE, "Intro.\n\n" + DENY + "\n\nBody.\n" );
+        engine.saveTextUnfiltered( PAGE, "---\ntitle: Locked\nsummary: '[{ALLOW view Admin}]'\n---\nIntro.\n\n" + DENY
+                + "\n\nBody.\n" );
 
         final Reply reply = get( true, Map.of() );
 
         final JsonObject accessRules = reply.json().getAsJsonObject( "accessRules" );
         assertTrue( accessRules.get( "locked" ).getAsBoolean(), reply.body() );
         final JsonArray reasons = accessRules.getAsJsonArray( "reasons" );
-        assertEquals( 1, reasons.size() );
-        final JsonObject reason = reasons.get( 0 ).getAsJsonObject();
+        assertEquals( 2, reasons.size(), reply.body() );
+        final JsonObject inFrontmatter = reasons.get( 0 ).getAsJsonObject();
+        assertEquals( "IN_FRONTMATTER", inFrontmatter.get( "shape" ).getAsString() );
+        assertEquals( "summary", inFrontmatter.get( "field" ).getAsString() );
+        assertFalse( inFrontmatter.has( "line" ), reply.body() );
+        final JsonObject reason = reasons.get( 1 ).getAsJsonObject();
         assertEquals( "DENY", reason.get( "shape" ).getAsString() );
-        assertEquals( 3, reason.get( "line" ).getAsInt() );
+        assertEquals( 3, reason.get( "line" ).getAsInt(), "the body line, below the frontmatter: " + reply.body() );
+        assertFalse( reason.has( "field" ), reply.body() );
         assertEquals( DENY, reason.get( "text" ).getAsString() );
     }
 

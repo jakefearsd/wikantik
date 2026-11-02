@@ -69,6 +69,7 @@ import { getCommands, registerCommands } from '../commands/registry';
 import { buildEditorCommands } from '../utils/editorCommands';
 import { createSlashSource } from '../utils/slashComplete';
 import AttachmentPanel from './AttachmentPanel';
+import AccessRuleLocation from './AccessRuleLocation';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -101,6 +102,8 @@ export default function PageEditor() {
   const [body, setBody] = useState('');
   const [metadata, setMetadata] = useState({});
   const [violations, setViolations] = useState([]);
+  // A 422 access_rule_shape (#104): each refused rule, placed by body line or frontmatter field.
+  const [accessRuleViolations, setAccessRuleViolations] = useState([]);
   const [mathViolations, setMathViolations] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [originalVersion, setOriginalVersion] = useState(null);
@@ -784,6 +787,7 @@ export default function PageEditor() {
     setSaving(true);
     savingRef.current = true;
     setError(null);
+    setAccessRuleViolations([]);
     try {
       const res = await api.savePage(name, {
         content: body,
@@ -831,7 +835,9 @@ export default function PageEditor() {
       } else if (err.status === 422) {
         if (err.body?.error === 'access_rule_shape') {
           // The save would add an access rule the server cannot read (it would lock the page, #104).
-          setError((err.body.violations || []).map((v) => v.message).join(' ') || 'An access rule on this page cannot be read.');
+          const refused = err.body.violations || [];
+          setAccessRuleViolations(refused);
+          if (!refused.length) setError('An access rule on this page cannot be read.');
           toast.error('An access rule on this page cannot be read');
         } else if (err.body?.error === 'math_validation_failed') {
           setMathViolations((err.body && err.body.violations) || []);
@@ -1056,6 +1062,15 @@ export default function PageEditor() {
       )}
 
       {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
+      {accessRuleViolations.length > 0 && (
+        <div className="error-banner" data-testid="editor-access-rule-violations">
+          <ul>
+            {accessRuleViolations.map((v, i) => (
+              <li key={i}><AccessRuleLocation line={v.line} field={v.field} />: {v.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {pendingUpload && (
         <div className="info-banner" role="status" data-testid="upload-needs-save">

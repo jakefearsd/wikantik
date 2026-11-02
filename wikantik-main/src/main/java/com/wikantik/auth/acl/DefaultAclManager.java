@@ -232,8 +232,8 @@ public class DefaultAclManager implements AclManager {
                 parseAcl( page, acl, ruleLine );
             } catch( final WikiSecurityException e ) {
                 final AccessRules.Span span = rules.spans().get( i );
-                warnLocked( page, new AccessRules.Locked( List.of( new AccessRules.Reason( AccessRules.Shape.BAD_PERMISSION,
-                        AccessRules.lineOf( pageText, span.start() ), ruleLine ) ), rules.spans() ) );
+                warnLocked( page, new AccessRules.Locked( List.of( new AccessRules.Places( pageText ).reason(
+                        AccessRules.Shape.BAD_PERMISSION, span.start(), ruleLine ) ), rules.spans() ) );
                 return lockedAcl( page );
             }
         }

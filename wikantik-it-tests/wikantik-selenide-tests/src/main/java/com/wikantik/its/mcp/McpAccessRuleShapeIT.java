@@ -41,13 +41,13 @@ public class McpAccessRuleShapeIT extends WithMcpTestSetup {
         return violations.get( 0 );
     }
 
-    /** @param bodyLine the rule's line in the body sent; a frontmatter block the save adds can only push it down */
+    /** @param bodyLine the rule's line in the body sent, which a frontmatter block the save adds does not move */
     private static void assertCitesTheDenyRule( final Map< String, Object > refusal, final int bodyLine ) {
         Assertions.assertEquals( "access rule shape refused", refusal.get( "error" ), refusal.toString() );
         final Map< String, Object > v = firstViolation( refusal );
         Assertions.assertEquals( "ACCESS_RULE_SHAPE", v.get( "code" ), v.toString() );
         Assertions.assertEquals( "DENY", v.get( "shape" ), v.toString() );
-        Assertions.assertTrue( ( ( Number ) v.get( "line" ) ).intValue() >= bodyLine, v.toString() );
+        Assertions.assertEquals( bodyLine, ( ( Number ) v.get( "line" ) ).intValue(), v.toString() );
         Assertions.assertEquals( RULE, v.get( "text" ), v.toString() );
         Assertions.assertTrue( v.get( "message" ).toString().contains( "put it in `code`" ), v.toString() );
     }

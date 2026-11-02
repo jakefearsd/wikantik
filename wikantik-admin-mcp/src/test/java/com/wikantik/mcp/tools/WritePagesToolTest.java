@@ -80,18 +80,20 @@ class WritePagesToolTest {
         final PageSaveHelper helper = mock( PageSaveHelper.class );
         when( pm.getPage( anyString() ) ).thenReturn( null );
         doThrow( new AccessRuleShapeException( List.of( new AccessRuleShapeException.Violation(
-                AccessRuleShapeException.CODE, "DENY", 1, "[{DENY view Bob}]", "line 1: no DENY; put it in `code`" ) ) ) )
+                AccessRuleShapeException.CODE, "IN_FRONTMATTER", null, "summary", "[{ALLOW view Admin}]",
+                "The access rule in the frontmatter field `summary` cannot be read; put it in `code`" ) ) ) )
             .when( helper ).saveText( eq( "Locked" ), anyString(), any( SaveOptions.class ) );
 
         final WritePagesTool tool = new WritePagesTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final String text = ( (McpSchema.TextContent) tool.execute( Map.of( "pages", List.of(
-                Map.of( "slug", "Locked", "content", "[{DENY view Bob}]\n\nbody" ),
+                Map.of( "slug", "Locked", "content", "---\nsummary: '[{ALLOW view Admin}]'\n---\nbody" ),
                 Map.of( "slug", "Fine", "content", "body" ) ) ) ).content().get( 0 ) ).text();
 
         assertTrue( text.contains( "access rule shape refused" ), text );
         assertTrue( text.contains( "\"code\":\"ACCESS_RULE_SHAPE\"" ), text );
-        assertTrue( text.contains( "\"shape\":\"DENY\"" ), text );
+        assertTrue( text.contains( "\"shape\":\"IN_FRONTMATTER\"" ), text );
+        assertTrue( text.contains( "\"field\":\"summary\"" ), "a rule in the frontmatter is cited by its field: " + text );
         assertTrue( text.contains( "\"createdCount\":1" ), text );
         assertTrue( text.contains( "\"failedCount\":1" ), text );
     }

@@ -22,7 +22,9 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.AuthorKeys;
+import com.wikantik.auth.acl.AccessRuleShapeCheck;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.search.SearchManager;
@@ -38,8 +40,9 @@ import com.wikantik.util.TextUtil;
 public class DefaultPageLifecycle implements PageLifecycle {
 
 
-    private final Engine         engine;
-    private final PageRepository repository;
+    private final Engine               engine;
+    private final PageRepository       repository;
+    private final AccessRuleShapeCheck accessRuleShapes;
 
     /**
      * @param engine     Engine instance (used for lazy manager lookups)
@@ -48,6 +51,8 @@ public class DefaultPageLifecycle implements PageLifecycle {
     public DefaultPageLifecycle( final Engine engine, final PageRepository repository ) {
         this.engine     = engine;
         this.repository = repository;
+        this.accessRuleShapes = new AccessRuleShapeCheck(
+                name -> repository.wikiPageExists( name ) ? repository.getPureText( name, PageProvider.LATEST_VERSION ) : null );
     }
 
     // --- Lazy accessors for managers initialised after PageManager ---
@@ -93,6 +98,12 @@ public class DefaultPageLifecycle implements PageLifecycle {
 
         // Run pre-save filters
         final String saveText = getFilterManager().doPreSaveFiltering( context, proposedText );
+
+        // Refuse a text that adds an access rule the wiki cannot read (it would lock the page, #104). Checked here, on
+        // the text putPageText stores, and not as a filter in the chain: filters rewrite the text (the structural spine
+        // and the frontmatter defaults re-emit the frontmatter, decoding a YAML escape into a literal rule), and no filter
+        // priority is sure to run after every other filter, whichever optional subsystems are wired.
+        accessRuleShapes.check( page.getName(), saveText );
 
         // Save the page text
         repository.putPageText( page, saveText );

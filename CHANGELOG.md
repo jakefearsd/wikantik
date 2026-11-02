@@ -30,14 +30,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   parsed within budget — locks the page to administrators until it is fixed (the lock is logged once per version).
   Rules shown in code spans and code blocks are still documentation. Profile renames and ACL rewrites now edit
   exactly the rules the reader found, and leave documentation examples in code alone (#104).
-- **A save cannot lock a page, and administrators see why a page is locked.** Every save path (editor, REST, MCP,
-  import) refuses a text that adds an access rule the reader cannot read — otherwise any editor could lock a page out,
-  themselves included, by typing `[{DENY …}]`. REST answers 422 `access_rule_shape` with one `ACCESS_RULE_SHAPE`
-  violation per rule (shape, line, text, and how to write it instead: canonical `[{ALLOW …}]`, or a code span to show
-  the syntax); `update_page`/`write_pages` return the same violations. A disputed rule the stored page already holds
-  may stay, so an administrator can still save other fixes to a locked page. For administrators only, the page payload
-  carries `accessRules: { locked, reasons }` and the page shows a banner listing each reason with its line;
-  `GET /admin/content/locked-pages` lists every locked page (#104).
+- **A save cannot lock a page, and administrators see why a page is locked.** Every save that goes through the page
+  save pipeline (the editor, REST, MCP, the importer and every other in-process writer of page text) refuses a text that
+  adds an access rule the reader cannot read — otherwise any editor could lock a page out, themselves included, by
+  typing `[{DENY …}]`. The check reads the text that is stored, after every save filter has rewritten it, so a rule
+  that only a filter spells out (a YAML escape in the frontmatter, decoded when the frontmatter is re-emitted) is
+  refused too. Pages written outside the pipeline (the startup corpus, files placed in the page store, a page rename's
+  verbatim copy) are not checked; `GET /admin/content/locked-pages` finds those. REST answers 422 `access_rule_shape`
+  with one `ACCESS_RULE_SHAPE` violation per rule (shape; the body line the editor shows, or the frontmatter `field`;
+  text; and how to write it instead: canonical `[{ALLOW …}]`, or a code span to show the syntax);
+  `update_page`/`write_pages` return the same violations. A disputed rule the stored page already holds may stay, so
+  an administrator can still save other fixes to a locked page. For administrators only, the page payload carries
+  `accessRules: { locked, reasons }` and the page shows a banner listing each reason by body line or frontmatter
+  field; `GET /admin/content/locked-pages` lists every locked page (#104).
 
 ## [2.5.5] - 2026-11-01
 

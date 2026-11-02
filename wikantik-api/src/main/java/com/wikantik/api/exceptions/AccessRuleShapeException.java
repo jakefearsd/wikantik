@@ -39,11 +39,14 @@ public class AccessRuleShapeException extends FilterException {
      *
      * @param code    always {@link #CODE}
      * @param shape   how the span is written (the reader's shape name, e.g. {@code DENY})
-     * @param line    the 1-based line of the page text (frontmatter included) the span starts on
+     * @param line    the 1-based line of the page body the span starts on, as the editor shows the body (the first line
+     *                after the frontmatter's closing {@code ---} is line 1); {@code null} for a span in the frontmatter
+     * @param field   the frontmatter field the span is in; {@code null} for a span in the body (or in a frontmatter line
+     *                no field owns)
      * @param text    the span's text (cut short when long)
      * @param message what is wrong and how to write it instead
      */
-    public record Violation( String code, String shape, int line, String text, String message ) {
+    public record Violation( String code, String shape, Integer line, String field, String text, String message ) {
     }
 
     private final transient List< Violation > violations;

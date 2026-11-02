@@ -719,10 +719,37 @@ describe('math validation', () => {
 
     fireEvent.click(screen.getByTestId('editor-save'));
 
-    expect(await screen.findByTestId('editor-error')).toHaveTextContent('line 3');
-    expect(screen.getByTestId('editor-error')).toHaveTextContent('put it in `code`');
+    const refusal = await screen.findByTestId('editor-access-rule-violations');
+    expect(refusal).toHaveTextContent('Line 3');
+    expect(refusal).toHaveTextContent('put it in `code`');
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('An access rule on this page cannot be read'));
     expect(screen.getByText(/frontmatter valid/i)).toBeInTheDocument();
+  });
+
+  it('a 422 access_rule_shape names the frontmatter field of a rule there, and the body line of one in the body', async () => {
+    api.savePage.mockRejectedValueOnce({
+      status: 422,
+      body: {
+        error: 'access_rule_shape',
+        violations: [
+          { code: 'ACCESS_RULE_SHAPE', shape: 'IN_FRONTMATTER', field: 'summary', text: '[{ALLOW view Admin}]',
+            message: 'The access rule in the frontmatter field `summary` cannot be read.' },
+          { code: 'ACCESS_RULE_SHAPE', shape: 'DENY', line: 2, text: '[{DENY view Bob}]',
+            message: 'The access rule on line 2 cannot be read.' },
+        ],
+      },
+    });
+
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByTestId('editor-save'));
+
+    const items = (await screen.findByTestId('editor-access-rule-violations')).querySelectorAll('li');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Frontmatter field summary');
+    expect(items[0]).not.toHaveTextContent('Line');
+    expect(items[1]).toHaveTextContent('Line 2');
   });
 
   it('a 422 math_validation_failed shows an error toast', async () => {

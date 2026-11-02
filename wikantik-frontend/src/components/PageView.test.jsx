@@ -1273,27 +1273,30 @@ describe('PageView block references', () => {
 });
 
 describe('PageView locked access rules banner (#104)', () => {
-  it('shows administrators why the page is locked, each reason with its line', async () => {
+  it('shows administrators why the page is locked: a body line, or the frontmatter field', async () => {
     api.getPage.mockImplementation(async () => ({
       ...PAGE,
       accessRules: {
         locked: true,
         reasons: [
+          { shape: 'IN_FRONTMATTER', field: 'summary', text: '[{ALLOW view Admin}]' },
           { shape: 'DENY', line: 3, text: '[{DENY view Bob}]' },
-          { shape: 'IN_FRONTMATTER', line: 2, text: '[{ALLOW view Admin}]' },
         ],
       },
     }));
     await mountAndSettle();
     const banner = screen.getByTestId('locked-access-rules-banner');
     expect(banner).toHaveTextContent("Access rules on this page can't be read");
+    // A persistent banner, not an interruption: announced politely, not as an alert on every view.
+    expect(banner).toHaveAttribute('role', 'status');
     const items = banner.querySelectorAll('li');
     expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent('Line 3');
-    expect(items[0]).toHaveTextContent('[{DENY view Bob}]');
-    expect(items[0]).toHaveTextContent('DENY');
-    expect(items[1]).toHaveTextContent('Line 2');
-    expect(items[1]).toHaveTextContent('IN_FRONTMATTER');
+    expect(items[0]).toHaveTextContent('Frontmatter field summary');
+    expect(items[0]).not.toHaveTextContent('Line');
+    expect(items[0]).toHaveTextContent('IN_FRONTMATTER');
+    expect(items[1]).toHaveTextContent('Line 3');
+    expect(items[1]).toHaveTextContent('[{DENY view Bob}]');
+    expect(items[1]).toHaveTextContent('DENY');
   }, TEST_TIMEOUT);
 
   it('renders no banner when the payload carries no accessRules key', async () => {

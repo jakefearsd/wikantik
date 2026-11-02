@@ -36,8 +36,9 @@ final class LockedAccessRules {
 
     /**
      * @param rawText a page text, frontmatter included; may be {@code null}
-     * @return {@code { locked: true, reasons: [{shape, line, text}] }} when {@link AccessRules#read} locks it, else
-     *         {@code null}
+     * @return {@code { locked: true, reasons: [{shape, line | field, text}] }} when {@link AccessRules#read} locks it,
+     *         else {@code null}; {@code line} is the line of the body as the editor shows it (the first line after the
+     *         frontmatter is line 1), {@code field} the frontmatter field of a reason in the frontmatter
      */
     static Map< String, Object > of( final String rawText ) {
         if ( !( AccessRules.read( rawText ) instanceof AccessRules.Locked locked ) ) {
@@ -47,7 +48,12 @@ final class LockedAccessRules {
         for ( final AccessRules.Reason reason : locked.reasons() ) {
             final Map< String, Object > r = new LinkedHashMap<>();
             r.put( "shape", reason.shape().name() );
-            r.put( "line", reason.line() );
+            if ( reason.line() != null ) {
+                r.put( "line", reason.line() );
+            }
+            if ( reason.field() != null ) {
+                r.put( "field", reason.field() );
+            }
             r.put( "text", reason.text() );
             reasons.add( r );
         }

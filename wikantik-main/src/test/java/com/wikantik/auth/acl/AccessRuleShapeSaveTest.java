@@ -19,18 +19,27 @@
 package com.wikantik.auth.acl;
 
 import com.wikantik.TestEngine;
+import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
+import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.filters.FilterManager;
+import com.wikantik.knowledge.FrontmatterDefaultsFilter;
+import com.wikantik.pagegraph.spine.StructuralSpinePageFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * The save refusal on the engine's own save path ({@link PageManager#saveText}), which every surface (REST, MCP, import)
@@ -96,6 +105,54 @@ class AccessRuleShapeSaveTest {
 
         assertEquals( "Intro, reworded.\n\n" + DENY + "\n\nNew body.\n", stored() );
         assertTrue( locked(), "the disputed span is still there" );
+    }
+
+    /**
+     * The frontmatter-rewriting save filters production wires when a datasource is configured, at their production
+     * priorities and after the core filters, as {@code WikiEngine.initKnowledgeGraph} registers them.
+     */
+    private void wireFrontmatterRewritingFilters() {
+        final Properties props = new Properties();
+        props.setProperty( StructuralSpinePageFilter.PROP_ENFORCEMENT_ENABLED, "true" );
+        props.setProperty( FrontmatterDefaultsFilter.PROP_AUTO_DEFAULTS, "true" );
+        final FilterManager filters = engine.getManager( FilterManager.class );
+        filters.addPageFilter( new FrontmatterDefaultsFilter( name -> false, props ), -1004 );
+        filters.addPageFilter( new StructuralSpinePageFilter( mock( StructuralIndexService.class ), name -> false, props ), -1003 );
+    }
+
+    /**
+     * A YAML escape holds no {@code [&#123;} as typed, but the spine filter re-emits the frontmatter (it adds the missing
+     * {@code canonical_id}) with the escape decoded: the stored text holds an {@code IN_FRONTMATTER} rule. The check
+     * must read the text that is stored, after every filter that rewrites it.
+     */
+    @Test
+    void aRuleAFrontmatterRewriteSpellsOutIsRefusedAndNothingIsWritten() throws Exception {
+        wireFrontmatterRewritingFilters();
+        engine.saveText( PAGE, "---\ntitle: Open\n---\nOpen page.\n" );
+        final String before = stored();
+        final String escaped = "---\ntitle: Open\nsummary: \"\\x5B{ALLOW view Admin}]\"\n---\nOpen page.\n";
+        assertFalse( escaped.contains( "[{" ), "precondition: the text as typed holds no rule" );
+
+        final AccessRuleShapeException e = assertThrows( AccessRuleShapeException.class, () -> engine.saveText( PAGE, escaped ) );
+
+        assertEquals( "IN_FRONTMATTER", e.violations().get( 0 ).shape() );
+        assertEquals( "summary", e.violations().get( 0 ).field() );
+        assertEquals( before, stored() );
+        assertFalse( locked() );
+    }
+
+    /** Whatever its priority, no filter runs after the check: a rule the last filter of all adds is refused too. */
+    @Test
+    void aRuleTheLastFilterOfTheChainAddsIsRefused() {
+        engine.getManager( FilterManager.class ).addPageFilter( new PageFilter() {
+            @Override
+            public String preSave( final Context context, final String content ) {
+                return content + "\n" + DENY + "\n";
+            }
+        }, Integer.MIN_VALUE );
+
+        assertThrows( AccessRuleShapeException.class, () -> engine.saveText( PAGE, "Open page.\n" ) );
+        assertNull( pages().getPage( PAGE ) );
     }
 
     @Test

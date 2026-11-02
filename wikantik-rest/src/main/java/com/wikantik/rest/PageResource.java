@@ -576,7 +576,8 @@ public class PageResource extends RestServletBase {
 
     /**
      * Builds the HTTP 422 body for a save that adds an unreadable access rule: {@code { error, violations }}, each
-     * violation {@code { code: "ACCESS_RULE_SHAPE", shape, line, text, message }}.
+     * violation {@code { code: "ACCESS_RULE_SHAPE", shape, line | field, text, message }}: {@code line} is a line of the
+     * body as the editor shows it, {@code field} the frontmatter field of a rule in the frontmatter.
      */
     static Map< String, Object > accessRuleShapeErrorBody( final AccessRuleShapeException e ) {
         final Map< String, Object > body = new LinkedHashMap<>();

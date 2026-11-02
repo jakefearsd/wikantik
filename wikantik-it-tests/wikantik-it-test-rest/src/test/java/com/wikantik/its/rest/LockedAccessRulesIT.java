@@ -20,6 +20,7 @@ package com.wikantik.its.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -41,6 +42,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -58,6 +60,8 @@ public class LockedAccessRulesIT {
     private static final String RULE = "[{DENY view Bob}]";
     private static final String RESTRICTED = "LockedRulesRestricted" + SUFFIX;
     private static final String NEW_PAGE = "LockedRulesNew" + SUFFIX;
+    private static final String FIELD_PAGE = "LockedRulesField" + SUFFIX;
+    private static final String ESCAPED_PAGE = "LockedRulesEscaped" + SUFFIX;
 
     private static String baseUrl;
     private static HttpClient admin;
@@ -131,7 +135,8 @@ public class LockedAccessRulesIT {
         final JsonObject violation = body.getAsJsonArray( "violations" ).get( 0 ).getAsJsonObject();
         assertEquals( "ACCESS_RULE_SHAPE", violation.get( "code" ).getAsString() );
         assertEquals( "DENY", violation.get( "shape" ).getAsString() );
-        assertTrue( violation.get( "line" ).getAsInt() >= 3, "body line 3, or below a frontmatter block the save adds: " + resp.body() );
+        // The body line the editor shows, though the save adds a frontmatter block (canonical_id) above it.
+        assertEquals( 3, violation.get( "line" ).getAsInt(), resp.body() );
         assertTrue( violation.get( "message" ).getAsString().contains( "put it in `code`" ), resp.body() );
         assertEquals( 404, get( admin, NEW_PAGE ).statusCode(), "the refused page was not created" );
     }
@@ -148,7 +153,7 @@ public class LockedAccessRulesIT {
         assertEquals( 1, reasons.size(), resp.body() );
         final JsonObject reason = reasons.get( 0 ).getAsJsonObject();
         assertEquals( "DENY", reason.get( "shape" ).getAsString() );
-        assertEquals( 6, reason.get( "line" ).getAsInt() );
+        assertEquals( 6, reason.get( "line" ).getAsInt(), "the body line, below the fixture's frontmatter: " + resp.body() );
         assertEquals( RULE, reason.get( "text" ).getAsString() );
     }
 
@@ -188,8 +193,44 @@ public class LockedAccessRulesIT {
         final HttpResponse< String > resp = send( admin, "GET", "/admin/content/locked-pages", null );
 
         assertEquals( 200, resp.statusCode(), resp.body() );
-        final boolean listed = json( resp ).getAsJsonArray( "pages" ).asList().stream()
-                .anyMatch( p -> LOCKED.equals( p.getAsJsonObject().get( "name" ).getAsString() ) );
-        assertTrue( listed, resp.body() );
+        final JsonObject listed = json( resp ).getAsJsonArray( "pages" ).asList().stream().map( JsonElement::getAsJsonObject )
+                .filter( p -> LOCKED.equals( p.get( "name" ).getAsString() ) ).findFirst().orElse( null );
+        assertNotNull( listed, resp.body() );
+        // Order 4 saved the rule on body line 5; the save put a frontmatter block (canonical_id) above the body.
+        assertEquals( 5, listed.getAsJsonArray( "reasons" ).get( 0 ).getAsJsonObject().get( "line" ).getAsInt(), resp.body() );
+    }
+
+    /** The editor edits the frontmatter as fields: a rule there is cited by its field, with no body line. */
+    @Test
+    @Order( 6 )
+    void aRuleInAFrontmatterFieldIsCitedByTheField() throws Exception {
+        final HttpResponse< String > resp = send( admin, "PUT", "/api/pages/" + FIELD_PAGE, GSON.toJson( Map.of(
+                "content", "Body.\n", "metadata", Map.of( "summary", "[{ALLOW view Admin}]" ) ) ) );
+
+        assertEquals( 422, resp.statusCode(), resp.body() );
+        final JsonObject violation = json( resp ).getAsJsonArray( "violations" ).get( 0 ).getAsJsonObject();
+        assertEquals( "IN_FRONTMATTER", violation.get( "shape" ).getAsString(), resp.body() );
+        assertEquals( "summary", violation.get( "field" ).getAsString(), resp.body() );
+        assertFalse( violation.has( "line" ), resp.body() );
+        assertEquals( 404, get( admin, FIELD_PAGE ).statusCode(), "the refused page was not created" );
+    }
+
+    /**
+     * A YAML escape holds no rule as typed, but the save re-emits the frontmatter (it adds the canonical_id) with the
+     * escape decoded. The check reads the text that is stored, so the save is refused.
+     */
+    @Test
+    @Order( 7 )
+    void aRuleTheSaveWouldSpellOutOfAYamlEscapeIsRefused() throws Exception {
+        final String escaped = "---\nsummary: \"\\x5B{ALLOW view Admin}]\"\n---\nBody.\n";
+        assertFalse( escaped.contains( "[{" ), "precondition: no rule as typed" );
+
+        final HttpResponse< String > resp = putContent( ESCAPED_PAGE, escaped );
+
+        assertEquals( 422, resp.statusCode(), resp.body() );
+        final JsonObject violation = json( resp ).getAsJsonArray( "violations" ).get( 0 ).getAsJsonObject();
+        assertEquals( "IN_FRONTMATTER", violation.get( "shape" ).getAsString(), resp.body() );
+        assertEquals( "summary", violation.get( "field" ).getAsString(), resp.body() );
+        assertEquals( 404, get( admin, ESCAPED_PAGE ).statusCode(), "the refused page was not created" );
     }
 }

@@ -242,7 +242,7 @@ public class AdminContentResource extends RestServletBase {
     }
 
     /**
-     * Every page whose access rules lock it (#104): {@code { pages: [{name, version, reasons: [{shape, line, text}]}] }},
+     * Every page whose access rules lock it (#104): {@code { pages: [{name, version, reasons: [{shape, line | field, text}]}] }},
      * by name. A page whose text cannot be read is skipped (and logged): its lock is a provider failure, not its text.
      */
     private void handleLockedPages( final HttpServletResponse response ) throws IOException {

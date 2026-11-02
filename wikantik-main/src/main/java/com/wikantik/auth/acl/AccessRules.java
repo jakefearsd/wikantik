@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The one reader of a page's access rules: {@link #read} is the only source of the ACL the wiki enforces
@@ -61,6 +63,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * A text with no <code>{allow</code> or <code>{deny</code> (any case, any whitespace after the brace) is not parsed.
  */
 public final class AccessRules {
+
+    private static final Logger LOG = LogManager.getLogger( AccessRules.class );
 
     /** How a directive-shaped span is written, and so whether the two old readings agreed on it. */
     public enum Shape {
@@ -103,13 +107,17 @@ public final class AccessRules {
     }
 
     /**
-     * Why a page is locked: one disputed span (or the text as a whole, for {@link Shape#UNREADABLE}).
+     * Why a page is locked: one disputed span (or the text as a whole, for {@link Shape#UNREADABLE}). Where it is, is
+     * said as the editor shows the page: the body apart from the frontmatter, which is edited as fields.
      *
      * @param shape what is wrong
-     * @param line  the 1-based line the span starts on
+     * @param line  the 1-based line of the body the span starts on (the first line after the frontmatter's closing
+     *              {@code ---} is line 1); {@code null} for a span in the frontmatter
+     * @param field the top-level frontmatter field the span is in; {@code null} for a span in the body, or in a
+     *              frontmatter line no field owns
      * @param text  the span's text (cut short when long), or what could not be read
      */
-    public record Reason( Shape shape, int line, String text ) {
+    public record Reason( Shape shape, Integer line, String field, String text ) {
     }
 
     /** What {@link #read} makes of a text. */
@@ -143,8 +151,6 @@ public final class AccessRules {
             spans = List.copyOf( spans );
         }
     }
-
-    private static final Logger LOG = LogManager.getLogger( AccessRules.class );
 
     /** Longest span text a {@link Reason} carries. */
     static final int MAX_REASON_TEXT = 200;
@@ -186,8 +192,10 @@ public final class AccessRules {
         try {
             structure = RenderPathAccessRules.structure( fullText );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
-            // Not an error here: the lock it becomes is what is reported (DefaultAclManager warns once per version).
-            LOG.debug( "Access rules read as unreadable: {}", e.getMessage() );
+            // The text becomes a lock (administrators only) that names this reason; DefaultAclManager also warns once per
+            // page version, with the page's name, which this reader is not given.
+            LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them; "
+                    + "the page locks to administrators: {}", fullText.length(), e.getMessage() );
             return unreadable( fullText, bodyStart, candidates, e.getMessage() );
         }
         final Map< Integer, RenderPathAccessRules.Rule > rules = new HashMap<>();
@@ -249,10 +257,10 @@ public final class AccessRules {
                                     final Map< Integer, RenderPathAccessRules.Rule > rules ) {
         final List< Reason > reasons = new ArrayList<>();
         final List< String > ruleLines = new ArrayList<>();
-        final LineCounter lines = new LineCounter( text );
+        final Places places = new Places( text );
         for ( final Span span : spans ) {
             if ( disputed( span.shape() ) ) {
-                reasons.add( new Reason( span.shape(), lines.lineOf( span.start() ), excerpt( text, span.start(), span.end() ) ) );
+                reasons.add( places.reason( span.shape(), span.start(), excerpt( text, span.start(), span.end() ) ) );
             } else {
                 ruleLines.add( rules.get( span.start() ).ruleLine() );
             }
@@ -267,11 +275,11 @@ public final class AccessRules {
             spans.add( new Span( candidate.getKey(), candidate.getValue(),
                     candidate.getKey() < bodyStart ? Shape.IN_FRONTMATTER : Shape.UNREADABLE ) );
         }
-        final LineCounter lines = new LineCounter( text );
         final Integer firstInBody = candidates.ceilingKey( bodyStart );
+        final String reason = "the page text cannot be read the way the renderer reads it: " + why;
         final List< Reason > reasons = new ArrayList<>();
-        reasons.add( new Reason( Shape.UNREADABLE, firstInBody == null ? 1 : lines.lineOf( firstInBody ),
-                "the page text cannot be read the way the renderer reads it: " + why ) );
+        reasons.add( firstInBody == null ? new Reason( Shape.UNREADABLE, 1, null, reason )
+                : new Places( text ).reason( Shape.UNREADABLE, firstInBody, reason ) );
         return new Locked( reasons, spans );
     }
 
@@ -330,12 +338,57 @@ public final class AccessRules {
     }
 
     /**
-     * @param text   a text
-     * @param offset an offset in it
-     * @return the 1-based line {@code offset} is on
+     * Where the offsets of one text are, as the editor shows the page: the line of the body (the first line after the
+     * frontmatter's closing {@code ---} is line 1) or the frontmatter field. Ask for body offsets in ascending order: the
+     * lines are counted once across the text.
      */
-    static int lineOf( final String text, final int offset ) {
-        return new LineCounter( text ).lineOf( Math.min( offset, text.length() ) );
+    static final class Places {
+
+        /** A top-level frontmatter key at the start of a line: plain, or quoted with either quote. */
+        private static final Pattern FIELD = Pattern.compile(
+                "(?:\"([^\"\\r\\n]+)\"|'([^'\\r\\n]+)'|([^\\s#'\"\\-\\[{][^:\\r\\n]*?))[ \\t]*:(?:\\s|$)" );
+
+        private final String text;
+        private final int bodyStart;
+        private final LineCounter lines;
+        private final int bodyFirstLine;
+
+        /** @param text a page text, frontmatter included */
+        Places( final String text ) {
+            this.text = text;
+            this.bodyStart = FrontmatterParser.bodyOffset( text );
+            this.lines = new LineCounter( text );
+            this.bodyFirstLine = lines.lineOf( bodyStart );
+        }
+
+        /**
+         * @param shape  what is wrong
+         * @param offset where it starts in the text
+         * @param what   the span's text, or what could not be read
+         * @return the reason, placed in the body or the frontmatter
+         */
+        Reason reason( final Shape shape, final int offset, final String what ) {
+            if ( offset < bodyStart ) {
+                return new Reason( shape, null, fieldAt( offset ), what );
+            }
+            return new Reason( shape, lines.lineOf( Math.min( offset, text.length() ) ) - bodyFirstLine + 1, null, what );
+        }
+
+        /** The top-level key of the frontmatter line holding {@code offset}, or of the nearest line above it that has one. */
+        private String fieldAt( final int offset ) {
+            int lineStart = text.lastIndexOf( '\n', offset - 1 ) + 1;
+            while ( true ) {
+                final int newline = text.indexOf( '\n', lineStart );
+                final Matcher key = FIELD.matcher( text ).region( lineStart, newline < 0 ? text.length() : newline );
+                if ( key.lookingAt() ) {
+                    return key.group( 1 ) != null ? key.group( 1 ) : key.group( 2 ) != null ? key.group( 2 ) : key.group( 3 );
+                }
+                if ( lineStart == 0 ) {
+                    return null;
+                }
+                lineStart = text.lastIndexOf( '\n', lineStart - 2 ) + 1;
+            }
+        }
     }
 
     /** 1-based line numbers for ascending offsets, counted once across the text. */

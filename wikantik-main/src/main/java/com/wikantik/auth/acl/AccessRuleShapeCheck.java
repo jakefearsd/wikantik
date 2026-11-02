@@ -18,11 +18,7 @@
  */
 package com.wikantik.auth.acl;
 
-import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
-import com.wikantik.api.filters.PageFilter;
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.acl.AccessRules.Shape;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,16 +34,23 @@ import java.util.function.Function;
  * Refuses a save that adds an access rule {@link AccessRules} cannot read. Such a span locks the page to administrators,
  * so without this any editor could lock a page out, themselves included, by typing <code>[{DENY …}]</code>.
  *
+ * <p>It checks the text that is stored: the save path runs it after the whole pre-save filter chain, because filters
+ * rewrite the text (the structural spine and the frontmatter defaults re-emit the frontmatter, which can spell out a rule
+ * the text as typed only escaped).
+ *
  * <p>A disputed span the stored page already holds may stay (each stored copy covers one copy in the new text), so an
  * administrator, the only one who can open a locked page, can still save other fixes to it. Which spans are disputed is
- * the reader's decision alone ({@link AccessRules#read}): when it reads a shape as a rule, this filter lets it through.
+ * the reader's decision alone ({@link AccessRules#read}): when it reads a shape as a rule, this check lets it through.
  */
-public class AccessRuleShapeFilter implements PageFilter {
+public class AccessRuleShapeCheck {
 
-    private static final Logger LOG = LogManager.getLogger( AccessRuleShapeFilter.class );
+    private static final Logger LOG = LogManager.getLogger( AccessRuleShapeCheck.class );
 
     /** How to write a rule instead, said in every refusal. */
     static final String CANONICAL = "write `[{ALLOW …}]`; to show the syntax, put it in `code`";
+
+    /** The key of a whole text the render parse cannot read: its shape alone, as the reason quotes offsets and sizes. */
+    private static final String WHOLE_TEXT_KEY = "whole text:";
 
     private static final Map< Shape, String > WHY = new EnumMap<>( Shape.class );
 
@@ -70,27 +73,25 @@ public class AccessRuleShapeFilter implements PageFilter {
     /** The stored latest text of a page by name; {@code null} for a page not stored yet. */
     private final Function< String, String > storedText;
 
-    /** @param pageManager where the stored version of a page being saved is read from */
-    public AccessRuleShapeFilter( final PageManager pageManager ) {
-        this( name -> pageManager.wikiPageExists( name ) ? pageManager.getPureText( name, PageProvider.LATEST_VERSION ) : null );
-    }
-
     /** @param storedText the stored latest text of a page by name, {@code null} when there is none */
-    AccessRuleShapeFilter( final Function< String, String > storedText ) {
+    public AccessRuleShapeCheck( final Function< String, String > storedText ) {
         this.storedText = storedText;
     }
 
-    @Override
-    public String preSave( final Context context, final String content ) throws AccessRuleShapeException {
-        if ( content == null || content.isEmpty() ) {
-            return content;
+    /**
+     * @param pageName the page being saved; {@code null} when unknown (then nothing counts as stored)
+     * @param text     the text about to be stored
+     * @throws AccessRuleShapeException when the text adds a disputed span the stored page does not hold
+     */
+    public void check( final String pageName, final String text ) throws AccessRuleShapeException {
+        if ( text == null || text.isEmpty() ) {
+            return;
         }
-        final List< Disputed > added = disputed( content );
+        final List< Disputed > added = disputed( text );
         if ( added.isEmpty() ) {
-            return content;
+            return;
         }
-        final String name = context == null || context.getPage() == null ? null : context.getPage().getName();
-        final Map< String, Integer > unchanged = counts( disputed( stored( name ) ) );
+        final Map< String, Integer > unchanged = counts( disputed( stored( pageName ) ) );
         final List< AccessRuleShapeException.Violation > refused = new ArrayList<>();
         for ( final Disputed d : added ) {
             if ( unchanged.merge( d.key(), -1, Integer::sum ) < 0 ) {
@@ -98,9 +99,9 @@ public class AccessRuleShapeFilter implements PageFilter {
             }
         }
         if ( refused.isEmpty() ) {
-            return content;
+            return;
         }
-        LOG.info( "Refused a save of page {} that adds {} access rule(s) the wiki cannot read", name, refused.size() );
+        LOG.info( "Refused a save of page {} that adds {} access rule(s) the wiki cannot read", pageName, refused.size() );
         throw new AccessRuleShapeException( refused );
     }
 
@@ -121,10 +122,12 @@ public class AccessRuleShapeFilter implements PageFilter {
     /**
      * A disputed span of a text, or the whole text when it is unreadable with no span of its own.
      *
-     * @param key what makes two of them the same: the span's text, line ends as {@code \n} (the store may keep
-     *            {@code \r\n} where the editor sends {@code \n})
+     * @param key       what makes two of them the same: the span's text, line ends as {@code \n} (the store may keep
+     *                  {@code \r\n} where the editor sends {@code \n}); for the whole text, its shape alone
+     * @param reason    what is wrong and where, as the editor shows the page
+     * @param wholeText whether it stands for the whole text rather than one span
      */
-    private record Disputed( String key, Shape shape, int line, String text ) {
+    private record Disputed( String key, AccessRules.Reason reason, boolean wholeText ) {
     }
 
     private static List< Disputed > disputed( final String text ) {
@@ -132,15 +135,17 @@ public class AccessRuleShapeFilter implements PageFilter {
             return List.of();
         }
         final List< Disputed > out = new ArrayList<>();
+        final AccessRules.Places places = new AccessRules.Places( text );
         for ( final AccessRules.Span span : locked.spans() ) {
             if ( AccessRules.disputed( span.shape() ) ) {
                 final String spanText = text.substring( span.start(), span.end() );
-                out.add( new Disputed( spanText.replace( "\r\n", "\n" ), span.shape(), AccessRules.lineOf( text, span.start() ), excerpt( spanText ) ) );
+                out.add( new Disputed( spanText.replace( "\r\n", "\n" ),
+                        places.reason( span.shape(), span.start(), excerpt( spanText ) ), false ) );
             }
         }
         if ( out.isEmpty() ) {
             for ( final AccessRules.Reason reason : locked.reasons() ) {
-                out.add( new Disputed( reason.shape() + ":" + reason.text(), reason.shape(), reason.line(), reason.text() ) );
+                out.add( new Disputed( WHOLE_TEXT_KEY + reason.shape(), reason, true ) );
             }
         }
         return out;
@@ -155,9 +160,24 @@ public class AccessRuleShapeFilter implements PageFilter {
     }
 
     private static AccessRuleShapeException.Violation violation( final Disputed d ) {
-        final String message = "The access rule on line " + d.line() + " (" + d.text() + ") cannot be read: " + WHY.get( d.shape() )
-                + " (" + d.shape() + "). Saving it would lock the page to administrators. To restrict the page, " + CANONICAL + ".";
-        return new AccessRuleShapeException.Violation( AccessRuleShapeException.CODE, d.shape().name(), d.line(), d.text(), message );
+        final AccessRules.Reason r = d.reason();
+        final String what = d.wholeText() ? capitalised( r.text() ) + " (" + r.shape() + ")."
+                : "The access rule " + where( r ) + " (" + r.text() + ") cannot be read: " + WHY.get( r.shape() )
+                        + " (" + r.shape() + ").";
+        final String message = what + " Saving it would lock the page to administrators. To restrict the page, " + CANONICAL + ".";
+        return new AccessRuleShapeException.Violation( AccessRuleShapeException.CODE, r.shape().name(), r.line(), r.field(),
+                r.text(), message );
+    }
+
+    private static String where( final AccessRules.Reason r ) {
+        if ( r.line() != null ) {
+            return "on line " + r.line();
+        }
+        return r.field() != null ? "in the frontmatter field `" + r.field() + "`" : "in the frontmatter";
+    }
+
+    private static String capitalised( final String s ) {
+        return s.isEmpty() ? s : Character.toUpperCase( s.charAt( 0 ) ) + s.substring( 1 );
     }
 
     private static String excerpt( final String spanText ) {

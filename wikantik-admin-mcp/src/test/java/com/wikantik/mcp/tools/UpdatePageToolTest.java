@@ -97,7 +97,7 @@ class UpdatePageToolTest {
         final String currentHash = McpToolUtils.computeContentHash( "current body" );
 
         doThrow( new AccessRuleShapeException( List.of( new AccessRuleShapeException.Violation(
-                AccessRuleShapeException.CODE, "DENY", 3, "[{DENY view Bob}]",
+                AccessRuleShapeException.CODE, "DENY", 3, null, "[{DENY view Bob}]",
                 "The access rule on line 3 ([{DENY view Bob}]) cannot be read: access rules only allow: there is no DENY "
                         + "(DENY). To restrict the page, write `[{ALLOW …}]`; to show the syntax, put it in `code`." ) ) ) )
             .when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );

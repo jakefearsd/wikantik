@@ -114,9 +114,41 @@ class AccessRulesTest {
     void aReasonNamesTheLineAndTheText() {
         final Locked locked = assertInstanceOf( Locked.class,
                 AccessRules.read( "[{ALLOW view All}]\nline two\n[{DENY edit bob}]\n\nBody.\n" ) );
-        assertEquals( List.of( new Reason( Shape.DENY, 3, "[{DENY edit bob}]" ) ), locked.reasons() );
+        assertEquals( List.of( new Reason( Shape.DENY, 3, null, "[{DENY edit bob}]" ) ), locked.reasons() );
         assertEquals( List.of( Shape.CANONICAL, Shape.DENY ), locked.spans().stream().map( Span::shape ).toList(),
                 "a locked reading still lists every span, canonical ones included" );
+    }
+
+    /** The editor shows the body alone, so a reason's line counts from the first line after the closing {@code ---}. */
+    @Test
+    void aReasonInTheBodyNamesItsBodyLineNotItsLineInTheWholeText() {
+        final Locked locked = assertInstanceOf( Locked.class,
+                AccessRules.read( "---\ntitle: T\ntype: article\n---\nIntro.\n\n[{DENY edit bob}]\n" ) );
+        assertEquals( List.of( new Reason( Shape.DENY, 3, null, "[{DENY edit bob}]" ) ), locked.reasons() );
+    }
+
+    @Test
+    void aBodyLineCountsTheSameWithCrlfLineEnds() {
+        final Locked locked = assertInstanceOf( Locked.class,
+                AccessRules.read( "---\r\ntitle: T\r\n---\r\n[{DENY edit bob}]\r\n" ) );
+        assertEquals( List.of( new Reason( Shape.DENY, 1, null, "[{DENY edit bob}]" ) ), locked.reasons() );
+    }
+
+    /** The editor shows the frontmatter as fields, so a reason there names its field, not a line. */
+    @Test
+    void aReasonInTheFrontmatterNamesItsField() {
+        final Locked scalar = assertInstanceOf( Locked.class,
+                AccessRules.read( "---\ntitle: T\nsummary: '[{ALLOW view Admin}]'\n---\nBody.\n" ) );
+        assertEquals( List.of( new Reason( Shape.IN_FRONTMATTER, null, "summary", "[{ALLOW view Admin}]" ) ), scalar.reasons() );
+
+        final Locked listItem = assertInstanceOf( Locked.class,
+                AccessRules.read( "---\ntitle: T\ntags:\n  - a\n  - '[{ALLOW view Admin}]'\nstatus: x\n---\nBody.\n" ) );
+        assertEquals( "tags", listItem.reasons().get( 0 ).field() );
+
+        final Locked folded = assertInstanceOf( Locked.class,
+                AccessRules.read( "---\n\"summary\": >\n  Some words\n  [{ALLOW view Admin}]\n---\nBody [{DENY edit bob}].\n" ) );
+        assertEquals( List.of( new Reason( Shape.IN_FRONTMATTER, null, "summary", "[{ALLOW view Admin}]" ),
+                new Reason( Shape.DENY, 1, null, "[{DENY edit bob}]" ) ), folded.reasons() );
     }
 
     @Test

@@ -484,10 +484,9 @@ public class WikiEngine implements Engine {
             // getManager() lookups stay in initialize() — the decomposition
             // ArchUnit rule freezes getManager callers by method, so the helpers
             // receive their collaborators as parameters rather than looking them up.
-            final PageManager corePageManager = getManager( PageManager.class );
-            initFrontmatterMetadataCache( corePageManager );
+            initFrontmatterMetadataCache( getManager( PageManager.class ) );
             wireCorePageFilters( getManager( FilterManager.class ),
-                getManager( ReferenceManager.class ), getManager( SearchManager.class ), corePageManager );
+                getManager( ReferenceManager.class ), getManager( SearchManager.class ) );
             buildCoreAuthPageRenderingSubsystems( props,
                 getManager( SystemPageRegistry.class ),
                 getManager( RecentArticlesManager.class ) );
@@ -685,12 +684,11 @@ public class WikiEngine implements Engine {
      *  react to page saves.
      */
     private void wireCorePageFilters( final FilterManager filterManager,
-            final ReferenceManager referenceManager, final SearchManager searchManager, final PageManager pageManager ) {
+            final ReferenceManager referenceManager, final SearchManager searchManager ) {
         filterManager.addPageFilter( referenceManager, -1001 );
         filterManager.addPageFilter( searchManager, -1002 );
-        // Wired here, not with the datasource-dependent spine filters: like ACL enforcement itself, the refusal of a
-        // save that would lock a page (#104) must not depend on which optional subsystems are configured.
-        filterManager.addPageFilter( new com.wikantik.auth.acl.AccessRuleShapeFilter( pageManager ), -1003 );
+        // No access-rule shape filter here: the refusal of a save that would lock a page (#104) runs in
+        // DefaultPageLifecycle.saveText on the text the whole filter chain produced, which no filter priority guarantees.
     }
 
     /**

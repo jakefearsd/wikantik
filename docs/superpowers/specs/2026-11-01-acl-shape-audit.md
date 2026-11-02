@@ -19,7 +19,7 @@ Design: [2026-11-01-pre-wysiwyg-ui-and-security-design.md](2026-11-01-pre-wysiwy
 4. **Fix rules** (design 5.4 rule 2): write the canonical shape that expresses the author's evident intent; where intent
    is not expressible (`DENY`) take the narrower of the two old readings and say so; documentation that merely mentions a
    directive gets it put in a code span.
-5. **Escaped directives.** ESCAPED pages are listed explicitly: the new reader reads `\\[{ALLOW ...}]` as literal text,
+5. **Escaped directives.** ESCAPED pages are listed explicitly: the new reader reads `\[{ALLOW ...}]` as literal text,
    so a page that relied on the old text scan reading it as a rule becomes more open. Each needs a decision.
 
 Limits of `--url`: `GET /api/pages/{name}` returns frontmatter as parsed fields, so the audited text is rebuilt (YAML dump

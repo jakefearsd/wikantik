@@ -315,6 +315,29 @@ plans from the live index (the `list_clusters` and `list_pages_by_filter` tools 
 with a live wiki's `/api/structure/sitemap`. It exits 2 when it refuses because the
 snapshot it was given was incomplete, and 1 when divergence is found under `--check`.
 
+### 1.9.1 Auditing access-rule readings (`AclShapeAuditCli`)
+
+`AclShapeAuditCli` (`wikantik-extract-cli`, #104) reads every page's access rules with the one reader
+(`AccessRules.read`) and prints, per page, the reading (`Rules` or `Locked` with reasons), the ACL each of the two
+replaced readers enforced (old text scan, old render path), the new ACL and a `changed` flag, then a summary listing the
+locked, changed and ESCAPED pages. ESCAPED (`\[{ALLOW ...}]`) is the one shape the new reader reads more openly than the
+old text scan, so read that list. Exit `0` clean, `1` a page is locked, `2` a page could not be fetched (named in the
+report) or the list could not be read, `64` bad usage.
+
+```bash
+CP="wikantik-extract-cli/target/classes:$(cat classpath.txt)"      # or the extract-cli jar with dependencies
+# a local directory of *.md files
+java -cp "$CP" com.wikantik.extractcli.AclShapeAuditCli --dir docs/wikantik-pages [--format text|json]
+# a live wiki (an administrator; at most ~20 requests/s). Credentials come from the environment, never the command line:
+export WIKANTIK_AUDIT_TOKEN=...                                    # bearer API key, or:
+export WIKANTIK_AUDIT_USER=... WIKANTIK_AUDIT_PASSWORD=...         # HTTP Basic
+java -cp "$CP" com.wikantik.extractcli.AclShapeAuditCli --url https://wiki.wikantik.com --format json
+```
+
+`--url` reads `GET /api/pages` then `GET /api/pages/{name}`, which returns the frontmatter as parsed fields, so the text is
+rebuilt from them; a page the server itself locks is reported locked with the server's reasons. Findings and decisions
+are recorded in `docs/superpowers/specs/2026-11-01-acl-shape-audit.md`.
+
 ---
 
 ### 1.10 Releasing a deleted account's login

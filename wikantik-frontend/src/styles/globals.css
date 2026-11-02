@@ -16,6 +16,7 @@
   --text: #2D2D2D;
   --text-secondary: #6B6560;
   --text-muted: #9B9590;
+  --highlight-bg: #FDE9A8;
   --accent: #C45D3E;
   --accent-hover: #A8442A;
   --sage: #7A8B6F;
@@ -106,6 +107,7 @@
   --text: #E8E4DC;
   --text-secondary: #A8A09A;
   --text-muted: #706860;
+  --highlight-bg: #5C4A12;
   --accent: #E07050;
   --accent-hover: #F08060;
   --sage: #8DA080;

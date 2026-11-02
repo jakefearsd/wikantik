@@ -75,4 +75,9 @@ class PageExcerptsTest {
     @Test void blockMarkersAreNotPartOfTheExcerpt() {
         assertEquals( "Para", PageExcerpts.excerpt( "Para ^abc\n", 280 ) );
     }
+
+    @Test void highlightDelimitersAreNotPartOfTheExcerpt() {
+        assertEquals( "Mark this and a == b stays.", PageExcerpts.excerpt( "Mark ==this== and a == b stays.", 280 ) );
+        assertEquals( "x", PageExcerpts.excerpt( "==x==", 280 ) );
+    }
 }

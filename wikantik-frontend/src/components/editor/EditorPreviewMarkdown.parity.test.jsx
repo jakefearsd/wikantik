@@ -92,6 +92,8 @@ const PREDICATES = {
   callout: (o) => all(o, '.callout').length > 0,
   task: (o) => all(o, 'input[type="checkbox"]').length > 0,
   wikilink: (o) => all(o, 'a').some((a) => (a.getAttribute('href') || '').includes('OtherPage')) && !o.text.includes('[['),
+  highlight: (o) => all(o, 'mark').length > 0 && !o.text.includes('=='),
+  'no-highlight': (o) => all(o, 'mark').length === 0,
   chip: (o) => all(o, '.wiki-plugin-chip').length > 0,
   // Shown as its source text, not as the construct.
   literal: (o, e) => !PREDICATES[e.kind](o, e) && o.text.includes(firstLine(e)),

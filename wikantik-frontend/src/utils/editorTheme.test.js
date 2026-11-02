@@ -53,7 +53,7 @@ describe('editor chrome theme', () => {
 
   it('styles every live-preview class', () => {
     const classes = ['cm-lp-h1', 'cm-lp-h2', 'cm-lp-h3', 'cm-lp-h4', 'cm-lp-h5', 'cm-lp-h6', 'cm-lp-em', 'cm-lp-strong',
-      'cm-lp-del', 'cm-lp-code', 'cm-lp-link', 'cm-lp-quote', 'cm-lp-callout', 'cm-lp-callout-title',
+      'cm-lp-del', 'cm-lp-mark', 'cm-lp-code', 'cm-lp-link', 'cm-lp-quote', 'cm-lp-callout', 'cm-lp-callout-title',
       'cm-lp-callout-title-widget', 'cm-lp-callout-icon', 'cm-lp-bullet', 'cm-lp-task', 'cm-lp-rule', 'cm-lp-image',
       'cm-lp-image-wrap', 'cm-lp-image-missing', 'cm-lp-math', 'cm-lp-math-block', 'cm-lp-math-error', 'cm-lp-fence', 'cm-lp-fence-block',
       'cm-lp-codeblock', 'cm-lp-plugin', 'cm-lp-embed', 'cm-lp-embed-title', 'cm-lp-embed-body', 'cm-lp-embed-loading',

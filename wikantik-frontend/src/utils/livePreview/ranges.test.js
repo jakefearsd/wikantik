@@ -219,6 +219,27 @@ describe('livePreviewSpecs — strikethrough', () => {
     expect(specsOf('~5 min to ~10 min\n\nend', [3]).specs.some((s) => s.cls === 'cm-lp-del')).toBe(false);
   });
 });
+describe('livePreviewSpecs — highlight', () => {
+  it('marks ==x== and hides the delimiters off the caret line only', () => {
+    const off = specsOf('a ==b== c\n\nend', [3]);
+    expect(off.specs.filter((s) => s.cls === 'cm-lp-mark').map((s) => off.state.sliceDoc(s.from, s.to))).toEqual(['==b==']);
+    expect(visible(off.state, off.specs, 1)).toBe('a b c');
+    const on = specsOf('a ==b== c\n\nend', [1]);
+    expect(on.specs.some((s) => s.cls === 'cm-lp-mark')).toBe(true);
+    expect(visible(on.state, on.specs, 1)).toBe('a ==b== c');
+  });
+  it('nests with strong and refuses what the reader refuses', () => {
+    expect(visible(...Object.values(specsOf('==**x**==\n\nend', [3])).slice(0, 2), 1)).toBe('x');
+    for (const doc of ['a == b', '== x ==', '===x===', '=x=', '==x']) {
+      expect(specsOf(`${doc}\n\nend`, [3]).specs.some((s) => s.cls === 'cm-lp-mark')).toBe(false);
+    }
+  });
+  it('leaves code spans and math alone', () => {
+    for (const doc of ['`==x==`', '$a==b==c$', '$$\na==b==c\n$$']) {
+      expect(specsOf(`${doc}\n\nend`, [99]).specs.some((s) => s.cls === 'cm-lp-mark')).toBe(false);
+    }
+  });
+});
 describe('livePreviewSpecs — math and plugins', () => {
   it('renders inline math on inactive lines', () => {
     const { specs } = specsOf('a $x+y$ b\n\nend', [3]);

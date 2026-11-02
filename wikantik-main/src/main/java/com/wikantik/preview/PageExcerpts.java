@@ -31,6 +31,7 @@ import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
 
 import com.wikantik.api.parser.WikiLinkSyntax;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.markdown.extensions.highlight.HighlightExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,7 @@ import java.util.regex.Pattern;
 /** Plain-text excerpts of a page body for link-preview cards. Never renders HTML. */
 public final class PageExcerpts {
     public static final int MAX_CHARS = 280;
-    private static final Parser PARSER = Parser.builder().build();
+    private static final Parser PARSER = Parser.builder().extensions( List.of( HighlightExtension.create() ) ).build();
     /** {@code [{ALLOW …}]}, {@code [{DENY …}]} and every other {@code [{Plugin …}]} span. */
     private static final Pattern PLUGIN = Pattern.compile( "\\[\\{.*?}]", Pattern.DOTALL );
     private static final Pattern SPACES = Pattern.compile( "\\s+" );

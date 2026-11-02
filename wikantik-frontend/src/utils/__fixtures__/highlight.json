@@ -1,0 +1,23 @@
+[
+  { "name": "simple", "markdown": "==x==", "html": "<p><mark>x</mark></p>" },
+  { "name": "in a sentence", "markdown": "a ==b c== d", "html": "<p>a <mark>b c</mark> d</p>" },
+  { "name": "strong inside", "markdown": "==**x**==", "html": "<p><mark><strong>x</strong></mark></p>" },
+  { "name": "strong outside", "markdown": "**==x==**", "html": "<p><strong><mark>x</mark></strong></p>" },
+  { "name": "emphasis and text inside", "markdown": "==a *b* c==", "html": "<p><mark>a <em>b</em> c</mark></p>" },
+  { "name": "two adjacent highlights", "markdown": "==a== ==b==", "html": "<p><mark>a</mark> <mark>b</mark></p>" },
+  { "name": "touching highlights", "markdown": "==a====b==", "html": "<p><mark>a====b</mark></p>" },
+  { "name": "spaced equals is text", "markdown": "a == b", "html": "<p>a == b</p>" },
+  { "name": "spaces inside the delimiters is text", "markdown": "== x ==", "html": "<p>== x ==</p>" },
+  { "name": "a run of three is text", "markdown": "===x===", "html": "<p>===x===</p>" },
+  { "name": "single equals is text", "markdown": "=x=", "html": "<p>=x=</p>" },
+  { "name": "unterminated is text", "markdown": "==x", "html": "<p>==x</p>" },
+  { "name": "inside a code span", "markdown": "`==x==`", "html": "<p><code>==x==</code></p>" },
+  { "name": "code span inside a highlight", "markdown": "==a `b` c==", "html": "<p><mark>a <code>b</code> c</mark></p>" },
+  { "name": "inside a fenced block", "markdown": "```\n==x==\n```", "html": "<pre><code>==x==\n</code></pre>" },
+  { "name": "inside inline math", "markdown": "$a==b$", "noMark": true },
+  { "name": "inside inline math with a pair", "markdown": "$==x==$", "noMark": true },
+  { "name": "inside block math", "markdown": "$$\na==b==c\n$$", "noMark": true },
+  { "name": "in a list item", "markdown": "- ==x==", "html": "<ul><li><mark>x</mark></li></ul>" },
+  { "name": "in a heading", "markdown": "# ==x==", "html": "<h1><mark>x</mark></h1>" },
+  { "name": "escaped delimiters", "markdown": "\\==x\\==", "html": "<p>==x==</p>" }
+]

@@ -20,6 +20,7 @@ package com.wikantik.parser.markdown;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -109,5 +110,11 @@ class WikantikHtmlSanitizerTest {
         assertFalse( WikantikHtmlSanitizer.sanitize( "<span data-block=\"1\">y</span>" ).contains( "data-block" ) );
         // data-task arrives with its consumer (Phase 3); until then it is not let through
         assertFalse( WikantikHtmlSanitizer.sanitize( "<li data-task=\"1\">y</li>" ).contains( "data-task" ) );
+    }
+
+    @Test
+    void keepsTheMarkElementOfAHighlight() {
+        assertEquals( "<p>a <mark>b <strong>c</strong></mark></p>",
+                WikantikHtmlSanitizer.sanitize( "<p>a <mark>b <strong>c</strong></mark></p>" ) );
     }
 }

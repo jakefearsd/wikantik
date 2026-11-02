@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`==highlight==` (Obsidian).** `==text==` renders as `<mark>` in the reader and the editor preview, and live preview
+  styles it (`cm-lp-mark`, delimiters hidden off the caret line). Same flanking rules as strikethrough: `a == b` and
+  `== x ==` stay text, `==**x**==` nests, only a run of exactly two `=` pairs; code and math are never processed.
+  `Mod-Shift-H` highlights or un-highlights the selection; excerpts and summaries drop the delimiters. Paste-as-Markdown
+  `<mark>` conversion follows with the paste work.
+
 ### Fixed
 - **Configuration reference: wiki directive syntax in description prose is now shown as code.** Text such as
   `[{ALLOW edit Charlie}]` or `[{TableOfContents}]` in a key's description was published bare, where the wiki

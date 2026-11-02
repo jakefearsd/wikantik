@@ -2,6 +2,7 @@ import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { matchInlineMath } from '../inlineMath';
+import { findHighlights } from '../highlightSyntax';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
@@ -678,6 +679,15 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         claimed.push([a, b]);
         widget(a, b, { type: 'math', tex: text.slice(i + 1, end - 1), display: false });
         i = end - 1;
+      }
+    }
+    if (text.includes('==')) {
+      const blocked = (a, b) => overlaps(excluded, line.from + a, line.from + b) || overlaps(claimed, line.from + a, line.from + b);
+      for (const h of findHighlights(text, blocked)) {
+        const g = `Highlight@${line.from + h.from}`;
+        mark(line.from + h.from, line.from + h.to, 'cm-lp-mark', g);
+        hide(line.from + h.from, line.from + h.openEnd, g);
+        hide(line.from + h.closeStart, line.from + h.to, g);
       }
     }
   });

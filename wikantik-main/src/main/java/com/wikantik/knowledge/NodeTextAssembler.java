@@ -46,6 +46,8 @@ public final class NodeTextAssembler {
     private static final Pattern BOLD_STAR = Pattern.compile( "\\*\\*([^*]+)\\*\\*" );
     private static final Pattern ITALIC_UNDERSCORE = Pattern.compile( "_([^_]+)_" );
     private static final Pattern ITALIC_STAR = Pattern.compile( "\\*([^*]+)\\*" );
+    /** {@code ==highlight==}: exactly two {@code =} each side, flanked by non-space (the reader's rule); the text is kept. */
+    private static final Pattern HIGHLIGHT = Pattern.compile( "(?<![=\\\\])==(?=[^\\s=])([^\\n]+?)(?<=[^\\s=])==(?!=)" );
     private static final Pattern INLINE_CODE = Pattern.compile( "`([^`]+)`" );
     private static final Pattern HTML_TAG = Pattern.compile( "<[^>]+>" );
     private static final Pattern MULTI_SPACE = Pattern.compile( "\\s+" );
@@ -70,6 +72,7 @@ public final class NodeTextAssembler {
         s = ITALIC_UNDERSCORE.matcher( s ).replaceAll( "$1" );
         s = ITALIC_STAR.matcher( s ).replaceAll( "$1" );
         s = INLINE_CODE.matcher( s ).replaceAll( "$1" );
+        s = HIGHLIGHT.matcher( s ).replaceAll( "$1" );
         s = HTML_TAG.matcher( s ).replaceAll( " " );
         s = MULTI_SPACE.matcher( s ).replaceAll( " " );
         return s.trim();

@@ -203,6 +203,9 @@
   accent-color: var(--accent);
 }
 
+/* ==highlight== (Obsidian): the server's and the editor preview's <mark>; anchored comments below win by order */
+.article-prose mark { background: var(--highlight-bg); color: inherit; padding: 0 0.15em; border-radius: 2px; }
+
 /* Anchored comments */
 mark.comment-highlight { background: #fde68a; cursor: pointer; border-radius: 2px; }
 mark.comment-highlight-pending { background: #fde68a; cursor: text; border-radius: 2px; }

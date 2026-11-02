@@ -92,5 +92,15 @@
   { "name": "wikilink", "kind": "wikilink",
     "markdown": "See [[OtherPage]] now." },
   { "name": "wikilink with an alias", "kind": "wikilink",
-    "markdown": "See [[OtherPage|the other page]] now." }
+    "markdown": "See [[OtherPage|the other page]] now." },
+  {"name": "highlight", "kind": "highlight", "markdown": "Some ==marked== text."},
+  {"name": "highlight inside strong", "kind": "highlight", "markdown": "**==x==**"},
+  {"name": "highlight around strong", "kind": "highlight", "markdown": "==**x**=="},
+  {"name": "spaced equals is not a highlight", "kind": "highlight", "markdown": "a == b", "liveExpect": "no-highlight", "previewExpect": "no-highlight", "readerExpect": "no-highlight", "notes": "A negative row: the construct is not a highlight in any renderer, so no <mark> / cm-lp-mark is produced (Obsidian phase 2)."},
+  {"name": "spaces inside the delimiters are not a highlight", "kind": "highlight", "markdown": "== x ==", "liveExpect": "no-highlight", "previewExpect": "no-highlight", "readerExpect": "no-highlight", "notes": "A negative row: the construct is not a highlight in any renderer, so no <mark> / cm-lp-mark is produced (Obsidian phase 2)."},
+  {"name": "a run of three is not a highlight", "kind": "highlight", "markdown": "===x===", "liveExpect": "no-highlight", "previewExpect": "no-highlight", "readerExpect": "no-highlight", "notes": "A negative row: the construct is not a highlight in any renderer, so no <mark> / cm-lp-mark is produced (Obsidian phase 2)."},
+  {"name": "a code span is not a highlight", "kind": "highlight", "markdown": "`==x==`", "liveExpect": "no-highlight", "previewExpect": "no-highlight", "readerExpect": "no-highlight", "notes": "A negative row: the construct is not a highlight in any renderer, so no <mark> / cm-lp-mark is produced (Obsidian phase 2)."},
+  {"name": "inline math is not a highlight", "kind": "highlight", "markdown": "$a==b$", "liveExpect": "no-highlight", "previewExpect": "no-highlight", "readerExpect": "no-highlight", "notes": "A negative row: the construct is not a highlight in any renderer, so no <mark> / cm-lp-mark is produced (Obsidian phase 2)."},
+  {"name": "inline math around a pair is not a highlight", "kind": "highlight", "markdown": "$==x==$", "liveExpect": "no-highlight", "previewExpect": "no-highlight", "readerExpect": "no-highlight", "notes": "A negative row: the construct is not a highlight in any renderer, so no <mark> / cm-lp-mark is produced (Obsidian phase 2)."},
+  {"name": "block math is not a highlight", "kind": "highlight", "markdown": "$$\na==b==c\n$$", "liveExpect": "no-highlight", "previewExpect": "no-highlight", "readerExpect": "no-highlight", "notes": "A negative row: the construct is not a highlight in any renderer, so no <mark> / cm-lp-mark is produced (Obsidian phase 2)."}
 ]

@@ -105,6 +105,8 @@ class LivePreviewParityTest {
         PREDICATES.put( "task", ( root, e ) -> root.any( el -> el.is( "input" ) && "checkbox".equals( el.attrs.get( "type" ) ) ) );
         PREDICATES.put( "wikilink", ( root, e ) -> root.any( el -> el.is( "a" ) && el.attrs.getOrDefault( "href", "" ).contains( "OtherPage" )
                 && !el.text().contains( "[[" ) ) && !root.text().contains( "[[" ) );
+        PREDICATES.put( "highlight", ( root, e ) -> root.any( el -> el.is( "mark" ) ) && !root.text().contains( "==" ) );
+        PREDICATES.put( "no-highlight", ( root, e ) -> !root.any( el -> el.is( "mark" ) ) );
         PREDICATES.put( "chip", ( root, e ) -> root.any( el -> el.hasClass( "wiki-plugin-chip" ) ) );
         PREDICATES.put( "literal", ( root, e ) -> !PREDICATES.get( e.get( "kind" ).getAsString() ).test( root, e )
                 && root.text().contains( firstLine( e ) ) );

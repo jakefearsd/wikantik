@@ -166,6 +166,20 @@ public class DefaultRecentArticlesManagerTest {
         Assertions.assertEquals( "My Article Title", article.getTitle(), "Should extract title from H1" );
     }
 
+    /** A commented-out H1 is not on the page the reader sees, so it is not the listed (or Atom feed) title. */
+    @Test
+    public void testTitleSkipsACommentedOutHeading() throws Exception {
+        m_engine.saveText( "TestCommentedTitle", "%%\n# Secret Draft Title\n%%\n# Real Title\nSome content here." );
+        m_manager.clearCache();
+
+        final List<ArticleSummary> articles = m_manager.getRecentArticles( createContext(), new RecentArticlesQuery().count( 100 ) );
+        final ArticleSummary article = articles.stream().filter( a -> a.getName().equals( "TestCommentedTitle" ) )
+            .findFirst().orElse( null );
+
+        Assertions.assertNotNull( article, "Should find TestCommentedTitle page" );
+        Assertions.assertEquals( "Real Title", article.getTitle() );
+    }
+
     @Test
     public void testTitleFallbackToPageName() throws Exception {
         // Create a page without an H1 heading

@@ -166,6 +166,25 @@ class DefaultBriefingAssemblyServiceTest {
         assertEquals( "Ruled", it.title(), "frontmatter is still read" );
     }
 
+    /** A briefing is derived text injected into an agent's context: no %%comment%% (and no block marker) reaches it. */
+    @Test
+    void pinnedBodyCarriesNoObsidianComment() {
+        final PageManager pm = pageManagerFixture();
+        stub( pm, "CommentedPage", "---\ntitle: Commented\nsummary: 100%% a %% b\n---\n"
+            + "Shown prose %%BRIEFING_COMMENT_PROBE%% here. ^blk1\n\n%%\nBRIEFING_COMMENT_PROBE_TWO\n%%\n\nTail.\n" );
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), new StubIndex(), pm, DEFAULT_BUDGET, MAX_BUDGET );
+
+        final BriefingItem it = itemBySlug( svc.assemble(
+            new BriefingRequest( List.of( "CommentedPage" ), null, null, null, null ) ), "CommentedPage" );
+
+        assertTrue( it != null && it.included(), "the pin is included" );
+        assertFalse( it.content().contains( "BRIEFING_COMMENT_PROBE" ), it.content() );
+        assertFalse( it.content().contains( "^blk1" ), "block markers are source, not briefing text: " + it.content() );
+        assertTrue( it.content().contains( "Shown prose" ) && it.content().contains( "Tail." ), it.content() );
+        assertEquals( "Commented", it.title(), "frontmatter is still read" );
+    }
+
     @Test
     void pinDegradesToPointerWhenBudgetExhausted() {
         final PageManager pm = pageManagerFixture();

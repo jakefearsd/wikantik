@@ -60,6 +60,25 @@ class CitationSyncTest {
         assertEquals( 9, r.pinnedTargetVersion() );
     }
 
+    /** A cite:// inside a %%comment%% is not a claim the reader can see, so it is no citation (and no claimText leaks). */
+    @Test
+    void aCitationInsideACommentIsNoCitation() {
+        final CitationRepository repo = mock( CitationRepository.class );
+        final StructuralIndexService idx = mock( StructuralIndexService.class );
+        when( idx.resolveCanonicalIdFromSlug( "Source" ) ).thenReturn( Optional.of( "src1" ) );
+        when( idx.resolveSlugFromCanonicalId( "tgt1" ) ).thenReturn( Optional.of( "Target" ) );
+        final String src = "---\nsummary: 100%% a %% b\n---\nShown [kept](cite://tgt1/H \"present span\")\n\n"
+            + "%%\nHidden [secret claim](cite://tgt1/H \"present span\")\n%%\n";
+        when( repo.findByTarget( anyString() ) ).thenReturn( List.of() );
+
+        sync( repo, idx, Map.of( "Source", src, "Target", "# H\npresent span here\n" ), Map.of() ).onPageSaved( "Source" );
+
+        @SuppressWarnings( "unchecked" )
+        final org.mockito.ArgumentCaptor< List< CitationRow > > cap = org.mockito.ArgumentCaptor.forClass( List.class );
+        verify( repo ).replaceForSource( eq( "src1" ), cap.capture() );
+        assertEquals( List.of( "kept" ), cap.getValue().stream().map( CitationRow::claimText ).toList() );
+    }
+
     @Test
     void onPageSavedRegradesInboundCitations() {
         final CitationRepository repo = mock( CitationRepository.class );

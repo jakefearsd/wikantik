@@ -54,6 +54,7 @@ import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.export.HeadingSlugs;
 import com.wikantik.preview.PageExcerpts;
+import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.auth.permissions.AllPermission;
@@ -902,7 +903,8 @@ public class PageResource extends RestServletBase {
         final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         final ParsedPage parsed = AclDirectiveText.parseStripped( rawText, " " );
         final Map< String, Object > fm = parsed.metadata();
-        String body = parsed.body();
+        // Without its %%comments%% before a section is cut, so a comment crossing the section's end is never left open.
+        String body = ObsidianComments.strip( parsed.body() );
         final String section = request.getParameter( "section" );
         String blockExcerpt = null;
         boolean blockMissing = false;

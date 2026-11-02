@@ -32,8 +32,10 @@ import java.util.function.UnaryOperator;
  * ({@code ^id}) are stripped here, in that order, so no consumer ever needs to change again. Comments are hidden, not
  * secret: this never feeds the access-rule reader, which reads the stored text.
  *
- * <p>Derived text is never written back, and deriving it must never fail a render, index or chunk run: any internal
- * failure is logged and the input is returned unchanged.</p>
+ * <p>Derived text is never written back, and deriving it must never fail a render, index or chunk run. It fails
+ * <b>closed</b> for comments: on an internal failure (logged) the text comes back without every {@code %%…%%} region and
+ * without anything after an unclosed {@code %%}, code or not ({@link #conservativelyWithoutComments}); only its block
+ * markers, which hide nothing, may then remain.</p>
  */
 public final class ReaderText {
 
@@ -90,20 +92,57 @@ public final class ReaderText {
      * @return the body with comments and markers removed (line count preserved); never throws
      */
     public static String derivedBody( final String body ) {
-        return derived( body, text -> BlockIds.stripBody( ObsidianComments.strip( text ) ) );
+        return derived( body, text -> BlockIds.stripBody( ObsidianComments.strip( text ) ), true );
     }
 
-    /** Test seam: lets a test inject a failing derivation. */
+    /** Test seam: lets a test inject a failing derivation of a full text. */
     static String derived( final String fullText, final UnaryOperator< String > derivation ) {
-        if ( fullText == null ) {
+        return derived( fullText, derivation, false );
+    }
+
+    private static String derived( final String text, final UnaryOperator< String > derivation, final boolean body ) {
+        if ( text == null ) {
             return null;
         }
         try {
-            return derivation.apply( fullText );
+            return derivation.apply( text );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "ReaderText.derived failed on {} chars of text; using it unchanged: {}",
-                    fullText.length(), e.toString(), e );
-            return fullText;
+            LOG.warn( "ReaderText.derived failed on {} chars of text; failing closed (every %%…%% region and anything after "
+                    + "an unclosed %% removed, block markers kept): {}", text.length(), e.toString(), e );
+            return conservativelyWithoutComments( text, body );
         }
+    }
+
+    /**
+     * The fail-closed fallback: no code or math is recognised, so every {@code %%…%%} region goes, and so does everything
+     * after an unclosed {@code %%} — newlines kept, so line numbers hold. A full text keeps its frontmatter, whose
+     * {@code %%} are values.
+     */
+    static String conservativelyWithoutComments( final String text, final boolean body ) {
+        int bodyStart = 0;
+        if ( !body ) {
+            try {
+                bodyStart = FrontmatterParser.bodyOffset( text );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Frontmatter of a {}-char text could not be located ({}); treating it all as body", text.length(),
+                        e.toString() );
+            }
+        }
+        final StringBuilder out = new StringBuilder( text.length() ).append( text, 0, bodyStart );
+        int copied = bodyStart;
+        int at = text.indexOf( "%%", bodyStart );
+        while ( at >= 0 ) {
+            out.append( text, copied, at );
+            final int close = text.indexOf( "%%", at + 2 );
+            final int end = close < 0 ? text.length() : close + 2;
+            for ( int p = at; p < end; p++ ) {
+                if ( text.charAt( p ) == '\n' ) {
+                    out.append( '\n' );
+                }
+            }
+            copied = end;
+            at = close < 0 ? -1 : text.indexOf( "%%", end );
+        }
+        return out.append( text, copied, text.length() ).toString();
     }
 }

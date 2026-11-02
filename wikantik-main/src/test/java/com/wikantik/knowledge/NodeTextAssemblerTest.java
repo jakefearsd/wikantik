@@ -173,6 +173,12 @@ class NodeTextAssemblerTest {
     }
 
     @Test
+    void stripMarkdownKeepsTheEqualsSignsOfAHighlightInsideCode() {
+        assertEquals( "Write ==x== for a highlight.", NodeTextAssembler.stripMarkdown( "Write `==x==` for a highlight." ) );
+        assertEquals( "a mark and ==y== code", NodeTextAssembler.stripMarkdown( "a ==mark== and `==y==` code" ) );
+    }
+
+    @Test
     void stripMarkdownDropsHighlightDelimitersButKeepsLoneEquals() {
         assertEquals( "Mark this and a == b stays.", NodeTextAssembler.stripMarkdown( "Mark ==this== and a == b stays." ) );
     }

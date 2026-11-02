@@ -195,6 +195,27 @@ class ExportServiceTest {
     }
 
     /**
+     * {@code export} is a wiki permission (V060 grants it to every Authenticated user) and the vault holds every page the
+     * exporter may view; a page they may not edit is written without its {@code %%comments%%}, as every other reader
+     * surface shows it. Whoever may edit the page gets the stored text, comments included.
+     */
+    @Test
+    void aViewerWhoCannotEditExportsAPageWithoutItsComments() throws Exception {
+        engine.saveText( "FinanceCommented", "---\ntype: article\ncluster: finance\n---\n"
+                + "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n# Commented\n\nOpen %%EXPORT_COMMENT_PROBE%% prose.\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+        assertFalse( new PermissionFilter( engine ).canAccessQuietly( guest(), "FinanceCommented", "edit" ),
+                "fixture is vacuous: the guest can edit the page" );
+
+        final String asGuest = exportedPage( finance( 0 ), "finance/FinanceCommented.md" );
+        assertTrue( asGuest.contains( "Open" ) && asGuest.contains( "prose." ), asGuest );
+        assertFalse( asGuest.contains( "EXPORT_COMMENT_PROBE" ), asGuest );
+
+        final String asEditor = exportedPageAs( engine.adminSession(), finance( 0 ), "finance/FinanceCommented.md" );
+        assertTrue( asEditor.contains( "%%EXPORT_COMMENT_PROBE%%" ), asEditor );
+    }
+
+    /**
      * The other branch of the same rule: someone who may edit a page is handed its stored text — including a
      * directive the converter's narrow pattern leaves alone — because they could read it in the editor anyway.
      */

@@ -37,6 +37,7 @@ import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.parser.MarkdownLinkScanner;
 import com.wikantik.api.parser.WikiLinkSyntax;
@@ -668,12 +669,14 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     @Override
     public Collection< String > scanWikiLinks( final Page page, final String pagedata ) {
         final ParsedPage parsed = FrontmatterParser.parse( pagedata );
+        // A link inside a %%comment%% is not on the page the reader sees: no edge, no backlink.
+        final String body = ObsidianComments.strip( parsed.body() );
 
         // Extract explicit Markdown links from body via regex (microseconds, not milliseconds)
-        final Set< String > links = new LinkedHashSet<>( MarkdownLinkScanner.findMarkdownLinks( parsed.body() ) );
-        addNativeWikiLinks( links, page, parsed.body() );
+        final Set< String > links = new LinkedHashSet<>( MarkdownLinkScanner.findMarkdownLinks( body ) );
+        addNativeWikiLinks( links, page, body );
         // Click targets of rendered fences (Mermaid diagrams); the scanner returns at once when no fence marker exists
-        links.addAll( RenderedFenceScanner.pageLinks( parsed.body(), RenderedFenceRegistry.defaults() ) );
+        links.addAll( RenderedFenceScanner.pageLinks( body, RenderedFenceRegistry.defaults() ) );
 
         // Also extract "related" links from frontmatter metadata
         final Object related = parsed.metadata().get( "related" );

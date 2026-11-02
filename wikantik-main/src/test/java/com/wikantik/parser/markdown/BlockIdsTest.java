@@ -774,4 +774,39 @@ class BlockIdsTest {
             assertTrue( BlockIds.markerIds( marked ).contains( "a" ), marked );
         }
     }
+
+    // ---- comments are not blocks (the render never sees them) -----------------------------------------------------
+
+    @Test
+    void aCommentOnlyParagraphIsNoBlockAndShiftsNoLaterOrdinal() {
+        final List< Block > blocks = BlockIds.list( "First.\n\n%%todo%%\n\nSecond.\n\n%%a\n\nhidden\n\nb%%\n\nThird.\n" );
+        assertEquals( List.of( "First.", "Second.", "Third." ), blocks.stream().map( Block::plainText ).toList() );
+        assertEquals( List.of( 0, 1, 2 ), blocks.stream().map( Block::index ).toList() );
+    }
+
+    @Test
+    void aBlocksPlainTextNeverHoldsItsComment() {
+        final Block b = BlockIds.find( "Visible %%secret%% text ^abc\n", "abc" ).orElseThrow();
+        assertFalse( b.plainText().contains( "secret" ), b.plainText() );
+        assertTrue( b.plainText().startsWith( "Visible" ) && b.plainText().endsWith( "text" ), b.plainText() );
+    }
+
+    @Test
+    void aMarkerInsideACommentAddressesNothing() {
+        assertTrue( BlockIds.find( "Para.\n\n%%\n\nhidden para ^sec\n\n%%\n\nAfter.\n", "sec" ).isEmpty() );
+        assertTrue( BlockIds.findBody( "%%\n\nhidden ^sec\n\n%%\n", "sec" ).isEmpty() );
+        assertFalse( BlockIds.markerIds( "Para.\n\n%%\n\nhidden ^sec\n\n%%\n" ).contains( "sec" ) );
+    }
+
+    @Test
+    void blockOffsetsStillIndexTheRawTextAroundAComment() {
+        final String raw = "---\nsummary: 100%% a %% b\n---\nFirst.\n\n%%note%%\n\nTarget %%c%% end.\n";
+        final List< Block > blocks = BlockIds.list( raw );
+        assertEquals( 2, blocks.size(), "a %% pair in frontmatter is a value, not a comment: " + blocks );
+        final Block target = blocks.get( 1 );
+        assertEquals( "Target %%c%% end.", raw.substring( target.start(), target.end() ) );
+        final String tagged = BlockIds.assign( raw, target, "abc123" );
+        assertTrue( tagged.endsWith( "Target %%c%% end. ^abc123\n" ), tagged );
+        assertEquals( "First.\n\n%%note%%\n\nTarget %%c%% end.\n", BlockIds.strip( tagged ).substring( raw.indexOf( "First." ) ) );
+    }
 }

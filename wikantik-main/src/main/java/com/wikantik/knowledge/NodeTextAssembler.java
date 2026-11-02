@@ -49,6 +49,8 @@ public final class NodeTextAssembler {
     /** {@code ==highlight==}: exactly two {@code =} each side, flanked by non-space (the reader's rule); the text is kept. */
     private static final Pattern HIGHLIGHT = Pattern.compile( "(?<![=\\\\])==(?=[^\\s=])([^\\n]+?)(?<=[^\\s=])==(?!=)" );
     private static final Pattern INLINE_CODE = Pattern.compile( "`([^`]+)`" );
+    /** One left-to-right pass, so a code span keeps its text verbatim ({@code `==x==`} keeps its {@code ==}). */
+    private static final Pattern CODE_OR_HIGHLIGHT = Pattern.compile( INLINE_CODE.pattern() + "|" + HIGHLIGHT.pattern() );
     private static final Pattern HTML_TAG = Pattern.compile( "<[^>]+>" );
     private static final Pattern MULTI_SPACE = Pattern.compile( "\\s+" );
 
@@ -71,8 +73,8 @@ public final class NodeTextAssembler {
         s = BOLD_STAR.matcher( s ).replaceAll( "$1" );
         s = ITALIC_UNDERSCORE.matcher( s ).replaceAll( "$1" );
         s = ITALIC_STAR.matcher( s ).replaceAll( "$1" );
-        s = INLINE_CODE.matcher( s ).replaceAll( "$1" );
-        s = HIGHLIGHT.matcher( s ).replaceAll( "$1" );
+        s = CODE_OR_HIGHLIGHT.matcher( s ).replaceAll( m -> java.util.regex.Matcher.quoteReplacement(
+                m.group( 1 ) != null ? m.group( 1 ) : m.group( 2 ) ) );
         s = HTML_TAG.matcher( s ).replaceAll( " " );
         s = MULTI_SPACE.matcher( s ).replaceAll( " " );
         return s.trim();

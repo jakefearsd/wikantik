@@ -35,6 +35,7 @@ import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.ui.SemanticHeadRenderer;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.api.pagegraph.PageType;
 import jakarta.servlet.Filter;
@@ -537,11 +538,12 @@ public class SpaRoutingFilter implements Filter {
         }
         // Parsed once and threaded through the head, body-fallback, and data-island
         // derivations below — those used to each re-parse the same frontmatter.
-        final String visibleText = AclDirectiveText.strip( rawText == null ? "" : rawText );
+        final String visibleText = ReaderText.withoutComments( AclDirectiveText.strip( rawText == null ? "" : rawText ) );
         // The head, the no-JS body fallback and the JSON data island all carry page text, and access-rule
         // directives name people by login. None of them needs the directives (the SPA's editor re-fetches the
-        // raw text through GET /api/pages, which keeps them for editors), so none gets them. The render below
-        // still starts from rawText: the renderer consumes the directives itself.
+        // raw text through GET /api/pages, which keeps them for editors), so none gets them. Nor do they get
+        // %%comments%%: this document is served to anonymous readers and crawlers and cached at the edge, so it is
+        // always a reader's view. The render below still starts from rawText: the renderer consumes both itself.
         final ParsedPage parsed = FrontmatterParser.parse( visibleText );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();

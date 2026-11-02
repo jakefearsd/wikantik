@@ -38,7 +38,8 @@ import java.util.regex.Pattern;
  *
  * <p><b>The page is read exactly as rendering reads it — the same function of the same text.</b> Its access rules are
  * stripped with {@link AclDirectiveText#stripTracked}, the very strip a render applies before it parses
- * ({@code DisplayText}); frontmatter is skipped; the body goes through {@link MarkdownBodySource#prepare} (plugin
+ * ({@code DisplayText}); frontmatter is skipped; the body's {@code %%comments%%} are cut as {@code MarkdownParser} cuts
+ * them (so a comment-only paragraph is no block, and a block or marker inside a comment is none); the body goes through {@link MarkdownBodySource#prepare} (plugin
  * {@code ()} insertion, {@code $$…$$} → {@code ```math}), is parsed with {@link MarkdownDocument#structuralOptions()}
  * plus inline {@code $…$} math, and its blocks are numbered by {@link BlockWalk}, the walk the render post-processor
  * runs. The raw text itself is never parsed, so whatever stripping a rule does to the structure — a rule beside a
@@ -156,7 +157,7 @@ public final class BlockIds {
     }
 
     private static Optional< Block > find( final String text, final String id, final boolean body ) {
-        final BlockModel.Shown shown = BlockModel.Shown.of( text );
+        final BlockModel.Shown shown = BlockModel.Shown.of( text, body );
         if ( id == null || !shown.mayHoldMarker() ) {
             return Optional.empty();
         }
@@ -271,7 +272,7 @@ public final class BlockIds {
     }
 
     private static String strip( final String fullText, final boolean body ) {
-        final BlockModel.Shown shown = BlockModel.Shown.of( fullText );
+        final BlockModel.Shown shown = BlockModel.Shown.of( fullText, body );
         if ( !shown.mayHoldMarker() ) {
             return fullText;
         }

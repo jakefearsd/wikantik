@@ -147,6 +147,37 @@ class PageBlocksHandlerTest {
         assertEquals( "Second para.", b1.get( "text" ).getAsString() );
     }
 
+    /**
+     * A viewer who cannot edit never reads a comment through the block listing or a block preview: a comment-only
+     * paragraph is no block (and shifts no index), and a block's text and the {@code q} search hold none of its comment.
+     */
+    @Test
+    void blocksAndBlockPreviewsCarryNoComment() throws Exception {
+        engine.saveText( "RestBlkPage", "First para.\n\n%%todo BLOCKS_PROBE_ONE%%\n\nVisible %%BLOCKS_PROBE_TWO%% text ^abc\n" );
+        final JsonObject o = get( spy( true, false ), "RestBlkPage/blocks", Map.of() ).json();
+        assertFalse( o.toString().contains( "BLOCKS_PROBE" ), o.toString() );
+        final JsonArray blocks = o.getAsJsonArray( "blocks" );
+        assertEquals( 2, blocks.size(), o.toString() );
+        assertEquals( 1, blocks.get( 1 ).getAsJsonObject().get( "index" ).getAsInt() );
+        assertEquals( "abc", blocks.get( 1 ).getAsJsonObject().get( "id" ).getAsString() );
+        assertEquals( 0, get( spy( true, false ), "RestBlkPage/blocks", Map.of( "q", "blocks_probe" ) ).json()
+                .getAsJsonArray( "blocks" ).size(), "q never matches comment text" );
+
+        final JsonObject preview = get( spy( true, false ), "RestBlkPage/preview", Map.of( "section", "^abc" ) ).json();
+        assertTrue( preview.get( "excerpt" ).getAsString().startsWith( "Visible" ), preview.toString() );
+        assertFalse( preview.toString().contains( "BLOCKS_PROBE" ), preview.toString() );
+    }
+
+    /** A heading section is cut from the text without its comments, so a comment crossing its end is never left open. */
+    @Test
+    void aHeadingSectionPreviewNeverOpensAComment() throws Exception {
+        engine.saveText( "RestBlkPage", "Intro.\n\n## Usage\n\nRun it. %%note SECTION_PROBE\n\n## Other\n\nmore SECTION_PROBE%% Done.\n" );
+        final JsonObject preview = get( spy( true, false ), "RestBlkPage/preview", Map.of( "section", "usage" ) ).json();
+        assertTrue( preview.get( "excerpt" ).getAsString().contains( "Run it." ), preview.toString() );
+        assertFalse( preview.toString().contains( "SECTION_PROBE" ), preview.toString() );
+        assertFalse( preview.get( "excerpt" ).getAsString().contains( "%%" ), preview.toString() );
+    }
+
     @Test
     void listFiltersByTextOrIdCaseInsensitivelyAndCapsLimit() throws Exception {
         final StringBuilder sb = new StringBuilder();

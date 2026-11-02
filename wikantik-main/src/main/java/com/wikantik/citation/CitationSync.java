@@ -18,6 +18,7 @@
  */
 package com.wikantik.citation;
 
+import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.api.citation.CitationStatus;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import java.time.Instant;
@@ -91,7 +92,8 @@ public final class CitationSync {
             return;
         }
         final List< CitationRow > rows = new ArrayList<>();
-        for ( final ParsedCitation p : parser.parse( body ) ) {
+        // A cite:// inside a %%comment%% is no claim the reader sees, so it is no citation.
+        for ( final ParsedCitation p : parser.parse( ReaderText.withoutComments( body ) ) ) {
             final CitationStatus status = grader.grade( p.targetCanonicalId(), p.targetHeadingPath(), p.spanText() );
             final Integer version = structuralIndex.resolveSlugFromCanonicalId( p.targetCanonicalId() )
                     .flatMap( versionLoader ).orElse( null );

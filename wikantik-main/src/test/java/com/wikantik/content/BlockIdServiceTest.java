@@ -103,6 +103,26 @@ class BlockIdServiceTest {
         assertEquals( "alice", pm.getPageWithoutMetadata( "BidPage", PageProvider.LATEST_VERSION ).getAuthor() );
     }
 
+    /** The reader's copy-block-link on a page with a comment-only paragraph: ordinal 1 is "Target.", the reader's second block. */
+    @Test
+    void aCommentOnlyParagraphIsNoBlockSoTheReadersOrdinalTagsTheReadersBlock() throws Exception {
+        engine.saveText( "BidPage", "First para.\n\n%%todo: check this%%\n\nTarget para.\n" );
+        final BlockIdService.Assigned a = new BlockIdService( pm, helper() )
+                .assign( "BidPage", 1, 1, BlockIds.fingerprint( "Target para." ), "alice" );
+
+        assertTrue( text( "BidPage" ).contains( "Target para. ^" + a.id() ), text( "BidPage" ) );
+        assertTrue( text( "BidPage" ).contains( "%%todo: check this%%" ), text( "BidPage" ) );
+    }
+
+    /** A block that lies inside a comment is not found: the reader never sees it, so it has no ordinal to tag. */
+    @Test
+    void aBlockInsideACommentCannotBeTagged() throws Exception {
+        engine.saveText( "BidPage", "Shown.\n\n%%\n\nhidden para\n\n%%\n" );
+        final BlockIdService.Refused r = assertThrows( BlockIdService.Refused.class,
+                () -> new BlockIdService( pm, helper() ).assign( "BidPage", 1, 1, "", "alice" ) );
+        assertEquals( BlockIdService.Reason.NOT_LOCATED, r.reason() );
+    }
+
     @Test
     void anExistingIdIsReturnedWithoutSaving() throws Exception {
         engine.saveText( "BidPage", "Tagged para. ^keep1\n\nOther.\n" );

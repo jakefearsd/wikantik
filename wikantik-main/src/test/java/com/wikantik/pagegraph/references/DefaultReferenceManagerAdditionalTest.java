@@ -227,6 +227,17 @@ class DefaultReferenceManagerAdditionalTest {
         assertTrue( links.contains( "PageTwo" ) );
     }
 
+    /** A link inside a %%comment%% is not on the page the reader sees: no Page Graph edge, no backlink. */
+    @Test
+    void scanWikiLinksIgnoresLinksInsideComments() {
+        final Page page = mockPage( "CommentedLinks" );
+        final String content = "See [ShownPage]() and %%[HiddenMd]() [[HiddenWiki]]%%.\n\n%%\n![[HiddenEmbed]]\n%%\n";
+
+        final Collection<String> links = mgr.scanWikiLinks( page, content );
+        assertTrue( links.contains( "ShownPage" ), links.toString() );
+        assertFalse( links.stream().anyMatch( l -> l.startsWith( "Hidden" ) ), links.toString() );
+    }
+
     @Test
     void scanWikiLinksIgnoresExternalLinks() {
         final Page page = mockPage( "ExtPage" );

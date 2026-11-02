@@ -23,6 +23,7 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.api.parser.WikiLinkSyntax;
 import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.markdown.extensions.callouts.CalloutTitle;
@@ -38,7 +39,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * How {@link BlockIds} reads a page: strip its access rules as a render does ({@link Shown}), parse, number the blocks
+ * How {@link BlockIds} reads a page: strip its access rules and comments as a render does ({@link Shown}), parse, number the blocks
  * with {@link BlockWalk}, settle duplicate ids, compute plain text, and map every position back to the raw text
  * ({@link Coords}). Package-private; {@link BlockIds} is the API.
  */
@@ -74,27 +75,59 @@ final class BlockModel {
 
 
     /**
-     * The text a render parses — {@code raw} with its access rules stripped — tracked back to {@code raw}. A position
-     * called <em>shown</em> below indexes {@link #text()}; {@link #tracked()} takes it to {@code raw}.
+     * The text a render parses — {@code raw} with its access rules stripped ({@code DisplayText}), then its body's Obsidian
+     * {@code %%comments%%} ({@code MarkdownParser}, newlines kept) — tracked back to {@code raw}. A position called
+     * <em>shown</em> below indexes {@link #text()}; {@link #tracked()} takes it to {@code raw}. So a comment-only paragraph
+     * is no block, a comment shifts no later ordinal, and a block or marker inside a comment is none — as the reader sees it.
      *
      * @param raw     the text as stored
      * @param tracked the stripped text and its map back to {@code raw}; {@code null} until needed, for a text that cannot
      *                hold a marker ({@link #rawMayHoldMarker} says no: not even stripped)
+     * @param body    whether {@code raw} is a body only (no frontmatter: a {@code %%} anywhere in it is a comment marker)
      */
-    record Shown( String raw, TrackedText tracked ) {
+    record Shown( String raw, TrackedText tracked, boolean body ) {
 
         static Shown of( final String raw ) {
-            return new Shown( raw, rawMayHoldMarker( raw ) ? strip( raw ) : null );
+            return of( raw, false );
+        }
+
+        static Shown of( final String raw, final boolean body ) {
+            return new Shown( raw, rawMayHoldMarker( raw ) ? strip( raw, body ) : null, body );
         }
 
         /** This, stripped if it was not yet. */
         Shown stripped() {
-            return tracked != null ? this : new Shown( raw, strip( raw ) );
+            return tracked != null ? this : new Shown( raw, strip( raw, body ), body );
         }
 
-        private static TrackedText strip( final String raw ) {
+        private static TrackedText strip( final String raw, final boolean body ) {
             STRIPS.get()[ 0 ]++;
-            return AclDirectiveText.stripTracked( raw );
+            return withoutComments( AclDirectiveText.stripTracked( raw ), body );
+        }
+
+        /** {@code text} without its body's comments, each replaced by the line breaks it held (copied, so they map back). */
+        private static TrackedText withoutComments( final TrackedText text, final boolean body ) {
+            final String s = text.text();
+            if ( s.indexOf( "%%" ) < 0 ) {
+                return text;
+            }
+            final int bodyStart = body ? 0 : FrontmatterParser.bodyOffset( s );
+            final List< int[] > comments = ObsidianComments.ranges( s.substring( bodyStart ) );
+            if ( comments.isEmpty() ) {
+                return text;
+            }
+            final TrackedText.Builder out = text.builder();
+            int copied = 0;
+            for ( final int[] c : comments ) {
+                final int from = bodyStart + c[ 0 ];
+                final int to = bodyStart + c[ 1 ];
+                out.copy( copied, from );
+                for ( int p = s.indexOf( '\n', from ); p >= 0 && p < to; p = s.indexOf( '\n', p + 1 ) ) {
+                    out.copy( p, p + 1 );
+                }
+                copied = to;
+            }
+            return out.copy( copied, s.length() ).build();
         }
 
         String text() {
@@ -157,7 +190,7 @@ final class BlockModel {
 
     /** {@link #read(Shown, Predicate, boolean)} of a raw text. */
     static Model read( final String fullText, final Predicate< String > withText, final boolean body ) {
-        return read( Shown.of( fullText ), withText, body );
+        return read( Shown.of( fullText, body ), withText, body );
     }
 
     /**

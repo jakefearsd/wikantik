@@ -103,6 +103,33 @@ class WikiEmbedRendererTest {
         assertEquals( "More", EmbedSections.select( "---\nPara ^h\n\n---\n\nMore ^m2\n", "^m2" ).orElseThrow() );
     }
 
+    /** A section is cut from the text the reader sees: a comment that crosses the section's end is never left open. */
+    @Test void aSectionIsCutFromTheTextWithoutItsComments() throws Exception {
+        engine.saveText( "EmbCom", "Intro.\n\n## Usage\n\nRun it. %%note EMBED_PROBE\n\n## Other\n\nstill EMBED_PROBE2%% Done.\n" );
+        final var r = renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "EmbCom", "Usage" );
+        assertTrue( r.bodyHtml().contains( "Run it." ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "EMBED_PROBE" ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "%%" ), r.bodyHtml() );
+    }
+
+    /** Truncation cuts the text the reader sees: a comment is never split at the cut and shown from there on. */
+    @Test void truncationNeverSplitsAComment() throws Exception {
+        engine.saveText( "EmbComCut", "First para.\n\n%%hidden EMBED_CUT_PROBE\n\n" + "more hidden ".repeat( 20 ) + "%%\n\n"
+                + "Visible tail text. ".repeat( 20 ) + "\n\nLast.\n" );
+        final var r = renderer( ( c, p ) -> true, 120 ).render( hostContext(), "EmbComCut", null );
+        assertTrue( r.truncated(), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "EMBED_CUT_PROBE" ), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "%%" ), r.bodyHtml() );
+    }
+
+    /** A block that lies inside a comment is not found: the reader never sees it. */
+    @Test void aBlockInsideACommentIsNotFound() throws Exception {
+        engine.saveText( "EmbBlkCom", "Intro.\n\n%%\n\nSecret para ^abc\n\n%%\n" );
+        final var r = renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "EmbBlkCom", "^abc" );
+        assertTrue( r.missing(), r.bodyHtml() );
+        assertFalse( r.bodyHtml().contains( "Secret" ), r.bodyHtml() );
+    }
+
     @Test void missingBlockIsReported() throws Exception {
         engine.saveText( "EmbBlk", "Para ^abc\n" );
         final var r = renderer( ( c, p ) -> true, 20000 ).render( hostContext(), "EmbBlk", "^zzz" );

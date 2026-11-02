@@ -10,14 +10,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`==highlight==` (Obsidian).** `==text==` renders as `<mark>` in the reader and the editor preview, and live preview
   styles it (`cm-lp-mark`, delimiters hidden off the caret line). Same flanking rules as strikethrough: `a == b` and
   `== x ==` stay text, `==**x**==` nests, only a run of exactly two `=` pairs; code and math are never processed.
-  `Mod-Shift-H` highlights or un-highlights the selection; excerpts and summaries drop the delimiters. Paste-as-Markdown
-  `<mark>` conversion follows with the paste work.
+  `Mod-Shift-H` (or the palette's Highlight) highlights or un-highlights the selection; a highlight may cross a soft line
+  break, as in the reader; excerpts and summaries drop the delimiters. Paste-as-Markdown turns `<mark>` into `==…==`.
 - **`%%comments%%` (Obsidian) are hidden from every reader surface.** A comment, inline or over several lines, is removed
-  from the rendered page, `?format=md|json`, excerpts and summaries, the for-agent projection, chunks and embeddings and the
-  search index, and from the editor preview. Live preview dims it with its `%%` visible, and `Mod-/` wraps or unwraps the
-  selection (it replaces the stock HTML-comment toggle). Code, Mermaid fences and math are never read, and an unterminated
-  `%%` stays literal. Comments are hidden, not private: editors and page history show them, and an access rule inside one
-  is still enforced. The vault importer now keeps `%%` comments instead of stripping them.
+  from the rendered page and its server-rendered data island, `?format=md|json`, excerpts and summaries, the for-agent
+  projection, briefings, chunks and embeddings and the search index, block listings, link previews and embeds, and the
+  editor preview. For anyone who cannot edit the page it is also removed from `GET /api/pages`, diffs and vault exports.
+  A comment is not structure either: a link inside one is no Page Graph edge or backlink, a `cite://` inside one is no
+  citation, a commented-out `# H1` is no title, and a comment-only paragraph is no block (block ordinals and copy block link
+  match the reader; a block inside a comment cannot be linked or embedded). Live preview dims it with its `%%` visible, and
+  `Mod-/` (or the palette's Toggle comment) wraps or unwraps the selection (it replaces the stock HTML-comment toggle). Code
+  (fences in quotes and callouts included), Mermaid fences and math are never read, for an opening `%%` or a closing one,
+  and an unterminated `%%` stays literal. Comments are hidden, not private: editors and their view of history show them,
+  and an access rule inside one is still enforced. The vault importer now keeps `%%` comments instead of stripping them.
+  **Upgrade note:** search-index rows, chunks and embeddings written before this release keep any comment text until they
+  are rebuilt. After upgrading, the operator should run the rebuild once: `POST /admin/content/rebuild-indexes`
+  (`bin/trigger-rebuild-indexes.sh`; Lucene and chunks), then re-embed (`bin/kg-rebuild.sh --skip-extract` does both).
 
 ### Fixed
 - **Configuration reference: wiki directive syntax in description prose is now shown as code.** Text such as

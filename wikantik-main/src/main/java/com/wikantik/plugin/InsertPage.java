@@ -18,6 +18,7 @@
  */
 package com.wikantik.plugin;
 
+import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
@@ -198,7 +199,9 @@ public class InsertPage implements Plugin {
         includedContext.setPage( scoped );
         includedContext.setRealPage( scoped );
 
-        String pageData = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
+        // Sections and the length cut are taken from the text a reader sees: a ---- or the cut inside a %%comment%% would
+        // otherwise leave half of it open, and shown.
+        String pageData = ReaderText.withoutComments( PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page ) );
         if ( section != -1 ) {
             try {
                 pageData = TextUtil.getSection( pageData, section );

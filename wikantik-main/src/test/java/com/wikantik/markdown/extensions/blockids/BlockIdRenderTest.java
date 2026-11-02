@@ -123,6 +123,29 @@ class BlockIdRenderTest {
         assertFalse( edited.contains( "First. ^" ), edited );
     }
 
+    /**
+     * A comment-only paragraph (the common Obsidian {@code %%todo%%} pattern) and a comment spanning paragraphs are no
+     * blocks to the reader, who never sees them: every rendered ordinal still names the raw list's block of that index,
+     * and assigning by the ordinal the reader clicked tags the block the reader clicked.
+     */
+    @Test
+    void commentsShiftNoOrdinalAndCopyBlockLinkTagsTheClickedBlock() throws Exception {
+        final String raw = "First.\n\n%%todo%%\n\nMiddle %%aside%% text.\n\n%%a\n\nhidden para\n\nb%%\n\nTarget.\n";
+        final String html = render( raw );
+        final List< Block > blocks = BlockIds.list( raw );
+        final List< String[] > rendered = stamped( html );
+        assertEquals( rendered.size(), blocks.size(), html + "\n" + blocks );
+        for ( final String[] r : rendered ) {
+            assertEquals( BlockIds.fingerprint( r[ 1 ] ), BlockIds.fingerprint( blocks.get( Integer.parseInt( r[ 0 ] ) ).plainText() ),
+                    "data-block " + r[ 0 ] + " in " + html );
+        }
+        final String ordinal = rendered.stream().filter( r -> r[ 1 ].equals( "Target." ) ).map( r -> r[ 0 ] ).findFirst()
+                .orElseThrow( () -> new AssertionError( html ) );
+        final String edited = BlockIds.assign( raw, blocks.get( Integer.parseInt( ordinal ) ), "zz9zz9" );
+        assertTrue( edited.contains( "Target. ^zz9zz9" ), edited );
+        assertTrue( edited.contains( "%%todo%%" ) && edited.contains( "hidden para" ), "the comments are kept: " + edited );
+    }
+
     // ---- anchors ------------------------------------------------------------------------------------------------------
 
     @Test

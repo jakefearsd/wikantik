@@ -18,6 +18,7 @@
  */
 package com.wikantik.content;
 
+import com.wikantik.parser.markdown.ReaderText;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
@@ -475,8 +476,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
                                                  final PublicIdentity identity ) {
         final String pageName = page.getName();
 
-        // Get page content for title and excerpt extraction
-        final String pageText = pageManager.getPureText( page );
+        // Get page content for title and excerpt extraction; a commented-out H1 is not the page's title
+        final String pageText = ReaderText.withoutComments( pageManager.getPureText( page ) );
         String renderedHtml = null;
         if ( query.isIncludeExcerpt() && renderingManager != null ) {
             try {

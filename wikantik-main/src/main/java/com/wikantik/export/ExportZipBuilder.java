@@ -18,6 +18,7 @@
  */
 package com.wikantik.export;
 
+import com.wikantik.parser.markdown.ReaderText;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -162,9 +163,11 @@ final class ExportZipBuilder {
         try {
             // The converter drops [{ALLOW}]/[{DENY}] spans itself, but its pattern is narrower than the ACL manager's
             // and the fallback below writes the text it was given — so a caller who may not edit the page never has
-            // the directives in hand at all.
+            // the directives in hand at all. The same per-page rule hides %%comments%%: `export` is a wiki permission
+            // (every Authenticated user holds it, V060), so the exporter's edit permission on this page decides.
             final String fetched = pages.getPureText( page );
-            raw = AclDirectiveText.forViewer( permissions.canAccessQuietly( session, d.slug(), "edit" ), fetched );
+            final boolean canEdit = permissions.canAccessQuietly( session, d.slug(), "edit" );
+            raw = ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, fetched ) );
             final Map< String, Object > extra = extraFrontmatter( d, page, raw, layout );
             return CONVERTER.convert( d.slug(), raw, extra, ctx );
         } catch ( final RuntimeException e ) {

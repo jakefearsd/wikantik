@@ -25,6 +25,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.parser.markdown.ReaderText;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -97,10 +98,13 @@ public class DiffResource extends RestServletBase {
         }
 
         try {
-            // Access-rule directives name people by login: only someone who may edit the page sees them in a diff.
+            // Access-rule directives name people by login, and %%comments%% are hidden from readers: a diff is view-gated,
+            // so only someone who may edit the page sees either in it (spec 1.11a's per-caller seam).
             final boolean canEdit = hasPagePermission( request, pageName, "edit" );
-            final String fromText = AclDirectiveText.forViewer( canEdit, pm.getPureText( pageName, fromVersion ) );
-            final String toText = AclDirectiveText.forViewer( canEdit, pm.getPureText( pageName, toVersion ) );
+            final String fromText = ReaderText.forViewer( canEdit,
+                    AclDirectiveText.forViewer( canEdit, pm.getPureText( pageName, fromVersion ) ) );
+            final String toText = ReaderText.forViewer( canEdit,
+                    AclDirectiveText.forViewer( canEdit, pm.getPureText( pageName, toVersion ) ) );
 
             // D31: structured diff format. The legacy DifferenceManager renders an HTML
             // table which is hostile to JSON consumers. Default to the structured form;

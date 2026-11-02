@@ -100,6 +100,8 @@ class AclDirectiveVisibilityTest {
         engine.saveText( "AclWrappedPage", "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n"
                 + "[{ALLOW comment " + LOGIN + ",\n other-" + LOGIN + "}]\nPublic prose.\n" );
         engine.saveText( "AclCommentPage", RULES + "Public prose %%editornote%% here.\n" );
+        engine.saveText( "AclCommentDiffPage", RULES + "First %%diffnoteone%% revision.\n" );
+        engine.saveText( "AclCommentDiffPage", RULES + "Second %%diffnotetwo%% revision.\n\n%%\ndiffnotethree\n%%\n" );
         engine.saveText( "AclDiffPage", RULES + "First revision.\n" );
         engine.saveText( "AclDiffPage",
                 "[{ALLOW view All}]\n[{ALLOW edit Admin,other-" + LOGIN + "}]\nSecond revision.\n" );
@@ -113,7 +115,7 @@ class AclDirectiveVisibilityTest {
     @AfterAll
     static void stopEngine() {
         if ( engine != null ) {
-            engine.deleteQuietly( "AclCommentPage", "AclVisibilityPage", "AclDiffPage", "AclVersionedPage", "AclTrickyPage", "AclWrappedPage" );
+            engine.deleteQuietly( "AclCommentPage", "AclCommentDiffPage", "AclVisibilityPage", "AclDiffPage", "AclVersionedPage", "AclTrickyPage", "AclWrappedPage" );
             engine.stop();
         }
     }
@@ -275,7 +277,11 @@ class AclDirectiveVisibilityTest {
     // ---- GET /api/diff/{name}
 
     private String getDiff( final HttpServletRequest request, final String format ) throws Exception {
-        Mockito.doReturn( "/AclDiffPage" ).when( request ).getPathInfo();
+        return getDiff( request, "AclDiffPage", format );
+    }
+
+    private String getDiff( final HttpServletRequest request, final String pageName, final String format ) throws Exception {
+        Mockito.doReturn( "/" + pageName ).when( request ).getPathInfo();
         Mockito.doReturn( "1" ).when( request ).getParameter( "from" );
         Mockito.doReturn( "2" ).when( request ).getParameter( "to" );
         if ( format != null ) {
@@ -302,6 +308,22 @@ class AclDirectiveVisibilityTest {
     void editorDiffShowsTheDirectiveThatChanged() throws Exception {
         final String structured = getDiff( editor( "/api/diff/AclDiffPage" ), null );
         assertTrue( structured.contains( LOGIN ), structured );
+    }
+
+    /**
+     * A diff is view-gated, so it is a reader surface: someone who may only view the page reads both versions without
+     * their comments (the access-rule seam already strips directives there); an editor reads them as stored.
+     */
+    @Test
+    void aReadersDiffCarriesNoCommentAndAnEditorsDoes() throws Exception {
+        final String structured = getDiff( reader( "/api/diff/AclCommentDiffPage" ), "AclCommentDiffPage", null );
+        assertTrue( structured.contains( "Second" ) && structured.contains( "revision." ), structured );
+        assertFalse( structured.contains( "diffnote" ), structured );
+        final String html = getDiff( reader( "/api/diff/AclCommentDiffPage" ), "AclCommentDiffPage", "html" );
+        assertFalse( html.contains( "diffnote" ), html );
+
+        final String asEditor = getDiff( editor( "/api/diff/AclCommentDiffPage" ), "AclCommentDiffPage", null );
+        assertTrue( asEditor.contains( "diffnoteone" ) && asEditor.contains( "diffnotethree" ), asEditor );
     }
 
     // ---- /wiki/{name}?format=md|json

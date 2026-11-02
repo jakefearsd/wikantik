@@ -45,9 +45,14 @@ class ReaderTextTest {
     }
 
     @Test
-    void anInternalFailureReturnsTheInputUnchanged() {
+    void anInternalFailureKeepsTheTextButNeverItsComments() {
         final UnaryOperator< String > broken = t -> { throw new IllegalStateException( "invariant breach" ); };
-        assertEquals( "Para ^abc\n", ReaderText.derived( "Para ^abc\n", broken ) );
+        assertEquals( "Para ^abc\n", ReaderText.derived( "Para ^abc\n", broken ), "markers are not hidden text: kept" );
+        // Fails CLOSED for comments: every %%…%% region goes — code or not — and everything after an unclosed %%.
+        assertEquals( "a  b `` c\n\n", ReaderText.derived( "a %%x%% b `%%y%%` c\n%%open\nsecret", broken ) );
+        assertEquals( "---\nsummary: 100%% sure\n---\nBody \n", ReaderText.derived(
+                "---\nsummary: 100%% sure\n---\nBody %%secret%%\n", broken ), "frontmatter values are not comments" );
+        assertEquals( "Body \n", ReaderText.derived( "Body %%secret%%\n", broken ) );
     }
 
     @Test

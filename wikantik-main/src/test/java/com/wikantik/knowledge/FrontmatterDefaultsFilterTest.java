@@ -140,4 +140,19 @@ class FrontmatterDefaultsFilterTest {
     void generatedFrontmatterKeepsLfTextLf() {
         assertFalse( filterWithDefaults().applyDefaults( "MyWikiPage", "Some body text.\nSecond line.\n" ).contains( "\r" ) );
     }
+
+    /** The generated summary and tags are published frontmatter: a %%comment%% must never be copied into them. */
+    @Test
+    void generatedSummaryAndTagsNeverCopyACommentButTheBodyKeepsIt() {
+        final String body = "%%zygomorphic xylophonist quokka confidential%% Kubernetes clusters schedule containers "
+                + "across nodes.\n\n%%\nzygomorphic xylophonist quokka notes\n%%\n\nKubernetes deployments roll out pods.\n";
+        final String result = filterWithDefaults().applyDefaults( "CommentedPage", body );
+        final Map< String, Object > meta = FrontmatterParser.parse( result ).metadata();
+        final String published = meta.get( "summary" ) + " " + meta.get( "tags" );
+        for ( final String probe : new String[]{ "zygomorphic", "xylophonist", "quokka", "confidential" } ) {
+            assertFalse( published.toLowerCase( java.util.Locale.ROOT ).contains( probe ), published );
+        }
+        assertTrue( meta.get( "summary" ).toString().contains( "Kubernetes" ), published );
+        assertTrue( result.contains( "%%zygomorphic xylophonist quokka confidential%%" ), "the stored body keeps its comment" );
+    }
 }

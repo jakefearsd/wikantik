@@ -860,6 +860,34 @@ class SpaRoutingFilterTest {
     }
 
     /**
+     * {@code %%comments%%} are hidden from readers, and the server-rendered document is served to anonymous readers and
+     * crawlers and cached at the edge: none of the head, the rendered body, the no-JS fallback or the data island's
+     * {@code content} may carry a comment (an editor re-fetches the stored text through {@code GET /api/pages}).
+     */
+    @Test
+    void ssrCarriesNoObsidianComment() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            engine.saveText( "SpaCommentedPage",
+                    "Shown SSR_SHOWN_MARKER %%SSR_COMMENT_PROBE_ONE%% prose.\n\n%%\nSSR_COMMENT_PROBE_TWO\n%%\n\nAfter.\n" );
+            filter.setEngineForTest( engine );
+
+            filter.doFilter( mockRequest( "/wiki/SpaCommentedPage" ), response, chain );
+
+            final String html = capturedOutput.asString();
+            final String prefix = "window.__WIKANTIK_PAGE__=";
+            final int start = html.indexOf( prefix );
+            assertTrue( start >= 0, "the data island is present" );
+            final String json = html.substring( start + prefix.length(), html.indexOf( ";</script>", start ) );
+            final String content = com.google.gson.JsonParser.parseString( json ).getAsJsonObject().get( "content" ).getAsString();
+            assertTrue( content.contains( "SSR_SHOWN_MARKER" ) && content.contains( "After." ), content );
+            assertFalse( html.contains( "SSR_COMMENT_PROBE" ), "no comment may reach the server-rendered document" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    /**
      * The data island seeds the reader view before the SPA knows who is viewing, so its {@code metadata} is served
      * as a non-editor sees it: {@code author} and {@code verified_by} that are logins appear as display names, never
      * as the stored login (an editor re-fetches the raw metadata through {@code GET /api/pages}). Free text, and any

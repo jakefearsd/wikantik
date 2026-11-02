@@ -27,6 +27,7 @@ import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.util.TokenEstimator;
 
 import org.apache.logging.log4j.Logger;
@@ -267,9 +268,12 @@ final class ItemAssembler {
         return fits;
     }
 
-    /** Page text for injection into an agent's context — access-rule directives (people, by login) are left out. */
+    /**
+     * Page text for injection into an agent's context — derived text (spec 1.11a): access-rule directives (people, by
+     * login), {@code %%comments%%} and block markers are left out.
+     */
     private String bodyOf( final String slug ) {
-        return AclDirectiveText.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) );
+        return ReaderText.derived( AclDirectiveText.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) ) );
     }
 
     private String canonicalIdOf( final String slug ) {

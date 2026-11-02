@@ -441,6 +441,7 @@ class WikiPageFormatFilterTest {
         final StringWriter sw = new StringWriter();
         when( jresp.getWriter() ).thenReturn( new PrintWriter( sw ) );
         filter.doFilter( jreq, jresp, mock( FilterChain.class ) );
+        assertTrue( sw.toString().contains( "Shown prose" ), "the json content is served, not empty: " + sw );
         assertFalse( sw.toString().contains( "commentprobe" ), sw.toString() );
     }
 }

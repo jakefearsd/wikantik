@@ -124,6 +124,19 @@ public class InsertPageTest {
         Assertions.assertTrue( testEngine.getManager( RenderingManager.class ).getHTML( "ThisPage" ).contains( "Circular reference" ) );
     }
 
+    /** {@code section=} splits the text a reader sees: a {@code ----} inside a comment is no section break. */
+    @Test
+    public void aSectionIsCutFromTheTextWithoutItsComments() throws Exception {
+        testEngine.saveText( "ThisPage2", "Section one %%hidden INSERT_PROBE_A\n----\nstill hidden INSERT_PROBE_B%%\n----\nSection two" );
+        testEngine.saveText( "ThisPage", "[{InsertPage page='ThisPage2' section='1'}]" );
+
+        final String result = testEngine.getManager( RenderingManager.class ).getHTML( "ThisPage" );
+        Assertions.assertTrue( result.contains( "Section one" ), result );
+        Assertions.assertFalse( result.contains( "INSERT_PROBE" ), result );
+        Assertions.assertFalse( result.contains( "%%" ), result );
+        Assertions.assertFalse( result.contains( "Section two" ), "section 1 only: " + result );
+    }
+
     @Test
     public void testMultiInvocation() throws Exception {
         final String src  = "[{InsertPage page='ThisPage2'}] [{InsertPage page='ThisPage2'}]";

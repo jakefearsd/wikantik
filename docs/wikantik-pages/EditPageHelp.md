@@ -60,7 +60,7 @@ Any paragraph, list item, table, quote or callout can carry a short id, so anoth
 
 * Write `==text==` to highlight it; the reader shows it marked, like a highlighter pen. Mod+Shift+H wraps or unwraps the selection. The marker pair must hug the text, so `== x ==` and `a == b` stay as they are.
 * Write `%%a note%%` for a comment that readers do not see. A comment can run over several lines. Mod+/ wraps or unwraps the selection in `%%`. The editor shows comments dimmed, with their `%%` marks visible.
-* Comments are hidden from the rendered page, search, excerpts, exports of the reader text and AI agents that read the page, but they are not private. Anyone who can edit the page or view its history sees them, so never put a secret in one.
+* Comments are hidden from everyone who cannot edit the page: the rendered page, search, excerpts, links and backlinks, diffs, vault exports and AI agents that read the page. They are not private, though. Anyone who can edit the page sees them in the editor and in its history, so never put a secret in one. A `%%` inside code or math is never a comment marker, and a `%%` with no closing pair is shown as it is.
 * A `%%` inside a code span, a code block, a diagram or a formula is ordinary text, and a `%%` with no closing partner is left alone.
 
 ## Diagrams

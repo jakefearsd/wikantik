@@ -65,7 +65,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`GET /api/structure/pages` now returns `total` and `next_cursor`** so a client can page through every match; `limit`
   is clamped to 1000 (and `limit=0` is read as 1).
 - **MCP page descriptors gain an additive `inlineTags` field** (the page's inline `#tags`, as written), in
-  `list_tags`, `list_pages_by_filter` and `list_pages` output. Existing fields are unchanged.
+  `list_pages_by_filter`, `get_page_by_id` and `list_clusters` (hub descriptors) output. Existing fields are unchanged.
 
 ### Security
 - **Deleted accounts show as "former member", and their logins cannot be registered again.** A hard delete now records

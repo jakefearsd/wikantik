@@ -27,8 +27,9 @@
 // Where it can still differ (pinned per case in the fixture's "editor" entries, with the reason), and why it may:
 //   - a rule that is the text of a setext heading (`[{ALLOW …}]\n===`): the reader shows `===` as a paragraph;
 //   - indentation left by stripping inside a container (a quote, a list item): the reader may see code there;
-//   - a rule in lower case, or in a spelling only the server's two readings know (a rule with a space after `[{`,
-//     wrapped over lines or holding a brace IS read, as RULE_TEXT says; the preview draws the last two as text);
+//   - a rule in a spelling only the server's readings know (a rule with a space after `[{`, with `allow` in any case,
+//     wrapped over lines or holding a brace IS read, as RULE_TEXT says; the preview draws the last two as text). A
+//     lower-case `deny` is text here as on the server, which locks the page rather than stripping it;
 //   - the preview's drawing of a rule-only list item and of what the reader shows as code (ids agree there).
 // The editor therefore never acts on this reading: it only draws from it.
 import { unified } from 'unified';
@@ -55,12 +56,14 @@ const TRAILING_BLANKS = /[ \t\r\n]+$/;
 
 /**
  * An access rule written as text, with or without `()`, in every spelling the server strips (AclDirectiveScanner in
- * wide mode, and the render path's links): whitespace may follow the opener (`[{ ALLOW …}]`), the rule may wrap over
- * lines but never across a blank line, and it runs to the FIRST `}]` — so a `}` inside it (`[{ALLOW edit {x}}]`) is
- * part of it. Global: use with replace.
+ * wide mode, the render path's links and the access-rule reader): whitespace may follow the opener (`[{ ALLOW …}]`),
+ * the rule may wrap over lines but never across a blank line, and it runs to the FIRST `}]` — so a `}` inside it
+ * (`[{ALLOW edit {x}}]`) is part of it. Its keyword is `ALLOW` or `DENY`, also starting a longer upper-case word (the
+ * render path's links), or `allow` in any case as a word of its own (the reader); a lower-case `deny` or a longer
+ * mixed-case word (`[{Allowance}]`) is text, as on the server. Global: use with replace.
  */
-export const RULE_TEXT = /\[\{[ \t\n\v\f\r]*(?:ALLOW|DENY)(?:(?!\r?\n[ \t]*\r?\n)[\s\S])*?\}\](?:\(\))?/g;
-const RULE_LINK_TEXT = /^\{[ \t\n\v\f\r]*(?:ALLOW|DENY)/;
+export const RULE_TEXT = /\[\{[ \t\n\v\f\r]*(?:ALLOW|DENY|[Aa][Ll][Ll][Oo][Ww](?=[ \t\n\v\f\r}]))(?:(?!\r?\n[ \t]*\r?\n)[\s\S])*?\}\](?:\(\))?/g;
+const RULE_LINK_TEXT = /^\{[ \t\n\v\f\r]*(?:ALLOW|DENY|[Aa][Ll][Ll][Oo][Ww](?=[ \t\n\v\f\r}]))/;
 const FINGERPRINT_LENGTH = 200;
 
 /** Whether a wikilink heading part addresses a block: it starts with `^`. The one discriminator, as on the server. */

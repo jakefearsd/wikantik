@@ -165,9 +165,12 @@ class AclDirectiveVisibilityTest {
     void aDirectiveWrappedOverSeveralLinesIsEnforcedAndHiddenFromTheReaderAndTheEditorGetsItVerbatim() throws Exception {
         // A wrapped rule is a rule (#104 §5.3): the reader may view (view All) but not comment, and sees neither login.
         final JsonObject asReader = getPage( reader( "/api/pages/AclWrappedPage" ), "AclWrappedPage" );
+        // The reader gets the page at all, so it is not locked: view All is read beside the wrapped rule.
         assertTrue( asReader.get( "content" ).getAsString().contains( "Public prose." ), asReader.toString() );
+        // Not a proof that the wrapped rule is read (any ACL on the page withholds comment from the reader); the
+        // commenter set below is.
         assertFalse( asReader.getAsJsonObject( "permissions" ).get( "comment" ).getAsBoolean(),
-                "the wrapped comment rule is enforced: " + asReader );
+                "the reader is not among the commenters: " + asReader );
         final Set< String > commenters = new HashSet<>();
         final Page wrapped = engine.getManager( PageManager.class ).getPage( "AclWrappedPage" );
         final Acl acl = engine.getManager( AclManager.class ).getPermissions( wrapped );
@@ -175,8 +178,9 @@ class AclDirectiveVisibilityTest {
                 PermissionFactory.getPagePermission( wrapped, "comment" ) ) ) {
             commenters.add( p.getName() );
         }
-        assertTrue( commenters.containsAll( Set.of( LOGIN, "other-" + LOGIN ) ),
-                "both principals of the wrapped rule may comment: " + commenters );
+        assertEquals( Set.of( "Admin", LOGIN, "other-" + LOGIN ), commenters,
+                "the wrapped rule is read as exactly its two principals, the break after a comma (Admin may comment "
+                        + "through edit): " + commenters );
         assertFalse( asReader.toString().contains( LOGIN ), asReader.toString() );
 
         final String stored = FrontmatterParser.parse( engine.getManager( PageManager.class )

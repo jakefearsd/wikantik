@@ -32,7 +32,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -81,23 +80,11 @@ class AccessRulesTest {
         final Set< Shape > locks = AclDirectiveFixtures.EXPECTED_LOCKS.get( f.name() );
         if ( locks == null ) {
             final Rules rules = assertInstanceOf( Rules.class, reading );
-            assertEquals( AclDirectiveFixtures.enforced( f ), pairs( rules.ruleLines() ), rules.toString() );
+            assertEquals( AclDirectiveFixtures.enforced( f ), AclDirectiveFixtures.pairs( rules.ruleLines() ), rules.toString() );
         } else {
             final Locked locked = assertInstanceOf( Locked.class, reading );
             assertEquals( locks, locked.reasons().stream().map( Reason::shape ).collect( Collectors.toSet() ) );
         }
-    }
-
-    /** {@code principal:action} pairs of canonical rule lines, as the fixtures record an ACL. */
-    private static Set< String > pairs( final List< String > ruleLines ) {
-        final Set< String > out = new HashSet<>();
-        for ( final String line : ruleLines ) {
-            final String[] words = line.split( " ", 3 );
-            for ( final String principal : words[ 2 ].split( "," ) ) {
-                out.add( principal.trim() + ":" + words[ 1 ] );
-            }
-        }
-        return out;
     }
 
     /** §5.3: an escaped rule is how an author writes "not markup" — no rule, no lock, but still a span of the text. */
@@ -142,6 +129,56 @@ class AccessRulesTest {
         final String text = "[{ALLOW edit alice ".repeat( 40_000 ) + "\nx}]";
         final Reading reading = assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> AccessRules.read( text ) );
         assertInstanceOf( Locked.class, reading );
+    }
+
+    static Stream< Shaped > adversarial() {
+        return AclDirectiveFixtures.ADVERSARIAL.stream();
+    }
+
+    /** Each text costs a few tens of milliseconds when read in linear time, and seconds when a scan is per span. */
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "adversarial" )
+    void aTextBuiltToMakeAPerSpanScanQuadraticIsReadInLinearTime( final Shaped row ) {
+        AccessRules.read( "[{allow view warm}] x" );     // class loading and the parser's first use are not the read's cost
+        assertTimeoutPreemptively( Duration.ofSeconds( 1 ), () -> AccessRules.read( row.text() ) );
+    }
+
+    /** Ruling 1 of #104's open-up: an ALLOW variant is enforced, so the matching DENY variant may not be ignored. */
+    @Test
+    void aDenyInAnyCaseBesideAnEnforcedRuleLocksThePage() {
+        final Locked locked = assertInstanceOf( Locked.class, AccessRules.read( "[{allow view a}] [{deny view Bob}]" ) );
+        assertEquals( List.of( new Reason( Shape.DENY, 1, null, "[{deny view Bob}]" ) ), locked.reasons() );
+        assertEquals( List.of( Shape.CASE_VARIANT, Shape.DENY ), locked.spans().stream().map( Span::shape ).toList() );
+    }
+
+    @Test
+    void aDenyInTheFrontmatterLocksAPageWhoseBodyHoldsARule() {
+        final Locked locked = assertInstanceOf( Locked.class,
+                AccessRules.read( "---\nsummary: '[{deny view Admin}]'\n---\n[{ALLOW view All}]\n\nBody.\n" ) );
+        assertEquals( List.of( new Reason( Shape.DENY, null, "summary", "[{deny view Admin}]" ) ), locked.reasons() );
+    }
+
+    @Test
+    void aDenyInTheFrontmatterOfAnUnreadableTextIsStillADenySpan() {
+        final Locked locked = assertInstanceOf( Locked.class, AccessRules.read(
+                "---\nsummary: '[{deny view Admin}]'\n---\n[{ALLOW edit" + " ".repeat( 200_000 ) + "x\n" ) );
+        assertEquals( Shape.UNREADABLE, locked.reasons().get( 0 ).shape() );
+        assertEquals( Shape.DENY, locked.spans().get( 0 ).shape(), locked.spans().toString() );
+    }
+
+    /** A line break inside a name: {@code Jane\n Bob} could be the one name "Jane Bob" or two; a comma beside it is plain. */
+    @Test
+    void aWrappedRuleLocksOnlyWhereItsLineBreakSplitsAName() {
+        assertEquals( List.of( Shape.WRAPPED_NAME ), shapes( "[{ALLOW edit Admin,\n Jane\n Bob}]\n" ) );
+        assertEquals( List.of( Shape.WRAPPED_NAME ), shapes( "[{allow edit Jane\r\n  Bob}]\r\n" ) );
+        assertEquals( List.of( Shape.WRAPPED_NAME ), shapes( "- [{allow edit Jane\n  Bob}]\n" ) );
+        final Rules rules = assertInstanceOf( Rules.class,
+                AccessRules.read( "[{ALLOW\n edit\n Jane Doe,\n Bob ,\n Ann\n ,Cy}]\n" ) );
+        assertEquals( List.of( "ALLOW edit Jane Doe, Bob , Ann ,Cy" ), rules.ruleLines() );
+    }
+
+    private static List< Shape > shapes( final String text ) {
+        return AccessRules.read( text ).spans().stream().map( Span::shape ).toList();
     }
 
     @Test

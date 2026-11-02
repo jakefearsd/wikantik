@@ -191,8 +191,10 @@ public final class AclDirectiveText {
     /**
      * Removes what the old text scan read, what the render path reads, and every rule the access-rule reader reads (what
      * the wiki enforces, a lower-case or spaced rule neither old reading read included), then runs the conservative util
-     * pass. Only the reader's rules: its other spans run from each opener to the first closer, so where openers nest they
-     * overlap, and cutting the widest at once would leave the tail of a rule the next round would have reformed and cut.
+     * pass. Only the reader's rules (and the wrapped rules it locks for a line break inside a name, which it reads from
+     * one label just as it reads a rule): its other spans run from each opener to the first closer, so where openers nest
+     * they overlap, and cutting the widest at once would leave the tail of a rule the next round would have reformed and
+     * cut.
      */
     private static TrackedText oneRound( final TrackedText tracked, final String replacement ) {
         final String text = tracked.text();
@@ -200,11 +202,16 @@ public final class AclDirectiveText {
         for ( final AclDirectiveScanner.Span span : EnforcedAclDirectives.spans( text ) ) {
             ranges.add( new int[]{ span.start(), AclDirectiveScanner.endWithEmptyParentheses( text, span ) } );
         }
-        for ( final RenderPathAccessRules.Rule rule : RenderPathAccessRules.find( text ) ) {
+        // One render parse gives both the render path's rules and the access-rule reader's.
+        final AccessRules.Parsed parsed = AccessRules.parse( text );
+        if ( parsed.unreadable() != null ) {
+            throw parsed.unreadable();
+        }
+        for ( final RenderPathAccessRules.Rule rule : parsed.renderRules() ) {
             ranges.add( new int[]{ rule.start(), rule.end() } );
         }
-        for ( final AccessRules.Span span : AccessRules.read( text ).spans() ) {
-            if ( AccessRules.isRule( span.shape() ) ) {
+        for ( final AccessRules.Span span : parsed.reading().spans() ) {
+            if ( AccessRules.isRule( span.shape() ) || span.shape() == AccessRules.Shape.WRAPPED_NAME ) {
                 ranges.add( new int[]{ span.start(), span.end() } );
             }
         }

@@ -38,6 +38,8 @@ final class SpanClassifier {
     private final OffsetRanges html;
     private final OffsetRanges links;
     private final DirectiveSpelling.LineEnds lineEnds;
+    /** Where the text scan sees code: a frontmatter {@code DENY} there is literal (the body's code is the parse's). */
+    private final EnforcedAclDirectives.CodeRegions frontmatterCode;
     /** The render path's rules, by start. */
     private final Map< Integer, RenderPathAccessRules.Rule > rules = new HashMap<>();
     /** Every rule-shaped label the parse sees — the render path's rules and the labels it does not read — by start. */
@@ -51,6 +53,7 @@ final class SpanClassifier {
         this.html = OffsetRanges.of( structure.html() );
         this.links = OffsetRanges.of( structure.links() );
         this.lineEnds = new DirectiveSpelling.LineEnds( text );
+        this.frontmatterCode = new EnforcedAclDirectives.CodeRegions( text );
         for ( final RenderPathAccessRules.Rule rule : structure.rules() ) {
             rules.put( rule.start(), rule );
             labels.put( rule.start(), rule );
@@ -69,12 +72,22 @@ final class SpanClassifier {
     Shape classify( final int start, final int end, final Integer scannedEnd ) {
         final boolean readByEither = rules.containsKey( start ) || scannedEnd != null;
         final Shape region = region( start );
+        if ( region == Shape.ESCAPED ) {
+            return region;
+        }
+        final boolean inBodyCode = region == Shape.UNREADABLE;
+        if ( !inBodyCode && DirectiveSpelling.isDeny( text, start, end )
+                && ( region != Shape.IN_FRONTMATTER || !frontmatterCode.contains( start ) ) ) {
+            // A DENY in any case or spacing locks wherever it is outside code: an ALLOW so spelled is enforced, so a
+            // DENY so spelled may not be ignored (the ACL model is allow-only, so no reading of it is faithful).
+            return Shape.DENY;
+        }
         if ( region != null ) {
-            return region == Shape.ESCAPED || readByEither ? region : null;
+            return readByEither ? region : null;
         }
         final Shape spelling = DirectiveSpelling.of( text, start, end, lineEnds );
         if ( spelling == Shape.DENY || spelling == Shape.ALLOW_PREFIXED_WORD ) {
-            return readByEither ? spelling : null;
+            return readByEither ? spelling : null;     // a longer first word, [{Denylist}]: a plugin name, or prose
         }
         return spelling == Shape.BAD_PERMISSION || spelling == Shape.UNREADABLE ? spelling : ruleShape( start, end, scannedEnd, spelling );
     }
@@ -84,6 +97,9 @@ final class SpanClassifier {
         final RenderPathAccessRules.Rule label = labels.get( start );
         if ( label == null || label.end() != end ) {
             return Shape.UNREADABLE;     // a rule shape the render parse does not see as one label over this span
+        }
+        if ( spelling == Shape.WRAPPED && DirectiveSpelling.splitsAName( label.ruleLine() ) ) {
+            return Shape.WRAPPED_NAME;
         }
         if ( spelling != null ) {
             return spelling;
@@ -102,7 +118,7 @@ final class SpanClassifier {
 
     /**
      * The shape a candidate's region gives it, or {@code null} in body prose. Code is {@link Shape#UNREADABLE}: the render
-     * path calls it code, so only a text scan that read a rule there makes it a span.
+     * path calls it code, so only a text scan that read a rule there makes it a span (a {@code DENY} there never does).
      */
     private Shape region( final int start ) {
         if ( start < bodyStart ) {

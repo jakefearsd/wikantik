@@ -52,14 +52,13 @@ public class AccessRuleShapeCheck {
     /** The key of a whole text the render parse cannot read: its shape alone, as the reason quotes offsets and sizes. */
     private static final String WHOLE_TEXT_KEY = "whole text:";
 
-    private static final Map< Shape, String > WHY = new EnumMap<>( Shape.class );
+    /** Why each shape that locks a page cannot be read, as a refusal says it. */
+    static final Map< Shape, String > WHY = new EnumMap<>( Shape.class );
 
     static {
-        WHY.put( Shape.CANONICAL, "it cannot be read" );
-        WHY.put( Shape.WRAPPED, "it runs over more than one line" );
-        WHY.put( Shape.CASE_VARIANT, "ALLOW or the permission is not in its usual case" );
-        WHY.put( Shape.LEADING_SPACE, "there is a space after the opening brace" );
-        WHY.put( Shape.ESCAPED, "its opening bracket is escaped" );
+        // Only the shapes that lock a page: the reader reads every other shape as a rule, or as text, and so lets it save.
+        WHY.put( Shape.WRAPPED_NAME, "a line break falls inside a name with no comma beside it, so the wiki cannot tell one "
+                + "name or two (`Jane` and `Bob`, or `Jane Bob`); put a comma at the break, or the name on one line" );
         WHY.put( Shape.DENY, "access rules only allow: there is no DENY" );
         WHY.put( Shape.ALLOW_PREFIXED_WORD, "its first word is not exactly ALLOW" );
         WHY.put( Shape.IN_HTML_BLOCK, "it is inside HTML" );
@@ -130,18 +129,32 @@ public class AccessRuleShapeCheck {
     private record Disputed( String key, AccessRules.Reason reason, boolean wholeText ) {
     }
 
+    /**
+     * The disputed spans of a text. Spans that overlap (openers that share one closer: <code>[{deny a [{deny b}]</code>)
+     * share one key, the text they cover together: a copy of each span's own text would cost the square of the text.
+     * Such a group stays only when it is unchanged as a whole.
+     */
     private static List< Disputed > disputed( final String text ) {
         if ( text == null || !( AccessRules.read( text ) instanceof AccessRules.Locked locked ) ) {
             return List.of();
         }
+        final List< AccessRules.Span > spans = locked.spans().stream().filter( span -> AccessRules.disputed( span.shape() ) ).toList();
         final List< Disputed > out = new ArrayList<>();
         final AccessRules.Places places = new AccessRules.Places( text );
-        for ( final AccessRules.Span span : locked.spans() ) {
-            if ( AccessRules.disputed( span.shape() ) ) {
-                final String spanText = text.substring( span.start(), span.end() );
-                out.add( new Disputed( spanText.replace( "\r\n", "\n" ),
-                        places.reason( span.shape(), span.start(), excerpt( spanText ) ), false ) );
+        int group = 0;
+        while ( group < spans.size() ) {
+            int groupEnd = spans.get( group ).end();
+            int next = group + 1;
+            while ( next < spans.size() && spans.get( next ).start() < groupEnd ) {
+                groupEnd = Math.max( groupEnd, spans.get( next ).end() );
+                next++;
             }
+            final String key = text.substring( spans.get( group ).start(), groupEnd ).replace( "\r\n", "\n" );
+            for ( int i = group; i < next; i++ ) {
+                final AccessRules.Span span = spans.get( i );
+                out.add( new Disputed( key, places.reason( span.shape(), span.start(), excerpt( text, span ) ), false ) );
+            }
+            group = next;
         }
         if ( out.isEmpty() ) {
             for ( final AccessRules.Reason reason : locked.reasons() ) {
@@ -180,8 +193,8 @@ public class AccessRuleShapeCheck {
         return s.isEmpty() ? s : Character.toUpperCase( s.charAt( 0 ) ) + s.substring( 1 );
     }
 
-    private static String excerpt( final String spanText ) {
-        return spanText.length() <= AccessRules.MAX_REASON_TEXT ? spanText
-                : spanText.substring( 0, AccessRules.MAX_REASON_TEXT ) + "…";
+    private static String excerpt( final String text, final AccessRules.Span span ) {
+        return span.end() - span.start() <= AccessRules.MAX_REASON_TEXT ? text.substring( span.start(), span.end() )
+                : text.substring( span.start(), span.start() + AccessRules.MAX_REASON_TEXT ) + "…";
     }
 }

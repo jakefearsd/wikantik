@@ -96,6 +96,27 @@ final class EnforcedAclDirectives {
     }
 
     /**
+     * Where the text scan sees code in one text — what keeps a {@code DENY} in a frontmatter value's backticks literal —
+     * parsed on the first question only, so a text that asks none pays no parse.
+     */
+    static final class CodeRegions {
+        private final String text;
+        private OffsetRanges ranges;
+
+        CodeRegions( final String text ) {
+            this.text = text;
+        }
+
+        /** Whether {@code offset} is inside a code span or code block of the text. */
+        boolean contains( final int offset ) {
+            if ( ranges == null ) {
+                ranges = OffsetRanges.of( codeRegions( text ) );
+            }
+            return ranges.contains( offset );
+        }
+    }
+
+    /**
      * Computes the source-offset ranges {@code [start, end)} of every inline
      * code span and code block in {@code text}, by parsing it as CommonMark and
      * collecting {@link Code}, {@link FencedCodeBlock} and

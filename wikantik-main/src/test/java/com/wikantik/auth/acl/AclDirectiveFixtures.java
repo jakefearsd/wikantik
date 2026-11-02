@@ -214,6 +214,21 @@ public final class AclDirectiveFixtures {
     }
 
     /**
+     * @param ruleLines canonical rule lines ({@code ALLOW view Admin, bob})
+     * @return their {@code principal:action} pairs, as the fixtures record an ACL
+     */
+    public static Set< String > pairs( final java.util.List< String > ruleLines ) {
+        final Set< String > out = new java.util.HashSet<>();
+        for ( final String line : ruleLines ) {
+            final String[] words = line.split( " ", 3 );
+            for ( final String principal : words[ 2 ].split( "," ) ) {
+                out.add( principal.trim() + ":" + words[ 1 ] );
+            }
+        }
+        return out;
+    }
+
+    /**
      * One row per access-rule shape of the #104 design (§5.1/§5.3).
      *
      * @param name      label
@@ -238,9 +253,10 @@ public final class AclDirectiveFixtures {
 
     /**
      * Every shape, each alone on a page with body text after it. The design's §5.3 table, row by row: the unambiguous
-     * shapes are rules in canonical form, an escaped one is literal text, the rest lock. A span that neither old reading
-     * took for a rule ({@code [{Allowance}]}, a lower-case {@code deny}, a lower-case rule in HTML or math, one in a YAML
-     * code span) is literal text, not a lock: the page was open under both, and nobody can tell it apart from prose.
+     * shapes are rules in canonical form, an escaped one is literal text, the rest lock. {@code DENY} in any case, after
+     * any whitespace, locks wherever it is outside code (frontmatter, HTML, math and links included). Any other span that
+     * neither old reading took for a rule ({@code [{Allowance}]}, a lower-case rule in HTML or math, one in a YAML code
+     * span) is literal text, not a lock: the page was open under both, and nobody can tell it apart from prose.
      */
     public static final java.util.List< Shaped > SHAPES = java.util.List.of(
             new Shaped( "canonical", "[{ALLOW view Admin}]\n\n" + BODY + "\n", Shape.CANONICAL, ADMIN_VIEW ),
@@ -263,8 +279,40 @@ public final class AclDirectiveFixtures {
             new Shaped( "space after the brace, wrapped", "[{ ALLOW edit a,\n b}]\n\n" + BODY + "\n", Shape.WRAPPED,
                     java.util.List.of( "ALLOW edit a, b" ) ),
             new Shaped( "escaped", "\\[{ALLOW view Admin}]\n\n" + BODY + "\n", Shape.ESCAPED ),
+            new Shaped( "a wrapped rule whose line break splits a name", "[{allow edit Jane\n Bob}]\n\n" + BODY + "\n",
+                    Shape.WRAPPED_NAME ),
+            new Shaped( "a wrapped rule whose line break splits a name, in a blockquote",
+                    "> [{ALLOW edit Admin, Jane\n> Bob}]\n\n" + BODY + "\n", Shape.WRAPPED_NAME ),
+            new Shaped( "wrapped, a comma right after the break", "> [{allow edit Jane\n> ,Bob}]\n\n" + BODY + "\n",
+                    Shape.WRAPPED, java.util.List.of( "ALLOW edit Jane ,Bob" ) ),
+            new Shaped( "wrapped between the permission and the names", "[{ALLOW edit\n Jane Doe}]\n\n" + BODY + "\n",
+                    Shape.WRAPPED, java.util.List.of( "ALLOW edit Jane Doe" ) ),
+            new Shaped( "a tab after the brace", "[{\tALLOW view Admin}]\n\n" + BODY + "\n", Shape.LEADING_SPACE, ADMIN_VIEW ),
+            new Shaped( "a vertical tab after the brace", "[{\u000BALLOW view Admin}]\n\n" + BODY + "\n", Shape.LEADING_SPACE,
+                    ADMIN_VIEW ),
+            new Shaped( "an EM SPACE after the brace", "[{\u2003ALLOW view Admin}]\n\n" + BODY + "\n", Shape.UNREADABLE ),
+            new Shaped( "a no-break space before the names", "[{ALLOW view\u00A0Admin}]\n\n" + BODY + "\n", Shape.BAD_PERMISSION ),
             new Shaped( "deny", "[{DENY view Admin}]\n\n" + BODY + "\n", Shape.DENY ),
             new Shaped( "deny, wrapped", "[{DENY view Admin,\n bob}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "lower-case deny", "[{deny view Admin}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "mixed-case deny", "[{Deny view Admin}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny, a space after the brace", "[{ DENY view Admin}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny, a tab after the brace", "[{\tDENY view Admin}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "lower-case deny, wrapped", "[{deny edit a,\n Bob}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "lower-case deny, wrapped in a blockquote", "> [{deny edit a,\n> Bob}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny alone", "[{deny}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny in the frontmatter", "---\nsummary: [{DENY view Admin}]\n---\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "lower-case deny in the frontmatter", "---\nsummary: '[{deny view Admin}]'\n---\n" + BODY + "\n",
+                    Shape.DENY ),
+            new Shaped( "deny in an HTML block", "<div>\n[{deny view Admin}]\n</div>\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny in inline math", "Formula $[{DENY view Admin}]$ here.\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny in a link with a target", "[{deny view Admin}](http://example.test)\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny, escaped", "\\[{deny view Admin}]\n\n" + BODY + "\n", Shape.ESCAPED ),
+            new Shaped( "deny in a code span", "Write `[{deny view Admin}]` to restrict.\n\n" + BODY + "\n", null ),
+            new Shaped( "deny in a fenced block", "```\n[{Deny view Admin}]\n```\n\n" + BODY + "\n", null ),
+            new Shaped( "deny in a YAML code span in the frontmatter",
+                    "---\nsummary: Write `[{deny view Admin}]` to restrict\n---\n" + BODY + "\n", null ),
+            new Shaped( "a plugin name starting Deny", "[{Denylist}]\n\n" + BODY + "\n", null ),
             new Shaped( "ALLOWED", "[{ALLOWED view Admin}]\n\n" + BODY + "\n", Shape.ALLOW_PREFIXED_WORD ),
             new Shaped( "an upper-case plugin name starting ALLOW", "[{ALLOWANCE}]\n\n" + BODY + "\n", Shape.ALLOW_PREFIXED_WORD ),
             new Shaped( "in an HTML block", "<div>\n[{ALLOW view Admin}]\n</div>\n\n" + BODY + "\n", Shape.IN_HTML_BLOCK ),
@@ -283,12 +331,30 @@ public final class AclDirectiveFixtures {
             new Shaped( "in a fenced block", "```\n[{ALLOW view Admin}]\n```\n\n" + BODY + "\n", null ),
             new Shaped( "lower-case, in a code span", "Write `[{allow VIEW Admin}]` to restrict.\n\n" + BODY + "\n", null ),
             new Shaped( "a plugin name starting Allow", "[{Allowance}]\n\n" + BODY + "\n", null ),
-            new Shaped( "lower-case deny", "[{deny view Admin}]\n\n" + BODY + "\n", null ),
             new Shaped( "lower-case, in an HTML block", "<div>\n[{allow view Admin}]\n</div>\n\n" + BODY + "\n", null ),
             new Shaped( "lower-case, in inline math", "Formula $[{allow view Admin}]$ here.\n\n" + BODY + "\n", null ),
             new Shaped( "in a YAML code span in the frontmatter",
                     "---\nsummary: Write `[{ALLOW view Admin}]` to restrict\n---\n" + BODY + "\n", null ),
             new Shaped( "lower-case, in the frontmatter", "---\nsummary: '[{allow view Admin}]'\n---\n" + BODY + "\n", null ) );
+
+    /**
+     * Texts built to make a per-span scan cost the square of the text: openers that share one closer give overlapping
+     * candidates, and a field that holds many rules sits above every one of them. Each must be read (and stripped) in
+     * time linear in its length.
+     */
+    public static final java.util.List< Shaped > ADVERSARIAL = java.util.List.of(
+            new Shaped( "openers sharing one closer, a keyword with no space after it", "[{allowa".repeat( 40_000 ) + "}]", null ),
+            new Shaped( "openers sharing one closer, DENY with no space after it", "[{DENYa".repeat( 40_000 ) + "}]", null ),
+            new Shaped( "openers sharing one closer, no-break spaces after the keyword", "[{allow\u00A0".repeat( 40_000 ) + "}]",
+                    null ),
+            new Shaped( "openers sharing one closer, a space after each brace", "[{ allowa".repeat( 40_000 ) + "}]", null ),
+            new Shaped( "openers sharing one closer, a lower-case deny each", "[{deny edit alice ".repeat( 40_000 ) + "\nx}]",
+                    null ),
+            new Shaped( "many openers and spaces before one keyword", "[{ ".repeat( 100_000 ) + "allow view x}]", null ),
+            new Shaped( "one frontmatter field holding many rules", "---\ntags:\n" + "  - '[{ALLOW view x}]'\n".repeat( 20_000 )
+                    + "---\nBody.\n", null ),
+            new Shaped( "one frontmatter field holding many lower-case denies",
+                    "---\ntags:\n" + "  - '[{deny view x}]'\n".repeat( 20_000 ) + "---\nBody.\n", null ) );
 
     private AclDirectiveFixtures() {
     }

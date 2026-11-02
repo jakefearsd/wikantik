@@ -74,7 +74,10 @@ class AccessRulesOrderIndependenceTest {
         final List< Fixture > out = new java.util.ArrayList<>( AclDirectiveFixtures.ALL );
         out.addAll( AclDirectiveFixtures.ENFORCEMENT_REPROS );
         for ( final AclDirectiveFixtures.Shaped row : AclDirectiveFixtures.SHAPES ) {
-            out.add( new Fixture( "shape: " + row.name(), row.text(), pairs( row.ruleLines() ), true ) );
+            if ( !java.nio.charset.StandardCharsets.ISO_8859_1.newEncoder().canEncode( row.text() ) ) {
+                continue;   // the test engine stores ISO-8859-1 (an EM SPACE comes back as '?'); AccessRulesTest reads these
+            }
+            out.add( new Fixture( "shape: " + row.name(), row.text(), AclDirectiveFixtures.pairs( row.ruleLines() ), true ) );
         }
         return out;
     }
@@ -87,18 +90,6 @@ class AccessRulesOrderIndependenceTest {
             return shape == null || !AccessRules.disputed( shape ) ? f.acl() : LOCKED;
         }
         return AclDirectiveFixtures.EXPECTED_LOCKS.containsKey( f.name() ) ? LOCKED : AclDirectiveFixtures.enforced( f );
-    }
-
-    /** {@code principal:action} pairs of canonical rule lines ({@code ALLOW view Admin, bob}). */
-    private static Set< String > pairs( final List< String > ruleLines ) {
-        final Set< String > out = new HashSet<>();
-        for ( final String line : ruleLines ) {
-            final String[] words = line.split( " ", 3 );
-            for ( final String principal : words[ 2 ].split( "," ) ) {
-                out.add( principal.trim() + ":" + words[ 1 ] );
-            }
-        }
-        return out;
     }
 
     @BeforeAll

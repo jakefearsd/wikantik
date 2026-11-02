@@ -41,6 +41,7 @@ import com.wikantik.parser.LinkParsingOperations;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The access rules the wiki's <em>render path</em> reads in a page text — what {@link MarkdownParser} and its
@@ -114,7 +115,15 @@ public final class RenderPathAccessRules {
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
             .build();
 
+    /** How many bodies have been parsed: a test seam, so a caller's tests can count the parses it pays for. */
+    private static final AtomicLong PARSES = new AtomicLong();
+
     private RenderPathAccessRules() {
+    }
+
+    /** @return how many times a body has been parsed since the class loaded (a test seam) */
+    public static long parses() {
+        return PARSES.get();
     }
 
     /**
@@ -149,6 +158,7 @@ public final class RenderPathAccessRules {
     }
 
     private static Structure parsed( final String body, final int bodyStart ) {
+        PARSES.incrementAndGet();
         try {
             return parsedStructure( MarkdownBodySource.prepare( body ), bodyStart, body.length() );
         } catch ( final Unreadable e ) {

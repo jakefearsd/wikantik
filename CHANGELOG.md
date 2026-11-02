@@ -30,8 +30,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   text, as are rules in code spans and code blocks. Directive-shaped text that the old readings disagreed on — `DENY`,
   `ALLOWED`, a rule in frontmatter, an HTML block, math or a link with a target, a permission the parser refuses, or a
   page that cannot be parsed within budget — locks the page to administrators until it is fixed (the lock is logged
-  once per version); text neither old reading took for a rule (`[{Allowance}]`, a lower-case `deny`, a rule in a YAML
-  code span) stays text. Readers who may not edit the page never see a rule the wiki enforces. Profile renames and ACL
+  once per version). `DENY` locks in any case and after any whitespace (`[{deny …}]`, `[{ Deny …}]`), wherever it is
+  outside code — frontmatter, HTML, math and links included — because the same spelling of `ALLOW` is enforced. A
+  wrapped rule whose line break falls inside a name with no comma beside it (`Jane` / `Bob`: one name or two?) locks
+  too. Other text neither old reading took for a rule (`[{Allowance}]`, a rule in a YAML code span) stays text. Readers who may not edit the page never see a rule the wiki enforces. Profile renames and ACL
   rewrites now edit exactly the rules the reader found, and leave documentation examples alone (#104).
 - **A save cannot lock a page, and administrators see why a page is locked.** Every save that goes through the page
   save pipeline (the editor, REST, MCP, the importer and every other in-process writer of page text) refuses a text that

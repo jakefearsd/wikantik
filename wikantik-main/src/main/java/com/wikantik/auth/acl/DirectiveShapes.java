@@ -103,24 +103,18 @@ final class DirectiveShapes {
     }
 
     /**
-     * Whether either reading could still find a rule, decided without the render path's parse: a one-line
-     * {@code ALLOW}/{@code DENY} span anywhere, or a <code>{ALLOW</code> / <code>{DENY</code> in the body with a {@code ]},
-     * {@code )} or {@code >} somewhere after it. Every rule the render path reads is a link whose target starts so, and a
-     * link's text or destination is closed by one of those.
+     * Whether any reading could still find a rule, decided without the render path's parse: a one-line
+     * {@code ALLOW}/{@code DENY} span anywhere, or in the body a <code>{</code>, any whitespace, then {@code allow} or
+     * {@code deny} in any case, with a {@code ]}, {@code )} or {@code >} somewhere after it. Every rule the render path or
+     * the access-rule reader reads in the body is a link whose text starts so (the reader reads every case and spacing),
+     * and a link's text or destination is closed by one of those; neither reads a rule in the frontmatter.
      */
     static boolean stillReadable( final String text ) {
         if ( !AclDirectiveScanner.findAll( text, true, false ).isEmpty() ) {
             return true;
         }
-        final String body = text.substring( FrontmatterParser.bodyOffset( text ) );
-        final int first = firstOf( body, body.indexOf( "{ALLOW" ), body.indexOf( "{DENY" ) );
-        return first >= 0 && Math.max( body.lastIndexOf( ']' ), Math.max( body.lastIndexOf( ')' ), body.lastIndexOf( '>' ) ) ) > first;
-    }
-
-    private static int firstOf( final String body, final int a, final int b ) {
-        if ( a < 0 ) {
-            return b;
-        }
-        return b < 0 ? a : Math.min( a, b );
+        final int bodyStart = FrontmatterParser.bodyOffset( text );
+        final int first = DirectiveCandidates.firstDirective( text, bodyStart, text.length() );
+        return first >= 0 && Math.max( text.lastIndexOf( ']' ), Math.max( text.lastIndexOf( ')' ), text.lastIndexOf( '>' ) ) ) > first;
     }
 }

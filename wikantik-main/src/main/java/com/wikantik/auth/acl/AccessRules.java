@@ -58,12 +58,14 @@ import java.util.regex.Pattern;
  *   <li>A candidate's region decides first ({@link Shape#IN_FRONTMATTER}, code, {@link Shape#IN_MATH},
  *       {@link Shape#IN_HTML_BLOCK}, {@link Shape#LINK_WITH_TARGET}, {@link Shape#ESCAPED}), then its spelling
  *       ({@link Shape#DENY}, {@link Shape#ALLOW_PREFIXED_WORD}, {@link Shape#BAD_PERMISSION}, {@link Shape#WRAPPED},
- *       {@link Shape#LEADING_SPACE}, {@link Shape#CASE_VARIANT}). A candidate in code, in a disputed region, or spelled
- *       {@code DENY} or with an {@code ALLOW}-prefixed word is literal text — no span at all — when neither old reading
- *       took it for a rule ({@code [{Allowance}]}, a lower-case {@code deny}, a rule in a YAML code span): the page was
- *       open under both, and nothing tells it apart from prose.</li>
+ *       {@link Shape#LEADING_SPACE}, {@link Shape#CASE_VARIANT}). {@code DENY} in any case, after any whitespace, is
+ *       {@link Shape#DENY} wherever it is outside code — frontmatter, HTML, math and links included: a rule spelled so is
+ *       enforced for {@code ALLOW}, so the same spelling of {@code DENY} may not be ignored. Any other candidate in code,
+ *       in a disputed region, or with a longer first word ({@code ALLOWED}, {@code Denylist}) is literal text — no span
+ *       at all — when neither old reading took it for a rule ({@code [{Allowance}]}, a rule in a YAML code span): the
+ *       page was open under both, and nothing tells it apart from prose.</li>
  *   <li>A rule shape is read from its label as the render parse sees it (a blockquote's continuation markers left
- *       out). A clean spelling is {@link Shape#CANONICAL} only where both old readings take it for the same rule over
+ *       out); a wrapped one whose line break falls inside a name, with no comma beside it, is {@link Shape#WRAPPED_NAME}. A clean spelling is {@link Shape#CANONICAL} only where both old readings take it for the same rule over
  *       the same span; any rule shape whose span the parse does not see as one label is {@link Shape#UNREADABLE}.</li>
  * </ul>
  * A text with no <code>{allow</code> or <code>{deny</code> (any case, any whitespace after the brace) is not parsed.
@@ -78,6 +80,11 @@ public final class AccessRules {
         CANONICAL,
         /** Runs over more than one line (no blank line): only the render path read it. */
         WRAPPED,
+        /**
+         * Wrapped, with a line break inside a name, no comma beside it ({@code [{ALLOW edit Jane\n Bob}]}): the lines
+         * joined say "Jane Bob", one name, where the author may have meant two.
+         */
+        WRAPPED_NAME,
         /** The keyword or the permission is not in its canonical case ({@code allow}, {@code VIEW}). */
         CASE_VARIANT,
         /** Whitespace between the brace and the keyword: only the text scan read it. */
@@ -206,8 +213,32 @@ public final class AccessRules {
      * @return the reading of its access rules; never {@code null}
      */
     public static Reading read( final String fullText ) {
+        final Parsed parsed = parse( fullText );
+        if ( parsed.unreadable() != null ) {
+            // The text becomes a lock (administrators only) that names this reason; DefaultAclManager also warns once per
+            // page version, with the page's name, which this reader is not given.
+            LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them; "
+                    + "the page locks to administrators: {}", fullText.length(), parsed.unreadable().getMessage() );
+        }
+        return parsed.reading();
+    }
+
+    /**
+     * What one render-path parse of a text gives: the reading, and the render path's own rules, for
+     * {@link AclDirectiveText}, which hides both and so parses each text once, not twice.
+     *
+     * @param reading     what {@link #read} returns
+     * @param renderRules the rules the render path reads ({@link RenderPathAccessRules#find}); empty when the text is
+     *                    unreadable
+     * @param unreadable  why the text cannot be read the way the renderer reads it; {@code null} when it can
+     */
+    record Parsed( Reading reading, List< RenderPathAccessRules.Rule > renderRules, RenderPathAccessRules.Unreadable unreadable ) {
+    }
+
+    /** {@link #read}, without its warning, with the render path's rules from the same parse. */
+    static Parsed parse( final String fullText ) {
         if ( fullText == null || !DirectiveCandidates.mayHoldDirective( fullText, 0, fullText.length() ) ) {
-            return NONE;
+            return new Parsed( NONE, List.of(), null );
         }
         final int bodyStart = FrontmatterParser.bodyOffset( fullText );
         final TreeMap< Integer, Integer > candidates = DirectiveCandidates.find( fullText, bodyStart );
@@ -217,20 +248,16 @@ public final class AccessRules {
         }
         if ( !DirectiveCandidates.mayHoldDirective( fullText, bodyStart, fullText.length() ) ) {
             // Only the frontmatter holds anything directive-shaped: no body to parse.
-            return reading( fullText, unparsed( candidates, bodyStart, scanned ), start -> {
+            return new Parsed( reading( fullText, unparsed( fullText, candidates, bodyStart, scanned ), start -> {
                 throw new IllegalStateException( "an unparsed text holds no rule span" );
-            } );
+            } ), List.of(), null );
         }
         PARSES.incrementAndGet();
         final RenderPathAccessRules.Structure structure;
         try {
             structure = RenderPathAccessRules.structure( fullText );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
-            // The text becomes a lock (administrators only) that names this reason; DefaultAclManager also warns once per
-            // page version, with the page's name, which this reader is not given.
-            LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them; "
-                    + "the page locks to administrators: {}", fullText.length(), e.getMessage() );
-            return unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() );
+            return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e );
         }
         for ( final RenderPathAccessRules.Rule rule : structure.rules() ) {
             candidates.putIfAbsent( rule.start(), rule.end() );
@@ -243,7 +270,7 @@ public final class AccessRules {
                 spans.add( new Span( candidate.getKey(), candidate.getValue(), shape ) );
             }
         }
-        return reading( fullText, spans, classifier::ruleLine );
+        return new Parsed( reading( fullText, spans, classifier::ruleLine ), structure.rules(), null );
     }
 
     /** @param ruleLines the canonical rule line of a rule span, by its start */
@@ -263,7 +290,7 @@ public final class AccessRules {
 
     private static Locked unreadable( final String text, final int bodyStart, final TreeMap< Integer, Integer > candidates,
                                       final Map< Integer, Integer > scanned, final String why ) {
-        final List< Span > spans = unparsed( candidates, bodyStart, scanned );
+        final List< Span > spans = unparsed( text, candidates, bodyStart, scanned );
         final Integer firstInBody = candidates.ceilingKey( bodyStart );
         final String reason = "the page text cannot be read the way the renderer reads it: " + why;
         final List< Reason > reasons = new ArrayList<>();
@@ -274,16 +301,21 @@ public final class AccessRules {
 
     /**
      * The spans of a text whose body is not parsed: a frontmatter candidate the text scan read is
-     * {@link Shape#IN_FRONTMATTER} (one it did not read is literal text, no span), a body candidate {@link Shape#UNREADABLE}.
+     * {@link Shape#IN_FRONTMATTER}, one spelled {@code DENY} outside the text scan's code is {@link Shape#DENY} (any other
+     * is literal text, no span), a body candidate {@link Shape#UNREADABLE}.
      */
-    private static List< Span > unparsed( final TreeMap< Integer, Integer > candidates, final int bodyStart,
+    private static List< Span > unparsed( final String text, final TreeMap< Integer, Integer > candidates, final int bodyStart,
                                           final Map< Integer, Integer > scanned ) {
         final List< Span > spans = new ArrayList<>( candidates.size() );
+        final EnforcedAclDirectives.CodeRegions code = new EnforcedAclDirectives.CodeRegions( text );
         for ( final Map.Entry< Integer, Integer > candidate : candidates.entrySet() ) {
-            if ( candidate.getKey() >= bodyStart ) {
-                spans.add( new Span( candidate.getKey(), candidate.getValue(), Shape.UNREADABLE ) );
-            } else if ( scanned.containsKey( candidate.getKey() ) ) {
-                spans.add( new Span( candidate.getKey(), candidate.getValue(), Shape.IN_FRONTMATTER ) );
+            final int start = candidate.getKey();
+            if ( start >= bodyStart ) {
+                spans.add( new Span( start, candidate.getValue(), Shape.UNREADABLE ) );
+            } else if ( scanned.containsKey( start ) ) {
+                spans.add( new Span( start, candidate.getValue(), Shape.IN_FRONTMATTER ) );
+            } else if ( DirectiveSpelling.isDeny( text, start, candidate.getValue() ) && !code.contains( start ) ) {
+                spans.add( new Span( start, candidate.getValue(), Shape.DENY ) );
             }
         }
         return spans;
@@ -341,6 +373,12 @@ public final class AccessRules {
         private final int bodyStart;
         private final LineCounter lines;
         private final int bodyFirstLine;
+        /** Start of the next frontmatter line {@link #fieldAt} has not looked at yet. */
+        private int fieldLineStart;
+        /** Start of the last line it looked at. */
+        private int lastFieldLine = -1;
+        /** The key of the nearest line before {@link #fieldLineStart} that has one; {@code null} when none has. */
+        private String field;
 
         /** @param text a page text, frontmatter included */
         Places( final String text ) {
@@ -363,20 +401,31 @@ public final class AccessRules {
             return new Reason( shape, lines.lineOf( Math.min( offset, text.length() ) ) - bodyFirstLine + 1, null, what );
         }
 
-        /** The top-level key of the frontmatter line holding {@code offset}, or of the nearest line above it that has one. */
+        /**
+         * The top-level key of the frontmatter line holding {@code offset}, or of the nearest line above it that has one.
+         * The lines are read once, top down, across ascending offsets: a field that holds many spans is not re-read for
+         * each of them (that would cost the square of the frontmatter).
+         */
         private String fieldAt( final int offset ) {
-            int lineStart = text.lastIndexOf( '\n', offset - 1 ) + 1;
-            while ( true ) {
-                final int newline = text.indexOf( '\n', lineStart );
-                final Matcher key = FIELD.matcher( text ).region( lineStart, newline < 0 ? text.length() : newline );
-                if ( key.lookingAt() ) {
-                    return key.group( 1 ) != null ? key.group( 1 ) : key.group( 2 ) != null ? key.group( 2 ) : key.group( 3 );
+            if ( offset < fieldLineStart ) {
+                if ( offset >= lastFieldLine ) {
+                    return field;           // on the line read last
                 }
-                if ( lineStart == 0 ) {
-                    return null;
-                }
-                lineStart = text.lastIndexOf( '\n', lineStart - 2 ) + 1;
+                fieldLineStart = 0;
+                field = null;
             }
+            final Matcher key = FIELD.matcher( text );
+            while ( fieldLineStart <= offset && fieldLineStart < text.length() ) {
+                final int newline = text.indexOf( '\n', fieldLineStart );
+                final int lineEnd = newline < 0 ? text.length() : newline;
+                key.region( fieldLineStart, lineEnd );
+                if ( key.lookingAt() ) {
+                    field = key.group( 1 ) != null ? key.group( 1 ) : key.group( 2 ) != null ? key.group( 2 ) : key.group( 3 );
+                }
+                lastFieldLine = fieldLineStart;
+                fieldLineStart = lineEnd + 1;
+            }
+            return field;
         }
     }
 

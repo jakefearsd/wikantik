@@ -48,7 +48,9 @@ final class DirectiveSpelling {
         int i = start + OPENER.length();
         final boolean leadingSpace = i < end && Character.isWhitespace( text.charAt( i ) );
         i = DirectiveCandidates.skipWhitespace( text, i, end );
-        final int keywordEnd = wordEnd( text, i, end );
+        // One character past ALLOW tells every keyword apart; scanning further would make overlapping candidates
+        // (openers that share one closer, with no whitespace after them) cost the square of the text.
+        final int keywordEnd = wordEnd( text, i, Math.min( end, i + ALLOW.length() + 1 ) );
         final String keyword = text.substring( i, keywordEnd );
         if ( keyword.regionMatches( true, 0, DENY, 0, DENY.length() ) ) {
             return Shape.DENY;
@@ -78,6 +80,46 @@ final class DirectiveSpelling {
             return Shape.LEADING_SPACE;
         }
         return caseVariant ? Shape.CASE_VARIANT : null;
+    }
+
+    /**
+     * Whether the span {@code text[start, end)} is spelled {@code DENY}: its first word, after the opener and any
+     * whitespace, is {@code deny} in any case and nothing longer ({@code [{Denylist}]} is not).
+     */
+    static boolean isDeny( final String text, final int start, final int end ) {
+        final int i = DirectiveCandidates.skipWhitespace( text, start + OPENER.length(), end );
+        if ( !text.regionMatches( true, i, DENY, 0, DENY.length() ) ) {
+            return false;
+        }
+        final int after = i + DENY.length();
+        return after >= end || Character.isWhitespace( text.charAt( after ) ) || text.charAt( after ) == '}';
+    }
+
+    /**
+     * Whether a wrapped rule line breaks a line inside a name: a line end among the principals with no comma right before
+     * or right after it ({@code Jane\n Bob}). Joined, that is the one name "Jane Bob", where the author may have meant
+     * two; a break beside a comma ({@code Jane,\n Bob}) is plain.
+     *
+     * @param ruleLine a rule line without its braces, as the parse reads it (a blockquote's markers left out)
+     * @return {@code true} when a line break splits a name
+     */
+    static boolean splitsAName( final String ruleLine ) {
+        final String line = ruleLine.strip();
+        final int keywordEnd = nonSpaceEnd( line, 0 );
+        final int permissionEnd = nonSpaceEnd( line, DirectiveCandidates.skipWhitespace( line, keywordEnd, line.length() ) );
+        int i = DirectiveCandidates.skipWhitespace( line, permissionEnd, line.length() );
+        while ( i < line.length() ) {
+            if ( !Character.isWhitespace( line.charAt( i ) ) ) {
+                i++;
+                continue;
+            }
+            final int runEnd = DirectiveCandidates.skipWhitespace( line, i, line.length() );
+            if ( hasLineTerminator( line, i, runEnd ) && line.charAt( i - 1 ) != ',' && line.charAt( runEnd ) != ',' ) {
+                return true;
+            }
+            i = runEnd;
+        }
+        return false;
     }
 
     /**

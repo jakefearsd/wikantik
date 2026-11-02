@@ -284,6 +284,42 @@ class AclDirectiveTextTest {
 
     // ---- running time
 
+    static Stream< AclDirectiveFixtures.Shaped > adversarial() {
+        return AclDirectiveFixtures.ADVERSARIAL.stream();
+    }
+
+    /** Stripping runs the access-rule reader every round, so the reader's linear time is stripping's too. */
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "adversarial" )
+    void aTextBuiltToMakeAPerSpanScanQuadraticIsStrippedInLinearTime( final AclDirectiveFixtures.Shaped row ) {
+        AclDirectiveText.strip( "[{allow view warm}] x" );    // class loading and the parser's first use are not the cost
+        assertTimeoutPreemptively( Duration.ofSeconds( 1 ), () -> AclDirectiveText.strip( row.text() ) );
+    }
+
+    /** One render-path parse a round feeds both the render path's rules and the access-rule reader. */
+    @Test
+    void eachRoundParsesTheTextOnce() {
+        final String example = "Write `[{ALLOW view Bob}]` to restrict a page.\n";
+        final long before = RenderPathAccessRules.parses();
+        assertEquals( example, AclDirectiveText.strip( "[{ALLOW view Admin}]\n" + example ) );
+        assertEquals( 2, RenderPathAccessRules.parses() - before,
+                "a round that removes the rule, a round that keeps the example: one parse each" );
+    }
+
+    /** The fail-closed check knows every spelling the reader reads as a rule: any case, any whitespace after the brace. */
+    @Test
+    void theFailClosedCheckFindsARuleInAnyCase() {
+        for ( final String text : List.of( "[{allow view Bob}]", "[{ Allow view Bob}]", "x [{\tdeny edit Bob}] y", "[{aLLoW view Bob}]()" ) ) {
+            assertTrue( DirectiveShapes.stillReadable( text ), text );
+        }
+        for ( final AclDirectiveFixtures.Shaped row : AclDirectiveFixtures.SHAPES ) {
+            if ( AccessRules.read( row.text() ).spans().stream().anyMatch( span -> AccessRules.isRule( span.shape() ) ) ) {
+                assertTrue( DirectiveShapes.stillReadable( row.text() ), row.name() );
+            }
+        }
+        assertFalse( DirectiveShapes.stillReadable( "Plain [{TableOfContents}] text, {allow} and no closer" ) );
+    }
+
     @Test
     void shapesThatBrokeTheOriginalExpressionCostNothing() {
         final String spaces = "[{ALLOW edit" + " ".repeat( 200_000 ) + "x";
@@ -377,6 +413,12 @@ class AclDirectiveTextTest {
     @MethodSource( "everyFixtureText" )
     void noSpanTheAccessRuleReaderEnforcesSurvivesStripping( final String label, final String text ) {
         assertNothingEnforced( AclDirectiveText.strip( text ) );
+    }
+
+    /** A wrapped rule locked for a line break inside a name still names people: it is hidden as a rule would be. */
+    @Test
+    void aWrappedRuleLockedForASplitNameIsHiddenToo() {
+        assertEquals( "Body.\n", AclDirectiveText.strip( "[{allow edit Jane\n Bob}]\nBody.\n" ) );
     }
 
     /** The access-rule reader ({@link AccessRules}, what the wiki enforces) reads no rule in {@code out}. */

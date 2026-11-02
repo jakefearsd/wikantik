@@ -183,6 +183,17 @@ describe('blocksFromMarkdown', () => {
     expect(blocksFromMarkdown('[Link]()\n').map((b) => b.kind)).toEqual(['paragraph']);
   });
 
+  it('reads `allow` in any case as the server does, and a lower-case `deny` or `Allowance` as text', () => {
+    // The server's reader enforces (and strips) a rule whose keyword is `allow` in any case; a lower-case `deny` locks
+    // the page instead (it is not stripped), and a longer word is a plugin name or prose.
+    expect(blocksFromMarkdown('[{allow view Admin}]\n\nText\n').map((b) => b.text)).toEqual(['Text']);
+    expect(blocksFromMarkdown('[{ Allow VIEW Admin}]()\n[{aLLoW edit Bob}]\n').length).toBe(0);
+    expect(ids('Para.\n\n[{allow view Admin}] ^id\n')).toEqual(['id']);
+    expect(blocksFromMarkdown('Third [{allow edit Admin}] bit.\n').map((b) => b.text)).toEqual(['Third  bit.']);
+    expect(blocksFromMarkdown('[{deny view Admin}]\n\nText\n').length).toBe(2);
+    expect(blocksFromMarkdown('[{Allowance}]\n\nText\n').length).toBe(2);
+  });
+
   it('reads access rules and one marker as the standalone marker the render sees once the rules are stripped', () => {
     const md = 'Para.\n\n[{ALLOW view Admin}] ^id\n\nAfter.\n';
     const blocks = blocksFromMarkdown(md);

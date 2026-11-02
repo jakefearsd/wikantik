@@ -110,6 +110,55 @@ class AccessRuleShapeCheckTest {
                 () -> assertThrows( AccessRuleShapeException.class, () -> save( text ) ) );
     }
 
+    /**
+     * Overlapping disputed spans (each opener to the one shared closer) may not cost a copy of the text each: that is the
+     * square of the text in memory. Lower-case openers are spans of their own, unlike the upper-case ones above.
+     */
+    @ParameterizedTest( name = "{0}" )
+    @ValueSource( strings = { "[{deny edit alice ", "[{allow edit alice " } )
+    void manyLowerCaseOpenersSharingOneCloserAreRefusedQuickly( final String opener ) {
+        final String text = opener.repeat( 40_000 ) + "\nx}]";
+        AccessRules.read( "[{allow view warm}] x" );
+        assertTimeoutPreemptively( Duration.ofSeconds( 10 ),
+                () -> assertThrows( AccessRuleShapeException.class, () -> save( text ) ) );
+    }
+
+    /** A page whose overlapping disputed spans are all already stored may still be saved with other changes. */
+    @Test
+    void overlappingDisputedSpansAlreadyStoredMayStay() {
+        final String spans = "[{deny edit a [{deny edit b}] and [{deny view c}]";
+        stored.put( PAGE, "Old intro.\n\n" + spans + "\n" );
+        assertDoesNotThrow( () -> save( "New intro, longer.\n\n" + spans + "\n\nMore.\n" ) );
+        assertThrows( AccessRuleShapeException.class,
+                () -> save( "New intro.\n\n[{deny edit a [{deny edit B}] and [{deny view c}]\n" ) );
+    }
+
+    @Test
+    void aLowerCaseDenyIsRefused() {
+        final AccessRuleShapeException e = assertThrows( AccessRuleShapeException.class,
+                () -> save( "[{allow view a}] [{deny view Bob}]\n" ) );
+        assertEquals( List.of( "DENY" ), e.violations().stream().map( AccessRuleShapeException.Violation::shape ).toList() );
+    }
+
+    /** A line break that splits a name is refused, and the refusal says how to write the rule instead. */
+    @Test
+    void aWrappedRuleWhoseLineBreakSplitsANameIsRefusedWithTheFix() {
+        final AccessRuleShapeException e = assertThrows( AccessRuleShapeException.class,
+                () -> save( "[{ALLOW edit Jane\n Bob}]\n\nBody.\n" ) );
+        final AccessRuleShapeException.Violation v = e.violations().get( 0 );
+        assertEquals( "WRAPPED_NAME", v.shape() );
+        assertTrue( v.message().contains( "one name or two" ), v.message() );
+        assertTrue( v.message().contains( "comma" ), v.message() );
+    }
+
+    /** Every shape that locks a page has its own explanation, and no shape that does not lock keeps one. */
+    @Test
+    void everyDisputedShapeAndOnlyThoseHaveAReason() {
+        for ( final AccessRules.Shape shape : AccessRules.Shape.values() ) {
+            assertEquals( AccessRules.disputed( shape ), AccessRuleShapeCheck.WHY.containsKey( shape ), shape.name() );
+        }
+    }
+
     @Test
     void anUnchangedDisputedSpanMayStayWhileTheRestOfThePageIsEdited() {
         stored.put( PAGE, "Intro.\n\n[{DENY view Bob}]\n\nOld body.\n" );

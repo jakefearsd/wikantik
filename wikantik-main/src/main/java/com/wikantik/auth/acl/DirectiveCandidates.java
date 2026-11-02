@@ -124,14 +124,22 @@ final class DirectiveCandidates {
      * any case — the cheap test that lets a text with no directive skip parsing.
      */
     static boolean mayHoldDirective( final String text, final int from, final int to ) {
+        return firstDirective( text, from, to ) >= 0;
+    }
+
+    /**
+     * @return the offset of the first <code>{</code> in {@code text[from, to)} that any whitespace and then {@code allow}
+     *         or {@code deny} in any case follow; {@code -1} when there is none
+     */
+    static int firstDirective( final String text, final int from, final int to ) {
         int brace = text.indexOf( '{', from );
         while ( brace >= 0 && brace < to ) {
             if ( keywordShaped( text, skipWhitespace( text, brace + 1, to ) ) ) {
-                return true;
+                return brace;
             }
             brace = text.indexOf( '{', brace + 1 );
         }
-        return false;
+        return -1;
     }
 
     private static boolean keywordShaped( final String text, final int at ) {

@@ -141,7 +141,7 @@ public final class AclShapeAuditCli {
         try {
             uri = new URI( url );
         } catch ( final URISyntaxException e ) {
-            LOG.debug( "AclShapeAuditCli: --url does not parse at index {}", e.getIndex() );   // never echo it: userinfo
+            LOG.warn( "AclShapeAuditCli: --url does not parse at index {}", e.getIndex() );   // never echo it: userinfo
             return "--url is not a valid URL";
         }
         if ( uri.getRawUserInfo() != null ) {

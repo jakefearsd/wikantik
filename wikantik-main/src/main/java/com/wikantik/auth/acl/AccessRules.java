@@ -214,12 +214,6 @@ public final class AccessRules {
      */
     public static Reading read( final String fullText ) {
         final Parsed parsed = parse( fullText );
-        if ( parsed.unreadable() != null ) {
-            // The text becomes a lock (administrators only) that names this reason; DefaultAclManager also warns once per
-            // page version, with the page's name, which this reader is not given.
-            LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them; "
-                    + "the page locks to administrators: {}", fullText.length(), parsed.unreadable().getMessage() );
-        }
         return parsed.reading();
     }
 
@@ -257,8 +251,10 @@ public final class AccessRules {
         try {
             structure = RenderPathAccessRules.structure( fullText );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
-            LOG.debug( "Access rules of a {}-char text are unreadable as the renderer reads them: {}", fullText.length(),
-                    e.getMessage() );
+            // One warning per parse: the single place both read() and AclDirectiveText arrive, so neither double-logs.
+            // The text becomes a lock (administrators only); DefaultAclManager also warns once per page version, by name.
+            LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them; "
+                    + "the page locks to administrators: {}", fullText.length(), e.getMessage() );
             return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e );
         }
         for ( final RenderPathAccessRules.Rule rule : structure.rules() ) {

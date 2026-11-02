@@ -111,7 +111,7 @@ final class AclShapeAudit {
         try {
             return acl( RenderPathAccessRules.find( text ).stream().map( RenderPathAccessRules.Rule::ruleLine ).toList() );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
-            LOG.debug( "AclShapeAudit: the old render reading cannot read a {}-char text: {}", text.length(), e.getMessage() );
+            LOG.warn( "AclShapeAudit: the old render reading cannot read a {}-char text: {}", text.length(), e.getMessage() );
             return UNREADABLE;
         }
     }

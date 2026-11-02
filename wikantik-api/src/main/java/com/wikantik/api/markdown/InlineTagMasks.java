@@ -51,14 +51,16 @@ final class InlineTagMasks {
             + "section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[\\s>]|/>|$).*" );
     /** Anchored at the start of a non-space run: same matches as {@code \S+://\S+}, one attempt per run. */
     private static final Pattern URL = Pattern.compile( "(?<!\\S)\\S+://\\S+" );
+    private static final Pattern BLANK_LINE = Pattern.compile( "\\n[ \\t]*\\n" );
     private InlineTagMasks() {
     }
 
-    /** Blanks HTML (blocks, comments, tags), links (text included), wikilinks and URLs. */
+    /** Blanks HTML (blocks, comments, tags), plugins and access rules, links (text included), wikilinks and URLs. */
     static void blankMarkup( final StringBuilder sb ) {
         blankHtmlBlocks( sb );
         blankMatches( sb, HTML_COMMENT );
         blankMatches( sb, HTML_TAG );
+        blankPluginSyntax( sb );
         blankLinks( sb );
         blankMatches( sb, WIKILINK );
         blankMatches( sb, URL );
@@ -112,6 +114,40 @@ final class InlineTagMasks {
             pos = eol + 1;
         }
         return s.length();
+    }
+
+    /**
+     * Every <code>[{…}]</code> (a plugin, an access rule, a variable): the render makes each a link whose text is never a
+     * tag (a plugin's output replaces it, a rule is removed). The same reading as the render's
+     * {@code (\[\{[^}]+\}\])}, the leftmost opener to the first closer after it, scanned in linear time; a span that holds
+     * a blank line is not one, as no link runs across a paragraph break.
+     */
+    private static void blankPluginSyntax( final StringBuilder sb ) {
+        int from = 0;
+        while ( true ) {
+            final int opener = sb.indexOf( "[{", from );
+            if ( opener < 0 ) {
+                return;
+            }
+            final int brace = sb.indexOf( "}", opener + 2 );
+            if ( brace < 0 ) {
+                return;
+            }
+            if ( brace == opener + 2 || brace + 1 >= sb.length() || sb.charAt( brace + 1 ) != ']' ) {
+                from = brace + 1; // every opener before this brace stops at it too
+                continue;
+            }
+            if ( BLANK_LINE.matcher( sb.subSequence( opener, brace ) ).find() ) {
+                from = opener + 2; // a later opener, past the blank line, may still close here
+                continue;
+            }
+            for ( int i = opener; i <= brace + 1; i++ ) {
+                if ( sb.charAt( i ) != '\n' ) {
+                    sb.setCharAt( i, ' ' );
+                }
+            }
+            from = brace + 2;
+        }
     }
 
     /** Link text and destination together, for inline links, defined reference links and defined shortcut references. */

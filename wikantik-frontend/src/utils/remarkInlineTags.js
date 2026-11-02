@@ -18,6 +18,27 @@ const SKIP = new Set(['inlineCode', 'code', 'math', 'inlineMath', 'link', 'linkR
 // (a heading only reaches here when it is setext: its text is prose and starts a line)
 const LINE_START_PARENTS = new Set(['paragraph', 'tableCell', 'heading']);
 
+/**
+ * The `[{…}]` spans of a text (a plugin, an access rule, a variable): the reader makes each a link whose text is never a
+ * tag. The server's reading (`InlineTagMasks`): the leftmost opener to the first `}` after it, when `]` follows.
+ */
+function pluginSpans(value) {
+  const spans = [];
+  let from = 0;
+  for (;;) {
+    const opener = value.indexOf('[{', from);
+    if (opener < 0) return spans;
+    const brace = value.indexOf('}', opener + 2);
+    if (brace < 0) return spans;
+    if (brace === opener + 2 || value[brace + 1] !== ']') {
+      from = brace + 1;
+    } else {
+      spans.push([opener, brace + 2]);
+      from = brace + 2;
+    }
+  }
+}
+
 function tagNode(written) {
   return {
     type: 'inlineTag',
@@ -47,8 +68,10 @@ function split(node, atLineStart, source) {
   }
   const out = [];
   let last = 0;
+  const plugins = value.includes('[{') ? pluginSpans(value) : [];
   for (const m of value.matchAll(TAG)) {
     if (!HAS_NON_DIGIT.test(m[1])) continue;
+    if (plugins.some(([a, b]) => m.index >= a && m.index < b)) continue;
     if (m.index === 0 && !atLineStart) continue;
     if (m.index > last) out.push({ type: 'text', value: value.slice(last, m.index) });
     out.push(tagNode(m[1]));

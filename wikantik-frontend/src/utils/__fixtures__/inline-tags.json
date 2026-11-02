@@ -29,5 +29,7 @@
   {"name": "a heading inside a blockquote", "markdown": "> ## H #x", "html": "<blockquote><h2>H #x</h2></blockquote>", "tags": []},
   {"name": "a heading inside a list item", "markdown": "- # H #x", "html": "<ul><li><h1>H #x</h1></li></ul>", "tags": []},
   {"name": "a table cell starts a tag", "markdown": "| a |\n| - |\n|#foo|", "html": "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td><a class=\"tag inline-tag\" href=\"/search?tag=foo\">#foo</a></td></tr></tbody></table>", "tags": ["foo"]},
-  {"name": "inside a defined reference link text", "markdown": "[see #foo][r]\n\n[r]: http://e.com", "noTag": true, "tags": []}
+  {"name": "inside a defined reference link text", "markdown": "[see #foo][r]\n\n[r]: http://e.com", "noTag": true, "tags": []},
+  {"name": "inside a plugin's text", "markdown": "[{NoSuchPlugin #x}]", "noTag": true, "tags": []},
+  {"name": "inside an access rule", "markdown": "Prose.\n[{ALLOW edit Admin #x}]", "noTag": true, "tags": []}
 ]

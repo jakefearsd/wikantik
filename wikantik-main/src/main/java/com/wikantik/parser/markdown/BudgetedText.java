@@ -29,6 +29,11 @@ package com.wikantik.parser.markdown;
  * ({@link MarkdownParser}, which falls back to a parse without attributes). The budget is {@link #BUDGET_BASE} plus
  * {@link #BUDGET_PER_CHAR} reads per character; the repo page corpus needs at most about 11 per character (asserted by
  * {@code MarkdownParserRenderBudgetTest#repoCorpusNeverExhaustsTheBudget}).
+ *
+ * <p><b>Disarm it once the parse returns.</b> Every node of the parsed document reads its characters through this text,
+ * so a document that is kept (the render caches keep it for an hour) would otherwise keep spending the parse's budget on
+ * every render, and stop rendering after a few hundred views. {@link #disarm()} ends the counting for this text and every
+ * subsequence of it.
  */
 public final class BudgetedText implements CharSequence {
 
@@ -39,15 +44,24 @@ public final class BudgetedText implements CharSequence {
     static final int BUDGET_BASE = 4_000_000;
 
     private final String text;
-    private final long[] reads;
-    private final long budget;
+    private final Meter meter;
     private final int from;
     private final int to;
 
-    private BudgetedText( final String text, final long[] reads, final long budget, final int from, final int to ) {
+    /** The count and the budget one text and all its subsequences share. */
+    private static final class Meter {
+        private final long budget;
+        private long reads;
+        private boolean armed = true;
+
+        Meter( final long budget ) {
+            this.budget = budget;
+        }
+    }
+
+    private BudgetedText( final String text, final Meter meter, final int from, final int to ) {
         this.text = text;
-        this.reads = reads;
-        this.budget = budget;
+        this.meter = meter;
         this.from = from;
         this.to = to;
     }
@@ -58,7 +72,7 @@ public final class BudgetedText implements CharSequence {
      * @return a counting view of {@code text}
      */
     public static BudgetedText of( final String text, final long budget ) {
-        return new BudgetedText( text, new long[ 1 ], budget, 0, text.length() );
+        return new BudgetedText( text, new Meter( budget ), 0, text.length() );
     }
 
     /**
@@ -69,15 +83,26 @@ public final class BudgetedText implements CharSequence {
         return BUDGET_BASE + ( long ) BUDGET_PER_CHAR * length;
     }
 
-    /** @return character reads made so far across this text and all its subsequences */
+    /** @return character reads made so far across this text and all its subsequences, until {@link #disarm()} */
     public long reads() {
-        return reads[ 0 ];
+        return meter.reads;
+    }
+
+    /**
+     * Stops counting, for this text and every subsequence of it: from now on it reads like the plain text. Call it once
+     * the parse has returned, so a kept document renders as often as it is asked to.
+     */
+    public void disarm() {
+        meter.armed = false;
     }
 
     private void count( final long n ) {
-        reads[ 0 ] += n;
-        if ( reads[ 0 ] > budget ) {
-            throw new Exhausted( budget );
+        if ( !meter.armed ) {
+            return;
+        }
+        meter.reads += n;
+        if ( meter.reads > meter.budget ) {
+            throw new Exhausted( meter.budget );
         }
     }
 
@@ -94,7 +119,7 @@ public final class BudgetedText implements CharSequence {
 
     @Override
     public CharSequence subSequence( final int start, final int end ) {
-        return new BudgetedText( text, reads, budget, from + start, from + end );
+        return new BudgetedText( text, meter, from + start, from + end );
     }
 
     @Override

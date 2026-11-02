@@ -27,6 +27,7 @@ import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.wikantik.markdown.extensions.fences.RenderedFenceRegistry;
 import com.wikantik.markdown.extensions.fences.RenderedFenceScanner;
 import com.wikantik.api.core.Context;
+import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -87,7 +88,8 @@ public class MarkdownParser extends MarkupParser {
         // math blocks become ```math fences for the GitLab extension (one place: RenderPathAccessRules reads the same)
         // Obsidian %%comments%% are not reader text: removed first (newlines kept), so nothing in one is parsed, linked or
         // budgeted. The access-rule reader does not go through here; it reads the stored text.
-        final String body = MarkdownBodySource.prepare( ObsidianComments.strip( parsed.body() ) ).text();
+        final String readerBody = ObsidianComments.strip( parsed.body() );
+        final String body = MarkdownBodySource.prepare( readerBody ).text();
 
         // Collect links from a clean AST (before JSPWiki post-processors modify URLs)
         collectLinks( body );
@@ -101,7 +103,7 @@ public class MarkdownParser extends MarkupParser {
         final Node document;
         RenderDepth.enter();
         try {
-            document = parseBounded( body );
+            document = parseBounded( body, readerBody );
         } finally {
             RenderDepth.leave();
         }
@@ -114,23 +116,45 @@ public class MarkdownParser extends MarkupParser {
     /**
      * Parses {@code body} through a read budget ({@link BudgetedText}). A crafted body can make the attributes
      * extension's expression quadratic or overflow the stack, so on exhaustion (or any parse failure) it is parsed again
-     * without that extension (cosmetic only), and if that fails too the body is shown as escaped preformatted text.
-     * The fallback is a pure function of the text, so the render caches keep it.
+     * without that extension (cosmetic only), and if that fails too {@code readerBody} is shown as escaped preformatted
+     * text, without its access rules.
+     *
+     * <p>A parse that returns has its budget disarmed: the document's nodes read their characters through the
+     * {@link BudgetedText}, and a cached document is rendered again on every view that misses the HTML cache.
+     *
+     * <p>A fallback forced by the budget is a pure function of the text, so the render caches keep it. One forced by a
+     * {@link StackOverflowError} is not: how much stack is left depends on how deeply the render is nested (an embed, an
+     * {@code InsertPage}), so that render is marked {@link Context#VAR_VIEWER_SENSITIVE} and never cached.
      */
-    private Node parseBounded( final String body ) {
+    private Node parseBounded( final String body, final String readerBody ) {
         try {
-            return parser.parse( BasedSequence.of( BudgetedText.of( body, BudgetedText.budgetFor( body.length() ) ) ) );
+            return budgetedParse( parser, body );
         } catch ( final RuntimeException | StackOverflowError e ) {
+            neverCacheAfter( e );
             LOG.warn( "render budget: page {} ({} chars) fell back to a parse without attributes after {}",
                     context.getPage().getName(), body.length(), e.toString() );
         }
         try {
-            return noAttributesParser().parse( BasedSequence.of( BudgetedText.of( body, BudgetedText.budgetFor( body.length() ) ) ) );
+            return budgetedParse( noAttributesParser(), body );
         } catch ( final RuntimeException | StackOverflowError e ) {
+            neverCacheAfter( e );
             LOG.warn( "render budget: page {} ({} chars) fell back to preformatted text after {}",
                     context.getPage().getName(), body.length(), e.toString() );
         }
-        return preformatted( body );
+        return preformatted( readerBody, Boolean.TRUE.equals( context.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE ) ) );
+    }
+
+    private static Node budgetedParse( final Parser parser, final String body ) {
+        final BudgetedText text = BudgetedText.of( body, BudgetedText.budgetFor( body.length() ) );
+        final Node document = parser.parse( BasedSequence.of( text ) );
+        text.disarm();
+        return document;
+    }
+
+    private void neverCacheAfter( final Throwable failure ) {
+        if ( failure instanceof StackOverflowError ) {
+            context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
+        }
     }
 
     private Parser noAttributesParser() {
@@ -140,9 +164,17 @@ public class MarkdownParser extends MarkupParser {
         return noAttributesParser;
     }
 
-    /** The body as one indented code block: nothing in it is interpreted, and the renderer escapes it. */
-    static Node preformatted( final String body ) {
-        return PLAIN.parse( "    " + body.replace( "\r\n", "\n" ).replace( "\n", "\n    " ) );
+    /**
+     * The body as one indented code block: nothing in it is interpreted, and the renderer escapes it. Like every display
+     * render, it shows no access rule ({@link AclDirectiveText}), unless the render is the WYSIWYG editor's, which renders
+     * the markup back for editing.
+     *
+     * @param body      the reader body (comments removed)
+     * @param keepRules whether to keep the access rules (the WYSIWYG editor's render only)
+     */
+    static Node preformatted( final String body, final boolean keepRules ) {
+        final String shown = keepRules ? body : AclDirectiveText.strip( body );
+        return PLAIN.parse( "    " + shown.replace( "\r\n", "\n" ).replace( "\n", "\n    " ) );
     }
 
     /**

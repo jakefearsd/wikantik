@@ -43,6 +43,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -119,10 +120,85 @@ class MarkdownParserRenderBudgetTest {
         assertEquals( afterFirst, parses.get(), "the second view of the crafted page must not re-enter the parser" );
     }
 
+    /** About 24k characters of ordinary prose, tables and links: a render reads every one of them. */
+    private static String ordinaryPage( final String marker ) {
+        final StringBuilder sb = new StringBuilder( "# " ).append( marker ).append( "\n\n" );
+        for ( int i = 0; i < 200; i++ ) {
+            sb.append( "Paragraph " ).append( i ).append( " with *emphasis*, a [link](https://example.test/" ).append( i )
+              .append( ") and `code`.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n" );
+        }
+        return sb.toString();
+    }
+
+    @Test
+    void aCachedDocumentRendersForeverAfterItsParse() throws Exception {
+        boot();
+        final String text = ordinaryPage( "RbForever" );
+        engine.saveText( "RbForever", text );
+        final Context ctx = Wiki.context().create( engine, HttpMockFactory.createHttpRequest(),
+                engine.getManager( PageManager.class ).getPage( "RbForever" ) );
+        ctx.setRequestContext( ContextEnum.PAGE_VIEW.getRequestContext() );
+        final RenderingManager rm = engine.getManager( RenderingManager.class );
+        final com.wikantik.parser.WikiDocument doc = rm.getRenderedDocument( ctx, text );
+        final String first = rm.getHTML( ctx, doc );
+        assertTrue( first.contains( "Paragraph 199" ), first );
+        for ( int i = 0; i < 2_000; i++ ) {
+            final int view = i;
+            assertEquals( first, assertDoesNotThrow( () -> rm.getHTML( ctx, doc ), "render " + view ), "render " + view );
+        }
+    }
+
+    @Test
+    void aPageWithAnEmbedRendersOnEveryViewAfterItsDocumentIsCached() throws Exception {
+        boot();
+        engine.saveText( "RbEmbedTarget", "Embedded words EMBED-MARKER.\n" );
+        final String host = "Before the embed.\n\n![[RbEmbedTarget]]\n\n" + ordinaryPage( "RbEmbedHost" );
+        String first = null;
+        for ( int i = 0; i < 2_000; i++ ) {
+            final String html = i == 0 ? view( "RbEmbedHost", host ) : viewSaved( "RbEmbedHost" );
+            if ( first == null ) {
+                first = html;
+                assertTrue( first.contains( "EMBED-MARKER" ), first );
+                assertTrue( first.contains( "Paragraph 199" ), first );
+            } else {
+                assertEquals( first, html, "view " + i );
+            }
+        }
+    }
+
+    private String viewSaved( final String name ) {
+        final Context ctx = Wiki.context().create( engine, HttpMockFactory.createHttpRequest(),
+                engine.getManager( PageManager.class ).getPage( name ) );
+        ctx.setRequestContext( ContextEnum.PAGE_VIEW.getRequestContext() );
+        return engine.getManager( RenderingManager.class ).textToHTML( ctx,
+                engine.getManager( PageManager.class ).getPureText( name, -1 ) );
+    }
+
+    @Test
+    void aFallbackAfterAStackOverflowIsNotCached() throws Exception {
+        // A stack overflow depends on how deep the render already is (a nested render has less stack), not only on the
+        // text, so its fallback must not be kept for the top-level view.
+        final String overflowing = "x {" + "a ".repeat( 20_000 ) + "}\n\nTAIL-MARKER";
+        final String html = assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> view( "RbOverflow", overflowing ) );
+        assertTrue( html.contains( "TAIL-MARKER" ), html );
+        final int afterFirst = parses.get();
+        assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> viewSaved( "RbOverflow" ) );
+        assertTrue( parses.get() > afterFirst, "a stack-overflow fallback must be parsed again, not served from the cache" );
+    }
+
+    @Test
+    void theLastResortShowsNoAccessRule() {
+        final String html = com.vladsch.flexmark.html.HtmlRenderer.builder().build()
+                .render( MarkdownParser.preformatted( "before\n[{ALLOW edit alice@example.test}]\nafter LAST-MARKER", false ) );
+        assertTrue( html.contains( "LAST-MARKER" ), html );
+        assertFalse( html.contains( "alice@example.test" ), html );
+        assertFalse( html.contains( "ALLOW" ), html );
+    }
+
     @Test
     void theLastResortIsOneEscapedPreformattedBlock() {
         final String html = com.vladsch.flexmark.html.HtmlRenderer.builder().build()
-                .render( MarkdownParser.preformatted( "# not a heading\r\n\r\n<b>raw</b> {x}" ) );
+                .render( MarkdownParser.preformatted( "# not a heading\r\n\r\n<b>raw</b> {x}", false ) );
         assertTrue( html.contains( "<pre><code># not a heading" ), html );
         assertTrue( html.contains( "&lt;b&gt;raw&lt;/b&gt; {x}" ), html );
     }

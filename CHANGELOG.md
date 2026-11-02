@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Pasted images upload as attachments.** Paste as Markdown now keeps images that arrive embedded as `data:` URIs
+  (Google Docs, Word and web copies): each PNG, JPEG, GIF or WebP becomes a page attachment named
+  `pasted-image-…`, linked at the spot where it appeared. A paste brings in at most 20 images, each image may be at
+  most 25 MiB decoded, and the whole paste at most 64 MiB. A placeholder holds each image's place until its upload
+  finishes. A failed upload removes only its own placeholder. On a page not yet saved, the uploads wait for
+  "Save and upload". SVG, `blob:`, `file:` and `cid:` images are dropped, and the toast says how many were skipped.
 - **Inline `#tags` (Obsidian).** A `#tag` in prose renders as `<a class="tag inline-tag" href="/search?tag=…">` in the
   reader and the editor preview, and counts wherever tags are found: the Lucene `tags` field, the structural index
   (`list_tags`, `list_pages_by_filter`, `/api/structure`), and the tag view `/search?tag=x` (no `q`), which lists the

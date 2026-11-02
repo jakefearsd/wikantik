@@ -124,9 +124,12 @@ public class CommentRoundTripIT {
         assertTrue( body.contains( "[{ALLOW edit Admin}]" ), "the rule survived: " + body );
         assertEquals( "Comment Round Trip", after.getAsJsonObject( "metadata" ).get( "title" ).getAsString(),
                 "the frontmatter survived" );
-        final HttpResponse< String > rawMd = send( editor, "GET", "/wiki/" + PAGE + "?format=md", "text/markdown", null );
-        assertEquals( 200, rawMd.statusCode(), rawMd.body() );
-        assertTrue( rawMd.body().contains( COMMENT ), "the editor's raw markdown still holds the comment: " + rawMd.body() );
+        // ?format=md is derived reader text for every caller (block markers and comments removed, like the
+        // edge-cached SSR page); an editor's source of truth is /api/pages, asserted above.
+        final HttpResponse< String > editorMd = send( editor, "GET", "/wiki/" + PAGE + "?format=md", "text/markdown", null );
+        assertEquals( 200, editorMd.statusCode(), editorMd.body() );
+        assertTrue( editorMd.body().contains( "Second paragraph." ), "control: the editor gets the page" );
+        assertFalse( editorMd.body().contains( "secret note" ), "?format=md is reader text, even for an editor: " + editorMd.body() );
 
         // An anonymous reader is shown the page, without the comment text, on both reader surfaces.
         final HttpResponse< String > anonApi = send( anonymous, "GET", "/api/pages/" + PAGE, "application/json", null );

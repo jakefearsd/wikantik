@@ -76,7 +76,8 @@ public class ListTagsTool extends AbstractMcpTool {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Return the tag dictionary for the wiki — one entry per tag, with the " +
-                        "page count and a sample of canonical IDs using that tag. Useful when an agent " +
+                        "page count and a sample of canonical IDs using that tag. Inline #tags in page text count " +
+                        "alongside frontmatter tags, by normalised form. Useful when an agent " +
                         "wants to discover what topics the wiki covers." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .outputSchema( outputSchema )

@@ -56,8 +56,9 @@ Any paragraph, list item, table, quote or callout can carry a short id, so anoth
 
 * Write `==text==` to highlight it; the reader shows it marked, like a highlighter pen. Mod+Shift+H wraps or unwraps the selection. The marker pair must hug the text, so `== x ==` and `a == b` stay as they are.
 * Write `%%a note%%` for a comment that readers do not see. A comment can run over several lines. Mod+/ wraps or unwraps the selection in `%%`. The editor shows comments dimmed, with their `%%` marks visible.
-* Comments are hidden from everyone who cannot edit the page: the rendered page, search, excerpts, links and backlinks, diffs, vault exports and AI agents that read the page. They are not private, though. Anyone who can edit the page sees them in the editor and in its history, so never put a secret in one. A `%%` inside code or math is never a comment marker, and a `%%` with no closing pair is shown as it is.
+* The rendered page hides comments from everyone, editors included, and so do search, excerpts, links and backlinks, and AI agents that read the page. People who cannot edit the page also do not see them in diffs, vault exports or the page source. They are not private, though: anyone who can edit the page sees them in the editor and in the source from `/api/pages`, so never put a secret in one.
 * A `%%` inside a code span, a code block, a diagram or a formula is ordinary text, and a `%%` with no closing partner is left alone.
+* **Warning:** an access rule such as `[{ALLOW view Admin}]` inside a comment still counts as a rule. The page locks to administrators, and a save that adds such a rule is refused. Commenting a rule out does not disable it: delete it, or put it in a code span.
 
 ## Inline tags
 

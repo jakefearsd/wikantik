@@ -53,10 +53,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 - **Configuration reference: wiki directive syntax in description prose is now shown as code.** Text such as
   `[{ALLOW edit Charlie}]` or `[{TableOfContents}]` in a key's description was published bare, where the wiki
-  renderer would execute it. It is now quoted as an inline code span (#106).
+  renderer would execute it. It is now quoted as an inline code span (#106). Pushing the regenerated `WikantikConfigurationReference` page to an install
+  that holds the old page also lifts that page's stray `[{ALLOW edit Charlie}]`, which had restricted its editing to
+  Charlie; its effective access changes (it becomes editable by anyone with edit rights).
 - **Markdown render cost is bounded.** A crafted `{…}` run could make the attributes extension quadratic or overflow the
   stack. The render's parse now reads through the same budget as the access-rule check; over budget, the page is
   re-parsed without attributes (and, failing that, shown as escaped preformatted text), and the result is cached (#105).
+  The parse budget is disarmed once a parse succeeds, so later work on the same render is not charged against it.
+- **A page rename no longer overwrites a page with empty text.** When the provider could not read the page's text,
+  the rename carried on and wrote an empty page; it now aborts and leaves the page as it was.
+- **`GET /api/structure/pages` now returns `total` and `next_cursor`** so a client can page through every match; `limit`
+  is clamped to 1000 (and `limit=0` is read as 1).
+- **MCP page descriptors gain an additive `inlineTags` field** (the page's inline `#tags`, as written), in
+  `list_tags`, `list_pages_by_filter` and `list_pages` output. Existing fields are unchanged.
 
 ### Security
 - **Deleted accounts show as "former member", and their logins cannot be registered again.** A hard delete now records
@@ -77,21 +86,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   once per version). `DENY` locks in any case and after any whitespace (`[{deny …}]`, `[{ Deny …}]`), wherever it is
   outside code — frontmatter, HTML, math and links included — because the same spelling of `ALLOW` is enforced. A
   wrapped rule whose line break falls inside a name with no comma beside it (`Jane` / `Bob`: one name or two?) locks
-  too. Other text neither old reading took for a rule (`[{Allowance}]`, a rule in a YAML code span) stays text. Readers who may not edit the page never see a rule the wiki enforces. Profile renames and ACL
-  rewrites now edit exactly the rules the reader found, and leave documentation examples alone (#104).
+  too. Other text neither old reading took for a rule (`[{Allowance}]`, a rule in a YAML code span) stays text. Readers who may not edit the page never see a rule the wiki enforces. ACL rewrites
+  edit exactly the rules the reader found, and leave documentation examples alone (#104).
+  An access rule inside a `%%comment%%` is still a rule, and it locks the page too (shape `IN_COMMENT`), and a save that
+  adds one is refused: commenting a rule out does not disable it. Delete the rule, or put it in a code span. A rule whose
+  status as code or not-code changes when comments are stripped also locks the page.
+  **Upgrade note:** shapes the reader now takes for rules for the first time (wrapped over lines, case variants,
+  a leading space) can add principals to an existing rule on the same page. On installs other than the maintainers'
+  (whose corpus audited with no change), run `AclShapeAuditCli --dir` against a copy of the page store before
+  upgrading and review every page flagged `changed`; see the operations runbook, section 1.9.1.
 - **A save cannot lock a page, and administrators see why a page is locked.** Every save that goes through the page
-  save pipeline (the editor, REST, MCP, the importer and every other in-process writer of page text) refuses a text that
+  save pipeline (the editor, REST, MCP and the importer; only two in-process writers bypass the check, the ACL rewrite and a page
+  rename's rewrite of the pages that link to it, both machine-generated) refuses a text that
   adds an access rule the reader cannot read — otherwise any editor could lock a page out, themselves included, by
   typing `[{DENY …}]`. The check reads the text that is stored, after every save filter has rewritten it, so a rule
   that only a filter spells out (a YAML escape in the frontmatter, decoded when the frontmatter is re-emitted) is
   refused too. Pages written outside the pipeline (the startup corpus, files placed in the page store, a page rename's
   verbatim copy) are not checked; `GET /admin/content/locked-pages` finds those. REST answers 422 `access_rule_shape`
   with one `ACCESS_RULE_SHAPE` violation per rule (shape; the body line the editor shows, or the frontmatter `field`;
-  text; and how to write it instead: canonical `[{ALLOW …}]`, or a code span to show the syntax);
+  text; and how to write it instead: canonical `[{ALLOW …}]`, or a code span to show the syntax). A refusal lists at
+  most 50 violations and states the total count;
   `update_page`/`write_pages` return the same violations. A disputed rule the stored page already holds may stay, so
   an administrator can still save other fixes to a locked page. For administrators only, the page payload carries
   `accessRules: { locked, reasons }` and the page shows a banner listing each reason by body line or frontmatter
   field; `GET /admin/content/locked-pages` lists every locked page (#104).
+- **The `list_metadata_values` MCP tool is now view-gated.** It no longer returns values that come only from pages the
+  caller cannot view.
 
 ## [2.5.5] - 2026-11-01
 

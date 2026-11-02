@@ -91,6 +91,7 @@ public class ListPagesByFilterTool extends AbstractMcpTool {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "List wiki pages matching a structural filter (type, cluster, tags, freshness). " +
+                        "The tags filter also matches inline #tags; descriptors carry them in inlineTags. " +
                         "Returns {pages: [PageDescriptor], count}. Prefer this over search_knowledge for " +
                         "structural queries — it reads the canonical page index directly and does not depend " +
                         "on the retrieval pipeline." )

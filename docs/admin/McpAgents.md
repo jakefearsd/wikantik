@@ -233,8 +233,8 @@ wiki content. Tools that take the guest view gate described under
 [Get a key](#get-a-key) do not return restricted pages: `assemble_bundle`, `get_briefing`,
 `retrieve_context`, `get_page`, `read_pages`, `get_page_for_agent`, `get_page_by_id`,
 `get_page_neighbors`, `list_pages`, `list_pages_by_filter`, `list_clusters`, `query_nodes`, `get_node`,
-`traverse`, `search_knowledge` and `find_similar`. These take no gate: `list_tags`,
-`list_metadata_values`, `discover_schema`, `list_stale_citations`, `get_ontology` and
+`traverse`, `search_knowledge`, `find_similar` and `list_metadata_values`. These take no gate: `list_tags`,
+`discover_schema`, `list_stale_citations`, `get_ontology` and
 `sparql_query`; the last two read the ontology, which is already limited to publicly
 viewable content. If the guest session cannot be built at startup, the gate degrades to
 allow-all and logs an `ERROR`.
@@ -250,9 +250,9 @@ allow-all and logs an `ERROR`.
 | `get_page_by_id` | Resolve a rename-stable `canonical_id` to the current page descriptor |
 | `get_page_neighbors` | A page's 1-hop Page Graph neighborhood without bodies: wikilinks out and in, plus cluster siblings and hub |
 | `list_pages` | Browse pages by metadata filters |
-| `list_pages_by_filter` | List pages by structural filter (type, cluster, tags, freshness) from the Page Graph index |
+| `list_pages_by_filter` | List pages by structural filter (type, cluster, tags, freshness) from the Page Graph index; the `tags` filter also matches inline `#tags`, and descriptors carry `inlineTags` |
 | `list_clusters` | Every cluster with its hub page, article count and last update |
-| `list_tags` | The tag dictionary with page counts |
+| `list_tags` | The tag dictionary with page counts (frontmatter and inline `#tags`, by normalised form) |
 | `list_metadata_values` | Distinct values of a frontmatter field with counts |
 | `discover_schema` | Shape of the Knowledge Graph: node types, relationship types, property keys |
 | `query_nodes` | Search Knowledge Graph nodes by type, properties and provenance |

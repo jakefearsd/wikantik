@@ -60,6 +60,16 @@ Cluster/type interaction: hub pages (type=hub) emit CollectionPage JSON-LD with
 hasPart listing their related pages. Non-hub clustered pages emit BreadcrumbList
 JSON-LD (Home > Cluster > Page) and isPartOf referencing the collection.
 
+== Comments, inline tags and refused saves ==
+
+`%% comment %%` text is hidden from readers who cannot edit the page (rendered page, search, excerpts,
+agent projections); callers with edit rights still see it in the source. An access rule inside a comment still
+counts as a rule and locks the page, so it is refused. A `#word` in prose tags the page: inline tags count as
+tags in the knowledge endpoint's tag dictionary and page-list filters (descriptors carry them in `inlineTags`).
+write_pages and update_page refuse a text holding an unreadable access rule with ACCESS_RULE_SHAPE violations:
+each gives the reason, the body line or frontmatter field, and how to write it instead; at most 50 are listed,
+plus the total count.
+
 == Page naming ==
 
 Page names use CamelCase (e.g. SecurityPolicy, ProjectAlpha, MeetingNotes2026).

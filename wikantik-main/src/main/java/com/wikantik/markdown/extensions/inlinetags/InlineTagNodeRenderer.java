@@ -46,7 +46,8 @@ final class InlineTagNodeRenderer implements NodeRenderer {
 
     private void render( final InlineTag node, final NodeRendererContext context, final HtmlWriter html ) {
         final String text = "#" + node.written();
-        if ( node.getAncestorOfType( Link.class, LinkRef.class, WikiLink.class ) != null ) {
+        if ( node.getAncestorOfType( Link.class, LinkRef.class, WikiLink.class, com.vladsch.flexmark.ast.Image.class,
+                com.vladsch.flexmark.ast.ImageRef.class ) != null ) {
             html.text( text );
             return;
         }

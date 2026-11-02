@@ -181,8 +181,7 @@ public final class StructuralProjection {
         if ( pages.isEmpty() ) {
             return Optional.empty();
         }
-        final Map< String, Integer > tagDist = new TreeMap<>();
-        pages.forEach( p -> p.tags().forEach( t -> tagDist.merge( t, 1, Integer::sum ) ) );
+        final Map< String, Integer > tagDist = com.wikantik.api.pagegraph.TagAggregation.distribution( pages );
         return Optional.of( new ClusterDetails(
                 name,
                 hubByCluster.get( name ),
@@ -193,16 +192,7 @@ public final class StructuralProjection {
     }
 
     public List< TagSummary > listTags( final int minPages ) {
-        final int threshold = Math.max( 1, minPages );
-        return byTag.entrySet().stream()
-                .filter( e -> e.getValue().size() >= threshold )
-                .map( e -> new TagSummary(
-                        e.getKey(),
-                        e.getValue().size(),
-                        e.getValue().stream().limit( 10 ).map( PageDescriptor::canonicalId ).toList() ) )
-                .sorted( Comparator.comparingInt( TagSummary::count ).reversed()
-                        .thenComparing( TagSummary::tag ) )
-                .collect( Collectors.toList() );
+        return com.wikantik.api.pagegraph.TagAggregation.summaries( byCanonicalId.values(), minPages );
     }
 
     public List< PageDescriptor > listPagesByType( final PageType type ) {
@@ -217,10 +207,12 @@ public final class StructuralProjection {
                         .map( c -> p.clusters().stream()
                                     .anyMatch( m -> ClusterPath.isSelfOrDescendant( m, c ) ) )
                         .orElse( true ) )
-                .filter( p -> filter.tags().isEmpty() || p.tags().containsAll( filter.tags() ) )
+                .filter( p -> filter.tags().isEmpty() || p.findableTags().containsAll( filter.tags() ) )
                 .filter( p -> filter.updatedSince()
                         .map( since -> p.updated() != null && !p.updated().isBefore( since ) )
                         .orElse( true ) )
+                // cursor = the canonical id of the last page of the previous batch (listing is ordered by canonical id)
+                .filter( p -> filter.cursor().map( c -> p.canonicalId().compareTo( c ) > 0 ).orElse( true ) )
                 .sorted( Comparator.comparing( PageDescriptor::canonicalId ) )
                 .limit( filter.limit() )
                 .toList();

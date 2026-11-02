@@ -91,7 +91,7 @@ public final class ExportSelectionResolver {
         if ( !selection.clusters().isEmpty() && !clusterMatches( page, selection ) ) {
             return false;
         }
-        if ( !selection.tags().isEmpty() && !page.tags().containsAll( selection.tags() ) ) {
+        if ( !selection.tags().isEmpty() && !page.findableTags().containsAll( selection.tags() ) ) {
             return false;
         }
         if ( selection.type().isPresent() && page.type() != selection.type().get() ) {

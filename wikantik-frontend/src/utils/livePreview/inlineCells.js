@@ -6,9 +6,10 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { remarkWikiLinks } from '../remarkWikiLinks';
+import remarkInlineTags from '../remarkInlineTags';
 import { renderedMath } from './mathRender';
 
-const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkWikiLinks);
+const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkWikiLinks).use(remarkInlineTags);
 
 function el(tag, className) {
   const e = document.createElement(tag);
@@ -52,6 +53,7 @@ function renderNode(node, source) {
       }
       return document.createTextNode(sliceOf(node, source));
     }
+    case 'inlineTag': { const e = el('span', 'cm-lp-tag'); e.textContent = plainText(node, source); return e; }
     case 'break': return el('br');
     default: return document.createTextNode(sliceOf(node, source) || plainText(node, source));
   }

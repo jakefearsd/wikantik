@@ -67,7 +67,7 @@ public class StructureResource extends RestServletBase {
                 writeCluster( resp, svc, pathInfo.substring( "/clusters/".length() ), req );
             } else if ( "/tags".equals( pathInfo ) ) {
                 final int min = parseIntOr( req.getParameter( "min_pages" ), 1 );
-                writeTags( resp, svc, min );
+                writeTags( resp, svc, min, req );
             } else if ( "/pages".equals( pathInfo ) ) {
                 writePages( resp, svc, req );
             } else if ( "/sitemap".equals( pathInfo ) ) {
@@ -116,15 +116,22 @@ public class StructureResource extends RestServletBase {
         viewableOnly( req, details.articles() ).forEach( p -> articles.add( describe( p ) ) );
         data.add( "articles", articles );
         final JsonObject tags = new JsonObject();
-        details.tagDistribution().forEach( tags::addProperty );
+        // Counted over the pages the caller can view, never the cluster's full membership.
+        final List< PageDescriptor > visibleMembers = new java.util.ArrayList<>( viewableOnly( req, details.articles() ) );
+        if ( details.hubPage() != null ) {
+            visibleMembers.addAll( viewableOnly( req, List.of( details.hubPage() ) ) );
+        }
+        com.wikantik.api.pagegraph.TagAggregation.distribution( visibleMembers ).forEach( tags::addProperty );
         data.add( "tag_distribution", tags );
         writeEnvelope( resp, data );
     }
 
-    private void writeTags( final HttpServletResponse resp, final StructuralIndexService svc, final int min )
-            throws IOException {
+    private void writeTags( final HttpServletResponse resp, final StructuralIndexService svc, final int min,
+                            final HttpServletRequest req ) throws IOException {
         final JsonArray arr = new JsonArray();
-        for ( final TagSummary t : svc.listTags( min ) ) {
+        // Counts cover only pages the caller can view: frontmatter and inline tags of a restricted page must not leak.
+        final java.util.Set< String > ok = filterViewable( req, svc.sitemap().pages().stream().map( PageDescriptor::slug ).toList() );
+        for ( final TagSummary t : svc.listTags( min, d -> ok.contains( d.slug() ) ) ) {
             final JsonObject o = new JsonObject();
             o.addProperty( "tag", t.tag() );
             o.addProperty( "count", t.count() );
@@ -140,22 +147,47 @@ public class StructureResource extends RestServletBase {
 
     private void writePages( final HttpServletResponse resp, final StructuralIndexService svc,
                               final HttpServletRequest req ) throws IOException {
+        final int limit = Math.max( 1, Math.min( 1000, parseIntOr( req.getParameter( "limit" ), 100 ) ) );
+        final String cursor = req.getParameter( "cursor" );
         final StructuralFilter filter = new StructuralFilter(
                 Optional.ofNullable( req.getParameter( "type" ) ).map( PageType::fromFrontmatter ),
                 Optional.ofNullable( req.getParameter( "cluster" ) ),
                 Arrays.asList( Optional.ofNullable( req.getParameter( "tag" ) )
                         .map( t -> t.split( "," ) ).orElse( new String[ 0 ] ) ),
                 Optional.ofNullable( req.getParameter( "updated_since" ) ).map( Instant::parse ),
-                parseIntOr( req.getParameter( "limit" ), 100 ),
-                Optional.ofNullable( req.getParameter( "cursor" ) )
+                1000,
+                Optional.empty()
         );
-        final List< PageDescriptor > pages = viewableOnly( req, svc.listPagesByFilter( filter ) );
+        // Every match the caller may view, in canonical-id order; `total` counts all of them, `cursor` pages through them.
+        final List< PageDescriptor > viewable = viewableOnly( req, allMatching( svc, filter ) );
+        final List< PageDescriptor > rest = cursor == null || cursor.isBlank() ? viewable
+                : viewable.stream().filter( p -> p.canonicalId().compareTo( cursor ) > 0 ).toList();
+        final List< PageDescriptor > pages = rest.size() > limit ? rest.subList( 0, limit ) : rest;
         final JsonArray arr = new JsonArray();
         pages.forEach( p -> arr.add( describe( p ) ) );
         final JsonObject data = new JsonObject();
         data.add( "pages", arr );
         data.addProperty( "count", pages.size() );
+        data.addProperty( "total", viewable.size() );
+        if ( rest.size() > pages.size() ) {
+            data.addProperty( "next_cursor", pages.get( pages.size() - 1 ).canonicalId() );
+        }
         writeEnvelope( resp, data );
+    }
+
+    /** All pages matching {@code filter}, walking the service's cursor so the 1000-per-call clamp never truncates. */
+    private static List< PageDescriptor > allMatching( final StructuralIndexService svc, final StructuralFilter filter ) {
+        final List< PageDescriptor > out = new java.util.ArrayList<>();
+        StructuralFilter next = filter;
+        while ( true ) {
+            final List< PageDescriptor > batch = svc.listPagesByFilter( next );
+            out.addAll( batch );
+            if ( batch.size() < filter.limit() ) {
+                return out;
+            }
+            next = new StructuralFilter( filter.type(), filter.cluster(), filter.tags(), filter.updatedSince(),
+                    filter.limit(), Optional.of( batch.get( batch.size() - 1 ).canonicalId() ) );
+        }
     }
 
     private void writeSitemap( final HttpServletResponse resp, final StructuralIndexService svc,

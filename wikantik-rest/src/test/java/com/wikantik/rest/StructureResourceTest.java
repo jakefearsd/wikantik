@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
@@ -95,10 +96,79 @@ class StructureResourceTest {
 
     @Test
     void tags_returns_tag_dictionary() throws Exception {
-        when( svc.listTags( 1 ) ).thenReturn( List.of(
+        when( svc.sitemap() ).thenReturn( new Sitemap( List.of(), 0, Instant.EPOCH ) );
+        when( svc.listTags( eq( 1 ), any() ) ).thenReturn( List.of(
                 new TagSummary( "retrieval", 5, List.of( "01X", "01Y" ) ) ) );
         final JsonObject body = callGet( "/tags" );
         assertEquals( 1, body.getAsJsonObject( "data" ).getAsJsonArray( "tags" ).size() );
+    }
+
+    private static PageDescriptor tagged( final String id, final String slug, final List< String > tags, final List< String > inline ) {
+        return new PageDescriptor( id, slug, slug, PageType.ARTICLE, null, List.of(), tags, "s", Instant.EPOCH,
+                Optional.empty(), false, inline );
+    }
+
+    /** SECURITY: counts and sample ids cover only pages the caller can view (inline and frontmatter tags alike). */
+    @Test
+    void tags_count_only_viewable_pages() throws Exception {
+        when( svc.sitemap() ).thenReturn( new Sitemap( List.of(
+                tagged( "01A", "PublicPage", List.of( "shared" ), List.of( "pub" ) ),
+                tagged( "01B", "SecretPage", List.of( "shared", "fmsecret" ), List.of( "inlinesecret" ) ) ), 2, Instant.EPOCH ) );
+        when( svc.listTags( eq( 1 ), any() ) ).thenCallRealMethod();
+        resource.visible = java.util.Set.of( "PublicPage" );
+
+        final JsonObject body = callGet( "/tags" );
+        final var tags = body.getAsJsonObject( "data" ).getAsJsonArray( "tags" );
+        final java.util.Map< String, Integer > counts = new java.util.HashMap<>();
+        tags.forEach( t -> counts.put( t.getAsJsonObject().get( "tag" ).getAsString(), t.getAsJsonObject().get( "count" ).getAsInt() ) );
+        assertEquals( java.util.Map.of( "shared", 1, "pub", 1 ), counts );
+        assertFalse( body.toString().contains( "inlinesecret" ) || body.toString().contains( "fmsecret" ) || body.toString().contains( "01B" ),
+                "nothing of the restricted page's tags or id leaks" );
+    }
+
+    @Test
+    void cluster_tag_distribution_counts_only_viewable_pages() throws Exception {
+        final PageDescriptor open = tagged( "01A", "PublicPage", List.of( "shared" ), List.of() );
+        final PageDescriptor secret = tagged( "01B", "SecretPage", List.of( "shared" ), List.of( "inlinesecret" ) );
+        when( svc.getCluster( "c" ) ).thenReturn( Optional.of( new ClusterDetails( "c", null, List.of( open, secret ),
+                java.util.Map.of( "shared", 2, "inlinesecret", 1 ), Instant.EPOCH ) ) );
+        resource.visible = java.util.Set.of( "PublicPage" );
+
+        final JsonObject dist = callGet( "/clusters/c" ).getAsJsonObject( "data" ).getAsJsonObject( "tag_distribution" );
+        assertEquals( 1, dist.get( "shared" ).getAsInt() );
+        assertFalse( dist.has( "inlinesecret" ) );
+    }
+
+    /** The tag view pages by cursor with a correct total; a restricted page is neither listed nor counted. */
+    @Test
+    void pages_listing_pages_by_cursor_with_a_viewable_total() throws Exception {
+        final List< PageDescriptor > all = new java.util.ArrayList<>();
+        for ( int i = 1; i <= 5; i++ ) {
+            all.add( tagged( "01" + i, ( i == 3 ? "Secret" : "P" + i ), List.of( "t" ), List.of() ) );
+        }
+        when( svc.listPagesByFilter( any() ) ).thenReturn( all );
+        resource.visible = java.util.Set.of( "P1", "P2", "P4", "P5" );
+
+        final JsonObject first = callGetParams( "/pages", java.util.Map.of( "tag", "t", "limit", "2" ) ).getAsJsonObject( "data" );
+        assertEquals( 4, first.get( "total" ).getAsInt(), "total counts every viewable match, not the batch" );
+        assertEquals( 2, first.getAsJsonArray( "pages" ).size() );
+        assertEquals( "012", first.get( "next_cursor" ).getAsString() );
+
+        final JsonObject second = callGetParams( "/pages", java.util.Map.of( "tag", "t", "limit", "2", "cursor", "012" ) ).getAsJsonObject( "data" );
+        assertEquals( List.of( "P4", "P5" ), second.getAsJsonArray( "pages" ).asList().stream()
+                .map( e -> e.getAsJsonObject().get( "slug" ).getAsString() ).toList() );
+        assertFalse( second.has( "next_cursor" ), "the last batch has no cursor" );
+    }
+
+    private JsonObject callGetParams( final String pathInfo, final java.util.Map< String, String > params ) throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getPathInfo() ).thenReturn( pathInfo );
+        params.forEach( ( k, v ) -> when( req.getParameter( k ) ).thenReturn( v ) );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+        resource.doGet( req, resp );
+        return JsonParser.parseString( sw.toString() ).getAsJsonObject();
     }
 
     @Test

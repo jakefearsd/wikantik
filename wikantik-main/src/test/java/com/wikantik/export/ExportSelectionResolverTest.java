@@ -110,4 +110,26 @@ class ExportSelectionResolverTest {
         assertFalse( r.pages().stream().anyMatch( p -> p.slug().equals( "OnlyViaSecret" ) ) );
         assertEquals( 1, r.aclDropped() );
     }
+
+    /** Export-by-tag keeps matching the tags as written (capitals, a slash) and now also inline #tags. */
+    @Test void tagSelectionMatchesWrittenFormsAndInlineTags() {
+        final List< PageDescriptor > pages = List.of(
+                page( "Caps", List.of( "x" ), List.of( "Foo" ), PageType.ARTICLE ),
+                page( "Nested", List.of( "x" ), List.of( "a/b" ), PageType.ARTICLE ),
+                new PageDescriptor( "ID-Inline", "Inline", "Inline", PageType.ARTICLE, "x", List.of( "x" ), List.of(), "",
+                        Instant.EPOCH, Optional.empty(), false, List.of( "Foo" ) ),
+                page( "Other", List.of( "x" ), List.of( "bar" ), PageType.ARTICLE ) );
+        final ExportCatalog c = new ExportCatalog() {
+            public List< PageDescriptor > allPages() { return pages; }
+            public Optional< String > status( final String s ) { return Optional.empty(); }
+            public Collection< String > outboundPages( final String s ) { return List.of(); }
+            public Set< String > viewable( final Collection< String > s ) { return Set.copyOf( s ); }
+        };
+        final java.util.function.Function< String, List< String > > by = tag ->
+                resolver.resolve( sel( List.of(), true, List.of( tag ), null, null, 0 ), c ).pages().stream().map( PageDescriptor::slug ).toList();
+        assertEquals( List.of( "Caps", "Inline" ), by.apply( "Foo" ) );
+        assertEquals( List.of( "Caps", "Inline" ), by.apply( "foo" ) );
+        assertEquals( List.of( "Nested" ), by.apply( "a/b" ) );
+        assertEquals( List.of( "Nested" ), by.apply( "#a-b" ) );
+    }
 }

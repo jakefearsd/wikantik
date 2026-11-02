@@ -13,6 +13,7 @@ import fixture from '../__fixtures__/live-preview-parity.json';
 import { fullyParsed } from '../../test/fullParse';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreviewSpecs, blockSpecs } from './ranges';
+import { TableWidget } from './tableWidget';
 
 const CONTEXT = { pageName: 'LivePreviewParityHost', attachments: [] };
 const KINDS = ['table', 'table-nested', 'footnote-ref', 'footnote-def', 'ref-link', 'ref-link-undefined', 'shortcut-link',
@@ -78,6 +79,8 @@ const PREDICATES = {
   'no-comment': (o) => marks(o, 'cm-lp-comment').length === 0,
   tag: (o) => marks(o, 'cm-lp-tag').length > 0 && hides(o).length === 0,
   'no-tag': (o) => marks(o, 'cm-lp-tag').length === 0,
+  // A top-level table is one block widget; its cells are rendered by inlineCells, which marks a tag the same way.
+  'cell-tag': (o) => o.blocks.some((b) => b.widget.type === 'table' && new TableWidget(b.widget.source).toDOM().querySelector('.cm-lp-tag')),
   'no-highlight': (o) => marks(o, 'cm-lp-mark').length === 0 && !hides(o).includes('=='),
   chip: (o) => widgets(o, 'chip').some((s) => !/cm-lp-footnote/.test(s.widget.cls)),
   // Shown as its source: no block widget and nothing replaced or styled inline beyond list bullets and quote marks

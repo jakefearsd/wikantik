@@ -17,6 +17,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and `%%comments%%` are never tagged. SEO keywords, feeds, the sitemap and JSON-LD stay frontmatter-only. Live preview
   chips tags (`cm-lp-tag`, off the caret line, text never replaced); typing `#` and a letter completes from the tags in
   use, most used first. The vault importer no longer lifts inline tags into frontmatter: they stay where they were written.
+  Tags are compared and counted by normalised form only at comparison points (filters including the MCP `list_pages` and
+  `retrieve_context` tag filters, the tag view, tag counts, export by tag, the Lucene field); every page's own tags keep
+  their written form in chips, the ontology and tool hints. Tag counts (`/api/structure/tags`, a cluster's tag
+  distribution, `list_tags`) now cover only pages the caller can view, which also closes an existing leak of restricted
+  pages' frontmatter tags. The tag view pages with a correct total instead of stopping at 500. Raw HTML (attributes,
+  `<style>`/`<script>` bodies), table cells, headings inside quotes and lists and link text follow the same rule in the
+  index, the reader and both editor modes.
 - **`==highlight==` (Obsidian).** `==text==` renders as `<mark>` in the reader and the editor preview, and live preview
   styles it (`cm-lp-mark`, delimiters hidden off the caret line). Same flanking rules as strikethrough: `a == b` and
   `== x ==` stay text, `==**x**==` nests, only a run of exactly two `=` pairs; code and math are never processed.

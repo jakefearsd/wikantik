@@ -36,7 +36,9 @@ public record ExportSelection( List< String > clusters, boolean includeSubCluste
 
     public ExportSelection {
         clusters = normalise( clusters );
-        tags = normalise( tags );
+        // a tag's identity is its normalised form, the same one PageDescriptor.findableTags() compares against
+        tags = normalise( tags ).stream().map( com.wikantik.api.markdown.InlineTagSyntax::normalise )
+                .filter( t -> !t.isEmpty() ).distinct().toList();
         type = type == null ? Optional.empty() : type;
         status = status == null ? Optional.empty() : status;
         unresolved = unresolved == null ? UnresolvedLinkMode.KEEP : unresolved;

@@ -49,11 +49,9 @@ public final class InlineTagSyntax {
     public record Tag( int start, int end, String written, String normalised ) {
     }
 
-    private static final Pattern WIKILINK = Pattern.compile( "\\[\\[[^\\[\\]\\n]*\\]\\]" );
-    private static final Pattern LINK_DEST = Pattern.compile( "\\]\\([^)\\]\\n]*\\)" );
-    /** Anchored at the start of a non-space run: same matches as {@code \S+://\S+}, one attempt per run. */
-    private static final Pattern URL = Pattern.compile( "(?<!\\S)\\S+://\\S+" );
-    private static final Pattern HEADING = Pattern.compile( "^\\s{0,3}#{1,6}\\s.*" );
+    /** An ATX heading line, also inside blockquote and list containers, as the renderer skips it. */
+    private static final Pattern HEADING = Pattern.compile(
+            "^(?:\\s{0,3}(?:>|[-*+]|\\d{1,9}[.)]))*\\s{0,3}#{1,6}\\s.*" );
     private static final Pattern TAG = Pattern.compile( "(?<![^\\s])#([\\p{L}\\p{N}_/-]+)" );
     private static final Pattern NON_DIGIT = Pattern.compile( "[\\p{L}_-]" );
     private static final char MASKED = 'X';
@@ -94,6 +92,23 @@ public final class InlineTagSyntax {
             tags.add( t.normalised() );
         }
         return tags;
+    }
+
+    /**
+     * Inline tags of a page body as written, in first-seen order, one per normalised identity (the first written form
+     * wins), comments hidden first.
+     *
+     * @param body page body; may be {@code null}
+     */
+    public static List< String > writtenTags( final String body ) {
+        if ( body == null || body.indexOf( '#' ) < 0 ) {
+            return List.of();
+        }
+        final java.util.Map< String, String > byKey = new java.util.LinkedHashMap<>();
+        for ( final Tag t : scan( ObsidianComments.strip( body ) ) ) {
+            byKey.putIfAbsent( t.normalised(), t.written() );
+        }
+        return List.copyOf( byKey.values() );
     }
 
     /**
@@ -143,19 +158,8 @@ public final class InlineTagSyntax {
                 sb.setCharAt( i, MASKED );
             }
         }
-        blankMatches( sb, WIKILINK );
-        blankMatches( sb, LINK_DEST );
-        blankMatches( sb, URL );
-        return sb.toString();
-    }
-
-    private static void blankMatches( final StringBuilder sb, final Pattern p ) {
-        final Matcher m = p.matcher( sb );
-        while ( m.find() ) {
-            for ( int i = m.start(); i < m.end(); i++ ) {
-                sb.setCharAt( i, ' ' );
-            }
-        }
+        InlineTagMasks.blankMarkup( sb );
+        return InlineTagTables.openTableCells( sb.toString() );
     }
 
     private static void collect( final String line, final int lineOffset, final List< Tag > tags ) {

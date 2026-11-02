@@ -555,6 +555,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const doc = state.doc;
   const specs = [];
   const excluded = []; // code/table/etc. ranges the line-regex pass must not touch
+  const noTags = []; // link and image ranges: the reader never makes a tag of link text
+  const tables = []; // GFM table ranges: excluded from the line passes, but a cell can still hold an inline #tag
   const markers = []; // block markers (`^id`) ending the paragraphs in range
   const lineClasses = new Map(); // line start -> Set<cls>
   const inactive = (pos) => !activeLines.has(doc.lineAt(pos).number);
@@ -608,12 +610,14 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (!referenceLabels(state).has(normalizeLabel(given || text))) return;
     }
     const g = `Link@${n.from}`;
+    noTags.push([n.from, n.to]);
     mark(marks[0].to, marks[1].from, 'cm-lp-link', g);
     hide(marks[0].from, marks[0].to, g);
     hide(marks[1].from, n.to, g);
   };
   const image = (node) => {
     const n = node.node;
+    noTags.push([n.from, n.to]);
     const url = n.getChild('URL');
     const marks = n.getChildren('LinkMark');
     if (!url || marks.length < 2) return;
@@ -678,7 +682,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         }
         eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-linkdef'));
       }
-      if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
+      if (SKIP.has(name)) { excluded.push([node.from, node.to]); if (name === 'Table') tables.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
       if (name === 'Paragraph' && doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) { excluded.push([node.from, node.to]); return false; }
@@ -803,8 +807,10 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     }
     // An inline #tag reads as a chip off the caret's line: a mark only (the text is never replaced, so the caret cannot jump).
     if (text.includes('#') && inactive(line.from)) {
-      const blocked = (a, b) => overlaps(excluded, line.from + a, line.from + b) || overlaps(claimed, line.from + a, line.from + b);
-      for (const t of findInlineTags(text, blocked)) mark(line.from + t.from, line.from + t.to, 'cm-lp-tag');
+      // A table row is excluded from every other pass, yet its cells hold tags exactly as the reader renders them.
+      const inTable = tables.some(([a, b]) => line.from >= a && line.from <= b);
+      const blocked = (a, b) => (!inTable && overlaps(excluded, line.from + a, line.from + b)) || overlaps(claimed, line.from + a, line.from + b) || overlaps(noTags, line.from + a, line.from + b);
+      for (const t of findInlineTags(text, blocked, inTable)) mark(line.from + t.from, line.from + t.to, 'cm-lp-tag');
     }
   });
   highlightSpecs(state, from, to, { excluded, claimed, commentPairs, overlaps, mark, hide });

@@ -269,7 +269,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         }
         final PageViewGate viewGate = deps.viewGate();
         tools.add( new ListClustersTool( structuralIndex, viewGate ) );
-        tools.add( new ListTagsTool( structuralIndex ) );
+        tools.add( new ListTagsTool( structuralIndex, viewGate ) );
         tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
         tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );
         tools.add( new GetPageNeighborsTool( structuralIndex, deps.referenceManager(), viewGate ) );

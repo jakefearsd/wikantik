@@ -34,21 +34,21 @@ class ListTagsToolTest {
     @Test
     void min_pages_defaults_to_1() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
-        when( svc.listTags( 1 ) ).thenReturn( List.of( new TagSummary( "retrieval", 5, List.of() ) ) );
+        when( svc.listTags( eq( 1 ), any() ) ).thenReturn( List.of( new TagSummary( "retrieval", 5, List.of() ) ) );
         final ListTagsTool tool = new ListTagsTool( svc );
         final var result = tool.execute( Map.of() );
         assertFalse( result.isError() );
         final var content = ( McpSchema.TextContent ) result.content().get( 0 );
         assertTrue( content.text().contains( "retrieval" ) );
-        verify( svc ).listTags( 1 );
+        verify( svc ).listTags( eq( 1 ), any() );
     }
 
     @Test
     void respects_min_pages_argument() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
-        when( svc.listTags( 5 ) ).thenReturn( List.of() );
+        when( svc.listTags( eq( 5 ), any() ) ).thenReturn( List.of() );
         new ListTagsTool( svc ).execute( Map.of( "min_pages", 5 ) );
-        verify( svc ).listTags( 5 );
+        verify( svc ).listTags( eq( 5 ), any() );
     }
 
     @Test
@@ -80,7 +80,7 @@ class ListTagsToolTest {
     @Test
     void execute_returnsErrorResult_whenServiceThrows() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
-        when( svc.listTags( 1 ) ).thenThrow( new RuntimeException( "index unavailable" ) );
+        when( svc.listTags( eq( 1 ), any() ) ).thenThrow( new RuntimeException( "index unavailable" ) );
 
         final var result = new ListTagsTool( svc ).execute( Map.of() );
 
@@ -88,5 +88,22 @@ class ListTagsToolTest {
         final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "index unavailable" ),
                 "error payload should surface the underlying exception message" );
+    }
+
+    /** list_tags counts only pages the (guest) view gate admits. */
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void passes_the_view_gate_so_restricted_pages_are_not_counted() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        final var captor = org.mockito.ArgumentCaptor.forClass( java.util.function.Predicate.class );
+        when( svc.listTags( eq( 1 ), captor.capture() ) ).thenReturn( List.of() );
+
+        new ListTagsTool( svc, slug -> !"Secret".equals( slug ) ).execute( Map.of() );
+
+        final java.util.function.Predicate< com.wikantik.api.pagegraph.PageDescriptor > visible = captor.getValue();
+        final var open = new com.wikantik.api.pagegraph.PageDescriptor( "1", "Open", "t", null, null, List.of(), "", null, null, false );
+        final var secret = new com.wikantik.api.pagegraph.PageDescriptor( "2", "Secret", "t", null, null, List.of(), "", null, null, false );
+        assertTrue( visible.test( open ) );
+        assertFalse( visible.test( secret ) );
     }
 }

@@ -210,13 +210,52 @@ class DefaultStructuralIndexServiceTest {
 
         svc.rebuild();
 
-        assertEquals( List.of( "foo", "bar-baz" ), svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().tags() );
-        final var foo = svc.listTags( 1 ).stream().filter( t -> t.tag().equals( "foo" ) ).toList();
+        final var desc = svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow();
+        assertEquals( List.of( "Foo" ), desc.tags(), "the descriptor's tags stay as written (display, ontology, hints, chips)" );
+        assertEquals( List.of( "foo", "bar/baz" ), desc.inlineTags() );
+        assertEquals( List.of( "foo", "bar-baz" ), List.copyOf( desc.findableTags() ) );
+        final var foo = svc.listTags( 1 ).stream().filter( t -> t.tag().equalsIgnoreCase( "foo" ) ).toList();
         assertEquals( 1, foo.size(), "frontmatter Foo and inline #foo are one tag" );
         assertEquals( 1, foo.get( 0 ).count(), "and the page counts once" );
+        assertEquals( "Foo", foo.get( 0 ).tag(), "shown as the page wrote it in its frontmatter" );
         assertTrue( svc.listTags( 1 ).stream().noneMatch( t -> t.tag().equals( "hidden" ) || t.tag().equals( "code" ) ) );
         assertEquals( List.of( "A" ), slugs( "FOO" ) );
         assertEquals( List.of( "A" ), slugs( "Bar/Baz" ) );
+    }
+
+    /** Counts (and sample ids) cover only pages the caller may view: a restricted page's tags must never leak. */
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void tag_counts_cover_only_the_viewable_pages() throws Exception {
+        final Page open = fakePage( "Open",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\ntags: [shared, fmonly]", "#shared" );
+        final Page secret = fakePage( "Secret",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: article\ntags: [shared, fmsecret]", "#inlinesecret #shared" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( open, secret ) );
+        svc.rebuild();
+
+        final var all = svc.listTags( 1 );
+        assertTrue( all.stream().anyMatch( t -> t.tag().equals( "inlinesecret" ) ), "the unfiltered dictionary has it" );
+
+        final var visible = svc.listTags( 1, d -> d.slug().equals( "Open" ) );
+        assertEquals( java.util.Set.of( "shared", "fmonly" ),
+                visible.stream().map( com.wikantik.api.pagegraph.TagSummary::tag ).collect( java.util.stream.Collectors.toSet() ) );
+        assertTrue( visible.stream().noneMatch( t -> t.tag().equals( "inlinesecret" ) || t.tag().equals( "fmsecret" ) ),
+                "tags of a page the caller cannot view are absent, inline and frontmatter alike" );
+        assertEquals( 1, visible.stream().filter( t -> t.tag().equals( "shared" ) ).findFirst().orElseThrow().count() );
+        assertEquals( List.of( "01AAAAAAAAAAAAAAAAAAAAAAAA" ),
+                visible.stream().filter( t -> t.tag().equals( "shared" ) ).findFirst().orElseThrow().topPageIds() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void frontmatter_tags_written_with_a_slash_or_capitals_stay_as_written_on_the_descriptor() throws Exception {
+        final Page a = fakePage( "A", "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\ntags: [\"a/b\", Foo]", "x" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+        assertEquals( List.of( "a/b", "Foo" ), svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().tags() );
+        assertEquals( List.of( "A" ), slugs( "a/b" ), "yet the filter finds it by the normalised form" );
+        assertEquals( List.of( "A" ), slugs( "FOO" ) );
     }
 
     private List< String > slugs( final String tag ) {
@@ -236,7 +275,7 @@ class DefaultStructuralIndexServiceTest {
 
         svc.onPageSaved( "A" );
 
-        assertEquals( List.of( "fresh" ), svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().tags() );
+        assertEquals( List.of( "fresh" ), List.copyOf( svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().findableTags() ) );
     }
 
     @Test

@@ -310,12 +310,12 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 PageType.fromFrontmatter( fm.get( "type" ) ),
                 clusters.isEmpty() ? null : clusters.get( 0 ),
                 clusters,
-                // Obsidian phase 4: frontmatter tags plus inline #tags, one normalised set
-                InlineTagSyntax.findableTags( SpineFrontmatter.stringList( fm.get( "tags" ) ), body ),
+                SpineFrontmatter.stringList( fm.get( "tags" ) ),
                 SpineFrontmatter.asString( fm.get( "summary" ) ),
                 page.getLastModified() == null ? null : page.getLastModified().toInstant(),
                 SpineFrontmatter.parseKgInclude( fm.get( "kg_include" ) ),
-                fm.get( "derived_from" ) != null );
+                fm.get( "derived_from" ) != null,
+                InlineTagSyntax.writtenTags( body ) );
     }
 
     /**

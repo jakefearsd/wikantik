@@ -35,7 +35,14 @@ public class ListTagsTool extends AbstractMcpTool {
     public static final String TOOL_NAME = "list_tags";
 
     private final StructuralIndexService service;
-    public ListTagsTool( final StructuralIndexService service ) { this.service = service; }
+    private final PageViewGate viewGate;
+
+    public ListTagsTool( final StructuralIndexService service ) { this( service, PageViewGate.ALLOW_ALL ); }
+
+    public ListTagsTool( final StructuralIndexService service, final PageViewGate viewGate ) {
+        this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
+    }
 
     @Override public String name() { return TOOL_NAME; }
 
@@ -87,7 +94,7 @@ public class ListTagsTool extends AbstractMcpTool {
         final int minPages = arguments.get( "min_pages" ) instanceof Number n
                 ? Math.max( 1, n.intValue() )
                 : 1;
-        final List< TagSummary > tags = service.listTags( minPages );
+        final List< TagSummary > tags = service.listTags( minPages, d -> viewGate.canView( d.slug() ) );
         return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
                 McpToolUtils.paginate( "tags", tags, arguments, 50 ) );
     }

@@ -19,6 +19,7 @@
 package com.wikantik.markdown.extensions.inlinetags;
 
 import com.vladsch.flexmark.ast.Heading;
+import com.vladsch.flexmark.ext.tables.TableRow;
 import com.vladsch.flexmark.parser.InlineParser;
 import com.vladsch.flexmark.parser.InlineParserExtension;
 import com.vladsch.flexmark.parser.InlineParserExtensionFactory;
@@ -48,7 +49,10 @@ final class InlineTagParser implements InlineParserExtension {
         final int index = inlineParser.getIndex();
         final BasedSequence input = inlineParser.getInput();
         // Only an ATX heading line is skipped, as InlineTagSyntax does; a setext heading's text is prose.
-        if ( inlineParser.getBlock() instanceof Heading heading && heading.isAtxHeading() || index > 0 && !Character.isWhitespace( input.charAt( index - 1 ) ) ) {
+        if ( inlineParser.getBlock() instanceof Heading heading && heading.isAtxHeading() ) {
+            return false;
+        }
+        if ( index > 0 && !Character.isWhitespace( input.charAt( index - 1 ) ) && !opensTableCell( inlineParser, input, index ) ) {
             return false;
         }
         int end = index + 1;
@@ -62,6 +66,12 @@ final class InlineTagParser implements InlineParserExtension {
         inlineParser.getBlock().appendChild( new InlineTag( input.subSequence( index, end ) ) );
         inlineParser.setIndex( end );
         return true;
+    }
+
+    /** In a table row the inline text is the whole row, and a cell starts right after its {@code |}, spaced or not: {@code |#foo|} holds a tag. */
+    private static boolean opensTableCell( final LightInlineParser inlineParser, final BasedSequence input, final int index ) {
+        return input.charAt( index - 1 ) == '|' && ( index < 2 || input.charAt( index - 2 ) != '\\' )
+                && inlineParser.getBlock() instanceof TableRow;
     }
 
     /** Registers the {@code #} trigger. */

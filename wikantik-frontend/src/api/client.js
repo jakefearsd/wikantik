@@ -175,8 +175,9 @@ export const api = {
   listClusters: () => request('/api/structure/clusters'),
 
   // The tag view (/search?tag=x): pages carrying a tag, frontmatter or inline, compared by normalised form.
-  listPagesByTag: (tag, { signal } = {}) =>
-    request(`/api/structure/pages?tag=${encodeURIComponent(tag)}&limit=500`, { signal }),
+  // Paged: `total` counts every page the caller may view; `next_cursor` is present while more remain.
+  listPagesByTag: (tag, { signal, cursor, limit = 100 } = {}) =>
+    request(`/api/structure/pages?tag=${encodeURIComponent(tag)}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { signal }),
 
   listPages: ({ prefix, q, names, resolve, limit = 100, offset = 0, signal } = {}) => {
     const params = new URLSearchParams({ limit, offset });

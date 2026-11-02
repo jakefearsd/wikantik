@@ -96,6 +96,28 @@ class PageListEngineTest {
         assertFalse( engine.matchesFilter( page, meta, needsMissing ) );
     }
 
+    /** list_pages / retrieve_context tag filters: normalised, and frontmatter plus inline tags, like list_pages_by_filter. */
+    @Test
+    void tagFilter_comparesNormalisedFormsOverFrontmatterAndInlineTags() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Caps", "---\ntags: [Foo]\n---\nbody", "a", new Date() );
+        pm.addPage( "Nested", "---\ntags: [\"a/b\"]\n---\nbody", "a", new Date() );
+        pm.addPage( "Inline", "no frontmatter, but #Foo and #team/core here", "a", new Date() );
+        pm.addPage( "InCode", "```\n#foo\n```\n`#foo` and url http://e.com/#foo", "a", new Date() );
+        pm.addPage( "Plain", "---\ntags: [bar]\n---\nbody", "a", new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+        final java.util.function.Function< List< String >, List< String > > by = tags -> engine.listPages(
+                new PageListFilter( null, tags, null, null, null, null, 50, 0 ) ).pages().stream()
+                .map( RetrievedPage::name ).sorted().toList();
+
+        assertEquals( List.of( "Caps", "Inline" ), by.apply( List.of( "foo" ) ), "case-insensitive; inline tags count" );
+        assertEquals( List.of( "Caps", "Inline" ), by.apply( List.of( "FOO" ) ) );
+        assertEquals( List.of( "Nested" ), by.apply( List.of( "a/b" ) ), "a slash matches its normalised form" );
+        assertEquals( List.of( "Inline" ), by.apply( List.of( "team/core" ) ) );
+        assertEquals( List.of( "Inline" ), by.apply( List.of( "Foo", "team-core" ) ), "all tags required, across both sources" );
+        assertEquals( List.of(), by.apply( List.of( "missing" ) ) );
+    }
+
     @Test
     void metadataFor_withoutCache_parsesFrontmatterFromPureText() {
         final FakePageManager pm = new FakePageManager();

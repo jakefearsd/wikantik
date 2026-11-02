@@ -120,4 +120,17 @@ class PageRecordBuilderTest {
 
         assertEquals( "claude-code-researcher", record.author() );
     }
+
+    /** The ontology reads tags as written: a frontmatter tag "a/b" keeps its concept IRI, whatever the tag index normalises. */
+    @Test
+    void tagsStayAsWrittenSoConceptIrisAreUnchanged() {
+        final PageCanonicalIdsDao.Row row = new PageCanonicalIdsDao.Row(
+                "01CANON0000000000000000003", "Nested", "Nested", "article", null, Instant.EPOCH, Instant.EPOCH );
+        when( pageManager.getPureText( "Nested", -1 ) ).thenReturn( "---\ntags: [\"a/b\", Foo]\n---\nBody with #inline.\n" );
+
+        final PageRecord r = new PageRecordBuilder( pageManager, () -> List.of( row ) ).build().get( 0 );
+
+        assertEquals( List.of( "a/b", "Foo" ), r.tags(), "no inline tags, no normalisation" );
+        assertEquals( "https://wiki.wikantik.com/id/concept/a/b", com.wikantik.ontology.Iris.concept( r.tags().get( 0 ) ) );
+    }
 }

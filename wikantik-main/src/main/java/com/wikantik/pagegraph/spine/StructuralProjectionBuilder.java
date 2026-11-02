@@ -77,7 +77,7 @@ public final class StructuralProjectionBuilder {
             } );
         }
 
-        for ( final String tag : page.tags() ) {
+        for ( final String tag : page.findableTags() ) {
             byTag.computeIfAbsent( tag, k -> new ArrayList<>() ).add( page );
         }
 

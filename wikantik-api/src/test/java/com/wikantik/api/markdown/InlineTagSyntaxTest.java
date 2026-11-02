@@ -141,4 +141,40 @@ class InlineTagSyntaxTest {
         assertEquals( Set.of(), tags( "[[a ".repeat( 50_000 ) ) );
         assertEquals( Set.of(), tags( "](a".repeat( 50_000 ) ) );
     }
+
+    @Test
+    void rawHtmlMarkupAndStyleBodiesAreNotProse() {
+        assertEquals( Set.of(), tags( "<div style=\"color: #fff\">hi</div>" ) );
+        assertEquals( Set.of(), tags( "a <span style=\"color: #fff\">x</span> b" ) );
+        assertEquals( Set.of(), tags( "<style>\n.a { color: #fff }\n</style>" ) );
+        assertEquals( Set.of(), tags( "<script>\nvar c = 1; // #todo\n</script>" ) );
+        assertEquals( Set.of(), tags( "<!-- #hidden -->" ) );
+        assertEquals( Set.of( "after" ), tags( "<style>\n.a { color: #fff }\n</style>\n\nprose #after" ) );
+        assertEquals( Set.of( "inline" ), tags( "a <b>bold</b> #inline" ) );
+    }
+
+    @Test
+    void headingsInsideBlockquoteAndListContainersAreSkipped() {
+        assertEquals( Set.of(), tags( "> ## H #x" ) );
+        assertEquals( Set.of(), tags( "- # H #x" ) );
+        assertEquals( Set.of(), tags( "> - 1. ### H #x" ) );
+        assertEquals( Set.of( "y" ), tags( "> quote #y" ) );
+    }
+
+    @Test
+    void tableCellsHoldTagsEvenWithoutAGapAfterThePipe() {
+        assertEquals( Set.of( "foo" ), tags( "| a |\n| - |\n|#foo|" ) );
+        assertEquals( Set.of( "a", "b" ), tags( "| h1 | h2 |\n|---|---|\n| #a |#b|" ) );
+        assertEquals( Set.of(), tags( "not a table |#foo|" ) );
+        assertEquals( Set.of(), tags( "| a |\n| - |\n| x \\|#esc |" ) );
+    }
+
+    @Test
+    void linkTextIsNeverATag() {
+        assertEquals( Set.of(), tags( "[see #foo](x)" ) );
+        assertEquals( Set.of(), tags( "![alt #foo](x.png)" ) );
+        assertEquals( Set.of(), tags( "[see #foo][r]\n\n[r]: http://e.com" ) );
+        assertEquals( Set.of( "foo" ), tags( "[see #foo][undefined]" ) );
+        assertEquals( Set.of( "tail" ), tags( "[l](x) #tail" ) );
+    }
 }

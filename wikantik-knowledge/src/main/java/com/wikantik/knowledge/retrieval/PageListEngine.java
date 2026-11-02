@@ -21,6 +21,7 @@ package com.wikantik.knowledge.retrieval;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
@@ -121,7 +122,7 @@ public final class PageListEngine {
         return clusterMatches( meta, f )
                 && typeMatches( meta, f )
                 && authorMatches( page, f )
-                && tagsMatch( meta, f )
+                && tagsMatch( page, meta, f )
                 && modifiedAfterMatches( page, f )
                 && modifiedBeforeMatches( page, f );
     }
@@ -163,12 +164,23 @@ public final class PageListEngine {
         return identity.displayName( stored ).trim().equalsIgnoreCase( wanted.trim() );
     }
 
-    private static boolean tagsMatch( final Map< String, Object > meta, final PageListFilter f ) {
-        final List< String > tags = stringList( meta.get( "tags" ) );
-        for ( final String required : f.tags() ) {
-            if ( !tags.contains( required ) ) return false;
+    /**
+     * Tags compare by normalised identity over frontmatter and inline {@code #tags} (the same rule as
+     * {@code list_pages_by_filter}). The body is read only when the frontmatter alone does not satisfy the filter.
+     */
+    private boolean tagsMatch( final Page page, final Map< String, Object > meta, final PageListFilter f ) {
+        if ( f.tags() == null || f.tags().isEmpty() ) {
+            return true;
         }
-        return true;
+        final List< String > required = f.tags().stream().filter( java.util.Objects::nonNull )
+                .map( InlineTagSyntax::normalise ).filter( t -> !t.isEmpty() ).toList();
+        final List< String > fmTags = InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ), null );
+        if ( fmTags.containsAll( required ) ) {
+            return true;
+        }
+        final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+        final String body = text == null ? null : FrontmatterParser.parse( text ).body();
+        return InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ), body ).containsAll( required );
     }
 
     private static boolean modifiedAfterMatches( final Page page, final PageListFilter f ) {

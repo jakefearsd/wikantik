@@ -23,8 +23,8 @@ describe('remarkInlineTags (shared fixture inline-tags.json)', () => {
     const html = normalised(render(row.markdown));
     if (row.html !== undefined) expect(html).toBe(normalised(row.html));
     else expect(html).not.toContain('inline-tag');
-    // What the preview links is what the index counts, except where the reader deliberately leaves a tag as plain text.
-    if (!row.indexOnly) expect(renderedTags(html)).toEqual(row.tags);
+    // What the preview links is exactly what the index counts.
+    expect(renderedTags(html)).toEqual(row.tags);
   });
 });
 
@@ -36,6 +36,11 @@ describe('remarkInlineTags beyond the fixture', () => {
 
   it('leaves a tag glued to an earlier inline construct as text', () => {
     expect(renderedTags(render('*em*#x'))).toEqual([]);
+  });
+
+  it('does tag a setext heading whose text starts with a tag, and skips ATX headings in containers', () => {
+    expect(renderedTags(render('#real tag\n=========='))).toEqual(['real']);
+    expect(renderedTags(render('> ## H #x\n\n- # H #y'))).toEqual([]);
   });
 
   it('does not tag inside a setext-less heading line but does after a heading', () => {

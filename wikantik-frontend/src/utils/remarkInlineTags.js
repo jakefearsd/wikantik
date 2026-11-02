@@ -15,7 +15,8 @@ const TAG = /(?<![^\s])#([\p{L}\p{N}_/-]+)/gu;
 const HAS_NON_DIGIT = /[\p{L}_-]/u;
 /** Nodes whose text is never prose: code, math, headings (checked separately), links and definitions. */
 const SKIP = new Set(['inlineCode', 'code', 'math', 'inlineMath', 'link', 'linkReference', 'definition', 'html', 'yaml']);
-const LINE_START_PARENTS = new Set(['paragraph', 'tableCell']);
+// (a heading only reaches here when it is setext: its text is prose and starts a line)
+const LINE_START_PARENTS = new Set(['paragraph', 'tableCell', 'heading']);
 
 function tagNode(written) {
   return {
@@ -60,7 +61,9 @@ function split(node, atLineStart, source) {
 
 function isAtxHeading(node, source) {
   const at = node.position?.start?.offset;
-  return source == null || at == null || source[at] === '#' || /^\s{0,3}#/.test(source.slice(at, at + 4));
+  // Unknown source: not provably ATX, so the heading is scanned. A setext heading whose text starts `#tag` is not ATX
+  // (an ATX marker needs a space or the end of the line after its `#`s).
+  return source != null && at != null && /^#{1,6}(?:[ \t]|$)/.test(source.slice(at, at + 8));
 }
 
 function walk(parent, source) {

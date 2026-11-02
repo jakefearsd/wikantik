@@ -46,6 +46,17 @@ public interface StructuralIndexService {
 
     List< TagSummary > listTags( int minPages );
 
+    /**
+     * The tag dictionary counted over only the pages {@code visible} accepts, so a restricted page's tags (frontmatter or
+     * inline) never reach a caller who cannot view it. Counts and sample ids are computed over the visible pages alone.
+     *
+     * @param minPages minimum pages per tag
+     * @param visible  whether the caller may view a page
+     */
+    default List< TagSummary > listTags( final int minPages, final java.util.function.Predicate< PageDescriptor > visible ) {
+        return TagAggregation.summaries( sitemap().pages().stream().filter( visible ).toList(), minPages );
+    }
+
     List< PageDescriptor > listPagesByType( PageType type );
 
     List< PageDescriptor > listPagesByFilter( StructuralFilter filter );

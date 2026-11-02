@@ -35,15 +35,21 @@ function tagPageToResult(p) {
 
 export default function SearchResultsPage() {
   const [params] = useSearchParams();
-  // `/search?tag=x` with no `q` is the tag view: every page carrying the tag, inline or frontmatter.
+  // `/search?tag=x` is the tag view: every page carrying the tag, inline or frontmatter. A `q` beside it is not applied
+  // to the tag list; the view offers a link that searches all pages for it instead.
   const tag = normaliseTag(params.get('tag') || '');
+  const ignoredQuery = tag ? params.get('q') || '' : '';
   const query = tag ? '' : params.get('q') || '';
   const { data, loading, error } = useApi(
     (signal) => (tag
-      ? api.listPagesByTag(tag, { signal }).then((d) => ({ results: (d?.pages || []).map(tagPageToResult) }))
+      ? api.listPagesByTag(tag, { signal }).then((d) => ({
+        results: (d?.pages || []).map(tagPageToResult), total: d?.total, nextCursor: d?.next_cursor,
+      }))
       : api.search(query, 50, { signal })),
     [query, tag],
   );
+  // Further batches of the tag view, fetched on "Load more" after the first batch is exhausted.
+  const [more, setMore] = useState({ key: null, results: [], cursor: undefined, busy: false, failed: false });
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selection, setSelection] = useState(EMPTY_SELECTION);
   const [sinceKey, setSinceKey] = useState(null);
@@ -52,7 +58,24 @@ export default function SearchResultsPage() {
   // undefined while loading) response defensively. Memoized on its own so a
   // `data?.results || []` fallback array doesn't change identity — and so
   // re-trigger the facets/filtered memos below — on every render.
-  const results = useMemo(() => data?.results || [], [data]);
+  const firstBatch = useMemo(() => data?.results || [], [data]);
+  const results = useMemo(() => (more.results.length ? firstBatch.concat(more.results) : firstBatch), [firstBatch, more.results]);
+  const nextCursor = more.cursor !== undefined ? more.cursor : data?.nextCursor;
+  const total = tag && typeof data?.total === 'number' ? data.total : null;
+
+  const loadMore = () => {
+    setVisibleCount((c) => c + PAGE_SIZE);
+    if (!nextCursor || more.busy) return;
+    setMore((m) => ({ ...m, busy: true, failed: false }));
+    api.listPagesByTag(tag, { cursor: nextCursor }).then((d) => {
+      setMore((m) => ({
+        ...m, busy: false, results: m.results.concat((d?.pages || []).map(tagPageToResult)), cursor: d?.next_cursor ?? null,
+      }));
+    }).catch((err) => {
+      console.warn('[search] could not load more tagged pages', err?.message || err);
+      setMore((m) => ({ ...m, busy: false, failed: true }));
+    });
+  };
   const facets = useMemo(() => deriveFacets(results), [results]);
   const filtered = useMemo(() => applyFacets(results, selection), [results, selection]);
 
@@ -65,6 +88,7 @@ export default function SearchResultsPage() {
     setVisibleCount(PAGE_SIZE);
     setSelection(EMPTY_SELECTION);
     setSinceKey(null);
+    setMore({ key: null, results: [], cursor: undefined, busy: false, failed: false });
   }
 
   // Set document title via hook — keeps the "Wikantik: " prefix consistent.
@@ -85,11 +109,11 @@ export default function SearchResultsPage() {
   if (loading) return <div className="loading">{tag ? 'Loading…' : 'Searching…'}</div>;
   if (error) return <div className="error-banner">{tag ? 'Could not load the tag' : 'Search failed'}: {error.message}</div>;
   const heading = tag
-    ? `${filtered.length} page${filtered.length !== 1 ? 's' : ''} tagged #${tag}`
+    ? `${total ?? filtered.length} page${(total ?? filtered.length) !== 1 ? 's' : ''} tagged #${tag}`
     : `${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${query}"`;
 
   const visibleResults = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
+  const hasMore = filtered.length > visibleCount || !!nextCursor;
   const filtersActive = hasActiveFacets(selection);
   // Facets are only useful once there is more than one result to narrow.
   const showFacets = results.length > 1;
@@ -106,6 +130,12 @@ export default function SearchResultsPage() {
 
   return (
     <div className="page-enter" data-testid="search-results-page" data-query={query} data-tag={tag || undefined}>
+      {ignoredQuery && (
+        <p data-testid="tag-query-note" style={{ color: 'var(--text-muted)', margin: '0 0 var(--space-md)' }}>
+          Showing the pages tagged #{tag}.{' '}
+          <Link to={`/search?q=${encodeURIComponent(ignoredQuery)}`}>Search all pages for “{ignoredQuery}”</Link>
+        </p>
+      )}
       {results.length === 0 ? (
         <EmptyState
           icon={<Icon name="search" />}
@@ -130,6 +160,11 @@ export default function SearchResultsPage() {
             </span>
           )}
         </h1>
+        {more.failed && (
+          <p role="alert" style={{ color: 'var(--danger, #b00020)', margin: 'var(--space-xs) 0 0' }}>
+            Could not load more pages; try again.
+          </p>
+        )}
       </div>
       )}
 
@@ -177,11 +212,12 @@ export default function SearchResultsPage() {
                       data-testid="results-count"
                       style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 'var(--space-sm)' }}
                     >
-                      Showing {visibleCount} of {filtered.length}
+                      Showing {Math.min(visibleCount, filtered.length)} of {total ?? filtered.length}
                     </p>
                     <button
                       data-testid="load-more-button"
-                      onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                      disabled={more.busy}
+                      onClick={loadMore}
                       style={{
                         padding: 'var(--space-sm) var(--space-lg)',
                         borderRadius: 'var(--radius-md)',

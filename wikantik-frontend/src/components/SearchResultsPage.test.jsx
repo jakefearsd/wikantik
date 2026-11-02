@@ -89,6 +89,27 @@ describe('SearchResultsPage tag view', () => {
     ]);
   });
 
+  it('shows the true total and loads the next batch with the cursor instead of truncating', async () => {
+    const { api } = await import('../api/client');
+    api.listPagesByTag = vi.fn().mockResolvedValue({ pages: [{ slug: 'Late', tags: ['foo'] }], total: 121 });
+    const first = Array.from({ length: 20 }, (_, i) => ({ name: `P${i}`, tags: ['foo'] }));
+    useApi.mockReturnValue({ data: { results: first, total: 121, nextCursor: 'CUR1' }, loading: false, error: null });
+    renderPage('?tag=foo');
+    expect(screen.getByTestId('search-results-heading')).toHaveTextContent('121 pages tagged #foo');
+    expect(screen.getByTestId('results-count')).toHaveTextContent('Showing 20 of 121');
+    fireEvent.click(screen.getByTestId('load-more-button'));
+    expect(api.listPagesByTag).toHaveBeenCalledWith('foo', { cursor: 'CUR1' });
+    expect(await screen.findByText('Late')).toBeInTheDocument();
+  });
+
+  it('with q beside tag, lists the tag and offers a link that searches all pages for q', () => {
+    useApi.mockReturnValue({ data: TAGGED, loading: false, error: null });
+    renderPage('?tag=foo&q=bar');
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(2);
+    const link = screen.getByRole('link', { name: /Search all pages for/ });
+    expect(link.getAttribute('href')).toBe('/search?q=bar');
+  });
+
   it('result tag chips link to the tag view', () => {
     useApi.mockReturnValue({ data: TAGGED, loading: false, error: null });
     renderPage('?tag=foo');

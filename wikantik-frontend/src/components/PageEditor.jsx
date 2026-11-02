@@ -548,6 +548,8 @@ export default function PageEditor() {
       case 'bold':    next = toggleWrap(state, '**'); break;
       case 'italic':  next = toggleWrap(state, '*');  break;
       case 'code':    next = toggleWrap(state, '`');  break;
+      case 'highlight': next = toggleWrap(state, '=='); break; // Mod-Shift-H in the editor keymap does the same
+      case 'comment': next = toggleWrap(state, '%%'); break;   // Mod-/ in the editor keymap does the same
       case 'codeblock': next = insertCodeBlock(state); break;
       case 'heading': next = toggleLinePrefix(state, '## '); break;
       case 'list':    next = toggleLinePrefix(state, '- ');  break;

@@ -8,6 +8,8 @@ export function buildEditorCommands({ format, save, pickImage, togglePreview, to
     cmd('format-bold', 'Bold', 'Editor', () => format('bold'), { keys: 'Mod-B' }),
     cmd('format-italic', 'Italic', 'Editor', () => format('italic'), { keys: 'Mod-I' }),
     cmd('format-code', 'Inline code', 'Editor', () => format('code')),
+    cmd('format-highlight', 'Highlight', 'Editor', () => format('highlight'), { keys: 'Mod-Shift-H', keywords: ['mark', '=='] }),
+    cmd('toggle-comment', 'Toggle comment', 'Editor', () => format('comment'), { keys: 'Mod-/', keywords: ['%%', 'hidden', 'note'] }),
     cmd('format-list', 'Bulleted list', 'Editor', () => format('list')),
     // The hint is the browser's own plain-text paste, which the editor honours; the command reads the clipboard.
     cmd('paste-plain', 'Paste as plain text', 'Editor', pastePlain, { keys: 'Mod-Shift-V', keywords: ['clipboard', 'unformatted'] }),

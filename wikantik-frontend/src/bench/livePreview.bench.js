@@ -114,3 +114,22 @@ for (const lines of [2000, 5000]) {
     }, { ...OPTS, setup: setupEnd, teardown });
   });
 }
+
+// Obsidian `%%comments%%`: one Mermaid fence with a `%%` line (as on every page with a diagram) and an inline comment in
+// every tenth section. Any `%%` used to cost each keystroke a full-document comment scan (code + math masks); compare
+// with the plain keystroke above.
+for (const lines of [2000, 5000]) {
+  let n = 0;
+  const doc = `${makeDoc(lines).split('\n')
+    .map((l) => (l.startsWith('It continues ') && (n += 1) % 10 === 0 ? `${l} %%a note ${n}%%` : l)).join('\n')}\n`
+    + '```mermaid\ngraph TD\n%% a mermaid comment\nA-->B\n```\n';
+  describe(`${lines} lines with %% comments — live ON — EditorView.dispatch`, () => {
+    let view;
+    const setup = () => { view = makeView(doc, true); };
+    const teardown = () => { view.destroy(); view.dom.parentNode?.remove(); };
+    bench('keystroke on an ordinary line', () => {
+      const pos = view.state.selection.main.head;
+      view.dispatch({ changes: { from: pos, insert: 'a' }, selection: { anchor: pos + 1 }, userEvent: 'input.type' });
+    }, { ...OPTS, setup, teardown });
+  });
+}

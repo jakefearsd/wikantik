@@ -8,7 +8,7 @@ import { obsidianSyntaxKeymap } from './obsidianSyntaxKeymap';
 let view;
 afterEach(() => view?.destroy());
 
-/** An editor with the stock keymap AFTER ours in the extension list, so only precedence can make ours win. */
+/** An editor with the stock keymap BEFORE ours in the extension list, so only precedence can make ours win. */
 function editor(doc, from, to = from) {
   view = new EditorView({
     parent: document.body,

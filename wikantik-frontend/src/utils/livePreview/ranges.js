@@ -20,17 +20,77 @@ const BLOCK_MATH = /^\$\$[ \t]*\n[\s\S]*\n[ \t]*\$\$[ \t]*$/;
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const PLUGIN = /\[\{[^\n]*?\}\](?:\(\))?/g;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-/** The whole document's `%%comments%%`, cached per document (a keystroke's decoration pass scans no unchanged text twice). */
+/**
+ * The whole document's `%%comments%%`, cached per document. A full scan (code and math masks over the whole text) runs
+ * only when nothing carried the ranges over from the previous document: commentRangesField maps them through an edit
+ * that cannot change what is code, math or a comment marker (editKeepsComments), so ordinary typing rescans nothing.
+ */
 const commentCache = new WeakMap();
-function commentsOf(doc) {
+let fullCommentScans = 0;
+export function commentsOf(doc) {
   let hit = commentCache.get(doc);
   if (hit) return hit;
   let marked = false;
   for (const chunk of doc.iter()) if (chunk.includes('%%')) { marked = true; break; }
+  if (marked) fullCommentScans += 1;
   hit = marked ? commentRanges(doc.toString()) : [];
   commentCache.set(doc, hit);
   return hit;
 }
+/** Test seam: how many full comment scans have run. */
+export const commentScans = () => fullCommentScans;
+/** A line's quote, list-marker and indent prefix, which decides what the line is (quote, list item, indented code). */
+const LINE_KIND_PREFIX = /^[\s>]*(?:[-*+]|\d{1,9}[.)])?\s*/;
+/** Characters that open or close math, which can span the lines of a paragraph. */
+const MATH_CHARS = /[$\\]/;
+const isBlank = (text) => text.trim() === '';
+/** Whether the paragraph around line `n` (to the blank lines on either side) holds a `%`, line `n` itself excluded. */
+function paragraphHasPercent(doc, n) {
+  for (let k = n - 1; k >= 1 && !isBlank(doc.line(k).text); k -= 1) if (doc.line(k).text.includes('%')) return true;
+  for (let k = n + 1; k <= doc.lines && !isBlank(doc.line(k).text); k += 1) if (doc.line(k).text.includes('%')) return true;
+  return false;
+}
+/** Whether a one-line edit of `line` at `at` can change only that line's own code spans: see editKeepsComments. */
+function lineEditKeepsKind(line, at) {
+  const prefix = LINE_KIND_PREFIX.exec(line.text)[0].length;
+  const first = line.text[prefix];
+  return !isBlank(line.text) && !line.text.includes('%') && at - line.from > prefix
+    && first !== '`' && first !== '~' && first !== '$';
+}
+/**
+ * Whether one change (old `[fromA, toA)` → new `[fromB, toB)`) leaves every comment range where the mapping puts it. It
+ * must stay on one line, which is non-blank before and after, holds no `%`, does not start (past its quote, list or
+ * indent prefix, which the edit lies beyond) with a fence or `$` character, and — when it holds `$` or a backslash —
+ * sits in a paragraph with no `%`. Then no fence, display-math block, list item, quote or `%%` appears, goes or changes,
+ * code spans change only on this line, and math only in this paragraph: no `%%` changes whether it is code or math.
+ */
+function editKeepsComments(oldDoc, newDoc, fromA, toA, fromB, toB) {
+  const oldLine = oldDoc.lineAt(fromA);
+  const newLine = newDoc.lineAt(fromB);
+  if (toA > oldLine.to || toB > newLine.to) return false;
+  if (!lineEditKeepsKind(oldLine, fromA) || !lineEditKeepsKind(newLine, fromB)) return false;
+  return !(MATH_CHARS.test(oldLine.text) || MATH_CHARS.test(newLine.text)) || !paragraphHasPercent(newDoc, newLine.number);
+}
+/** The comment ranges of `tr.state`, given `prev` = those of `tr.startState`; null when only a full scan can tell. */
+export function updateCommentRanges(prev, tr) {
+  let keeps = true;
+  tr.changes.iterChanges((fromA, toA, fromB, toB) => {
+    if (keeps) keeps = editKeepsComments(tr.startState.doc, tr.state.doc, fromA, toA, fromB, toB);
+  });
+  if (!keeps) return null;
+  return prev.map((r) => ({ from: tr.changes.mapPos(r.from), to: tr.changes.mapPos(r.to) }));
+}
+/** Carries a document's cached comment ranges to the next document through each edit (the cache is the store). */
+export const commentRangesField = StateField.define({
+  create: () => null,
+  update(value, tr) {
+    if (!tr.docChanged) return value;
+    const prev = commentCache.get(tr.startState.doc);
+    const next = prev ? updateCommentRanges(prev, tr) : null;
+    if (next) commentCache.set(tr.state.doc, next);
+    return value;
+  },
+});
 export function activeLinesOf(state) {
   const lines = new Set();
   for (const r of state.selection.ranges) {
@@ -294,6 +354,10 @@ const firstMarkerCache = new WeakMap(); // doc → { tree, upTo, firsts }
  * descended into), once per (document, parse tree) — the walk ends at the last marker in view, so it is short while
  * the viewport is near the top — and only when a marker is in view at all.
  */
+/** Whether `pos` lies inside a `%%comment%%`: a block marker there addresses nothing (the server's rule). */
+function inComment(doc, pos) {
+  return commentsOf(doc).some((r) => pos >= r.from && pos < r.to);
+}
 function firstMarkers(state, upTo) {
   const tree = syntaxTree(state);
   const hit = firstMarkerCache.get(state.doc);
@@ -306,7 +370,7 @@ function firstMarkers(state, upTo) {
       if (SKIP.has(node.name) || NOT_A_HOLDER.test(node.name)) return false;
       if (!TEXT_BLOCK.has(node.name)) return undefined;
       const m = paragraphMarker(state.doc, node.node);
-      if (m && !firsts.has(m.id)) firsts.set(m.id, m.from);
+      if (m && !firsts.has(m.id) && !inComment(state.doc, m.from)) firsts.set(m.id, m.from);
       return false;
     },
   });
@@ -444,6 +508,47 @@ function finalize(doc, specs) {
     out.push(s);
   }
   return out;
+}
+/**
+ * `==highlight==` specs for the lines in [from, to]. A highlight pairs within one inline run, as the reader's does: a
+ * paragraph spanning lines is scanned whole (so a pair may cross a soft line break), any other line on its own. A
+ * delimiter inside code, math, a claimed construct or a comment pairs with nothing (the reader shows none of those).
+ */
+function highlightSpecs(state, from, to, { excluded, claimed, commentPairs, overlaps, mark, hide }) {
+  const doc = state.doc;
+  const units = [];
+  const covered = new Set();
+  syntaxTree(state).iterate({
+    from,
+    to,
+    enter: (node) => {
+      if (node.name !== 'Paragraph') return undefined;
+      const first = doc.lineAt(node.from).number;
+      const last = doc.lineAt(node.to).number;
+      if (last > first) {
+        units.push([node.from, node.to]);
+        for (let n = first; n <= last; n += 1) covered.add(n);
+      }
+      return false;
+    },
+  });
+  const lastLine = doc.lineAt(to).number;
+  for (let n = doc.lineAt(from).number; n <= lastLine; n += 1) {
+    const line = doc.line(n);
+    if (!covered.has(n)) units.push([line.from, line.to]);
+  }
+  for (const [a, b] of units) {
+    const text = doc.sliceString(a, b);
+    if (!text.includes('==')) continue;
+    const blocked = (x, y) => overlaps(excluded, a + x, a + y) || overlaps(claimed, a + x, a + y)
+      || overlaps(commentPairs(), a + x, a + y);
+    for (const h of findHighlights(text, blocked)) {
+      const g = `Highlight@${a + h.from}`;
+      mark(a + h.from, a + h.to, 'cm-lp-mark', g);
+      hide(a + h.from, a + h.openEnd, g);
+      hide(a + h.closeStart, a + h.to, g);
+    }
+  }
 }
 export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.length, context = {} } = {}) {
   const doc = state.doc;
@@ -602,6 +707,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const treeCount = specs.length;
   const claimed = [];
   const overlaps = (list, a, b) => list.some(([x, y]) => a < y && b > x);
+  let pairs = null;
+  const commentPairs = () => { pairs ??= commentsOf(doc).map((r) => [r.from, r.to]); return pairs; };
   const wikiSpecs = (ref, lineFrom, whole) => {
     const a = lineFrom + ref.from;
     const b = lineFrom + ref.to;
@@ -693,16 +800,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         i = end - 1;
       }
     }
-    if (text.includes('==')) {
-      const blocked = (a, b) => overlaps(excluded, line.from + a, line.from + b) || overlaps(claimed, line.from + a, line.from + b);
-      for (const h of findHighlights(text, blocked)) {
-        const g = `Highlight@${line.from + h.from}`;
-        mark(line.from + h.from, line.from + h.to, 'cm-lp-mark', g);
-        hide(line.from + h.from, line.from + h.openEnd, g);
-        hide(line.from + h.closeStart, line.from + h.to, g);
-      }
-    }
   });
+  highlightSpecs(state, from, to, { excluded, claimed, commentPairs, overlaps, mark, hide });
   // A comment is dimmed with its delimiters showing: the editor must show that it is there (the reader hides it).
   for (const r of commentsOf(doc)) mark(Math.max(r.from, from), Math.min(r.to, to), 'cm-lp-comment', `Comment@${r.from}`);
   // A tree construct that cuts through a claimed range is dropped whole (its group); one that contains it is kept.
@@ -714,7 +813,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   // A block marker reads as a muted chip off the caret's line; a later duplicate of an id (first wins) is flagged.
   const firsts = markers.length ? firstMarkers(state, Math.max(...markers.map((m) => m.from))) : null;
   for (const m of markers) {
-    if (!inactive(m.from)) continue;
+    if (!inactive(m.from) || inComment(doc, m.from)) continue; // a marker inside a comment is plain comment text
     const first = firsts.get(m.id);
     const end = m.from + 1 + m.id.length;
     if (first !== undefined && first < m.from) {

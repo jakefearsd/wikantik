@@ -203,8 +203,9 @@
   accent-color: var(--accent);
 }
 
-/* ==highlight== (Obsidian): the server's and the editor preview's <mark>; anchored comments below win by order */
-.article-prose mark { background: var(--highlight-bg); color: inherit; padding: 0 0.15em; border-radius: 2px; }
+/* ==highlight== (Obsidian): the server's and the editor preview's class-less <mark>. Anchored comments paint their own
+   <mark class="comment-highlight…"> over the same text, so they are left out: no padding may shift their layout. */
+.article-prose mark:not([class*="comment-highlight"]) { background: var(--highlight-bg); color: inherit; padding: 0 0.15em; border-radius: 2px; }
 
 /* Anchored comments */
 mark.comment-highlight { background: #fde68a; cursor: pointer; border-radius: 2px; }

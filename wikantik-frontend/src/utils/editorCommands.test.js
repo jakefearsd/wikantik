@@ -67,4 +67,17 @@ describe('buildEditorCommands', () => {
     c.run();
     expect(d.copyBlockLink).toHaveBeenCalled();
   });
+
+  it('offers Highlight (Mod-Shift-H) and Toggle comment (Mod-/) in the palette, routed through format', () => {
+    const d = deps();
+    const byId = Object.fromEntries(buildEditorCommands(d).map((c) => [c.id, c]));
+    expect(byId['format-highlight']).toMatchObject({ title: 'Highlight', section: 'Editor', keys: 'Mod-Shift-H' });
+    expect(byId['toggle-comment']).toMatchObject({ title: 'Toggle comment', section: 'Editor', keys: 'Mod-/' });
+    expect(byId['format-highlight'].slash).toBeFalsy();
+    expect(byId['toggle-comment'].slash).toBeFalsy();
+    byId['format-highlight'].run();
+    byId['toggle-comment'].run();
+    expect(d.format).toHaveBeenCalledWith('highlight');
+    expect(d.format).toHaveBeenCalledWith('comment');
+  });
 });

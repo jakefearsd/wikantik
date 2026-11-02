@@ -234,6 +234,13 @@ describe('livePreviewSpecs — highlight', () => {
       expect(specsOf(`${doc}\n\nend`, [3]).specs.some((s) => s.cls === 'cm-lp-mark')).toBe(false);
     }
   });
+  it('pairs across a soft line break inside one paragraph, never across paragraphs or list items', () => {
+    const o = specsOf('Some ==marked\nacross== text.\n\nend', [4]);
+    expect(o.specs.filter((s) => s.cls === 'cm-lp-mark').map((s) => o.state.sliceDoc(s.from, s.to))).toEqual(['==marked\nacross==']);
+    for (const doc of ['a ==x\n\ny== b', '- a ==x\n- y== b', '# H ==x\ny== b']) {
+      expect(specsOf(`${doc}\n\nend`, [99]).specs.some((s) => s.cls === 'cm-lp-mark'), doc).toBe(false);
+    }
+  });
   it('leaves code spans and math alone', () => {
     for (const doc of ['`==x==`', '$a==b==c$', '$$\na==b==c\n$$']) {
       expect(specsOf(`${doc}\n\nend`, [99]).specs.some((s) => s.cls === 'cm-lp-mark')).toBe(false);
@@ -250,6 +257,19 @@ describe('livePreviewSpecs — comments', () => {
   it('dims a multi-line comment as one range', () => {
     const o = specsOf('a %%one\ntwo%% b\n\nend', [4]);
     expect(commentMarks(o)).toEqual(['%%one\ntwo%%']);
+  });
+  it('never decorates a highlight inside a comment (the reader shows neither)', () => {
+    for (const doc of ['a %%==x==%% b', 'a %%one\n==x== two%% b']) {
+      const o = specsOf(`${doc}\n\nend`, [99]);
+      expect(o.specs.some((s) => s.cls === 'cm-lp-mark')).toBe(false);
+      expect(commentMarks(o).length).toBe(1);
+    }
+    expect(specsOf('==x== %%c%%\n\nend', [99]).specs.some((s) => s.cls === 'cm-lp-mark')).toBe(true);
+  });
+  it('draws no block-id chip for a marker inside a comment, and such a marker makes no later one a duplicate', () => {
+    const o = specsOf('%%\n\nhidden ^sec\n\n%%\n\nShown ^sec\n\nend', [99]);
+    const ids = o.specs.filter((s) => s.cls === 'cm-lp-blockid' || s.cls === 'cm-lp-blockid-dup');
+    expect(ids.map((s) => [s.cls, o.state.doc.lineAt(s.from).number])).toEqual([['cm-lp-blockid', 7]]);
   });
   it('leaves code, math, an unterminated marker and a Mermaid comment undimmed', () => {
     for (const doc of ['`%%x%%`', '$a %%x%% b$', '$$\nx %% y %%\n$$', 'a %%b', '```mermaid\ngraph TD\n%% c\nA-->B\n```']) {

@@ -85,3 +85,20 @@ production page store (copied read-only out of the running container, prod at 2.
 
 The one detector hit is `RenderedFencesDesign` line 118, `` `%%{ … }%%` `` (a Mermaid init directive). It is already
 inside an inline code span, so it stays literal under Phase 2. No page needed escaping.
+
+## Phase 4 — inline `#tags` (2026-11-01)
+
+Detector: the shipped scanner `InlineTagSyntax.scan`. It skips code spans, fences, math, comments, headings,
+URL fragments and `[[Page#Heading]]`, and does not match digit-only `#104`. It ran over each page body (frontmatter
+removed) for the same byte-exact production copy and for the repo corpora.
+
+| Corpus | Pages | Pages with inline tags | Tags | Action |
+|---|---|---|---|---|
+| production | 1466 | 0 | 0 | none |
+| `docs/wikantik-pages/` | 1197 | 0 | 0 | none |
+| `wikantik-wikipages/` | 38 | 0 | 0 | none |
+
+Cross-check: a raw `grep` for `#word` after whitespace finds about 50 occurrences in production. Spot checks show
+each one is inside a fenced block (`#incidents` in a post-mortem template fence, `#ops-only` in a YAML fence), in CSS
+(`#E8E4DC`, `#fff`), in frontmatter, or is `#wikantik`/`#include` inside code. The scanner correctly ignores all of
+them, so enabling Phase 4 changes no existing page's rendering, and no page needed `\#` escaping.

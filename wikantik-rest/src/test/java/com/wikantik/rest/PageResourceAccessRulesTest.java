@@ -236,4 +236,68 @@ class PageResourceAccessRulesTest {
         assertTrue( json.get( "content" ).getAsString().contains( "version two" ), "the viewer reads version 2: " + viewer.body() );
         assertFalse( json.has( "accessRules" ), viewer.body() );
     }
+
+    private static final String COMMENT = "%% secret note %%";
+    private static final String ORIGINAL = "---\ntitle: Round Trip\ntype: article\n---\n[{ALLOW view All}]\n[{ALLOW edit Admin}]\n\n"
+            + "Intro with ==hl== text and a " + COMMENT + " in it.\n\nSecond paragraph.\n";
+
+    private static void assertIntact( final String text, final String why ) {
+        assertTrue( text.contains( COMMENT ), why + ": the comment survives: " + text );
+        assertTrue( text.contains( "==hl==" ), why + ": the highlight survives: " + text );
+        assertTrue( text.contains( "[{ALLOW edit Admin}]" ), why + ": the rule survives: " + text );
+        assertTrue( text.contains( "title: Round Trip" ) && text.contains( "type: article" ), why + ": the frontmatter survives: " + text );
+    }
+
+    /** An editor is sent the raw stored text, so saving it back cannot drop a comment. */
+    @Test
+    void anEditorsPutOfWhatTheyWereSentKeepsCommentsFrontmatterAndRules() throws Exception {
+        engine.saveText( PAGE, ORIGINAL );
+        final JsonObject got = get( true, Map.of() ).json();
+        final String sent = got.get( "content" ).getAsString();
+        assertTrue( sent.contains( COMMENT ), "the editor is sent the comment: " + sent );
+
+        // The editor sends back what it was given: the body and the frontmatter fields, apart.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", sent );
+        body.add( "metadata", got.getAsJsonObject( "metadata" ) );
+        final Reply reply = send( "PUT", body );
+
+        verify( reply.response(), org.mockito.Mockito.never() ).setStatus( org.mockito.ArgumentMatchers.anyInt() );
+        assertIntact( stored(), "after a PUT" );
+    }
+
+    /** A metadata PATCH (the only PATCH there is) rewrites the page text: the body's comments and rules must ride through. */
+    @Test
+    void anEditorsMetadataPatchKeepsCommentsFrontmatterAndRules() throws Exception {
+        engine.saveText( PAGE, ORIGINAL );
+        final JsonObject body = new JsonObject();
+        final JsonObject metadata = new JsonObject();
+        metadata.addProperty( "summary", "A trivial edit elsewhere." );
+        body.add( "metadata", metadata );
+
+        final Reply reply = send( "PATCH", body );
+
+        verify( reply.response(), org.mockito.Mockito.never() ).setStatus( org.mockito.ArgumentMatchers.anyInt() );
+        final String after = stored();
+        assertTrue( after.contains( "summary: A trivial edit elsewhere." ), "the edit landed: " + after );
+        assertIntact( after, "after a PATCH" );
+    }
+
+    /** A caller without edit is never sent the comment and cannot save, so they cannot write back a stripped copy. */
+    @Test
+    void aViewerWithoutEditIsNotSentTheCommentAndCannotSave() throws Exception {
+        engine.saveText( PAGE, ORIGINAL );
+        final Reply read = get( false, Map.of() );
+        assertFalse( read.body().contains( "secret note" ), "no comment text for a viewer: " + read.body() );
+        assertTrue( read.json().get( "content" ).getAsString().contains( "Second paragraph." ), "control: they do read the page" );
+
+        final HttpServletRequest request = request( false, Map.of() );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", read.json().get( "content" ).getAsString() );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+        final Reply put = call( request, "PUT" );
+
+        verify( put.response() ).setStatus( org.mockito.ArgumentMatchers.intThat( c -> c == 401 || c == 403 ) );
+        assertEquals( ORIGINAL, stored(), "a refused save changes nothing" );
+    }
 }

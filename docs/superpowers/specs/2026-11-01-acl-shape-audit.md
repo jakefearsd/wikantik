@@ -44,5 +44,24 @@ page needed a fix, so no content commit.
 
 ## Production
 
-_To be filled in by the controller: command run, summary (locked / changed / ESCAPED / fetch failures), then one entry
-per finding with page, span, old text-scan ACL, old render ACL, new ACL, the fix and why._
+Run 2026-11-01 against the live production page store (docker1, prod at 2.5.5), before the 2.5.6 deploy. The stored
+`.md` files were copied read-only out of the running container (`docker exec repo-wikantik-1 tar cf - *.md` from
+`/var/wikantik/pages`). That gives byte-exact stored text, frontmatter quoting included, so `--dir` mode was used
+rather than `--url`. The `--url` mode rebuilds frontmatter from parsed fields.
+
+```
+java -cp "$CP" com.wikantik.extractcli.AclShapeAuditCli --dir <prod-page-copy> --format text
+```
+
+Summary: **pages 1466, audited 1466, fetch failures 0, locked 0, changed 0, ESCAPED 0** (exit 0).
+
+13 prod pages contain `[{ALLOW`/`[{DENY` text in some spelling:
+
+- **Real access rules (3 pages):** `CredentialsLocator`, `RejectedMessage` and `WikantikConfigurationReference`. The
+  new reader enforces the same ACL as both old readers.
+- **Documentation only (the other 10):** the text appears inside code spans or fences, for example
+  `` `[{DENY ...}]` `` in `WikantikSecurityGuide` and `` `[{ALLOW}]`/`[{DENY}]` `` in `NativeWikilinksDesign`. The
+  text is literal for all three readers, and it stays hidden from callers without `edit`.
+
+No production page needed an edit. The deploy prerequisite (zero locked prod pages) is met. Re-run this audit after
+the deploy to confirm the server-side `accessRules` reading agrees, using `--url` with an Admin-group key.

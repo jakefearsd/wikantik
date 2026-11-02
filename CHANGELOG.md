@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.6] - 2026-11-01
+
 ### Added
 - **Pasted images upload as attachments.** Paste as Markdown now keeps images that arrive embedded as `data:` URIs
   (Google Docs, Word and web copies): each PNG, JPEG, GIF or WebP becomes a page attachment named

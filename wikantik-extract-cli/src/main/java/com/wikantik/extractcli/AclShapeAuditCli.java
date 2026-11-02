@@ -141,6 +141,7 @@ public final class AclShapeAuditCli {
         try {
             uri = new URI( url );
         } catch ( final URISyntaxException e ) {
+            LOG.debug( "AclShapeAuditCli: --url does not parse at index {}", e.getIndex() );   // never echo it: userinfo
             return "--url is not a valid URL";
         }
         if ( uri.getRawUserInfo() != null ) {
@@ -203,23 +204,25 @@ public final class AclShapeAuditCli {
         if ( ( dir == null ) == ( url == null ) || !( "text".equals( format ) || "json".equals( format ) ) ) {
             return usage( err );
         }
-        final PageSource source;
-        if ( dir != null ) {
-            source = AclShapeAuditSources.dirSource( Path.of( dir ) );
-        } else {
-            final String authorization = authorization( env );
-            if ( authorization == null ) {
-                err.println( "--url needs WIKANTIK_AUDIT_TOKEN, or WIKANTIK_AUDIT_USER and WIKANTIK_AUDIT_PASSWORD" );
-                return 64;
-            }
-            final String unsafe = unsafeUrlReason( url );
-            if ( unsafe != null ) {
-                err.println( unsafe );
-                return 64;
-            }
-            source = AclShapeAuditSources.urlSource( url, authorization, minIntervalMs );
+        final PageSource source = dir != null ? AclShapeAuditSources.dirSource( Path.of( dir ) )
+                : urlSource( url, env, minIntervalMs, err );
+        return source == null ? 64 : run( source, "json".equals( format ), out, err );
+    }
+
+    /** The {@code --url} source, or {@code null} (the reason printed to {@code err}) without credentials or on an unsafe URL. */
+    private static PageSource urlSource( final String url, final UnaryOperator< String > env, final long minIntervalMs,
+                                         final PrintStream err ) {
+        final String authorization = authorization( env );
+        if ( authorization == null ) {
+            err.println( "--url needs WIKANTIK_AUDIT_TOKEN, or WIKANTIK_AUDIT_USER and WIKANTIK_AUDIT_PASSWORD" );
+            return null;
         }
-        return run( source, "json".equals( format ), out, err );
+        final String unsafe = unsafeUrlReason( url );
+        if ( unsafe != null ) {
+            err.println( unsafe );
+            return null;
+        }
+        return AclShapeAuditSources.urlSource( url, authorization, minIntervalMs );
     }
 
     private static int usage( final PrintStream err ) {

@@ -257,6 +257,8 @@ public final class AccessRules {
         try {
             structure = RenderPathAccessRules.structure( fullText );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
+            LOG.debug( "Access rules of a {}-char text are unreadable as the renderer reads them: {}", fullText.length(),
+                    e.getMessage() );
             return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e );
         }
         for ( final RenderPathAccessRules.Rule rule : structure.rules() ) {

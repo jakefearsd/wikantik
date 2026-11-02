@@ -29,6 +29,8 @@ import com.wikantik.auth.acl.AccessRules;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
 import com.wikantik.util.AclDirectiveScanner;
 import com.wikantik.util.OffsetRanges;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +54,8 @@ import java.util.TreeSet;
  *  Principals are compared as written (not resolved against users or groups).</p>
  */
 final class AclShapeAudit {
+
+    private static final Logger LOG = LogManager.getLogger( AclShapeAudit.class );
 
     static final String NONE = "(none)";
     static final String LOCKED = "LOCKED";
@@ -107,6 +111,7 @@ final class AclShapeAudit {
         try {
             return acl( RenderPathAccessRules.find( text ).stream().map( RenderPathAccessRules.Rule::ruleLine ).toList() );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
+            LOG.debug( "AclShapeAudit: the old render reading cannot read a {}-char text: {}", text.length(), e.getMessage() );
             return UNREADABLE;
         }
     }

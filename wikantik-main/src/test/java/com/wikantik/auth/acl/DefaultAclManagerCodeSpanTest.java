@@ -25,7 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Unit tests for {@link DefaultAclManager#aclDirectives(String)} — the
+ * Unit tests for {@link EnforcedAclDirectives#directives(String)} — the
  * Markdown-aware ACL scanner. A {@code [{ALLOW …}]} directive is only an
  * enforceable access rule when it sits in ordinary page text; the same syntax
  * shown inside a Markdown code span or code block is documentation and must be
@@ -39,50 +39,50 @@ class DefaultAclManagerCodeSpanTest {
     @Test
     void plainAclOutsideCodeIsReturned() {
         assertEquals( List.of( "[{ALLOW view Admin}]" ),
-            DefaultAclManager.aclDirectives( "Intro. [{ALLOW view Admin}] more text." ) );
+            EnforcedAclDirectives.directives( "Intro. [{ALLOW view Admin}] more text." ) );
     }
 
     @Test
     void genuineRestrictiveViewAclIsNeverDropped() {
         // SECURITY regression: a real restriction must always be enforced.
         assertEquals( List.of( "[{ALLOW view Admin}]" ),
-            DefaultAclManager.aclDirectives( "[{ALLOW view Admin}]\nSecret content." ) );
+            EnforcedAclDirectives.directives( "[{ALLOW view Admin}]\nSecret content." ) );
     }
 
     @Test
     void multipleRealAclsReturnedInOrder() {
         assertEquals( List.of( "[{ALLOW view Admin}]", "[{ALLOW edit Bob}]" ),
-            DefaultAclManager.aclDirectives( "[{ALLOW view Admin}] then [{ALLOW edit Bob}]" ) );
+            EnforcedAclDirectives.directives( "[{ALLOW view Admin}] then [{ALLOW edit Bob}]" ) );
     }
 
     @Test
     void whitespaceVariantOutsideCodeIsReturned() {
         assertEquals( List.of( "[{  ALLOW  view  Admin  }]" ),
-            DefaultAclManager.aclDirectives( "x [{  ALLOW  view  Admin  }] y" ) );
+            EnforcedAclDirectives.directives( "x [{  ALLOW  view  Admin  }] y" ) );
     }
 
     @Test
     void multiplePrincipalsOutsideCodeReturned() {
         assertEquals( List.of( "[{ALLOW view Admin,Authenticated}]" ),
-            DefaultAclManager.aclDirectives( "[{ALLOW view Admin,Authenticated}]" ) );
+            EnforcedAclDirectives.directives( "[{ALLOW view Admin,Authenticated}]" ) );
     }
 
     @Test
     void aclImmediatelyAfterInlineCodeIsReturned() {
         assertEquals( List.of( "[{ALLOW edit Admin}]" ),
-            DefaultAclManager.aclDirectives( "The `pattern` then [{ALLOW edit Admin}]." ) );
+            EnforcedAclDirectives.directives( "The `pattern` then [{ALLOW edit Admin}]." ) );
     }
 
     @Test
     void aclBetweenTwoInlineCodeSpansIsReturned() {
         assertEquals( List.of( "[{ALLOW edit Bob}]" ),
-            DefaultAclManager.aclDirectives( "`a` [{ALLOW edit Bob}] `c`" ) );
+            EnforcedAclDirectives.directives( "`a` [{ALLOW edit Bob}] `c`" ) );
     }
 
     @Test
     void realAclThenCodeExampleReturnsOnlyReal() {
         assertEquals( List.of( "[{ALLOW view Admin}]" ),
-            DefaultAclManager.aclDirectives( "[{ALLOW view Admin}] syntax is `[{ALLOW edit Bob}]`." ) );
+            EnforcedAclDirectives.directives( "[{ALLOW view Admin}] syntax is `[{ALLOW edit Bob}]`." ) );
     }
 
     // ---- directives inside code are documentation, not rules ----
@@ -90,7 +90,7 @@ class DefaultAclManagerCodeSpanTest {
     @Test
     void inlineCodeAclIsIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "Use `[{ALLOW view Admin}]` to restrict." ) );
+            EnforcedAclDirectives.directives( "Use `[{ALLOW view Admin}]` to restrict." ) );
     }
 
     @Test
@@ -98,49 +98,49 @@ class DefaultAclManagerCodeSpanTest {
         // The exact shape that hid WikantikArchitecture from anonymous users.
         final String line = "- ... enforced across REST, MCP, and the UI; "
             + "inline `[{ALLOW view Admin}]` ACLs in page bodies.";
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( line ) );
+        assertEquals( List.of(), EnforcedAclDirectives.directives( line ) );
     }
 
     @Test
     void doubleBacktickInlineCodeIsIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "Code: ``[{ALLOW view Admin}]`` end." ) );
+            EnforcedAclDirectives.directives( "Code: ``[{ALLOW view Admin}]`` end." ) );
     }
 
     @Test
     void editAclInInlineCodeIsIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "Restrict editing with `[{ALLOW edit Admin}]`." ) );
+            EnforcedAclDirectives.directives( "Restrict editing with `[{ALLOW edit Admin}]`." ) );
     }
 
     @Test
     void aclInsideSecondInlineCodeSpanIsIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "`first` and `[{ALLOW view Admin}]`" ) );
+            EnforcedAclDirectives.directives( "`first` and `[{ALLOW view Admin}]`" ) );
     }
 
     @Test
     void fencedCodeBlockAclIsIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "```\n[{ALLOW view Admin}]\n```\n" ) );
+            EnforcedAclDirectives.directives( "```\n[{ALLOW view Admin}]\n```\n" ) );
     }
 
     @Test
     void tildeFencedCodeBlockAclIsIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "~~~\n[{ALLOW view Admin}]\n~~~\n" ) );
+            EnforcedAclDirectives.directives( "~~~\n[{ALLOW view Admin}]\n~~~\n" ) );
     }
 
     @Test
     void fencedBlockWithMultipleAclsAllIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "```\n[{ALLOW view Admin}]\n[{ALLOW edit Bob}]\n```" ) );
+            EnforcedAclDirectives.directives( "```\n[{ALLOW view Admin}]\n[{ALLOW edit Bob}]\n```" ) );
     }
 
     @Test
     void indentedCodeBlockAclIsIgnored() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "Before.\n\n    [{ALLOW view Admin}]\n\nAfter.\n" ) );
+            EnforcedAclDirectives.directives( "Before.\n\n    [{ALLOW view Admin}]\n\nAfter.\n" ) );
     }
 
     // ---- mixed and degenerate inputs ----
@@ -148,22 +148,22 @@ class DefaultAclManagerCodeSpanTest {
     @Test
     void realAclAmongCodeExampleReturnsOnlyReal() {
         assertEquals( List.of( "[{ALLOW edit Bob}]" ),
-            DefaultAclManager.aclDirectives( "Example `[{ALLOW view Admin}]` but really [{ALLOW edit Bob}]." ) );
+            EnforcedAclDirectives.directives( "Example `[{ALLOW view Admin}]` but really [{ALLOW edit Bob}]." ) );
     }
 
     @Test
     void nullTextReturnsEmpty() {
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( null ) );
+        assertEquals( List.of(), EnforcedAclDirectives.directives( null ) );
     }
 
     @Test
     void emptyTextReturnsEmpty() {
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( "" ) );
+        assertEquals( List.of(), EnforcedAclDirectives.directives( "" ) );
     }
 
     @Test
     void textWithNoDirectiveReturnsEmpty() {
         assertEquals( List.of(),
-            DefaultAclManager.aclDirectives( "Just prose with a [link](x) and `code`, no rules." ) );
+            EnforcedAclDirectives.directives( "Just prose with a [link](x) and `code`, no rules." ) );
     }
 }

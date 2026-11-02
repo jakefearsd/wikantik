@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * {@link AclDirectiveText#strip} is the guarantee: whatever {@link DefaultAclManager} enforces in a text is gone from
  * the result, by construction (the facade removes exactly what the ACL manager would enforce, with its parser, and
  * only then runs the conservative util pass). The cases that broke the util pass on its own — found by review — are
- * fixtures here, each checked for the invariant against the real {@code DefaultAclManager.aclDirectives}, and a
+ * fixtures here, each checked for the invariant against the text scan of 2.4.57–2.5.5 ({@code EnforcedAclDirectives.directives}), and a
  * seeded differential run repeats the check on tens of thousands of token soups.
  */
 class AclDirectiveTextTest {
@@ -74,7 +74,7 @@ class AclDirectiveTextTest {
     @Test
     void pluginsAndDocumentationExamplesAreKeptByteForByteAndTheSameInstance() {
         final String text = "[{TableOfContents}]\n[{SET foo='bar'}]\nUse `" + D + "` like so:\n\n```\n" + D + "\n```\n";
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( text ), "fixture: nothing here is enforced" );
+        assertEquals( List.of(), EnforcedAclDirectives.directives( text ), "fixture: nothing here is enforced" );
         assertSame( text, AclDirectiveText.strip( text ) );
     }
 
@@ -109,7 +109,7 @@ class AclDirectiveTextTest {
     @ParameterizedTest( name = "{0}" )
     @MethodSource( "reviewerRepros" )
     void everyReviewerReproLosesItsEnforcedDirective( final String label, final String body ) {
-        final List< String > enforced = DefaultAclManager.aclDirectives( body );
+        final List< String > enforced = EnforcedAclDirectives.directives( body );
         assertTrue( enforced.contains( D ), "fixture is vacuous: the ACL manager does not enforce the directive in: " + body );
 
         final String out = AclDirectiveText.strip( body );
@@ -119,10 +119,10 @@ class AclDirectiveTextTest {
 
     /** The invariant, against the real {@code DefaultAclManager}: nothing it enforced in {@code body} survives in {@code out}. */
     private static void assertInvariant( final String body, final String out ) {
-        for ( final String directive : DefaultAclManager.aclDirectives( body ) ) {
+        for ( final String directive : EnforcedAclDirectives.directives( body ) ) {
             assertFalse( out.contains( directive ), "enforced directive survived: " + directive + "\nin: " + out );
         }
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ),
+        assertEquals( List.of(), EnforcedAclDirectives.directives( out ),
                 "the ACL manager still finds a directive in the output: " + out );
     }
 
@@ -143,8 +143,8 @@ class AclDirectiveTextTest {
     void theBodyOfTheStrippedFullTextLosesWhatTheFullTextEnforcesEvenThoughTheBodyAloneLooksLikeDocumentation(
             final String label, final String full ) {
         final String bodyAlone = FrontmatterParser.parse( full ).body();
-        assertTrue( DefaultAclManager.aclDirectives( full ).contains( D ), "premise: the full text enforces the rule" );
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( bodyAlone ),
+        assertTrue( EnforcedAclDirectives.directives( full ).contains( D ), "premise: the full text enforces the rule" );
+        assertEquals( List.of(), EnforcedAclDirectives.directives( bodyAlone ),
                 "premise: judged on its own, the body shows the rule inside a code fence" );
         assertTrue( AclDirectiveText.strip( bodyAlone ).contains( LOGIN ),
                 "premise: stripping the body alone therefore keeps the login" );
@@ -168,7 +168,7 @@ class AclDirectiveTextTest {
     @Test
     void aMultiLineDirectiveIsRemovedAlthoughTheAclManagerDoesNotEnforceItInText() {
         final String text = "[{ALLOW view All}]\n[{ALLOW edit Admin,alice@example.test,\n bob@example.test}]\nBody.";
-        assertEquals( List.of( "[{ALLOW view All}]" ), DefaultAclManager.aclDirectives( text ),
+        assertEquals( List.of( "[{ALLOW view All}]" ), EnforcedAclDirectives.directives( text ),
                 "premise: only the one-line rule is enforced from the text" );
 
         final String out = AclDirectiveText.strip( text );
@@ -208,7 +208,7 @@ class AclDirectiveTextTest {
         int soupsWithEnforcedDirectives = 0;
         for ( int i = 0; i < SOUPS; i++ ) {
             final String body = soup( random );
-            final List< String > enforced = DefaultAclManager.aclDirectives( body );
+            final List< String > enforced = EnforcedAclDirectives.directives( body );
             if ( !enforced.isEmpty() ) {
                 soupsWithEnforcedDirectives++;
             }
@@ -276,7 +276,7 @@ class AclDirectiveTextTest {
             final String body = "keep " + nested( depth ) + " this";
             final String out = AclDirectiveText.strip( body );
 
-            assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), "depth " + depth + ": " + out );
+            assertEquals( List.of(), EnforcedAclDirectives.directives( out ), "depth " + depth + ": " + out );
             assertTrue( AclDirectiveScanner.findAll( out, true ).isEmpty(), "depth " + depth + ": " + out );
             assertFalse( out.contains( "example.test" ), "depth " + depth + ": " + out );
         }
@@ -330,7 +330,7 @@ class AclDirectiveTextTest {
             // what is left has no closer, so it is no directive in any reading.
             final String out = AclDirectiveText.strip( openers );
             assertEquals( "[{ALLOW edit alice ".repeat( 39_999 ), out );
-            assertEquals( List.of(), DefaultAclManager.aclDirectives( out ) );
+            assertEquals( List.of(), EnforcedAclDirectives.directives( out ) );
         } );
     }
 
@@ -339,7 +339,7 @@ class AclDirectiveTextTest {
         // No length bound: a bound would silently stop enforcing (and so stop hiding) a long list.
         final String principals = ( "someone.with.a.long.name@example.test," ).repeat( 20_000 ) + "last@example.test";
         final String body = "[{ALLOW view " + principals + "}]\nBody.";
-        assertEquals( 1, DefaultAclManager.aclDirectives( body ).size() );
+        assertEquals( 1, EnforcedAclDirectives.directives( body ).size() );
         assertEquals( "Body.", AclDirectiveText.strip( body ) );
     }
 
@@ -380,12 +380,12 @@ class AclDirectiveTextTest {
         // "[{ALLOW edit\n---\n}]" is a one-line shape (only whitespace runs cross the line ends): the ACL manager enforces
         // it (principal "---"), so it must go, and the frontmatter must still end where it did.
         final String text = "---\ntitle: X\nverified_by: alice-login\nnote: see [{ALLOW edit\n---\n}] Body.\n";
-        assertEquals( 1, DefaultAclManager.aclDirectives( text ).size(), "premise: the rule is enforced" );
+        assertEquals( 1, EnforcedAclDirectives.directives( text ).size(), "premise: the rule is enforced" );
         final String out = AclDirectiveText.strip( text );
         final ParsedPage parsed = FrontmatterParser.parse( out );
         assertEquals( "alice-login", parsed.metadata().get( "verified_by" ), out );
         assertFalse( parsed.body().contains( "verified_by" ), out );
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), out );
+        assertEquals( List.of(), EnforcedAclDirectives.directives( out ), out );
     }
 
     @Test
@@ -430,7 +430,7 @@ class AclDirectiveTextTest {
 
     /** Neither the ACL manager's text scan nor the render path reads any rule in {@code out}. */
     static void assertNothingReadable( final String out ) {
-        assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), "the text scan still reads a rule: " + out );
+        assertEquals( List.of(), EnforcedAclDirectives.directives( out ), "the text scan still reads a rule: " + out );
         assertEquals( List.of(), RenderPathAccessRules.find( out ), "the render path still reads a rule: " + out );
     }
 

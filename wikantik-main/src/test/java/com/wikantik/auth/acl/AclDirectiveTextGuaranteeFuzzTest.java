@@ -65,7 +65,7 @@ class AclDirectiveTextGuaranteeFuzzTest {
             if ( why != null ) {
                 failures.add( "#" + i + " " + why + " in=" + esc( in ) );
             }
-            if ( !DefaultAclManager.aclDirectives( in ).isEmpty() ) {
+            if ( !EnforcedAclDirectives.directives( in ).isEmpty() ) {
                 withRules++;
             }
         }
@@ -158,8 +158,8 @@ class AclDirectiveTextGuaranteeFuzzTest {
         if ( frontmatter != null ) {
             return frontmatter + " out=" + esc( out );
         }
-        if ( !DefaultAclManager.aclDirectives( out ).isEmpty() ) {
-            return "text scan still reads " + DefaultAclManager.aclDirectives( out ) + " out=" + esc( out );
+        if ( !EnforcedAclDirectives.directives( out ).isEmpty() ) {
+            return "text scan still reads " + EnforcedAclDirectives.directives( out ) + " out=" + esc( out );
         }
         final List< RenderPathAccessRules.Rule > rules;
         try {

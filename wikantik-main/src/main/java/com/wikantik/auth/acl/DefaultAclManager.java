@@ -275,19 +275,6 @@ public class DefaultAclManager implements AclManager {
     }
 
     /**
-     * The directives the text scan of 2.4.57–2.5.5 enforced in {@code pageText}: every one-line {@code [{ALLOW …}]}
-     * match that is NOT inside a Markdown code span or code block. No longer what is enforced ({@link AccessRules} is);
-     * kept because {@link AclDirectiveText} hides at least these, and the access-rule audit reports the old reading.
-     *
-     * @param pageText the raw page source (may be {@code null})
-     * @return the matched directive strings outside code, in document order
-     * @see EnforcedAclDirectives
-     */
-    static List< String > aclDirectives( final String pageText ) {
-        return EnforcedAclDirectives.directives( pageText );
-    }
-
-    /**
      * {@inheritDoc}
      *
      * <p>Writes {@code acl} at the top of the page text in place of the rules {@link AccessRules#read} finds (an escaped

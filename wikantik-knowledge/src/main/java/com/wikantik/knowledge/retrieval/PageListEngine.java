@@ -95,6 +95,14 @@ public final class PageListEngine {
     }
 
     public PageList listPages( final PageListFilter filter ) {
+        return listPages( filter, name -> true );
+    }
+
+    /**
+     * @param viewable whether the caller may view the page of that name: a page it refuses is dropped before matching, so
+     *                 its body is never read for inline tags and it never counts towards {@link PageList#totalMatched()}
+     */
+    public PageList listPages( final PageListFilter filter, final java.util.function.Predicate< String > viewable ) {
         final PageListFilter f = filter == null ? PageListFilter.unfiltered() : filter;
 
         final Collection< Page > allPages;
@@ -107,7 +115,7 @@ public final class PageListEngine {
 
         final List< RetrievedPage > matched = new ArrayList<>();
         for ( final Page page : allPages ) {
-            if ( page == null ) continue;
+            if ( page == null || !viewable.test( page.getName() ) ) continue;
             final Map< String, Object > meta = metadataFor( page );
             if ( !matchesFilter( page, meta, f ) ) continue;
             matched.add( pageBuilder.apply( page, meta ) );

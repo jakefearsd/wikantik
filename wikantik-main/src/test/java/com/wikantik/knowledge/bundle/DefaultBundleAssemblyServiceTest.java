@@ -238,7 +238,7 @@ class DefaultBundleAssemblyServiceTest {
     private record StubRetrieval( RetrievalResult fixed ) implements ContextRetrievalService {
         public RetrievalResult retrieve( ContextQuery q ) { return fixed; }
         public RetrievedPage getPage( String n ) { return null; }
-        public PageList listPages( PageListFilter f ) { return null; }
-        public List<MetadataValue> listMetadataValues( String field ) { return List.of(); }
+        public PageList listPages( PageListFilter f, java.util.function.Predicate<String> viewable ) { return null; }
+        public List<MetadataValue> listMetadataValues( String field, java.util.function.Predicate<String> viewable ) { return List.of(); }
     }
 }

@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class ListMetadataValuesToolTest {
@@ -49,7 +52,7 @@ class ListMetadataValuesToolTest {
     @Test
     void execute_returnsShapedJson() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
-        when( svc.listMetadataValues( "cluster" ) ).thenReturn( List.of(
+        when( svc.listMetadataValues( eq( "cluster" ), any() ) ).thenReturn( List.of(
             new MetadataValue( "search", 14 ),
             new MetadataValue( "kg", 8 ) ) );
 
@@ -63,6 +66,22 @@ class ListMetadataValuesToolTest {
         assertTrue( text.contains( "\"value\":\"kg\"" ) );
     }
 
+    /** I2: only pages the guest gate lets through are counted, as every other knowledge-MCP listing does. */
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void execute_countsOnlyPagesTheViewGateAllows() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        final org.mockito.ArgumentCaptor< java.util.function.Predicate< String > > viewable =
+                org.mockito.ArgumentCaptor.forClass( java.util.function.Predicate.class );
+        when( svc.listMetadataValues( eq( "tags" ), viewable.capture() ) ).thenReturn( List.of() );
+
+        new ListMetadataValuesTool( svc, slug -> !"Secret".equals( slug ) ).execute( Map.of( "field", "tags" ) );
+
+        assertFalse( viewable.getValue().test( "Secret" ), "a page the gate refuses must not be counted" );
+        assertTrue( viewable.getValue().test( "Open" ) );
+        verify( svc, never() ).listMetadataValues( anyString() );
+    }
+
     @Test
     void execute_returnsErrorOnBlankField() {
         final ListMetadataValuesTool t = new ListMetadataValuesTool( mock( ContextRetrievalService.class ) );
@@ -74,7 +93,7 @@ class ListMetadataValuesToolTest {
     @Test
     void execute_returnsErrorOnRuntimeExceptionFromService() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
-        when( svc.listMetadataValues( anyString() ) )
+        when( svc.listMetadataValues( anyString(), any() ) )
             .thenThrow( new RuntimeException( "DB offline" ) );
         final McpSchema.CallToolResult result = new ListMetadataValuesTool( svc )
             .execute( Map.of( "field", "cluster" ) );

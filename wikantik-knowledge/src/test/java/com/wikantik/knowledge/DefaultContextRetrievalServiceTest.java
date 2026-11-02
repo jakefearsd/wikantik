@@ -21,6 +21,7 @@ package com.wikantik.knowledge;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.api.knowledge.MetadataValue;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -126,6 +128,23 @@ class DefaultContextRetrievalServiceTest {
         assertEquals( 2, values.get( 0 ).count() );
         assertEquals( "kg", values.get( 1 ).value() );
         assertEquals( 1, values.get( 1 ).count() );
+    }
+
+    /** I2: a restricted page's tags, summary, title and cluster are not listed to a caller who may not view it. */
+    @Test
+    void listMetadataValues_countsOnlyViewablePages() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Open", "---\ntags: [shared]\ncluster: open-cluster\nsummary: open summary\ntitle: Open\n---\n\n",
+                "b", new java.util.Date() );
+        pm.addPage( "Secret", "---\ntags: [shared, secret-tag]\ncluster: secret-cluster\nsummary: secret summary\n"
+                + "title: Secret Title\n---\n\n", "b", new java.util.Date() );
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).build();
+        final java.util.function.Predicate< String > viewable = name -> !"Secret".equals( name );
+
+        assertEquals( List.of( new MetadataValue( "shared", 1 ) ), svc.listMetadataValues( "tags", viewable ) );
+        assertEquals( List.of( new MetadataValue( "open-cluster", 1 ) ), svc.listMetadataValues( "cluster", viewable ) );
+        assertEquals( List.of( new MetadataValue( "open summary", 1 ) ), svc.listMetadataValues( "summary", viewable ) );
+        assertEquals( List.of( new MetadataValue( "Open", 1 ) ), svc.listMetadataValues( "title", viewable ) );
     }
 
     @Test

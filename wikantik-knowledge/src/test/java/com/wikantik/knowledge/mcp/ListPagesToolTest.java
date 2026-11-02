@@ -47,10 +47,26 @@ class ListPagesToolTest {
         assertTrue( ToolSchemas.required( def.inputSchema() ).isEmpty() );
     }
 
+    /** M4: the guest gate is applied while matching, so totalMatched never counts a restricted page. */
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void execute_hasTheServiceDropRestrictedPagesBeforeCounting() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        final ArgumentCaptor< java.util.function.Predicate< String > > viewable =
+                ArgumentCaptor.forClass( java.util.function.Predicate.class );
+        when( svc.listPages( any( PageListFilter.class ), viewable.capture() ) ).thenReturn( new PageList( List.of(), 0, 50, 0 ) );
+
+        new ListPagesTool( svc, slug -> !"Secret".equals( slug ) ).execute( Map.of( "tags", List.of( "x" ) ) );
+
+        assertFalse( viewable.getValue().test( "Secret" ) );
+        assertTrue( viewable.getValue().test( "Open" ) );
+        verify( svc, never() ).listPages( any( PageListFilter.class ) );
+    }
+
     @Test
     void execute_returnsShapedJson() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
-        when( svc.listPages( any( PageListFilter.class ) ) ).thenReturn(
+        when( svc.listPages( any( PageListFilter.class ), any() ) ).thenReturn(
             new PageList( List.of(
                 new RetrievedPage( "Alpha", "u1", 0.0, "", "search", List.of(),
                     List.of(), List.of(), null, new Date(), false ),
@@ -70,7 +86,7 @@ class ListPagesToolTest {
     @Test
     void execute_passesFiltersToService() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
-        when( svc.listPages( any( PageListFilter.class ) ) )
+        when( svc.listPages( any( PageListFilter.class ), any() ) )
             .thenReturn( new PageList( List.of(), 0, 50, 0 ) );
 
         new ListPagesTool( svc ).execute( Map.of(
@@ -80,7 +96,7 @@ class ListPagesToolTest {
             "offset", 5 ) );
 
         final ArgumentCaptor< PageListFilter > captor = ArgumentCaptor.forClass( PageListFilter.class );
-        verify( svc ).listPages( captor.capture() );
+        verify( svc ).listPages( captor.capture(), any() );
         final PageListFilter f = captor.getValue();
         assertEquals( "search", f.cluster() );
         assertEquals( List.of( "retrieval", "bm25" ), f.tags() );
@@ -91,13 +107,13 @@ class ListPagesToolTest {
     @Test
     void execute_defaultsToEmptyFilter() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
-        when( svc.listPages( any( PageListFilter.class ) ) )
+        when( svc.listPages( any( PageListFilter.class ), any() ) )
             .thenReturn( new PageList( List.of(), 0, 50, 0 ) );
 
         new ListPagesTool( svc ).execute( Map.of() );
 
         final ArgumentCaptor< PageListFilter > captor = ArgumentCaptor.forClass( PageListFilter.class );
-        verify( svc ).listPages( captor.capture() );
+        verify( svc ).listPages( captor.capture(), any() );
         assertNull( captor.getValue().cluster() );
         assertEquals( 50, captor.getValue().limit() );
     }
@@ -105,7 +121,7 @@ class ListPagesToolTest {
     @Test
     void execute_returnsErrorOnRuntimeExceptionFromService() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
-        when( svc.listPages( any( PageListFilter.class ) ) )
+        when( svc.listPages( any( PageListFilter.class ), any() ) )
             .thenThrow( new RuntimeException( "DB offline" ) );
 
         final McpSchema.CallToolResult result = new ListPagesTool( svc ).execute( Map.of() );
@@ -125,7 +141,7 @@ class ListPagesToolTest {
     @Test
     void restrictedPageFilteredForGuest() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
-        when( svc.listPages( any( PageListFilter.class ) ) ).thenReturn(
+        when( svc.listPages( any( PageListFilter.class ), any() ) ).thenReturn(
             new PageList( List.of(
                 new RetrievedPage( "Secret", "u1", 0.0, "TOP SECRET SUMMARY", "classified", List.of(),
                     List.of(), List.of(), null, new Date(), false ),

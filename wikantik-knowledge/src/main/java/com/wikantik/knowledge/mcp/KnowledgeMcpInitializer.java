@@ -258,7 +258,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         tools.add( new RetrieveContextTool( ctxService, viewGate ) );
         tools.add( new GetPageTool( ctxService, viewGate ) );
         tools.add( new ListPagesTool( ctxService, viewGate ) );
-        tools.add( new ListMetadataValuesTool( ctxService ) );
+        tools.add( new ListMetadataValuesTool( ctxService, viewGate ) );
         tools.add( new ReadPagesTool( deps.pageManager(), ReadPagesMetrics.resolveAndBind(), viewGate ) );
     }
 

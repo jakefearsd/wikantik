@@ -375,12 +375,12 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     }
 
     @Override
-    public PageList listPages( final PageListFilter filter ) {
-        return pageListEngine.listPages( filter );
+    public PageList listPages( final PageListFilter filter, final java.util.function.Predicate< String > viewable ) {
+        return pageListEngine.listPages( filter, viewable );
     }
 
     @Override
-    public List< MetadataValue > listMetadataValues( final String field ) {
+    public List< MetadataValue > listMetadataValues( final String field, final java.util.function.Predicate< String > viewable ) {
         if ( field == null || field.isBlank() ) return List.of();
         final Collection< Page > allPages;
         try {
@@ -391,6 +391,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         }
         final Map< String, Integer > counts = new LinkedHashMap<>();
         for ( final Page page : allPages ) {
+            if ( !viewable.test( page.getName() ) ) continue; // its frontmatter is not the caller's to see
             final Object raw = pageListEngine.metadataFor( page ).get( field );
             if ( raw == null ) continue;
             if ( raw instanceof List< ? > listVal ) {

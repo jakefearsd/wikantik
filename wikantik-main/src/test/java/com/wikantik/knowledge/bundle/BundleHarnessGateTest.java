@@ -116,12 +116,12 @@ class BundleHarnessGateTest {
             }
 
             @Override
-            public PageList listPages( final PageListFilter filter ) {
+            public PageList listPages( final PageListFilter filter, final java.util.function.Predicate< String > viewable ) {
                 return null;
             }
 
             @Override
-            public List< MetadataValue > listMetadataValues( final String field ) {
+            public List< MetadataValue > listMetadataValues( final String field, final java.util.function.Predicate< String > viewable ) {
                 return List.of();
             }
         };

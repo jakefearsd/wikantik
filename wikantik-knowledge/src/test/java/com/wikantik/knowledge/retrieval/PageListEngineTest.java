@@ -39,6 +39,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class PageListEngineTest {
@@ -116,6 +118,25 @@ class PageListEngineTest {
         assertEquals( List.of( "Inline" ), by.apply( List.of( "team/core" ) ) );
         assertEquals( List.of( "Inline" ), by.apply( List.of( "Foo", "team-core" ) ), "all tags required, across both sources" );
         assertEquals( List.of(), by.apply( List.of( "missing" ) ) );
+    }
+
+    /** M4: a restricted page is dropped before matching, so its inline tags never reach the total, and its body is not read. */
+    @Test
+    void listPages_dropsPagesTheCallerCannotViewBeforeCountingThem() {
+        final FakePageManager pm = spy( new FakePageManager() );
+        pm.addPage( "Open", "no frontmatter, #shared here", "a", new Date() );
+        pm.addPage( "Secret", "no frontmatter, #shared and #secret-tag here", "a", new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+        final java.util.function.Predicate< String > viewable = name -> !"Secret".equals( name );
+
+        final PageList secret = engine.listPages( new PageListFilter( null, List.of( "secret-tag" ), null, null, null, null, 1, 5 ),
+                viewable );
+        assertEquals( 0, secret.totalMatched(), "a restricted page's inline tag must not be counted outside the window" );
+        final PageList shared = engine.listPages( new PageListFilter( null, List.of( "shared" ), null, null, null, null, 50, 0 ),
+                viewable );
+        assertEquals( 1, shared.totalMatched() );
+        assertEquals( List.of( "Open" ), shared.pages().stream().map( RetrievedPage::name ).toList() );
+        verify( pm, never() ).getPureText( eq( "Secret" ), anyInt() );
     }
 
     @Test

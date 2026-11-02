@@ -123,8 +123,9 @@ public class ListPagesTool extends AbstractMcpTool {
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         try {
             final PageListFilter filter = buildFilter( arguments );
-            final PageList result = service.listPages( filter );
             // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            // The service drops the others before matching, so totalMatched never counts one; the filter below is a backstop.
+            final PageList result = service.listPages( filter, viewGate::canView );
             final List< RetrievedPage > filtered = result.pages().stream()
                     .filter( p -> viewGate.canView( p.name() ) )
                     .collect( Collectors.toList() );

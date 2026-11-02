@@ -41,9 +41,15 @@ public class ListMetadataValuesTool extends AbstractMcpTool {
     public static final String TOOL_NAME = "list_metadata_values";
 
     private final ContextRetrievalService service;
+    private final PageViewGate viewGate;
 
     public ListMetadataValuesTool( final ContextRetrievalService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public ListMetadataValuesTool( final ContextRetrievalService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override
@@ -103,7 +109,8 @@ public class ListMetadataValuesTool extends AbstractMcpTool {
         if ( field == null || field.isBlank() ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "field must not be blank" );
         }
-        final List< MetadataValue > values = service.listMetadataValues( field );
+        // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are counted (see PageViewGate).
+        final List< MetadataValue > values = service.listMetadataValues( field, viewGate::canView );
         final Map< String, Object > payload = new LinkedHashMap<>();
         payload.put( "field", field );
         payload.put( "values", values );

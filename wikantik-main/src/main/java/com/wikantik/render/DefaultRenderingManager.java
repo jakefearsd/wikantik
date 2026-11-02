@@ -47,7 +47,6 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.RenderDepth;
 import com.wikantik.parser.WikiDocument;
-import com.wikantik.parser.markdown.BudgetedText;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
@@ -382,28 +381,13 @@ public class DefaultRenderingManager implements RenderingManager {
         // render consulted the viewer (an embed, a viewer-dependent plugin) is never in
         // CACHE_HTML, and that cache holds one locale per page — so a render must cost
         // nothing that accumulates across renders.
-        try {
-            return renderShared( mode, context, doc );
-        } catch( final BudgetedText.Exhausted e ) {
-            // The parse disarms its budget, so this is a defect, not a crafted page: never let it escape a render.
-            LOG.warn( "render budget: rendering the parsed document of page {} ran out of its parse budget ({}); "
-                      + "parsing its text again", context.getRealPage().getName(), e.getMessage() );
-            evictRenderCache( context.getRealPage().getName() );
-            final String pagedata = doc.getPageData();
-            if( pagedata == null ) {
-                LOG.warn( "render budget: page {} has no text to parse again; rendered empty", context.getRealPage().getName() );
-                return "";
-            }
-            return renderShared( mode, context, getParser( context, DisplayText.of( context, pagedata ) ).parse() );
-        }
-    }
-
-    private String renderShared( final String mode, final Context context, final WikiDocument doc ) throws IOException {
-        return RenderDepth.nested( () -> {
-            synchronized( doc ) {
-                return createRenderer( mode, context, doc ).getString();
-            }
-        } );
+        return RenderBudgetGuard.render( context, doc, shared -> RenderDepth.nested( () -> {
+                    synchronized( shared ) {
+                        return createRenderer( mode, context, shared ).getString();
+                    }
+                } ),
+                () -> evictRenderCache( context.getRealPage().getName() ),
+                pagedata -> getParser( context, DisplayText.of( context, pagedata ) ).parse() );
     }
 
     /**

@@ -182,11 +182,7 @@ final class SpanClassifier {
         if ( region == Shape.ESCAPED ) {
             return region;
         }
-        if ( comments != null && start >= bodyStart && !comments.contains( start )
-                && comments.renderDisagrees( start, code.contains( start ) )
-                && ( readByEither || comments.renderReadsARule( start ) || DirectiveSpelling.isDeny( text, start, end ) ) ) {
-            // Removing a comment changes the block structure here (a comment-only line becomes blank, so an indented rule
-            // after it is code to the render, which then shows it): the two readings disagree, so the page locks.
+        if ( commentStripDisagrees( start, end, readByEither ) ) {
             return Shape.UNREADABLE;
         }
         final boolean inBodyCode = region == Shape.UNREADABLE;
@@ -220,6 +216,19 @@ final class SpanClassifier {
         }
         // Spelled canonically: a rule only where both old readings read it over the same span.
         return rules.containsKey( start ) && scannedEnd != null && scannedEnd == end ? Shape.CANONICAL : Shape.UNREADABLE;
+    }
+
+    /**
+     * Whether removing the body's comments, as the render does, changes the block structure at a span either reading takes
+     * for a rule (a comment-only line becomes blank, so an indented rule after it is code to the render, which then shows
+     * it): the two readings disagree, so the page locks.
+     */
+    private boolean commentStripDisagrees( final int start, final int end, final boolean readByEither ) {
+        if ( comments == null || start < bodyStart || comments.contains( start )
+                || !comments.renderDisagrees( start, code.contains( start ) ) ) {
+            return false;
+        }
+        return readByEither || comments.renderReadsARule( start ) || DirectiveSpelling.isDeny( text, start, end );
     }
 
     /**

@@ -68,6 +68,7 @@ import { useRunCommand } from '../commands/useCommands';
 import { getCommands, registerCommands } from '../commands/registry';
 import { buildEditorCommands } from '../utils/editorCommands';
 import { createSlashSource } from '../utils/slashComplete';
+import { createTagSource } from '../utils/tagComplete';
 import AttachmentPanel from './AttachmentPanel';
 import AccessRuleLocation from './AccessRuleLocation';
 import '../styles/article.css';
@@ -752,6 +753,8 @@ export default function PageEditor() {
     [lowlight],
   );
   const slashSource = useMemo(() => createSlashSource(getCommands, (id) => runCommand(id)), [runCommand]);
+  // Inline #tag completion over the tag distribution (most used first); CodeEditor reads the source through a ref.
+  const tagSource = useMemo(() => createTagSource(() => tagSuggestions), [tagSuggestions]);
 
   const handleBold = useCallback(() => applyFormat('bold'), [applyFormat]);
   const handleItalic = useCallback(() => applyFormat('italic'), [applyFormat]);
@@ -1202,6 +1205,7 @@ export default function PageEditor() {
             onLink={handleLink}
             linkCompletion={linkCompletion}
             slashSource={slashSource}
+            tagSource={tagSource}
             onLinkHover={handleLinkHover}
             wikiLinkResolution={wikiLinkResolution}
             onViewChange={handleViewChange}

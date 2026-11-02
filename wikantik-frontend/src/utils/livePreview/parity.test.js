@@ -17,7 +17,7 @@ import { livePreviewSpecs, blockSpecs } from './ranges';
 const CONTEXT = { pageName: 'LivePreviewParityHost', attachments: [] };
 const KINDS = ['table', 'table-nested', 'footnote-ref', 'footnote-def', 'ref-link', 'ref-link-undefined', 'shortcut-link',
   'autolink', 'bare-url', 'escaped', 'escaped-footnote', 'setext-h1', 'setext-h2', 'html-block', 'plugin-line',
-  'inline-math', 'display-math', 'callout', 'task', 'wikilink', 'highlight', 'comment'];
+  'inline-math', 'display-math', 'callout', 'task', 'wikilink', 'highlight', 'comment', 'tag'];
 const EXPECT_FIELDS = ['liveExpect', 'previewExpect', 'readerExpect'];
 
 function decorate(doc) {
@@ -76,6 +76,8 @@ const PREDICATES = {
   highlight: (o) => marks(o, 'cm-lp-mark').length > 0 && hides(o).includes('=='),
   comment: (o) => marks(o, 'cm-lp-comment').length > 0 && !hides(o).includes('%%'),
   'no-comment': (o) => marks(o, 'cm-lp-comment').length === 0,
+  tag: (o) => marks(o, 'cm-lp-tag').length > 0 && hides(o).length === 0,
+  'no-tag': (o) => marks(o, 'cm-lp-tag').length === 0,
   'no-highlight': (o) => marks(o, 'cm-lp-mark').length === 0 && !hides(o).includes('=='),
   chip: (o) => widgets(o, 'chip').some((s) => !/cm-lp-footnote/.test(s.widget.cls)),
   // Shown as its source: no block widget and nothing replaced or styled inline beyond list bullets and quote marks

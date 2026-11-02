@@ -109,6 +109,8 @@ class LivePreviewParityTest {
         // A comment is hidden, not shown: its text (always the word "hidden" in the fixture) and its markers are gone.
         PREDICATES.put( "comment", ( root, e ) -> !root.text().contains( "hidden" ) && !root.text().contains( "%%" ) );
         PREDICATES.put( "no-comment", ( root, e ) -> root.text().contains( "hidden" ) );
+        PREDICATES.put( "tag", ( root, e ) -> root.any( el -> el.is( "a" ) && el.hasClass( "tag" ) && el.hasClass( "inline-tag" ) ) );
+        PREDICATES.put( "no-tag", ( root, e ) -> !root.any( el -> el.is( "a" ) && el.hasClass( "inline-tag" ) ) );
         PREDICATES.put( "no-highlight", ( root, e ) -> !root.any( el -> el.is( "mark" ) ) );
         PREDICATES.put( "chip", ( root, e ) -> root.any( el -> el.hasClass( "wiki-plugin-chip" ) ) );
         PREDICATES.put( "literal", ( root, e ) -> !PREDICATES.get( e.get( "kind" ).getAsString() ).test( root, e )

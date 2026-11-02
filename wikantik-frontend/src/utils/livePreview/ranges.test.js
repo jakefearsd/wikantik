@@ -219,6 +219,27 @@ describe('livePreviewSpecs — strikethrough', () => {
     expect(specsOf('~5 min to ~10 min\n\nend', [3]).specs.some((s) => s.cls === 'cm-lp-del')).toBe(false);
   });
 });
+describe('livePreviewSpecs — inline tags', () => {
+  const tagMarks = (doc, active) => {
+    const o = specsOf(`${doc}\n\nend`, active);
+    return o.specs.filter((s) => s.cls === 'cm-lp-tag').map((s) => o.state.sliceDoc(s.from, s.to));
+  };
+  it('marks a #tag off the caret line only, and never replaces its text', () => {
+    expect(tagMarks('a #Foo b', [3])).toEqual(['#Foo']);
+    expect(tagMarks('a #Foo b', [1])).toEqual([]);
+    const off = specsOf('a #Foo b\n\nend', [3]);
+    expect(visible(off.state, off.specs, 1)).toBe('a #Foo b');
+  });
+  it('refuses what the reader refuses', () => {
+    for (const doc of ['#123', 'x#foo', '## H #x', '`#x`', '$#x$', '[t](#frag)', '[[Page#Heading]]', '```\n#x\n```', '    #x']) {
+      expect(tagMarks(doc, [99])).toEqual([]);
+    }
+  });
+  it('marks a tag in a list item and a blockquote', () => {
+    expect(tagMarks('- #foo', [99])).toEqual(['#foo']);
+    expect(tagMarks('> see #foo', [99])).toEqual(['#foo']);
+  });
+});
 describe('livePreviewSpecs — highlight', () => {
   it('marks ==x== and hides the delimiters off the caret line only', () => {
     const off = specsOf('a ==b== c\n\nend', [3]);

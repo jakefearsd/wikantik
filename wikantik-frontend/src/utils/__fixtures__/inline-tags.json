@@ -18,7 +18,7 @@
   { "name": "a url fragment", "markdown": "https://e.com/#frag", "noTag": true, "tags": [] },
   { "name": "a wikilink heading anchor", "markdown": "[[Page#Heading]]", "noTag": true, "tags": [] },
   { "name": "a link destination fragment", "markdown": "[t](#frag)", "noTag": true, "tags": [] },
-  { "name": "inside link text is not a nested link", "markdown": "[see #foo](x)", "noTag": true, "tags": ["foo"] },
+  { "name": "inside link text is not a nested link", "markdown": "[see #foo](x)", "noTag": true, "indexOnly": true, "tags": ["foo"] },
   { "name": "inside a comment", "markdown": "a %% #x %% b", "noTag": true, "tags": [] },
   { "name": "after a comment", "markdown": "%% #x %% #y", "html": "<p><a class=\"tag inline-tag\" href=\"/search?tag=y\">#y</a></p>", "tags": ["y"] },
   { "name": "escaped hash is text", "markdown": "\\#foo", "html": "<p>#foo</p>", "tags": [] },

@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Inline `#tags` (Obsidian).** A `#tag` in prose renders as `<a class="tag inline-tag" href="/search?tag=…">` in the
+  reader and the editor preview, and counts wherever tags are found: the Lucene `tags` field, the structural index
+  (`list_tags`, `list_pages_by_filter`, `/api/structure`), and the tag view `/search?tag=x` (no `q`), which lists the
+  pages carrying a tag. A tag's identity is its normalised form (lowercase, `/` to `-`): `#Foo`, `#foo` and a
+  frontmatter `Foo` are one tag, `#a/b` is `a-b`, and tag filters compare normalised forms. Frontmatter tag chips now
+  link to the same view. The rule (one implementation, `InlineTagSyntax`, mirrored by a shared fixture): the `#` follows
+  a line start or whitespace, the tag needs a non-digit (`#123` is text, `#fff` is a tag), and headings, code, math, links
+  and `%%comments%%` are never tagged. SEO keywords, feeds, the sitemap and JSON-LD stay frontmatter-only. Live preview
+  chips tags (`cm-lp-tag`, off the caret line, text never replaced); typing `#` and a letter completes from the tags in
+  use, most used first. The vault importer no longer lifts inline tags into frontmatter: they stay where they were written.
 - **`==highlight==` (Obsidian).** `==text==` renders as `<mark>` in the reader and the editor preview, and live preview
   styles it (`cm-lp-mark`, delimiters hidden off the caret line). Same flanking rules as strikethrough: `a == b` and
   `== x ==` stay text, `==**x**==` nests, only a run of exactly two `=` pairs; code and math are never processed.

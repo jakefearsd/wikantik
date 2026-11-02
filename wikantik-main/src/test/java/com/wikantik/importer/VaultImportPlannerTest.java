@@ -89,7 +89,9 @@ class VaultImportPlannerTest {
         assertTrue( welcome.body().contains( "[[Missing Note]]" ) );
         assertTrue( welcome.body().contains( "![[Welcome/diagram.png|300]]" ) );
         assertTrue( welcome.body().contains( "%% private %%" ), "an Obsidian comment is kept: the reader hides it, the editor shows it" );
-        assertEquals( List.of( "start", "root-tag" ), welcome.metadata().get( "tags" ) );
+        // the inline #root-tag stays in the body where it was written (Obsidian phase 4); only frontmatter tags are mapped
+        assertEquals( List.of( "start" ), welcome.metadata().get( "tags" ) );
+        assertTrue( welcome.body().contains( "#root-tag" ) );
         final PageDraft gamma = draft( r, "Gamma" );
         assertEquals( "article", gamma.metadata().get( "type" ) );
         assertTrue( byPath.get( "Projects/Deep/Deeper/Gamma.md" ).warnings().stream().anyMatch( w -> w.startsWith( "type:" ) ) );

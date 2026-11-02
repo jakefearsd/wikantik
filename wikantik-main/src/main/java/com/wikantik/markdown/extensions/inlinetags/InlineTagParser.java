@@ -47,7 +47,8 @@ final class InlineTagParser implements InlineParserExtension {
     public boolean parse( final LightInlineParser inlineParser ) {
         final int index = inlineParser.getIndex();
         final BasedSequence input = inlineParser.getInput();
-        if ( inlineParser.getBlock() instanceof Heading || index > 0 && !Character.isWhitespace( input.charAt( index - 1 ) ) ) {
+        // Only an ATX heading line is skipped, as InlineTagSyntax does; a setext heading's text is prose.
+        if ( inlineParser.getBlock() instanceof Heading heading && heading.isAtxHeading() || index > 0 && !Character.isWhitespace( input.charAt( index - 1 ) ) ) {
             return false;
         }
         int end = index + 1;

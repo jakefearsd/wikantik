@@ -49,6 +49,7 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   onItalic    () => void        Mod-i handler
  *   onLink      () => void        Mod-k handler
  *   slashSource (ctx) => CompletionResult|null  slash-command completion source (optional)
+ *   tagSource   (ctx) => CompletionResult|null  inline #tag completion source (optional)
  *   linkCompletion { searchPages(q), getHeadings(page|null), getAttachmentNames() }  link autocomplete sources
  *   onFiles     (files, pos, { pasted }) => void   pasted/dropped OS files (e.g. images to upload)
  *   onPasteImages (images, text) => ({ text, begin })   embedded images of a converted paste; see markdownPaste's placeImages
@@ -109,7 +110,7 @@ const BASIC_SETUP = {
 };
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, tagSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -120,6 +121,8 @@ const CodeEditor = forwardRef(function CodeEditor(
   linkCompletionRef.current = linkCompletion;
   const slashSourceRef = useRef(slashSource);
   slashSourceRef.current = slashSource;
+  const tagSourceRef = useRef(tagSource);
+  tagSourceRef.current = tagSource;
   const onLinkHoverRef = useRef(onLinkHover);
   onLinkHoverRef.current = onLinkHover;
   // Resolved wikilink targets (lowercased raw target -> page name | null); read live by the link interaction.
@@ -472,7 +475,7 @@ const CodeEditor = forwardRef(function CodeEditor(
           : Promise.reject(new Error('block ids cannot be assigned here'))),
         notify: (message) => (linkCompletionRef.current?.notify
           ? linkCompletionRef.current.notify(message) : console.warn(`[link-complete] ${message}`)),
-      }), (ctx) => slashSourceRef.current?.(ctx) ?? null],
+      }), (ctx) => slashSourceRef.current?.(ctx) ?? null, (ctx) => tagSourceRef.current?.(ctx) ?? null],
       // A block that cannot be linked (no id, no edit access) is listed but greyed; its detail says why.
       optionClass: (completion) => (completion.disabled ? 'cm-completion-disabled' : ''),
     }),

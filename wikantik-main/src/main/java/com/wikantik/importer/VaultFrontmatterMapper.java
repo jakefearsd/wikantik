@@ -38,7 +38,7 @@ import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.frontmatter.schema.Widget;
 import com.wikantik.api.markdown.InlineTagSyntax;
 
-/** Maps an Obsidian note's frontmatter and inline tags onto wiki frontmatter (spec 5.2). */
+/** Maps an Obsidian note's frontmatter (tags included; inline #tags stay in the body) onto wiki frontmatter (spec 5.2). */
 public final class VaultFrontmatterMapper {
 
     private static final Logger LOG = LogManager.getLogger( VaultFrontmatterMapper.class );
@@ -63,7 +63,7 @@ public final class VaultFrontmatterMapper {
         final Map< String, Object > meta = new LinkedHashMap<>();
         final String body = parse( noteText, meta, warnings );
         dropKeys( meta );
-        mergeTags( meta, body, warnings );
+        mergeTags( meta, warnings );
         mergeAliases( meta, ctx, warnings );
         applyTitle( meta, ctx );
         applyType( meta, ctx, warnings );
@@ -92,7 +92,7 @@ public final class VaultFrontmatterMapper {
         }
     }
 
-    private static void mergeTags( final Map< String, Object > meta, final String body, final List< String > warnings ) {
+    private static void mergeTags( final Map< String, Object > meta, final List< String > warnings ) {
         final Set< String > tags = new LinkedHashSet<>();
         for ( final String t : listOf( meta.remove( "tags" ), "tags", true, warnings ) ) {
             final String n = normaliseTag( t );
@@ -100,8 +100,8 @@ public final class VaultFrontmatterMapper {
                 tags.add( n );
             }
         }
-        // A malformed-YAML block is kept as a fenced code block in the body, so its tags are deliberately not scanned.
-        tags.addAll( InlineTagSyntax.normalisedTags( body ) );
+        // Inline #tags are not lifted: they are first-class where they are written (rendered, indexed, completed), and
+        // lifting them would leave two tag sources for one note on an export round-trip.
         if ( !tags.isEmpty() ) {
             meta.put( "tags", new ArrayList<>( tags ) );
         }

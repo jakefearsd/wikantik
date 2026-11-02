@@ -4,6 +4,7 @@ import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { matchInlineMath } from '../inlineMath';
 import { findHighlights } from '../highlightSyntax';
 import { commentRanges } from '../obsidianComments';
+import { findInlineTags } from '../inlineTags';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
@@ -799,6 +800,11 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         widget(a, b, { type: 'math', tex: text.slice(i + 1, end - 1), display: false });
         i = end - 1;
       }
+    }
+    // An inline #tag reads as a chip off the caret's line: a mark only (the text is never replaced, so the caret cannot jump).
+    if (text.includes('#') && inactive(line.from)) {
+      const blocked = (a, b) => overlaps(excluded, line.from + a, line.from + b) || overlaps(claimed, line.from + a, line.from + b);
+      for (const t of findInlineTags(text, blocked)) mark(line.from + t.from, line.from + t.to, 'cm-lp-tag');
     }
   });
   highlightSpecs(state, from, to, { excluded, claimed, commentPairs, overlaps, mark, hide });

@@ -99,6 +99,14 @@ class InlineTagParityTest {
     }
 
     @Test
+    void onlyAnAtxHeadingLineIsSkippedLikeTheScanner() throws Exception {
+        final String setext = "Title with #real\n================\n";
+        assertTrue( render( setext ).contains( "inline-tag" ), "a setext heading's text is prose" );
+        assertEquals( java.util.List.of( "real" ), List.copyOf( InlineTagSyntax.normalisedTags( setext ) ) );
+        assertFalse( render( "## Title with #x\n" ).contains( "inline-tag" ) );
+    }
+
+    @Test
     void aTagInsideAnAccessRuleLineIsNeverTouched() throws Exception {
         final String html = render( "Prose #kept.\n[{ALLOW view Admin}]\n" );
         assertTrue( html.replace( "&#61;", "=" ).contains( "href=\"/search?tag=kept\"" ), html );

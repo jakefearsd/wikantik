@@ -33,12 +33,23 @@ class VaultFrontmatterMapperTest {
     private final VaultFrontmatterMapper mapper = new VaultFrontmatterMapper( FrontmatterSchema.defaultSchema() );
 
     @Test
+    void inlineTagsStayInTheBodyAndAddNothingToFrontmatter() {
+        final MappedNote bare = mapper.map( "A note with #only and #a/b inline.\n", new NoteContext( "Gamma", "Gamma", "projects", false ) );
+        assertFalse( bare.metadata().containsKey( "tags" ) );
+        assertEquals( "A note with #only and #a/b inline.\n", bare.body() );
+        final MappedNote both = mapper.map( "---\ntags: [Kept]\n---\nBody #x\n", new NoteContext( "Gamma", "Gamma", "projects", false ) );
+        assertEquals( List.of( "kept" ), both.metadata().get( "tags" ) );
+        assertEquals( "Body #x\n", both.body() );
+    }
+
+    @Test
     void frontmatterRules() {
         final String note = "---\ncanonical_id: abc\nconfidence: stale\ntags: [Work, \"#team/core\"]\nalias: Old\ntype: Report\ncluster: elsewhere\nstatus: draft\n---\nBody #extra\n";
         final MappedNote m = mapper.map( note, new NoteContext( "Beta (v2) 1", "Beta (v2) #1", "projects", false ) );
         assertFalse( m.metadata().containsKey( "canonical_id" ) );
         assertFalse( m.metadata().containsKey( "confidence" ) );
-        assertEquals( List.of( "work", "team-core", "extra" ), m.metadata().get( "tags" ) );
+        // Inline #tags are first-class where they are written (Obsidian phase 4): kept in the body, not lifted into frontmatter.
+        assertEquals( List.of( "work", "team-core" ), m.metadata().get( "tags" ) );
         assertEquals( List.of( "Old", "Beta (v2) #1" ), m.metadata().get( "aliases" ) );
         assertFalse( m.metadata().containsKey( "alias" ) );
         assertEquals( "Beta (v2) #1", m.metadata().get( "title" ) );

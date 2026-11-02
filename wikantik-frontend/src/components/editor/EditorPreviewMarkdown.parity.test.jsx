@@ -96,6 +96,8 @@ const PREDICATES = {
   // A comment is hidden, not shown: its text (always the word `hidden` in the fixture) and its markers are gone.
   comment: (o) => !o.text.includes('hidden') && !o.text.includes('%%'),
   'no-comment': (o) => o.text.includes('hidden'),
+  tag: (o) => all(o, 'a.tag.inline-tag').length > 0,
+  'no-tag': (o) => all(o, 'a.inline-tag').length === 0,
   'no-highlight': (o) => all(o, 'mark').length === 0,
   chip: (o) => all(o, '.wiki-plugin-chip').length > 0,
   // Shown as its source text, not as the construct.

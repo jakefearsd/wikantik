@@ -59,6 +59,13 @@ Any paragraph, list item, table, quote or callout can carry a short id, so anoth
 * Comments are hidden from everyone who cannot edit the page: the rendered page, search, excerpts, links and backlinks, diffs, vault exports and AI agents that read the page. They are not private, though. Anyone who can edit the page sees them in the editor and in its history, so never put a secret in one. A `%%` inside code or math is never a comment marker, and a `%%` with no closing pair is shown as it is.
 * A `%%` inside a code span, a code block, a diagram or a formula is ordinary text, and a `%%` with no closing partner is left alone.
 
+## Inline tags
+
+* Write `#topic` in your text to tag the page. The reader shows it as a link to the list of pages with that tag, and the tag counts everywhere tags are listed or searched, alongside the tags in the front matter.
+* `#Topic`, `#topic` and a front matter tag `topic` are one tag. A nested tag such as `#team/core` is the tag `team-core`, and the page keeps what you wrote.
+* A tag needs a space or the start of the line before the `#`, and at least one letter, dash or underscore: `#2024` and `issue #123` are plain text, `#2024q1` and `#fff` are tags. A `#` on a heading line, in code, in a formula, in a link or inside a `%%` comment is never a tag.
+* In the editor, type `#` and a letter to pick from the tags already in use. Tags written in your text do not appear in search engine keywords or feeds; only front matter tags do.
+
 ## Diagrams
 
 A fenced code block whose language is `mermaid` renders as a diagram when the page is viewed. A `plantuml` block works the same way and suits deep class and activity diagrams; see *Class and activity diagrams with PlantUML* below. This Mermaid diagram is live:

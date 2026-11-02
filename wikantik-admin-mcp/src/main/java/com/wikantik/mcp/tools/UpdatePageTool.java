@@ -350,6 +350,8 @@ public class UpdatePageTool extends DefaultAuthorTool {
         } catch ( final AccessRuleShapeException e ) {
             // The write would add an access rule the wiki cannot read, locking the page to administrators (#104).
             // Cite each refused span (shape, line, how to write it instead) so the agent can fix and retry.
+            FrontmatterWarningSink.clear();
+            ContentWarningSink.clear();
             final String rejectedPage = McpToolUtils.pageSlug( arguments );
             LOG.debug( "update_page rejected by the access-rule shape check for {}: {}", rejectedPage, e.getMessage() );
             final Map< String, Object > refused = new LinkedHashMap<>();
@@ -357,6 +359,7 @@ public class UpdatePageTool extends DefaultAuthorTool {
             refused.put( "updated", false );
             refused.put( "error", "access rule shape refused" );
             refused.put( "violations", e.violations() );
+            refused.put( "total", e.total() );
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
         } catch ( final FrontmatterValidationException e ) {
             // Same schema validator the form + REST use refused this write (ERROR-severity).

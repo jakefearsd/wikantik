@@ -114,6 +114,58 @@ class UpdatePageToolTest {
         assertTrue( text.contains( "put it in `code`" ), text );
     }
 
+    private static List< AccessRuleShapeException.Violation > denyViolations( final int n ) {
+        return java.util.stream.IntStream.rangeClosed( 1, n ).mapToObj( i -> new AccessRuleShapeException.Violation(
+                AccessRuleShapeException.CODE, "DENY", i, null, "[{deny ", "The access rule on line " + i + " cannot be read." ) )
+                .toList();
+    }
+
+    /** I1: the refusal cites the first violations and the total, however many the text holds. */
+    @Test
+    void execute_anAccessRuleRefusalIsBoundedAndCarriesTheTotal() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "current body" );
+        final String currentHash = McpToolUtils.computeContentHash( "current body" );
+        doThrow( new AccessRuleShapeException( denyViolations( 150_000 ) ) )
+            .when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
+
+        final String text = ( (McpSchema.TextContent) new UpdatePageTool( helper, pm, null ).execute( Map.of(
+            "slug", "P", "content", "[{deny ", "expectedContentHash", currentHash ) ).content().get( 0 ) ).text();
+
+        assertTrue( text.length() < 64 * 1024, "refusal of " + text.length() + " chars" );
+        assertTrue( text.contains( "\"total\":150000" ), text.substring( 0, 300 ) );
+        assertFalse( text.contains( "line 51 " ), "only the first 50 violations are cited" );
+    }
+
+    /** M3: a refused write leaves no warning behind in the thread's sinks, as the sibling refusals do. */
+    @Test
+    void execute_anAccessRuleRefusalClearsTheWarningSinks() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "current body" );
+        final String currentHash = McpToolUtils.computeContentHash( "current body" );
+        doAnswer( inv -> {
+            FrontmatterWarningSink.put( "P", List.of( FieldViolation.of(
+                "status", Severity.WARNING, "status.noncanonical", "non-canonical status" ) ) );
+            com.wikantik.api.content.ContentWarningSink.put( List.of( new com.wikantik.api.content.ContentViolation(
+                "body", com.wikantik.api.frontmatter.schema.Severity.WARNING, "C", "a math warning", null ) ) );
+            throw new AccessRuleShapeException( denyViolations( 1 ) );
+        } ).when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
+
+        new UpdatePageTool( helper, pm, null ).execute( Map.of(
+            "slug", "P", "content", "[{DENY view Bob}]", "expectedContentHash", currentHash ) );
+
+        assertTrue( FrontmatterWarningSink.drain( "P" ).isEmpty(), "frontmatter warnings left in the sink" );
+        assertTrue( com.wikantik.api.content.ContentWarningSink.drain().isEmpty(), "content warnings left in the sink" );
+    }
+
     @Test
     void execute_refusesOnFrontmatterValidationErrorCitingViolations() throws Exception {
         final PageManager pm = mock( PageManager.class );

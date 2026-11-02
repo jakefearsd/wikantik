@@ -91,17 +91,23 @@ public class AccessRuleShapeCheck {
             return;
         }
         final Map< String, Integer > unchanged = counts( disputed( stored( pageName ) ) );
+        final AccessRules.Places places = new AccessRules.Places( text );
         final List< AccessRuleShapeException.Violation > refused = new ArrayList<>();
+        int total = 0;
         for ( final Disputed d : added ) {
             if ( unchanged.merge( d.key(), -1, Integer::sum ) < 0 ) {
-                refused.add( violation( d ) );
+                total++;
+                // Only the violations a refusal keeps are spelled out: a page of openers holds one per few characters.
+                if ( refused.size() < AccessRuleShapeException.MAX_VIOLATIONS ) {
+                    refused.add( violation( text, places, d ) );
+                }
             }
         }
         if ( refused.isEmpty() ) {
             return;
         }
-        LOG.info( "Refused a save of page {} that adds {} access rule(s) the wiki cannot read", pageName, refused.size() );
-        throw new AccessRuleShapeException( refused );
+        LOG.info( "Refused a save of page {} that adds {} access rule(s) the wiki cannot read", pageName, total );
+        throw new AccessRuleShapeException( refused, total );
     }
 
     private String stored( final String name ) {
@@ -121,12 +127,13 @@ public class AccessRuleShapeCheck {
     /**
      * A disputed span of a text, or the whole text when it is unreadable with no span of its own.
      *
-     * @param key       what makes two of them the same: the span's text, line ends as {@code \n} (the store may keep
-     *                  {@code \r\n} where the editor sends {@code \n}); for the whole text, its shape alone
-     * @param reason    what is wrong and where, as the editor shows the page
-     * @param wholeText whether it stands for the whole text rather than one span
+     * @param key         what makes two of them the same: the span's text, line ends as {@code \n} (the store may keep
+     *                    {@code \r\n} where the editor sends {@code \n}); for the whole text, its shape alone
+     * @param span        the span; {@code null} when it stands for the whole text
+     * @param wholeReason what is wrong with the whole text; {@code null} for a span (its reason is worked out only when a
+     *                    refusal cites it)
      */
-    private record Disputed( String key, AccessRules.Reason reason, boolean wholeText ) {
+    private record Disputed( String key, AccessRules.Span span, AccessRules.Reason wholeReason ) {
     }
 
     /**
@@ -140,7 +147,6 @@ public class AccessRuleShapeCheck {
         }
         final List< AccessRules.Span > spans = locked.spans().stream().filter( span -> AccessRules.disputed( span.shape() ) ).toList();
         final List< Disputed > out = new ArrayList<>();
-        final AccessRules.Places places = new AccessRules.Places( text );
         int group = 0;
         while ( group < spans.size() ) {
             int groupEnd = spans.get( group ).end();
@@ -151,14 +157,13 @@ public class AccessRuleShapeCheck {
             }
             final String key = text.substring( spans.get( group ).start(), groupEnd ).replace( "\r\n", "\n" );
             for ( int i = group; i < next; i++ ) {
-                final AccessRules.Span span = spans.get( i );
-                out.add( new Disputed( key, places.reason( span.shape(), span.start(), excerpt( text, span ) ), false ) );
+                out.add( new Disputed( key, spans.get( i ), null ) );
             }
             group = next;
         }
         if ( out.isEmpty() ) {
             for ( final AccessRules.Reason reason : locked.reasons() ) {
-                out.add( new Disputed( WHOLE_TEXT_KEY + reason.shape(), reason, true ) );
+                out.add( new Disputed( WHOLE_TEXT_KEY + reason.shape(), null, reason ) );
             }
         }
         return out;
@@ -172,9 +177,10 @@ public class AccessRuleShapeCheck {
         return out;
     }
 
-    private static AccessRuleShapeException.Violation violation( final Disputed d ) {
-        final AccessRules.Reason r = d.reason();
-        final String what = d.wholeText() ? capitalised( r.text() ) + " (" + r.shape() + ")."
+    private static AccessRuleShapeException.Violation violation( final String text, final AccessRules.Places places, final Disputed d ) {
+        final AccessRules.Span span = d.span();
+        final AccessRules.Reason r = span == null ? d.wholeReason() : places.reason( span.shape(), span.start(), excerpt( text, span ) );
+        final String what = span == null ? capitalised( r.text() ) + " (" + r.shape() + ")."
                 : "The access rule " + where( r ) + " (" + r.text() + ") cannot be read: " + WHY.get( r.shape() )
                         + " (" + r.shape() + ").";
         final String message = what + " Saving it would lock the page to administrators. To restrict the page, " + CANONICAL + ".";

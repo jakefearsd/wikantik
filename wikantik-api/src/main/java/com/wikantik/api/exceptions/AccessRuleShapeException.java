@@ -49,16 +49,49 @@ public class AccessRuleShapeException extends FilterException {
     public record Violation( String code, String shape, Integer line, String field, String text, String message ) {
     }
 
+    /**
+     * The most violations a refusal keeps. A page of nothing but openers holds one per few characters (a megabyte holds
+     * about 150,000), so every surface that shows a refusal (the 422 body, the MCP result, the importer's job state, this
+     * message) names the first ones and counts the rest in {@link #total()}.
+     */
+    public static final int MAX_VIOLATIONS = 50;
+
     private final transient List< Violation > violations;
 
-    /** @param violations the refused spans; at least one */
+    private final int total;
+
+    /** @param violations the refused spans, in document order; at least one. Only the first {@link #MAX_VIOLATIONS} are kept */
     public AccessRuleShapeException( final List< Violation > violations ) {
-        super( "Access rules refused: " + violations.stream().map( Violation::message ).collect( Collectors.joining( "; " ) ) );
-        this.violations = List.copyOf( violations );
+        this( violations, violations.size() );
     }
 
-    /** @return the refused spans, in document order */
+    /**
+     * @param violations the first refused spans, in document order; at least one. Only the first {@link #MAX_VIOLATIONS}
+     *                   are kept
+     * @param total      how many spans were refused in all (at least {@code violations.size()})
+     */
+    public AccessRuleShapeException( final List< Violation > violations, final int total ) {
+        super( message( capped( violations ), Math.max( total, violations.size() ) ) );
+        this.violations = capped( violations );
+        this.total = Math.max( total, violations.size() );
+    }
+
+    private static List< Violation > capped( final List< Violation > violations ) {
+        return List.copyOf( violations.size() <= MAX_VIOLATIONS ? violations : violations.subList( 0, MAX_VIOLATIONS ) );
+    }
+
+    private static String message( final List< Violation > kept, final int total ) {
+        final String listed = kept.stream().map( Violation::message ).collect( Collectors.joining( "; " ) );
+        return "Access rules refused: " + listed + ( total > kept.size() ? "; and " + ( total - kept.size() ) + " more" : "" );
+    }
+
+    /** @return the first refused spans (at most {@link #MAX_VIOLATIONS}), in document order */
     public List< Violation > violations() {
         return violations;
+    }
+
+    /** @return how many spans were refused in all; more than {@code violations().size()} when the list was capped */
+    public int total() {
+        return total;
     }
 }

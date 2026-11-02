@@ -122,6 +122,23 @@ class PageResourceAccessRulesTest {
         return engine.getManager( PageManager.class ).getPureText( PAGE, PageProvider.LATEST_VERSION ).replace( "\r\n", "\n" );
     }
 
+    /** M3: the refusal leaves none of this save's warnings in the thread's sinks for the next request on the thread. */
+    @Test
+    void the422ForAPageOfOpenersIsBounded() throws Exception {
+        engine.saveText( PAGE, "Open body.\n" );
+        final JsonObject body = new JsonObject();
+        // Just under the page API's 256 KB cap: about 35,000 refused openers.
+        body.addProperty( "content", "[{deny ".repeat( 35_000 ) + "}]" );
+
+        final Reply reply = send( "PUT", body );
+
+        verify( reply.response() ).setStatus( 422 );
+        assertTrue( reply.body().length() < 64 * 1024, "422 body of " + reply.body().length() + " chars" );
+        final JsonObject json = reply.json();
+        assertEquals( 50, json.getAsJsonArray( "violations" ).size() );
+        assertTrue( json.get( "total" ).getAsInt() >= 35_000, reply.body().substring( 0, 200 ) );
+    }
+
     @Test
     void aPutThatAddsADenyRuleIs422WithTheAccessRuleShapeCode() throws Exception {
         engine.saveText( PAGE, "Open body.\n" );

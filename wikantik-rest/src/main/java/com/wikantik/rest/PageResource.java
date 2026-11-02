@@ -541,6 +541,9 @@ public class PageResource extends RestServletBase {
             sendJson( response, mathValidationErrorBody( e ) );
         } catch ( final AccessRuleShapeException e ) {
             // The save would add an access rule the wiki cannot read (it would lock the page) — not written.
+            // The check runs after every filter, so both sinks hold this save's warnings: clear them, as the siblings do.
+            FrontmatterWarningSink.clear();
+            ContentWarningSink.clear();
             LOG.debug( "Access-rule shape check rejected save of {}: {}", pageName, e.getMessage() );
             response.setStatus( 422 );
             sendJson( response, accessRuleShapeErrorBody( e ) );
@@ -577,14 +580,16 @@ public class PageResource extends RestServletBase {
     }
 
     /**
-     * Builds the HTTP 422 body for a save that adds an unreadable access rule: {@code { error, violations }}, each
+     * Builds the HTTP 422 body for a save that adds an unreadable access rule: {@code { error, violations, total }}, each
      * violation {@code { code: "ACCESS_RULE_SHAPE", shape, line | field, text, message }}: {@code line} is a line of the
-     * body as the editor shows it, {@code field} the frontmatter field of a rule in the frontmatter.
+     * body as the editor shows it, {@code field} the frontmatter field of a rule in the frontmatter. {@code violations}
+     * holds at most {@link AccessRuleShapeException#MAX_VIOLATIONS}; {@code total} counts them all.
      */
     static Map< String, Object > accessRuleShapeErrorBody( final AccessRuleShapeException e ) {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "error", "access_rule_shape" );
         body.put( "violations", e.violations() );
+        body.put( "total", e.total() );
         return body;
     }
 

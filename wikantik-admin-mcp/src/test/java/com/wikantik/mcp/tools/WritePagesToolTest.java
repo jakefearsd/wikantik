@@ -74,6 +74,35 @@ class WritePagesToolTest {
     }
 
     /** #104: a page carrying an access rule the wiki cannot read is not created; the result cites the reason. */
+    /** I1 + M3: the refusal is bounded and carries the total; a refused page leaves no warning in the thread's sinks. */
+    @Test
+    void execute_anAccessRuleRefusalIsBoundedAndClearsTheWarningSinks() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        when( pm.getPage( anyString() ) ).thenReturn( null );
+        final List< AccessRuleShapeException.Violation > many = java.util.stream.IntStream.rangeClosed( 1, 150_000 )
+                .mapToObj( i -> new AccessRuleShapeException.Violation( AccessRuleShapeException.CODE, "DENY", i, null,
+                        "[{deny ", "The access rule on line " + i + " cannot be read." ) ).toList();
+        doAnswer( inv -> {
+            com.wikantik.api.frontmatter.schema.FrontmatterWarningSink.put( "Locked", List.of(
+                    com.wikantik.api.frontmatter.schema.FieldViolation.of( "status",
+                            com.wikantik.api.frontmatter.schema.Severity.WARNING, "status.noncanonical", "non-canonical" ) ) );
+            com.wikantik.api.content.ContentWarningSink.put( List.of( new com.wikantik.api.content.ContentViolation(
+                    "body", com.wikantik.api.frontmatter.schema.Severity.WARNING, "C", "a math warning", null ) ) );
+            throw new AccessRuleShapeException( many );
+        } ).when( helper ).saveText( eq( "Locked" ), anyString(), any( SaveOptions.class ) );
+
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+        final String text = ( (McpSchema.TextContent) tool.execute( Map.of( "pages", List.of(
+                Map.of( "slug", "Locked", "content", "[{deny " ) ) ) ).content().get( 0 ) ).text();
+
+        assertTrue( text.length() < 64 * 1024, "refusal of " + text.length() + " chars" );
+        assertTrue( text.contains( "\"total\":150000" ), text.substring( 0, 300 ) );
+        assertTrue( com.wikantik.api.frontmatter.schema.FrontmatterWarningSink.drain( "Locked" ).isEmpty() );
+        assertTrue( com.wikantik.api.content.ContentWarningSink.drain().isEmpty() );
+    }
+
     @Test
     void execute_refusesAPageWithAnUnreadableAccessRuleCitingTheReason() throws Exception {
         final PageManager pm = mock( PageManager.class );

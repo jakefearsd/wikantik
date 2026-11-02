@@ -230,9 +230,12 @@ public class WritePagesTool extends DefaultAuthorTool {
                 failedCount++;
             } catch ( final AccessRuleShapeException are ) {
                 // The page would carry an access rule the wiki cannot read, locking it to administrators (#104).
+                FrontmatterWarningSink.clear();
+                ContentWarningSink.clear();
                 entry.put( "created", false );
                 entry.put( "error", "access rule shape refused" );
                 entry.put( "violations", are.violations() );
+                entry.put( "total", are.total() );
                 results.add( entry );
                 failedCount++;
             } catch ( final FrontmatterValidationException fve ) {

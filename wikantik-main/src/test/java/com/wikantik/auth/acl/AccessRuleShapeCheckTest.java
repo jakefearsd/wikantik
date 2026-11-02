@@ -71,6 +71,17 @@ class AccessRuleShapeCheckTest {
         assertTrue( e.getMessage().contains( v.message() ), e.getMessage() );
     }
 
+    /** A megabyte of openers is about 150,000 violations: the refusal names the first ones and counts the rest. */
+    @Test
+    void aRefusalOfAMegabyteOfOpenersIsBounded() {
+        final String text = "[{deny ".repeat( 150_000 ) + "}]";
+        final AccessRuleShapeException e = assertThrows( AccessRuleShapeException.class, () -> save( text ) );
+        assertEquals( AccessRuleShapeException.MAX_VIOLATIONS, e.violations().size() );
+        assertTrue( e.total() > 100_000, "total " + e.total() );
+        assertTrue( e.getMessage().length() < 64 * 1024, "message of " + e.getMessage().length() + " chars" );
+        assertTrue( e.getMessage().contains( ( e.total() - AccessRuleShapeException.MAX_VIOLATIONS ) + " more" ), e.getMessage().substring( e.getMessage().length() - 200 ) );
+    }
+
     /** The editor shows the body without its frontmatter, so the line is counted from the body's first line. */
     @Test
     void theLineIsTheBodyLineTheEditorShows() {

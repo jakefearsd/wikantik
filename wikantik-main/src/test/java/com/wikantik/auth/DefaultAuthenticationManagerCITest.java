@@ -25,6 +25,7 @@ import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.authorize.WebAuthorizer;
 import com.wikantik.auth.authorize.WebContainerAuthorizer;
 import com.wikantik.auth.sso.SSOConfig;
+import com.wikantik.auth.sso.SSOConfigHolder;
 import com.wikantik.api.core.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -174,7 +175,13 @@ class DefaultAuthenticationManagerCITest {
         props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
         final DefaultAuthenticationManager fresh = new DefaultAuthenticationManager();
 
-        assertDoesNotThrow( () -> fresh.initialize( e, props ) );
+        try {
+            assertDoesNotThrow( () -> fresh.initialize( e, props ) );
+        } finally {
+            // initialize() registers an SSOConfig in the static, application-name-keyed holder;
+            // MockEngineBuilder engines all share the name "test", so never leak it.
+            SSOConfigHolder.removeConfig( e );
+        }
     }
 
     // ==================== doJAASLogin(): reflective instantiation failure ====================

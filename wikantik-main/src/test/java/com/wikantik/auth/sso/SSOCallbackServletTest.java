@@ -47,6 +47,8 @@ class SSOCallbackServletTest {
     @BeforeEach
     void setUp() throws Exception {
         engine = MockEngineBuilder.engine().build();
+        // SSOConfigHolder is static and keyed by application name: drop anything another test class left behind
+        SSOConfigHolder.removeConfig( engine );
         request = mock( HttpServletRequest.class );
         response = mock( HttpServletResponse.class );
         when( request.getContextPath() ).thenReturn( "/JSPWiki" );

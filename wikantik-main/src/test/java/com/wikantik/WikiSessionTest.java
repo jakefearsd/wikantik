@@ -221,7 +221,7 @@ public class WikiSessionTest {
     public static Session anonymousSession( final TestEngine engine ) throws Exception {
         // Build anon session
         final HttpSession httpSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "mock-session-" + System.currentTimeMillis() ).when( httpSession ).getId();
+        Mockito.doReturn( "mock-session-anon-" + java.util.UUID.randomUUID() ).when( httpSession ).getId();
         final HttpServletRequest request = HttpMockFactory.createHttpRequest();
         Mockito.doReturn( httpSession ).when( request ).getSession();
 

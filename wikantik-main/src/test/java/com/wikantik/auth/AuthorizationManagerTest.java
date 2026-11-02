@@ -57,6 +57,8 @@ public class AuthorizationManagerTest {
     private TestEngine m_engine;
     private GroupManager m_groupMgr;
     private Session m_session;
+    @SuppressWarnings( "unused" ) // strong ref keeps the weakly-held listener alive
+    private com.wikantik.event.WikiEventListener m_eventListener;
 
     private static class TestPrincipal implements Principal {
         private final String m_name;
@@ -870,9 +872,12 @@ public class AuthorizationManagerTest {
 
     private java.util.List<com.wikantik.event.WikiSecurityEvent> captureEvents() {
         final java.util.List<com.wikantik.event.WikiSecurityEvent> events = new java.util.ArrayList<>();
-        m_auth.addWikiEventListener( e -> {
+        // WikiEventManager holds listeners as WeakReferences: a lambda nobody else references can be
+        // GC'd before the event fires (events silently stay empty). Retain it for the test's lifetime.
+        m_eventListener = e -> {
             if ( e instanceof com.wikantik.event.WikiSecurityEvent se ) events.add( se );
-        } );
+        };
+        m_auth.addWikiEventListener( m_eventListener );
         return events;
     }
 
@@ -883,6 +888,8 @@ public class AuthorizationManagerTest {
         final Session anon = WikiSessionTest.anonymousSession( m_engine );
 
         final java.util.List<com.wikantik.event.WikiSecurityEvent> events = captureEvents();
+        // Pin the fix: a GC between registration and the call must not drop the listener.
+        System.gc();
 
         // Same boolean as checkPermission (anonymous modify is denied by the default policy).
         final boolean enforced = m_auth.checkPermission( anon, modify );

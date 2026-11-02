@@ -23,6 +23,26 @@ describe('commentRanges', () => {
     const text = 'no comments here';
     expect(stripComments(text)).toBe(text);
   });
+  // Each input has 80k-ish markers, backticks, dollars, fences or quote levels: quadratic in any of them takes minutes.
+  it.each([
+    ['%%`', '%%`'.repeat(80000)],
+    ['`%%', '`%%'.repeat(80000)],
+    ['%%x$', '%%x$'.repeat(80000)],
+    ['$a ', `${'$a '.repeat(80000)}%%`],
+    ['opener + masked closers', `%% ${'`%%` '.repeat(80000)}`],
+    ['%%x ', '%%x '.repeat(80000)],
+    ['$$ ', `${'$$ '.repeat(80000)}%%`],
+    ['$$x %% ', '$$x %% '.repeat(80000)],
+    ['fences', '```\n%%\n```\n'.repeat(20000)],
+    ['quoted fences', '> ```\n> %%\n> ```\n'.repeat(20000)],
+    ['unclosed quoted fences', '%%\n> ```\n'.repeat(20000)],
+    ['deep quote', `${'>'.repeat(80000)} \`\`\`\n%%x%%\n`],
+    ['deep quoted fence', `${'> '.repeat(40000)}~~~\n${'> %%x%%\n'.repeat(20000)}`],
+  ])('stays linear on adversarial input: %s', (_name, text) => {
+    const start = Date.now();
+    stripComments(text);
+    expect(Date.now() - start).toBeLessThan(3000);
+  });
   it('is linear on a long run of unpaired openers', () => {
     const text = `${'a $b '.repeat(20000)}\n%%\n`;
     const start = Date.now();

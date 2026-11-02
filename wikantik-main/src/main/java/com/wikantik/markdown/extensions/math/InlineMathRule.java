@@ -18,11 +18,13 @@
  */
 package com.wikantik.markdown.extensions.math;
 
+import com.wikantik.api.markdown.InlineMath;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The single inline-math delimiter rule shared by {@link InlineMathParser} (rendering) and
+ * The single inline-math delimiter rule ({@link InlineMath}, in wikantik-api) shared by {@link InlineMathParser} (rendering) and
  * {@link MathSpanExtractor} (linting), following Pandoc's {@code tex_math_dollars}, which Obsidian follows:
  * <ol>
  *   <li>{@code $$} never opens inline math.</li>
@@ -39,44 +41,13 @@ final class InlineMathRule {
     }
 
     /**
-     * Applies the rule to the {@code $} at {@code dollarIndex}.
+     * Applies the rule to the {@code $} at {@code dollarIndex} ({@link InlineMath#matchEnd}, the one Java copy, which
+     * {@code ObsidianComments} uses too).
      *
      * @return the exclusive end index of the span (just past the closing {@code $}), or -1 for no match
      */
     static int matchEnd( final CharSequence s, final int dollarIndex ) {
-        final int n = s.length();
-        final int first = dollarIndex + 1;
-        if ( first >= n || s.charAt( first ) == '$' || Character.isWhitespace( s.charAt( first ) ) ) {
-            return -1;
-        }
-        int newlines = 0;
-        boolean prevWhitespace = false;
-        int j = first;
-        while ( j < n ) {
-            final char c = s.charAt( j );
-            if ( c == '$' ) {
-                return closeAt( s, j, prevWhitespace );
-            }
-            final int step = c == '\\' ? 2 : 1;
-            if ( j + step > n ) {
-                return -1;
-            }
-            final boolean ws = step == 1 && Character.isWhitespace( c );
-            newlines = ws ? newlines + ( c == '\n' ? 1 : 0 ) : 0;
-            if ( newlines >= 2 ) {
-                return -1;
-            }
-            prevWhitespace = ws;
-            j += step;
-        }
-        return -1;
-    }
-
-    /** End index for a closing {@code $} at {@code j}, or -1 when whitespace precedes it or a digit follows it. */
-    private static int closeAt( final CharSequence s, final int j, final boolean prevWhitespace ) {
-        final int end = j + 1;
-        final boolean digitFollows = end < s.length() && s.charAt( end ) >= '0' && s.charAt( end ) <= '9';
-        return prevWhitespace || digitFollows ? -1 : end;
+        return InlineMath.matchEnd( s, dollarIndex );
     }
 
     /**

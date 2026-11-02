@@ -65,9 +65,79 @@ class ObsidianCommentsTest {
         assertNull( ObsidianComments.strip( null ) );
     }
 
+    /** The closer, like the opener, is never read inside code or math (the reviewer's three repros). */
+    @Test
+    void aMarkerInsideCodeOrMathNeverClosesAComment() {
+        final String fence = "Rates rose 100%% overnight.\n\n```mermaid\ngraph TD\n%% a mermaid comment\nA-->B\n```\n\nAfter.";
+        assertSame( fence, ObsidianComments.strip( fence ) );
+        final String span = "Use 50%% here, then `%%` literal";
+        assertSame( span, ObsidianComments.strip( span ) );
+        final String math = "50%% off $a %% b$";
+        assertSame( math, ObsidianComments.strip( math ) );
+        assertEquals( "a  b", ObsidianComments.strip( "a %%x `%%` y%% b" ), "a masked %% is skipped, the next one closes" );
+    }
+
+    @Test
+    void fencesInsideBlockquotesAndCalloutsAreCode() {
+        final String quoted = "> ```mermaid\n> graph TD\n> %% c %%\n> ```\n";
+        assertSame( quoted, ObsidianComments.strip( quoted ) );
+        final String callout = "> [!note]\n> ```mermaid\n> %% c %%\n> %% d %%\n> ```";
+        assertSame( callout, ObsidianComments.strip( callout ) );
+        assertEquals( "> > ~~~\n> > %%x%%\n> > ~~~\n z", ObsidianComments.strip( "> > ~~~\n> > %%x%%\n> > ~~~\n%%y%% z" ) );
+        assertEquals( "> ```\n> code\n\n x", ObsidianComments.strip( "> ```\n> code\n\n%%gone%% x" ),
+                "a quoted fence ends with its quote" );
+        assertEquals( "> a  b", ObsidianComments.strip( "> a %%x%% b" ) );
+    }
+
+    @Test
+    void inlineDisplayMathIsMath() {
+        assertEquals( "a $$x %% y %% z$$  d", ObsidianComments.strip( "a $$x %% y %% z$$ %%c%% d" ) );
+        assertEquals( "$$a \n\n c$$", ObsidianComments.strip( "$$a %%x\n\nb%% c$$" ), "inline $$ never spans a blank line" );
+    }
+
+    @Test
+    void rangesLocateEachCommentDelimitersIncluded() {
+        final String text = "a %%x%% b %%y\nz%% c `%%k%%`";
+        final java.util.List< String > found = new java.util.ArrayList<>();
+        for ( final int[] r : ObsidianComments.ranges( text ) ) {
+            found.add( text.substring( r[ 0 ], r[ 1 ] ) );
+        }
+        assertEquals( java.util.List.of( "%%x%%", "%%y\nz%%" ), found );
+        assertEquals( java.util.List.of(), ObsidianComments.ranges( "a %%b" ) );
+        assertEquals( java.util.List.of(), ObsidianComments.ranges( null ) );
+    }
+
+    /**
+     * Each input below has 80k-ish markers, backticks, dollars, fences or quote levels: a scan that is quadratic in any of
+     * them takes minutes, a linear one milliseconds.
+     */
+    @Test
+    void adversarialInputsStayLinear() {
+        final int n = 80_000;
+        final String[] inputs = {
+            "%%`".repeat( n ),
+            "`%%".repeat( n ),
+            "%%x$".repeat( n ),
+            "$a ".repeat( n ) + "%%",
+            "%% " + "`%%` ".repeat( n ),
+            "%%x ".repeat( n ),
+            "$$ ".repeat( n ) + "%%",
+            "$$x %% ".repeat( n ),
+            "```\n%%\n```\n".repeat( n / 4 ),
+            "> ```\n> %%\n> ```\n".repeat( n / 4 ),
+            "%%\n> ```\n".repeat( n / 4 ),
+            ">".repeat( n ) + " ```\n%%x%%\n",
+            "> ".repeat( n / 2 ) + "~~~\n" + "> %%x%%\n".repeat( n / 4 ),
+        };
+        for ( final String text : inputs ) {
+            assertTimeoutPreemptively( java.time.Duration.ofSeconds( 3 ), () -> ObsidianComments.strip( text ),
+                    () -> "quadratic on " + text.substring( 0, 12 ).replace( "\n", "\\n" ) + "…" );
+        }
+    }
+
     @Test
     void aHugeRunOfUnpairedMarkersIsLinear() {
-        final String text = "%% x ".repeat( 1 ) + "%".repeat( 1 ) + ( "a $b " ).repeat( 20_000 ) + "\n%%\n";
+        final String text = "%% x " + ( "a $b " ).repeat( 20_000 ) + "\n%%\n";
         assertTimeoutPreemptively( java.time.Duration.ofSeconds( 5 ), () -> ObsidianComments.strip( text ) );
     }
 }

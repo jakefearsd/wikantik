@@ -20,24 +20,31 @@ package com.wikantik.api.markdown;
 
 import com.wikantik.api.parser.CodeMask;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Obsidian {@code %%comments%%}: the one implementation of "a comment is not reader text". A comment (inline, or spanning
  * lines) is removed and replaced by the newlines it held, so line numbers and preview scroll sync stay stable.
  *
  * <ul>
- *   <li><b>Code is never read</b>: fenced and indented code and inline code spans ({@link CodeMask}) — so a Mermaid
- *       fence's own {@code %% comment} lines survive.</li>
- *   <li><b>Math is never read</b>: inline {@code $…$} (Pandoc's rule, as the renderer applies it) and {@code $$ … $$}
- *       blocks, where {@code %} is a LaTeX comment character.</li>
+ *   <li><b>Code is never read</b>, neither for an opening nor for a closing {@code %%}: fenced and indented code and
+ *       inline code spans ({@link CodeMask}), and fences inside block quotes and callouts — so a Mermaid fence's own
+ *       {@code %% comment} lines survive, and a {@code %%} before such a fence never closes on one of them.</li>
+ *   <li><b>Math is never read</b>: inline {@code $…$} ({@link InlineMath}), inline {@code $$…$$} within a paragraph, and
+ *       {@code $$ … $$} blocks, where {@code %} is a LaTeX comment character.</li>
  *   <li>An <b>unterminated</b> {@code %%} stays literal. Obsidian hides everything after an unclosed {@code %%}; a page
  *       is too easy to lose that way.</li>
- *   <li>The closing {@code %%} is the next one after the opener, wherever it falls.</li>
+ *   <li>The closing {@code %%} is the next one after the opener outside code and math. Code wins: a backtick inside a
+ *       comment that pairs with a later one makes a code span, which can leave the comment unterminated.</li>
  * </ul>
  *
  * <p>Comments are <em>hidden, not secret</em>: this is a presentation rule. It is never applied to what the access-rule
- * reader sees (an {@code [{ALLOW …}]} inside a comment is still enforced) nor to page history.
+ * reader sees (an {@code [{ALLOW …}]} inside a comment is still enforced) nor to page history an editor reads.
  *
  * <p>Linear in the text: a text with no {@code %%} costs one {@code indexOf} and is returned as the very same instance.
+ * The editor's copy, {@code obsidianComments.js}, follows the same rules, pinned by the shared fixture
+ * {@code comments.json}.
  */
 public final class ObsidianComments {
 
@@ -51,47 +58,190 @@ public final class ObsidianComments {
      * @return the text without its comments (newlines kept); the same instance when nothing was removed
      */
     public static String strip( final String text ) {
-        if ( text == null || text.indexOf( MARKER ) < 0 ) {
+        final List< int[] > ranges = ranges( text );
+        if ( ranges.isEmpty() ) {
             return text;
         }
-        final boolean[] masked = mask( text );
-        StringBuilder out = null;
+        final StringBuilder out = new StringBuilder( text.length() );
         int copied = 0;
-        int at = text.indexOf( MARKER );
-        while ( at >= 0 ) {
-            if ( masked[ at ] ) {
-                at = text.indexOf( MARKER, at + 1 );
-                continue;
-            }
-            final int close = text.indexOf( MARKER, at + MARKER.length() );
-            if ( close < 0 ) {
-                break;
-            }
-            if ( out == null ) {
-                out = new StringBuilder( text.length() );
-            }
-            out.append( text, copied, at );
-            for ( int p = at; p < close; p++ ) {
+        for ( final int[] r : ranges ) {
+            out.append( text, copied, r[ 0 ] );
+            for ( int p = r[ 0 ]; p < r[ 1 ]; p++ ) {
                 if ( text.charAt( p ) == '\n' ) {
                     out.append( '\n' );
                 }
             }
-            copied = close + MARKER.length();
-            at = text.indexOf( MARKER, copied );
-        }
-        if ( out == null ) {
-            return text;
+            copied = r[ 1 ];
         }
         return out.append( text, copied, text.length() ).toString();
     }
 
-    /** Offsets inside code or math: where a {@code %%} opens nothing. */
+    /**
+     * @param text page text or body; may be {@code null}
+     * @return each comment's {@code [from, to)}, delimiters included, in order (an unterminated {@code %%} is none)
+     */
+    public static List< int[] > ranges( final String text ) {
+        final List< int[] > out = new ArrayList<>();
+        if ( text == null || text.indexOf( MARKER ) < 0 ) {
+            return out;
+        }
+        final boolean[] masked = mask( text );
+        int at = next( text, masked, 0 );
+        while ( at >= 0 ) {
+            final int close = next( text, masked, at + MARKER.length() );
+            if ( close < 0 ) {
+                break;
+            }
+            out.add( new int[]{ at, close + MARKER.length() } );
+            at = next( text, masked, close + MARKER.length() );
+        }
+        return out;
+    }
+
+    /** The next {@code %%} at or after {@code from} with neither of its characters in code or math, or -1. */
+    private static int next( final String text, final boolean[] masked, final int from ) {
+        int at = text.indexOf( MARKER, from );
+        while ( at >= 0 && ( masked[ at ] || masked[ at + 1 ] ) ) {
+            at = text.indexOf( MARKER, at + 1 );
+        }
+        return at;
+    }
+
+    /** Offsets inside code or math: where a {@code %%} opens or closes nothing. */
     private static boolean[] mask( final String text ) {
         final boolean[] masked = CodeMask.of( text );
+        quotedFences( text, masked );
         displayMath( text, masked );
         inlineMath( text, masked );
         return masked;
     }
+
+    // ---- fences inside block quotes ------------------------------------------------------------------------------------
+
+    /**
+     * Fences opened inside a block quote (a callout is one), which {@link CodeMask} reads as text: from the opening line to
+     * the closing one at the same quote depth, or to the first line that leaves that depth. Lines already code at the top
+     * level are left as they are.
+     */
+    private static void quotedFences( final String text, final boolean[] masked ) {
+        if ( text.indexOf( '>' ) < 0 ) {
+            return;
+        }
+        final QuotedFence fence = new QuotedFence();
+        int offset = 0;
+        while ( offset <= text.length() ) {
+            int end = text.indexOf( '\n', offset );
+            if ( end < 0 ) {
+                end = text.length();
+            }
+            if ( fence.scanLine( text, offset, end, masked ) ) {
+                for ( int p = offset; p < end; p++ ) {
+                    masked[ p ] = true;
+                }
+            }
+            offset = end + 1;
+        }
+    }
+
+    /** The one fence open inside a quote, if any, while the lines are scanned. */
+    private static final class QuotedFence {
+        private char fenceChar;
+        private int fenceLen;
+        private int depth;
+
+        /** Reads line {@code [start, end)}; whether it belongs to a quoted fence. */
+        boolean scanLine( final String text, final int start, final int end, final boolean[] masked ) {
+            if ( fenceLen > 0 ) {
+                final int content = quoteContent( text, start, end, depth );
+                if ( content >= 0 ) {
+                    if ( closes( text, content, end ) ) {
+                        fenceLen = 0;
+                    }
+                    return true;
+                }
+                fenceLen = 0;   // the quote ended, and the fence with it
+            }
+            if ( start >= end || masked[ start ] ) {
+                return false;
+            }
+            final int levels = quoteDepth( text, start, end );
+            if ( levels == 0 ) {
+                return false;
+            }
+            return opens( text, quoteContent( text, start, end, levels ), end, levels );
+        }
+
+        private boolean opens( final String text, final int content, final int end, final int levels ) {
+            final int at = skipSpaces( text, content, end, 3 );
+            if ( at < 0 || at >= end || text.charAt( at ) != '`' && text.charAt( at ) != '~' ) {
+                return false;
+            }
+            final char c = text.charAt( at );
+            final int len = run( text, at, end, c );
+            if ( len < 3 || c == '`' && text.indexOf( '`', at + len ) >= 0 && text.indexOf( '`', at + len ) < end ) {
+                return false;
+            }
+            fenceChar = c;
+            fenceLen = len;
+            depth = levels;
+            return true;
+        }
+
+        private boolean closes( final String text, final int content, final int end ) {
+            final int at = skipSpaces( text, content, end, 3 );
+            if ( at < 0 || at >= end || text.charAt( at ) != fenceChar ) {
+                return false;
+            }
+            final int len = run( text, at, end, fenceChar );
+            return len >= fenceLen && text.substring( at + len, end ).isBlank();
+        }
+    }
+
+    /** How many quote levels ({@code >} after at most three spaces, each) line {@code [start, end)} opens with. */
+    private static int quoteDepth( final String text, final int start, final int end ) {
+        int levels = 0;
+        int p = start;
+        while ( true ) {
+            final int at = skipSpaces( text, p, end, 3 );
+            if ( at < 0 || at >= end || text.charAt( at ) != '>' ) {
+                return levels;
+            }
+            levels++;
+            p = at + 1 < end && text.charAt( at + 1 ) == ' ' ? at + 2 : at + 1;
+        }
+    }
+
+    /** Where the content after {@code levels} quote markers starts, or -1 when the line has fewer. */
+    private static int quoteContent( final String text, final int start, final int end, final int levels ) {
+        int p = start;
+        for ( int level = 0; level < levels; level++ ) {
+            final int at = skipSpaces( text, p, end, 3 );
+            if ( at < 0 || at >= end || text.charAt( at ) != '>' ) {
+                return -1;
+            }
+            p = at + 1 < end && text.charAt( at + 1 ) == ' ' ? at + 2 : at + 1;
+        }
+        return p;
+    }
+
+    /** {@code from} past at most {@code max} spaces; -1 when more follow. */
+    private static int skipSpaces( final String text, final int from, final int end, final int max ) {
+        int p = from;
+        while ( p < end && text.charAt( p ) == ' ' ) {
+            p++;
+        }
+        return p - from > max ? -1 : p;
+    }
+
+    private static int run( final String text, final int from, final int end, final char c ) {
+        int p = from;
+        while ( p < end && text.charAt( p ) == c ) {
+            p++;
+        }
+        return p - from;
+    }
+
+    // ---- math ---------------------------------------------------------------------------------------------------------
 
     /** A line of only {@code $$} opens a display block that the next such line closes (code lines excepted). */
     private static void displayMath( final String text, final boolean[] masked ) {
@@ -116,7 +266,7 @@ public final class ObsidianComments {
         }
     }
 
-    /** Inline {@code $…$} outside code and display math, by {@link #inlineMathEnd}. */
+    /** Inline {@code $…$} and {@code $$…$$} outside code and display math. */
     private static void inlineMath( final String text, final boolean[] masked ) {
         int i = 0;
         while ( i < text.length() ) {
@@ -130,12 +280,13 @@ public final class ObsidianComments {
         if ( c == '\\' ) {
             return i + 2;
         }
-        if ( c != '$' || i + 1 < text.length() && text.charAt( i + 1 ) == '$' ) {
-            return c == '$' ? i + 2 : i + 1;
-        }
-        final int end = masked[ i ] ? -1 : inlineMathEnd( text, i );
-        if ( end < 0 ) {
+        if ( c != '$' || masked[ i ] ) {
             return i + 1;
+        }
+        final boolean twice = i + 1 < text.length() && text.charAt( i + 1 ) == '$';
+        final int end = twice ? inlineDisplayEnd( text, masked, i ) : InlineMath.matchEnd( text, i );
+        if ( end < 0 ) {
+            return twice ? i + 2 : i + 1;
         }
         for ( int p = i; p < end; p++ ) {
             masked[ p ] = true;
@@ -144,58 +295,27 @@ public final class ObsidianComments {
     }
 
     /**
-     * Pandoc's {@code tex_math_dollars} for the {@code $} at {@code dollar} — the rule the renderer's inline-math parser
-     * and the editor share: the character after must exist and not be whitespace, a backslash consumes the next
-     * character, whitespace may not span a blank line or precede the closing {@code $}, and a closer followed by a digit
-     * is currency, not math.
-     *
-     * @return the exclusive end of the span, or -1
+     * The exclusive end of {@code $$…$$} opening at {@code i} inside a paragraph: the next {@code $$} outside code, before
+     * any blank line; or -1.
      */
-    private static int inlineMathEnd( final String s, final int dollar ) {
-        final int n = s.length();
-        final int first = dollar + 1;
-        if ( first >= n || s.charAt( first ) == '$' || Character.isWhitespace( s.charAt( first ) ) ) {
-            return -1;
-        }
-        int newlines = 0;
-        boolean prevWhitespace = false;
-        int j = first;
-        while ( j < n ) {
-            final char c = s.charAt( j );
-            if ( c == '$' ) {
-                return closeEnd( s, j, prevWhitespace );
-            }
-            if ( c == '\\' ) {
-                if ( j + 1 >= n ) {
+    private static int inlineDisplayEnd( final String text, final boolean[] masked, final int i ) {
+        boolean lineBlank = false;
+        for ( int j = i + 2; j < text.length(); j++ ) {
+            final char c = text.charAt( j );
+            if ( c == '\n' ) {
+                if ( lineBlank ) {
                     return -1;
                 }
-                newlines = 0;
-                prevWhitespace = false;
-                j += 2;
-                continue;
+                lineBlank = true;
+            } else if ( c == '\\' ) {
+                j++;
+                lineBlank = false;
+            } else if ( c == '$' && j + 1 < text.length() && text.charAt( j + 1 ) == '$' && !masked[ j ] ) {
+                return j + 2;
+            } else if ( c != ' ' && c != '\t' && c != '\r' ) {
+                lineBlank = false;
             }
-            final boolean ws = Character.isWhitespace( c );
-            newlines = newlinesAfter( c, ws, newlines );
-            if ( newlines >= 2 ) {
-                return -1;
-            }
-            prevWhitespace = ws;
-            j++;
         }
         return -1;
-    }
-
-    /** Consecutive-newline count: whitespace keeps it (a newline adds one), anything else resets it. */
-    private static int newlinesAfter( final char c, final boolean whitespace, final int newlines ) {
-        if ( !whitespace ) {
-            return 0;
-        }
-        return c == '\n' ? newlines + 1 : newlines;
-    }
-
-    /** The end of a span closed by the {@code $} at {@code j}: none when whitespace precedes it or a digit follows it. */
-    private static int closeEnd( final String s, final int j, final boolean prevWhitespace ) {
-        final boolean digitFollows = j + 1 < s.length() && s.charAt( j + 1 ) >= '0' && s.charAt( j + 1 ) <= '9';
-        return prevWhitespace || digitFollows ? -1 : j + 1;
     }
 }

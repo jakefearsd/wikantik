@@ -3,10 +3,13 @@
  * shared fixture (`__fixtures__/comments.json`, run by both sides). A comment (inline, or spanning lines) is removed
  * and replaced by the newlines it held, so line numbers and preview scroll sync stay stable.
  *
- * - Code is never read: fenced and indented code and inline code spans (a port of `CodeMask`), so a Mermaid
- *   fence's own `%% comment` lines survive.
- * - Math is never read: inline `$…$` (`inlineMath.js`) and `$$ … $$` blocks, where `%` is a LaTeX comment.
- * - An unterminated `%%` stays literal. The closing `%%` is the next one after the opener.
+ * - Code is never read, neither for an opening nor for a closing `%%`: fenced and indented code and inline code spans
+ *   (a port of `CodeMask`) and fences inside block quotes and callouts, so a Mermaid fence's own `%% comment` lines
+ *   survive and a `%%` before such a fence never closes on one of them.
+ * - Math is never read: inline `$…$` (`inlineMath.js`), inline `$$…$$` within a paragraph, and `$$ … $$` blocks, where
+ *   `%` is a LaTeX comment.
+ * - An unterminated `%%` stays literal. The closing `%%` is the next one after the opener outside code and math; code
+ *   wins, so a backtick in a comment that pairs with a later one can leave the comment unterminated.
  *
  * Comments are hidden, not secret: this is a presentation rule, applied to the editor preview and to live preview's
  * dimming; never to what is saved.
@@ -122,6 +125,77 @@ function codeMask(text) {
   return mask;
 }
 
+/** How many quote levels (`>` after at most three spaces, each) a line opens with. */
+function quoteDepth(line) {
+  let levels = 0;
+  let p = 0;
+  for (;;) {
+    const at = skipSpaces(line, p, 3);
+    if (at < 0 || at >= line.length || line[at] !== '>') return levels;
+    levels += 1;
+    p = line[at + 1] === ' ' ? at + 2 : at + 1;
+  }
+}
+/** Where the content after `levels` quote markers starts, or -1 when the line has fewer. */
+function quoteContent(line, levels) {
+  let p = 0;
+  for (let level = 0; level < levels; level += 1) {
+    const at = skipSpaces(line, p, 3);
+    if (at < 0 || at >= line.length || line[at] !== '>') return -1;
+    p = line[at + 1] === ' ' ? at + 2 : at + 1;
+  }
+  return p;
+}
+function skipSpaces(line, from, max) {
+  let p = from;
+  while (p < line.length && line[p] === ' ') p += 1;
+  return p - from > max ? -1 : p;
+}
+
+/**
+ * Fences opened inside a block quote (a callout is one), which `codeMask` reads as text: from the opening line to the
+ * closing one at the same quote depth, or to the first line that leaves that depth. Lines already code are left alone.
+ */
+function maskQuotedFences(text, mask) {
+  if (!text.includes('>')) return;
+  let fenceChar = '';
+  let fenceLen = 0;
+  let depth = 0;
+  let offset = 0;
+  for (const line of text.split('\n')) {
+    let inFence = false;
+    if (fenceLen > 0) {
+      const content = quoteContent(line, depth);
+      if (content >= 0) {
+        inFence = true;
+        const at = skipSpaces(line, content, 3);
+        if (at >= 0 && at < line.length && line[at] === fenceChar) {
+          const len = runLength(line, at, fenceChar);
+          if (len >= fenceLen && line.slice(at + len).trim() === '') fenceLen = 0;
+        }
+      } else fenceLen = 0; // the quote ended, and the fence with it
+    }
+    if (!inFence && line.length > 0 && mask[offset] !== 1) {
+      const levels = quoteDepth(line);
+      if (levels > 0) {
+        const at = skipSpaces(line, quoteContent(line, levels), 3);
+        const c = at >= 0 ? line[at] : undefined;
+        if (c === '`' || c === '~') {
+          const len = runLength(line, at, c);
+          if (len >= 3 && !(c === '`' && line.indexOf('`', at + len) >= 0)) {
+            fenceChar = c;
+            fenceLen = len;
+            depth = levels;
+            inFence = true;
+          }
+        }
+      }
+    }
+    if (inFence) maskRange(mask, offset, offset + line.length);
+    offset += line.length + 1;
+  }
+}
+
 /** A line of only `$$` opens a display block the next such line closes (code lines excepted). */
 function maskDisplayMath(text, mask) {
   let open = false;
@@ -137,41 +211,65 @@ function maskDisplayMath(text, mask) {
   }
 }
 
+/** The exclusive end of `$$…$$` opening at `i` inside a paragraph: the next `$$` outside code, before any blank line. */
+function inlineDisplayEnd(text, mask, i) {
+  let lineBlank = false;
+  for (let j = i + 2; j < text.length; j += 1) {
+    const c = text[j];
+    if (c === '\n') {
+      if (lineBlank) return -1;
+      lineBlank = true;
+    } else if (c === '\\') {
+      j += 1;
+      lineBlank = false;
+    } else if (c === '$' && text[j + 1] === '$' && mask[j] !== 1) {
+      return j + 2;
+    } else if (c !== ' ' && c !== '\t' && c !== '\r') {
+      lineBlank = false;
+    }
+  }
+  return -1;
+}
+
+/** Inline `$…$` and `$$…$$` outside code and display math. */
 function maskInlineMath(text, mask) {
   const n = text.length;
   for (let i = 0; i < n;) {
     const c = text[i];
     if (c === '\\') i += 2;
-    else if (c !== '$') i += 1;
-    else if (text[i + 1] === '$') i += 2;
-    else if (mask[i] === 1) i += 1;
+    else if (c !== '$' || mask[i] === 1) i += 1;
     else {
-      const end = matchInlineMath(text, i);
+      const twice = text[i + 1] === '$';
+      const end = twice ? inlineDisplayEnd(text, mask, i) : matchInlineMath(text, i);
       if (end > 0) {
         maskRange(mask, i, end);
         i = end;
-      } else i += 1;
+      } else i += twice ? 2 : 1;
     }
   }
+}
+
+/** The next `%%` at or after `from` with neither of its characters in code or math, or -1. */
+function nextMarker(text, mask, from) {
+  let at = text.indexOf('%%', from);
+  while (at >= 0 && (mask[at] === 1 || mask[at + 1] === 1)) at = text.indexOf('%%', at + 1);
+  return at;
 }
 
 /** `[{ from, to }]` of each comment, delimiters included, in order (an unterminated `%%` is none). */
 export function commentRanges(text) {
   if (!text || !text.includes('%%')) return [];
   const mask = codeMask(text);
+  maskQuotedFences(text, mask);
   maskDisplayMath(text, mask);
   maskInlineMath(text, mask);
   const out = [];
-  let at = text.indexOf('%%');
+  let at = nextMarker(text, mask, 0);
   while (at >= 0) {
-    if (mask[at] === 1) {
-      at = text.indexOf('%%', at + 1);
-      continue;
-    }
-    const close = text.indexOf('%%', at + 2);
+    const close = nextMarker(text, mask, at + 2);
     if (close < 0) break;
     out.push({ from: at, to: close + 2 });
-    at = text.indexOf('%%', close + 2);
+    at = nextMarker(text, mask, close + 2);
   }
   return out;
 }

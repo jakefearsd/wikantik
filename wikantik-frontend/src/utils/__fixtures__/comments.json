@@ -3,7 +3,7 @@
   {"name": "two comments on a line", "input": "a %%1%% b %%2%% c", "output": "a  b  c"},
   {"name": "a comment spanning lines keeps its newlines", "input": "a %%x\ny\nz%% b", "output": "a \n\n b"},
   {"name": "an empty comment is removed", "input": "x%%%%y", "output": "xy"},
-  {"name": "a comment holding a backtick", "input": "a %%it`s%% b `c`", "output": "a  b `c`"},
+  {"name": "a comment holding a lone backtick", "input": "a %%it`s%% b", "output": "a  b"},
   {"name": "text with no comment is unchanged", "input": "plain text, 100% sure", "output": "plain text, 100% sure"},
   {"name": "a single percent pair is not a comment", "input": "a % b % c", "output": "a % b % c"},
   {"name": "an unterminated comment stays literal", "input": "a %%b", "output": "a %%b"},
@@ -16,5 +16,17 @@
   {"name": "inside inline math", "input": "$a %%b%% c$ d %%e%%", "output": "$a %%b%% c$ d "},
   {"name": "inside block math (a LaTeX comment)", "input": "$$\nx = 1 %% tex\ny = 2 %%\n$$\n%%gone%%", "output": "$$\nx = 1 %% tex\ny = 2 %%\n$$\n"},
   {"name": "a comment around inline math", "input": "%% $x$ %%after", "output": "after"},
-  {"name": "a comment on its own line leaves the empty line", "input": "line one\n%%note%%\nline two", "output": "line one\n\nline two"}
+  {"name": "a comment on its own line leaves the empty line", "input": "line one\n%%note%%\nline two", "output": "line one\n\nline two"},
+  {"name": "a backtick in a comment that pairs with a later one opens code: the code wins, the comment is unterminated", "input": "a %%it`s%% b `c`", "output": "a %%it`s%% b `c`"},
+  {"name": "a percent run before a mermaid fence never closes on the fence's own %% line", "input": "Rates rose 100%% overnight.\n\n```mermaid\ngraph TD\n%% a mermaid comment\nA-->B\n```\n\nAfter.", "output": "Rates rose 100%% overnight.\n\n```mermaid\ngraph TD\n%% a mermaid comment\nA-->B\n```\n\nAfter."},
+  {"name": "a %% inside a code span never closes a comment", "input": "Use 50%% here, then `%%` literal", "output": "Use 50%% here, then `%%` literal"},
+  {"name": "a %% inside inline math never closes a comment", "input": "50%% off $a %% b$", "output": "50%% off $a %% b$"},
+  {"name": "a masked %% is skipped and the next unmasked one closes", "input": "a %%x `%%` y%% b", "output": "a  b"},
+  {"name": "a mermaid fence inside a blockquote", "input": "> ```mermaid\n> graph TD\n> %% c %%\n> ```\n", "output": "> ```mermaid\n> graph TD\n> %% c %%\n> ```\n"},
+  {"name": "a mermaid fence inside a callout", "input": "> [!note]\n> ```mermaid\n> %% c %%\n> %% d %%\n> ```", "output": "> [!note]\n> ```mermaid\n> %% c %%\n> %% d %%\n> ```"},
+  {"name": "a fence in a nested blockquote", "input": "> > ~~~\n> > %%x%%\n> > ~~~\n%%y%% z", "output": "> > ~~~\n> > %%x%%\n> > ~~~\n z"},
+  {"name": "a fence inside a blockquote ends with the quote", "input": "> ```\n> code\n\n%%gone%% x", "output": "> ```\n> code\n\n x"},
+  {"name": "a comment in a blockquote outside any fence is removed", "input": "> a %%x%% b", "output": "> a  b"},
+  {"name": "inline display math $$…$$", "input": "a $$x %% y %% z$$ %%c%% d", "output": "a $$x %% y %% z$$  d"},
+  {"name": "inline $$ does not span a blank line", "input": "$$a %%x\n\nb%% c$$", "output": "$$a \n\n c$$"}
 ]

@@ -212,6 +212,16 @@ class SemanticHeadRendererTest {
         assertTrue( keywords.contains( "integration" ) );
     }
 
+    /** Obsidian phase 4 decision: SEO, feeds and JSON-LD stay frontmatter-only, so a tag written in passing is no keyword. */
+    @Test
+    void inlineOnlyTagsAreNeverKeywordsOrJsonLdKeywords() {
+        final String body = "---\ntype: article\ntags: [Foo]\nsummary: A page whose body carries inline tags too\n---\n"
+                + "# T\n\nProse with #inlineonly and #bar/baz.\n";
+        final String html = SemanticHeadRenderer.renderHead( "TagPage", body, BASE_URL, APP_NAME );
+        assertEquals( "Foo", extractMetaContent( html, "name", "keywords" ) );
+        assertFalse( html.contains( "inlineonly" ) || html.contains( "bar-baz" ), html );
+    }
+
     @Test
     void plainPageHasNoMetaKeywords() {
         final String html = SemanticHeadRenderer.renderHead(

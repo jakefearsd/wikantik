@@ -197,6 +197,48 @@ class DefaultStructuralIndexServiceTest {
         verify( pageManager, atLeastOnce() ).getPage( "B" );
     }
 
+    /** Obsidian phase 4: a page's tags for finding are its frontmatter tags and its inline #tags, one normalised set. */
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void inline_tags_join_frontmatter_tags_in_one_normalised_set() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\ntags: [Foo]",
+                "Prose #foo and #bar/baz.\n%% #hidden %%\n`#code`\n" );
+        final Page b = fakePage( "B",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: article", "No tag here." );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b ) );
+
+        svc.rebuild();
+
+        assertEquals( List.of( "foo", "bar-baz" ), svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().tags() );
+        final var foo = svc.listTags( 1 ).stream().filter( t -> t.tag().equals( "foo" ) ).toList();
+        assertEquals( 1, foo.size(), "frontmatter Foo and inline #foo are one tag" );
+        assertEquals( 1, foo.get( 0 ).count(), "and the page counts once" );
+        assertTrue( svc.listTags( 1 ).stream().noneMatch( t -> t.tag().equals( "hidden" ) || t.tag().equals( "code" ) ) );
+        assertEquals( List.of( "A" ), slugs( "FOO" ) );
+        assertEquals( List.of( "A" ), slugs( "Bar/Baz" ) );
+    }
+
+    private List< String > slugs( final String tag ) {
+        return svc.listPagesByFilter( new StructuralFilter( Optional.empty(), Optional.empty(), List.of( tag ),
+                        Optional.empty(), 10, Optional.empty() ) )
+                .stream().map( com.wikantik.api.pagegraph.PageDescriptor::slug ).toList();
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void inline_tags_are_refreshed_on_an_incremental_save() throws Exception {
+        final Page a = fakePage( "A", "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article", "#old" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+        final Page updated = fakePage( "A", "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article", "#fresh" );
+        when( pageManager.getPage( "A" ) ).thenReturn( updated );
+
+        svc.onPageSaved( "A" );
+
+        assertEquals( List.of( "fresh" ), svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().tags() );
+    }
+
     @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )
     void onPageSaved_refreshes_just_the_named_page_descriptor() throws Exception {

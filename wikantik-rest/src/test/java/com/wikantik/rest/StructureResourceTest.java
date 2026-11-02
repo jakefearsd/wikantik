@@ -158,6 +158,24 @@ class StructureResourceTest {
         assertEquals( "PublicPage", pages.get( 0 ).getAsJsonObject().get( "slug" ).getAsString() );
     }
 
+    /** The tag view (/search?tag=) lists through this filter; tags match by their normalised form. */
+    @Test
+    void pages_tag_filter_is_normalised() throws Exception {
+        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of() );
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getPathInfo() ).thenReturn( "/pages" );
+        when( req.getParameter( "tag" ) ).thenReturn( "FOO,Bar/Baz" );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+
+        final org.mockito.ArgumentCaptor< com.wikantik.api.pagegraph.StructuralFilter > filter =
+                org.mockito.ArgumentCaptor.forClass( com.wikantik.api.pagegraph.StructuralFilter.class );
+        verify( svc ).listPagesByFilter( filter.capture() );
+        assertEquals( List.of( "foo", "bar-baz" ), filter.getValue().tags() );
+    }
+
     private JsonObject callGet( final String pathInfo ) throws Exception {
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );

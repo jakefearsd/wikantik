@@ -615,12 +615,13 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                     com.wikantik.api.frontmatter.FrontmatterParser.parse( text );
             final java.util.Map<String, Object> metadata = parsed.metadata();
 
+            // Frontmatter tags plus inline #tags (Obsidian phase 4), normalised and de-duplicated: the tags for finding.
             final Object tags = metadata.get( "tags" );
-            if ( tags instanceof java.util.List<?> tagList && !tagList.isEmpty() ) {
-                final String tagString = tagList.stream()
-                        .map( Object::toString )
-                        .collect( Collectors.joining( " " ) );
-                doc.add( new Field( LUCENE_PAGE_TAGS, tagString, TextField.TYPE_STORED ) );
+            final List< String > written = tags instanceof java.util.List<?> tagList
+                    ? tagList.stream().filter( java.util.Objects::nonNull ).map( Object::toString ).toList() : List.of();
+            final List< String > findable = com.wikantik.api.markdown.InlineTagSyntax.findableTags( written, parsed.body() );
+            if ( !findable.isEmpty() ) {
+                doc.add( new Field( LUCENE_PAGE_TAGS, String.join( " ", findable ), TextField.TYPE_STORED ) );
             }
 
             final Object cluster = metadata.get( "cluster" );

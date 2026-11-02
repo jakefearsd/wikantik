@@ -38,6 +38,7 @@ import ExportDialog from './ExportDialog';
 import { useMentionPicker } from '../hooks/useMentionPicker';
 import { captureSelection } from '../utils/commentAnchor';
 import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
+import { tagViewHref } from '../utils/inlineTags';
 import '../styles/article.css';
 import '../styles/admin.css';
 import '../styles/fences.css';
@@ -820,7 +821,7 @@ export default function PageView() {
       {page.metadata?.tags && (
         <div style={{ marginTop: 'var(--space-2xl)', display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
           {(Array.isArray(page.metadata.tags) ? page.metadata.tags : [page.metadata.tags]).map(tag => (
-            <Link key={tag} to={`/search?q=${encodeURIComponent(tag)}`} className="tag" style={{ textDecoration: 'none' }}>
+            <Link key={tag} to={tagViewHref(tag)} className="tag" style={{ textDecoration: 'none' }}>
               {tag}
             </Link>
           ))}

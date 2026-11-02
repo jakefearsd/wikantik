@@ -96,6 +96,27 @@ public final class InlineTagSyntax {
         return tags;
     }
 
+    /**
+     * A page's tags for <em>finding</em>: its frontmatter tags then its inline tags, each normalised, duplicates removed.
+     * (SEO, feeds, the sitemap and JSON-LD deliberately keep reading the frontmatter alone.)
+     *
+     * @param frontmatterTags the frontmatter {@code tags} as written; may be {@code null}
+     * @param body            the page body; may be {@code null}
+     */
+    public static List< String > findableTags( final List< String > frontmatterTags, final String body ) {
+        final Set< String > tags = new LinkedHashSet<>();
+        if ( frontmatterTags != null ) {
+            for ( final String t : frontmatterTags ) {
+                final String n = t == null ? "" : normalise( t );
+                if ( !n.isEmpty() ) {
+                    tags.add( n );
+                }
+            }
+        }
+        tags.addAll( normalisedTags( body ) );
+        return List.copyOf( tags );
+    }
+
     /** Every tag in {@code body}, in order, with offsets into {@code body}. */
     public static List< Tag > scan( final String body ) {
         final List< Tag > tags = new ArrayList<>();

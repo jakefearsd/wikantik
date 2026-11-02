@@ -119,6 +119,14 @@ class InlineTagSyntaxTest {
     }
 
     @Test
+    void findableTagsUnionFrontmatterAndInlineNormalisedOnce() {
+        assertEquals( List.of( "foo", "x", "bar-baz" ),
+            InlineTagSyntax.findableTags( java.util.Arrays.asList( "Foo", "#X", " ", null ), "#foo #Bar/Baz" ) );
+        assertEquals( List.of( "a" ), InlineTagSyntax.findableTags( null, "#a" ) );
+        assertEquals( List.of(), InlineTagSyntax.findableTags( List.of(), null ) );
+    }
+
+    @Test
     void nullAndEmptyBodiesHaveNoTags() {
         assertEquals( Set.of(), tags( null ) );
         assertEquals( Set.of(), tags( "" ) );

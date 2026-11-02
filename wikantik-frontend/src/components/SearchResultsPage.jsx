@@ -7,6 +7,7 @@ import { useApi } from '../hooks/useApi';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { highlightTerms } from '../utils/highlight';
 import { formatDate } from '../utils/datetime';
+import { normaliseTag, tagViewHref } from '../utils/inlineTags';
 import {
   deriveFacets,
   applyFacets,
@@ -21,10 +22,28 @@ import Icon from './ui/Icon';
 
 const PAGE_SIZE = 20;
 
+/** A structural-index page descriptor in the shape a search result card reads (no score: it is a list, not a ranking). */
+function tagPageToResult(p) {
+  return {
+    name: p.slug,
+    summary: p.summary,
+    tags: p.tags,
+    cluster: p.cluster,
+    lastModified: p.updated,
+  };
+}
+
 export default function SearchResultsPage() {
   const [params] = useSearchParams();
-  const query = params.get('q') || '';
-  const { data, loading, error } = useApi((signal) => api.search(query, 50, { signal }), [query]);
+  // `/search?tag=x` with no `q` is the tag view: every page carrying the tag, inline or frontmatter.
+  const tag = normaliseTag(params.get('tag') || '');
+  const query = tag ? '' : params.get('q') || '';
+  const { data, loading, error } = useApi(
+    (signal) => (tag
+      ? api.listPagesByTag(tag, { signal }).then((d) => ({ results: (d?.pages || []).map(tagPageToResult) }))
+      : api.search(query, 50, { signal })),
+    [query, tag],
+  );
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selection, setSelection] = useState(EMPTY_SELECTION);
   const [sinceKey, setSinceKey] = useState(null);
@@ -39,19 +58,20 @@ export default function SearchResultsPage() {
 
   // Reset pagination and any active filters when the query changes — derived
   // during render (store-previous-and-compare) rather than an effect.
-  const [prevQuery, setPrevQuery] = useState(query);
-  if (query !== prevQuery) {
-    setPrevQuery(query);
+  const searchKey = tag ? `tag:${tag}` : query;
+  const [prevQuery, setPrevQuery] = useState(searchKey);
+  if (searchKey !== prevQuery) {
+    setPrevQuery(searchKey);
     setVisibleCount(PAGE_SIZE);
     setSelection(EMPTY_SELECTION);
     setSinceKey(null);
   }
 
   // Set document title via hook — keeps the "Wikantik: " prefix consistent.
-  const searchTitle = query ? `Search results for ${query}` : 'Search';
+  const searchTitle = tag ? `Pages tagged #${tag}` : query ? `Search results for ${query}` : 'Search';
   useDocumentTitle(searchTitle);
 
-  if (!query) {
+  if (!query && !tag) {
     return (
       <div className="page-enter" style={{ textAlign: 'center', padding: 'var(--space-2xl) 0' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: 'var(--space-md)' }}>
@@ -62,8 +82,11 @@ export default function SearchResultsPage() {
     );
   }
 
-  if (loading) return <div className="loading">Searching…</div>;
-  if (error) return <div className="error-banner">Search failed: {error.message}</div>;
+  if (loading) return <div className="loading">{tag ? 'Loading…' : 'Searching…'}</div>;
+  if (error) return <div className="error-banner">{tag ? 'Could not load the tag' : 'Search failed'}: {error.message}</div>;
+  const heading = tag
+    ? `${filtered.length} page${filtered.length !== 1 ? 's' : ''} tagged #${tag}`
+    : `${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${query}"`;
 
   const visibleResults = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visibleCount;
@@ -82,12 +105,12 @@ export default function SearchResultsPage() {
   };
 
   return (
-    <div className="page-enter" data-testid="search-results-page" data-query={query}>
+    <div className="page-enter" data-testid="search-results-page" data-query={query} data-tag={tag || undefined}>
       {results.length === 0 ? (
         <EmptyState
           icon={<Icon name="search" />}
-          message={`No results for "${query}"`}
-          action={<span>Try different keywords or check spelling.</span>}
+          message={tag ? `No pages are tagged #${tag}` : `No results for "${query}"`}
+          action={<span>{tag ? 'Tags come from a page’s frontmatter or from #tags written in its text.' : 'Try different keywords or check spelling.'}</span>}
         />
       ) : (
       <div style={{ marginBottom: 'var(--space-xl)' }}>
@@ -100,7 +123,7 @@ export default function SearchResultsPage() {
             marginBottom: 'var(--space-xs)',
           }}
         >
-          {`${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${query}"`}
+          {heading}
           {filtersActive && results.length !== filtered.length && (
             <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '1rem' }}>
               {' '}(filtered from {results.length})
@@ -292,17 +315,21 @@ function SearchResultCard({ result, query }) {
             <Link to={`/search?q=${encodeURIComponent(result.cluster)}`} className="tag">{result.cluster}</Link>
           </>
         )}
-        <span className="search-result-meta-sep">·</span>
-        <span className="search-result-meta-score">
-          {Math.round(result.score)}% match
-        </span>
+        {typeof result.score === 'number' && (
+          <>
+            <span className="search-result-meta-sep">·</span>
+            <span className="search-result-meta-score">
+              {Math.round(result.score)}% match
+            </span>
+          </>
+        )}
       </div>
 
       {/* Tags */}
       {tags.length > 0 && (
         <div className="search-result-tags">
           {tags.map(tag => (
-            <Link key={tag} to={`/search?q=${encodeURIComponent(tag)}`} className="tag">{tag}</Link>
+            <Link key={tag} to={tagViewHref(tag)} className="tag">{tag}</Link>
           ))}
         </div>
       )}

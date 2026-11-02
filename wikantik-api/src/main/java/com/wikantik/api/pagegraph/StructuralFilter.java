@@ -18,6 +18,8 @@
  */
 package com.wikantik.api.pagegraph;
 
+import com.wikantik.api.markdown.InlineTagSyntax;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +40,10 @@ public record StructuralFilter(
     public StructuralFilter {
         type         = type         == null ? Optional.empty() : type;
         cluster      = cluster      == null ? Optional.empty() : cluster;
-        tags         = tags         == null ? List.of()        : List.copyOf( tags );
+        // A tag's identity is its normalised form (InlineTagSyntax.normalise): "FOO" and "Bar/Baz" match foo and bar-baz.
+        tags         = tags         == null ? List.of()        : tags.stream().filter( java.util.Objects::nonNull )
+                                                                     .map( InlineTagSyntax::normalise )
+                                                                     .filter( t -> !t.isEmpty() ).distinct().toList();
         updatedSince = updatedSince == null ? Optional.empty() : updatedSince;
         cursor       = cursor       == null ? Optional.empty() : cursor;
         if ( limit <= 0 ) {

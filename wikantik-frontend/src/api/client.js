@@ -174,6 +174,10 @@ export const api = {
   getPageTemplates: () => request('/api/page-templates'),
   listClusters: () => request('/api/structure/clusters'),
 
+  // The tag view (/search?tag=x): pages carrying a tag, frontmatter or inline, compared by normalised form.
+  listPagesByTag: (tag, { signal } = {}) =>
+    request(`/api/structure/pages?tag=${encodeURIComponent(tag)}&limit=500`, { signal }),
+
   listPages: ({ prefix, q, names, resolve, limit = 100, offset = 0, signal } = {}) => {
     const params = new URLSearchParams({ limit, offset });
     if (prefix) params.set('prefix', prefix);

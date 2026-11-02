@@ -22,6 +22,7 @@ import com.github.f4b6a3.ulid.UlidCreator;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.ClusterSummary;
@@ -163,7 +164,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                               + " — add canonical_id to frontmatter to make this stable" ) );
                 }
 
-                final PageDescriptor descriptor = toDescriptor( canonicalId, p, fm );
+                final PageDescriptor descriptor = toDescriptor( canonicalId, p, fm, parsed.body() );
                 builder.addPage( descriptor );
                 nextAliases.put( canonicalId, TitleIndexState.aliasesOf( fm ) );
 
@@ -298,7 +299,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
      *  @return the descriptor to place in the projection
      */
     private PageDescriptor toDescriptor( final String canonicalId, final Page page,
-                                          final Map< String, Object > fm ) {
+                                          final Map< String, Object > fm, final String body ) {
         // Phase 5: `cluster:` may be a scalar or a list. ClusterPath.memberships is the one
         // place that difference is resolved; the DAO column keeps the primary.
         final List< String > clusters = ClusterPath.memberships( fm.get( "cluster" ) );
@@ -309,7 +310,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 PageType.fromFrontmatter( fm.get( "type" ) ),
                 clusters.isEmpty() ? null : clusters.get( 0 ),
                 clusters,
-                SpineFrontmatter.stringList( fm.get( "tags" ) ),
+                // Obsidian phase 4: frontmatter tags plus inline #tags, one normalised set
+                InlineTagSyntax.findableTags( SpineFrontmatter.stringList( fm.get( "tags" ) ), body ),
                 SpineFrontmatter.asString( fm.get( "summary" ) ),
                 page.getLastModified() == null ? null : page.getLastModified().toInstant(),
                 SpineFrontmatter.parseKgInclude( fm.get( "kg_include" ) ),
@@ -360,7 +362,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             canonicalId = UlidCreator.getUlid().toString();
         }
 
-        final PageDescriptor next = toDescriptor( canonicalId, page, fm );
+        final PageDescriptor next = toDescriptor( canonicalId, page, fm, parsed.body() );
 
         if ( authored ) {
             persistCanonicalId( next, fm );

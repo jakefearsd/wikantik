@@ -346,6 +346,31 @@ class DefaultLuceneIndexerTest {
     }
 
     @Test
+    void luceneIndexPage_tagsFieldHoldsFrontmatterAndInlineTagsNormalisedOnce() throws Exception {
+        final String text = "---\ntags: [Foo]\n---\nProse #foo and #bar/baz.\n%% #hidden %%\n`#code`\n";
+        final Page page = mockPage( "InlineTagged" );
+
+        try ( Directory dir = LuceneDirectoryFactory.open( tmp, false );
+              IndexWriter writer = new IndexWriter( dir, new IndexWriterConfig( new StandardAnalyzer() ) ) ) {
+            final Document doc = newIndexer().luceneIndexPage( page, text, writer );
+
+            assertEquals( "foo bar-baz", doc.get( DefaultLuceneIndexer.LUCENE_PAGE_TAGS ) );
+        }
+    }
+
+    @Test
+    void luceneIndexPage_inlineTagsAloneStillFillTheTagsField() throws Exception {
+        final Page page = mockPage( "InlineOnly" );
+
+        try ( Directory dir = LuceneDirectoryFactory.open( tmp, false );
+              IndexWriter writer = new IndexWriter( dir, new IndexWriterConfig( new StandardAnalyzer() ) ) ) {
+            final Document doc = newIndexer().luceneIndexPage( page, "Just #solo text.", writer );
+
+            assertEquals( "solo", doc.get( DefaultLuceneIndexer.LUCENE_PAGE_TAGS ) );
+        }
+    }
+
+    @Test
     void luceneIndexPage_indexesPageTextWithoutAccessRuleDirectives() throws Exception {
         final String text = "[{ALLOW view All}]()\n[{ALLOW edit leak-probe@example.test}]\n"
                 + "Public prose. Example: `[{ALLOW edit Bob}]`.";

@@ -51,6 +51,59 @@ beforeEach(() => {
   useApi.mockReturnValue({ data: { results: [] }, loading: false, error: null });
 });
 
+describe('SearchResultsPage tag view', () => {
+  const TAGGED = {
+    results: [
+      { name: 'Alpha', summary: 'First', tags: ['foo', 'bar-baz'], cluster: 'c1' },
+      { name: 'Beta', summary: 'Second', tags: ['foo'] },
+    ],
+  };
+
+  it('/search?tag=foo with no q lists the tagged pages', () => {
+    useApi.mockReturnValue({ data: TAGGED, loading: false, error: null });
+    renderPage('?tag=foo');
+    expect(screen.getByTestId('search-results-heading')).toHaveTextContent('2 pages tagged #foo');
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(2);
+    expect(screen.queryByText(/% match/)).toBeNull();
+  });
+
+  it('normalises the tag it was given', () => {
+    useApi.mockReturnValue({ data: TAGGED, loading: false, error: null });
+    renderPage('?tag=Foo');
+    expect(screen.getByTestId('search-results-heading')).toHaveTextContent('tagged #foo');
+  });
+
+  it('asks the structural index for the tag rather than running a text search', async () => {
+    const { api } = await import('../api/client');
+    api.listPagesByTag = vi.fn().mockResolvedValue({
+      pages: [{ slug: 'Alpha', summary: 'First', tags: ['foo'], cluster: 'c1', updated: '2026-01-02T00:00:00Z' }],
+    });
+    useApi.mockReturnValue({ data: TAGGED, loading: false, error: null });
+    renderPage('?tag=foo');
+    const fetcher = useApi.mock.calls[0][0];
+    const out = await fetcher(undefined);
+    expect(api.listPagesByTag).toHaveBeenCalledWith('foo', { signal: undefined });
+    expect(api.search).not.toHaveBeenCalled();
+    expect(out.results).toEqual([
+      { name: 'Alpha', summary: 'First', tags: ['foo'], cluster: 'c1', lastModified: '2026-01-02T00:00:00Z' },
+    ]);
+  });
+
+  it('result tag chips link to the tag view', () => {
+    useApi.mockReturnValue({ data: TAGGED, loading: false, error: null });
+    renderPage('?tag=foo');
+    const hrefs = [...document.querySelectorAll('.search-result-tags a')].map((a) => a.getAttribute('href'));
+    expect(hrefs).toContain('/search?tag=bar-baz');
+    expect(hrefs.every((h) => h.startsWith('/search?tag='))).toBe(true);
+  });
+
+  it('says so when no page carries the tag', () => {
+    useApi.mockReturnValue({ data: { results: [] }, loading: false, error: null });
+    renderPage('?tag=nothing');
+    expect(screen.getByText('No pages are tagged #nothing')).toBeInTheDocument();
+  });
+});
+
 describe('SearchResultsPage', () => {
   it('shows empty search state with no query', () => {
     renderPage();

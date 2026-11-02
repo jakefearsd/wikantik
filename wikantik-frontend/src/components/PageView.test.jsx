@@ -888,6 +888,15 @@ describe('PageView export-cluster entry point', () => {
   }, TEST_TIMEOUT);
 });
 
+describe('PageView frontmatter tag chips', () => {
+  it('links each chip to the tag view by the normalised tag, so it lands where an inline #tag lands', async () => {
+    api.getPage.mockImplementation(async () => ({ ...PAGE, metadata: { tags: ['Foo', 'Team/Core'] } }));
+    const { container } = await mountAndSettle();
+    const hrefs = [...container.querySelectorAll('a.tag')].map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual(['/search?tag=foo', '/search?tag=team-core']);
+  }, TEST_TIMEOUT);
+});
+
 describe('PageView link previews', () => {
   it('hovering an internal link in the article shows the preview card after the open delay', async () => {
     api.getPage.mockImplementation(async () => ({

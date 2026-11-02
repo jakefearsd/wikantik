@@ -141,7 +141,7 @@ final class AclShapeAuditSources {
                 }
             }
         } catch ( final RuntimeException e ) {
-            throw new IOException( "cannot list pages: " + e.getMessage(), e );
+            throw new IOException( "cannot list pages: " + AclShapeAuditCli.describe( e ), e );
         }
         return names;
     }

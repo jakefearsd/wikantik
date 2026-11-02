@@ -334,6 +334,12 @@ export WIKANTIK_AUDIT_USER=... WIKANTIK_AUDIT_PASSWORD=...         # HTTP Basic
 java -cp "$CP" com.wikantik.extractcli.AclShapeAuditCli --url https://wiki.wikantik.com --format json
 ```
 
+**Prefer `--dir` on a byte-exact copy of the corpus.** `--url` cannot see the raw file: the API returns the frontmatter
+as parsed fields, which the tool re-dumps as YAML, so quoting and line layout differ and a directive inside a
+frontmatter value can be invented or hidden. `--url` is also refused when it embeds `user:password@`, or is plain
+`http://` to anything but localhost/127.0.0.1 (credentials would travel in the clear); an empty or nonexistent `--dir`
+is `REFUSED` (exit 2) rather than a clean empty audit.
+
 `--url` reads `GET /api/pages` then `GET /api/pages/{name}`, which returns the frontmatter as parsed fields, so the text is
 rebuilt from them; a page the server itself locks is reported locked with the server's reasons. Findings and decisions
 are recorded in `docs/superpowers/specs/2026-11-01-acl-shape-audit.md`.

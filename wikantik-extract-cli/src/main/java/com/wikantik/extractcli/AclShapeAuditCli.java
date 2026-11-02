@@ -25,6 +25,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -41,6 +43,11 @@ import java.util.function.UnaryOperator;
  *  WIKANTIK_AUDIT_USER=… WIKANTIK_AUDIT_PASSWORD=… \
  *  java -cp wikantik-extract-cli.jar com.wikantik.extractcli.AclShapeAuditCli --url https://wiki.wikantik.com [--format json]
  *  </pre>
+ *
+ *  <p><b>Preferred mode: {@code --dir} on a byte-exact copy of the corpus.</b> {@code --url} cannot see the raw
+ *  frontmatter (the API returns parsed fields that this tool re-dumps as YAML), so quoting and line layout differ from
+ *  the file and a directive inside a frontmatter value can be invented or hidden. {@code --url} is refused when it embeds
+ *  userinfo, or is plain http to a non-loopback host (credentials would travel in the clear).</p>
  *
  *  <p>{@code --url} lists pages with {@code GET /api/pages} and reads each with {@code GET /api/pages/{name}}; an
  *  administrator gets directives unstripped and the server's own lock reasons ({@code accessRules}). That endpoint
@@ -90,7 +97,12 @@ public final class AclShapeAuditCli {
             names = source.names();
         } catch ( final IOException e ) {
             LOG.warn( "AclShapeAuditCli: cannot list pages: {}", e.getMessage() );
-            err.println( "REFUSED: " + e.getMessage() );
+            err.println( "REFUSED: " + describe( e ) );
+            return 2;
+        }
+        if ( names.isEmpty() ) {
+            LOG.warn( "AclShapeAuditCli: the source lists no pages" );
+            err.println( "REFUSED: the source lists no pages (empty or wrong --dir, or an empty wiki)" );
             return 2;
         }
         final List< AclShapeAudit.PageAudit > audits = new ArrayList<>();
@@ -100,8 +112,8 @@ public final class AclShapeAuditCli {
                 final Fetched f = source.fetch( name );
                 audits.add( withServerReasons( AclShapeAudit.audit( name, f.text() ), f.serverLockReasons() ) );
             } catch ( final IOException | RuntimeException e ) {
-                LOG.warn( "AclShapeAuditCli: cannot read page '{}': {}", name, e.getMessage() );
-                failures.add( new FetchFailure( name, String.valueOf( e.getMessage() ) ) );
+                LOG.warn( "AclShapeAuditCli: cannot read page '{}': {}", name, describe( e ) );
+                failures.add( new FetchFailure( name, describe( e ) ) );
             }
         }
         if ( json ) {
@@ -113,6 +125,36 @@ public final class AclShapeAuditCli {
             return 2;
         }
         return audits.stream().anyMatch( AclShapeAudit.PageAudit::locked ) ? 1 : 0;
+    }
+
+    /** The exception's message, or its class name when it has none (never the string "null"). */
+    static String describe( final Exception e ) {
+        return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+    }
+
+    /**
+     *  A reason {@code url} must not be used with credentials, or {@code null} when it is acceptable. Never echoes the
+     *  URL: it may carry userinfo.
+     */
+    static String unsafeUrlReason( final String url ) {
+        final URI uri;
+        try {
+            uri = new URI( url );
+        } catch ( final URISyntaxException e ) {
+            return "--url is not a valid URL";
+        }
+        if ( uri.getRawUserInfo() != null ) {
+            return "--url must not embed credentials (user:password@); use WIKANTIK_AUDIT_TOKEN or WIKANTIK_AUDIT_USER/PASSWORD";
+        }
+        final String host = uri.getHost();
+        if ( host == null || uri.getScheme() == null ) {
+            return "--url must be an absolute http(s) URL with a host";
+        }
+        final boolean loopback = "localhost".equalsIgnoreCase( host ) || "127.0.0.1".equals( host ) || "[::1]".equals( host );
+        if ( !"https".equalsIgnoreCase( uri.getScheme() ) && !loopback ) {
+            return "--url must be https when credentials are sent (plain http only for localhost/127.0.0.1)";
+        }
+        return null;
     }
 
     /** A page the server locks that the rebuilt text did not: reported locked, with the server's reasons. */
@@ -170,6 +212,11 @@ public final class AclShapeAuditCli {
                 err.println( "--url needs WIKANTIK_AUDIT_TOKEN, or WIKANTIK_AUDIT_USER and WIKANTIK_AUDIT_PASSWORD" );
                 return 64;
             }
+            final String unsafe = unsafeUrlReason( url );
+            if ( unsafe != null ) {
+                err.println( unsafe );
+                return 64;
+            }
             source = AclShapeAuditSources.urlSource( url, authorization, minIntervalMs );
         }
         return run( source, "json".equals( format ), out, err );
@@ -177,6 +224,9 @@ public final class AclShapeAuditCli {
 
     private static int usage( final PrintStream err ) {
         err.println( "usage: AclShapeAuditCli (--dir <pages-dir> | --url <wiki-base-url>) [--format text|json]" );
+        err.println( "  --dir on a byte-exact copy of the corpus is preferred: --url rebuilds the frontmatter from parsed" );
+        err.println( "  fields, so its quoting and layout differ from the file. --url must be https (localhost excepted)" );
+        err.println( "  and must not embed user:password@." );
         return 64;
     }
 

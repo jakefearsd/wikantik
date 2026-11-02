@@ -211,4 +211,59 @@ class AclShapeAuditCliTest {
             server.stop( 0 );
         }
     }
+
+    @Test
+    void url_with_userinfo_is_refused_without_echoing_it() {
+        final int code = AclShapeAuditCli.execute( new String[]{ "--url", "https://bob:hunter2@wiki.example.com" },
+                Map.of( "WIKANTIK_AUDIT_TOKEN", "t" )::get, 0, out, err );
+        assertEquals( 64, code );
+        final String all = errBuf.toString( StandardCharsets.UTF_8 ) + output();
+        assertFalse( all.contains( "hunter2" ) || all.contains( "bob" ), all );
+    }
+
+    @Test
+    void plain_http_with_credentials_is_refused_except_loopback() {
+        assertEquals( 64, AclShapeAuditCli.execute( new String[]{ "--url", "http://wiki.example.com" },
+                Map.of( "WIKANTIK_AUDIT_TOKEN", "t" )::get, 0, out, err ) );
+        assertNull( AclShapeAuditCli.unsafeUrlReason( "https://wiki.example.com" ) );
+        assertNull( AclShapeAuditCli.unsafeUrlReason( "http://localhost:8080" ) );
+        assertNull( AclShapeAuditCli.unsafeUrlReason( "http://127.0.0.1:8080" ) );
+    }
+
+    @Test
+    void malformed_url_is_refused_without_echoing_it() {
+        final String reason = AclShapeAuditCli.unsafeUrlReason( "https://u:pw@ho st/" );
+        assertFalse( reason.contains( "pw" ) );
+    }
+
+    @Test
+    void empty_directory_is_refused_exit_two(@TempDir final Path dir) {
+        assertEquals( 2, AclShapeAuditCli.execute( new String[]{ "--dir", dir.toString() }, k -> null, 0, out, err ) );
+        assertTrue( errBuf.toString( StandardCharsets.UTF_8 ).contains( "REFUSED" ) );
+    }
+
+    @Test
+    void nonexistent_directory_is_refused_exit_two(@TempDir final Path dir) {
+        assertEquals( 2, AclShapeAuditCli.execute( new String[]{ "--dir", dir.resolve( "nope" ).toString() }, k -> null, 0, out, err ) );
+        assertTrue( errBuf.toString( StandardCharsets.UTF_8 ).contains( "REFUSED" ) );
+    }
+
+    @Test
+    void messageless_exception_records_its_class_name() {
+        final AclShapeAuditCli.PageSource source = new AclShapeAuditCli.PageSource() {
+            @Override
+            public List< String > names() {
+                return List.of( "Boom" );
+            }
+
+            @Override
+            public AclShapeAuditCli.Fetched fetch( final String name ) {
+                throw new IllegalStateException();
+            }
+        };
+        assertEquals( 2, AclShapeAuditCli.run( source, false, out, err ) );
+        final String o = output();
+        assertTrue( o.contains( "IllegalStateException" ), o );
+        assertFalse( o.contains( "null" ), o );
+    }
 }

@@ -112,18 +112,31 @@ final class AclShapeAudit {
     }
 
     private static List< String > oldTextScanLines( final String text ) {
+        final List< String > lines = new ArrayList<>();
+        for ( final AclDirectiveScanner.Span s : oldTextScanSpans( text ) ) {
+            lines.add( s.keyword() + " " + s.permission() + " " + text.substring( s.principalsStart(), s.principalsEnd() ) );
+        }
+        return lines;
+    }
+
+    /** The raw directive text the old text scan enforced; compared with {@code EnforcedAclDirectives.directives} by a drift test. */
+    static List< String > oldTextScanDirectives( final String text ) {
+        return oldTextScanSpans( text ).stream().map( s -> text.substring( s.start(), s.end() ) ).toList();
+    }
+
+    private static List< AclDirectiveScanner.Span > oldTextScanSpans( final String text ) {
         final List< AclDirectiveScanner.Span > candidates = AclDirectiveScanner.findAll( text, false );
         if ( candidates.isEmpty() ) {
             return List.of();
         }
         final OffsetRanges code = OffsetRanges.of( codeRegions( text ) );
-        final List< String > lines = new ArrayList<>();
+        final List< AclDirectiveScanner.Span > kept = new ArrayList<>();
         for ( final AclDirectiveScanner.Span s : candidates ) {
             if ( !code.contains( s.start() ) ) {
-                lines.add( s.keyword() + " " + s.permission() + " " + text.substring( s.principalsStart(), s.principalsEnd() ) );
+                kept.add( s );
             }
         }
-        return lines;
+        return kept;
     }
 
     private static List< int[] > codeRegions( final String text ) {

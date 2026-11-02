@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,14 +38,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class RepoCorpusAccessRulesTest {
 
-    private static final List< String > ROOTS = List.of( "docs/wikantik-pages", "wikantik-wikipages" );
+    /** Root to the fewest pages it must hold: an empty or misrouted root must not hide behind the other. */
+    private static final Map< String, Integer > ROOT_FLOORS = Map.of( "docs/wikantik-pages", 1000, "wikantik-wikipages", 10 );
 
     @Test
     void noShippedPageIsLocked() throws IOException {
         final Path repo = Path.of( System.getProperty( "user.dir" ) ).getParent();
         final List< String > locked = new ArrayList<>();
-        int pages = 0;
-        for ( final String root : ROOTS ) {
+        for ( final Map.Entry< String, Integer > rootFloor : ROOT_FLOORS.entrySet() ) {
+            final String root = rootFloor.getKey();
+            int pages = 0;
             final Path dir = repo.resolve( root );
             try ( Stream< Path > files = Files.walk( dir ) ) {
                 for ( final Path file : files.filter( RepoCorpusAccessRulesTest::isShippedPage ).sorted().toList() ) {
@@ -54,8 +57,8 @@ class RepoCorpusAccessRulesTest {
                     }
                 }
             }
+            assertTrue( pages > rootFloor.getValue(), root + " was read: " + pages + " pages" );
         }
-        assertTrue( pages > 1000, "the corpus was read: " + pages + " pages" );
         assertEquals( List.of(), locked );
     }
 

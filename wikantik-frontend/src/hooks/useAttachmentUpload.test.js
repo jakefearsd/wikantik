@@ -8,7 +8,7 @@ function harness({ upload, existingNames = [] } = {}) {
   const toast = { error: vi.fn() };
   const up = upload || vi.fn(async () => ({ success: true }));
   const { result } = renderHook(() => useAttachmentUpload({ existingNames, upload: up, updateBody, toast }));
-  return { call: (...a) => result.current(...a), run: (files, pos, opts) => act(() => result.current(files, pos, opts)), body: () => body, toast, upload: up };
+  return { call: (...a) => result.current.uploadFiles(...a), run: (files, pos, opts) => act(() => result.current.uploadFiles(files, pos, opts)), body: () => body, toast, upload: up };
 }
 
 const img = (name) => new File(['x'], name, { type: 'image/png' });
@@ -116,7 +116,7 @@ describe('useAttachmentUpload with an editor adapter', () => {
     const toast = { error: vi.fn() };
     const upload = vi.fn(async () => ({ success: true }));
     const { result } = renderHook(() => useAttachmentUpload({ existingNames: [], upload, updateBody, toast, editor }));
-    return { run: (files, pos, opts) => act(() => result.current(files, pos, opts)), body: () => body, updateBody, upload, toast };
+    return { run: (files, pos, opts) => act(() => result.current.uploadFiles(files, pos, opts)), body: () => body, updateBody, upload, toast };
   }
 
   it('routes placeholder insert and replacement through the editor, not updateBody', async () => {

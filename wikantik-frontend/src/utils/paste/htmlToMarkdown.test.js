@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { htmlToMarkdown, wikiPageTarget, MAX_PASTED_IMAGES } from './htmlToMarkdown';
+import { describe, it, expect, vi } from 'vitest';
+import { htmlToMarkdown, wikiPageTarget, MAX_PASTED_IMAGES, MAX_PASTED_IMAGE_BYTES_TOTAL } from './htmlToMarkdown';
 import googleDocs from './__fixtures__/google-docs.html?raw';
 import word from './__fixtures__/word.html?raw';
 import githubReadme from './__fixtures__/github-readme.html?raw';
@@ -333,8 +333,42 @@ describe('embedded data: images', () => {
     expect(result.droppedImages).toBe(1);
   });
 
+  it('images past the aggregate decode cap are dropped and counted', () => {
+    expect(MAX_PASTED_IMAGE_BYTES_TOTAL).toBe(64 * 1024 * 1024);
+    const chunk = 'A'.repeat(30758228); // ~22 MiB decoded each, under the per-image cap
+    const img = `<img src="data:image/png;base64,${chunk}">`;
+    const result = htmlToMarkdown(`<h2>x</h2>${img}${img}${img}`); // 3 x 22 MiB > 64 MiB
+    expect(result.images).toHaveLength(2);
+    expect(result.droppedImages).toBe(1);
+  });
+
+  it('malformed base64 warns with the MIME and length', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    htmlToMarkdown('<h2>x</h2><img src="data:image/png;base64,AAAAA">');
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0].join(' ')).toMatch(/image\/png/);
+    expect(warn.mock.calls[0].join(' ')).toMatch(/\b5 chars/);
+    warn.mockRestore();
+  });
+
   it('tokens inside a table cell and a link survive conversion', () => {
     const result = htmlToMarkdown(`<table><tr><th>a</th><th>b</th></tr><tr><td>${png()}</td><td>x</td></tr></table>`);
     expect(result.markdown).toContain(`| ${result.images[0].token} | x |`);
+  });
+});
+
+describe('<mark> highlights', () => {
+  it('<mark> becomes ==x==', () => {
+    expect(md('<p>a <mark>hot</mark> b</p>')).toBe('a ==hot== b');
+  });
+  it('formatting nested inside a mark is kept', () => {
+    expect(md('<p><mark>very <b>bold</b> and <i>it</i></mark></p>')).toBe('==very **bold** and *it*==');
+  });
+  it('a mark inside bold nests the other way', () => {
+    expect(md('<p><b><mark>x</mark></b></p>')).toBe('**==x==**');
+  });
+  it('empty and whitespace-only marks drop to their text', () => {
+    expect(md('<p>a<mark></mark><b>b</b></p>')).toBe('a**b**');
+    expect(md('<p>a<mark> </mark><b>b</b></p>')).toBe('a **b**');
   });
 });

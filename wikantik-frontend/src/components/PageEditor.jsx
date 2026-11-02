@@ -883,7 +883,7 @@ export default function PageEditor() {
 
   const dragCounterRef = useRef(0);
 
-  const uploadFiles = useAttachmentUpload({
+  const { uploadFiles, uploadPlaced } = useAttachmentUpload({
     existingNames: (attachments.list || []).map((a) => a.fileName),
     upload: attachments.uploadAttachment,
     updateBody: setBody,
@@ -906,12 +906,17 @@ export default function PageEditor() {
   // Embedded data: images of a converted paste: placeholders go in with the pasted text, at each image's position.
   // On a new page the uploads wait for the first save, exactly as handleFiles defers them.
   const handlePasteImages = useCallback((images, text) => {
-    const placed = uploadFiles.uploadPlaced(images, text);
+    const placed = uploadPlaced(images, text);
     const begin = isNew
       ? () => setPendingUpload((prev) => ({ handles: [...(prev?.handles || []), { start: placed.start, cancel: placed.cancel }] }))
-      : () => { placed.start(); };
+      : () => {
+        placed.start().catch((err) => {
+          console.warn('[editor] pasted image upload failed', err?.message || err);
+          toast.error(`Pasted image upload failed: ${err?.message || err}`);
+        });
+      };
     return { text: placed.text, begin };
-  }, [isNew, uploadFiles]);
+  }, [isNew, uploadPlaced, toast]);
 
   const handleDragEnter = useCallback((e) => {
     if (!dragCarriesFiles(e.dataTransfer)) return;

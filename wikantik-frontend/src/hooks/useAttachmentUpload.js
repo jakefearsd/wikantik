@@ -17,6 +17,8 @@ const isImage = (file) => /^image\//.test(file.type || '');
  *        optional editor adapter: edits are applied as editor transactions so typing cannot clobber them.
  *        A `false` return (no editor view) falls back to `updateBody`.
  * @param {{ error: (msg: string) => void }} o.toast
+ * @returns {{ uploadFiles: Function, uploadPlaced: Function }} `uploadFiles(files, pos, opts)` is the stacked path;
+ *          `uploadPlaced(images, text)` is the placed-image path for a converted paste.
  */
 export function useAttachmentUpload({ existingNames, upload, updateBody, toast, editor }) {
   const namesRef = useRef(existingNames);
@@ -104,7 +106,5 @@ export function useAttachmentUpload({ existingNames, upload, updateBody, toast, 
     return { start, cancel };
   }, [insertAt, runPlan, cancelPlan, toast]);
 
-  // One callable (the stacked path, unchanged) that also carries the placed-image entry point.
-  // eslint-disable-next-line react-hooks/refs -- both callbacks read their refs only when invoked (paste/drop handlers), never during render
-  return useMemo(() => Object.assign((...args) => uploadFiles(...args), { uploadPlaced }), [uploadFiles, uploadPlaced]);
+  return useMemo(() => ({ uploadFiles, uploadPlaced }), [uploadFiles, uploadPlaced]);
 }

@@ -31,7 +31,7 @@ const REMOVE_SELECTOR = [
 
 // Present after normalisation ⇒ the HTML says something plain text cannot.
 const STRUCTURE_SELECTOR = 'h1,h2,h3,h4,h5,h6,ul,ol,table,blockquote,pre,hr,img,a[href],strong,b,em,i,del,s,strike,code,'
-  + 'input[type=checkbox],.katex';
+  + 'mark,input[type=checkbox],.katex';
 
 const BOLD = /font-weight\s*:\s*(bold|[6-9]00)\b/i;
 const ITALIC = /font-style\s*:\s*italic\b/i;
@@ -217,6 +217,8 @@ export const MAX_PASTED_IMAGES = 20;
  * clipboard from being decoded into memory.
  */
 export const MAX_PASTED_IMAGE_BYTES = 25 * 1024 * 1024;
+/** Aggregate guard across one paste: images beyond this many total decoded bytes are dropped and counted. */
+export const MAX_PASTED_IMAGE_BYTES_TOTAL = 64 * 1024 * 1024;
 
 const RASTER_DATA_URI = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=\s]*)$/i;
 const DROPPED_IMAGE = /^(data|blob|file|cid):/i;
@@ -233,7 +235,8 @@ function decodeImage(mime, base64, index) {
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     return new File([bytes], `pasted-${index}`, { type: mime.toLowerCase() });
-  } catch {
+  } catch (err) {
+    console.warn(`[paste] dropped an embedded ${mime} image: malformed base64 (${clean.length} chars)`, err?.message || err);
     return null; // malformed base64: counted as dropped by the caller
   }
 }
@@ -246,12 +249,17 @@ function decodeImage(mime, base64, index) {
 export function extractEmbeddedImages(body) {
   const files = [];
   let dropped = 0;
+  let totalBytes = 0;
   for (const img of all(body, 'img')) {
     const src = (img.getAttribute('src') || '').trim();
     if (!DROPPED_IMAGE.test(src)) continue;
     const m = RASTER_DATA_URI.exec(src);
-    const file = m && files.length < MAX_PASTED_IMAGES ? decodeImage(m[1], m[2], files.length) : null;
+    const withinCount = m && files.length < MAX_PASTED_IMAGES;
+    // Estimate before decoding so an over-budget image is never materialised.
+    const estimate = m ? Math.floor((m[2].replace(/\s+/g, '').length * 3) / 4) : 0;
+    const file = withinCount && totalBytes + estimate <= MAX_PASTED_IMAGE_BYTES_TOTAL ? decodeImage(m[1], m[2], files.length) : null;
     if (file) {
+      totalBytes += file.size;
       files.push(file);
       img.replaceWith(body.ownerDocument.createTextNode(imageToken(files.length - 1)));
     } else {
@@ -332,6 +340,10 @@ function buildService(origin) {
   service.addRule('strikethrough', {
     filter: ['del', 's', 'strike'],
     replacement: (content) => (content.trim() ? `~~${content}~~` : content),
+  });
+  service.addRule('highlight', {
+    filter: 'mark',
+    replacement: (content) => (content.trim() ? `==${content}==` : content),
   });
   service.addRule('taskCheckbox', {
     filter: (node) => node.nodeName === 'INPUT' && (node.getAttribute('type') || '').toLowerCase() === 'checkbox',

@@ -24,12 +24,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Page access rules have one reader, and a rule it cannot read locks the page.** Two readings used to set a page's
   ACL and disagreed on several shapes, so what was enforced depended on whether the page had been rendered first (and
   could be the union of both). The ACL now comes only from the page text, read once per version; a render never sets
-  it. A one-line `[{ALLOW view Admin}]` in body text is a rule as before; any other directive-shaped text — `DENY`,
-  `ALLOWED`, a rule wrapped over lines, a non-canonical case, a space after the brace, an escaped bracket, a rule in
-  frontmatter, an HTML block, math or a link with a target, a permission the parser refuses, or a page that cannot be
-  parsed within budget — locks the page to administrators until it is fixed (the lock is logged once per version).
-  Rules shown in code spans and code blocks are still documentation. Profile renames and ACL rewrites now edit
-  exactly the rules the reader found, and leave documentation examples in code alone (#104).
+  it. Where the intent is plain the text is a rule: a one-line `[{ALLOW view Admin}]` in body text as before, and now
+  also a rule wrapped over lines (its lines joined with single spaces), `ALLOW` or the permission in any case
+  (`[{allow VIEW Bob}]` reads as `ALLOW view Bob`), and a space after the brace. An escaped `\[{ALLOW …}]` is literal
+  text, as are rules in code spans and code blocks. Directive-shaped text that the old readings disagreed on — `DENY`,
+  `ALLOWED`, a rule in frontmatter, an HTML block, math or a link with a target, a permission the parser refuses, or a
+  page that cannot be parsed within budget — locks the page to administrators until it is fixed (the lock is logged
+  once per version); text neither old reading took for a rule (`[{Allowance}]`, a lower-case `deny`, a rule in a YAML
+  code span) stays text. Readers who may not edit the page never see a rule the wiki enforces. Profile renames and ACL
+  rewrites now edit exactly the rules the reader found, and leave documentation examples alone (#104).
 - **A save cannot lock a page, and administrators see why a page is locked.** Every save that goes through the page
   save pipeline (the editor, REST, MCP, the importer and every other in-process writer of page text) refuses a text that
   adds an access rule the reader cannot read — otherwise any editor could lock a page out, themselves included, by

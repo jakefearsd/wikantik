@@ -565,6 +565,26 @@ class DefaultAclManagerCITest {
         verify( pageMgr ).putPageText( eq( page ), eq( "[{ALLOW view New}]\n\nWrite `[{ALLOW edit Bob}]` to restrict." ) );
     }
 
+    /** An escaped rule is literal text (#104 §5.3): a rewrite replaces the page's rules and keeps it. */
+    @Test
+    void setPermissionsKeepsAnEscapedExampleAndReplacesAWrappedRule() throws Exception {
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "EscapedDocPage" );
+        when( page.getWiki() ).thenReturn( "" );
+        when( pageMgr.getPageText( anyString(), anyInt() ) )
+                .thenReturn( "[{allow view Old,\n Older}]\nWrite \\[{ALLOW edit Bob}] to restrict." );
+
+        final Acl acl = Wiki.acls().acl();
+        final AclEntry entry = Wiki.acls().entry();
+        entry.setPrincipal( new WikiPrincipal( "New" ) );
+        entry.addPermission( PermissionFactory.getPagePermission( "test:EscapedDocPage", "view" ) );
+        acl.addEntry( entry );
+
+        aclMgr.setPermissions( page, acl );
+
+        verify( pageMgr ).putPageText( eq( page ), eq( "[{ALLOW view New}]\n\nWrite \\[{ALLOW edit Bob}] to restrict." ) );
+    }
+
     // -------------------------------------------------------------------------
     //  printAcl — empty ACL produces empty string
     // -------------------------------------------------------------------------

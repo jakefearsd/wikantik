@@ -363,6 +363,29 @@ class AclDirectiveTextTest {
         assertTrue( FrontmatterParser.parse( out ).body().contains( "Body." ), out );
     }
 
+    /** Every text of the fixture tables: each §5.3 shape, the old fixtures and the reviews' repros. */
+    static Stream< Arguments > everyFixtureText() {
+        return Stream.of(
+                AclDirectiveFixtures.SHAPES.stream().map( r -> Arguments.of( "shape: " + r.name(), r.text() ) ),
+                AclDirectiveFixtures.ALL.stream().map( f -> Arguments.of( f.name(), f.text() ) ),
+                AclDirectiveFixtures.ENFORCEMENT_REPROS.stream().map( f -> Arguments.of( f.name(), f.text() ) ) )
+                .flatMap( a -> a );
+    }
+
+    /** Hidden ⊇ enforced: whatever the access-rule reader reads as a rule is gone from what a reader is shown. */
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "everyFixtureText" )
+    void noSpanTheAccessRuleReaderEnforcesSurvivesStripping( final String label, final String text ) {
+        assertNothingEnforced( AclDirectiveText.strip( text ) );
+    }
+
+    /** The access-rule reader ({@link AccessRules}, what the wiki enforces) reads no rule in {@code out}. */
+    static void assertNothingEnforced( final String out ) {
+        final AccessRules.Reading reading = AccessRules.read( out );
+        assertEquals( List.of(), reading.spans().stream().filter( s -> AccessRules.isRule( s.shape() ) ).toList(),
+                "the access-rule reader still reads a rule: " + out );
+    }
+
     /** Neither the ACL manager's text scan nor the render path reads any rule in {@code out}. */
     static void assertNothingReadable( final String out ) {
         assertEquals( List.of(), DefaultAclManager.aclDirectives( out ), "the text scan still reads a rule: " + out );

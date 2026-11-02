@@ -32,6 +32,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** {@link AccessRules#read}: one reading per shape, fail closed on everything but the canonical one. */
+/** {@link AccessRules#read}: one reading per shape — the unambiguous ones are rules, an escaped one is text, the rest lock. */
 class AccessRulesTest {
 
     static Stream< Shaped > shapes() {
@@ -59,17 +60,17 @@ class AccessRulesTest {
         final Reading reading = AccessRules.read( row.text() );
         if ( row.shape() == null ) {
             assertEquals( new Rules( List.of(), List.of() ), reading, "literal text: no rule, no span" );
-        } else if ( row.shape() == Shape.CANONICAL ) {
-            final Rules rules = assertInstanceOf( Rules.class, reading );
-            assertEquals( List.of( "ALLOW view Admin" ), rules.ruleLines() );
-            assertEquals( List.of( Shape.CANONICAL ), rules.spans().stream().map( Span::shape ).toList() );
+        } else if ( !AccessRules.disputed( row.shape() ) ) {
+            final Rules rules = assertInstanceOf( Rules.class, reading, "an unambiguous shape does not lock the page" );
+            assertEquals( row.ruleLines(), rules.ruleLines(), "the rule lines, in canonical form" );
+            assertEquals( List.of( row.shape() ), rules.spans().stream().map( Span::shape ).toList() );
             final Span span = rules.spans().get( 0 );
-            assertTrue( row.text().substring( span.start(), span.end() ).startsWith( "[{ALLOW view Admin}]" ), span.toString() );
+            final String spanText = row.text().substring( span.start(), span.end() );
+            assertTrue( spanText.startsWith( "[{" ) && spanText.endsWith( "}]" ) || spanText.endsWith( "}]()" ), spanText );
         } else {
             final Locked locked = assertInstanceOf( Locked.class, reading, "a disputed shape locks the page" );
             assertEquals( List.of( row.shape() ), locked.reasons().stream().map( Reason::shape ).toList() );
             assertEquals( List.of( row.shape() ), locked.spans().stream().map( Span::shape ).toList() );
-            assertTrue( AccessRules.disputed( row.shape() ) );
         }
     }
 
@@ -80,11 +81,49 @@ class AccessRulesTest {
         final Set< Shape > locks = AclDirectiveFixtures.EXPECTED_LOCKS.get( f.name() );
         if ( locks == null ) {
             final Rules rules = assertInstanceOf( Rules.class, reading );
-            assertEquals( f.acl().isEmpty(), rules.ruleLines().isEmpty(), rules.toString() );
+            assertEquals( AclDirectiveFixtures.enforced( f ), pairs( rules.ruleLines() ), rules.toString() );
         } else {
             final Locked locked = assertInstanceOf( Locked.class, reading );
             assertEquals( locks, locked.reasons().stream().map( Reason::shape ).collect( Collectors.toSet() ) );
         }
+    }
+
+    /** {@code principal:action} pairs of canonical rule lines, as the fixtures record an ACL. */
+    private static Set< String > pairs( final List< String > ruleLines ) {
+        final Set< String > out = new HashSet<>();
+        for ( final String line : ruleLines ) {
+            final String[] words = line.split( " ", 3 );
+            for ( final String principal : words[ 2 ].split( "," ) ) {
+                out.add( principal.trim() + ":" + words[ 1 ] );
+            }
+        }
+        return out;
+    }
+
+    /** §5.3: an escaped rule is how an author writes "not markup" — no rule, no lock, but still a span of the text. */
+    @Test
+    void anEscapedRuleIsLiteralTextBesideARealOne() {
+        final String text = "Write \\[{ALLOW view Guest}] to restrict.\n\n[{ALLOW edit Admin}]\n";
+        final Rules rules = assertInstanceOf( Rules.class, AccessRules.read( text ) );
+        assertEquals( List.of( "ALLOW edit Admin" ), rules.ruleLines() );
+        assertEquals( List.of( Shape.ESCAPED, Shape.CANONICAL ), rules.spans().stream().map( Span::shape ).toList() );
+        assertEquals( List.of( Shape.CANONICAL ), rules.ruleSpans().stream().map( Span::shape ).toList(),
+                "the spans that carry the rule lines, one per line" );
+    }
+
+    @Test
+    void aWrappedRuleWithCrlfLineEndsJoinsWithSingleSpaces() {
+        final Rules rules = assertInstanceOf( Rules.class, AccessRules.read( "[{ALLOW edit Admin,\r\n   bob}]\r\n\r\nBody.\r\n" ) );
+        assertEquals( List.of( "ALLOW edit Admin, bob" ), rules.ruleLines() );
+    }
+
+    @Test
+    void severalRuleShapesAreReadInOrder() {
+        final Rules rules = assertInstanceOf( Rules.class, AccessRules.read(
+                "[{allow view All}]\n[{ ALLOW EDIT Admin,\n alice}]\n\nText [{ALLOW comment bob}]() end.\n" ) );
+        assertEquals( List.of( "ALLOW view All", "ALLOW edit Admin, alice", "ALLOW comment bob" ), rules.ruleLines() );
+        assertEquals( List.of( Shape.CASE_VARIANT, Shape.WRAPPED, Shape.CANONICAL ),
+                rules.spans().stream().map( Span::shape ).toList() );
     }
 
     @Test
@@ -95,6 +134,14 @@ class AccessRulesTest {
         assertEquals( Shape.UNREADABLE, locked.reasons().get( 0 ).shape() );
         assertTrue( locked.spans().stream().allMatch( s -> s.shape() == Shape.UNREADABLE ) && !locked.spans().isEmpty(),
                 locked.spans().toString() );
+    }
+
+    /** Openers that share one closer give overlapping candidates: reading them may not cost the square of the text. */
+    @Test
+    void manyOpenersSharingOneCloserAreReadQuickly() {
+        final String text = "[{ALLOW edit alice ".repeat( 40_000 ) + "\nx}]";
+        final Reading reading = assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> AccessRules.read( text ) );
+        assertInstanceOf( Locked.class, reading );
     }
 
     @Test
@@ -169,13 +216,15 @@ class AccessRulesTest {
     @Test
     void anOverlongSpanIsCutShortInItsReason() {
         final String principals = "someone@example.test,\n ".repeat( 50 );
-        final Locked locked = assertInstanceOf( Locked.class, AccessRules.read( "[{ALLOW edit " + principals + "x}]\n" ) );
+        final Locked locked = assertInstanceOf( Locked.class, AccessRules.read( "[{DENY edit " + principals + "x}]\n" ) );
         assertEquals( AccessRules.MAX_REASON_TEXT + 1, locked.reasons().get( 0 ).text().length() );
     }
 
     @ParameterizedTest
     @EnumSource( Shape.class )
-    void onlyTheCanonicalShapeIsUndisputedInThisRelease( final Shape shape ) {
-        assertEquals( shape != Shape.CANONICAL, AccessRules.disputed( shape ) );
+    void theUnambiguousShapesAndEscapedTextAreUndisputed( final Shape shape ) {
+        final Set< Shape > undisputed = Set.of( Shape.CANONICAL, Shape.WRAPPED, Shape.CASE_VARIANT, Shape.LEADING_SPACE, Shape.ESCAPED );
+        assertEquals( !undisputed.contains( shape ), AccessRules.disputed( shape ) );
+        assertEquals( undisputed.contains( shape ) && shape != Shape.ESCAPED, AccessRules.isRule( shape ) );
     }
 }

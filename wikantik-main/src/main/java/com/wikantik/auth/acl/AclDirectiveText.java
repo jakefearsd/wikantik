@@ -37,14 +37,14 @@ import java.util.Objects;
  * edit the page — raw page reads, diffs, exports, agent context, search snippets, retrieval chunks, and (through display
  * rendering) every rendered surface. Directives name people by login, so they must not leave the building.
  *
- * <p><b>The guarantee, by construction.</b> In the result, neither reading of access rules finds one: not the ACL
- * manager's text scan ({@link EnforcedAclDirectives}: single-line {@code [{ALLOW …}]} outside Markdown code, what it
- * enforces) and not the render path ({@link RenderPathAccessRules}: what rendering hands the ACL parser — rules wrapped
- * over lines, {@code DENY}, any permission case, {@code ALLOWED}, …). Each round removes exactly the spans both find,
- * then runs the conservative {@link AclDirectives} pass, and the loop only ends on a round that changes nothing, so both
- * readings find nothing in what is returned. A documentation example in genuine code (<code>`[{ALLOW edit Bob}]`</code>,
- * a closed fence) is kept whenever both agree it is code. (Enforcement is not this class's business and is unchanged:
- * the two readings disagree on several shapes, a pre-existing matter with its own issue.)
+ * <p><b>The guarantee, by construction.</b> In the result, no reading of access rules finds one: not the access-rule
+ * reader ({@link AccessRules}: what the wiki enforces — hidden ⊇ enforced), not the old text scan
+ * ({@link EnforcedAclDirectives}: single-line {@code [{ALLOW …}]} outside Markdown code) and not the render path
+ * ({@link RenderPathAccessRules}: what rendering reads as a rule — rules wrapped over lines, {@code DENY}, any permission
+ * case, {@code ALLOWED}, …). Each round removes exactly the spans they find, then runs the conservative
+ * {@link AclDirectives} pass, and the loop only ends on a round that changes nothing, so none of them finds anything in
+ * what is returned. A documentation example in genuine code (<code>`[{ALLOW edit Bob}]`</code>, a closed fence) is kept
+ * whenever all agree it is code.
  *
  * <p><b>Fail closed.</b> When the render path's reading cannot be had ({@link RenderPathAccessRules.Unreadable}: a
  * parse that throws, a rule with no source span, a page built to blow up the parse) or the rounds do not settle, every
@@ -188,7 +188,12 @@ public final class AclDirectiveText {
         return FrontmatterParser.parse( strip( fullText == null ? "" : fullText, replacement ) );
     }
 
-    /** Removes what the text scan enforces and what the render path reads, then runs the conservative util pass. */
+    /**
+     * Removes what the old text scan read, what the render path reads, and every rule the access-rule reader reads (what
+     * the wiki enforces, a lower-case or spaced rule neither old reading read included), then runs the conservative util
+     * pass. Only the reader's rules: its other spans run from each opener to the first closer, so where openers nest they
+     * overlap, and cutting the widest at once would leave the tail of a rule the next round would have reformed and cut.
+     */
     private static TrackedText oneRound( final TrackedText tracked, final String replacement ) {
         final String text = tracked.text();
         final List< int[] > ranges = new ArrayList<>();
@@ -197,6 +202,11 @@ public final class AclDirectiveText {
         }
         for ( final RenderPathAccessRules.Rule rule : RenderPathAccessRules.find( text ) ) {
             ranges.add( new int[]{ rule.start(), rule.end() } );
+        }
+        for ( final AccessRules.Span span : AccessRules.read( text ).spans() ) {
+            if ( AccessRules.isRule( span.shape() ) ) {
+                ranges.add( new int[]{ span.start(), span.end() } );
+            }
         }
         return without( tracked, merged( text, ranges ), replacement, true );
     }

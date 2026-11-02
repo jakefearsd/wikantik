@@ -22,10 +22,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.core.Acl;
+import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.auth.acl.AclManager;
+import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.util.AclDirectives;
 
 import jakarta.servlet.FilterChain;
@@ -44,10 +48,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.security.Principal;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -89,10 +95,9 @@ class AclDirectiveVisibilityTest {
         // second, so the rule is plain text), but a scanner that only looks at one line at a time would call it code.
         engine.saveText( "AclTrickyPage",
                 "[{ALLOW view All}]\na `b\nc` [{ALLOW edit Admin," + LOGIN + "}] `d\n\nPublic prose.\n" );
-        // A long principal list wrapped over two lines: the renderer reads this link label, the enforcement scanner
-        // does not match it, and a reader must not be shown either login all the same.
-        // (A wrapped rule is refused on save now, #104: stored past the save filters, as a page saved before that.)
-        engine.saveTextUnfiltered( "AclWrappedPage", "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n"
+        // A long principal list wrapped over two lines: the renderer reads this link label, the old one-line text scan
+        // did not, and the access-rule reader enforces it (#104); a reader must not be shown either login.
+        engine.saveText( "AclWrappedPage", "[{ALLOW view All}]\n[{ALLOW edit Admin}]\n"
                 + "[{ALLOW comment " + LOGIN + ",\n other-" + LOGIN + "}]\nPublic prose.\n" );
         engine.saveText( "AclDiffPage", RULES + "First revision.\n" );
         engine.saveText( "AclDiffPage",
@@ -157,10 +162,21 @@ class AclDirectiveVisibilityTest {
     }
 
     @Test
-    void aDirectiveWrappedOverSeveralLinesLocksThePageForTheReaderAndTheAdminGetsItVerbatim() throws Exception {
-        // A wrapped rule is read by the render path only: disputed, so the page is locked to administrators (#104).
+    void aDirectiveWrappedOverSeveralLinesIsEnforcedAndHiddenFromTheReaderAndTheEditorGetsItVerbatim() throws Exception {
+        // A wrapped rule is a rule (#104 §5.3): the reader may view (view All) but not comment, and sees neither login.
         final JsonObject asReader = getPage( reader( "/api/pages/AclWrappedPage" ), "AclWrappedPage" );
-        assertNull( asReader.get( "content" ), "a locked page is refused to a reader: " + asReader );
+        assertTrue( asReader.get( "content" ).getAsString().contains( "Public prose." ), asReader.toString() );
+        assertFalse( asReader.getAsJsonObject( "permissions" ).get( "comment" ).getAsBoolean(),
+                "the wrapped comment rule is enforced: " + asReader );
+        final Set< String > commenters = new HashSet<>();
+        final Page wrapped = engine.getManager( PageManager.class ).getPage( "AclWrappedPage" );
+        final Acl acl = engine.getManager( AclManager.class ).getPermissions( wrapped );
+        for ( final Principal p : acl.findPrincipals(
+                PermissionFactory.getPagePermission( wrapped, "comment" ) ) ) {
+            commenters.add( p.getName() );
+        }
+        assertTrue( commenters.containsAll( Set.of( LOGIN, "other-" + LOGIN ) ),
+                "both principals of the wrapped rule may comment: " + commenters );
         assertFalse( asReader.toString().contains( LOGIN ), asReader.toString() );
 
         final String stored = FrontmatterParser.parse( engine.getManager( PageManager.class )

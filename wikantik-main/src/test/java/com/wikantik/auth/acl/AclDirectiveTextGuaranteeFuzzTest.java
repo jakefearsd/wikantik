@@ -31,9 +31,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The facade's guarantee at span level, on seeded token soups: in whatever {@link AclDirectiveText#strip} returns, the
- * ACL manager's text scan finds no directive and the render path reads no rule (both re-run on the output). The
+ * old text scan finds no directive, the render path reads no rule, and the access-rule reader ({@link AccessRules}, what
+ * the wiki enforces) reads none either (all re-run on the output). The
  * fragments are the shapes that broke earlier rounds: {@code $$} math next to fences, HTML blocks and blank lines,
- * footnotes, attribute text, frontmatter, and the wrapped, upper-case, {@code DENY} and {@code ALLOWED} rule shapes. Stripping
+ * footnotes, attribute text, frontmatter, and the wrapped, upper- and lower-case, spaced, escaped, {@code DENY} and
+ * {@code ALLOWED} rule shapes. Stripping
  * also never creates a frontmatter block nor destroys one, at the start of the text or of its body.
  */
 class AclDirectiveTextGuaranteeFuzzTest {
@@ -43,6 +45,7 @@ class AclDirectiveTextGuaranteeFuzzTest {
     private static final String[] FRAGMENTS = {
             "[{ALLOW view pZa}]", "[{ALLOW edit pZb,\n pZc}]", "[{DENY view pZd}]()", "[{ALLOW VIEW pZe}]", "[{ALLOWED edit pZf}]",
             "[{ALLOW view pZg}](x)", "[{ ALLOW edit pZh}]", "[{ALLOW edit pZi", "}]", "}]()", "]()", "[{SET x=y}]",
+            "[{allow view pZj}]", "[{ ALLOW VIEW pZk}]", "[{Allow edit pZl,\n pZm}]", "\\[{ALLOW view pZn}]", "[{allow edit pZo",
             "\n$$\n", "$$", "\n$$\nx = 1\n$$\n", "  $$\n", "$", "`", "```\n", "\n```\n", "~~~\n", "<div>\n", "\n</div>\n",
             "<details>\n", "<!--", "-->", "\n[^1]: ", "[^1]", "{.c}", "{#i}", "{edit ", "---\n", "\n---\n", "x", " ", "\n",
             "\n\n", "\r\n", "\n> ", "\n- ", "    ", "[", "]", "(", ")", "\\", "\n| a |\n|---|\n| ", "," };
@@ -164,7 +167,12 @@ class AclDirectiveTextGuaranteeFuzzTest {
         } catch ( final RuntimeException e ) {
             return "the render path cannot read the output: " + e + " out=" + esc( out );
         }
-        return rules.isEmpty() ? null : "render path still reads " + rules + " out=" + esc( out );
+        if ( !rules.isEmpty() ) {
+            return "render path still reads " + rules + " out=" + esc( out );
+        }
+        final List< AccessRules.Span > enforced = AccessRules.read( out ).spans().stream()
+                .filter( span -> AccessRules.isRule( span.shape() ) ).toList();
+        return enforced.isEmpty() ? null : "the access-rule reader still reads " + enforced + " out=" + esc( out );
     }
 
     /** Whether stripping made a frontmatter block appear or disappear; an empty result (fail closed) is exempt. */

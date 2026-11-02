@@ -74,8 +74,7 @@ class AccessRulesOrderIndependenceTest {
         final List< Fixture > out = new java.util.ArrayList<>( AclDirectiveFixtures.ALL );
         out.addAll( AclDirectiveFixtures.ENFORCEMENT_REPROS );
         for ( final AclDirectiveFixtures.Shaped row : AclDirectiveFixtures.SHAPES ) {
-            final Set< String > acl = row.shape() == AccessRules.Shape.CANONICAL ? Set.of( "Admin:view" ) : Set.of();
-            out.add( new Fixture( "shape: " + row.name(), row.text(), acl, true ) );
+            out.add( new Fixture( "shape: " + row.name(), row.text(), pairs( row.ruleLines() ), true ) );
         }
         return out;
     }
@@ -85,9 +84,21 @@ class AccessRulesOrderIndependenceTest {
         if ( shapeName != null ) {
             final AccessRules.Shape shape = AclDirectiveFixtures.SHAPES.stream().filter( r -> r.name().equals( shapeName ) )
                     .findFirst().orElseThrow().shape();
-            return shape == null || shape == AccessRules.Shape.CANONICAL ? f.acl() : LOCKED;
+            return shape == null || !AccessRules.disputed( shape ) ? f.acl() : LOCKED;
         }
-        return AclDirectiveFixtures.EXPECTED_LOCKS.containsKey( f.name() ) ? LOCKED : f.acl();
+        return AclDirectiveFixtures.EXPECTED_LOCKS.containsKey( f.name() ) ? LOCKED : AclDirectiveFixtures.enforced( f );
+    }
+
+    /** {@code principal:action} pairs of canonical rule lines ({@code ALLOW view Admin, bob}). */
+    private static Set< String > pairs( final List< String > ruleLines ) {
+        final Set< String > out = new HashSet<>();
+        for ( final String line : ruleLines ) {
+            final String[] words = line.split( " ", 3 );
+            for ( final String principal : words[ 2 ].split( "," ) ) {
+                out.add( principal.trim() + ":" + words[ 1 ] );
+            }
+        }
+        return out;
     }
 
     @BeforeAll

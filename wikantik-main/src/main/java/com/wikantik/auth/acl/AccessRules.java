@@ -21,7 +21,6 @@ package com.wikantik.auth.acl;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
 import com.wikantik.util.AclDirectiveScanner;
-import com.wikantik.util.OffsetRanges;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.IntFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,9 +41,12 @@ import java.util.regex.Pattern;
  * <p>Two readings used to feed enforcement and disagreed on several shapes: the text scan (one-line
  * <code>[{ALLOW perm …}]</code> anywhere outside Markdown code, frontmatter included) and the render path (any link
  * label starting <code>{ALLOW</code> or <code>{DENY</code>, body only, real Markdown structure). This reader sees
- * every shape either could take for a rule, and accepts a span as a rule only where both agree on it exactly:
- * {@link Shape#CANONICAL}. Every other directive-shaped span is <em>disputed</em> and {@link Locked locks} the page
- * (only administrators may then use it) rather than guess which reading the author meant.
+ * every shape either could take for a rule. Where the author's intent is plain it reads a rule — {@link Shape#CANONICAL},
+ * which both old readings read alike, and {@link Shape#WRAPPED}, {@link Shape#CASE_VARIANT} and
+ * {@link Shape#LEADING_SPACE}, which they did not — each as one canonical rule line ({@link #isRule}); an
+ * {@link Shape#ESCAPED} rule is literal text. Every other directive-shaped span that either old reading took for a rule
+ * is <em>disputed</em> and {@link Locked locks} the page (only administrators may then use it) rather than guess which
+ * reading the author meant ({@link #disputed}).
  *
  * <p>How a span is found and classified:
  * <ul>
@@ -52,13 +55,16 @@ import java.util.regex.Pattern;
  *       (in the frontmatter and in the body, each on its own).</li>
  *   <li>The body is parsed once, the way the renderer parses it ({@link RenderPathAccessRules#structure}, bounded:
  *       a parse that runs over its budget or throws makes the whole text {@link Shape#UNREADABLE}).</li>
- *   <li>A candidate in code that neither reading takes for a rule is literal text, not a span at all. Otherwise its
- *       region decides first ({@link Shape#IN_FRONTMATTER}, {@link Shape#IN_MATH}, {@link Shape#IN_HTML_BLOCK},
- *       {@link Shape#LINK_WITH_TARGET}, {@link Shape#ESCAPED}), then its spelling ({@link Shape#DENY},
- *       {@link Shape#ALLOW_PREFIXED_WORD}, {@link Shape#BAD_PERMISSION}, {@link Shape#WRAPPED},
- *       {@link Shape#LEADING_SPACE}, {@link Shape#CASE_VARIANT}). A clean spelling both readings take for the same
- *       rule over the same span is {@link Shape#CANONICAL}; one they read differently anyway is
- *       {@link Shape#UNREADABLE}.</li>
+ *   <li>A candidate's region decides first ({@link Shape#IN_FRONTMATTER}, code, {@link Shape#IN_MATH},
+ *       {@link Shape#IN_HTML_BLOCK}, {@link Shape#LINK_WITH_TARGET}, {@link Shape#ESCAPED}), then its spelling
+ *       ({@link Shape#DENY}, {@link Shape#ALLOW_PREFIXED_WORD}, {@link Shape#BAD_PERMISSION}, {@link Shape#WRAPPED},
+ *       {@link Shape#LEADING_SPACE}, {@link Shape#CASE_VARIANT}). A candidate in code, in a disputed region, or spelled
+ *       {@code DENY} or with an {@code ALLOW}-prefixed word is literal text — no span at all — when neither old reading
+ *       took it for a rule ({@code [{Allowance}]}, a lower-case {@code deny}, a rule in a YAML code span): the page was
+ *       open under both, and nothing tells it apart from prose.</li>
+ *   <li>A rule shape is read from its label as the render parse sees it (a blockquote's continuation markers left
+ *       out). A clean spelling is {@link Shape#CANONICAL} only where both old readings take it for the same rule over
+ *       the same span; any rule shape whose span the parse does not see as one label is {@link Shape#UNREADABLE}.</li>
  * </ul>
  * A text with no <code>{allow</code> or <code>{deny</code> (any case, any whitespace after the brace) is not parsed.
  */
@@ -127,15 +133,22 @@ public final class AccessRules {
     }
 
     /**
-     * Every span is a rule both old readings agree on.
+     * No span is disputed: the page's rules are {@code ruleLines}.
      *
-     * @param ruleLines the rule lines ({@code ALLOW view Admin}) to build the ACL from, in document order
-     * @param spans     their spans, one per rule line, in the same order
+     * @param ruleLines the rule lines ({@code ALLOW view Admin}) to build the ACL from, in canonical form ({@code ALLOW},
+     *                  a lower-case permission, a wrapped principal list joined with single spaces), in document order
+     * @param spans     every directive-shaped span, in document order: one per rule line ({@link #ruleSpans}), and the
+     *                  {@link Shape#ESCAPED} ones, which are literal text
      */
     public record Rules( List< String > ruleLines, List< Span > spans ) implements Reading {
         public Rules {
             ruleLines = List.copyOf( ruleLines );
             spans = List.copyOf( spans );
+        }
+
+        /** @return the spans that carry {@link #ruleLines}, one per line, in the same order */
+        public List< Span > ruleSpans() {
+            return spans.stream().filter( span -> isRule( span.shape() ) ).toList();
         }
     }
 
@@ -164,13 +177,28 @@ public final class AccessRules {
     }
 
     /**
-     * Whether a span of this shape locks the page. In this release every shape but {@link Shape#CANONICAL} does.
+     * Whether a span of this shape locks the page: every shape but the rule shapes ({@link #isRule}) and
+     * {@link Shape#ESCAPED}, which is literal text.
      *
      * @param shape a span's shape
      * @return {@code true} when the span locks the page
      */
     static boolean disputed( final Shape shape ) {
-        return shape != Shape.CANONICAL;
+        return !isRule( shape ) && shape != Shape.ESCAPED;
+    }
+
+    /**
+     * Whether a span of this shape is read as a rule: {@link Shape#CANONICAL}, {@link Shape#WRAPPED},
+     * {@link Shape#CASE_VARIANT} and {@link Shape#LEADING_SPACE}, the shapes whose intent is plain.
+     *
+     * @param shape a span's shape
+     * @return {@code true} when the span carries a rule line
+     */
+    public static boolean isRule( final Shape shape ) {
+        return switch ( shape ) {
+            case CANONICAL, WRAPPED, CASE_VARIANT, LEADING_SPACE -> true;
+            default -> false;
+        };
     }
 
     /**
@@ -183,9 +211,15 @@ public final class AccessRules {
         }
         final int bodyStart = FrontmatterParser.bodyOffset( fullText );
         final TreeMap< Integer, Integer > candidates = DirectiveCandidates.find( fullText, bodyStart );
+        final Map< Integer, Integer > scanned = new HashMap<>();
+        for ( final AclDirectiveScanner.Span span : EnforcedAclDirectives.spans( fullText ) ) {
+            scanned.put( span.start(), AclDirectiveScanner.endWithEmptyParentheses( fullText, span ) );
+        }
         if ( !DirectiveCandidates.mayHoldDirective( fullText, bodyStart, fullText.length() ) ) {
-            // Only the frontmatter holds anything directive-shaped: no body to parse, and every candidate is disputed.
-            return reading( fullText, frontmatterOnly( candidates, bodyStart ), Map.of() );
+            // Only the frontmatter holds anything directive-shaped: no body to parse.
+            return reading( fullText, unparsed( candidates, bodyStart, scanned ), start -> {
+                throw new IllegalStateException( "an unparsed text holds no rule span" );
+            } );
         }
         PARSES.incrementAndGet();
         final RenderPathAccessRules.Structure structure;
@@ -196,85 +230,40 @@ public final class AccessRules {
             // page version, with the page's name, which this reader is not given.
             LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them; "
                     + "the page locks to administrators: {}", fullText.length(), e.getMessage() );
-            return unreadable( fullText, bodyStart, candidates, e.getMessage() );
+            return unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() );
         }
-        final Map< Integer, RenderPathAccessRules.Rule > rules = new HashMap<>();
         for ( final RenderPathAccessRules.Rule rule : structure.rules() ) {
-            rules.put( rule.start(), rule );
             candidates.putIfAbsent( rule.start(), rule.end() );
         }
-        final Map< Integer, Integer > scanned = new HashMap<>();
-        for ( final AclDirectiveScanner.Span span : EnforcedAclDirectives.spans( fullText ) ) {
-            scanned.put( span.start(), AclDirectiveScanner.endWithEmptyParentheses( fullText, span ) );
-        }
-        final Regions regions = new Regions( structure );
+        final SpanClassifier classifier = new SpanClassifier( fullText, bodyStart, structure );
         final List< Span > spans = new ArrayList<>( candidates.size() );
         for ( final Map.Entry< Integer, Integer > candidate : candidates.entrySet() ) {
-            final Shape shape = classify( fullText, bodyStart, candidate.getKey(), candidate.getValue(), regions, rules, scanned );
+            final Shape shape = classifier.classify( candidate.getKey(), candidate.getValue(), scanned.get( candidate.getKey() ) );
             if ( shape != null ) {
                 spans.add( new Span( candidate.getKey(), candidate.getValue(), shape ) );
             }
         }
-        return reading( fullText, spans, rules );
+        return reading( fullText, spans, classifier::ruleLine );
     }
 
-    /** The shape of one candidate, or {@code null} when it is literal text in code that neither old reading read. */
-    private static Shape classify( final String text, final int bodyStart, final int start, final int end,
-                                   final Regions regions, final Map< Integer, RenderPathAccessRules.Rule > rules,
-                                   final Map< Integer, Integer > scanned ) {
-        if ( start < bodyStart ) {
-            return Shape.IN_FRONTMATTER;
-        }
-        final RenderPathAccessRules.Rule rule = rules.get( start );
-        if ( regions.code().contains( start ) ) {
-            // Code to the render path; literal only when the text scan's own code exclusion agrees.
-            return rule == null && !scanned.containsKey( start ) ? null : Shape.UNREADABLE;
-        }
-        if ( regions.math().contains( start ) ) {
-            return Shape.IN_MATH;
-        }
-        if ( regions.html().contains( start ) ) {
-            return Shape.IN_HTML_BLOCK;
-        }
-        if ( regions.links().contains( start ) ) {
-            return Shape.LINK_WITH_TARGET;
-        }
-        if ( DirectiveSpelling.escaped( text, start ) ) {
-            return Shape.ESCAPED;
-        }
-        final Shape spelling = DirectiveSpelling.of( text, start, end );
-        if ( spelling != null ) {
-            return spelling;
-        }
-        final Integer scannedEnd = scanned.get( start );
-        if ( rule != null && rule.end() == end && scannedEnd != null && scannedEnd == end ) {
-            return Shape.CANONICAL;
-        }
-        return Shape.UNREADABLE;
-    }
-
-    private static Reading reading( final String text, final List< Span > spans,
-                                    final Map< Integer, RenderPathAccessRules.Rule > rules ) {
+    /** @param ruleLines the canonical rule line of a rule span, by its start */
+    private static Reading reading( final String text, final List< Span > spans, final IntFunction< String > ruleLines ) {
         final List< Reason > reasons = new ArrayList<>();
-        final List< String > ruleLines = new ArrayList<>();
+        final List< String > lines = new ArrayList<>();
         final Places places = new Places( text );
         for ( final Span span : spans ) {
             if ( disputed( span.shape() ) ) {
                 reasons.add( places.reason( span.shape(), span.start(), excerpt( text, span.start(), span.end() ) ) );
-            } else {
-                ruleLines.add( rules.get( span.start() ).ruleLine() );
+            } else if ( isRule( span.shape() ) ) {
+                lines.add( ruleLines.apply( span.start() ) );
             }
         }
-        return reasons.isEmpty() ? new Rules( ruleLines, spans ) : new Locked( reasons, spans );
+        return reasons.isEmpty() ? new Rules( lines, spans ) : new Locked( reasons, spans );
     }
 
     private static Locked unreadable( final String text, final int bodyStart, final TreeMap< Integer, Integer > candidates,
-                                      final String why ) {
-        final List< Span > spans = new ArrayList<>( candidates.size() );
-        for ( final Map.Entry< Integer, Integer > candidate : candidates.entrySet() ) {
-            spans.add( new Span( candidate.getKey(), candidate.getValue(),
-                    candidate.getKey() < bodyStart ? Shape.IN_FRONTMATTER : Shape.UNREADABLE ) );
-        }
+                                      final Map< Integer, Integer > scanned, final String why ) {
+        final List< Span > spans = unparsed( candidates, bodyStart, scanned );
         final Integer firstInBody = candidates.ceilingKey( bodyStart );
         final String reason = "the page text cannot be read the way the renderer reads it: " + why;
         final List< Reason > reasons = new ArrayList<>();
@@ -283,21 +272,21 @@ public final class AccessRules {
         return new Locked( reasons, spans );
     }
 
-    private static List< Span > frontmatterOnly( final TreeMap< Integer, Integer > candidates, final int bodyStart ) {
+    /**
+     * The spans of a text whose body is not parsed: a frontmatter candidate the text scan read is
+     * {@link Shape#IN_FRONTMATTER} (one it did not read is literal text, no span), a body candidate {@link Shape#UNREADABLE}.
+     */
+    private static List< Span > unparsed( final TreeMap< Integer, Integer > candidates, final int bodyStart,
+                                          final Map< Integer, Integer > scanned ) {
         final List< Span > spans = new ArrayList<>( candidates.size() );
         for ( final Map.Entry< Integer, Integer > candidate : candidates.entrySet() ) {
-            spans.add( new Span( candidate.getKey(), candidate.getValue(),
-                    candidate.getKey() < bodyStart ? Shape.IN_FRONTMATTER : Shape.UNREADABLE ) );
+            if ( candidate.getKey() >= bodyStart ) {
+                spans.add( new Span( candidate.getKey(), candidate.getValue(), Shape.UNREADABLE ) );
+            } else if ( scanned.containsKey( candidate.getKey() ) ) {
+                spans.add( new Span( candidate.getKey(), candidate.getValue(), Shape.IN_FRONTMATTER ) );
+            }
         }
         return spans;
-    }
-
-    /** The parse's regions, merged per kind for a logarithmic lookup. */
-    private record Regions( OffsetRanges code, OffsetRanges math, OffsetRanges html, OffsetRanges links ) {
-        Regions( final RenderPathAccessRules.Structure structure ) {
-            this( OffsetRanges.of( structure.code() ), OffsetRanges.of( structure.math() ), OffsetRanges.of( structure.html() ),
-                  OffsetRanges.of( structure.links() ) );
-        }
     }
 
     /**

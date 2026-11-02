@@ -21,8 +21,10 @@ package com.wikantik.auth.acl;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -88,6 +91,23 @@ class AccessRuleShapeCheckTest {
         } else {
             assertDoesNotThrow( () -> save( row.text() ) );
         }
+    }
+
+    /** §5.3: the shapes whose intent is clear are rules (or, escaped, text), so a new one saves. */
+    @ParameterizedTest( name = "{0}" )
+    @ValueSource( strings = {
+            "[{ALLOW edit Admin,\n bob}]\n\nBody.\n", "[{allow VIEW Bob}]\n\nBody.\n", "[{ ALLOW view Bob}]\n\nBody.\n",
+            "Write \\[{ALLOW view Bob}] to restrict.\n" } )
+    void anUnambiguousRuleShapeOrAnEscapedRuleSaves( final String text ) {
+        assertDoesNotThrow( () -> save( text ) );
+    }
+
+    /** A save of many overlapping disputed candidates is refused without costing the square of the text. */
+    @Test
+    void manyOpenersSharingOneCloserAreRefusedQuickly() {
+        final String text = "[{DENY edit alice ".repeat( 40_000 ) + "\nx}]";
+        assertTimeoutPreemptively( Duration.ofSeconds( 10 ),
+                () -> assertThrows( AccessRuleShapeException.class, () -> save( text ) ) );
     }
 
     @Test

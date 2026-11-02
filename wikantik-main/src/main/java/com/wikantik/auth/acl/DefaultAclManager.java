@@ -231,7 +231,7 @@ public class DefaultAclManager implements AclManager {
             try {
                 parseAcl( page, acl, ruleLine );
             } catch( final WikiSecurityException e ) {
-                final AccessRules.Span span = rules.spans().get( i );
+                final AccessRules.Span span = rules.ruleSpans().get( i );
                 warnLocked( page, new AccessRules.Locked( List.of( new AccessRules.Places( pageText ).reason(
                         AccessRules.Shape.BAD_PERMISSION, span.start(), ruleLine ) ), rules.spans() ) );
                 return lockedAcl( page );
@@ -290,9 +290,9 @@ public class DefaultAclManager implements AclManager {
     /**
      * {@inheritDoc}
      *
-     * <p>Writes {@code acl} at the top of the page text in place of the spans {@link AccessRules#read} finds. Refused for
-     * a page whose rules cannot be read (rewriting it would drop rules nobody can tell the meaning of) and for a locked
-     * ACL.
+     * <p>Writes {@code acl} at the top of the page text in place of the rules {@link AccessRules#read} finds (an escaped
+     * one, literal text, stays). Refused for a page whose rules cannot be read (rewriting it would drop rules nobody can
+     * tell the meaning of) and for a locked ACL.
      */
     @Override
     public void setPermissions( final Page page, final Acl acl ) throws WikiSecurityException {
@@ -312,7 +312,9 @@ public class DefaultAclManager implements AclManager {
             throw new WikiSecurityException( "The access rules of page " + page.getName() + " cannot be read, so they are not "
                     + "rewritten: " + locked.reasons() );
         }
-        final String newText = AccessRules.withRules( AccessRules.without( text, reading.spans() ), DefaultAclManager.printAcl( acl ) );
+        // The rules go; an escaped example, literal text, stays.
+        final List< AccessRules.Span > rules = ( ( AccessRules.Rules ) reading ).ruleSpans();
+        final String newText = AccessRules.withRules( AccessRules.without( text, rules ), DefaultAclManager.printAcl( acl ) );
         try {
             pageManager.putPageText( page, newText );
         } catch( final ProviderException e ) {

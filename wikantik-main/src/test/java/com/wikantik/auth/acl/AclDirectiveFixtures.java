@@ -26,9 +26,9 @@ import java.util.Set;
 /**
  * Page texts that carry access rules in the shapes the text scan and the render path disagree on. Each fixture records
  * the ACL the old text scan enforced on it up to 2.5.5 (as {@code principal:action} pairs), what {@link AccessRules}
- * makes of it now ({@link #EXPECTED_LOCKS}: absent means a {@code Rules} reading enforcing {@link Fixture#acl}), and
- * whether its login must be hidden from readers: it must whenever either old reading reads a rule naming it. Shared by
- * the enforcement, stripping and rendering tests so each shape is checked on every surface.
+ * makes of it now ({@link #EXPECTED_LOCKS} for a lock; otherwise a {@code Rules} reading enforcing {@link #enforced}),
+ * and whether its login must be hidden from readers: it must whenever either old reading reads a rule naming it. Shared
+ * by the enforcement, stripping and rendering tests so each shape is checked on every surface.
  */
 public final class AclDirectiveFixtures {
 
@@ -160,55 +160,113 @@ public final class AclDirectiveFixtures {
                     "[{ALLOW edit Admin}]\n---\nIntro paragraph alpha.\n\nMore text beta.\n\n---\n\nRest gamma.\n",
                     Set.of( "Admin:edit" ), true ),
             new Fixture( "a rule line above a frontmatter-shaped block",
-                    "[{ALLOW view All}]\n---\ntype: hub\ncluster: finance\n---\nBody.\n", Set.of( "All:view" ), true ) );
+                    "[{ALLOW view All}]\n---\ntype: hub\ncluster: finance\n---\nBody.\n", Set.of( "All:view" ), true ),
+            // #104 open-up: the old text scan enforced an escaped example; it is literal text now.
+            new Fixture( "an escaped example above a rule",
+                    "Write \\[{ALLOW view Guest}] to restrict a page.\n\n[{ALLOW view Admin}]\n", Set.of( "Guest:view", "Admin:view" ),
+                    true ) );
 
     /**
      * The shapes {@link AccessRules#read} locks, by fixture name (of {@link #ALL} and {@link #ENFORCEMENT_REPROS}); a
-     * fixture not named here reads as rules and enforces exactly its {@link Fixture#acl}. Every fixture named here
-     * enforced its {@code acl} (or the render path's reading, render first) before #104; it is locked now.
+     * fixture not named here reads as rules and enforces exactly {@link #enforced}. Every fixture named here enforced its
+     * {@code acl} (or the render path's reading, render first) before #104; it is locked now.
      */
     public static final Map< String, Set< Shape > > EXPECTED_LOCKS = Map.ofEntries(
             Map.entry( HTML_BLOCK.name(), Set.of( Shape.IN_HTML_BLOCK ) ),
-            Map.entry( WRAPPED.name(), Set.of( Shape.WRAPPED ) ),
-            Map.entry( QUOTED_WRAPPED.name(), Set.of( Shape.WRAPPED ) ),
             Map.entry( DENY.name(), Set.of( Shape.DENY ) ),
-            Map.entry( UPPER_CASE.name(), Set.of( Shape.CASE_VARIANT ) ),
             Map.entry( KEYWORD_PREFIX.name(), Set.of( Shape.ALLOW_PREFIXED_WORD ) ),
             Map.entry( INLINE_MATH.name(), Set.of( Shape.IN_MATH ) ),
-            Map.entry( LONG_WRAPPED.name(), Set.of( Shape.WRAPPED ) ),
             Map.entry( MATH_FENCE.name(), Set.of( Shape.IN_MATH ) ),
             Map.entry( "footnote that makes the render parse throw", Set.of( Shape.UNREADABLE ) ),
             Map.entry( "documentation example next to a line that trips the parse budget", Set.of( Shape.UNREADABLE ) ),
             Map.entry( "an ALLOW and a DENY for the same permission", Set.of( Shape.DENY ) ),
-            Map.entry( "a math-only rule and a wrapped rule for the same permission", Set.of( Shape.IN_MATH, Shape.WRAPPED ) ),
+            Map.entry( "a math-only rule and a wrapped rule for the same permission", Set.of( Shape.IN_MATH ) ),
             Map.entry( "a page whose render parse throws and whose only rule is wrapped", Set.of( Shape.UNREADABLE ) ),
             Map.entry( "a page whose render parse throws, with a one-line and a wrapped rule", Set.of( Shape.UNREADABLE ) ) );
 
     /**
+     * What {@link AccessRules#read} enforces on the fixtures it reads differently from the old text scan, by fixture name:
+     * the rules the text scan missed and the render path read (wrapped, upper-case permission) are rules now, as the
+     * design's §5.3 says; an escaped example the text scan read is literal text.
+     */
+    public static final Map< String, Set< String > > EXPECTED_ACLS = Map.ofEntries(
+            Map.entry( WRAPPED.name(), Set.of( "All:view", "Admin:edit", LOGIN + ":edit" ) ),
+            Map.entry( QUOTED_WRAPPED.name(), Set.of( "Admin:edit", LOGIN + ":edit" ) ),
+            Map.entry( UPPER_CASE.name(), Set.of( LOGIN + ":view" ) ),
+            Map.entry( LONG_WRAPPED.name(), longWrappedAcl() ),
+            Map.entry( "an escaped example above a rule", Set.of( "Admin:view" ) ) );
+
+    private static Set< String > longWrappedAcl() {
+        final Set< String > out = new java.util.HashSet<>();
+        for ( int i = 0; i < 400; i++ ) {
+            out.add( "user" + i + "@example.test:edit" );
+        }
+        out.add( LOGIN + ":edit" );
+        return Set.copyOf( out );
+    }
+
+    /**
+     * @param f a fixture of {@link #ALL} or {@link #ENFORCEMENT_REPROS} that {@link #EXPECTED_LOCKS} does not name
+     * @return the ACL {@link AccessRules#read} enforces on it, as {@code principal:action} pairs
+     */
+    public static Set< String > enforced( final Fixture f ) {
+        return EXPECTED_ACLS.getOrDefault( f.name(), f.acl() );
+    }
+
+    /**
      * One row per access-rule shape of the #104 design (§5.1/§5.3).
      *
-     * @param name  label
-     * @param text  a page text holding the shape once
-     * @param shape what {@link AccessRules#read} classifies its one span as; {@code null} for literal text (no span)
+     * @param name      label
+     * @param text      a page text holding the shape once
+     * @param shape     what {@link AccessRules#read} classifies its one span as; {@code null} for literal text (no span)
+     * @param ruleLines the rule lines a {@code Rules} reading of it holds, in canonical form; empty for a lock or literal
+     *                  text
      */
-    public record Shaped( String name, String text, Shape shape ) {
+    public record Shaped( String name, String text, Shape shape, java.util.List< String > ruleLines ) {
+        Shaped( final String name, final String text, final Shape shape ) {
+            this( name, text, shape, java.util.List.of() );
+        }
+
         @Override
         public String toString() {
             return name;
         }
     }
 
-    /** Every shape, each alone on a page with body text after it. */
+    /** The one rule line most rows read as. */
+    private static final java.util.List< String > ADMIN_VIEW = java.util.List.of( "ALLOW view Admin" );
+
+    /**
+     * Every shape, each alone on a page with body text after it. The design's §5.3 table, row by row: the unambiguous
+     * shapes are rules in canonical form, an escaped one is literal text, the rest lock. A span that neither old reading
+     * took for a rule ({@code [{Allowance}]}, a lower-case {@code deny}, a lower-case rule in HTML or math, one in a YAML
+     * code span) is literal text, not a lock: the page was open under both, and nobody can tell it apart from prose.
+     */
     public static final java.util.List< Shaped > SHAPES = java.util.List.of(
-            new Shaped( "canonical", "[{ALLOW view Admin}]\n\n" + BODY + "\n", Shape.CANONICAL ),
-            new Shaped( "canonical, with ()", "[{ALLOW view Admin}]()\n\n" + BODY + "\n", Shape.CANONICAL ),
-            new Shaped( "wrapped", "[{ALLOW view Admin,\n bob}]\n\n" + BODY + "\n", Shape.WRAPPED ),
-            new Shaped( "lower-case keyword", "[{allow view Admin}]\n\n" + BODY + "\n", Shape.CASE_VARIANT ),
-            new Shaped( "upper-case permission", "[{ALLOW VIEW Admin}]\n\n" + BODY + "\n", Shape.CASE_VARIANT ),
-            new Shaped( "space after the brace", "[{ ALLOW view Admin}]\n\n" + BODY + "\n", Shape.LEADING_SPACE ),
+            new Shaped( "canonical", "[{ALLOW view Admin}]\n\n" + BODY + "\n", Shape.CANONICAL, ADMIN_VIEW ),
+            new Shaped( "canonical, with ()", "[{ALLOW view Admin}]()\n\n" + BODY + "\n", Shape.CANONICAL, ADMIN_VIEW ),
+            new Shaped( "wrapped", "[{ALLOW view Admin,\n bob}]\n\n" + BODY + "\n", Shape.WRAPPED,
+                    java.util.List.of( "ALLOW view Admin, bob" ) ),
+            new Shaped( "wrapped over three lines", "[{ALLOW edit a,\n   b,\n\tc}]\n\n" + BODY + "\n", Shape.WRAPPED,
+                    java.util.List.of( "ALLOW edit a, b, c" ) ),
+            new Shaped( "wrapped in a blockquote, lower-case", "> [{allow edit a,\n> b}]\n\n" + BODY + "\n", Shape.WRAPPED,
+                    java.util.List.of( "ALLOW edit a, b" ) ),
+            new Shaped( "lower-case keyword", "[{allow view Admin}]\n\n" + BODY + "\n", Shape.CASE_VARIANT, ADMIN_VIEW ),
+            new Shaped( "lower-case keyword, upper-case permission", "[{allow VIEW Bob}]\n\n" + BODY + "\n", Shape.CASE_VARIANT,
+                    java.util.List.of( "ALLOW view Bob" ) ),
+            new Shaped( "upper-case permission", "[{ALLOW VIEW Admin}]\n\n" + BODY + "\n", Shape.CASE_VARIANT, ADMIN_VIEW ),
+            new Shaped( "mixed-case keyword and permission", "[{Allow Edit Admin}]\n\n" + BODY + "\n", Shape.CASE_VARIANT,
+                    java.util.List.of( "ALLOW edit Admin" ) ),
+            new Shaped( "space after the brace", "[{ ALLOW view Admin}]\n\n" + BODY + "\n", Shape.LEADING_SPACE, ADMIN_VIEW ),
+            new Shaped( "space after the brace, upper-case permission", "[{  ALLOW  VIEW  Admin }]\n\n" + BODY + "\n",
+                    Shape.LEADING_SPACE, ADMIN_VIEW ),
+            new Shaped( "space after the brace, wrapped", "[{ ALLOW edit a,\n b}]\n\n" + BODY + "\n", Shape.WRAPPED,
+                    java.util.List.of( "ALLOW edit a, b" ) ),
             new Shaped( "escaped", "\\[{ALLOW view Admin}]\n\n" + BODY + "\n", Shape.ESCAPED ),
             new Shaped( "deny", "[{DENY view Admin}]\n\n" + BODY + "\n", Shape.DENY ),
+            new Shaped( "deny, wrapped", "[{DENY view Admin,\n bob}]\n\n" + BODY + "\n", Shape.DENY ),
             new Shaped( "ALLOWED", "[{ALLOWED view Admin}]\n\n" + BODY + "\n", Shape.ALLOW_PREFIXED_WORD ),
+            new Shaped( "an upper-case plugin name starting ALLOW", "[{ALLOWANCE}]\n\n" + BODY + "\n", Shape.ALLOW_PREFIXED_WORD ),
             new Shaped( "in an HTML block", "<div>\n[{ALLOW view Admin}]\n</div>\n\n" + BODY + "\n", Shape.IN_HTML_BLOCK ),
             new Shaped( "in an HTML comment", "<!-- [{ALLOW view Admin}] -->\n\n" + BODY + "\n", Shape.IN_HTML_BLOCK ),
             new Shaped( "in inline math", "Formula $[{ALLOW view Admin}]$ here.\n\n" + BODY + "\n", Shape.IN_MATH ),
@@ -217,10 +275,20 @@ public final class AclDirectiveFixtures {
             new Shaped( "a link with a target", "[{ALLOW view Admin}](http://example.test)\n\n" + BODY + "\n", Shape.LINK_WITH_TARGET ),
             new Shaped( "an image", "![{ALLOW view Admin}](x.png)\n\n" + BODY + "\n", Shape.LINK_WITH_TARGET ),
             new Shaped( "a permission the ACL parser refuses", "[{ALLOW viewbob Admin}]\n\n" + BODY + "\n", Shape.BAD_PERMISSION ),
+            new Shaped( "a refused permission, lower-case keyword", "[{allow viewbob Admin}]\n\n" + BODY + "\n",
+                    Shape.BAD_PERMISSION ),
             new Shaped( "no permission", "[{ALLOW}]\n\n" + BODY + "\n", Shape.BAD_PERMISSION ),
+            new Shaped( "a rule only the render path reads", "[{ALLOW view Admin]()\n\n" + BODY + "\n", Shape.UNREADABLE ),
             new Shaped( "in a code span", "Write `[{ALLOW view Admin}]` to restrict.\n\n" + BODY + "\n", null ),
             new Shaped( "in a fenced block", "```\n[{ALLOW view Admin}]\n```\n\n" + BODY + "\n", null ),
-            new Shaped( "lower-case, in a code span", "Write `[{allow VIEW Admin}]` to restrict.\n\n" + BODY + "\n", null ) );
+            new Shaped( "lower-case, in a code span", "Write `[{allow VIEW Admin}]` to restrict.\n\n" + BODY + "\n", null ),
+            new Shaped( "a plugin name starting Allow", "[{Allowance}]\n\n" + BODY + "\n", null ),
+            new Shaped( "lower-case deny", "[{deny view Admin}]\n\n" + BODY + "\n", null ),
+            new Shaped( "lower-case, in an HTML block", "<div>\n[{allow view Admin}]\n</div>\n\n" + BODY + "\n", null ),
+            new Shaped( "lower-case, in inline math", "Formula $[{allow view Admin}]$ here.\n\n" + BODY + "\n", null ),
+            new Shaped( "in a YAML code span in the frontmatter",
+                    "---\nsummary: Write `[{ALLOW view Admin}]` to restrict\n---\n" + BODY + "\n", null ),
+            new Shaped( "lower-case, in the frontmatter", "---\nsummary: '[{allow view Admin}]'\n---\n" + BODY + "\n", null ) );
 
     private AclDirectiveFixtures() {
     }

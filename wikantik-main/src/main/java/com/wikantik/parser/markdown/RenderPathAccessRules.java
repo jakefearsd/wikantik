@@ -98,9 +98,15 @@ public final class RenderPathAccessRules {
      * @param math  inline math and {@code $$} display-math blocks
      * @param links links that are not access rules but have a target ({@code [text](url)}), images, reference links,
      *              link reference definitions and {@code [[…]]} wiki links
+     * @param labels links with no target that the render path does <em>not</em> read as rules but whose text starts,
+     *              after its brace and any whitespace, with {@code allow} in any case (<code>[{allow view Bob}]</code>,
+     *              <code>[{ ALLOW view Bob}]</code>): each with its label as the parse reads it ({@link Rule#ruleLine}),
+     *              so a blockquote's or list's continuation markers are not part of it. A label that maps to no source
+     *              text is left out (it is no rule the render path reads, so it is no reason to call the text
+     *              unreadable)
      */
     public record Structure( List< Rule > rules, List< int[] > code, List< int[] > html, List< int[] > math,
-                             List< int[] > links ) {
+                             List< int[] > links, List< Rule > labels ) {
     }
 
     /** Immutable and thread-safe: the rendered page's block and inline structure, without its context-bound extension. */
@@ -154,12 +160,13 @@ public final class RenderPathAccessRules {
 
     private static Structure parsedStructure( final MarkdownBodySource.Prepared prepared, final int bodyStart, final int bodyLength ) {
         final String text = prepared.text();
-        final Structure out = new Structure( new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>() );
+        final Structure out = new Structure( new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
+                new ArrayList<>() );
         for ( final Node node : PARSER.parse( BasedSequence.of( BudgetedText.of( text, BudgetedText.budgetFor( text.length() ) ) ) )
                 .getDescendants() ) {
             if ( node instanceof Link link && LinkParsingOperations.isAccessRuleLink( WikantikLink.wikiLinkOf( link ) ) ) {
                 out.rules().add( rule( prepared, link, bodyStart, bodyLength ) );
-            } else {
+            } else if ( !RuleLabels.collect( out.labels(), prepared, node, bodyStart, bodyLength ) ) {
                 final List< int[] > kind = regionKind( out, node );
                 if ( kind != null ) {
                     region( kind, prepared, node, bodyStart );

@@ -145,8 +145,9 @@ mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 # CANONICAL pre-commit gate (unit + all default IT modules, ~6 min on a warm machine).
 # Phase 1 runs every unit test once (-T 1C -DskipITs, installs artifacts incl.
 # the WAR + selenide-tests test-jar); then the static checks CI also runs — the
-# PMD complexity ratchet (fails the run) and `npm audit` (warns; FAILS under
-# --all, the release run); Phase 2 runs the FIVE IT modules in one
+# PMD complexity ratchet (fails the run), `npm audit` (warns; FAILS under
+# --all, the release run), and the frontend's eslint + `vitest --coverage`
+# (both fail the run; Maven runs neither); Phase 2 runs the FIVE IT modules in one
 # -T 4 reactor with per-module reserved ports + uniquely-named pgvector
 # containers. Same coverage as the old full reactor without re-running the units
 # inside the IT phase.

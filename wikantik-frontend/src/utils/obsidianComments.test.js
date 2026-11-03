@@ -50,3 +50,13 @@ describe('commentRanges', () => {
     expect(Date.now() - start).toBeLessThan(3000);
   });
 });
+
+describe('commentRanges on text with CRLF line endings', () => {
+  it('gives offsets in that very text, not in a normalised copy', () => {
+    const text = 'a\r\n%%x\r\ny%% b\r\n```\r\n%% c\r\n```\r\n%%z%%';
+    expect(commentRanges(text).map((r) => text.slice(r.from, r.to))).toEqual(['%%x\r\ny%%', '%%z%%']);
+  });
+  it('keeps every newline a stripped comment held', () => {
+    expect(stripComments('a %%x\r\ny%% b')).toBe('a \n b');
+  });
+});

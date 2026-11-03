@@ -84,6 +84,38 @@ describe('WikiLink edges', () => {
   });
 });
 
+describe('WikiLink and code spans', () => {
+  const kinds = (text, name) => { const out = []; parse(text).iterate({ enter: (n) => { if (n.name === name) out.push(text.slice(n.from, n.to)); } }); return out; };
+  it('a code span opened inside the link text and closed after it wins: no link, the span holds `]]`', () => {
+    // Rendered by the reader: `[[Note <code>x]] %%secret%% </code>y&#96; z` (comments.json).
+    const text = '[[Note `x]] %%secret%% `y` z';
+    expect(kinds(text, 'WikiLink')).toEqual([]);
+    expect(kinds(text, 'InlineCode')).toEqual(['`x]] %%secret%% `']);
+  });
+  it('the run lengths must agree: a double backtick opens nothing against a single', () => {
+    expect(kinds('[[Note ``x]] a `y` z', 'WikiLink')).toEqual(['[[Note ``x]]']);
+  });
+  it('an unclosed backtick inside the link text leaves the link', () => {
+    expect(kinds('[[Note `x]] after', 'WikiLink')).toEqual(['[[Note `x]]']);
+  });
+  it('a code span that opens and closes inside the link text leaves the link', () => {
+    expect(kinds('[[a `b` c]] `d`', 'WikiLink')).toEqual(['[[a `b` c]]']);
+  });
+  it('an escaped backtick opens no span', () => {
+    expect(kinds('[[a \\`b]] and `c`', 'WikiLink')).toEqual(['[[a \\`b]]']);
+  });
+  it('a CRLF paragraph reads the same', () => {
+    expect(kinds('[[Note `x]] %%secret%% `y` z\r\n', 'WikiLink')).toEqual([]);
+  });
+  it.each([
+    ['links holding a span of their own', (n) => '[[a `b` c]] '.repeat(n)],
+    ['one link whose span never closes, before a long tail', (n) => `[[a\`b]] ${'word '.repeat(n)}`],
+  ])('%s: stays linear', (_name, make) => {
+    const { ratio, bound } = linearCost(make, parse, { small: 4000, factor: 5 });
+    expect(ratio).toBeLessThan(bound);
+  }, LINEAR_COST_TIMEOUT_MS);
+});
+
 describe('WikiLink parser cost', () => {
   it.each(['[[', '[[a', ']]', '[[a|', '![[', '[[a]]', '![[a|b '])('%j repeated stays linear', (unit) => {
     const { ratio, bound } = linearCost((n) => unit.repeat(n), parse, { small: 4000, factor: 5 });

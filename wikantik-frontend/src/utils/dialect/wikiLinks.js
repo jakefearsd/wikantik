@@ -21,6 +21,46 @@ function closeAt(text, at) {
   return -1;
 }
 
+const BACKTICK = 96;
+const BACKSLASH = 92;
+
+/** Length of the backtick run starting at `at`. */
+function runLength(text, at) {
+  let n = 0;
+  while (text.charCodeAt(at + n) === BACKTICK) n += 1;
+  return n;
+}
+
+/** Where the next backtick run of exactly `n` characters at or after `at` starts, or -1. */
+function closerOf(text, at, n) {
+  for (let j = at; j < text.length;) {
+    if (text.charCodeAt(j) !== BACKTICK) { j += 1; continue; }
+    const m = runLength(text, j);
+    if (m === n) return j;
+    j += m;
+  }
+  return -1;
+}
+
+/**
+ * Whether a code span opened inside the link text (between `from` and `close`) ends after the link's `]]`. The reader
+ * lets the code span win there: a backtick run (not backslash-escaped) opens a span when a run of the same length
+ * follows, so a link whose text holds the opener and whose closer lies beyond it is not a link at all, and what the span
+ * holds is code. A span that opens and closes inside the link text leaves the link alone.
+ */
+function codeSpanCrossesClose(text, from, close) {
+  for (let i = from; i < close; i += 1) {
+    const c = text.charCodeAt(i);
+    if (c === BACKSLASH) { i += 1; continue; }
+    if (c !== BACKTICK) continue;
+    const n = runLength(text, i);
+    const closer = closerOf(text, i + n, n);
+    if (closer >= close) return true;
+    i = (closer < 0 ? i : closer) + n - 1;
+  }
+  return false;
+}
+
 /**
  * `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading]]`, `[[#Heading]]` as a `WikiLink` node, and `![[file.png|300]]` as a
  * `WikiEmbed` (a distinct node rather than a flag: Lezer nodes carry no per-instance data, and a reader of the tree
@@ -29,7 +69,8 @@ function closeAt(text, at) {
  * a wikilink (`[[ x ]]` with a leading space is not) is `parseWikiLink`'s answer, the grammar shared with the reader.
  * Registered before Link, so `[[x]]` never becomes a link. A backslash before the first `[` is consumed by Lezer's
  * Escape first, so `\[[x]]` is text; `\![[x]]` leaves a plain `[[x]]` link, as the reader does. Code and math never
- * reach this parser because their nodes consume their text first.
+ * reach this parser because their nodes consume their text first, and a code span that opens inside the link text and
+ * closes after it wins over the link (`codeSpanCrossesClose`).
  */
 const WikiLinkParser = {
   name: 'WikiLink',
@@ -39,6 +80,7 @@ const WikiLinkParser = {
     const at = pos - cx.offset + (embed ? 1 : 0);
     const close = closeAt(cx.text, at);
     if (close < 0 || !parseWikiLink(cx.text.slice(at - (embed ? 1 : 0), close + 2))) return -1;
+    if (codeSpanCrossesClose(cx.text, at + 2, close)) return -1;
     const o = cx.offset;
     const innerFrom = at + 2;
     const inner = cx.text.slice(innerFrom, close);

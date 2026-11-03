@@ -12,22 +12,11 @@ const TAB_WIDTH = 4;
  */
 const isDelimiterLine = (line) => line.text.trim() === '$$' && line.indent - line.baseIndent < TAB_WIDTH;
 
-function leadingWidth(raw) {
-  let width = 0;
-  for (const ch of raw) {
-    if (ch === ' ') width += 1;
-    else if (ch === '\t') width += TAB_WIDTH - (width % TAB_WIDTH);
-    else break;
-  }
-  return width;
-}
-
 /**
- * Whether a closing `$$` line follows while every line stays in the opener's container. The reader's pre-pass closes
- * at the next `$$`-only line, blank lines allowed, and is container-blind; the editor deliberately differs: when the
- * container (a list item, whose lines must stay indented to its content column) ends first, there is no math, because
- * a Lezer node must nest properly. A block parser cannot rewind, so this peeks at the input. Only a document or
- * list-item container can hold an opener (a `> ` line is never an opener), so the check is an indent comparison.
+ * Whether a `$$`-only line follows anywhere below. The reader's pre-pass (`DisplayMathPreProcessor`) pairs the opener
+ * with the next such line, blank lines allowed and containers ignored, so a closer outside the opener's list item still
+ * makes the opener a block (it then ends where the item does, see `DisplayMathBlock`). A block parser cannot rewind,
+ * so this peeks at the input, in windows that double, up to LOOKAHEAD_CHARS.
  */
 function closesAhead(cx, line) {
   const input = cx.input;
@@ -48,52 +37,74 @@ function closesAhead(cx, line) {
       chunk = chunk.slice(0, nl);
       to = from + nl + 1;
     }
-    for (const raw of chunk.split('\n')) {
-      if (raw.trim() === '') continue;
-      if (leadingWidth(raw) < line.baseIndent) return false; // the container has ended
-      if (raw.trim() === '$$') return true;
-    }
+    for (const raw of chunk.split('\n')) if (raw.trim() === '$$') return true;
     from = to;
     window *= 2;
   }
   return false;
 }
 
-/** `$$` alone on a line to the next such line (blank lines inside allowed); an unterminated `$$` is left to the paragraph. */
+/**
+ * A line that closes the generated ```` ```math ```` fence early: only backticks (three or more) and trailing
+ * whitespace, indented less than four columns past the opener. The reader writes the block's content between a
+ * ```` ```math ```` fence and a ```` ``` ```` fence, so a content line of that shape ends the math there (an info string
+ * such as ```` ```js ````, or `~~~`, does not).
+ */
+const isFenceCloser = (line, openerIndent) => /^`{3,}$/.test(line.text.trim()) && line.indent - openerIndent < TAB_WIDTH;
+
+/**
+ * `$$` alone on a line to the next such line (blank lines inside allowed), as the render draws it: the block also ends
+ * at a content line that is a bare ```` ``` ```` (the generated math fence closes there) and where the opener's
+ * container ends (a dedented line, the fence cannot outlive its list item), whichever comes first. An unterminated `$$`
+ * is left to the paragraph.
+ */
 const DisplayMathBlock = {
   name: 'DisplayMath',
   before: 'FencedCode',
   parse(cx, line) {
     if (line.next !== DOLLAR || !isDelimiterLine(line) || !closesAhead(cx, line)) return false;
     const from = cx.lineStart + line.pos;
+    const openerIndent = line.indent;
     let to = cx.lineStart + line.text.length;
+    let ended = false;
     let closed = false;
-    while (cx.nextLine() && line.depth >= cx.depth) {
-      to = cx.lineStart + line.text.length;
-      if (isDelimiterLine(line)) { closed = true; cx.nextLine(); break; }
+    while (cx.nextLine()) {
+      if (line.depth < cx.depth) { ended = true; break; }
+      if (line.text.trim() !== '') to = cx.lineStart + line.text.length;
+      if (isDelimiterLine(line) || isFenceCloser(line, openerIndent)) { closed = true; cx.nextLine(); break; }
     }
-    if (closed) cx.addElement(cx.elt('DisplayMath', from, to));
+    if (closed || ended) cx.addElement(cx.elt('DisplayMath', from, to));
     return true;
   },
   endLeaf: (cx, line) => line.next === DOLLAR && isDelimiterLine(line) && closesAhead(cx, line),
 };
 
-/** `$…$` (the shared Pandoc rule) and `$$…$$` within a paragraph. Escapes are Lezer's own (`\$` never reaches here). */
+/**
+ * Exclusive end of the inline math opening at the `$` at `at` of `text`, or -1: `$…$` (the shared Pandoc rule) and
+ * `$$…$$`. Escapes are Lezer's own for the parser (`\$` never reaches here); callers that scan raw text skip them.
+ */
+export function inlineMathEnd(text, at) {
+  if (text[at] !== '$') return -1;
+  if (text[at + 1] === '$') {
+    for (let j = at + 2; j < text.length - 1; j += 1) {
+      if (text[j] === '\\') j += 1;
+      else if (text[j] === '$' && text[j + 1] === '$') return j + 2;
+    }
+    return -1;
+  }
+  return matchInlineMath(text, at);
+}
+
+/** `$…$` and `$$…$$` within a paragraph. */
 const InlineMathParser = {
   name: 'InlineMath',
   before: 'InlineCode',
   parse(cx, next, pos) {
     if (next !== DOLLAR) return -1;
     const text = cx.slice(pos, cx.end);
-    if (text[1] === '$') {
-      for (let j = 2; j < text.length - 1; j += 1) {
-        if (text[j] === '\\') j += 1;
-        else if (text[j] === '$' && text[j + 1] === '$') return cx.addElement(cx.elt('InlineDisplayMath', pos, pos + j + 2));
-      }
-      return -1;
-    }
-    const end = matchInlineMath(text, 0);
-    return end < 0 ? -1 : cx.addElement(cx.elt('InlineMath', pos, pos + end));
+    const end = inlineMathEnd(text, 0);
+    if (end < 0) return -1;
+    return cx.addElement(cx.elt(text[1] === '$' ? 'InlineDisplayMath' : 'InlineMath', pos, pos + end));
   },
 };
 

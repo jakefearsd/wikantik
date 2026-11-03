@@ -1,24 +1,15 @@
 import { EditorView, ViewPlugin, Decoration } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { wikiLinkTarget } from './wikiLinkTargets';
-import { findWikiLinks, wikiLinkHref } from './wikiLinkSyntax';
+import { parseWikiLink, wikiLinkHref } from './wikiLinkSyntax';
+import { wikiLinkNodeAt, wikiLinkRanges } from './dialect/wikiLinks';
 
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 
-const CODE_NODES = new Set(['InlineCode', 'FencedCode', 'CodeBlock', 'CodeText']);
-
-function inCode(state, pos) {
-  for (let n = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) {
-    if (CODE_NODES.has(n.name)) return true;
-  }
-  return false;
-}
-
-/** Native [[wikilinks]] on one document line, as absolute ranges, skipping any inside code. */
-function wikiLinksOnLine(state, line, resolve) {
-  return findWikiLinks(line.text)
-    .map((m) => ({ url: wikiLinkHref(m, resolve?.(m.target.toLowerCase()) || undefined), from: line.from + m.from, to: line.from + m.to }))
-    .filter((l) => !inCode(state, l.from));
+/** The link of a wikilink node (code never holds one: the tree has no node for it), in the url scheme of `linkAt`. */
+function wikiLinkOf(state, node, resolve) {
+  const ref = parseWikiLink(state.sliceDoc(node.from, node.to));
+  return ref && { url: wikiLinkHref(ref, resolve?.(ref.target.toLowerCase()) || undefined), from: node.from, to: node.to };
 }
 
 /**
@@ -27,9 +18,8 @@ function wikiLinksOnLine(state, line, resolve) {
  * unresolved wikilinks keep their raw target.
  */
 export function linkAt(state, pos, resolve) {
-  // Lezer reads `[Page]` inside `[[Page]]` as a URL-less Link, so wikilinks are checked first.
-  const wiki = wikiLinksOnLine(state, state.doc.lineAt(pos), resolve).find((l) => pos >= l.from && pos <= l.to);
-  if (wiki) return wiki;
+  const wiki = wikiLinkNodeAt(syntaxTree(state), pos);
+  if (wiki) return wikiLinkOf(state, wiki, resolve);
   for (let node = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent) {
     if (node.name === 'Link' || node.name === 'Autolink') {
       const url = node.getChild('URL');
@@ -67,12 +57,8 @@ export function linkInteraction({ onHover, resolve }) {
           enter: (n) => { if ((n.name === 'Link' || n.name === 'Autolink') && n.to > n.from) ranges.push(linkMark.range(n.from, n.to)); },
         });
       }
-      const doc = view.state.doc;
       for (const { from, to } of view.visibleRanges) {
-        for (let ln = doc.lineAt(from); ln.from <= to; ln = doc.line(ln.number + 1)) {
-          for (const l of wikiLinksOnLine(view.state, ln)) ranges.push(linkMark.range(l.from, l.to));
-          if (ln.number >= doc.lines) break;
-        }
+        for (const r of wikiLinkRanges(syntaxTree(view.state), { from, to })) ranges.push(linkMark.range(r.from, r.to));
       }
       ranges.sort((a, b) => a.from - b.from);
       return Decoration.set(ranges, true);

@@ -1,11 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { markdown } from '@codemirror/lang-markdown';
+import { editorMarkdownConfig } from './editorMarkdown';
 import { fullyParsed, parseFully } from '../test/fullParse';
 import { EditorView } from '@codemirror/view';
 import { linkAt, hrefFor, linkInteraction } from './linkInteraction';
 
-const DIALECTS = [['CommonMark', {}], ['GFM', { base: markdownLanguage }]];
+// Wikilinks are nodes of the editor's own dialect, so that is the one parsed here.
+const DIALECTS = [['editor', editorMarkdownConfig]];
 
 describe.each(DIALECTS)('linkInteraction (%s)', (_label, base) => {
 const at = (doc, pos) => {

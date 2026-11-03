@@ -5,7 +5,7 @@ import { commentRangesInTree } from '../obsidianComments';
 import { inlineTagRanges, normalizeLabel } from '../dialect/inlineTags';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
-import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
+import { parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
 import { chipFor } from './chips';
 import { BLOCK_ID_RE, STANDALONE_RE, RULE_TEXT, MARKER_WITH_SPACE } from '../blockIds';
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
@@ -586,6 +586,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     }
   };
   const inlineMath = []; // `$…$` nodes in document order; typeset in the line pass, after wikilinks and plugins claim theirs
+  const wikis = []; // `[[…]]` / `![[…]]` nodes in document order; the line pass claims their ranges before plugins do
   syntaxTree(state).iterate({
     from, to,
     enter: (node) => {
@@ -606,6 +607,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
       if (name === 'DisplayMath' || name === 'InlineDisplayMath') { excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineMath') { inlineMath.push([node.from, node.to]); return false; }
+      if (name === 'WikiLink' || name === 'WikiEmbed') { wikis.push([node.from, node.to]); return false; }
       if (TEXT_BLOCK.has(name)) { const m = paragraphMarker(doc, node.node); if (m) markers.push(m); }
       if (name === 'Image') { image(node); return false; }
       const h = HEADING.exec(name);
@@ -634,9 +636,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const overlaps = (list, a, b) => list.some(([x, y]) => a < y && b > x);
   let pairs = null;
   const commentPairs = () => { pairs ??= commentsOf(state).map((r) => [r.from, r.to]); return pairs; };
-  const wikiSpecs = (ref, lineFrom, whole) => {
-    const a = lineFrom + ref.from;
-    const b = lineFrom + ref.to;
+  const wikiSpecs = (ref, a, b, whole) => {
     const open = a + (ref.embed ? 3 : 2);
     const attachment = isAttachmentRef(ref, context);
     if (ref.embed && attachment && isImageFileName.test(ref.fileName)) {
@@ -672,20 +672,20 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       hide(hStart + ref.heading.length, b);
     }
   };
+  let wikiAt = 0;
   let mathAt = 0;
   let tagAt = 0;
   // The tree decides what is a tag (not code, math, a link, a heading or plugin text); the table walk below skips cells.
   const tagRanges = inlineTagRanges(syntaxTree(state), { slice: (a, b) => doc.sliceString(a, b), labels: referenceLabels(state), from, to });
   eachLine(from, to, (line) => {
     const text = line.text;
-    if (text.includes('[[')) {
-      for (const ref of findWikiLinks(text)) {
-        const a = line.from + ref.from;
-        const b = line.from + ref.to;
-        if (overlaps(excluded, a, b)) continue;
-        claimed.push([a, b]);
-        wikiSpecs(ref, line.from, text.trim() === ref.raw);
-      }
+    while (wikiAt < wikis.length && wikis[wikiAt][0] < line.from) wikiAt += 1;
+    for (let k = wikiAt; k < wikis.length && wikis[k][0] <= line.to; k += 1) {
+      const [a, b] = wikis[k];
+      const ref = parseWikiLink(doc.sliceString(a, b));
+      if (!ref || overlaps(excluded, a, b)) continue;
+      claimed.push([a, b]);
+      wikiSpecs(ref, a, b, text.trim() === ref.raw);
     }
     if (text.includes('[{')) {
       for (const m of text.matchAll(PLUGIN)) {

@@ -361,7 +361,10 @@ ships, the controller runs `bin/reader-text-diff.sh v2.5.7 <prod copy>`, after t
   behaviour change: report it, with the render's verdict.
 - [ ] **Step 3: Delete; run `mvn -o -q install -DskipTests -pl wikantik-api,wikantik-main,wikantik-knowledge,wikantik-rest,wikantik-extract-cli -am`**
   (it compiles), then `mvn -o -q test -pl wikantik-api`.
-- [ ] **Step 4: Switch `ReaderTextSnapshotCli`'s tags to `ReaderTags`; run `bin/reader-text-diff.sh <Phase A tag or HEAD~N> docs/wikantik-pages`;** paste the output.
+- [ ] **Step 4: Switch `ReaderTextSnapshotCli`'s tags to `ReaderTags` by reflection, with an
+  `InlineTagSyntax.normalisedTags` fallback.** `bin/reader-text-diff.sh` compiles HEAD's source against the old ref's
+  jar, so a direct `ReaderTags` import fails to compile against a Phase A build. Look the class up the way comments are
+  looked up; run `bin/reader-text-diff.sh <Phase A tag or HEAD~N> docs/wikantik-pages`;** paste the output.
 - [ ] **Step 5: Commit** `refactor(api): delete the hand-written code/math/comment/tag masks (#127)`.
 
 **Phase B gate (controller):** `bin/run-tests.sh --parallel 4`; final review; prod `reader-text-diff` before deploy;

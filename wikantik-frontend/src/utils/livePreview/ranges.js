@@ -1,7 +1,6 @@
 import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
-import { findHighlights } from '../highlightSyntax';
 import { commentRangesInTree } from '../obsidianComments';
 import { findInlineTags } from '../inlineTags';
 import { parseFenceInfo } from '../fences/fenceInfo';
@@ -450,45 +449,31 @@ function finalize(doc, specs) {
   return out;
 }
 /**
- * `==highlight==` specs for the lines in [from, to]. A highlight pairs within one inline run, as the reader's does: a
- * paragraph spanning lines is scanned whole (so a pair may cross a soft line break), any other line on its own. A
- * delimiter inside code, math, a claimed construct or a comment pairs with nothing (the reader shows none of those).
+ * `==highlight==` specs for the lines in [from, to], read off the `Highlight` nodes of the syntax tree (the dialect
+ * parser decides what is code, math, text and where a pair may cross a soft line break). What is not a tree node still
+ * wins over a highlight's delimiters: a table, a claimed construct (wikilink, plugin, ...) or a comment, which is an overlay.
  */
 function highlightSpecs(state, from, to, { excluded, claimed, commentPairs, overlaps, mark, hide }) {
-  const doc = state.doc;
-  const units = [];
-  const covered = new Set();
   syntaxTree(state).iterate({
     from,
     to,
     enter: (node) => {
-      if (node.name !== 'Paragraph') return undefined;
-      const first = doc.lineAt(node.from).number;
-      const last = doc.lineAt(node.to).number;
-      if (last > first) {
-        units.push([node.from, node.to]);
-        for (let n = first; n <= last; n += 1) covered.add(n);
-      }
-      return false;
+      if (node.name !== 'Highlight') return undefined;
+      const a = node.from;
+      const b = node.to;
+      const marks = node.node.getChildren('HighlightMark');
+      if (marks.length < 2) return false;
+      // The delimiters decide, as before: the text between a pair may hold a wikilink, a comment or a plugin.
+      const closer = marks[marks.length - 1];
+      const blocked = (m) => overlaps(excluded, m.from, m.to) || overlaps(claimed, m.from, m.to) || overlaps(commentPairs(), m.from, m.to);
+      if (blocked(marks[0]) || blocked(closer)) return undefined;
+      const g = `Highlight@${a}`;
+      mark(a, b, 'cm-lp-mark', g);
+      hide(marks[0].from, marks[0].to, g);
+      hide(closer.from, closer.to, g);
+      return undefined;
     },
   });
-  const lastLine = doc.lineAt(to).number;
-  for (let n = doc.lineAt(from).number; n <= lastLine; n += 1) {
-    const line = doc.line(n);
-    if (!covered.has(n)) units.push([line.from, line.to]);
-  }
-  for (const [a, b] of units) {
-    const text = doc.sliceString(a, b);
-    if (!text.includes('==')) continue;
-    const blocked = (x, y) => overlaps(excluded, a + x, a + y) || overlaps(claimed, a + x, a + y)
-      || overlaps(commentPairs(), a + x, a + y);
-    for (const h of findHighlights(text, blocked)) {
-      const g = `Highlight@${a + h.from}`;
-      mark(a + h.from, a + h.to, 'cm-lp-mark', g);
-      hide(a + h.from, a + h.openEnd, g);
-      hide(a + h.closeStart, a + h.to, g);
-    }
-  }
 }
 export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.length, context = {} } = {}) {
   const doc = state.doc;

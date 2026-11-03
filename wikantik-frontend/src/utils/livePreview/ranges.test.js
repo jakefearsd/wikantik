@@ -262,6 +262,12 @@ describe('livePreviewSpecs — highlight', () => {
       expect(specsOf(`${doc}\n\nend`, [99]).specs.some((s) => s.cls === 'cm-lp-mark'), doc).toBe(false);
     }
   });
+  it('draws a highlight around a wikilink and a comment (only its delimiters must be free)', () => {
+    for (const doc of ['==see [[Page]] now==', '==a %%note%% b==']) {
+      const o = specsOf(`${doc}\n\nend`, [99]);
+      expect(o.specs.filter((s) => s.cls === 'cm-lp-mark').map((s) => o.state.sliceDoc(s.from, s.to)), doc).toEqual([doc]);
+    }
+  });
   it('leaves code spans and math alone', () => {
     for (const doc of ['`==x==`', '$a==b==c$', '$$\na==b==c\n$$']) {
       expect(specsOf(`${doc}\n\nend`, [99]).specs.some((s) => s.cls === 'cm-lp-mark')).toBe(false);

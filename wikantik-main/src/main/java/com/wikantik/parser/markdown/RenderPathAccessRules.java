@@ -18,30 +18,11 @@
  */
 package com.wikantik.parser.markdown;
 
-import com.vladsch.flexmark.ast.Code;
-import com.vladsch.flexmark.ast.FencedCodeBlock;
-import com.vladsch.flexmark.ast.HtmlBlockBase;
-import com.vladsch.flexmark.ast.HtmlInlineBase;
-import com.vladsch.flexmark.ast.Image;
-import com.vladsch.flexmark.ast.ImageRef;
-import com.vladsch.flexmark.ast.IndentedCodeBlock;
-import com.vladsch.flexmark.ast.Link;
-import com.vladsch.flexmark.ast.LinkRef;
-import com.vladsch.flexmark.ast.Reference;
-import com.vladsch.flexmark.ext.gitlab.GitLabInlineMath;
-import com.vladsch.flexmark.ext.wikilink.WikiNode;
-import com.vladsch.flexmark.parser.Parser;
-import com.vladsch.flexmark.util.ast.Node;
-import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.markdown.extensions.math.InlineMathParser;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.AccessRuleLinkNodePostProcessorState;
-import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.parser.LinkParsingOperations;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The access rules the wiki's <em>render path</em> reads in a page text — what {@link MarkdownParser} and its
@@ -110,20 +91,12 @@ public final class RenderPathAccessRules {
                              List< int[] > links, List< Rule > labels ) {
     }
 
-    /** Immutable and thread-safe: the rendered page's block and inline structure, without its context-bound extension. */
-    private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
-            .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
-            .build();
-
-    /** How many bodies have been parsed: a test seam, so a caller's tests can count the parses it pays for. */
-    private static final AtomicLong PARSES = new AtomicLong();
-
     private RenderPathAccessRules() {
     }
 
     /** @return how many times a body has been parsed since the class loaded (a test seam) */
     public static long parses() {
-        return PARSES.get();
+        return ReaderStructure.parses();
     }
 
     /**
@@ -140,7 +113,7 @@ public final class RenderPathAccessRules {
         if ( !mayHoldRule( body ) ) {
             return List.of();
         }
-        return parsed( body, bodyStart ).rules();
+        return ReaderStructure.of( body, bodyStart ).rules();
     }
 
     /**
@@ -154,7 +127,7 @@ public final class RenderPathAccessRules {
     public static Structure structure( final String fullText ) {
         final String text = fullText == null ? "" : fullText;
         final int bodyStart = FrontmatterParser.bodyOffset( text );
-        return parsed( text.substring( bodyStart ), bodyStart );
+        return ReaderStructure.of( text.substring( bodyStart ), bodyStart );
     }
 
     /**
@@ -169,81 +142,9 @@ public final class RenderPathAccessRules {
     public static Structure commentStrippedStructure( final String fullText ) {
         final String text = fullText == null ? "" : fullText;
         final int bodyStart = FrontmatterParser.bodyOffset( text );
-        return parsed( com.wikantik.api.markdown.ObsidianComments.strip( text.substring( bodyStart ) ), bodyStart );
+        return ReaderStructure.of( com.wikantik.api.markdown.ObsidianComments.strip( text.substring( bodyStart ) ), bodyStart );
     }
 
-    private static Structure parsed( final String body, final int bodyStart ) {
-        PARSES.incrementAndGet();
-        try {
-            return parsedStructure( MarkdownBodySource.prepare( body ), bodyStart, body.length() );
-        } catch ( final Unreadable e ) {
-            throw e;
-        } catch ( final RuntimeException | StackOverflowError e ) {
-            throw new Unreadable( "the parse of a body of " + body.length() + " characters failed: " + e, e );
-        }
-    }
-
-    private static Structure parsedStructure( final MarkdownBodySource.Prepared prepared, final int bodyStart, final int bodyLength ) {
-        final String text = prepared.text();
-        final Structure out = new Structure( new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
-                new ArrayList<>() );
-        for ( final Node node : PARSER.parse( BasedSequence.of( BudgetedText.of( text, BudgetedText.budgetFor( text.length() ) ) ) )
-                .getDescendants() ) {
-            if ( node instanceof Link link && LinkParsingOperations.isAccessRuleLink( WikantikLink.wikiLinkOf( link ) ) ) {
-                out.rules().add( rule( prepared, link, bodyStart, bodyLength ) );
-            } else if ( !RuleLabels.collect( out.labels(), prepared, node, bodyStart, bodyLength ) ) {
-                final List< int[] > kind = regionKind( out, node );
-                if ( kind != null ) {
-                    region( kind, prepared, node, bodyStart );
-                }
-            }
-        }
-        for ( final int[] block : prepared.displayMathInBody() ) {
-            out.math().add( new int[]{ bodyStart + block[ 0 ], bodyStart + block[ 1 ] } );
-        }
-        out.math().sort( java.util.Comparator.comparingInt( r -> r[ 0 ] ) );
-        return out;
-    }
-
-    private static Rule rule( final MarkdownBodySource.Prepared prepared, final Link link, final int bodyStart, final int bodyLength ) {
-        final int start = prepared.toBody( link.getStartOffset() );
-        final int end = prepared.toBody( link.getEndOffset() );
-        if ( start < 0 || end <= start || end > bodyLength ) {
-            throw new Unreadable( "a rule the renderer reads maps to no source text (" + start + ", " + end + ")", null );
-        }
-        return new Rule( bodyStart + start, bodyStart + end, AccessRuleLinkNodePostProcessorState.ruleLineOf( WikantikLink.wikiLinkOf( link ) ) );
-    }
-
-    /**
-     * Which of {@code out}'s region lists {@code node} belongs to, or {@code null}. A {@code $$} block's generated fence
-     * starts in generated markup (no body offset), so {@link #region} drops it as code: it is math, added from the
-     * rewrite's own record.
-     */
-    private static List< int[] > regionKind( final Structure out, final Node node ) {
-        if ( node instanceof Link link ) {
-            return link.getUrl().isEmpty() ? null : out.links();
-        }
-        if ( node instanceof Image || node instanceof ImageRef || node instanceof LinkRef || node instanceof Reference
-                || node instanceof WikiNode ) {
-            return out.links();
-        }
-        if ( node instanceof Code || node instanceof IndentedCodeBlock || node instanceof FencedCodeBlock ) {
-            return out.code();
-        }
-        if ( node instanceof HtmlBlockBase || node instanceof HtmlInlineBase ) {
-            return out.html();
-        }
-        return node instanceof GitLabInlineMath ? out.math() : null;
-    }
-
-    /** Adds {@code node}'s span in the page text to {@code into}, unless it starts or ends in generated markup. */
-    private static void region( final List< int[] > into, final MarkdownBodySource.Prepared prepared, final Node node, final int bodyStart ) {
-        final int start = prepared.toBody( node.getStartOffset() );
-        final int end = prepared.toBodyEnd( node.getEndOffset() );
-        if ( start >= 0 && end > start ) {
-            into.add( new int[]{ bodyStart + start, bodyStart + end } );
-        }
-    }
 
     /** The text could not be read the way the renderer reads it; the caller must fail closed. */
     public static final class Unreadable extends RuntimeException {

@@ -140,4 +140,15 @@ class ObsidianCommentsTest {
         final String text = "%% x " + ( "a $b " ).repeat( 20_000 ) + "\n%%\n";
         assertTimeoutPreemptively( java.time.Duration.ofSeconds( 5 ), () -> ObsidianComments.strip( text ) );
     }
+
+    @Test
+    void aDollarInOneTableRowNeverPairsWithOneInTheNextRow() {
+        final String text = "| a | b |\n|---|---|\n| $5 | x |\n| %%c%% | y$z |\n";
+        assertEquals( "| a | b |\n|---|---|\n| $5 | x |\n|  | y$z |\n", ObsidianComments.strip( text ) );
+    }
+
+    @Test
+    void mathAcrossPlainProseLinesStillMasksAMarker() {
+        assertEquals( "see $a\n%%x%% b$ end", ObsidianComments.strip( "see $a\n%%x%% b$ end" ) );
+    }
 }

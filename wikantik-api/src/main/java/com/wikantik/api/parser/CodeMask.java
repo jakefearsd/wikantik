@@ -40,6 +40,8 @@ public final class CodeMask {
     private int listContentIndent;
     /** Indent that the open fence's own indent was measured against (0, or the list content column). */
     private int fenceBase;
+    /** Content column of the list item the open fence sits in (0 when it sits in none): the fence ends with the item. */
+    private int fenceItemIndent;
 
     private CodeMask( final int length ) {
         this.masked = new boolean[ length ];
@@ -67,6 +69,9 @@ public final class CodeMask {
     }
 
     private void scanLine( final String line, final int offset ) {
+        if ( fenceLen > 0 && fenceItemIndent > 0 && !line.isBlank() && indent( line ) < fenceItemIndent ) {
+            fenceLen = 0;   // the first non-blank line indented less than the item's content ends the item, and the fence
+        }
         if ( fenceLen > 0 ) {
             maskRange( masked, offset, offset + line.length() );
             maskRange( fenced, offset, offset + line.length() );
@@ -169,6 +174,7 @@ public final class CodeMask {
         fenceChar = c;
         fenceLen = len;
         fenceBase = base;
+        fenceItemIndent = listContentIndent > 0 && ind >= listContentIndent ? listContentIndent : 0;
         return true;
     }
 

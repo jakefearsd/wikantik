@@ -65,4 +65,20 @@ class CodeMaskTest {
         assertFalse( m[ md.indexOf( "d" ) ] );
         assertFalse( m[ md.indexOf( "e" ) ] );
     }
+
+    @Test
+    void aFenceInAListItemEndsAtTheFirstLineIndentedLessThanTheItemContent() {
+        final String md = "3. step:\n\n    ```bash\n    run\n  after\n    ```\n";
+        final boolean[] m = CodeMask.of( md );
+        assertTrue( m[ md.indexOf( "run" ) ] );
+        assertFalse( m[ md.indexOf( "after" ) ] );
+    }
+
+    @Test
+    void aFenceInAListItemSurvivesBlankLinesAndContentIndentedLines() {
+        final String md = "- item\n  ```\n  one\n\n  two\n  ```\nout";
+        final boolean[] m = CodeMask.of( md );
+        assertTrue( m[ md.indexOf( "one" ) ] && m[ md.indexOf( "two" ) ] );
+        assertFalse( m[ md.indexOf( "out" ) ] );
+    }
 }

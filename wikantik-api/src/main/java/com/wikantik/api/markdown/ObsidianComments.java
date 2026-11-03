@@ -288,13 +288,43 @@ public final class ObsidianComments {
         }
         final boolean twice = i + 1 < text.length() && text.charAt( i + 1 ) == '$';
         final int end = twice ? inlineDisplayEnd( text, masked, i ) : InlineMath.matchEnd( text, i );
-        if ( end < 0 ) {
+        if ( end < 0 || crossesTableRows( text, i, end ) ) {
             return twice ? i + 2 : i + 1;
         }
         for ( int p = i; p < end; p++ ) {
             masked[ p ] = true;
         }
         return end;
+    }
+
+    /**
+     * Whether the span {@code [from, end)} runs over a line break with a GFM table row (a line starting, after indent and
+     * quote markers, with {@code |}) among the lines it touches: a {@code $} in one cell never pairs with one in the next row.
+     */
+    private static boolean crossesTableRows( final String text, final int from, final int end ) {
+        if ( text.indexOf( '\n', from ) < 0 || text.indexOf( '\n', from ) >= end ) {
+            return false;
+        }
+        int lineStart = text.lastIndexOf( '\n', from - 1 ) + 1;
+        while ( lineStart < end ) {
+            if ( isTableRow( text, lineStart ) ) {
+                return true;
+            }
+            final int nl = text.indexOf( '\n', lineStart );
+            if ( nl < 0 ) {
+                break;
+            }
+            lineStart = nl + 1;
+        }
+        return false;
+    }
+
+    private static boolean isTableRow( final String text, final int lineStart ) {
+        int p = lineStart;
+        while ( p < text.length() && ( text.charAt( p ) == ' ' || text.charAt( p ) == '>' || text.charAt( p ) == '\t' ) ) {
+            p++;
+        }
+        return p < text.length() && text.charAt( p ) == '|';
     }
 
     /**

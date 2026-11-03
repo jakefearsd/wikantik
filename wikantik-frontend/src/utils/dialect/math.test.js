@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { dialectParser, opaqueAt } from './index';
+import { dialectParser, opaqueAt, opaqueRanges } from './index';
+import { commentRangesInTree } from '../obsidianComments';
 import { CASES } from '../inlineMath.cases';
 
 const nodes = (text, name) => {
@@ -108,5 +109,50 @@ describe('opaqueAt boundaries and shapes', () => {
     for (const text of ['> $$\n> x\n\ntext\n$$\n', '- $$\n  x\n\npara\n$$\n']) {
       expect(opaqueAt(dialectParser.parse(text), text.indexOf('x'))).toBe(false);
     }
+  });
+});
+
+/** Best of three runs, in ms: robust against a GC pause or a loaded machine. */
+const best = (fn) => {
+  let min = Infinity;
+  for (let i = 0; i < 3; i += 1) {
+    const start = performance.now();
+    fn();
+    min = Math.min(min, performance.now() - start);
+  }
+  return min;
+};
+
+describe('parse cost is linear in the input', () => {
+  // Quadrupling the input costs ~4x when linear and ~16x when quadratic: compare ratios, never absolute milliseconds.
+  const INPUTS = [
+    ['a paragraph of $$x spans', (n) => '$$x %% '.repeat(n)],
+    ['a paragraph of $x$ spans', (n) => '$x$ '.repeat(n)],
+    ['unpairable dollars', (n) => '$a '.repeat(n)],
+    ['a page of display-math delimiter lines', (n) => '$$\n'.repeat(n)],
+    ['a page of display blocks', (n) => '$$\nx\n'.repeat(n)],
+  ];
+  it.each(INPUTS)('%s: 4x the input costs well under 16x the time', (_name, make) => {
+    const small = make(5000);
+    const large = make(20000);
+    best(() => dialectParser.parse(small)); // warm up the JIT before timing
+    const ratio = best(() => dialectParser.parse(large)) / Math.max(best(() => dialectParser.parse(small)), 0.5);
+    expect(ratio).toBeLessThan(10);
+  });
+
+  it('reading every comment marker off a tree with thousands of math spans is linear too', () => {
+    const run = (n) => {
+      const text = '$$x %% '.repeat(n);
+      const tree = dialectParser.parse(text);
+      return best(() => commentRangesInTree(text, tree));
+    };
+    run(5000);
+    expect(run(40000) / Math.max(run(10000), 0.5)).toBeLessThan(10);
+  });
+
+  it('opaqueRanges lists the outermost code and math nodes in order', () => {
+    const text = 'a $x$ b `c` d\n\n$$\ny\n$$\n\n```\nz\n```\n';
+    const tree = dialectParser.parse(text);
+    expect(opaqueRanges(tree).map(([from, to]) => text.slice(from, to))).toEqual(['$x$', '`c`', '$$\ny\n$$', '```\nz\n```']);
   });
 });

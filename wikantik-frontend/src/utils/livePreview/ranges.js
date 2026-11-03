@@ -29,7 +29,9 @@ export function commentsOf(state) {
   const tree = syntaxTree(state);
   const hit = commentCache.get(state.doc);
   if (hit && hit.tree === tree) return hit.ranges;
-  const ranges = commentRangesInTree(state.doc.toString(), tree);
+  let marked = false;
+  for (const chunk of state.doc.iter()) if (chunk.includes('%%')) { marked = true; break; }
+  const ranges = marked ? commentRangesInTree(state.doc.toString(), tree) : [];
   commentCache.set(state.doc, { tree, ranges });
   return ranges;
 }

@@ -14,7 +14,7 @@
  * Comments are hidden, not secret: this is a presentation rule, applied to the editor preview and to live preview's
  * dimming; never to what is saved.
  */
-import { dialectParser, opaqueAt } from './dialect';
+import { dialectParser, opaqueRanges } from './dialect';
 
 /**
  * `[{ from, to }]` of each comment of `text` (delimiters included, in order; an unterminated `%%` is none), reading
@@ -22,7 +22,21 @@ import { dialectParser, opaqueAt } from './dialect';
  */
 export function commentRangesInTree(text, tree) {
   if (!text || !text.includes('%%')) return [];
-  const free = (at) => !opaqueAt(tree, at) && !opaqueAt(tree, at + 1);
+  // One walk of the tree, then a binary search per marker: asking the tree for each position costs time in the number
+  // of siblings, which made a paragraph of 40000 math spans quadratic.
+  const opaque = opaqueRanges(tree);
+  const inside = (pos) => {
+    let lo = 0;
+    let hi = opaque.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (pos < opaque[mid][0]) hi = mid - 1;
+      else if (pos >= opaque[mid][1]) lo = mid + 1;
+      else return true;
+    }
+    return false;
+  };
+  const free = (at) => !inside(at) && !inside(at + 1);
   const next = (from) => {
     let at = text.indexOf('%%', from);
     while (at >= 0 && !free(at)) at = text.indexOf('%%', at + 1);

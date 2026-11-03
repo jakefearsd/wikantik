@@ -2,7 +2,7 @@ import { GFM, parser as baseParser } from '@lezer/markdown';
 import { editorFoldConfig } from '../markdownFold';
 import { mathExtension } from './math';
 
-export { opaqueAt } from './math';
+export { opaqueAt, opaqueRanges } from './math';
 
 /** The wiki-specific parser extensions layered on commonmark + GFM (grows with each dialect construct). */
 export const dialectExtensions = [mathExtension];

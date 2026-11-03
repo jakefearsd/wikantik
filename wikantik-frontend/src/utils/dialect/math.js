@@ -34,10 +34,27 @@ function closesAhead(cx, line) {
   if (!input || typeof input.read !== 'function') return false;
   const start = cx.lineStart + line.text.length + 1;
   if (start >= input.length) return false;
-  for (const raw of input.read(start, Math.min(input.length, start + LOOKAHEAD_CHARS)).split('\n')) {
-    if (raw.trim() === '') continue;
-    if (leadingWidth(raw) < line.baseIndent) return false; // the container has ended
-    if (raw.trim() === '$$') return true;
+  const end = Math.min(input.length, start + LOOKAHEAD_CHARS);
+  // Whole lines from a window that doubles: a closer one line away costs a line, not the 64 KB cap (which made a page
+  // of `$$` lines quadratic).
+  let from = start;
+  let window = 512;
+  while (from < end) {
+    let to = Math.min(end, from + window);
+    let chunk = input.read(from, to);
+    if (to < end) {
+      const nl = chunk.lastIndexOf('\n');
+      if (nl < 0) { window *= 2; continue; } // one line longer than the window
+      chunk = chunk.slice(0, nl);
+      to = from + nl + 1;
+    }
+    for (const raw of chunk.split('\n')) {
+      if (raw.trim() === '') continue;
+      if (leadingWidth(raw) < line.baseIndent) return false; // the container has ended
+      if (raw.trim() === '$$') return true;
+    }
+    from = to;
+    window *= 2;
   }
   return false;
 }
@@ -88,6 +105,19 @@ export const mathExtension = {
 };
 
 const OPAQUE = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'DisplayMath', 'InlineMath', 'InlineDisplayMath']);
+
+/** `[from, to)` of every outermost code or math node, in document order: one walk, for callers that test many positions. */
+export function opaqueRanges(tree) {
+  const out = [];
+  tree.iterate({
+    enter: (node) => {
+      if (!OPAQUE.has(node.name)) return undefined;
+      out.push([node.from, node.to]);
+      return false;
+    },
+  });
+  return out;
+}
 
 /** Whether `pos` lies inside code or math, per the tree. */
 export function opaqueAt(tree, pos) {

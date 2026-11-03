@@ -19,5 +19,6 @@
   { "name": "inside block math", "markdown": "$$\na==b==c\n$$", "noMark": true },
   { "name": "in a list item", "markdown": "- ==x==", "html": "<ul><li><mark>x</mark></li></ul>" },
   { "name": "in a heading", "markdown": "# ==x==", "html": "<h1><mark>x</mark></h1>" },
-  { "name": "escaped delimiters", "markdown": "\\==x\\==", "html": "<p>==x==</p>" }
+  { "name": "escaped delimiters", "markdown": "\\==x\\==", "html": "<p>==x==</p>" },
+  { "name": "an escaped = before a highlight leaves the highlight", "markdown": "\\===x==", "html": "<p>=<mark>x</mark></p>" }
 ]

@@ -40,6 +40,25 @@ describe('Highlight node', () => {
   });
 });
 
+describe('Highlight parser depth', () => {
+  it.each([5000, 10000])('does not throw on %i unmatched openers followed by as many closers', (n) => {
+    const text = '==a '.repeat(n) + 'a== '.repeat(n);
+    let tree;
+    expect(() => { tree = dialectParser.parse(text); }).not.toThrow();
+    expect(tree.length).toBe(text.length);
+    let found = 0;
+    tree.iterate({ enter: (node) => { if (node.name === 'Highlight') found += 1; } });
+    expect(found).toBeGreaterThan(0);
+  });
+  it('still pairs every highlight of a long paragraph of sequential pairs', () => {
+    expect(spans('==a== '.repeat(3000))).toHaveLength(3000);
+  });
+  it('treats a backslash-escaped = before a run as escaped, and an escaped backslash as not', () => {
+    expect(spans('\\===x==')).toEqual(['==x==']);
+    expect(spans('\\\\===x==')).toEqual([]);
+  });
+});
+
 describe('Highlight parser cost', () => {
   const time = (text) => {
     const t = process.hrtime.bigint();

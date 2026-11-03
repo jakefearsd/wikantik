@@ -151,4 +151,18 @@ class ObsidianCommentsTest {
     void mathAcrossPlainProseLinesStillMasksAMarker() {
         assertEquals( "see $a\n%%x%% b$ end", ObsidianComments.strip( "see $a\n%%x%% b$ end" ) );
     }
+
+    @Test
+    void aPipeLessTableIsATableAndAPipeLessLineAfterItIsNot() {
+        final String table = "Item | Price\n--- | ---\nw | $5\n%%c%% g | a$b\n";
+        assertEquals( "Item | Price\n--- | ---\nw | $5\n g | a$b\n", ObsidianComments.strip( table ) );
+        final String after = "A | B\n--- | ---\nx | y\n$a\n%%c%% b$ end\n";
+        assertEquals( after, ObsidianComments.strip( after ), "a pipe-less line ends the table, so math may span it" );
+    }
+
+    @Test
+    void mathNeverCrossesACellBorder() {
+        assertEquals( "| A | B |\n|---|---|\n| $a  | b$ |\n", ObsidianComments.strip( "| A | B |\n|---|---|\n| $a %%x%% | b$ |\n" ) );
+        assertEquals( "| A |\n|---|\n| $a\\|%%x%%b$ |\n", ObsidianComments.strip( "| A |\n|---|\n| $a\\|%%x%%b$ |\n" ) );
+    }
 }

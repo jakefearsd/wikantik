@@ -81,4 +81,12 @@ class CodeMaskTest {
         assertTrue( m[ md.indexOf( "one" ) ] && m[ md.indexOf( "two" ) ] );
         assertFalse( m[ md.indexOf( "out" ) ] );
     }
+
+    @Test
+    void aFenceInANestedListItemEndsWithTheInnerItemNotTheOuterOne() {
+        final String md = "- a\n  - b\n    ```\n    code\n  outer text\n    ```\n";
+        final boolean[] m = CodeMask.of( md );
+        assertTrue( m[ md.indexOf( "code" ) ] );
+        assertFalse( m[ md.indexOf( "outer" ) ] );
+    }
 }

@@ -22,6 +22,7 @@ import com.wikantik.api.parser.CodeMask;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Obsidian {@code %%comments%%}: the one implementation of "a comment is not reader text". A comment (inline, or spanning
@@ -271,14 +272,15 @@ public final class ObsidianComments {
 
     /** Inline {@code $…$} and {@code $$…$$} outside code and display math. */
     private static void inlineMath( final String text, final boolean[] masked ) {
+        final TableLines tables = new TableLines( text, masked );
         int i = 0;
         while ( i < text.length() ) {
-            i = inlineMathStep( text, masked, i );
+            i = inlineMathStep( text, masked, tables, i );
         }
     }
 
     /** Looks at the character at {@code i}, masks the inline math that opens there (if any), and returns where to look next. */
-    private static int inlineMathStep( final String text, final boolean[] masked, final int i ) {
+    private static int inlineMathStep( final String text, final boolean[] masked, final TableLines tables, final int i ) {
         final char c = text.charAt( i );
         if ( c == '\\' ) {
             return i + 2;
@@ -288,7 +290,7 @@ public final class ObsidianComments {
         }
         final boolean twice = i + 1 < text.length() && text.charAt( i + 1 ) == '$';
         final int end = twice ? inlineDisplayEnd( text, masked, i ) : InlineMath.matchEnd( text, i );
-        if ( end < 0 || crossesTableRows( text, i, end ) ) {
+        if ( end < 0 || tables.splits( i, end ) ) {
             return twice ? i + 2 : i + 1;
         }
         for ( int p = i; p < end; p++ ) {
@@ -298,33 +300,150 @@ public final class ObsidianComments {
     }
 
     /**
-     * Whether the span {@code [from, end)} runs over a line break with a GFM table row (a line starting, after indent and
-     * quote markers, with {@code |}) among the lines it touches: a {@code $} in one cell never pairs with one in the next row.
+     * The lines of {@code text} that belong to a GFM table block, computed once (linear). A table starts at a line with an
+     * unescaped {@code |} immediately followed by a delimiter row of the same cell count, and continues through each
+     * following line that holds an unescaped {@code |}, up to a blank line, a pipe-less line (the reader — flexmark —
+     * ends the table there, so it is a paragraph) or a line that begins another block (heading, fence, quote, list item).
+     * Cells are separate inline contexts, so math inside a table never crosses a line break nor an unescaped {@code |}.
      */
-    private static boolean crossesTableRows( final String text, final int from, final int end ) {
-        if ( text.indexOf( '\n', from ) < 0 || text.indexOf( '\n', from ) >= end ) {
+    private static final class TableLines {
+        private static final Pattern DELIMITER_CELL = Pattern.compile( "\\s*:?-+:?\\s*" );
+        private static final Pattern BLOCK_START = Pattern.compile( "^ {0,3}(#{1,6}([ \\t]|$)|```|~~~|([-*+]|\\d{1,9}[.)])([ \\t]|$))" );
+
+        private final String text;
+        private final int[] starts;
+        private final boolean[] inTable;
+
+        TableLines( final String text, final boolean[] masked ) {
+            this.text = text;
+            final List< Integer > lineStarts = new ArrayList<>();
+            lineStarts.add( 0 );
+            for ( int p = text.indexOf( '\n' ); p >= 0; p = text.indexOf( '\n', p + 1 ) ) {
+                lineStarts.add( p + 1 );
+            }
+            this.starts = lineStarts.stream().mapToInt( Integer::intValue ).toArray();
+            this.inTable = new boolean[ starts.length ];
+            if ( text.indexOf( '|' ) >= 0 ) {
+                detect( masked );
+            }
+        }
+
+        private String line( final int n ) {
+            final int end = n + 1 < starts.length ? starts[ n + 1 ] - 1 : text.length();
+            return text.substring( starts[ n ], end );
+        }
+
+        private void detect( final boolean[] masked ) {
+            int n = 0;
+            while ( n + 1 < starts.length ) {
+                if ( !masked[ Math.min( starts[ n ], masked.length - 1 ) ] && startsTable( n ) ) {
+                    final int depth = quotes( line( n ) );
+                    inTable[ n ] = true;
+                    int k = n + 1;
+                    inTable[ k ] = true;
+                    k++;
+                    while ( k < starts.length && continues( line( k ), depth ) ) {
+                        inTable[ k ] = true;
+                        k++;
+                    }
+                    n = k;
+                } else {
+                    n++;
+                }
+            }
+        }
+
+        private boolean startsTable( final int n ) {
+            final String head = content( line( n ) );
+            final String delimiter = content( line( n + 1 ) );
+            if ( quotes( line( n ) ) != quotes( line( n + 1 ) ) || !hasPipe( head ) || delimiter.isBlank() ) {
+                return false;
+            }
+            final List< String > delimiterCells = cells( delimiter );
+            if ( delimiterCells.size() != cells( head ).size() ) {
+                return false;
+            }
+            for ( final String cell : delimiterCells ) {
+                if ( !DELIMITER_CELL.matcher( cell ).matches() ) {
+                    return false;
+                }
+            }
+            return delimiterCells.size() > 1 || hasPipe( delimiter );
+        }
+
+        private static boolean continues( final String line, final int depth ) {
+            final String content = content( line );
+            return quotes( line ) == depth && !content.isBlank() && hasPipe( content ) && !BLOCK_START.matcher( content ).find();
+        }
+
+        /** The line past its quote markers and indent. */
+        private static String content( final String line ) {
+            int p = 0;
+            while ( p < line.length() && ( line.charAt( p ) == ' ' || line.charAt( p ) == '>' || line.charAt( p ) == '\t' ) ) {
+                p++;
+            }
+            return line.substring( p );
+        }
+
+        private static int quotes( final String line ) {
+            int levels = 0;
+            for ( int p = 0; p < line.length() && ( line.charAt( p ) == ' ' || line.charAt( p ) == '>' || line.charAt( p ) == '\t' ); p++ ) {
+                if ( line.charAt( p ) == '>' ) {
+                    levels++;
+                }
+            }
+            return levels;
+        }
+
+        private static boolean hasPipe( final String content ) {
+            return unescapedPipe( content, 0 ) >= 0;
+        }
+
+        private static int unescapedPipe( final String s, final int from ) {
+            for ( int p = from; p < s.length(); p++ ) {
+                if ( s.charAt( p ) == '\\' ) {
+                    p++;
+                } else if ( s.charAt( p ) == '|' ) {
+                    return p;
+                }
+            }
+            return -1;
+        }
+
+        /** The cells of a row, outer pipes optional. */
+        private static List< String > cells( final String row ) {
+            final List< String > out = new ArrayList<>();
+            final String trimmed = row.strip();
+            int from = trimmed.startsWith( "|" ) ? 1 : 0;
+            for ( int bar = unescapedPipe( trimmed, from ); bar >= 0; bar = unescapedPipe( trimmed, from ) ) {
+                out.add( trimmed.substring( from, bar ) );
+                from = bar + 1;
+            }
+            if ( from < trimmed.length() ) {
+                out.add( trimmed.substring( from ) );
+            }
+            return out;
+        }
+
+        private int lineOf( final int offset ) {
+            final int at = java.util.Arrays.binarySearch( starts, offset );
+            return at >= 0 ? at : -at - 2;
+        }
+
+        /** Whether the math span {@code [from, end)} would cross a line break or a cell border of a table block. */
+        boolean splits( final int from, final int end ) {
+            final int first = lineOf( from );
+            final int last = lineOf( end - 1 );
+            for ( int n = first; n <= last; n++ ) {
+                if ( inTable[ n ] && ( n != first || n != last ) ) {
+                    return true;
+                }
+            }
+            if ( inTable[ first ] ) {
+                return unescapedPipe( text.substring( from, end ), 0 ) >= 0;
+            }
             return false;
         }
-        int lineStart = text.lastIndexOf( '\n', from - 1 ) + 1;
-        while ( lineStart < end ) {
-            if ( isTableRow( text, lineStart ) ) {
-                return true;
-            }
-            final int nl = text.indexOf( '\n', lineStart );
-            if ( nl < 0 ) {
-                break;
-            }
-            lineStart = nl + 1;
-        }
-        return false;
-    }
-
-    private static boolean isTableRow( final String text, final int lineStart ) {
-        int p = lineStart;
-        while ( p < text.length() && ( text.charAt( p ) == ' ' || text.charAt( p ) == '>' || text.charAt( p ) == '\t' ) ) {
-            p++;
-        }
-        return p < text.length() && text.charAt( p ) == '|';
     }
 
     /**

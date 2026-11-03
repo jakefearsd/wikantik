@@ -30,5 +30,7 @@
   {"name": "inline display math $$…$$", "input": "a $$x %% y %% z$$ %%c%% d", "output": "a $$x %% y %% z$$  d"},
   {"name": "inline $$ does not span a blank line", "input": "$$a %%x\n\nb%% c$$", "output": "$$a \n\n c$$"},
   {"name": "a $ in one table row and a $ in the next are not one math span", "input": "| Item | Price |\n|---|---|\n| widget | $5 |\n| %%secret note%% gadget | a$b |\n", "output": "| Item | Price |\n|---|---|\n| widget | $5 |\n|  gadget | a$b |\n"},
-  {"name": "a fence in a list item ends with the item", "input": "3. step:\n\n    ```bash\n    run\n  %%gone%% text\n    ```\n", "output": "3. step:\n\n    ```bash\n    run\n   text\n    ```\n"}
+  {"name": "a fence in a list item ends with the item", "input": "3. step:\n\n    ```bash\n    run\n  %%gone%% text\n    ```\n", "output": "3. step:\n\n    ```bash\n    run\n   text\n    ```\n"},
+  {"name": "a pipe-less table's rows are not one math span", "input": "Item | Price\n--- | ---\nwidget | $5\n%%secret%% gadget | a$b\n", "output": "Item | Price\n--- | ---\nwidget | $5\n gadget | a$b\n"},
+  {"name": "math never crosses a table cell", "input": "| A | B |\n|---|---|\n| $a %%x%% | b$ |\n", "output": "| A | B |\n|---|---|\n| $a  | b$ |\n"}
 ]

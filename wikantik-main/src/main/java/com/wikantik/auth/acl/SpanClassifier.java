@@ -94,7 +94,7 @@ final class SpanClassifier {
         static Comments of( final String text, final int bodyStart ) {
             final List< int[] > ranges = ReaderComments.ranges( text.substring( bodyStart ) );
             return ranges.isEmpty() ? null
-                    : new Comments( ranges, text, bodyStart, RenderPathAccessRules.commentStrippedStructure( text ) );
+                    : new Comments( ranges, text, bodyStart, RenderPathAccessRules.commentStrippedStructure( text, ranges ) );
         }
 
         /** Index of the last range starting at or before {@code offset}, or -1. */

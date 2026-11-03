@@ -60,7 +60,15 @@ public final class ReaderComments {
      * @return the body without its comments, each replaced by the newlines it held; the same instance when none was removed
      */
     public static String strip( final String body ) {
-        final List< int[] > ranges = ranges( body );
+        return strip( body, ranges( body ) );
+    }
+
+    /**
+     * @param body   page body
+     * @param ranges {@link #ranges(String)} of that same body, already computed
+     * @return the body without those ranges, each replaced by the newlines it held; the same instance when {@code ranges} is empty
+     */
+    public static String strip( final String body, final List< int[] > ranges ) {
         if ( ranges.isEmpty() ) {
             return body;
         }

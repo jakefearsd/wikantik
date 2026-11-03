@@ -77,15 +77,19 @@ class ReaderCommentsCallersTest {
         }
     }
 
-    /** The measurement for the memo question: raw-body parses one save of a page holding a comment costs. */
+    /**
+     * Raw-body parses one save of a page holding a rule, a comment and a code span costs. Measured: 6 before the
+     * comment-stripped structure reused the comment ranges, 5 after. Among them: the rule structure (AccessRules), the
+     * comment ranges (ReaderComments), the comment-stripped structure the rule locking compares, and the save-path callers
+     * that read the body (block ids, references, index). The render's own flexmark parse is not counted here.
+     */
     @Test
     void parsesPerSave() throws Exception {
-        final String text = "Intro %%hiddenprobe%% text.\n\n- item ^abc\n\n`%%code%%` end\n";
+        final String text = "[{ALLOW view All}]\n\nIntro %%hiddenprobe%% text.\n\n- item ^abc\n\n`%%code%%` end\n";
         final long before = ReaderStructure.parses();
         testEngine.saveText( "CallersParses", text );
         final long perSave = ReaderStructure.parses() - before;
-        System.out.println( "parsesPerSave=" + perSave );
-        // render, block ids, access rules, references, index
         assertTrue( perSave <= 5, "one save parsed the raw body " + perSave + " times" );
     }
+
 }

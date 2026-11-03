@@ -146,8 +146,22 @@ public final class RenderPathAccessRules {
      */
     public static Structure commentStrippedStructure( final String fullText ) {
         final String text = fullText == null ? "" : fullText;
+        return commentStrippedStructure( text, ReaderComments.ranges( text.substring( FrontmatterParser.bodyOffset( text ) ) ) );
+    }
+
+    /**
+     * As {@link #commentStrippedStructure(String)} for a caller that already holds the body's comment ranges, so the body
+     * is not parsed for them a second time.
+     *
+     * @param fullText   raw page text, frontmatter included; may be {@code null}
+     * @param bodyRanges {@link ReaderComments#ranges} of that text's body
+     * @return the stripped text's structure
+     * @throws Unreadable when the stripped body cannot be parsed
+     */
+    public static Structure commentStrippedStructure( final String fullText, final java.util.List< int[] > bodyRanges ) {
+        final String text = fullText == null ? "" : fullText;
         final int bodyStart = FrontmatterParser.bodyOffset( text );
-        return ReaderStructure.of( ReaderComments.strip( text.substring( bodyStart ) ), bodyStart );
+        return ReaderStructure.of( ReaderComments.strip( text.substring( bodyStart ), bodyRanges ), bodyStart );
     }
 
 

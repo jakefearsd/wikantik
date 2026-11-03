@@ -73,10 +73,19 @@ class SpanClassifierCommentsTest {
             if ( crlf ) {
                 text = text.replace( "\n", "\r\n" );
             }
-            if ( hides != lockedInComment( text ) && hides ) {
+            if ( hides && !lockedInComment( text ) ) {
                 wrong.add( row.get( "name" ).getAsString() + ( crlf ? " (CRLF)" : "" ) );
-            } else if ( !hides && lockedInComment( text ) ) {
-                wrong.add( row.get( "name" ).getAsString() + " is literal in the render but IN_COMMENT" + ( crlf ? " (CRLF)" : "" ) );
+            } else if ( !hides ) {
+                // Observed: a literal %% leaves the page readable (Rules), except where the %% sits in inline math the
+                // reader's table keeps whole: there the rule is in math and the page locks as IN_MATH, not IN_COMMENT.
+                final AccessRules.Reading result = AccessRules.read( text );
+                final String name = row.get( "name" ).getAsString();
+                final String got = result instanceof AccessRules.Locked l
+                        ? "Locked" + l.reasons().stream().map( r -> r.shape().name() ).toList() : "Rules";
+                final String want = name.startsWith( "the reader's table does not split inline math" ) ? "Locked[IN_MATH]" : "Rules";
+                if ( !want.equals( got ) ) {
+                    wrong.add( name + ": expected " + want + " but was " + got + ( crlf ? " (CRLF)" : "" ) );
+                }
             }
         }
         assertTrue( hidden > 15, "the fixture's hidden-comment rows were not found" );

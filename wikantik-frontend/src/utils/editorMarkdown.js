@@ -1,12 +1,16 @@
-import { markdownLanguage } from '@codemirror/lang-markdown';
+import { commonmarkLanguage } from '@codemirror/lang-markdown';
+import { GFM } from '@lezer/markdown';
 import { editorFoldConfig } from './markdownFold';
+import { dialectExtensions } from './dialect';
 
 /**
- * The editor's markdown dialect: GitHub-flavoured (tables, strikethrough, task lists, autolinks) so the source
- * tree matches what the server and preview render, plus the fold-limiting parser extensions. Note:
- * `markdownLanguage` is GFM *plus* Subscript/Superscript/Emoji (`~x~`, `^x^`, `:smile:`), which the server does
- * not render; narrowing to commonmark + GFM would need `@lezer/markdown` as a new direct dependency, so the
- * superset is accepted (live preview styles none of those nodes). Used in both
- * source and live mode. Tests build states with markdown(editorMarkdownConfig).
+ * The editor's markdown dialect: commonmark plus GFM (tables, strikethrough, task lists, autolinks), the wiki's own
+ * constructs (display/inline math nodes, see `dialect/`) and the fold-limiting parser extensions. Deliberately NOT
+ * `markdownLanguage`, which adds Subscript/Superscript/Emoji (`~x~`, `^x^`, `:smile:`): the server renders none of
+ * them, and `^x^` collided with the `^id` block marker. Used in both source and live mode. Tests build states
+ * with markdown(editorMarkdownConfig).
  */
-export const editorMarkdownConfig = { base: markdownLanguage, extensions: editorFoldConfig };
+export const editorMarkdownConfig = {
+  base: commonmarkLanguage,
+  extensions: [GFM, ...dialectExtensions, ...editorFoldConfig],
+};

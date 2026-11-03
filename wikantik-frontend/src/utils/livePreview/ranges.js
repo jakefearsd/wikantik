@@ -1,7 +1,6 @@
 import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
-import { matchInlineMath } from '../inlineMath';
 import { findHighlights } from '../highlightSyntax';
 import { commentRanges } from '../obsidianComments';
 import { findInlineTags } from '../inlineTags';
@@ -17,7 +16,6 @@ const SETEXT = /^SetextHeading([12])$/;
 const FOOTNOTE_DEF = /^((?:> ?)* {0,3}(?:(?:[-*+]|\d+[.)])[ \t]+)?)\[\^([^\]\s]+)\]:/;
 const FOOTNOTE_REF = /\[\^([^\]\s]+)\]/g;
 const LINKED_URL_PARENT = new Set(['Link', 'Image', 'Autolink']);
-const BLOCK_MATH = /^\$\$[ \t]*\n[\s\S]*\n[ \t]*\$\$[ \t]*$/;
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const PLUGIN = /\[\{[^\n]*?\}\](?:\(\))?/g;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -100,8 +98,6 @@ export function activeLinesOf(state) {
   }
   return lines;
 }
-/** A paragraph that is display math: `$$` alone on its first and last line. */
-export function isBlockMathText(text) { return BLOCK_MATH.test(text); }
 const encodePath = (p) => String(p).split('/').map(encodeURIComponent).join('/');
 /** `/attach/<owner>/<file>` with every path segment percent-encoded (as remarkWikiLinks does). */
 export function attachmentUrl(owner, file) { return `/attach/${encodePath(owner)}/${encodePath(file)}`; }
@@ -181,17 +177,16 @@ function tableCandidateOf(doc, node) {
 function blockCandidateOf(doc, node, context) {
   if (node.name === 'FencedCode') return fenceCandidateOf(doc, node);
   if (node.name === 'Table') return tableCandidateOf(doc, node);
-  if (node.name !== 'Paragraph') return null;
-  const first = doc.sliceString(node.from, Math.min(node.to, node.from + 3));
-  if (!first.startsWith('$$') && !first.startsWith('![')) return null; // cheap prefix test before slicing the paragraph
   const startLine = doc.lineAt(node.from);
   const endLine = node.to <= startLine.to ? startLine : doc.lineAt(node.to);
-  const text = doc.sliceString(node.from, node.to);
-  if (isBlockMathText(text)) {
-    const tex = text.replace(/^\$\$[ \t]*\n/, '').replace(/\n[ \t]*\$\$[ \t]*$/, '');
+  if (node.name === 'DisplayMath') {
+    if (endLine.number - startLine.number < 2) return null; // `$$` straight into `$$`: nothing to typeset
+    const tex = doc.sliceString(startLine.to + 1, endLine.from - 1);
     return { kind: 'block', from: startLine.from, to: endLine.to, widget: { type: 'math', tex, display: true } };
   }
-  if (startLine !== endLine) return null;
+  if (node.name !== 'Paragraph' || startLine !== endLine) return null;
+  if (doc.sliceString(node.from, node.from + 2) !== '![') return null; // cheap prefix test before slicing the paragraph
+  const text = doc.sliceString(node.from, node.to);
   const embed = pageEmbedLine(text, context);
   return embed ? { kind: 'block', from: startLine.from, to: endLine.to, widget: { type: 'embed', target: embed.target, section: embed.heading } } : null;
 }
@@ -286,7 +281,6 @@ const TEXT_BLOCK = new Set(['Paragraph', 'Task']);
  * Visuals only: the chips this tints decide nothing — block identity is the server's (POST /blocks/draft).
  */
 function paragraphMarker(doc, node) {
-  if (doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) return null;
   const text = doc.sliceString(node.from, node.to);
   if (node.parent?.name === 'Document' && strippedToCode(doc, node.from, text)) return null;
   const beside = besideRulesMarker(text);
@@ -667,6 +661,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       addLine(line.from, n === first || (closed && n === last) ? 'cm-lp-fence' : 'cm-lp-codeblock');
     }
   };
+  const inlineMath = []; // `$…$` nodes in document order; typeset in the line pass, after wikilinks and plugins claim theirs
   syntaxTree(state).iterate({
     from, to,
     enter: (node) => {
@@ -685,7 +680,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (SKIP.has(name)) { excluded.push([node.from, node.to]); if (name === 'Table') tables.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
-      if (name === 'Paragraph' && doc.sliceString(node.from, node.from + 2) === '$$' && isBlockMathText(doc.sliceString(node.from, node.to))) { excluded.push([node.from, node.to]); return false; }
+      if (name === 'DisplayMath' || name === 'InlineDisplayMath') { excluded.push([node.from, node.to]); return false; }
+      if (name === 'InlineMath') { inlineMath.push([node.from, node.to]); return false; }
       if (TEXT_BLOCK.has(name)) { const m = paragraphMarker(doc, node.node); if (m) markers.push(m); }
       if (name === 'Image') { image(node); return false; }
       const h = HEADING.exec(name);
@@ -752,6 +748,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       hide(hStart + ref.heading.length, b);
     }
   };
+  let mathAt = 0;
   eachLine(from, to, (line) => {
     const text = line.text;
     if (text.includes('[[')) {
@@ -792,18 +789,13 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         widget(a, b, { type: 'chip', text: m[1], cls: 'cm-lp-chip cm-lp-footnote-ref', title: `Footnote ${m[1]}` });
       }
     }
-    if (text.includes('$')) {
-      for (let i = 0; i < text.length; i += 1) {
-        if (text[i] !== '$' || (i > 0 && text[i - 1] === '\\')) continue;
-        const end = matchInlineMath(text, i);
-        if (end < 0) continue;
-        const a = line.from + i;
-        const b = line.from + end;
-        if (overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
-        claimed.push([a, b]);
-        widget(a, b, { type: 'math', tex: text.slice(i + 1, end - 1), display: false });
-        i = end - 1;
-      }
+    while (mathAt < inlineMath.length && inlineMath[mathAt][0] < line.from) mathAt += 1;
+    // A span crossing a line break stays source: a decoration cannot replace a line break.
+    for (let k = mathAt; k < inlineMath.length && inlineMath[k][0] <= line.to; k += 1) {
+      const [a, b] = inlineMath[k];
+      if (b > line.to || overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
+      claimed.push([a, b]);
+      widget(a, b, { type: 'math', tex: doc.sliceString(a + 1, b - 1), display: false });
     }
     // An inline #tag reads as a chip off the caret's line: a mark only (the text is never replaced, so the caret cannot jump).
     if (text.includes('#') && inactive(line.from)) {

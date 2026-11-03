@@ -22,7 +22,7 @@ const HAS_NON_DIGIT = /[\p{L}_-]/u;
 /** An ATX heading line, also inside blockquote and list containers (the server's InlineTagSyntax.HEADING). */
 const ATX_HEADING = /^(?:\s{0,3}(?:>|[-*+]|\d{1,9}[.)]))*\s{0,3}#{1,6}\s/;
 /** Inline constructs whose text is never prose, for a table row (which the tree walk skips whole). */
-const ROW_OPAQUE = [/(`+)[^`]+?\1/g, /!?\[(?:[^\[\]\\]|\\.)*\]\((?:[^()]|\([^()]*\))*\)/g, /\[\[[^\[\]]*\]\]/g, /(?<!\S)\S+:\/\/\S+/g, /\$[^$\s][^$]*\$/g];
+const ROW_OPAQUE = [/(`+)[^`]+?\1/g, /!?\[(?:[^[\]\\]|\\.)*\]\((?:[^()]|\([^()]*\))*\)/g, /\[\[[^[\]]*\]\]/g, /(?<!\S)\S+:\/\/\S+/g, /\$[^$\s][^$]*\$/g];
 
 /**
  * The inline tags of ONE line of text, for the live preview: `[{ from, to, written, tag }]` (offsets in `text`,

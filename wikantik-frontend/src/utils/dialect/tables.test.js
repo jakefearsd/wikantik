@@ -26,6 +26,10 @@ describe('table cells follow the reader: code spans and inline math stay whole a
   it('inline math holds its pipe (rendered: one math span across the cell)', () => {
     expect(cells(`| A | B |\n${SEP}| $a %%x%% | b$ |`)).toEqual([['A', 'B'], ['$a %%x%% | b$']]);
   });
+  it('a `$$` pair is not math, so it holds no pipe (rendered: <td>$$ a</td><td>b $$</td><td>c</td>)', () => {
+    expect(cells(`| A | B |\n${SEP}| $$ a | b $$ | c |\n`)).toEqual([['A', 'B'], ['$$ a', 'b $$', 'c']]);
+    expect(cells(`| A | B |\r\n${SEP.replace('\n', '\r\n')}| $$ a | b $$ | c |\r\n`)).toEqual([['A', 'B'], ['$$ a', 'b $$', 'c']]);
+  });
   it('an unclosed backtick or a lone dollar splits at the pipe as before', () => {
     expect(cells(`| h | h |\n${SEP}| \`x | y |`)).toEqual([['h', 'h'], ['`x', 'y']]);
     expect(cells(`| h | h |\n${SEP}| $5 | x |`)).toEqual([['h', 'h'], ['$5', 'x']]);

@@ -323,6 +323,12 @@ describe('livePreviewSpecs — math and plugins', () => {
     const { specs } = specsOf('a $x+y$ b\n\nend', [3]);
     expect(specs.filter((s) => s.kind === 'widget').map((s) => s.widget)).toEqual([{ type: 'math', tex: 'x+y', display: false }]);
   });
+  it('reads `$$x$$` as the reader does: one inline-math widget over `$x$`, the outer dollars left as text', () => {
+    const { specs } = specsOf('see $$x$$ here\n\nend', [3]);
+    const widgets = specs.filter((s) => s.kind === 'widget');
+    expect(widgets.map((s) => s.widget)).toEqual([{ type: 'math', tex: 'x', display: false }]);
+    expect([widgets[0].from, widgets[0].to]).toEqual([5, 8]);
+  });
   it.each(['$5 and $10', 'costs $5 or $6 today', '$ x $', '\\$5$', '`$x$`', '$$x$ y'])('currency is never math: %s', (src) => {
     const { specs } = specsOf(`${src}\n\nend`, [3]);
     expect(specs.filter((s) => s.widget?.type === 'math' && s.widget.tex !== 'x')).toEqual([]);

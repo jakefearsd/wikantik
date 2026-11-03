@@ -28,6 +28,7 @@
   {"name": "a fence inside a blockquote ends with the quote", "input": "> ```\n> code\n\n%%gone%% x", "output": "> ```\n> code\n\n x"},
   {"name": "a comment in a blockquote outside any fence is removed", "input": "> a %%x%% b", "output": "> a  b"},
   {"name": "inline display math $$…$$", "input": "a $$x %% y %% z$$ %%c%% d", "output": "a $$x %% y %% z$$  d"},
+  {"name": "a $$ pair holds no pipe and no comment: the reader's $ is text, so the comment across the pipe is removed", "input": "| A | B |\n|---|---|\n| $$ a %%x | y%% b $$ | c |\n", "output": "| A | B |\n|---|---|\n| $$ a  b $$ | c |\n"},
   {"name": "inline $$ does not span a blank line", "input": "$$a %%x\n\nb%% c$$", "output": "$$a \n\n c$$"},
   {"name": "a $ in one table row and a $ in the next are not one math span", "input": "| Item | Price |\n|---|---|\n| widget | $5 |\n| %%secret note%% gadget | a$b |\n", "output": "| Item | Price |\n|---|---|\n| widget | $5 |\n|  gadget | a$b |\n"},
   {"name": "a fence in a list item ends with the item", "input": "3. step:\n\n    ```bash\n    run\n  %%gone%% text\n    ```\n", "output": "3. step:\n\n    ```bash\n    run\n   text\n    ```\n"},

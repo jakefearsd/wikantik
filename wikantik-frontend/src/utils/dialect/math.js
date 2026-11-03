@@ -80,18 +80,12 @@ const DisplayMathBlock = {
 };
 
 /**
- * Exclusive end of the inline math opening at the `$` at `at` of `text`, or -1: `$…$` (the shared Pandoc rule) and
- * `$$…$$` (kept for table cells, whose pipe scan is its own). Escapes are Lezer's own for the parser (`\$` never reaches here); callers that scan raw text skip them.
+ * Exclusive end of the inline math opening at the `$` at `at` of `text`, or -1: the shared Pandoc rule (`$…$`). A `$`
+ * followed by `$` is text, as in the reader's `InlineMathParser` (there is no inline `$$…$$`; the second dollar is
+ * tried on its own by the caller's next step). Escapes are Lezer's own for the parser (`\$` never reaches here);
+ * callers that scan raw text skip them.
  */
 export function inlineMathEnd(text, at) {
-  if (text[at] !== '$') return -1;
-  if (text[at + 1] === '$') {
-    for (let j = at + 2; j < text.length - 1; j += 1) {
-      if (text[j] === '\\') j += 1;
-      else if (text[j] === '$' && text[j + 1] === '$') return j + 2;
-    }
-    return -1;
-  }
   return matchInlineMath(text, at);
 }
 
@@ -105,9 +99,8 @@ const InlineMathParser = {
   before: 'InlineCode',
   parse(cx, next, pos) {
     if (next !== DOLLAR) return -1;
-    if (cx.char(pos + 1) === DOLLAR) return -1; // the first `$` of a pair is text; the second may open (below)
     const text = cx.slice(pos, cx.end);
-    const end = matchInlineMath(text, 0);
+    const end = inlineMathEnd(text, 0); // a `$` before another `$` is text; the next step tries the second
     if (end < 0) return -1;
     return cx.addElement(cx.elt('InlineMath', pos, pos + end));
   },

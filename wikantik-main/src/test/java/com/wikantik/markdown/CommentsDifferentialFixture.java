@@ -74,6 +74,14 @@ public final class CommentsDifferentialFixture {
 
     /** @return the fixture file's exact text, one case per line, so a diff names the case */
     static String render( final List< String > allowEntries ) {
+        final List< String > inputs = inputs();
+        final java.util.Set< String > known = new java.util.HashSet<>( inputs );
+        final List< String > kept = allowEntries.stream()
+                .filter( e -> known.contains( com.google.gson.JsonParser.parseString( e ).getAsJsonObject().get( "input" ).getAsString() ) ).toList();
+        return render( kept, inputs );
+    }
+
+    private static String render( final List< String > allowEntries, final List< String > inputs ) {
         final StringBuilder out = new StringBuilder();
         out.append( "{\n \"seed\": " ).append( SEED ).append( ",\n \"count\": " ).append( COUNT )
            .append( ",\n \"generator\": " ).append( GSON.toJson( GENERATOR ) )
@@ -82,17 +90,17 @@ public final class CommentsDifferentialFixture {
             out.append( i == 0 ? "\n  " : ",\n  " ).append( allowEntries.get( i ) );
         }
         out.append( allowEntries.isEmpty() ? "],\n \"cases\": [\n" : "\n ],\n \"cases\": [\n" );
-        final List< String > inputs = inputs();
         for ( int i = 0; i < inputs.size(); i++ ) {
             final String input = inputs.get( i );
             final List< int[] > ranges = ReaderComments.ranges( input );
-            out.append( "  {\"input\": " ).append( GSON.toJson( input ) ).append( ", \"ranges\": " ).append( GSON.toJson( ranges ) ).append( '}' )
+            out.append( "  {\"input\": " ).append( GSON.toJson( input ) ).append( ", \"ranges\": " ).append( GSON.toJson( ranges ) )
+               .append( ", \"rangesCrlf\": " ).append( GSON.toJson( ReaderComments.ranges( input.replace( "\n", "\r\n" ) ) ) ).append( '}' )
                .append( i + 1 < inputs.size() ? ",\n" : "\n" );
         }
         return out.append( " ]\n}\n" ).toString();
     }
 
-    /** Writes the fixture, keeping the {@code allow} entries already in the file. */
+    /** Writes the fixture, keeping the {@code allow} entries already in the file whose input is still a case. */
     public static void main( final String[] args ) throws IOException {
         Files.writeString( FILE, render( CommentsDifferentialTest.currentAllow() ), StandardCharsets.UTF_8 );
     }

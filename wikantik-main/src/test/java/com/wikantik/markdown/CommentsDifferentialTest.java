@@ -38,9 +38,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -92,119 +90,106 @@ class CommentsDifferentialTest {
         assertEquals( expected, Files.readString( CommentsDifferentialFixture.FILE ), "comments-differential.json is stale; " + refreshHint() );
     }
 
+    /**
+     * The render oracle, independent of {@code ReaderComments}. Every {@code %%} of a case (left to right, not overlapping)
+     * becomes a letters-only token, so the text holds no marker and nothing is stripped; the page is rendered, and each
+     * token's place in the HTML says what the reader made of that marker: inside {@code <code>} or a math element it is
+     * opaque, in ordinary text it is free. The comments are then the free markers paired in order (the next free marker
+     * closes, an unterminated one is literal), and must equal {@code ReaderComments.ranges}. Each case runs as stored (LF)
+     * and with CRLF line ends. A case whose token is not in the rendered text (an HTML attribute ate it) is skipped.
+     */
     @Test
-    void everyCaseRendersAsItsRangesSay() throws Exception {
-        final JsonObject root = JsonParser.parseString( Files.readString( CommentsDifferentialFixture.FILE ) ).getAsJsonObject();
-        final Set< String > allowed = new HashSet<>();
-        for ( final JsonElement e : root.getAsJsonArray( "allow" ) ) {
-            allowed.add( e.getAsJsonObject().get( "input" ).getAsString() );
-        }
-        final JsonArray cases = root.getAsJsonArray( "cases" );
+    void theRenderedPageSaysWhereTheCommentsAre() throws Exception {
+        final JsonArray cases = JsonParser.parseString( Files.readString( CommentsDifferentialFixture.FILE ) ).getAsJsonObject().getAsJsonArray( "cases" );
         final List< String > failures = new ArrayList<>();
         int checked = 0;
-        int inside = 0;
-        int outside = 0;
+        int skippedUnknown = 0;
+        int withComment = 0;
+        int opaqueMarkers = 0;
         for ( final JsonElement element : cases ) {
-            final String input = element.getAsJsonObject().get( "input" ).getAsString();
-            final List< int[] > ranges = ReaderComments.ranges( input );
-            if ( ranges.isEmpty() ) {
-                continue;
-            }
-            checked++;
-            final String hiding = withInteriorsReplaced( input, ranges );
-            if ( sameRanges( ranges, ReaderComments.ranges( hiding ) ) ) {
-                inside++;
-                final String html = render( hiding );
-                for ( int i = 0; i < ranges.size(); i++ ) {
-                    if ( html.contains( sentinelInside( i ) ) ) {
-                        failures.add( "comment " + i + " shows in " + quote( input ) + " -> " + html );
-                    }
+            final String lf = element.getAsJsonObject().get( "input" ).getAsString();
+            for ( final String input : new String[] { lf, lf.replace( "\n", "\r\n" ) } ) {
+                final List< int[] > expected = renderedRanges( input );
+                if ( expected == null ) {
+                    skippedUnknown++;
+                    continue;
                 }
-            }
-            final String showing = withMarkersAround( input, ranges );
-            if ( sameRanges( ranges, ReaderComments.ranges( showing ) ) ) {
-                outside++;
-                final String html = render( showing );
-                for ( int i = 0; i < ranges.size(); i++ ) {
-                    final int[] r = ranges.get( i );
-                    // a sentinel inside a raw-HTML attribute value is never page text (the sanitizer drops the attribute)
-                    final boolean beforeShows = inAttribute( input, ranges, r[ 0 ] ) || html.contains( sentinelBefore( i ) );
-                    final boolean afterShows = inAttribute( input, ranges, r[ 1 ] ) || html.contains( sentinelAfter( i ) );
-                    if ( !beforeShows || !afterShows ) {
-                        failures.add( "text beside comment " + i + " is hidden in " + quote( input ) + " -> " + html );
-                    }
+                checked++;
+                withComment += expected.isEmpty() ? 0 : 1;
+                final List< int[] > actual = ReaderComments.ranges( input );
+                if ( !toString( expected ).equals( toString( actual ) ) ) {
+                    failures.add( quote( input ) + ": the render says " + toString( expected ) + " but ReaderComments says " + toString( actual ) );
                 }
             }
         }
-        assertTrue( checked > 600, "only " + checked + " cases carry a comment" );
-        assertTrue( inside > 400 && outside > 400, "too few sentinel variants kept their ranges: inside=" + inside + " outside=" + outside );
+        System.out.println( "render oracle: checked=" + checked + " skippedTokenNotInText=" + skippedUnknown + " withComment=" + withComment );
         assertEquals( List.of(), failures, String.join( "\n", failures ) );
+        assertTrue( skippedUnknown < checked / 4, "the oracle skipped too much: " + skippedUnknown + " of " + ( checked + skippedUnknown ) );
+        assertTrue( withComment > 1000, "only " + withComment + " variants carry a comment" );
     }
 
-    /** Whether {@code pos} lies inside the value of a {@code <b t="…"} attribute (the generator's only raw HTML); comment text is not read. */
-    private static boolean inAttribute( final String input, final List< int[] > ranges, final int pos ) {
-        final int open = input.lastIndexOf( "<b t=\"", pos - 1 );
-        if ( open < 0 ) {
-            return false;
+    /** The comments the rendered page implies for {@code input}, or {@code null} when a marker's token is not in the page text. */
+    private List< int[] > renderedRanges( final String input ) throws Exception {
+        final List< Integer > at = new ArrayList<>();
+        final StringBuilder substituted = new StringBuilder();
+        int copied = 0;
+        for ( int p = input.indexOf( "%%" ); p >= 0; p = input.indexOf( "%%", p + 2 ) ) {
+            substituted.append( input, copied, p ).append( token( at.size() ) );
+            at.add( p );
+            copied = p + 2;
         }
-        for ( int q = input.indexOf( '"', open + 6 ); q >= 0 && q < pos; q = input.indexOf( '"', q + 1 ) ) {
-            final int at = q;
-            if ( ranges.stream().noneMatch( r -> at >= r[ 0 ] && at < r[ 1 ] ) ) {
-                return false;
+        substituted.append( input, copied, input.length() );
+        final String html = render( substituted.toString() );
+        final List< Integer > free = new ArrayList<>();
+        for ( int i = 0; i < at.size(); i++ ) {
+            final Boolean opaque = opaqueInHtml( html, token( i ) );
+            if ( opaque == null ) {
+                return null;
+            }
+            if ( !opaque ) {
+                free.add( at.get( i ) );
             }
         }
-        return true;
+        final List< int[] > ranges = new ArrayList<>();
+        for ( int i = 0; i + 1 < free.size(); i += 2 ) {
+            ranges.add( new int[] { free.get( i ), free.get( i + 1 ) + 2 } );
+        }
+        return ranges;
+    }
+
+    /** Letters only: no digit, {@code $}, backtick, {@code |} or {@code %} to change what the markup means. */
+    private static String token( final int i ) {
+        return "Zq" + (char) ( 'a' + i / 26 ) + (char) ( 'a' + i % 26 ) + "qZ";
+    }
+
+    /** {@code TRUE} when the token's first appearance in text is inside code or math, {@code FALSE} in ordinary text, {@code null} when absent from text. */
+    private static Boolean opaqueInHtml( final String html, final String token ) {
+        for ( int p = html.indexOf( token ); p >= 0; p = html.indexOf( token, p + 1 ) ) {
+            if ( html.lastIndexOf( '<', p ) > html.lastIndexOf( '>', p ) ) {
+                continue; // inside a tag (an attribute value), not text
+            }
+            return insideElement( html, p, "<code" ) || insideElement( html, p, "<span class=\"math-inline\"" )
+                    || insideElement( html, p, "<div class=\"math-display\"" );
+        }
+        return null;
+    }
+
+    private static boolean insideElement( final String html, final int pos, final String open ) {
+        final int start = html.lastIndexOf( open, pos );
+        if ( start < 0 ) {
+            return false;
+        }
+        final String name = open.substring( 1, open.indexOf( ' ' ) < 0 ? open.length() : open.indexOf( ' ' ) );
+        final int end = html.indexOf( "</" + name + ">", start );
+        return end > pos;
+    }
+
+    private static String toString( final List< int[] > ranges ) {
+        return ranges.stream().map( java.util.Arrays::toString ).toList().toString();
     }
 
     private static String refreshHint() {
         return "refresh with: mvn -o -q test -pl wikantik-main -Dtest=CommentsDifferentialTest#fixtureIsCurrent -D" + WRITE_PROPERTY + "=true";
-    }
-
-    private static String sentinelInside( final int i ) {
-        return "qZq" + i + "qZq";
-    }
-
-    private static String sentinelBefore( final int i ) {
-        return "ZKb" + i + "K";
-    }
-
-    private static String sentinelAfter( final int i ) {
-        return "ZKa" + i + "K";
-    }
-
-    /** Each comment's text between its {@code %%} pair becomes a sentinel; the line breaks it held stay. */
-    private static String withInteriorsReplaced( final String input, final List< int[] > ranges ) {
-        final StringBuilder out = new StringBuilder();
-        int copied = 0;
-        for ( int i = 0; i < ranges.size(); i++ ) {
-            final int[] r = ranges.get( i );
-            out.append( input, copied, r[ 0 ] + 2 ).append( sentinelInside( i ) );
-            for ( int p = r[ 0 ] + 2; p < r[ 1 ] - 2; p++ ) {
-                final char c = input.charAt( p );
-                if ( c == '\n' || c == '\r' ) {
-                    out.append( c );
-                }
-            }
-            copied = r[ 1 ] - 2;
-        }
-        return out.append( input, copied, input.length() ).toString();
-    }
-
-    /** A sentinel directly before and directly after each comment, outside every range. */
-    private static String withMarkersAround( final String input, final List< int[] > ranges ) {
-        final StringBuilder out = new StringBuilder();
-        int copied = 0;
-        for ( int i = 0; i < ranges.size(); i++ ) {
-            final int[] r = ranges.get( i );
-            out.append( input, copied, r[ 0 ] ).append( sentinelBefore( i ) ).append( input, r[ 0 ], r[ 1 ] ).append( sentinelAfter( i ) );
-            copied = r[ 1 ];
-        }
-        return out.append( input, copied, input.length() ).toString();
-    }
-
-    /** Same number of comments, with the same text between the markers ignored: only the count must hold. */
-    private static boolean sameRanges( final List< int[] > expected, final List< int[] > actual ) {
-        return expected.size() == actual.size();
     }
 
     private static String quote( final String s ) {

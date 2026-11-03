@@ -7,29 +7,43 @@ import { describe, expect, it } from 'vitest';
 import fixture from './__fixtures__/comments-differential.json';
 import { commentRanges } from './obsidianComments';
 
-const ALLOW_AT_COMMIT = 18;
-const allowed = new Set(fixture.allow.map((a) => a.input));
+const ALLOW_AT_COMMIT = 36;
+const key = (input, crlf) => `${crlf ? 'crlf' : 'lf'}:${input}`;
+const allowed = new Map(fixture.allow.map((a) => [key(a.input, a.crlf), a]));
+const editorRanges = (input) => commentRanges(input).map((r) => [r.from, r.to]);
 
 describe('comment ranges: editor against the server corpus', () => {
-  it('has the documented size, and every allow entry names its side and reason', () => {
+  it('has the documented size, and every allow entry names its side, reason and recorded editor output', () => {
     expect(fixture.cases).toHaveLength(fixture.count);
+    expect(allowed.size).toBe(fixture.allow.length);
     for (const a of fixture.allow) {
       expect(a.side).toBe('editor');
       expect(a.reason).toBeTruthy();
+      expect(Array.isArray(a.editorRanges)).toBe(true);
+      expect(fixture.cases.some((c) => c.input === a.input)).toBe(true);
     }
   });
 
-  it('agrees on every case that is not allow-listed', () => {
-    const mismatches = [];
-    for (const c of fixture.cases) {
-      if (allowed.has(c.input)) continue;
-      const actual = commentRanges(c.input).map((r) => [r.from, r.to]);
-      if (JSON.stringify(actual) !== JSON.stringify(c.ranges)) {
-        mismatches.push(`${JSON.stringify(c.input)}: expected ${JSON.stringify(c.ranges)} got ${JSON.stringify(actual)}`);
+  for (const crlf of [false, true]) {
+    it(`agrees on every ${crlf ? 'CRLF' : 'LF'} case, or changes exactly as its allow entry records`, () => {
+      const problems = [];
+      for (const c of fixture.cases) {
+        const input = crlf ? c.input.replace(/\n/g, '\r\n') : c.input;
+        const expected = crlf ? c.rangesCrlf : c.ranges;
+        const actual = editorRanges(input);
+        const entry = allowed.get(key(c.input, crlf));
+        const agrees = JSON.stringify(actual) === JSON.stringify(expected);
+        if (!entry && !agrees) {
+          problems.push(`${JSON.stringify(input)}: expected ${JSON.stringify(expected)} got ${JSON.stringify(actual)}`);
+        } else if (entry && agrees) {
+          problems.push(`${JSON.stringify(input)}: the editor now agrees, remove it from allow`);
+        } else if (entry && JSON.stringify(actual) !== JSON.stringify(entry.editorRanges)) {
+          problems.push(`${JSON.stringify(input)}: the editor's output changed from ${JSON.stringify(entry.editorRanges)} to ${JSON.stringify(actual)}; update the allow entry`);
+        }
       }
-    }
-    expect(mismatches.length, mismatches.slice(0, 20).join('\n')).toBe(0);
-  });
+      expect(problems.length, problems.slice(0, 20).join('\n')).toBe(0);
+    });
+  }
 
   it('only ever allow-lists fewer inputs', () => {
     expect(fixture.allow.length).toBeLessThanOrEqual(ALLOW_AT_COMMIT);

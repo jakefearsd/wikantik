@@ -53,6 +53,9 @@ public final class InlineTagSyntax {
     private static final Pattern HEADING = Pattern.compile(
             "^(?:\\s{0,3}(?:>|[-*+]|\\d{1,9}[.)]))*\\s{0,3}#{1,6}\\s.*" );
     private static final Pattern TAG = Pattern.compile( "(?<![^\\s])#([\\p{L}\\p{N}_/-]+)" );
+    /** Block-quote markers at a line start, nested, with optional spaces: the flexmark paragraph inside starts after them. */
+    private static final Pattern QUOTE_PREFIX = Pattern.compile( "^(?:\\s{0,3}>)+" );
+    private static final Pattern TAG_AT_QUOTE = Pattern.compile( "#([\\p{L}\\p{N}_/-]+)" );
     private static final Pattern NON_DIGIT = Pattern.compile( "[\\p{L}_-]" );
     private static final char MASKED = 'X';
 
@@ -163,6 +166,14 @@ public final class InlineTagSyntax {
     }
 
     private static void collect( final String line, final int lineOffset, final List< Tag > tags ) {
+        // `>#foo`: the reader's paragraph starts at the `#`, so a tag right after the quote markers (no space) counts as at a line start
+        final Matcher quote = QUOTE_PREFIX.matcher( line );
+        if ( quote.find() ) {
+            final Matcher glued = TAG_AT_QUOTE.matcher( line ).region( quote.end(), line.length() );
+            if ( glued.lookingAt() && isTagText( glued.group( 1 ) ) ) {
+                tags.add( new Tag( lineOffset + quote.end(), lineOffset + glued.end(), glued.group( 1 ), normalise( glued.group( 1 ) ) ) );
+            }
+        }
         final Matcher m = TAG.matcher( line );
         while ( m.find() ) {
             if ( isTagText( m.group( 1 ) ) ) {

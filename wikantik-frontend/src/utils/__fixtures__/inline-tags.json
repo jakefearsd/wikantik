@@ -31,5 +31,9 @@
   {"name": "a table cell starts a tag", "markdown": "| a |\n| - |\n|#foo|", "html": "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td><a class=\"tag inline-tag\" href=\"/search?tag=foo\">#foo</a></td></tr></tbody></table>", "tags": ["foo"]},
   {"name": "inside a defined reference link text", "markdown": "[see #foo][r]\n\n[r]: http://e.com", "noTag": true, "tags": []},
   {"name": "inside a plugin's text", "markdown": "[{NoSuchPlugin #x}]", "noTag": true, "tags": []},
-  {"name": "inside an access rule", "markdown": "Prose.\n[{ALLOW edit Admin #x}]", "noTag": true, "tags": []}
+  {"name": "inside an access rule", "markdown": "Prose.\n[{ALLOW edit Admin #x}]", "noTag": true, "tags": []},
+  {"name": "inside an inline link text", "markdown": "[a #t](u)", "noTag": true, "tags": []},
+  {"name": "inside an image alt", "markdown": "![alt #t](i.png)", "noTag": true, "tags": []},
+  {"name": "a tag right after a block quote marker", "markdown": ">#foo", "html": "<blockquote><p><a class=\"tag inline-tag\" href=\"/search?tag=foo\">#foo</a></p></blockquote>", "tags": ["foo"]},
+  {"name": "a tag after nested block quote markers", "markdown": "> > #bar", "html": "<blockquote><blockquote><p><a class=\"tag inline-tag\" href=\"/search?tag=bar\">#bar</a></p></blockquote></blockquote>", "tags": ["bar"]}
 ]

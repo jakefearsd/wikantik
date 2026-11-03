@@ -19,7 +19,8 @@
 package com.wikantik.markdown.extensions.inlinetags;
 
 import com.vladsch.flexmark.ast.Link;
-import com.vladsch.flexmark.ast.LinkRef;
+import com.vladsch.flexmark.ast.RefNode;
+import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.ext.wikilink.WikiLink;
 import com.vladsch.flexmark.html.HtmlWriter;
 import com.vladsch.flexmark.html.renderer.NodeRenderer;
@@ -46,8 +47,7 @@ final class InlineTagNodeRenderer implements NodeRenderer {
 
     private void render( final InlineTag node, final NodeRendererContext context, final HtmlWriter html ) {
         final String text = "#" + node.written();
-        if ( node.getAncestorOfType( Link.class, LinkRef.class, WikiLink.class, com.vladsch.flexmark.ast.Image.class,
-                com.vladsch.flexmark.ast.ImageRef.class ) != null ) {
+        if ( insideLink( node ) ) {
             html.text( text );
             return;
         }
@@ -55,6 +55,22 @@ final class InlineTagNodeRenderer implements NodeRenderer {
         html.attr( "class", "tag inline-tag" ).attr( "href", href ).withAttr().tag( "a" );
         html.text( text );
         html.tag( "/a" );
+    }
+
+    /**
+     * Whether the tag sits in text the page shows as a link: an inline link, a wikilink or an image, or a reference whose
+     * definition exists. An unresolved {@code [reference]} renders as plain text, so a tag in it is a tag (the index agrees).
+     */
+    private static boolean insideLink( final InlineTag node ) {
+        for ( Node n = node.getParent(); n != null; n = n.getParent() ) {
+            if ( n instanceof Link || n instanceof WikiLink || n instanceof com.vladsch.flexmark.ast.Image ) {
+                return true;
+            }
+            if ( n instanceof RefNode && ( ( RefNode ) n ).isDefined() ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static final class Factory implements NodeRendererFactory {

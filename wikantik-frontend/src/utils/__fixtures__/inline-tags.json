@@ -35,5 +35,9 @@
   {"name": "inside an inline link text", "markdown": "[a #t](u)", "noTag": true, "tags": []},
   {"name": "inside an image alt", "markdown": "![alt #t](i.png)", "noTag": true, "tags": []},
   {"name": "a tag right after a block quote marker", "markdown": ">#foo", "html": "<blockquote><p><a class=\"tag inline-tag\" href=\"/search?tag=foo\">#foo</a></p></blockquote>", "tags": ["foo"]},
-  {"name": "a tag after nested block quote markers", "markdown": "> > #bar", "html": "<blockquote><blockquote><p><a class=\"tag inline-tag\" href=\"/search?tag=bar\">#bar</a></p></blockquote></blockquote>", "tags": ["bar"]}
+  {"name": "a tag after nested block quote markers", "markdown": "> > #bar", "html": "<blockquote><blockquote><p><a class=\"tag inline-tag\" href=\"/search?tag=bar\">#bar</a></p></blockquote></blockquote>", "tags": ["bar"]},
+  {"name": "inside brackets that link nowhere", "markdown": "see [draft #wip] here", "html": "<p>see [draft <a class=\"tag inline-tag\" href=\"/search?tag=wip\">#wip</a>] here</p>", "tags": ["wip"]},
+  {"name": "a bracketed shortcut is not a link", "markdown": "[a #t] x", "html": "<p>[a <a class=\"tag inline-tag\" href=\"/search?tag=t\">#t</a>] x</p>", "tags": ["t"]},
+  {"name": "inside an undefined reference link text", "markdown": "[ref #t][r]", "html": "<p>[ref <a class=\"tag inline-tag\" href=\"/search?tag=t\">#t</a>][r]</p>", "tags": ["t"]},
+  {"name": "inside a defined reference link text, full form", "markdown": "[a #t][r]\n\n[r]: http://e.com", "noTag": true, "tags": []}
 ]

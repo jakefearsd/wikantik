@@ -23,7 +23,6 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.api.parser.WikiLinkSyntax;
 import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.markdown.extensions.callouts.CalloutTitle;
@@ -112,7 +111,7 @@ final class BlockModel {
                 return text;
             }
             final int bodyStart = body ? 0 : FrontmatterParser.bodyOffset( s );
-            final List< int[] > comments = ObsidianComments.ranges( s.substring( bodyStart ) );
+            final List< int[] > comments = ReaderComments.ranges( s.substring( bodyStart ) );
             if ( comments.isEmpty() ) {
                 return text;
             }

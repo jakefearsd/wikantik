@@ -42,7 +42,7 @@ final class InlineMathRule {
 
     /**
      * Applies the rule to the {@code $} at {@code dollarIndex} ({@link InlineMath#matchEnd}, the one Java copy, which
-     * {@code ObsidianComments} uses too).
+     * {@code ReaderComments} uses too).
      *
      * @return the exclusive end index of the span (just past the closing {@code $}), or -1 for no match
      */

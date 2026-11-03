@@ -18,7 +18,7 @@
  */
 package com.wikantik.auth.acl;
 
-import com.wikantik.api.markdown.ObsidianComments;
+import com.wikantik.parser.markdown.ReaderComments;
 import com.wikantik.auth.acl.AccessRules.Shape;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
 import com.wikantik.util.OffsetRanges;
@@ -92,7 +92,7 @@ final class SpanClassifier {
          * @throws RenderPathAccessRules.Unreadable when the body without its comments cannot be parsed
          */
         static Comments of( final String text, final int bodyStart ) {
-            final List< int[] > ranges = ObsidianComments.ranges( text.substring( bodyStart ) );
+            final List< int[] > ranges = ReaderComments.ranges( text.substring( bodyStart ) );
             return ranges.isEmpty() ? null
                     : new Comments( ranges, text, bodyStart, RenderPathAccessRules.commentStrippedStructure( text ) );
         }

@@ -138,7 +138,7 @@ public final class RenderPathAccessRules {
     /**
      * The structure the render sees: the body with its Obsidian {@code %%comments%%} removed, as {@link MarkdownParser}
      * parses it (the frontmatter is found in the stored text, never again in the stripped body). Offsets are in the
-     * coordinates of the stripped text: the frontmatter, then {@code ObsidianComments.strip} of the body.
+     * coordinates of the stripped text: the frontmatter, then {@code ReaderComments.strip} of the body.
      *
      * @param fullText raw page text, frontmatter included; may be {@code null}
      * @return the stripped text's structure
@@ -147,7 +147,7 @@ public final class RenderPathAccessRules {
     public static Structure commentStrippedStructure( final String fullText ) {
         final String text = fullText == null ? "" : fullText;
         final int bodyStart = FrontmatterParser.bodyOffset( text );
-        return ReaderStructure.of( com.wikantik.api.markdown.ObsidianComments.strip( text.substring( bodyStart ) ), bodyStart );
+        return ReaderStructure.of( ReaderComments.strip( text.substring( bodyStart ) ), bodyStart );
     }
 
 

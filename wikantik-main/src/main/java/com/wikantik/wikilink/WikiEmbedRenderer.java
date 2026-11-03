@@ -18,7 +18,7 @@
  */
 package com.wikantik.wikilink;
 
-import com.wikantik.api.markdown.ObsidianComments;
+import com.wikantik.parser.markdown.ReaderComments;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
@@ -174,7 +174,7 @@ public final class WikiEmbedRenderer {
         // The body of the stripped FULL text (frontmatter can change what the ACL manager counts as code); the body
         // renderer strips again, as every display render does. Its %%comments%% go first, so neither a section edge nor
         // the length cut can split one (and a block inside one is not found).
-        final String text = ObsidianComments.strip( AclDirectiveText.parseStripped( pages.getPureText( page ) ).body() );
+        final String text = ReaderComments.strip( AclDirectiveText.parseStripped( pages.getPureText( page ) ).body() );
         return EmbedSections.select( text, heading );
     }
 

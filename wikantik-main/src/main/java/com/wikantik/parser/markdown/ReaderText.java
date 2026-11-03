@@ -19,7 +19,6 @@
 package com.wikantik.parser.markdown;
 
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.markdown.ObsidianComments;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,7 +27,7 @@ import java.util.function.UnaryOperator;
 /**
  * The one funnel for <em>derived</em> text: page text as readers and derived stores (excerpts, summaries, chunks,
  * embeddings, the search index, KG extraction input, {@code ?format=md|json}) see it, as opposed to page <em>source</em>,
- * which is returned as stored (spec 1.11a). Obsidian {@code %%comments%%} ({@link ObsidianComments}) and block markers
+ * which is returned as stored (spec 1.11a). Obsidian {@code %%comments%%} ({@link ReaderComments}) and block markers
  * ({@code ^id}) are stripped here, in that order, so no consumer ever needs to change again. Comments are hidden, not
  * secret: this never feeds the access-rule reader, which reads the stored text.
  *
@@ -76,10 +75,10 @@ public final class ReaderText {
         }
         final int bodyStart = FrontmatterParser.bodyOffset( fullText );
         if ( bodyStart == 0 ) {
-            return ObsidianComments.strip( fullText );
+            return ReaderComments.strip( fullText );
         }
         final String body = fullText.substring( bodyStart );
-        final String stripped = ObsidianComments.strip( body );
+        final String stripped = ReaderComments.strip( body );
         return stripped == body ? fullText : fullText.substring( 0, bodyStart ) + stripped;
     }
 
@@ -92,7 +91,7 @@ public final class ReaderText {
      * @return the body with comments and markers removed (line count preserved); never throws
      */
     public static String derivedBody( final String body ) {
-        return derived( body, text -> BlockIds.stripBody( ObsidianComments.strip( text ) ), true );
+        return derived( body, text -> BlockIds.stripBody( ReaderComments.strip( text ) ), true );
     }
 
     /** Test seam: lets a test inject a failing derivation of a full text. */

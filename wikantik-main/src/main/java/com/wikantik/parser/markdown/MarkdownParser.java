@@ -31,7 +31,6 @@ import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.RenderDepth;
@@ -88,7 +87,7 @@ public class MarkdownParser extends MarkupParser {
         // math blocks become ```math fences for the GitLab extension (one place: RenderPathAccessRules reads the same)
         // Obsidian %%comments%% are not reader text: removed first (newlines kept), so nothing in one is parsed, linked or
         // budgeted. The access-rule reader does not go through here; it reads the stored text.
-        final String readerBody = ObsidianComments.strip( parsed.body() );
+        final String readerBody = ReaderComments.strip( parsed.body() );
         final String body = MarkdownBodySource.prepare( readerBody ).text();
 
         // Collect links from a clean AST (before JSPWiki post-processors modify URLs)

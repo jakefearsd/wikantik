@@ -2,8 +2,11 @@
 # reader-text-diff.sh <git-ref> <pagesDir>
 #
 # The corpus check before a comment-mask (or tag) change ships: shows every page whose reader-visible
-# text differs between <git-ref> (the release in production) and HEAD. Exit 1 when any page GROWS --
+# text differs between <git-ref> (the release in production) and HEAD. Exit 3 when any page GROWS --
 # the reader sees MORE text at HEAD than at <git-ref>, i.e. the change newly exposes it.
+#
+# Exit codes: 0 nothing grows; 3 at least one page GROWS; 1 or 2 usage / build / IO failure (64 bad
+# arguments). A final line `reader-text-diff: N changed, G grow, S shrink` is printed on 0 and 3.
 #
 # How: <git-ref> and HEAD are each built (mvn -o package, so ~/.m2 is never overwritten) in their own
 # temporary git worktree, so the working tree is never touched (uncommitted changes are NOT included in
@@ -51,5 +54,14 @@ snapshot_with "$WT_OLD" old "$REF"
 snapshot_with "$WT_NEW" new HEAD
 
 # the diff itself needs only Gson + the CLI class: reuse the new build
+rc=0
 java -cp "$WORK/classes-new:$WT_NEW/wikantik-extract-cli/target/wikantik-extract-cli.jar" \
-    com.wikantik.extractcli.ReaderTextSnapshotCli diff "$WORK/old.json" "$WORK/new.json"
+    com.wikantik.extractcli.ReaderTextSnapshotCli diff "$WORK/old.json" "$WORK/new.json" > "$WORK/diff.txt" || rc=$?
+cat "$WORK/diff.txt"
+if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+    echo "reader-text-diff: diff failed (exit $rc)" >&2
+    exit "$rc"
+fi
+echo "reader-text-diff: $(grep -cE '^(GROWS|SHRINKS|SAME-LENGTH) ' "$WORK/diff.txt" || true) changed," \
+     "$(grep -c '^GROWS ' "$WORK/diff.txt" || true) grow, $(grep -c '^SHRINKS ' "$WORK/diff.txt" || true) shrink"
+exit "$rc"

@@ -96,7 +96,7 @@ class ReaderTextSnapshotCliTest {
     }
 
     @Test
-    void a_page_that_shows_more_text_GROWS_and_exits_one() throws IOException {
+    void a_page_that_shows_more_text_GROWS_and_exits_three() throws IOException {
         final Path dir = pages();
         snapshot( dir, "a.json" );
         // The "new" build no longer treats the comment as hidden: the reader sees more.
@@ -105,7 +105,7 @@ class ReaderTextSnapshotCliTest {
 
         final int exit = ReaderTextSnapshotCli.diff( tmp.resolve( "a.json" ), tmp.resolve( "b.json" ), out );
 
-        assertEquals( 1, exit );
+        assertEquals( 3, exit );
         final String text = output();
         assertTrue( text.startsWith( "GROWS Commented comments 1→0" ), text );
     }
@@ -113,14 +113,36 @@ class ReaderTextSnapshotCliTest {
     @Test
     void a_page_that_shows_less_text_SHRINKS_and_exits_zero() throws IOException {
         final Path dir = pages();
-        snapshot( dir, "b.json" );
-        Files.writeString( dir.resolve( "Commented.md" ), "Before hidden after\r\n" );
+        snapshot( dir, "before.json" );
+        // The "new" build shows the reader less of this page than the old one did.
+        Files.writeString( dir.resolve( "Plain.md" ), "Just\n" );
+        snapshot( dir, "after.json" );
+
+        final int exit = ReaderTextSnapshotCli.diff( tmp.resolve( "before.json" ), tmp.resolve( "after.json" ), out );
+
+        assertEquals( 0, exit );
+        assertTrue( output().startsWith( "SHRINKS Plain" ), output() );
+    }
+
+    @Test
+    void pages_in_only_one_snapshot_are_listed_and_do_not_fail_the_diff() throws IOException {
+        final Path dir = pages();
         snapshot( dir, "a.json" );
+        Files.delete( dir.resolve( "Plain.md" ) );
+        Files.writeString( dir.resolve( "Fresh.md" ), "new page\n" );
+        snapshot( dir, "b.json" );
 
         final int exit = ReaderTextSnapshotCli.diff( tmp.resolve( "a.json" ), tmp.resolve( "b.json" ), out );
 
         assertEquals( 0, exit );
-        assertTrue( output().startsWith( "SHRINKS Commented" ), output() );
+        assertEquals( "ONLY-IN-A Plain\nONLY-IN-B Fresh\n", output().replace( "\r\n", "\n" ) );
+    }
+
+    @Test
+    void usage_and_io_errors_have_their_own_exit_codes() {
+        assertEquals( 1, ReaderTextSnapshotCli.run( new String[] { "bogus" } ) );
+        assertEquals( 2, ReaderTextSnapshotCli.run( new String[] { "diff", tmp.resolve( "nope-a.json" ).toString(),
+                tmp.resolve( "nope-b.json" ).toString() } ) );
     }
 
     @Test
@@ -135,6 +157,6 @@ class ReaderTextSnapshotCliTest {
         final String text = output();
         assertFalse( text.isEmpty() );
         assertTrue( text.contains( "+[beta]" ), text );
-        assertEquals( 1, exit, "the visible text grew, so this is a GROWS" );
+        assertEquals( 3, exit, "the visible text grew, so this is a GROWS" );
     }
 }

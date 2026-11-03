@@ -51,8 +51,11 @@ import java.util.stream.Stream;
  *
  *  <pre>
  *  ReaderTextSnapshotCli snapshot &lt;pagesDir&gt; &lt;out.json&gt;
- *  ReaderTextSnapshotCli diff &lt;a.json&gt; &lt;b.json&gt;      (exit 1 when any page GROWS from a to b)
+ *  ReaderTextSnapshotCli diff &lt;a.json&gt; &lt;b.json&gt;
  *  </pre>
+ *
+ *  <p>Exit codes: {@code 0} success (for {@code diff}: nothing grows), {@code 3} {@code diff} found a page that
+ *  GROWS from a to b, {@code 1} usage error, {@code 2} I/O or other failure.</p>
  *
  *  <p>The reader's comment parse is looked up <b>by reflection</b>: {@code ReaderComments} where the
  *  build has it, otherwise {@code ObsidianComments}, which every earlier release has. That is what lets
@@ -66,6 +69,9 @@ public final class ReaderTextSnapshotCli {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final String[] COMMENT_CLASSES = {
         "com.wikantik.parser.markdown.ReaderComments", "com.wikantik.api.markdown.ObsidianComments" };
+
+    /** Exit code of {@code diff} when a page GROWS; distinct from usage (1) and failure (2). */
+    public static final int EXIT_GROWS = 3;
 
     private ReaderTextSnapshotCli() {
     }
@@ -144,7 +150,7 @@ public final class ReaderTextSnapshotCli {
      *  Prints one line per changed page, {@code GROWS|SHRINKS|SAME-LENGTH page comments a->b tags +[..] -[..]},
      *  comparing {@code a} (before) to {@code b} (after).
      *
-     *  @return 1 when any page GROWS (the reader sees more text in {@code b}), else 0
+     *  @return {@link #EXIT_GROWS} when any page GROWS (the reader sees more text in {@code b}), else 0
      */
     public static int diff( final Path a, final Path b, final PrintStream out ) throws IOException {
         final JsonObject before = JsonParser.parseString( Files.readString( a, StandardCharsets.UTF_8 ) ).getAsJsonObject();
@@ -158,7 +164,7 @@ public final class ReaderTextSnapshotCli {
             grows |= comparePage( name, before.getAsJsonObject( name ), after.getAsJsonObject( name ), out );
         }
         after.keySet().stream().filter( n -> !before.has( n ) ).sorted().forEach( n -> out.println( "ONLY-IN-B " + n ) );
-        return grows ? 1 : 0;
+        return grows ? EXIT_GROWS : 0;
     }
 
     private static boolean comparePage( final String name, final JsonObject x, final JsonObject y, final PrintStream out ) {
@@ -189,14 +195,25 @@ public final class ReaderTextSnapshotCli {
         return values;
     }
 
-    public static void main( final String[] args ) throws IOException {
-        if ( args.length == 3 && "snapshot".equals( args[ 0 ] ) ) {
-            snapshot( Path.of( args[ 1 ] ), Path.of( args[ 2 ] ) );
-        } else if ( args.length == 3 && "diff".equals( args[ 0 ] ) ) {
-            System.exit( diff( Path.of( args[ 1 ] ), Path.of( args[ 2 ] ), System.out ) );
-        } else {
-            System.err.println( "usage: ReaderTextSnapshotCli snapshot <pagesDir> <out.json> | diff <a.json> <b.json>" );
-            System.exit( 64 );
+    public static void main( final String[] args ) {
+        System.exit( run( args ) );
+    }
+
+    static int run( final String[] args ) {
+        try {
+            if ( args.length == 3 && "snapshot".equals( args[ 0 ] ) ) {
+                snapshot( Path.of( args[ 1 ] ), Path.of( args[ 2 ] ) );
+                return 0;
+            }
+            if ( args.length == 3 && "diff".equals( args[ 0 ] ) ) {
+                return diff( Path.of( args[ 1 ] ), Path.of( args[ 2 ] ), System.out );
+            }
+        } catch ( final IOException | RuntimeException e ) {
+            System.err.println( "ReaderTextSnapshotCli failed: " + e );
+            return 2;
         }
+        System.err.println( "usage: ReaderTextSnapshotCli snapshot <pagesDir> <out.json> | diff <a.json> <b.json>\n"
+                            + "exit: 0 ok / nothing grows, 3 diff found GROWS, 1 usage, 2 failure" );
+        return 1;
     }
 }

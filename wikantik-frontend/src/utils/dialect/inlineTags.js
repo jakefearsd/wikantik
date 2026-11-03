@@ -13,6 +13,19 @@ const pluginSpansIn = (cx) => {
   return spans;
 };
 
+/** Whether `at` lies in one of the sorted, disjoint `spans` (binary search: a run may hold tens of thousands). */
+const inSpan = (spans, at) => {
+  let lo = 0;
+  let hi = spans.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (at < spans[mid][0]) hi = mid - 1;
+    else if (at >= spans[mid][1]) lo = mid + 1;
+    else return true;
+  }
+  return false;
+};
+
 /**
  * An inline `#tag` as a leaf node at its `#`. The character rule is `tagEndAt` (inlineTags.js), the one the preview pane
  * shares; a run starts a line (a paragraph, or a table cell, whose `|` ends the previous cell). Text inside a `[{…}]`
@@ -26,7 +39,7 @@ const InlineTagParser = {
     if (next !== HASH) return -1;
     const at = pos - cx.offset;
     const end = tagEndAt(cx.text, at);
-    if (end < 0 || pluginSpansIn(cx).some(([a, b]) => at >= a && at < b)) return -1;
+    if (end < 0 || inSpan(pluginSpansIn(cx), at)) return -1;
     return cx.addElement(cx.elt('InlineTag', pos, end + cx.offset));
   },
 };

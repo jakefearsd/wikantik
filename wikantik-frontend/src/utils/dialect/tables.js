@@ -123,6 +123,11 @@ class TableParser {
 /**
  * GFM tables as the reader splits them: the `Table` block of `@lezer/markdown`'s GFM, replaced by name, with a row
  * splitter that keeps a code span or inline math span whole across a pipe. Node names are GFM's own.
+ *
+ * Known limit: a same-name spec replaces `parse` and `leaf` but GFM's own `endLeaf` stays registered (the config API
+ * cannot remove it, and its table class is not exported to test for). It splits rows with the stock splitter, so a
+ * paragraph directly followed by a header row whose code span or math holds a pipe, over a delimiter row whose cell count
+ * matches only under the stock split, is cut after the paragraph and the header row becomes text, not a table.
  */
 export const tableExtension = {
   parseBlock: [{

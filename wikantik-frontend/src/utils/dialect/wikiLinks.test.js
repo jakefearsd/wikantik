@@ -116,6 +116,20 @@ describe('WikiLink and code spans', () => {
   }, LINEAR_COST_TIMEOUT_MS);
 });
 
+describe('WikiLink code-span lookup cost', () => {
+  it('links with unclosed backtick runs of ever-longer lengths stay linear in the text', () => {
+    // One link per run length k = 1..K, so no run has an equal-length closer: each lookup used to scan to the end of the
+    // paragraph (K links x K^2/2 characters). The text is about n characters; 16x the text must cost well under 16^1.25x.
+    const make = (n) => {
+      let out = '';
+      for (let k = 1; out.length < n; k += 1) out += `[[a${'`'.repeat(k)}b]] `;
+      return out;
+    };
+    const { ratio } = linearCost(make, parse, { small: 4000, factor: 16 });
+    expect(ratio).toBeLessThan(16 ** 1.25);
+  }, LINEAR_COST_TIMEOUT_MS);
+});
+
 describe('WikiLink parser cost', () => {
   it.each(['[[', '[[a', ']]', '[[a|', '![[', '[[a]]', '![[a|b '])('%j repeated stays linear', (unit) => {
     const { ratio, bound } = linearCost((n) => unit.repeat(n), parse, { small: 4000, factor: 5 });

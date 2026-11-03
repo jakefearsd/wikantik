@@ -31,15 +31,41 @@ function runLength(text, at) {
   return n;
 }
 
-/** Where the next backtick run of exactly `n` characters at or after `at` starts, or -1. */
-function closerOf(text, at, n) {
-  for (let j = at; j < text.length;) {
+let runsText = null;
+let runsByLength = null;
+
+/**
+ * The start of every backtick run of `text`, grouped by run length, ascending. Built once per inline block (the parser
+ * asks for each link of a paragraph with the same text), so finding a run's closer is a binary search, not a scan to
+ * the end of the block: links with unclosed runs of many different lengths stay linear.
+ */
+function runsOf(text) {
+  if (runsText === text) return runsByLength;
+  const byLength = new Map();
+  for (let j = 0; j < text.length;) {
     if (text.charCodeAt(j) !== BACKTICK) { j += 1; continue; }
     const m = runLength(text, j);
-    if (m === n) return j;
+    if (!byLength.has(m)) byLength.set(m, []);
+    byLength.get(m).push(j);
     j += m;
   }
-  return -1;
+  runsText = text;
+  runsByLength = byLength;
+  return byLength;
+}
+
+/** Where the next backtick run of exactly `n` characters at or after `at` starts, or -1. */
+function closerOf(text, at, n) {
+  const starts = runsOf(text).get(n);
+  if (!starts) return -1;
+  let lo = 0;
+  let hi = starts.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (starts[mid] < at) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo < starts.length ? starts[lo] : -1;
 }
 
 /**

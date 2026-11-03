@@ -27,27 +27,52 @@ final class MathMask {
     private MathMask() {
     }
 
-    /** A line of only {@code $$} opens a display block that the next such line closes (code lines excepted). */
+    /**
+     * A line of only {@code $$} opens a display block that the next such line closes (code lines excepted). An opener
+     * with no closing line after it masks nothing: the reader's display-math pass needs both delimiters, so an
+     * unterminated {@code $$} is plain text there.
+     */
     static void displayMath( final String text, final boolean[] masked ) {
-        boolean open = false;
         int offset = 0;
         while ( offset <= text.length() ) {
-            int end = text.indexOf( '\n', offset );
-            if ( end < 0 ) {
-                end = text.length();
-            }
-            final boolean fence = !open && masked[ Math.min( offset, masked.length - 1 ) ] && end > offset;
-            final boolean delimiter = !fence && "$$".equals( text.substring( offset, end ).strip() );
-            if ( open || delimiter ) {
-                for ( int p = offset; p < end; p++ ) {
+            final int end = lineEnd( text, offset );
+            final boolean fence = masked[ Math.min( offset, masked.length - 1 ) ] && end > offset;
+            if ( !fence && isDelimiter( text, offset, end ) ) {
+                final int closer = nextDelimiter( text, end + 1 );
+                if ( closer < 0 ) {
+                    return;
+                }
+                final int closerEnd = lineEnd( text, closer );
+                for ( int p = offset; p < closerEnd; p++ ) {
                     masked[ p ] = true;
                 }
+                offset = closerEnd + 1;
+            } else {
+                offset = end + 1;
             }
-            if ( delimiter ) {
-                open = !open;
+        }
+    }
+
+    private static int lineEnd( final String text, final int offset ) {
+        final int end = text.indexOf( '\n', offset );
+        return end < 0 ? text.length() : end;
+    }
+
+    private static boolean isDelimiter( final String text, final int offset, final int end ) {
+        return "$$".equals( text.substring( offset, end ).strip() );
+    }
+
+    /** Start offset of the first {@code $$}-only line at or after {@code from}, or -1. */
+    private static int nextDelimiter( final String text, final int from ) {
+        int offset = from;
+        while ( offset <= text.length() ) {
+            final int end = lineEnd( text, offset );
+            if ( isDelimiter( text, offset, end ) ) {
+                return offset;
             }
             offset = end + 1;
         }
+        return -1;
     }
 
     /** Inline {@code $…$} and {@code $$…$$} outside code and display math. */

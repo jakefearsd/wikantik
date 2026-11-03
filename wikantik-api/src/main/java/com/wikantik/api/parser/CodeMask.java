@@ -28,6 +28,12 @@ public final class CodeMask {
 
     private static final Pattern LIST_ITEM = Pattern.compile( "^\\s*([-*+]|\\d{1,9}[.)])\\s.*" );
 
+    /** A line that cannot continue a paragraph's inline code: an ATX heading. */
+    private static final Pattern HEADING = Pattern.compile( "^ {0,3}#{1,6}(\\s.*)?$" );
+    /** A thematic break or setext underline: closes the paragraph it follows. */
+    private static final Pattern RULE = Pattern.compile( "^ {0,3}(=+|-+|(\\*\\s*){3,}|(_\\s*){3,})\\s*$" );
+
+    private final String body;
     private final boolean[] masked;
     /** Offsets inside a fenced block only (fence lines included), a subset of {@link #masked}. */
     private final boolean[] fenced;
@@ -43,9 +49,15 @@ public final class CodeMask {
     /** Content column of the list item the open fence sits in (0 when it sits in none): the fence ends with the item. */
     private int fenceItemIndent;
 
-    private CodeMask( final int length ) {
-        this.masked = new boolean[ length ];
-        this.fenced = new boolean[ length ];
+    /** Start offset of the paragraph run whose inline code is still unpaired (-1 when none) and the end of its last line. */
+    private int paraStart = -1;
+    private int paraEnd;
+    private boolean paraQuote;
+
+    private CodeMask( final String body ) {
+        this.body = body;
+        this.masked = new boolean[ body.length() ];
+        this.fenced = new boolean[ body.length() ];
     }
 
     /** Marks every offset inside code: fenced blocks, indented code blocks and inline backtick spans. */
@@ -59,12 +71,13 @@ public final class CodeMask {
     }
 
     private static CodeMask scan( final String body ) {
-        final CodeMask mask = new CodeMask( body.length() );
+        final CodeMask mask = new CodeMask( body );
         int offset = 0;
         for ( final String line : body.split( "\n", -1 ) ) {
             mask.scanLine( line, offset );
             offset += line.length() + 1;
         }
+        mask.flushParagraph();
         return mask;
     }
 
@@ -73,14 +86,17 @@ public final class CodeMask {
             fenceLen = 0;   // the first non-blank line indented less than the item's content ends the item, and the fence
         }
         if ( fenceLen > 0 ) {
+            flushParagraph();
             maskRange( masked, offset, offset + line.length() );
             maskRange( fenced, offset, offset + line.length() );
             if ( closesFence( line ) ) {
                 fenceLen = 0;
             }
         } else if ( line.isBlank() ) {
+            flushParagraph();
             sawBlank = true;
         } else if ( isIndentedCode( line ) ) {
+            flushParagraph();
             inIndented = true;
             sawBlank = false;
             maskRange( masked, offset, offset + line.length() );
@@ -95,10 +111,40 @@ public final class CodeMask {
         lastNonBlank = line;
         trackListContext( line );
         if ( opensFence( line ) ) {
+            flushParagraph();
             maskRange( masked, offset, offset + line.length() );
             maskRange( fenced, offset, offset + line.length() );
         } else {
-            maskInlineCode( masked, line, offset );
+            extendParagraph( line, offset );
+        }
+    }
+
+    /**
+     * Adds a prose line to the open paragraph run, first closing the run when the line starts a new block (heading,
+     * list item, table row, block-quote marker change). A code span may cross line endings inside one run, so the
+     * run is paired as a whole when it ends.
+     */
+    private void extendParagraph( final String line, final int offset ) {
+        final boolean quote = line.stripLeading().startsWith( ">" );
+        final boolean table = line.indexOf( '|' ) >= 0;
+        final boolean item = LIST_ITEM.matcher( line ).matches();
+        if ( paraStart >= 0 && ( quote != paraQuote || table || item || HEADING.matcher( line ).matches() ) ) {
+            flushParagraph();
+        }
+        if ( paraStart < 0 ) {
+            paraStart = offset;
+            paraQuote = quote;
+        }
+        paraEnd = offset + line.length();
+        if ( table || RULE.matcher( line ).matches() || HEADING.matcher( line ).matches() ) {
+            flushParagraph();
+        }
+    }
+
+    private void flushParagraph() {
+        if ( paraStart >= 0 ) {
+            maskInlineCode( masked, body.substring( paraStart, paraEnd ), paraStart );
+            paraStart = -1;
         }
     }
 

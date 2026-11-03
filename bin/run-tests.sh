@@ -10,8 +10,9 @@
 #     advisory can appear with no code change, so npm audit only WARNS on a normal
 #     run and FAILS under --all (the release run). PMD runs after Phase 1, not
 #     before, because it resolves sibling modules from the freshly installed jars.
-#     Then the frontend's vitest suite with its coverage ratchet (~25s, fails the
-#     run): Maven never runs vitest, so this is the only gate that does.
+#     Then the frontend's eslint and vitest suite with its coverage ratchet (~30s,
+#     both fail the run): Maven runs neither, so this is the only LOCAL gate that
+#     does (CI's Quality Gates run them too).
 #   Phase 2 (IT):   each integration-test module in turn — SEQUENTIALLY by
 #     default. Each runs with `-pl <module>` and NO `-am`, so the ~6000 unit
 #     tests are NOT re-run during the IT phase (they already passed and are
@@ -87,6 +88,7 @@ MODES (default, no args: the default gate = unit, then default-gate IT modules)
 STATIC CHECKS (after the unit phase, whenever it runs)
   PMD complexity ratchet  fails the run on any violation not in the baseline
   npm audit               warns on a normal run; fails under --all
+  eslint                  frontend lint (as CI's Quality Gates); fails the run
   vitest --coverage       frontend unit suite + coverage thresholds; fails the run
 
 OPTIONS
@@ -513,8 +515,19 @@ if [ "$RUN_UNIT" = 1 ] && [ "$unit_phase_rc" -eq 0 ]; then
     echo "        (log: ${audit_log})" | tee -a "$REPORT"
   fi
 
-  # The frontend unit suite and its coverage ratchet (vite.config.js thresholds). Maven never runs vitest, so
-  # without this step the gate passed with a red or under-covered frontend.
+  # The frontend lint and unit suite with its coverage ratchet (vite.config.js thresholds) — what CI's Quality
+  # Gates run. Maven never runs either, so without these steps this local gate passed with a red frontend.
+  echo ">>> Static: eslint (wikantik-frontend)"
+  eslint_log="${LOG_DIR}/static-eslint.log"
+  if ( cd wikantik-frontend && npx --no-install eslint . ) > "$eslint_log" 2>&1; then
+    echo "PASS  Static: eslint" | tee -a "$REPORT"
+  else
+    overall_rc=1
+    echo "FAIL  Static: eslint" | tee -a "$REPORT"
+    grep -E 'error' "$eslint_log" | head -20 | sed 's/^/        /' | tee -a "$REPORT"
+    echo "        (log: ${eslint_log})" | tee -a "$REPORT"
+  fi
+
   echo ">>> Static: vitest --coverage (wikantik-frontend)"
   vitest_log="${LOG_DIR}/static-vitest.log"
   if ( cd wikantik-frontend && npx --no-install vitest run --coverage ) > "$vitest_log" 2>&1; then

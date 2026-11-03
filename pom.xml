@@ -983,7 +983,10 @@
         </executions>
       </plugin>
 
-      <!-- Clean build output outside target/ so it is not scanned by tools -->
+      <!-- Clean build output outside target/ so it is not scanned by tools. node_modules is deliberately NOT cleaned:
+           wikantik-frontend/scripts/ensure-deps.mjs reinstalls it (npm ci) whenever package-lock.json or package.json
+           changes, and skips the reinstall otherwise. The Docker build never sees it (.dockerignore **/node_modules/),
+           so images always run a fresh npm ci. -->
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
         <inherited>false</inherited>
@@ -991,9 +994,6 @@
           <filesets>
             <fileset>
               <directory>${project.basedir}/wikantik-frontend/dist</directory>
-            </fileset>
-            <fileset>
-              <directory>${project.basedir}/wikantik-frontend/node_modules</directory>
             </fileset>
           </filesets>
         </configuration>

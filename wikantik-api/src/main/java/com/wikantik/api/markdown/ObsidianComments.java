@@ -47,8 +47,9 @@ import java.util.regex.Pattern;
  * line becomes blank, so an indented rule after it is code to the render), the page locks too.
  *
  * <p>Linear in the text: a text with no {@code %%} costs one {@code indexOf} and is returned as the very same instance.
- * The editor's copy, {@code obsidianComments.js}, follows the same rules, pinned by the shared fixture
- * {@code comments.json}.
+ * The editor ({@code obsidianComments.js}) applies the same contract but takes code and math from its syntax tree
+ * (CommonMark/GFM structure) rather than this hand mask; the shared fixture {@code comments.json} pins the two together,
+ * and a case where this mask and real block structure disagree (#126: table rows, list-item fences) is a defect here.
  */
 public final class ObsidianComments {
 

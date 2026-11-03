@@ -43,5 +43,6 @@
   {"name": "a code span in a table cell holds its pipe-split text: the secret in it stays", "input": "| h | h |\n|---|---|\n| `x | %%secret%% | y` |", "output": "| h | h |\n|---|---|\n| `x | %%secret%% | y` |"},
   {"name": "a table inside a list item: a dollar in one cell opens no math across the cells", "input": "- | a | b |\n  |---|---|\n  | $5 | x |\n  | %%secret%% | y$ |", "output": "- | a | b |\n  |---|---|\n  | $5 | x |\n  |  | y$ |"},
   {"name": "display math in a list item ends where the item does: a comment after it is removed", "input": "- item\n  $$\n  x\ny %%secret%%\n  $$\n- next\n", "output": "- item\n  $$\n  x\ny \n  $$\n- next\n"},
-  {"name": "a display math block whose first line is a fence is empty: a comment after it is removed", "input": "$$\n```\n%%secret%%\n```\n$$\n", "output": "$$\n```\n\n```\n$$\n"}
+  {"name": "a display math block whose first line is a fence is empty: a comment after it is removed", "input": "$$\n```\n%%secret%%\n```\n$$\n", "output": "$$\n```\n\n```\n$$\n"},
+  {"name": "a dollar inside a wikilink opens math that closes after it: nothing is hidden", "input": "[[Note $x]] %%secret%% y$ z", "output": "[[Note $x]] %%secret%% y$ z"}
 ]

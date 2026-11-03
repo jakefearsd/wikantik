@@ -116,6 +116,36 @@ describe('WikiLink and code spans', () => {
   }, LINEAR_COST_TIMEOUT_MS);
 });
 
+describe('WikiLink and inline math', () => {
+  // The reader lets an inline-math span win over a wikilink whose text opens it, exactly as a code span does.
+  const crlf = (t) => t.replace(/\n/g, '\r\n');
+  it.each([
+    ['[[Note $x]] %%secret%% y$ z', []],
+    ['[[Note $x]] y$ z', []],
+    ['[[a $x$ b]] and [[c]]', ['[[a $x$ b]]', '[[c]]']],
+    ['[[Cost 5$]] and 3', ['[[Cost 5$]]']],
+    ['[[a \\$x]] y$', ['[[a \\$x]]']],
+    ['[[a $ x]] y$ z', ['[[a $ x]]']],
+  ])('%j', (text, expected) => {
+    expect(links(text)).toEqual(expected);
+    expect(links(crlf(text))).toEqual(expected);
+  });
+  it('a line break before the closing dollar keeps the paragraph, so the math still wins', () => {
+    expect(links('[[Note $x]] a\nb$ z')).toEqual([]);
+    expect(links('[[Note $x]] a\r\nb$ z')).toEqual([]);
+  });
+  it('stays linear with many dollars in link text', () => {
+    const make = (n) => '[[a $b]] '.repeat(n);
+    const { ratio, bound } = linearCost(make, parse, { small: 4000, factor: 5 });
+    expect(ratio).toBeLessThan(bound);
+    // one link whose math opener closes far past it, and one whose text is nothing but dollars
+    for (const shape of [(n) => `[[a$b]] ${'word '.repeat(n)}c$ d`, (n) => `[[${'$ '.repeat(n)}]] x`]) {
+      const r = linearCost(shape, parse, { small: 4000, factor: 5 });
+      expect(r.ratio).toBeLessThan(r.bound);
+    }
+  }, LINEAR_COST_TIMEOUT_MS);
+});
+
 describe('WikiLink code-span lookup cost', () => {
   it('links with unclosed backtick runs of ever-longer lengths stay linear in the text', () => {
     // One link per run length k = 1..K, so no run has an equal-length closer: each lookup used to scan to the end of the

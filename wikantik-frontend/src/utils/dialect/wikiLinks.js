@@ -1,4 +1,5 @@
 import { parseWikiLink } from '../wikiLinkSyntax';
+import { matchInlineMath } from '../inlineMath';
 
 const BANG = 33;
 const OPEN = 91;
@@ -23,6 +24,7 @@ function closeAt(text, at) {
 
 const BACKTICK = 96;
 const BACKSLASH = 92;
+const DOLLAR = 36;
 
 /** Length of the backtick run starting at `at`. */
 function runLength(text, at) {
@@ -69,15 +71,23 @@ function closerOf(text, at, n) {
 }
 
 /**
- * Whether a code span opened inside the link text (between `from` and `close`) ends after the link's `]]`. The reader
- * lets the code span win there: a backtick run (not backslash-escaped) opens a span when a run of the same length
- * follows, so a link whose text holds the opener and whose closer lies beyond it is not a link at all, and what the span
- * holds is code. A span that opens and closes inside the link text leaves the link alone.
+ * Whether a code span or inline math opened inside the link text (between `from` and `close`) ends after the link's
+ * `]]`. The reader lets the span win there: a backtick run (not backslash-escaped) opens a code span when a run of the
+ * same length follows, and a `$` opens inline math by the shared Pandoc rule (`matchInlineMath`), so a link whose text
+ * holds the opener and whose closer lies beyond it is not a link at all, and what the span holds is code or math. A
+ * span that opens and closes inside the link text leaves the link alone. The math check costs no more than the text up
+ * to the next unescaped `$`, so the scans of all links of a block are disjoint and the whole stays linear.
  */
-function codeSpanCrossesClose(text, from, close) {
+function opaqueCrossesClose(text, from, close) {
   for (let i = from; i < close; i += 1) {
     const c = text.charCodeAt(i);
     if (c === BACKSLASH) { i += 1; continue; }
+    if (c === DOLLAR) {
+      const end = matchInlineMath(text, i);
+      if (end - 1 >= close) return true;
+      if (end > 0) i = end - 1;
+      continue;
+    }
     if (c !== BACKTICK) continue;
     const n = runLength(text, i);
     const closer = closerOf(text, i + n, n);
@@ -96,7 +106,7 @@ function codeSpanCrossesClose(text, from, close) {
  * Registered before Link, so `[[x]]` never becomes a link. A backslash before the first `[` is consumed by Lezer's
  * Escape first, so `\[[x]]` is text; `\![[x]]` leaves a plain `[[x]]` link, as the reader does. Code and math never
  * reach this parser because their nodes consume their text first, and a code span that opens inside the link text and
- * closes after it wins over the link (`codeSpanCrossesClose`).
+ * closes after it wins over the link, as does inline math (`opaqueCrossesClose`).
  */
 const WikiLinkParser = {
   name: 'WikiLink',
@@ -106,7 +116,7 @@ const WikiLinkParser = {
     const at = pos - cx.offset + (embed ? 1 : 0);
     const close = closeAt(cx.text, at);
     if (close < 0 || !parseWikiLink(cx.text.slice(at - (embed ? 1 : 0), close + 2))) return -1;
-    if (codeSpanCrossesClose(cx.text, at + 2, close)) return -1;
+    if (opaqueCrossesClose(cx.text, at + 2, close)) return -1;
     const o = cx.offset;
     const innerFrom = at + 2;
     const inner = cx.text.slice(innerFrom, close);

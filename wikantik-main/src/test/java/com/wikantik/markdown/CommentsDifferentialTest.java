@@ -51,11 +51,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (no exec plugin is configured; the test itself writes the file when that property is set). The {@code allow} list in
  * the file is kept across a refresh.
  *
- * <p>The oracle is the rendered page, not the code under test: {@code everyCaseRendersAsItsRangesSay} renders each case
- * with a sentinel inside every comment (must be hidden) and a sentinel just outside every comment (must show).
+ * <p>The oracle is the rendered page, not the code under test: {@code theRenderedPageSaysWhereTheCommentsAre} (generated corpus)
+ * and {@code theSharedFixtureInputsAgreeWithTheRenderedPage} (every input of {@code comments.json}) place a token at each
+ * {@code %%} and read the rendered page to see which markers the reader treats as free.
  */
 class CommentsDifferentialTest {
 
+    private static final java.nio.file.Path SHARED_FIXTURE =
+            java.nio.file.Path.of( "..", "wikantik-frontend", "src", "utils", "__fixtures__", "comments.json" );
     private static final String WRITE_PROPERTY = "comments.differential.write";
 
     private final TestEngine testEngine = TestEngine.build(
@@ -126,6 +129,33 @@ class CommentsDifferentialTest {
         assertEquals( List.of(), failures, String.join( "\n", failures ) );
         assertTrue( skippedUnknown < checked / 4, "the oracle skipped too much: " + skippedUnknown + " of " + ( checked + skippedUnknown ) );
         assertTrue( withComment > 1000, "only " + withComment + " variants carry a comment" );
+    }
+
+    /**
+     * The same independent oracle over every input of the shared fixture {@code comments.json} (LF and CRLF), so the rows
+     * the editor, {@code ReaderComments} and the access rules are all pinned to are also placed by the rendered page.
+     */
+    @Test
+    void theSharedFixtureInputsAgreeWithTheRenderedPage() throws Exception {
+        final JsonArray rows = JsonParser.parseString( Files.readString( SHARED_FIXTURE, StandardCharsets.UTF_8 ) ).getAsJsonArray();
+        final List< String > failures = new ArrayList<>();
+        int checked = 0;
+        for ( final JsonElement row : rows ) {
+            final String lf = row.getAsJsonObject().get( "input" ).getAsString();
+            for ( final String input : new String[] { lf, lf.replace( "\r\n", "\n" ).replace( "\n", "\r\n" ) } ) {
+                final List< int[] > expected = renderedRanges( input );
+                if ( expected == null ) {
+                    continue; // no %% marker in the text, or a token an HTML attribute ate
+                }
+                checked++;
+                final List< int[] > actual = ReaderComments.ranges( input );
+                if ( !toString( expected ).equals( toString( actual ) ) ) {
+                    failures.add( quote( input ) + ": the render says " + toString( expected ) + " but ReaderComments says " + toString( actual ) );
+                }
+            }
+        }
+        assertEquals( List.of(), failures, String.join( "\n", failures ) );
+        assertTrue( checked > rows.size(), "the oracle checked only " + checked + " of " + ( 2 * rows.size() ) + " variants" );
     }
 
     /** The comments the rendered page implies for {@code input}, or {@code null} when a marker's token is not in the page text. */

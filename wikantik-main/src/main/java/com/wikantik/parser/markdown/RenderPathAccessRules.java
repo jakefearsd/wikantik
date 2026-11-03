@@ -77,7 +77,12 @@ public final class RenderPathAccessRules {
      * @param rules the access rules the render path reads (see {@link #find})
      * @param code  inline code spans and code blocks the author wrote (a {@code $$} block's generated fence is math)
      * @param html  HTML blocks, HTML comments and inline HTML tags
-     * @param math  inline math and {@code $$} display-math blocks
+     * @param math  inline math and {@code $$} display-math blocks as the editor reads them: the whole {@code $$…$$} pair
+     *              the pre-pass rewrote, wherever the render ends the fence. Access rules use this list (#104 locks
+     *              wherever readers disagree)
+     * @param renderedMath inline math and display math as the render draws it: a {@code $$} block spans only its parsed
+     *              fence, so it stops where its container ends it. Reader-facing text (comments) uses this list, so a
+     *              reader never sees what the editor hides
      * @param links links that are not access rules but have a target ({@code [text](url)}), images, reference links,
      *              link reference definitions and {@code [[…]]} wiki links
      * @param labels links with no target that the render path does <em>not</em> read as rules but whose text starts,
@@ -88,7 +93,7 @@ public final class RenderPathAccessRules {
      *              unreadable)
      */
     public record Structure( List< Rule > rules, List< int[] > code, List< int[] > html, List< int[] > math,
-                             List< int[] > links, List< Rule > labels ) {
+                             List< int[] > renderedMath, List< int[] > links, List< Rule > labels ) {
     }
 
     private RenderPathAccessRules() {

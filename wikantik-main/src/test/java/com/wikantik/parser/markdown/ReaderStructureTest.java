@@ -18,13 +18,22 @@
  */
 package com.wikantik.parser.markdown;
 
+import com.wikantik.HttpMockFactory;
+import com.wikantik.TestEngine;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.render.RenderingManager;
+import com.wikantik.render.markdown.MarkdownRenderer;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReaderStructureTest {
 
@@ -56,5 +65,58 @@ class ReaderStructureTest {
     @Test
     void budgetExhaustionIsUnreadable() {
         assertThrows( RenderPathAccessRules.Unreadable.class, () -> ReaderStructure.of( "a `b` c", 0, 1 ) );
+    }
+
+    /** The shared list shape: a dedented line ends the item, and with it the generated fence. */
+    private static final String LIST_BODY = "- item\n  $$\n  x\ny\n  $$\n- next\n";
+
+    private static String render( final String markdown ) throws Exception {
+        final TestEngine engine = TestEngine.build(
+                TestEngine.with( "wikantik.fileSystemProvider.pageDir", "./target/md-pageDir" ),
+                TestEngine.with( "wikantik.renderingManager.markupParser", MarkdownParser.class.getName() ),
+                TestEngine.with( "wikantik.renderingManager.renderer", MarkdownRenderer.class.getName() ) );
+        try {
+            engine.saveText( "ReaderStructureHost", markdown );
+            final Page page = Wiki.contents().page( engine, "ReaderStructureHost" );
+            final Context context = Wiki.context().create( engine, HttpMockFactory.createHttpRequest(), page );
+            return engine.getManager( RenderingManager.class ).textToHTML( context, markdown );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void theRenderEndsTheMathBlockWithTheListItem() throws Exception {
+        final String html = render( LIST_BODY );
+        assertTrue( html.contains( "<div class=\"math-display\" data-block=\"1\">\nx\n</div>\n</li></ul>\n<p data-block=\"2\">y</p>" ), html );
+    }
+
+    @Test
+    void displayMathInAListItemEndsWithTheItem() {
+        for ( final String body : new String[]{ LIST_BODY, LIST_BODY.replace( "\n", "\r\n" ) } ) {
+            final RenderPathAccessRules.Structure structure = ReaderStructure.of( body, 0 );
+            assertEquals( List.of( body.indexOf( "  $$" ) + "," + ( body.lastIndexOf( "$$" ) + 2 ) ),
+                    structure.math().stream().map( r -> r[ 0 ] + "," + r[ 1 ] ).toList(), "math() keeps the editor's whole pair" );
+            final List< int[] > math = structure.renderedMath();
+            assertEquals( 1, math.size(), "one rendered math span" );
+            assertEquals( body.indexOf( "  $$" ), math.get( 0 )[ 0 ], "starts at the opener line (its indent is part of the block)" );
+            assertTrue( math.get( 0 )[ 1 ] <= body.indexOf( "y" ), "ends before the dedented line: " + Arrays.toString( math.get( 0 ) ) );
+            assertTrue( math.get( 0 )[ 1 ] > body.indexOf( "x" ), "covers the content: " + Arrays.toString( math.get( 0 ) ) );
+        }
+    }
+
+    @Test
+    void displayMathAtTopLevelStillSpansDelimiters() {
+        for ( final String body : new String[]{ "a\n\n$$\nx\n$$\n\nb", "a\r\n\r\n$$\r\nx\r\n$$\r\n\r\nb" } ) {
+            final List< int[] > math = ReaderStructure.of( body, 0 ).renderedMath();
+            assertEquals( 1, math.size() );
+            assertEquals( body.indexOf( "$$" ), math.get( 0 )[ 0 ] );
+            assertEquals( body.lastIndexOf( "$$" ) + 2, math.get( 0 )[ 1 ] );
+        }
+    }
+
+    @Test
+    void aNodeNoEditGeneratedIsNotDisplayMath() {
+        assertNull( MarkdownBodySource.prepare( "a\n\n$$\nx\n$$\n" ).displayMathNodeInBody( 0, 1 ) );
     }
 }

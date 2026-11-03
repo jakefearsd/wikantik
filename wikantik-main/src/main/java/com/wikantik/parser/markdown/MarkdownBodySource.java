@@ -80,6 +80,51 @@ final class MarkdownBodySource {
             return blocks;
         }
 
+        /**
+         * The body span of a parsed fenced block that one display-math rewrite generated, or {@code null} when none did
+         * (the closing fence, when an early-ended container leaves it unclosed, parses as a fence of its own and is no
+         * math). It starts where the rewritten block starts (its opener line, indent included). It ends where the parse ended the
+         * fence: the block's closing delimiter when the fence ran to its generated closer, or earlier when its container
+         * (a list item) ended first, so the span is the block the render draws, not the {@code $$} pair the rewrite saw.
+         *
+         * @param nodeStart start of the fenced block in {@link #text}
+         * @param nodeEnd   its exclusive end in {@link #text}
+         */
+        int[] displayMathNodeInBody( final int nodeStart, final int nodeEnd ) {
+            final DisplayMathPreProcessor.Edit edit = editAt( nodeStart );
+            if ( edit == null || nodeStart >= edit.targetContent() || edit.sourceEnd() <= edit.sourceStart() ) {   // past the opener: the generated closer, re-read as an opening fence
+                return null;
+            }
+            final int start = fromNormalized( edit.sourceStart() );
+            final int whole = fromNormalized( edit.sourceEnd() - 1 ) + 1;
+            if ( nodeEnd >= edit.targetEnd() ) {
+                return new int[]{ start, whole };
+            }
+            final int end = toBodyEnd( nodeEnd );
+            if ( end > start ) {
+                return new int[]{ start, end };
+            }
+            return nodeEnd >= edit.targetContent() + edit.contentLength() ? new int[]{ start, whole } : null;
+        }
+
+        /** The edit whose generated text holds {@code pos} (a position in {@link #text}), or {@code null}. */
+        private DisplayMathPreProcessor.Edit editAt( final int pos ) {
+            int lo = 0;
+            int hi = mathEdits.size() - 1;
+            while ( lo <= hi ) {
+                final int mid = ( lo + hi ) >>> 1;
+                final DisplayMathPreProcessor.Edit edit = mathEdits.get( mid );
+                if ( pos < edit.targetStart() ) {
+                    hi = mid - 1;
+                } else if ( pos >= edit.targetEnd() ) {
+                    lo = mid + 1;
+                } else {
+                    return edit;
+                }
+            }
+            return null;
+        }
+
         /** Binary search: the last edit that starts at or before {@code pos} decides; generated markup gives -1. */
         private int fromMath( final int pos ) {
             int lo = 0;

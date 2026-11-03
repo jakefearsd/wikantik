@@ -101,14 +101,19 @@ final class ReaderStructure {
         final String text = prepared.text();
         final long parseBudget = budget == AUTO_BUDGET ? BudgetedText.budgetFor( text.length() ) : budget;
         final RenderPathAccessRules.Structure out = new RenderPathAccessRules.Structure( new ArrayList<>(), new ArrayList<>(),
-                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>() );
+                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>() );
         for ( final Node node : PARSER.parse( BasedSequence.of( BudgetedText.of( text, parseBudget ) ) ).getDescendants() ) {
             if ( node instanceof Link link && LinkParsingOperations.isAccessRuleLink( WikantikLink.wikiLinkOf( link ) ) ) {
                 out.rules().add( rule( prepared, link, bodyStart, bodyLength ) );
+            } else if ( node instanceof FencedCodeBlock && prepared.toBody( node.getStartOffset() ) < 0 ) {
+                displayMath( out.renderedMath(), prepared, node, bodyStart );
             } else if ( !RuleLabels.collect( out.labels(), prepared, node, bodyStart, bodyLength ) ) {
                 final List< int[] > kind = regionKind( out, node );
                 if ( kind != null ) {
                     region( kind, prepared, node, bodyStart );
+                    if ( kind == out.math() ) {
+                        region( out.renderedMath(), prepared, node, bodyStart );
+                    }
                 }
             }
         }
@@ -116,6 +121,7 @@ final class ReaderStructure {
             out.math().add( new int[]{ bodyStart + block[ 0 ], bodyStart + block[ 1 ] } );
         }
         out.math().sort( java.util.Comparator.comparingInt( r -> r[ 0 ] ) );
+        out.renderedMath().sort( java.util.Comparator.comparingInt( r -> r[ 0 ] ) );
         return out;
     }
 
@@ -132,8 +138,8 @@ final class ReaderStructure {
 
     /**
      * Which of {@code out}'s region lists {@code node} belongs to, or {@code null}. A {@code $$} block's generated fence
-     * starts in generated markup (no body offset), so {@link #region} drops it as code: it is math, added from the
-     * rewrite's own record.
+     * starts in generated markup (no body offset), so {@link #region} drops it as code: it is math, whose extent
+     * {@link #displayMath} takes from the parsed fence.
      */
     private static List< int[] > regionKind( final RenderPathAccessRules.Structure out, final Node node ) {
         if ( node instanceof Link link ) {
@@ -150,6 +156,14 @@ final class ReaderStructure {
             return out.html();
         }
         return node instanceof GitLabInlineMath ? out.math() : null;
+    }
+
+    /** Adds the span of a generated {@code math} fence, as the parse ended it, to {@code into}. */
+    private static void displayMath( final List< int[] > into, final MarkdownBodySource.Prepared prepared, final Node node, final int bodyStart ) {
+        final int[] span = prepared.displayMathNodeInBody( node.getStartOffset(), node.getEndOffset() );
+        if ( span != null ) {
+            into.add( new int[]{ bodyStart + span[ 0 ], bodyStart + span[ 1 ] } );
+        }
     }
 
     /** Adds {@code node}'s span in the page text to {@code into}, unless it starts or ends in generated markup. */

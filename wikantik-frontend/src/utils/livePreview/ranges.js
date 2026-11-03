@@ -607,7 +607,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
-      if (name === 'DisplayMath' || name === 'InlineDisplayMath') { excluded.push([node.from, node.to]); return false; }
+      if (name === 'DisplayMath') { excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineMath') { inlineMath.push([node.from, node.to]); return false; }
       if (name === 'WikiLink' || name === 'WikiEmbed') { wikis.push([node.from, node.to]); return false; }
       if (TEXT_BLOCK.has(name)) { const m = paragraphMarker(doc, node.node); if (m) markers.push(m); }

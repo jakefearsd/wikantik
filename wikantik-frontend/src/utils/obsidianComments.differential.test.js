@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import fixture from './__fixtures__/comments-differential.json';
 import { commentRanges } from './obsidianComments';
 
-const ALLOW_AT_COMMIT = 36;
+const ALLOW_AT_COMMIT = 0;
 const key = (input, crlf) => `${crlf ? 'crlf' : 'lf'}:${input}`;
 const allowed = new Map(fixture.allow.map((a) => [key(a.input, a.crlf), a]));
 const editorRanges = (input) => commentRanges(input).map((r) => [r.from, r.to]);

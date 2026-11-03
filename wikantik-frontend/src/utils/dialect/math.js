@@ -81,7 +81,7 @@ const DisplayMathBlock = {
 
 /**
  * Exclusive end of the inline math opening at the `$` at `at` of `text`, or -1: `$…$` (the shared Pandoc rule) and
- * `$$…$$`. Escapes are Lezer's own for the parser (`\$` never reaches here); callers that scan raw text skip them.
+ * `$$…$$` (kept for table cells, whose pipe scan is its own). Escapes are Lezer's own for the parser (`\$` never reaches here); callers that scan raw text skip them.
  */
 export function inlineMathEnd(text, at) {
   if (text[at] !== '$') return -1;
@@ -95,27 +95,32 @@ export function inlineMathEnd(text, at) {
   return matchInlineMath(text, at);
 }
 
-/** `$…$` and `$$…$$` within a paragraph. */
+/**
+ * `$…$` within a paragraph. The reader has no inline `$$…$$` (`InlineMathParser` declines a `$` followed by `$`, so the
+ * first dollar is text and the second is tried on its own): `$$x$$` is `$` + `$x$` + `$`, and `$$ …` opens nothing. The
+ * editor used to read `$$…$$` as one span, which hid every `%%` the reader counts.
+ */
 const InlineMathParser = {
   name: 'InlineMath',
   before: 'InlineCode',
   parse(cx, next, pos) {
     if (next !== DOLLAR) return -1;
+    if (cx.char(pos + 1) === DOLLAR) return -1; // the first `$` of a pair is text; the second may open (below)
     const text = cx.slice(pos, cx.end);
-    const end = inlineMathEnd(text, 0);
+    const end = matchInlineMath(text, 0);
     if (end < 0) return -1;
-    return cx.addElement(cx.elt(text[1] === '$' ? 'InlineDisplayMath' : 'InlineMath', pos, pos + end));
+    return cx.addElement(cx.elt('InlineMath', pos, pos + end));
   },
 };
 
-/** The wiki's math constructs as @lezer/markdown nodes: `DisplayMath`, `InlineMath`, `InlineDisplayMath`. */
+/** The wiki's math constructs as @lezer/markdown nodes: `DisplayMath`, `InlineMath`. */
 export const mathExtension = {
-  defineNodes: [{ name: 'DisplayMath', block: true }, 'InlineMath', 'InlineDisplayMath'],
+  defineNodes: [{ name: 'DisplayMath', block: true }, 'InlineMath'],
   parseBlock: [DisplayMathBlock],
   parseInline: [InlineMathParser],
 };
 
-const OPAQUE = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'DisplayMath', 'InlineMath', 'InlineDisplayMath']);
+const OPAQUE = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'DisplayMath', 'InlineMath']);
 
 /** `[from, to)` of every outermost code or math node, in document order: one walk, for callers that test many positions. */
 export function opaqueRanges(tree) {

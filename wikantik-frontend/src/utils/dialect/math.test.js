@@ -11,7 +11,10 @@ const nodes = (text, name) => {
 };
 
 describe('InlineMath node', () => {
-  it.each(CASES)('%j', (source, tex) => {
+  // `$$x$$` is the one shared case the Lezer node reads differently from the lint rule (`InlineMathRule.findAll` steps
+  // over a `$$` pair): the render is `$<span class="math-inline">x</span>$` (InlineMathParser declines the first `$`
+  // and the second opens `$x$`), so the editor follows the render; see the `inline $$` block below.
+  it.each(CASES.filter(([source]) => source !== '$$x$$'))('%j', (source, tex) => {
     expect(nodes(source, 'InlineMath').map((s) => s.slice(1, -1))).toEqual(tex);
   });
   it('is not found inside code spans', () => {
@@ -19,13 +22,27 @@ describe('InlineMath node', () => {
   });
 });
 
-describe('InlineDisplayMath node', () => {
-  it('reads $$…$$ within a paragraph', () => {
-    expect(nodes('see $$x+y$$ here', 'InlineDisplayMath')).toEqual(['$$x+y$$']);
+describe('inline `$$` (the reader has no inline display math: InlineMathRule says `$$` never opens inline math)', () => {
+  const comments = (t) => commentRangesInTree(t, dialectParser.parse(t));
+  it('makes no InlineDisplayMath: the first $ is text and the second opens ordinary inline math', () => {
+    expect(nodes('see $$x+y$$ here', 'InlineDisplayMath')).toEqual([]);
+    expect(nodes('see $$x+y$$ here', 'InlineMath')).toEqual(['$x+y$']);
   });
-  it('needs a closing pair', () => {
-    expect(nodes('see $$x+y here', 'InlineDisplayMath')).toEqual([]);
+  it('opens nothing when the second $ is followed by whitespace', () => {
+    expect(nodes('a $$ x $$ b', 'InlineMath')).toEqual([]);
+    expect(nodes('a $$\nx$$', 'InlineMath')).toEqual([]);
   });
+  it.each([['\n'], ['\r\n']])('does not hide a %% marker after $$ (newline %j)', (nl) => {
+    const t = `a$$${nl}%%c%% d$$`;
+    const r = comments(t);
+    expect(r.map((x) => t.slice(x.from, x.to))).toEqual(['%%c%%']);
+    const u = `$$ ${nl}%%a${nl}%% b $$`;
+    expect(comments(u).map((x) => u.slice(x.from, x.to))).toEqual([`%%a${nl}%%`]);
+  });
+  it('stays linear in the number of $$ pairs', () => {
+    const { ratio, bound } = linearCost((n) => '$$ %% '.repeat(n), (t) => dialectParser.parse(t));
+    expect(ratio).toBeLessThan(bound);
+  }, LINEAR_COST_TIMEOUT_MS);
 });
 
 describe('DisplayMath node', () => {

@@ -4,6 +4,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { editorMarkdownConfig } from './editorMarkdown';
 import { fullyParsed, parseFully } from '../test/fullParse';
 import { EditorView } from '@codemirror/view';
+import { syntaxTree } from '@codemirror/language';
 import { linkAt, hrefFor, linkInteraction } from './linkInteraction';
 
 // Wikilinks are nodes of the editor's own dialect, so that is the one parsed here.
@@ -128,4 +129,14 @@ describe('linkAt / linkInteraction with wikilink resolution', () => {
     parent.remove();
   });
 });
+});
+
+describe('linkAt on a partially parsed page', () => {
+  it('finds a wikilink past the parsed prefix of a long page', () => {
+    const doc = `${'filler paragraph\n\n'.repeat(40000)}see [[Far]] here\n`;
+    const state = EditorState.create({ doc, extensions: [markdown(editorMarkdownConfig)] });
+    const pos = doc.indexOf('[[Far]]') + 3;
+    expect(syntaxTree(state).length).toBeLessThan(pos); // the premise: the parse has not reached the link
+    expect(linkAt(state, pos)).toMatchObject({ from: pos - 3, to: pos + 4 });
+  });
 });

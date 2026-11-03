@@ -90,3 +90,13 @@ describe('WikiLink parser cost', () => {
     expect(ratio).toBeLessThan(bound);
   });
 });
+
+describe('wikiLinkNodeAt', () => {
+  it('finds the link at its last position too, so a click on the right half of the closing ] opens it', () => {
+    const tree = parse('a [[x]] b');
+    expect(wikiLinkNodeAt(tree, 7)).not.toBeNull();
+    expect(wikiLinkNodeAt(tree, 2)).not.toBeNull();
+    expect(wikiLinkNodeAt(tree, 8)).toBeNull();
+    expect(wikiLinkNodeAt(tree, 1)).toBeNull();
+  });
+});

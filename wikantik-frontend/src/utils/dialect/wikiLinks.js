@@ -63,8 +63,11 @@ export const wikiLinkExtension = {
 
 /** The WikiLink or WikiEmbed node holding `pos` (inclusive of both ends), or null. */
 export function wikiLinkNodeAt(tree, pos) {
-  for (let n = tree.resolveInner(pos, 1); n; n = n.parent) {
-    if (n.name === 'WikiLink' || n.name === 'WikiEmbed') return n;
+  // Both sides: a position at a link's end (the right half of its closing `]`) belongs to the link.
+  for (const side of [1, -1]) {
+    for (let n = tree.resolveInner(pos, side); n; n = n.parent) {
+      if (n.name === 'WikiLink' || n.name === 'WikiEmbed') return n;
+    }
   }
   return null;
 }

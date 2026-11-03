@@ -3,6 +3,7 @@ import { syntaxTree } from '@codemirror/language';
 import { wikiLinkTarget } from './wikiLinkTargets';
 import { parseWikiLink, wikiLinkHref } from './wikiLinkSyntax';
 import { wikiLinkNodeAt, wikiLinkRanges } from './dialect/wikiLinks';
+import { dialectParser } from './dialect';
 
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 
@@ -13,14 +14,28 @@ function wikiLinkOf(state, node, resolve) {
 }
 
 /**
+ * A wikilink at {@code pos} read from its own line, for a position the editor has not parsed yet (a long page, before the
+ * background parse reaches it). Code fences are not known there; the visible range, where clicks land, is always parsed.
+ */
+function lineLinkAt(state, pos, resolve) {
+  const line = state.doc.lineAt(pos);
+  const node = wikiLinkNodeAt(dialectParser.parse(line.text), pos - line.from);
+  if (!node) return null;
+  const ref = parseWikiLink(line.text.slice(node.from, node.to));
+  return ref && { url: wikiLinkHref(ref, resolve?.(ref.target.toLowerCase()) || undefined), from: line.from + node.from, to: line.from + node.to };
+}
+
+/**
  * The link (Markdown, autolink or native wikilink) containing {@code pos}: its URL text and full range, or null.
  * {@code resolve} maps a lowercased wikilink target to its canonical page name (string) or a falsy value;
  * unresolved wikilinks keep their raw target.
  */
 export function linkAt(state, pos, resolve) {
-  const wiki = wikiLinkNodeAt(syntaxTree(state), pos);
+  const tree = syntaxTree(state);
+  if (tree.length <= pos) return lineLinkAt(state, pos, resolve); // past the parsed prefix of a long page
+  const wiki = wikiLinkNodeAt(tree, pos);
   if (wiki) return wikiLinkOf(state, wiki, resolve);
-  for (let node = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent) {
+  for (let node = tree.resolveInner(pos, 1); node; node = node.parent) {
     if (node.name === 'Link' || node.name === 'Autolink') {
       const url = node.getChild('URL');
       if (!url) return null;

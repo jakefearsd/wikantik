@@ -18,6 +18,7 @@
  */
 package com.wikantik.api.parser;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -88,5 +89,58 @@ class CodeMaskTest {
         final boolean[] m = CodeMask.of( md );
         assertTrue( m[ md.indexOf( "code" ) ] );
         assertFalse( m[ md.indexOf( "outer" ) ] );
+    }
+
+    /** Prod pages are almost all CRLF (Obsidian/Windows imports): a list item ends a code-span run whatever the line ending. */
+    @Test
+    void crlfPagesMaskExactlyWhatTheirLfFormMasks() {
+        final String[] cases = {
+            "   - ``[`[link]``()]` to ``[link]`()`\n   - `# Header` to `!!! Header`\n",   // prod ContentFeedback
+            "- a `x\n- b` y\n",
+            "1. one `span\n2. two` text\n",
+            "a `span\ncrosses` a line\n",
+            "- item\n\n      indented code\n\nafter\n",
+            "- a\n  - b\n    ```\n    code\n  outer text\n    ```\n",
+        };
+        for ( final String lf : cases ) {
+            final String crlf = lf.replace( "\n", "\r\n" );
+            final boolean[] want = CodeMask.of( lf );
+            final boolean[] got = CodeMask.of( crlf );
+            for ( int i = 0, j = 0; i < crlf.length(); i++ ) {
+                if ( crlf.charAt( i ) == '\r' ) {
+                    continue;
+                }
+                assertEquals( want[ j ], got[ i ], "offset " + i + " of " + crlf.replace( "\r\n", "⏎" ) );
+                j++;
+            }
+        }
+    }
+
+    /** Inside a list item, indented code starts four columns past the item's content column (prod FullOAuth). */
+    @Test
+    void indentedCodeInAListItemIsFourColumnsPastItsContent() {
+        final String code = "- item\n\n      1. \"quoted\"\n";
+        assertTrue( CodeMask.of( code )[ code.indexOf( "quoted" ) ] );
+        final String para = "- item\n\n    continued\n";
+        assertFalse( CodeMask.of( para )[ para.indexOf( "continued" ) ] );
+        final String nested = "1. item\n\n       seven\n";
+        assertTrue( CodeMask.of( nested )[ nested.indexOf( "seven" ) ] );
+    }
+
+    /** An HTML comment block (CommonMark HTML block type 2) holds no code, even across lines (prod Main's header). */
+    @Test
+    void anHtmlCommentBlockHoldsNoCode() {
+        final String md = "<!-- regenerate with\n     `java -cp x.jar \\\n          Cli --write`\n     to regenerate. -->\n\nafter `code` here\n";
+        final boolean[] m = CodeMask.of( md );
+        assertFalse( m[ md.indexOf( "java" ) ] );
+        assertFalse( m[ md.indexOf( "Cli" ) ] );
+        assertTrue( m[ md.indexOf( "code" ) ] );
+        final String oneLine = "<!-- `x` -->\n`y`\n";
+        assertFalse( CodeMask.of( oneLine )[ oneLine.indexOf( "x" ) ] );
+        assertTrue( CodeMask.of( oneLine )[ oneLine.indexOf( "y" ) ] );
+        final String interrupts = "para `a\n<!-- b` -->\n";
+        final boolean[] mi = CodeMask.of( interrupts );   // the comment interrupts the paragraph: its backtick pairs with nothing
+        assertFalse( mi[ interrupts.indexOf( "a" ) ] );
+        assertFalse( mi[ interrupts.indexOf( "b" ) ] );
     }
 }

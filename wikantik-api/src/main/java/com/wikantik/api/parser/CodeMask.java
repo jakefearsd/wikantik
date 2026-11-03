@@ -26,7 +26,8 @@ import java.util.regex.Pattern;
  */
 public final class CodeMask {
 
-    private static final Pattern LIST_ITEM = Pattern.compile( "^\\s*([-*+]|\\d{1,9}[.)])\\s.*" );
+    /** DOTALL: on a CRLF page the trailing {@code \r} must not stop {@code .*}, or no item would end a code-span run. */
+    private static final Pattern LIST_ITEM = Pattern.compile( "^\\s*([-*+]|\\d{1,9}[.)])\\s.*", Pattern.DOTALL );
 
     /** A line that cannot continue a paragraph's inline code: an ATX heading. */
     private static final Pattern HEADING = Pattern.compile( "^ {0,3}#{1,6}(\\s.*)?$" );
@@ -40,6 +41,8 @@ public final class CodeMask {
     private char fenceChar;
     private int fenceLen;
     private boolean inIndented;
+    /** Inside an HTML comment block (CommonMark HTML block type 2): no code until the line holding {@code -->}. */
+    private boolean inHtmlComment;
     private boolean sawBlank;
     private String lastNonBlank;
     /** Content column of the innermost open list item (0 when not in a list); fences may be indented relative to it. */
@@ -92,6 +95,8 @@ public final class CodeMask {
             if ( closesFence( line ) ) {
                 fenceLen = 0;
             }
+        } else if ( inHtmlComment ) {
+            inHtmlComment = !line.contains( "-->" );
         } else if ( line.isBlank() ) {
             flushParagraph();
             sawBlank = true;
@@ -110,7 +115,10 @@ public final class CodeMask {
         sawBlank = false;
         lastNonBlank = line;
         trackListContext( line );
-        if ( opensFence( line ) ) {
+        if ( opensHtmlComment( line ) ) {
+            flushParagraph();
+            inHtmlComment = line.indexOf( "-->", line.indexOf( "<!--" ) + 4 ) < 0;
+        } else if ( opensFence( line ) ) {
             flushParagraph();
             maskRange( masked, offset, offset + line.length() );
             maskRange( fenced, offset, offset + line.length() );
@@ -167,7 +175,13 @@ public final class CodeMask {
         if ( lastNonBlank == null ) {
             return true;
         }
-        return sawBlank && !LIST_ITEM.matcher( lastNonBlank ).matches() && indent( lastNonBlank ) < 2;
+        if ( !sawBlank ) {
+            return false;
+        }
+        if ( listContentIndent > 0 ) {
+            return indent( line ) >= listContentIndent + 4;   // inside a list item, code starts four columns past its content
+        }
+        return !LIST_ITEM.matcher( lastNonBlank ).matches() && indent( lastNonBlank ) < 2;
     }
 
     /** Indent width: spaces count 1, a tab counts as 4. */
@@ -200,6 +214,12 @@ public final class CodeMask {
             k++;
         }
         return k - from;
+    }
+
+    /** An HTML comment block starts at a line whose first non-space (at most 3) characters are {@code <!--}; it may interrupt a paragraph. */
+    private static boolean opensHtmlComment( final String line ) {
+        final int ind = leadingSpaces( line );
+        return ind <= 3 && line.startsWith( "<!--", ind );
     }
 
     /** Opens a fence when the line is a (max 3-space indented, relative to the list content column inside a list) run of 3+ backticks or tildes. */

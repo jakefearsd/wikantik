@@ -34,5 +34,13 @@
   {"name": "a pipe-less table's rows are not one math span", "input": "Item | Price\n--- | ---\nwidget | $5\n%%secret%% gadget | a$b\n", "output": "Item | Price\n--- | ---\nwidget | $5\n gadget | a$b\n"},
   {"name": "math never crosses a table cell", "input": "| A | B |\n|---|---|\n| $a %%x%% | b$ |\n", "output": "| A | B |\n|---|---|\n| $a  | b$ |\n"},
   {"name": "an unterminated $$ line is text: a later comment is removed", "input": "$$\nnot closed\n\nLater %%private%% text\n", "output": "$$\nnot closed\n\nLater  text\n"},
-  {"name": "a code span across a line break masks its %%", "input": "Use `printf(\"100%%\ndone\")` to print. A later %%private note%% here.\n", "output": "Use `printf(\"100%%\ndone\")` to print. A later  here.\n"}
+  {"name": "a code span across a line break masks its %%", "input": "Use `printf(\"100%%\ndone\")` to print. A later %%private note%% here.\n", "output": "Use `printf(\"100%%\ndone\")` to print. A later  here.\n"},
+  {"name": "a code span opened inside a wikilink still runs to its closer: the secret in it stays", "input": "[[Note `x]] %%secret%% `y` z", "output": "[[Note `x]] %%secret%% `y` z"},
+  {"name": "backticks inside HTML comments pair with nothing: the comment between them is removed", "input": "<!-- `x -->%%secret%%<!-- ` -->", "output": "<!-- `x --><!-- ` -->"},
+  {"name": "a backtick inside an autolink opens no code span: the comment after it is removed", "input": "<http://a.b/`x> %%secret%% `y`", "output": "<http://a.b/`x>  `y`"},
+  {"name": "an escaped backtick opens no code span: the comment after it is removed", "input": "\\`a %%secret%% `b`", "output": "\\`a  `b`"},
+  {"name": "a code span in a table cell holds its pipe-split text: the secret in it stays", "input": "| h | h |\n|---|---|\n| `x | %%secret%% | y` |", "output": "| h | h |\n|---|---|\n| `x | %%secret%% | y` |"},
+  {"name": "a table inside a list item: a dollar in one cell opens no math across the cells", "input": "- | a | b |\n  |---|---|\n  | $5 | x |\n  | %%secret%% | y$ |", "output": "- | a | b |\n  |---|---|\n  | $5 | x |\n  |  | y$ |"},
+  {"name": "display math in a list item ends where the item does: a comment after it is removed", "input": "- item\n  $$\n  x\ny %%secret%%\n  $$\n- next\n", "output": "- item\n  $$\n  x\ny \n  $$\n- next\n"},
+  {"name": "a display math block whose first line is a fence is empty: a comment after it is removed", "input": "$$\n```\n%%secret%%\n```\n$$\n", "output": "$$\n```\n\n```\n$$\n"}
 ]

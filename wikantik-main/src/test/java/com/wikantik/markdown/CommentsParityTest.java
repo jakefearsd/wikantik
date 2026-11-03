@@ -71,7 +71,7 @@ class CommentsParityTest {
         final List< String > mismatches = new ArrayList<>();
         for ( final JsonElement element : rows ) {
             final JsonObject row = element.getAsJsonObject();
-            final String actual = ObsidianComments.strip( row.get( "input" ).getAsString() );
+            final String actual = com.wikantik.parser.markdown.ReaderComments.strip( row.get( "input" ).getAsString() );
             if ( !row.get( "output" ).getAsString().equals( actual ) ) {
                 mismatches.add( row.get( "name" ).getAsString() + ": expected " + row.get( "output" ) + " but was \"" + actual + "\"" );
             }

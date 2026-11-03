@@ -56,6 +56,15 @@ describe('commentRanges on text with CRLF line endings', () => {
     const text = 'a\r\n%%x\r\ny%% b\r\n```\r\n%% c\r\n```\r\n%%z%%';
     expect(commentRanges(text).map((r) => text.slice(r.from, r.to))).toEqual(['%%x\r\ny%%', '%%z%%']);
   });
+  it('reads a blank CRLF line as blank: an HTML block ends there, so the math after it is math (reader: <b><p><span class="math-inline">)', () => {
+    const text = '<b t="">\r\n\r\n$|%%1. ```\r\n%%$$\r\n      $$\r\n]]b ';
+    expect(commentRanges(text)).toEqual([]);
+    expect(commentRanges(text.replace(/\r\n/g, '\n'))).toEqual([]);
+  });
+  it('maps ranges back past every CR before them, over several lines', () => {
+    const text = 'a\r\nb\r\n%%x\r\ny%%\r\n\r\n%%z%%';
+    expect(commentRanges(text).map((r) => text.slice(r.from, r.to))).toEqual(['%%x\r\ny%%', '%%z%%']);
+  });
   it('keeps every newline a stripped comment held', () => {
     expect(stripComments('a %%x\r\ny%% b')).toBe('a \n b');
   });

@@ -52,10 +52,23 @@ export function commentRangesInTree(text, tree) {
   return out;
 }
 
-/** `[{ from, to }]` of each comment of `text`, parsed with the dialect parser (offsets are in `text`, `\r\n` included). */
+/** `[{ from, to }]` of each comment of `text`, parsed with the dialect parser (offsets are in `text`, `\r\n` included; CRLF text is read as LF and mapped back). */
 export function commentRanges(text) {
   if (!text || !text.includes('%%')) return [];
-  return commentRangesInTree(text, dialectParser.parse(text));
+  if (!text.includes('\r\n')) return commentRangesInTree(text, dialectParser.parse(text));
+  // Lezer's blank-line test is `[ \t]*`, so a CR-only line is not blank to it (an HTML block would run on past the blank
+  // line, taking the paragraph and math after it). Read the text with `\n` line ends, as the editor's own document has,
+  // then put the CR back in every offset: each `\n` before a position is one `\r` the original has and the copy lacks.
+  const lf = text.replace(/\r\n/g, '\n');
+  const ranges = commentRangesInTree(lf, dialectParser.parse(lf));
+  let newlines = 0;
+  let scanned = 0;
+  const shifted = (pos) => {
+    for (; scanned < pos; scanned += 1) if (lf.charCodeAt(scanned) === 10) newlines += 1;
+    return pos + newlines;
+  };
+  // ranges are in order and do not overlap, so one forward scan serves both ends of every range
+  return ranges.map((r) => ({ from: shifted(r.from), to: shifted(r.to) }));
 }
 
 /** The text without its comments, each replaced by the newlines it held; the same string when it holds none. */

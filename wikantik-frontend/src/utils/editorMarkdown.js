@@ -1,7 +1,6 @@
 import { commonmarkLanguage } from '@codemirror/lang-markdown';
-import { GFM } from '@lezer/markdown';
 import { editorFoldConfig } from './markdownFold';
-import { dialectExtensions } from './dialect';
+import { dialectExtensions, gfmWithoutTable } from './dialect';
 
 /**
  * The editor's markdown dialect: commonmark plus GFM (tables, strikethrough, task lists, autolinks), the wiki's own
@@ -12,5 +11,5 @@ import { dialectExtensions } from './dialect';
  */
 export const editorMarkdownConfig = {
   base: commonmarkLanguage,
-  extensions: [GFM, ...dialectExtensions, ...editorFoldConfig],
+  extensions: [...gfmWithoutTable, ...dialectExtensions, ...editorFoldConfig],
 };

@@ -1,3 +1,4 @@
+import { Table } from '@lezer/markdown';
 import { inlineMathEnd } from './math';
 
 const PIPE = 124;
@@ -86,26 +87,37 @@ function hasPipe(str, start) {
   return false;
 }
 
-/** `@lezer/markdown`'s GFM `TableParser`, reading rows with this file's `parseRow`. */
+/**
+ * The reader's table, read line by line. A table starts at the first line of a paragraph (the reader never ends a
+ * paragraph for one): every pipe-bearing line above the delimiter row is a header row (flexmark's `MAX_HEADER_ROWS` is
+ * unbounded and each row's inline text is parsed on its own), and every line below it, up to the end of the paragraph,
+ * is a body row. A line with no pipe above the delimiter row means no table. Header and delimiter cell counts are not
+ * compared (the reader sets `HEADER_SEPARATOR_COLUMN_MATCH` off).
+ */
 class TableParser {
   constructor() {
-    // null: the second line is not seen yet; false: not a table; an array: the rows so far.
+    // null: the delimiter row is not seen yet (`pending` holds the header candidates); false: not a table; an array: the rows.
     this.rows = null;
+    this.pending = null;
   }
 
   nextLine(cx, line, leaf) {
+    if (this.rows === false) return false;
     if (this.rows == null) {
-      this.rows = false;
-      let lineText;
-      if ((line.next === 45 || line.next === 58 || line.next === PIPE) && isDelimiter(lineText = line.text.slice(line.pos))) {
-        const firstRow = [];
-        const firstCount = parseRow(cx, leaf.content, 0, firstRow, leaf.start);
-        if (firstCount === parseRow(cx, lineText, 0)) {
-          this.rows = [cx.elt('TableHeader', leaf.start, leaf.start + leaf.content.length, firstRow),
-            cx.elt('TableDelimiter', cx.lineStart + line.pos, cx.lineStart + line.text.length)];
-        }
+      // The first call: the leaf holds just its first line, a header candidate (it has a pipe, or there is no parser).
+      if (!this.pending) this.pending = [{ text: leaf.content, from: 0, offset: leaf.start, end: leaf.start + leaf.content.length }];
+      const lineText = line.text.slice(line.pos);
+      if ((line.next === 45 || line.next === 58 || line.next === PIPE) && isDelimiter(lineText)) {
+        this.rows = this.pending.map((p) => cx.elt('TableHeader', p.offset + p.from, p.end, this.cellsOf(cx, p)));
+        this.rows.push(cx.elt('TableDelimiter', cx.lineStart + line.pos, cx.lineStart + line.text.length));
+        this.pending = null;
+      } else if (hasPipe(line.text, line.pos)) {
+        this.pending.push({ text: line.text, from: line.pos, offset: cx.lineStart, end: cx.lineStart + line.text.length });
+      } else {
+        this.rows = false;
+        this.pending = null;
       }
-    } else if (this.rows) {
+    } else {
       const content = [];
       parseRow(cx, line.text, line.pos, content, cx.lineStart);
       this.rows.push(cx.elt('TableRow', cx.lineStart + line.pos, cx.lineStart + line.text.length, content));
@@ -113,31 +125,29 @@ class TableParser {
     return false;
   }
 
+  cellsOf(cx, p) {
+    const cells = [];
+    parseRow(cx, p.text, p.from, cells, p.offset);
+    return cells;
+  }
+
   finish(cx, leaf) {
-    if (!this.rows) return false;
+    if (!Array.isArray(this.rows)) return false;
     cx.addLeafElement(leaf, cx.elt('Table', leaf.start, leaf.start + leaf.content.length, this.rows));
     return true;
   }
 }
 
 /**
- * GFM tables as the reader splits them: the `Table` block of `@lezer/markdown`'s GFM, replaced by name, with a row
- * splitter that keeps a code span or inline math span whole across a pipe. Node names are GFM's own.
- *
- * Known limit: a same-name spec replaces `parse` and `leaf` but GFM's own `endLeaf` stays registered (the config API
- * cannot remove it, and its table class is not exported to test for). It splits rows with the stock splitter, so a
- * paragraph directly followed by a header row whose code span or math holds a pipe, over a delimiter row whose cell count
- * matches only under the stock split, is cut after the paragraph and the header row becomes text, not a table.
+ * Tables as the reader reads them, replacing `@lezer/markdown`'s GFM `Table` whole (see `gfmWithoutTable`): a row
+ * splitter that keeps a code span or inline math span whole across a pipe, several header rows, no header/delimiter
+ * count match, and no paragraph ended by a table. Node names and styles are GFM's own (`Table.defineNodes`).
  */
 export const tableExtension = {
+  defineNodes: Table.defineNodes,
   parseBlock: [{
     name: 'Table',
     leaf: (_, leaf) => (hasPipe(leaf.content, 0) ? new TableParser() : null),
-    endLeaf(cx, line, leaf) {
-      if (leaf.parsers.some((p) => p instanceof TableParser) || !hasPipe(line.text, line.basePos)) return false;
-      const next = cx.peekLine();
-      return isDelimiter(next) && parseRow(cx, line.text, line.basePos) === parseRow(cx, next, line.basePos);
-    },
     before: 'SetextHeading',
   }],
 };

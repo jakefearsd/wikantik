@@ -16,6 +16,40 @@ function cells(text) {
 }
 const SEP = '|---|---|\n';
 
+describe('a table is read as the reader reads it: header and delimiter cell counts need not agree', () => {
+  // flexmark here runs with HEADER_SEPARATOR_COLUMN_MATCH off: each of these renders as a <table>.
+  it.each([
+    ['| a | b |\n|---|\n| x | y |', [['a', 'b'], ['x', 'y']]],
+    ['| a |\n|---|---|\n| x | y |', [['a'], ['x', 'y']]],
+    ['| a | b |\n|---|---|---|\n| x | y |', [['a', 'b'], ['x', 'y']]],
+    ['a | b\n--|--\nx | y', [['a', 'b'], ['x', 'y']]],
+  ])('%j', (text, expected) => {
+    expect(cells(text)).toEqual(expected);
+    expect(cells(text.replace(/\n/g, '\r\n'))).toEqual(expected);
+  });
+  it('a mismatched table keeps a code span whole in its body (the shared-fixture row)', () => {
+    expect(cells('| a ` |\n|---|---|\n| `%%secret` | %% |')).toEqual([['a `'], ['`%%secret`', '%%']]);
+  });
+  // flexmark's MAX_HEADER_ROWS is unbounded: every pipe row above the delimiter row is a header row, and each is read alone.
+  it.each([
+    ['| h1 | h2 |\n| h3 | h4 |\n|---|---|\n| x | y |', [['h1', 'h2'], ['h3', 'h4'], ['x', 'y']]],
+    ['| h1 |\n| h2 | h3 |\n| h4 |\n|---|---|\n| x |', [['h1'], ['h2', 'h3'], ['h4'], ['x']]],
+    ['<b t="|---|---|\n | a`%%```\n|---|---|\n | %%|`', [['<b t="', '---', '---'], ['a`%%```'], ['%%', '`']]],
+  ])('several header rows: %j', (text, expected) => {
+    expect(cells(text)).toEqual(expected);
+    expect(cells(text.replace(/\n/g, '\r\n'))).toEqual(expected);
+  });
+  it('a header row holds its code span alone: a backtick in one header row does not pair with the next', () => {
+    expect(cells('| a ` |\n| b ` |\n|---|\n| x |')).toEqual([['a `'], ['b `'], ['x']]);
+  });
+  it('a line without a pipe above the delimiter row is no table', () => {
+    expect(cells('| a | b |\nplain\n|---|---|\n| x | y |')).toEqual([]);
+  });
+  it('a paragraph above is not split off a mismatched table, as the reader keeps it one paragraph', () => {
+    expect(cells('text\n| a | b |\n|---|\n| x | y |')).toEqual([]);
+  });
+});
+
 describe('table cells follow the reader: code spans and inline math stay whole across a pipe', () => {
   it('a code span holds its pipe (rendered by the reader: <td><code>x | %%secret%% | y</code></td>)', () => {
     expect(cells(`| h | h |\n${SEP}| \`x | %%secret%% | y\` |`)).toEqual([['h', 'h'], ['`x | %%secret%% | y`']]);

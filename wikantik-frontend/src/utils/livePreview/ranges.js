@@ -2,7 +2,7 @@ import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { commentRangesInTree } from '../obsidianComments';
-import { inlineTagRanges } from '../dialect/inlineTags';
+import { inlineTagRanges, normalizeLabel } from '../dialect/inlineTags';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
@@ -317,8 +317,6 @@ function firstMarkers(state, upTo) {
   return firsts;
 }
 const refLabelCache = new WeakMap(); // doc → { tree, defs, labels }
-/** CommonMark label matching: whitespace collapsed, case-insensitive. */
-export const normalizeLabel = (s) => s.trim().replace(/\s+/g, ' ').toLowerCase();
 /** The `[label]` of a LinkReference or LinkLabel node's text, brackets off. */
 const labelText = (raw) => raw.replace(/^\[/, '').replace(/\]$/, '');
 /** Pushes onto `out` each link reference definition `tree.iterate` meets in [from, to] whose start lies in it. */
@@ -677,7 +675,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   let mathAt = 0;
   let tagAt = 0;
   // The tree decides what is a tag (not code, math, a link, a heading or plugin text); the table walk below skips cells.
-  const tagRanges = inlineTagRanges(syntaxTree(state), from, to);
+  const tagRanges = inlineTagRanges(syntaxTree(state), { slice: (a, b) => doc.sliceString(a, b), labels: referenceLabels(state), from, to });
   eachLine(from, to, (line) => {
     const text = line.text;
     if (text.includes('[[')) {

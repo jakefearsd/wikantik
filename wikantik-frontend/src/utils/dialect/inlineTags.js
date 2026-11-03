@@ -49,17 +49,51 @@ export const inlineTagExtension = {
   parseInline: [InlineTagParser],
 };
 
-/** Constructs that hold inline runs yet are never prose: an ATX heading carries no tags, link text is link text. */
-const NO_TAGS = /^(?:ATXHeading[1-6]|Link|Image|Autolink)$/;
+/** CommonMark label matching: whitespace collapsed, case-insensitive. */
+export const normalizeLabel = (s) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+const bracketless = (raw) => raw.replace(/^\[/, '').replace(/\]$/, '');
 
-/** `[{ from, to }]` of each tag (from the `#`) in the window, in order; the caller removes those inside comments. */
-export function inlineTagRanges(tree, from = 0, to = tree.length) {
+/** The normalised labels of every link reference definition in the tree (`[r]: url`). */
+export function definedLabels(tree, slice) {
+  const out = new Set();
+  tree.iterate({
+    enter: (n) => {
+      if (n.name !== 'LinkReference') return undefined;
+      const l = n.node.getChild('LinkLabel');
+      const raw = l ? bracketless(slice(l.from, l.to)) : '';
+      if (raw && !raw.startsWith('^')) out.add(normalizeLabel(raw));
+      return false;
+    },
+  });
+  return out;
+}
+
+/** Whether a Link or Image node is a link the reader renders: inline (a URL) or a reference whose label is defined. */
+function isLink(n, slice, labels) {
+  if (n.node.getChild('URL')) return true;
+  const marks = n.node.getChildren('LinkMark');
+  if (marks.length < 2) return false;
+  const given = n.node.getChild('LinkLabel');
+  const label = given ? bracketless(slice(given.from, given.to)) : '';
+  return labels().has(normalizeLabel(label || slice(marks[0].to, marks[1].from)));
+}
+
+/**
+ * `[{ from, to }]` of each tag (from the `#`) in the window, in order; the caller removes those inside comments. An
+ * ATX heading carries no tags and a rendered link's text is link text. Brackets that link nowhere (no URL, label
+ * undefined) are plain text to the reader, so a tag in them is a tag. `slice(from, to)` reads the document; `labels`
+ * (default: read off `tree`) is the set of defined reference labels, normalised with `normalizeLabel`.
+ */
+export function inlineTagRanges(tree, { slice, labels, from = 0, to = tree.length } = {}) {
   const out = [];
+  let defined = labels;
+  const getLabels = () => { defined ??= definedLabels(tree, slice); return defined; };
   tree.iterate({
     from,
     to,
     enter: (n) => {
-      if (NO_TAGS.test(n.name)) return false;
+      if (/^(?:ATXHeading[1-6]|Autolink)$/.test(n.name)) return false;
+      if ((n.name === 'Link' || n.name === 'Image') && isLink(n, slice, getLabels)) return false;
       if (n.name === 'InlineTag') out.push({ from: n.from, to: n.to });
       return undefined;
     },

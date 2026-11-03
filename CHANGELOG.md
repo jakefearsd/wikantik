@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.7] - 2026-11-03
+
 ### Changed
 - **One editor dialect.** Live preview reads math, `%%comments%%`, `==highlight==`, inline `#tags` and `[[wikilinks]]`
   from the editor's one syntax tree (Lezer extensions in `src/utils/dialect/`) instead of per-construct line scanners and

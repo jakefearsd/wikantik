@@ -177,14 +177,15 @@
                                  silently into the production bundle, across 406 transitive
                                  packages. The ignore-scripts flag additionally blocks dependency
                                  lifecycle scripts (the install-time RCE vector); only `fsevents`
-                                 declares one here, and it is dev/macOS-only. -->
-                            <executable>npm</executable>
+                                 declares one here, and it is dev/macOS-only.
+                                 scripts/ensure-deps.mjs runs exactly that `npm ci`, but skips it when
+                                 node_modules was installed from this very package-lock.json (SHA-256
+                                 stamp), so a dev build no longer wipes and reinstalls node_modules. A
+                                 fresh checkout (CI, release) has no stamp and always runs npm ci. -->
+                            <executable>node</executable>
                             <workingDirectory>${project.basedir}/../wikantik-frontend</workingDirectory>
                             <arguments>
-                                <argument>ci</argument>
-                                <argument>--no-audit</argument>
-                                <argument>--no-fund</argument>
-                                <argument>--ignore-scripts</argument>
+                                <argument>scripts/ensure-deps.mjs</argument>
                             </arguments>
                         </configuration>
                     </execution>

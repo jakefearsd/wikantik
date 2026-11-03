@@ -118,11 +118,3 @@ export function opaqueRanges(tree) {
   });
   return out;
 }
-
-/** Whether `pos` lies inside code or math, per the tree. */
-export function opaqueAt(tree, pos) {
-  for (let n = tree.resolveInner(pos, 1); n; n = n.parent) {
-    if (OPAQUE.has(n.name) && pos >= n.from && pos < n.to) return true;
-  }
-  return false;
-}

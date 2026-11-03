@@ -51,7 +51,15 @@ export const inlineTagExtension = {
 
 /** CommonMark label matching: whitespace collapsed, case-insensitive. */
 export const normalizeLabel = (s) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-const bracketless = (raw) => raw.replace(/^\[/, '').replace(/\]$/, '');
+/** The text of a `[label]` with its brackets off. */
+export const bracketless = (raw) => raw.replace(/^\[/, '').replace(/\]$/, '');
+
+/** The normalised label of a LinkReference node (`[r]: url`), or '' when it has none or is a footnote definition (`^…`). */
+export function definitionLabel(node, slice) {
+  const l = node.node.getChild('LinkLabel');
+  const raw = l ? bracketless(slice(l.from, l.to)) : '';
+  return raw && !raw.startsWith('^') ? normalizeLabel(raw) : '';
+}
 
 /** The normalised labels of every link reference definition in the tree (`[r]: url`). */
 export function definedLabels(tree, slice) {
@@ -59,9 +67,8 @@ export function definedLabels(tree, slice) {
   tree.iterate({
     enter: (n) => {
       if (n.name !== 'LinkReference') return undefined;
-      const l = n.node.getChild('LinkLabel');
-      const raw = l ? bracketless(slice(l.from, l.to)) : '';
-      if (raw && !raw.startsWith('^')) out.add(normalizeLabel(raw));
+      const label = definitionLabel(n, slice);
+      if (label) out.add(label);
       return false;
     },
   });

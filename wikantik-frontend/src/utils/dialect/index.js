@@ -5,7 +5,7 @@ import { highlightExtension } from './highlight';
 import { inlineTagExtension } from './inlineTags';
 import { wikiLinkExtension } from './wikiLinks';
 
-export { opaqueAt, opaqueRanges } from './math';
+export { opaqueRanges } from './math';
 
 /** The wiki-specific parser extensions layered on commonmark + GFM (grows with each dialect construct). */
 export const dialectExtensions = [mathExtension, highlightExtension, inlineTagExtension, wikiLinkExtension];

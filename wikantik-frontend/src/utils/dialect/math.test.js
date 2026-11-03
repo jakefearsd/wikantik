@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { linearCost } from '../../test/linearCost';
-import { dialectParser, opaqueAt, opaqueRanges } from './index';
+import { dialectParser, opaqueRanges } from './index';
 import { commentRangesInTree } from '../obsidianComments';
 import { CASES } from '../inlineMath.cases';
 
@@ -63,11 +63,14 @@ describe('DisplayMath node', () => {
   });
 });
 
-describe('opaqueAt', () => {
+/** Whether `pos` lies in one of the tree's outermost code or math ranges. */
+const opaqueAt = (tree, pos) => opaqueRanges(tree).some(([from, to]) => pos >= from && pos < to);
+
+describe('opaqueRanges by position', () => {
   const text = 'a `c` $m$ $$d$$ z\n\n$$\nb\n$$\n\n```\nf\n```\n';
   const tree = dialectParser.parse(text);
   it.each([['c', true], ['m', true], ['d', true], ['b', true], ['f', true], ['z', false], ['a', false]])('%s', (ch, expected) => {
-    expect(opaqueAt(tree, text.lastIndexOf(ch === 'a' ? 'a' : ch))).toBe(expected);
+    expect(opaqueAt(tree, text.lastIndexOf(ch))).toBe(expected);
   });
 });
 
@@ -86,7 +89,7 @@ describe('DisplayMath follows the reader (DisplayMathPreProcessor)', () => {
   });
 });
 
-describe('opaqueAt boundaries and shapes', () => {
+describe('opaqueRanges boundaries and shapes', () => {
   it('is opaque at a node start and not at its end', () => {
     const inline = 'a $x$%%';
     const t = dialectParser.parse(inline);

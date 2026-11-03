@@ -2,7 +2,7 @@ import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { commentRangesInTree } from '../obsidianComments';
-import { inlineTagRanges, normalizeLabel } from '../dialect/inlineTags';
+import { inlineTagRanges, normalizeLabel, bracketless, definitionLabel } from '../dialect/inlineTags';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
@@ -322,8 +322,6 @@ function firstMarkers(state, upTo) {
   return firsts;
 }
 const refLabelCache = new WeakMap(); // doc → { tree, defs, labels }
-/** The `[label]` of a LinkReference or LinkLabel node's text, brackets off. */
-const labelText = (raw) => raw.replace(/^\[/, '').replace(/\]$/, '');
 /** Pushes onto `out` each link reference definition `tree.iterate` meets in [from, to] whose start lies in it. */
 function collectDefs(state, tree, from, to, out) {
   tree.iterate({
@@ -331,9 +329,8 @@ function collectDefs(state, tree, from, to, out) {
     to,
     enter: (node) => {
       if (node.name === 'LinkReference') {
-        const l = node.node.getChild('LinkLabel');
-        const raw = l ? labelText(state.doc.sliceString(l.from, l.to)) : '';
-        if (raw && !raw.startsWith('^') && node.from >= from && node.from <= to) out.push({ from: node.from, label: normalizeLabel(raw) });
+        const label = definitionLabel(node, (a, b) => state.doc.sliceString(a, b));
+        if (label && node.from >= from && node.from <= to) out.push({ from: node.from, label });
         return false;
       }
       return !(SKIP.has(node.name) || NOT_A_HOLDER.test(node.name) || TEXT_BLOCK.has(node.name));
@@ -531,7 +528,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       const l = n.getChild('LinkLabel');
       if (text.startsWith('^')) return; // footnote
       if (!l && text.startsWith('!')) return; // a shortcut `[!type]` is a callout marker; `[!x][r]` is a real reference
-      const given = l ? labelText(doc.sliceString(l.from, l.to)) : '';
+      const given = l ? bracketless(doc.sliceString(l.from, l.to)) : '';
       if (!referenceLabels(state).has(normalizeLabel(given || text))) return;
     }
     const g = `Link@${n.from}`;

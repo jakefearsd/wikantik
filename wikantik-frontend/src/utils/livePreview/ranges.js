@@ -220,8 +220,8 @@ const TEXT_BLOCK = new Set(['Paragraph', 'Task']);
  * The `^id` block marker ending a text block (a Paragraph or Task node), as `{ id, from }` (`from` = the caret), or null. The same marker
  * forms blockIds.js reads — inline (whitespace + `^id` ending the last line), last-line (`^id` alone on the last line)
  * and standalone (a paragraph that is only `^id`), with its regexes — but over the Lezer block structure, which costs a
- * line slice instead of a remark parse. Code, tables, HTML and headings are never Paragraph nodes; display math and a
- * callout's title line are ruled out here. (The inline tree is not consulted, so a `^x^` superscript cannot mis-tint.)
+ * line slice instead of a remark parse. Code, display math, tables, HTML and headings are never Paragraph nodes; a
+ * callout's title line is ruled out here.
  * Visuals only: the chips this tints decide nothing — block identity is the server's (POST /blocks/draft).
  */
 function paragraphMarker(doc, node) {
@@ -287,16 +287,21 @@ function besideRulesMarker(text) {
 }
 const firstMarkerCache = new WeakMap(); // doc → { tree, upTo, firsts }
 /**
+ * Whether `pos` lies inside a `%%comment%%`: a block marker there addresses nothing (the server's rule). The ranges are
+ * ascending and disjoint, so a binary search answers: a scan would make the first-wins walk cost markers × comments.
+ */
+function inComment(state, pos) {
+  const ranges = commentsOf(state);
+  const i = firstAtLeast(ranges, pos + 1, 'to');
+  return i < ranges.length && ranges[i].from <= pos;
+}
+/**
  * Each id's first marker position (Map id → caret) among the markers up to `upTo`: enough to apply the server's
  * first-wins rule (all markers ordered by position) to any marker at or before `upTo`, since an earlier marker of the
  * same id is in a block that starts before it. Walks only the block structure from the top (a text block is never
  * descended into), once per (document, parse tree) — the walk ends at the last marker in view, so it is short while
  * the viewport is near the top — and only when a marker is in view at all.
  */
-/** Whether `pos` lies inside a `%%comment%%`: a block marker there addresses nothing (the server's rule). */
-function inComment(state, pos) {
-  return commentsOf(state).some((r) => pos >= r.from && pos < r.to);
-}
 function firstMarkers(state, upTo) {
   const tree = syntaxTree(state);
   const hit = firstMarkerCache.get(state.doc);
@@ -742,7 +747,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   specs.length = 0;
   specs.push(...kept);
   // A block marker reads as a muted chip off the caret's line; a later duplicate of an id (first wins) is flagged.
-  const firsts = markers.length ? firstMarkers(state, Math.max(...markers.map((m) => m.from))) : null;
+  const firsts = markers.length ? firstMarkers(state, markers[markers.length - 1].from) : null; // in document order
   for (const m of markers) {
     if (!inactive(m.from) || inComment(state, m.from)) continue; // a marker inside a comment is plain comment text
     const first = firsts.get(m.id);

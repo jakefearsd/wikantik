@@ -3,6 +3,7 @@ import { EditorState, EditorSelection } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import fixture from '../__fixtures__/renderedFences.json';
 import { fullyParsed } from '../../test/fullParse';
+import { linearCost } from '../../test/linearCost';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { blocksFromMarkdown, blockMarkers } from '../blockIds';
 import { blockCandidates, activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
@@ -489,6 +490,25 @@ describe('block markers', () => {
     expect(markers(state, specs)).toEqual([['cm-lp-blockid-dup', '^dup', 'Duplicate block id — only the first ^dup is linkable']]);
   });
 
+  it('judging duplicates on a page of markers and comments costs linear time, every keystroke', () => {
+    // Each keystroke is a new document, so the first-wins walk runs again from the top: asking of each marker whether
+    // it lies in a comment must not cost time in the number of comments.
+    const make = (n) => {
+      let doc = '';
+      for (let i = 0; i < n; i += 1) doc += `Para ${i} ^b${i}\n\nx %%c${i}%% y\n\n`;
+      return stateOf(`${doc}Last ^b0`);
+    };
+    const keystroke = (state) => {
+      const next = fullyParsed(state.update({ changes: { from: state.doc.length, insert: ' ' } }).state);
+      const last = next.doc.line(next.doc.lines);
+      return { state: next, specs: livePreviewSpecs(next, new Set(), { from: last.from, to: last.to }) };
+    };
+    const typed = keystroke(make(3));   // the walk does judge the last line: its ^b0 repeats the first marker
+    expect(markers(typed.state, typed.specs)).toEqual([['cm-lp-blockid-dup', '^b0', 'Duplicate block id — only the first ^b0 is linkable']]);
+    const { ratio, bound } = linearCost(make, keystroke, { small: 4000 });
+    expect(ratio).toBeLessThan(bound);
+  });
+
   it('agrees with blocksFromMarkdown on which markers are duplicates', () => {
     const doc = 'a ^x\n\n- b ^x\n- c ^y\n\n> d\n>\n> ^y\n\ne ^z\n\n- [x] done ^z';
     const { specs } = specsOf(doc, []);
@@ -535,6 +555,7 @@ describe('block markers agree with the block model (blockMarkers: orphans and du
     ['an indented rule and two spaces leave code', 'Para.\n\n  [{ALLOW view Admin}]  ^id\n\nAfter ^id\n'],
     ['an indented marker after a rule line is code', 'Para.\n\n[{ALLOW view Admin}]\n    ^id\n\nAfter ^id\n'],
     ['two spaces after a rule keep the marker', 'Para.\n\n[{ALLOW view Admin}]  ^id\n\nAfter ^id\n'],
+    ['markers between, inside and after several comments', '%%one%%\n\nA ^a\n\n%%\ntwo ^b\n%%\n\nB ^b\n\n%%three%% ok ^c\n\nC ^a\n'],
   ])('%s', (_name, doc) => {
     expect(chips(doc)).toEqual(blockMarkers(doc));
   });

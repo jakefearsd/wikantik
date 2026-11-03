@@ -2,21 +2,44 @@ import { matchInlineMath } from '../inlineMath';
 
 const DOLLAR = 36;
 const LOOKAHEAD_CHARS = 64 * 1024;
-const CONTAINER_PREFIX = /^[ \t>]*/;
-const isDelimiterLine = (line) => line.text.slice(line.pos).trim() === '$$' && line.indent - line.baseIndent < 4;
+const TAB_WIDTH = 4;
 
 /**
- * Whether a closing `$$` line follows. The reader's pre-pass (DisplayMathPreProcessor) closes at the next line that
- * is only `$$`, blank lines allowed. A block parser cannot rewind, so this peeks at the input; container prefixes
- * (`>`) are stripped approximately.
+ * Opener and closer test: the FULL line is `$$` with optional surrounding whitespace, exactly the reader's
+ * `^[ \t]*\$\$[ \t]*$` (DisplayMathPreProcessor). So `> $$` and `- $$` never open or close display math, an indented
+ * `  $$` inside a list item does, and an indent of four or more stays an indented code block (code wins in the editor;
+ * the reader's pre-pass is code-blind, and the comment masks on both sides already treat such a line as code).
+ */
+const isDelimiterLine = (line) => line.text.trim() === '$$' && line.indent - line.baseIndent < TAB_WIDTH;
+
+function leadingWidth(raw) {
+  let width = 0;
+  for (const ch of raw) {
+    if (ch === ' ') width += 1;
+    else if (ch === '\t') width += TAB_WIDTH - (width % TAB_WIDTH);
+    else break;
+  }
+  return width;
+}
+
+/**
+ * Whether a closing `$$` line follows while every line stays in the opener's container. The reader's pre-pass closes
+ * at the next `$$`-only line, blank lines allowed, and is container-blind; the editor deliberately differs: when the
+ * container (a list item, whose lines must stay indented to its content column) ends first, there is no math, because
+ * a Lezer node must nest properly. A block parser cannot rewind, so this peeks at the input. Only a document or
+ * list-item container can hold an opener (a `> ` line is never an opener), so the check is an indent comparison.
  */
 function closesAhead(cx, line) {
   const input = cx.input;
   if (!input || typeof input.read !== 'function') return false;
   const start = cx.lineStart + line.text.length + 1;
   if (start >= input.length) return false;
-  return input.read(start, Math.min(input.length, start + LOOKAHEAD_CHARS)).split('\n')
-    .some((raw) => raw.replace(CONTAINER_PREFIX, '').trim() === '$$');
+  for (const raw of input.read(start, Math.min(input.length, start + LOOKAHEAD_CHARS)).split('\n')) {
+    if (raw.trim() === '') continue;
+    if (leadingWidth(raw) < line.baseIndent) return false; // the container has ended
+    if (raw.trim() === '$$') return true;
+  }
+  return false;
 }
 
 /** `$$` alone on a line to the next such line (blank lines inside allowed); an unterminated `$$` is left to the paragraph. */
@@ -27,11 +50,12 @@ const DisplayMathBlock = {
     if (line.next !== DOLLAR || !isDelimiterLine(line) || !closesAhead(cx, line)) return false;
     const from = cx.lineStart + line.pos;
     let to = cx.lineStart + line.text.length;
+    let closed = false;
     while (cx.nextLine() && line.depth >= cx.depth) {
       to = cx.lineStart + line.text.length;
-      if (isDelimiterLine(line)) { cx.nextLine(); break; }
+      if (isDelimiterLine(line)) { closed = true; cx.nextLine(); break; }
     }
-    cx.addElement(cx.elt('DisplayMath', from, to));
+    if (closed) cx.addElement(cx.elt('DisplayMath', from, to));
     return true;
   },
   endLeaf: (cx, line) => line.next === DOLLAR && isDelimiterLine(line) && closesAhead(cx, line),

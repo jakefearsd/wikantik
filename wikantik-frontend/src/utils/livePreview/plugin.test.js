@@ -218,6 +218,16 @@ describe('live preview incremental updates', () => {
     expect(view.dom.querySelectorAll('.cm-lp-embed')).toHaveLength(1);
   });
 
+  it('the "around" edit alone leaves the math widget present and correct (text after a closing $$ does not end display math)', () => {
+    const view = liveView(DOC, { caret: 1 });
+    const end = DOC.indexOf('$$\n\n') + 2;
+    view.dispatch({ changes: [{ from: end, insert: '\nmore' }], selection: { anchor: 1 }, userEvent: 'input.type' });
+    const math = view.dom.querySelectorAll('.cm-lp-math-block');
+    expect(math).toHaveLength(1);
+    expect(math[0].textContent).toContain('x');
+    expect(view.dom.querySelectorAll('.cm-lp-embed')).toHaveLength(1);
+  });
+
   it('opening a fence above the blocks removes their widgets; undo/redo restore and remove them', () => {
     const view = liveView(DOC, { caret: 0 });
     typeAt(view, 0, '```\n');

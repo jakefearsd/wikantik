@@ -36,8 +36,25 @@ describe('DisplayMath node', () => {
   it('is not a node at end of input without a close', () => {
     expect(nodes('$$\nx = 1', 'DisplayMath')).toEqual([]);
   });
-  it('works inside a blockquote', () => {
-    expect(nodes('> $$\n> x\n> $$\n', 'DisplayMath')).toHaveLength(1);
+  it('is not math in a blockquote (the reader never matches a `> $$` line)', () => {
+    expect(nodes('> $$\n> x\n> $$\n', 'DisplayMath')).toEqual([]);
+  });
+  it('is not math when a later top-level $$ is outside the opener\'s blockquote', () => {
+    expect(nodes('> $$\n> x\n\ntext\n$$\n', 'DisplayMath')).toEqual([]);
+    expect(nodes('> $$\n> x\ntext\n$$\n', 'DisplayMath')).toEqual([]);
+    expect(nodes('> $$\n> x\n> > $$\n', 'DisplayMath')).toEqual([]);
+  });
+  it('is not math when a bullet marker shares the line', () => {
+    expect(nodes('- $$\n  x\n\npara\n$$\n', 'DisplayMath')).toEqual([]);
+  });
+  it('is math on indented lines inside a list item, ending at the closer line', () => {
+    expect(nodes('- item\n\n  $$\n  x\n\n  y\n  $$\n\npara\n', 'DisplayMath')).toEqual(['$$\n  x\n\n  y\n  $$']);
+  });
+  it('is not math when the list item ends before a closer (a later top-level $$)', () => {
+    expect(nodes('- item\n\n  $$\n  x\n\npara\n$$\n', 'DisplayMath')).toEqual([]);
+  });
+  it('stays code at an indent of four or more (code wins in the editor; the reader pre-pass is code-blind)', () => {
+    expect(nodes('    $$\n    x\n    $$\n', 'DisplayMath')).toEqual([]);
   });
   it('does not treat $$ inside a fence as math', () => {
     expect(nodes('```\n$$\nx\n$$\n```\n', 'DisplayMath')).toEqual([]);
@@ -64,5 +81,32 @@ describe('DisplayMath follows the reader (DisplayMathPreProcessor)', () => {
   });
   it('is not a node when unterminated, even after text', () => {
     expect(nodes('text\n$$\nx\n', 'DisplayMath')).toEqual([]);
+  });
+});
+
+describe('opaqueAt boundaries and shapes', () => {
+  it('is opaque at a node start and not at its end', () => {
+    const inline = 'a $x$%%';
+    const t = dialectParser.parse(inline);
+    expect(opaqueAt(t, inline.indexOf('$x$'))).toBe(true);
+    expect(opaqueAt(t, inline.indexOf('%%'))).toBe(false);
+    const block = '$$\nx\n$$\n%%';
+    const b = dialectParser.parse(block);
+    expect(opaqueAt(b, 0)).toBe(true);
+    expect(opaqueAt(b, block.lastIndexOf('$$') + 1)).toBe(true);
+    expect(opaqueAt(b, block.indexOf('%%'))).toBe(false);
+  });
+  it('is not opaque in an unterminated $$', () => {
+    const text = '$$\nx\n';
+    expect(opaqueAt(dialectParser.parse(text), text.indexOf('x'))).toBe(false);
+  });
+  it('is opaque in an indented code block', () => {
+    const text = '    code %%\n';
+    expect(opaqueAt(dialectParser.parse(text), text.indexOf('%%'))).toBe(true);
+  });
+  it('is not opaque in an unterminated container $$', () => {
+    for (const text of ['> $$\n> x\n\ntext\n$$\n', '- $$\n  x\n\npara\n$$\n']) {
+      expect(opaqueAt(dialectParser.parse(text), text.indexOf('x'))).toBe(false);
+    }
   });
 });

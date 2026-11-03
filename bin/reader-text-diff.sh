@@ -2,11 +2,12 @@
 # reader-text-diff.sh <git-ref> <pagesDir>
 #
 # The corpus check before a comment-mask (or tag) change ships: shows every page whose reader-visible
-# text differs between <git-ref> (the release in production) and HEAD. Exit 3 when any page GROWS --
-# the reader sees MORE text at HEAD than at <git-ref>, i.e. the change newly exposes it.
+# text differs between <git-ref> (the release in production) and HEAD. Exit 3 when any page EXPOSES
+# (a character hidden at <git-ref> is visible at HEAD; exact, by comment ranges, when the body is unchanged)
+# or GROWS (the reader sees MORE text at HEAD, the fallback when the body differs).
 #
-# Exit codes: 0 nothing grows; 3 at least one page GROWS; 1 or 2 usage / build / IO failure (64 bad
-# arguments). A final line `reader-text-diff: N changed, G grow, S shrink` is printed on 0 and 3.
+# Exit codes: 0 nothing exposes or grows; 3 at least one page EXPOSES or GROWS; 1 or 2 usage / build / IO failure (64 bad
+# arguments). A final line `reader-text-diff: N changed, E expose, G grow, S shrink` is printed on 0 and 3.
 #
 # How: <git-ref> and HEAD are each built (mvn -o package, so ~/.m2 is never overwritten) in their own
 # temporary git worktree, so the working tree is never touched (uncommitted changes are NOT included in
@@ -62,6 +63,6 @@ if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
     echo "reader-text-diff: diff failed (exit $rc)" >&2
     exit "$rc"
 fi
-echo "reader-text-diff: $(grep -cE '^(GROWS|SHRINKS|SAME-LENGTH) ' "$WORK/diff.txt" || true) changed," \
-     "$(grep -c '^GROWS ' "$WORK/diff.txt" || true) grow, $(grep -c '^SHRINKS ' "$WORK/diff.txt" || true) shrink"
+echo "reader-text-diff: $(grep -cE '^(EXPOSES|GROWS|SHRINKS|SAME-LENGTH) ' "$WORK/diff.txt" || true) changed," \
+     "$(grep -c '^EXPOSES ' "$WORK/diff.txt" || true) expose, $(grep -c '^GROWS ' "$WORK/diff.txt" || true) grow, $(grep -c '^SHRINKS ' "$WORK/diff.txt" || true) shrink"
 exit "$rc"

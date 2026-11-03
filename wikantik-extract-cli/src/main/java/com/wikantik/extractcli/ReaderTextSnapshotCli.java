@@ -26,6 +26,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.markdown.InlineTagSyntax;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -46,29 +48,33 @@ import java.util.stream.Stream;
 
 /**
  *  Records what a reader of each page would see, and compares two such records. The corpus check
- *  that runs before a comment-mask (or tag) change ships: a page whose reader-visible text
- *  <em>grows</em> is one the change newly exposes.
+ *  that runs before a comment-mask (or tag) change ships: a page that
+ *  <em>EXPOSES</em> (a hidden character becomes visible) or whose reader-visible text <em>grows</em> is one the
+ *  change newly exposes.
  *
  *  <pre>
  *  ReaderTextSnapshotCli snapshot &lt;pagesDir&gt; &lt;out.json&gt;
  *  ReaderTextSnapshotCli diff &lt;a.json&gt; &lt;b.json&gt;
  *  </pre>
  *
- *  <p>Exit codes: {@code 0} success (for {@code diff}: nothing grows), {@code 3} {@code diff} found a page that
- *  GROWS from a to b, {@code 1} usage error, {@code 2} I/O or other failure.</p>
+ *  <p>Exit codes: {@code 0} success (for {@code diff}: nothing exposes or grows), {@code 3} {@code diff} found a page that
+ *  EXPOSES or GROWS from a to b, {@code 1} usage error, {@code 2} I/O or other failure.</p>
  *
  *  <p>The reader's comment parse is looked up <b>by reflection</b>: {@code ReaderComments} where the
  *  build has it, otherwise {@code ObsidianComments}, which every earlier release has. That is what lets
  *  {@code bin/reader-text-diff.sh} compile this one source file against an old release's classpath and
  *  against the working tree's, and compare the two. Snapshot lines are per page:
- *  {@code stripped} (sha256 of the body with comments removed), {@code strippedLength},
+ *  {@code body} (sha256 of the body), {@code stripped} (sha256 of the body with comments removed), {@code strippedLength},
  *  {@code comments} (the hidden ranges) and {@code tags}.</p>
  */
 public final class ReaderTextSnapshotCli {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final Logger LOG = LogManager.getLogger( ReaderTextSnapshotCli.class );
     private static final String[] COMMENT_CLASSES = {
         "com.wikantik.parser.markdown.ReaderComments", "com.wikantik.api.markdown.ObsidianComments" };
+    /** The comment parse of this build, resolved once; null when neither class is on the classpath. */
+    private static final Class< ? > COMMENTS = resolveCommentsClass();
 
     /** Exit code of {@code diff} when a page GROWS; distinct from usage (1) and failure (2). */
     public static final int EXIT_GROWS = 3;
@@ -95,6 +101,7 @@ public final class ReaderTextSnapshotCli {
         final List< int[] > ranges = commentRanges( body );
         final String stripped = strip( body );
         final JsonObject page = new JsonObject();
+        page.addProperty( "body", sha256( body ) );
         page.addProperty( "stripped", sha256( stripped ) );
         page.addProperty( "strippedLength", stripped.length() );
         final JsonArray comments = new JsonArray();
@@ -120,22 +127,31 @@ public final class ReaderTextSnapshotCli {
         return ( String ) invokeComments( "strip", body );
     }
 
-    private static Object invokeComments( final String method, final String body ) {
+    private static Class< ? > resolveCommentsClass() {
         for ( final String className : COMMENT_CLASSES ) {
-            final Class< ? > type;
             try {
-                type = Class.forName( className );
+                final Class< ? > type = Class.forName( className );
+                LOG.debug( "comment parse resolved to {}", className );
+                return type;
             } catch ( final ClassNotFoundException absent ) {
-                continue;   // an older build: fall through to the next dialect
-            }
-            try {
-                final Method m = type.getMethod( method, String.class );
-                return m.invoke( null, body );
-            } catch ( final NoSuchMethodException | IllegalAccessException | InvocationTargetException e ) {
-                throw new IllegalStateException( className + "." + method + " is not callable", e );
+                LOG.info( "{} is not on the classpath (an older build); falling back to the next of {}",
+                          className, List.of( COMMENT_CLASSES ) );
             }
         }
-        throw new IllegalStateException( "no comment parser on the classpath" );
+        LOG.warn( "none of {} is on the classpath", List.of( COMMENT_CLASSES ) );
+        return null;
+    }
+
+    private static Object invokeComments( final String method, final String body ) {
+        if ( COMMENTS == null ) {
+            throw new IllegalStateException( "no comment parser on the classpath (tried " + List.of( COMMENT_CLASSES ) + ")" );
+        }
+        try {
+            final Method m = COMMENTS.getMethod( method, String.class );
+            return m.invoke( null, body );
+        } catch ( final NoSuchMethodException | IllegalAccessException | InvocationTargetException e ) {
+            throw new IllegalStateException( COMMENTS.getName() + "." + method + " is not callable", e );
+        }
     }
 
     private static String sha256( final String s ) {
@@ -147,10 +163,16 @@ public final class ReaderTextSnapshotCli {
     }
 
     /**
-     *  Prints one line per changed page, {@code GROWS|SHRINKS|SAME-LENGTH page comments a->b tags +[..] -[..]},
+     *  Prints one line per changed page, {@code EXPOSES|GROWS|SHRINKS|SAME-LENGTH page comments a->b tags +[..] -[..]},
      *  comparing {@code a} (before) to {@code b} (after).
      *
-     *  @return {@link #EXIT_GROWS} when any page GROWS (the reader sees more text in {@code b}), else 0
+     *  <p>When both snapshots hold the same body (equal {@code body} hashes) exposure is decided exactly: the
+     *  page {@code EXPOSES} when any character lies inside a's comment ranges and outside b's, whatever the net
+     *  length does (one comment un-hidden while another is newly hidden can shrink the text and still leak).
+     *  When the bodies differ the ranges cannot be compared, so the verdict is by reader-visible length: GROWS
+     *  when it grew. Snapshots without a {@code body} hash are treated as differing bodies.</p>
+     *
+     *  @return {@link #EXIT_GROWS} when any page EXPOSES or GROWS (the reader sees more text in {@code b}), else 0
      */
     public static int diff( final Path a, final Path b, final PrintStream out ) throws IOException {
         final JsonObject before = JsonParser.parseString( Files.readString( a, StandardCharsets.UTF_8 ) ).getAsJsonObject();
@@ -177,14 +199,43 @@ public final class ReaderTextSnapshotCli {
             return false;
         }
         final int delta = y.get( "strippedLength" ).getAsInt() - x.get( "strippedLength" ).getAsInt();
-        final String verdict = delta > 0 ? "GROWS" : delta < 0 ? "SHRINKS" : "SAME-LENGTH";
+        final boolean sameBody = x.has( "body" ) && y.has( "body" ) && x.get( "body" ).equals( y.get( "body" ) );
+        final boolean exposes = sameBody && exposes( x.getAsJsonArray( "comments" ), y.getAsJsonArray( "comments" ) );
+        final String verdict = exposes ? "EXPOSES" : delta > 0 ? "GROWS" : delta < 0 ? "SHRINKS" : "SAME-LENGTH";
         final List< String > added = new ArrayList<>( tagsB );
         added.removeAll( tagsA );
         final List< String > removed = new ArrayList<>( tagsA );
         removed.removeAll( tagsB );
         out.println( verdict + " " + name + " comments " + commentsA + "→" + commentsB
                      + " tags +" + added + " -" + removed );
-        return delta > 0;
+        return exposes || delta > 0;
+    }
+
+    /** True when some offset is inside a range of {@code hiddenBefore} and inside no range of {@code hiddenAfter}. */
+    static boolean exposes( final JsonArray hiddenBefore, final JsonArray hiddenAfter ) {
+        final List< int[] > after = new ArrayList<>();
+        for ( final JsonElement e : hiddenAfter ) {
+            final JsonArray r = e.getAsJsonArray();
+            after.add( new int[] { r.get( 0 ).getAsInt(), r.get( 1 ).getAsInt() } );
+        }
+        after.sort( ( p, q ) -> Integer.compare( p[ 0 ], q[ 0 ] ) );
+        for ( final JsonElement e : hiddenBefore ) {
+            final JsonArray r = e.getAsJsonArray();
+            int at = r.get( 0 ).getAsInt();
+            final int end = r.get( 1 ).getAsInt();
+            for ( final int[] b : after ) {
+                if ( at >= end ) {
+                    break;
+                }
+                if ( b[ 1 ] > at && b[ 0 ] <= at ) {
+                    at = b[ 1 ];       // covered up to b's end
+                }
+            }
+            if ( at < end ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List< String > strings( final JsonArray array ) {

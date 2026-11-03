@@ -159,4 +159,50 @@ class ReaderTextSnapshotCliTest {
         assertTrue( text.contains( "+[beta]" ), text );
         assertEquals( 3, exit, "the visible text grew, so this is a GROWS" );
     }
+
+    @Test
+    void same_body_one_comment_unhidden_while_another_is_newly_hidden_EXPOSES_despite_net_shrink() throws IOException {
+        final Path dir = Files.createDirectories( tmp.resolve( "pages" ) );
+        final String body = "aa %% SECRET %% bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp %% x %% qq\n";
+        Files.writeString( dir.resolve( "P.md" ), body );
+        final Path before = tmp.resolve( "before.json" );
+        final Path after = tmp.resolve( "after.json" );
+        ReaderTextSnapshotCli.snapshot( dir, before );
+        // hand-build the "after" snapshot of the SAME body: the first comment is no longer hidden, a much
+        // longer span (everything from bb to qq) is newly hidden, so the visible text shrinks overall
+        final JsonObject snap = JsonParser.parseString( Files.readString( before ) ).getAsJsonObject();
+        final JsonObject page = snap.getAsJsonObject( "P" );
+        final JsonArray ranges = new JsonArray();
+        final JsonArray r = new JsonArray();
+        r.add( 17 );
+        r.add( body.length() - 4 );
+        ranges.add( r );
+        page.add( "comments", ranges );
+        page.addProperty( "strippedLength", 3 );
+        Files.writeString( after, snap.toString() );
+
+        final int exit = ReaderTextSnapshotCli.diff( before, after, out );
+
+        assertEquals( 3, exit );
+        assertTrue( output().startsWith( "EXPOSES P comments 2→1" ), output() );
+    }
+
+    @Test
+    void same_body_range_coverage_does_not_expose_when_every_hidden_char_stays_hidden() throws IOException {
+        final JsonArray a = JsonParser.parseString( "[[5,10]]" ).getAsJsonArray();
+        final JsonArray wider = JsonParser.parseString( "[[0,7],[7,12]]" ).getAsJsonArray();
+        assertFalse( ReaderTextSnapshotCli.exposes( a, wider ) );
+        assertTrue( ReaderTextSnapshotCli.exposes( wider, a ) );
+    }
+
+    @Test
+    void different_bodies_fall_back_to_visible_length() throws IOException {
+        final Path dir = pages();
+        snapshot( dir, "a.json" );
+        Files.writeString( dir.resolve( "Commented.md" ), "Before %% hidden %% after, and more\r\n" );
+        snapshot( dir, "b.json" );
+        final int exit = ReaderTextSnapshotCli.diff( tmp.resolve( "a.json" ), tmp.resolve( "b.json" ), out );
+        assertEquals( 3, exit );
+        assertTrue( output().startsWith( "GROWS Commented" ), output() );
+    }
 }

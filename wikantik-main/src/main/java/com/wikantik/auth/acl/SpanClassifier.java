@@ -88,11 +88,13 @@ final class SpanClassifier {
         /**
          * @param text      raw page text
          * @param bodyStart where its body starts
+         * @param structure {@link RenderPathAccessRules#structure} of that same text: the body is already parsed, so its
+         *                  comments are read off it rather than off a second parse
          * @return the body's comments, or {@code null} when it has none
          * @throws RenderPathAccessRules.Unreadable when the body without its comments cannot be parsed
          */
-        static Comments of( final String text, final int bodyStart ) {
-            final List< int[] > ranges = ReaderComments.ranges( text.substring( bodyStart ) );
+        static Comments of( final String text, final int bodyStart, final RenderPathAccessRules.Structure structure ) {
+            final List< int[] > ranges = ReaderComments.ranges( text.substring( bodyStart ), structure, bodyStart );
             return ranges.isEmpty() ? null
                     : new Comments( ranges, text, bodyStart, RenderPathAccessRules.commentStrippedStructure( text, ranges ) );
         }

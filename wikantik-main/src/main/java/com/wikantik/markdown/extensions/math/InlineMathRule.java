@@ -41,8 +41,9 @@ final class InlineMathRule {
     }
 
     /**
-     * Applies the rule to the {@code $} at {@code dollarIndex} ({@link InlineMath#matchEnd}, the one Java copy, which
-     * {@code ReaderComments} uses too).
+     * Applies the rule to the {@code $} at {@code dollarIndex} ({@link InlineMath#matchEnd}, the one Java copy). The render's
+     * {@link InlineMathParser} and the access-rule text scan ({@link MathSpanExtractor}) call it; {@code ReaderComments}
+     * does not: it reads math off the render's own parse ({@code ReaderStructure#renderedMath}).
      *
      * @return the exclusive end index of the span (just past the closing {@code $}), or -1 for no match
      */

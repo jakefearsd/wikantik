@@ -79,9 +79,10 @@ class ReaderCommentsCallersTest {
 
     /**
      * Raw-body parses one save of a page holding a rule, a comment and a code span costs. Measured: 6 before the
-     * comment-stripped structure reused the comment ranges, 5 after. Among them: the rule structure (AccessRules), the
-     * comment ranges (ReaderComments), the comment-stripped structure the rule locking compares, and the save-path callers
-     * that read the body (block ids, references, index). The render's own flexmark parse is not counted here.
+     * comment-stripped structure reused the comment ranges, 5 after, 4 once the comment ranges were read off the rule
+     * structure's own parse. Among them: the rule structure (AccessRules, which also yields the comment ranges), the
+     * comment-stripped structure the rule locking compares, and the save-path callers that read the body (block ids,
+     * references, index). The render's own flexmark parse is not counted here.
      */
     @Test
     void parsesPerSave() throws Exception {
@@ -89,7 +90,7 @@ class ReaderCommentsCallersTest {
         final long before = ReaderStructure.parses();
         testEngine.saveText( "CallersParses", text );
         final long perSave = ReaderStructure.parses() - before;
-        assertTrue( perSave <= 5, "one save parsed the raw body " + perSave + " times" );
+        assertTrue( perSave <= 4, "one save parsed the raw body " + perSave + " times" );
     }
 
 }

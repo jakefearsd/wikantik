@@ -41,7 +41,6 @@ import com.wikantik.parser.LinkParsingOperations;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The reader's parse of a raw page body, and its classification: the same preparation, flexmark structure and
@@ -59,15 +58,18 @@ final class ReaderStructure {
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
             .build();
 
-    /** How many bodies have been parsed: a test seam, so a caller's tests can count the parses it pays for. */
-    private static final AtomicLong PARSES = new AtomicLong();
+    /**
+     * How many bodies this thread has parsed: a test seam, so a caller's tests can count the parses it pays for. Per
+     * thread, so another thread's parses (other tests, a background save) cannot move the count a test reads.
+     */
+    private static final ThreadLocal< long[] > PARSES = ThreadLocal.withInitial( () -> new long[ 1 ] );
 
     private ReaderStructure() {
     }
 
-    /** @return how many times a body has been parsed since the class loaded (a test seam) */
+    /** @return how many times a body has been parsed on the calling thread since it first parsed one (a test seam) */
     static long parses() {
-        return PARSES.get();
+        return PARSES.get()[ 0 ];
     }
 
     /**
@@ -86,7 +88,7 @@ final class ReaderStructure {
     }
 
     private static RenderPathAccessRules.Structure parsed( final String body, final int bodyStart, final long budget ) {
-        PARSES.incrementAndGet();
+        PARSES.get()[ 0 ]++;
         try {
             return parsedStructure( MarkdownBodySource.prepare( body ), bodyStart, body.length(), budget );
         } catch ( final RenderPathAccessRules.Unreadable e ) {

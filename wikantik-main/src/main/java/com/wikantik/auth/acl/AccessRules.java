@@ -272,7 +272,7 @@ public final class AccessRules {
         }
         final SpanClassifier.Comments comments;
         try {
-            comments = SpanClassifier.Comments.of( fullText, bodyStart );
+            comments = SpanClassifier.Comments.of( fullText, bodyStart, structure );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
             LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them once "
                     + "its comments are removed; the page locks to administrators: {}", fullText.length(), e.getMessage() );

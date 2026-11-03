@@ -105,6 +105,30 @@ class ReaderCommentsTest {
     }
 
     @Test
+    void rangesReadOffAnExistingStructureAreTheSameAndCostNoParse() {
+        final String frontmatter = "---\ntitle: x\n---\n";
+        final String body = "a %%x%% `%%code%%` b %%y\nz%% $%%m%%$ c\n";
+        final int bodyStart = frontmatter.length();
+        final RenderPathAccessRules.Structure structure = ReaderStructure.of( body, bodyStart );
+        final long before = ReaderStructure.parses();
+        final List< int[] > fromStructure = ReaderComments.ranges( body, structure, bodyStart );
+        assertEquals( before, ReaderStructure.parses(), "no second parse" );
+        assertEquals( render( ReaderComments.ranges( body ) ), render( fromStructure ) );
+        assertEquals( 2, fromStructure.size(), render( fromStructure ) );
+    }
+
+    @Test
+    void theParseCountIsThePerThreadCountSoOtherThreadsCannotMoveIt() throws Exception {
+        final long before = ReaderStructure.parses();
+        final Thread other = new Thread( () -> ReaderComments.ranges( "a %%x%% b" ) );
+        other.start();
+        other.join();
+        assertEquals( before, ReaderStructure.parses(), "another thread's parse is not this thread's" );
+        ReaderComments.ranges( "a %%x%% b" );
+        assertEquals( before + 1, ReaderStructure.parses() );
+    }
+
+    @Test
     void stripReturnsTheSameInstanceWhenNothingIsRemoved() {
         final String body = "a %%unterminated and `%%code%%`";
         assertSame( body, ReaderComments.strip( body ) );

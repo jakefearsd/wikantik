@@ -77,12 +77,13 @@ public final class RenderPathAccessRules {
      * @param rules the access rules the render path reads (see {@link #find})
      * @param code  inline code spans and code blocks the author wrote (a {@code $$} block's generated fence is math)
      * @param html  HTML blocks, HTML comments and inline HTML tags
-     * @param math  inline math and {@code $$} display-math blocks as the editor reads them: the whole {@code $$…$$} pair
-     *              the pre-pass rewrote, wherever the render ends the fence. Access rules use this list (#104 locks
-     *              wherever readers disagree)
+     * @param math  inline math and {@code $$} display-math blocks, the <em>wide</em> reading kept for locking access rules:
+     *              the whole {@code $$…$$} pair the pre-pass rewrote, wherever the render ends the fence, so a rule
+     *              is locked wherever readers could disagree (#104). It is the text scan's reading, not the editor's:
+     *              comments and the editor follow {@code renderedMath}
      * @param renderedMath inline math and display math as the render draws it: a {@code $$} block spans only its parsed
-     *              fence, so it stops where its container ends it. Reader-facing text (comments) uses this list, so a
-     *              reader never sees what the editor hides
+     *              fence, so it stops where its container ends it. Comments and the editor read math this way, so what
+     *              a reader sees is what they hide
      * @param links links that are not access rules but have a target ({@code [text](url)}), images, reference links,
      *              link reference definitions and {@code [[…]]} wiki links
      * @param labels links with no target that the render path does <em>not</em> read as rules but whose text starts,
@@ -99,7 +100,7 @@ public final class RenderPathAccessRules {
     private RenderPathAccessRules() {
     }
 
-    /** @return how many times a body has been parsed since the class loaded (a test seam) */
+    /** @return how many times the calling thread has parsed a body (a test seam; per thread, so other threads cannot move it) */
     public static long parses() {
         return ReaderStructure.parses();
     }

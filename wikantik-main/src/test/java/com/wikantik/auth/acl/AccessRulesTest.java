@@ -131,16 +131,18 @@ class AccessRulesTest {
         assertInstanceOf( Locked.class, reading );
     }
 
-    static Stream< Shaped > adversarial() {
-        return AclDirectiveFixtures.ADVERSARIAL.stream();
+    /**
+     * A text built to make a per-span scan quadratic is read in linear time: 4x the text costs about 4x, never about 16x.
+     * (A ratio, so a loaded machine cannot fail it; {@link LinearTimeTest} shows the guard does fail a quadratic scan.)
+     */
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "scaled" )
+    void aTextBuiltToMakeAPerSpanScanQuadraticIsReadInLinearTime( final AclDirectiveFixtures.Scaled shape ) {
+        LinearTime.assertLinear( shape.name(), shape::text, shape.baseUnits() / LinearTime.FACTOR, AccessRules::read );
     }
 
-    /** Each text costs a few tens of milliseconds when read in linear time, and seconds when a scan is per span. */
-    @ParameterizedTest( name = "{0}" )
-    @MethodSource( "adversarial" )
-    void aTextBuiltToMakeAPerSpanScanQuadraticIsReadInLinearTime( final Shaped row ) {
-        AccessRules.read( "[{allow view warm}] x" );     // class loading and the parser's first use are not the read's cost
-        assertTimeoutPreemptively( Duration.ofSeconds( 1 ), () -> AccessRules.read( row.text() ) );
+    static Stream< AclDirectiveFixtures.Scaled > scaled() {
+        return AclDirectiveFixtures.SCALED.stream();
     }
 
     /** Ruling 1 of #104's open-up: an ALLOW variant is enforced, so the matching DENY variant may not be ignored. */

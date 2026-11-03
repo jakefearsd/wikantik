@@ -284,16 +284,15 @@ class AclDirectiveTextTest {
 
     // ---- running time
 
-    static Stream< AclDirectiveFixtures.Shaped > adversarial() {
-        return AclDirectiveFixtures.ADVERSARIAL.stream();
+    /** Stripping runs the access-rule reader every round, so the reader's linear time is stripping's too: 4x the text costs about 4x. */
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "scaled" )
+    void aTextBuiltToMakeAPerSpanScanQuadraticIsStrippedInLinearTime( final AclDirectiveFixtures.Scaled shape ) {
+        LinearTime.assertLinear( shape.name(), shape::text, shape.baseUnits() / LinearTime.FACTOR, AclDirectiveText::strip );
     }
 
-    /** Stripping runs the access-rule reader every round, so the reader's linear time is stripping's too. */
-    @ParameterizedTest( name = "{0}" )
-    @MethodSource( "adversarial" )
-    void aTextBuiltToMakeAPerSpanScanQuadraticIsStrippedInLinearTime( final AclDirectiveFixtures.Shaped row ) {
-        AclDirectiveText.strip( "[{allow view warm}] x" );    // class loading and the parser's first use are not the cost
-        assertTimeoutPreemptively( Duration.ofSeconds( 1 ), () -> AclDirectiveText.strip( row.text() ) );
+    static Stream< AclDirectiveFixtures.Scaled > scaled() {
+        return AclDirectiveFixtures.SCALED.stream();
     }
 
     /** One render-path parse a round feeds both the render path's rules and the access-rule reader. */

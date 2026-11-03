@@ -52,7 +52,20 @@ public final class ReaderComments {
      *         when the body holds no {@code %%}
      */
     public static List< int[] > ranges( final String body ) {
-        return pairs( body, () -> ReaderStructure.of( body, 0 ) );
+        return pairs( body, () -> ReaderStructure.of( body, 0 ), 0 );
+    }
+
+    /**
+     * As {@link #ranges(String)} for a caller that already holds the structure of that same body, so the body is not
+     * parsed a second time.
+     *
+     * @param body      page body; may be {@code null}
+     * @param structure {@link ReaderStructure#of} of exactly this body, parsed with {@code bodyStart}
+     * @param bodyStart the body's offset in the page text, which {@code structure}'s ranges include (those are subtracted)
+     * @return each comment's {@code [from, to)} in body coordinates, as {@link #ranges(String)} returns them
+     */
+    public static List< int[] > ranges( final String body, final RenderPathAccessRules.Structure structure, final int bodyStart ) {
+        return pairs( body, () -> structure, bodyStart );
     }
 
     /**
@@ -88,17 +101,18 @@ public final class ReaderComments {
 
     /** As {@link #ranges(String)} with an explicit parse budget (a test seam). */
     static List< int[] > ranges( final String body, final long budget ) {
-        return pairs( body, () -> ReaderStructure.of( body, 0, budget ) );
+        return pairs( body, () -> ReaderStructure.of( body, 0, budget ), 0 );
     }
 
-    private static List< int[] > pairs( final String body, final java.util.function.Supplier< RenderPathAccessRules.Structure > parse ) {
+    private static List< int[] > pairs( final String body, final java.util.function.Supplier< RenderPathAccessRules.Structure > parse,
+                                              final int bodyStart ) {
         if ( body == null || body.indexOf( MARKER ) < 0 ) {
             return List.of();
         }
         List< int[] > opaque;
         try {
             final RenderPathAccessRules.Structure structure = parse.get();
-            opaque = merged( structure.code(), structure.renderedMath() );
+            opaque = merged( structure.code(), structure.renderedMath(), bodyStart );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
             LOG.warn( "comment boundaries read without code/math: the parse of a {}-character body failed: {}", body.length(), e.getMessage() );
             opaque = List.of();
@@ -116,10 +130,17 @@ public final class ReaderComments {
         return out;
     }
 
-    /** Both lists' spans in start order, overlapping ones joined, so a binary search by position is sound. */
-    private static List< int[] > merged( final List< int[] > code, final List< int[] > math ) {
-        final List< int[] > all = new ArrayList<>( code );
-        all.addAll( math );
+    /**
+     * Both lists' spans in start order, overlapping ones joined, so a binary search by position is sound; each moved
+     * {@code bodyStart} characters back, into body coordinates.
+     */
+    private static List< int[] > merged( final List< int[] > code, final List< int[] > math, final int bodyStart ) {
+        final List< int[] > all = new ArrayList<>( code.size() + math.size() );
+        for ( final List< int[] > spans : List.of( code, math ) ) {
+            for ( final int[] span : spans ) {
+                all.add( new int[]{ span[ 0 ] - bodyStart, span[ 1 ] - bodyStart } );
+            }
+        }
         all.sort( Comparator.comparingInt( r -> r[ 0 ] ) );
         final List< int[] > out = new ArrayList<>( all.size() );
         for ( final int[] span : all ) {

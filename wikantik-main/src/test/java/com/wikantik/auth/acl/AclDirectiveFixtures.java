@@ -347,23 +347,32 @@ public final class AclDirectiveFixtures {
             new Shaped( "lower-case, in the frontmatter", "---\nsummary: '[{allow view Admin}]'\n---\n" + BODY + "\n", null ) );
 
     /**
+     * An adversarial text whose size is a parameter: {@code make} builds it from a number of repeated units, and
+     * {@code baseUnits} is a size big enough to show a quadratic scan. A running-time guard builds it at two sizes and compares
+     * the ratio of the costs, so a loaded machine cannot fail it.
+     */
+    public record Scaled( String name, int baseUnits, java.util.function.IntFunction< String > make ) {
+        public String text( final int units ) {
+            return make.apply( units );
+        }
+    }
+
+    /**
      * Texts built to make a per-span scan cost the square of the text: openers that share one closer give overlapping
      * candidates, and a field that holds many rules sits above every one of them. Each must be read (and stripped) in
      * time linear in its length.
      */
-    public static final java.util.List< Shaped > ADVERSARIAL = java.util.List.of(
-            new Shaped( "openers sharing one closer, a keyword with no space after it", "[{allowa".repeat( 40_000 ) + "}]", null ),
-            new Shaped( "openers sharing one closer, DENY with no space after it", "[{DENYa".repeat( 40_000 ) + "}]", null ),
-            new Shaped( "openers sharing one closer, no-break spaces after the keyword", "[{allow\u00A0".repeat( 40_000 ) + "}]",
-                    null ),
-            new Shaped( "openers sharing one closer, a space after each brace", "[{ allowa".repeat( 40_000 ) + "}]", null ),
-            new Shaped( "openers sharing one closer, a lower-case deny each", "[{deny edit alice ".repeat( 40_000 ) + "\nx}]",
-                    null ),
-            new Shaped( "many openers and spaces before one keyword", "[{ ".repeat( 100_000 ) + "allow view x}]", null ),
-            new Shaped( "one frontmatter field holding many rules", "---\ntags:\n" + "  - '[{ALLOW view x}]'\n".repeat( 20_000 )
-                    + "---\nBody.\n", null ),
-            new Shaped( "one frontmatter field holding many lower-case denies",
-                    "---\ntags:\n" + "  - '[{deny view x}]'\n".repeat( 20_000 ) + "---\nBody.\n", null ) );
+    public static final java.util.List< Scaled > SCALED = java.util.List.of(
+            new Scaled( "openers sharing one closer, a keyword with no space after it", 40_000, n -> "[{allowa".repeat( n ) + "}]" ),
+            new Scaled( "openers sharing one closer, DENY with no space after it", 40_000, n -> "[{DENYa".repeat( n ) + "}]" ),
+            new Scaled( "openers sharing one closer, no-break spaces after the keyword", 40_000, n -> "[{allow\u00A0".repeat( n ) + "}]" ),
+            new Scaled( "openers sharing one closer, a space after each brace", 40_000, n -> "[{ allowa".repeat( n ) + "}]" ),
+            new Scaled( "openers sharing one closer, a lower-case deny each", 40_000, n -> "[{deny edit alice ".repeat( n ) + "\nx}]" ),
+            new Scaled( "many openers and spaces before one keyword", 100_000, n -> "[{ ".repeat( n ) + "allow view x}]" ),
+            new Scaled( "one frontmatter field holding many rules", 20_000,
+                    n -> "---\ntags:\n" + "  - '[{ALLOW view x}]'\n".repeat( n ) + "---\nBody.\n" ),
+            new Scaled( "one frontmatter field holding many lower-case denies", 20_000,
+                    n -> "---\ntags:\n" + "  - '[{deny view x}]'\n".repeat( n ) + "---\nBody.\n" ) );
 
     private AclDirectiveFixtures() {
     }

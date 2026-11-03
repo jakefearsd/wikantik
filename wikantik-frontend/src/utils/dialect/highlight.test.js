@@ -50,7 +50,7 @@ describe('Highlight parser depth', () => {
     let found = 0;
     tree.iterate({ enter: (node) => { if (node.name === 'Highlight') found += 1; } });
     expect(found).toBeGreaterThan(0);
-  });
+  }, 60_000); // ~0.2 s alone, 5 s on a CI runner under coverage
   it('still pairs every highlight of a long paragraph of sequential pairs', () => {
     expect(spans('==a== '.repeat(3000))).toHaveLength(3000);
   });

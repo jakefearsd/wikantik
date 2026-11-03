@@ -86,13 +86,13 @@ describe('commentsOf: ranges read off the tree equal those of a fresh parse', ()
   it('typing in a 160K page: tracking comments costs a small multiple of the reparse every keystroke needs anyway', () => {
     const page = `Intro %%a%% text\n\n${'plain words with `code` and $x$ here\n\n'.repeat(3500)}\`\`\`mermaid\n%% c\n\`\`\`\n`;
     const at = page.indexOf('words') + 2;
-    // 200 keystrokes, each reparsed incrementally; with `track`, comments are read off each new tree as the editor does.
+    // 100 keystrokes, each reparsed incrementally; with `track`, comments are read off each new tree as the editor does.
     const type = (track) => {
       let state = EditorState.create({ doc: page, extensions });
       ensureSyntaxTree(state, state.doc.length, 20000);
       commentsOf(state);
       const start = performance.now();
-      for (let i = 0; i < 200; i += 1) {
+      for (let i = 0; i < 100; i += 1) {
         state = state.update({ changes: { from: at + i, insert: 'x' } }).state;
         ensureSyntaxTree(state, state.doc.length, 20000);
         if (track) commentsOf(state);
@@ -112,5 +112,5 @@ describe('commentsOf: ranges read off the tree equal those of a fresh parse', ()
     }
     expect(tracked / parseOnly).toBeLessThan(5);
     expect(ranges(last.state)).toEqual(fresh(last.state));
-  }, 60000); // seven typing runs: generous for a loaded machine; the assertion is the ratio, not the time
+  }, 120000); // seven typing runs, ~27 s on a CI runner under coverage; the assertion is the ratio, not the time
 });

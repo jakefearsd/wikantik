@@ -102,5 +102,5 @@ describe('block-widget field (end to end)', () => {
     const large = () => Array.from({ length: 200 }, (_, i) => `para ${i}\n\n$$\nx_{${i}}\n$$\n\n![[P${i}]]`).join('\n\n');
     expect(syntaxTree(liveState(large())).length).toBeLessThan(large().length);
     run(10, 40, large);
-  });
+  }, 30000); // as above: seconds on a loaded CI runner
 });

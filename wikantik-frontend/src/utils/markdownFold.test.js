@@ -3,6 +3,7 @@ import { EditorState } from '@codemirror/state';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { codeFolding, foldEffect, foldable, foldedRanges, syntaxTree, unfoldEffect } from '@codemirror/language';
 import { editorFoldConfig, frontmatterFold, frontmatterFoldRange, revealEffects } from './markdownFold';
+import { fullyParsed } from '../test/fullParse';
 
 const DIALECTS = [['CommonMark', {}], ['GFM', { base: markdownLanguage }]];
 
@@ -21,7 +22,7 @@ describe('frontmatterFoldRange', () => {
 
 describe('revealEffects', () => {
   it('returns an unfold effect for each fold containing the position', () => {
-    let state = EditorState.create({ doc: '# A\none\ntwo\n# B\nthree', extensions: [markdown(base), codeFolding()] });
+    let state = fullyParsed(EditorState.create({ doc: '# A\none\ntwo\n# B\nthree', extensions: [markdown(base), codeFolding()] }));
     state = state.update({ effects: foldEffect.of({ from: 3, to: 11 }) }).state;
     const effects = revealEffects(state, 6);
     expect(effects).toHaveLength(1);
@@ -62,10 +63,10 @@ describe('editorFoldConfig — fold markers only for headings, frontmatter and f
     'tail',                   // 24
   ].join('\n');
 
-  const state = EditorState.create({
+  const state = fullyParsed(EditorState.create({
     doc: DOC,
     extensions: [markdown({ ...base, extensions: editorFoldConfig }), frontmatterFold],
-  });
+  }));
   const at = (n) => foldable(state, state.doc.line(n).from, state.doc.line(n).to);
 
   it('offers no fold on paragraph, blockquote or list lines', () => {
@@ -99,14 +100,14 @@ describe('editorFoldConfig — fold markers only for headings, frontmatter and f
   });
 
   it('offers no fold for an unclosed leading --- block', () => {
-    const s = EditorState.create({ doc: '---\npara one\npara two\n', extensions: [markdown({ ...base, extensions: editorFoldConfig }), frontmatterFold] });
+    const s = fullyParsed(EditorState.create({ doc: '---\npara one\npara two\n', extensions: [markdown({ ...base, extensions: editorFoldConfig }), frontmatterFold] }));
     expect(foldable(s, 0, 3)).toBeNull();
     expect(foldable(s, s.doc.line(2).from, s.doc.line(2).to)).toBeNull();
   });
 });
 
 describe('editorFoldConfig — only YAML-looking, closed leading blocks are frontmatter', () => {
-  const mk = (doc) => EditorState.create({ doc, extensions: [markdown({ ...base, extensions: editorFoldConfig }), frontmatterFold] });
+  const mk = (doc) => fullyParsed(EditorState.create({ doc, extensions: [markdown({ ...base, extensions: editorFoldConfig }), frontmatterFold] }));
   const foldAtLine = (state, n) => foldable(state, state.doc.line(n).from, state.doc.line(n).to);
   const topNodes = (state) => {
     const names = [];

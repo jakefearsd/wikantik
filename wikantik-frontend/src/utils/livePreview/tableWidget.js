@@ -37,19 +37,36 @@ const alignOf = (cell) => {
 
 const fit = (cells, width, fill) => Array.from({ length: width }, (_, i) => (i < cells.length ? cells[i] : fill));
 
+const DELIMITER_ROW = /^[>\s]*\|?(\s*:?-+:?\s*\|)+(\s*:?-+:?\s*)?$/;
+
+/** The line of the delimiter row: the first line after line 0 that is one (the reader reads every pipe row above it as a header row). */
+function delimiterIndexOf(lines) {
+  for (let i = 1; i < lines.length; i += 1) if (DELIMITER_ROW.test(lines[i].replace(/\r$/, ''))) return i;
+  return 1;
+}
+
 /**
- * A GFM table's source (whole lines: header, delimiter, then body rows) as cell text. Short rows are padded with
- * '', long rows truncated to the header width; the alignment comes from the delimiter row (line 2).
+ * A table's source (whole lines: header rows, the delimiter row, then body rows) as cell text. Every row above the
+ * delimiter row is a header row, as the reader draws it (`header` is the first, `moreHeaders` the others, present only
+ * when there are some). Short body rows are padded with '' to the header width; long ones keep their extra cells, as
+ * the reader's do. The alignment comes from the delimiter row.
  */
 export function parseTableSource(source) {
   const lines = source.split('\n');
-  const header = cellsOf(lines[0] ?? '');
+  const delimiter = delimiterIndexOf(lines);
+  const headers = lines.slice(0, delimiter).map(cellsOf);
+  const header = headers[0] ?? [];
   const width = header.length;
-  return {
-    align: fit(cellsOf(lines[1] ?? '').map(alignOf), width, null),
+  const out = {
+    align: fit(cellsOf(lines[delimiter] ?? '').map(alignOf), width, null),
     header,
-    rows: lines.slice(2).map((l) => fit(cellsOf(l), width, '')),
+    rows: lines.slice(delimiter + 1).map((l) => {
+      const cells = cellsOf(l);
+      return cells.length > width ? cells : fit(cells, width, '');
+    }),
   };
+  if (headers.length > 1) out.moreHeaders = headers.slice(1);
+  return out;
 }
 
 function cell(tag, text, align) {
@@ -60,24 +77,29 @@ function cell(tag, text, align) {
 }
 
 /**
- * The 0-based source line (within the table) of the row an event hit: the header row → 0, body row k (1-based) → k + 1
- * (the delimiter row is line 1). Anything outside a row → 0, the table start.
+ * The 0-based source line (within the table) of the row an event hit: header row k (0-based) is line k, body row k is
+ * line `delimiter + 1 + k` (`delimiter` is the delimiter row's line). Anything outside a row is 0, the table start.
  */
-function sourceLineOf(target, wrap) {
+function sourceLineOf(target, wrap, delimiter) {
   const row = target?.closest?.('tr');
   if (!row || !wrap.contains(row)) return 0;
-  if (row.parentElement?.tagName === 'THEAD') return 0;
-  return [...row.parentElement.children].indexOf(row) + 2;
+  const index = [...row.parentElement.children].indexOf(row);
+  return row.parentElement?.tagName === 'THEAD' ? index : delimiter + 1 + index;
 }
 
 function buildTable(source) {
-  const { align, header, rows } = parseTableSource(source);
+  const { align, header, moreHeaders = [], rows } = parseTableSource(source);
   const table = document.createElement('table');
   table.className = 'cm-lp-table';
   const thead = document.createElement('thead');
   const headRow = document.createElement('tr');
   header.forEach((text, i) => headRow.appendChild(cell('th', text, align[i])));
   thead.appendChild(headRow);
+  for (const more of moreHeaders) {
+    const tr = document.createElement('tr');
+    more.forEach((text, i) => tr.appendChild(cell('th', text, align[i])));
+    thead.appendChild(tr);
+  }
   const tbody = document.createElement('tbody');
   for (const r of rows) {
     const tr = document.createElement('tr');
@@ -131,7 +153,7 @@ export class TableWidget extends WidgetType {
           const start = view.posAtDOM(wrap);
           const doc = view.state.doc;
           const first = doc.lineAt(start).number;
-          const line = doc.line(Math.min(doc.lines, first + sourceLineOf(e.target, wrap)));
+          const line = doc.line(Math.min(doc.lines, first + sourceLineOf(e.target, wrap, delimiterIndexOf(this.source.split('\n')))));
           view.dispatch({ selection: { anchor: line.from } });
           view.focus();
         } catch (err) {

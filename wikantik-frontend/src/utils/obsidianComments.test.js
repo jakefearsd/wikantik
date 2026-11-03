@@ -65,6 +65,24 @@ describe('commentRanges on text with CRLF line endings', () => {
     const text = 'a\r\nb\r\n%%x\r\ny%%\r\n\r\n%%z%%';
     expect(commentRanges(text).map((r) => text.slice(r.from, r.to))).toEqual(['%%x\r\ny%%', '%%z%%']);
   });
+  it('maps mixed line endings exactly: only a \\r\\n lost a character', () => {
+    const cases = ['a\nb\r\n%%x%%', 'a\r\nb\n%%x\ny%%\r\nc', '%%x\r\ny\nz%%', 'a\r\n%%x%%', 'a\rb\r\n%%x%%\r%%y%%'];
+    for (const text of cases) {
+      const found = commentRanges(text).map((r) => text.slice(r.from, r.to));
+      const expected = [...text.matchAll(/%%[\s\S]*?%%/g)].map((m) => m[0]);
+      expect(found, JSON.stringify(text)).toEqual(expected);
+    }
+    expect(commentRanges('a\nb\r\n%%x%%')).toEqual([{ from: 5, to: 10 }]);
+  });
+  it('an endpoint right after a \\r\\n and a lone \\r map exactly', () => {
+    const text = 'a\r\n%%x%%\r\n%%y%%';
+    expect(commentRanges(text).map((r) => [r.from, r.to])).toEqual([[3, 8], [10, 15]]);
+    expect(commentRanges('a\r%%x%%\r\nb').map((r) => [r.from, r.to])).toEqual([[2, 7]]);
+  });
+  it('stripComments agrees on mixed line endings', () => {
+    expect(stripComments('a\nb\r\n%%x%% c\r\nd')).toBe('a\nb\r\n c\r\nd');
+    expect(stripComments('a\r\n%%x\ny%%\nb')).toBe('a\r\n\n\nb');
+  });
   it('keeps every newline a stripped comment held', () => {
     expect(stripComments('a %%x\r\ny%% b')).toBe('a \n b');
   });

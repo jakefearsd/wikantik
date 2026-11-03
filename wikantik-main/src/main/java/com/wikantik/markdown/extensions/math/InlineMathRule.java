@@ -42,8 +42,9 @@ final class InlineMathRule {
 
     /**
      * Applies the rule to the {@code $} at {@code dollarIndex} ({@link InlineMath#matchEnd}, the one Java copy). The render's
-     * {@link InlineMathParser} and the access-rule text scan ({@link MathSpanExtractor}) call it; {@code ReaderComments}
-     * does not: it reads math off the render's own parse ({@code ReaderStructure#renderedMath}).
+     * {@link InlineMathParser} and the math lint ({@link MathSpanExtractor}, behind {@code MathValidationPageFilter}) call it;
+     * the access-rule text scan in wikantik-api reads math through {@code MathMask}, which calls {@code InlineMath.matchEnd}
+     * directly. {@code ReaderComments} does not call it: it reads math off the render's own parse ({@code ReaderStructure#renderedMath}).
      *
      * @return the exclusive end index of the span (just past the closing {@code $}), or -1 for no match
      */

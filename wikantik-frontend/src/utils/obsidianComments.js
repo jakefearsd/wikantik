@@ -59,13 +59,22 @@ export function commentRanges(text) {
   // Lezer's blank-line test is `[ \t]*`, so a CR-only line is not blank to it (an HTML block would run on past the blank
   // line, taking the paragraph and math after it). Read the text with `\n` line ends, as the editor's own document has,
   // then put the CR back in every offset: each `\n` before a position is one `\r` the original has and the copy lacks.
-  const lf = text.replace(/\r\n/g, '\n');
+  // `collapsed` holds, ascending, the LF-copy index of each `\n` that stood as `\r\n` in `text` (a bare `\n` or lone `\r`
+  // lost nothing, so it shifts nothing).
+  const collapsed = [];
+  let lf = '';
+  let copied = 0;
+  for (let i = text.indexOf('\r\n'); i >= 0; i = text.indexOf('\r\n', i + 2)) {
+    lf += text.slice(copied, i);
+    collapsed.push(lf.length);
+    copied = i + 1; // keep the `\n`, drop the `\r`
+  }
+  lf += text.slice(copied);
   const ranges = commentRangesInTree(lf, dialectParser.parse(lf));
-  let newlines = 0;
-  let scanned = 0;
+  let seen = 0;
   const shifted = (pos) => {
-    for (; scanned < pos; scanned += 1) if (lf.charCodeAt(scanned) === 10) newlines += 1;
-    return pos + newlines;
+    while (seen < collapsed.length && collapsed[seen] < pos) seen += 1;
+    return pos + seen;
   };
   // ranges are in order and do not overlap, so one forward scan serves both ends of every range
   return ranges.map((r) => ({ from: shifted(r.from), to: shifted(r.to) }));

@@ -46,9 +46,17 @@ describe('parseTableSource', () => {
   it('keeps other backslash escapes for the inline renderer', () => {
     expect(parseTableSource('| a |\n|---|\n| \\*x\\* |').rows).toEqual([['\\*x\\*']]);
   });
-  it('pads short rows and truncates long rows to the header width', () => {
+  it('pads short rows to the header width and keeps the extra cells of long rows, as the reader does', () => {
     const t = parseTableSource('| a | b | c |\n|---|---|---|\n| 1 |\n| 1 | 2 | 3 | 4 | 5 |');
-    expect(t.rows).toEqual([['1', '', ''], ['1', '2', '3']]);
+    expect(t.rows).toEqual([['1', '', ''], ['1', '2', '3', '4', '5']]);
+    expect(parseTableSource('| a |\n|---|---|\n| x | y |').rows).toEqual([['x', 'y']]);
+  });
+  it('every row above the delimiter row is a header row', () => {
+    const t = parseTableSource('| h1 | h2 |\n| h3 | h4 |\n|:--|--:|\n| x | y |');
+    expect(t.header).toEqual(['h1', 'h2']);
+    expect(t.moreHeaders).toEqual([['h3', 'h4']]);
+    expect(t.align).toEqual(['left', 'right']);
+    expect(t.rows).toEqual([['x', 'y']]);
   });
   it('reads rows without outer pipes, and a lazy continuation line as a one-cell row', () => {
     const t = parseTableSource('a | b\n--|--:\n1|2\nlazy line');
@@ -115,6 +123,24 @@ describe('TableWidget', () => {
     const tableLine1 = view.state.doc.line(3).number;
     expect(view.state.selection.main.head).toBe(view.state.doc.line(tableLine1 + 3).from);
     expect(view.dom.querySelector('.cm-lp-table')).toBeNull();
+  });
+
+  it('a two-header-row table draws both header rows, and body clicks land on the right source line', () => {
+    const src = '| h1 | h2 |\n| h3 | h4 |\n|---|---|\n| x | y |\n| z | w |';
+    const doc = `intro\n\n${src}\n\nend`;
+    const view = liveView(doc);
+    expect(view.dom.querySelectorAll('.cm-lp-table thead tr')).toHaveLength(2);
+    expect([...view.dom.querySelectorAll('.cm-lp-table thead tr')[1].children].map((c) => c.textContent)).toEqual(['h3', 'h4']);
+    expect(view.dom.querySelectorAll('.cm-lp-table tbody tr')).toHaveLength(2);
+    fireEvent.mouseDown(view.dom.querySelectorAll('.cm-lp-table tbody tr')[1].querySelector('td'));
+    expect(view.state.selection.main.head).toBe(doc.indexOf('| z |'));
+  });
+  it('a click on the second header row lands on its source line', () => {
+    const src = '| h1 | h2 |\n| h3 | h4 |\n|---|---|\n| x | y |';
+    const doc = `intro\n\n${src}\n\nend`;
+    const view = liveView(doc);
+    fireEvent.mouseDown(view.dom.querySelectorAll('.cm-lp-table thead tr')[1].querySelector('th'));
+    expect(view.state.selection.main.head).toBe(doc.indexOf('| h3'));
   });
 
   it('a mousedown on the header row puts the caret at the start of the header line', () => {

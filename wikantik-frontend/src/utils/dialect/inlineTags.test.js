@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { linearCost } from '../../test/linearCost';
+import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 import { dialectParser } from './index';
 import { inlineTagRanges } from './inlineTags';
 import { commentRangesInTree } from '../obsidianComments';
@@ -59,5 +59,5 @@ describe('InlineTag parser cost', () => {
   it.each(['#', '##a', 'a#b', '#a/', '#1 ', '#a #', '[{ #a ', '`[{A}]` #a ', '`[{A #a}]` '])('%j repeated stays linear', (unit) => {
     const { ratio, bound } = linearCost((n) => unit.repeat(n), (s) => dialectParser.parse(s), { small: 8000, factor: 5 });
     expect(ratio).toBeLessThan(bound);
-  });
+  }, LINEAR_COST_TIMEOUT_MS);
 });

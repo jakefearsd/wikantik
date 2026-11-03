@@ -3,7 +3,7 @@ import { EditorState, EditorSelection } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import fixture from '../__fixtures__/renderedFences.json';
 import { fullyParsed } from '../../test/fullParse';
-import { linearCost } from '../../test/linearCost';
+import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { blocksFromMarkdown, blockMarkers } from '../blockIds';
 import { blockCandidates, activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
@@ -520,7 +520,7 @@ describe('block markers', () => {
     expect(markers(typed.state, typed.specs)).toEqual([['cm-lp-blockid-dup', '^b0', 'Duplicate block id — only the first ^b0 is linkable']]);
     const { ratio, bound } = linearCost(make, keystroke, { small: 4000 });
     expect(ratio).toBeLessThan(bound);
-  });
+  }, LINEAR_COST_TIMEOUT_MS);
 
   it('agrees with blocksFromMarkdown on which markers are duplicates', () => {
     const doc = 'a ^x\n\n- b ^x\n- c ^y\n\n> d\n>\n> ^y\n\ne ^z\n\n- [x] done ^z';

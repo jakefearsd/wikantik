@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { linearCost } from '../../test/linearCost';
+import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 import { dialectParser } from './index';
 import { wikiLinkRanges, wikiLinkNodeAt } from './wikiLinks';
 import { inlineTagRanges } from './inlineTags';
@@ -88,7 +88,7 @@ describe('WikiLink parser cost', () => {
   it.each(['[[', '[[a', ']]', '[[a|', '![[', '[[a]]', '![[a|b '])('%j repeated stays linear', (unit) => {
     const { ratio, bound } = linearCost((n) => unit.repeat(n), parse, { small: 4000, factor: 5 });
     expect(ratio).toBeLessThan(bound);
-  });
+  }, LINEAR_COST_TIMEOUT_MS);
 });
 
 describe('wikiLinkNodeAt', () => {

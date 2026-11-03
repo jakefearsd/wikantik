@@ -7,6 +7,12 @@
  * - each size keeps its best (minimum) of `rounds`, which discards transient stalls;
  * - the bound is `factor ** 1.5`, the geometric midpoint between linear (`factor`) and quadratic (`factor ** 2`).
  */
+
+/**
+ * The per-test timeout every `linearCost` test passes (`it(name, fn, LINEAR_COST_TIMEOUT_MS)`): the helper runs the work
+ * eleven times, which outlasts vitest's 5 s default on a slow CI runner while the ratio itself is fine.
+ */
+export const LINEAR_COST_TIMEOUT_MS = 60_000;
 function msOf(fn) {
   const t = process.hrtime.bigint();
   fn();

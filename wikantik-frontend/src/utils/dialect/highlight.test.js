@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { linearCost } from '../../test/linearCost';
+import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 import { dialectParser } from './index';
 import cases from '../__fixtures__/highlight.json';
 
@@ -64,5 +64,5 @@ describe('Highlight parser cost', () => {
   it.each(['==a ', 'a== ', '=====', '==a== ', '== '])('is linear on a paragraph of %j repeats', (unit) => {
     const { ratio, bound } = linearCost((n) => unit.repeat(n), (s) => dialectParser.parse(s), { small: 6000, floorMs: 0.05 });
     expect(ratio).toBeLessThan(bound);
-  });
+  }, LINEAR_COST_TIMEOUT_MS);
 });

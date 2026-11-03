@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { linearCost } from '../../test/linearCost';
+import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 import { dialectParser, opaqueRanges } from './index';
 import { commentRangesInTree } from '../obsidianComments';
 import { CASES } from '../inlineMath.cases';
@@ -129,13 +129,13 @@ describe('parse cost is linear in the input', () => {
   it.each(INPUTS)('%s: 4x the input costs well under 16x the time', (_name, make) => {
     const { ratio, bound } = linearCost(make, (s) => dialectParser.parse(s));
     expect(ratio).toBeLessThan(bound);
-  });
+  }, LINEAR_COST_TIMEOUT_MS);
 
   it('reading every comment marker off a tree with thousands of math spans is linear too', () => {
     const make = (n) => { const text = '$$x %% '.repeat(n); return { text, tree: dialectParser.parse(text) }; };
     const { ratio, bound } = linearCost(make, ({ text, tree }) => commentRangesInTree(text, tree), { small: 10000 });
     expect(ratio).toBeLessThan(bound);
-  });
+  }, LINEAR_COST_TIMEOUT_MS);
 
   it('opaqueRanges lists the outermost code and math nodes in order', () => {
     const text = 'a $x$ b `c` d\n\n$$\ny\n$$\n\n```\nz\n```\n';

@@ -294,6 +294,19 @@ describe('livePreviewSpecs — comments', () => {
     }
     expect(specsOf('==x== %%c%%\n\nend', [99]).specs.some((s) => s.cls === 'cm-lp-mark')).toBe(true);
   });
+  it('decorates nothing inside a comment but the dimming itself (wikilinks, embeds, math, plugins, footnotes)', () => {
+    for (const body of ['[[x]]', '![[x]]', '$x$', '[{Foo}]', '[^1]', '[[x|alias]]', '[[x]] and $y$']) {
+      const o = specsOf(`a %%${body}%% b\n\nend`, [99]);
+      expect(show(o.state, o.specs).filter((s) => !s.includes('cm-lp-comment'))).toEqual([]);
+      expect(commentMarks(o).length).toBe(1);
+    }
+    const spanning = specsOf('a %%one\n[[x]] $y$ two%% b\n\nend', [99]);
+    expect(replacing(spanning.specs)).toEqual([]);
+  });
+  it('still decorates a wikilink and math beside a comment', () => {
+    const o = specsOf('[[x]] %%c%% $y$\n\nend', [99]);
+    expect(replacing(o.specs).map((s) => o.state.sliceDoc(s.from, s.to))).toEqual(['[[', ']]', '$y$']);
+  });
   it('draws no block-id chip for a marker inside a comment, and such a marker makes no later one a duplicate', () => {
     const o = specsOf('%%\n\nhidden ^sec\n\n%%\n\nShown ^sec\n\nend', [99]);
     const ids = o.specs.filter((s) => s.cls === 'cm-lp-blockid' || s.cls === 'cm-lp-blockid-dup');

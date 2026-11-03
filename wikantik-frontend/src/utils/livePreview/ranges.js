@@ -638,6 +638,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const overlaps = (list, a, b) => list.some(([x, y]) => a < y && b > x);
   let pairs = null;
   const commentPairs = () => { pairs ??= commentsOf(state).map((r) => [r.from, r.to]); return pairs; };
+  // A comment's content is source the reader never sees: nothing inside it is decorated (only the dimming is).
+  const inCommentSpan = (a, b) => overlaps(commentPairs(), a, b);
   const wikiSpecs = (ref, a, b, whole) => {
     const open = a + (ref.embed ? 3 : 2);
     const attachment = isAttachmentRef(ref, context);
@@ -685,7 +687,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     for (let k = wikiAt; k < wikis.length && wikis[k][0] <= line.to; k += 1) {
       const [a, b] = wikis[k];
       const ref = parseWikiLink(doc.sliceString(a, b));
-      if (!ref || overlaps(excluded, a, b)) continue;
+      if (!ref || overlaps(excluded, a, b) || inCommentSpan(a, b)) continue;
       claimed.push([a, b]);
       wikiSpecs(ref, a, b, text.trim() === ref.raw);
     }
@@ -693,7 +695,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       for (const m of text.matchAll(PLUGIN)) {
         const a = line.from + m.index;
         const b = a + m[0].length;
-        if (overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
+        if (overlaps(excluded, a, b) || overlaps(claimed, a, b) || inCommentSpan(a, b)) continue;
         claimed.push([a, b]);
         if (inactive(a)) widget(a, b, { type: 'chip', ...chipFor(m[0]), title: m[0] });
         else mark(a, b, 'cm-lp-plugin');
@@ -704,7 +706,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (def) {
         const a = line.from + def[1].length;
         const b = a + def[2].length + 4; // `[^id]:`
-        if (!overlaps(excluded, a, b) && !overlaps(claimed, a, b)) {
+        if (!overlaps(excluded, a, b) && !overlaps(claimed, a, b) && !inCommentSpan(a, b)) {
           claimed.push([a, b]);
           widget(a, b, { type: 'chip', text: `${def[2]}:`, cls: 'cm-lp-chip cm-lp-footnote-def', title: `Footnote ${def[2]}` });
         }
@@ -713,7 +715,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         if (m.index > 0 && text[m.index - 1] === '\\') continue; // `\[^1]` is literal text to the reader
         const a = line.from + m.index;
         const b = a + m[0].length;
-        if (overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
+        if (overlaps(excluded, a, b) || overlaps(claimed, a, b) || inCommentSpan(a, b)) continue;
         claimed.push([a, b]);
         widget(a, b, { type: 'chip', text: m[1], cls: 'cm-lp-chip cm-lp-footnote-ref', title: `Footnote ${m[1]}` });
       }
@@ -722,7 +724,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     // A span crossing a line break stays source: a decoration cannot replace a line break.
     for (let k = mathAt; k < inlineMath.length && inlineMath[k][0] <= line.to; k += 1) {
       const [a, b] = inlineMath[k];
-      if (b > line.to || overlaps(excluded, a, b) || overlaps(claimed, a, b)) continue;
+      if (b > line.to || overlaps(excluded, a, b) || overlaps(claimed, a, b) || inCommentSpan(a, b)) continue;
       claimed.push([a, b]);
       widget(a, b, { type: 'math', tex: doc.sliceString(a + 1, b - 1), display: false });
     }
@@ -730,7 +732,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     while (tagAt < tagRanges.length && tagRanges[tagAt].from < line.from) tagAt += 1;
     for (let k = tagAt; k < tagRanges.length && tagRanges[k].from <= line.to; k += 1) {
       const { from: a, to: b } = tagRanges[k];
-      if (!inactive(line.from) || overlaps(claimed, a, b) || overlaps(commentPairs(), a, b)) continue;
+      if (!inactive(line.from) || overlaps(claimed, a, b) || inCommentSpan(a, b)) continue;
       mark(a, b, 'cm-lp-tag');
     }
   });

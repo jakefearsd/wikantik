@@ -32,7 +32,7 @@
   {"name": "a $ in one table row and a $ in the next are not one math span", "input": "| Item | Price |\n|---|---|\n| widget | $5 |\n| %%secret note%% gadget | a$b |\n", "output": "| Item | Price |\n|---|---|\n| widget | $5 |\n|  gadget | a$b |\n"},
   {"name": "a fence in a list item ends with the item", "input": "3. step:\n\n    ```bash\n    run\n  %%gone%% text\n    ```\n", "output": "3. step:\n\n    ```bash\n    run\n   text\n    ```\n"},
   {"name": "a pipe-less table's rows are not one math span", "input": "Item | Price\n--- | ---\nwidget | $5\n%%secret%% gadget | a$b\n", "output": "Item | Price\n--- | ---\nwidget | $5\n gadget | a$b\n"},
-  {"name": "math never crosses a table cell", "input": "| A | B |\n|---|---|\n| $a %%x%% | b$ |\n", "output": "| A | B |\n|---|---|\n| $a  | b$ |\n"},
+  {"name": "the reader's table does not split inline math at a pipe: the %% inside it is literal", "input": "| A | B |\n|---|---|\n| $a %%x%% | b$ |\n", "output": "| A | B |\n|---|---|\n| $a %%x%% | b$ |\n"},
   {"name": "an unterminated $$ line is text: a later comment is removed", "input": "$$\nnot closed\n\nLater %%private%% text\n", "output": "$$\nnot closed\n\nLater  text\n"},
   {"name": "a code span across a line break masks its %%", "input": "Use `printf(\"100%%\ndone\")` to print. A later %%private note%% here.\n", "output": "Use `printf(\"100%%\ndone\")` to print. A later  here.\n"},
   {"name": "a code span opened inside a wikilink still runs to its closer: the secret in it stays", "input": "[[Note `x]] %%secret%% `y` z", "output": "[[Note `x]] %%secret%% `y` z"},

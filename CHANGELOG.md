@@ -6,6 +6,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **One editor dialect.** Live preview reads math, `%%comments%%`, `==highlight==`, inline `#tags` and `[[wikilinks]]`
+  from the editor's one syntax tree (Lezer extensions in `src/utils/dialect/`) instead of per-construct line scanners and
+  a hand-written code/math mask. The editor's base is CommonMark + GFM without subscript, superscript or emoji, which the
+  reader does not support either. Each construct is pinned to the reader by a shared fixture and guarded by a linear-time
+  test. Block-id `^markers` stay a pattern read on tree nodes.
+- **The gate runs the frontend.** `bin/run-tests.sh` now runs `eslint` and `vitest run --coverage`, and both fail the
+  run. The WAR build reuses `node_modules` installed from the same `package-lock.json` + `package.json`
+  (`FORCE_NPM_CI=1` forces a reinstall), and `mvn clean` no longer deletes it. Docker builds and fresh checkouts always
+  run `npm ci`.
+
+### Fixed
+- **#126: a `%%comment%%` in a table could be shown to readers** when other rows held `$`: a table row's `$` paired with
+  the next row's as inline math, which hid the comment from the comment mask. Table blocks are now detected (pipe-less
+  too) and math never crosses a cell or a row.
+- **An unterminated `$$` line hid every later comment's markers**, so the comments after it were shown to readers. An
+  unclosed `$$` is now text.
+- **Server code mask:** a code span may cross a line break inside a paragraph; a fence in a list item ends with its
+  item; on CRLF pages a new list item ends a code-span run; indented code in a list item starts four columns past its
+  content; an HTML comment block holds no code. Checked against flexmark over the production corpus: the mask now
+  disagrees with the reader on 51 characters, down from 3,600, and the comments and tags it yields are unchanged on
+  every page.
+- **Tags:** a `#tag` right after a block-quote marker (`>#foo`) is indexed, and a `#tag` inside an unresolved
+  `[reference]` renders as a tag, so the page and the index agree.
+- **Live preview:** nothing inside a `%%comment%%` is decorated; a click on a wikilink's closing `]` opens it; display
+  math follows the reader's rule (blank lines inside, a full-line `$$`, never outliving its container); an escaped `=`
+  ends a highlight; deeply nested highlights no longer crash the editor; two keystroke-time quadratics (comment scan,
+  display-math lookahead) are linear.
+
 ## [2.5.6] - 2026-11-01
 
 ### Added

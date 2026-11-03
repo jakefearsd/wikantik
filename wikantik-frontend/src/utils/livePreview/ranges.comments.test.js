@@ -83,19 +83,34 @@ describe('commentsOf: ranges read off the tree equal those of a fresh parse', ()
     }
   });
 
-  it('typing in a 160K page does not rescan the document: 200 keystrokes stay well inside a budget', () => {
+  it('typing in a 160K page: tracking comments costs a small multiple of the reparse every keystroke needs anyway', () => {
     const page = `Intro %%a%% text\n\n${'plain words with `code` and $x$ here\n\n'.repeat(3500)}\`\`\`mermaid\n%% c\n\`\`\`\n`;
-    let state = EditorState.create({ doc: page, extensions });
-    ensureSyntaxTree(state, state.doc.length, 20000);
-    commentsOf(state);
     const at = page.indexOf('words') + 2;
-    const start = performance.now();
-    for (let i = 0; i < 200; i += 1) {
-      state = state.update({ changes: { from: at + i, insert: 'x' } }).state;
+    // 200 keystrokes, each reparsed incrementally; with `track`, comments are read off each new tree as the editor does.
+    const type = (track) => {
+      let state = EditorState.create({ doc: page, extensions });
       ensureSyntaxTree(state, state.doc.length, 20000);
       commentsOf(state);
+      const start = performance.now();
+      for (let i = 0; i < 200; i += 1) {
+        state = state.update({ changes: { from: at + i, insert: 'x' } }).state;
+        ensureSyntaxTree(state, state.doc.length, 20000);
+        if (track) commentsOf(state);
+      }
+      return { ms: performance.now() - start, state };
+    };
+    type(true); // warm up
+    // Interleaved best-of-3, so machine load slows both sides alike. Measured ~2x; a document rescan or a
+    // from-scratch parse per keystroke is 50x and more.
+    let parseOnly = Infinity;
+    let tracked = Infinity;
+    let last;
+    for (let r = 0; r < 3; r += 1) {
+      parseOnly = Math.min(parseOnly, type(false).ms);
+      last = type(true);
+      tracked = Math.min(tracked, last.ms);
     }
-    expect(performance.now() - start).toBeLessThan(4000);
-    expect(ranges(state)).toEqual(fresh(state));
-  });
+    expect(tracked / parseOnly).toBeLessThan(5);
+    expect(ranges(last.state)).toEqual(fresh(last.state));
+  }, 60000); // seven typing runs: generous for a loaded machine; the assertion is the ratio, not the time
 });

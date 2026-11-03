@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { linearCost } from '../../test/linearCost';
 import { dialectParser } from './index';
 import { wikiLinkRanges, wikiLinkNodeAt } from './wikiLinks';
 import { inlineTagRanges } from './inlineTags';
@@ -84,12 +85,8 @@ describe('WikiLink edges', () => {
 });
 
 describe('WikiLink parser cost', () => {
-  const time = (s) => { const t = performance.now(); parse(s); return performance.now() - t; };
-  // 5x more input: linear is ~5x, quadratic ~25x
   it.each(['[[', '[[a', ']]', '[[a|', '![[', '[[a]]', '![[a|b '])('%j repeated stays linear', (unit) => {
-    time(unit.repeat(2000));
-    const small = Math.max(time(unit.repeat(4000)), 1);
-    const big = time(unit.repeat(20000));
-    expect(big / small).toBeLessThan(12);
+    const { ratio, bound } = linearCost((n) => unit.repeat(n), parse, { small: 4000, factor: 5 });
+    expect(ratio).toBeLessThan(bound);
   });
 });

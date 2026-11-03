@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { linearCost } from '../../test/linearCost';
 import { dialectParser, opaqueAt, opaqueRanges } from './index';
 import { commentRangesInTree } from '../obsidianComments';
 import { CASES } from '../inlineMath.cases';
@@ -112,16 +113,6 @@ describe('opaqueAt boundaries and shapes', () => {
   });
 });
 
-/** Best of three runs, in ms: robust against a GC pause or a loaded machine. */
-const best = (fn) => {
-  let min = Infinity;
-  for (let i = 0; i < 3; i += 1) {
-    const start = performance.now();
-    fn();
-    min = Math.min(min, performance.now() - start);
-  }
-  return min;
-};
 
 describe('parse cost is linear in the input', () => {
   // Quadrupling the input costs ~4x when linear and ~16x when quadratic: compare ratios, never absolute milliseconds.
@@ -133,21 +124,14 @@ describe('parse cost is linear in the input', () => {
     ['a page of display blocks', (n) => '$$\nx\n'.repeat(n)],
   ];
   it.each(INPUTS)('%s: 4x the input costs well under 16x the time', (_name, make) => {
-    const small = make(5000);
-    const large = make(20000);
-    best(() => dialectParser.parse(small)); // warm up the JIT before timing
-    const ratio = best(() => dialectParser.parse(large)) / Math.max(best(() => dialectParser.parse(small)), 0.5);
-    expect(ratio).toBeLessThan(10);
+    const { ratio, bound } = linearCost(make, (s) => dialectParser.parse(s));
+    expect(ratio).toBeLessThan(bound);
   });
 
   it('reading every comment marker off a tree with thousands of math spans is linear too', () => {
-    const run = (n) => {
-      const text = '$$x %% '.repeat(n);
-      const tree = dialectParser.parse(text);
-      return best(() => commentRangesInTree(text, tree));
-    };
-    run(5000);
-    expect(run(40000) / Math.max(run(10000), 0.5)).toBeLessThan(10);
+    const make = (n) => { const text = '$$x %% '.repeat(n); return { text, tree: dialectParser.parse(text) }; };
+    const { ratio, bound } = linearCost(make, ({ text, tree }) => commentRangesInTree(text, tree), { small: 10000 });
+    expect(ratio).toBeLessThan(bound);
   });
 
   it('opaqueRanges lists the outermost code and math nodes in order', () => {

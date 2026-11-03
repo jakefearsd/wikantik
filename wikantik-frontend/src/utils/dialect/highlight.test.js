@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { linearCost } from '../../test/linearCost';
 import { dialectParser } from './index';
 import cases from '../__fixtures__/highlight.json';
 
@@ -60,18 +61,8 @@ describe('Highlight parser depth', () => {
 });
 
 describe('Highlight parser cost', () => {
-  const time = (text) => {
-    const t = process.hrtime.bigint();
-    dialectParser.parse(text);
-    return Number(process.hrtime.bigint() - t) / 1e6;
-  };
-  const best = (text) => Math.min(time(text), time(text), time(text));
   it.each(['==a ', 'a== ', '=====', '==a== ', '== '])('is linear on a paragraph of %j repeats', (unit) => {
-    const small = unit.repeat(6000);
-    const large = unit.repeat(24000);
-    best(small); // warm up
-    const ratio = best(large) / Math.max(best(small), 0.05);
-    // 4x the input: linear is ~4, quadratic ~16.
-    expect(ratio).toBeLessThan(9);
+    const { ratio, bound } = linearCost((n) => unit.repeat(n), (s) => dialectParser.parse(s), { small: 6000, floorMs: 0.05 });
+    expect(ratio).toBeLessThan(bound);
   });
 });

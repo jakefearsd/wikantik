@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { linearCost } from '../../test/linearCost';
 import { dialectParser } from './index';
 import { inlineTagRanges } from './inlineTags';
 import { commentRangesInTree } from '../obsidianComments';
@@ -52,15 +53,11 @@ describe('InlineTag in brackets', () => {
 });
 
 describe('InlineTag parser cost', () => {
-  const time = (s) => { const t = performance.now(); dialectParser.parse(s); return performance.now() - t; };
   // The code-span shapes hold many `[{…}]` spans before every # (the span check once scanned them all per #, 9 s at
   // 40k) while Lezer stays cheap on them; a bare `[{A}] #a ` run is quadratic in @lezer/markdown itself (unresolved
   // `[…]`), so it cannot be asserted here.
-  // 5x more input: linear is ~5x, quadratic ~25x
   it.each(['#', '##a', 'a#b', '#a/', '#1 ', '#a #', '[{ #a ', '`[{A}]` #a ', '`[{A #a}]` '])('%j repeated stays linear', (unit) => {
-    time(unit.repeat(2000));
-    const small = Math.max(time(unit.repeat(8000)), 2);
-    const big = time(unit.repeat(40000));
-    expect(big / small).toBeLessThan(10);
+    const { ratio, bound } = linearCost((n) => unit.repeat(n), (s) => dialectParser.parse(s), { small: 8000, factor: 5 });
+    expect(ratio).toBeLessThan(bound);
   });
 });

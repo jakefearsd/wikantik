@@ -211,8 +211,9 @@ describe('live preview incremental updates', () => {
   it('a multi-cursor edit inside and around blocks never leaves a stale widget', () => {
     const view = liveView(DOC, { caret: 1 });
     const end = DOC.indexOf('$$\n\n') + 2; // after the closing $$
-    view.dispatch({ changes: [{ from: 0, insert: 'z' }, { from: end, insert: '\nmore' }], selection: { anchor: 1 }, userEvent: 'input.type' });
-    // "$$\nx^2\n$$\nmore" is no longer display math: no math widget may remain.
+    view.dispatch({ changes: [{ from: DOC.indexOf('$$'), insert: 'z' }, { from: end, insert: '\nmore' }], selection: { anchor: 1 }, userEvent: 'input.type' });
+    // "z$$\nx^2\n$$\nmore": the opener is no longer a `$$` line, and the lone closer has no opener: no math widget may remain.
+    // (Text right after a closing `$$` does not stop display math: the reader's rule, DisplayMathPreProcessor.)
     expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
     expect(view.dom.querySelectorAll('.cm-lp-embed')).toHaveLength(1);
   });

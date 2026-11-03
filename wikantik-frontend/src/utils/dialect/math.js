@@ -6,26 +6,20 @@ const CONTAINER_PREFIX = /^[ \t>]*/;
 const isDelimiterLine = (line) => line.text.slice(line.pos).trim() === '$$' && line.indent - line.baseIndent < 4;
 
 /**
- * Whether a closing `$$` line follows before a blank line (display math, like a paragraph, has no blank lines)
- * and is itself followed by a blank line or the end (`$$` glued to the next text is a plain paragraph).
- * A block parser cannot rewind, so this peeks at the input; container prefixes (`>`) are stripped approximately.
+ * Whether a closing `$$` line follows. The reader's pre-pass (DisplayMathPreProcessor) closes at the next line that
+ * is only `$$`, blank lines allowed. A block parser cannot rewind, so this peeks at the input; container prefixes
+ * (`>`) are stripped approximately.
  */
 function closesAhead(cx, line) {
   const input = cx.input;
   if (!input || typeof input.read !== 'function') return false;
   const start = cx.lineStart + line.text.length + 1;
   if (start >= input.length) return false;
-  const lines = input.read(start, Math.min(input.length, start + LOOKAHEAD_CHARS)).split('\n');
-  const bare = (raw) => raw.replace(CONTAINER_PREFIX, '').trim();
-  for (let i = 0; i < lines.length; i += 1) {
-    const rest = bare(lines[i]);
-    if (rest === '$$') return i === lines.length - 1 || bare(lines[i + 1]) === '';
-    if (rest === '') return false;
-  }
-  return false;
+  return input.read(start, Math.min(input.length, start + LOOKAHEAD_CHARS)).split('\n')
+    .some((raw) => raw.replace(CONTAINER_PREFIX, '').trim() === '$$');
 }
 
-/** `$$` alone on a line to the next such line in the same container; an unterminated `$$` is left to the paragraph. */
+/** `$$` alone on a line to the next such line (blank lines inside allowed); an unterminated `$$` is left to the paragraph. */
 const DisplayMathBlock = {
   name: 'DisplayMath',
   before: 'FencedCode',
@@ -40,6 +34,7 @@ const DisplayMathBlock = {
     cx.addElement(cx.elt('DisplayMath', from, to));
     return true;
   },
+  endLeaf: (cx, line) => line.next === DOLLAR && isDelimiterLine(line) && closesAhead(cx, line),
 };
 
 /** `$…$` (the shared Pandoc rule) and `$$…$$` within a paragraph. Escapes are Lezer's own (`\$` never reaches here). */

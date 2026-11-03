@@ -52,11 +52,17 @@ describe('opaqueAt', () => {
   });
 });
 
-describe('DisplayMath shape rules (a paragraph-compatible block)', () => {
-  it('is not a node when text follows the closing $$ directly', () => {
-    expect(nodes('$$\nx\n$$\nmore', 'DisplayMath')).toEqual([]);
+describe('DisplayMath follows the reader (DisplayMathPreProcessor)', () => {
+  it('may hold a blank line', () => {
+    expect(nodes('$$\na\n\nb\n$$\n', 'DisplayMath')).toEqual(['$$\na\n\nb\n$$']);
   });
-  it('does not interrupt a paragraph', () => {
-    expect(nodes('text\n$$\nx\n$$\n', 'DisplayMath')).toEqual([]);
+  it('needs nothing after the closing line', () => {
+    expect(nodes('$$\nx\n$$\nmore', 'DisplayMath')).toEqual(['$$\nx\n$$']);
+  });
+  it('interrupts a paragraph', () => {
+    expect(nodes('text\n$$\nx\n$$\n', 'DisplayMath')).toEqual(['$$\nx\n$$']);
+  });
+  it('is not a node when unterminated, even after text', () => {
+    expect(nodes('text\n$$\nx\n', 'DisplayMath')).toEqual([]);
   });
 });

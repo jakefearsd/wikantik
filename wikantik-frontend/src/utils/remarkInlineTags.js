@@ -9,35 +9,12 @@
  * This runs after the caller's stack (EditorPreviewMarkdown), on the mdast `text` nodes it leaves, and
  * `%%comments%%` are already gone.
  */
-import { normaliseTag } from './inlineTags';
+import { normaliseTag, tagEndAt, pluginSpans } from './inlineTags';
 
-const TAG = /(?<![^\s])#([\p{L}\p{N}_/-]+)/gu;
-const HAS_NON_DIGIT = /[\p{L}_-]/u;
 /** Nodes whose text is never prose: code, math, headings (checked separately), links and definitions. */
 const SKIP = new Set(['inlineCode', 'code', 'math', 'inlineMath', 'link', 'linkReference', 'definition', 'html', 'yaml']);
 // (a heading only reaches here when it is setext: its text is prose and starts a line)
 const LINE_START_PARENTS = new Set(['paragraph', 'tableCell', 'heading']);
-
-/**
- * The `[{…}]` spans of a text (a plugin, an access rule, a variable): the reader makes each a link whose text is never a
- * tag. The server's reading (`InlineTagMasks`): the leftmost opener to the first `}` after it, when `]` follows.
- */
-function pluginSpans(value) {
-  const spans = [];
-  let from = 0;
-  for (;;) {
-    const opener = value.indexOf('[{', from);
-    if (opener < 0) return spans;
-    const brace = value.indexOf('}', opener + 2);
-    if (brace < 0) return spans;
-    if (brace === opener + 2 || value[brace + 1] !== ']') {
-      from = brace + 1;
-    } else {
-      spans.push([opener, brace + 2]);
-      from = brace + 2;
-    }
-  }
-}
 
 function tagNode(written) {
   return {
@@ -69,13 +46,13 @@ function split(node, atLineStart, source) {
   const out = [];
   let last = 0;
   const plugins = value.includes('[{') ? pluginSpans(value) : [];
-  for (const m of value.matchAll(TAG)) {
-    if (!HAS_NON_DIGIT.test(m[1])) continue;
-    if (plugins.some(([a, b]) => m.index >= a && m.index < b)) continue;
-    if (m.index === 0 && !atLineStart) continue;
-    if (m.index > last) out.push({ type: 'text', value: value.slice(last, m.index) });
-    out.push(tagNode(m[1]));
-    last = m.index + m[0].length;
+  for (let at = value.indexOf('#'); at >= 0; at = value.indexOf('#', at + 1)) {
+    const end = tagEndAt(value, at);
+    if (end < 0 || plugins.some(([a, b]) => at >= a && at < b)) continue;
+    if (at === 0 && !atLineStart) continue;
+    if (at > last) out.push({ type: 'text', value: value.slice(last, at) });
+    out.push(tagNode(value.slice(at + 1, end)));
+    last = end;
   }
   if (!out.length) return null;
   if (last < value.length) out.push({ type: 'text', value: value.slice(last) });

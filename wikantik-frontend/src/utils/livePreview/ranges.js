@@ -2,7 +2,7 @@ import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
 import { commentRangesInTree } from '../obsidianComments';
-import { findInlineTags } from '../inlineTags';
+import { inlineTagRanges } from '../dialect/inlineTags';
 import { parseFenceInfo } from '../fences/fenceInfo';
 import { rendererFor } from '../fences/registry';
 import { findWikiLinks, parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
@@ -479,8 +479,6 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const doc = state.doc;
   const specs = [];
   const excluded = []; // code/table/etc. ranges the line-regex pass must not touch
-  const noTags = []; // link and image ranges: the reader never makes a tag of link text
-  const tables = []; // GFM table ranges: excluded from the line passes, but a cell can still hold an inline #tag
   const markers = []; // block markers (`^id`) ending the paragraphs in range
   const lineClasses = new Map(); // line start -> Set<cls>
   const inactive = (pos) => !activeLines.has(doc.lineAt(pos).number);
@@ -534,14 +532,12 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (!referenceLabels(state).has(normalizeLabel(given || text))) return;
     }
     const g = `Link@${n.from}`;
-    noTags.push([n.from, n.to]);
     mark(marks[0].to, marks[1].from, 'cm-lp-link', g);
     hide(marks[0].from, marks[0].to, g);
     hide(marks[1].from, n.to, g);
   };
   const image = (node) => {
     const n = node.node;
-    noTags.push([n.from, n.to]);
     const url = n.getChild('URL');
     const marks = n.getChildren('LinkMark');
     if (!url || marks.length < 2) return;
@@ -607,7 +603,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         }
         eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-linkdef'));
       }
-      if (SKIP.has(name)) { excluded.push([node.from, node.to]); if (name === 'Table') tables.push([node.from, node.to]); return false; }
+      if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }
       if (name === 'InlineCode') { markedInline(node, 'cm-lp-code', 'CodeMark'); excluded.push([node.from, node.to]); return false; }
       if (name === 'DisplayMath' || name === 'InlineDisplayMath') { excluded.push([node.from, node.to]); return false; }
@@ -679,6 +675,9 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     }
   };
   let mathAt = 0;
+  let tagAt = 0;
+  // The tree decides what is a tag (not code, math, a link, a heading or plugin text); the table walk below skips cells.
+  const tagRanges = inlineTagRanges(syntaxTree(state), from, to);
   eachLine(from, to, (line) => {
     const text = line.text;
     if (text.includes('[[')) {
@@ -728,11 +727,11 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       widget(a, b, { type: 'math', tex: doc.sliceString(a + 1, b - 1), display: false });
     }
     // An inline #tag reads as a chip off the caret's line: a mark only (the text is never replaced, so the caret cannot jump).
-    if (text.includes('#') && inactive(line.from)) {
-      // A table row is excluded from every other pass, yet its cells hold tags exactly as the reader renders them.
-      const inTable = tables.some(([a, b]) => line.from >= a && line.from <= b);
-      const blocked = (a, b) => (!inTable && overlaps(excluded, line.from + a, line.from + b)) || overlaps(claimed, line.from + a, line.from + b) || overlaps(noTags, line.from + a, line.from + b);
-      for (const t of findInlineTags(text, blocked, inTable)) mark(line.from + t.from, line.from + t.to, 'cm-lp-tag');
+    while (tagAt < tagRanges.length && tagRanges[tagAt].from < line.from) tagAt += 1;
+    for (let k = tagAt; k < tagRanges.length && tagRanges[k].from <= line.to; k += 1) {
+      const { from: a, to: b } = tagRanges[k];
+      if (!inactive(line.from) || overlaps(claimed, a, b) || overlaps(commentPairs(), a, b)) continue;
+      mark(a, b, 'cm-lp-tag');
     }
   });
   highlightSpecs(state, from, to, { excluded, claimed, commentPairs, overlaps, mark, hide });

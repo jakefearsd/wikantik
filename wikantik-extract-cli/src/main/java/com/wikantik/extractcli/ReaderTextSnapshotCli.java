@@ -25,13 +25,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,10 +55,8 @@ import java.util.stream.Stream;
  *  <p>Exit codes: {@code 0} success (for {@code diff}: nothing exposes or grows), {@code 3} {@code diff} found a page that
  *  EXPOSES or GROWS from a to b, {@code 1} usage error, {@code 2} I/O or other failure.</p>
  *
- *  <p>The reader's comment parse is looked up <b>by reflection</b>: {@code ReaderComments} where the
- *  build has it, otherwise {@code ObsidianComments}, which every earlier release has; tags likewise from {@code ReaderTags}, else
- *  {@code InlineTagSyntax.normalisedTags}. That is what lets
- *  {@code bin/reader-text-diff.sh} compile this one source file against an old release's classpath and
+ *  <p>The reader's comment and tag parses are looked up by reflection in {@link ReaderTextParsers}, which lets
+ *  {@code bin/reader-text-diff.sh} compile this file (with that one) against an old release's classpath and
  *  against the working tree's, and compare the two. Snapshot lines are per page:
  *  {@code body} (sha256 of the body), {@code stripped} (sha256 of the body with comments removed), {@code strippedLength},
  *  {@code comments} (the hidden ranges) and {@code tags}.</p>
@@ -70,16 +64,6 @@ import java.util.stream.Stream;
 public final class ReaderTextSnapshotCli {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final Logger LOG = LogManager.getLogger( ReaderTextSnapshotCli.class );
-    private static final String[] COMMENT_CLASSES = {
-        "com.wikantik.parser.markdown.ReaderComments", "com.wikantik.api.markdown.ObsidianComments" };
-    /** The comment parse of this build, resolved once; null when neither class is on the classpath. */
-    private static final Class< ? > COMMENTS = resolveCommentsClass();
-    private static final String[] TAG_CLASSES = {
-        "com.wikantik.parser.markdown.ReaderTags", "com.wikantik.api.markdown.InlineTagSyntax" };
-    /** The tag parse of this build, resolved once; null when neither class is on the classpath. */
-    private static final Class< ? > TAGS = resolveTagsClass();
-
     /** Exit code of {@code diff} when a page GROWS; distinct from usage (1) and failure (2). */
     public static final int EXIT_GROWS = 3;
 
@@ -102,8 +86,8 @@ public final class ReaderTextSnapshotCli {
 
     private static JsonObject describe( final String text ) {
         final String body = FrontmatterParser.parse( text ).body();
-        final List< int[] > ranges = commentRanges( body );
-        final String stripped = strip( body );
+        final List< int[] > ranges = ReaderTextParsers.commentRanges( body );
+        final String stripped = ReaderTextParsers.strip( body );
         final JsonObject page = new JsonObject();
         page.addProperty( "body", sha256( body ) );
         page.addProperty( "stripped", sha256( stripped ) );
@@ -117,74 +101,9 @@ public final class ReaderTextSnapshotCli {
         }
         page.add( "comments", comments );
         final JsonArray tags = new JsonArray();
-        new TreeSet<>( normalisedTags( body ) ).forEach( tags::add );
+        new TreeSet<>( ReaderTextParsers.normalisedTags( body ) ).forEach( tags::add );
         page.add( "tags", tags );
         return page;
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private static List< int[] > commentRanges( final String body ) {
-        return ( List< int[] > ) invokeComments( "ranges", body );
-    }
-
-    private static String strip( final String body ) {
-        return ( String ) invokeComments( "strip", body );
-    }
-
-    /** Normalised inline tags of {@code body}, from {@code ReaderTags} where the build has it, else the older scanner. */
-    @SuppressWarnings( "unchecked" )
-    private static java.util.Collection< String > normalisedTags( final String body ) {
-        if ( TAGS == null ) {
-            throw new IllegalStateException( "no tag parser on the classpath (tried " + List.of( TAG_CLASSES ) + ")" );
-        }
-        try {
-            final Method m = TAGS.getMethod( TAGS.getName().endsWith( "ReaderTags" ) ? "normalised" : "normalisedTags", String.class );
-            return ( java.util.Collection< String > ) m.invoke( null, body );
-        } catch ( final NoSuchMethodException | IllegalAccessException | InvocationTargetException e ) {
-            throw new IllegalStateException( TAGS.getName() + " tags are not callable", e );
-        }
-    }
-
-    private static Class< ? > resolveTagsClass() {
-        for ( final String className : TAG_CLASSES ) {
-            try {
-                final Class< ? > type = Class.forName( className );
-                LOG.debug( "tag parse resolved to {}", className );
-                return type;
-            } catch ( final ClassNotFoundException absent ) {
-                LOG.info( "{} is not on the classpath (an older build); falling back to the next of {}",
-                          className, List.of( TAG_CLASSES ) );
-            }
-        }
-        LOG.warn( "none of {} is on the classpath", List.of( TAG_CLASSES ) );
-        return null;
-    }
-
-    private static Class< ? > resolveCommentsClass() {
-        for ( final String className : COMMENT_CLASSES ) {
-            try {
-                final Class< ? > type = Class.forName( className );
-                LOG.debug( "comment parse resolved to {}", className );
-                return type;
-            } catch ( final ClassNotFoundException absent ) {
-                LOG.info( "{} is not on the classpath (an older build); falling back to the next of {}",
-                          className, List.of( COMMENT_CLASSES ) );
-            }
-        }
-        LOG.warn( "none of {} is on the classpath", List.of( COMMENT_CLASSES ) );
-        return null;
-    }
-
-    private static Object invokeComments( final String method, final String body ) {
-        if ( COMMENTS == null ) {
-            throw new IllegalStateException( "no comment parser on the classpath (tried " + List.of( COMMENT_CLASSES ) + ")" );
-        }
-        try {
-            final Method m = COMMENTS.getMethod( method, String.class );
-            return m.invoke( null, body );
-        } catch ( final NoSuchMethodException | IllegalAccessException | InvocationTargetException e ) {
-            throw new IllegalStateException( COMMENTS.getName() + "." + method + " is not callable", e );
-        }
     }
 
     private static String sha256( final String s ) {

@@ -11,8 +11,8 @@
 #
 # How: <git-ref> and HEAD are each built (mvn -o package, so ~/.m2 is never overwritten) in their own
 # temporary git worktree, so the working tree is never touched (uncommitted changes are NOT included in
-# the HEAD side). The one source file ReaderTextSnapshotCli.java is then compiled against EACH build's
-# shaded jar -- an old ref has no ReaderTextSnapshotCli, and the snapshot code looks up
+# the HEAD side). The two source files ReaderTextSnapshotCli.java + ReaderTextParsers.java are then compiled against EACH build's
+# shaded jar -- an old ref has no ReaderTextSnapshotCli, and ReaderTextParsers looks up
 # ReaderComments (new) or ObsidianComments (old) by reflection, so the same file runs against both.
 # Worktrees and temp files are removed on exit, success or failure.
 #
@@ -26,7 +26,8 @@ fi
 REF="$1"
 PAGES="$(cd "$2" && pwd)"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/wikantik-extract-cli/src/main/java/com/wikantik/extractcli/ReaderTextSnapshotCli.java"
+SRC_DIR="$ROOT/wikantik-extract-cli/src/main/java/com/wikantik/extractcli"
+SRCS=( "$SRC_DIR/ReaderTextSnapshotCli.java" "$SRC_DIR/ReaderTextParsers.java" )
 WORK="$(mktemp -d)"
 WT_OLD="$WORK/old"
 WT_NEW="$WORK/new"
@@ -47,7 +48,7 @@ snapshot_with() {   # <worktree> <label>
     jar="$wt/wikantik-extract-cli/target/wikantik-extract-cli.jar"
     classes="$WORK/classes-$label"
     mkdir -p "$classes"
-    javac -cp "$jar" -d "$classes" "$SRC"
+    javac -cp "$jar" -d "$classes" "${SRCS[@]}"
     java -cp "$classes:$jar" com.wikantik.extractcli.ReaderTextSnapshotCli snapshot "$PAGES" "$WORK/$label.json"
 }
 

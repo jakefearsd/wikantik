@@ -29,6 +29,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.parser.markdown.MarkdownParser;
+import com.wikantik.parser.markdown.ReaderTags;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.markdown.MarkdownRenderer;
 import org.junit.jupiter.api.AfterEach;
@@ -90,7 +91,7 @@ class InlineTagParityTest {
             final JsonObject row = element.getAsJsonObject();
             final List< String > expected = new ArrayList<>();
             row.getAsJsonArray( "tags" ).forEach( t -> expected.add( t.getAsString() ) );
-            final List< String > actual = List.copyOf( InlineTagSyntax.normalisedTags( row.get( "markdown" ).getAsString() ) );
+            final List< String > actual = List.copyOf( ReaderTags.normalised( row.get( "markdown" ).getAsString() ) );
             if ( !expected.equals( actual ) ) {
                 mismatches.add( row.get( "name" ).getAsString() + ": expected " + expected + " but was " + actual );
             }

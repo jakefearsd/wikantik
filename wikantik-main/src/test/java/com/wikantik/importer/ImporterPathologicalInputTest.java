@@ -104,10 +104,11 @@ class ImporterPathologicalInputTest {
     @Test
     void inlineTagScanIsLinearOnLongRuns() {
         assertTimeoutPreemptively( BUDGET, () -> {
-            ReaderTags.normalised( fill( "a" ) );
-            ReaderTags.normalised( "://" + fill( "a" ) );
-            ReaderTags.normalised( fill( "[[a " ) );
-            ReaderTags.normalised( fill( "](a" ) );
+            // the "#t " prefix makes the parse actually run (no tag-opening '#', no parse)
+            ReaderTags.normalised( "#t " + fill( "a" ) );
+            ReaderTags.normalised( "#t ://" + fill( "a" ) );
+            ReaderTags.normalised( "#t " + fill( "[[a " ) );
+            ReaderTags.normalised( "#t " + fill( "](a" ) );
         } );
     }
 }

@@ -164,7 +164,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final StructuralIndexService idx = index;
             return idx.resolveCanonicalIdFromSlug( name ).flatMap( idx::getByCanonicalId )
                     .filter( d -> name.equals( d.slug() ) )
-                    .map( PageDescriptor::writtenTags );
+                    .map( PageDescriptor::inlineTags );
         };
     }
 

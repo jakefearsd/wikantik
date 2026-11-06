@@ -128,6 +128,18 @@ class ReaderTagsTest {
     }
 
     @Test
+    void aHeadingOnlyBodyIsNotParsed() {
+        final long own = ReaderTags.parses();
+        assertEquals( List.of(), ReaderTags.written( "# Title\n\n## Sub\n\ntext # alone\n" ) );
+        assertEquals( own, ReaderTags.parses() );
+        assertEquals( List.of(), ReaderTags.written( "# Title\r\n\r\ntext\r\n" ) );
+        assertEquals( own, ReaderTags.parses() );
+        // a comment between '#' and the word is removed first, so the tag is found
+        assertEquals( List.of( "tag" ), ReaderTags.written( "x #%%c%%tag\n" ) );
+        assertEquals( own + 1, ReaderTags.parses() );
+    }
+
+    @Test
     void crlfBodiesMatchLf() throws Exception {
         final List< String > failures = new ArrayList<>();
         for ( final String input : inputs() ) {
@@ -215,10 +227,13 @@ class ReaderTagsTest {
     void pathologicalRunsStayBounded() {
         assertTimeoutPreemptively( Duration.ofSeconds( 60 ), () -> {
             final String run = "a".repeat( 200_000 );
-            assertEquals( Set.of(), ReaderTags.normalised( run ) );
-            assertEquals( Set.of(), ReaderTags.normalised( "://" + run ) );
-            assertEquals( Set.of(), ReaderTags.normalised( "[[a ".repeat( 50_000 ) ) );
-            assertEquals( Set.of(), ReaderTags.normalised( "](a".repeat( 50_000 ) ) );
+            final long before = ReaderTags.parses();
+            // the "#t " prefix makes the parse actually run (no tag-opening '#', no parse)
+            assertEquals( Set.of( "t" ), ReaderTags.normalised( "#t " + run ) );
+            assertEquals( Set.of( "t" ), ReaderTags.normalised( "#t ://" + run ) );
+            assertEquals( Set.of( "t" ), ReaderTags.normalised( "#t " + "[[a ".repeat( 50_000 ) ) );
+            assertEquals( Set.of( "t" ), ReaderTags.normalised( "#t " + "](a".repeat( 50_000 ) ) );
+            assertEquals( before + 4, ReaderTags.parses() );
         } );
     }
 

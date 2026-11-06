@@ -36,7 +36,10 @@ class IndexedInlineTagsTest {
     private static StructuralIndexService indexWith( final String slug, final String descriptorSlug ) {
         final PageDescriptor d = mock( PageDescriptor.class );
         when( d.slug() ).thenReturn( descriptorSlug );
-        when( d.writtenTags() ).thenReturn( List.of( "inline" ) );
+        // frontmatter tag "fm" is in the descriptor too; only the inline tags may come back
+        when( d.tags() ).thenReturn( List.of( "fm" ) );
+        when( d.writtenTags() ).thenReturn( List.of( "fm", "inline" ) );
+        when( d.inlineTags() ).thenReturn( List.of( "inline" ) );
         final StructuralIndexService index = mock( StructuralIndexService.class );
         when( index.resolveCanonicalIdFromSlug( slug ) ).thenReturn( Optional.of( "cid" ) );
         when( index.resolveCanonicalIdFromSlug( "Unknown" ) ).thenReturn( Optional.empty() );
@@ -45,7 +48,7 @@ class IndexedInlineTagsTest {
     }
 
     @Test
-    void indexedPageYieldsItsWrittenTags() {
+    void indexedPageYieldsOnlyItsInlineTags() {
         final StructuralIndexService index = indexWith( "Page", "Page" );
         final Function< String, Optional< List< String > > > f = DefaultContextRetrievalService.indexedInlineTags( () -> index );
         assertEquals( Optional.of( List.of( "inline" ) ), f.apply( "Page" ) );

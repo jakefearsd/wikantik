@@ -55,8 +55,8 @@ public final class ReaderTags {
 
     /**
      * @param body page body; may be {@code null}
-     * @return the first written form of each tag, one per normalised tag, in first-seen order; empty when the body has no
-     *         {@code #} (no parse is run)
+     * @return the first written form of each tag, one per normalised tag, in first-seen order; empty when no {@code #} is directly followed by a tag
+     *         character (no parse is run)
      */
     public static List< String > written( final String body ) {
         return List.copyOf( byNormalised( body, -1L ).values() );
@@ -81,13 +81,13 @@ public final class ReaderTags {
             return out;
         }
         final String stripped = ReaderComments.strip( body );
-        // a comment can hold every '#', so look again once it is gone: no '#' left, no parse
-        if ( stripped.indexOf( '#' ) < 0 ) {
-            return out;
-        }
-        PARSES.get()[ 0 ]++;
         try {
+            // the same text the parser sees; a '#' not directly followed by a tag character (every heading's) cannot open a tag
             final String text = MarkdownBodySource.prepare( stripped ).text();
+            if ( !opensATag( text ) ) {
+                return out;
+            }
+            PARSES.get()[ 0 ]++;
             for ( final Node node : ReaderParser.parse( text, budget ).getDescendants() ) {
                 if ( node instanceof InlineTag tag && InlineTagNodes.shown( tag ) ) {
                     out.putIfAbsent( InlineTagSyntax.normalise( tag.written() ), tag.written() );
@@ -98,5 +98,15 @@ public final class ReaderTags {
             return new LinkedHashMap<>();
         }
         return out;
+    }
+
+    /** Whether {@code text} has a {@code #} directly followed by a tag character: {@code InlineTagParser} needs at least one. */
+    private static boolean opensATag( final String text ) {
+        for ( int at = text.indexOf( '#' ); at >= 0 && at + 1 < text.length(); at = text.indexOf( '#', at + 1 ) ) {
+            if ( InlineTagSyntax.isTagChar( text.charAt( at + 1 ) ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 }

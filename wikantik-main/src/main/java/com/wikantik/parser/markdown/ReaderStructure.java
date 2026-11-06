@@ -31,10 +31,7 @@ import com.vladsch.flexmark.ast.LinkRef;
 import com.vladsch.flexmark.ast.Reference;
 import com.vladsch.flexmark.ext.gitlab.GitLabInlineMath;
 import com.vladsch.flexmark.ext.wikilink.WikiNode;
-import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
-import com.vladsch.flexmark.util.sequence.BasedSequence;
-import com.wikantik.markdown.extensions.math.InlineMathParser;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.AccessRuleLinkNodePostProcessorState;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.parser.LinkParsingOperations;
@@ -52,11 +49,6 @@ final class ReaderStructure {
 
     /** Marks "size the budget from the prepared text", as the render path always has. */
     private static final long AUTO_BUDGET = -1L;
-
-    /** Immutable and thread-safe: the rendered page's block and inline structure, without its context-bound extension. */
-    private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
-            .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
-            .build();
 
     /**
      * How many bodies this thread has parsed: a test seam, so a caller's tests can count the parses it pays for. Per
@@ -101,10 +93,9 @@ final class ReaderStructure {
     private static RenderPathAccessRules.Structure parsedStructure( final MarkdownBodySource.Prepared prepared, final int bodyStart,
                                                                      final int bodyLength, final long budget ) {
         final String text = prepared.text();
-        final long parseBudget = budget == AUTO_BUDGET ? BudgetedText.budgetFor( text.length() ) : budget;
         final RenderPathAccessRules.Structure out = new RenderPathAccessRules.Structure( new ArrayList<>(), new ArrayList<>(),
                 new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>() );
-        for ( final Node node : PARSER.parse( BasedSequence.of( BudgetedText.of( text, parseBudget ) ) ).getDescendants() ) {
+        for ( final Node node : ReaderParser.parse( text, budget ).getDescendants() ) {
             if ( node instanceof Link link && LinkParsingOperations.isAccessRuleLink( WikantikLink.wikiLinkOf( link ) ) ) {
                 out.rules().add( rule( prepared, link, bodyStart, bodyLength ) );
             } else if ( node instanceof FencedCodeBlock && prepared.toBody( node.getStartOffset() ) < 0 ) {

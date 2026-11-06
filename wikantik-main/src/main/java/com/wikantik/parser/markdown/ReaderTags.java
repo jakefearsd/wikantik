@@ -19,13 +19,10 @@
 
 package com.wikantik.parser.markdown;
 
-import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
-import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.markdown.extensions.inlinetags.InlineTag;
 import com.wikantik.markdown.extensions.inlinetags.InlineTagNodes;
-import com.wikantik.markdown.extensions.math.InlineMathParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -45,11 +42,6 @@ public final class ReaderTags {
 
     private static final Logger LOG = LogManager.getLogger( ReaderTags.class );
 
-    /** Immutable and thread-safe; the structural options register the inline-tag extension. */
-    private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
-            .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
-            .build();
-
     /** Per-thread parse count: a test seam (tests run in parallel forks and threads). */
     private static final ThreadLocal< long[] > PARSES = ThreadLocal.withInitial( () -> new long[ 1 ] );
 
@@ -67,7 +59,7 @@ public final class ReaderTags {
      *         {@code #} (no parse is run)
      */
     public static List< String > written( final String body ) {
-        return List.copyOf( byNormalised( body ).values() );
+        return List.copyOf( byNormalised( body, -1L ).values() );
     }
 
     /**
@@ -75,23 +67,28 @@ public final class ReaderTags {
      * @return the normalised tags in first-seen order, duplicates removed; empty when the body has no {@code #}
      */
     public static Set< String > normalised( final String body ) {
-        return new LinkedHashSet<>( byNormalised( body ).keySet() );
+        return new LinkedHashSet<>( byNormalised( body, -1L ).keySet() );
     }
 
-    private static Map< String, String > byNormalised( final String body ) {
+    /** As {@link #normalised(String)} with an explicit parse budget (a test seam). */
+    static Set< String > normalised( final String body, final long budget ) {
+        return new LinkedHashSet<>( byNormalised( body, budget ).keySet() );
+    }
+
+    private static Map< String, String > byNormalised( final String body, final long budget ) {
         final Map< String, String > out = new LinkedHashMap<>();
         if ( body == null || body.indexOf( '#' ) < 0 ) {
             return out;
         }
         final String stripped = ReaderComments.strip( body );
+        // a comment can hold every '#', so look again once it is gone: no '#' left, no parse
         if ( stripped.indexOf( '#' ) < 0 ) {
             return out;
         }
         PARSES.get()[ 0 ]++;
         try {
             final String text = MarkdownBodySource.prepare( stripped ).text();
-            final Node document = PARSER.parse( BasedSequence.of( BudgetedText.of( text, BudgetedText.budgetFor( text.length() ) ) ) );
-            for ( final Node node : document.getDescendants() ) {
+            for ( final Node node : ReaderParser.parse( text, budget ).getDescendants() ) {
                 if ( node instanceof InlineTag tag && InlineTagNodes.shown( tag ) ) {
                     out.putIfAbsent( InlineTagSyntax.normalise( tag.written() ), tag.written() );
                 }

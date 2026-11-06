@@ -119,9 +119,22 @@ class ReaderTagsTest {
 
     @Test
     void crlfBodiesMatchLf() throws Exception {
+        final List< String > failures = new ArrayList<>();
         for ( final String input : inputs() ) {
-            assertEquals( ReaderTags.written( input ), ReaderTags.written( input.replace( "\n", "\r\n" ) ), () -> "CRLF differs for " + input );
+            final String crlf = input.replace( "\n", "\r\n" );
+            assertEquals( ReaderTags.written( input ), ReaderTags.written( crlf ), () -> "CRLF differs for " + input );
+            final Set< String > rendered = renderedTags( crlf );
+            if ( !List.copyOf( rendered ).equals( List.copyOf( ReaderTags.normalised( crlf ) ) ) ) {
+                failures.add( "\"" + crlf.replace( "\r", "\\r" ).replace( "\n", "\\n" ) + "\": the render says " + rendered + " but ReaderTags says " + ReaderTags.normalised( crlf ) );
+            }
         }
+        assertEquals( List.of(), failures, String.join( "\n", failures.subList( 0, Math.min( failures.size(), 30 ) ) ) );
+    }
+
+    @Test
+    void aParseCutOffByItsBudgetReadsNoTagsAndSaysSo() {
+        assertEquals( Set.of( "tag" ), ReaderTags.normalised( "has #tag\n", -1L ), "the standard budget reads it" );
+        assertEquals( Set.of(), ReaderTags.normalised( "has #tag\n", 1L ), "an exhausted budget is an empty result, not an exception" );
     }
 
     @Test

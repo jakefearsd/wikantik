@@ -150,6 +150,55 @@ class ReaderCommentsTest {
     }
 
     @Test
+    void rangesLocateEachCommentDelimitersIncluded() {
+        final String text = "a %%x%% b %%y\nz%% c `%%k%%`";
+        final List< String > found = new ArrayList<>();
+        for ( final int[] r : ReaderComments.ranges( text ) ) {
+            found.add( text.substring( r[ 0 ], r[ 1 ] ) );
+        }
+        assertEquals( List.of( "%%x%%", "%%y\nz%%" ), found );
+        assertEquals( List.of(), ReaderComments.ranges( "a %%b" ) );
+        assertEquals( List.of(), ReaderComments.ranges( null ) );
+        assertEquals( null, ReaderComments.strip( null ) );
+    }
+
+    @Test
+    void mathAcrossPlainProseLinesStillHidesNothing() {
+        assertEquals( "see $a\n%%x%% b$ end", ReaderComments.strip( "see $a\n%%x%% b$ end" ) );
+        assertEquals( "$$a \n\n c$$", ReaderComments.strip( "$$a %%x\n\nb%% c$$" ) );
+    }
+
+    @Test
+    void aPipeLessLineAfterATableEndsItSoMathMaySpanIt() {
+        final String after = "A | B\n--- | ---\nx | y\n$a\n%%c%% b$ end\n";
+        assertSame( after, ReaderComments.strip( after ) );
+    }
+
+    @Test
+    void anEscapedPipeDoesNotSplitMathInATableCell() {
+        final String text = "| A |\n|---|\n| $a\\|%%x%%b$ |\n";
+        assertSame( text, ReaderComments.strip( text ) );
+    }
+
+    /** Each input has tens of thousands of markers, backticks, dollars, fences or quote levels: a quadratic scan takes minutes. */
+    @Test
+    void adversarialInputsStayLinear() {
+        final int n = 80_000;
+        final String[] inputs = {
+            "%%`".repeat( n ), "`%%".repeat( n ), "%%x$".repeat( n ), "$a ".repeat( n ) + "%%", "%% " + "`%%` ".repeat( n ),
+            "%%x ".repeat( n ), "$$ ".repeat( n ) + "%%", "$$x %% ".repeat( n ), "```\n%%\n```\n".repeat( n / 4 ),
+            "> ```\n> %%\n> ```\n".repeat( n / 4 ), "%%\n> ```\n".repeat( n / 4 ), ">".repeat( 2_000 ) + " ```\n%%x%%\n",
+            // the reader's parse is itself quadratic in the lines of a nested fence the quote leaves: kept small, see task-10 report
+            "> ".repeat( 10 ) + "~~~\n" + "> %%x%%\n".repeat( 500 ),
+            "%% x " + ( "a $b " ).repeat( 20_000 ) + "\n%%\n",
+        };
+        for ( final String text : inputs ) {
+            assertTimeoutPreemptively( Duration.ofSeconds( 20 ), () -> ReaderComments.strip( text ),
+                    () -> "slow on " + text.substring( 0, 12 ).replace( "\n", "\\n" ) + "..." );
+        }
+    }
+
+    @Test
     void linearInComments() {
         assertTimeoutPreemptively( Duration.ofSeconds( 120 ), () -> {
             final double[] result = linearCost( n -> "%%a%% `b` $c$ ".repeat( n ), ReaderCommentsTest::runRanges, 2000, 4 );

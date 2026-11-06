@@ -1,5 +1,5 @@
 /**
- * Obsidian `%%comments%%`, the editor's copy of `ObsidianComments` (wikantik-api): the same contract and the same
+ * Obsidian `%%comments%%`, the editor's copy of the server's `ReaderComments` (wikantik-main): the same contract and the same
  * shared fixture (`__fixtures__/comments.json`, run by both sides). A comment (inline, or spanning lines) is removed
  * and replaced by the newlines it held, so line numbers and preview scroll sync stay stable.
  *

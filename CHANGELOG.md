@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Tags and comments come from the reader's parse.** The server's hand-written code/math/comment/tag masks
+  (`ObsidianComments`, `MathMask`, `QuotedFences`, the GFM table scanners, `InlineTagMasks`, `InlineTagSyntax.scan`) are
+  deleted; `ReaderComments` and `ReaderTags` read the same parse the page renders from, so the inline tags a page lists,
+  indexes and filters by now match the rendered tag links exactly. **Reindex after deploying** (search index and the
+  structural index) so stored tag sets are recomputed.
+
 ## [2.5.7] - 2026-11-03
 
 ### Changed

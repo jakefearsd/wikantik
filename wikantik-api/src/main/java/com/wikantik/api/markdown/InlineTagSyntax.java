@@ -18,12 +18,10 @@
  */
 package com.wikantik.api.markdown;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -39,25 +37,13 @@ import java.util.regex.Pattern;
  *       destination, nor on an ATX heading line.</li>
  * </ul>
  *
- * <p>A tag's identity is {@link #normalise(String)}; the text keeps what the author wrote. {@link #scan} reports offsets
- * in the text it is given, and callers that index must hide {@code %%comments%%} first, as {@link #normalisedTags} does.
- * Linear in the text: every variable-length scan stops where the next match could start.
+ * <p>A tag's identity is {@link #normalise(String)}; the text keeps what the author wrote. Which tags a page has is
+ * decided by the reader's parse ({@code ReaderTags}, in wikantik-main); this class keeps only the identity rule and the
+ * character rules the parse's inline tag parser applies.
  */
 public final class InlineTagSyntax {
 
-    /** One tag occurrence: {@code [start, end)} spans the {@code #} and the tag; {@code written} is the tag without the {@code #}. */
-    public record Tag( int start, int end, String written, String normalised ) {
-    }
-
-    /** An ATX heading line, also inside blockquote and list containers, as the renderer skips it. */
-    private static final Pattern HEADING = Pattern.compile(
-            "^(?:\\s{0,3}(?:>|[-*+]|\\d{1,9}[.)]))*\\s{0,3}#{1,6}\\s.*" );
-    private static final Pattern TAG = Pattern.compile( "(?<![^\\s])#([\\p{L}\\p{N}_/-]+)" );
-    /** Block-quote markers at a line start, nested, with optional spaces: the flexmark paragraph inside starts after them. */
-    private static final Pattern QUOTE_PREFIX = Pattern.compile( "^(?:\\s{0,3}>)+" );
-    private static final Pattern TAG_AT_QUOTE = Pattern.compile( "#([\\p{L}\\p{N}_/-]+)" );
     private static final Pattern NON_DIGIT = Pattern.compile( "[\\p{L}_-]" );
-    private static final char MASKED = 'X';
 
     private InlineTagSyntax() {
     }
@@ -82,39 +68,6 @@ public final class InlineTagSyntax {
     }
 
     /**
-     * Normalised tags of a page body in first-seen order, duplicates removed, comments hidden first.
-     *
-     * @param body page body; may be {@code null}
-     */
-    public static Set< String > normalisedTags( final String body ) {
-        final Set< String > tags = new LinkedHashSet<>();
-        if ( body == null || body.indexOf( '#' ) < 0 ) {
-            return tags;
-        }
-        for ( final Tag t : scan( ObsidianComments.strip( body ) ) ) {
-            tags.add( t.normalised() );
-        }
-        return tags;
-    }
-
-    /**
-     * Inline tags of a page body as written, in first-seen order, one per normalised identity (the first written form
-     * wins), comments hidden first.
-     *
-     * @param body page body; may be {@code null}
-     */
-    public static List< String > writtenTags( final String body ) {
-        if ( body == null || body.indexOf( '#' ) < 0 ) {
-            return List.of();
-        }
-        final java.util.Map< String, String > byKey = new java.util.LinkedHashMap<>();
-        for ( final Tag t : scan( ObsidianComments.strip( body ) ) ) {
-            byKey.putIfAbsent( t.normalised(), t.written() );
-        }
-        return List.copyOf( byKey.values() );
-    }
-
-    /**
      * A page's tags for <em>finding</em>: its frontmatter tags then its inline tags, each normalised, duplicates removed.
      * (SEO, feeds, the sitemap and JSON-LD deliberately keep reading the frontmatter alone.)
      *
@@ -136,53 +89,6 @@ public final class InlineTagSyntax {
             final String n = t == null ? "" : normalise( t );
             if ( !n.isEmpty() ) {
                 into.add( n );
-            }
-        }
-    }
-
-    /** Every tag in {@code body}, in order, with offsets into {@code body}. */
-    public static List< Tag > scan( final String body ) {
-        final List< Tag > tags = new ArrayList<>();
-        if ( body == null || body.indexOf( '#' ) < 0 ) {
-            return tags;
-        }
-        final String s = blank( body );
-        int offset = 0;
-        for ( final String line : s.split( "\n", -1 ) ) {
-            if ( !HEADING.matcher( line ).matches() ) {
-                collect( line, offset, tags );
-            }
-            offset += line.length() + 1;
-        }
-        return tags;
-    }
-
-    /** Same-length copy with code and math masked by a non-space placeholder and links/URLs blanked, so offsets survive. */
-    private static String blank( final String body ) {
-        final boolean[] masked = ObsidianComments.mask( body );
-        final StringBuilder sb = new StringBuilder( body );
-        for ( int i = 0; i < sb.length(); i++ ) {
-            if ( masked[ i ] && sb.charAt( i ) != '\n' && sb.charAt( i ) != '\r' ) {
-                sb.setCharAt( i, MASKED );
-            }
-        }
-        InlineTagMasks.blankMarkup( sb );
-        return InlineTagTables.openTableCells( sb.toString() );
-    }
-
-    private static void collect( final String line, final int lineOffset, final List< Tag > tags ) {
-        // `>#foo`: the reader's paragraph starts at the `#`, so a tag right after the quote markers (no space) counts as at a line start
-        final Matcher quote = QUOTE_PREFIX.matcher( line );
-        if ( quote.find() ) {
-            final Matcher glued = TAG_AT_QUOTE.matcher( line ).region( quote.end(), line.length() );
-            if ( glued.lookingAt() && isTagText( glued.group( 1 ) ) ) {
-                tags.add( new Tag( lineOffset + quote.end(), lineOffset + glued.end(), glued.group( 1 ), normalise( glued.group( 1 ) ) ) );
-            }
-        }
-        final Matcher m = TAG.matcher( line );
-        while ( m.find() ) {
-            if ( isTagText( m.group( 1 ) ) ) {
-                tags.add( new Tag( lineOffset + m.start(), lineOffset + m.end(), m.group( 1 ), normalise( m.group( 1 ) ) ) );
             }
         }
     }

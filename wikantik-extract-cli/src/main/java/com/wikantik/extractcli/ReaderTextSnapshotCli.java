@@ -25,7 +25,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.markdown.InlineTagSyntax;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -61,7 +60,8 @@ import java.util.stream.Stream;
  *  EXPOSES or GROWS from a to b, {@code 1} usage error, {@code 2} I/O or other failure.</p>
  *
  *  <p>The reader's comment parse is looked up <b>by reflection</b>: {@code ReaderComments} where the
- *  build has it, otherwise {@code ObsidianComments}, which every earlier release has. That is what lets
+ *  build has it, otherwise {@code ObsidianComments}, which every earlier release has; tags likewise from {@code ReaderTags}, else
+ *  {@code InlineTagSyntax.normalisedTags}. That is what lets
  *  {@code bin/reader-text-diff.sh} compile this one source file against an old release's classpath and
  *  against the working tree's, and compare the two. Snapshot lines are per page:
  *  {@code body} (sha256 of the body), {@code stripped} (sha256 of the body with comments removed), {@code strippedLength},
@@ -75,6 +75,10 @@ public final class ReaderTextSnapshotCli {
         "com.wikantik.parser.markdown.ReaderComments", "com.wikantik.api.markdown.ObsidianComments" };
     /** The comment parse of this build, resolved once; null when neither class is on the classpath. */
     private static final Class< ? > COMMENTS = resolveCommentsClass();
+    private static final String[] TAG_CLASSES = {
+        "com.wikantik.parser.markdown.ReaderTags", "com.wikantik.api.markdown.InlineTagSyntax" };
+    /** The tag parse of this build, resolved once; null when neither class is on the classpath. */
+    private static final Class< ? > TAGS = resolveTagsClass();
 
     /** Exit code of {@code diff} when a page GROWS; distinct from usage (1) and failure (2). */
     public static final int EXIT_GROWS = 3;
@@ -113,7 +117,7 @@ public final class ReaderTextSnapshotCli {
         }
         page.add( "comments", comments );
         final JsonArray tags = new JsonArray();
-        new TreeSet<>( InlineTagSyntax.normalisedTags( body ) ).forEach( tags::add );
+        new TreeSet<>( normalisedTags( body ) ).forEach( tags::add );
         page.add( "tags", tags );
         return page;
     }
@@ -125,6 +129,35 @@ public final class ReaderTextSnapshotCli {
 
     private static String strip( final String body ) {
         return ( String ) invokeComments( "strip", body );
+    }
+
+    /** Normalised inline tags of {@code body}, from {@code ReaderTags} where the build has it, else the older scanner. */
+    @SuppressWarnings( "unchecked" )
+    private static java.util.Collection< String > normalisedTags( final String body ) {
+        if ( TAGS == null ) {
+            throw new IllegalStateException( "no tag parser on the classpath (tried " + List.of( TAG_CLASSES ) + ")" );
+        }
+        try {
+            final Method m = TAGS.getMethod( TAGS.getName().endsWith( "ReaderTags" ) ? "normalised" : "normalisedTags", String.class );
+            return ( java.util.Collection< String > ) m.invoke( null, body );
+        } catch ( final NoSuchMethodException | IllegalAccessException | InvocationTargetException e ) {
+            throw new IllegalStateException( TAGS.getName() + " tags are not callable", e );
+        }
+    }
+
+    private static Class< ? > resolveTagsClass() {
+        for ( final String className : TAG_CLASSES ) {
+            try {
+                final Class< ? > type = Class.forName( className );
+                LOG.debug( "tag parse resolved to {}", className );
+                return type;
+            } catch ( final ClassNotFoundException absent ) {
+                LOG.info( "{} is not on the classpath (an older build); falling back to the next of {}",
+                          className, List.of( TAG_CLASSES ) );
+            }
+        }
+        LOG.warn( "none of {} is on the classpath", List.of( TAG_CLASSES ) );
+        return null;
     }
 
     private static Class< ? > resolveCommentsClass() {

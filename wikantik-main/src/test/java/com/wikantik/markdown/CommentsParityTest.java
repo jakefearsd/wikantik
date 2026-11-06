@@ -26,7 +26,6 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.markdown.ObsidianComments;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.acl.AccessRules;
 import com.wikantik.auth.acl.AclDirectiveText;
@@ -106,7 +105,7 @@ class CommentsParityTest {
                 "a commented-out rule must not silently take effect" );
         assertEquals( List.of( AccessRules.Shape.IN_COMMENT ), locked.reasons().stream().map( AccessRules.Reason::shape ).toList() );
 
-        final String shown = ObsidianComments.strip( AclDirectiveText.strip( text ) );
+        final String shown = com.wikantik.parser.markdown.ReaderComments.strip( AclDirectiveText.strip( text ) );
         assertFalse( shown.contains( "ALLOW" ) || shown.contains( "private note" ), shown );
         final String html = renderUnfiltered( text );
         assertFalse( html.contains( "ALLOW" ) || html.contains( "private note" ), html );

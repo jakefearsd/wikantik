@@ -36,8 +36,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
-import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.attachment.AttachmentUploadPolicy;
+import com.wikantik.parser.markdown.ReaderTags;
 
 /**
  * Planner DoS regressions: every 256 KB single-line note an authenticated user could upload must plan in
@@ -104,10 +104,10 @@ class ImporterPathologicalInputTest {
     @Test
     void inlineTagScanIsLinearOnLongRuns() {
         assertTimeoutPreemptively( BUDGET, () -> {
-            InlineTagSyntax.scan( fill( "a" ) );
-            InlineTagSyntax.scan( "://" + fill( "a" ) );
-            InlineTagSyntax.scan( fill( "[[a " ) );
-            InlineTagSyntax.scan( fill( "](a" ) );
+            ReaderTags.normalised( fill( "a" ) );
+            ReaderTags.normalised( "://" + fill( "a" ) );
+            ReaderTags.normalised( fill( "[[a " ) );
+            ReaderTags.normalised( fill( "](a" ) );
         } );
     }
 }

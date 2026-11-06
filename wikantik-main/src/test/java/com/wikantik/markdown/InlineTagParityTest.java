@@ -26,7 +26,6 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.parser.markdown.MarkdownParser;
 import com.wikantik.parser.markdown.ReaderTags;
@@ -48,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The reader's half of the inline {@code #tag} parity fixture ({@code inline-tags.json}): the editor preview
  * ({@code remarkInlineTags.test.jsx}) and the editor's scanner ({@code inlineTags.test.js}) run the same rows. A row with
  * {@code html} must render to exactly that; a {@code noTag} row must produce no {@code inline-tag} link; every row's
- * {@code tags} are what {@link InlineTagSyntax#normalisedTags} finds.
+ * {@code tags} are what {@link ReaderTags#normalised} finds.
  */
 class InlineTagParityTest {
 
@@ -103,7 +102,7 @@ class InlineTagParityTest {
     void onlyAnAtxHeadingLineIsSkippedLikeTheScanner() throws Exception {
         final String setext = "Title with #real\n================\n";
         assertTrue( render( setext ).contains( "inline-tag" ), "a setext heading's text is prose" );
-        assertEquals( java.util.List.of( "real" ), List.copyOf( InlineTagSyntax.normalisedTags( setext ) ) );
+        assertEquals( java.util.List.of( "real" ), List.copyOf( ReaderTags.normalised( setext ) ) );
         assertFalse( render( "## Title with #x\n" ).contains( "inline-tag" ) );
     }
 

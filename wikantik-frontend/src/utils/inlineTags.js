@@ -34,7 +34,7 @@ export function tagEndAt(text, i) {
 
 /**
  * The `[{…}]` spans of a text (a plugin, an access rule, a variable): the reader makes each a link whose text is never a
- * tag. The server's reading (`InlineTagMasks`): the leftmost opener to the first `}` after it, when `]` follows.
+ * tag. The server's reading (the reader's parse, `ReaderTags`): the leftmost opener to the first `}` after it, when `]` follows.
  */
 export function pluginSpans(value) {
   const spans = [];

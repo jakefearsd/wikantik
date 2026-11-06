@@ -147,6 +147,81 @@ class ReaderTagsTest {
         assertEquals( Set.of(), ReaderTags.normalised( "has #tag\n", 1L ), "an exhausted budget is an empty result, not an exception" );
     }
 
+    /** Tag cases carried over from the deleted hand-written scanner: the render is the oracle, the old expectation the cross-check. */
+    @Test
+    void theOldScannersCasesAreTheRendersToo() throws Exception {
+        final String[][] cases = {
+            { "Hi #Work and #team/core\n# Heading #nope\n`#code` [[#anchor]] http://x/#frag #123", "work,team-core" },
+            { "```\n#x\n```\n[t](a#b) word#nope", "" },
+            { "`c`#x", "" },
+            { "# Title with `code` #real", "" },
+            { "see `c` #ok", "ok" },
+            { "#2024/ #123 #1/2", "" },
+            { "#2024-q1 #y2024", "2024-q1,y2024" },
+            { "#123a", "123a" },
+            { "use #fff here", "fff" },
+            { "x#foo", "" },
+            { "x\n#foo", "foo" },
+            { "# Heading\n## H #x", "" },
+            { "[[Page#Heading]] [t](#frag) https://e.com/#frag", "" },
+            { "$#x$", "" },
+            { "$$\n#x\n$$", "" },
+            { "$a$ #y", "y" },
+            { "%% #secret %%", "" },
+            { "a %% line one\n#secret\nend %% b", "" },
+            { "%% #hidden %% #shown", "shown" },
+            { "<div style=\"color: #fff\">hi</div>", "" },
+            { "a <span style=\"color: #fff\">x</span> b", "" },
+            { "<style>\n.a { color: #fff }\n</style>", "" },
+            { "<script>\nvar c = 1; // #todo\n</script>", "" },
+            { "<!-- #hidden -->", "" },
+            { "<style>\n.a { color: #fff }\n</style>\n\nprose #after", "after" },
+            { "a <b>bold</b> #inline", "inline" },
+            { "> ## H #x", "" },
+            { "- # H #x", "" },
+            { "> - 1. ### H #x", "" },
+            { "> quote #y", "y" },
+            { "| a |\n| - |\n|#foo|", "foo" },
+            { "| h1 | h2 |\n|---|---|\n| #a |#b|", "a,b" },
+            { "not a table |#foo|", "" },
+            { "| a |\n| - |\n| x \\|#esc |", "" },
+            { "[see #foo](x)", "" },
+            { "![alt #foo](x.png)", "" },
+            { "[see #foo][r]\n\n[r]: http://e.com", "" },
+            { "[see #foo][undefined]", "foo" },
+            { "[l](x) #tail", "tail" },
+        };
+        final List< String > failures = new ArrayList<>();
+        for ( final String[] c : cases ) {
+            final List< String > old = c[ 1 ].isEmpty() ? List.of() : List.of( c[ 1 ].split( "," ) );
+            for ( final String input : new String[]{ c[ 0 ], c[ 0 ].replace( "\n", "\r\n" ) } ) {
+                final List< String > rendered = List.copyOf( renderedTags( input ) );
+                final List< String > actual = List.copyOf( ReaderTags.normalised( input ) );
+                if ( !rendered.equals( actual ) || !old.equals( actual ) ) {
+                    failures.add( "\"" + input.replace( "\n", "\\n" ).replace( "\r", "\\r" ) + "\": render " + rendered + ", ReaderTags " + actual
+                            + ", old scanner " + old );
+                }
+            }
+        }
+        assertEquals( List.of(), failures, String.join( "\n", failures ) );
+    }
+
+    @Test
+    void insertionOrderAndDuplicatesAreFirstSeen() {
+        assertEquals( List.of( "b", "a" ), List.copyOf( ReaderTags.normalised( "#b #a #B" ) ) );
+    }
+
+    @Test
+    void pathologicalRunsStayBounded() {
+        assertTimeoutPreemptively( Duration.ofSeconds( 60 ), () -> {
+            final String run = "a".repeat( 200_000 );
+            assertEquals( Set.of(), ReaderTags.normalised( run ) );
+            assertEquals( Set.of(), ReaderTags.normalised( "://" + run ) );
+            assertEquals( Set.of(), ReaderTags.normalised( "[[a ".repeat( 50_000 ) ) );
+            assertEquals( Set.of(), ReaderTags.normalised( "](a".repeat( 50_000 ) ) );
+        } );
+    }
+
     @Test
     void linearInTags() {
         assertTimeoutPreemptively( Duration.ofSeconds( 120 ), () -> {

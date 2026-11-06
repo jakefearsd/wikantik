@@ -20,7 +20,7 @@ package com.wikantik.api.markdown;
 
 /**
  * Pandoc's {@code tex_math_dollars} rule for inline {@code $…$} math, which Obsidian follows: the one Java copy, used by
- * the renderer's inline-math parser and linter ({@code InlineMathRule} in wikantik-main) and by {@link ObsidianComments}
+ * the renderer's inline-math parser and linter ({@code InlineMathRule} in wikantik-main)
  * (the editor's copy is {@code inlineMath.js}).
  * <ol>
  *   <li>{@code $$} never opens inline math.</li>

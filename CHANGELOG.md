@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **A long paragraph no longer takes minutes to parse** (#129). flexmark's heading factory (0.62 through 0.64.8) rebuilt the open
+  paragraph's text on every line that starts with a non-letter, so 4,000 lines of `> %x` took 5.6 s and a page at the
+  256 KB cap took minutes, on every uncached view and (since 2.5.8) inside the structural-index update. Every flexmark
+  parser is now built by `FlexmarkParsers`, which asks flexmark's heading factory only about lines that could start a
+  heading; the same lines now parse in milliseconds. Parses are unchanged: node-for-node and HTML-identical to flexmark's
+  over every production and repository page. ArchUnit rule F-1 (`FlexmarkParserArchTest`) forbids `Parser.builder(..)`
+  anywhere else.
+
 ## [2.5.8] - 2026-11-06
 
 ### Changed

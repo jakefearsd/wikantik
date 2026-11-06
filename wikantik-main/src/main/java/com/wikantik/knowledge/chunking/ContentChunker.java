@@ -24,6 +24,7 @@ import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.Heading;
 import com.vladsch.flexmark.ast.OrderedList;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.auth.acl.AclDirectiveText;
@@ -43,7 +44,7 @@ public class ContentChunker {
 
     private static final Logger LOG = LogManager.getLogger(ContentChunker.class);
     /** Built once: building a flexmark parser costs more than parsing a typical page, and parse() is thread-safe. */
-    private static final Parser PARSER = Parser.builder().build();
+    private static final Parser PARSER = FlexmarkParsers.builder().build();
 
     /**
      * Flexmark's tables extension is optional — cache the probe so we don't

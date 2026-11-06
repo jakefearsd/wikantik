@@ -22,6 +22,7 @@ import com.vladsch.flexmark.ast.Code;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.IndentedCodeBlock;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
 import com.vladsch.flexmark.util.ast.VisitHandler;
@@ -63,7 +64,7 @@ final class AclShapeAudit {
 
     private static final Set< String > PERMISSIONS =
             Set.of( "view", "comment", "edit", "modify", "upload", "rename", "delete" );
-    private static final Parser CODE_PARSER = Parser.builder().build();
+    private static final Parser CODE_PARSER = FlexmarkParsers.builder().build();
 
     private AclShapeAudit() {
     }

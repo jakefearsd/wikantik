@@ -35,6 +35,7 @@ import com.vladsch.flexmark.ast.InlineLinkNode;
 import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
@@ -56,7 +57,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 public final class ObsidianPageConverter {
 
     /** Tables as the reader parses them (a delimiter cell needs one dash, a table a header row), so cell pipes are escaped wherever the page has a table. */
-    private static final Parser PARSER = Parser.builder( new MutableDataSet().set( TablesExtension.MIN_SEPARATOR_DASHES, 1 )
+    private static final Parser PARSER = FlexmarkParsers.builder( new MutableDataSet().set( TablesExtension.MIN_SEPARATOR_DASHES, 1 )
             .set( TablesExtension.MIN_HEADER_ROWS, 1 ) )
             .extensions( List.of( TablesExtension.create() ) ).build();
 

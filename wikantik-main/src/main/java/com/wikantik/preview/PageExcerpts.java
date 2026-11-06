@@ -26,8 +26,10 @@ import com.vladsch.flexmark.ast.Image;
 import com.vladsch.flexmark.ast.IndentedCodeBlock;
 import com.vladsch.flexmark.ast.ThematicBreak;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
+import com.vladsch.flexmark.util.data.MutableDataSet;
 
 import com.wikantik.api.parser.WikiLinkSyntax;
 import com.wikantik.auth.acl.AclDirectiveText;
@@ -40,7 +42,8 @@ import java.util.regex.Pattern;
 /** Plain-text excerpts of a page body for link-preview cards. Never renders HTML. */
 public final class PageExcerpts {
     public static final int MAX_CHARS = 280;
-    private static final Parser PARSER = Parser.builder().extensions( List.of( HighlightExtension.create() ) ).build();
+    private static final Parser PARSER = FlexmarkParsers.builder(
+            new MutableDataSet().set( Parser.EXTENSIONS, List.of( HighlightExtension.create() ) ) ).build();
     /** {@code [{ALLOW …}]}, {@code [{DENY …}]} and every other {@code [{Plugin …}]} span. */
     private static final Pattern PLUGIN = Pattern.compile( "\\[\\{.*?}]", Pattern.DOTALL );
     private static final Pattern SPACES = Pattern.compile( "\\s+" );

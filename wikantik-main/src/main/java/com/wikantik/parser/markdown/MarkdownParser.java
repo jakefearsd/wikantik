@@ -54,12 +54,12 @@ public class MarkdownParser extends MarkupParser {
     private Parser noAttributesParser;
 
     /** Bare parser for the preformatted last resort. */
-    private static final Parser PLAIN = Parser.builder().build();
+    private static final Parser PLAIN = FlexmarkParsers.builder().build();
 
     private static final org.apache.logging.log4j.Logger LOG = org.apache.logging.log4j.LogManager.getLogger( MarkdownParser.class );
 
     /** Bare Flexmark parser (no JSPWiki extensions) used solely for link collection. */
-    private static final Parser LINK_SCANNER = Parser.builder().build();
+    private static final Parser LINK_SCANNER = FlexmarkParsers.builder().build();
 
     public MarkdownParser( final Context context, final Reader in ) {
         super( context, in );
@@ -68,7 +68,7 @@ public class MarkdownParser extends MarkupParser {
             disableAccessRules();
         }
         context.getPage().setHasMetadata();
-        parser = Parser.builder( MarkdownDocument.options( context, isImageInlining(), getInlineImagePatterns() ) ).build();
+        parser = FlexmarkParsers.builder( MarkdownDocument.options( context, isImageInlining(), getInlineImagePatterns() ) ).build();
     }
 
     /**
@@ -158,7 +158,7 @@ public class MarkdownParser extends MarkupParser {
 
     private Parser noAttributesParser() {
         if ( noAttributesParser == null ) {
-            noAttributesParser = Parser.builder( MarkdownDocument.options( context, isImageInlining(), getInlineImagePatterns(), false ) ).build();
+            noAttributesParser = FlexmarkParsers.builder( MarkdownDocument.options( context, isImageInlining(), getInlineImagePatterns(), false ) ).build();
         }
         return noAttributesParser;
     }

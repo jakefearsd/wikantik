@@ -20,6 +20,7 @@ package com.wikantik.knowledge.chunking;
 
 import com.vladsch.flexmark.ast.Heading;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.export.HeadingSlugs;
@@ -42,7 +43,7 @@ import java.util.regex.Pattern;
  */
 public final class SectionAnchors {
 
-    private static final Parser PARSER = Parser.builder().build();
+    private static final Parser PARSER = FlexmarkParsers.builder().build();
 
     /**
      * Heading markup the wiki's renderer turns into different text than this plain parser sees —

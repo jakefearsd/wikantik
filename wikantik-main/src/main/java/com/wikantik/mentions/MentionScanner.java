@@ -38,6 +38,7 @@ import com.vladsch.flexmark.ext.wikilink.WikiLink;
 import com.wikantik.api.parser.WikiLinkSyntax;
 import com.vladsch.flexmark.ext.tables.TableCell;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.api.parser.MarkdownLinkScanner;
 import com.wikantik.api.pagegraph.PageTitleLookup.TitleEntry;
@@ -80,7 +81,7 @@ public final class MentionScanner {
             "security", "setup", "solution", "status", "summary", "system", "systems", "task", "tasks", "test",
             "testing", "tests", "tool", "tools", "update", "updates", "usage" );
 
-    private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
+    private static final Parser PARSER = FlexmarkParsers.builder( MarkdownDocument.structuralOptions() )
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
             .build();
     private static final Set< Class< ? extends Node > > INELIGIBLE = Set.of(

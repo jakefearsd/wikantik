@@ -32,7 +32,7 @@ import com.wikantik.markdown.extensions.math.InlineMathParser;
 final class ReaderParser {
 
     /** Immutable and thread-safe: the rendered page's structure, without its context-bound extension. */
-    private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
+    private static final Parser PARSER = FlexmarkParsers.builder( MarkdownDocument.structuralOptions() )
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
             .build();
 

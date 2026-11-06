@@ -44,7 +44,7 @@ import java.util.function.Predicate;
  */
 final class BlockModel {
 
-    private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
+    private static final Parser PARSER = FlexmarkParsers.builder( MarkdownDocument.structuralOptions() )
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
             .build();
 

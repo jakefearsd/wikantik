@@ -22,6 +22,7 @@ import com.vladsch.flexmark.ast.Code;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.IndentedCodeBlock;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
 import com.vladsch.flexmark.util.ast.VisitHandler;
@@ -51,7 +52,7 @@ final class EnforcedAclDirectives {
      * example inside backticks or a fenced block. Flexmark {@link Parser}
      * instances are immutable and safe to reuse across threads.
      */
-    private static final Parser CODE_REGION_PARSER = Parser.builder().build();
+    private static final Parser CODE_REGION_PARSER = FlexmarkParsers.builder().build();
 
     private EnforcedAclDirectives() {
     }

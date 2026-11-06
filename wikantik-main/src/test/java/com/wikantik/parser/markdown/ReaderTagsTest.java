@@ -237,6 +237,13 @@ class ReaderTagsTest {
         } );
     }
 
+    /** #129: a block quote of {@code #x} lines took 11.7 s to read (flexmark's setext check), inside the index update. */
+    @Test
+    void aBlockQuoteOfTagLinesReadsQuickly() {
+        final String body = "#t " + "> #x\n".repeat( 5_000 );
+        assertEquals( Set.of( "t", "x" ), assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> ReaderTags.normalised( body ) ) );
+    }
+
     @Test
     void linearInTags() {
         assertTimeoutPreemptively( Duration.ofSeconds( 120 ), () -> {

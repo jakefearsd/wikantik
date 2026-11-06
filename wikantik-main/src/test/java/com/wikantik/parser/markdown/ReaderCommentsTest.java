@@ -233,8 +233,7 @@ class ReaderCommentsTest {
             "%%`".repeat( n ), "`%%".repeat( n ), "%%x$".repeat( n ), "$a ".repeat( n ) + "%%", "%% " + "`%%` ".repeat( n ),
             "%%x ".repeat( n ), "$$ ".repeat( n ) + "%%", "$$x %% ".repeat( n ), "```\n%%\n```\n".repeat( n / 4 ),
             "> ```\n> %%\n> ```\n".repeat( n / 4 ), "%%\n> ```\n".repeat( n / 4 ), ">".repeat( 2_000 ) + " ```\n%%x%%\n",
-            // flexmark's setext check is quadratic in a block quote's non-letter paragraph lines (#129): kept small until that is fixed
-            "> ".repeat( 10 ) + "~~~\n" + "> %%x%%\n".repeat( 500 ),
+            "> ".repeat( 10 ) + "~~~\n" + "> %%x%%\n".repeat( 8_000 ), "> %%x\n".repeat( 8_000 ),
             "%% x " + ( "a $b " ).repeat( 20_000 ) + "\n%%\n",
         };
         for ( final String text : inputs ) {

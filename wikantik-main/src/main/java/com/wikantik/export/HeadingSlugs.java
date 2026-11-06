@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 import com.vladsch.flexmark.ast.Heading;
 import com.vladsch.flexmark.parser.Parser;
+import com.wikantik.parser.markdown.FlexmarkParsers;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
@@ -41,7 +42,7 @@ import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
  * {@code slugify}), which is what {@code Page#slug} links in the corpus target.
  */
 public final class HeadingSlugs {
-    private static final Parser PARSER = Parser.builder().build();
+    private static final Parser PARSER = FlexmarkParsers.builder().build();
 
     /** JavaScript's {@code \s}: ASCII whitespace plus the Unicode space separators, as in headings.js. */
     private static final Pattern WHITESPACE =

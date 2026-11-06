@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.8] - 2026-11-06
+
 ### Changed
 - **Tags and comments come from the reader's parse.** The server's hand-written code/math/comment/tag masks
   (`ObsidianComments`, `MathMask`, `QuotedFences`, the GFM table scanners, `InlineTagMasks`, `InlineTagSyntax.scan`) are

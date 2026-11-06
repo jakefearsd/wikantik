@@ -39,8 +39,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.wikantik.api.exceptions.ProviderException;
@@ -217,7 +217,7 @@ public final class PageListEngine {
             }
         } catch ( final RuntimeException e ) {
             LOG.warn( "Structural index lookup of inline tags failed for page '{}', reading the body instead: {}",
-                    page.getName(), e.getMessage(), e );
+                    page.getName(), e.getMessage() );
         }
         final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
         final String body = text == null ? null : FrontmatterParser.parse( text ).body();

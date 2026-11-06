@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +42,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -127,11 +128,11 @@ class PageListEngineTest {
     void tagFilterUsesIndexedInlineTagsWithoutReadingTheBody() throws Exception {
         final FakePageManager fake = new FakePageManager();
         fake.addPage( "Indexed", "body with no tag at all", "a", new Date() );
-        final java.util.Collection< Page > pages = fake.getAllPages();
+        final Collection< Page > pages = fake.getAllPages();
         final PageManager pm = mock( PageManager.class );
         when( pm.getAllPages() ).thenReturn( pages );
         when( pm.getPureText( anyString(), anyInt() ) ).thenThrow( new AssertionError( "body must not be read" ) );
-        final com.wikantik.search.FrontmatterMetadataCache cache = mock( com.wikantik.search.FrontmatterMetadataCache.class );
+        final FrontmatterMetadataCache cache = mock( FrontmatterMetadataCache.class );
         when( cache.get( anyString(), any() ) ).thenReturn( Map.of() );
         final PageListEngine engine = new PageListEngine( pm, cache, PageListEngineTest::toRetrievedPage, () -> null,
                 name -> Optional.of( List.of( "inline" ) ) );

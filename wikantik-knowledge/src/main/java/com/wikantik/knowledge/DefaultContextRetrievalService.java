@@ -41,6 +41,9 @@ import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.retrieval.ContributingChunkAssembler;
 import com.wikantik.api.pagegraph.ClusterPath;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.knowledge.retrieval.PageListEngine;
 import com.wikantik.knowledge.retrieval.RelatedPagesFinder;
 import com.wikantik.search.FrontmatterMetadataCache;
@@ -58,6 +61,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -139,18 +144,35 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         this.contributingChunkAssembler = new ContributingChunkAssembler( chunkIndex, chunkRepo, hybridSearch );
     }
 
-    /** Page name to the structural index's inline tags; empty when the index is absent or does not hold the page. */
-    private static java.util.function.Function< String, java.util.Optional< List< String > > > indexedInlineTags(
-            final Engine engine ) {
+    /**
+     * Page name to the structural index's inline tags; empty when the index is absent, does not hold the page, or holds a
+     * different page under the same canonical id. The first non-null index is memoised (a null is never cached: the index
+     * can wire after this service is built), so the bridge is not re-resolved per page.
+     */
+    static Function< String, Optional< List< String > > > indexedInlineTags(
+            final Supplier< StructuralIndexService > indexSupplier ) {
+        final AtomicReference< StructuralIndexService > memo = new AtomicReference<>();
         return name -> {
-            final com.wikantik.api.pagegraph.StructuralIndexService index =
-                com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
+            StructuralIndexService index = memo.get();
             if ( index == null ) {
-                return java.util.Optional.empty();
+                index = indexSupplier.get();
+                if ( index == null ) {
+                    return Optional.empty();
+                }
+                memo.set( index );
             }
-            return index.resolveCanonicalIdFromSlug( name ).flatMap( index::getByCanonicalId )
-                    .map( com.wikantik.api.pagegraph.PageDescriptor::writtenTags );
+            final StructuralIndexService idx = index;
+            return idx.resolveCanonicalIdFromSlug( name ).flatMap( idx::getByCanonicalId )
+                    .filter( d -> name.equals( d.slug() ) )
+                    .map( PageDescriptor::writtenTags );
         };
+    }
+
+    private static Function< String, Optional< List< String > > > indexedInlineTags( final Engine engine ) {
+        if ( engine == null ) {
+            return name -> Optional.empty();
+        }
+        return indexedInlineTags( () -> PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService() );
     }
 
     /**

@@ -10,8 +10,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Tags and comments come from the reader's parse.** The server's hand-written code/math/comment/tag masks
   (`ObsidianComments`, `MathMask`, `QuotedFences`, the GFM table scanners, `InlineTagMasks`, `InlineTagSyntax.scan`) are
   deleted; `ReaderComments` and `ReaderTags` read the same parse the page renders from, so the inline tags a page lists,
-  indexes and filters by now match the rendered tag links exactly. **Reindex after deploying** (search index and the
-  structural index) so stored tag sets are recomputed.
+  indexes and filters by now match the rendered tag links exactly. The structural index rebuilds itself at every
+  startup; **after deploying, rebuild the Lucene search index** (`bin/trigger-rebuild-indexes.sh`, which drives
+  `POST /admin/content/rebuild-indexes`) so its stored tag sets are recomputed.
+
+### Removed
+- **wikantik-api:** `ObsidianComments`, `MathMask`, `QuotedFences`, the `GfmTable*` scanners, `InlineTagMasks`,
+  `InlineTagSyntax.scan`, `InlineTagSyntax.normalisedTags`, `InlineTagSyntax.writtenTags`, `InlineTagSyntax.Tag` and the
+  `findableTags(List, String)` overload (use `ReaderComments` / `ReaderTags` in wikantik-main, and
+  `findableTags(List, List)`). Nothing outside this repository consumed them.
 
 ## [2.5.7] - 2026-11-03
 

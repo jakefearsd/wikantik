@@ -20,6 +20,14 @@ package com.wikantik.parser.markdown;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.wikantik.TestEngine;
+import com.wikantik.HttpMockFactory;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.render.RenderingManager;
+import com.wikantik.render.markdown.MarkdownRenderer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -30,11 +38,22 @@ import java.util.List;
 import java.util.function.IntFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReaderCommentsTest {
+
+    private final TestEngine testEngine = TestEngine.build(
+            TestEngine.with( "wikantik.fileSystemProvider.pageDir", "./target/md-pageDir" ),
+            TestEngine.with( "wikantik.renderingManager.markupParser", MarkdownParser.class.getName() ),
+            TestEngine.with( "wikantik.renderingManager.renderer", MarkdownRenderer.class.getName() ) );
+
+    @AfterEach
+    void tearDown() {
+        testEngine.stop();
+    }
 
     private static final Path FIXTURE = Path.of( "..", "wikantik-frontend", "src", "utils", "__fixtures__", "comments.json" );
 
@@ -149,35 +168,61 @@ class ReaderCommentsTest {
         assertEquals( "[7-17]", render( ReaderComments.ranges( body ) ), "the comment is a paragraph of its own in the render" );
     }
 
+    /** The sentinel words of {@code body}'s comments are absent from the rendered page exactly when {@code strip} removed them. */
+    private void assertSentinels( final String body, final List< String > hidden, final List< String > shown ) throws Exception {
+        final String html = render( body );
+        final String stripped = ReaderComments.strip( body );
+        for ( final String word : hidden ) {
+            assertFalse( html.contains( word ), () -> "the render shows " + word + " in " + body + ": " + html );
+            assertFalse( stripped.contains( word ), () -> "strip keeps " + word + " in " + body );
+        }
+        for ( final String word : shown ) {
+            assertTrue( html.contains( word ), () -> "the render hides " + word + " in " + body + ": " + html );
+            assertTrue( stripped.contains( word ), () -> "strip removes " + word + " in " + body );
+        }
+    }
+
+    private String render( final String markdown ) throws Exception {
+        testEngine.saveText( "ReaderCommentsHost", markdown );
+        final Page p = Wiki.contents().page( testEngine, "ReaderCommentsHost" );
+        final Context context = Wiki.context().create( testEngine, HttpMockFactory.createHttpRequest(), p );
+        return testEngine.getManager( RenderingManager.class ).textToHTML( context, markdown );
+    }
+
     @Test
-    void rangesLocateEachCommentDelimitersIncluded() {
-        final String text = "a %%x%% b %%y\nz%% c `%%k%%`";
+    void rangesLocateEachCommentDelimitersIncluded() throws Exception {
+        final String text = "a %%xsent%% b %%ysent\nzsent%% c `%%ksent%%`";
         final List< String > found = new ArrayList<>();
         for ( final int[] r : ReaderComments.ranges( text ) ) {
             found.add( text.substring( r[ 0 ], r[ 1 ] ) );
         }
-        assertEquals( List.of( "%%x%%", "%%y\nz%%" ), found );
+        assertEquals( List.of( "%%xsent%%", "%%ysent\nzsent%%" ), found );
+        assertSentinels( text, List.of( "xsent", "ysent", "zsent" ), List.of( "ksent" ) );
         assertEquals( List.of(), ReaderComments.ranges( "a %%b" ) );
         assertEquals( List.of(), ReaderComments.ranges( null ) );
         assertEquals( null, ReaderComments.strip( null ) );
     }
 
     @Test
-    void mathAcrossPlainProseLinesStillHidesNothing() {
-        assertEquals( "see $a\n%%x%% b$ end", ReaderComments.strip( "see $a\n%%x%% b$ end" ) );
-        assertEquals( "$$a \n\n c$$", ReaderComments.strip( "$$a %%x\n\nb%% c$$" ) );
+    void mathAcrossPlainProseLinesStillHidesNothing() throws Exception {
+        assertEquals( "see $a\n%%xsent%% b$ end", ReaderComments.strip( "see $a\n%%xsent%% b$ end" ) );
+        assertSentinels( "see $a\n%%xsent%% b$ end", List.of(), List.of( "xsent" ) );
+        assertEquals( "$$a \n\n c$$", ReaderComments.strip( "$$a %%xsent\n\nbsent%% c$$" ) );
+        assertSentinels( "$$a %%xsent\n\nbsent%% c$$", List.of( "xsent", "bsent" ), List.of() );
     }
 
     @Test
-    void aPipeLessLineAfterATableEndsItSoMathMaySpanIt() {
-        final String after = "A | B\n--- | ---\nx | y\n$a\n%%c%% b$ end\n";
+    void aPipeLessLineAfterATableEndsItSoMathMaySpanIt() throws Exception {
+        final String after = "A | B\n--- | ---\nx | y\n$a\n%%csent%% b$ end\n";
         assertSame( after, ReaderComments.strip( after ) );
+        assertSentinels( after, List.of(), List.of( "csent" ) );
     }
 
     @Test
-    void anEscapedPipeDoesNotSplitMathInATableCell() {
-        final String text = "| A |\n|---|\n| $a\\|%%x%%b$ |\n";
+    void anEscapedPipeDoesNotSplitMathInATableCell() throws Exception {
+        final String text = "| A |\n|---|\n| $a\\|%%xsent%%b$ |\n";
         assertSame( text, ReaderComments.strip( text ) );
+        assertSentinels( text, List.of(), List.of( "xsent" ) );
     }
 
     /** Each input has tens of thousands of markers, backticks, dollars, fences or quote levels: a quadratic scan takes minutes. */

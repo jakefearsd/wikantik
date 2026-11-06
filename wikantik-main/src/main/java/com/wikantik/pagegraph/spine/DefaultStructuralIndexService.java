@@ -315,7 +315,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 page.getLastModified() == null ? null : page.getLastModified().toInstant(),
                 SpineFrontmatter.parseKgInclude( fm.get( "kg_include" ) ),
                 fm.get( "derived_from" ) != null,
-                InlineTagSyntax.writtenTags( body ) );
+                com.wikantik.parser.markdown.ReaderTags.written( body ) );
     }
 
     /**

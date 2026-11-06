@@ -119,9 +119,9 @@ public final class InlineTagSyntax {
      * (SEO, feeds, the sitemap and JSON-LD deliberately keep reading the frontmatter alone.)
      *
      * @param frontmatterTags the frontmatter {@code tags} as written; may be {@code null}
-     * @param body            the page body; may be {@code null}
+     * @param inlineTags      the page's inline tags as the reader's parse finds them; may be {@code null}
      */
-    public static List< String > findableTags( final List< String > frontmatterTags, final String body ) {
+    public static List< String > findableTags( final List< String > frontmatterTags, final List< String > inlineTags ) {
         final Set< String > tags = new LinkedHashSet<>();
         if ( frontmatterTags != null ) {
             for ( final String t : frontmatterTags ) {
@@ -131,7 +131,14 @@ public final class InlineTagSyntax {
                 }
             }
         }
-        tags.addAll( normalisedTags( body ) );
+        if ( inlineTags != null ) {
+            for ( final String t : inlineTags ) {
+                final String n = t == null ? "" : normalise( t );
+                if ( !n.isEmpty() ) {
+                    tags.add( n );
+                }
+            }
+        }
         return List.copyOf( tags );
     }
 

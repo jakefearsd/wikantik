@@ -619,7 +619,8 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             final Object tags = metadata.get( "tags" );
             final List< String > written = tags instanceof java.util.List<?> tagList
                     ? tagList.stream().filter( java.util.Objects::nonNull ).map( Object::toString ).toList() : List.of();
-            final List< String > findable = com.wikantik.api.markdown.InlineTagSyntax.findableTags( written, parsed.body() );
+            final List< String > findable = com.wikantik.api.markdown.InlineTagSyntax.findableTags( written,
+                    com.wikantik.parser.markdown.ReaderTags.written( parsed.body() ) );
             if ( !findable.isEmpty() ) {
                 doc.add( new Field( LUCENE_PAGE_TAGS, String.join( " ", findable ), TextField.TYPE_STORED ) );
             }

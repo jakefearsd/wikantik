@@ -182,13 +182,14 @@ public final class PageListEngine {
         }
         final List< String > required = f.tags().stream().filter( java.util.Objects::nonNull )
                 .map( InlineTagSyntax::normalise ).filter( t -> !t.isEmpty() ).toList();
-        final List< String > fmTags = InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ), null );
+        final List< String > fmTags = InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ), List.of() );
         if ( fmTags.containsAll( required ) ) {
             return true;
         }
         final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
         final String body = text == null ? null : FrontmatterParser.parse( text ).body();
-        return InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ), body ).containsAll( required );
+        return InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ),
+                com.wikantik.parser.markdown.ReaderTags.written( body ) ).containsAll( required );
     }
 
     private static boolean modifiedAfterMatches( final Page page, final PageListFilter f ) {

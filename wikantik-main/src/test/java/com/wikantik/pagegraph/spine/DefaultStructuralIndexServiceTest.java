@@ -197,6 +197,25 @@ class DefaultStructuralIndexServiceTest {
         verify( pageManager, atLeastOnce() ).getPage( "B" );
     }
 
+    /**
+     * The index counts the tags the page draws. In this body (a differential-corpus input) the old line scan finds #t, but
+     * the render draws no tag there; in the second body the render draws #t and the old scan does not.
+     */
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void inlineTagsAreTheRenderedOnes() throws Exception {
+        final Page a = fakePage( "A", "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article",
+                "  -     #t  #t \n%%a<b t=\"`" );
+        final Page b = fakePage( "B", "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: article",
+                "a\\<b t=\"1.  | %%- \n\n#t $$$\n\\a\">" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b ) );
+
+        svc.rebuild();
+
+        assertEquals( List.of(), svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().inlineTags() );
+        assertEquals( List.of( "t" ), svc.getByCanonicalId( "01BBBBBBBBBBBBBBBBBBBBBBBB" ).orElseThrow().inlineTags() );
+    }
+
     /** Obsidian phase 4: a page's tags for finding are its frontmatter tags and its inline #tags, one normalised set. */
     @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )

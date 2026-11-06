@@ -121,8 +121,8 @@ class InlineTagSyntaxTest {
     @Test
     void findableTagsUnionFrontmatterAndInlineNormalisedOnce() {
         assertEquals( List.of( "foo", "x", "bar-baz" ),
-            InlineTagSyntax.findableTags( java.util.Arrays.asList( "Foo", "#X", " ", null ), "#foo #Bar/Baz" ) );
-        assertEquals( List.of( "a" ), InlineTagSyntax.findableTags( null, "#a" ) );
+            InlineTagSyntax.findableTags( java.util.Arrays.asList( "Foo", "#X", " ", null ), List.of( "foo", "#Bar/Baz", "FOO" ) ) );
+        assertEquals( List.of( "a" ), InlineTagSyntax.findableTags( null, List.of( "a" ) ) );
         assertEquals( List.of(), InlineTagSyntax.findableTags( List.of(), null ) );
     }
 

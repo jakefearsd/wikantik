@@ -64,7 +64,7 @@ public final class ReaderTags {
 
     /**
      * @param body page body; may be {@code null}
-     * @return the normalised tags in first-seen order, duplicates removed; empty when the body has no {@code #}
+     * @return the normalised tags in first-seen order, duplicates removed; empty when no {@code #} is directly followed by a tag character (no parse is run)
      */
     public static Set< String > normalised( final String body ) {
         return new LinkedHashSet<>( byNormalised( body, -1L ).keySet() );

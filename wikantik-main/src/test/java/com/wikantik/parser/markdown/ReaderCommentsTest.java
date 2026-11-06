@@ -188,7 +188,7 @@ class ReaderCommentsTest {
             "%%`".repeat( n ), "`%%".repeat( n ), "%%x$".repeat( n ), "$a ".repeat( n ) + "%%", "%% " + "`%%` ".repeat( n ),
             "%%x ".repeat( n ), "$$ ".repeat( n ) + "%%", "$$x %% ".repeat( n ), "```\n%%\n```\n".repeat( n / 4 ),
             "> ```\n> %%\n> ```\n".repeat( n / 4 ), "%%\n> ```\n".repeat( n / 4 ), ">".repeat( 2_000 ) + " ```\n%%x%%\n",
-            // the reader's parse is itself quadratic in the lines of a nested fence the quote leaves: kept small, see task-10 report
+            // flexmark's setext check is quadratic in a block quote's non-letter paragraph lines (#129): kept small until that is fixed
             "> ".repeat( 10 ) + "~~~\n" + "> %%x%%\n".repeat( 500 ),
             "%% x " + ( "a $b " ).repeat( 20_000 ) + "\n%%\n",
         };

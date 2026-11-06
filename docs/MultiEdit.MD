@@ -173,6 +173,24 @@ flowchart LR
 | `CollabResource` | `wikantik-rest` `com.wikantik.rest.CollabResource` | Extends `RestServletBase`; `async-supported=true` |
 | Frontend | `wikantik-frontend/src/collab/` | `collabTransport.js`, `useCollabSession.js`, `collabPeer.js` (CodeMirror plugin), `remoteCursors.js`, `PresenceBar.jsx` |
 
+### 5.2 Seams (designed in for testability — see §13.0)
+
+`CollabSession` and `CollabSessionRegistry` must not reach the engine, the database, the clock or
+the save pipeline directly. They depend only on these ports, so every concurrent and failure case
+can be driven deterministically by the fixtures in §13.0:
+
+| Port | Production implementation | Test double |
+|---|---|---|
+| `CollabPageWriter` — `latest(page) → (version, body, meta)`, `publish(page, body, meta, expectedVersion, author, note) → saved` | Adapter over `PageSaveHelper` + `FrontmatterParser` | `ScriptedPageWriter` (F4) |
+| `CollabStore` — append updates/meta ops, snapshots, session rows, pending-publish marker | `JdbcCollabStore` | `InMemoryCollabStore`, held to the same abstract contract test as the JDBC one (F9) |
+| `java.time.Clock` | `Clock.systemUTC()` | `MutableClock` (F5) |
+| `CollabPermissions` — `canEdit(authorKey, page)`, `canCreate(…)` | Adapter over `checkPagePermission` / `PermissionFilter` | Programmable allow/deny table |
+| `CollabIdentity` — `displayName(authorKey)` | `PublicIdentity` | Map |
+
+The rule: no `synchronized`, `Thread.sleep`, `System.currentTimeMillis()` or engine lookup inside
+`com.wikantik.collab` outside the adapters. An ArchUnit rule (alongside the existing
+`DecompositionArchTest`) enforces it.
+
 ## 6. Protocol
 
 All endpoints are under `/api/collab/{pageName}/…`, JSON, session-cookie authenticated, subject to
@@ -202,7 +220,7 @@ A **meta op**: `{ "field": "tags", "value": ["a","b"] }` (`value: null` removes 
 | Method + path | Request | Response |
 |---|---|---|
 | `POST /join` | `{}` | `200 { sessionId, participantId, clientID, version, doc, metaSeq, metadata, basePageVersion, participants:[{participantId, displayName, color}], draft:{ unpublished:bool, contributors:[displayName], lastEditAt } }` · `409 {reason:"derived-page"}` · `503 {reason:"collab-disabled"}` · `429 {reason:"session-full"}` |
-| `POST /updates` | `{ sessionId, version, updates:[Update…], metaOps:[…] }` | `200 { accepted:true, version, metaSeq }` · `409 { accepted:false, version }` (client must pull + rebase, then retry) · `413` doc would exceed `maxPageBytes` · `400` malformed / length mismatch / clientID not this participant's |
+| `POST /updates` | `{ sessionId, version, updates:[Update…], metaOps:[…] }` | `200 { accepted:true, version, metaSeq }` · `409 { accepted:false, version }` (client must pull + rebase, then retry) · `409 {rejoin:true}` participant expired · `409 {reason:"frozen"}` page deleted · `413` doc would exceed `maxPageBytes` (or grow while oversize) · `400` malformed / length mismatch / lone surrogate / clientID not this participant's |
 | `GET /updates?sessionId&since=V&metaSince=M&presenceSince=P` | — | Long-poll ≤ `poll.timeoutSeconds`. `200 { updates:[…from V], metaOps:[…from M], presence:{…}, events:[…] }` — empty arrays on timeout. `410 { resync:true }` if `V` is older than the in-memory ring (§7.6) |
 | `POST /presence` | `{ sessionId, anchor, head }` (selection in the client's synced-version coordinates + `version`) | `204` |
 | `POST /publish` | `{ sessionId, version, changeNote }` | `200 { pageVersion, warnings, mathWarnings }` · `409 {reason:"not-synced"}` if `version != head` at the time the client's own updates are required (§7.3) · `422` exactly the bodies `PageResource.doPut` returns today · `423 {reason:"publish-in-progress"}` |
@@ -282,11 +300,14 @@ incrementally; on recovery it is recomputed as `TextDiff.changeSet(baseBody, doc
 ```text
 lock(session):
   if req.version != head            → 409 {version: head}           (client rebases; normal path)
+  if session.status == frozen       → 409 {reason:"frozen"}
   for u in req.updates:
      require u.clientID == participant.clientID                      (no spoofing)
      cs = ChangeSet.fromJson(u.changes)
      require cs.lengthBefore == doc.length()                         (else 400 — corrupt client)
-     next = cs.apply(doc); require utf8Bytes(next) <= maxPageBytes   (else 413)
+     next = cs.apply(doc)
+     require no lone UTF-16 surrogate at any edit boundary of next   (else 400 — would corrupt on UTF-8 save)
+     require utf8Bytes(next) <= max(maxPageBytes, utf8Bytes(doc))    (else 413 — see oversize rule, §7.4)
   store.appendUpdates(session.id, head+1 …)   ← DB first; on failure nothing mutates, 503
   doc = next; head += n; local = local.compose(cs…); ring.addAll(…)
   apply metaOps in order (meta[field] = value; metaSeq++), store.appendMeta(…)
@@ -299,6 +320,17 @@ The DB append happens while holding the session lock (one small `INSERT … VALU
 push, low milliseconds). This keeps memory and DB in the same order and is what makes the later
 multi-node path possible (§12.4).
 
+**Lost acknowledgements are safe by construction.** If a push is applied but its response is lost,
+the client retries with its old version and gets 409; its next pull returns its own updates, which
+`receiveUpdates` recognises by `clientID` and treats as confirmations, so nothing is applied twice.
+A network-duplicated push request is likewise a stale-version 409. The server needs no request-id
+deduplication table, but both cases are mandatory test cases (E9, E10).
+
+**Expired participants:** a push or pull from a participant dropped by the presence timeout gets
+`409 {rejoin:true}`; the client re-joins (new participantId, same clientID if the server still
+knows it, otherwise a new one after its unsent edits are rebased onto the fresh doc) without
+losing local edits.
+
 ### 7.3 Publish
 
 The publisher's client first waits until `sendableUpdates(state)` is empty and its last push is
@@ -309,7 +341,12 @@ the same semantics Confluence has).
 
 ```text
 if !publishing.compareAndSet(false,true) → 423
-lock: snapshot V=head, S_V=doc, M_V=meta, B=basePageVersion; unlock     ← editing continues during the save
+lock: snapshot V=head, S_V=doc, M_V=meta, B=basePageVersion
+      if S_V is empty                    → 400 "page content must not be empty" (PageManager would not persist it)
+      if utf8Bytes(S_V) > maxPageBytes   → 413 (oversize rule, §7.4)
+      if local.isEmpty() && M_V == baseMeta → 200 {pageVersion: B, unchanged:true}   ← no empty versions
+      store.setPendingPublish(V, B)      ← durable BEFORE the save; see crash recovery below
+unlock                                    ← editing continues during the save
 try:
    saved = PageSaveHelper.saveText(pageName, S_V,
              SaveOptions(expectedVersion=B, metadata=M_V, replaceMetadata=true,
@@ -326,9 +363,19 @@ lock:
    baseBody = savedBody; basePageVersion = saved.version
    local = W.map(N)                               // remaining unpublished edits, relative to the new base
    baseMeta = savedMeta; fold any filter-made meta changes as server meta ops
-   store.markPublished(…); emit event published
+   store.markPublished(…)  (clears the pending-publish marker in the same transaction); emit event published
 unlock; publishing=false
 ```
+
+**Crash between "save persisted" and "session updated".** Without care, recovery would see a page
+version newer than `basePageVersion`, treat it as an external write, and merge the session's own
+text into itself — duplicating every unpublished edit. The pending-publish marker prevents that.
+Because the save uses `expectedVersion = B`, a successful publish is always *the* version
+immediately after `B`. On load, if a pending-publish marker `(V, B)` exists and the page has a
+version after `B`, that version is treated as this session's publish of `S_V`: rebuild `S_V` from
+snapshot + log and run the post-save half above. Any versions after it are genuine external writes
+and go through §7.4. If the page has no version after `B`, the save never happened: clear the
+marker. (Test E39 drives exactly this via F8.)
 
 Post-publish: re-check every participant's `edit` permission against the newly saved page (the
 body may have just changed its `[{ALLOW …}]` rules) and evict those who lost it.
@@ -341,8 +388,13 @@ in free text would go stale on rename.
 
 ### 7.4 External writes (D5)
 
-`CollabPageEventListener` handles `POST_SAVE` for pages with a live or persisted session, skipping
-events raised inside `CollabPublishContext` for the same session.
+`CollabPageEventListener` handles `POST_SAVE` for pages with a **live (in-memory)** session,
+skipping events raised inside `CollabPublishContext` for the same session. Sessions that exist only
+in Postgres (evicted, or the server was down when the write happened — including on-disk edits
+picked up by `PageDirectoryWatcher` at startup) reconcile **lazily on load**: if the page's latest
+version is newer than `basePageVersion`, each newer version is merged in order with the procedure
+below (after the pending-publish check in §7.3). One code path therefore covers live writes,
+evicted sessions and crash recovery.
 
 ```text
 latest = read latest page version; (B2body, B2meta) = FrontmatterParser.parse(latest.text)
@@ -367,6 +419,17 @@ flagged as conflicts. Semantic conflicts — an agent rewrote the paragraph a hu
 are surfaced by the `external-change` event (client highlights the ranges for ~10 s with a toast:
 "Updated by *wiki-agent* via MCP — view diff") and by the diff-vs-current-page view in the publish
 dialog.
+
+An external write whose `E` is empty (identical body, e.g. a metadata-only save or a re-save)
+appends no text update; only the base version and meta advance.
+
+**Oversize rule.** A merged external change (or post-publish normalisation) can push the draft past
+`wikantik.api.maxPageBytes` even though neither side was oversize on its own. The merge is
+**always applied** — refusing it would silently drop a write that already exists in the page
+history. The session then enters *oversize* state: pushes are accepted only if they do not grow
+the document (§7.2's `max(maxPageBytes, current)` bound, which therefore ratchets down as people
+trim), publish returns 413, and clients get an `oversize {bytes, limit}` event and a banner until
+the draft is back under the limit.
 
 `TextDiff` uses jrcs `MyersDiff` at line granularity, then refines changed hunks to characters, so
 a 256 KB page diffs in milliseconds.
@@ -490,6 +553,8 @@ CREATE TABLE IF NOT EXISTS collab_session (
     head_version       INTEGER NOT NULL DEFAULT 0,
     meta_seq           BIGINT  NOT NULL DEFAULT 0,
     has_unpublished    BOOLEAN NOT NULL DEFAULT FALSE,
+    pending_publish_version      INTEGER,          -- collab version V being published (§7.3); NULL when idle
+    pending_publish_base_version INTEGER,          -- page version B the publish expects to supersede
     created_by         TEXT NOT NULL,              -- author key
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_edit_at       TIMESTAMPTZ
@@ -609,6 +674,176 @@ hash at the proxy. Not built now; §7.2's "DB first, then memory" ordering keeps
 
 ## 13. Testing strategy (TDD — test first per CLAUDE.md)
 
+### 13.0 Test fixtures and harness
+
+Concurrency bugs that only show up under real timing are unfixable in practice. Almost all
+collaborative-editing tests therefore run **single-threaded under a seeded, simulated scheduler**,
+where every interleaving is chosen by the test and every failure replays exactly from its seed.
+Real threads are used only for the narrow job of proving the locking is correct (F7). The
+fixtures below are built in Phase 0, before the feature, and depend on the seams in §5.2.
+
+Java fixtures live in `wikantik-main/src/test/java/com/wikantik/collab/testing/`; cross-language
+fixtures live under `wikantik-frontend/src/collab/__fixtures__/` and are read from Java via
+`Path.of("..", "wikantik-frontend", …)`, exactly as the `renderedFences.json` tests already do.
+
+#### F0 — ChangeSet conformance corpus (`changesets.json`)
+Generated by a vitest script using the real `@codemirror/state`; see §13.1. Regenerated only by an
+explicit script (`npm run collab:fixtures`), committed, and replayed by both a Java test and a
+vitest test so a library upgrade that changes semantics fails loudly.
+
+#### F1 — `SimScheduler` + `SimNetwork` (deterministic simulated network)
+- One seeded `SplittableRandom`; **no threads, no sleeps, no wall clock**.
+- `SimNetwork` holds in-flight messages: client→server requests (`join`, `push`, `pull`, `presence`,
+  `publish`, `leave`) and server→client responses/long-poll completions.
+- Each step the scheduler picks one action: a client makes a local edit, a client sends, deliver
+  message *i* (any order — reordering is free), **drop** a message, **duplicate** a message,
+  advance the `MutableClock`, trigger an external save (via F4), release a paused save (F4), or
+  "crash and recover" the server (F8).
+- Probabilities come from a `SimProfile` (e.g. `calm`, `lossy`, `agent-heavy`, `publish-storm`) so
+  one fuzz loop explores distinct regimes.
+- The server under test is the **real** `CollabSession`/`CollabSessionRegistry`, called
+  synchronously, wired to F4/F5/F9 doubles. A parked long-poll is modelled as a pending response the
+  session completes by enqueuing it.
+- After every step, `CollabInvariants.check(…)` (below) runs. At quiescence (all messages delivered,
+  no pending edits) every client doc must equal the server doc.
+- **On failure:** the test prints the seed and profile, writes the full step trace to
+  `target/collab-failures/<seed>.json`, and runs a simple **shrinker** (repeatedly drop single steps
+  and keep the shorter trace if it still fails) so the reported case is minimal. A shrunk trace is
+  then committed to `src/test/resources/collab/regressions/` and replayed forever by
+  `CollabRegressionTracesTest`.
+- Budget: ~2,000 seeds × 200 steps in the default unit build (seconds); `-Dcollab.fuzz.seeds=100000`
+  for a soak run; CI's weekly job runs the soak.
+
+#### F2 — `SimClient` (Java model of the `@codemirror/collab` client)
+A test-only port (~150 lines) of the client half of the protocol: confirmed version, unconfirmed
+local updates, `receiveUpdates` (recognising own updates by `clientID`, rebasing the rest),
+`sendableUpdates`, ignoring stale or duplicated pull results, 409 → pull → retry, 410 → resync,
+`rejoin`. Presence selections are mapped through every change like `remoteCursors.js` does.
+Because this is a *second* implementation of client logic, it is only trusted because F3 holds it
+to the real library.
+
+#### F3 — Cross-language trace replay (keeps F2 honest)
+- The Java simulator can export a trace: initial doc, and for each client the ordered list of local
+  edits it made and the server update batches (with versions) it received.
+- `collabTraceReplay.test.js` drives the **real** `EditorState` + `collab()` + `receiveUpdates` /
+  `sendableUpdates` through the same trace and asserts, at every step, the same document and the
+  same sendable updates the Java `SimClient` produced.
+- A corpus of ~200 traces from fixed seeds across all `SimProfile`s is committed to
+  `__fixtures__/collab-traces/`; every shrunk regression trace from F1 is added too. A
+  `CollabTraceCorpusDriftTest` (Java) regenerates the fixed-seed traces and fails if they differ
+  from the committed corpus without the corpus being updated in the same change.
+
+#### F4 — `ScriptedPageWriter` (controllable save pipeline)
+In-memory, versioned page store implementing `CollabPageWriter`, with knobs:
+- `pauseNextPublish()` → a handle with `awaitEntered()` and `release()` / `releaseWith(exception)`,
+  so a test (simulated or threaded) can hold a publish *inside* the save while pushes, joins,
+  external saves and renames happen.
+- `failNextPublish(e)` — `FrontmatterValidationException`, `ContentValidationException`,
+  `AccessRuleShapeException`, `VersionConflictException`, `WikiException`.
+- `persistThenFail()` — the save is persisted and *then* throws, the shape of a crash after the
+  page store committed (drives E39).
+- `rewriteOnSave(fn)` — emulates save filters that change the text (block-id insertion,
+  frontmatter normalisation, `canonical_id` injection).
+- `externalSave(body, meta, authorKey)` — writes a new version and fires the same callback the real
+  `CollabPageEventListener` would, or (for evicted sessions) just writes, so lazy reconciliation on
+  load is exercised.
+- `rename(from, to)`, `delete(page)`.
+
+#### F5 — `MutableClock`
+A `java.time.Clock` whose time only moves when the test says so. Drives long-poll timeout, presence
+timeout, permission re-check expiry, idle eviction and draft retention without sleeping.
+
+#### F6 — Servlet doubles for `CollabResource`
+`CollabResource` unit tests use Mockito (already a `wikantik-rest` test dependency) for
+`HttpServletRequest`/`HttpServletResponse` plus a hand-written `FakeAsyncContext` that records
+`complete()`, lets the test fire the timeout listener explicitly, and fails the test if `complete()`
+is called twice or never. No Tomcat. One REST IT (§13.4) proves the real async path end to end.
+
+#### F7 — `ConcurrencyHarness` (real threads, for locking only)
+- N worker threads (8–32) released together by a `CyclicBarrier`, each running a random mix of
+  push / pull / publish / join / leave / external save against one registry backed by
+  `InMemoryCollabStore` and `ScriptedPageWriter`; repeated R times (default 200, soak 20,000).
+- Every run is bounded by a timeout; on timeout the harness dumps all thread stacks (deadlock
+  diagnosis) and fails.
+- Assertions after each run: accepted versions are contiguous with no gaps or duplicates; memory
+  log == store log; every parked waiter completed exactly once; `publishing` flag reset; and
+  `CollabInvariants` hold.
+- Tagged `@Tag("stress")`: a short run in the default build, the long run in the weekly CI job.
+
+#### F8 — Crash and recovery
+No production crash hooks. Crash points are produced by the doubles: `FaultInjectingDataSource`
+(throw on the n-th statement — DB append, snapshot write, publish cleanup) for `JdbcCollabStore`,
+`InMemoryCollabStore.failOn(op, n)` for the simulator, and `ScriptedPageWriter.persistThenFail()`
+for "save committed, process died". "Recovery" = discard the registry and build a fresh one over the
+same store and page writer. Assertion: the recovered session equals the last *committed* state, and
+clients that kept going (F1) converge after their next pull or resync.
+
+#### F9 — `InMemoryCollabStore` + store contract test
+The simulator needs a fast store, but a fake that drifts from Postgres would make every simulated
+result suspect. `AbstractCollabStoreContractTest` defines the behaviour once and runs against both
+`InMemoryCollabStore` and `JdbcCollabStore` (`@RequiresPostgres`, `PostgresTestDb.truncate(...)` in
+`@BeforeEach`).
+
+#### `CollabInvariants` (checked after every simulated step and every harness run)
+1. `local.apply(baseBody).equals(doc)`.
+2. `head` == number of text updates in the store for this session, and the in-memory ring is a
+   contiguous suffix of the store log.
+3. Replaying snapshot + log from the store reproduces `doc`, `meta` and `local`.
+4. `basePageVersion` == the writer's latest version, unless a pending publish or a not-yet-delivered
+   external-save event explains the difference.
+5. `utf8Bytes(doc) <= maxPageBytes` unless the session is in oversize state, and in oversize state
+   the size never grows.
+6. No lone UTF-16 surrogates in `doc`.
+7. Every participant in presence has an `edit` grant as of its last permission check.
+
+#### Edge-case checklist
+
+Every row is a named test (`E<n>_…`) in addition to whatever the fuzzer finds. *Level* is where it
+is asserted first.
+
+| ID | Case | Expected | Level |
+|---|---|---|---|
+| E1 | Empty doc: insert into empty; delete everything | Converges; publishing an empty draft → 400 | F0, F1 |
+| E2 | Emoji / astral chars (surrogate pairs) edited on both sides of a pair | Positions agree across Java/JS; an update leaving a lone surrogate → 400 | F0, unit |
+| E3 | Base page or external save with CRLF line endings | Normalised to `\n` on load; no phantom diffs | unit |
+| E4 | Two clients insert at the identical position | Same order on every client | F1, F3 |
+| E5 | Insert inside a range another client deletes | Insert survives at the deletion point | F0, F1 |
+| E6 | Overlapping concurrent deletes | Coalesce; no double-delete | F0, F1 |
+| E7 | Whole-doc replace (format conversion) while others type | Converges; typing preserved per mapping rules | F1 |
+| E8 | Stale push | 409 → pull → rebase → accepted | unit, F1 |
+| E9 | Push applied, response lost; client retries | 409, own updates confirmed via pull; no duplication | F1, F3 |
+| E10 | Push request duplicated by the network | Second copy is 409; applied once | F1 |
+| E11 | Pull responses reordered or duplicated | Client ignores updates ≤ its version | F1, F3 |
+| E12 | Client falls behind the in-memory ring | 410 → resync; unsent local edits re-applied | F1, F2 |
+| E13 | Participant expired by presence timeout, then pushes | `409 {rejoin}` → rejoin; no edits lost | F1, F5 |
+| E14 | Push with another participant's `clientID` | 400; session unchanged | unit |
+| E15 | Malformed ChangeSet / length mismatch | 400; session unchanged; WARN logged | unit |
+| E16 | Pushes accepted while a publish is inside the save | Post-publish mapping keeps them; all converge | F4 + F1, F7 |
+| E17 | Save filter rewrites text where someone is typing | Everyone converges on filtered text + later edits | F4 + F1 |
+| E18 | Second publish while one is in progress | 423 | F4, F7 |
+| E19 | Publish rejected (422 frontmatter / math / access-rule shape) | Draft unchanged; publisher gets today's 422 body; others get `publish-failed` | F4 |
+| E20 | External save lands between publish snapshot and save | Merged; publish 409 "retry"; client retry succeeds | F4 + F1 |
+| E21 | Publish with no changes | 200 `unchanged`, no new page version | unit |
+| E22 | External save identical to base | No text update; base version advances | F4 |
+| E23 | External save overlapping unpublished edits | Merged per mapping; `external-change` event with ranges | F4 + F1 |
+| E24 | External meta change: same field as session vs a different field | Session wins + conflict event / external taken | unit |
+| E25 | External merge pushes draft over `maxPageBytes` | Merge applied; oversize state; growth refused; publish 413 until trimmed | F4 |
+| E26 | External save while session is evicted / server down | Lazily merged on next load, in version order | F4, F8 |
+| E27 | Rename during publish; rename with parked long-polls | Session rekeyed; publish lands on the new name; waiters complete | F4, F6 |
+| E28 | Page deleted mid-session | Frozen; pushes 409 `frozen`; publish recreates only with `createPages` | F4 |
+| E29 | Edit permission revoked (`WikiSecurityEvent`) | Evicted at once; next push 403 | unit, F5 |
+| E30 | Permission cache expires (clock advance) | Re-checked on next push | F5 |
+| E31 | Published body adds an `[{ALLOW …}]` rule excluding a participant | That participant evicted after publish | F4 |
+| E32 | Long-poll timeout; wake on push; waiter whose participant left | Empty 200; each waiter completed exactly once | F6, F5 |
+| E33 | Idle eviction racing a new join | Join wins or reloads cleanly; no lost draft | F7, F5 |
+| E34 | Two clients set the same meta field concurrently; set vs remove | Server order wins; all clients agree | unit, F1 |
+| E35 | DB failure on push append | 503; memory unchanged; retry succeeds | F8 |
+| E36 | Snapshot write fails | Session continues; recovery uses older snapshot + longer replay | F8 |
+| E37 | Restart mid-session | Recovered == committed; clients continue or resync | F8 + F1 |
+| E38 | N threads push to the same version simultaneously | Exactly one accepted per version; contiguous log | F7 |
+| E39 | Crash after the page save committed, before post-publish | Pending-publish rule treats the version as ours; **no duplicated text** | F4 `persistThenFail` + F8 |
+| E40 | Mixed publish / push / external save / join / leave on real threads | No deadlock (bounded); invariants hold | F7 |
+
 ### 13.1 ChangeSet port — conformance is the foundation
 
 - **Shared fixture** (same pattern as `renderedFences.json`): a vitest script generates random
@@ -626,13 +861,11 @@ hash at the proxy. Not built now; §7.2's "DB first, then memory" ordering keeps
 - `CollabSession` unit tests: push accept / stale-version 409 / spoofed clientID / length mismatch
   / size limit; publish with concurrent pushes during the save (normalisation mapping); external
   merge with overlapping edits; meta LWW and external-meta conflict rules.
-- **Convergence fuzz test:** K simulated clients (pure Java, using the port's rebase) issue
-  random edits with random delivery delays, random external saves and publishes interleaved;
-  assert every client's doc == server doc == `local.apply(baseBody)` at quiescence. Run with
-  thousands of seeds; print the seed on failure.
-- `CollabStore` against `PostgresTestDb` (`@RequiresPostgres`), `FaultInjectingDataSource`
-  rollback tests for append and publish-cleanup; crash recovery (snapshot + replay ==
-  pre-crash state).
+- **Convergence fuzz test:** F1 + F2 + F4 + F5 across every `SimProfile`; `CollabInvariants`
+  after every step; convergence at quiescence; seed, trace and shrunk case on failure (§13.0).
+- **Locking:** F7 stress runs (E38, E40).
+- `CollabStore`: the F9 contract test against both stores; `FaultInjectingDataSource` rollback
+  tests for append and publish-cleanup; crash recovery via F8 (E35–E37, E39).
 - `CollabPageEventListener`: each non-editor writer (MCP write, `ClusterRenameService`,
   `BlockIdService`, `PageDirectoryWatcher`) produces a merged server update; own publish does not.
 - `CollabResource`: permission (no edit → 403, revoked mid-session → evicted), derived page → 409,
@@ -642,6 +875,7 @@ hash at the proxy. Not built now; §7.2's "DB first, then memory" ordering keeps
 
 - vitest: `collabPeer` loop with a fake transport (409 → pull → rebase → retry; backoff; 410
   resync), `remoteCursors` position mapping, `useCollabSession` lifecycle.
+- vitest: F0 corpus replay and F3 trace replay against the real `@codemirror/collab`.
 - `*.realCodeMirror.test.jsx` (existing pattern): two real `EditorView`s wired through an
   in-memory server converge; undo only reverts own edits; block-link answer mapped through
   intervening remote edits lands in the right place.
@@ -667,6 +901,9 @@ hash at the proxy. Not built now; §7.2's "DB first, then memory" ordering keeps
 | External save races a publish | `VersionConflictException` → external change merged into the session → publish returns 409 "merged, retry"; the client retries automatically once. |
 | Page deleted mid-session | Session frozen; text preserved; can recreate. |
 | Page renamed mid-session | Session rekeyed; clients update URL. |
+| Push applied but its response lost | Client retry is a stale 409; its own updates come back on the next pull and are recognised by `clientID`. Nothing applied twice. |
+| External merge makes the draft exceed `maxPageBytes` | Merge applied anyway; oversize state (growth refused, publish 413) until trimmed. |
+| Crash after a publish's page save committed | Pending-publish marker identifies that version as the session's own; recovery finishes the post-publish step instead of re-merging (no duplicated text). |
 | Participant loses edit permission | Evicted; their unsent changes are discarded client-side with a message. |
 | Bug produces divergent client doc | Every pull response includes `docHash` every N versions; client compares and forces resync on mismatch (log at WARN with session id — diagnostics for the fuzz suite). |
 
@@ -674,14 +911,15 @@ hash at the proxy. Not built now; §7.2's "DB first, then memory" ordering keeps
 
 | Phase | Content | Ships |
 |---|---|---|
-| **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures and property tests. Async-supported filter audit (§12.1) + rate-limit/backpressure decisions (§12.2). | Nothing user-visible |
+| **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures (F0) and property tests. Test harness F1–F9 + `CollabInvariants` against a stub session, so Phase 1 is written test-first into it. Async-supported filter audit (§12.1) + rate-limit/backpressure decisions (§12.2). | Nothing user-visible |
 | **1 — Core text collaboration** | Migration, `CollabStore`, `CollabSession` (push/pull/ring/snapshot), `CollabResource` (join/updates/leave), publish via `PageSaveHelper` with normalisation mapping, frontend `collabPeer` + Publish button, kill switch default **off**, convergence fuzz test, REST IT | Dark; enable on a staging instance |
 | **2 — Presence + metadata + external merges** | Presence + remote cursors + `PresenceBar`; meta ops + form integration; `CollabPageEventListener` (external merges, rename, delete); external-change toast/highlight; Selenide two-browser test | Enable in prod for the admin group first (optional `wikantik.collab.enabled` per-group follow-up if wanted) |
 | **3 — Draft UX + attribution** | Draft banner, discard, publish dialog diff, offline-draft import from `useDraft`, `page_version_contributor` + history UI, audit entries, metrics | Default **on** |
 | **4 — Polish / later** | Reader "being edited" badge, WebSocket transport, draft expiry admin view at `/admin/collab`, multi-node (§12.4), watch-only participants | As needed |
 
-Rough size: Phase 0 ≈ 1 week (the port is ~600 lines + tests), Phase 1 ≈ 2 weeks, Phase 2 ≈ 1.5
-weeks, Phase 3 ≈ 1 week, for one developer working TDD.
+Rough size: Phase 0 ≈ 2 weeks (the port is ~600 lines; the harness roughly as much again),
+Phase 1 ≈ 2 weeks, Phase 2 ≈ 1.5 weeks, Phase 3 ≈ 1 week, for one developer working TDD. The
+harness is the part not to cut: it is what makes Phases 1–2 debuggable.
 
 ## 16. Open questions
 

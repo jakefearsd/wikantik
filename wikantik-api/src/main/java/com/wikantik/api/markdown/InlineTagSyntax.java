@@ -123,23 +123,21 @@ public final class InlineTagSyntax {
      */
     public static List< String > findableTags( final List< String > frontmatterTags, final List< String > inlineTags ) {
         final Set< String > tags = new LinkedHashSet<>();
-        if ( frontmatterTags != null ) {
-            for ( final String t : frontmatterTags ) {
-                final String n = t == null ? "" : normalise( t );
-                if ( !n.isEmpty() ) {
-                    tags.add( n );
-                }
-            }
-        }
-        if ( inlineTags != null ) {
-            for ( final String t : inlineTags ) {
-                final String n = t == null ? "" : normalise( t );
-                if ( !n.isEmpty() ) {
-                    tags.add( n );
-                }
-            }
-        }
+        addNormalised( tags, frontmatterTags );
+        addNormalised( tags, inlineTags );
         return List.copyOf( tags );
+    }
+
+    private static void addNormalised( final Set< String > into, final List< String > tags ) {
+        if ( tags == null ) {
+            return;
+        }
+        for ( final String t : tags ) {
+            final String n = t == null ? "" : normalise( t );
+            if ( !n.isEmpty() ) {
+                into.add( n );
+            }
+        }
     }
 
     /** Every tag in {@code body}, in order, with offsets into {@code body}. */

@@ -204,14 +204,16 @@ class DefaultStructuralIndexServiceTest {
     @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )
     void inlineTagsAreTheRenderedOnes() throws Exception {
+        final Page h = fakePage( "H", "canonical_id: 01CCCCCCCCCCCCCCCCCCCCCCCC\ntitle: H\ntype: article", "<span>#x</span> #y\n" );
         final Page a = fakePage( "A", "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article",
                 "  -     #t  #t \n%%a<b t=\"`" );
         final Page b = fakePage( "B", "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: article",
                 "a\\<b t=\"1.  | %%- \n\n#t $$$\n\\a\">" );
-        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b ) );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b, h ) );
 
         svc.rebuild();
 
+        assertEquals( List.of( "y" ), svc.getByCanonicalId( "01CCCCCCCCCCCCCCCCCCCCCCCC" ).orElseThrow().inlineTags(), "readable case" );
         assertEquals( List.of(), svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().inlineTags() );
         assertEquals( List.of( "t" ), svc.getByCanonicalId( "01BBBBBBBBBBBBBBBBBBBBBBBB" ).orElseThrow().inlineTags() );
     }

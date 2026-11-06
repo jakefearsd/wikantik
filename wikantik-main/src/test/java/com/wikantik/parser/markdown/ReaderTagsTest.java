@@ -105,6 +105,16 @@ class ReaderTagsTest {
         assertEquals( List.of( "kept" ), ReaderTags.written( "%% #hidden %% #kept [a #inlink](x)\n" ) );
     }
 
+    /** Inline HTML text is not a tag: the render draws only #y, where the old line scan also found #x. */
+    @Test
+    void aTagInsideInlineHtmlIsNotATag() throws Exception {
+        for ( final String body : List.of( "<span>#x</span> #y\n", "<kbd>#x</kbd> #y\n" ) ) {
+            assertEquals( Set.of( "y" ), renderedTags( body ), "the render of " + body );
+            assertEquals( renderedTags( body ), ReaderTags.normalised( body ), body );
+            assertEquals( List.of( "y" ), ReaderTags.written( body ) );
+        }
+    }
+
     @Test
     void noHashNoParse() {
         final long structure = ReaderStructure.parses();

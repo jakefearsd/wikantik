@@ -28,6 +28,7 @@ import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.parser.markdown.ReaderTags;
 import com.wikantik.search.FrontmatterMetadataCache;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -189,7 +190,7 @@ public final class PageListEngine {
         final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
         final String body = text == null ? null : FrontmatterParser.parse( text ).body();
         return InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ),
-                com.wikantik.parser.markdown.ReaderTags.written( body ) ).containsAll( required );
+                ReaderTags.written( body ) ).containsAll( required );
     }
 
     private static boolean modifiedAfterMatches( final Page page, final PageListFilter f ) {

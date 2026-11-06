@@ -13,6 +13,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   indexes and filters by now match the rendered tag links exactly. The structural index rebuilds itself at every
   startup; **after deploying, rebuild the Lucene search index** (`bin/trigger-rebuild-indexes.sh`, which drives
   `POST /admin/content/rebuild-indexes`) so its stored tag sets are recomputed.
+- **The editor reads `%%comments%%` the way the page renders them** (#127). Where the editor and the render disagreed,
+  the render wins: tables follow flexmark (several header rows, no column-count match, code and math kept whole across a
+  `|`); `$$x$$` written inline is not math; a code span or `$` math opened inside a `[[wikilink]]` defeats the link;
+  display math ends with its list item; CRLF text reads like LF. The live-preview table widget draws every header row
+  and keeps extra body cells.
+- **Guards:** a checked-in differential fixture (2,000 generated documents, LF and CRLF) pins editor and server comment
+  ranges to each other with an empty allow list, and an independent render oracle pins the server to the rendered page.
+  `bin/reader-text-diff.sh <ref> <pagesDir>` compares what readers see (text, comment ranges, inline tags) between a
+  release and HEAD over a page corpus; it exits 3 when any page shows readers more.
+
+### Fixed
+- Tag filters (`list_pages_by_filter`, retrieval filters) read inline tags from the structural index instead of
+  re-reading every candidate page's body.
 
 ### Removed
 - **wikantik-api:** `ObsidianComments`, `MathMask`, `QuotedFences`, the `GfmTable*` scanners, `InlineTagMasks`,

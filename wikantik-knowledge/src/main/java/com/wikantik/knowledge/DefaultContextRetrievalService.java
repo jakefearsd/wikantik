@@ -134,8 +134,23 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         this.publicIdentity = publicIdentity == null ? () -> null : publicIdentity;
         this.relatedPagesFinder = new RelatedPagesFinder( mentionIndex );
         this.pageListEngine = new PageListEngine( pageManager, fmCache,
-            ( page, meta ) -> buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ), this.publicIdentity );
+            ( page, meta ) -> buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ), this.publicIdentity,
+            indexedInlineTags( engine ) );
         this.contributingChunkAssembler = new ContributingChunkAssembler( chunkIndex, chunkRepo, hybridSearch );
+    }
+
+    /** Page name to the structural index's inline tags; empty when the index is absent or does not hold the page. */
+    private static java.util.function.Function< String, java.util.Optional< List< String > > > indexedInlineTags(
+            final Engine engine ) {
+        return name -> {
+            final com.wikantik.api.pagegraph.StructuralIndexService index =
+                com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
+            if ( index == null ) {
+                return java.util.Optional.empty();
+            }
+            return index.resolveCanonicalIdFromSlug( name ).flatMap( index::getByCanonicalId )
+                    .map( com.wikantik.api.pagegraph.PageDescriptor::writtenTags );
+        };
     }
 
     /**

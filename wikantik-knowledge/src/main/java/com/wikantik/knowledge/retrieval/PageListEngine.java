@@ -38,6 +38,8 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -62,6 +64,7 @@ public final class PageListEngine {
     private final FrontmatterMetadataCache fmCache;
     private final BiFunction< Page, Map< String, Object >, RetrievedPage > pageBuilder;
     private final Supplier< PublicIdentity > publicIdentity;
+    private final Function< String, Optional< List< String > > > indexedInlineTags;
 
     /**
      * @param pageBuilder builds a {@link RetrievedPage} from a page and its
@@ -89,6 +92,20 @@ public final class PageListEngine {
             final FrontmatterMetadataCache fmCache,
             final BiFunction< Page, Map< String, Object >, RetrievedPage > pageBuilder,
             final Supplier< PublicIdentity > publicIdentity ) {
+        this( pageManager, fmCache, pageBuilder, publicIdentity, name -> Optional.empty() );
+    }
+
+    /**
+     * @param indexedInlineTags page name to the structural index's {@code writtenTags()} for that page; empty when the
+     *        index is absent or does not hold the page, in which case the body is read and parsed instead
+     */
+    public PageListEngine(
+            final PageManager pageManager,
+            final FrontmatterMetadataCache fmCache,
+            final BiFunction< Page, Map< String, Object >, RetrievedPage > pageBuilder,
+            final Supplier< PublicIdentity > publicIdentity,
+            final Function< String, Optional< List< String > > > indexedInlineTags ) {
+        this.indexedInlineTags = indexedInlineTags == null ? name -> Optional.empty() : indexedInlineTags;
         this.pageManager = pageManager;
         this.fmCache = fmCache;
         this.pageBuilder = pageBuilder;
@@ -187,10 +204,24 @@ public final class PageListEngine {
         if ( fmTags.containsAll( required ) ) {
             return true;
         }
+        return InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ), inlineTagsOf( page ) )
+                .containsAll( required );
+    }
+
+    /** The page's inline tags: the structural index's when it holds the page, else read off the body. */
+    private List< String > inlineTagsOf( final Page page ) {
+        try {
+            final Optional< List< String > > indexed = indexedInlineTags.apply( page.getName() );
+            if ( indexed != null && indexed.isPresent() ) {
+                return indexed.get();
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Structural index lookup of inline tags failed for page '{}', reading the body instead: {}",
+                    page.getName(), e.getMessage(), e );
+        }
         final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
         final String body = text == null ? null : FrontmatterParser.parse( text ).body();
-        return InlineTagSyntax.findableTags( stringList( meta.get( "tags" ) ),
-                ReaderTags.written( body ) ).containsAll( required );
+        return ReaderTags.written( body );
     }
 
     private static boolean modifiedAfterMatches( final Page page, final PageListFilter f ) {

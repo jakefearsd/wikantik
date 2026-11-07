@@ -19,6 +19,7 @@
 package com.wikantik.collab;
 
 import com.wikantik.collab.model.JoinRequest;
+import com.wikantik.collab.model.MetaEdit;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredMetaOp;
@@ -166,26 +167,66 @@ final class Draft {
      */
     void seed( final JoinRequest r, final Instant now ) {
         final State before = state();
-        seedText( r, now );
-        if( r.initialMeta() != null ) {
-            final List< StoredMetaOp > ops = SessionLoader.metaOps( meta, MetaJson.normalise( r.initialMeta() ), metaSeq,
-                r.authorKey() );
-            if( !ops.isEmpty() ) {
-                store.appendMetaOps( id, ops );
-                applyMetaOps( ops );
-                contributors.record( List.of(), ops );
-            }
+        final String text = r.initialText() == null ? null : seedTextChecked( r.initialText() );
+        final List< StoredMetaOp > ops = r.initialMeta() == null ? List.of() : seedMetaOps( r );
+        seedText( r, text, now );
+        if( !ops.isEmpty() ) {
+            store.appendMetaOps( id, ops );
+            applyMetaOps( ops );
+            contributors.record( List.of(), ops );
         }
         announce( before );
     }
 
-    /** The seed's text, stored with the creator's key so it is credited to the creator (ruling R2). */
-    private void seedText( final JoinRequest r, final Instant now ) {
-        if( r.initialText() != null ) {
-            final String text = CollabText.toLf( r.initialText() );
-            if( CollabText.hasLoneSurrogate( text ) ) {
-                throw new IllegalArgumentException( "initialText holds a lone UTF-16 surrogate" );
+    /**
+     * A seed's text, LF-normalised, held to a push's rules before anything is stored (final review item 4): no lone
+     * surrogate (400), and no more than {@code max(maxPageBytes, current size)} UTF-8 bytes ({@link SeedTooLarge}, 413).
+     */
+    private String seedTextChecked( final String initialText ) {
+        final String text = CollabText.toLf( initialText );
+        if( CollabText.hasLoneSurrogate( text ) ) {
+            throw new IllegalArgumentException( "initialText holds a lone UTF-16 surrogate" );
+        }
+        if( Oversize.utf8( text ) > Math.max( oversize.maxPageBytes(), Oversize.utf8( doc ) ) ) {
+            throw new SeedTooLarge();
+        }
+        return text;
+    }
+
+    /**
+     * A seed's frontmatter as meta ops, held to a push's rules (final review item 4): every field must be one a meta edit
+     * may set, set-field items are stored as strings (ruling Q7), and no resolved value may exceed
+     * {@link MetaEdits#MAX_VALUE_BYTES} (ruling Q8); else 400.
+     */
+    private List< StoredMetaOp > seedMetaOps( final JoinRequest r ) {
+        final Map< String, Object > wanted = new LinkedHashMap<>();
+        r.initialMeta().forEach( ( field, value ) -> {
+            final MetaEdit set = MetaEdit.set( field, value );
+            final String why = MetaEdits.invalid( set );
+            if( why != null ) {
+                throw new IllegalArgumentException( "initialMeta: " + why );
             }
+            wanted.put( field, MetaEdits.resolve( null, set ) );
+        } );
+        final List< StoredMetaOp > ops = SessionLoader.metaOps( meta, wanted, metaSeq, r.authorKey() );
+        if( MetaEdits.oversized( ops ) != null ) {
+            throw new IllegalArgumentException( "initialMeta: a value exceeds " + MetaEdits.MAX_VALUE_BYTES + " bytes" );
+        }
+        return ops;
+    }
+
+    /** A seed whose text is over the page size limit: 413 {@code oversize}, as a push that would grow past it. */
+    static final class SeedTooLarge extends IllegalArgumentException {
+        private static final long serialVersionUID = 1L;
+
+        SeedTooLarge() {
+            super( "initialText exceeds the page size limit" );
+        }
+    }
+
+    /** The seed's text, stored with the creator's key so it is credited to the creator (ruling R2). */
+    private void seedText( final JoinRequest r, final String text, final Instant now ) {
+        if( text != null ) {
             if( !text.equals( doc ) ) {
                 final StoredUpdate u = new StoredUpdate( head + 1, StoredUpdate.SERVER, CollabSession.SERVER_CLIENT,
                     r.authorKey(), TextDiff.changeSet( doc, text ) );

@@ -281,6 +281,9 @@ public final class CollabSessionRegistry {
         final JoinResponse response;
         try {
             response = s.join( r );
+        } catch( final Draft.SeedTooLarge e ) {
+            LOG.info( "collab: join of {} by {} refused: {}", pageName, r.authorKey(), e.getMessage() );
+            return new Refused( 413, "oversize" );
         } catch( final IllegalArgumentException e ) {
             LOG.warn( "collab: join of {} by {} refused: {}", pageName, r.authorKey(), e.toString() );
             return new Refused( 400, CollabSession.REJECTED );

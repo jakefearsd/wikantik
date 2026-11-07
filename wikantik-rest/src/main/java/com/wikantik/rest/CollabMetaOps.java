@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.wikantik.collab.MetaJson;
 import com.wikantik.collab.model.MetaEdit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,8 +40,8 @@ final class CollabMetaOps {
 
     private static final Logger LOG = LogManager.getLogger( CollabMetaOps.class );
 
-    /** Plain JSON values for SETs (numbers as doubles; the session normalises values through JSON). */
-    private static final Gson VALUES = new Gson();
+    /** JSON values for SETs, numbers as {@link MetaJson} reads them (Long when integral: a tag {@code 2024} is "2024"). */
+    private static final Gson VALUES = MetaJson.GSON;
     private static final List< String > KINDS = List.of( "value", "add", "remove" );
 
     private CollabMetaOps() {

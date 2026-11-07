@@ -18,10 +18,10 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.MetaJson;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.rest.CollabResource.Access;
 import com.wikantik.rest.CollabResource.Caller;
@@ -36,9 +36,11 @@ import java.util.Optional;
 
 /**
  * {@code POST /join} (section 6.2 as amended by A11): 503 {@code collab-disabled} with the kill switch off or no
- * registry wired; 403 unless the caller may {@code view} the page, before anything about it is revealed; then the
- * registry's join with {@code priorClientId}, {@code initialText} and {@code initialMeta} (its 403 {@code forbidden},
- * 409 {@code derived-page}, 429 {@code session-full}, 503 {@code store}, 400 {@code rejected}).
+ * registry wired; 403 unless the caller may {@code view} the page, before anything about it is revealed, and 403 unless
+ * it may {@code edit} it, before the body (which may carry a whole page) is read or parsed; then the registry's join
+ * with {@code priorClientId}, {@code initialText} and {@code initialMeta} (its 403 {@code forbidden}, 409
+ * {@code derived-page}, 429 {@code session-full}, 503 {@code store}, 400 {@code rejected}, 413 {@code oversize} for
+ * a seed over {@code maxPageBytes}).
  */
 final class CollabJoin {
 
@@ -50,7 +52,6 @@ final class CollabJoin {
     private static final long JSON_ESCAPE_FACTOR = 6;
     private static final long META_ALLOWANCE_BYTES = 64L * 1024;
     private static final String DISABLED = "collab-disabled";
-    private static final Gson GSON = new Gson();
 
     private CollabJoin() {
     }
@@ -62,6 +63,10 @@ final class CollabJoin {
         }
         if( !access.mayView( caller, page ) ) {
             return CollabWire.forbidden( page, "view" );
+        }
+        if( !access.mayEdit( caller, page, false ) ) {
+            // before the body is read: a caller who may not edit never gets to make the server read or parse a seed
+            return CollabWire.forbidden( page );
         }
         final long cap = registry.get().maxPageBytes() * JSON_ESCAPE_FACTOR + META_ALLOWANCE_BYTES;
         final Object parsed = CollabRequests.readJson( request, cap );
@@ -103,6 +108,7 @@ final class CollabJoin {
         return e.getAsString();
     }
 
+    /** Numbers as {@link MetaJson} reads them (Long when integral), so a set field's {@code 2024} is the item "2024". */
     @SuppressWarnings( "unchecked" )
     private static Map< String, Object > initialMeta( final JsonObject body ) {
         final JsonElement e = body.get( "initialMeta" );
@@ -112,6 +118,6 @@ final class CollabJoin {
         if( !e.isJsonObject() ) {
             throw new IllegalArgumentException( "initialMeta must be an object" );
         }
-        return GSON.fromJson( e, Map.class );
+        return MetaJson.GSON.fromJson( e, Map.class );
     }
 }

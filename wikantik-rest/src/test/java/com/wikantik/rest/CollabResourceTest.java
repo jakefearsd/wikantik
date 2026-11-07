@@ -538,6 +538,58 @@ class CollabResourceTest {
         assertEquals( 0, r.body().get( "basePageVersion" ).getAsInt() );
     }
 
+    // ---- join seed limits (final review item 4) ---------------------------------------------------------------------
+
+    @Test
+    void aJoinWithoutEditIsRefusedBeforeItsBodyIsReadOrParsed() throws Exception {
+        use( config( 20, 1000, 100, 500 ), 16, 0 );   // the join body cap: 16 * 6 + 64 KiB
+        noEdit.add( "ada" );
+        final Resp big = call( "POST", "ada", "/" + PAGE + "/join", "x".repeat( 70 * 1024 ), Map.of() );
+        assertEquals( 403, big.status, "edit is checked before the body's size" );
+        final Resp junk = call( "POST", "ada", "/" + PAGE + "/join", "{[[[", Map.of() );
+        assertEquals( 403, junk.status, "and before it is parsed" );
+    }
+
+    @Test
+    void aJoinSeedOverMaxPageBytesIs413LikeAPush() throws Exception {
+        use( config( 20, 1000, 100, 500 ), 16, 0 );
+        final Resp r = call( "POST", "ada", "/NewPage/join",
+            obj( "initialText", "x".repeat( 17 ) ).toString(), Map.of() );
+        assertEquals( 413, r.status, r.out::toString );
+        assertEquals( "oversize", r.reason() );
+        final Resp fits = call( "POST", "ada", "/NewPage/join", obj( "initialText", "x".repeat( 16 ) ).toString(),
+            Map.of() );
+        assertEquals( 200, fits.status, fits.out::toString );
+        assertEquals( "x".repeat( 16 ), fits.body().get( "doc" ).getAsString() );
+    }
+
+    @Test
+    void initialMetaSetFieldItemsAreStoredAsStrings() throws Exception {   // ruling Q7
+        final Resp r = call( "POST", "ada", "/NewPage/join",
+            obj( "initialMeta", obj( "tags", arr( 2024, "x" ) ) ).toString(), Map.of() );
+        assertEquals( 200, r.status, r.out::toString );
+        assertEquals( arr( "2024", "x" ), r.body().getAsJsonObject( "metadata" ).get( "tags" ) );
+        // a push's SET of a set field reads its numbers the same way
+        final Joined j = new Joined( r.body().get( "sessionId" ).getAsString(),
+            r.body().get( "participantId" ).getAsString(), r.body().get( "clientID" ).getAsString(), r.body() );
+        final Resp pushed = call( "POST", "ada", "/NewPage/updates", obj( "sessionId", j.sessionId(), "participantId",
+            j.participantId(), "version", 0, "updates", arr(), "metaOps",
+            arr( obj( "field", "related", "value", arr( 7 ) ) ) ).toString(), Map.of() );
+        assertEquals( 200, pushed.status, pushed.out::toString );
+        assertEquals( List.of( "7" ), session( j ).view().meta().get( "related" ) );
+    }
+
+    @Test
+    void anInitialMetaValueOver64KiBOrANonFieldIs400() throws Exception {   // ruling Q8
+        final Resp big = call( "POST", "ada", "/NewPage/join",
+            obj( "initialMeta", obj( "summary", "s".repeat( 64 * 1024 + 1 ) ) ).toString(), Map.of() );
+        assertEquals( 400, big.status, big.out::toString );
+        assertEquals( "rejected", big.reason() );
+        final Resp yaml = call( "POST", "ada", "/OtherPage/join",
+            obj( "initialMeta", obj( "__yaml__", "a: b" ) ).toString(), Map.of() );
+        assertEquals( 400, yaml.status, yaml.out::toString );
+    }
+
     @Test
     void join403WithoutEdit() throws Exception {
         noEdit.add( "ada" );

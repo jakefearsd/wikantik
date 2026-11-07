@@ -222,4 +222,57 @@ class SimClientTest {
         assertTrue( a.trace().stream().anyMatch( t -> t.contains( "\"type\":\"resync\"" )
             && t.contains( "\"clientId\":\"ca2\"" ) && t.contains( "\"doc\":\"new\"" ) ) );
     }
+
+    @Test
+    void rejoinRebasesUnsentEditsOntoTheFreshDocumentUnderTheNewClientId() {   // 7.2 expired participants
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        a.localEdit( insert( "abc", 3, "X" ) );
+        a.localEdit( insert( "abcX", 0, "Y" ) );
+        // meanwhile the server moved on: someone inserted "R" at 0 and someone deleted "b"
+        a.rejoin( new Joined( "p-new", "cn", 2, "Rac" ) );
+
+        assertEquals( "YRacX", a.doc() );
+        assertEquals( 2, a.version() );
+        assertEquals( "cn", a.clientId() );
+        assertEquals( "p-new", a.participantId() );
+        assertEquals( "", a.recoveryText() );
+        assertEquals( 2, a.sendable().size() );
+        assertTrue( a.sendable().stream().allMatch( u -> "cn".equals( u.clientId() ) ) );
+        assertEquals( "YRacX", a.sendable().get( 1 ).changes().apply( a.sendable().get( 0 ).changes().apply( "Rac" ) ) );
+        // the replay sees a resync (re-seeding the library at the fresh state) followed by the rebased local edits
+        final List< String > types = a.traceEntries().stream().map( SimClient.TraceEntry::type ).toList();
+        final int at = types.lastIndexOf( "resync" );
+        assertEquals( List.of( "resync", "sendable", "local", "sendable", "local", "sendable" ), types.subList( at, types.size() ) );
+        assertTrue( a.trace().get( at ).contains( "\"unsynced\":0" ) && a.trace().get( at ).contains( "\"rebased\":2" ),
+            a.trace().get( at ) );
+    }
+
+    @Test
+    void rejoinRebasesOverTheSyncedDocumentNotTheLocalOne() {
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        a.localEdit( insert( "abc", 0, "L" ) );                                  // "Labc", unconfirmed
+        a.receive( List.of( new Update( "cb", insert( "abc", 3, "R" ) ) ), 0 );  // synced "abcR", doc "LabcR"
+        assertEquals( "abcR", a.syncedDoc() );
+        a.rejoin( new Joined( "p2", "c2", 3, "abcRST" ) );
+        assertEquals( "LabcRST", a.doc() );
+        assertEquals( "abcRST", a.syncedDoc() );
+    }
+
+    @Test
+    void rejoinWithNothingUnconfirmedJustAdoptsTheFreshState() {
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        a.rejoin( new Joined( "p2", "c2", 4, "fresh" ) );
+        assertEquals( "fresh", a.doc() );
+        assertEquals( 4, a.version() );
+        assertTrue( a.sendable().isEmpty() );
+    }
+
+    @Test
+    void anEditDeletedByOthersRebasesToNothingAndIsDropped() {
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        a.localEdit( ChangeSet.replace( 3, 1, 2, "" ) );     // delete "b"
+        a.rejoin( new Joined( "p2", "c2", 1, "ac" ) );       // someone else already deleted it
+        assertEquals( "ac", a.doc() );
+        assertTrue( a.sendable().isEmpty() );
+    }
 }

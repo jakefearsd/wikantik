@@ -63,9 +63,8 @@ class CollabConvergenceFuzzTest {
     }
 
     private static String report( final SimTrace failing ) {
-        final String category = failing.outcome().category();
-        final SimTrace shrunk = SimScheduler.replay( Shrinker.shrink( failing,
-            c -> SimScheduler.replay( c, SimScheduler.STUB ).outcome().category().equals( category ) ), SimScheduler.STUB );
+        final SimTrace shrunk = SimScheduler.replay(
+            Shrinker.shrinkSameFailure( failing, SimScheduler.STUB, SimScheduler.STUB_RELOAD ), SimScheduler.STUB );
         final Path dir = Path.of( "target", "collab-failures", failing.profile().name() );
         final Path full = dir.resolve( failing.seed() + ".json" );
         final Path small = dir.resolve( failing.seed() + ".shrunk.json" );
@@ -76,7 +75,8 @@ class CollabConvergenceFuzzTest {
         } catch( final IOException e ) {
             throw new UncheckedIOException( "could not write the failure traces for seed " + failing.seed(), e );
         }
-        return "seed " + failing.seed() + " profile " + failing.profile() + " failed: " + failing.outcome().message()
+        return "seed " + failing.seed() + " profile " + failing.profile() + " failed (" + failing.outcome().kind() + "): "
+            + failing.outcome().message()
             + "\n  full trace:   " + full.toAbsolutePath()
             + "\n  shrunk trace: " + small.toAbsolutePath() + " (" + shrunk.steps().size() + " steps: "
             + shrunk.outcome().message() + ")";

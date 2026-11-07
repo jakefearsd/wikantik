@@ -49,7 +49,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * It holds, per file, only what that replay needs (profile, seed, initial document, per-client entries):
  * <ul>
  * <li>{@code <profile>-<seed>.json}: seeds 1..50 of every profile (120 steps), plus {@link #RESYNC_SEEDS} of LOSSY, which
- *     are known to reach a resync (rare: about 1 seed in 100);</li>
+ *     are known to reach a resync (chosen when resyncs were rare, about 1 seed in 100; since LOSSY gained crash and leave
+ *     steps they are common, and rejoins that rebase the unsent edits appear as a {@code resync} with {@code rebased}
+ *     followed by {@code local} entries);</li>
  * <li>{@code crafted-*.json}: SimClient driven directly through cases the one-pull-at-a-time protocol never produces
  *     (a foreign update ahead of own updates in one batch; a real gap);</li>
  * <li>{@code regression-<name>.json}: every committed regression trace, replayed through the scheduler.</li>

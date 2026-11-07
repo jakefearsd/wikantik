@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShrinkerTest {
 
@@ -54,5 +56,61 @@ class ShrinkerTest {
         } );
         assertEquals( t.steps(), shrunk.steps() );
         assertEquals( true, calls.get() >= 12, "every single-step removal must be tried" );
+    }
+
+    @Test
+    void theReplayBudgetBoundsAShrink() {
+        final SimTrace t = new SimScheduler( 5, SimProfile.CALM, SimScheduler.STUB, 2 ).run( 400 );
+        final AtomicInteger calls = new AtomicInteger();
+        final SimTrace shrunk = Shrinker.shrink( t, c -> {
+            calls.incrementAndGet();
+            return c.steps().size() >= t.steps().size() - 3; // can drop only three single steps: many candidates fail
+        }, 100 );
+        assertEquals( 100, calls.get() );
+        assertEquals( true, shrunk.steps().size() >= t.steps().size() - 3 );
+        assertEquals( 2_000, Shrinker.MAX_REPLAYS );
+    }
+
+    @Test
+    void theDefaultBudgetIsTwoThousandReplays() {
+        final SimTrace t = new SimScheduler( 6, SimProfile.CALM, SimScheduler.STUB, 2 ).run( 3_000 );
+        final AtomicInteger calls = new AtomicInteger();
+        Shrinker.shrink( t, c -> {
+            calls.incrementAndGet();
+            return false;
+        } );
+        assertEquals( true, calls.get() <= Shrinker.MAX_REPLAYS, calls.get() + " replays" );
+    }
+
+    @Test
+    void sameFailureMeansTheSameKind() {
+        final SimTrace.Outcome inv2 = new SimTrace.Outcome( SimTrace.Status.FAIL, "invariant 2 (head ...) violated: a", "3" );
+        final SimTrace.Outcome inv2b = new SimTrace.Outcome( SimTrace.Status.FAIL, "invariant 2 (head ...) violated: b", "9" );
+        final SimTrace.Outcome inv3 = new SimTrace.Outcome( SimTrace.Status.FAIL, "invariant 3 (replay) violated: a", "3" );
+        assertEquals( "invariant 2", inv2.kind() );
+        assertTrue( inv2.sameFailure( inv2b ) );
+        assertFalse( inv2.sameFailure( inv3 ) );
+        final SimTrace.Outcome ise = new SimTrace.Outcome( SimTrace.Status.FAIL, "exception: x", "1", "exception java.lang.IllegalStateException at A.b(A.java:1)" );
+        final SimTrace.Outcome iae = new SimTrace.Outcome( SimTrace.Status.FAIL, "exception: x", "1", "exception java.lang.IllegalArgumentException at A.b(A.java:1)" );
+        final SimTrace.Outcome otherFrame = new SimTrace.Outcome( SimTrace.Status.FAIL, "exception: x", "1", "exception java.lang.IllegalStateException at A.c(A.java:9)" );
+        assertFalse( ise.sameFailure( iae ) );
+        assertFalse( ise.sameFailure( otherFrame ) );
+        final SimTrace.Outcome pass = new SimTrace.Outcome( SimTrace.Status.PASS, "converged", "end" );
+        assertFalse( pass.sameFailure( pass ) );
+    }
+
+    @Test
+    void aShrinkKeepsTheConvergenceSubKind() {
+        final SimTrace failing = new SimScheduler( 1, SimProfile.CALM, SimScheduler.STUB, 2 ).run( 60 );
+        final SimTrace.Outcome doc = new SimTrace.Outcome( SimTrace.Status.FAIL, "convergence: client A differs", "end",
+            "convergence/doc" );
+        final SimTrace.Outcome version = new SimTrace.Outcome( SimTrace.Status.FAIL, "convergence: client A at version", "end",
+            "convergence/version" );
+        assertEquals( "convergence", doc.category() );
+        assertEquals( doc.category(), version.category() );
+        assertFalse( doc.sameFailure( version ) );
+        // the kind survives a JSON round trip of a failing trace
+        final SimTrace t = new SimTrace( 1, SimProfile.CALM, "P", 100, 4, "none", 1, "", failing.steps(), doc, List.of() );
+        assertEquals( "convergence/doc", SimTrace.fromJson( t.toJson() ).outcome().kind() );
     }
 }

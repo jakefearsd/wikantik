@@ -26,8 +26,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * One simulated run, serialisable to JSON (F1, and the F3 export format Task 13 replays through the real library).
@@ -35,7 +40,7 @@ import java.util.Objects;
  * <p>Layout: {@code format}, {@code seed}, {@code profile}, {@code config} (page name, page-size limit, ring size, the
  * save-filter rewrite, client count), {@code initialDoc} (as seeded into the page writer, before its line-ending
  * normalisation), {@code steps} (ordered; each has a stable {@code id}, an {@code action} and only the fields that action
- * uses), {@code outcome} ({@code status}, {@code message}, {@code at}) and {@code clients}: per client its name, author
+ * uses), {@code outcome} ({@code status}, {@code message}, {@code at}, and {@code kind} for a failure) and {@code clients}: per client its name, author
  * key and the {@link SimClient} trace entries ({@code join}, {@code local} with ChangeSet JSON, {@code receive} with
  * {@code fromVersion} and updates, {@code sendable} snapshots, ...). Field order is fixed and no map is hash-ordered, so
  * the same run always serialises to the same bytes.</p>
@@ -49,15 +54,54 @@ public final class SimTrace {
 
     public enum Status { PASS, FAIL, UNSUPPORTED }
 
-    /** Where a run ended. {@code at} is the step id ({@code "12"}), a quiescence round ({@code "q3"}) or {@code "end"}. */
-    public record Outcome( Status status, String message, String at ) {
+    /**
+     * Where a run ended. {@code at} is the step id ({@code "12"}), a quiescence round ({@code "q3"}) or {@code "end"}.
+     * {@code kind} identifies a failure precisely enough for the shrinker to keep "the same failure" (F1): {@code
+     * "invariant N"}, {@code "convergence/doc"} and the other convergence and protocol sub-kinds, or {@code "exception
+     * <class> at <first frame>"}; for a run that did not fail it is the status name.
+     */
+    public record Outcome( Status status, String message, String at, String kind ) {
 
         public static final Outcome NOT_RUN = new Outcome( Status.PASS, "not run", "" );
+        private static final Pattern INVARIANT = Pattern.compile( "^invariant (\\d+) .*", Pattern.DOTALL );
+
+        public Outcome {
+            Objects.requireNonNull( status );
+            Objects.requireNonNull( message );
+            Objects.requireNonNull( at );
+            Objects.requireNonNull( kind );
+        }
+
+        /** An outcome whose kind is derived from the message ({@link #kindOf}). */
+        public Outcome( final Status status, final String message, final String at ) {
+            this( status, message, at, kindOf( status, message ) );
+        }
 
         /**
-         * The failure class used to decide whether a shrunk trace still fails "the same way": the message up to its first
-         * colon ({@code "invariant 2 (...) violated"}, {@code "convergence"}, {@code "protocol"}, {@code "exception"}), or
-         * the status name when the run did not fail.
+         * The kind of a failure message: {@code "invariant N"} for an invariant violation, otherwise the message up to its
+         * first colon; the status name when the run did not fail. The scheduler passes sharper kinds for its own failures.
+         */
+        public static String kindOf( final Status status, final String message ) {
+            if( status != Status.FAIL ) {
+                return status.name();
+            }
+            final Matcher m = INVARIANT.matcher( message );
+            if( m.matches() ) {
+                return "invariant " + m.group( 1 );
+            }
+            final int c = message.indexOf( ':' );
+            return c < 0 ? message : message.substring( 0, c );
+        }
+
+        /** Both runs failed, the same way (same {@link #kind}). */
+        public boolean sameFailure( final Outcome other ) {
+            return status == Status.FAIL && other.status == Status.FAIL && kind.equals( other.kind );
+        }
+
+        /**
+         * The coarse failure class: the message up to its first colon ({@code "invariant 2 (...) violated"},
+         * {@code "convergence"}, {@code "protocol"}, {@code "exception"}), or the status name when the run did not fail.
+         * The shrinker matches on {@link #kind} instead.
          */
         public String category() {
             if( status != Status.FAIL ) {
@@ -150,10 +194,19 @@ public final class SimTrace {
     private final List< Step > steps;
     private final Outcome outcome;
     private final List< ClientTrace > clientTraces;
+    private final Map< String, Long > counters;
 
     SimTrace( final long seed, final SimProfile profile, final String pageName, final long maxPageBytes, final int ringSize,
               final String rewrite, final int clients, final String initialDoc, final List< Step > steps,
               final Outcome outcome, final List< ClientTrace > clientTraces ) {
+        this( seed, profile, pageName, maxPageBytes, ringSize, rewrite, clients, initialDoc, steps, outcome, clientTraces,
+            Map.of() );
+    }
+
+    private SimTrace( final long seed, final SimProfile profile, final String pageName, final long maxPageBytes,
+                      final int ringSize, final String rewrite, final int clients, final String initialDoc,
+                      final List< Step > steps, final Outcome outcome, final List< ClientTrace > clientTraces,
+                      final Map< String, Long > counters ) {
         this.seed = seed;
         this.profile = Objects.requireNonNull( profile );
         this.pageName = Objects.requireNonNull( pageName );
@@ -165,6 +218,7 @@ public final class SimTrace {
         this.steps = List.copyOf( steps );
         this.outcome = Objects.requireNonNull( outcome );
         this.clientTraces = List.copyOf( clientTraces );
+        this.counters = Collections.unmodifiableMap( new LinkedHashMap<>( counters ) );
     }
 
     public long seed() {
@@ -212,6 +266,14 @@ public final class SimTrace {
         return clientTraces.stream().map( ClientTrace::entries ).toList();
     }
 
+    /**
+     * What the run explored (F1 coverage, not serialised): per counter name (see {@code SimScheduler}) how often it
+     * happened. Empty for a trace that was loaded or not yet run.
+     */
+    public Map< String, Long > counters() {
+        return counters;
+    }
+
     List< ClientTrace > clientTraceRecords() {
         return clientTraces;
     }
@@ -222,8 +284,9 @@ public final class SimTrace {
             Outcome.NOT_RUN, List.of() );
     }
 
-    SimTrace withResult( final Outcome o, final List< ClientTrace > traces ) {
-        return new SimTrace( seed, profile, pageName, maxPageBytes, ringSize, rewrite, clients, initialDoc, steps, o, traces );
+    SimTrace withResult( final Outcome o, final List< ClientTrace > traces, final Map< String, Long > runCounters ) {
+        return new SimTrace( seed, profile, pageName, maxPageBytes, ringSize, rewrite, clients, initialDoc, steps, o, traces,
+            runCounters );
     }
 
     public String toJson() {
@@ -246,6 +309,9 @@ public final class SimTrace {
         out.addProperty( "status", outcome.status().name() );
         out.addProperty( "message", outcome.message() );
         out.addProperty( "at", outcome.at() );
+        if( outcome.status() == Status.FAIL ) {
+            out.addProperty( "kind", outcome.kind() );
+        }
         root.add( "outcome", out );
         final JsonArray cl = new JsonArray();
         for( final ClientTrace c : clientTraces ) {
@@ -297,8 +363,10 @@ public final class SimTrace {
         Outcome outcome = Outcome.NOT_RUN;
         if( root.has( "outcome" ) ) {
             final JsonObject o = root.getAsJsonObject( "outcome" );
-            outcome = new Outcome( Status.valueOf( o.get( "status" ).getAsString() ), o.get( "message" ).getAsString(),
-                o.get( "at" ).getAsString() );
+            final Status st = Status.valueOf( o.get( "status" ).getAsString() );
+            final String message = o.get( "message" ).getAsString();
+            outcome = new Outcome( st, message, o.get( "at" ).getAsString(),
+                o.has( "kind" ) ? o.get( "kind" ).getAsString() : Outcome.kindOf( st, message ) );
         }
         final List< ClientTrace > traces = new ArrayList<>();
         if( root.has( "clients" ) ) {

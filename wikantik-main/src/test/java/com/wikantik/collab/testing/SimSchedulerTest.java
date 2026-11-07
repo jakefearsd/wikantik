@@ -18,12 +18,18 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.collab.testing.SimProfile.Kind;
 import com.wikantik.collab.testing.SimServer.PullResult;
 import com.wikantik.collab.testing.SimServer.Update;
 import com.wikantik.collab.testing.SimServer.Wakeup;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -90,12 +96,11 @@ class SimSchedulerTest {
             }
         }
         assertTrue( failing != null, "the forgetful server was never caught" );
-        final String category = failing.outcome().category();
-        final SimTrace shrunk = Shrinker.shrink( failing,
-            c -> SimScheduler.replay( c, FORGETFUL ).outcome().category().equals( category ) );
+        final SimTrace shrunk = Shrinker.shrinkSameFailure( failing, FORGETFUL, SimScheduler.NO_RELOAD );
         assertTrue( shrunk.steps().size() < failing.steps().size(), "nothing was shrunk" );
         assertTrue( shrunk.steps().size() <= 6, "shrunk trace still has " + shrunk.steps().size() + " steps" );
-        assertEquals( SimTrace.Status.FAIL, SimScheduler.replay( shrunk, FORGETFUL ).outcome().status() );
+        final SimTrace.Outcome again = SimScheduler.replay( shrunk, FORGETFUL ).outcome();
+        assertTrue( again.sameFailure( failing.outcome() ), failing.outcome().kind() + " became " + again.kind() );
     }
 
     @Test
@@ -114,10 +119,157 @@ class SimSchedulerTest {
     }
 
     @Test
-    void crashRecoverIsDefinedButNotYetWeighted() {
+    void crashRecoverAndLeaveAreWeightedWhereTheRulingsSay() {
         for( final SimProfile p : SimProfile.values() ) {
-            assertEquals( 0, p.weight( SimProfile.Kind.CRASH_RECOVER ), p.name() );
-            assertEquals( 0, p.weight( SimProfile.Kind.EXTERNAL_SAVE ), p.name() );
+            assertEquals( 0, p.weight( Kind.EXTERNAL_SAVE ), p.name() );
+        }
+        assertTrue( SimProfile.LOSSY.weight( Kind.CRASH_RECOVER ) > 0 );
+        assertTrue( SimProfile.LOSSY.weight( Kind.LEAVE ) > 0 );
+        assertTrue( SimProfile.AGENT_HEAVY.weight( Kind.LEAVE ) > 0 );
+        assertEquals( 0, SimProfile.CALM.weight( Kind.CRASH_RECOVER ) );
+        assertEquals( 0, SimProfile.CALM.weight( Kind.LEAVE ) );
+    }
+
+    /** A CALM run with extra steps spliced in after every {@code every}-th step (ids are kept unique). */
+    private static SimTrace spliced( final long seed, final Kind kind, final int every ) {
+        final SimTrace t = new SimScheduler( seed, SimProfile.CALM, SimScheduler.STUB, 3 ).run( 150 );
+        final List< SimTrace.Step > steps = new ArrayList<>();
+        for( final SimTrace.Step st : t.steps() ) {
+            steps.add( st );
+            if( st.id() % every == every - 1 ) {
+                final SimTrace.Step extra = SimTrace.Step.of( 10_000 + st.id(), kind );
+                steps.add( kind == Kind.LEAVE ? extra.client( st.id() % 3 ) : extra );
+            }
+        }
+        return t.withSteps( steps );
+    }
+
+    @Test
+    void aCrashReloadsTheServerOverTheSameStoreAndTheClientsConverge() {   // E37 + F8
+        for( long seed = 1; seed <= 20; seed++ ) {
+            final SimTrace r = SimScheduler.replay( spliced( seed, Kind.CRASH_RECOVER, 20 ), SimScheduler.STUB );
+            assertEquals( SimTrace.Status.PASS, r.outcome().status(), seed + ": " + r.outcome().message() );
+            assertEquals( 7L, r.counters().get( SimScheduler.CRASHES ), seed + ": " + r.counters() );
+            assertTrue( r.counters().get( SimScheduler.REJOINS ) + r.counters().get( SimScheduler.RESYNCS ) > 0,
+                seed + ": " + r.counters() );
+            // replay stays deterministic across reloads (participant ids carry the per-store boot generation)
+            assertEquals( r.toJson(), SimScheduler.replay( r, SimScheduler.STUB ).toJson() );
+        }
+    }
+
+    @Test
+    void aCrashStepNeedsAReloadForTheFactory() {
+        final SimTrace t = spliced( 1, Kind.CRASH_RECOVER, 20 );
+        final Function< SimEnv, SimServer > wrapped = env -> new ForwardingServer( SimScheduler.STUB.apply( env ) );
+        final SimTrace.Outcome o = SimScheduler.replay( t, wrapped ).outcome();
+        assertEquals( SimTrace.Status.FAIL, o.status() );
+        assertTrue( o.kind().startsWith( "exception java.lang.UnsupportedOperationException at " ), o.kind() );
+    }
+
+    @Test
+    void aDroppedParticipantRejoinsKeepingItsUnsentEdits() {   // 7.2 expired participants
+        long rejoins = 0;
+        for( long seed = 1; seed <= 20; seed++ ) {
+            final SimTrace r = SimScheduler.replay( spliced( seed, Kind.LEAVE, 9 ), SimScheduler.STUB );
+            assertEquals( SimTrace.Status.PASS, r.outcome().status(), seed + ": " + r.outcome().message() );
+            assertTrue( r.counters().get( SimScheduler.LEAVES ) > 0, seed + ": " + r.counters() );
+            rejoins += r.counters().get( SimScheduler.REJOINS );
+        }
+        assertTrue( rejoins > 0, "no dropped participant ever rejoined with its edits kept" );
+    }
+
+    /**
+     * Answers the first non-empty push with a spurious 413 (so the client resyncs while a duplicate of that push is still
+     * in flight); with {@code honourLeave} false its leave does nothing, so the resyncing client's old participant stays
+     * alive.
+     */
+    private static Function< SimEnv, SimServer > spurious413( final boolean honourLeave ) {
+        return env -> new ForwardingServer( SimScheduler.STUB.apply( env ) ) {
+            private boolean refused;
+
+            @Override
+            public PushResult push( final String participantId, final String authorKey, final int version,
+                                    final List< Update > updates ) {
+                if( !updates.isEmpty() && !refused ) {
+                    refused = true;
+                    return new PushResult( 413, view().head(), "oversize" );
+                }
+                return super.push( participantId, authorKey, version, updates );
+            }
+
+            @Override
+            public void leave( final String participantId ) {
+                if( honourLeave ) {
+                    super.leave( participantId );
+                }
+            }
+        };
+    }
+
+    /**
+     * One client types, pushes, and the push is duplicated on the wire; the first copy is refused 413, the client
+     * resyncs (leave, then join), and only then is the duplicate delivered, addressed to the abandoned participant.
+     */
+    private static SimTrace stragglerAfterResync() {
+        final List< SimTrace.Step > steps = List.of(
+            SimTrace.Step.of( 0, Kind.LOCAL_EDIT ).client( 0 ).edit( 3, 3, "d" ),
+            SimTrace.Step.of( 1, Kind.SEND_PUSH ).client( 0 ),         // push 1.0
+            SimTrace.Step.of( 2, Kind.DUPLICATE ).message( "1.0" ),     // its copy 2.0
+            SimTrace.Step.of( 3, Kind.DELIVER ).message( "1.0" ),       // 413 -> 3.0
+            SimTrace.Step.of( 4, Kind.DELIVER ).message( "3.0" ),       // resync: leave 4.0
+            SimTrace.Step.of( 5, Kind.DELIVER ).message( "4.0" ),       // left 5.0
+            SimTrace.Step.of( 6, Kind.DELIVER ).message( "5.0" ),       // join 6.0
+            SimTrace.Step.of( 7, Kind.DELIVER ).message( "6.0" ),       // joined 7.0
+            SimTrace.Step.of( 8, Kind.DELIVER ).message( "7.0" ),       // fresh state; "abcd" to the recovery panel
+            SimTrace.Step.of( 9, Kind.DELIVER ).message( "2.0" ) );     // the straggler
+        return new SimTrace( 1, SimProfile.CALM, "SimPage", 64 * 1024, 4, "none", 1, "abc", steps,
+            SimTrace.Outcome.NOT_RUN, List.of() );
+    }
+
+    @Test
+    void aStragglerPushAcceptedAfterAResyncIsCaught() {   // A10
+        final SimTrace.Outcome o = SimScheduler.replay( stragglerAfterResync(), spurious413( false ) ).outcome();
+        assertEquals( "protocol/straggler", o.kind(), o.message() );
+        assertTrue( o.message().contains( "A10" ), o.message() );
+        assertEquals( "9", o.at() );
+    }
+
+    @Test
+    void leavingBeforeAResyncKeepsTheStragglerOut() {   // A10
+        final SimTrace r = SimScheduler.replay( stragglerAfterResync(), spurious413( true ) );
+        assertEquals( SimTrace.Status.PASS, r.outcome().status(), r.outcome().message() );
+        assertEquals( 1L, r.counters().get( SimScheduler.RETIRED_REFUSED ) );
+        assertEquals( 1L, r.counters().get( SimScheduler.RESYNCS ) );
+        // the typed text went to the recovery panel only: the server never applied it
+        assertTrue( r.outcome().message().startsWith( "converged at head 0 " ), r.outcome().message() );
+    }
+
+    @Test
+    void eachProfileExploresWhatItClaims() {
+        final Map< SimProfile, Map< String, Long > > seen = new EnumMap<>( SimProfile.class );
+        for( final SimProfile p : List.of( SimProfile.LOSSY, SimProfile.CALM, SimProfile.AGENT_HEAVY ) ) {
+            final Map< String, Long > sum = new TreeMap<>();
+            for( long seed = 1; seed <= 60; seed++ ) {
+                final SimTrace t = new SimScheduler( seed, p, SimScheduler.STUB, 2 + (int) ( seed % 3 ) ).run( 200 );
+                assertEquals( SimTrace.Status.PASS, t.outcome().status(), p + " " + seed + ": " + t.outcome().message() );
+                t.counters().forEach( ( k, v ) -> sum.merge( k, v, Long::sum ) );
+            }
+            assertEquals( new TreeSet<>( SimScheduler.COUNTERS ), sum.keySet(), p.name() );
+            seen.put( p, sum );
+        }
+        final Map< String, Long > lossy = seen.get( SimProfile.LOSSY );
+        for( final String c : SimScheduler.COUNTERS ) {
+            assertTrue( lossy.get( c ) > 0, "LOSSY never exercised " + c + ": " + lossy );
+        }
+        final Map< String, Long > calm = seen.get( SimProfile.CALM );
+        // one pull at a time on a lossless network: CALM's own path is the long-poll timeout
+        assertTrue( calm.get( SimScheduler.EXPIRED_PULLS ) > 0, "CALM never exercised a parked-pull expiry: " + calm );
+        for( final String c : List.of( SimScheduler.DUPLICATE_ANSWERS, SimScheduler.LEAVES, SimScheduler.CRASHES ) ) {
+            assertEquals( 0L, calm.get( c ), "CALM has no faults, yet " + c + ": " + calm );
+        }
+        final Map< String, Long > agents = seen.get( SimProfile.AGENT_HEAVY );
+        for( final String c : List.of( SimScheduler.LEAVES, SimScheduler.REJOINS, SimScheduler.DUPLICATE_ANSWERS ) ) {
+            assertTrue( agents.get( c ) > 0, "AGENT_HEAVY never exercised " + c + ": " + agents );
         }
     }
 

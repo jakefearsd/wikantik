@@ -25,6 +25,7 @@ import com.wikantik.collab.testing.SimServer.PushResult;
 import com.wikantik.collab.testing.SimServer.Update;
 import com.wikantik.collab.text.ChangeSet;
 import com.wikantik.collab.text.ChangeSetJson;
+import com.wikantik.collab.text.TextDiff;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +53,9 @@ public final class SimClient {
      * <li>{@code gap}: the receive just before it was a gap and was ignored; {@code fromVersion, version}.</li>
      * <li>{@code push}: a push answer; informational only, not replayed.</li>
      * <li>{@code sendable}: snapshot after each step, {@code version}, the {@code doc} and the {@code sendable} updates; the replay's expected value.</li>
-     * <li>{@code resync}: rejoin; {@code version, clientId, participantId, doc, unsynced}. Later updates carry the new clientId.</li>
+     * <li>{@code resync}: rejoin; {@code version, clientId, participantId, doc, unsynced} (and {@code rebased} when the
+ *     unsent edits were kept, see {@link #rejoin}: the {@code local} entries that follow re-apply them). Later updates
+ *     carry the new clientId.</li>
      * </ul>
      */
     public record TraceEntry( String type, JsonObject data ) {
@@ -68,6 +71,8 @@ public final class SimClient {
     private String clientId;
     private String participantId;
     private String doc;
+    /** The document at {@link #version}: every server update received applied in order, without the unconfirmed ones. */
+    private String synced;
     private int version;
     private List< Update > unconfirmed = new ArrayList<>();
     private String recoveryText = "";
@@ -89,6 +94,7 @@ public final class SimClient {
         this.clientId = joined.clientId();
         this.version = joined.version();
         this.doc = joined.doc();
+        this.synced = joined.doc();
         this.unconfirmed = new ArrayList<>();
     }
 
@@ -110,6 +116,11 @@ public final class SimClient {
 
     public int version() {
         return version;
+    }
+
+    /** The confirmed document (at {@link #version()}, without the unconfirmed local edits). */
+    public String syncedDoc() {
+        return synced;
     }
 
     public String recoveryText() {
@@ -159,6 +170,9 @@ public final class SimClient {
 
     private void apply( final List< Update > updates ) {
         version += updates.size();
+        for ( final Update u : updates ) {
+            synced = u.changes().apply( synced );
+        }
         ChangeSet changes = null;
         int own = 0;
         for ( final Update update : updates ) {
@@ -215,6 +229,39 @@ public final class SimClient {
         trace.add( new TraceEntry( "resync", d ) );
         adopt( fresh );
         snapshot();
+    }
+
+    /**
+     * Section 7.2 "expired participants": the server dropped this participant (409 {@code rejoin}) and the client joined
+     * again under a fresh participant and client id. The unconfirmed edits are rebased onto the fresh document (mapped
+     * through {@code TextDiff.changeSet(syncedDoc, fresh.doc)}, the same rebase loop as {@code receiveUpdates}) and kept,
+     * now under the new client id; nothing goes to the recovery panel.
+     *
+     * <p><b>Only sound when none of the unconfirmed edits was ever sent</b>: a sent one may have been accepted with its
+     * answer lost, and the fresh document would then already hold it. The caller decides (it knows what it sent) and uses
+     * {@link #resync} otherwise (A10).</p>
+     *
+     * <p>Trace: a {@code resync} entry ({@code unsynced} 0, {@code rebased} n) that re-seeds the replay at the fresh
+     * state, followed by one {@code local} entry per rebased edit.</p>
+     */
+    public void rejoin( final Joined fresh ) {
+        ChangeSet changes = TextDiff.changeSet( synced, fresh.doc() );
+        final List< ChangeSet > rebased = new ArrayList<>();
+        for ( final Update u : unconfirmed ) {
+            rebased.add( u.changes().map( changes ) );
+            changes = changes.map( u.changes(), true );
+        }
+        final JsonObject d = new JsonObject();
+        d.addProperty( "version", fresh.version() );
+        d.addProperty( "clientId", fresh.clientId() );
+        d.addProperty( "participantId", fresh.participantId() );
+        d.addProperty( "doc", fresh.doc() );
+        d.addProperty( "unsynced", 0 );
+        d.addProperty( "rebased", rebased.size() );
+        trace.add( new TraceEntry( "resync", d ) );
+        adopt( fresh );
+        snapshot();
+        rebased.forEach( this::localEdit );
     }
 
     public List< TraceEntry > traceEntries() {

@@ -69,6 +69,10 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>Oversize is session state (see {@link #enterOrLeaveOversize}): a publish rewrite can push the doc over
  * {@code maxPageBytes}; pushes may then only shrink it, and the state clears when the doc is back within the limit.</p>
+ *
+ * <p>Every public call holds one {@link ReentrantLock} (the real session's lock, section 7.1), so the F7 harness can
+ * drive it from real threads (E38, E40). {@link #reload} is the F8 crash recovery: a fresh stub rebuilt from the store
+ * alone.</p>
  */
 public final class StubCollabAuthority implements SimServer {
 

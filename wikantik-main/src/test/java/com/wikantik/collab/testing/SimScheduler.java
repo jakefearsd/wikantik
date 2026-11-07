@@ -41,10 +41,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -55,15 +57,25 @@ import java.util.stream.Collectors;
  * parameter it needs, so a run is replayed from its {@link SimTrace} alone ({@link #replay}), not from its seed.
  *
  * <p><b>Clients</b> are {@link SimClient}s driven like {@code collabPeer} will drive the library: at most one in-flight
- * push, pull, publish and join each; a 409 {@code stale-base} pulls and then re-pushes; 409 {@code rejoin} and 410 rejoin
- * and resync (unsynced text to the recovery panel); a 413 also resyncs (the oversize edit cannot ever be accepted). A
- * request unanswered for the profile's step budget times out and is retried at once, as a recorded {@code TIMEOUT} step.
+ * push, pull, publish, leave and join each; a 409 {@code stale-base} pulls and then re-pushes. A 409 {@code rejoin} (the
+ * server dropped the participant: a {@code LEAVE} step or a crash) rejoins (section 7.2 "expired participants"): the
+ * unconfirmed edits are rebased onto the fresh document and kept when none of them was ever sent, otherwise the client
+ * resyncs (A10: a sent edit may already be in the fresh document, so it goes to the recovery panel, never re-applied).
+ * A 410 or 413 resyncs, but first sends {@code leave} for the old participant and waits for its answer, so a straggler
+ * push from the old participant cannot be accepted after its text moved to the recovery panel; the scheduler fails the
+ * run if one ever is. A request unanswered for the profile's step budget times out and is retried at once, as a recorded
+ * {@code TIMEOUT} step.
  * A pull answer that is not the in-flight one (late, duplicated) is still fed to {@link SimClient#receive}, which must
  * ignore what it already has (E11); any other stale answer is ignored.</p>
  *
  * <p><b>Network</b>: requests and answers are {@link SimNetwork} messages; a step may deliver, drop or duplicate any of
  * them. A parked pull's answer comes from {@link SimServer#drainWakeups()}, drained after every server call and queued as
- * an answer to the parked request. {@code ADVANCE_CLOCK} moves the {@link MutableClock}, ticks the server and drains.</p>
+ * an answer to the parked request. {@code ADVANCE_CLOCK} moves the {@link MutableClock}, ticks the server and drains.
+ * {@code CRASH_RECOVER} (F8) discards the server and reloads one over the same store and page writer
+ * ({@link Recovery}); the parked pulls die with it.</p>
+ *
+ * <p><b>Coverage</b>: every run counts what it explored ({@link SimTrace#counters()}, keys below), so a test can assert
+ * that a profile retune did not silently stop exercising a path.</p>
  *
  * <p><b>Checks</b>: {@link CollabInvariants} after every step (replay every {@value #REPLAY_EVERY}th); a 400 or 403
  * answer to a well-formed client request is a protocol failure. At the end, quiescence: faults stop, everything is
@@ -76,6 +88,34 @@ public final class SimScheduler {
     /** The Phase 0 server under test. */
     public static final Function< SimEnv, SimServer > STUB = env -> new StubCollabAuthority( env.pageName(), env.store(),
         env.writer(), env.clock(), env.maxPageBytes(), env.ringSize() );
+    /** The stub's crash recovery: a fresh stub reloaded from the environment's store and writer (F8). */
+    public static final Function< SimEnv, SimServer > STUB_RELOAD = env -> StubCollabAuthority.reload( env.pageName(),
+        env.store(), env.writer(), env.clock(), env.maxPageBytes(), env.ringSize() );
+    /** For server factories with no recovery: a {@code CRASH_RECOVER} step fails the run. */
+    static final Function< SimEnv, SimServer > NO_RELOAD = env -> {
+        throw new UnsupportedOperationException( "this server factory has no reload; CRASH_RECOVER needs one" );
+    };
+
+    /** Counter: an answer delivered for a request that had already been answered (a duplicate). */
+    public static final String DUPLICATE_ANSWERS = "duplicatedResponsesDelivered";
+    /** Counter: a 200 pull answer that was not the client's current pull and still applied updates. */
+    public static final String OUT_OF_ORDER_PULLS = "outOfOrderPullsApplied";
+    /** Counter: a 200 pull answer starting below the client's version (skip &gt; 0, E11). */
+    public static final String TRIMMED_PULLS = "stalePullsTrimmed";
+    /** Counter: parked pulls answered empty by the long-poll timeout (a tick). */
+    public static final String EXPIRED_PULLS = "parkedPullsExpired";
+    /** Counter: participants dropped by a {@code LEAVE} step or a client's own leave. */
+    public static final String LEAVES = "leaves";
+    /** Counter: rejoins that kept (rebased) the client's edits. */
+    public static final String REJOINS = "rejoins";
+    /** Counter: resyncs (fresh state, unsynced text to the recovery panel). */
+    public static final String RESYNCS = "resyncs";
+    /** Counter: {@code CRASH_RECOVER} steps. */
+    public static final String CRASHES = "crashRecovers";
+    /** Counter: pushes from a participant its client had already abandoned, refused by the server. */
+    public static final String RETIRED_REFUSED = "retiredPushesRefused";
+    static final List< String > COUNTERS = List.of( DUPLICATE_ANSWERS, OUT_OF_ORDER_PULLS, TRIMMED_PULLS, EXPIRED_PULLS,
+        LEAVES, REJOINS, RESYNCS, CRASHES, RETIRED_REFUSED );
 
     static final String PAGE = "SimPage";
     /** Small, so pulls regularly fall through the ring to the store (E12). */
@@ -89,17 +129,29 @@ public final class SimScheduler {
     private final long seed;
     private final SimProfile profile;
     private final Function< SimEnv, SimServer > serverFactory;
+    private final Function< SimEnv, SimServer > reload;
     private final int clients;
 
+    /** {@link #STUB} gets {@link #STUB_RELOAD} for crash steps; any other factory gets none. */
     public SimScheduler( final long seed, final SimProfile profile, final Function< SimEnv, SimServer > serverFactory,
                          final int clients ) {
+        this( seed, profile, serverFactory, defaultReload( serverFactory ), clients );
+    }
+
+    public SimScheduler( final long seed, final SimProfile profile, final Function< SimEnv, SimServer > serverFactory,
+                         final Function< SimEnv, SimServer > reload, final int clients ) {
         if( clients < 1 || clients > 26 ) {
             throw new IllegalArgumentException( "clients must be 1..26: " + clients );
         }
         this.seed = seed;
         this.profile = Objects.requireNonNull( profile );
         this.serverFactory = Objects.requireNonNull( serverFactory );
+        this.reload = Objects.requireNonNull( reload );
         this.clients = clients;
+    }
+
+    static Function< SimEnv, SimServer > defaultReload( final Function< SimEnv, SimServer > factory ) {
+        return factory == STUB ? STUB_RELOAD : NO_RELOAD;
     }
 
     /** Generates and executes up to {@code steps} steps (fewer if one fails), then drives the run to quiescence. */
@@ -108,7 +160,7 @@ public final class SimScheduler {
         final String initialDoc = rnd.nextInt( 10 ) == 0 ? "" : text( rnd, rnd.nextInt( 120 ) );
         final SimTrace header = new SimTrace( seed, profile, PAGE, profile.maxPageBytes(), RING_SIZE, profile.rewrite(),
             clients, initialDoc, List.of(), Outcome.NOT_RUN, List.of() );
-        final World w = new World( header, serverFactory );
+        final World w = new World( header, serverFactory, reload );
         final List< Step > done = new ArrayList<>();
         Outcome o = w.start();
         for( int i = 0; i < steps && o == null; i++ ) {
@@ -119,12 +171,17 @@ public final class SimScheduler {
         if( o == null ) {
             o = w.quiesce();
         }
-        return header.withSteps( done ).withResult( o, w.clientTraces() );
+        return header.withSteps( done ).withResult( o, w.clientTraces(), w.counters() );
     }
 
     /** Executes exactly the trace's steps against a fresh server (no randomness), then quiescence. */
     public static SimTrace replay( final SimTrace trace, final Function< SimEnv, SimServer > serverFactory ) {
-        final World w = new World( trace, serverFactory );
+        return replay( trace, serverFactory, defaultReload( serverFactory ) );
+    }
+
+    public static SimTrace replay( final SimTrace trace, final Function< SimEnv, SimServer > serverFactory,
+                                   final Function< SimEnv, SimServer > reload ) {
+        final World w = new World( trace, serverFactory, reload );
         Outcome o = w.start();
         for( final Step s : trace.steps() ) {
             if( o != null ) {
@@ -135,7 +192,7 @@ public final class SimScheduler {
         if( o == null ) {
             o = w.quiesce();
         }
-        return trace.withSteps( trace.steps() ).withResult( o, w.clientTraces() );
+        return trace.withSteps( trace.steps() ).withResult( o, w.clientTraces(), w.counters() );
     }
 
     // ---- random generation (run only; never called during execution) ------------------------------------------
@@ -173,6 +230,17 @@ public final class SimScheduler {
         return s.getBytes( StandardCharsets.UTF_8 ).length;
     }
 
+    /** A scheduler-detected failure with a precise {@link Outcome#kind} for the shrinker. */
+    static final class SimFailure extends AssertionError {
+        private static final long serialVersionUID = 1L;
+        final String kind;
+
+        SimFailure( final String kind, final String message ) {
+            super( message );
+            this.kind = kind;
+        }
+    }
+
     // ---- one run ----------------------------------------------------------------------------------------------
 
     private static final class Peer {
@@ -183,11 +251,19 @@ public final class SimScheduler {
         String pull;
         String join;
         String publish;
+        String leave;
         int pushAt;
         int pullAt;
         int joinAt;
         int publishAt;
+        int leaveAt;
         boolean repush;
+        /** The pending join must resync (recovery panel) rather than rejoin with the edits rebased. */
+        boolean resync;
+        /** How many of the leading unconfirmed updates have been sent in some push (and so may have been accepted). */
+        int sent;
+        /** Participants this client abandoned by rejoining or resyncing: none may ever have a push accepted again. */
+        final Set< String > retired = new HashSet<>();
 
         Peer( final String name, final String authorKey ) {
             this.name = name;
@@ -199,7 +275,11 @@ public final class SimScheduler {
         private final SimTrace header;
         private final SimProfile profile;
         private final Function< SimEnv, SimServer > factory;
+        private final Function< SimEnv, SimServer > reload;
         private final SimNetwork net = new SimNetwork();
+        private final Map< String, Long > counters = new LinkedHashMap<>();
+        /** Request ids whose answer has been delivered at least once. */
+        private final Set< String > answered = new HashSet<>();
         private final List< Peer > peers = new ArrayList<>();
         private final Map< String, Integer > clientOf = new LinkedHashMap<>();
         /** Per participant, the pulls the server holds, oldest first: {@code requestId -> since}. */
@@ -210,10 +290,20 @@ public final class SimScheduler {
         private int seq;
         private int ordinal;
 
-        World( final SimTrace header, final Function< SimEnv, SimServer > factory ) {
+        World( final SimTrace header, final Function< SimEnv, SimServer > factory, final Function< SimEnv, SimServer > reload ) {
             this.header = header;
             this.profile = header.profile();
             this.factory = factory;
+            this.reload = reload;
+            COUNTERS.forEach( c -> counters.put( c, 0L ) );
+        }
+
+        Map< String, Long > counters() {
+            return counters;
+        }
+
+        private void count( final String counter, final long n ) {
+            counters.merge( counter, n, Long::sum );
         }
 
         List< SimTrace.ClientTrace > clientTraces() {
@@ -275,7 +365,7 @@ public final class SimScheduler {
                     final int c = rnd.nextInt( peers.size() );
                     yield edit( s.client( c ), peers.get( c ).sim.doc(), rnd );
                 }
-                case SEND_PUSH, SEND_PULL, PUBLISH -> s.client( pickClient( pick, rnd ) );
+                case SEND_PUSH, SEND_PULL, PUBLISH, LEAVE -> s.client( pickClient( pick, rnd ) );
                 case DELIVER, DROP, DUPLICATE -> {
                     // any message may go next (free reordering), biased towards the oldest so the backlog stays short
                     final List< String > ids = net.ids();
@@ -304,6 +394,9 @@ public final class SimScheduler {
             if( overdue( p.publish, p.publishAt, i, profile.pushTimeoutSteps() ) ) {
                 return "publish";
             }
+            if( overdue( p.leave, p.leaveAt, i, profile.pushTimeoutSteps() ) ) {
+                return "leave";
+            }
             return null;
         }
 
@@ -320,20 +413,21 @@ public final class SimScheduler {
         }
 
         private boolean canSend( final Kind k, final Peer p ) {
-            if( p.join != null ) {
+            if( p.join != null || p.leave != null ) {
                 return false;
             }
             return switch( k ) {
                 case SEND_PUSH -> p.push == null && !p.sim.sendable().isEmpty();
                 case SEND_PULL -> p.pull == null;
                 case PUBLISH -> p.publish == null;
+                case LEAVE -> true;
                 default -> false;
             };
         }
 
         private boolean eligible( final Kind k ) {
             return switch( k ) {
-                case SEND_PUSH, SEND_PULL, PUBLISH -> peers.stream().anyMatch( p -> canSend( k, p ) );
+                case SEND_PUSH, SEND_PULL, PUBLISH, LEAVE -> peers.stream().anyMatch( p -> canSend( k, p ) );
                 case DELIVER, DROP, DUPLICATE -> !net.isEmpty();
                 default -> true;
             };
@@ -415,13 +509,26 @@ public final class SimScheduler {
                     case ADVANCE_CLOCK -> {
                         env.clock().advance( Duration.ofMillis( s.millis() ) );
                         server.tick();
-                        drain();
+                        count( EXPIRED_PULLS, drain() );
                     }
                     case EXTERNAL_SAVE -> {
                         final String body = writerBody();
                         env.writer().externalSave( header.pageName(), replaceIn( body, s ).apply( body ), Map.of(), "agent" );
                     }
-                    case CRASH_RECOVER -> throw new UnsupportedOperationException( "CRASH_RECOVER is wired by Task 14 (ruling R1)" );
+                    case CRASH_RECOVER -> {
+                        // F8: the server and everything it held in memory (participants, parked pulls) is gone
+                        server = Recovery.recover( env.store(), env.writer(), ( st, wr ) -> reload.apply( env ) );
+                        parked.clear();
+                        count( CRASHES, 1 );
+                    }
+                    case LEAVE -> withPeer( s, p -> {
+                        // the server drops the participant (presence timeout) without telling the client
+                        if( p.join == null && p.leave == null ) {
+                            server.leave( p.sim.participantId() );
+                            count( LEAVES, 1 );
+                            drain();
+                        }
+                    } );
                     case TIMEOUT -> withPeer( s, p -> timeout( p, s.op() ) );
                 }
                 return afterStep( s.id() % REPLAY_EVERY == 0 );
@@ -466,6 +573,7 @@ public final class SimScheduler {
             final String id = newId();
             net.send( new Message( id, Type.PUSH, indexOf( p ), id, p.sim.participantId(), p.sim.version(),
                 p.sim.sendable(), null ) );
+            p.sent = p.sim.sendable().size();
             p.push = id;
             p.pushAt = ordinal;
         }
@@ -488,6 +596,34 @@ public final class SimScheduler {
             net.send( new Message( id, Type.PUBLISH, indexOf( p ), id, p.sim.participantId(), p.sim.version(), null, null ) );
             p.publish = id;
             p.publishAt = ordinal;
+        }
+
+        /** 409 {@code rejoin}: the server already dropped the participant, so join at once (7.2 expired participants). */
+        private void startRejoin( final Peer p ) {
+            if( p.join != null || p.leave != null ) {
+                return;
+            }
+            p.resync = false;
+            startJoin( p );
+        }
+
+        /**
+         * 410 / 413: resync. The old participant is still known to the server, so leave it first and join only once the
+         * leave is answered: a straggler push from it can then never be accepted after the text moved to recovery (A10).
+         */
+        private void startResync( final Peer p ) {
+            p.resync = true;
+            if( p.join != null || p.leave != null ) {
+                return; // a rejoin in progress (its participant is already gone) becomes a resync
+            }
+            sendLeave( p );
+        }
+
+        private void sendLeave( final Peer p ) {
+            final String id = newId();
+            net.send( new Message( id, Type.LEAVE, indexOf( p ), id, p.sim.participantId(), 0, null, null ) );
+            p.leave = id;
+            p.leaveAt = ordinal;
         }
 
         private void startJoin( final Peer p ) {
@@ -521,6 +657,12 @@ public final class SimScheduler {
                     }
                 }
                 case "publish" -> p.publish = null;
+                case "leave" -> {
+                    if( p.leave != null ) {
+                        p.leave = null;
+                        sendLeave( p );
+                    }
+                }
                 default -> throw new IllegalArgumentException( "unknown timeout op " + op );
             }
         }
@@ -533,6 +675,9 @@ public final class SimScheduler {
             if( m.type().request() ) {
                 serve( m );
             } else {
+                if( !answered.add( m.requestId() ) ) {
+                    count( DUPLICATE_ANSWERS, 1 );
+                }
                 answer( m );
             }
         }
@@ -545,7 +690,18 @@ public final class SimScheduler {
         private void serve( final Message m ) {
             final Peer p = peers.get( m.client() );
             switch( m.type() ) {
-                case PUSH -> reply( m, Type.PUSH_RESULT, server.push( m.participantId(), p.authorKey, m.version(), m.updates() ) );
+                case PUSH -> {
+                    final PushResult r = server.push( m.participantId(), p.authorKey, m.version(), m.updates() );
+                    if( p.retired.contains( m.participantId() ) ) {
+                        if( r.status() == 200 && !m.updates().isEmpty() ) {
+                            throw new SimFailure( "protocol/straggler", "protocol: a straggler push from client " + p.name
+                                + "'s abandoned participant " + m.participantId() + " was accepted after the client moved on"
+                                + " (its text may be in the recovery panel: A10 never re-apply)" );
+                        }
+                        count( RETIRED_REFUSED, 1 );
+                    }
+                    reply( m, Type.PUSH_RESULT, r );
+                }
                 case PULL -> {
                     final PullResult r = server.pull( m.participantId(), p.authorKey, m.version() );
                     if( r.parked() ) {
@@ -561,27 +717,35 @@ public final class SimScheduler {
                     clientOf.put( j.participantId(), m.client() );
                     reply( m, Type.JOINED, j );
                 }
+                case LEAVE -> {
+                    server.leave( m.participantId() );
+                    count( LEAVES, 1 );
+                    reply( m, Type.LEFT, null );
+                }
                 default -> throw new IllegalStateException( "not a request: " + m );
             }
             drain();
         }
 
-        /** Queues every completed parked pull as the answer to the request that parked it. */
-        private void drain() {
-            for( final Wakeup w : server.drainWakeups() ) {
+        /** Queues every completed parked pull as the answer to the request that parked it; returns how many. */
+        private int drain() {
+            final List< Wakeup > wakeups = server.drainWakeups();
+            for( final Wakeup w : wakeups ) {
                 final Deque< Map.Entry< String, Integer > > q = parked.get( w.participantId() );
                 final Map.Entry< String, Integer > req = q == null ? null : q.pollFirst();
                 if( req == null ) {
-                    throw new AssertionError( "protocol: wakeup for " + w.participantId()
+                    throw new SimFailure( "protocol/orphan-wakeup", "protocol: wakeup for " + w.participantId()
                         + " with no parked pull (F6: every pull is answered exactly once)" );
                 }
                 if( w.result().parked() ) {
-                    throw new AssertionError( "protocol: a wakeup answer for " + w.participantId() + " is itself parked" );
+                    throw new SimFailure( "protocol/parked-wakeup", "protocol: a wakeup answer for " + w.participantId()
+                        + " is itself parked" );
                 }
                 final Integer c = clientOf.get( w.participantId() );
                 net.send( new Message( newId(), Type.PULL_RESULT, c, req.getKey(), w.participantId(), req.getValue(), null,
                     w.result() ) );
             }
+            return wakeups.size();
         }
 
         private boolean isParked( final String requestId ) {
@@ -589,8 +753,8 @@ public final class SimScheduler {
         }
 
         private static AssertionError refused( final Peer p, final String what, final int status, final String reason ) {
-            return new AssertionError( "protocol: client " + p.name + "'s well-formed " + what + " was answered " + status
-                + " " + reason );
+            return new SimFailure( "protocol/refused " + what + " " + status + " " + reason, "protocol: client " + p.name
+                + "'s well-formed " + what + " was answered " + status + " " + reason );
         }
 
         private void answer( final Message m ) {
@@ -614,7 +778,22 @@ public final class SimScheduler {
                         p.pull = null;
                         p.publish = null;
                         p.repush = false;
-                        p.sim.resync( (Joined) m.result() );
+                        p.retired.add( p.sim.participantId() );
+                        if( !p.resync && p.sent == 0 ) {
+                            p.sim.rejoin( (Joined) m.result() );
+                            count( REJOINS, 1 );
+                        } else {
+                            p.sim.resync( (Joined) m.result() );
+                            count( RESYNCS, 1 );
+                        }
+                        p.resync = false;
+                        p.sent = 0;
+                    }
+                }
+                case LEFT -> {
+                    if( m.requestId().equals( p.leave ) ) {
+                        p.leave = null;
+                        startJoin( p );
                     }
                 }
                 default -> throw new IllegalStateException( "not an answer: " + m );
@@ -634,12 +813,12 @@ public final class SimScheduler {
                         p.repush = true;
                         sendPull( p );
                     } else if( "rejoin".equals( r.reason() ) ) {
-                        startJoin( p );
+                        startRejoin( p );
                     } else {
                         throw refused( p, "push", r.status(), r.reason() );
                     }
                 }
-                case 413 -> startJoin( p );
+                case 413 -> startResync( p );
                 case 503 -> { } // store fault: retried by a later push; "poisoned" ends the run in afterStep
                 default -> throw refused( p, "push", r.status(), r.reason() );
             }
@@ -652,7 +831,17 @@ public final class SimScheduler {
                 p.pull = null;
             }
             if( r.status() == 200 ) {
+                final int before = p.sim.version();
+                final int unconfirmed = p.sim.sendable().size();
+                if( since < before && !r.updates().isEmpty() ) {
+                    count( TRIMMED_PULLS, 1 );
+                }
                 p.sim.receive( r.updates(), since );
+                if( !current && p.sim.version() > before ) {
+                    count( OUT_OF_ORDER_PULLS, 1 );
+                }
+                // own updates confirmed come off the front of the unconfirmed list, which is where the sent ones are
+                p.sent = Math.max( 0, p.sent - ( unconfirmed - p.sim.sendable().size() ) );
                 if( current && p.repush ) {
                     p.repush = false;
                     sendPush( p );
@@ -663,7 +852,8 @@ public final class SimScheduler {
                 return;
             }
             switch( r.status() ) {
-                case 409, 410 -> startJoin( p );
+                case 409 -> startRejoin( p );
+                case 410 -> startResync( p );
                 case 503 -> { }
                 default -> throw refused( p, "pull", r.status(), r.reason() );
             }
@@ -684,7 +874,8 @@ public final class SimScheduler {
             return guarded( () -> {
                 for( int round = 1; ; round++ ) {
                     if( round > MAX_QUIESCENCE_ROUNDS ) {
-                        throw new AssertionError( "convergence: no quiescence after " + MAX_QUIESCENCE_ROUNDS + " rounds" );
+                        throw new SimFailure( "convergence/no-quiescence", "convergence: no quiescence after "
+                            + MAX_QUIESCENCE_ROUNDS + " rounds" );
                     }
                     tag = "q" + round;
                     seq = 0;
@@ -695,7 +886,7 @@ public final class SimScheduler {
                             return u;
                         }
                         if( seq > 100_000 ) {
-                            throw new AssertionError( "convergence: the network never drained" );
+                            throw new SimFailure( "convergence/network", "convergence: the network never drained" );
                         }
                     }
                     if( !retryAll() ) {
@@ -705,12 +896,12 @@ public final class SimScheduler {
                 final InvariantView v = server.view();
                 for( final Peer p : peers ) {
                     if( !p.sim.doc().equals( v.doc() ) ) {
-                        throw new AssertionError( "convergence: client " + p.name + " differs from the server "
+                        throw new SimFailure( "convergence/doc", "convergence: client " + p.name + " differs from the server "
                             + firstDifference( p.sim.doc(), v.doc() ) );
                     }
                     if( p.sim.version() != v.head() ) {
-                        throw new AssertionError( "convergence: client " + p.name + " at version " + p.sim.version()
-                            + " but head is " + v.head() );
+                        throw new SimFailure( "convergence/version", "convergence: client " + p.name + " at version "
+                            + p.sim.version() + " but head is " + v.head() );
                     }
                 }
                 CollabInvariants.check( v, true );
@@ -724,6 +915,12 @@ public final class SimScheduler {
             boolean progress = false;
             final int head = server.view().head();
             for( final Peer p : peers ) {
+                if( p.leave != null ) {
+                    p.leave = null;
+                    sendLeave( p );
+                    progress = true;
+                    continue;
+                }
                 if( p.join != null ) {
                     p.join = null;
                     startJoin( p );
@@ -759,11 +956,15 @@ public final class SimScheduler {
         private Outcome guarded( final Body b ) {
             try {
                 return b.run();
+            } catch( final SimFailure e ) {
+                return new Outcome( Status.FAIL, String.valueOf( e.getMessage() ), tag, e.kind );
             } catch( final AssertionError e ) {
                 return new Outcome( Status.FAIL, String.valueOf( e.getMessage() ), tag );
             } catch( final RuntimeException e ) {
-                return new Outcome( Status.FAIL, "exception: " + e + " at " + Arrays.stream( e.getStackTrace() ).limit( 4 )
-                    .map( StackTraceElement::toString ).collect( Collectors.joining( " < " ) ), tag );
+                final StackTraceElement[] st = e.getStackTrace();
+                return new Outcome( Status.FAIL, "exception: " + e + " at " + Arrays.stream( st ).limit( 4 )
+                    .map( StackTraceElement::toString ).collect( Collectors.joining( " < " ) ), tag,
+                    "exception " + e.getClass().getName() + " at " + ( st.length > 0 ? st[ 0 ] : "?" ) );
             }
         }
 

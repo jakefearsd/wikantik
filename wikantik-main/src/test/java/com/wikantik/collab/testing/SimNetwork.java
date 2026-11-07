@@ -35,17 +35,17 @@ import java.util.Map;
 public final class SimNetwork {
 
     /** Requests carry the protocol call; answers carry the server's result for {@code requestId}. */
-    public enum Type { PUSH, PULL, PUBLISH, JOIN, PUSH_RESULT, PULL_RESULT, PUBLISH_RESULT, JOINED;
+    public enum Type { PUSH, PULL, PUBLISH, JOIN, LEAVE, PUSH_RESULT, PULL_RESULT, PUBLISH_RESULT, JOINED, LEFT;
 
         public boolean request() {
-            return ordinal() <= JOIN.ordinal();
+            return ordinal() <= LEAVE.ordinal();
         }
     }
 
     /**
      * One message. Requests: {@code participantId}, {@code version} (push/publish base, pull {@code since}) and, for a
      * push, {@code updates}. Answers: {@code requestId} and {@code result} (a {@code PushResult}, {@code PullResult},
-     * {@code PublishResult} or {@code Joined}).
+     * {@code PublishResult}, {@code Joined}, or none for {@code LEFT}).
      */
     public record Message( String id, Type type, int client, String requestId, String participantId, int version,
                            List< Update > updates, Object result ) {

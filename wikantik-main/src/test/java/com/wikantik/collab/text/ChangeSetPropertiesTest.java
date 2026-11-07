@@ -188,6 +188,16 @@ class ChangeSetPropertiesTest {
     }
 
     @Test
+    void anEmptySideDoesNotExcuseALengthMismatch() {
+        // Deliberate divergence: CodeMirror's compose/map return the other set unchecked when one side is empty,
+        // handing back a set of the wrong length. The server relies on these throwing instead.
+        assertThrows( IllegalArgumentException.class,
+                () -> ChangeSet.empty( 5 ).compose( ChangeSet.replace( 7, 0, 1, "x" ) ) );
+        assertThrows( IllegalArgumentException.class,
+                () -> ChangeSet.replace( 3, 0, 1, "x" ).map( ChangeSet.empty( 4 ) ) );
+    }
+
+    @Test
     void mapPosFollowsAssociationAtAnInsertion() {
         final ChangeSet insertAt1 = ChangeSet.replace( 3, 1, 1, "XY" );
         assertEquals( 1, insertAt1.mapPos( 1, -1 ) );

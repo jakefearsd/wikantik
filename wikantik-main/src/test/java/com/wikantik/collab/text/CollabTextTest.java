@@ -75,4 +75,16 @@ class CollabTextTest {
         assertThrows( IllegalArgumentException.class,
                 () -> CollabText.splitsSurrogatePair( "abc", ChangeSet.replace( 4, 0, 0, "x" ) ) );
     }
+
+    @Test
+    void adjacentChangesThatTogetherReplaceAPairDoNotSplitIt() {
+        // ChangeSet.of produces this shape: two adjacent changes, one per half, together replacing the whole pair
+        assertFalse( CollabText.splitsSurrogatePair( EMOJI,
+                ChangeSetJson.fromJson( JsonParser.parseString( "[[1, \"x\"], [1, \"y\"]]" ).getAsJsonArray() ) ) );
+        // ...but a run of adjacent changes whose outer end is inside a pair does split it
+        assertTrue( CollabText.splitsSurrogatePair( "a" + EMOJI,
+                ChangeSetJson.fromJson( JsonParser.parseString( "[[1, \"x\"], [1, \"y\"], 1]" ).getAsJsonArray() ) ) );
+        assertTrue( CollabText.splitsSurrogatePair( EMOJI,
+                ChangeSetJson.fromJson( JsonParser.parseString( "[[1, \"x\"], 1]" ).getAsJsonArray() ) ) );
+    }
 }

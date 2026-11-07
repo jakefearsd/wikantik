@@ -74,13 +74,11 @@ public final class CollabText {
             throw new IllegalArgumentException( "Change set of length " + cs.length() + " does not apply to a document of length "
                     + doc.length() );
         }
-        int posA = 0;
-        for ( int i = 0; i < cs.sectionCount(); i++ ) {
-            final int len = cs.sectionLength( i );
-            if ( cs.sectionInsert( i ) >= 0 && ( insidePair( doc, posA ) || insidePair( doc, posA + len ) ) ) {
+        // Adjacent changes are merged first: two changes that each take one half of a pair replace it whole.
+        for ( final int[] range : cs.touchedRanges() ) {
+            if ( insidePair( doc, range[ 0 ] ) || insidePair( doc, range[ 1 ] ) ) {
                 return true;
             }
-            posA += len;
         }
         return false;
     }

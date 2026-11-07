@@ -119,6 +119,13 @@ class ChangeSetConformanceTest {
         // an inserted line may not itself hold a line break: the line-array form is the only break
         assertRejected( json( "[[1, \"a\\nb\"]]" ), "line break" );
         assertRejected( json( "[[1, \"a\\rb\"]]" ), "line break" );
+        // zero-length sections: CodeMirror's toJSON never emits them, and its compose/map mishandle them
+        // ([1,0,2] composed with an insert doubles the insert; a trailing 0 makes compose and map throw)
+        assertRejected( json( "[1, 0, 2]" ), "zero-length section at element 1" );
+        assertRejected( json( "[3, 0]" ), "zero-length section at element 1" );
+        assertRejected( json( "[0]" ), "zero-length section at element 0" );
+        assertRejected( json( "[1, [0], 2]" ), "zero-length section at element 1" );
+        assertRejected( json( "[[0, \"\"], 3]" ), "zero-length section at element 0" );
         // a document length past what a String can hold
         assertRejected( json( "[2147483647, 1]" ), "too long" );
         assertRejected( json( "[[0, \"a\"], 2147483647]" ), "too long" );

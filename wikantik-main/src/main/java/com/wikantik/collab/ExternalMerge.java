@@ -115,6 +115,11 @@ final class ExternalMerge {
      * hash, so its text is merged when it differs from the base, its version becomes the base either way (the next
      * publish saves on it), and the draft's local edits are rebased on top. A gone page merges nothing (the delete
      * listener freezes the draft).
+     *
+     * <p>Caveat: a latest version below the base is also what {@code deleteVersion} of the newest version produces (the
+     * page's latest falls back to an older version), so that is read as "recreated" too: the older version's text is
+     * merged as one external change with {@code recreated: true}. That is the right text for the draft to follow; only
+     * the flag's name is loose.</p>
      */
     private Result belowBase( final String page, final int b, final List< Runnable > completions ) {
         final Optional< PageState > latest = writer.latest( page );

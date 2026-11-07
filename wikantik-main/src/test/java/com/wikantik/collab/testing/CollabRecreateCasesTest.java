@@ -180,8 +180,7 @@ class CollabRecreateCasesTest {
         final InvariantView v = server.view();
         assertEquals( recreated, v.basePageVersion(), "the recreated page is the draft's base" );
         assertEquals( "recreated\n", v.baseBody() );
-        assertTrue( v.doc().contains( "recreated\n" ) && v.doc().contains( "mine\n" ),
-            "the recreated text is merged and the local edits rebased on it: " + v.doc() );
+        assertEquals( "recreated\nmine\n", v.doc(), "the recreated text is merged and the local edits rebased on it" );
         assertEquals( "mine\n", v.local().apply( v.baseBody() ).replace( "recreated\n", "" ) );
         final List< CollabEvent > changes = events( server, a, "external-change" );
         assertEquals( Boolean.TRUE, changes.get( changes.size() - 1 ).fields().get( "recreated" ) );
@@ -227,6 +226,7 @@ class CollabRecreateCasesTest {
         server.externalSaved( writer.externalSave( PAGE, "three\n", Map.of(), "agent" ) );
         type( server, a, "mine\n" );
         final InvariantView before = server.view();
+        final int changesBefore = events( server, a, "external-change" ).size();
         server.externalSaved( 1 );             // late, and out of order
         server.externalSaved( 2 );
         server.externalSaved( 3 );             // a repeat of the base
@@ -235,7 +235,75 @@ class CollabRecreateCasesTest {
         assertEquals( before.head(), after.head() );
         assertEquals( before.doc(), after.doc() );
         assertEquals( "three\nmine\n", after.doc() );
+        assertEquals( changesBefore, events( server, a, "external-change" ).size(),
+            "a stale event emits no external-change event" );
         CollabInvariants.check( after, true );
+    }
+
+    /**
+     * A stale event while the page's latest version is above the base: the event merges nothing (the latest version is
+     * merged by its own event, or by settle), and settle then merges that latest version once.
+     */
+    @Test
+    void aStaleEventWhileTheLatestIsAboveTheBaseMergesNothingUntilSettle() {
+        final ScriptedPageWriter writer = new ScriptedPageWriter();
+        writer.seed( PAGE, "one\n", Map.of() );
+        final InMemoryCollabStore store = new InMemoryCollabStore();
+        final CollabSessionSimServer server = server( writer, store );
+        final Joined a = server.join( A );
+        server.externalSaved( writer.externalSave( PAGE, "two\n", Map.of(), "agent" ) );
+        writer.externalSave( PAGE, "three\n", Map.of(), "agent" );   // version 3: its event was missed
+        type( server, a, "mine\n" );
+        final InvariantView before = server.view();
+        final int changesBefore = events( server, a, "external-change" ).size();
+        server.externalSaved( 1 );
+        final InvariantView after = server.view();
+        assertEquals( 2, after.basePageVersion(), "a stale event does not move the base" );
+        assertEquals( before.head(), after.head() );
+        assertEquals( "two\nmine\n", after.doc() );
+        assertEquals( changesBefore, events( server, a, "external-change" ).size() );
+        server.settle();
+        final InvariantView settled = server.view();
+        assertEquals( 3, settled.basePageVersion(), "settle merges the latest version" );
+        assertEquals( "three\nmine\n", settled.doc() );
+        assertEquals( changesBefore + 1, events( server, a, "external-change" ).size() );
+        CollabInvariants.check( settled, true );
+    }
+
+    /**
+     * A page-store read failure inside {@code belowBase} (the page was deleted and recreated under the draft, and its
+     * latest version cannot be read): nothing merges, the base and the draft stay as they were (never emptied), the
+     * merge is owed, and settle merges the recreated page once the store reads again.
+     */
+    @Test
+    void aReadFailureInBelowBaseLeavesTheDraftUntouchedAndIsRetried() {
+        final ScriptedPageWriter writer = new ScriptedPageWriter();
+        writer.seed( PAGE, "one\n", Map.of() );
+        final InMemoryCollabStore store = new InMemoryCollabStore();
+        final CollabSessionSimServer server = server( writer, store );
+        final Joined a = server.join( A );
+        server.externalSaved( writer.externalSave( PAGE, "two\n", Map.of(), "agent" ) );
+        type( server, a, "mine\n" );
+        final InvariantView before = server.view();
+        final int changesBefore = events( server, a, "external-change" ).size();
+        writer.delete( PAGE );
+        final int recreated = writer.externalSave( PAGE, "recreated\n", Map.of(), "other" );
+        final PageState event = writer.latest( PAGE ).orElseThrow();   // the listener's already-read state
+        writer.failReads( true );
+        server.session().reconcile( event );   // mergeTo -> belowBase reads latest: throws inside
+        InvariantView v = server.view();
+        assertEquals( before.basePageVersion(), v.basePageVersion() );
+        assertEquals( "two\n", v.baseBody(), "the base is not emptied" );
+        assertEquals( before.doc(), v.doc() );
+        assertEquals( changesBefore, events( server, a, "external-change" ).size() );
+        assertFalse( server.reconciled(), "the merge is owed" );
+        writer.failReads( false );
+        server.settle();
+        v = server.view();
+        assertEquals( recreated, v.basePageVersion() );
+        assertEquals( "recreated\nmine\n", v.doc() );
+        assertTrue( server.reconciled() );
+        CollabInvariants.check( v, true );
     }
 
     /**
@@ -261,7 +329,7 @@ class CollabRecreateCasesTest {
         assertEquals( 409, held.status(), held.toString() );
         final InvariantView v = server.view();
         assertEquals( recreated, v.basePageVersion(), "merged by the publish's end" );
-        assertTrue( v.doc().contains( "recreated\n" ) && v.doc().contains( "mine\n" ), v.doc() );
+        assertEquals( "recreated\nmine\n", v.doc() );
         CollabInvariants.check( v, true );
         final PublishResult r = server.publish( a.participantId(), A, v.head(), "retry" );
         assertEquals( 200, r.status(), r.toString() );

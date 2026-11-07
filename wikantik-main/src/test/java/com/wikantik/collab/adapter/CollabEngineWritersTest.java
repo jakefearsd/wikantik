@@ -282,6 +282,59 @@ class CollabEngineWritersTest {
         assertEquals( 2, a.session().view().basePageVersion() );
     }
 
+    /**
+     * The content-destroying defect, pinned through a real engine (the IT-equivalent: a Cargo IT cannot make the page
+     * provider's reads fail on demand). The engine's lenient read paths answer "" on a provider error; a writer built on
+     * them would merge "" as an outside write that empties the draft's base. Here the page text cannot be read while
+     * another writer saves: the event must leave the draft's base, document and local edits exactly as they were, emit
+     * no {@code external-change}, and the write must be merged once the store reads again.
+     */
+    @Test
+    void aTransientPageReadFailureDuringASaveEventNeverEmptiesTheDraftsBase() throws Exception {
+        engine.saveText( PAGE, BODY );
+        wiring.close();
+        final PageManager flaky = spy( pm );
+        final java.util.concurrent.atomic.AtomicBoolean unreadable = new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer( inv -> {
+            if( unreadable.get() ) {
+                throw new ProviderException( "test: the page store cannot read" );
+            }
+            return inv.callRealMethod();
+        } ).when( flaky ).getPageText( any(), org.mockito.ArgumentMatchers.anyInt() );
+        doAnswer( inv -> unreadable.get() ? "" : inv.callRealMethod() )   // the lenient path, were a writer to use it
+            .when( flaky ).getPureText( any( String.class ), org.mockito.ArgumentMatchers.anyInt() );
+        wiring = CollabWiring.wireWith( engine, enabled(), store, flaky );
+        registry = CollabEngineAccess.registry( engine );
+        final Joined a = join( PAGE );
+        assertEquals( 200, type( a, "mine " ).status() );
+        final CollabSession.View before = a.session().view();
+
+        unreadable.set( true );
+        new PageSaveHelper( engine, pm ).saveTracked( PAGE, BODY + "from the api\n",
+            SaveOptions.builder().author( "Bot" ).build() );
+
+        final CollabSession.View during = a.session().view();
+        assertEquals( BODY, during.baseBody(), "the base is never emptied by an unreadable page" );
+        assertEquals( 1, during.basePageVersion() );
+        assertEquals( before.doc(), during.doc(), "the draft text is untouched" );
+        assertEquals( "mine " + BODY, during.doc() );
+        assertEquals( 0, serverUpdates( a ), "nothing merged while the page cannot be read" );
+        assertTrue( events( a, "external-change" ).isEmpty() );
+
+        unreadable.set( false );
+        registry.tick();
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 10 );
+        while( a.session().view().basePageVersion() != 2 && System.nanoTime() < deadline ) {
+            Thread.sleep( 50 );
+            registry.tick();
+        }
+        final CollabSession.View after = a.session().view();
+        assertEquals( 2, after.basePageVersion(), "the missed write is merged once the store reads again" );
+        assertEquals( pageBody( PAGE ), after.baseBody() );
+        assertTrue( after.doc().contains( "from the api" ) && after.doc().contains( "mine " ), after.doc() );
+        assertEquals( 1, events( a, "external-change" ).size() );
+    }
+
     private static java.util.Properties enabled() {
         final java.util.Properties p = new java.util.Properties();
         p.setProperty( "wikantik.collab.enabled", "true" );

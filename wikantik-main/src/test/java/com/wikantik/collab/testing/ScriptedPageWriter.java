@@ -21,6 +21,7 @@ package com.wikantik.collab.testing;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.collab.CollabPageWriter;
+import com.wikantik.collab.PageReadException;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
@@ -95,6 +96,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
     private Exception failNext;
     private Exception persistThenFailNext;
     private volatile Duration releaseTimeout = DEFAULT_RELEASE_TIMEOUT;
+    private volatile boolean readsFail;
 
     /**
      * The message of the page-gone conflict: a publish with {@code expectedVersion > 0} to a page that does not exist
@@ -165,6 +167,20 @@ public final class ScriptedPageWriter implements CollabPageWriter {
             rewrite = Objects.requireNonNull( fn );
         } finally {
             lock.unlock();
+        }
+    }
+
+    /**
+     * Read-fault hook: while on, {@link #latest} and {@link #version} throw {@link PageReadException}, the way the real
+     * adapter answers when the page store cannot tell (never "absent", never an empty body).
+     */
+    public void failReads( final boolean on ) {
+        readsFail = on;
+    }
+
+    private void checkReadable( final String pageName ) {
+        if( readsFail ) {
+            throw new PageReadException( "test: the page store cannot read " + pageName );
         }
     }
 
@@ -255,6 +271,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
 
     @Override
     public Optional< PageState > latest( final String pageName ) {
+        checkReadable( pageName );
         lock.lock();
         try {
             final List< Version > v = pages.get( pageName );
@@ -266,6 +283,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
 
     @Override
     public Optional< PageState > version( final String pageName, final int version ) {
+        checkReadable( pageName );
         lock.lock();
         try {
             final List< Version > v = pages.get( pageName );

@@ -90,7 +90,7 @@ class SaveOptionsTest {
         final Map<String, Object> src = new HashMap<>();
         src.put( "k", "v" );
 
-        final SaveOptions o = new SaveOptions( "a", null, null, -1, null, src, false );
+        final SaveOptions o = new SaveOptions( "a", null, null, -1, null, src, false, false );
         src.put( "injected", "x" );
 
         assertFalse( o.metadata().containsKey( "injected" ) );

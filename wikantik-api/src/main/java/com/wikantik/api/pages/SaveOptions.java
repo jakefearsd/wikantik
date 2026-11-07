@@ -30,7 +30,8 @@ public record SaveOptions(
         int expectedVersion,
         String expectedContentHash,
         Map< String, Object > metadata,
-        boolean replaceMetadata
+        boolean replaceMetadata,
+        boolean expectAbsent
 ) {
     public SaveOptions {
         // Preserve null — PageSaveHelper distinguishes "no metadata provided" (null)
@@ -50,6 +51,7 @@ public record SaveOptions(
         private String expectedContentHash;
         private Map< String, Object > metadata;
         private boolean replaceMetadata;
+        private boolean expectAbsent;
 
         public Builder author( final String a ) { this.author = a; return this; }
         public Builder changeNote( final String c ) { this.changeNote = c; return this; }
@@ -62,9 +64,12 @@ public record SaveOptions(
         }
         public Builder replaceMetadata( final boolean r ) { this.replaceMetadata = r; return this; }
 
+        /** The page must not exist: the save fails with a version conflict if it does (checked under the save lock). */
+        public Builder expectAbsent( final boolean a ) { this.expectAbsent = a; return this; }
+
         public SaveOptions build() {
             return new SaveOptions( author, changeNote, markupSyntax, expectedVersion,
-                    expectedContentHash, metadata, replaceMetadata );
+                    expectedContentHash, metadata, replaceMetadata, expectAbsent );
         }
     }
 }

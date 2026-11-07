@@ -88,6 +88,13 @@ public class PageSaveHelper {
 
     /** The version and content-hash optimistic-locking checks as a guard, evaluated under the page's save lock. */
     private static SaveGuard guardFor( final String pageName, final SaveOptions options ) {
+        if( options.expectAbsent() ) {
+            return ( current, currentText ) -> {
+                if( current != null ) {
+                    throw new VersionConflictException( pageName, Math.max( current.getVersion(), 1 ), 0, false );
+                }
+            };
+        }
         if( options.expectedVersion() <= 0 && options.expectedContentHash() == null ) {
             return SaveGuard.NONE;
         }

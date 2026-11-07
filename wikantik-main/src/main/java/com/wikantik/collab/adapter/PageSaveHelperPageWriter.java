@@ -19,7 +19,6 @@
 package com.wikantik.collab.adapter;
 
 import com.wikantik.api.core.Page;
-import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
@@ -27,7 +26,6 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.SaveOutcome;
-import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.model.PageState;
@@ -44,8 +42,8 @@ import java.util.Optional;
  * {@link PageManager}. Bodies and metadata cross this port split (frontmatter parsed off the stored text) and
  * LF-normalised (A9); the content hash is over the stored text, as the save guard computes it.
  *
- * <p>A new-page publish ({@code expectedVersion} 0) is checked with an existence test before the save: the helper's
- * guard treats a non-positive expected version as "no check", so that one case is not atomic with the write.</p>
+ * <p>A new-page publish ({@code expectedVersion} 0) sets {@code expectAbsent}, so "the page must not exist" is
+ * checked under the page's save lock together with the write.</p>
  */
 public final class PageSaveHelperPageWriter implements CollabPageWriter {
 
@@ -91,13 +89,11 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
     @Override
     public PublishOutcome publish( final PublishRequest request ) throws WikiException {
         final String name = request.pageName();
-        if( request.expectedVersion() == 0 ) {
-            requireAbsent( name );
-        }
         final SaveOptions options = SaveOptions.builder()
                 .author( request.authorKey() )
                 .changeNote( request.changeNote() )
                 .expectedVersion( request.expectedVersion() )
+                .expectAbsent( request.expectedVersion() == 0 )
                 .metadata( request.meta() )
                 .replaceMetadata( true )
                 .build();
@@ -106,19 +102,6 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
         final String text = pages.getPureText( name, out.version() > 0 ? out.version() : PageProvider.LATEST_VERSION );
         final ParsedPage saved = FrontmatterParser.parse( text == null ? "" : text );
         return new PublishOutcome( version, lf( saved.body() ), saved.metadata(), out.unchanged() );
-    }
-
-    private void requireAbsent( final String name ) throws VersionConflictException {
-        try {
-            if( pages.pageExists( name ) ) {
-                final Page current = pages.getPage( name );
-                throw new VersionConflictException( name, current == null ? 1 : Math.max( current.getVersion(), 1 ), 0,
-                        false );
-            }
-        } catch( final ProviderException e ) {
-            LOG.warn( "Could not check whether page '{}' exists before a new-page publish: {}", name, e.getMessage(), e );
-            throw new VersionConflictException( name, -1, 0, false );
-        }
     }
 
     private static String lf( final String text ) {

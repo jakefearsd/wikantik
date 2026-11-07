@@ -32,8 +32,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 class PageSaveHelperPageWriterTest {
 
@@ -110,5 +114,25 @@ class PageSaveHelperPageWriterTest {
         writer.publish( req( "one\n", Map.of(), 0 ) );
         assertThrows( VersionConflictException.class, () -> writer.publish( req( "again\n", Map.of(), 0 ) ) );
         assertEquals( 1, writer.latest( "CollabW" ).orElseThrow().version() );
+    }
+
+    @Test
+    void pageCreatedJustBeforeTheSaveWinsOverANewPagePublish() throws Exception {
+        final PageManager real = engine.getManager( PageManager.class );
+        final PageManager spied = spy( real );
+        final PageSaveHelper spiedHelper = new PageSaveHelper( engine, spied );
+        final AtomicBoolean intruded = new AtomicBoolean();
+        // Another user creates the page after the writer has been invoked, just before the guarded save runs.
+        doAnswer( inv -> {
+            if( intruded.compareAndSet( false, true ) ) {
+                helper.saveText( "CollabW", "other user's text", SaveOptions.builder().author( "bob" ).build() );
+            }
+            return inv.callRealMethod();
+        } ).when( spied ).saveText( any(), any(), any( com.wikantik.api.pages.SaveGuard.class ) );
+        final PageSaveHelperPageWriter racing = new PageSaveHelperPageWriter( spied, spiedHelper );
+
+        assertThrows( VersionConflictException.class, () -> racing.publish( req( "mine\n", Map.of(), 0 ) ) );
+        assertTrue( intruded.get() );
+        assertTrue( engine.getManager( PageManager.class ).getPureText( "CollabW", -1 ).contains( "other user's text" ) );
     }
 }

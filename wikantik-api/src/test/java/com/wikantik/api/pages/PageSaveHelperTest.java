@@ -156,6 +156,38 @@ class PageSaveHelperTest {
     }
 
     @Test
+    void expectAbsentWithAnExistingPageIsAVersionConflict() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Taken" );
+        final Page current = mock( Page.class );
+        when( current.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "Taken" ) ).thenReturn( current );
+
+        final SaveOptions options = SaveOptions.builder().expectAbsent( true ).build();
+
+        final VersionConflictException ex = assertThrows( VersionConflictException.class,
+                () -> newHelper( pm ).saveText( "Taken", "body", options ) );
+
+        assertEquals( 2, ex.getCurrentVersion() );
+        assertEquals( 0, ex.getExpectedVersion() );
+        assertEquals( false, ex.isHashConflict() );
+        verify( pm, never() ).saveText( any(), any() );
+    }
+
+    @Test
+    void expectAbsentWithNoPageSaves() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Free" );
+        final Page saved = mock( Page.class );
+        when( pm.getPage( eq( "Free" ) ) ).thenReturn( null, saved );
+
+        final Page result = newHelper( pm ).saveText( "Free", "body", SaveOptions.builder().expectAbsent( true ).build() );
+
+        assertSame( saved, result );
+        verify( pm ).saveText( any(), eq( "body" ) );
+    }
+
+    @Test
     void saveTextSkipsVersionCheckWhenPageDoesNotExistYet() throws Exception {
         final PageManager pm = mock( PageManager.class );
         stubSave( pm, "NewPage" );

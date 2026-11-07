@@ -40,12 +40,15 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * The Phase 0 stand-in for the real {@code CollabSession}: one page, the section 7.2 push, section 7.5 pull with
@@ -75,6 +78,8 @@ public final class StubCollabAuthority implements SimServer {
     static final String SERVER_CLIENT = "server";
     private static final String POISONED = "poisoned";
     private static final String NOT_YOURS = "not-your-participant";
+    /** Reloads per store, so participant ids stay unique across recoveries and runs stay deterministic. */
+    private static final Map< CollabStore, Integer > BOOTS = Collections.synchronizedMap( new WeakHashMap<>() );
 
     private record Participant( String authorKey, String clientId ) {
     }
@@ -89,6 +94,9 @@ public final class StubCollabAuthority implements SimServer {
     private final long maxPageBytes;
     private final int ringSize;
     private final UUID id;
+    /** Empty for a first boot, {@code r<k>} after the k-th reload over the same store: ids are never reused (A10). */
+    private final String idPrefix;
+    private final ReentrantLock lock = new ReentrantLock();
 
     private String doc;
     private int head;
@@ -108,16 +116,8 @@ public final class StubCollabAuthority implements SimServer {
 
     public StubCollabAuthority( final String pageName, final CollabStore store, final CollabPageWriter writer,
                                 final Clock clock, final long maxPageBytes, final int ringSize ) {
-        this.pageName = Objects.requireNonNull( pageName );
-        this.store = Objects.requireNonNull( store );
-        this.writer = Objects.requireNonNull( writer );
-        this.clock = Objects.requireNonNull( clock );
-        this.maxPageBytes = maxPageBytes;
-        if( ringSize < 1 ) {
-            throw new IllegalArgumentException( "ringSize must be >= 1: " + ringSize );
-        }
-        this.ringSize = ringSize;
-        this.id = UUID.nameUUIDFromBytes( pageName.getBytes( StandardCharsets.UTF_8 ) );
+        this( pageName, store, writer, clock, maxPageBytes, ringSize,
+            UUID.nameUUIDFromBytes( pageName.getBytes( StandardCharsets.UTF_8 ) ), "" );
         final PageState latest = writer.latest( pageName ).orElse( null );
         doc = latest == null ? "" : CollabText.toLf( latest.body() );
         baseBody = doc;
@@ -131,16 +131,156 @@ public final class StubCollabAuthority implements SimServer {
         store.writeSnapshot( id, new Snapshot( 0, 0, doc, baseMeta, local ) );
     }
 
+    private StubCollabAuthority( final String pageName, final CollabStore store, final CollabPageWriter writer,
+                                 final Clock clock, final long maxPageBytes, final int ringSize, final UUID id,
+                                 final String idPrefix ) {
+        this.pageName = Objects.requireNonNull( pageName );
+        this.store = Objects.requireNonNull( store );
+        this.writer = Objects.requireNonNull( writer );
+        this.clock = Objects.requireNonNull( clock );
+        this.maxPageBytes = maxPageBytes;
+        if( ringSize < 1 ) {
+            throw new IllegalArgumentException( "ringSize must be >= 1: " + ringSize );
+        }
+        this.ringSize = ringSize;
+        this.id = id;
+        this.idPrefix = idPrefix;
+    }
+
+    /**
+     * F8 recovery: a fresh stub over the same store and page writer, rebuilt from the committed state only. {@code doc}
+     * and {@code head} come from the latest snapshot plus the log after it, the base from the session record, the ring
+     * from the log's tail, and {@code local} is recomputed as {@code TextDiff.changeSet(baseBody, doc)} (section 7.1).
+     * Participants and parked pulls are not persisted, so every client must rejoin; participant and client ids carry a
+     * per-store boot generation ({@code r<k>p<n>}) so a straggler request addressed to a pre-crash participant can never
+     * be taken for a post-crash one.
+     *
+     * @throws IllegalStateException when the store has no session (or no snapshot) for the page, or its log is not
+     *                               contiguous to the recorded head
+     */
+    public static StubCollabAuthority reload( final String pageName, final CollabStore store, final CollabPageWriter writer,
+                                              final Clock clock, final long maxPageBytes, final int ringSize ) {
+        final SessionRecord rec = store.sessionForPage( pageName ).orElseThrow(
+            () -> new IllegalStateException( "no collab session to reload for page " + pageName ) );
+        final Snapshot snap = store.latestSnapshot( rec.id() ).orElseThrow(
+            () -> new IllegalStateException( "collab session " + rec.id() + " has no snapshot" ) );
+        final int boot = BOOTS.merge( store, 1, Integer::sum );
+        final StubCollabAuthority s = new StubCollabAuthority( pageName, store, writer, clock, maxPageBytes, ringSize, rec.id(),
+            "r" + boot );
+        String doc = snap.body();
+        int version = snap.version();
+        for( final StoredUpdate u : store.updatesSince( rec.id(), snap.version() ) ) {
+            if( u.version() != version + 1 ) {
+                throw new IllegalStateException( "collab log of " + rec.id() + " has a gap before version " + u.version() );
+            }
+            doc = u.changes().apply( doc );
+            version = u.version();
+        }
+        if( version != rec.headVersion() ) {
+            throw new IllegalStateException( "collab log of " + rec.id() + " ends at " + version + " but the session head is "
+                + rec.headVersion() );
+        }
+        s.doc = doc;
+        s.head = version;
+        s.baseBody = rec.baseBody();
+        s.basePageVersion = rec.basePageVersion();
+        s.baseMeta = rec.baseMeta();
+        s.local = TextDiff.changeSet( s.baseBody, doc );
+        store.updatesSince( rec.id(), Math.max( 0, version - ringSize ) ).forEach( s::remember );
+        s.enterOrLeaveOversize( true );
+        return s;
+    }
+
+    // ---- public surface: every call holds the session lock (E38/E40 run these on real threads) ----
+
     @Override
-    public synchronized Joined join( final String authorKey ) {
-        final int n = nextParticipant++;
-        final Participant p = new Participant( Objects.requireNonNull( authorKey ), "c" + n );
-        participants.put( "p" + n, p );
-        return new Joined( "p" + n, p.clientId(), head, doc );
+    public Joined join( final String authorKey ) {
+        lock.lock();
+        try {
+            return joinLocked( authorKey );
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
-    public synchronized PushResult push( final String participantId, final String authorKey, final int version, final List< Update > updates ) {
+    public PushResult push( final String participantId, final String authorKey, final int version, final List< Update > updates ) {
+        lock.lock();
+        try {
+            return pushLocked( participantId, authorKey, version, updates );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public PullResult pull( final String participantId, final String authorKey, final int since ) {
+        lock.lock();
+        try {
+            return pullLocked( participantId, authorKey, since );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void tick() {
+        lock.lock();
+        try {
+            tickLocked();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void leave( final String participantId ) {
+        lock.lock();
+        try {
+            leaveLocked( participantId );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public List< Wakeup > drainWakeups() {
+        lock.lock();
+        try {
+            return drainWakeupsLocked();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public PublishResult publish( final String participantId, final String authorKey, final int version, final String note ) {
+        lock.lock();
+        try {
+            return publishLocked( participantId, authorKey, version, note );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public InvariantView view() {
+        lock.lock();
+        try {
+            return viewLocked();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private Joined joinLocked( final String authorKey ) {
+        final int n = nextParticipant++;
+        final Participant p = new Participant( Objects.requireNonNull( authorKey ), idPrefix + "c" + n );
+        participants.put( idPrefix + "p" + n, p );
+        return new Joined( idPrefix + "p" + n, p.clientId(), head, doc );
+    }
+
+    private PushResult pushLocked( final String participantId, final String authorKey, final int version, final List< Update > updates ) {
         if( poisoned ) {
             return new PushResult( 503, head, POISONED );
         }
@@ -208,8 +348,7 @@ public final class StubCollabAuthority implements SimServer {
         }
     }
 
-    @Override
-    public synchronized PullResult pull( final String participantId, final String authorKey, final int since ) {
+    private PullResult pullLocked( final String participantId, final String authorKey, final int since ) {
         if( poisoned ) {
             return new PullResult( 503, List.of(), head, false, POISONED );
         }
@@ -257,8 +396,7 @@ public final class StubCollabAuthority implements SimServer {
         waiters.clear();
     }
 
-    @Override
-    public synchronized void tick() {
+    private void tickLocked() {
         final Instant now = clock.instant();
         for( final Map.Entry< String, Waiter > e : new ArrayList<>( waiters.entrySet() ) ) {
             if( !now.isBefore( e.getValue().deadline() ) ) {
@@ -268,23 +406,20 @@ public final class StubCollabAuthority implements SimServer {
         }
     }
 
-    @Override
-    public synchronized void leave( final String participantId ) {
+    private void leaveLocked( final String participantId ) {
         participants.remove( participantId );
         if( waiters.remove( participantId ) != null ) {
             wakeups.add( new Wakeup( participantId, new PullResult( 200, List.of(), head, false, null ) ) );
         }
     }
 
-    @Override
-    public synchronized List< Wakeup > drainWakeups() {
+    private List< Wakeup > drainWakeupsLocked() {
         final List< Wakeup > out = List.copyOf( wakeups );
         wakeups.clear();
         return out;
     }
 
-    @Override
-    public synchronized PublishResult publish( final String participantId, final String authorKey, final int version,
+    private PublishResult publishLocked( final String participantId, final String authorKey, final int version,
                                                final String note ) {
         if( poisoned ) {
             return new PublishResult( 503, basePageVersion, POISONED, false );
@@ -379,8 +514,7 @@ public final class StubCollabAuthority implements SimServer {
         }
     }
 
-    @Override
-    public synchronized InvariantView view() {
+    private InvariantView viewLocked() {
         return new InvariantView( id, doc, head, baseBody, local, basePageVersion, List.copyOf( ring ),
             oversize, maxPageBytes, store, writer, pageName, false, poisoned, oversizeCeiling, poisoned );
     }

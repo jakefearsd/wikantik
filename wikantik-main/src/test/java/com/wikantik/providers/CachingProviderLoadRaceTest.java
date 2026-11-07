@@ -58,17 +58,32 @@ class CachingProviderLoadRaceTest {
         static final Map< String, Page > PAGES = new ConcurrentHashMap<>();
         static volatile CountDownLatch entered;
         static volatile CountDownLatch release;
+        static volatile CountDownLatch writeEntered;
+        static volatile CountDownLatch writeRelease;
 
         @Override public void initialize( final Engine engine, final Properties props ) {
             PAGES.clear();
-            final Page p = Wiki.contents().page( engine, "Racy" );
-            p.setAuthor( "tester" );
-            p.setVersion( 1 );
-            p.setLastModified( new Date() );
-            PAGES.put( "Racy", p );
+            for( final String name : new String[]{ "Racy", "Other" } ) {
+                final Page p = Wiki.contents().page( engine, name );
+                p.setAuthor( "tester" );
+                p.setVersion( 1 );
+                p.setLastModified( new Date() );
+                PAGES.put( name, p );
+            }
         }
         @Override public String getProviderInfo() { return "holding"; }
-        @Override public void putPageText( final Page page, final String text ) { }
+        @Override public void putPageText( final Page page, final String text ) {
+            final CountDownLatch hold = writeRelease;
+            if( hold != null ) {
+                writeRelease = null;
+                writeEntered.countDown();
+                try {
+                    hold.await( 10, TimeUnit.SECONDS );
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
         @Override public boolean pageExists( final String page ) { return PAGES.containsKey( page ); }
         @Override public boolean pageExists( final String page, final int version ) { return pageExists( page ); }
         @Override public Collection< SearchResult > findPages( final QueryItem[] query ) { return List.of(); }
@@ -101,6 +116,7 @@ class CachingProviderLoadRaceTest {
     @AfterEach
     void tearDown() {
         HoldingProvider.release = null;
+        HoldingProvider.writeRelease = null;
         engine.stop();
     }
 
@@ -127,8 +143,10 @@ class CachingProviderLoadRaceTest {
             try {
                 delete.get( 300, TimeUnit.MILLISECONDS );
             } catch( final TimeoutException waiting ) {
-                // the delete waits for the load in flight: the outcome checked below
+                // expected: the delete waits for the load in flight
+                assertNotNull( waiting );
             }
+            assertFalse( delete.isDone(), "the delete must wait for the load in flight" );
             release.countDown();
             reader.get( 10, TimeUnit.SECONDS );
             delete.get( 10, TimeUnit.SECONDS );
@@ -138,5 +156,40 @@ class CachingProviderLoadRaceTest {
         }
         assertNull( cp.getPageInfo( "Racy", PageProvider.LATEST_VERSION ), "a deleted page must not read as existing" );
         assertFalse( cp.pageExists( "Racy" ) );
+    }
+
+    /** A cache hit takes no lock: it proceeds while a write holds the write lock, blocked inside the provider. */
+    @Test
+    void aCacheHitProceedsWhileAWriteHoldsTheWriteLock() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
+        props.setProperty( "wikantik.pageProvider", HoldingProvider.class.getName() );
+        engine = TestEngine.build( props );
+        final CachingProvider cp = ( CachingProvider ) engine.getManager( PageManager.class ).getProvider();
+        // Prime the caches of "Other": its page info and its text are hits from here on.
+        assertNotNull( cp.getPageInfo( "Other", PageProvider.LATEST_VERSION ) );
+        assertEquals( "text", cp.getPageText( "Other", PageProvider.LATEST_VERSION ) );
+
+        final CountDownLatch release = new CountDownLatch( 1 );
+        HoldingProvider.writeEntered = new CountDownLatch( 1 );
+        HoldingProvider.writeRelease = release;
+        final ExecutorService ex = Executors.newFixedThreadPool( 2 );
+        try {
+            final Future< ? > write = ex.submit( () -> {
+                cp.putPageText( Wiki.contents().page( engine, "Racy" ), "new text" );
+                return null;
+            } );
+            assertTrue( HoldingProvider.writeEntered.await( 10, TimeUnit.SECONDS ) );
+            final Future< Page > hit = ex.submit( () -> cp.getPageInfo( "Other", PageProvider.LATEST_VERSION ) );
+            assertNotNull( hit.get( 2, TimeUnit.SECONDS ), "a cache hit must not wait for the write lock" );
+            final Future< String > textHit = ex.submit( () -> cp.getPageText( "Other", PageProvider.LATEST_VERSION ) );
+            assertEquals( "text", textHit.get( 2, TimeUnit.SECONDS ) );
+            assertFalse( write.isDone() );
+            release.countDown();
+            write.get( 10, TimeUnit.SECONDS );
+        } finally {
+            release.countDown();
+            ex.shutdownNow();
+        }
     }
 }

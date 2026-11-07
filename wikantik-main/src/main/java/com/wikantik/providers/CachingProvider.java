@@ -155,26 +155,33 @@ public class CachingProvider implements PageProvider {
         if( name == null ) {
             return null;
         }
-        return loadUnderReadLock( () ->
-                cachingManager.get( CachingManager.CACHE_PAGES, name, () -> provider.getPageInfo( name, PageProvider.LATEST_VERSION ) ) );
+        return cachedOrLoaded( CachingManager.CACHE_PAGES, name, () -> provider.getPageInfo( name, PageProvider.LATEST_VERSION ) );
     }
 
-    /** A cache read that may load from the provider. */
+    /** A load from the provider into a cache. */
     @FunctionalInterface
     private interface CacheLoad< T > {
         T get() throws ProviderException;
     }
 
     /**
-     * Runs a cache read that may load from the provider under the read lock. The writes (put, delete, move) invalidate
-     * under the write lock, so a load cannot read the provider before a write and store what it read after the write's
-     * invalidation: a deleted page would read as existing, an overwritten one as its old version. The write lock holder
-     * may take the read lock (putPageText re-populates the cache this way).
+     * The cached value of {@code key}, or the value loaded into the cache by {@code load} on a miss.
+     *
+     * <p>A hit takes no lock, so reads never wait for a write or for the all-pages refresh. A miss loads under the read
+     * lock, re-checking the cache first. The writes (put, delete, move) invalidate under the write lock, so a load cannot
+     * read the provider before a write and store what it read after the write's invalidation: a deleted page would read as
+     * existing, an overwritten one as its old version. An unlocked hit cannot resurrect a deleted page, because the delete
+     * evicts the entry under the write lock and no load can store it again afterwards. The write lock holder may take the
+     * read lock (putPageText re-populates the cache this way).</p>
      */
-    private < T > T loadUnderReadLock( final CacheLoad< T > load ) throws ProviderException {
+    private < T > T cachedOrLoaded( final String cache, final String key, final CacheLoad< T > load ) throws ProviderException {
+        final T hit = cachingManager.get( cache, key, () -> null );
+        if( hit != null ) {
+            return hit;
+        }
         rwLock.readLock().lock();
         try {
-            return load.get();
+            return cachingManager.get( cache, key, load::get );
         } finally {
             rwLock.readLock().unlock();
         }
@@ -274,12 +281,12 @@ public class CachingProvider implements PageProvider {
             return null;
         }
 
-        return loadUnderReadLock( () -> cachingManager.get( CachingManager.CACHE_PAGES_TEXT, pageName, () -> {
+        return cachedOrLoaded( CachingManager.CACHE_PAGES_TEXT, pageName, () -> {
             if( pageExists( pageName ) ) {
                 return provider.getPageText( pageName, PageProvider.LATEST_VERSION );
             }
             return null;
-        } ) );
+        } );
     }
 
     /**
@@ -525,8 +532,7 @@ public class CachingProvider implements PageProvider {
         if( pageName == null ) {
             return List.of();
         }
-        return loadUnderReadLock( () ->
-                cachingManager.get( CachingManager.CACHE_PAGES_HISTORY, pageName, () -> provider.getVersionHistory( pageName ) ) );
+        return cachedOrLoaded( CachingManager.CACHE_PAGES_HISTORY, pageName, () -> provider.getVersionHistory( pageName ) );
     }
 
     /**

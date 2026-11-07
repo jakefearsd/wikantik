@@ -613,11 +613,6 @@ public class PageResource extends RestServletBase {
         return body;
     }
 
-    /**
-     * D5: returns a client-safe error message for a failed page save. Stringifies the
-     * cause for logging callers but never reveals filesystem paths, JDBC URLs, or
-     * stack frames in the response body.
-     */
     /** A REST save's result: the page stored, and whether its post-save processing failed after it was stored. */
     private record Saved( Page page, boolean postSaveFailed ) { }
 
@@ -646,6 +641,11 @@ public class PageResource extends RestServletBase {
         return all;
     }
 
+    /**
+     * D5: returns a client-safe error message for a failed page save. Stringifies the
+     * cause for logging callers but never reveals filesystem paths, JDBC URLs, or
+     * stack frames in the response body.
+     */
     static String sanitizeSaveErrorMessage( final Throwable t ) {
         // Walk the cause chain looking for a recognisable validation reason; if we
         // find one, surface a short message. Otherwise fall back to a generic string

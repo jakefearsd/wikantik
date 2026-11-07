@@ -43,6 +43,22 @@ public final class PublicIdentityCollabIdentity implements CollabIdentity {
         this.identity = Objects.requireNonNull( identity, "identity" );
     }
 
+    /**
+     * True when {@code name} is the unresolved key passed through unchanged. An account whose display name happens to
+     * equal its login is the account's own public name, so it only counts as an echo when no such account exists.
+     */
+    private boolean echoedLogin( final String name, final String authorKey ) {
+        if( !name.equals( authorKey ) ) {
+            return false;
+        }
+        try {
+            return identity.userIdForLogin( authorKey ).isEmpty();
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Account lookup for a display name failed; treating it as an echoed login: {}", e.getMessage(), e );
+            return true;
+        }
+    }
+
     @Override
     public String displayName( final String authorKey ) {
         final String name;
@@ -53,7 +69,7 @@ public final class PublicIdentityCollabIdentity implements CollabIdentity {
             return null;
         }
         if( name == null || name.isBlank() || PublicIdentity.UNKNOWN.equals( name )
-                || PublicIdentity.UNKNOWN_CONTRIBUTOR.equals( name ) || name.equals( authorKey ) ) {
+                || PublicIdentity.UNKNOWN_CONTRIBUTOR.equals( name ) || echoedLogin( name, authorKey ) ) {
             return null;
         }
         return name;

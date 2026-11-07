@@ -69,6 +69,26 @@ Run `loadtest/seed-loadtest-data.sh --help` for all options.
       http://localhost:18080/api/pages/Main
     # Should print 200.
 
+## Collaborative editing: `collab-load.js`
+
+A standalone k6 scenario for the real-time editing surface (`/api/collab/*`, MultiEdit design section 13.4). It
+drives N simulated editors (default 20) over M pages (default 5): each joins its page's shared draft, pushes a small
+insertion at typing cadence (about one per second), resyncs on a 409 stale-base, and publishes about every 50th push;
+one listener per page long-polls like an idle viewer. Run it against a **local** deployment with collaboration enabled
+(`wikantik.collab.enabled=true`), never prod: it creates and deletes pages, drafts and page versions.
+
+    k6 run -e BASE_URL=http://localhost:8080 \
+           -e LOADTEST_ADMIN_USER=testbot -e LOADTEST_ADMIN_PASS="$(grep test.user.password test.properties | cut -d= -f2)" \
+           loadtest/collab-load.js
+
+Knobs: `EDITORS`, `PAGES`, `LISTENERS_PER_PAGE`, `DURATION` (default 2m), `PUBLISH_EVERY` (0 = never publish).
+It reports `collab_push_latency` (threshold p95 < 150 ms; measured by the client, so it includes the local round trip),
+`collab_push_409_rate`, `collab_push_429_rate`, `collab_publish_latency` and `collab_pull_latency`. For the
+server-side figure read `wikantik_collab_push_latency_seconds` from `/metrics` before and after the run.
+
+Recorded results: none yet. The scenario was syntax-checked with `k6 inspect` only; it has not been run against a
+live collab-enabled deployment.
+
 ## Tests
 
 The Prometheus-text parser is unit-tested:

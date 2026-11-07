@@ -385,6 +385,247 @@ public class CollabRestIT {
         a.leave();
     }
 
+    // ---- Phase 3: draft summary, attribution, draft_active, audit, metrics, admin purge -----------------------------
+
+    private static final String JANNE_NAME = "Janne Jalkanen";
+    private static final String ALICE_NAME = "Alice";
+
+    /** Both users edit, A publishes: the history lists both at the new version by display name; a later edit is the next version's. */
+    @Test
+    void bothContributorsAreCreditedInTheHistoryAndALaterEditBelongsToTheNextVersion() throws Exception {
+        final String page = seed( "Credit line\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        final Peer b = new Peer( alice, page ).join( null );
+
+        assertEquals( 200, a.insert( 0, "A-EDIT " ).statusCode() );
+        b.pull( 0 );
+        assertEquals( 200, b.insert( b.doc.length(), "B-EDIT\n" ).statusCode() );
+        a.pull( 0 );
+        final HttpResponse< String > published = a.publish( a.version );
+        assertEquals( 200, published.statusCode(), published.body() );
+        final int first = obj( published ).get( "pageVersion" ).getAsInt();
+
+        final List< String > firstContributors = contributorsAt( page, first );
+        assertTrue( firstContributors.contains( JANNE_NAME ) && firstContributors.contains( ALICE_NAME ),
+            "v" + first + " credits both by display name: " + firstContributors );
+        assertEquals( JANNE_NAME, firstContributors.get( 0 ), "the publisher (the version's author) is listed first" );
+        for( final String c : firstContributors ) {
+            assertFalse( c.equals( "janne" ) || c.contains( "@" ), "never a login or an email: " + firstContributors );
+        }
+
+        // An edit after the publish point is credited to the next version, not to the one just published.
+        b.pull( 0 );
+        assertEquals( 200, b.insert( b.doc.length(), "B-LATER\n" ).statusCode() );
+        final HttpResponse< String > second = b.publish( b.version );
+        assertEquals( 200, second.statusCode(), second.body() );
+        final int next = obj( second ).get( "pageVersion" ).getAsInt();
+        assertTrue( next > first, "a new version: " + next + " > " + first );
+        assertEquals( List.of( ALICE_NAME ), contributorsAt( page, next ), "only Alice contributed to v" + next );
+        assertTrue( contributorsAt( page, first ).contains( JANNE_NAME ), "v" + first + " keeps its credits" );
+        a.leave();
+        b.leave();
+    }
+
+    /** {@code GET /draft} answers the HTML diff and the metadata changes, and the contributors by display name. */
+    @Test
+    void theDraftSummaryHoldsTheServerDiffAndTheMetadataChanges() throws Exception {
+        final String page = seed( "Summary base\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        assertEquals( 200, a.insert( 0, "DIFF-MARKER " ).statusCode() );
+        final String tag = "drafttag" + UUID.randomUUID().toString().replace( "-", "" ).substring( 0, 6 );
+        assertEquals( 200, a.pushMeta( tagAdd( tag ), null ).statusCode() );
+
+        final HttpResponse< String > r = a.draft();
+        assertEquals( 200, r.statusCode(), r.body() );
+        final JsonObject o = obj( r );
+        assertTrue( o.get( "unpublished" ).getAsBoolean(), r.body() );
+        assertTrue( o.get( "diff" ).getAsString().contains( "DIFF-MARKER" ), "the diff names the new text: " + r.body() );
+        assertTrue( o.get( "diff" ).getAsString().contains( "<" ), "the diff is the server's HTML" );
+        assertTrue( o.getAsJsonArray( "contributors" ).toString().contains( JANNE_NAME ), r.body() );
+        boolean tagsChanged = false;
+        for( final JsonElement c : o.getAsJsonArray( "metaChanges" ) ) {
+            tagsChanged |= "tags".equals( c.getAsJsonObject().get( "field" ).getAsString() );
+        }
+        assertTrue( tagsChanged, "metaChanges lists the tags field: " + r.body() );
+        a.leave();
+    }
+
+    /** {@code draft_active} is true on both page reads while a draft has unpublished changes, and false after the publish. */
+    @Test
+    void draftActiveIsTrueWhileTheDraftIsUnpublishedAndFalseAfterThePublish() throws Exception {
+        final String page = seed( "Active base\n" );
+        final String canonicalId = obj( send( janne, "GET", "/api/pages/" + page, null ) ).getAsJsonObject( "metadata" )
+            .get( "canonical_id" ).getAsString();
+        assertFalse( draftActive( page, canonicalId ).get( 0 ), "no draft yet: page read" );
+
+        final Peer a = new Peer( janne, page ).join( null );
+        assertEquals( 200, a.insert( 0, "ACTIVE " ).statusCode() );
+        awaitDraftActive( page, canonicalId, true );
+
+        final HttpResponse< String > published = a.publish( a.version );
+        assertEquals( 200, published.statusCode(), published.body() );
+        // draft_active also holds while anyone is editing (design: live-session-first), so it clears once A has left
+        a.leave();
+        awaitDraftActive( page, canonicalId, false );
+    }
+
+    /** The collaboration audit entries: join, publish (with both contributor keys), discard; and the metrics scrape. */
+    @Test
+    void theAuditLogAndTheMetricsScrapeSeeTheSession() throws Exception {
+        final String page = seed( "Audit base\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        final Peer b = new Peer( alice, page ).join( null );
+        assertEquals( 200, a.insert( 0, "A " ).statusCode() );
+        b.pull( 0 );
+        assertEquals( 200, b.insert( b.doc.length(), "B\n" ).statusCode() );
+        a.pull( 0 );
+        assertEquals( 200, a.publish( a.version ).statusCode() );
+
+        a.pull( 0 );
+        assertEquals( 200, a.insert( 0, "DISCARD-ME " ).statusCode() );
+        final HttpResponse< String > discarded = a.discard( a.version );
+        assertEquals( 204, discarded.statusCode(), discarded.body() );
+
+        assertNotNull( awaitAudit( "collab.join", page ), "collab.join" );
+        final JsonObject publish = awaitAudit( "collab.publish", page );
+        final String detail = publish.get( "detail" ).getAsString();
+        assertTrue( detail.contains( "janne" ) && detail.contains( "Alice" ), "both contributor keys: " + detail );
+        assertNotNull( awaitAudit( "collab.discard", page ), "collab.discard" );
+
+        final HttpResponse< String > scrape = send( janne, "GET", "/metrics", null );
+        assertEquals( 200, scrape.statusCode(), "metrics scrape: " + scrape.body() );
+        assertTrue( scrape.body().contains( "wikantik_collab_push_total" ), "push counter scraped" );
+        assertTrue( scrape.body().contains( "wikantik_collab_sessions_active" ), "sessions gauge scraped" );
+        a.leave();
+        b.leave();
+    }
+
+    /** An administrator lists the drafts and purges one; the participant's next call is refused as evicted (purged). */
+    @Test
+    void anAdminListsDraftsAndPurgesOneAndTheParticipantIsEvicted() throws Exception {
+        final String page = seed( "Purge base\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        final Peer b = new Peer( alice, page ).join( null );
+        assertEquals( 200, a.insert( 0, "PURGE-ME " ).statusCode() );
+        b.pull( 0 );
+
+        assertEquals( 403, send( alice, "GET", "/admin/collab/drafts", null ).statusCode(), "a non-admin is refused" );
+        final JsonArray drafts = obj( send( janne, "GET", "/admin/collab/drafts", null ) ).getAsJsonArray( "drafts" );
+        String id = null;
+        for( final JsonElement d : drafts ) {
+            if( page.equals( d.getAsJsonObject().get( "pageName" ).getAsString() ) ) {
+                id = d.getAsJsonObject().get( "sessionId" ).getAsString();
+            }
+        }
+        assertNotNull( id, "the draft is listed: " + drafts );
+
+        // B is parked in a long-poll when the purge lands, as an open editor is: that pull is answered with the event.
+        final CompletableFuture< HttpResponse< String > > parked = b.pullAsync();
+        Thread.sleep( 500 );
+        final HttpResponse< String > purge = send( janne, "DELETE", "/admin/collab/drafts/" + id, null );
+        assertEquals( 204, purge.statusCode(), purge.body() );
+
+        final HttpResponse< String > told = parked.get( 20, TimeUnit.SECONDS );
+        assertEquals( 200, told.statusCode(), told.body() );
+        boolean evictedEvent = false;
+        for( final JsonElement e : obj( told ).getAsJsonArray( "events" ) ) {
+            final JsonObject ev = e.getAsJsonObject();
+            evictedEvent |= "evicted".equals( ev.get( "type" ).getAsString() ) && "purged".equals( ev.get( "reason" ).getAsString() );
+        }
+        assertTrue( evictedEvent, "the parked pull carries the evicted (purged) event: " + told.body() );
+        // A call with no parked pull to carry the tombstone finds no session: 409 rejoin (a known, parked wart: the
+        // client then rejoins a fresh draft). Either answer refuses the push; neither lets it land.
+        final HttpResponse< String > push = b.insert( 0, "late " );
+        assertTrue( push.statusCode() == 403 || push.statusCode() == 409, "the push is refused: " + push.statusCode() + " " + push.body() );
+        assertNotNull( awaitAudit( "collab.purge", page ), "collab.purge audited" );
+        final JsonArray after = obj( send( janne, "GET", "/admin/collab/drafts", null ) ).getAsJsonArray( "drafts" );
+        for( final JsonElement d : after ) {
+            assertFalse( id.equals( d.getAsJsonObject().get( "sessionId" ).getAsString() ), "the purged draft is gone" );
+        }
+    }
+
+    /** {@code GET /draft} is rate limited per participant: a burst is answered 429 with a retry hint. */
+    @Test
+    void theDraftSummaryIsRateLimitedPerParticipant() throws Exception {
+        final String page = seed( "Rate base\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        final Peer b = new Peer( alice, page ).join( null );
+        HttpResponse< String > limited = null;
+        for( int i = 0; i < 12 && limited == null; i++ ) {
+            final HttpResponse< String > r = a.draft();
+            if( r.statusCode() == 429 ) {
+                limited = r;
+            } else {
+                assertEquals( 200, r.statusCode(), r.body() );
+            }
+        }
+        assertNotNull( limited, "a burst of draft reads is limited" );
+        assertEquals( "rate-limited", reason( limited ), limited.body() );
+        assertTrue( obj( limited ).get( "retryAfterMs" ).getAsLong() > 0, limited.body() );
+        // another participant's budget is its own
+        assertEquals( 200, b.draft().statusCode() );
+        a.leave();
+        b.leave();
+    }
+
+    private List< String > contributorsAt( final String page, final int version ) throws Exception {
+        final JsonArray versions = obj( send( janne, "GET", "/api/history/" + page, null ) ).getAsJsonArray( "versions" );
+        for( final JsonElement v : versions ) {
+            if( v.getAsJsonObject().get( "version" ).getAsInt() == version ) {
+                final List< String > out = new ArrayList<>();
+                for( final JsonElement c : v.getAsJsonObject().getAsJsonArray( "contributors" ) ) {
+                    out.add( c.getAsString() );
+                }
+                return out;
+            }
+        }
+        throw new AssertionError( "no version " + version + " in the history: " + versions );
+    }
+
+    /** {@code [page read, for-agent read]} draft_active. */
+    private List< Boolean > draftActive( final String page, final String canonicalId ) throws Exception {
+        final HttpResponse< String > p = send( janne, "GET", "/api/pages/" + page, null );
+        assertEquals( 200, p.statusCode(), p.body() );
+        final HttpResponse< String > f = send( janne, "GET", "/api/pages/for-agent/" + canonicalId, null );
+        assertEquals( 200, f.statusCode(), f.body() );
+        return List.of( obj( p ).get( "draft_active" ).getAsBoolean(),
+            obj( f ).getAsJsonObject( "data" ).get( "draft_active" ).getAsBoolean() );
+    }
+
+    private void awaitDraftActive( final String page, final String canonicalId, final boolean expected ) throws Exception {
+        final long deadline = System.currentTimeMillis() + 10_000;
+        List< Boolean > last = List.of();
+        while( System.currentTimeMillis() < deadline ) {
+            last = draftActive( page, canonicalId );
+            if( last.get( 0 ) == expected && last.get( 1 ) == expected ) {
+                return;
+            }
+            Thread.sleep( 200 );
+        }
+        throw new AssertionError( "draft_active [page, for-agent] never became " + expected + "; last " + last );
+    }
+
+    /** Polls {@code /admin/audit} for a row of {@code type} about {@code target}. */
+    private JsonObject awaitAudit( final String type, final String target ) throws Exception {
+        final long deadline = System.currentTimeMillis() + 20_000;
+        while( System.currentTimeMillis() < deadline ) {
+            final HttpResponse< String > r = send( janne, "GET", "/admin/audit?limit=1000", null );
+            assertEquals( 200, r.statusCode(), r.body() );
+            for( final JsonElement el : JsonParser.parseString( r.body() ).getAsJsonArray() ) {
+                final JsonObject row = el.getAsJsonObject();
+                if( type.equals( str( row, "eventType" ) ) && target.equals( str( row, "targetId" ) ) ) {
+                    return row;
+                }
+            }
+            Thread.sleep( 300 );
+        }
+        throw new AssertionError( "no " + type + " audit row for " + target );
+    }
+
+    private static String str( final JsonObject o, final String key ) {
+        return o.has( key ) && !o.get( key ).isJsonNull() ? o.get( key ).getAsString() : "";
+    }
+
     private static JsonArray tagAdd( final String tag ) {
         final JsonObject op = new JsonObject();
         op.addProperty( "field", "tags" );
@@ -515,6 +756,16 @@ public class CollabRestIT {
         HttpResponse< String > publish( final int atVersion ) throws Exception {
             return send( client, "POST", "/api/collab/" + page + "/publish", GSON.toJson( Map.of( "sessionId", sessionId,
                 "participantId", participantId, "version", atVersion, "changeNote", "collab IT" ) ) );
+        }
+
+        HttpResponse< String > draft() throws Exception {
+            return send( client, "GET", "/api/collab/" + page + "/draft?sessionId=" + enc( sessionId )
+                + "&participantId=" + enc( participantId ), null );
+        }
+
+        HttpResponse< String > discard( final int atVersion ) throws Exception {
+            return send( client, "POST", "/api/collab/" + page + "/discard", GSON.toJson( Map.of( "sessionId", sessionId,
+                "participantId", participantId, "version", atVersion, "changeNote", "" ) ) );
         }
 
         void leave() throws Exception {

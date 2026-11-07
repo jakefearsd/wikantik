@@ -62,6 +62,15 @@ class PublicIdentityCollabIdentityTest {
     }
 
     @Test
+    void anAccountWhoseDisplayNameEqualsItsLoginKeepsThatName() {
+        // the name is the account's own public name, not an echoed login: the account exists
+        final PublicIdentity pi = mock( PublicIdentity.class );
+        when( pi.displayName( "Alice" ) ).thenReturn( "Alice" );
+        when( pi.userIdForLogin( "Alice" ) ).thenReturn( java.util.Optional.of( "uid-alice" ) );
+        assertEquals( "Alice", new PublicIdentityCollabIdentity( pi ).displayName( "Alice" ) );
+    }
+
+    @Test
     void aFormerMemberKeepsItsPublicLabel() {
         final PublicIdentity pi = mock( PublicIdentity.class );
         when( pi.displayName( "gone@example.com" ) ).thenReturn( PublicIdentity.FORMER_MEMBER );

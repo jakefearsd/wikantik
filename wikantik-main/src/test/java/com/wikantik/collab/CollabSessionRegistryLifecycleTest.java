@@ -433,6 +433,64 @@ class CollabSessionRegistryLifecycleTest {
 
     // ---- rekey: refusal, backoff, chains (binding b, c) ------------------------------------------------------------
 
+    // ---- the rename window (final review item 3) --------------------------------------------------------------------
+
+    /**
+     * The renamer records the owed rename under its page locks, before the move: a join of the target while the
+     * referrers are rewritten and the page reindexed (before the rename event) follows the rename into the moved draft
+     * instead of opening a fresh one, which would have frozen the moved draft when the event came.
+     */
+    @Test
+    void aJoinOfTheTargetDuringTheRenameWindowJoinsTheMovedDraft() {
+        final Joined a = join( "alice" );
+        registry.renameStarting( PAGE, "Moved" );
+        final CollabSessionRegistry.Refused early = assertInstanceOf( CollabSessionRegistry.Refused.class,
+            registry.join( "Moved", new JoinRequest( "bob", null, "bob", "BOB", null, null ) ) );
+        assertEquals( 503, early.status(), "the page is not there yet and the rename is under way" );
+        writer.rename( PAGE, "Moved" );   // the move, still under the renamer's locks
+
+        final Joined during = join( "Moved", "bob", "bob" );
+
+        assertEquals( a.response().sessionId(), during.response().sessionId() );
+        registry.renameEnded( PAGE, "Moved", true );   // the locks are released; referrers and reindex follow
+        final Joined after = join( "Moved", "carol", "carol" );
+        assertEquals( a.response().sessionId(), after.response().sessionId() );
+        registry.rekey( PAGE, "Moved" );   // the rename event, at last: the draft is already there
+        assertEquals( "Moved", a.session().pageName() );
+        assertFalse( a.session().frozen() );
+        registry.tick();
+        clock.advance( Duration.ofMinutes( 10 ) );
+        registry.tick();
+        assertFalse( a.session().frozen(), "no rename stays owed" );
+    }
+
+    @Test
+    void aJoinAfterTheLocksButBeforeTheEventJoinsTheMovedDraft() {
+        final Joined a = join( "alice" );
+        registry.renameStarting( PAGE, "Moved" );
+        writer.rename( PAGE, "Moved" );
+        registry.renameEnded( PAGE, "Moved", true );
+
+        final Joined c = join( "Moved", "bob", "bob" );
+
+        assertEquals( a.response().sessionId(), c.response().sessionId() );
+        registry.rekey( PAGE, "Moved" );
+        assertFalse( a.session().frozen() );
+    }
+
+    @Test
+    void anAbortedRenameOwesNothing() {
+        final Joined a = join( "alice" );
+        registry.renameStarting( PAGE, "Moved" );
+        registry.renameEnded( PAGE, "Moved", false );   // the move failed: nothing moved
+        writer.seed( "Moved", "someone else's page\n", Map.of() );
+
+        final Joined c = join( "Moved", "bob", "bob" );
+
+        assertNotEquals( a.response().sessionId(), c.response().sessionId() );
+        assertEquals( PAGE, a.session().pageName() );
+    }
+
     @Test
     void rekeyOntoADraftFreezesTheOrphan() {
         final UUID target = storedDraft( "Target" );

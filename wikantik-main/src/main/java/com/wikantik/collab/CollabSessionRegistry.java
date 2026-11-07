@@ -594,6 +594,26 @@ public final class CollabSessionRegistry {
     }
 
     /**
+     * A rename of {@code from} to {@code to} is starting, under the renamer's page locks and before the page moves
+     * (final review item 3): the rename is owed from now on, so a join of {@code to} while the referrers are rewritten
+     * and the page reindexed (the rename event comes after both) follows it into the moved draft, rather than opening a
+     * fresh draft there that the event would then refuse to move onto. Until {@link #renameEnded} a join of {@code to}
+     * finds it in flight: refused (503 {@code store}) while {@code to} does not exist yet, else the draft is moved first.
+     */
+    public void renameStarting( final String from, final String to ) {
+        renames.starting( from, to );
+    }
+
+    /**
+     * The renamer's locks are being released: {@code moved} when the page moved (the rename stays owed until it lands,
+     * by a join of {@code to}, the tick's retry or the rename event's {@link #rekey}), false when it failed before the
+     * move (the rename is forgotten).
+     */
+    public void renameEnded( final String from, final String to, final boolean moved ) {
+        renames.ended( from, to, moved );
+    }
+
+    /**
      * The page was deleted (ruling Q10: only a true delete freezes): its live session or stored draft is frozen. It is
      * kept for its participants, administrators and whoever the deleted page's last access rules admit (ruling F1), to
      * copy their text or recreate the page; administrators can also purge it. A draft still owed a rename into the

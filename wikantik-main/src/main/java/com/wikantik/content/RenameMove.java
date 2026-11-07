@@ -26,10 +26,15 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.auth.AuthorKeys;
+import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.adapter.CollabEngineAccess;
 import com.wikantik.page.subsystem.PageSubsystem;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Set;
@@ -41,8 +46,15 @@ import java.util.function.Function;
  * name. A save of the old page therefore lands either before the read (its text moves with the page) or after the move
  * (it finds no page, or recreates it under the old name as any save of a missing page does), never between the read and
  * the re-write, where the re-write would revert it.
+ *
+ * <p>The collaborative draft follows the page (MultiEdit final review item 3): the rename is recorded as owed with the
+ * collaboration registry here, under the locks and before the move, and marked moved (or forgotten, when the move
+ * failed) as the locks are released. A join of the new name while the renamer still rewrites referrers and reindexes,
+ * before its rename event, then follows the rename into the moved draft rather than opening a fresh one there.</p>
  */
 final class RenameMove {
+
+    private static final Logger LOG = LogManager.getLogger( RenameMove.class );
 
     /** What the move did: the page before and after, and the referrers of the old and the new name before the move. */
     record Moved( Page fromPage, Page toPage, Set< String > referrers, Set< String > newNameReferrers ) { }
@@ -77,6 +89,39 @@ final class RenameMove {
         // Read the text before anything moves: the rename re-saves it under the new name, and a text that cannot be read
         // must abort the rename with nothing changed — never be re-saved as "" (getPureText answers "" on a provider error).
         final String pageText = RenameTextReader.textOf( engine, renameFrom );
+
+        final CollabSessionRegistry collab = CollabEngineAccess.registry( engine );
+        if( collab == null ) {
+            return moveAndRewrite( context, pages, fromPage, renameFrom, renameTo, pageText, referrersOf );
+        }
+        collab.renameStarting( renameFrom, renameTo );
+        boolean moved = false;
+        try {
+            final Moved out = moveAndRewrite( context, pages, fromPage, renameFrom, renameTo, pageText, referrersOf );
+            moved = true;
+            return out;
+        } finally {
+            // a rename that failed after the move still owes the draft its move: it lands where the page now is
+            collab.renameEnded( renameFrom, renameTo, moved || existsAfterFailure( pageManager, renameTo ) );
+        }
+    }
+
+    /** Whether a failed rename left the page under its new name; a read that fails counts as moved (owed, retried). */
+    private static boolean existsAfterFailure( final PageManager pageManager, final String renameTo ) {
+        try {
+            return pageManager.getPage( renameTo ) != null;
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Rename to '{}' failed and the page store cannot tell whether the page moved; the collaborative"
+                    + " draft's move stays owed: {}", renameTo, e.toString() );
+            return true;
+        }
+    }
+
+    private static Moved moveAndRewrite( final Context context, final PageSubsystem.Services pages, final Page fromPage,
+                                         final String renameFrom, final String renameTo, final String pageText,
+                                         final Function< Page, Set< String > > referrersOf ) throws WikiException {
+        final Engine engine = context.getEngine();
+        final PageManager pageManager = pages.pages();
 
         final Set< String > referrers = referrersOf.apply( fromPage );
         final Set< String > newNameReferrers = RenameRenderEviction.referrersOf( engine, renameTo );

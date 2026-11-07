@@ -46,6 +46,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -116,6 +117,41 @@ class DefaultPageRenamerCollabGuardTest {
 
         assertNull( pm.getPage( "GuardFrom" ) );
         assertNotNull( pm.getPage( "GuardTo" ) );
+    }
+
+    /**
+     * Final review item 3: a join of the target after the move but before the rename event (the referrer rewrite and
+     * reindex run in between) joins the moved draft; it used to open a fresh draft there, which then made the rename
+     * event freeze the moved one.
+     */
+    @Test
+    void aJoinOfTheTargetBeforeTheRenameEventJoinsTheMovedDraft() throws Exception {
+        wiring = CollabTestWiring.wire( engine, new InMemoryCollabStore() );
+        final CollabSessionRegistry registry = CollabEngineAccess.registry( engine );
+        engine.saveText( "GuardFrom", "the page to move\n" );
+        final Session admin = engine.adminSession();
+        final String key = AuthorKeys.authorKeyFor( admin );
+        final CollabSessionRegistry.Joined moving = assertInstanceOf( CollabSessionRegistry.Joined.class,
+            registry.join( "GuardFrom", new JoinRequest( key, null, admin, "Admin", null, null ) ) );
+        final java.util.concurrent.atomic.AtomicReference< CollabSessionRegistry.JoinOutcome > during =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        // a renamer whose event is late: a join of the target lands first (the listener is not on this instance, so the
+        // event's rekey is run by hand, as the listener would)
+        final DefaultPageRenamer renamer = new DefaultPageRenamer() {
+            @Override
+            public void firePageRenameEvent( final String oldName, final String newName ) {
+                during.set( registry.join( newName, new JoinRequest( key, null, admin, "Admin", null, null ) ) );
+                registry.rekey( oldName, newName );
+            }
+        };
+        final Context ctx = Wiki.context().create( engine, pm.getPage( "GuardFrom" ) );
+
+        assertEquals( "GuardTo", renamer.renamePage( ctx, "GuardFrom", "GuardTo", true ) );
+
+        final CollabSessionRegistry.Joined joined = assertInstanceOf( CollabSessionRegistry.Joined.class, during.get() );
+        assertEquals( moving.response().sessionId(), joined.response().sessionId() );
+        assertEquals( "GuardTo", moving.session().pageName() );
+        assertFalse( moving.session().frozen() );
     }
 
     @Test

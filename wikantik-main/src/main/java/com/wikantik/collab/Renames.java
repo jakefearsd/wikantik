@@ -51,6 +51,15 @@ import java.util.function.Predicate;
  * A page store that cannot tell ({@link PageReadException}) means "try again later", never "drop". The delete of an owed
  * rename's target likewise drops it ({@link #dropInto}); the registry freezes the draft where it is.</p>
  *
+ * <p><b>The rename window</b> (final review item 3). The engine's renamer records the rename as owed under its page
+ * locks, before the page moves ({@link #starting}), and marks it landed or forgotten as it releases them
+ * ({@link #ended}); its rename event, and so {@link #rekey}, comes only after the referrers are rewritten and the page
+ * reindexed. A join of the new name in between follows the owed rename into the moved draft instead of opening a fresh
+ * one there (which the event would then refuse to move onto, freezing the moved draft). While the rename is in flight a
+ * missing target means "not moved yet", never "drop it": the join is refused (503) until the page is there. A rename of
+ * a name that has no draft (live or stored) has nothing to move and is done at once: so the event of a rename whose
+ * draft already moved is a no-op.</p>
+ *
  * <p><b>Concurrency.</b> Every change to the owed renames, and every move it decides on, runs under one lock: the
  * listener's rename, the tick's retry, a join's retry and a delete's drop are serialised, and a retry re-checks under
  * the lock that the rename it read is still the one owed (a chained rename may have followed it meanwhile). Lock order:
@@ -72,9 +81,10 @@ final class Renames {
 
     /**
      * A rename still owed: the draft's name, failures so far, when it is due again, whether it was refused (the WARN was
-     * logged) and whether its orphan was frozen.
+     * logged), whether its orphan was frozen, and whether the renamer still holds its page locks ({@code inFlight}: the
+     * page may not have moved yet).
      */
-    private record Owed( String from, int failures, Instant due, boolean refused, boolean frozen ) {
+    private record Owed( String from, int failures, Instant due, boolean refused, boolean frozen, boolean inFlight ) {
     }
 
     /** What a step decided under the lock and runs after it: parked-pull completions, then freezes. */
@@ -162,6 +172,11 @@ final class Renames {
      * on any failure the owed entry is recorded (backed off) and the failure rethrown.
      */
     private void attempt( final String from, final String to, final Owed prior, final After after ) {
+        if( Boolean.FALSE.equals( draftUnder( from ) ) ) {
+            // nothing to move: no draft has that name (or it already followed this rename, in the rename window)
+            settled( from, to );
+            return;
+        }
         boolean refused = hasSession( to );
         try {
             if( refused ) {
@@ -174,6 +189,11 @@ final class Renames {
             failed( from, to, prior, refused, e, after );
             throw e;
         }
+        settled( from, to );
+    }
+
+    /** Under the lock: the rename of {@code from} into {@code to} is owed no more. */
+    private void settled( final String from, final String to ) {
         final Owed now = pending.get( to );
         if( now != null && now.from().equals( from ) ) {
             pending.remove( to, now );
@@ -182,6 +202,7 @@ final class Renames {
 
     private void failed( final String from, final String to, final Owed prior, final boolean refusedNow,
                          final RuntimeException e, final After after ) {
+        final boolean inFlight = prior != null && prior.inFlight();
         final int failures = prior == null ? 1 : prior.failures() + 1;
         final boolean warned = prior != null && prior.refused();
         logFailure( from, to, failures, refusedNow && !warned, prior == null && !refusedNow, e );
@@ -191,7 +212,7 @@ final class Renames {
             frozen = true;   // cleared again by finish() if the freeze fails, so the next refusal retries it
         }
         pending.put( to, new Owed( from, failures, clock.instant().plus( backoff( failures ) ), refusedNow || warned,
-            frozen ) );
+            frozen, inFlight ) );
     }
 
     /** One WARN for a refusal, one for the first other failure; DEBUG after that. */
@@ -226,7 +247,7 @@ final class Renames {
         lock.lock();
         try {
             pending.replaceAll( ( to, o ) -> o.frozen() && o.from().equals( from )
-                ? new Owed( o.from(), o.failures(), o.due(), o.refused(), false ) : o );
+                ? new Owed( o.from(), o.failures(), o.due(), o.refused(), false, o.inFlight() ) : o );
         } finally {
             lock.unlock();
         }
@@ -286,6 +307,44 @@ final class Renames {
         }
     }
 
+    /** The renamer is about to move {@code from} to {@code to}, holding both page locks: the rename is owed, in flight. */
+    void starting( final String from, final String to ) {
+        if( from.equals( to ) ) {
+            return;
+        }
+        lock.lock();
+        try {
+            final Owed replaced = pending.put( to, new Owed( from, 0, clock.instant(), false, false, true ) );
+            if( replaced != null ) {
+                LOG.debug( "collab: the rename of {} into {} replaces the one owed from {} (that page is gone)", from, to,
+                    replaced.from() );
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * The renamer releases its locks: a rename that {@code moved} the page stays owed (no longer in flight) until it
+     * lands; one that failed before the move is forgotten.
+     */
+    void ended( final String from, final String to, final boolean moved ) {
+        lock.lock();
+        try {
+            final Owed owed = pending.get( to );
+            if( owed == null || !owed.inFlight() || !owed.from().equals( from ) ) {
+                return;   // it landed already (a join, a retry), or a later rename took its place
+            }
+            if( moved ) {
+                pending.put( to, new Owed( from, owed.failures(), owed.due(), owed.refused(), owed.frozen(), false ) );
+            } else {
+                pending.remove( to, owed );
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /** True when a rename out of {@code pageName} is still owed (its draft is not an orphan yet). */
     boolean owedFrom( final String pageName ) {
         return pending.values().stream().anyMatch( o -> o.from().equals( pageName ) );
@@ -318,6 +377,9 @@ final class Renames {
             return false;
         }
         if( !exists ) {
+            if( owed.inFlight() ) {
+                return false;   // the renamer has not moved the page yet: still owed, the join waits
+            }
             if( pending.remove( to, owed ) ) {
                 LOG.warn( "collab: {} no longer exists; the draft of {} stays where it is, never moved onto a vanished"
                     + " page", to, owed.from() );
@@ -344,6 +406,23 @@ final class Renames {
         } catch( final RuntimeException e ) {
             LOG.warn( "collab: could not tell whether {} has a draft: {}", pageName, e.toString() );
             return false;
+        }
+    }
+
+    /**
+     * Whether {@code pageName} has a draft, live or stored; null (logged at DEBUG; the caller goes on as if it might)
+     * when the store cannot tell.
+     */
+    private Boolean draftUnder( final String pageName ) {
+        final SessionSlot slot = slots.get( pageName );
+        if( slot != null && slot.session() != null ) {
+            return Boolean.TRUE;
+        }
+        try {
+            return store.sessionForPage( pageName ).isPresent();
+        } catch( final RuntimeException e ) {
+            LOG.debug( "collab: could not tell whether {} has a draft to move: {}", pageName, e.toString() );
+            return null;
         }
     }
 

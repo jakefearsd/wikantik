@@ -31,7 +31,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,11 +59,13 @@ public final class JdbcCollabStore implements CollabStore {
     private final Jdbc jdbc;
     private final CollabWrites writes;
     private final ContributorLedger ledger;
+    private final DraftQueries drafts;
 
     public JdbcCollabStore( final Jdbc jdbc ) {
         this.jdbc = java.util.Objects.requireNonNull( jdbc, "jdbc" );
         this.writes = new CollabWrites( jdbc );
         this.ledger = new ContributorLedger( jdbc );
+        this.drafts = new DraftQueries( jdbc );
     }
 
     // ---- sessions ------------------------------------------------------------------------------------------
@@ -354,41 +355,14 @@ public final class JdbcCollabStore implements CollabStore {
         }
     }
 
-    /**
-     * No bodies are read. The real last edit is the later of the marker and the newest retained text update or authored
-     * meta op ({@code GREATEST} ignores NULLs); the ordering and its code-point tie-break match the in-memory twin.
-     */
     @Override
     public List< DraftEntry > draftEntries() {
-        try {
-            return jdbc.query( "SELECT id, page_name, status, has_unpublished, pending, created_by, created_at, last_edit"
-                + " FROM ( SELECT s.id, s.page_name, s.status, s.has_unpublished,"
-                + " s.pending_publish_version IS NOT NULL AS pending, s.created_by, s.created_at,"
-                + " GREATEST( s.last_edit_at,"
-                + " ( SELECT max( u.created_at ) FROM collab_update u WHERE u.session_id = s.id AND u.kind = 'text' ),"
-                + " ( SELECT max( m.created_at ) FROM collab_meta_op m WHERE m.session_id = s.id"
-                + " AND m.author_key IS NOT NULL ) ) AS last_edit FROM collab_session s ) d"
-                + " ORDER BY coalesce( last_edit, created_at ), page_name COLLATE \"C\"", ps -> { }, rs -> {
-                    final Timestamp last = rs.getTimestamp( 8 );
-                    return new DraftEntry( rs.getObject( 1, UUID.class ), rs.getString( 2 ), rs.getString( 3 ),
-                        rs.getBoolean( 4 ), rs.getBoolean( 5 ), rs.getString( 6 ), rs.getTimestamp( 7 ).toInstant(),
-                        last == null ? null : last.toInstant() );
-                } );
-        } catch( final SQLException e ) {
-            throw translate( e, "draftEntries" );
-        }
+        return drafts.entries();
     }
 
     @Override
     public Map< String, Boolean > unpublishedByPage() {
-        try {
-            final Map< String, Boolean > out = new LinkedHashMap<>();
-            jdbc.query( "SELECT page_name, has_unpublished FROM collab_session", ps -> { },
-                rs -> out.put( rs.getString( 1 ), rs.getBoolean( 2 ) ) );
-            return out;
-        } catch( final SQLException e ) {
-            throw translate( e, "unpublishedByPage" );
-        }
+        return drafts.unpublishedByPage();
     }
 
     // ---- page-version contributor ledger -------------------------------------------------------------------
@@ -435,7 +409,7 @@ public final class JdbcCollabStore implements CollabStore {
     }
 
     /** A unique violation (page name or session id taken) is the contract's IllegalStateException; the rest is storage. */
-    private static IllegalStateException translate( final SQLException e, final String what ) {
+    static IllegalStateException translate( final SQLException e, final String what ) {
         if( PG_UNIQUE_VIOLATION.equals( e.getSQLState() ) ) {
             return new IllegalStateException( "collab store refused " + what + ": already exists (" + e.getMessage() + ")", e );
         }

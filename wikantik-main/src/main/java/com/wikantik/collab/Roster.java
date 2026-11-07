@@ -57,7 +57,8 @@ final class Roster {
     /** At most this many retired clientIDs are kept (oldest dropped first), like the tombstones. */
     static final int MAX_RETIRED_CLIENTS = 1024;
 
-    private record Retired( String authorKey, Instant at ) {
+    /** A retired clientID: its author, when it left, and whether it left by losing {@code edit} (revoked). */
+    private record Retired( String authorKey, Instant at, boolean revoked ) {
     }
 
     /** An evicted participant: its author, why, and when. */
@@ -171,6 +172,9 @@ final class Roster {
         final Participant p = remove( participantId, now );
         if( p != null ) {
             tombstones.put( participantId, new Tombstone( p.authorKey, reason, now ) );
+            if( CollabSession.LOST_EDIT.equals( reason ) ) {
+                retiredClients.computeIfPresent( p.clientId, ( c, r ) -> new Retired( r.authorKey(), r.at(), true ) );
+            }
             while( tombstones.size() > MAX_TOMBSTONES ) {
                 tombstones.remove( tombstones.keySet().iterator().next() );
             }
@@ -203,13 +207,22 @@ final class Roster {
 
     /**
      * True when {@code authorKey} is a participant of this session: live, or bound to a retired clientID or a tombstone
-     * still within its retention (ruling F1: the existing participants of a frozen draft keep access).
+     * still within its retention (ruling F1: the existing participants of a frozen draft keep access), unless it was
+     * evicted for losing {@code edit} (then only a live participant counts).
      */
     boolean knows( final String authorKey, final Instant now ) {
         prune( now );
-        return participants.values().stream().anyMatch( p -> p.authorKey.equals( authorKey ) )
-            || retiredClients.values().stream().anyMatch( r -> r.authorKey().equals( authorKey ) )
-            || tombstones.values().stream().anyMatch( t -> t.authorKey().equals( authorKey ) );
+        if( participants.values().stream().anyMatch( p -> p.authorKey.equals( authorKey ) ) ) {
+            return true;
+        }
+        // an author evicted for losing edit is no participant any more (re-review c): none of its tombstones or retired
+        // clientIDs counts, whichever tab they came from
+        final boolean revoked = retiredClients.values().stream().anyMatch( r -> r.revoked()
+                && r.authorKey().equals( authorKey ) )
+            || tombstones.values().stream().anyMatch( t -> CollabSession.LOST_EDIT.equals( t.reason() )
+                && t.authorKey().equals( authorKey ) );
+        return !revoked && ( retiredClients.values().stream().anyMatch( r -> r.authorKey().equals( authorKey ) )
+            || tombstones.values().stream().anyMatch( t -> t.authorKey().equals( authorKey ) ) );
     }
 
     Participant get( final String participantId ) {
@@ -222,7 +235,7 @@ final class Roster {
         final Participant p = participants.remove( participantId );
         count = participants.size();
         if( p != null ) {
-            retiredClients.put( p.clientId, new Retired( p.authorKey, now ) );
+            retiredClients.put( p.clientId, new Retired( p.authorKey, now, false ) );
             while( retiredClients.size() > MAX_RETIRED_CLIENTS ) {
                 retiredClients.remove( retiredClients.keySet().iterator().next() );
             }

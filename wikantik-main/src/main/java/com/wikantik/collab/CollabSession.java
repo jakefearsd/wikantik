@@ -196,7 +196,7 @@ public final class CollabSession {
         final String body = latest.map( p -> CollabText.toLf( p.body() ) ).orElse( "" );
         return new SessionRecord( id, pageName, SessionRecord.ACTIVE, latest.map( PageState::version ).orElse( 0 ), body,
             latest.map( PageState::meta ).orElse( Map.of() ), CollabText.contentHash( body ), 0, 0, false, null, null,
-            null, null, null, null, createdBy, clock.instant(), null );
+            null, null, null, null, createdBy, clock.instant(), null , null);
     }
 
     /**
@@ -942,15 +942,19 @@ public final class CollabSession {
         }
 
         /**
-         * Ruling F1, for a join while the draft's page is missing: null when the draft needs no guard (a new page's
-         * draft, never published and not frozen) or {@code authorKey} is already a participant
-         * ({@link Roster#knows}); otherwise the draft's base text, whose access rules decide for everyone else.
+         * Rulings F1 and F2, for a join: null when the draft needs no guard or {@code authorKey} is already a
+         * participant ({@link Roster#knows}); otherwise the text whose access rules decide for everyone else. A draft
+         * once frozen is guarded by its deleted page's text ({@link SessionRecord#guardText}) until a publish, whether
+         * or not the page exists again; any other draft whose page is missing ({@code pageMissing}) and that was based on
+         * a page is guarded by its base page's full text (frontmatter included); a new page's draft is not.
          */
-        static String guardingBase( final CollabSession s, final String authorKey ) {
+        static String guardingBase( final CollabSession s, final String authorKey, final boolean pageMissing ) {
             s.lock.lock();
             try {
-                final boolean guarded = s.d.frozen() || s.d.record.basePageVersion() > 0;
-                return guarded && !s.roster.knows( authorKey, s.clock.instant() ) ? s.d.record.baseBody() : null;
+                final SessionRecord rec = s.d.record;
+                final String guard = rec.guardText() != null ? rec.guardText()
+                    : pageMissing && ( s.d.frozen() || rec.basePageVersion() > 0 ) ? rec.fullBaseText() : null;
+                return guard != null && !s.roster.knows( authorKey, s.clock.instant() ) ? guard : null;
             } finally {
                 s.lock.unlock();
             }

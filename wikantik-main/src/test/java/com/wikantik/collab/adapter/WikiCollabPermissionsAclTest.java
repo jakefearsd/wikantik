@@ -21,10 +21,15 @@ package com.wikantik.collab.adapter;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiSessionTest;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.auth.Users;
+import com.wikantik.auth.authorize.Group;
+import com.wikantik.auth.authorize.GroupManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -92,5 +97,50 @@ class WikiCollabPermissionsAclTest {
 
         assertTrue( permissions.isAdmin( admin ) );
         assertTrue( permissions.mayAccessAsIf( admin, "GonePage", "[{ALLOW edit SomeOtherUser}]\nsecret" ) );
+    }
+
+    // ---- re-review (b): the full base text, read as a live page's ---------------------------------------------------
+
+    /** A rule in the frontmatter is disputed and locks the page, as on a live page: only administrators get in. */
+    @Test
+    void aFrontmatterRuleLocksTheDeletedPagesDraft() throws Exception {
+        final Session bob = WikiSessionTest.authenticatedSession( engine, Users.BOB, Users.BOB_PASS );
+        final String text = FrontmatterWriter.write( Map.of( "acl", "[{ALLOW edit Bob}]" ), "body\n" );
+
+        assertFalse( new WikiCollabPermissions( engine ).mayAccessAsIf( bob, "GonePage", text ) );
+    }
+
+    @Test
+    void anAdministratorStillPassesAFrontmatterLock() throws Exception {
+        final Session admin = WikiSessionTest.adminSession( engine );
+        final String text = FrontmatterWriter.write( Map.of( "acl", "[{ALLOW edit Bob}]" ), "body\n" );
+
+        assertTrue( new WikiCollabPermissions( engine ).mayAccessAsIf( admin, "GonePage", text ) );
+    }
+
+    /** A rule inside an Obsidian comment never silently grants: the page locks, as a live page does. */
+    @Test
+    void aCommentedOutRuleLocksAsOnALivePage() throws Exception {
+        final Session bob = WikiSessionTest.authenticatedSession( engine, Users.BOB, Users.BOB_PASS );
+
+        assertFalse( new WikiCollabPermissions( engine ).mayAccessAsIf( bob, "GonePage",
+            "%% [{ALLOW edit Bob}] %%\nbody\n" ) );
+        assertTrue( new WikiCollabPermissions( engine ).mayAccessAsIf( bob, "GonePage", "%% just a note %%\nbody\n" ) );
+    }
+
+    @Test
+    void aGroupRuleAdmitsTheGroupsMembers() throws Exception {
+        final Session bob = WikiSessionTest.authenticatedSession( engine, Users.BOB, Users.BOB_PASS );
+        final GroupManager groups = engine.getManager( GroupManager.class );
+        final Group group = groups.parseGroup( "CollabGuardGroup", "Bob", true );
+        groups.setGroup( bob, group );
+        try {
+            final WikiCollabPermissions permissions = new WikiCollabPermissions( engine );
+            assertTrue( permissions.mayAccessAsIf( bob, "GonePage", "[{ALLOW edit CollabGuardGroup}]\nbody" ) );
+            assertFalse( permissions.mayAccessAsIf( bob, "GonePage", "[{ALLOW edit TV}]\nbody" ),
+                "a group bob is not in" );
+        } finally {
+            groups.removeGroup( "CollabGuardGroup" );
+        }
     }
 }

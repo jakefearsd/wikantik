@@ -55,7 +55,7 @@ class JdbcCollabStoreMetaTest {
             final UUID id = UUID.randomUUID();
             final Instant t = Instant.parse( "2026-01-01T00:00:00Z" );
             store.createSession( new SessionRecord( id, "DatedPage", SessionRecord.ACTIVE, 1, "b\n", meta,
-                CollabText.contentHash( "b\n" ), 0, 0, false, null, null, null, null, null, null, "alice", t, null ) );
+                CollabText.contentHash( "b\n" ), 0, 0, false, null, null, null, null, null, null, "alice", t, null , null) );
             store.writeSnapshot( id, new Snapshot( 0, 0, 1, "b\n", meta, ChangeSet.empty( 2 ) ) );
             store.appendMetaOps( id, List.of( new StoredMetaOp( 1, "alice", "date", meta.get( "date" ) ) ) );
 

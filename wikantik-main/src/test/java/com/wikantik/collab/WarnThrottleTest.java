@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.rest;
+package com.wikantik.collab;
 
 import com.wikantik.collab.testing.MutableClock;
 import org.junit.jupiter.api.Test;
@@ -27,29 +27,29 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Final review item 5: per-request refusal WARNs are at most one a minute per participant or address. */
-class CollabWarnThrottleTest {
+class WarnThrottleTest {
 
     @Test
     void oneWarningPerKeyPerMinuteThenTheCountOfThoseSuppressed() {
         final MutableClock clock = new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) );
-        final CollabWarnThrottle throttle = new CollabWarnThrottle( clock );
+        final WarnThrottle throttle = new WarnThrottle( clock );
 
         assertEquals( 0, throttle.admit( "p1" ), "the first warns" );
-        assertEquals( CollabWarnThrottle.QUIET, throttle.admit( "p1" ) );
-        assertEquals( CollabWarnThrottle.QUIET, throttle.admit( "p1" ) );
+        assertEquals( WarnThrottle.QUIET, throttle.admit( "p1" ) );
+        assertEquals( WarnThrottle.QUIET, throttle.admit( "p1" ) );
         assertEquals( 0, throttle.admit( "p2" ), "another key has its own minute" );
         clock.advance( Duration.ofSeconds( 59 ) );
-        assertEquals( CollabWarnThrottle.QUIET, throttle.admit( "p1" ) );
+        assertEquals( WarnThrottle.QUIET, throttle.admit( "p1" ) );
         clock.advance( Duration.ofSeconds( 1 ) );
         assertEquals( 3, throttle.admit( "p1" ), "a minute on: warns again, saying how many were quiet" );
-        assertEquals( CollabWarnThrottle.QUIET, throttle.admit( "p1" ) );
+        assertEquals( WarnThrottle.QUIET, throttle.admit( "p1" ) );
     }
 
     @Test
     void manyKeysStayBounded() {
         final MutableClock clock = new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) );
-        final CollabWarnThrottle throttle = new CollabWarnThrottle( clock );
-        for( int i = 0; i < CollabWarnThrottle.MAX_KEYS + 10; i++ ) {
+        final WarnThrottle throttle = new WarnThrottle( clock );
+        for( int i = 0; i < WarnThrottle.MAX_KEYS + 10; i++ ) {
             throttle.admit( "k" + i );
         }
         clock.advance( Duration.ofMinutes( 2 ) );

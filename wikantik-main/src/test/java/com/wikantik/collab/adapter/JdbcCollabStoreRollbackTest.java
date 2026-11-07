@@ -70,7 +70,7 @@ class JdbcCollabStoreRollbackTest {
         faulty = new FaultInjectingDataSource( ds );
         faultyStore = new JdbcCollabStore( new Jdbc( faulty ) );
         s = new SessionRecord( UUID.randomUUID(), "PageA", SessionRecord.ACTIVE, 3, "base", Map.of(), "hash-3", 0, 0L,
-            false, null, null, null, null, null, null, "alice", T0, null );
+            false, null, null, null, null, null, null, "alice", T0, null , null);
         clean.createSession( s );
     }
 
@@ -258,6 +258,22 @@ class JdbcCollabStoreRollbackTest {
     }
 
     @Test
+    void v069IsANoOpOnReapply() throws Exception {
+        clean.updateSession( s.frozenGuarded() );
+        final String guard = clean.session( s.id() ).orElseThrow().guardText();
+        final String sql = MigrationApplier.substituteAppUser( Files.readString(
+            MigrationApplier.findRepoRoot().resolve( "bin/db/migrations/V069__collab_session_guard_text.sql" ) ),
+            "test" );
+        for( int i = 0; i < 2; i++ ) {
+            new Jdbc( ds ).execute( sql );
+        }
+        assertEquals( 1, new Jdbc( ds ).queryOne( "SELECT count(*) FROM information_schema.columns"
+            + " WHERE table_name = 'collab_session' AND column_name = 'guard_text'", ps -> { },
+            rs -> rs.getInt( 1 ) ).orElseThrow(), "the column exists once" );
+        assertEquals( guard, clean.session( s.id() ).orElseThrow().guardText(), "re-applying must not touch existing data" );
+    }
+
+    @Test
     void metaRoundTripsThroughJsonWithNullsAndNestedValues() {
         final Map< String, Object > meta = new LinkedHashMap<>();
         meta.put( "tags", List.of( "a", "b" ) );
@@ -266,7 +282,7 @@ class JdbcCollabStoreRollbackTest {
         meta.put( "x", 1.5 );
         meta.put( "nested", Map.of( "k", true ) );
         final SessionRecord withMeta = new SessionRecord( UUID.randomUUID(), "PageM", SessionRecord.ACTIVE, 1, "b", meta,
-            "h", 0, 0L, false, null, null, null, null, null, null, "alice", T0, T0 );
+            "h", 0, 0L, false, null, null, null, null, null, null, "alice", T0, T0 , null);
         clean.createSession( withMeta );
         final Map< String, Object > back = clean.session( withMeta.id() ).orElseThrow().baseMeta();
         assertEquals( List.of( "a", "b" ), back.get( "tags" ) );

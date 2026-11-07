@@ -62,6 +62,28 @@ describe('useCollabSession', () => {
     expect(server.calls.filter((c) => c.path === '/leave' && c.user === 'ada')).toHaveLength(1);
   });
 
+  const storeDown = () => Object.assign(new Error('collab store unavailable'), { status: 503, body: { reason: 'store' } });
+
+  it('a first join refused 503 store is retried with backoff before it is reported', async () => {
+    const base = server.transportFor('ada');
+    let refusals = 2;
+    const transport = { ...base, join: async (b) => { if (refusals > 0) { refusals -= 1; throw storeDown(); } return base.join(b); } };
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(result.current.status).toBe('live');
+    expect(refusals).toBe(0);
+  });
+
+  it('a join that keeps meeting 503 store ends in error after a few attempts', async () => {
+    let attempts = 0;
+    const transport = { ...server.transportFor('ada'), join: async () => { attempts += 1; throw storeDown(); } };
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+    expect(result.current.status).toBe('error');
+    expect(attempts).toBeGreaterThan(1);
+    expect(attempts).toBeLessThan(6);
+  });
+
   it.each([
     ['collab-disabled', 'disabled'], ['derived-page', 'unavailable'], ['session-full', 'full'], ['forbidden', 'forbidden'],
   ])('maps a refused join (%s) to status %s', async (flag, status) => {

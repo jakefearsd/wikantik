@@ -56,7 +56,7 @@ import java.util.function.ToIntFunction;
  * on a page that does not exist, so it needs {@code createPages}; and the deleted page's protection outlives it (ruling
  * F1): the draft of a missing page, frozen or not yet, is joined only by its existing participants, by administrators,
  * and by callers whom the access rules of the draft's base text (the page's last-known text) would let view and edit
- * it, else 403 {@code forbidden} ({@link JoinRefusals#refuseMissingPagesDraft}). A frozen join is answered with the
+ * it, else 403 {@code forbidden} ({@link JoinRefusals#refuseGuarded}; a draft once frozen stays guarded by its deleted page's text through the page's recreation, until it is published again (ruling F2)). A frozen join is answered with the
  * draft's text, its pushes are 409 {@code frozen}, and its first pull is told {@code page-deleted} (the join's
  * {@code eventSeq} stops just before it).</p>
  *
@@ -155,6 +155,8 @@ public final class CollabSessionRegistry {
     private final DraftAdmin admin;
     /** The registry-wide tick steps' failure log (each session slot has its own). */
     private final TickLog tickLog = new TickLog();
+    /** Keeps the per-join refusal WARNs to one a minute per author (the rest at DEBUG). */
+    private final WarnThrottle warns;
     /** Set by {@link #requestEditRecheck}; the next tick re-checks every live session's participants. */
     private final AtomicBoolean editRecheckRequested = new AtomicBoolean();
     private volatile boolean enabled;
@@ -184,6 +186,7 @@ public final class CollabSessionRegistry {
         this.permissions = ports.permissions();
         this.clock = ports.clock();
         this.config = Objects.requireNonNull( config, "config" );
+        this.warns = new WarnThrottle( clock );
         this.maxPageBytes = maxPageBytes;
         this.enabled = config.enabled();
         this.renames = new Renames( slots, store, clock, this::freezeAt, writer::exists );
@@ -226,8 +229,7 @@ public final class CollabSessionRegistry {
         }
         if( !renames.joinable( pageName ) ) {
             // a rename into this page is still owed: opening a session now would leave the renamed draft no home
-            LOG.warn( "collab: join of {} by {} refused: a rename into it is pending", pageName, r.authorKey() );
-            return new Refused( 503, CollabSession.STORE );
+            return JoinRefusals.renamePending( pageName, r, warns );
         }
         while( true ) {
             // read (again, on a retry): a rename or delete may have moved the page meanwhile
@@ -284,7 +286,7 @@ public final class CollabSessionRegistry {
         if( refused != null ) {
             return refused;
         }
-        final JoinOutcome out = JoinRefusals.join( s, r, pageName );
+        final JoinOutcome out = JoinRefusals.join( s, r, pageName, warns );
         if( out instanceof Joined ) {
             slot.joined();
         }
@@ -636,7 +638,7 @@ public final class CollabSessionRegistry {
             done.forEach( Runnable::run );   // after the slot lock is released
             return;
         }
-        store.sessionForPage( pageName ).ifPresent( rec -> store.updateSession( rec.withStatus( SessionRecord.FROZEN ) ) );
+        store.sessionForPage( pageName ).ifPresent( rec -> store.updateSession( rec.frozenGuarded() ) );
     }
 
 }

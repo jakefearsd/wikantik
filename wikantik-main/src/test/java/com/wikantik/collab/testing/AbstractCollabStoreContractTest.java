@@ -72,7 +72,7 @@ public abstract class AbstractCollabStoreContractTest {
 
     private static SessionRecord session( final String page ) {
         return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 3, "base body", Map.of( "k", "v" ),
-            "hash-3", 0, 0L, false, null, null, null, null, null, null, "alice", T0, T0 );
+            "hash-3", 0, 0L, false, null, null, null, null, null, null, "alice", T0, T0 , null);
     }
 
     private SessionRecord created( final String page ) {
@@ -150,7 +150,7 @@ public abstract class AbstractCollabStoreContractTest {
     private static SessionRecord frozen( final SessionRecord s ) {
         return new SessionRecord( s.id(), s.pageName(), SessionRecord.FROZEN, s.basePageVersion(), s.baseBody(),
             s.baseMeta(), s.baseContentHash(), s.headVersion(), s.metaSeq(), s.hasUnpublished(), s.pendingPublishVersion(),
-            s.pendingPublishBaseVersion(), s.pendingPublishAuthor(), null, null, null, s.createdBy(), s.createdAt(), s.lastEditAt() );
+            s.pendingPublishBaseVersion(), s.pendingPublishAuthor(), null, null, null, s.createdBy(), s.createdAt(), s.lastEditAt() , null);
     }
 
     // ---- updateSession -------------------------------------------------------------------------------------
@@ -176,7 +176,7 @@ public abstract class AbstractCollabStoreContractTest {
         final SessionRecord s = created( "PageA" );
         final Instant later = T0.plusSeconds( 60 );
         final SessionRecord changed = new SessionRecord( s.id(), "PageB", SessionRecord.FROZEN, 9, "new base",
-            Map.of( "a", "b" ), "hash-9", 0, 0L, true, 7, 8, "bob", null, null, null, "alice", T0, later );
+            Map.of( "a", "b" ), "hash-9", 0, 0L, true, 7, 8, "bob", null, null, null, "alice", T0, later , null);
         store.updateSession( changed );
         assertEquals( changed, store.session( s.id() ).orElseThrow() );
         assertTrue( store.sessionForPage( "PageA" ).isEmpty() );
@@ -189,7 +189,7 @@ public abstract class AbstractCollabStoreContractTest {
         store.appendUpdates( s.id(), upds( 1, 3 ) );
         store.appendMetaOps( s.id(), List.of( op( 1 ), op( 2 ) ) );
         final SessionRecord attempt = new SessionRecord( s.id(), "PageA", SessionRecord.ACTIVE, 3, "base body",
-            Map.of(), "hash-3", 99, 99L, false, null, null, null, null, null, null, "mallory", T0.plusSeconds( 1 ), T0.plusSeconds( 5 ) );
+            Map.of(), "hash-3", 99, 99L, false, null, null, null, null, null, null, "mallory", T0.plusSeconds( 1 ), T0.plusSeconds( 5 ) , null);
         store.updateSession( attempt );
         final SessionRecord stored = store.session( s.id() ).orElseThrow();
         assertEquals( 3, stored.headVersion() );
@@ -205,7 +205,7 @@ public abstract class AbstractCollabStoreContractTest {
         final SessionRecord b = created( "PageB" );
         final SessionRecord clash = new SessionRecord( b.id(), "PageA", b.status(), b.basePageVersion(), b.baseBody(),
             b.baseMeta(), b.baseContentHash(), 0, 0L, false, null, null, null, null, null, null, b.createdBy(), b.createdAt(),
-            b.lastEditAt() );
+            b.lastEditAt() , null);
         assertThrows( IllegalStateException.class, () -> store.updateSession( clash ) );
         assertEquals( "PageB", store.session( b.id() ).orElseThrow().pageName() );
     }
@@ -228,6 +228,28 @@ public abstract class AbstractCollabStoreContractTest {
         assertEquals( upds( 1, 5 ), store.updatesSince( s.id(), 0 ) );
         assertEquals( upds( 3, 5 ), store.updatesSince( s.id(), 2 ) );
         assertTrue( store.updatesSince( s.id(), 5 ).isEmpty() );
+    }
+
+    /** Ruling F2: a frozen draft's guard is durable, kept by every update that carries it, and cleared only by one. */
+    @Test
+    void theGuardTextIsStoredByCreateUpdateAndBaseChangeAndCleared() {
+        final SessionRecord s = created( "PageA" );
+        assertEquals( null, store.session( s.id() ).orElseThrow().guardText() );
+        final SessionRecord frozen = s.withBase( 3, "body", Map.of( "acl", "[{ALLOW edit alice}]" ), "h" )
+            .frozenGuarded();
+        store.updateSession( frozen );
+        final String guard = store.session( s.id() ).orElseThrow().guardText();
+        assertTrue( guard.contains( "[{ALLOW edit alice}]" ) && guard.endsWith( "body" ), guard );
+        store.updateSession( frozen.withStatus( SessionRecord.ACTIVE ) );   // the page was recreated
+        assertEquals( guard, store.session( s.id() ).orElseThrow().guardText() );
+        store.commitBaseChange( s.id(), List.of(), baseSnap( 0, 4 ), rebased( s, 4 ).withGuard( guard ) );
+        assertEquals( guard, store.session( s.id() ).orElseThrow().guardText() );
+        store.commitBaseChange( s.id(), List.of(), baseSnap( 0, 5 ), rebased( s, 5 ) );
+        assertEquals( null, store.session( s.id() ).orElseThrow().guardText() );
+
+        final SessionRecord born = session( "PageB" ).withGuard( "the old text" );
+        store.createSession( born );
+        assertEquals( "the old text", store.session( born.id() ).orElseThrow().guardText() );
     }
 
     /** A rejoin after a reload reclaims its clientID only from its own stored text updates (final review item 2). */
@@ -291,7 +313,7 @@ public abstract class AbstractCollabStoreContractTest {
     void aDuplicateSessionIdIsRefusedEvenForAnotherPage() {
         final SessionRecord s = created( "PageA" );
         final SessionRecord sameId = new SessionRecord( s.id(), "PageB", SessionRecord.ACTIVE, 3, "b", Map.of(), "h", 0,
-            0L, false, null, null, null, null, null, null, "alice", T0, T0 );
+            0L, false, null, null, null, null, null, null, "alice", T0, T0 , null);
         assertThrows( IllegalStateException.class, () -> store.createSession( sameId ) );
         assertEquals( s, store.session( s.id() ).orElseThrow() );
         assertTrue( store.sessionForPage( "PageB" ).isEmpty() );
@@ -665,7 +687,7 @@ public abstract class AbstractCollabStoreContractTest {
         final SessionRecord s = created( "PageA" );
         store.appendMetaOps( s.id(), List.of( op( 1 ) ) );
         final SessionRecord attempt = new SessionRecord( s.id(), "PageA", SessionRecord.ACTIVE, 4, "base@4", Map.of(),
-            "hash-4", 77, 77L, false, null, null, null, null, null, null, "mallory", T0.plusSeconds( 9 ), T0.plusSeconds( 9 ) );
+            "hash-4", 77, 77L, false, null, null, null, null, null, null, "mallory", T0.plusSeconds( 9 ), T0.plusSeconds( 9 ) , null);
         store.commitBaseChange( s.id(), List.of(), baseSnap( 0, 4 ), attempt );
         final SessionRecord stored = store.session( s.id() ).orElseThrow();
         assertEquals( 0, stored.headVersion() );
@@ -726,7 +748,7 @@ public abstract class AbstractCollabStoreContractTest {
         store.appendUpdates( s.id(), upds( 1, 2 ) );
         final SessionRecord before = store.session( s.id() ).orElseThrow();
         final SessionRecord renamedOntoB = new SessionRecord( s.id(), "PageB", SessionRecord.ACTIVE, 4, "base@4",
-            Map.of(), "hash-4", 0, 0L, false, null, null, null, null, null, null, "alice", T0, T0 );
+            Map.of(), "hash-4", 0, 0L, false, null, null, null, null, null, null, "alice", T0, T0 , null);
         assertThrows( IllegalStateException.class,
             () -> store.commitBaseChange( s.id(), List.of( serverUpd( 3 ) ), baseSnap( 3, 4 ), renamedOntoB ) );
         assertUntouched( s, before, 2 );
@@ -896,7 +918,7 @@ public abstract class AbstractCollabStoreContractTest {
 
     private static SessionRecord sessionAt( final String page, final Instant createdAt, final Instant lastEditAt ) {
         return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 3, "base body", Map.of(), "hash-3", 0,
-            0L, false, null, null, null, null, null, null, "alice", createdAt, lastEditAt );
+            0L, false, null, null, null, null, null, null, "alice", createdAt, lastEditAt , null);
     }
 
     @Test
@@ -960,7 +982,7 @@ public abstract class AbstractCollabStoreContractTest {
 
         final Instant future = Instant.now().plusSeconds( 365L * 24 * 3600 ).truncatedTo( ChronoUnit.MILLIS );
         store.updateSession( new SessionRecord( s.id(), "PageA", SessionRecord.ACTIVE, 3, "base body", Map.of( "k", "v" ),
-            "hash-3", 0, 0L, true, null, null, null, null, null, null, "alice", T0, future ) );
+            "hash-3", 0, 0L, true, null, null, null, null, null, null, "alice", T0, future , null) );
         final DraftEntry a = store.draftEntries().stream().filter( e -> e.id().equals( s.id() ) ).findFirst()
             .orElseThrow();
         assertEquals( future, a.lastEditAt(), "a marker newer than the log wins" );
@@ -973,7 +995,7 @@ public abstract class AbstractCollabStoreContractTest {
         final SessionRecord a = created( "PageA" );
         final SessionRecord b = created( "PageB" );
         store.updateSession( new SessionRecord( b.id(), "PageB", SessionRecord.FROZEN, 3, "base body", Map.of( "k", "v" ),
-            "hash-3", 0, 0L, true, null, null, null, null, null, null, "alice", T0, T0 ) );
+            "hash-3", 0, 0L, true, null, null, null, null, null, null, "alice", T0, T0 , null) );
         assertEquals( Map.of( "PageA", false, "PageB", true ), store.unpublishedByPage() );
         store.deleteSession( a.id() );
         assertEquals( Map.of( "PageB", true ), store.unpublishedByPage() );
@@ -1002,7 +1024,7 @@ public abstract class AbstractCollabStoreContractTest {
         store.appendUpdates( recorded.id(), List.of( upd( 1 ) ) );
         final Instant later = Instant.now().plusSeconds( 3600 ).truncatedTo( ChronoUnit.MILLIS );
         store.updateSession( new SessionRecord( recorded.id(), "Recorded", SessionRecord.ACTIVE, 3, "base body",
-            Map.of( "k", "v" ), "hash-3", 0, 0L, false, null, null, null, null, null, null, "alice", T0, later ) );
+            Map.of( "k", "v" ), "hash-3", 0, 0L, false, null, null, null, null, null, null, "alice", T0, later , null) );
 
         assertEquals( Map.of( "Stale", true, "MetaOnly", true, "Merged", false, "Recorded", false ),
             store.unpublishedByPage(), "an authored edit newer than the marker (or with no marker) is unpublished;"

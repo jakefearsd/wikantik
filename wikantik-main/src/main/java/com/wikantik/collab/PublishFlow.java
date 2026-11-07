@@ -236,8 +236,9 @@ final class PublishFlow {
         if( !d.appendMetaOps( MetaMerge.ops( MetaMerge.fold( t.meta(), d.meta, savedMeta ), d.metaSeq ) ) ) {
             return unfinished( t );
         }
+        // a publish by a participant (every joiner of a guarded draft passed ruling F1) lifts the guard (F2)
         final SessionRecord based = d.record.withBase( saved.version(), savedBody, saved.savedMeta(),
-            CollabText.contentHash( savedBody ) ).withPending( null, null, null );
+            CollabText.contentHash( savedBody ) ).withPending( null, null, null ).withGuard( null );
         // a publish on base 0 created the page: a frozen draft's recreate makes it editable again (E28)
         final SessionRecord updated = SessionLoader.draftMarkers( t.baseVersion() == 0
             ? based.withStatus( SessionRecord.ACTIVE ) : based, !localAfter.empty() || !d.meta.equals( savedMeta ),

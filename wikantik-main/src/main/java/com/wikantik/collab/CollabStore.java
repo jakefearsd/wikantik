@@ -50,7 +50,8 @@ public interface CollabStore {
 
     /**
      * May change status, pageName, basePageVersion, baseBody, baseMeta, baseContentHash, hasUnpublished, the
-     * pending-publish triple (pendingPublishVersion, pendingPublishBaseVersion, pendingPublishAuthor) and lastEditAt.
+     * pending-publish triple (pendingPublishVersion, pendingPublishBaseVersion, pendingPublishAuthor), lastEditAt and
+     * guardText (ruling F2).
      * Never changes id, headVersion, metaSeq, createdBy or createdAt: the stored values are kept. A base change
      * (basePageVersion, baseBody, baseMeta, baseContentHash) belongs in {@link #commitBaseChange}, which writes the
      * snapshot with it.

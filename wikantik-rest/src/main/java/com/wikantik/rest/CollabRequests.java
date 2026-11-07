@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.collab.WarnThrottle;
 import com.wikantik.collab.model.PullCursor;
 import com.wikantik.rest.CollabWire.Answer;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,7 +38,7 @@ final class CollabRequests {
 
     private static final Logger LOG = LogManager.getLogger( CollabRequests.class );
     /** One WARN a minute per client address and kind of refusal (final review item 5); the rest at DEBUG. */
-    private static final CollabWarnThrottle WARNS = new CollabWarnThrottle( Clock.systemUTC() );
+    private static final WarnThrottle WARNS = new WarnThrottle( Clock.systemUTC() );
 
     private CollabRequests() {
     }
@@ -77,11 +78,11 @@ final class CollabRequests {
             return e.isJsonObject() ? e.getAsJsonObject() : CollabWire.rejected( "the body must be a JSON object" );
         } catch( final RuntimeException e ) {
             final long quiet = WARNS.admit( "malformed " + request.getRemoteAddr() );
-            if( quiet == CollabWarnThrottle.QUIET ) {
+            if( quiet == WarnThrottle.QUIET ) {
                 LOG.debug( "collab: malformed JSON body for {}: {}", request.getRequestURI(), e.getMessage() );
             } else {
                 LOG.warn( "collab: malformed JSON body for {} from {}: {}{}", request.getRequestURI(),
-                    request.getRemoteAddr(), e.getMessage(), CollabWarnThrottle.quietSuffix( quiet ) );
+                    request.getRemoteAddr(), e.getMessage(), WarnThrottle.quietSuffix( quiet ) );
             }
             return CollabWire.rejected( "Invalid JSON body: " + RestJson.sanitizeParseError( e.getMessage() ) );
         }
@@ -89,11 +90,11 @@ final class CollabRequests {
 
     private static Answer oversize( final HttpServletRequest request, final long maxBytes ) {
         final long quiet = WARNS.admit( "oversize " + request.getRemoteAddr() );
-        if( quiet == CollabWarnThrottle.QUIET ) {
+        if( quiet == WarnThrottle.QUIET ) {
             LOG.debug( "collab: refusing a body over {} bytes for {}", maxBytes, request.getRequestURI() );
         } else {
             LOG.warn( "collab: refusing a body over {} bytes for {} from {}{}", maxBytes, request.getRequestURI(),
-                request.getRemoteAddr(), CollabWarnThrottle.quietSuffix( quiet ) );
+                request.getRemoteAddr(), WarnThrottle.quietSuffix( quiet ) );
         }
         final JsonObject o = new JsonObject();
         o.addProperty( CollabWire.REASON, "oversize" );

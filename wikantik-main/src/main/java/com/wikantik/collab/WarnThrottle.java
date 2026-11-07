@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.rest;
+package com.wikantik.collab;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -25,16 +25,16 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Keeps the collaboration surface's per-request refusal WARNs (a malformed or oversize body, a malformed push) to one a
- * minute per key (a participant, or a client address): a client stuck repeating a refused request, several times a
+ * Keeps collaboration's per-request refusal WARNs (a malformed or oversize body, a malformed push or seed, a join of a
+ * page a rename is moving into) to one a minute per key (a participant, an author, or a client address): a client stuck repeating a refused request, several times a
  * second, would otherwise flood the log. {@link #admit} says whether this one warns, and how many were kept quiet since
  * the last; callers log the quiet ones at DEBUG. The map is bounded: past {@link #MAX_KEYS} keys, expired windows are
  * dropped.
  */
-final class CollabWarnThrottle {
+public final class WarnThrottle {
 
     /** {@link #admit}'s answer when this refusal is kept quiet (logged at DEBUG). */
-    static final long QUIET = -1;
+    public static final long QUIET = -1;
     /** One WARN per key per this long. */
     static final Duration INTERVAL = Duration.ofMinutes( 1 );
     /** Above this many keys, expired windows are dropped. */
@@ -47,7 +47,7 @@ final class CollabWarnThrottle {
     private final Clock clock;
     private final Map< String, Window > windows = new ConcurrentHashMap<>();
 
-    CollabWarnThrottle( final Clock clock ) {
+    public WarnThrottle( final Clock clock ) {
         this.clock = clock;
     }
 
@@ -55,7 +55,7 @@ final class CollabWarnThrottle {
      * Whether a refusal for {@code key} warns now: {@link #QUIET} when one already warned within the minute; else how
      * many were kept quiet since that one (0 for the first).
      */
-    long admit( final String key ) {
+    public long admit( final String key ) {
         final Instant now = clock.instant();
         final long[] out = { QUIET };
         windows.compute( key == null ? "" : key, ( k, w ) -> {
@@ -77,7 +77,7 @@ final class CollabWarnThrottle {
     }
 
     /** The suffix a WARN carries when refusals were kept quiet before it. */
-    static String quietSuffix( final long quiet ) {
+    public static String quietSuffix( final long quiet ) {
         return quiet > 0 ? " (" + quiet + " more like it in the last minute were logged at DEBUG)" : "";
     }
 }

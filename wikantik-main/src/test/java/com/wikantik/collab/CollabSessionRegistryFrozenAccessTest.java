@@ -187,6 +187,80 @@ class CollabSessionRegistryFrozenAccessTest {
         assertForbidden( joinAs( "carol" ) );
     }
 
+    /** Re-review (c): an author evicted for losing edit is no participant of the frozen draft any more. */
+    @Test
+    void anAuthorEvictedForLostEditIsNoLongerAParticipant() {
+        writer.seed( PAGE, "[{ALLOW edit nobody}]\nlocked\n", Map.of() );
+        permissions.admins.add( "bob" );
+        final Joined bob = assertInstanceOf( Joined.class, joinAs( "bob" ) );
+        permissions.admins.clear();
+        bob.session().evict( bob.response().participantId(), CollabSession.LOST_EDIT );
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+
+        assertForbidden( joinAs( "bob", bob.response().clientId() ) );
+        clock.advance( Duration.ofMinutes( 5 ) );   // past the tombstone's retention: the retired clientID alone
+        assertForbidden( joinAs( "bob", bob.response().clientId() ) );
+    }
+
+    // ---- ruling F2: a frozen draft stays guarded through its page's recreation -------------------------------------
+
+    /** Mallory recreates the deleted page with an ordinary save, and its merge unfreezes the draft. */
+    private Joined theDeletedPageIsRecreatedByMallory() {
+        final Joined alice = aliceDraftsThenThePageIsDeleted();
+        writer.externalSave( PAGE, "mallory's page\n", Map.of(), "mallory" );
+        alice.session().settle();   // the save's event: the recreated page merges into the draft
+        assertTrue( !alice.session().frozen(), "recreated: the draft is editable again" );
+        return alice;
+    }
+
+    @Test
+    void theRecreatorOfADeletedRestrictedPageCannotJoinItsDraft() {
+        theDeletedPageIsRecreatedByMallory();
+
+        assertForbidden( joinAs( "mallory" ) );
+
+        assertInstanceOf( Joined.class, joinAs( "alice" ), "an existing participant still gets in" );
+        permissions.admins.add( "root" );
+        assertInstanceOf( Joined.class, joinAs( "root" ), "and an administrator" );
+    }
+
+    @Test
+    void theGuardOutlivesAReload() {
+        final Joined alice = theDeletedPageIsRecreatedByMallory();
+        assertEquals( 200, alice.session().leave( alice.response().participantId(), "alice" ).status() );
+        registry.tick();
+        clock.advance( Duration.ofMinutes( 10 ) );
+        registry.tick();
+        assertTrue( registry.liveForPage( PAGE ).isEmpty(), "idled out: reloaded on the next join" );
+
+        assertForbidden( joinAs( "mallory" ) );
+        assertInstanceOf( Joined.class, joinAs( "alice" ), "the base rules admit alice" );
+    }
+
+    @Test
+    void aPublishByAParticipantLiftsTheGuard() {
+        final Joined alice = theDeletedPageIsRecreatedByMallory();
+        final Joined again = assertInstanceOf( Joined.class, joinAs( "alice", alice.response().clientId() ) );
+        final com.wikantik.collab.model.PublishResponse published = again.session().publish(
+            again.response().participantId(), "alice", again.session().view().head(), "" );
+        assertEquals( 200, published.status(), published::toString );
+
+        assertInstanceOf( Joined.class, joinAs( "mallory" ), "published again: the page's own rules apply" );
+    }
+
+    /** Re-review (b): the base text's frontmatter is part of the page's text, and its rules count. */
+    @Test
+    void aRuleInTheBaseFrontmatterGuardsTheDraft() {
+        writer.seed( PAGE, "plain body\n", Map.of( "acl", "[{ALLOW edit alice}]" ) );
+        final Joined alice = assertInstanceOf( Joined.class, joinAs( "alice" ) );
+        type( alice, "alice", "x" );
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+
+        assertForbidden( joinAs( "mallory" ) );
+    }
+
     @Test
     void anAdministratorCanJoin() {
         aliceDraftsThenThePageIsDeleted();

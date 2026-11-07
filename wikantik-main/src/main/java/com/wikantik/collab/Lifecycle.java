@@ -213,7 +213,7 @@ final class Lifecycle {
         if( d.frozen() ) {
             return;
         }
-        final SessionRecord next = d.record.withStatus( SessionRecord.FROZEN );
+        final SessionRecord next = d.record.frozenGuarded();   // the deleted page's rules keep guarding (F2)
         d.store.updateSession( next );
         d.record = next;
         announceDeleted( completions );

@@ -156,6 +156,12 @@ lines) found gaps. These amendments override the sections they name.
   - `V066` grants on every table to `:app_user`.
   - `page_version_contributor` is keyed by **`canonical_id`**, so it survives renames.
   - Renaming a page onto a name that holds a frozen draft is refused, citing the draft.
+  - `V069` adds `collab_session.guard_text`. Rulings F1 and F2: a deleted page's draft keeps the page's protection.
+    When a draft is frozen, the full text of the deleted page (frontmatter included) is stored as its guard. While the
+    guard is set, only the draft's existing participants, administrators, and callers that pass view+edit under the
+    guard's access rules may join. Authors evicted for `lost-edit` don't count as participants. The guard survives
+    the page's recreation and every merge, so a recreator never inherits the old unpublished text. It is lifted only
+    when a participant publishes the draft again.
 - **Deleted users:** `UserDeletionService` tombstones the login rather than pseudonymising it
   (`:36-60`). Collab only evicts that user's participants.
 - **Protocol:**

@@ -50,6 +50,11 @@ const MAX_PUBLISH_ATTEMPTS = 3;
 const MAX_EVENTS = 200;
 const META_DEBOUNCE_MS = 400;
 const LAST_EDIT_RESOLUTION_MS = 30_000;
+/** A first join answered 503 `store` (the draft store blinked, or a rename into the page is in flight) is retried. */
+const JOIN_STORE_RETRIES = 3;
+const JOIN_RETRY_BASE_MS = 500;
+
+const isStoreDown = (err) => err?.status === 503 && err?.body?.reason === 'store';
 
 const jsonOf = (v) => JSON.stringify(v === undefined ? null : v);
 const isEmptyValue = (v) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
@@ -165,7 +170,14 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
     const patch = (p) => setState((s) => (s.key === key ? { ...s, ...p } : s));
     let metaSession = null;
 
-    transport.join({ initialText: initialRef.current.initialText ?? null, initialMeta: initialRef.current.initialMeta ?? null })
+    const payload = { initialText: initialRef.current.initialText ?? null, initialMeta: initialRef.current.initialMeta ?? null };
+    // a join refused 503 store is retried with backoff (500 ms, 1 s, 2 s) before it is reported as an error
+    const attemptJoin = (n) => transport.join(payload).catch((err) => {
+      if (cancelled || n >= JOIN_STORE_RETRIES || !isStoreDown(err)) throw err;
+      return new Promise((resolve) => { setTimeout(resolve, JOIN_RETRY_BASE_MS * 2 ** n); })
+        .then(() => (cancelled ? Promise.reject(err) : attemptJoin(n + 1)));
+    });
+    attemptJoin(0)
       .then((j) => {
         if (cancelled) {
           transport.leave({ sessionId: j.sessionId, participantId: j.participantId })

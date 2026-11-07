@@ -30,8 +30,8 @@ import java.time.Instant;
 /**
  * The refusals {@link CollabSessionRegistry#join} makes before it touches a slot: 403 {@code forbidden} for a caller
  * without {@code edit}, or without {@code createPages} on a page that does not exist yet, then 409
- * {@code derived-page} (section 9). And, once the session is open, ruling F1's guard of a draft whose page is missing
- * ({@link #refuseMissingPagesDraft}).
+ * {@code derived-page} (section 9). And, once the session is open, the guard of rulings F1/F2 ({@link #refuseGuarded}),
+ * the seats, and the join's own refusals.
  */
 final class JoinRefusals {
 
@@ -70,15 +70,15 @@ final class JoinRefusals {
     }
 
     /**
-     * The refusals made once the session is open, before the join: ruling F1's guard when the page is missing
-     * ({@link #refuseMissingPagesDraft}), then the seats. One author holds at most
+     * The refusals made once the session is open, before the join: the guard of rulings F1 and F2
+     * ({@link #refuseGuarded}), then the seats. One author holds at most
      * {@link CollabSessionRegistry#MAX_SEATS_PER_AUTHOR} (its seat last seen before {@code idleBefore} is reclaimed,
      * else 429 {@code session-full} for that author alone), and the session at most {@code maxParticipants} (a rejoin
      * replacing its own stale entry, A13, takes no new seat). Null to go on.
      */
     static Refused refuseInSession( final CollabPermissions permissions, final CollabSession s, final JoinRequest r,
                                     final boolean pageMissing, final Instant idleBefore, final int maxParticipants ) {
-        final Refused guarded = pageMissing ? refuseMissingPagesDraft( permissions, s, r ) : null;
+        final Refused guarded = refuseGuarded( permissions, s, r, pageMissing );
         if( guarded != null ) {
             return guarded;
         }
@@ -92,17 +92,40 @@ final class JoinRefusals {
     }
 
     /**
-     * The join itself: {@link Joined}, or 413 {@code oversize} for a seed over the page size limit, 400
-     * {@code rejected} for another malformed seed, 503 {@code store} for a store failure (each logged).
+     * 503 {@code store} for a join of a page a rename is still moving a draft into (opening a session there now would
+     * leave the renamed draft no home); a WARN at most once a minute per author ({@code warns}), the rest at DEBUG.
      */
-    static CollabSessionRegistry.JoinOutcome join( final CollabSession s, final JoinRequest r, final String pageName ) {
+    static Refused renamePending( final String pageName, final JoinRequest r, final WarnThrottle warns ) {
+        final long quiet = warns.admit( "rename " + r.authorKey() );
+        if( quiet == WarnThrottle.QUIET ) {
+            LOG.debug( "collab: join of {} by {} refused: a rename into it is pending", pageName, r.authorKey() );
+        } else {
+            LOG.warn( "collab: join of {} by {} refused: a rename into it is pending{}", pageName, r.authorKey(),
+                WarnThrottle.quietSuffix( quiet ) );
+        }
+        return new Refused( 503, CollabSession.STORE );
+    }
+
+    /**
+     * The join itself: {@link Joined}, or 413 {@code oversize} for a seed over the page size limit, 400
+     * {@code rejected} for another malformed seed (a WARN at most once a minute per author, {@code warns}), 503
+     * {@code store} for a store failure (each logged).
+     */
+    static CollabSessionRegistry.JoinOutcome join( final CollabSession s, final JoinRequest r, final String pageName,
+                                                   final WarnThrottle warns ) {
         try {
             return new Joined( s, s.join( r ) );
         } catch( final Draft.SeedTooLarge e ) {
             LOG.info( "collab: join of {} by {} refused: {}", pageName, r.authorKey(), e.getMessage() );
             return new Refused( 413, "oversize" );
         } catch( final IllegalArgumentException e ) {
-            LOG.warn( "collab: join of {} by {} refused: {}", pageName, r.authorKey(), e.toString() );
+            final long quiet = warns.admit( "seed " + r.authorKey() );
+            if( quiet == WarnThrottle.QUIET ) {
+                LOG.debug( "collab: join of {} by {} refused: {}", pageName, r.authorKey(), e.toString() );
+            } else {
+                LOG.warn( "collab: join of {} by {} refused: {}{}", pageName, r.authorKey(), e.toString(),
+                    WarnThrottle.quietSuffix( quiet ) );
+            }
             return new Refused( 400, CollabSession.REJECTED );
         } catch( final RuntimeException e ) {
             LOG.warn( "collab: join of {} by {} failed in the store: {}", pageName, r.authorKey(), e.toString() );
@@ -111,14 +134,16 @@ final class JoinRefusals {
     }
 
     /**
-     * Ruling F1: the draft of a missing page (frozen, or based on a page that no longer exists) is joined only by its
-     * existing participants, by administrators, and by callers whom the draft's base text's access rules would let
-     * {@code view} and {@code edit} the page. Null to go on, else 403 {@code forbidden}. A check that throws refuses
-     * (logged): the deleted page's rules must keep protecting its unpublished text.
+     * Rulings F1 and F2: a guarded draft (once frozen, until it is published again; or based on a page that is now
+     * missing) is joined only by its existing participants, by administrators, and by callers whom the guarding text's
+     * access rules (the deleted page's full text, frontmatter included) would let {@code view} and {@code edit} the page.
+     * A recreated page does not lift the guard, so its recreator gets no access to the old unpublished text. Null to go
+     * on, else 403 {@code forbidden}. A check that throws refuses (logged): the deleted page's rules must keep protecting
+     * its unpublished text.
      */
-    static Refused refuseMissingPagesDraft( final CollabPermissions permissions, final CollabSession s,
-                                            final JoinRequest r ) {
-        final String base = CollabSession.Hooks.guardingBase( s, r.authorKey() );
+    static Refused refuseGuarded( final CollabPermissions permissions, final CollabSession s, final JoinRequest r,
+                                  final boolean pageMissing ) {
+        final String base = CollabSession.Hooks.guardingBase( s, r.authorKey(), pageMissing );
         if( base == null ) {
             return null;
         }
@@ -127,7 +152,7 @@ final class JoinRefusals {
             if( permissions.isAdmin( who ) || permissions.mayAccessAsIf( who, s.pageName(), base ) ) {
                 return null;
             }
-            LOG.info( "collab: join of {} by {} refused: its page is gone and its last access rules do not admit them",
+            LOG.info( "collab: join of {} by {} refused: the draft is guarded and its page's last rules do not admit them",
                 s.pageName(), r.authorKey() );
         } catch( final RuntimeException e ) {
             LOG.warn( "collab: the access rules of the deleted page {} could not be evaluated for {}; refusing: {}",

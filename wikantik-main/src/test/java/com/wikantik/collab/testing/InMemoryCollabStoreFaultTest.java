@@ -41,7 +41,7 @@ class InMemoryCollabStoreFaultTest {
 
     private static SessionRecord session( final String page ) {
         return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 1, "b", Map.of(), "h", 0, 0L, false, null,
-            null, null, null, null, null, "alice", T0, T0 );
+            null, null, null, null, null, "alice", T0, T0 , null);
     }
 
     private static StoredUpdate upd( final int v ) {

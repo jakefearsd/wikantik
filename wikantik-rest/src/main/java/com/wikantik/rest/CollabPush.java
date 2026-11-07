@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.collab.CollabSession;
+import com.wikantik.collab.WarnThrottle;
 import com.wikantik.collab.model.MetaEdit;
 import com.wikantik.collab.model.PushResponse;
 import com.wikantik.collab.model.Selection;
@@ -47,7 +48,7 @@ final class CollabPush {
 
     private static final Logger LOG = LogManager.getLogger( CollabPush.class );
     /** One refusal WARN a minute per participant (final review item 5); the rest at DEBUG. */
-    private static final CollabWarnThrottle WARNS = new CollabWarnThrottle( Clock.systemUTC() );
+    private static final WarnThrottle WARNS = new WarnThrottle( Clock.systemUTC() );
 
     /** Either {@code refusal} (a message) or the parsed push. */
     record Parsed( String refusal, int version, List< Update > updates, List< MetaEdit > metaEdits,
@@ -70,12 +71,12 @@ final class CollabPush {
         final Parsed p = parse( body );
         if( p.refusal() != null ) {
             final long quiet = WARNS.admit( participantId );
-            if( quiet == CollabWarnThrottle.QUIET ) {
+            if( quiet == WarnThrottle.QUIET ) {
                 LOG.debug( "collab session {}: push from {} refused before the session: {}", s.id(), participantId,
                     p.refusal() );
             } else {
                 LOG.warn( "collab session {}: push from {} refused before the session: {}{}", s.id(), participantId,
-                    p.refusal(), CollabWarnThrottle.quietSuffix( quiet ) );
+                    p.refusal(), WarnThrottle.quietSuffix( quiet ) );
             }
             return CollabWire.rejected( p.refusal() );
         }

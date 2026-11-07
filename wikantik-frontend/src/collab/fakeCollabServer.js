@@ -97,14 +97,19 @@ export function createFakeCollabServer({
     if (config.disabled) return reply(503, { reason: 'collab-disabled' });
     if (config.forbidJoin) return reply(403, { error: 'forbidden', message: 'No edit permission on PageName' });
     if (config.derived) return reply(409, { reason: 'derived-page' });
-    if (config.full) return reply(429, { reason: 'session-full' });
+    // A rejoin by the same author replaces its own not-yet-timed-out entry (Roster.staleEntryOf), so it never needs a seat.
+    const prior = body?.priorClientId;
+    const stale = prior ? [...participants.values()].find((x) => x.clientID === prior && x.owner === user && !x.expired) : undefined;
+    if (config.full && !stale) return reply(429, { reason: 'session-full' });
     if (participants.size === 0 && version === 0 && body?.initialText != null) {
       doc = Text.of(String(body.initialText).split('\n'));
     }
     if (participants.size === 0 && body?.initialMeta) metadata = { ...body.initialMeta };
-    const prior = body?.priorClientId;
-    const held = [...participants.values()].some((x) => x.clientID === prior && !x.expired);
-    const clientID = prior && clientOwner.get(prior) === user && !held ? prior : `c${nextClient++}`;
+    if (stale) {
+      participants.delete(stale.participantId);
+      addEvent({ type: 'participant-left', participantId: stale.participantId, reason: 'timeout' });
+    }
+    const clientID = prior && (stale || clientOwner.get(prior) === user) ? prior : `c${nextClient++}`;
     clientOwner.set(clientID, user);
     const p = {
       participantId: `pt-${nextPid++}`,

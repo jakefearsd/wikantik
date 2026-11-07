@@ -114,6 +114,32 @@ describe('fakeCollabServer matches the fixture', () => {
     expect(j2.doc).toBe('template');
   });
 
+  const rejoin = (srv, user, priorClientId) => srv.handle({ method: 'POST', path: '/join', body: { priorClientId }, user });
+
+  it('a same-author rejoin reclaims its own live stale entry: same clientID, no duplicate', async () => {
+    const first = await joinSample(server);
+    const again = (await rejoin(server, 'ada', first.clientID)).body;
+    expect(again.clientID).toBe(first.clientID);
+    expect(again.participantId).not.toBe(first.participantId);
+    expect(again.participants.map((p) => p.participantId)).toEqual([again.participantId]);
+  });
+
+  it('a same-author rejoin is not refused session-full because of its own stale entry', async () => {
+    const first = await joinSample(server);
+    server.config.full = true;
+    const res = await rejoin(server, 'ada', first.clientID);
+    expect(res.status).toBe(200);
+    expect(res.body.clientID).toBe(first.clientID);
+    expect((await rejoin(server, 'ada', null)).status).toBe(429);
+  });
+
+  it('another author\'s priorClientId is not reclaimed: the joiner gets a fresh clientID', async () => {
+    const first = await joinSample(server, 'ada');
+    const res = (await rejoin(server, 'bob', first.clientID)).body;
+    expect(res.clientID).not.toBe(first.clientID);
+    expect(res.participants.length).toBe(2);
+  });
+
   /** Runs a recorded request against `srv`, substituting the participant's real clientID, and checks the response. */
   async function replay(srv, id, { clientID, user = 'ada', version, participantId = 'pt-1' } = {}) {
     const c = byId[id];

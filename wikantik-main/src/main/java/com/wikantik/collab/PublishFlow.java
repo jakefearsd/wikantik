@@ -168,7 +168,10 @@ final class PublishFlow {
             d.metaSeq, b,
             new PublishRequest( d.pageName(), d.doc, MetaMerge.published( d.meta, original ), b, p.authorKey, note,
                 markupSyntax ) );
-        final SessionRecord marked = d.record.withPending( d.head, b, p.authorKey );
+        // fresh draft markers ride on the marker write (final review I1): the snapshot below lets the log be cut through
+        // V, and the logged edit times go with it, so a publish that never commits must not leave the old ones stored
+        final SessionRecord marked = SessionLoader.draftMarkers( d.record.withPending( d.head, b, p.authorKey ),
+            d.hasUnpublished(), d.lastEditAt );
         try {
             // M_V made durable before the marker (A10: a snapshot at the publish point): the pending-publish rule reads
             // it back, so a recovered fold never takes meta edits made during the save for filter changes (review M5).
@@ -183,6 +186,7 @@ final class PublishFlow {
             return new PublishStart( new PublishResponse( 503, b, CollabSession.STORE, false ), null );
         }
         d.record = marked;
+        d.markersStale = false;
         d.ticket = t;
         return new PublishStart( null, t );
     }

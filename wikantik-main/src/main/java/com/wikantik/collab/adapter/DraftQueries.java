@@ -23,9 +23,11 @@ import com.wikantik.jdbc.Jdbc;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -68,6 +70,23 @@ final class DraftQueries {
                 } );
         } catch( final SQLException e ) {
             throw JdbcCollabStore.translate( e, "draftEntries" );
+        }
+    }
+
+    /** {@link com.wikantik.collab.CollabStore#newestLoggedEdit}: two indexed probes within the session's log. */
+    Optional< Instant > newestLoggedEdit( final UUID id ) {
+        try {
+            return jdbc.queryOne( "SELECT GREATEST("
+                + " ( SELECT max( created_at ) FROM collab_update WHERE session_id = ? AND" + EDIT + " ),"
+                + " ( SELECT max( created_at ) FROM collab_meta_op WHERE session_id = ? AND" + EDIT + " ) )", ps -> {
+                    ps.setObject( 1, id );
+                    ps.setObject( 2, id );
+                }, rs -> {
+                    final Timestamp t = rs.getTimestamp( 1 );
+                    return Optional.ofNullable( t == null ? null : t.toInstant() );
+                } ).flatMap( o -> o );
+        } catch( final SQLException e ) {
+            throw JdbcCollabStore.translate( e, "newestLoggedEdit " + id );
         }
     }
 

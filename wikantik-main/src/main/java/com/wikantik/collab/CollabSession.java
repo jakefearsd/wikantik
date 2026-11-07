@@ -240,7 +240,9 @@ public final class CollabSession {
         d.local = l.local();
         d.meta = MetaJson.normalise( l.meta() );
         d.metaSeq = l.record().metaSeq();
-        d.lastEditAt = l.record().lastEditAt();
+        // the stored marker can be older than edits only the log records (a crash before the markers were stored):
+        // later markers, and the truncations they allow, must carry the newest (final review I1)
+        d.lastEditAt = SessionLoader.later( l.record().lastEditAt(), ports.store().newestLoggedEdit( id ).orElse( null ) );
         d.lastSnapshotVersion = l.snapshotVersion();
         d.contributors = l.contributors();
         d.ring.addAll( l.ring() );

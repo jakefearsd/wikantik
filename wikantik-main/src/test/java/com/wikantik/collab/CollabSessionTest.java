@@ -605,6 +605,7 @@ class CollabSessionTest {
         @Override public List< SessionRecord > sessions() { check(); return d.sessions(); }
         @Override public List< com.wikantik.collab.model.DraftEntry > draftEntries() { check(); return d.draftEntries(); }
         @Override public java.util.Map< String, Boolean > unpublishedByPage() { check(); return d.unpublishedByPage(); }
+        @Override public java.util.Optional< java.time.Instant > newestLoggedEdit( final UUID id ) { check(); return d.newestLoggedEdit( id ); }
         @Override public void recordContributors( final String c, final int v, final java.util.Set< String > k, final boolean created ) { d.recordContributors( c, v, k, created ); }
         @Override public java.util.Map< Integer, List< String > > contributorsByVersion( final String c ) { check(); return d.contributorsByVersion( c ); }
     }

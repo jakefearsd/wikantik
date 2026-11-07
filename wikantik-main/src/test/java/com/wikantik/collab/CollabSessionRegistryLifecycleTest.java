@@ -272,6 +272,11 @@ class CollabSessionRegistryLifecycleTest {
         }
 
         @Override
+        public java.util.Optional< java.time.Instant > newestLoggedEdit( final UUID id ) {
+            return d.newestLoggedEdit( id );
+        }
+
+        @Override
         public void recordContributors( final String canonicalId, final int pageVersion, final Set< String > authorKeys,
                                         final boolean created ) {
             d.recordContributors( canonicalId, pageVersion, authorKeys, created );

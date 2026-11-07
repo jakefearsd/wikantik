@@ -31,6 +31,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -368,6 +369,11 @@ public final class JdbcCollabStore implements CollabStore {
     @Override
     public List< DraftEntry > draftEntries() {
         return drafts.entries();
+    }
+
+    @Override
+    public Optional< Instant > newestLoggedEdit( final UUID id ) {
+        return drafts.newestLoggedEdit( id );
     }
 
     @Override

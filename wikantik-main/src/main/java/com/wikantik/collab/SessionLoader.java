@@ -153,6 +153,11 @@ final class SessionLoader {
         return ops;
     }
 
+    /** The later of two instants, nulls ignored (null when both are). */
+    static java.time.Instant later( final java.time.Instant a, final java.time.Instant b ) {
+        return a == null || b != null && b.isAfter( a ) ? b : a;
+    }
+
     /** The record with the draft markers ({@code hasUnpublished}, {@code lastEditAt}) replaced. */
     static SessionRecord draftMarkers( final SessionRecord r, final boolean unpublished, final java.time.Instant lastEdit ) {
         return new SessionRecord( r.id(), r.pageName(), r.status(), r.basePageVersion(), r.baseBody(), r.baseMeta(),

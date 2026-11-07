@@ -66,12 +66,15 @@ public final class InMemoryCollabStore implements CollabStore {
     private final Map< Op, Integer > calls = new EnumMap<>( Op.class );
     private final Map< Op, Integer > failAt = new EnumMap<>( Op.class );
     /**
-     * When each session's newest edit (a logged update or meta op with an author key) was stored, by this store's
-     * clock: the twin of the Postgres rows' {@code created_at}. Unlike those rows it survives truncation, which is
-     * harmless: truncation is clamped to a snapshot, every snapshot stores the draft markers, and the session skips
-     * truncation while its markers could not be stored.
+     * When each session's newest meta edit (a logged meta op with an author key) was stored, by this store's clock: the
+     * twin of the Postgres rows' {@code created_at} (meta ops are never truncated).
      */
-    private final Map< UUID, Instant > lastEdits = new HashMap<>();
+    private final Map< UUID, Instant > metaEdits = new HashMap<>();
+    /**
+     * When each logged update with an author key was stored, by version: the twin of the Postgres rows'
+     * {@code created_at}, and, like those rows, cut by truncation (so an edit time is lost with its row).
+     */
+    private final Map< UUID, TreeMap< Integer, Instant > > updateEdits = new HashMap<>();
     private final Clock clock;
 
     /** A store whose edit times come from the system clock. */
@@ -104,7 +107,8 @@ public final class InMemoryCollabStore implements CollabStore {
         try {
             final InMemoryCollabStore c = new InMemoryCollabStore( clock );
             c.sessions.putAll( sessions );
-            c.lastEdits.putAll( lastEdits );
+            c.metaEdits.putAll( metaEdits );
+            updateEdits.forEach( ( k, v ) -> c.updateEdits.put( k, new TreeMap<>( v ) ) );
             updates.forEach( ( k, v ) -> c.updates.put( k, new TreeMap<>( v ) ) );
             metaOps.forEach( ( k, v ) -> c.metaOps.put( k, new TreeMap<>( v ) ) );
             snapshots.forEach( ( k, v ) -> c.snapshots.put( k, new TreeMap<>( v ) ) );
@@ -369,14 +373,38 @@ public final class InMemoryCollabStore implements CollabStore {
         ops.forEach( o -> log.put( o.seq(), detach( o ) ) );
         sessions.put( id, s.withMetaSeq( s.metaSeq() + ops.size() ) );
         if( ops.stream().anyMatch( o -> o.authorKey() != null ) ) {
-            lastEdits.put( id, clock.instant() );
+            metaEdits.put( id, clock.instant() );
         }
     }
 
     private void touchEdits( final UUID id, final List< StoredUpdate > list ) {
-        if( list.stream().anyMatch( u -> u.authorKey() != null ) ) {
-            lastEdits.put( id, clock.instant() );
+        final Instant now = clock.instant();
+        list.stream().filter( u -> u.authorKey() != null ).forEach( u ->
+            updateEdits.computeIfAbsent( id, k -> new TreeMap<>() ).put( u.version(), now ) );
+    }
+
+    @Override
+    public Optional< Instant > newestLoggedEdit( final UUID id ) {
+        lock.lock();
+        try {
+            return Optional.ofNullable( loggedEdit( id ) );
+        } finally {
+            lock.unlock();
         }
+    }
+
+    /** The newest logged edit still in the store (a truncated update's time went with its row), or null. */
+    private Instant loggedEdit( final UUID id ) {
+        Instant last = metaEdits.get( id );
+        final TreeMap< Integer, Instant > times = updateEdits.get( id );
+        if( times != null ) {
+            for( final Instant t : times.values() ) {
+                if( last == null || t.isAfter( last ) ) {
+                    last = t;
+                }
+            }
+        }
+        return last;
     }
 
     @Override
@@ -487,6 +515,10 @@ public final class InMemoryCollabStore implements CollabStore {
             final Integer floor = snaps.floorKey( cut );
             if( floor != null ) {
                 updates.get( id ).headMap( floor, true ).clear();
+                final TreeMap< Integer, Instant > times = updateEdits.get( id );
+                if( times != null ) {
+                    times.headMap( floor, true ).clear();
+                }
                 snaps.headMap( floor, false ).clear();
             }
         } finally {
@@ -561,7 +593,8 @@ public final class InMemoryCollabStore implements CollabStore {
             updates.remove( id );
             metaOps.remove( id );
             snapshots.remove( id );
-            lastEdits.remove( id );
+            metaEdits.remove( id );
+            updateEdits.remove( id );
         } finally {
             lock.unlock();
         }
@@ -580,7 +613,7 @@ public final class InMemoryCollabStore implements CollabStore {
     }
 
     private DraftEntry entry( final SessionRecord s ) {
-        final Instant logged = lastEdits.get( s.id() );
+        final Instant logged = loggedEdit( s.id() );
         final Instant marker = s.lastEditAt();
         final Instant last = marker == null ? logged : logged == null || marker.isAfter( logged ) ? marker : logged;
         return new DraftEntry( s.id(), s.pageName(), s.status(), s.hasUnpublished(), s.pendingPublishVersion() != null,
@@ -589,7 +622,7 @@ public final class InMemoryCollabStore implements CollabStore {
 
     /** A logged edit newer than the stored marker by more than the slack (any, without a marker). */
     private boolean unrecordedEdit( final SessionRecord s ) {
-        final Instant logged = lastEdits.get( s.id() );
+        final Instant logged = loggedEdit( s.id() );
         return logged != null
             && ( s.lastEditAt() == null || logged.isAfter( s.lastEditAt().plus( CollabStore.UNRECORDED_EDIT_SLACK ) ) );
     }

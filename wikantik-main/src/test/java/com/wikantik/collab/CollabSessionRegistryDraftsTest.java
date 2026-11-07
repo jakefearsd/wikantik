@@ -654,6 +654,74 @@ class CollabSessionRegistryDraftsTest {
             "the idle truncation is skipped while the stored marker is stale" );
     }
 
+    // ---- the publish-start snapshot carries fresh markers (final review I1) ----------------------------------
+
+    @Test
+    void retentionKeepsADraftWhoseRecentEditsAPublishSnapshotLetTheLogDrop() throws Exception {
+        registry = registry( config( 30 ) );
+        final Joined first = join( "alice" );                 // edited at T0, markers stored when it idles out
+        assertEquals( 200, type( first, "alice", "a" ).status() );
+        leave( first, "alice" );
+        idleOut();
+        assertEquals( T0, mem.session( first.response().sessionId() ).orElseThrow().lastEditAt() );
+
+        clock.set( T0.plus( Duration.ofDays( 29 ) ) );
+        final Joined a = join( "alice" );                     // the stored draft, loaded again
+        assertEquals( first.response().sessionId(), a.response().sessionId() );
+        for( int i = 0; i < 20; i++ ) {
+            assertEquals( 200, type( a, "alice", "e" ).status() );
+        }
+        final Instant edited = clock.instant();
+        writer.failNextPublish( new com.wikantik.api.exceptions.FrontmatterValidationException( List.of() ) );
+        assertEquals( 422, a.session().publish( a.response().participantId(), "alice", a.session().view().head(), "" )
+            .status() );
+        final int head = a.session().view().head();
+        assertEquals( null, a.session().pullOrPark( a.response().participantId(), "alice", head, null, r -> { } ) );
+        clock.advance( Duration.ofSeconds( 30 ) );
+        registry.tick();                                      // the permission re-check truncates through the snapshot
+        assertTrue( mem.updatesSince( a.response().sessionId(), 0 ).isEmpty(), "the log was cut at the publish snapshot" );
+
+        registry = registry( config( 30 ) );   // a crash
+        clock.set( T0.plus( Duration.ofDays( 30 ) ).plus( Duration.ofHours( 1 ) ) );
+        registry.tick();
+
+        assertTrue( mem.session( a.response().sessionId() ).isPresent(), "edited a day ago: kept" );
+        assertEquals( edited, mem.session( a.response().sessionId() ).orElseThrow().lastEditAt() );
+        assertTrue( registry.draftActive( PAGE ), "the unpublished edits are still recorded" );
+    }
+
+    @Test
+    void aDraftReloadedAfterACrashTakesItsLastEditFromTheLog() {
+        registry = registry( config( 30 ) );
+        final Joined first = join( "alice" );                 // edited at T0, markers stored when it idles out
+        assertEquals( 200, type( first, "alice", "a" ).status() );
+        leave( first, "alice" );
+        idleOut();
+        clock.set( T0.plus( Duration.ofDays( 29 ) ) );
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "e" ).status() );   // only in the log: the node dies before any marker
+        final Instant edited = clock.instant();
+
+        registry = registry( config( 30 ) );
+        final Joined b = join( "bob" );                       // the new node reloads the draft
+        assertEquals( a.response().sessionId(), b.response().sessionId() );
+        writer.failNextPublish( new com.wikantik.api.exceptions.FrontmatterValidationException( List.of() ) );
+        assertEquals( 422, b.session().publish( b.response().participantId(), "bob", b.session().view().head(), "" )
+            .status() );
+        assertEquals( null, b.session().pullOrPark( b.response().participantId(), "bob", b.session().view().head(), null,
+            r -> { } ) );
+        clock.advance( Duration.ofSeconds( 30 ) );
+        registry.tick();
+        assertTrue( mem.updatesSince( a.response().sessionId(), 0 ).isEmpty(), "the log was cut at the publish snapshot" );
+
+        registry = registry( config( 30 ) );   // a crash
+        clock.set( T0.plus( Duration.ofDays( 30 ) ).plus( Duration.ofHours( 1 ) ) );
+        registry.tick();
+
+        assertTrue( mem.session( a.response().sessionId() ).isPresent(), "edited a day ago: kept" );
+        assertEquals( edited, mem.session( a.response().sessionId() ).orElseThrow().lastEditAt() );
+    }
+
     // ---- purge races and owed renames (fix round 1, items 4 and 5) --------------------------------------------
 
     @Test

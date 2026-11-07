@@ -25,6 +25,7 @@ import com.wikantik.collab.model.StoredMetaOp;
 import com.wikantik.collab.model.StoredUpdate;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -171,6 +172,13 @@ public interface CollabStore {
      * update or meta op without an author (an external merge, a publish rewrite, a discard) is not an edit.
      */
     List< DraftEntry > draftEntries();
+
+    /**
+     * When session {@code id}'s newest retained edit (as for {@link #draftEntries}: a logged update or meta op with an
+     * author key) was stored, or empty when its log holds none (or the session is gone). A session loaded after a crash
+     * reads it, as its stored {@code lastEditAt} marker may be older than edits only its log records (final review I1).
+     */
+    Optional< Instant > newestLoggedEdit( UUID id );
 
     /**
      * How much later than the stored {@code lastEditAt} marker a logged edit must be to count as one the marker never

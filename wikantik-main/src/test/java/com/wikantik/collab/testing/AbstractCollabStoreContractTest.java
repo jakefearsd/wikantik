@@ -990,6 +990,26 @@ public abstract class AbstractCollabStoreContractTest {
     }
 
     @Test
+    void newestLoggedEditReadsTheRetainedLogOnly() {
+        final SessionRecord s = created( "PageA" );
+        final Instant before = Instant.now().minusSeconds( 5 );
+        assertTrue( store.newestLoggedEdit( s.id() ).isEmpty(), "no log, no logged edit (the marker is not read)" );
+        store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, StoredUpdate.SERVER, "server", null, CS ) ) );
+        store.appendMetaOps( s.id(), List.of( new StoredMetaOp( 1, null, "title", "merged" ) ) );
+        assertTrue( store.newestLoggedEdit( s.id() ).isEmpty(), "an unauthored server update or meta op is not an edit" );
+
+        store.appendUpdates( s.id(), List.of( upd( 2 ) ) );
+        assertFalse( store.newestLoggedEdit( s.id() ).orElseThrow().isBefore( before ) );
+        store.writeSnapshot( s.id(), snap( 2 ) );
+        store.truncateUpdatesBelow( s.id(), 2 );
+        assertTrue( store.newestLoggedEdit( s.id() ).isEmpty(), "a truncated edit's time goes with its row" );
+
+        store.appendMetaOps( s.id(), List.of( op( 2 ) ) );
+        assertFalse( store.newestLoggedEdit( s.id() ).orElseThrow().isBefore( before ), "an authored meta op is an edit" );
+        assertTrue( store.newestLoggedEdit( UUID.randomUUID() ).isEmpty() );
+    }
+
+    @Test
     void unpublishedByPageNamesEveryDraftWithItsStoredFlag() {
         assertTrue( store.unpublishedByPage().isEmpty() );
         final SessionRecord a = created( "PageA" );

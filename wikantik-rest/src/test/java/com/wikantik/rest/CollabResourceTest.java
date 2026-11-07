@@ -103,12 +103,11 @@ class CollabResourceTest {
         "updates.get.200", "updates.get.200.empty", "updates.get.410", "updates.get.400.bad-since",
         "updates.get.409.rejoin",
         "publish.200", "publish.409.publish-merged-retry", "publish.409.not-synced", "publish.422", "publish.423",
-        "discard.204", "leave.204" );
+        "discard.204", "leave.204", "updates.post.403.evicted", "updates.get.403.evicted", "publish.403.no-create" );
 
     /** Fixture cases whose server half is Phase 2 (docs/superpowers/plans/...phase2..., Task 7). */
     private static final Set< String > DEFERRED_TO_PHASE_2 = Set.of(
-        "updates.get.200.lifecycle-events", "updates.post.403.evicted", "updates.get.403.evicted",
-        "publish.403.no-create" );
+        "updates.get.200.lifecycle-events" );
 
     private InMemoryCollabStore store;
     private ScriptedPageWriter writer;
@@ -435,7 +434,7 @@ class CollabResourceTest {
         assertEquals( "Ada", b.getAsJsonArray( "participants" ).get( 0 ).getAsJsonObject().get( "displayName" )
             .getAsString() );
         assertTrue( b.getAsJsonObject( "draft" ).get( "lastEditAt" ).isJsonNull(), "explicit null" );
-        assertEquals( 0, b.get( "eventSeq" ).getAsLong() );
+        assertEquals( 1, b.get( "eventSeq" ).getAsLong(), "after its own participant-joined" );
     }
 
     @Test
@@ -818,7 +817,8 @@ class CollabResourceTest {
     void pull200EmptyOnTheContainerTimeout() throws Exception {
         final Joined a = join( "ada" );
         final CollabSession s = session( a );
-        final Resp p = pull( "ada", a, 0, s.metaSeq(), s.view().presenceSeq(), 0 );
+        final long eventSeq = a.body().get( "eventSeq" ).getAsLong();
+        final Resp p = pull( "ada", a, 0, s.metaSeq(), s.view().presenceSeq(), eventSeq );
         assertNotNull( p.async );
         p.async.fireTimeout();
         p.async.assertCompletedOnce();
@@ -888,7 +888,7 @@ class CollabResourceTest {
         final CollabSession s = session( a );
         final Resp resp = new Resp();
         final CollabPull w = new CollabPull( s, a.participantId, new PullCursor( 0, 0, 0, 0 ), resp.mock,
-            () -> true, ( ms, task ) -> fail( "not delayed" ), 50, x -> { } );
+            ( ms, task ) -> fail( "not delayed" ), 50, x -> { } );
         w.complete( new PullResponse( 200, List.of(), 0, null, Map.of(), 0 ) );
         assertEquals( "", resp.out.toString(), "nothing written before async mode" );
         final FakeAsyncContext ac = new FakeAsyncContext();
@@ -918,14 +918,44 @@ class CollabResourceTest {
     }
 
     @Test
-    void theParkedPullOfAnEvictedParticipantWhoMayStillEditIs409Rejoin() throws Exception {
+    void theParkedPullOfADeletedAccountIs403EvictedAccountDeleted() throws Exception {
         final Joined a = join( "ada" );
         final Resp p = park( a );
-        registry.evictAuthor( "ada" );
+        registry.evictAuthor( "ada" );   // the session's tombstone answers, whatever ada may still edit
         p.async.assertCompletedOnce();
-        assertEquals( 409, p.status );
-        assertEquals( "rejoin", p.reason() );
-        assertTrue( p.body().get( "rejoin" ).getAsBoolean() );
+        assertEquals( 403, p.status );
+        assertEquals( "evicted", p.reason() );
+        assertEquals( "account-deleted", p.body().get( "detail" ).getAsString() );
+    }
+
+    @Test
+    void everyCallOfAnEvictedParticipantIs403EvictedWithTheReason() throws Exception {
+        final Joined a = join( "ada" );
+        session( a ).evict( a.participantId, "lost-edit" );
+        assertFixture( "updates.post.403.evicted", push( "ada", a, 1 ) );
+        assertFixture( "updates.get.403.evicted", pull( "ada", a, 0, 0, 0, 0 ) );
+        final Resp pub = post( "ada", "publish", publishBody( a, 0 ) );
+        assertEquals( 403, pub.status );
+        assertEquals( "lost-edit", pub.body().get( "detail" ).getAsString() );
+        final Resp discard = post( "ada", "discard", ids( a ) );
+        assertEquals( 403, discard.status );
+        assertEquals( "evicted", discard.reason() );
+        final Resp leave = post( "ada", "leave", ids( a ) );
+        assertEquals( 403, leave.status );
+        assertEquals( "lost-edit", leave.body().get( "detail" ).getAsString() );
+    }
+
+    @Test
+    void aFrozenDraftIsPublishedOnlyWithCreatePages() throws Exception {
+        final Joined a = join( "ada" );
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+        noCreate.add( "ada" );
+        assertFixture( "publish.403.no-create", post( "ada", "publish", publishBody( a, 0 ) ) );
+        assertTrue( writer.latest( PAGE ).isEmpty() );
+        noCreate.clear();
+        assertEquals( 200, post( "ada", "publish", publishBody( a, 0 ) ).status, "recreated" );
+        assertTrue( writer.latest( PAGE ).isPresent() );
     }
 
     @Test

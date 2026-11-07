@@ -24,8 +24,9 @@ import java.util.Objects;
 /**
  * A request to save a page, conditional on {@code expectedVersion} still being the latest (A11). {@code expectedVersion}
  * {@code 0} means "the page must not exist": the save conflicts if it does. A positive {@code expectedVersion} on a page
- * that does not exist passes and creates it, as the real save does. {@code authorKey} is required; a server-initiated
- * publish passes the system key {@code "system"}.
+ * that does not exist (renamed or deleted away under the publish) never recreates it: the save refuses with the
+ * page-gone {@code VersionConflictException} (message {@code page-gone}). {@code authorKey} is required; a
+ * server-initiated publish passes the system key {@code "system"}.
  */
 public record PublishRequest( String pageName, String body, Map< String, Object > meta, int expectedVersion,
                               String authorKey, String changeNote ) {

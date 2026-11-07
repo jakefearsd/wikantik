@@ -29,14 +29,12 @@ import org.apache.logging.log4j.Logger;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * The live sessions of this node, one per page (section 7.7): join creates or loads a page's session, {@link #tick}
@@ -45,7 +43,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p><b>Join</b> refuses a derived page (409 {@code derived-page}, section 9), a caller without {@code edit}, or without
  * {@code createPages} on a page that does not exist yet (403 {@code forbidden}), and a full session (429
  * {@code session-full}); with the kill switch off it answers {@link Disabled}. A store failure while opening or
- * seeding is 503 {@code store}; a malformed initial text 400 {@code rejected}.</p>
+ * seeding is 503 {@code store}; a malformed initial text 400 {@code rejected}. A rejoin naming its prior clientID
+ * replaces its own stale entry (A13) and takes no new seat. A join into a frozen draft (its page was deleted) is a join
+ * on a page that does not exist, so it needs {@code createPages}; it is answered with the draft's text, its pushes are
+ * 409 {@code frozen}, and its first pull is told {@code page-deleted} (the join's {@code eventSeq} stops just before
+ * it).</p>
  *
  * <p><b>Tick</b> (driven every second by the wiring): answers long-polls past their timeout, evicts participants not
  * seen within {@code presence.timeoutSeconds} (E13; their next request meets 409 {@code rejoin}), and every
@@ -106,9 +108,7 @@ public final class CollabSessionRegistry {
     private final Clock clock;
     private final CollabConfig config;
     private final long maxPageBytes;
-    private final ReentrantLock mapLock = new ReentrantLock();
-    /** Guarded by {@code mapLock}. */
-    private final Map< String, SessionSlot > byPage = new HashMap<>();
+    private final PageSlots slots = new PageSlots();
     /** Opened slots only. */
     private final Map< UUID, SessionSlot > byId = new ConcurrentHashMap<>();
     private volatile boolean enabled;
@@ -156,22 +156,25 @@ public final class CollabSessionRegistry {
         if( !enabled ) {
             return new Disabled();
         }
-        final PageState latest = writer.latest( pageName ).orElse( null );
-        final Refused refused = refuse( pageName, r, latest );
-        if( refused != null ) {
-            return refused;
-        }
         while( true ) {
-            final SessionSlot slot = slotFor( pageName );
+            // read (again, on a retry): a rename or delete may have moved the page meanwhile
+            final PageState latest = writer.latest( pageName ).orElse( null );
+            final Refused refused = refuse( pageName, r, latest );
+            if( refused != null ) {
+                return refused;
+            }
+            final SessionSlot slot = slots.slotFor( pageName );
             slot.lock();
             try {
-                if( !slot.closed() ) {
-                    return joinLocked( slot, pageName, r, latest );
+                final JoinOutcome out = slot.closed() ? null : joinLocked( slot, pageName, r, latest );
+                if( out != null ) {
+                    return out;
                 }
             } finally {
                 slot.unlock();
             }
-            // evicted while we waited for its lock: the eviction unmapped it, so the next slot is a fresh one
+            // retried: the slot was evicted or moved by a rekey while we waited for its lock (the next slot is a fresh
+            // one), or the page changed between the read above and the open
         }
     }
 
@@ -198,22 +201,22 @@ public final class CollabSessionRegistry {
         }
     }
 
-    private SessionSlot slotFor( final String pageName ) {
-        mapLock.lock();
-        try {
-            return byPage.computeIfAbsent( pageName, k -> new SessionSlot() );
-        } finally {
-            mapLock.unlock();
-        }
-    }
-
+    /** Null to retry (the page moved under the join); else the outcome. */
     private JoinOutcome joinLocked( final SessionSlot slot, final String pageName, final JoinRequest r,
                                     final PageState latest ) {
-        if( slot.session() == null && !open( slot, pageName, r, latest ) ) {
-            return new Refused( 503, CollabSession.STORE );
+        if( slot.session() == null ) {
+            final Opened o = open( slot, pageName, r, latest );
+            if( o != Opened.OK ) {
+                return o == Opened.FAILED ? new Refused( 503, CollabSession.STORE ) : null;
+            }
         }
         final CollabSession s = slot.session();
-        if( Hooks.members( s ).size() >= config.maxParticipants() ) {
+        if( !s.pageName().equals( pageName ) ) {
+            return null;   // a rekey moved this slot to another name while we waited: take the page's own slot
+        }
+        // a rejoin replacing its own stale entry (A13) takes no new seat
+        final int seats = Hooks.members( s ).size() - ( Hooks.replacesStale( s, r ) ? 1 : 0 );
+        if( seats >= config.maxParticipants() ) {
             return new Refused( 429, FULL );
         }
         final JoinResponse response;
@@ -230,12 +233,23 @@ public final class CollabSessionRegistry {
         return new Joined( s, response );
     }
 
-    /** Loads the page's stored draft or creates a session; false (slot discarded, logged) on a store failure. */
-    private boolean open( final SessionSlot slot, final String pageName, final JoinRequest r,
-                          final PageState latest ) {
+    /** How opening a slot went. */
+    private enum Opened { OK, FAILED, STALE }
+
+    /**
+     * Loads the page's stored draft or creates a session; FAILED (slot discarded, logged) on a store failure. A new
+     * session is created only from the page as it is now: when it no longer matches the join's read (a rename or delete
+     * landed in between, so the draft may have just moved away), STALE, and the join retries from a fresh read.
+     */
+    private Opened open( final SessionSlot slot, final String pageName, final JoinRequest r,
+                         final PageState latest ) {
         final CollabSession s;
         try {
             final UUID stored = store.sessionForPage( pageName ).map( SessionRecord::id ).orElse( null );
+            if( stored == null && !PageSlots.samePage( latest, writer.latest( pageName ).orElse( null ) ) ) {
+                LOG.debug( "collab: {} changed while {} was joining; retrying", pageName, r.authorKey() );
+                return Opened.STALE;
+            }
             s = stored != null
                 ? CollabSession.load( stored, ports, config, maxPageBytes )
                 : CollabSession.create( CollabSession.newRecord( UUID.randomUUID(), pageName,
@@ -244,11 +258,11 @@ public final class CollabSessionRegistry {
             LOG.warn( "collab: could not open the session of {}: {}", pageName, e.toString() );
             slot.close();
             unmap( slot, null );
-            return false;
+            return Opened.FAILED;
         }
         slot.opened( s, clock.instant() );
         byId.put( s.id(), slot );
-        return true;
+        return Opened.OK;
     }
 
     // ---- lookups ---------------------------------------------------------------------------------------------
@@ -261,22 +275,13 @@ public final class CollabSessionRegistry {
 
     /** The live session of a page, if one is in memory. */
     public Optional< CollabSession > liveForPage( final String pageName ) {
-        final SessionSlot slot = slot( pageName );
+        final SessionSlot slot = slots.get( pageName );
         return slot == null ? Optional.empty() : Optional.ofNullable( slot.session() );
     }
 
     /** The number of sessions in memory. */
     public int liveCount() {
         return byId.size();
-    }
-
-    private SessionSlot slot( final String pageName ) {
-        mapLock.lock();
-        try {
-            return byPage.get( pageName );
-        } finally {
-            mapLock.unlock();
-        }
     }
 
     // ---- tick ------------------------------------------------------------------------------------------------
@@ -296,6 +301,7 @@ public final class CollabSessionRegistry {
                 }
             }
         } catch( final Throwable t ) {
+            // LOG.error justified: an escaped Throwable (often an Error) would cancel every session's timers if rethrown
             LOG.error( "collab: the registry tick failed; the next tick retries: {}", t.toString(), t );
         }
     }
@@ -363,12 +369,7 @@ public final class CollabSessionRegistry {
     }
 
     private void unmap( final SessionSlot slot, final CollabSession s ) {
-        mapLock.lock();
-        try {
-            byPage.values().removeIf( x -> x == slot );
-        } finally {
-            mapLock.unlock();
-        }
+        slots.unmap( slot );
         if( s != null ) {
             byId.remove( s.id(), slot );
         }
@@ -403,12 +404,12 @@ public final class CollabSessionRegistry {
         slot.lock();
         try {
             final CollabSession s = slot.session();
-            if( slot.closed() || deferredByPublish( s ) ) {
+            if( slot.closed() || SessionSweeps.deferredByPublish( s ) ) {
                 return;
             }
             // participants go first, so no new publish can start; then check again for one that started meanwhile
             SessionSweeps.evictAll( s );
-            if( deferredByPublish( s ) ) {
+            if( SessionSweeps.deferredByPublish( s ) ) {
                 return;   // stays live; its participants rejoin this object
             }
             LOG.warn( "collab session {} ({}): {} consecutive store failures; dropped from memory for a reload",
@@ -419,14 +420,6 @@ public final class CollabSessionRegistry {
         }
     }
 
-    private static boolean deferredByPublish( final CollabSession s ) {
-        if( !Hooks.publishing( s ) ) {
-            return false;
-        }
-        LOG.warn( "collab session {} ({}): store failures, but a publish is in its save; reload deferred", s.id(),
-            s.pageName() );
-        return true;
-    }
 
     /** Evicts every participant of {@code authorKey} in every live session (a deleted user, A10 Minor). */
     public void evictAuthor( final String authorKey ) {
@@ -436,40 +429,49 @@ public final class CollabSessionRegistry {
     }
 
     /**
-     * The page {@code from} was renamed to {@code to}: its live session or stored draft follows.
+     * The page {@code from} was renamed to {@code to}: its live session or stored draft follows. Runs under
+     * {@code from}'s slot lock, so it cannot interleave with a join opening that slot: a stored draft is renamed and the
+     * unopened slot retired (a waiting joiner retries from a fresh read); a live session is renamed by
+     * {@link CollabSession#rekey}, which waits for the session's base lock and writes the store, with the page map
+     * free: {@code to} is reserved for the slot first (a joiner of {@code to} waits on the slot, then joins the moved
+     * session), and {@code from} is unmapped before the slot is released.
      *
      * @throws IllegalStateException when {@code to} already has a session, live or stored
      */
     public void rekey( final String from, final String to ) {
-        final SessionSlot slot = slot( from );
-        if( slot == null ) {
-            renameStored( from, to );
+        if( from.equals( to ) ) {
             return;
         }
-        slot.lock();
-        try {
-            if( slot.closed() || slot.session() == null ) {
-                renameStored( from, to );
-            } else {
-                moveLive( slot, from, to );
+        while( true ) {
+            final SessionSlot slot = slots.slotFor( from );
+            slot.lock();
+            try {
+                if( !slot.closed() ) {
+                    if( slot.session() == null ) {
+                        renameStored( from, to );
+                        slot.close();
+                        unmap( slot, null );
+                    } else {
+                        moveLive( slot, from, to );
+                    }
+                    return;
+                }
+            } finally {
+                slot.unlock();
             }
-        } finally {
-            slot.unlock();
+            // evicted while we waited: the next slot is a fresh one
         }
     }
 
+    /** Under the slot lock; the page map is held only to reserve and swap keys, never across the session's rename. */
     private void moveLive( final SessionSlot slot, final String from, final String to ) {
-        mapLock.lock();
+        slots.reserve( from, to, slot );
+        boolean moved = false;
         try {
-            if( byPage.containsKey( to ) ) {
-                throw new IllegalStateException( "collab: cannot move the session of " + from + " to " + to
-                    + ": it has a live session" );
-            }
-            Hooks.rename( slot.session(), to );
-            byPage.remove( from, slot );
-            byPage.put( to, slot );
+            slot.session().rekey( to );
+            moved = true;
         } finally {
-            mapLock.unlock();
+            slots.release( moved ? from : to, slot );   // refused: the reservation of to goes; moved: from goes
         }
     }
 
@@ -479,23 +481,11 @@ public final class CollabSessionRegistry {
 
     /** The page was deleted: its live session or stored draft is frozen for an administrator. */
     public void freeze( final String pageName ) {
-        final SessionSlot slot = slot( pageName );
-        if( slot != null && freezeLive( slot ) ) {
+        final SessionSlot slot = slots.get( pageName );
+        if( slot != null && slot.freezeIfLive() ) {
             return;
         }
         store.sessionForPage( pageName ).ifPresent( rec -> store.updateSession( rec.withStatus( SessionRecord.FROZEN ) ) );
     }
 
-    private static boolean freezeLive( final SessionSlot slot ) {
-        slot.lock();
-        try {
-            if( slot.closed() || slot.session() == null ) {
-                return false;
-            }
-            Hooks.freeze( slot.session() );
-            return true;
-        } finally {
-            slot.unlock();
-        }
-    }
 }

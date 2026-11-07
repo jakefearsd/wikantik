@@ -90,6 +90,14 @@ import java.util.function.Function;
  * {@link CollabIdentity}, colour by join order) at once, and parked pulls are woken with it. Meta ops and the event stream
  * ({@code published}, {@code publish-failed}, {@code external-change}, {@code oversize}) ride on pull the same way
  * ({@link PullCursor}).</p>
+ *
+ * <p><b>Lifecycle</b> (Phase 2, {@link Lifecycle}): joins, leaves, timeouts and evictions emit participant events; an
+ * eviction carries a reason ({@link #LOST_EDIT}, {@link #SIGNED_OUT}, {@link #ACCOUNT_DELETED}) and leaves a bounded
+ * tombstone, so the participant's later calls answer 403 {@code evicted} with that reason. {@link #rekey} follows a
+ * rename ({@code page-renamed}; former names still resolve) and {@link #freeze} a delete ({@code page-deleted}): a
+ * frozen draft refuses pushes and discards (409 {@code frozen}), serves pulls, and is published (recreating the page,
+ * base version 0) only by a publisher with {@code createPages} (403 {@code no-create}); a page that exists again
+ * unfreezes it as one {@code external-change} with {@code recreated: true}.</p>
  */
 public final class CollabSession {
 
@@ -105,6 +113,18 @@ public final class CollabSession {
     static final String NOT_SYNCED = "not-synced";
     static final String MERGED_RETRY = "publish-merged-retry";
     static final String IN_PROGRESS = "publish-in-progress";
+    /** 409 reason: the page was deleted under the draft. */
+    static final String FROZEN = "frozen";
+    /** 403 reason: a frozen draft is published (recreating its page) only with {@code createPages}. */
+    static final String NO_CREATE = "no-create";
+    /** 403 reason (and event type) of an evicted participant; the answer's {@code detail} names why. */
+    public static final String EVICTED = "evicted";
+    /** Eviction reason: the participant no longer holds {@code edit} on the page (A5). */
+    public static final String LOST_EDIT = "lost-edit";
+    /** Eviction reason: the participant's wiki session logged out or expired (A13). */
+    public static final String SIGNED_OUT = "signed-out";
+    /** Eviction reason: the participant's account was deleted. */
+    public static final String ACCOUNT_DELETED = "account-deleted";
     /** Loads per store, for the id tag (see the class comment). */
     private static final Map< CollabStore, AtomicInteger > LOADS = Collections.synchronizedMap( new WeakHashMap<>() );
 
@@ -129,6 +149,7 @@ public final class CollabSession {
     private final Answers answers;
     private final PublishFlow flow;
     private final SessionPush pusher;
+    private final Lifecycle life;
     /** Created here and not yet joined: the first join may seed initial text (A11). */
     private boolean fresh;
 
@@ -144,9 +165,11 @@ public final class CollabSession {
         this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-", ports.identity(),
             Duration.ofSeconds( config.presenceTimeoutSeconds() ) );
         this.answers = new Answers( d, roster, new Waiters( id ) );
+        this.life = new Lifecycle( d, roster, answers );
         this.pusher = new SessionPush( d, roster, answers, config );
         this.flow = new PublishFlow( d, lock, writer, ports.identity(), answers,
-            new ExternalMerge( d, lock, writer, ports.identity(), answers ) );
+            new ExternalMerge( d, lock, writer, ports.identity(), answers ), life );
+        d.follow = ( oldHead, applied, newHead ) -> Presence.follow( roster.all(), oldHead, applied, newHead );
     }
 
     // ---- creation and reload ---------------------------------------------------------------------------------
@@ -207,6 +230,9 @@ public final class CollabSession {
         d.ring.addAll( l.ring() );
         d.feed.addMetaOps( ports.store().metaOpsSince( id, Math.max( 0, d.metaSeq - config.historyInMemoryUpdates() ) ) );
         d.oversize.update( d.doc, true );
+        if( d.frozen() ) {
+            s.life.announceDeleted( new ArrayList<>() );   // nobody is parked yet; a joiner is shown it (A13)
+        }
         s.settle();
         return s;
     }
@@ -243,14 +269,16 @@ public final class CollabSession {
         final JoinResponse out;
         lock.lock();
         try {
+            final Instant now = clock.instant();
             if( fresh ) {
-                d.seed( r, clock.instant() );
+                d.seed( r, now );
                 fresh = false;
             }
-            final Participant p = roster.add( r, clock.instant(), d.head, config.pushesPerSecond() );
-            answers.presenceChanged( p.id, completions );
+            life.replaceStale( r, now, completions );
+            final Participant p = roster.add( r, now, d.head, config.pushesPerSecond() );
+            life.joined( p, completions );
             out = new JoinResponse( id, p.id, p.clientId, d.head, d.doc, d.metaSeq, d.meta, d.record.basePageVersion(),
-                roster.peers(), d.hasUnpublished(), d.lastEditAt, d.feed.eventSeq() );
+                roster.peers(), d.hasUnpublished(), d.lastEditAt, life.joinEventSeq() );
         } finally {
             lock.unlock();
         }
@@ -258,21 +286,18 @@ public final class CollabSession {
         return out;
     }
 
-    /**
-     * The participant's own leave (section 6.2): only its author may leave it (A6, ruling P5; participant ids are visible
-     * to every joiner). 409 {@code rejoin} when it is unknown or already gone. Its parked pull is answered.
-     */
     public LeaveResponse leave( final String participantId, final String authorKey ) {
         final List< Runnable > completions = new ArrayList<>();
         final LeaveResponse out;
         lock.lock();
         try {
-            final Gate.Refusal refused = Gate.identity( roster.get( participantId ), authorKey );
+            final Instant now = clock.instant();
+            final Gate.Refusal refused = Gate.identity( roster, participantId, authorKey, now );
             if( refused == null ) {
-                removeLocked( participantId, completions );
+                life.left( participantId, now, completions );
                 out = LeaveResponse.OK;
             } else {
-                out = new LeaveResponse( refused.status(), refused.reason() );
+                out = new LeaveResponse( refused.status(), refused.reason(), refused.detail() );
             }
         } finally {
             lock.unlock();
@@ -281,22 +306,46 @@ public final class CollabSession {
         return out;
     }
 
-    /**
-     * Server-side removal with no author check, for the registry and the permission re-check only (presence timeout,
-     * revoked permission, deleted user): never call it on behalf of a request. Unknown ids are ignored.
-     */
+    /** {@link #evict(String, String)} for {@link #LOST_EDIT}. */
     public void evict( final String participantId ) {
+        evict( participantId, LOST_EDIT );
+    }
+
+    /**
+     * Server-side eviction with no author check, for the registry and the permission re-check only (revoked permission,
+     * signed out, deleted user): never call it on behalf of a request. Its later requests answer 403 {@code evicted}
+     * with {@code reason} as the detail while its tombstone is kept (the presence timeout); its parked pull is answered
+     * so at once; {@code evicted} and {@code participant-left} events are emitted. Unknown ids are ignored.
+     */
+    public void evict( final String participantId, final String reason ) {
+        Objects.requireNonNull( reason, "reason" );
         final List< Runnable > completions = new ArrayList<>();
         lock.lock();
         try {
-            removeLocked( participantId, completions );
+            life.evict( participantId, reason, clock.instant(), completions );
         } finally {
             lock.unlock();
         }
         completions.forEach( Runnable::run );
     }
 
-    /** True while {@code participantId} is a live participant (the HTTP surface tells a removed parked pull apart). */
+    /**
+     * The presence timeout for one participant (a simulated or scheduled timeout): it leaves with reason
+     * {@code timeout} and no tombstone; its parked pull and next request answer 409 {@code rejoin}. Unknown ids are
+     * ignored.
+     */
+    public void timeOut( final String participantId ) {
+        final List< Runnable > completions = new ArrayList<>();
+        lock.lock();
+        try {
+            life.timeOut( participantId, clock.instant(), completions );
+        } finally {
+            lock.unlock();
+        }
+        completions.forEach( Runnable::run );
+    }
+
+    /** True while {@code participantId} is a live participant (an evicted or departed one is not). */
     public boolean hasParticipant( final String participantId ) {
         lock.lock();
         try {
@@ -329,14 +378,15 @@ public final class CollabSession {
         final Participant p;
         lock.lock();
         try {
-            p = roster.get( participantId );
-            final Gate.Refusal refused = Gate.identity( p, authorKey );
+            final Gate.Refusal refused = Gate.identity( roster, participantId, authorKey, clock.instant() );
             if( refused != null ) {
-                return PushResponse.refused( refused.status(), d.head, refused.reason() );
+                return PushResponse.refused( refused.status(), d.head, refused.reason(), refused.detail() );
             }
+            p = roster.get( participantId );
             p.touch( clock.instant() );
-            if( d.publishPending() ) {
-                return PushResponse.refused( 423, d.head, IN_PROGRESS );
+            final Gate.Refusal busy = Gate.discard( d.frozen(), d.publishPending() );
+            if( busy != null ) {
+                return PushResponse.refused( busy.status(), d.head, busy.reason() );
             }
         } finally {
             lock.unlock();
@@ -352,17 +402,6 @@ public final class CollabSession {
         }
         completions.forEach( Runnable::run );
         return out;
-    }
-
-    private void removeLocked( final String participantId, final List< Runnable > completions ) {
-        if( roster.remove( participantId, clock.instant() ) == null ) {
-            return;
-        }
-        final Runnable parked = answers.removeParked( participantId );
-        if( parked != null ) {
-            completions.add( parked );
-        }
-        answers.presenceChanged( participantId, completions );
     }
 
     // ---- push ------------------------------------------------------------------------------------------------
@@ -436,18 +475,18 @@ public final class CollabSession {
         final PullResponse out;
         lock.lock();
         try {
-            final Participant p = roster.get( participantId );
-            final Gate.Refusal refused = Gate.identity( p, authorKey );
+            final Gate.Refusal refused = Gate.identity( roster, participantId, authorKey, clock.instant() );
             if( refused != null ) {
-                return PullResponse.refused( refused.status(), d.head, refused.reason() );
+                return PullResponse.refused( refused.status(), d.head, refused.reason(), refused.detail() );
             }
+            final Participant p = roster.get( participantId );
             p.touch( clock.instant() );
             if( since < 0 || since > d.head ) {
                 return PullResponse.refused( 400, d.head, "bad-since" );
             }
             p.confirm( since );
             final long seen = d.presenceSeq;
-            if( keepSelection( p, selection ) ) {
+            if( Presence.keep( p, selection, d.ring, d.doc.length(), d.head ) ) {
                 answers.presenceChanged( participantId, completions );
             }
             if( since < d.head ) {
@@ -477,10 +516,6 @@ public final class CollabSession {
         } finally {
             lock.unlock();
         }
-    }
-
-    private boolean keepSelection( final Participant p, final Selection s ) {
-        return Presence.keep( p, s, d.ring, d.doc.length(), d.head );
     }
 
     /**
@@ -534,13 +569,24 @@ public final class CollabSession {
     public PublishStart startPublish( final String participantId, final String authorKey, final int version,
                                       final String changeNote ) {
         final Participant p;
+        final boolean frozen;
         lock.lock();
         try {
-            p = roster.get( participantId );
-            final Gate.Refusal refused = Gate.identity( p, authorKey );
+            final Gate.Refusal refused = Gate.identity( roster, participantId, authorKey, clock.instant() );
             if( refused != null ) {
-                return flow.answered( refused.status(), refused.reason() );
+                return flow.answered( refused.status(), refused.reason(), refused.detail() );
             }
+            p = roster.get( participantId );
+            frozen = d.frozen();
+        } finally {
+            lock.unlock();
+        }
+        // a frozen draft recreates its page: the publisher needs createPages, checked uncached (A5, E28)
+        if( EditRecheck.recreateRefused( frozen, id, p, permissions, pageName() ) ) {
+            return flow.answered( 403, NO_CREATE );
+        }
+        lock.lock();
+        try {
             Gate.confirm( p, version, d.head );
             if( d.publishing ) {
                 return flow.answered( 423, IN_PROGRESS );
@@ -553,7 +599,7 @@ public final class CollabSession {
             lock.unlock();
         }
         final List< Runnable > completions = new ArrayList<>();
-        final String before = baseKey();
+        final String before = flow.baseKey();
         PublishStart out = null;
         baseLock.lock();
         try {
@@ -561,24 +607,16 @@ public final class CollabSession {
         } finally {
             baseLock.unlock();
             if( out == null || out.response() != null ) {
-                endPublish();
+                if( flow.endPublish() ) {
+                    settle();   // the external merges queued meanwhile (A3)
+                }
             }
         }
         completions.forEach( Runnable::run );
-        if( !before.equals( baseKey() ) ) {
-            recheckEdit();   // the A1 backstop merged an outside write (A5)
+        if( !before.equals( flow.baseKey() ) ) {
+            recheckEdits();   // the A1 backstop merged an outside write (A5)
         }
         return out;
-    }
-
-    /** The base page version and content hash, to tell whether a step changed the base. */
-    private String baseKey() {
-        lock.lock();
-        try {
-            return d.baseKey();
-        } finally {
-            lock.unlock();
-        }
     }
 
     /**
@@ -632,7 +670,7 @@ public final class CollabSession {
             lock.unlock();
         }
         final List< Runnable > completions = new ArrayList<>();
-        final String before = baseKey();
+        final String before = flow.baseKey();
         final PublishResponse out;
         baseLock.lock();
         try {
@@ -645,29 +683,14 @@ public final class CollabSession {
         } finally {
             baseLock.unlock();
             completions.forEach( Runnable::run );
-            endPublish();
+            if( flow.endPublish() ) {
+                settle();   // the external merges queued meanwhile (A3)
+            }
         }
-        if( out.status() == 200 || !before.equals( baseKey() ) ) {
-            recheckEdit();   // after a publish, or a merge of an outside write found by the failed save (A5)
+        if( out.status() == 200 || !before.equals( flow.baseKey() ) ) {
+            recheckEdits();   // after a publish, or a merge of an outside write found by the failed save (A5)
         }
         return out;
-    }
-
-    /** Clears the publishing flag and runs the external merges queued meanwhile (A3). */
-    private void endPublish() {
-        final boolean drain;
-        lock.lock();
-        try {
-            d.publishing = false;
-            d.ticket = null;
-            drain = d.mergeQueued;
-            d.mergeQueued = false;
-        } finally {
-            lock.unlock();
-        }
-        if( drain ) {
-            settle();
-        }
     }
 
     // ---- external writes (section 7.4) -----------------------------------------------------------------------------
@@ -700,14 +723,14 @@ public final class CollabSession {
     }
 
     private void reconcileTo( final PageState target ) {
-        if( queuedBehindPublish() ) {
+        if( flow.queuedBehindPublish() ) {
             return;
         }
         final List< Runnable > completions = new ArrayList<>();
         boolean changed = false;
         baseLock.lock();
         try {
-            if( !queuedBehindPublish() ) {
+            if( !flow.queuedBehindPublish() ) {
                 changed = flow.reconcile( target, completions );
             }
         } finally {
@@ -715,22 +738,15 @@ public final class CollabSession {
         }
         completions.forEach( Runnable::run );
         if( changed ) {
-            recheckEdit();
+            recheckEdits();
         }
     }
 
-    /** True (and queued) when a publish is running: its end merges (A3). */
-    private boolean queuedBehindPublish() {
-        lock.lock();
-        try {
-            return d.queueIfPublishing();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /** A5: every participant's {@code edit} is re-checked after a publish or merge; those who lost it are evicted. */
-    private void recheckEdit() {
+    /**
+     * A5: every participant's {@code edit} is re-checked (after a publish or merge, and on the registry's cadence); those
+     * who lost it are evicted with {@link #LOST_EDIT}. The checks run with no session lock held.
+     */
+    public void recheckEdits() {
         final List< Participant > all;
         final String page;
         lock.lock();
@@ -740,7 +756,74 @@ public final class CollabSession {
         } finally {
             lock.unlock();
         }
-        EditRecheck.lost( id, all, permissions, page ).forEach( this::evict );
+        EditRecheck.lost( id, all, permissions, page ).forEach( pid -> evict( pid, LOST_EDIT ) );
+    }
+
+    // ---- rename and freeze (section 7.4, A1) -----------------------------------------------------------------------
+
+    /**
+     * The page was renamed: the session moves to {@code newPageName} in the store, then in memory, emits
+     * {@code page-renamed {to}} and wakes parked pulls; the old name still resolves ({@link #answersTo}). Under the base
+     * lock, so no publish completion or merge replaces the record meanwhile.
+     *
+     * @throws IllegalStateException with the session unchanged, when the store refuses (the new name has a draft)
+     */
+    public void rekey( final String newPageName ) {
+        Objects.requireNonNull( newPageName, "newPageName" );
+        baseLock.lock();   // a rename must not interleave with a base change (publish completion, merge)
+        try {
+            final List< Runnable > completions = new ArrayList<>();
+            lock.lock();
+            try {
+                life.rekey( newPageName, completions );
+            } finally {
+                lock.unlock();
+            }
+            completions.forEach( Runnable::run );
+        } finally {
+            baseLock.unlock();
+        }
+    }
+
+    /**
+     * The page was deleted: the status becomes {@code frozen} in the store and in memory, {@code page-deleted} is emitted
+     * and parked pulls are woken. Pushes and discards then answer 409 {@code frozen}, pulls are served, and a publish by
+     * someone with {@code createPages} recreates the page. A page that exists again unfreezes it on {@link #settle}.
+     */
+    public void freeze() {
+        baseLock.lock();   // a freeze must not interleave with a base change (publish completion, merge)
+        try {
+            final List< Runnable > completions = new ArrayList<>();
+            lock.lock();
+            try {
+                life.freeze( completions );
+            } finally {
+                lock.unlock();
+            }
+            completions.forEach( Runnable::run );
+        } finally {
+            baseLock.unlock();
+        }
+    }
+
+    /** True while the draft's page is deleted. */
+    public boolean frozen() {
+        lock.lock();
+        try {
+            return d.frozen();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** True when {@code pageName} is the session's current page name or one it held before a rename. */
+    public boolean answersTo( final String pageName ) {
+        lock.lock();
+        try {
+            return life.answersTo( pageName );
+        } finally {
+            lock.unlock();
+        }
     }
 
     // ---- state -----------------------------------------------------------------------------------------------
@@ -762,8 +845,8 @@ public final class CollabSession {
 
     /**
      * What {@link CollabSessionRegistry} needs from a session beyond the request API: its participants, whether it has
-     * unpublished changes, and rename and freeze. Static and nested, apart from the session's own logic; every method
-     * takes the session lock.
+     * unpublished changes, and whether a join replaces a stale entry. Static and nested, apart from the session's own
+     * logic; every method takes the session lock.
      */
     static final class Hooks {
 
@@ -826,33 +909,41 @@ public final class CollabSession {
         }
 
         /**
-         * Moves the session to {@code newPageName}: the store first, then memory.
-         *
-         * @throws IllegalStateException when the new name already has a session (from the store)
+         * The presence timeout (E13): participants not seen since {@code horizon} leave ({@code participant-left},
+         * reason {@code timeout}) without a tombstone; their next request rejoins (409). Returns how many left.
          */
-        static void rename( final CollabSession s, final String newPageName ) {
-            relabel( s, r -> r.withPageName( newPageName ) );
-        }
-
-        /** Freezes the session (its page was deleted): the store first, then memory; pushes then answer 409 frozen. */
-        static void freeze( final CollabSession s ) {
-            relabel( s, r -> r.withStatus( SessionRecord.FROZEN ) );
-        }
-
-        /** Under the base lock (no publish completion or merge replaces the record meanwhile), then the session lock. */
-        private static void relabel( final CollabSession s, final java.util.function.UnaryOperator< SessionRecord > f ) {
-            s.baseLock.lock();
+        static int expirePresence( final CollabSession s, final Instant horizon ) {
+            final List< Runnable > completions = new ArrayList<>();
+            final int n;
+            s.lock.lock();
             try {
-                s.lock.lock();
-                try {
-                    final SessionRecord next = f.apply( s.d.record );
-                    s.d.store.updateSession( next );
-                    s.d.record = next;
-                } finally {
-                    s.lock.unlock();
-                }
+                n = s.life.expire( horizon, s.clock.instant(), completions );
             } finally {
-                s.baseLock.unlock();
+                s.lock.unlock();
+            }
+            completions.forEach( Runnable::run );
+            return n;
+        }
+
+        /** Everyone leaves without a tombstone (the session leaves memory); parked pulls answer 409 {@code rejoin}. */
+        static void dropAll( final CollabSession s ) {
+            final List< Runnable > completions = new ArrayList<>();
+            s.lock.lock();
+            try {
+                s.life.dropAll( s.clock.instant(), completions );
+            } finally {
+                s.lock.unlock();
+            }
+            completions.forEach( Runnable::run );
+        }
+
+        /** True when {@code r} is a rejoin that replaces its own stale entry (it takes no new seat). */
+        static boolean replacesStale( final CollabSession s, final JoinRequest r ) {
+            s.lock.lock();
+            try {
+                return s.roster.staleEntryOf( r ) != null;
+            } finally {
+                s.lock.unlock();
             }
         }
     }

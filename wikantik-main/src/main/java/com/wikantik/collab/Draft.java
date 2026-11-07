@@ -30,9 +30,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -48,6 +50,11 @@ import java.util.UUID;
 final class Draft {
 
     private static final Logger LOG = LogManager.getLogger( Draft.class );
+
+    /** Moves the kept selections after an update moved the head ({@link Presence#follow}); set by the session. */
+    interface Follow {
+        void moved( int oldHead, List< StoredUpdate > applied, int newHead );
+    }
 
     final UUID id;
     final CollabStore store;
@@ -71,6 +78,12 @@ final class Draft {
     boolean mergeQueued;
     boolean mergeOwed;
 
+    Follow follow = ( oldHead, applied, newHead ) -> { };
+    /** The names the session's page held before its renames (post-join calls may still use them). */
+    final Set< String > formerNames = new LinkedHashSet<>();
+    /** The seq of the latest {@code page-deleted} event, 0 when none (a joiner into a frozen draft is shown it). */
+    long deletedEventSeq;
+
     Draft( final SessionRecord record, final CollabStore store, final long maxPageBytes, final int ringSize ) {
         this.id = record.id();
         this.record = record;
@@ -82,6 +95,11 @@ final class Draft {
 
     String pageName() {
         return record.pageName();
+    }
+
+    /** The page was deleted under the draft: pushes and discards answer 409 {@code frozen}, a publish recreates it. */
+    boolean frozen() {
+        return SessionRecord.FROZEN.equals( record.status() );
     }
 
     /** A3: true, with the change queued for the publish's end, while a publish is running. */
@@ -105,7 +123,9 @@ final class Draft {
         ring.addAll( accepted );
         local = l;
         doc = next;
+        final int oldHead = head;
         head += accepted.size();
+        follow.moved( oldHead, accepted, head );
     }
 
     boolean hasUnpublished() {
@@ -207,7 +227,9 @@ final class Draft {
             return false;
         }
         ring.addAll( extra );
+        final int oldHead = head;
         head += extra.size();
+        follow.moved( oldHead, extra, head );
         doc = docAfter;
         local = localAfter;
         record = updated;

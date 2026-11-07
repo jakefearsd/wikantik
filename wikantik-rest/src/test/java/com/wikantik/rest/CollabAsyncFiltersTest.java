@@ -150,7 +150,7 @@ class CollabAsyncFiltersTest {
             when( req.getHeader( "X-Request-Id" ) ).thenReturn( "req-parked" );
             final Map< String, String > q = Map.of( "sessionId", session.id().toString(), "participantId",
                 ada.participantId(), "since", "0", "metaSince", "0", "presenceSince",
-                Long.toString( session.view().presenceSeq() ), "eventsSince", "0" );
+                Long.toString( session.view().presenceSeq() ), "eventsSince", Long.toString( ada.eventSeq() ) );
             when( req.getParameter( anyString() ) ).thenAnswer( i -> q.get( i.< String >getArgument( 0 ) ) );
             if( asyncWorks ) {
                 when( req.startAsync() ).thenAnswer( i -> {

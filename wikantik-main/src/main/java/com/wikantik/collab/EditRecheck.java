@@ -57,4 +57,25 @@ final class EditRecheck {
         }
         return out;
     }
+
+    /** True when a publish of a {@code frozen} draft must be refused 403 {@code no-create} ({@link #mayCreate}). */
+    static boolean recreateRefused( final boolean frozen, final UUID session, final Participant p,
+                                    final CollabPermissions permissions, final String page ) {
+        return frozen && !mayCreate( session, p, permissions, page );
+    }
+
+    /**
+     * A5/E28: whether {@code p} may create {@code page} (publishing a frozen draft recreates its page), asked uncached
+     * with no session lock held. Fails closed: a check that throws is a refusal (logged).
+     */
+    static boolean mayCreate( final UUID session, final Participant p, final CollabPermissions permissions,
+                              final String page ) {
+        try {
+            return permissions.canCreate( p.wikiSession, page );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: the createPages check of {} on {} failed; refusing the recreate: {}", session,
+                p.id, page, e.getMessage() );
+            return false;
+        }
+    }
 }

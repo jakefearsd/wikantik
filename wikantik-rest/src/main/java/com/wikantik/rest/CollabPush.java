@@ -76,7 +76,7 @@ final class CollabPush {
         if( r.ok() ) {
             return CollabWire.pushed( r.version(), r.metaSeq() );
         }
-        final Answer a = CollabWire.refusal( r.status(), r.reason(), r.version() );
+        final Answer a = CollabWire.refusal( r.status(), r.reason(), r.detail(), r.version() );
         if( r.status() == 429 ) {
             ( ( JsonObject ) a.body() ).addProperty( "retryAfterMs", Math.max( 1, 1000 / Math.max( 1, pushesPerSecond ) ) );
         }

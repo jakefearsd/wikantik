@@ -27,8 +27,10 @@ import java.time.Instant;
 import java.util.function.Predicate;
 
 /**
- * The registry's server-side participant evictions (presence timeout E13, lost {@code edit} A5/E30, a deleted user, a
- * session leaving memory): each goes through {@link CollabSession#evict}, which answers the participant's parked pull.
+ * The registry's server-side participant removals: the presence timeout (E13, {@link Hooks#expirePresence}, no
+ * tombstone), lost {@code edit} (A5/E30) and a deleted user (evictions with a reason and a tombstone,
+ * {@link CollabSession#evict(String, String)}), and a session leaving memory ({@link Hooks#dropAll}, no
+ * tombstone). Each answers the participant's parked pull.
  */
 final class SessionSweeps {
 
@@ -37,9 +39,25 @@ final class SessionSweeps {
     private SessionSweeps() {
     }
 
+    /**
+     * True (logged) while the session's publish is in its save: a wedged-session reload then would give the page two
+     * writers, so it is deferred.
+     */
+    static boolean deferredByPublish( final CollabSession s ) {
+        if( !Hooks.publishing( s ) ) {
+            return false;
+        }
+        LOG.warn( "collab session {} ({}): store failures, but a publish is in its save; reload deferred", s.id(),
+            s.pageName() );
+        return true;
+    }
+
     /** Participants not seen since {@code horizon}. */
     static void expirePresence( final CollabSession s, final Instant horizon ) {
-        evictWhere( s, m -> m.lastSeen().isBefore( horizon ), "timed out" );
+        final int n = Hooks.expirePresence( s, horizon );
+        if( n > 0 ) {
+            LOG.info( "collab session {}: {} participant(s) timed out", s.id(), n );
+        }
     }
 
     /**
@@ -48,7 +66,7 @@ final class SessionSweeps {
      */
     static void recheckEdit( final CollabSession s, final CollabPermissions permissions ) {
         final String pageName = s.pageName();
-        evictWhere( s, m -> !mayEdit( s, m, permissions, pageName ), "lost edit" );
+        evictWhere( s, m -> !mayEdit( s, m, permissions, pageName ), CollabSession.LOST_EDIT );
     }
 
     private static boolean mayEdit( final CollabSession s, final Member m, final CollabPermissions permissions,
@@ -64,19 +82,19 @@ final class SessionSweeps {
 
     /** Every participant of {@code authorKey}. */
     static void evictAuthor( final CollabSession s, final String authorKey ) {
-        evictWhere( s, m -> m.authorKey().equals( authorKey ), "deleted user" );
+        evictWhere( s, m -> m.authorKey().equals( authorKey ), CollabSession.ACCOUNT_DELETED );
     }
 
     /** Everyone: the session leaves memory. */
     static void evictAll( final CollabSession s ) {
-        evictWhere( s, m -> true, "session left memory" );
+        Hooks.dropAll( s );
     }
 
-    private static void evictWhere( final CollabSession s, final Predicate< Member > which, final String why ) {
+    private static void evictWhere( final CollabSession s, final Predicate< Member > which, final String reason ) {
         for( final Member m : Hooks.members( s ) ) {
             if( which.test( m ) ) {
-                LOG.info( "collab session {}: participant {} evicted ({})", s.id(), m.participantId(), why );
-                s.evict( m.participantId() );
+                LOG.info( "collab session {}: participant {} evicted ({})", s.id(), m.participantId(), reason );
+                s.evict( m.participantId(), reason );
             }
         }
     }

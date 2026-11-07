@@ -50,6 +50,8 @@ import java.util.concurrent.locks.ReentrantLock;
 final class PublishFlow {
 
     private static final Logger LOG = LogManager.getLogger( PublishFlow.class );
+    /** The message of the save adapter's page-gone conflict ({@code VersionConflictException.PAGE_GONE}, Task 4). */
+    static final String PAGE_GONE = "page-gone";
 
     private final Draft d;
     private final ReentrantLock lock;
@@ -57,22 +59,30 @@ final class PublishFlow {
     private final CollabIdentity identity;
     private final Answers answers;
     private final ExternalMerge merge;
+    private final Lifecycle life;
 
     PublishFlow( final Draft d, final ReentrantLock lock, final CollabPageWriter writer, final CollabIdentity identity,
-                 final Answers answers, final ExternalMerge merge ) {
+                 final Answers answers, final ExternalMerge merge, final Lifecycle life ) {
         this.d = d;
         this.lock = lock;
         this.writer = writer;
         this.identity = identity;
         this.answers = answers;
         this.merge = merge;
+        this.life = life;
     }
 
     /** A publish answered before any save. */
     PublishStart answered( final int status, final String reason ) {
+        return answered( status, reason, null );
+    }
+
+    /** A publish answered before any save, with a detail (403 {@code evicted}). */
+    PublishStart answered( final int status, final String reason, final String detail ) {
         lock.lock();
         try {
-            return new PublishStart( new PublishResponse( status, d.record.basePageVersion(), reason, false ), null );
+            return new PublishStart( new PublishResponse( status, d.record.basePageVersion(), reason, false, null,
+                detail ), null );
         } finally {
             lock.unlock();
         }
@@ -126,10 +136,12 @@ final class PublishFlow {
     /**
      * Under the lock: 200 {@code unchanged} (E21), 400 {@code empty} (E1), 413 {@code oversize}; else V, S_V, M_V on base
      * B, the save request (a field still equal to the base keeps the base's original typed value) and the stored marker.
+     * A frozen draft recreates its deleted page: B is 0 ("must not exist", A11) and it is published even unchanged.
      */
     private PublishStart snapshotForSave( final Participant p, final String note, final Optional< PageState > latest ) {
-        final int b = d.record.basePageVersion();
-        final PublishResponse early = Gate.publishable( d.hasUnpublished(), d.doc.isEmpty(),
+        final boolean recreate = d.frozen();
+        final int b = recreate ? 0 : d.record.basePageVersion();
+        final PublishResponse early = Gate.publishable( recreate || d.hasUnpublished(), d.doc.isEmpty(),
             Oversize.utf8( d.doc ) > d.oversize.maxPageBytes(), b );
         if( early != null ) {
             return new PublishStart( early, null );
@@ -190,9 +202,12 @@ final class PublishFlow {
         if( !d.appendMetaOps( MetaMerge.ops( MetaMerge.fold( t.meta(), d.meta, savedMeta ), d.metaSeq ) ) ) {
             return unfinished( t );
         }
-        final SessionRecord updated = SessionLoader.draftMarkers( d.record.withBase( saved.version(), savedBody,
-            saved.savedMeta(), CollabText.contentHash( savedBody ) ).withPending( null, null, null ),
-            !localAfter.empty() || !d.meta.equals( savedMeta ), d.lastEditAt );
+        final SessionRecord based = d.record.withBase( saved.version(), savedBody, saved.savedMeta(),
+            CollabText.contentHash( savedBody ) ).withPending( null, null, null );
+        // a publish on base 0 created the page: a frozen draft's recreate makes it editable again (E28)
+        final SessionRecord updated = SessionLoader.draftMarkers( t.baseVersion() == 0
+            ? based.withStatus( SessionRecord.ACTIVE ) : based, !localAfter.empty() || !d.meta.equals( savedMeta ),
+            d.lastEditAt );
         if( !d.commit( extra, docAfter, localAfter, updated ) ) {
             return unfinished( t );
         }
@@ -232,15 +247,19 @@ final class PublishFlow {
 
     /**
      * A save that threw: version B+1 by the publisher with S_V's text means it persisted before failing (finished, A2);
-     * another B+1, or a version conflict, is an outside write, merged, and answered 409 {@code publish-merged-retry}
-     * (E20); otherwise the draft is unchanged and the others are told ({@code publish-failed}, E19).
+     * a page-gone conflict on a page that is still missing freezes the draft and answers 409 {@code frozen} (E28: the
+     * client offers the recreate, not a retry into the same conflict); another B+1, or a version conflict (a rename
+     * included: the session's current name is read), is an outside write, merged, and answered 409
+     * {@code publish-merged-retry} (E20, E27); otherwise the draft is unchanged and the others are told
+     * ({@code publish-failed}, E19).
      */
     PublishResponse failed( final PublishStart.Ticket t, final Exception e, final List< Runnable > completions ) {
         LOG.warn( "collab session {} ({}): the save of the publish at version {} failed: {}", d.id, t.request().pageName(),
             t.version(), e.toString() );
+        final String page = pageName();
         final Optional< PageState > next;
         try {
-            next = writer.version( t.request().pageName(), t.baseVersion() + 1 );
+            next = writer.version( page, t.baseVersion() + 1 );
         } catch( final RuntimeException re ) {
             LOG.warn( "collab session {}: reading version {} after a failed save failed: {}", d.id, t.baseVersion() + 1,
                 re.getMessage() );
@@ -252,9 +271,15 @@ final class PublishFlow {
         if( !clearMarker() ) {
             return unfinishedLocked( t );
         }
+        if( isPageGone( e ) && next.isEmpty() ) {
+            final PublishResponse gone = frozenIfGone( page, completions );
+            if( gone != null ) {
+                return gone;
+            }
+        }
         if( next.isPresent() || e instanceof VersionConflictException ) {
             try {
-                reconcile( writer.latest( t.request().pageName() ).orElse( null ), completions );
+                reconcile( writer.latest( page ).orElse( null ), completions );
             } catch( final RuntimeException re ) {
                 LOG.warn( "collab session {}: reading the page after a conflicting save failed; merged later: {}", d.id,
                     re.getMessage() );
@@ -263,6 +288,38 @@ final class PublishFlow {
             return answered( 409, CollabSession.MERGED_RETRY ).response();
         }
         return refused( t, e, completions );
+    }
+
+    /**
+     * The save adapter's page-gone conflict (Phase 2 Task 4: {@code expectedVersion > 0} on a missing page), told by its
+     * message until {@code VersionConflictException.PAGE_GONE} reaches this module.
+     */
+    static boolean isPageGone( final Exception e ) {
+        return e instanceof VersionConflictException && PAGE_GONE.equals( e.getMessage() );
+    }
+
+    /**
+     * After a page-gone save: when the page is still missing under the session's current name it was deleted, so the
+     * draft is frozen ({@code page-deleted}) and the answer is 409 {@code frozen}; null when it exists (a rename: the
+     * caller merges) or the freeze failed (logged; the caller answers the conflict).
+     */
+    private PublishResponse frozenIfGone( final String page, final List< Runnable > completions ) {
+        try {
+            if( writer.latest( page ).isPresent() ) {
+                return null;
+            }
+            lock.lock();
+            try {
+                life.freeze( completions );
+                return new PublishResponse( 409, d.record.basePageVersion(), CollabSession.FROZEN, false );
+            } finally {
+                lock.unlock();
+            }
+        } catch( final RuntimeException re ) {
+            LOG.warn( "collab session {} ({}): the page is gone but the draft could not be frozen: {}", d.id, page,
+                re.getMessage() );
+            return null;
+        }
     }
 
     /** 422 {@code writer-refused} (the exception rides along for the HTTP body) or 500 {@code writer-failed}. */
@@ -323,10 +380,35 @@ final class PublishFlow {
         }
     }
 
-    private String baseKey() {
+    /** The base page version and content hash, to tell whether a step changed the base. */
+    String baseKey() {
         lock.lock();
         try {
             return d.baseKey();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** True (and queued) when a publish is running: its end merges (A3). */
+    boolean queuedBehindPublish() {
+        lock.lock();
+        try {
+            return d.queueIfPublishing();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** Clears the publishing flag; true when external merges were queued meanwhile (A3): the caller settles. */
+    boolean endPublish() {
+        lock.lock();
+        try {
+            d.publishing = false;
+            d.ticket = null;
+            final boolean drain = d.mergeQueued;
+            d.mergeQueued = false;
+            return drain;
         } finally {
             lock.unlock();
         }

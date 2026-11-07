@@ -18,7 +18,6 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.JsonObject;
 import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.PullWaiter;
 import com.wikantik.collab.model.PullCursor;
@@ -55,11 +54,9 @@ import java.util.function.Function;
  * fetched by the client's next pull at once). Presence wakes are coalesced the same way. Refusals and timeouts are
  * written at once; a container timeout during the delay writes the delayed answer straight away.</p>
  *
- * <p><b>A removed participant.</b> In Phase 1 the session answers the parked pull of a participant it removed (left,
- * timed out, lost {@code edit}) with a plain 200; it keeps no eviction tombstone (Phase 2). This waiter tells the cases
- * apart for the client: a caller who no longer has {@code edit} gets 403 {@code evicted} ({@code detail: lost-edit}),
- * so the editor goes read-only as the fake does; anyone else 409 {@code rejoin}, which keeps every unsent edit (a 403
- * evicted would make the client discard them, A13).</p>
+ * <p><b>A removed participant.</b> The session answers a removed participant's parked pull itself: 403
+ * {@code evicted} with the eviction's reason as {@code detail} (its tombstone answers every later call the same way),
+ * 409 {@code rejoin} for a timeout, and the presence map for its own leave. This waiter writes what it is given.</p>
  *
  * <p>Completions run on the thread that woke the pull (a pusher, the tick); the write restores this request's log
  * context (MDC), so the access and correlation logs name the right request.</p>
@@ -73,16 +70,10 @@ final class CollabPull implements PullWaiter, AsyncListener {
         void after( long millis, Runnable task );
     }
 
-    /** Whether the caller still has {@code edit} (asked only for a removed participant, uncached). */
-    interface EditCheck {
-        boolean mayEdit();
-    }
-
     private final CollabSession session;
     private final String participantId;
     private final PullCursor cursor;
     private final HttpServletResponse response;
-    private final EditCheck editCheck;
     private final Delayer delayer;
     private final long coalesceMs;
     private final Consumer< PullResponse > observe;
@@ -97,13 +88,12 @@ final class CollabPull implements PullWaiter, AsyncListener {
     private Answer answer;
 
     CollabPull( final CollabSession session, final String participantId, final PullCursor cursor,
-                final HttpServletResponse response, final EditCheck editCheck, final Delayer delayer,
-                final long coalesceMs, final Consumer< PullResponse > observe ) {
+                final HttpServletResponse response, final Delayer delayer, final long coalesceMs,
+                final Consumer< PullResponse > observe ) {
         this.session = session;
         this.participantId = participantId;
         this.cursor = cursor;
         this.response = response;
-        this.editCheck = editCheck;
         this.delayer = delayer;
         this.coalesceMs = coalesceMs;
         this.observe = observe;
@@ -149,7 +139,7 @@ final class CollabPull implements PullWaiter, AsyncListener {
     @Override
     public void complete( final PullResponse r ) {
         observe.accept( r );
-        final Answer a = translate( r );
+        final Answer a = CollabWire.pulled( r );
         final boolean delay;
         lock.lock();
         try {
@@ -170,31 +160,6 @@ final class CollabPull implements PullWaiter, AsyncListener {
         } else {
             write( a );
         }
-    }
-
-    private Answer translate( final PullResponse r ) {
-        if( r.status() == 200 && !session.hasParticipant( participantId ) ) {
-            return removed();
-        }
-        return CollabWire.pulled( r );
-    }
-
-    private Answer removed() {
-        boolean mayEdit;
-        try {
-            mayEdit = editCheck.mayEdit();
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab: the edit check for removed participant {} failed; answering evicted: {}", participantId,
-                e.toString() );
-            mayEdit = false;
-        }
-        if( mayEdit ) {
-            return CollabWire.refusal( 409, "rejoin", 0 );
-        }
-        final JsonObject o = new JsonObject();
-        o.addProperty( CollabWire.REASON, "evicted" );
-        o.addProperty( "detail", "lost-edit" );
-        return new Answer( 403, o );
     }
 
     /** Async mode has started on the request thread: arms the listener and writes an answer that came first. */

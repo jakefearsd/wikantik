@@ -126,6 +126,20 @@ final class SessionSlot {
         return true;
     }
 
+    /** Freezes the opened session under the slot lock (its page was deleted); false when not opened or closed. */
+    boolean freezeIfLive() {
+        lock.lock();
+        try {
+            if( closed || session == null ) {
+                return false;
+            }
+            session.freeze();
+            return true;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /** Counts one 503 {@code store}; true when {@code limit} have come in a row. */
     boolean storeFailed( final int limit ) {
         return storeFailures.incrementAndGet() >= limit;
@@ -146,6 +160,7 @@ final class SessionSlot {
             r.run();
         } catch( final Throwable t ) {
             if( t instanceof Error ) {
+                // LOG.error justified: an Error escaped a tick step (stack overflow, out of memory); operator attention
                 LOG.error( "collab session {}: tick step '{}' failed with an error; retried next tick", s.id(), what, t );
             } else if( warnDue( now, WARN_EVERY ) ) {
                 LOG.warn( "collab session {}: tick step '{}' failed; retried next tick (repeats muted for a minute): {}",

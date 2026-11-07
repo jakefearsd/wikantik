@@ -283,7 +283,7 @@ class CollabSessionMetaTest {
     @Test
     void aFrozenSessionAppliesNoMetaEdits() {
         final JoinResponse a = join( "ada" );
-        CollabSession.Hooks.freeze( session );
+        session.freeze();
         final PushResponse r = edit( a, "ada", MetaEdit.set( "summary", "x" ) );
         assertEquals( 409, r.status() );
         assertEquals( "frozen", r.reason() );

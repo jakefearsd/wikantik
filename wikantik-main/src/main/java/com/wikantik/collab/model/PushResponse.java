@@ -25,8 +25,14 @@ package com.wikantik.collab.model;
  * {@code rate-limited} (A8); 503 {@code store} (the append failed, nothing applied, E35). {@code version} is the head
  * after the call and {@code reason} is null on 200. {@code metaSeq} is the meta sequence after an accepted push (A14),
  * 0 on a refusal. A bad meta edit refuses the whole push (400 {@code rejected}: no text, meta or selection applied).
+ * {@code detail} is set only on 403 {@code evicted}: why the participant was evicted.
  */
-public record PushResponse( int status, int version, String reason, long metaSeq ) {
+public record PushResponse( int status, int version, String reason, long metaSeq, String detail ) {
+
+    /** Without a detail. */
+    public PushResponse( final int status, final int version, final String reason, final long metaSeq ) {
+        this( status, version, reason, metaSeq, null );
+    }
 
     /** A refusal (or any answer without a meta sequence): {@code metaSeq} 0. */
     public PushResponse( final int status, final int version, final String reason ) {
@@ -39,6 +45,11 @@ public record PushResponse( int status, int version, String reason, long metaSeq
 
     public static PushResponse refused( final int status, final int version, final String reason ) {
         return new PushResponse( status, version, reason );
+    }
+
+    /** A refusal with a detail (403 {@code evicted} and its reason). */
+    public static PushResponse refused( final int status, final int version, final String reason, final String detail ) {
+        return new PushResponse( status, version, reason, 0L, detail );
     }
 
     public boolean ok() {

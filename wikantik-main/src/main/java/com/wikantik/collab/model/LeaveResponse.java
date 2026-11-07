@@ -20,9 +20,14 @@ package com.wikantik.collab.model;
 
 /**
  * The answer to a leave: 200; 403 {@code not-your-participant} (the participant belongs to another author, A6); 409
- * {@code rejoin} (unknown or already gone). {@code reason} is null on 200.
+ * {@code rejoin} (unknown or already gone); 403 {@code evicted} with its {@code detail}. {@code reason} is null on 200.
  */
-public record LeaveResponse( int status, String reason ) {
+public record LeaveResponse( int status, String reason, String detail ) {
+
+    /** Without a detail. */
+    public LeaveResponse( final int status, final String reason ) {
+        this( status, reason, null );
+    }
 
     public static final LeaveResponse OK = new LeaveResponse( 200, null );
 }

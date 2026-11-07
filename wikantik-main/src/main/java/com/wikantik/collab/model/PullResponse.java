@@ -29,11 +29,13 @@ import java.util.Map;
  * (with or without a selection), keyed by participant id, when {@code presenceSeq} is newer than the request's {@code presenceSince},
  * else empty (A12, ruling P7; the requester is never in it). {@code metaOps} are the meta ops after the request's
  * {@code metaSince} up to {@code metaSeq}, and {@code events} the events after its {@code eventsSince} up to
- * {@code eventSeq} (both empty when the request did not ask for them, {@link PullCursor}).
+ * {@code eventSeq} (both empty when the request did not ask for them, {@link PullCursor}). {@code detail} is set only
+ * on 403 {@code evicted}: why the participant was evicted ({@code lost-edit}, {@code signed-out},
+ * {@code account-deleted}).
  */
 public record PullResponse( int status, List< Update > updates, int version, String reason,
                             Map< String, PresenceEntry > presence, long presenceSeq, List< MetaOp > metaOps, long metaSeq,
-                            List< CollabEvent > events, long eventSeq ) {
+                            List< CollabEvent > events, long eventSeq, String detail ) {
     public PullResponse {
         updates = List.copyOf( updates );
         presence = Map.copyOf( presence );
@@ -44,10 +46,15 @@ public record PullResponse( int status, List< Update > updates, int version, Str
     /** Text and presence only. */
     public PullResponse( final int status, final List< Update > updates, final int version, final String reason,
                          final Map< String, PresenceEntry > presence, final long presenceSeq ) {
-        this( status, updates, version, reason, presence, presenceSeq, List.of(), 0, List.of(), 0 );
+        this( status, updates, version, reason, presence, presenceSeq, List.of(), 0, List.of(), 0, null );
     }
 
     public static PullResponse refused( final int status, final int version, final String reason ) {
         return new PullResponse( status, List.of(), version, reason, Map.of(), 0 );
+    }
+
+    /** A refusal with a detail (403 {@code evicted} and its reason). */
+    public static PullResponse refused( final int status, final int version, final String reason, final String detail ) {
+        return new PullResponse( status, List.of(), version, reason, Map.of(), 0, List.of(), 0, List.of(), 0, detail );
     }
 }

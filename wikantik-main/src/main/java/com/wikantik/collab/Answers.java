@@ -69,7 +69,8 @@ final class Answers {
         final long eventSeq = d.feed.eventSeq();
         return new PullResponse( 200, out, d.head, null,
             cursor.presenceSince() < d.presenceSeq ? roster.presenceExcept( participantId ) : Map.of(), d.presenceSeq, ops,
-            d.metaSeq, cursor.eventsSince() < eventSeq ? d.feed.eventsAfter( cursor.eventsSince() ) : List.of(), eventSeq );
+            d.metaSeq, cursor.eventsSince() < eventSeq ? d.feed.eventsAfter( cursor.eventsSince() ) : List.of(), eventSeq,
+            null );
     }
 
     /** Catch-up for a pull behind the head: the ring when it reaches back far enough, else the store; 410 when truncated. */
@@ -108,6 +109,11 @@ final class Answers {
     /** Removes a leaving participant's parked pull, answered with the presence map; null when it had none. */
     Runnable removeParked( final String participantId ) {
         return waiters.remove( participantId, answer( List.of(), participantId, PRESENCE_ONLY ) );
+    }
+
+    /** Removes a removed participant's parked pull, answered {@code with}; null when it had none. */
+    Runnable removeParked( final String participantId, final PullResponse with ) {
+        return waiters.remove( participantId, with );
     }
 
     /** A join, leave or selection change: the sequence moves and every other parked pull behind it is answered. */

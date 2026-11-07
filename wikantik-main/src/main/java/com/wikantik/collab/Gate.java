@@ -23,39 +23,62 @@ import com.wikantik.collab.model.PublishResponse;
 import java.time.Instant;
 
 /**
- * The refusals every request meets before it touches the document: the participant must exist (409 {@code rejoin})
- * and belong to the caller's author key (403 {@code not-your-participant}, A6); a push must also be within its rate
- * (429 {@code rate-limited}, A8) and the session not frozen (409 {@code frozen}). Called under the session lock.
+ * The refusals every request meets before it touches the document: the participant must exist (409 {@code rejoin},
+ * or 403 {@code evicted} with the eviction's reason as {@code detail} while its tombstone is kept) and belong to the
+ * caller's author key (403 {@code not-your-participant}, A6); a push must also be within its rate (429
+ * {@code rate-limited}, A8) and the session not frozen (409 {@code frozen}). Called under the session lock.
  */
 final class Gate {
 
-    /** A refusal: the status and reason to answer with. */
-    record Refusal( int status, String reason ) {
+    /** A refusal: the status and reason to answer with; {@code detail} only for 403 {@code evicted}. */
+    record Refusal( int status, String reason, String detail ) {
+        Refusal( final int status, final String reason ) {
+            this( status, reason, null );
+        }
     }
 
     private Gate() {
     }
 
-    /** Null when {@code p} exists and is {@code authorKey}'s. */
-    static Refusal identity( final Participant p, final String authorKey ) {
-        if( p == null ) {
+    /**
+     * Null when {@code participantId} is a live participant of {@code authorKey}; otherwise 403 {@code evicted} (its
+     * tombstone is the caller's), 403 {@code not-your-participant}, or 409 {@code rejoin}.
+     */
+    static Refusal identity( final Roster roster, final String participantId, final String authorKey,
+                             final Instant now ) {
+        final Participant p = roster.get( participantId );
+        if( p != null ) {
+            return p.authorKey.equals( authorKey ) ? null : new Refusal( 403, CollabSession.NOT_YOURS );
+        }
+        final Roster.Tombstone t = roster.tombstone( participantId, now );
+        if( t == null ) {
             return new Refusal( 409, CollabSession.REJOIN );
         }
-        return p.authorKey.equals( authorKey ) ? null : new Refusal( 403, CollabSession.NOT_YOURS );
+        return t.authorKey().equals( authorKey ) ? new Refusal( 403, CollabSession.EVICTED, t.reason() )
+            : new Refusal( 403, CollabSession.NOT_YOURS );
     }
 
     /** Null when the push may proceed; marks the participant seen and takes one push token. */
-    static Refusal push( final Participant p, final String authorKey, final Instant now, final int pushesPerSecond,
-                         final boolean frozen ) {
-        final Refusal who = identity( p, authorKey );
+    static Refusal push( final Roster roster, final String participantId, final String authorKey, final Instant now,
+                         final int pushesPerSecond, final boolean frozen ) {
+        final Refusal who = identity( roster, participantId, authorKey, now );
         if( who != null ) {
             return who;
         }
+        final Participant p = roster.get( participantId );
         p.touch( now );
         if( !p.tryAcquirePush( now, pushesPerSecond ) ) {
             return new Refusal( 429, "rate-limited" );
         }
-        return frozen ? new Refusal( 409, "frozen" ) : null;
+        return frozen ? new Refusal( 409, CollabSession.FROZEN ) : null;
+    }
+
+    /** A discard's refusal, or null: 409 {@code frozen} on a frozen draft, 423 while a publish is pending. */
+    static Refusal discard( final boolean frozen, final boolean publishPending ) {
+        if( frozen ) {
+            return new Refusal( 409, CollabSession.FROZEN );
+        }
+        return publishPending ? new Refusal( 423, CollabSession.IN_PROGRESS ) : null;
     }
 
     /** Records that the participant holds {@code version} when it is a real version (0..head). */

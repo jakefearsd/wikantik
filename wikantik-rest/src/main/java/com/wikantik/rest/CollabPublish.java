@@ -73,7 +73,7 @@ final class CollabPublish {
             LOG.error( "collab session {}: the save of {} failed: {}", s.id(), pageName,
                 r.failure() == null ? "no cause" : r.failure().toString(), r.failure() );
         }
-        return CollabWire.refusal( r.status(), r.reason(), r.pageVersion() );
+        return CollabWire.refusal( r.status(), r.reason(), r.detail(), r.pageVersion() );
     }
 
     private static void clearSinks() {

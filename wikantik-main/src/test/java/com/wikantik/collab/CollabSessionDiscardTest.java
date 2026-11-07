@@ -191,7 +191,7 @@ class CollabSessionDiscardTest {
         type( a, "ada", "XYZ " );
         session.discard( a.participantId(), "ada" );
         final JoinResponse b = join( "raj" );
-        assertEquals( 0, a.eventSeq() );
-        assertEquals( 1, b.eventSeq(), "a new joiner starts after the events it need not replay" );
+        assertEquals( 1, a.eventSeq(), "its own participant-joined" );
+        assertEquals( 3, b.eventSeq(), "a new joiner starts after the events it need not replay" );
     }
 }

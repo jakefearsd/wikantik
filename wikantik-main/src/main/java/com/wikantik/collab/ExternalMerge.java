@@ -35,6 +35,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * Section 7.4, external writes, as amended by A1 (detection by content hash) and A3 (each later version merged in order
  * against its predecessor). Runs with the session's base lock held; takes the session lock only around state, so the
  * page-store reads and the diff E happen outside it.
+ *
+ * <p>A frozen draft whose page exists again (recreated by someone else) is merged with the recreated page as one
+ * external change against the latest version, with no version walk (the version numbers restarted), and becomes active
+ * again; its {@code external-change} event carries {@code recreated: true}.</p>
  */
 final class ExternalMerge {
 
@@ -64,15 +68,20 @@ final class ExternalMerge {
     Result mergeTo( final PageState target, final List< Runnable > completions ) {
         final int b;
         final String page;
+        final boolean frozen;
         lock.lock();
         try {
+            frozen = d.frozen();
             b = d.record.basePageVersion();
             page = d.pageName();
-            if( target.version() < b || target.version() == b && sameAsBase( target ) ) {
+            if( !frozen && ( target.version() < b || target.version() == b && sameAsBase( target ) ) ) {
                 return Result.NONE;
             }
         } finally {
             lock.unlock();
+        }
+        if( frozen ) {
+            return mergeOne( target, true, completions ) == Result.FAILED ? Result.FAILED : Result.CHANGED;
         }
         final List< PageState > states = new ArrayList<>();
         for( int v = b + 1; v < target.version(); v++ ) {
@@ -81,7 +90,7 @@ final class ExternalMerge {
         states.add( target );
         Result result = Result.NONE;
         for( final PageState st : states ) {
-            final Result r = mergeOne( st, completions );
+            final Result r = mergeOne( st, false, completions );
             if( r == Result.FAILED ) {
                 return r;
             }
@@ -98,9 +107,10 @@ final class ExternalMerge {
     /**
      * One version: {@code E = diff(baseBody, body)}, {@code E' = E.map(local)} appended as a server update,
      * {@code local = local.map(E, before=true)}, meta per field last-writer-wins (theirs when only they changed it, ours
-     * with a conflict when both did), committed with a snapshot of the live head; an {@code external-change} event.
+     * with a conflict when both did), committed with a snapshot of the live head; an {@code external-change} event. A
+     * {@code recreated} page also makes the session active again and always emits its event.
      */
-    private Result mergeOne( final PageState st, final List< Runnable > completions ) {
+    private Result mergeOne( final PageState st, final boolean recreated, final List< Runnable > completions ) {
         final String body = CollabText.toLf( st.body() );
         final String baseBody;
         final boolean same;
@@ -125,13 +135,11 @@ final class ExternalMerge {
             if( !d.appendMetaOps( MetaMerge.ops( mm.changes(), d.metaSeq ) ) ) {
                 return Result.FAILED;
             }
-            final SessionRecord updated = SessionLoader.draftMarkers( d.record.withBase( st.version(), body, st.meta(),
-                CollabText.contentHash( body ) ), !localAfter.empty() || !d.meta.equals( theirs ), d.lastEditAt );
-            if( !d.commit( extra, docAfter, localAfter, updated ) ) {
+            if( !d.commit( extra, docAfter, localAfter, rebased( st, body, recreated, localAfter, theirs ) ) ) {
                 return Result.FAILED;
             }
-            if( !extra.isEmpty() || !mm.changes().isEmpty() || !mm.conflicts().isEmpty() ) {
-                d.feed.emit( "external-change", event( st, ePrime, mm ) );
+            if( recreated || !extra.isEmpty() || mm.touched() ) {
+                d.feed.emit( "external-change", event( st, ePrime, mm, recreated ) );
             }
             answers.wakeAll( extra, completions );
             return extra.isEmpty() && mm.changes().isEmpty() ? Result.BASE_ONLY : Result.CHANGED;
@@ -140,11 +148,22 @@ final class ExternalMerge {
         }
     }
 
+    /** Under the lock: the record on the merged version's base (active again for a recreated page), with its markers. */
+    private SessionRecord rebased( final PageState st, final String body, final boolean recreated,
+                                   final ChangeSet localAfter, final Map< String, Object > theirs ) {
+        final SessionRecord based = d.record.withBase( st.version(), body, st.meta(), CollabText.contentHash( body ) );
+        return SessionLoader.draftMarkers( recreated ? based.withStatus( SessionRecord.ACTIVE ) : based,
+            !localAfter.empty() || !d.meta.equals( theirs ), d.lastEditAt );
+    }
+
     /**
      * The {@code external-change} event: the writer's public name ({@code agent} when it has none; never the login), the
-     * version, the changed ranges in the merged document's coordinates, and the meta fields both sides changed.
+     * page version, the collab head right after the server update ({@code version}), the changed ranges in that
+     * document's coordinates, the meta fields both sides changed, and {@code recreated: true} for a recreated page.
+     * Called under the lock, after the commit.
      */
-    private Map< String, Object > event( final PageState st, final ChangeSet ePrime, final MetaMerge.External mm ) {
+    private Map< String, Object > event( final PageState st, final ChangeSet ePrime, final MetaMerge.External mm,
+                                         final boolean recreated ) {
         final String name = st.author() == null ? null : identity.displayName( st.author() );
         final List< List< Integer > > ranges = new ArrayList<>();
         for( final int[] r : ePrime.touchedRanges() ) {
@@ -153,8 +172,12 @@ final class ExternalMerge {
         final Map< String, Object > f = new LinkedHashMap<>();
         f.put( "source", name == null || name.isBlank() ? "agent" : name );
         f.put( "pageVersion", st.version() );
+        f.put( "version", d.head );
         f.put( "ranges", List.copyOf( ranges ) );
         f.put( "conflictFields", List.copyOf( mm.conflicts() ) );
+        if( recreated ) {
+            f.put( "recreated", true );
+        }
         return f;
     }
 }

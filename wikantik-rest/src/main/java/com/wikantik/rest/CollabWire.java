@@ -104,6 +104,14 @@ final class CollabWire {
      * carry a message.
      */
     static Answer refusal( final int status, final String reason, final int head ) {
+        return refusal( status, reason, null, head );
+    }
+
+    /**
+     * As {@link #refusal(int, String, int)}, with the session's {@code detail} when it gave one: 403 {@code evicted}
+     * carries why ({@code lost-edit}, {@code signed-out}, {@code account-deleted}).
+     */
+    static Answer refusal( final int status, final String reason, final String detail, final int head ) {
         final String r = reason == null ? "error" : reason;
         final JsonObject o = new JsonObject();
         switch( r ) {
@@ -130,6 +138,9 @@ final class CollabWire {
                 o.addProperty( MESSAGE, "document would exceed maxPageBytes" );
             }
             default -> o.addProperty( REASON, r );
+        }
+        if( detail != null ) {
+            o.addProperty( "detail", detail );
         }
         return new Answer( status, o );
     }
@@ -173,7 +184,7 @@ final class CollabWire {
     /** A pull answer: 200 as section 6.2 amended, else the refusal. */
     static Answer pulled( final PullResponse r ) {
         if( r.status() != 200 ) {
-            return refusal( r.status(), r.reason(), r.version() );
+            return refusal( r.status(), r.reason(), r.detail(), r.version() );
         }
         final JsonObject o = new JsonObject();
         final JsonArray updates = new JsonArray();

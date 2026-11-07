@@ -51,7 +51,8 @@ import java.util.concurrent.TimeUnit;
  *       the registry checks {@code edit}/{@code createPages}, derived pages and the participant limit.</li>
  *   <li>Every later call carries {@code sessionId} and {@code participantId} (ruling P5); the participant must belong to
  *       the caller's author key (A6, 403 {@code not-your-participant}). An unknown session or participant is 409
- *       {@code rejoin}; a page name that is not the session's is 404.</li>
+ *       {@code rejoin}, an evicted one 403 {@code evicted} with the reason as {@code detail} (the session's tombstone);
+ *       a page name that is not the session's is 404.</li>
  *   <li>{@code POST updates} ({@link CollabPush}): a body over {@code maxUpdateBytes} is 413 before it is parsed; wire
  *       defects (text or meta) are 400 {@code rejected} before the session is called; the session then refuses in the
  *       order identity, rate/freeze, stale base (text only), text checks, meta checks.</li>
@@ -225,7 +226,7 @@ public class CollabResource extends RestServletBase {
             CollabWire.write( response, refused );
             return;
         }
-        pull( request, response, ( Target ) target, caller, route[ 0 ] );
+        pull( request, response, ( Target ) target, caller );
     }
 
     /** The caller, or null once a 401 has been sent. */
@@ -274,13 +275,13 @@ public class CollabResource extends RestServletBase {
             ( status, reason ) -> observe( t.session(), status, reason ) );
     }
 
+    /** The long-poll; a removed participant's parked pull is answered by the session (its eviction tombstone). */
     private void pull( final HttpServletRequest request, final HttpServletResponse response, final Target t,
-                       final Caller caller, final String page ) throws IOException {
+                       final Caller caller ) throws IOException {
         final CollabSession s = t.session();
         final long timeoutMillis = registry().map( r -> r.config().pollTimeoutSeconds() ).orElse( 25 ) * 1000L;
-        CollabPull.serve( request, response, cursor -> new CollabPull( s, t.participantId(), cursor, response,
-            () -> access.mayEdit( caller, page, false ), delayer, coalesceMs,
-            r -> observe( s, r.status(), r.reason() ) ), caller.authorKey(), timeoutMillis );
+        CollabPull.serve( request, response, cursor -> new CollabPull( s, t.participantId(), cursor, response, delayer,
+            coalesceMs, r -> observe( s, r.status(), r.reason() ) ), caller.authorKey(), timeoutMillis );
     }
 
     // ---- publish, discard, leave -----------------------------------------------------------------------------------
@@ -304,7 +305,7 @@ public class CollabResource extends RestServletBase {
     private Answer discard( final Target t, final Caller caller ) {
         final PushResponse r = t.session().discard( t.participantId(), caller.authorKey() );
         observe( t.session(), r.status(), r.reason() );
-        return r.ok() ? CollabWire.noContent() : CollabWire.refusal( r.status(), r.reason(), r.version() );
+        return r.ok() ? CollabWire.noContent() : CollabWire.refusal( r.status(), r.reason(), r.detail(), r.version() );
     }
 
     /** A participant that is already gone (409 rejoin) is answered 204: a repeated leave or beacon is harmless. */
@@ -312,6 +313,6 @@ public class CollabResource extends RestServletBase {
         final LeaveResponse r = t.session().leave( t.participantId(), caller.authorKey() );
         observe( t.session(), r.status(), r.reason() );
         return r.status() == 200 || r.status() == 409 ? CollabWire.noContent()
-            : CollabWire.refusal( r.status(), r.reason(), 0 );
+            : CollabWire.refusal( r.status(), r.reason(), r.detail(), 0 );
     }
 }

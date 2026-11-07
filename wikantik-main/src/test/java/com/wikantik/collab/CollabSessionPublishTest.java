@@ -367,7 +367,7 @@ class CollabSessionPublishTest {
         final CollabSession.View before = session.view();
         final List< WikiException > refusals = List.of( new FrontmatterValidationException( List.of() ),
             new ContentValidationException( List.of() ), new AccessRuleShapeException( List.of() ) );
-        long eventSeq = 0;
+        long eventSeq = b.eventSeq();   // the joins' events are not news
         for( final WikiException e : refusals ) {
             final Waiter w = new Waiter();
             assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, eventSeq ), null, w ) );
@@ -442,7 +442,7 @@ class CollabSessionPublishTest {
         final JoinResponse b = join( "bob" );
         replace( a, "alice", "world", "there" );
         final Waiter w = new Waiter();
-        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, 0 ), null, w ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, b.eventSeq() ), null, w ) );
         external( "hello\nearth\nadded line\n", Map.of( "title", "T" ), "agent" );
         final CollabSession.View v = session.view();
         assertEquals( "hello\nearth\nadded line\n", v.baseBody() );
@@ -475,7 +475,7 @@ class CollabSessionPublishTest {
         assertEquals( "Ours", session.view().meta().get( "title" ) );
         final JoinResponse b = join( "bob" );
         final Waiter waiter = new Waiter();
-        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 0, session.view().metaSeq(), Long.MAX_VALUE, 0 ),
+        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 0, session.view().metaSeq(), Long.MAX_VALUE, b.eventSeq() ),
             null, waiter ) );
         external( BODY, Map.of( "title", "Theirs", "status", "draft" ), "agent" );
         final CollabSession.View v = session.view();
@@ -495,7 +495,7 @@ class CollabSessionPublishTest {
         final JoinResponse b = join( "bob" );
         type( a, "alice", 0, "0123456789" );
         final Waiter w = new Waiter();
-        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, 0 ), null, w ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, b.eventSeq() ), null, w ) );
         external( BODY + "abcdefghijklmnopqrstuvw\n", Map.of( "title", "T" ), "agent" );
         final CollabSession.View v = session.view();
         assertEquals( 46, v.doc().length(), "the merge is always applied" );
@@ -827,7 +827,7 @@ class CollabSessionPublishTest {
         final JoinResponse b = join( "bob" );
         type( a, "alice", 0, "X" );
         final Waiter w = new Waiter();
-        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, 0 ), null, w ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, b.eventSeq() ), null, w ) );
         assertEquals( 200, publish( a, "alice" ).status() );
         final List< CollabEvent > published = events( w.only(), "published" );
         assertEquals( 1, published.size(), "woken by the event alone: the publish needed no server update" );
@@ -848,7 +848,11 @@ class CollabSessionPublishTest {
         assertEquals( 200, publish( a, "alice" ).status() );
         assertEquals( 1, session.view().participants() );
         assertEquals( 1, w.got.size(), "bob's parked pull is answered" );
-        assertEquals( "rejoin", session.push( b.participantId(), "bob", session.view().head(), List.of() ).reason() );
+        assertEquals( 403, w.got.get( 0 ).status(), "at once, with the eviction" );
+        assertEquals( CollabSession.LOST_EDIT, w.got.get( 0 ).detail() );
+        final PushResponse after = session.push( b.participantId(), "bob", session.view().head(), List.of() );
+        assertEquals( CollabSession.EVICTED, after.reason() );
+        assertEquals( CollabSession.LOST_EDIT, after.detail() );
     }
 
     @Test

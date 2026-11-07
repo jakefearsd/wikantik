@@ -34,10 +34,20 @@ package com.wikantik.collab.model;
  *       left no version); 503 {@code store} (a store write failed; a saved version is finished by the pending-publish
  *       rule, A2).</li>
  * </ul>
+ * Also 403 {@code evicted} (with {@code detail}, the eviction's reason) and 403 {@code no-create} (a frozen draft, whose
+ * page was deleted, is published only by someone with {@code createPages}); 409 {@code frozen} (the save found the page
+ * gone: the draft is frozen and may be recreated).
  * {@code pageVersion} is the session's base page version after the call. {@code failure} is null except on 422 and
- * 500.
+ * 500; {@code detail} is null except on 403 {@code evicted}.
  */
-public record PublishResponse( int status, int pageVersion, String reason, boolean unchanged, Exception failure ) {
+public record PublishResponse( int status, int pageVersion, String reason, boolean unchanged, Exception failure,
+                               String detail ) {
+
+    /** Without a detail. */
+    public PublishResponse( final int status, final int pageVersion, final String reason, final boolean unchanged,
+                            final Exception failure ) {
+        this( status, pageVersion, reason, unchanged, failure, null );
+    }
 
     /** A response without a failure cause. */
     public PublishResponse( final int status, final int pageVersion, final String reason, final boolean unchanged ) {

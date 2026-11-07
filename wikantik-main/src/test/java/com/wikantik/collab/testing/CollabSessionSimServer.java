@@ -329,7 +329,7 @@ public final class CollabSessionSimServer implements SimServer {
 
     @Override
     public void evict( final String participantId ) {
-        session.evict( participantId );
+        session.timeOut( participantId );   // the simulator's eviction is the presence timeout: the client rejoins
     }
 
     @Override

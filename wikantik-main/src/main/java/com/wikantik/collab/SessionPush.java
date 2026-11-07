@@ -59,12 +59,12 @@ final class SessionPush {
     PushResponse push( final String participantId, final String authorKey, final int version,
                        final List< Update > updates, final List< MetaEdit > metaEdits, final Selection selection,
                        final Instant now, final List< Runnable > completions ) {
-        final Participant p = roster.get( participantId );
-        final Gate.Refusal refused = Gate.push( p, authorKey, now, config.pushesPerSecond(),
+        final Gate.Refusal refused = Gate.push( roster, participantId, authorKey, now, config.pushesPerSecond(),
             SessionRecord.FROZEN.equals( d.record.status() ) );
         if( refused != null ) {
-            return PushResponse.refused( refused.status(), d.head, refused.reason() );
+            return PushResponse.refused( refused.status(), d.head, refused.reason(), refused.detail() );
         }
+        final Participant p = roster.get( participantId );
         Gate.confirm( p, version, d.head );
         if( !updates.isEmpty() && version != d.head ) {
             return PushResponse.refused( 409, d.head, CollabSession.STALE );

@@ -94,14 +94,19 @@ class ScriptedPageWriterTest {
         assertEquals( 1, fresh.publish( req( "new", 0 ) ).version() );
     }
 
-    /** A11: a positive expectedVersion on a missing page passes, as the real save does. */
+    /**
+     * A positive expectedVersion on a missing page (renamed or deleted away) is refused with the adapter's page-gone
+     * conflict, never a recreate (Phase 2 Task 4's rule); nothing is stored, not even an empty page entry.
+     */
     @Test
-    void positiveExpectedVersionOnAMissingPageStores() throws Exception {
+    void positiveExpectedVersionOnAMissingPageIsPageGone() {
         final ScriptedPageWriter w = new ScriptedPageWriter();
-        final PublishOutcome o = w.publish( req( "created", 3 ) );
-        assertFalse( o.unchanged() );
-        assertEquals( 1, o.version() );
-        assertEquals( List.of( "created\r\n" ), w.history( "P" ) );
+        final VersionConflictException e = assertThrows( VersionConflictException.class,
+            () -> w.publish( req( "created", 3 ) ) );
+        assertEquals( ScriptedPageWriter.PAGE_GONE, e.getMessage() );
+        assertEquals( 3, e.getExpectedVersion() );
+        assertTrue( w.latest( "P" ).isEmpty() );
+        assertEquals( List.of(), w.history( "P" ) );
     }
 
     @Test

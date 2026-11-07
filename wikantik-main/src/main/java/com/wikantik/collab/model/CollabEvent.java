@@ -25,8 +25,12 @@ import java.util.Objects;
  * One entry of a session's event stream (section 6.2: {@code events}/{@code eventSeq}). {@code seq} increases by one per
  * event. {@code type} is one of {@code published} ({@code by}, {@code pageVersion}), {@code publish-failed}
  * ({@code by}, {@code status}, {@code reason}), {@code external-change} ({@code source}, {@code pageVersion},
- * {@code ranges}: {@code [from, to]} pairs in the document after the merge, {@code conflictFields}) and
- * {@code oversize} ({@code bytes}, {@code limit}). {@code fields} never holds a login: people are named by their public
+ * {@code version}: the collab head right after the merge, {@code ranges}: {@code [from, to]} pairs in that document,
+ * {@code conflictFields}, and {@code recreated: true} for a page recreated under a frozen draft), {@code oversize}
+ * ({@code bytes}, {@code limit}), {@code participant-joined} ({@code participant}: id, display name, colour),
+ * {@code participant-left} ({@code participantId}, {@code reason}: left, timeout or evicted), {@code evicted}
+ * ({@code participantId}, {@code reason}: lost-edit, signed-out or account-deleted), {@code page-renamed}
+ * ({@code to}), {@code page-deleted} and {@code draft-discarded}. {@code fields} never holds a login: people are named by their public
  * display name.
  */
 public record CollabEvent( long seq, String type, Map< String, Object > fields ) {

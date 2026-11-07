@@ -37,6 +37,10 @@ final class MetaMerge {
 
     /** The field assignments a merge makes (in field order; a null value removes) and the fields both sides changed. */
     record External( Map< String, Object > changes, List< String > conflicts ) {
+        /** True when the merge took a field of theirs or kept ours against theirs. */
+        boolean touched() {
+            return !changes.isEmpty() || !conflicts.isEmpty();
+        }
     }
 
     private MetaMerge() {

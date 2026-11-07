@@ -112,6 +112,11 @@ class CollabSessionRegistryTest {
         final CollabPageWriter d;
         final AtomicInteger latestReads = new AtomicInteger();
         volatile String explodeOn;
+        /** When set, version() signals {@code versionEntered} and then waits for this latch (holding the base lock). */
+        volatile java.util.concurrent.CountDownLatch blockVersion;
+        final java.util.concurrent.CountDownLatch versionEntered = new java.util.concurrent.CountDownLatch( 1 );
+        /** Run once, after the first latest() read of a page (a rename landing between a join's read and its slot). */
+        volatile Runnable afterLatest;
 
         FlakyWriter( final CollabPageWriter d ) {
             this.d = d;
@@ -123,11 +128,29 @@ class CollabSessionRegistryTest {
             if( pageName.equals( explodeOn ) ) {
                 throw new StackOverflowError( "test: latest(" + pageName + ")" );
             }
-            return d.latest( pageName );
+            final Optional< PageState > out = d.latest( pageName );
+            final Runnable hook = afterLatest;
+            if( hook != null ) {
+                afterLatest = null;
+                hook.run();
+            }
+            return out;
         }
 
         @Override
         public Optional< PageState > version( final String pageName, final int version ) {
+            final java.util.concurrent.CountDownLatch block = blockVersion;
+            if( block != null ) {
+                versionEntered.countDown();
+                try {
+                    if( !block.await( 10, java.util.concurrent.TimeUnit.SECONDS ) ) {
+                        throw new IllegalStateException( "test: version() was never released" );
+                    }
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException( e );
+                }
+            }
             return d.version( pageName, version );
         }
 
@@ -391,7 +414,7 @@ class CollabSessionRegistryTest {
         registry.tick();
         assertTrue( permissions.editChecks.get() > checksAtJoin );
         assertEquals( 1, a.session().view().participants(), "alice lost edit and was evicted" );
-        assertEquals( 409, type( a, "alice", "a" ).status() );
+        assertEquals( CollabSession.LOST_EDIT, type( a, "alice", "a" ).detail(), "evicted: lost edit" );
         assertEquals( 200, type( b, "bob", "b" ).status() );
         // her rejoin is refused while she lacks edit
         assertEquals( new Refused( 403, "forbidden" ), registry.join( PAGE, req( "alice" ) ) );
@@ -471,7 +494,10 @@ class CollabSessionRegistryTest {
         registry.evictAuthor( "alice" );
         assertEquals( 1, a1.session().view().participants() );
         assertEquals( 0, other.session().view().participants() );
-        assertEquals( 409, type( a2, "alice", "a" ).status() );
+        final PushResponse gone = type( a2, "alice", "a" );
+        assertEquals( 403, gone.status() );
+        assertEquals( CollabSession.EVICTED, gone.reason() );
+        assertEquals( CollabSession.ACCOUNT_DELETED, gone.detail(), "a deleted user's tabs learn why" );
         assertEquals( 200, type( b, "bob", "b" ).status() );
     }
 
@@ -763,7 +789,15 @@ class CollabSessionRegistryTest {
     @Test
     void freezeStopsPushesAndIsStored() {
         final Joined a = join( "alice" );
+        final Waiter w = new Waiter();
+        final PullResponse first = a.session().pullOrPark( a.response().participantId(), "alice",
+            new com.wikantik.collab.model.PullCursor( 0, 0, 0, 0 ), null, new Waiter() );
+        assertNull( a.session().pullOrPark( a.response().participantId(), "alice",
+            new com.wikantik.collab.model.PullCursor( 0, first.metaSeq(), first.presenceSeq(), first.eventSeq() ), null,
+            w ) );
         registry.freeze( PAGE );
+        assertEquals( 1, w.got.size(), "the freeze wakes the parked pull" );
+        assertTrue( w.got.get( 0 ).events().stream().anyMatch( e -> e.type().equals( "page-deleted" ) ) );
         final PushResponse r = type( a, "alice", "x" );
         assertEquals( 409, r.status() );
         assertEquals( "frozen", r.reason() );
@@ -779,6 +813,66 @@ class CollabSessionRegistryTest {
         registry.freeze( PAGE );
         assertEquals( SessionRecord.FROZEN, store.session( a.response().sessionId() ).orElseThrow().status() );
         registry.freeze( "Nothing" );
+    }
+
+    @Test
+    void aRejoinWithItsPriorClientIdReplacesItsStaleEntryInsteadOf429() {
+        registry = registry( config( 1, 25, 45, 30, 500, 10 ) );
+        final Joined a = join( "alice" );
+        final JoinRequest rejoin = new JoinRequest( "alice", a.response().clientId(), "alice", "ALICE", null, null );
+        final Joined again = assertInstanceOf( Joined.class, registry.join( PAGE, rejoin ) );
+        assertEquals( a.response().clientId(), again.response().clientId() );
+        assertEquals( 1, again.session().view().participants() );
+        // another author naming that clientID is a new participant, so the session is full
+        assertEquals( new Refused( 429, "session-full" ), registry.join( PAGE,
+            new JoinRequest( "bob", a.response().clientId(), "bob", "BOB", null, null ) ) );
+    }
+
+    @Test
+    void rekeyRenamesTheSessionWithoutHoldingThePageMap() throws Exception {
+        final Joined a = join( "alice" );
+        writer.externalSave( PAGE, BODY + "two\n", Map.of( "title", "T" ), "x" );
+        writer.externalSave( PAGE, BODY + "three\n", Map.of( "title", "T" ), "x" );
+        final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch( 1 );
+        flaky.blockVersion = release;
+        // a merge walking version 2 holds the session's base lock while it reads the page store
+        final java.util.concurrent.CompletableFuture< Void > merge = java.util.concurrent.CompletableFuture.runAsync(
+            () -> a.session().settle() );
+        assertTrue( flaky.versionEntered.await( 10, java.util.concurrent.TimeUnit.SECONDS ) );
+        final java.util.concurrent.CompletableFuture< Void > rename = java.util.concurrent.CompletableFuture.runAsync(
+            () -> registry.rekey( PAGE, "Renamed" ) );
+        try {
+            // the rename waits on the base lock; lookups of other pages must not wait behind it
+            final java.util.concurrent.CompletableFuture< Boolean > lookup = java.util.concurrent.CompletableFuture
+                .supplyAsync( () -> registry.liveForPage( "Elsewhere" ).isEmpty() );
+            assertTrue( lookup.get( 5, java.util.concurrent.TimeUnit.SECONDS ), "the page map is free" );
+        } finally {
+            flaky.blockVersion = null;
+            release.countDown();
+        }
+        merge.get( 10, java.util.concurrent.TimeUnit.SECONDS );
+        rename.get( 10, java.util.concurrent.TimeUnit.SECONDS );
+        assertSame( a.session(), registry.liveForPage( "Renamed" ).orElseThrow() );
+        assertTrue( registry.liveForPage( PAGE ).isEmpty() );
+        assertEquals( "Renamed", a.session().pageName() );
+    }
+
+    @Test
+    void aJoinRacingARekeyNeverReopensTheOldPageWithAStaleBase() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        leave( a, "alice" );
+        idleOut();
+        // bob's join reads PAGE's latest; then, before it takes the page's slot, the page is renamed away
+        flaky.afterLatest = () -> {
+            writer.rename( PAGE, "Renamed" );
+            registry.rekey( PAGE, "Renamed" );
+        };
+        final Joined b = assertInstanceOf( Joined.class, registry.join( PAGE, req( "bob" ) ) );
+        assertNotEquals( a.response().sessionId(), b.response().sessionId() );
+        assertEquals( 0, b.response().basePageVersion(), "PAGE no longer exists: a new page, not the old base" );
+        assertEquals( "", b.response().doc() );
+        assertEquals( "Renamed", store.session( a.response().sessionId() ).orElseThrow().pageName() );
     }
 
     @Test

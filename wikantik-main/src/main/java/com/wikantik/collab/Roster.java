@@ -38,13 +38,25 @@ import java.util.Map;
  * {@link CollabIdentity} (the join's name only when it has none, a neutral {@code "Editor <n>"} when neither has one,
  * never the login); colours from a fixed palette by join order within the
  * session, never from the login (section 8.3). Guarded by the session lock.
+ *
+ * <p><b>Eviction tombstones.</b> A participant removed by the server for a reason ({@code lost-edit},
+ * {@code signed-out}, {@code account-deleted}) leaves a tombstone with its author and reason, so its later requests
+ * answer 403 {@code evicted} with that reason rather than 409 {@code rejoin}. Tombstones are kept for the retention
+ * (the presence timeout) and at most {@value #MAX_TOMBSTONES} of them; after that the id is simply unknown.</p>
  */
 final class Roster {
 
     private static final String[] COLORS = { "#1b6ec2", "#c2410c", "#15803d", "#7e22ce", "#b91c1c", "#0f766e",
         "#a16207", "#be185d" };
 
+    /** At most this many eviction tombstones are kept (oldest dropped first). */
+    static final int MAX_TOMBSTONES = 1024;
+
     private record Retired( String authorKey, Instant at ) {
+    }
+
+    /** An evicted participant: its author, why, and when. */
+    record Tombstone( String authorKey, String reason, Instant at ) {
     }
 
     private final String idTag;
@@ -53,6 +65,8 @@ final class Roster {
     private final Map< String, Participant > participants = new LinkedHashMap<>();
     /** clientID of a participant that left, to its author and the time it left. */
     private final Map< String, Retired > retiredClients = new LinkedHashMap<>();
+    /** Evicted participant id to its tombstone, oldest first. */
+    private final Map< String, Tombstone > tombstones = new LinkedHashMap<>();
     private int next = 1;
 
     Roster( final String idTag, final CollabIdentity identity, final Duration retention ) {
@@ -107,10 +121,46 @@ final class Roster {
         return idTag + "c" + n;
     }
 
-    /** Forgets the clientIDs retired longer ago than the retention, so the map stays bounded. */
+    /** Forgets the clientIDs retired and the tombstones laid longer ago than the retention, so both stay bounded. */
     private void prune( final Instant now ) {
         final Instant horizon = now.minus( retention );
         retiredClients.values().removeIf( r -> r.at().isBefore( horizon ) );
+        tombstones.values().removeIf( t -> t.at().isBefore( horizon ) );
+    }
+
+    /** Removes the participant and lays its tombstone; null (and no tombstone) when it is unknown. */
+    Participant evict( final String participantId, final String reason, final Instant now ) {
+        final Participant p = remove( participantId, now );
+        if( p != null ) {
+            tombstones.put( participantId, new Tombstone( p.authorKey, reason, now ) );
+            while( tombstones.size() > MAX_TOMBSTONES ) {
+                tombstones.remove( tombstones.keySet().iterator().next() );
+            }
+        }
+        return p;
+    }
+
+    /** The tombstone of an evicted participant still within the retention, or null. */
+    Tombstone tombstone( final String participantId, final Instant now ) {
+        prune( now );
+        return tombstones.get( participantId );
+    }
+
+    /**
+     * The live participant a rejoin replaces: the one of the same author holding the join's prior clientID (its own
+     * stale entry, not yet timed out, A13), or null.
+     */
+    Participant staleEntryOf( final JoinRequest r ) {
+        final String prior = r.priorClientId();
+        if( prior == null ) {
+            return null;
+        }
+        for( final Participant p : participants.values() ) {
+            if( p.clientId.equals( prior ) && p.authorKey.equals( r.authorKey() ) ) {
+                return p;
+            }
+        }
+        return null;
     }
 
     Participant get( final String participantId ) {

@@ -191,9 +191,13 @@ class CollabSessionTest {
         assertEquals( 0, session.view().head() );
         assertEquals( 200, push( tab1, "alice", 0, typeAt( tab1, BODY, 0, "X" ) ).status() );
         assertEquals( 200, push( tab2, "alice", 1, typeAt( tab2, "X" + BODY, 0, "Y" ) ).status() );
-        // a prior clientID held by the other live tab is never reissued
+        // a prior clientID held by a live participant of another author is never reissued
+        final JoinResponse bob = session.join( new JoinRequest( "bob", tab1.clientId(), null, "B", null, null ) );
+        assertNotEquals( tab1.clientId(), bob.clientId() );
+        // the same author's rejoin with it replaces that (stale) entry and gets it back (A13; only its own tab knows it)
         final JoinResponse tab3 = session.join( new JoinRequest( "alice", tab1.clientId(), null, "A", null, null ) );
-        assertNotEquals( tab1.clientId(), tab3.clientId() );
+        assertEquals( tab1.clientId(), tab3.clientId() );
+        assertEquals( 409, push( tab1, "alice", 2, typeAt( tab1, "YX" + BODY, 0, "Z" ) ).status() );
         checkInvariants();
     }
 
@@ -818,7 +822,9 @@ class CollabSessionTest {
         assertEquals( 409, session.leave( a.participantId(), "alice" ).status(), "leaving twice: already gone" );
         session.evict( b.participantId() );
         assertEquals( 0, session.view().participants() );
-        assertEquals( "rejoin", push( b, "bob", 1, typeAt( b, "X" + BODY, 0, "Y" ) ).reason() );
+        assertEquals( "evicted", push( b, "bob", 1, typeAt( b, "X" + BODY, 0, "Y" ) ).reason(),
+            "an eviction leaves a tombstone (Phase 2)" );
+        session.timeOut( "nobody" );   // unknown ids are ignored
     }
 
     /** A waiter whose completion throws (a broken response, say). */

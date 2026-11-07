@@ -21,13 +21,15 @@ package com.wikantik.collab;
 import com.wikantik.collab.model.Selection;
 import com.wikantik.collab.model.StoredUpdate;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
  * A12 selection mapping. A selection is in the coordinates of the client's document: the document at its synced
  * {@code version} plus its {@code unconfirmed} local updates. With no unconfirmed updates the server maps it exactly
- * through the updates since {@code version}; otherwise it is kept as sent (rendering, and receiver-side mapping, are
- * Phase 2).
+ * through the updates since {@code version}; otherwise it is kept as sent, and its receivers map it (Task 9). A kept
+ * selection with no unconfirmed updates that sits at the head follows the head: every accepted text or server update
+ * maps it to the new head ({@link #follow}), so a receiver can always place it exactly.
  */
 final class Presence {
 
@@ -57,13 +59,7 @@ final class Presence {
         if( !inRange( s, since.get( 0 ).changes().length() ) ) {
             return null;
         }
-        int anchor = s.anchor();
-        int headPos = s.head();
-        for( final StoredUpdate u : since ) {
-            anchor = u.changes().mapPos( anchor, -1 );
-            headPos = u.changes().mapPos( headPos, -1 );
-        }
-        return new Selection( anchor, headPos, head, 0 );
+        return mapThrough( s, since, head );
     }
 
     /** A selection sent with a push whose updates were exactly its unconfirmed ones: it now sits at the new head. */
@@ -95,6 +91,34 @@ final class Presence {
         }
         p.selection( s );
         return true;
+    }
+
+    /**
+     * After {@code applied} moved the head from {@code oldHead} to {@code newHead}: each kept selection with no
+     * unconfirmed updates that sat at {@code oldHead} is mapped through the change ({@code mapPos(..., -1)}) to the new
+     * head. Others are left as they are. Does not move the presence sequence: the selection is the same place.
+     */
+    static void follow( final Collection< Participant > all, final int oldHead, final List< StoredUpdate > applied,
+                        final int newHead ) {
+        if( applied.isEmpty() ) {
+            return;
+        }
+        for( final Participant p : all ) {
+            final Selection s = p.selection();
+            if( s != null && s.unconfirmed() == 0 && s.version() == oldHead ) {
+                p.selection( mapThrough( s, applied, newHead ) );
+            }
+        }
+    }
+
+    private static Selection mapThrough( final Selection s, final List< StoredUpdate > applied, final int newHead ) {
+        int anchor = s.anchor();
+        int headPos = s.head();
+        for( final StoredUpdate u : applied ) {
+            anchor = u.changes().mapPos( anchor, -1 );
+            headPos = u.changes().mapPos( headPos, -1 );
+        }
+        return new Selection( anchor, headPos, newHead, 0 );
     }
 
     private static boolean inRange( final Selection s, final int len ) {

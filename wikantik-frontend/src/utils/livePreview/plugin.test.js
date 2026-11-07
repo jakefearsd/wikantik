@@ -9,6 +9,7 @@ import { fireEvent } from '@testing-library/react';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
 import { livePreviewPlugin, refreshLivePreview, blockField } from './plugin';
+import { parseFully } from '../../test/fullParse';
 
 vi.mock('../fences/drawFence', () => ({ drawFence: vi.fn(() => Promise.resolve('drawn')) }));
 const views = [];
@@ -229,17 +230,22 @@ describe('live preview incremental updates', () => {
   });
 
   it('opening a fence above the blocks removes their widgets; undo/redo restore and remove them', () => {
+    // each whole-document reparse (the fence opens or closes over everything below it) gets a ~20 ms budget in the
+    // transaction; under a loaded full suite it can stop short, so the parse is finished before each assertion
     const view = liveView(DOC, { caret: 0 });
     typeAt(view, 0, '```\n');
+    parseFully(view);
     view.dispatch({ selection: { anchor: 0 } });
     expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
     expect(view.dom.querySelector('.cm-lp-embed')).toBeNull();
     undo(view);
     expect(view.state.doc.toString()).toBe(DOC);
+    parseFully(view);
     view.dispatch({ selection: { anchor: 0 } });
     expect(view.dom.querySelector('.cm-lp-math-block')).not.toBeNull();
     expect(view.dom.querySelector('.cm-lp-embed')).not.toBeNull();
     redo(view);
+    parseFully(view);
     view.dispatch({ selection: { anchor: 0 } });
     expect(view.dom.querySelector('.cm-lp-math-block')).toBeNull();
   });

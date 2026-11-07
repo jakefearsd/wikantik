@@ -26,6 +26,56 @@
 - Every `/api/collab/*` response carries `Cache-Control: no-store`.
 - The registry is a plain engine field reached from wikantik-rest. It is **never** added to the `getManager` allow-list (DecompositionArchTest R-2); follow the `queryLogReader` field pattern near `WikiEngine.java:1552`.
 
+## Phase 0 final-review amendments (binding; override the task text below where they conflict)
+
+The Phase 0 whole-branch review (ledger `.superpowers/sdd/2026-11-06-multiedit-phase0-foundations/progress.md`) settled these decisions. The Phase 0 fix wave adds them to the ports and fixtures.
+
+- **Ports and schema, Task 1:**
+  - Content-hash basis: sha256 hex of `CollabText.toLf(body)`. Meta is compared separately, normalised through JSON.
+  - `collab_session` gains `base_content_hash TEXT NOT NULL` and `pending_publish_author TEXT`. The pending triple is all null or all set.
+  - `collab_snapshot` gains `base_page_version INTEGER NOT NULL`.
+  - `last_edit_at` stays nullable, so `SessionRecord.lastEditAt` must allow null; align the record.
+  - `JdbcCollabStore` implements the atomic `commitBaseChange(id, serverUpdates, snapshot, updatedSession)` in one `Jdbc.inTransaction`, with a `FaultInjectingDataSource` test.
+  - `truncateUpdatesBelow` clamps to the newest snapshot at or below the cut.
+  - Fold in the Phase 0 Task 8 Minors:
+    - loop the concurrency contract test (≥ 100 rounds);
+    - pin empty append on an unknown id (`IllegalArgumentException`) and a duplicate session id (`IllegalStateException`);
+    - add an `InjectedFault extends IllegalStateException`;
+    - copy maps defensively on store.
+- **Session core, Task 3:**
+  - **Snapshots.** Write a v0 snapshot at create, and a snapshot with every base change (`commitBaseChange`). `CollabInvariants.inv3` assumes both; also make it check contiguity from `snapshot.version + 1`.
+  - **Join.** `join` takes `(authorKey, priorClientId, initialText, initialMeta)`. It reissues `priorClientId` when the session still knows it (§7.2 "same clientID") and uses `initialText`/`initialMeta` only when it creates the session (A11). Extend `SimServer`, the stub and `SimClient` to match, and regenerate the trace corpus.
+  - **Pull.** Replace `pullNow` + `park` with one atomic `pullOrPark(participantId, since, waiter)`, closing the race between the two calls.
+  - **Truncation.** Add it to the session (A10: below the lowest confirmed participant version, clamped) and to the simulator, so the 410 path and reload-after-truncation are fuzzed. Replace the 12 hand-picked LOSSY resync seeds with a small-ring/small-limit profile.
+  - **`CollabSessionSimServer`:**
+    - round-trip every update through `ChangeSetJson` (the wire format must be in the fuzz path);
+    - hard-wire `poisoned=false`; the `UNSUPPORTED` tolerance for the session factory is **0**;
+    - per-factory `SimProfile` weights overlay, so enabling session-only actions does not churn the stub corpus.
+  - **Waiters** are answered from memory or the ring only; a post-commit store read must never throw out of a push.
+  - **Harness hardening:**
+    - `ConcurrencyHarness.checkLog` rejects client-authored log entries that no push claimed;
+    - shrinker exception kinds use the first `com.wikantik` frame.
+  - **A8 per-participant push limiter (plan gap).** New key `wikantik.collab.pushesPerSecond` (`int`, default `20`), so the "exactly §11's ten" rule becomes eleven keys. Over the limit: 429 `{reason:"rate-limited"}`. Covered by a session test and a REST test.
+- **Publish, Task 4:**
+  - The stub's publish is **not** a template; §7.3 unlocks during the save.
+  - `SimServer.publish` gains a pending form (`ScriptedPageWriter.publishAsync`), and the scheduler gains a `RELEASE_PUBLISH` action, so pushes, pulls and external saves interleave with a publish inside the save (E16/E20, Review Focus #2).
+  - The scheduler owns `externalChangePending`: set on `EXTERNAL_SAVE`, cleared when a publish, reload or reconcile completes.
+  - Compute `TextDiff` outside the session lock, because both inputs are immutable snapshots.
+  - F7 asserts the publishing flag resets and adds `EXTERNAL_SAVE` to its mix.
+  - Add a randomized multi-hunk `TextDiff` property test with line-count changes, and assert the fallback WARN.
+- **Registry, Task 5:** E33 (idle eviction racing a join) under F7.
+- **Adapters, Task 6:**
+  - For `expectedVersion == 0` ("must not exist", A11) the adapter passes its own `SaveGuard` to `PageManager.saveText(ctx, text, guard)`.
+  - Clamp an unversioned provider's -1 version to `max(v,1)`.
+  - Hash on the ruled basis.
+  - Read the written version's author for E39.
+- **REST, Task 7:**
+  - Reuse `FakeAsyncContext` through the wikantik-main test-jar.
+  - Enforce `maxUpdateBytes` before the Gson parse.
+  - Add hostile `ChangeSet` JSON tests.
+  - Test the exception, `onTimeout` and `onError` paths of the async filters through the real servlet.
+  - Waiter completions run on the pusher's thread: set the MDC from the waiter's own request when writing its response.
+
 ## Review Focus
 
 1. **Lost acknowledgement.** A client whose accepted push's response was lost retries and must not duplicate text. Covered by E9, run against the real session in Task 3.

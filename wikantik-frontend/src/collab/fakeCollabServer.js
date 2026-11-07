@@ -241,7 +241,7 @@ export function createFakeCollabServer({
     if (s.since < ringStart) return Promise.resolve(reply(410, { resync: true, reason: 'resync' }));
     if (hasNews(s)) return Promise.resolve(buildPull(p, s));
     return new Promise((resolve) => {
-      const w = { check() { if (hasNews(s)) done(buildPull(p, s)); } };
+      const w = { check() { if (p.evicted) done(reply(403, { reason: 'evicted', detail: p.evicted })); else if (hasNews(s)) done(buildPull(p, s)); } };
       const timer = setTimeout(() => done(reply(200, {
         updates: [], metaOps: [], metaSeq, presence: {}, presenceSeq, events: [], eventSeq,
       })), pollTimeoutMs);
@@ -372,17 +372,18 @@ export function createFakeCollabServer({
     },
     get pageName() { return currentName; },
     /** The draft is frozen (its page was deleted under it): pushes answer 409 frozen. */
-    freeze() { config.frozen = true; wake(); },
+    freeze() { config.frozen = true; addEvent({ type: 'page-deleted' }); },
     setCanCreate(v) { config.canCreate = !!v; },
     /** The server evicts a participant: its next post-join call answers 403 evicted. */
     evict(participantId, reason) {
       const p = participants.get(participantId);
-      if (!p) return;
+      if (!p) throw new Error(`evict: unknown participant ${participantId}`);
       p.evicted = reason;
       p.expired = true;
       presenceSeq += 1;
       addEvent({ type: 'evicted', participantId, reason });
       addEvent({ type: 'participant-left', participantId, reason: 'evicted' });
+      wake();
     },
     /**
      * A change from outside the editors (disk save, agent) merged by the session: `text` replaces the document

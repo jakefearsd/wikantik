@@ -351,17 +351,19 @@ describe('Phase 2 fixture cases against the fake', () => {
     server.externalChange({ source: 'disk', text: 'Howdy world', meta: { status: 'x' }, conflictFields: ['status'] });
     server.renamePage('NewName');
     server.evict(kim.participantId, 'lost-edit');
+    server.freeze();
     const res = await pullAll(server);
     const recorded = Object.fromEntries(byId['updates.get.200.lifecycle-events'].response.body.events.map((e) => [e.type, e]));
     const got = {};
     for (const e of res.body.events) got[e.type] ??= e;
-    for (const t of ['participant-joined', 'participant-left', 'external-change', 'page-renamed', 'evicted']) {
+    for (const t of ['participant-joined', 'participant-left', 'external-change', 'page-renamed', 'page-deleted', 'evicted']) {
       expect(shapeDiff(got[t], recorded[t]), t).toEqual([]);
     }
     expect(got['participant-left'].reason).toBe('left');
     expect(got['external-change']).toMatchObject({ source: 'disk', version: 1, pageVersion: 8, conflictFields: ['status'] });
     expect(got['external-change'].ranges).toEqual([[1, 5]]);
     expect(got['page-renamed'].to).toBe('NewName');
+    expect(got['page-deleted']).toEqual({ seq: expect.any(Number), type: 'page-deleted' });
     expect(got.evicted).toMatchObject({ participantId: kim.participantId, reason: 'lost-edit' });
     expect(res.body.events.map((e) => e.seq)).toEqual(res.body.events.map((_, i) => i + 1));
     expect(server.doc).toBe('Howdy world');
@@ -407,5 +409,18 @@ describe('Phase 2 fixture cases against the fake', () => {
     server.renamePage('Third');
     for (const n of ['PageName', 'Second', 'Third', undefined]) expect((await call(n)).status, String(n)).toBe(200);
     expect((await call('Other')).status).toBe(404);
+  });
+
+  it('evict releases the evicted participant\'s parked pull with 403 evicted', async () => {
+    const j = await joinSample(server);
+    const parked = server.handle({ method: 'GET', path: '/updates', user: 'ada', query: { sessionId: 's-1f3a', participantId: j.participantId, since: 0, metaSince: 0, presenceSince: 99, eventsSince: 99 } });
+    server.evict(j.participantId, 'account-deleted');
+    const res = await parked;
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ reason: 'evicted', detail: 'account-deleted' });
+  });
+
+  it('evict of an unknown participant throws', () => {
+    expect(() => server.evict('pt-99', 'lost-edit')).toThrow(/pt-99/);
   });
 });

@@ -1137,6 +1137,38 @@ public final class CollabSession {
             return s.roster.sizeLockFree();
         }
 
+        /**
+         * Final review item 6: whether {@code r}'s author may take a seat. True while it holds fewer than {@code max}
+         * (its stale entry that {@code r} replaces not counted); else its longest-idle seat, when last seen before
+         * {@code idleBefore}, leaves as timed out (its next request rejoins) and true; else false.
+         */
+        static boolean seatFor( final CollabSession s, final JoinRequest r, final int max, final Instant idleBefore ) {
+            final List< Runnable > completions = new ArrayList<>();
+            final boolean out;
+            s.lock.lock();
+            try {
+                final Participant stale = s.roster.staleEntryOf( r );
+                final List< Participant > own = s.roster.all().stream()
+                    .filter( p -> p.authorKey.equals( r.authorKey() ) && p != stale ).toList();
+                if( own.size() < max ) {
+                    out = true;
+                } else {
+                    final Participant idlest = own.stream().min( java.util.Comparator.comparing( Participant::lastSeen ) )
+                        .orElseThrow();
+                    out = idlest.lastSeen().isBefore( idleBefore );
+                    if( out ) {
+                        LOG.info( "collab session {}: {} holds {} seats; its idle seat {} makes room", s.id, r.authorKey(),
+                            own.size(), idlest.id );
+                        s.life.timeOut( idlest.id, s.clock.instant(), completions );
+                    }
+                }
+            } finally {
+                s.lock.unlock();
+            }
+            completions.forEach( Runnable::run );
+            return out;
+        }
+
         /** True when {@code r} is a rejoin that replaces its own stale entry (it takes no new seat). */
         static boolean replacesStale( final CollabSession s, final JoinRequest r ) {
             s.lock.lock();

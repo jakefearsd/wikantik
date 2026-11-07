@@ -48,7 +48,10 @@ import java.util.function.ToIntFunction;
  * <p><b>Join</b> refuses a derived page (409 {@code derived-page}, section 9), a caller without {@code edit}, or without
  * {@code createPages} on a page that does not exist yet (403 {@code forbidden}), and a full session (429
  * {@code session-full}); with the kill switch off it answers {@link Disabled}. A store failure while opening or
- * seeding is 503 {@code store}; a malformed initial text 400 {@code rejected}. A rejoin naming its prior clientID
+ * seeding is 503 {@code store}; a malformed initial text 400 {@code rejected}. One author holds at most
+ * {@link #MAX_SEATS_PER_AUTHOR} seats: a further join of that author reclaims its own longest-idle seat (not seen for
+ * the long-poll timeout plus {@link #IDLE_SEAT_SLACK_SECONDS}; it leaves as timed out) or is refused 429
+ * {@code session-full}, so one author's many tabs never lock the others out. A rejoin naming its prior clientID
  * replaces its own stale entry (A13) and takes no new seat. A join into a frozen draft (its page was deleted) is a join
  * on a page that does not exist, so it needs {@code createPages}; and the deleted page's protection outlives it (ruling
  * F1): the draft of a missing page, frozen or not yet, is joined only by its existing participants, by administrators,
@@ -104,6 +107,13 @@ public final class CollabSessionRegistry {
     public static final int STORE_FAILURE_LIMIT = 3;
     /** How long the orphan sweep must find a draft's page missing before it freezes the draft ({@link OrphanSweep}). */
     public static final Duration ORPHAN_GRACE = OrphanSweep.GRACE;
+    /**
+     * The seats one author may hold in a session (final review item 6): a further join of that author reclaims its own
+     * longest-idle seat, or is refused 429 {@code session-full}, so no author can lock the others out.
+     */
+    public static final int MAX_SEATS_PER_AUTHOR = 4;
+    /** A seat not seen for the long-poll timeout plus this many seconds is idle: its tab has stopped polling. */
+    public static final int IDLE_SEAT_SLACK_SECONDS = 5;
     /** {@code wikantik.api.maxPageBytes}'s default, for the six-argument constructor. */
     public static final long DEFAULT_MAX_PAGE_BYTES = 262_144L;
     static final String DERIVED = "derived-page";
@@ -272,6 +282,13 @@ public final class CollabSessionRegistry {
             if( guarded != null ) {
                 return guarded;
             }
+        }
+        // one author holds at most MAX_SEATS_PER_AUTHOR seats: its longest-idle one is reclaimed, else 429 for it alone
+        final Instant idleBefore = clock.instant().minusSeconds( config.pollTimeoutSeconds() + IDLE_SEAT_SLACK_SECONDS );
+        if( !Hooks.seatFor( s, r, MAX_SEATS_PER_AUTHOR, idleBefore ) ) {
+            LOG.info( "collab: join of {} by {} refused: that author already holds {} active seats", pageName,
+                r.authorKey(), MAX_SEATS_PER_AUTHOR );
+            return new Refused( 429, FULL );
         }
         // a rejoin replacing its own stale entry (A13) takes no new seat
         final int seats = Hooks.members( s ).size() - ( Hooks.replacesStale( s, r ) ? 1 : 0 );

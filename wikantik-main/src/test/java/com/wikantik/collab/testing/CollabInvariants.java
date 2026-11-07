@@ -58,18 +58,6 @@ import java.util.Set;
  */
 public final class CollabInvariants {
 
-    /**
-     * KNOWN PRODUCT DEFECT (Phase 2 Task 8 fuzz, not fixed here: product code belongs to other tasks). A frozen draft's
-     * recreate publish writes its publish-point snapshot labelled with the publish's expected page version (0, "must not
-     * exist") instead of the draft's base page version, while its {@code local} is relative to that base
-     * ({@code PublishFlow.snapshotForSave}: {@code new Snapshot( d.head, d.metaSeq, b, ... )} with {@code b == 0}). Until
-     * the next base change the latest snapshot then claims a base it is not on; a reload logs "snapshot does not fit base
-     * version" and recomputes {@code local} by diff. Tolerated here only for a frozen draft and a snapshot on base 0, so
-     * the fuzz stays green on everything else; {@code CollabKnownDefectsTest} (disabled) holds the shrunk trace and turns
-     * this off. Remove the tolerance once the snapshot carries {@code d.record.basePageVersion()}.
-     */
-    static volatile boolean tolerateRecreateSnapshotBase = true;
-
     private CollabInvariants() {
     }
 
@@ -150,8 +138,7 @@ public final class CollabInvariants {
             throw fail( 3, text, "no snapshot in the store" );
         }
         final Snapshot s = snap.get();
-        if( s.basePageVersion() != v.basePageVersion() && !( tolerateRecreateSnapshotBase && v.frozen()
-                && s.basePageVersion() == 0 ) ) {
+        if( s.basePageVersion() != v.basePageVersion() ) {
             // every base change writes its snapshot in the same step (commitBaseChange), and so does creation (v0)
             throw fail( 3, text, "the latest snapshot (version " + s.version() + ") is on base page version "
                 + s.basePageVersion() + " but the session is on " + v.basePageVersion() );

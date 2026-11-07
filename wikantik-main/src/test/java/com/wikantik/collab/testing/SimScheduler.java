@@ -213,16 +213,6 @@ public final class SimScheduler {
     static final List< String > FAULT_OPS = List.of( InMemoryCollabStore.Op.UPDATE_SESSION.name(),
         InMemoryCollabStore.Op.APPEND_META.name(), InMemoryCollabStore.Op.COMMIT_BASE_CHANGE.name() );
 
-    /**
-     * KNOWN PRODUCT DEFECT (Phase 2 Task 8 fuzz, not fixed here). When a delete did not freeze the draft (the freeze's
-     * store write failed, or the event was missed) and the page is recreated before anything freezes it, the recreated
-     * page restarts at version 1, below the draft's base: {@code ExternalMerge.mergeTo} drops a target older than the base
-     * by version number alone ({@code target.version() < b}), so the recreated text is never merged, and every publish
-     * (whose A1 backstop does the same) saves with the old expected version and answers 409 {@code publish-merged-retry}
-     * for ever. The fuzz therefore makes no outside save while a freeze is owed; {@code CollabKnownDefectsTest}
-     * (disabled) replays the shrunk trace with this off.
-     */
-    static volatile boolean avoidRecreateWhileFreezeOwed = true;
     static final String PAGE = "SimPage";
     static final int REPLAY_EVERY = 25;
     static final int MAX_QUIESCENCE_ROUNDS = 400;
@@ -624,7 +614,6 @@ public final class SimScheduler {
                 case SEND_PUSH, SEND_PULL, PUBLISH, LEAVE, SELECT, META_EDIT -> peers.stream().anyMatch( p -> canSend( k, p ) );
                 case DELIVER, DROP, DUPLICATE -> !net.isEmpty();
                 case RELEASE_PUBLISH -> !pendingPublishes.isEmpty();
-                case EXTERNAL_SAVE -> !( owedFreeze && avoidRecreateWhileFreezeOwed );
                 case RENAME, DELETE -> renameOrDeletePossible();
                 default -> true;
             };
@@ -810,9 +799,6 @@ public final class SimScheduler {
                         retryListenerEvents();
                     }
                     case EXTERNAL_SAVE -> {
-                        if( owedFreeze && avoidRecreateWhileFreezeOwed ) {
-                            break;   // the known defect below
-                        }
                         final String body = writerBody();
                         final int version = env.writer().externalSave( env.pageName(), replaceIn( body, s ).apply( body ),
                             Map.of(), "agent" );

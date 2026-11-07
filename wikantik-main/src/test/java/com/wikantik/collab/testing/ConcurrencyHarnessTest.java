@@ -82,7 +82,7 @@ class ConcurrencyHarnessTest {
         writer.seed( "Stress", "seed text  \nsecond line\n", Map.of() );
         writer.rewriteOnSave( SimEnv.rewrite( "strip-trailing-spaces" ) );
         final InMemoryCollabStore store = new InMemoryCollabStore();
-        final CollabSessionRegistry registry = new CollabSessionRegistry( store, writer, CollabSessionSimServer.ALLOW_ALL,
+        final CollabSessionRegistry registry = new CollabSessionRegistry( store, writer, new CollabSessionSimServer.Grants(),
             CollabSessionSimServer.IDENTITY, new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) ),
             CollabSessionSimServer.config( 4, 16 ), 1 << 20 );
         final CollabSessionRegistry.Joined opener = (CollabSessionRegistry.Joined) registry.join( "Stress",

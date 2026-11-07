@@ -160,8 +160,10 @@ final class PublishFlow {
         final SessionRecord marked = d.record.withPending( d.head, b, p.authorKey );
         try {
             // M_V made durable before the marker (A10: a snapshot at the publish point): the pending-publish rule reads
-            // it back, so a recovered fold never takes meta edits made during the save for filter changes (review M5)
-            d.store.writeSnapshot( d.id, new Snapshot( d.head, d.metaSeq, b, d.doc, d.meta, d.local ) );
+            // it back, so a recovered fold never takes meta edits made during the save for filter changes (review M5).
+            // Labelled with the draft's base, not B: a recreate saves on B = 0, but local is relative to the base
+            d.store.writeSnapshot( d.id, new Snapshot( d.head, d.metaSeq, d.record.basePageVersion(), d.doc, d.meta,
+                d.local ) );
             d.lastSnapshotVersion = d.head;
             d.store.updateSession( marked );
         } catch( final RuntimeException e ) {

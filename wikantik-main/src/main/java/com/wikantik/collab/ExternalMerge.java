@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -38,7 +39,9 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>A frozen draft whose page exists again (recreated by someone else) is merged with the recreated page as one
  * external change against the latest version, with no version walk (the version numbers restarted), and becomes active
- * again; its {@code external-change} event carries {@code recreated: true}.</p>
+ * again; its {@code external-change} event carries {@code recreated: true}. So is a page that was deleted and recreated
+ * while the draft stayed active (the freeze's store write failed, or the delete event was missed): its versions
+ * restarted, so its latest version is below the draft's base.</p>
  */
 final class ExternalMerge {
 
@@ -62,8 +65,9 @@ final class ExternalMerge {
 
     /**
      * Every version after the base up to {@code target}, in order, each merged against its predecessor (the base at that
-     * point). A stale or repeated target merges nothing; an in-place overwrite of the base version (no new version, A1)
-     * is merged by content hash. Page-store failures propagate.
+     * point). A repeated target (the base version with the base's content hash and meta) merges nothing; an in-place
+     * overwrite of the base version (no new version, A1) is merged by content hash. A target below the base is
+     * {@link #belowBase}: stale, or a recreated page. Page-store failures propagate.
      */
     Result mergeTo( final PageState target, final List< Runnable > completions ) {
         final int b;
@@ -74,7 +78,7 @@ final class ExternalMerge {
             frozen = d.frozen();
             b = d.record.basePageVersion();
             page = d.pageName();
-            if( !frozen && ( target.version() < b || target.version() == b && sameAsBase( target ) ) ) {
+            if( !frozen && target.version() == b && sameAsBase( target ) ) {
                 return Result.NONE;
             }
         } finally {
@@ -82,6 +86,9 @@ final class ExternalMerge {
         }
         if( frozen ) {
             return mergeOne( target, true, completions ) == Result.FAILED ? Result.FAILED : Result.CHANGED;
+        }
+        if( target.version() < b ) {
+            return belowBase( page, b, completions );
         }
         final List< PageState > states = new ArrayList<>();
         for( int v = b + 1; v < target.version(); v++ ) {
@@ -97,6 +104,24 @@ final class ExternalMerge {
             result = r.ordinal() > result.ordinal() ? r : result;
         }
         return result;
+    }
+
+    /**
+     * A target below the base {@code b}. A version number alone does not say it was merged (A1): while the page's latest
+     * version is at or above the base, the target is a stale or repeated event of the base's own version history and
+     * merges nothing (the latest version is merged by its own event, or by {@code settle}). A latest version below the
+     * base means the page was deleted and recreated under an active draft and its versions restarted: the recreated page
+     * is merged as one external change against its latest version ({@code recreated: true}, no version walk), by content
+     * hash, so its text is merged when it differs from the base, its version becomes the base either way (the next
+     * publish saves on it), and the draft's local edits are rebased on top. A gone page merges nothing (the delete
+     * listener freezes the draft).
+     */
+    private Result belowBase( final String page, final int b, final List< Runnable > completions ) {
+        final Optional< PageState > latest = writer.latest( page );
+        if( latest.isEmpty() || latest.get().version() >= b ) {
+            return Result.NONE;
+        }
+        return mergeOne( latest.get(), true, completions );
     }
 
     private boolean sameAsBase( final PageState s ) {

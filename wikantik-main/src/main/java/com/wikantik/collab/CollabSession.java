@@ -723,10 +723,11 @@ public final class CollabSession {
 
     /**
      * Section 7.4: merges the page's versions after the base up to {@code latest}, each diffed against its predecessor,
-     * detected by content hash (A1), so a repeated or older event merges nothing and an overwrite without a new version
-     * is still merged. While a publish is in its save the change is queued and merged when the publish ends (A3). Called
-     * by the page listener (Phase 2), by {@link #load} and by publish (the backstop). Participants who lost {@code edit}
-     * are evicted afterwards (A5). A failure is logged and retried by {@link #settle}.
+     * detected by content hash (A1), so a repeated or stale event merges nothing, an overwrite without a new version is
+     * still merged, and a page recreated under the draft (its versions restarted below the base) is merged. While a
+     * publish is in its save the change is queued and merged when the publish ends (A3). Called by the page listener
+     * (Phase 2), by {@link #load} and by publish (the backstop). Participants who lost {@code edit} are evicted afterwards
+     * (A5). A failure is logged and retried by {@link #settle}.
      */
     public void reconcile( final PageState latest ) {
         reconcileTo( Objects.requireNonNull( latest, "latest" ) );

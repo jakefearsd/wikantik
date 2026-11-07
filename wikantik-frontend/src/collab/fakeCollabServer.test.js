@@ -160,6 +160,46 @@ describe('fakeCollabServer matches the fixture', () => {
     expect(res.participants.length).toBe(2);
   });
 
+  describe('rejoin after the entry timed out (ruling Q11)', () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(0); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('the same author gets its clientID back within the retention window, even when the entry expired', async () => {
+      const first = await joinSample(server);
+      server.expire('ada');
+      vi.setSystemTime(9 * 60 * 1000);
+      expect((await rejoin(server, 'ada', first.clientID)).body.clientID).toBe(first.clientID);
+    });
+
+    it('past the retention window (default 10 minutes) it gets a fresh clientID', async () => {
+      const first = await joinSample(server);
+      server.expire('ada');
+      vi.setSystemTime(10 * 60 * 1000 + 1);
+      expect((await rejoin(server, 'ada', first.clientID)).body.clientID).not.toBe(first.clientID);
+    });
+
+    it('the window is a config option', async () => {
+      const short = createFakeCollabServer({ initialText: 'abc', clientIdRetentionMs: 1000 });
+      const first = (await short.handle({ method: 'POST', path: '/join', body: {}, user: 'ada' })).body;
+      short.expire('ada');
+      vi.setSystemTime(1001);
+      expect((await rejoin(short, 'ada', first.clientID)).body.clientID).not.toBe(first.clientID);
+    });
+
+    it('another author never gets an expired clientID', async () => {
+      const first = await joinSample(server, 'ada');
+      server.expire('ada');
+      expect((await rejoin(server, 'bob', first.clientID)).body.clientID).not.toBe(first.clientID);
+    });
+
+    it('a signed-out eviction keeps the same retention', async () => {
+      const first = await joinSample(server, 'ada');
+      server.evict(first.participantId, 'signed-out');
+      vi.setSystemTime(60 * 1000);
+      expect((await rejoin(server, 'ada', first.clientID)).body.clientID).toBe(first.clientID);
+    });
+  });
+
   /** Runs a recorded request against `srv`, substituting the participant's real clientID, and checks the response. */
   async function replay(srv, id, { clientID, user = 'ada', version, participantId = 'pt-1' } = {}) {
     const c = byId[id];

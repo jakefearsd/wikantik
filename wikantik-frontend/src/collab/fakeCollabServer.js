@@ -40,6 +40,8 @@ export function createFakeCollabServer({
   pushesPerSecond = Infinity,
   seed = 1,
   maxLatencyMs = 0,
+  // Q11: how long after its entry timed out (or was evicted) the same author may still reclaim its clientID.
+  clientIdRetentionMs = 10 * 60 * 1000,
 } = {}) {
   const rand = seededRandom(seed);
   let maxLatency = maxLatencyMs;
@@ -55,6 +57,8 @@ export function createFakeCollabServer({
   const events = [];
   const participants = new Map(); // participantId -> participant (two tabs of one user are two participants)
   const clientOwner = new Map(); // clientID -> author key
+  const clientReleasedAt = new Map(); // clientID -> when its entry expired (absent while live)
+  const expire = (p) => { if (!p.expired) clientReleasedAt.set(p.clientID, Date.now()); p.expired = true; };
   let nextPid = 1;
   let nextClient = 1;
   const waiters = new Set();
@@ -122,6 +126,9 @@ export function createFakeCollabServer({
   }
   const publicParticipant = (p) => ({ participantId: p.participantId, displayName: p.displayName, color: p.color });
 
+  const retained = (id, user) => clientOwner.get(id) === user
+    && (!clientReleasedAt.has(id) || Date.now() - clientReleasedAt.get(id) <= clientIdRetentionMs);
+
   function join(user, body) {
     if (config.disabled) return reply(503, { reason: 'collab-disabled' });
     if (config.forbidJoin) return reply(403, { error: 'forbidden', message: 'No edit permission on PageName' });
@@ -139,8 +146,9 @@ export function createFakeCollabServer({
       participants.delete(stale.participantId);
       addEvent({ type: 'participant-left', participantId: stale.participantId, reason: 'timeout' });
     }
-    const clientID = prior && (stale || clientOwner.get(prior) === user) ? prior : `c${nextClient++}`;
+    const clientID = prior && (stale || retained(prior, user)) ? prior : `c${nextClient++}`;
     clientOwner.set(clientID, user);
+    clientReleasedAt.delete(clientID);
     const p = {
       participantId: `pt-${nextPid++}`,
       owner: user,
@@ -388,7 +396,7 @@ export function createFakeCollabServer({
       else if (p?.evicted) res = reply(403, { reason: 'evicted', detail: p.evicted });
       else {
         if (p && !p.expired) {
-          p.expired = true;
+          expire(p);
           presenceSeq += 1;
           addEvent({ type: 'participant-left', participantId: p.participantId, reason: 'left' });
         }
@@ -457,8 +465,8 @@ export function createFakeCollabServer({
     },
     /** Drop the response of the next matching call (the server still applies it): a lost acknowledgement. */
     dropNextResponse(method, path) { drops.push({ method, path }); },
-    expire(user) { for (const p of participants.values()) if (p.owner === user) p.expired = true; },
-    expireParticipant(id) { const p = participants.get(id); if (p) p.expired = true; },
+    expire(user) { for (const p of participants.values()) if (p.owner === user) expire(p); },
+    expireParticipant(id) { const p = participants.get(id); if (p) expire(p); },
     liveParticipantIds: () => [...participants.values()].filter((p) => !p.expired).map((p) => p.participantId),
     isLive: (id) => { const p = participants.get(id); return !!p && !p.expired; },
     /** Truncate the in-memory ring below `v`, so a pull from an older version gets 410. */
@@ -478,7 +486,7 @@ export function createFakeCollabServer({
       const p = participants.get(participantId);
       if (!p) throw new Error(`evict: unknown participant ${participantId}`);
       p.evicted = reason;
-      p.expired = true;
+      expire(p);
       presenceSeq += 1;
       addEvent({ type: 'evicted', participantId, reason });
       addEvent({ type: 'participant-left', participantId, reason: 'evicted' });
@@ -518,7 +526,7 @@ export function createFakeCollabServer({
       for (const p of participants.values()) {
         if (p.expired || p.evicted) continue;
         p.evicted = 'purged';
-        p.expired = true;
+        expire(p);
         presenceSeq += 1;
         addEvent({ type: 'evicted', participantId: p.participantId, reason: 'purged' });
         addEvent({ type: 'participant-left', participantId: p.participantId, reason: 'evicted' });
@@ -530,6 +538,6 @@ export function createFakeCollabServer({
     oversize(bytes, limit) { addEvent({ type: 'oversize', bytes, limit }); },
     /** The next publish fails on the server: it emits publish-failed {by} and answers 500 once. */
     failNextPublish(by) { failPublishBy = by; },
-    forgetClientIds() { clientOwner.clear(); },
+    forgetClientIds() { clientOwner.clear(); clientReleasedAt.clear(); },
   };
 }

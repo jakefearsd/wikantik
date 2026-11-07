@@ -5,6 +5,20 @@ import { createCollabPeerCore } from './collabPeer.js';
 import { EditorState } from '@codemirror/state';
 import { collab } from '@codemirror/collab';
 
+describe('createMetaState REMOVE (rulings Q6, Q7)', () => {
+  it('drops every equal item, not just the first', () => {
+    const m = createMetaState({ meta: { tags: ['a', 'x', 'b', 'x'] } });
+    m.remove('tags', 'x');
+    expect(m.view().tags).toEqual(['a', 'b']);
+  });
+
+  it('compares set items as strings: removing "2024" drops a numeric 2024', () => {
+    const m = createMetaState({ meta: { tags: [2024, 'a', '2024'] } });
+    m.remove('tags', '2024');
+    expect(m.view().tags).toEqual(['a']);
+  });
+});
+
 describe('diffMeta', () => {
   it('diffMetaTurnsSetFieldChangesIntoAddsAndRemoves', () => {
     const edits = diffMeta({ tags: ['a', 'b'], related: ['R'] }, { tags: ['b', 'c'], related: [], aliases: ['Al'] });

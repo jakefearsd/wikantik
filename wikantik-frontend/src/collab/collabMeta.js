@@ -10,7 +10,7 @@
  *    flicker away in the gap between the push ack and the next pull. Pulled ops are resolved `{field, value}`.
  *  - `createMetaQueue`: per-field debounce for keystroke-driven fields; `flush()` sends at once (blur, publish).
  *
- * The rules mirror the server (and the fake): REMOVE of the last item resolves to [], a scalar is a one-item list for
+ * The rules mirror the server (and the fake): REMOVE drops every equal item (as strings) and of the last item resolves to [], a scalar is a one-item list for
  * ADD/REMOVE, values compare as normalised JSON.
  */
 export const SET_FIELDS = ['tags', 'related', 'aliases'];
@@ -50,8 +50,9 @@ function applyEdit(meta, edit) {
   }
   const list = [...toList(meta[field])];
   if ('add' in edit) { if (!list.includes(edit.add)) list.push(edit.add); } else {
-    const i = list.indexOf(edit.remove);
-    if (i >= 0) list.splice(i, 1);
+    // Q6/Q7: REMOVE drops every equal item; set items compare (and are stored) as strings.
+    meta[field] = list.filter((x) => String(x) !== edit.remove).map(String);
+    return;
   }
   meta[field] = list;
 }

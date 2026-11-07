@@ -393,7 +393,7 @@ public final class SimClient {
      * edits it has not confirmed, replayed on top for display. A sent edit leaves the pending list only when a pull has
      * delivered {@code metaSeq >= its acked metaSeq}, so a pending add cannot flicker away between the push ack and the
      * next pull. Pulled ops are resolved {@code {field, value}} assignments. The rules are the JS ones, deliberately: a
-     * REMOVE drops the first equal item (the server drops every one, ruling Q6; with set semantics there is at most one),
+     * REMOVE drops every equal item, compared as strings (rulings Q6, Q7),
      * a scalar string is a one-item list, anything else not a list is an empty one.
      *
      * <p>Each {@link Entry} carries the wire {@link Entry#edit} and the {@link Entry#intent} it was made as; they are the
@@ -568,13 +568,15 @@ public final class SimClient {
                     list.add( e.value() );
                 }
             } else {
-                final Iterator< Object > it = list.iterator();
-                while( it.hasNext() ) {
-                    if( Objects.equals( it.next(), e.value() ) ) {
-                        it.remove();
-                        break;
+                // Q6/Q7: drops every item equal as a string, and the survivors are stored as strings
+                final List< Object > kept = new ArrayList<>();
+                for( final Object x : list ) {
+                    if( !String.valueOf( x ).equals( String.valueOf( e.value() ) ) ) {
+                        kept.add( String.valueOf( x ) );
                     }
                 }
+                list.clear();
+                list.addAll( kept );
             }
             meta.put( field, list );
         }

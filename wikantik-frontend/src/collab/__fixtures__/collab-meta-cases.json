@@ -307,6 +307,46 @@
     ]
   },
   {
+    "name": "remove drops every equal item; items compare as strings",
+    "meta": {
+      "tags": [
+        "a",
+        "x",
+        "b",
+        "x",
+        2024
+      ]
+    },
+    "metaSeq": 0,
+    "steps": [
+      {
+        "do": "remove",
+        "field": "tags",
+        "item": "x",
+        "view": {
+          "tags": [
+            "a",
+            "b",
+            "2024"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "remove",
+        "field": "tags",
+        "item": "2024",
+        "view": {
+          "tags": [
+            "a",
+            "b"
+          ]
+        },
+        "pending": 2
+      }
+    ]
+  },
+  {
     "name": "unsent edits of one field coalesce; null removes a field",
     "meta": {
       "summary": "s"

@@ -27,6 +27,8 @@ const INPUTS = [
     { do: 'remote', ops: [{ field: 'status', value: 'active' }], metaSeq: 2 } ] },
   { name: 'removing the last item leaves an empty list; a scalar counts as one item', meta: { tags: 'solo' }, metaSeq: 0, steps: [
     { do: 'remove', field: 'tags', item: 'solo' }, { do: 'add', field: 'related', item: 'P' }, { do: 'add', field: 'tags', item: 'n' } ] },
+  { name: 'remove drops every equal item; items compare as strings', meta: { tags: ['a', 'x', 'b', 'x', 2024] }, metaSeq: 0, steps: [
+    { do: 'remove', field: 'tags', item: 'x' }, { do: 'remove', field: 'tags', item: '2024' } ] },
   { name: 'unsent edits of one field coalesce; null removes a field', meta: { summary: 's' }, metaSeq: 0, steps: [
     { do: 'edit', field: 'summary', value: 'a' }, { do: 'edit', field: 'summary', value: 'ab' }, { do: 'edit', field: 'summary', value: null } ] },
   { name: 'concurrent adds from two participants both survive', meta: { tags: ['a'] }, metaSeq: 0, steps: [

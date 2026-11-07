@@ -18,9 +18,18 @@
  */
 package com.wikantik.collab.adapter;
 
+import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorKeys;
+import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.acl.AclManager;
+import com.wikantik.auth.acl.DefaultAclManager;
+import com.wikantik.auth.acl.UnresolvedPrincipal;
+import com.wikantik.auth.permissions.AllPermission;
+import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -28,6 +37,8 @@ import com.wikantik.collab.CollabPermissions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.security.Permission;
+import java.security.Principal;
 import java.util.Objects;
 
 /**
@@ -78,6 +89,63 @@ public final class WikiCollabPermissions implements CollabPermissions {
     @Override
     public String authorKeyOf( final Object participantSession ) {
         return participantSession instanceof Session session ? AuthorKeys.authorKeyFor( session ) : null;
+    }
+
+    /** {@code AllPermission} (the Admin group, or the time-boxed bootstrap administrator). */
+    @Override
+    public boolean isAdmin( final Object participantSession ) {
+        final Session session = asSession( participantSession, "admin check", "(any page)" );
+        return session != null && authorization().isPermitted( session,
+                new AllPermission( engine.getApplicationName() ) );
+    }
+
+    /**
+     * Ruling F1: the policy's {@code view} and {@code edit} on {@code pageName} (the page is missing, so no stored rules
+     * apply), then the rules of {@code baseText} as {@link DefaultAclManager#aclForText} reads them, each granting both
+     * actions to a principal the session holds, as the authorizer decides a stored page's rules. Refuses when the wiki's
+     * ACL manager cannot read a text it is handed, and when reading the rules fails.
+     */
+    @Override
+    public boolean mayAccessAsIf( final Object participantSession, final String pageName, final String baseText ) {
+        final Session session = asSession( participantSession, "view/edit under the last access rules", pageName );
+        if( session == null ) {
+            return false;
+        }
+        final AuthorizationManager auth = authorization();
+        final Page page = Wiki.contents().page( engine, pageName );
+        final Permission view = PermissionFactory.getPagePermission( page, "view" );
+        final Permission edit = PermissionFactory.getPagePermission( page, "edit" );
+        if( !auth.isPermitted( session, view ) || !auth.isPermitted( session, edit ) ) {
+            return false;
+        }
+        final AclManager acls = AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager();
+        if( !( acls instanceof DefaultAclManager reader ) ) {
+            LOG.warn( "Denying '{}': the ACL manager ({}) cannot read the access rules of a deleted page's text", pageName,
+                    acls == null ? "none" : acls.getClass().getName() );
+            return false;
+        }
+        final Acl acl = reader.aclForText( page, baseText );
+        if( acl.isEmpty() || auth.isPermitted( session, new AllPermission( engine.getApplicationName() ) ) ) {
+            return true;
+        }
+        return grants( auth, session, acl, view ) && grants( auth, session, acl, edit );
+    }
+
+    /** True when the session holds a principal {@code acl} lists for {@code permission} (an unresolved one resolved now). */
+    private static boolean grants( final AuthorizationManager auth, final Session session, final Acl acl,
+                                   final Permission permission ) {
+        for( final Principal listed : acl.findPrincipals( permission ) ) {
+            final Principal principal = listed instanceof UnresolvedPrincipal unresolved
+                    ? auth.resolvePrincipal( unresolved.getName() ) : listed;
+            if( auth.hasRoleOrPrincipal( session, principal ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private AuthorizationManager authorization() {
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
     }
 
     private static Session asSession( final Object candidate, final String action, final String pageName ) {

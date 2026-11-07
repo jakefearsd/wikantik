@@ -230,6 +230,26 @@ public abstract class AbstractCollabStoreContractTest {
         assertTrue( store.updatesSince( s.id(), 5 ).isEmpty() );
     }
 
+    /** A rejoin after a reload reclaims its clientID only from its own stored text updates (final review item 2). */
+    @Test
+    void holdsUpdatesFromMatchesClientIdAndAuthorOfRetainedTextUpdatesOnly() {
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), List.of( upd( 1 ),
+            new StoredUpdate( 2, StoredUpdate.SERVER, "srv", "bob", CS ),
+            new StoredUpdate( 3, StoredUpdate.TEXT, "c2", "bob", CS ) ) );
+
+        assertTrue( store.holdsUpdatesFrom( s.id(), "c1", "alice" ) );
+        assertTrue( store.holdsUpdatesFrom( s.id(), "c2", "bob" ) );
+        assertFalse( store.holdsUpdatesFrom( s.id(), "c1", "bob" ), "another author's clientID is never adopted" );
+        assertFalse( store.holdsUpdatesFrom( s.id(), "srv", "bob" ), "a server update binds no clientID" );
+        assertFalse( store.holdsUpdatesFrom( s.id(), "c9", "alice" ) );
+        assertFalse( store.holdsUpdatesFrom( UUID.randomUUID(), "c1", "alice" ) );
+
+        store.writeSnapshot( s.id(), snap( 1 ) );
+        store.truncateUpdatesBelow( s.id(), 1 );
+        assertFalse( store.holdsUpdatesFrom( s.id(), "c1", "alice" ), "truncated updates are not retained" );
+    }
+
     @Test
     void appendUpdatesRejectsAGapOrRepeat() {
         final SessionRecord s = created( "PageA" );

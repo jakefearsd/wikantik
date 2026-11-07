@@ -325,6 +325,18 @@ public final class InMemoryCollabStore implements CollabStore {
     }
 
     @Override
+    public boolean holdsUpdatesFrom( final UUID id, final String clientId, final String authorKey ) {
+        lock.lock();
+        try {
+            final TreeMap< Integer, StoredUpdate > log = updates.get( id );
+            return log != null && log.values().stream().anyMatch( u -> StoredUpdate.TEXT.equals( u.kind() )
+                && u.clientId().equals( clientId ) && authorKey.equals( u.authorKey() ) );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
     public void appendMetaOps( final UUID id, final List< StoredMetaOp > ops ) {
         lock.lock();
         try {

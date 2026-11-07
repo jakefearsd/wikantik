@@ -43,4 +43,23 @@ public interface CollabPermissions {
     default String authorKeyOf( final Object participantSession ) {
         return null;
     }
+
+    /**
+     * Whether the participant is an administrator ({@code AllPermission}): ruling F1 lets administrators into the frozen
+     * draft of a deleted page. Ports without the notion answer false.
+     */
+    default boolean isAdmin( final Object participantSession ) {
+        return false;
+    }
+
+    /**
+     * Ruling F1: whether the participant could {@code view} and {@code edit} {@code pageName} if its text were
+     * {@code baseText}, judged by the wiki's policy and by the access rules ({@code [{ALLOW …}]}) in that text, read as
+     * the wiki reads a page's rules. The draft of a deleted page is guarded by its last-known text this way, so the
+     * page's protection outlives the page. False when the rules cannot be evaluated; the default (a port that cannot
+     * read access rules) refuses.
+     */
+    default boolean mayAccessAsIf( final Object participantSession, final String pageName, final String baseText ) {
+        return false;
+    }
 }

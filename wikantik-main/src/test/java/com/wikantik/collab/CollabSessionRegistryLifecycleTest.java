@@ -93,6 +93,12 @@ class CollabSessionRegistryLifecycleTest {
         public String authorKeyOf( final Object participantSession ) {
             return authorOf.get( participantSession );
         }
+
+        /** Ruling F1: these pages carry no access rules, so a missing page's draft admits whoever may edit and create. */
+        @Override
+        public boolean mayAccessAsIf( final Object participantSession, final String pageName, final String baseText ) {
+            return canEdit( participantSession, pageName ) && canCreate( participantSession, pageName );
+        }
     }
 
     /** The scripted writer with read faults: unreadable pages throw, and one existence check can be held. */

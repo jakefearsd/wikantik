@@ -50,9 +50,12 @@ import java.util.function.ToIntFunction;
  * {@code session-full}); with the kill switch off it answers {@link Disabled}. A store failure while opening or
  * seeding is 503 {@code store}; a malformed initial text 400 {@code rejected}. A rejoin naming its prior clientID
  * replaces its own stale entry (A13) and takes no new seat. A join into a frozen draft (its page was deleted) is a join
- * on a page that does not exist, so it needs {@code createPages}; it is answered with the draft's text, its pushes are
- * 409 {@code frozen}, and its first pull is told {@code page-deleted} (the join's {@code eventSeq} stops just before
- * it).</p>
+ * on a page that does not exist, so it needs {@code createPages}; and the deleted page's protection outlives it (ruling
+ * F1): the draft of a missing page, frozen or not yet, is joined only by its existing participants, by administrators,
+ * and by callers whom the access rules of the draft's base text (the page's last-known text) would let view and edit
+ * it, else 403 {@code forbidden} ({@link JoinRefusals#refuseMissingPagesDraft}). A frozen join is answered with the
+ * draft's text, its pushes are 409 {@code frozen}, and its first pull is told {@code page-deleted} (the join's
+ * {@code eventSeq} stops just before it).</p>
  *
  * <p><b>Tick</b> (driven every second by the wiring): answers long-polls past their timeout, evicts participants not
  * seen within {@code presence.timeoutSeconds} (E13; their next request meets 409 {@code rejoin}), and every
@@ -263,6 +266,12 @@ public final class CollabSessionRegistry {
         final CollabSession s = slot.session();
         if( !s.pageName().equals( pageName ) ) {
             return null;   // a rekey moved this slot to another name while we waited: take the page's own slot
+        }
+        if( latest == null ) {
+            final Refused guarded = JoinRefusals.refuseMissingPagesDraft( permissions, s, r );
+            if( guarded != null ) {
+                return guarded;
+            }
         }
         // a rejoin replacing its own stale entry (A13) takes no new seat
         final int seats = Hooks.members( s ).size() - ( Hooks.replacesStale( s, r ) ? 1 : 0 );
@@ -585,8 +594,10 @@ public final class CollabSessionRegistry {
     }
 
     /**
-     * The page was deleted (ruling Q10: only a true delete freezes): its live session or stored draft is frozen for an
-     * administrator. A draft still owed a rename into the deleted page never lands there: it is frozen where it is.
+     * The page was deleted (ruling Q10: only a true delete freezes): its live session or stored draft is frozen. It is
+     * kept for its participants, administrators and whoever the deleted page's last access rules admit (ruling F1), to
+     * copy their text or recreate the page; administrators can also purge it. A draft still owed a rename into the
+     * deleted page never lands there: it is frozen where it is.
      */
     public void freeze( final String pageName ) {
         final String owedFrom = renames.dropInto( pageName );

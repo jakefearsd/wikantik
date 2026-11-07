@@ -168,6 +168,17 @@ class CollabResourceTest {
         public boolean canCreate( final Object participantSession, final String pageName ) {
             return !noCreate.contains( ( String ) participantSession );
         }
+
+        /** Ruling F1's base-text rules: {@code [{ALLOW edit <names>}]} admits only those names, no rule everyone. */
+        @Override
+        public boolean mayAccessAsIf( final Object participantSession, final String pageName, final String baseText ) {
+            final int at = baseText.indexOf( "[{ALLOW edit " );
+            if( at < 0 ) {
+                return canEdit( participantSession, pageName ) && canCreate( participantSession, pageName );
+            }
+            final String names = baseText.substring( at + "[{ALLOW edit ".length(), baseText.indexOf( "}]", at ) );
+            return List.of( names.split( "," ) ).contains( ( String ) participantSession );
+        }
     };
 
     private final CollabResource.Access access = new CollabResource.Access() {
@@ -671,6 +682,25 @@ class CollabResourceTest {
         final Joined a = join( "ada" );
         registry.freeze( PAGE );
         assertFixture( "updates.post.409.frozen", push( "ada", a, 0 ) );
+    }
+
+    /** Ruling F1: the frozen draft of a deleted, restricted page is not handed to anyone holding createPages. */
+    @Test
+    void aFrozenRestrictedDraftIsForbiddenToANonMemberOnJoinAndPull() throws Exception {
+        writer.seed( PAGE, "[{ALLOW edit ada}]\nsecret", Map.of() );
+        final Joined a = join( "ada" );
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+
+        final Resp joined = post( "raj", "join", new JsonObject() );
+        assertEquals( 403, joined.status, joined.out::toString );
+        assertFalse( joined.out.toString().contains( "secret" ) );
+        final Resp pulled = pull( "raj", a, 0, 0, 0, 0 );
+        assertEquals( 403, pulled.status );
+        assertEquals( "not-your-participant", pulled.body().get( "reason" ).getAsString() );
+        assertFalse( pulled.out.toString().contains( "secret" ) );
+
+        assertEquals( 200, post( "ada", "join", new JsonObject() ).status, "a participant keeps access" );
     }
 
     @Test

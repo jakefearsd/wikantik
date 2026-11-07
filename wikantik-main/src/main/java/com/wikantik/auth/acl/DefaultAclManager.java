@@ -207,6 +207,18 @@ public class DefaultAclManager implements AclManager {
     }
 
     /**
+     * The immutable ACL {@code pageText} would give {@code page}, read exactly as {@link #getPermissions} reads a stored
+     * page's text, but uncached and without reading the store: for a page that no longer exists, whose last text still
+     * guards what is left of it (a deleted page's collaborative draft, MultiEdit ruling F1). Open when the text has no
+     * rules, a lock when its rules cannot be read.
+     *
+     * @throws RuntimeException when the rules cannot be read at all (a principal that cannot be resolved); callers refuse
+     */
+    public Acl aclForText( final Page page, final String pageText ) {
+        return aclOf( page, pageText );
+    }
+
+    /**
      * The immutable ACL a page text gives: open when it has no text or no rules, a lock when its rules cannot be read.
      * A failure to read them at all (a principal that cannot be resolved, say) is thrown, for the caller to lock without
      * caching.

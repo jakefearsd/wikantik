@@ -3,7 +3,7 @@ import { EditorState, Transaction } from '@codemirror/state';
 import { history, undo } from '@codemirror/commands';
 import { collab, getSyncedVersion, sendableUpdates } from '@codemirror/collab';
 import { createFakeCollabServer, seededRandom } from './fakeCollabServer.js';
-import { createCollabPeerCore } from './collabPeer.js';
+import { createCollabPeerCore, unsentRemainder } from './collabPeer.js';
 
 /** A headless editor: a real EditorState with collab()+history(), driven by a peer core through a host. */
 async function makeEditor(server, user, opts = {}) {
@@ -620,5 +620,34 @@ describe('collabPeer metadata', () => {
     await advance(1000);
     expect(c.statuses.at(-1)).toBe('resync');
     expect(f3).toEqual([edits]);
+  });
+});
+
+describe('unsentRemainder (final review item 2)', () => {
+  const cap = (docText, unsyncedRanges) => ({
+    reason: 'restart', docText, unsyncedRanges, unsyncedText: unsyncedRanges.map(([a, b]) => docText.slice(a, b)).join('\n'),
+  });
+
+  it('drops what the joined doc holds and keeps what it lacks', () => {
+    expect(unsentRemainder(cap('Hello there unsent', [[5, 18]]), 'Hello there').unsyncedText).toBe(' unsent');
+    expect(unsentRemainder(cap('Hello there', [[5, 11]]), 'Hello there').unsyncedText).toBe('');
+    expect(unsentRemainder(cap('Hello there', [[5, 11]]), 'Hello').unsyncedText).toBe(' there');
+  });
+
+  it('a repeated character never hides a missing insert', () => {
+    // my insert is the first "a"; the draft holds one "a": one of mine is missing, whichever side it is placed
+    expect(unsentRemainder(cap('aa', [[0, 1]]), 'a').unsyncedText).toBe('a');
+  });
+
+  it('when others changed the draft too, every unsynced insert inside the difference is kept', () => {
+    // mine: " mine" at 5 (stored) and " lost" at the end (not); bob replaced the start meanwhile
+    const out = unsentRemainder(cap('Hello mine and lost', [[5, 10], [14, 19]]), 'Howdy mine and');
+    expect(out.unsyncedText).toContain('lost');
+  });
+
+  it('leaves a payload without a capture alone', () => {
+    const p = { reason: 'oversize', unsyncedText: 'x' };
+    expect(unsentRemainder(p, 'doc')).toBe(p);
+    expect(unsentRemainder(null, 'doc')).toBeNull();
   });
 });

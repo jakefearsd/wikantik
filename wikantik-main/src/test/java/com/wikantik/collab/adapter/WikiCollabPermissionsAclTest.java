@@ -56,4 +56,41 @@ class WikiCollabPermissionsAclTest {
         assertFalse( permissions.canEdit( user, "AclLocked" ) );
         assertTrue( permissions.canEdit( user, "AclOpen" ) );
     }
+
+    // test sessions share one id (one session per test): each test below logs in exactly one user
+
+    /** Ruling F1: a deleted page's last text still decides who may join its draft, read as the wiki reads its rules. */
+    @Test
+    void aMissingPagesAccessIsJudgedByTheGivenTextsRules() throws Exception {
+        final Session bob = WikiSessionTest.authenticatedSession( engine, Users.BOB, Users.BOB_PASS );
+        final WikiCollabPermissions permissions = new WikiCollabPermissions( engine );
+
+        assertFalse( permissions.isAdmin( bob ) );
+        assertFalse( permissions.mayAccessAsIf( bob, "GonePage", "[{ALLOW edit SomeOtherUser}]\nsecret" ) );
+        assertTrue( permissions.mayAccessAsIf( bob, "GonePage", "[{ALLOW edit Bob}]\nshared" ) );
+        assertFalse( permissions.mayAccessAsIf( bob, "GonePage", "[{ALLOW view Bob}]\nread only" ),
+            "view alone is not enough to join a draft" );
+        assertTrue( permissions.mayAccessAsIf( bob, "GonePage", "no rules at all" ) );
+        assertTrue( permissions.mayAccessAsIf( bob, "GonePage", "`[{ALLOW edit SomeOtherUser}]` is only an example" ),
+            "a rule shown as code is no rule, exactly as on a live page" );
+        assertFalse( permissions.mayAccessAsIf( bob, "GonePage", "[{ALLOW frobnicate Bob}]\nlocked" ),
+            "a rule the wiki cannot read locks the page" );
+    }
+
+    @Test
+    void nonSessionsAreRefused() {
+        final WikiCollabPermissions permissions = new WikiCollabPermissions( engine );
+
+        assertFalse( permissions.mayAccessAsIf( "not a session", "GonePage", "open" ) );
+        assertFalse( permissions.isAdmin( "not a session" ) );
+    }
+
+    @Test
+    void anAdministratorPassesAnyRules() throws Exception {
+        final Session admin = WikiSessionTest.adminSession( engine );
+        final WikiCollabPermissions permissions = new WikiCollabPermissions( engine );
+
+        assertTrue( permissions.isAdmin( admin ) );
+        assertTrue( permissions.mayAccessAsIf( admin, "GonePage", "[{ALLOW edit SomeOtherUser}]\nsecret" ) );
+    }
 }

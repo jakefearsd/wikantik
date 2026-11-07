@@ -29,12 +29,15 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 
 /**
  * The participants of one session (section 7.1) and the ids it issues. Participant ids are {@code <tag>p<n>}; a new
- * clientID is {@code <tag>c<n>}, but a join gets its prior clientID back when a participant of the same author held it
- * and left within the client retention (the idle-eviction period, A13) and no live participant holds it (section
- * 7.2 "same clientID"). The tag is unique per session load, so ids never repeat across restarts. Display names come from
+ * clientID is {@code <tag>c<n>}, but a join gets its prior clientID back when no live participant holds it and either
+ * a participant of the same author held it and left within the client retention (the idle-eviction period, A13), or the
+ * session's log holds updates with that clientID under the same author (a rejoin after a restart or an idle unload,
+ * whose memory of retired clientIDs is gone: its unacknowledged updates then come back as confirmations; section 7.2
+ * "same clientID"). The tag is unique per session load, so issued ids never repeat across restarts. Display names come from
  * {@link CollabIdentity} (the join's name only when it has none, a neutral {@code "Editor <n>"} when neither has one,
  * never the login); colours from a fixed palette by join order within the
  * session, never from the login (section 8.3). Guarded by the session lock.
@@ -63,6 +66,8 @@ final class Roster {
 
     private final String idTag;
     private final CollabIdentity identity;
+    /** Whether the session's log holds updates of (clientID, author key): a reclaim after a reload. */
+    private final BiPredicate< String, String > logged;
     private final Duration retention;
     /** How long a retired clientID is kept: at least the idle-eviction period, so an A13 re-login reclaims it. */
     private final Duration clientRetention;
@@ -84,8 +89,15 @@ final class Roster {
      *                        {@code retention}
      */
     Roster( final String idTag, final CollabIdentity identity, final Duration retention, final Duration clientRetention ) {
+        this( idTag, identity, retention, clientRetention, ( clientId, authorKey ) -> false );
+    }
+
+    /** @param logged whether the session's log holds updates with a clientID under an author key */
+    Roster( final String idTag, final CollabIdentity identity, final Duration retention, final Duration clientRetention,
+            final BiPredicate< String, String > logged ) {
         this.idTag = idTag;
         this.identity = identity;
+        this.logged = logged;
         this.retention = retention;
         this.clientRetention = clientRetention.compareTo( retention ) > 0 ? clientRetention : retention;
     }
@@ -132,13 +144,18 @@ final class Roster {
 
     private String clientIdFor( final JoinRequest r, final int n ) {
         final String prior = r.priorClientId();
-        final Retired retired = prior == null ? null : retiredClients.get( prior );
-        if( retired != null && r.authorKey().equals( retired.authorKey() )
-                && participants.values().stream().noneMatch( p -> p.clientId.equals( prior ) ) ) {
-            retiredClients.remove( prior );
-            return prior;
+        if( prior == null || participants.values().stream().anyMatch( p -> p.clientId.equals( prior ) ) ) {
+            return idTag + "c" + n;
         }
-        return idTag + "c" + n;
+        final Retired retired = retiredClients.get( prior );
+        if( retired != null ) {
+            if( r.authorKey().equals( retired.authorKey() ) ) {
+                retiredClients.remove( prior );
+                return prior;
+            }
+            return idTag + "c" + n;   // another author's: never adopted
+        }
+        return logged.test( prior, r.authorKey() ) ? prior : idTag + "c" + n;
     }
 
     /** Forgets the clientIDs and tombstones older than their retentions, so both stay bounded. */
@@ -182,6 +199,17 @@ final class Roster {
             }
         }
         return null;
+    }
+
+    /**
+     * True when {@code authorKey} is a participant of this session: live, or bound to a retired clientID or a tombstone
+     * still within its retention (ruling F1: the existing participants of a frozen draft keep access).
+     */
+    boolean knows( final String authorKey, final Instant now ) {
+        prune( now );
+        return participants.values().stream().anyMatch( p -> p.authorKey.equals( authorKey ) )
+            || retiredClients.values().stream().anyMatch( r -> r.authorKey().equals( authorKey ) )
+            || tombstones.values().stream().anyMatch( t -> t.authorKey().equals( authorKey ) );
     }
 
     Participant get( final String participantId ) {

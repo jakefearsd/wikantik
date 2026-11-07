@@ -328,6 +328,74 @@ describe('useCollabSession', () => {
     view.destroy();
   });
 
+  it('a push stored but whose answer was lost is not offered as unsent text after the restart; the true remainder is', async () => {
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    const base = server.transportFor('ada');
+    let lose = true;
+    const transport = {
+      ...base,
+      pull: async (q) => { await gate; return base.pull(q); },
+      push: async (b) => {
+        const r = await base.push(b);
+        if (lose && b.updates.length) { lose = false; throw new Error('network: the answer was lost'); }
+        return r;
+      },
+    };
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    view.dispatch({ changes: { from: 5, insert: ' there' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); }); // stored; the answer lost; backing off
+    expect(server.doc).toBe('Hello there');
+    view.dispatch({ changes: { from: view.state.doc.length, insert: ' unsent' } });
+    server.truncateBelow(1); // the client's cursor (0) is behind the ring: its pull answers 410
+    release();
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(result.current.status).toBe('resync');
+    expect(result.current.resync.unsyncedText).toContain('there'); // still unconfirmed on the client
+    view.destroy();
+    await act(async () => { await result.current.restart(); await vi.advanceTimersByTimeAsync(200); });
+    expect(result.current.status).toBe('live');
+    expect(result.current.docAtJoin).toBe('Hello there');
+    expect(result.current.resync.unsyncedText).toBe(' unsent'); // never ' there', which the draft already holds
+  });
+
+  it('after a restart whose join already holds every captured edit, nothing is offered as lost', async () => {
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    const base = server.transportFor('ada');
+    let lose = true;
+    const transport = {
+      ...base,
+      pull: async (q) => { await gate; return base.pull(q); },
+      push: async (b) => {
+        const r = await base.push(b);
+        if (lose && b.updates.length) { lose = false; throw new Error('network: the answer was lost'); }
+        return r;
+      },
+    };
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    view.dispatch({ changes: { from: 0, insert: 'Oh, ' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    expect(server.doc).toBe('Oh, Hello');
+    server.truncateBelow(1);
+    release();
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(result.current.resync.unsyncedText).toBe('Oh, ');
+    await act(async () => { await result.current.restart(); await vi.advanceTimersByTimeAsync(200); });
+    expect(result.current.resync.unsyncedText).toBe('');
+    view.destroy();
+  });
+
   it('restart() after the view was destroyed keeps the recovery payload that was already delivered', async () => {
     server = createFakeCollabServer({ initialText: 'Hello', maxPageBytes: 8 });
     const transport = server.transportFor('ada');

@@ -41,7 +41,7 @@ import { collab } from '@codemirror/collab';
 import { Transaction } from '@codemirror/state';
 import { ViewPlugin } from '@codemirror/view';
 import { createCollabTransport } from './collabTransport.js';
-import { collabPeer, createPeerHandle } from './collabPeer.js';
+import { collabPeer, createPeerHandle, unsentRemainder } from './collabPeer.js';
 import { displayNames, labelOf, remoteCursors, setRemotePresence } from './remoteCursors.js';
 import { externalHighlights, addExternalHighlight } from './externalHighlights.js';
 import { createMetaQueue, createMetaState, diffMeta, SET_FIELDS } from './collabMeta.js';
@@ -144,6 +144,8 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   const [presence, setPresence] = useState({});
   const [events, setEvents] = useState([]);
   const [resync, setResync] = useState(null);
+  // set by restart(): the next join narrows the recovery payload to what that join's doc does not hold
+  const narrowOnJoinRef = useRef(false);
   const transportRef = useRef(null);
   const sessionRef = useRef(null);
   const handleRef = useRef(null);
@@ -171,6 +173,11 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
           return;
         }
         sessionRef.current = { sessionId: j.sessionId, clientID: j.clientID, participantId: j.participantId };
+        if (narrowOnJoinRef.current) {
+          // never offer text the draft already holds (a stored push whose answer was lost): pasting it would duplicate it
+          narrowOnJoinRef.current = false;
+          setResync((prev) => (prev ? unsentRemainder(prev, j.doc) : prev));
+        }
         const bump = () => setMetaTick((t) => t + 1);
         const metaState = createMetaState({ meta: j.metadata ?? {}, metaSeq: j.metaSeq ?? 0 });
         /** Hands every unsent edit to the peer (they ride on its next push); without a mounted peer they wait. */
@@ -461,6 +468,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
       console.warn('[collab] could not clear carets before restart', e);
     }
     handle?.destroy();
+    narrowOnJoinRef.current = true;
     setEvents([]);
     setPresence({});
     presenceRef.current = {};

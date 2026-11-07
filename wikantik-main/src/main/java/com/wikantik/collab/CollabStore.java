@@ -73,6 +73,18 @@ public interface CollabStore {
      */
     List< StoredUpdate > updatesSince( UUID id, int sinceVersion );
 
+    /**
+     * True when the retained log of session {@code id} holds a text update with {@code clientId} under
+     * {@code authorKey}: a participant's clientID outlives a reload of the session only through its own stored updates,
+     * so a rejoin reclaims it (section 7.2 "same clientID") and the client's unacknowledged updates come back as
+     * confirmations. Server updates bind no clientID; an unknown session holds none. The default scans
+     * {@link #updatesSince}; stores answer it with one query.
+     */
+    default boolean holdsUpdatesFrom( final UUID id, final String clientId, final String authorKey ) {
+        return updatesSince( id, 0 ).stream().anyMatch( u -> StoredUpdate.TEXT.equals( u.kind() )
+            && u.clientId().equals( clientId ) && authorKey.equals( u.authorKey() ) );
+    }
+
     /** As {@link #appendUpdates}, applied to {@code seq} and {@code metaSeq}. */
     void appendMetaOps( UUID id, List< StoredMetaOp > ops );
 

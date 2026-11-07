@@ -198,6 +198,26 @@ final class Draft {
         }
     }
 
+    /**
+     * Whether the log holds a text update with {@code clientId} under {@code authorKey}: the ring first, then the store
+     * (a rejoin after a reload reclaims its clientID this way). A store that cannot tell answers false (logged): the
+     * join then gets a new clientID, and the client recovers its unconfirmed text as it would without the reclaim.
+     */
+    boolean logged( final String clientId, final String authorKey ) {
+        final boolean inRing = ring.asList().stream().anyMatch( u -> StoredUpdate.TEXT.equals( u.kind() )
+            && u.clientId().equals( clientId ) && authorKey.equals( u.authorKey() ) );
+        if( inRing ) {
+            return true;
+        }
+        try {
+            return store.holdsUpdatesFrom( id, clientId, authorKey );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: could not tell whether {} may reclaim a clientID; issuing a new one: {}", id,
+                authorKey, e.toString() );
+            return false;
+        }
+    }
+
     // ---- draft state ---------------------------------------------------------------------------------------------
 
     State state() {

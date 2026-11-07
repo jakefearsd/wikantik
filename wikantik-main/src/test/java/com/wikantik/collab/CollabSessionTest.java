@@ -728,7 +728,9 @@ class CollabSessionTest {
         assertEquals( 409, r.push( a.participantId(), "alice", 6, List.of() ).status() );
         final JoinResponse again = r.join( new JoinRequest( "alice", a.clientId(), null, "A", null, null ) );
         assertNotEquals( a.participantId(), again.participantId() );
-        assertNotEquals( a.clientId(), again.clientId(), "a reloaded session does not know pre-crash clientIDs" );
+        // final review item 2: the log holds alice's updates under her clientID, so the rejoin reclaims it (her
+        // unacknowledged updates come back as confirmations); participant ids still carry the new load's tag
+        assertEquals( a.clientId(), again.clientId(), "a reloaded session reclaims a clientID its log holds" );
         assertEquals( 200, r.push( again.participantId(), "alice", 6,
             List.of( new Update( again.clientId(), ChangeSet.replace( doc.length(), 0, 0, "Z" ) ) ) ).status() );
     }

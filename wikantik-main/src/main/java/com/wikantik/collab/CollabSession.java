@@ -174,7 +174,8 @@ public final class CollabSession {
         this.d = new Draft( record, ports.store(), maxPageBytes, config.historyInMemoryUpdates() );
         final int load = LOADS.computeIfAbsent( ports.store(), k -> new AtomicInteger() ).incrementAndGet();
         this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-", ports.identity(),
-            Duration.ofSeconds( config.presenceTimeoutSeconds() ), Duration.ofMinutes( config.memoryIdleEvictMinutes() ) );
+            Duration.ofSeconds( config.presenceTimeoutSeconds() ), Duration.ofMinutes( config.memoryIdleEvictMinutes() ),
+            d::logged );
         this.answers = new Answers( d, roster, new Waiters( id ), metrics );
         this.life = new Lifecycle( d, roster, answers, audit );
         this.pusher = new SessionPush( d, roster, answers, config );
@@ -935,6 +936,21 @@ public final class CollabSession {
             s.lock.lock();
             try {
                 return s.d.publishPending() || s.d.mergeQueued || s.d.mergeOwed;
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /**
+         * Ruling F1, for a join while the draft's page is missing: null when the draft needs no guard (a new page's
+         * draft, never published and not frozen) or {@code authorKey} is already a participant
+         * ({@link Roster#knows}); otherwise the draft's base text, whose access rules decide for everyone else.
+         */
+        static String guardingBase( final CollabSession s, final String authorKey ) {
+            s.lock.lock();
+            try {
+                final boolean guarded = s.d.frozen() || s.d.record.basePageVersion() > 0;
+                return guarded && !s.roster.knows( authorKey, s.clock.instant() ) ? s.d.record.baseBody() : null;
             } finally {
                 s.lock.unlock();
             }

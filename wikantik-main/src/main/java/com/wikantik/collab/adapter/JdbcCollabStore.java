@@ -161,6 +161,20 @@ public final class JdbcCollabStore implements CollabStore {
         }
     }
 
+    @Override
+    public boolean holdsUpdatesFrom( final UUID id, final String clientId, final String authorKey ) {
+        try {
+            return jdbc.queryOne( "SELECT 1 FROM collab_update WHERE session_id = ? AND kind = 'text' AND client_id = ?"
+                + " AND author_key = ? LIMIT 1", ps -> {
+                    ps.setObject( 1, id );
+                    ps.setString( 2, clientId );
+                    ps.setString( 3, authorKey );
+                }, rs -> Boolean.TRUE ).isPresent();
+        } catch( final SQLException e ) {
+            throw translate( e, "holdsUpdatesFrom " + id );
+        }
+    }
+
     // ---- meta ops ------------------------------------------------------------------------------------------
 
     @Override

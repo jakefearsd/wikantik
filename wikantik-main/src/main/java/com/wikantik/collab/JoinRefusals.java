@@ -27,7 +27,8 @@ import org.apache.logging.log4j.Logger;
 /**
  * The refusals {@link CollabSessionRegistry#join} makes before it touches a slot: 403 {@code forbidden} for a caller
  * without {@code edit}, or without {@code createPages} on a page that does not exist yet, then 409
- * {@code derived-page} (section 9).
+ * {@code derived-page} (section 9). And, once the session is open, ruling F1's guard of a draft whose page is missing
+ * ({@link #refuseMissingPagesDraft}).
  */
 final class JoinRefusals {
 
@@ -63,5 +64,31 @@ final class JoinRefusals {
                 e.toString() );
             return false;
         }
+    }
+
+    /**
+     * Ruling F1: the draft of a missing page (frozen, or based on a page that no longer exists) is joined only by its
+     * existing participants, by administrators, and by callers whom the draft's base text's access rules would let
+     * {@code view} and {@code edit} the page. Null to go on, else 403 {@code forbidden}. A check that throws refuses
+     * (logged): the deleted page's rules must keep protecting its unpublished text.
+     */
+    static Refused refuseMissingPagesDraft( final CollabPermissions permissions, final CollabSession s,
+                                            final JoinRequest r ) {
+        final String base = CollabSession.Hooks.guardingBase( s, r.authorKey() );
+        if( base == null ) {
+            return null;
+        }
+        final Object who = r.wikiSession();
+        try {
+            if( permissions.isAdmin( who ) || permissions.mayAccessAsIf( who, s.pageName(), base ) ) {
+                return null;
+            }
+            LOG.info( "collab: join of {} by {} refused: its page is gone and its last access rules do not admit them",
+                s.pageName(), r.authorKey() );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab: the access rules of the deleted page {} could not be evaluated for {}; refusing: {}",
+                s.pageName(), r.authorKey(), e.toString() );
+        }
+        return new Refused( 403, CollabSessionRegistry.FORBIDDEN );
     }
 }

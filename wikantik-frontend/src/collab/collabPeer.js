@@ -109,13 +109,19 @@ export function createCollabPeerCore({
     ws.forEach((w) => w(true));
   }
 
-  function unsyncedText(state) {
+  /** The unsynced inserts as `[from, to]` ranges of the current document (they end in it), in document order. */
+  function unsyncedRanges(state) {
     const updates = sendableUpdates(state);
-    if (!updates.length) return '';
+    if (!updates.length) return [];
     const composed = updates.map((u) => u.changes).reduce((a, b) => a.compose(b));
-    const parts = [];
-    composed.iterChanges((_fa, _ta, _fb, _tb, inserted) => { if (inserted.length) parts.push(inserted.toString()); });
-    return parts.join('\n');
+    const ranges = [];
+    composed.iterChanges((_fa, _ta, fromB, toB, inserted) => { if (inserted.length) ranges.push([fromB, toB]); });
+    return ranges;
+  }
+
+  function unsyncedText(state) {
+    const doc = state.doc.toString();
+    return unsyncedRanges(state).map(([from, to]) => doc.slice(from, to)).join('\n');
   }
 
   /** The peer is abandoning its queued meta (resync, permission loss): hand it back so the host can `failed()` it. */
@@ -145,7 +151,7 @@ export function createCollabPeerCore({
   /** The recovery payload for the document as it is now (A10: handed to the host, never re-applied). */
   function capture(reason) {
     const state = host.getState();
-    return { reason, docText: state.doc.toString(), unsyncedText: unsyncedText(state) };
+    return { reason, docText: state.doc.toString(), unsyncedText: unsyncedText(state), unsyncedRanges: unsyncedRanges(state) };
   }
 
   function resync(reason, { ghostParticipantId } = {}) {
@@ -402,6 +408,51 @@ export function createCollabPeerCore({
 }
 
 /** Lets React code reach the peer that CodeMirror instantiates inside the view. */
+/**
+ * The part of a captured recovery payload that the draft does not hold (final review item 2): `capture` is
+ * `{ docText, unsyncedRanges, unsyncedText }`, `doc` the text a fresh join returned. A push the server stored whose answer
+ * was lost is still unconfirmed in the capture; offering it as lost text would duplicate it on paste. The joined doc is
+ * aligned with the captured one by their common prefix and suffix (tried both ways round, as a repeated character can
+ * place the difference either side of it); when the difference lies wholly within the unsynced inserts, it is exactly
+ * what did not arrive. Otherwise others changed the draft too, and every unsynced insert inside the difference is kept
+ * (never fewer than may be missing). Returns the capture with `unsyncedText` (and its ranges) narrowed.
+ */
+export function unsentRemainder(capture, doc) {
+  if (!capture || typeof capture.docText !== 'string' || !Array.isArray(capture.unsyncedRanges) || typeof doc !== 'string') {
+    return capture;
+  }
+  const text = capture.docText;
+  const ranges = capture.unsyncedRanges;
+  const regions = [prefixFirst(text, doc), suffixFirst(text, doc)];
+  const covered = (r) => r[0] >= r[1] || ranges.some(([a, b]) => a <= r[0] && r[1] <= b);
+  const exact = regions.find(covered);
+  const region = exact ?? [Math.min(regions[0][0], regions[1][0]), Math.max(regions[0][1], regions[1][1])];
+  const kept = ranges
+    .map(([a, b]) => [Math.max(a, region[0]), Math.min(b, region[1])])
+    .filter(([a, b]) => a < b);
+  return { ...capture, unsyncedRanges: kept, unsyncedText: kept.map(([a, b]) => text.slice(a, b)).join('\n') };
+}
+
+/** `[from, to]` of `text` that `doc` lacks, taking the longest common prefix first. */
+function prefixFirst(text, doc) {
+  const max = Math.min(text.length, doc.length);
+  let p = 0;
+  while (p < max && text[p] === doc[p]) p += 1;
+  let q = 0;
+  while (q < max - p && text[text.length - 1 - q] === doc[doc.length - 1 - q]) q += 1;
+  return [p, text.length - q];
+}
+
+/** As {@link prefixFirst}, taking the longest common suffix first. */
+function suffixFirst(text, doc) {
+  const max = Math.min(text.length, doc.length);
+  let q = 0;
+  while (q < max && text[text.length - 1 - q] === doc[doc.length - 1 - q]) q += 1;
+  let p = 0;
+  while (p < max - q && text[p] === doc[p]) p += 1;
+  return [p, text.length - q];
+}
+
 export function createPeerHandle() {
   const handle = {
     core: null,

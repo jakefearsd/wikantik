@@ -123,6 +123,10 @@ class SimSchedulerTest {
     void crashRecoverAndLeaveAreWeightedWhereTheRulingsSay() {
         for( final SimProfile p : SimProfile.values() ) {
             assertEquals( 0, p.weight( Kind.EXTERNAL_SAVE ), p.name() );
+            for( final Kind sessionOnly : List.of( Kind.RELEASE_PUBLISH, Kind.STORE_FAULT, Kind.PERSIST_THEN_FAIL ) ) {
+                assertEquals( 0, p.weight( sessionOnly ), p.name() + " " + sessionOnly );
+                assertTrue( CollabSessionSimServer.OVERLAY.weights().get( sessionOnly ) > 0, sessionOnly.name() );
+            }
         }
         assertTrue( SimProfile.LOSSY.weight( Kind.CRASH_RECOVER ) > 0 );
         assertTrue( SimProfile.LOSSY.weight( Kind.LEAVE ) > 0 );
@@ -145,7 +149,7 @@ class SimSchedulerTest {
             SimScheduler.Overlay.NONE, 3 ).run( 120 );
         assertEquals( plain.toJson(), noOverlay.toJson() );
         final SimTrace overlaid = new SimScheduler( 5, SimProfile.LOSSY, SimScheduler.STUB, SimScheduler.STUB_RELOAD,
-            CollabSessionSimServer.OVERLAY, 3 ).run( 120 );
+            new SimScheduler.Overlay( Map.of( Kind.TRUNCATE, 2 ) ), 3 ).run( 120 );
         assertTrue( overlaid.toJson().contains( "\"action\": \"TRUNCATE\"" ) );
         assertFalse( plain.toJson().contains( "\"action\": \"TRUNCATE\"" ) );
     }
@@ -294,14 +298,15 @@ class SimSchedulerTest {
         }
         final Map< String, Long > lossy = seen.get( SimProfile.LOSSY );
         for( final String c : SimScheduler.COUNTERS ) {
-            if( !List.of( SimScheduler.TRUNCATIONS, SimScheduler.GONE_PULLS ).contains( c ) ) {
+            if( !List.of( SimScheduler.TRUNCATIONS, SimScheduler.GONE_PULLS ).contains( c )
+                    && !SimScheduler.SESSION_ONLY_COUNTERS.contains( c ) ) {
                 assertTrue( lossy.get( c ) > 0, "LOSSY never exercised " + c + ": " + lossy );
             }
         }
         // TIGHT is the A10 regime: everything LOSSY does, plus truncation and the 410 resync it causes
         final Map< String, Long > tight = seen.get( SimProfile.TIGHT );
         for( final String c : SimScheduler.COUNTERS ) {
-            if( !c.equals( SimScheduler.OUT_OF_ORDER_PULLS ) ) {
+            if( !c.equals( SimScheduler.OUT_OF_ORDER_PULLS ) && !SimScheduler.SESSION_ONLY_COUNTERS.contains( c ) ) {
                 assertTrue( tight.get( c ) > 0, "TIGHT never exercised " + c + ": " + tight );
             }
         }
@@ -314,6 +319,26 @@ class SimSchedulerTest {
         final Map< String, Long > agents = seen.get( SimProfile.AGENT_HEAVY );
         for( final String c : List.of( SimScheduler.LEAVES, SimScheduler.RECONNECTS, SimScheduler.DUPLICATE_ANSWERS ) ) {
             assertTrue( agents.get( c ) > 0, "AGENT_HEAVY never exercised " + c + ": " + agents );
+        }
+    }
+
+    @Test
+    void theSessionExploresPublishInsideTheSaveExternalMergeAndPublishFaults() {
+        // Task 4: publishes held inside the save while others push, pull and save from outside; publish-time store faults;
+        // saves that persist and then fail; crashes with a publish inside its save
+        final Map< String, Long > sum = new TreeMap<>();
+        for( final SimProfile p : List.of( SimProfile.PUBLISH_STORM, SimProfile.LOSSY, SimProfile.TIGHT ) ) {
+            for( long seed = 1; seed <= 60; seed++ ) {
+                final SimTrace t = SimTarget.SESSION.scheduler( seed, p, 2 + (int) ( seed % 3 ) ).run( 200 );
+                assertEquals( SimTrace.Status.PASS, t.outcome().status(), p + " " + seed + ": " + t.outcome().message() );
+                t.counters().forEach( ( k, v ) -> sum.merge( k, v, Long::sum ) );
+                if( seed % 20 == 0 ) {
+                    assertEquals( t.toJson(), SimTarget.SESSION.replay( t ).toJson(), p + " " + seed );
+                }
+            }
+        }
+        for( final String c : SimScheduler.SESSION_ONLY_COUNTERS ) {
+            assertTrue( sum.get( c ) > 0, "the session never exercised " + c + ": " + sum );
         }
     }
 

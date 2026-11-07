@@ -1,0 +1,142 @@
+{
+  "format": 1,
+  "seed": 2218,
+  "profile": "PUBLISH_STORM",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "strip-trailing-spaces",
+    "clients": 3
+  },
+  "initialDoc": "br字yts \ntn𝕏😀協pyj ",
+  "steps": [
+    {
+      "id": 7,
+      "action": "PUBLISH",
+      "client": 2
+    },
+    {
+      "id": 8,
+      "action": "LOCAL_EDIT",
+      "client": 1,
+      "from": 12,
+      "to": 12,
+      "insert": " ou"
+    },
+    {
+      "id": 9,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 13,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 18,
+      "action": "DELIVER",
+      "messageId": "13.0"
+    },
+    {
+      "id": 27,
+      "action": "DELIVER",
+      "messageId": "7.0"
+    },
+    {
+      "id": 33,
+      "action": "PERSIST_THEN_FAIL"
+    },
+    {
+      "id": 40,
+      "action": "STORE_FAULT",
+      "op": "UPDATE_SESSION"
+    },
+    {
+      "id": 67,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 73,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 4 (basePageVersion equals the writer's latest version) violated: basePageVersion=1 writer latest=2",
+    "at": "q1",
+    "kind": "invariant 4"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "br字yts \ntn𝕏😀協pyj \n"
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "br字yts \ntn𝕏😀協pyj \n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            12,
+            [
+              0,
+              " ou"
+            ],
+            8
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "br字yts \ntn𝕏 ou😀協pyj \n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                12,
+                [
+                  0,
+                  " ou"
+                ],
+                8
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "authorKey": "author-C",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p3",
+          "clientId": "mjuohs00.1-c3",
+          "version": 0,
+          "doc": "br字yts \ntn𝕏😀協pyj \n"
+        }
+      ]
+    }
+  ]
+}

@@ -97,6 +97,8 @@ class ConcurrencyHarnessTest {
         assertTrue( r.publishes() > 0, r.toString() );
         assertTrue( r.leaves() > 0, r.toString() );
         assertTrue( r.joins() > r.runs() * 12L, r.toString() );
+        // the session merges outside saves on the workers' threads (the harness also asserted no publish was left in flight)
+        assertEquals( "session".equals( name ), r.externalSaves() > 0, r.toString() );
     }
 
     @Test

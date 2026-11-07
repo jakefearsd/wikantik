@@ -247,6 +247,19 @@ public final class JdbcCollabStore implements CollabStore {
         }
     }
 
+    @Override
+    public Optional< Snapshot > snapshotAtOrBelow( final UUID id, final int version ) {
+        try {
+            return jdbc.queryOne( "SELECT version, meta_seq, base_page_version, body, meta::text, local_changes::text"
+                + " FROM collab_snapshot WHERE session_id = ? AND version <= ? ORDER BY version DESC LIMIT 1", ps -> {
+                    ps.setObject( 1, id );
+                    ps.setInt( 2, version );
+                }, CollabRows::mapSnapshot );
+        } catch( final SQLException e ) {
+            throw translate( e, "snapshotAtOrBelow " + id + " " + version );
+        }
+    }
+
     // ---- truncation and delete -----------------------------------------------------------------------------
 
     @Override

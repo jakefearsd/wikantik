@@ -25,12 +25,14 @@ import java.util.Map;
  * Action weights and knobs for one simulated regime (F1). The scheduler picks each step's action with probability
  * proportional to its weight among the actions that are possible at that moment.
  *
- * <p>{@link Kind#EXTERNAL_SAVE} is defined but weighted 0 everywhere: the stub ignores external saves until Phase 1.
+ * <p>{@link Kind#EXTERNAL_SAVE}, {@link Kind#RELEASE_PUBLISH}, {@link Kind#STORE_FAULT} and
+ * {@link Kind#PERSIST_THEN_FAIL} are weighted 0 in every profile: the stub has no external merge and no pending
+ * publish, so only the session's overlay ({@code CollabSessionSimServer.OVERLAY}) weights them.
  * {@link Kind#CRASH_RECOVER} (F8, ruling R1) is weighted in {@link #LOSSY} and {@link #TIGHT}; {@link Kind#LEAVE} (the server drops a
  * participant, as the presence timeout will) in {@link #LOSSY}, {@link #AGENT_HEAVY} and {@link #TIGHT}; {@link Kind#TRUNCATE}
  * (the server's A10 log truncation) in {@link #TIGHT} only. A server factory's weight overlay
  * ({@link SimScheduler.Overlay}) may weight any action for that server alone. Publish-time store faults and
- * {@code persistThenFail} are not offered at all against the stub (Task 10 ruling).</p>
+ * {@code persistThenFail} are never offered against the stub (Task 10 ruling).</p>
  */
 public enum SimProfile {
 
@@ -55,7 +57,7 @@ public enum SimProfile {
      * resyncs sends its own leave over the network instead.
      */
     public enum Kind { LOCAL_EDIT, SEND_PUSH, SEND_PULL, DELIVER, DROP, DUPLICATE, ADVANCE_CLOCK, EXTERNAL_SAVE, PUBLISH,
-        CRASH_RECOVER, LEAVE, TRUNCATE, TIMEOUT }
+        CRASH_RECOVER, LEAVE, TRUNCATE, RELEASE_PUBLISH, STORE_FAULT, PERSIST_THEN_FAIL, TIMEOUT }
 
     private final Map< Kind, Integer > weights;
     private final int pushTimeoutSteps;
@@ -92,6 +94,11 @@ public enum SimProfile {
         m.put( Kind.CRASH_RECOVER, crash );
         m.put( Kind.LEAVE, leave );
         m.put( Kind.TRUNCATE, truncate );
+        // weighted by a server's overlay only (the session's): a pending publish's release, a one-shot publish-time store
+        // fault, and a save that persists and then fails (E39)
+        m.put( Kind.RELEASE_PUBLISH, 0 );
+        m.put( Kind.STORE_FAULT, 0 );
+        m.put( Kind.PERSIST_THEN_FAIL, 0 );
         m.put( Kind.TIMEOUT, 0 );
         return m;
     }

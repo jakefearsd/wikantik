@@ -27,13 +27,24 @@ import java.util.Map;
  * 409 {@code rejoin}; 410 {@code resync} (the version is older than the ring and the store truncated below it, A10);
  * 503 {@code store}. {@code version} is the head. {@code presence} is the full map of the other live participants
  * (with or without a selection), keyed by participant id, when {@code presenceSeq} is newer than the request's {@code presenceSince},
- * else empty (A12, ruling P7; the requester is never in it).
+ * else empty (A12, ruling P7; the requester is never in it). {@code metaOps} are the meta ops after the request's
+ * {@code metaSince} up to {@code metaSeq}, and {@code events} the events after its {@code eventsSince} up to
+ * {@code eventSeq} (both empty when the request did not ask for them, {@link PullCursor}).
  */
 public record PullResponse( int status, List< Update > updates, int version, String reason,
-                            Map< String, PresenceEntry > presence, long presenceSeq ) {
+                            Map< String, PresenceEntry > presence, long presenceSeq, List< MetaOp > metaOps, long metaSeq,
+                            List< CollabEvent > events, long eventSeq ) {
     public PullResponse {
         updates = List.copyOf( updates );
         presence = Map.copyOf( presence );
+        metaOps = List.copyOf( metaOps );
+        events = List.copyOf( events );
+    }
+
+    /** Text and presence only. */
+    public PullResponse( final int status, final List< Update > updates, final int version, final String reason,
+                         final Map< String, PresenceEntry > presence, final long presenceSeq ) {
+        this( status, updates, version, reason, presence, presenceSeq, List.of(), 0, List.of(), 0 );
     }
 
     public static PullResponse refused( final int status, final int version, final String reason ) {

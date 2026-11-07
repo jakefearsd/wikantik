@@ -58,11 +58,30 @@ public final class TextDiff {
         final int aEnd = from.length() - suffix;
         final int bEnd = to.length() - suffix;
         if ( prefix < aEnd && prefix < bEnd ) {
-            lineHunks( from, prefix, aEnd, to, prefix, bEnd, hunks, maxD );
+            // the line diff must see whole lines: a character trim that stops mid-line leaves a partial line that no
+            // longer equals its whole twin on the other side, and the hunks around it merge across a kept line (which
+            // an OT merge then treats as deleted and re-inserted). Give the partial lines back; refine trims them again.
+            final int p = prefix == 0 ? 0 : from.lastIndexOf( '\n', prefix - 1 ) + 1;
+            final int s = lineAlignedSuffix( from, to, suffix );
+            lineHunks( from, p, from.length() - s, to, p, to.length() - s, hunks, maxD );
         } else if ( prefix < aEnd || prefix < bEnd ) {
             hunks.add( new int[] { prefix, aEnd, prefix, bEnd } );
         }
         return build( from, to, HunkScan.widenAndMerge( from, to, hunks ) );
+    }
+
+    /**
+     * {@code suffix} shortened so that it starts at a line start in both texts: kept when the character before it is a
+     * {@code \n} (or the text start) in both, else cut to begin after its own first {@code \n} (zero when it has none).
+     */
+    private static int lineAlignedSuffix( final String from, final String to, final int suffix ) {
+        final int aEnd = from.length() - suffix;
+        final int bEnd = to.length() - suffix;
+        if ( suffix == 0 || ( aEnd == 0 || from.charAt( aEnd - 1 ) == '\n' ) && ( bEnd == 0 || to.charAt( bEnd - 1 ) == '\n' ) ) {
+            return suffix;
+        }
+        final int nl = from.indexOf( '\n', aEnd );
+        return nl < 0 ? 0 : from.length() - nl - 1;
     }
 
     private static void lineHunks( final String a, final int a0, final int a1, final String b, final int b0, final int b1,

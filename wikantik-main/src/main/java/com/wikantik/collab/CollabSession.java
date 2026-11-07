@@ -19,25 +19,21 @@
 package com.wikantik.collab;
 
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
 import com.wikantik.collab.model.LeaveResponse;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
-import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.collab.model.PublishResponse;
+import com.wikantik.collab.model.PullCursor;
 import com.wikantik.collab.model.PullResponse;
 import com.wikantik.collab.model.PushResponse;
 import com.wikantik.collab.model.Selection;
 import com.wikantik.collab.model.SessionRecord;
-import com.wikantik.collab.model.Snapshot;
-import com.wikantik.collab.model.StoredMetaOp;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.model.Update;
 import com.wikantik.collab.text.ChangeSet;
 import com.wikantik.collab.text.CollabText;
-import com.wikantik.collab.text.TextDiff;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -55,34 +51,44 @@ import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
 /**
  * One page's live collaboration session: the central authority of {@code @codemirror/collab} (docs/MultiEdit.MD
- * section 7). Join, push (7.2), pull with long-poll parking (7.5), the in-memory ring with catch-up from the store
- * (7.6, A10), snapshots, log truncation and reload (7.7, E37).
+ * section 7). Join, push (7.2), publish (7.3, {@link PublishFlow}), external merge (7.4, {@link ExternalMerge}), pull
+ * with long-poll parking (7.5, {@link Answers}), the in-memory ring with catch-up from the store (7.6, A10), snapshots,
+ * log truncation and reload (7.7, E37). The state lives in a {@link Draft}.
  *
  * <p><b>Concurrency.</b> One {@link ReentrantLock} guards all state. The store is written while it is held (store
  * first, then memory, so both keep one order, section 12.4). Parked pulls ({@link PullWaiter}) are always completed
- * after the lock is released, from memory or the ring only: no store read follows a commit.</p>
+ * after the lock is released, from memory or the ring only: no store read follows a commit. A second lock,
+ * {@code baseLock}, serialises every change of the base page version (publish start and completion, external merges,
+ * the pending-publish rule) together with the page-store reads and diffs they need; it is always taken before the
+ * session lock and never while holding it, so pushes and pulls are never held up by a page-store read.</p>
  *
  * <p><b>Persistence.</b> {@link #create} writes the session and a version-0 snapshot; every base change goes through
- * {@link CollabStore#commitBaseChange}, which writes a snapshot with it; and a snapshot is written every
- * {@code snapshot.everyUpdates} accepted updates. {@link #load} rebuilds doc, head, local and the ring from the latest
- * snapshot plus the log after it. Participants and parked pulls are memory only: after a reload everyone rejoins, under
- * participant and client ids that carry a per-load tag (clock millis plus a per-store load count), so a straggler
- * request from before a restart can never be taken for a participant created after it.</p>
+ * {@link CollabStore#commitBaseChange}, which writes a snapshot of the live head with it; and a snapshot is written
+ * every {@code snapshot.everyUpdates} accepted updates. {@link #load} rebuilds doc, head, local and the ring from the
+ * latest snapshot plus the log after it, then finishes or clears a pending publish (A2, E39) and merges the page
+ * versions saved meanwhile (lazy reconciliation, E26). Participants and parked pulls are memory only: after a reload
+ * everyone rejoins, under participant and client ids that carry a per-load tag (clock millis plus a per-store load
+ * count), so a straggler request from before a restart can never be taken for a participant created after it.</p>
+ *
+ * <p><b>Publish</b> (section 7.3 with A1-A3, A5). {@link #startPublish} answers what it can before any save, reconciles
+ * by content hash (the A1 backstop), snapshots V, S_V, M_V on base B and stores the pending-publish marker; the page
+ * save then runs with no session lock held while editing continues; {@link #finishPublish} maps the save filters'
+ * rewrite N over the edits W made during the save and commits the new base. While a publish is in its save, external
+ * changes are queued and merged when it ends, each version against its predecessor. A save that persisted but whose
+ * completion was lost is claimed only when the saved version's text hash and author are the publish's
+ * ({@link #settle}, {@link #load}); any other version is an external write. After every publish and merge each
+ * participant's {@code edit} is re-checked and those who lost it are evicted.</p>
  *
  * <p><b>Presence</b> (A12, ruling P7) rides on push and pull: a push without updates only records the selection and
  * skips the version check. Joins, leaves and selection changes move {@code presenceSeq}; a pull whose
  * {@code presenceSince} is older gets the full map of the other participants (display name from {@link CollabIdentity},
- * colour by join order) at once, and parked pulls are woken with it.</p>
- *
- * <p><b>Not here yet:</b> meta ops on push and pull ({@code metaOps}/{@code metaSeq} beyond A11's initial meta) and the
- * section 6.2 event stream ({@code events}/{@code eventSeq}) arrive with the Task 4 publish/merge work and the Task 5
- * registry; wake-up coalescing (A8, about 50 ms) is the HTTP resource's (Task 7).</p>
- *
- * <p><b>Publish</b> here is the Phase 0 stub's naive form (the save runs under the lock; no pending-publish marker),
- * kept so the harness can drive publishes; Task 4 replaces it with section 7.3.</p>
+ * colour by join order) at once, and parked pulls are woken with it. Meta ops and the event stream
+ * ({@code published}, {@code publish-failed}, {@code external-change}, {@code oversize}) ride on pull the same way
+ * ({@link PullCursor}).</p>
  */
 public final class CollabSession {
 
@@ -95,6 +101,9 @@ public final class CollabSession {
     static final String NOT_YOURS = "not-your-participant";
     static final String REJECTED = "rejected";
     static final String STORE = "store";
+    static final String NOT_SYNCED = "not-synced";
+    static final String MERGED_RETRY = "publish-merged-retry";
+    static final String IN_PROGRESS = "publish-in-progress";
     /** Loads per store, for the id tag (see the class comment). */
     private static final Map< CollabStore, AtomicInteger > LOADS = Collections.synchronizedMap( new WeakHashMap<>() );
 
@@ -102,48 +111,39 @@ public final class CollabSession {
     public record View( UUID id, String pageName, String doc, int head, String baseBody, ChangeSet local,
                         int basePageVersion, List< StoredUpdate > ring, boolean oversize, long oversizeCeiling,
                         long maxPageBytes, long metaSeq, Map< String, Object > meta, Instant lastEditAt,
-                        Map< String, Selection > selections, int participants, long presenceSeq ) {
+                        Map< String, Selection > selections, int participants, long presenceSeq, boolean publishPending,
+                        boolean reconcilePending ) {
     }
 
     private final UUID id;
-    private final CollabStore store;
     private final CollabPageWriter writer;
+    private final CollabPermissions permissions;
     private final Clock clock;
     private final CollabConfig config;
-    private final Oversize oversize;
     private final ReentrantLock lock = new ReentrantLock();
-
-    private SessionRecord record;
-    private String doc;
-    private int head;
-    private final UpdateRing ring;
-    private ChangeSet local;
-    private Map< String, Object > meta;
-    private long metaSeq;
-    private Instant lastEditAt;
-    private int lastSnapshotVersion;
+    /** Serialises base changes; taken before {@link #lock}, never while holding it. */
+    private final ReentrantLock baseLock = new ReentrantLock();
+    private final Draft d;
+    private final Roster roster;
+    private final Answers answers;
+    private final PublishFlow flow;
     /** Created here and not yet joined: the first join may seed initial text (A11). */
     private boolean fresh;
 
-    private long presenceSeq;
-    private final Roster roster;
-    private final Waiters waiters;
-
-    private CollabSession( final SessionRecord record, final CollabStore store, final CollabPageWriter writer,
-                           final CollabIdentity identity, final Clock clock, final CollabConfig config,
+    private CollabSession( final SessionRecord record, final CollabPorts ports, final CollabConfig config,
                            final long maxPageBytes ) {
         this.id = record.id();
-        this.record = record;
-        this.store = Objects.requireNonNull( store, "store" );
-        this.writer = Objects.requireNonNull( writer, "writer" );
-        this.clock = Objects.requireNonNull( clock, "clock" );
+        this.writer = ports.writer();
+        this.permissions = ports.permissions();
+        this.clock = ports.clock();
         this.config = Objects.requireNonNull( config, "config" );
-        this.oversize = new Oversize( maxPageBytes );
-        this.ring = new UpdateRing( config.historyInMemoryUpdates() );
-        final int load = LOADS.computeIfAbsent( store, k -> new AtomicInteger() ).incrementAndGet();
-        this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-",
-            Objects.requireNonNull( identity, "identity" ), Duration.ofSeconds( config.presenceTimeoutSeconds() ) );
-        this.waiters = new Waiters( id );
+        this.d = new Draft( record, ports.store(), maxPageBytes, config.historyInMemoryUpdates() );
+        final int load = LOADS.computeIfAbsent( ports.store(), k -> new AtomicInteger() ).incrementAndGet();
+        this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-", ports.identity(),
+            Duration.ofSeconds( config.presenceTimeoutSeconds() ) );
+        this.answers = new Answers( d, roster, new Waiters( id ) );
+        this.flow = new PublishFlow( d, lock, writer, ports.identity(), answers,
+            new ExternalMerge( d, lock, writer, ports.identity(), answers ) );
     }
 
     // ---- creation and reload ---------------------------------------------------------------------------------
@@ -167,16 +167,15 @@ public final class CollabSession {
      * @throws IllegalArgumentException when the record is not at head and metaSeq 0
      * @throws IllegalStateException    when the page already has a session (from the store)
      */
-    public static CollabSession create( final SessionRecord rec, final CollabStore store, final CollabPageWriter writer,
-                                        final CollabIdentity identity, final Clock clock, final CollabConfig config,
+    public static CollabSession create( final SessionRecord rec, final CollabPorts ports, final CollabConfig config,
                                         final long maxPageBytes ) {
-        final SessionRecord stored = SessionLoader.create( rec, store );
-        final CollabSession s = new CollabSession( stored, store, writer, identity, clock, config, maxPageBytes );
-        s.doc = stored.baseBody();
-        s.local = ChangeSet.empty( s.doc.length() );
-        s.meta = MetaJson.normalise( stored.baseMeta() );
+        final SessionRecord stored = SessionLoader.create( rec, ports.store() );
+        final CollabSession s = new CollabSession( stored, ports, config, maxPageBytes );
+        s.d.doc = stored.baseBody();
+        s.d.local = ChangeSet.empty( s.d.doc.length() );
+        s.d.meta = MetaJson.normalise( stored.baseMeta() );
         s.fresh = true;
-        s.oversize.update( s.doc, true );
+        s.d.oversize.update( s.d.doc, true );
         return s;
     }
 
@@ -184,24 +183,28 @@ public final class CollabSession {
      * Rebuilds a session from the store (section 7.7, E37): doc and head from the latest snapshot plus the log after it,
      * meta from the snapshot plus the meta ops after it, local from the snapshot's local composed with the log (or
      * {@code TextDiff.changeSet(baseBody, doc)} when the snapshot belongs to another base), the ring from the log's tail.
+     * Then the pending-publish rule (A2, E39) and lazy reconciliation with the page's later versions, in version order
+     * (E26); a failure there is logged and left for {@link #settle}.
      *
      * @throws IllegalStateException when the session or its snapshot is missing, or the log is not contiguous from the
      *                               snapshot to the recorded head
      */
-    public static CollabSession load( final UUID id, final CollabStore store, final CollabPageWriter writer,
-                                      final CollabIdentity identity, final Clock clock, final CollabConfig config,
+    public static CollabSession load( final UUID id, final CollabPorts ports, final CollabConfig config,
                                       final long maxPageBytes ) {
-        final SessionLoader.Loaded l = SessionLoader.load( id, store, config.historyInMemoryUpdates() );
-        final CollabSession s = new CollabSession( l.record(), store, writer, identity, clock, config, maxPageBytes );
-        s.doc = l.doc();
-        s.head = l.head();
-        s.local = l.local();
-        s.meta = MetaJson.normalise( l.meta() );
-        s.metaSeq = l.record().metaSeq();
-        s.lastEditAt = l.record().lastEditAt();
-        s.lastSnapshotVersion = l.snapshotVersion();
-        s.ring.addAll( l.ring() );
-        s.oversize.update( s.doc, true );
+        final SessionLoader.Loaded l = SessionLoader.load( id, ports.store(), config.historyInMemoryUpdates() );
+        final CollabSession s = new CollabSession( l.record(), ports, config, maxPageBytes );
+        final Draft d = s.d;
+        d.doc = l.doc();
+        d.head = l.head();
+        d.local = l.local();
+        d.meta = MetaJson.normalise( l.meta() );
+        d.metaSeq = l.record().metaSeq();
+        d.lastEditAt = l.record().lastEditAt();
+        d.lastSnapshotVersion = l.snapshotVersion();
+        d.ring.addAll( l.ring() );
+        d.feed.addMetaOps( ports.store().metaOpsSince( id, Math.max( 0, d.metaSeq - config.historyInMemoryUpdates() ) ) );
+        d.oversize.update( d.doc, true );
+        s.settle();
         return s;
     }
 
@@ -214,7 +217,7 @@ public final class CollabSession {
     public String pageName() {
         lock.lock();
         try {
-            return record.pageName();
+            return d.pageName();
         } finally {
             lock.unlock();
         }
@@ -238,44 +241,18 @@ public final class CollabSession {
         lock.lock();
         try {
             if( fresh ) {
-                seed( r );
+                d.seed( r, clock.instant() );
                 fresh = false;
             }
-            final Participant p = roster.add( r, clock.instant(), head, config.pushesPerSecond() );
-            presenceChanged( p.id, completions );
-            out = new JoinResponse( id, p.id, p.clientId, head, doc, metaSeq, meta, record.basePageVersion(),
-                roster.peers(), hasUnpublished(), lastEditAt );
+            final Participant p = roster.add( r, clock.instant(), d.head, config.pushesPerSecond() );
+            answers.presenceChanged( p.id, completions );
+            out = new JoinResponse( id, p.id, p.clientId, d.head, d.doc, d.metaSeq, d.meta, d.record.basePageVersion(),
+                roster.peers(), d.hasUnpublished(), d.lastEditAt );
         } finally {
             lock.unlock();
         }
         completions.forEach( Runnable::run );
         return out;
-    }
-
-    private void seed( final JoinRequest r ) {
-        if( r.initialText() != null ) {
-            final String text = CollabText.toLf( r.initialText() );
-            if( CollabText.hasLoneSurrogate( text ) ) {
-                throw new IllegalArgumentException( "initialText holds a lone UTF-16 surrogate" );
-            }
-            if( !text.equals( doc ) ) {
-                final StoredUpdate u = new StoredUpdate( head + 1, StoredUpdate.SERVER, SERVER_CLIENT, r.authorKey(),
-                    TextDiff.changeSet( doc, text ) );
-                store.appendUpdates( id, List.of( u ) );
-                applyAccepted( List.of( u ), text );
-                lastEditAt = clock.instant();
-                oversize.update( doc, true );
-            }
-        }
-        if( r.initialMeta() != null ) {
-            final List< StoredMetaOp > ops = SessionLoader.metaOps( meta, MetaJson.normalise( r.initialMeta() ), metaSeq,
-                r.authorKey() );
-            if( !ops.isEmpty() ) {
-                store.appendMetaOps( id, ops );
-                ops.forEach( op -> SessionLoader.applyMetaOp( meta, op ) );
-                metaSeq += ops.size();
-            }
-        }
     }
 
     /**
@@ -302,8 +279,8 @@ public final class CollabSession {
     }
 
     /**
-     * Server-side removal with no author check, for the registry only (presence timeout, revoked permission, deleted
-     * user): never call it on behalf of a request. Unknown ids are ignored.
+     * Server-side removal with no author check, for the registry and the permission re-check only (presence timeout,
+     * revoked permission, deleted user): never call it on behalf of a request. Unknown ids are ignored.
      */
     public void evict( final String participantId ) {
         final List< Runnable > completions = new ArrayList<>();
@@ -320,11 +297,11 @@ public final class CollabSession {
         if( roster.remove( participantId, clock.instant() ) == null ) {
             return;
         }
-        final Runnable parked = waiters.remove( participantId, answer( List.of(), participantId, -1 ) );
+        final Runnable parked = answers.removeParked( participantId );
         if( parked != null ) {
             completions.add( parked );
         }
-        presenceChanged( participantId, completions );
+        answers.presenceChanged( participantId, completions );
     }
 
     // ---- push ------------------------------------------------------------------------------------------------
@@ -358,54 +335,45 @@ public final class CollabSession {
         final Participant p = roster.get( participantId );
         final Instant now = clock.instant();
         final Gate.Refusal refused = Gate.push( p, authorKey, now, config.pushesPerSecond(),
-            SessionRecord.FROZEN.equals( record.status() ) );
+            SessionRecord.FROZEN.equals( d.record.status() ) );
         if( refused != null ) {
-            return PushResponse.refused( refused.status(), head, refused.reason() );
+            return PushResponse.refused( refused.status(), d.head, refused.reason() );
         }
-        Gate.confirm( p, version, head );
+        Gate.confirm( p, version, d.head );
         if( updates.isEmpty() ) {
             // presence-only push (ruling P7): no version check, the selection is placed by its own version
             if( keepSelection( p, selection ) ) {
-                presenceChanged( p.id, completions );
+                answers.presenceChanged( p.id, completions );
             }
-            return PushResponse.accepted( head );
+            return PushResponse.accepted( d.head );
         }
-        if( version != head ) {
-            return PushResponse.refused( 409, head, STALE );
+        if( version != d.head ) {
+            return PushResponse.refused( 409, d.head, STALE );
         }
-        final PushCheck check = PushCheck.of( p, updates, doc, head, oversize.maxPageBytes() );
+        final PushCheck check = PushCheck.of( p, updates, d.doc, d.head, d.oversize.maxPageBytes() );
         if( check.refusal() != null ) {
-            return PushResponse.refused( check.refusal().status(), head, check.refusal().reason() );
+            return PushResponse.refused( check.refusal().status(), d.head, check.refusal().reason() );
         }
         final List< StoredUpdate > accepted = check.accepted();
         try {
-            store.appendUpdates( id, accepted );
+            d.store.appendUpdates( id, accepted );
         } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): push from {} not stored, nothing applied: {}", id, record.pageName(),
+            LOG.warn( "collab session {} ({}): push from {} not stored, nothing applied: {}", id, d.pageName(),
                 participantId, e.getMessage() );
-            return PushResponse.refused( 503, head, STORE );
+            return PushResponse.refused( 503, d.head, STORE );
         }
-        applyAccepted( accepted, check.next() );
-        lastEditAt = now;
-        oversize.update( doc, false );
-        final Selection own = Presence.afterOwnPush( selection, version, accepted.size(), doc.length(), head );
+        d.applyAccepted( accepted, check.next() );
+        d.lastEditAt = now;
+        d.oversize.update( d.doc, false );
+        final Selection own = Presence.afterOwnPush( selection, version, accepted.size(), d.doc.length(), d.head );
         if( own != null ? Presence.set( p, own ) : keepSelection( p, selection ) ) {
-            presenceSeq++;
+            d.presenceSeq++;
         }
-        maybeSnapshot();
-        wakeAll( accepted, completions );
-        return PushResponse.accepted( head );
-    }
-
-    private void applyAccepted( final List< StoredUpdate > accepted, final String next ) {
-        ChangeSet l = local;
-        for( final StoredUpdate u : accepted ) {
-            l = l.compose( u.changes() );
+        if( d.snapshotDue( config.snapshotEveryUpdates() ) ) {
+            d.snapshot( roster.lowestConfirmed( d.head ) );
         }
-        ring.addAll( accepted );
-        local = l;
-        doc = next;
-        head += accepted.size();
+        answers.wakeAll( accepted, completions );
+        return PushResponse.accepted( d.head );
     }
 
     // ---- pull ------------------------------------------------------------------------------------------------
@@ -427,97 +395,50 @@ public final class CollabSession {
      */
     public PullResponse pullOrPark( final String participantId, final String authorKey, final int since,
                                     final long presenceSince, final Selection selection, final PullWaiter waiter ) {
+        return pullOrPark( participantId, authorKey, PullCursor.text( since, presenceSince ), selection, waiter );
+    }
+
+    /**
+     * The full pull (section 6.2 as amended): text from {@code cursor.since()}, and the meta ops, presence and events
+     * after their cursors. Answers at once when any stream is ahead of its cursor, else parks.
+     */
+    public PullResponse pullOrPark( final String participantId, final String authorKey, final PullCursor cursor,
+                                    final Selection selection, final PullWaiter waiter ) {
+        Objects.requireNonNull( cursor, "cursor" );
         Objects.requireNonNull( waiter, "waiter" );
+        final int since = cursor.since();
         final List< Runnable > completions = new ArrayList<>();
-        Runnable displaced = null;
         final PullResponse out;
         lock.lock();
         try {
             final Participant p = roster.get( participantId );
             final Gate.Refusal refused = Gate.identity( p, authorKey );
             if( refused != null ) {
-                return PullResponse.refused( refused.status(), head, refused.reason() );
+                return PullResponse.refused( refused.status(), d.head, refused.reason() );
             }
             p.touch( clock.instant() );
-            if( since < 0 || since > head ) {
-                return PullResponse.refused( 400, head, "bad-since" );
+            if( since < 0 || since > d.head ) {
+                return PullResponse.refused( 400, d.head, "bad-since" );
             }
             p.confirm( since );
-            final long seen = presenceSeq;
+            final long seen = d.presenceSeq;
             if( keepSelection( p, selection ) ) {
-                presenceChanged( participantId, completions );
+                answers.presenceChanged( participantId, completions );
             }
-            if( since < head ) {
-                out = catchUp( since, participantId, presenceSince );
-            } else if( presenceSince < seen ) {
-                out = answer( List.of(), participantId, presenceSince );
+            if( since < d.head ) {
+                out = answers.catchUp( cursor, participantId );
+            } else if( answers.ahead( cursor, seen ) ) {
+                out = answers.answer( List.of(), participantId, cursor );
             } else {
-                displaced = waiters.park( participantId, since, presenceSince,
-                    clock.instant().plusSeconds( config.pollTimeoutSeconds() ), waiter,
-                    answer( List.of(), participantId, -1 ) );
+                answers.park( participantId, cursor, clock.instant().plusSeconds( config.pollTimeoutSeconds() ), waiter,
+                    completions );
                 out = null;
             }
         } finally {
             lock.unlock();
         }
-        if( displaced != null ) {
-            completions.add( displaced );
-        }
         completions.forEach( Runnable::run );
         return out;
-    }
-
-    /** Catch-up for a pull: the ring when it reaches back far enough, else the store; 410 when the store truncated. */
-    private PullResponse catchUp( final int since, final String participantId, final long presenceSince ) {
-        // heavy work under the lock: a store read for a client below the ring; rare by design (A10) and bounded by the
-        // retained log, and it keeps the answer consistent with the head it reports
-        if( ring.covers( since ) ) {
-            return answer( ring.after( since ), participantId, presenceSince );
-        }
-        final List< StoredUpdate > log;
-        try {
-            log = SessionLoader.contiguousSince( store, id, since, head );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): catch-up read from {} failed: {}", id, record.pageName(), since,
-                e.getMessage() );
-            return PullResponse.refused( 503, head, STORE );
-        }
-        return log == null ? PullResponse.refused( 410, head, "resync" ) : answer( log, participantId, presenceSince );
-    }
-
-    /** A 200 answer; the presence map is included when {@code presenceSince} is older than the sequence (-1: always). */
-    private PullResponse answer( final List< StoredUpdate > updates, final String participantId, final long presenceSince ) {
-        final List< Update > out = new ArrayList<>( updates.size() );
-        for( final StoredUpdate u : updates ) {
-            out.add( new Update( u.clientId(), u.changes() ) );
-        }
-        return new PullResponse( 200, out, head, null,
-            presenceSince < presenceSeq ? roster.presenceExcept( participantId ) : Map.of(), presenceSeq );
-    }
-
-    /** A join, leave or selection change: the sequence moves and every other parked pull behind it is answered. */
-    private void presenceChanged( final String changedBy, final List< Runnable > completions ) {
-        presenceSeq++;
-        completions.addAll( waiters.drainWhere( presenceSeq, changedBy,
-            ( participantId, since, presenceSince ) -> answer( List.of(), participantId, presenceSince ) ) );
-    }
-
-    /**
-     * Answers every parked pull after {@code batch} was applied, from memory only: the ring, or the batch itself when it
-     * was longer than the ring (amendment: no store read after a commit). Every waiter parked at the previous head.
-     */
-    private void wakeAll( final List< StoredUpdate > batch, final List< Runnable > completions ) {
-        completions.addAll( waiters.drainAll( ( participantId, since, presenceSince ) -> {
-            if( ring.covers( since ) ) {
-                return answer( ring.after( since ), participantId, presenceSince );
-            }
-            if( !batch.isEmpty() && batch.get( 0 ).version() <= since + 1 ) {
-                return answer( batch.stream().filter( u -> u.version() > since ).toList(), participantId, presenceSince );
-            }
-            LOG.warn( "collab session {}: parked pull of {} from {} is not in memory; answering resync", id, participantId,
-                since );
-            return PullResponse.refused( 410, head, "resync" );
-        } ) );
     }
 
     /**
@@ -527,168 +448,264 @@ public final class CollabSession {
     public List< Runnable > expireWaiters() {
         lock.lock();
         try {
-            return waiters.expire( clock.instant(),
-                ( participantId, since, presenceSince ) -> answer( List.of(), participantId, presenceSince ) );
+            return answers.expire( clock.instant() );
         } finally {
             lock.unlock();
         }
     }
 
-    // ---- presence --------------------------------------------------------------------------------------------
-
     private boolean keepSelection( final Participant p, final Selection s ) {
-        return Presence.keep( p, s, ring, doc.length(), head );
-    }
-
-    // ---- snapshots and truncation ------------------------------------------------------------------------------
-
-    /** Every {@code snapshot.everyUpdates}: a snapshot, the draft markers, then truncation. Failures only warn (E36). */
-    private void maybeSnapshot() {
-        if( head - lastSnapshotVersion < config.snapshotEveryUpdates() ) {
-            return;
-        }
-        try {
-            store.writeSnapshot( id, new Snapshot( head, metaSeq, record.basePageVersion(), doc, meta, local ) );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): snapshot at {} failed; retried on the next push: {}", id, record.pageName(),
-                head, e.getMessage() );
-            return;
-        }
-        lastSnapshotVersion = head;
-        try {
-            record = SessionLoader.draftMarkers( record, hasUnpublished(), lastEditAt );
-            store.updateSession( record );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): draft markers not stored: {}", id, record.pageName(), e.getMessage() );
-        }
-        truncateLocked();
+        return Presence.keep( p, s, d.ring, d.doc.length(), d.head );
     }
 
     /**
      * A10: truncates the store's log below the lowest version a live participant has confirmed (the head when nobody is
-     * here); the store clamps the cut to its newest snapshot at or below it. Returns the cut asked for, or -1 when the
-     * store refused (logged).
+     * here), and never above a pending publish's version, so S_V stays rebuildable for the pending-publish rule (E39);
+     * the store clamps the cut to its newest snapshot at or below it. Returns the cut asked for, or -1 when the store
+     * refused (logged).
      */
     public int truncateLog() {
         lock.lock();
         try {
-            return truncateLocked();
+            return d.truncate( roster.lowestConfirmed( d.head ) );
         } finally {
             lock.unlock();
         }
     }
 
-    private int truncateLocked() {
-        final int cut = roster.lowestConfirmed( head );
-        try {
-            store.truncateUpdatesBelow( id, cut );
-            return cut;
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): truncation below {} failed: {}", id, record.pageName(), cut, e.getMessage() );
-            return -1;
-        }
-    }
-
-    // ---- publish (naive until Task 4) --------------------------------------------------------------------------
+    // ---- publish (section 7.3) ---------------------------------------------------------------------------------
 
     /**
-     * The Phase 0 stub's naive publish, kept until Task 4: requires {@code version == head}, saves {@code doc} under
-     * the lock, then commits the base change (a server update when the save filters rewrote the text, plus the
-     * snapshot) through {@link CollabStore#commitBaseChange}. A store failure after the page save answers 503 and
-     * leaves memory at the old base; Task 4's pending-publish marker makes that recoverable (E39).
+     * Section 7.3 in one call: {@link #startPublish}, the page save with no session lock held, then
+     * {@link #finishPublish} or {@link #failPublish}. The server publishes the head, which may include colleagues' last
+     * keystrokes; {@code version} is the publisher's synced version and must be one the session issued.
      */
     public PublishResponse publish( final String participantId, final String authorKey, final int version,
                                     final String changeNote ) {
-        final List< Runnable > completions = new ArrayList<>();
-        final PublishResponse out;
+        final PublishStart st = startPublish( participantId, authorKey, version, changeNote );
+        if( st.response() != null ) {
+            return st.response();
+        }
+        final PublishOutcome saved;
+        try {
+            saved = writer.publish( st.ticket().request() );
+        } catch( final WikiException | RuntimeException e ) {
+            return failPublish( st.ticket(), e );
+        }
+        return finishPublish( st.ticket(), saved );
+    }
+
+    /**
+     * The first half of a publish: the identity check, 423 {@code publish-in-progress} while another publish runs (E18),
+     * 409 {@code not-synced} for a version the session never issued; then the pending-publish rule for an earlier
+     * unfinished publish, the A1 backstop (409 {@code publish-merged-retry} when an unseen outside change was merged),
+     * 200 {@code unchanged} (E21), 400 {@code empty} (E1), 413 {@code oversize}; else the pending-publish marker is
+     * stored and the ticket returned. The caller must end a ticket with {@link #finishPublish} or {@link #failPublish}.
+     */
+    public PublishStart startPublish( final String participantId, final String authorKey, final int version,
+                                      final String changeNote ) {
+        final Participant p;
         lock.lock();
         try {
-            out = publishLocked( participantId, authorKey, version, changeNote, completions );
+            p = roster.get( participantId );
+            final Gate.Refusal refused = Gate.identity( p, authorKey );
+            if( refused != null ) {
+                return flow.answered( refused.status(), refused.reason() );
+            }
+            Gate.confirm( p, version, d.head );
+            if( d.publishing ) {
+                return flow.answered( 423, IN_PROGRESS );
+            }
+            if( version < 0 || version > d.head ) {
+                return flow.answered( 409, NOT_SYNCED );
+            }
+            d.publishing = true;
         } finally {
             lock.unlock();
+        }
+        final List< Runnable > completions = new ArrayList<>();
+        PublishStart out = null;
+        baseLock.lock();
+        try {
+            out = flow.start( p, changeNote == null ? "" : changeNote, completions );
+        } finally {
+            baseLock.unlock();
+            if( out == null || out.response() != null ) {
+                endPublish();
+            }
         }
         completions.forEach( Runnable::run );
         return out;
     }
 
-    private PublishResponse publishLocked( final String participantId, final String authorKey, final int version,
-                                           final String changeNote, final List< Runnable > completions ) {
-        final Participant p = roster.get( participantId );
-        final PublishResponse refused = refusePublish( p, authorKey, version );
-        if( refused != null ) {
-            return refused;
-        }
-        final int base = record.basePageVersion();
-        final PublishOutcome saved;
-        try {
-            saved = writer.publish( new PublishRequest( record.pageName(), doc, meta, base, p.authorKey,
-                changeNote == null ? "" : changeNote ) );
-        } catch( final VersionConflictException e ) {
-            LOG.warn( "collab session {}: publish of {} refused: {}", id, record.pageName(), e.getMessage() );
-            return new PublishResponse( 409, base, STALE, false );
-        } catch( final WikiException e ) {
-            LOG.warn( "collab session {}: publish of {} refused: {}", id, record.pageName(), e.getMessage() );
-            return new PublishResponse( 422, base, "writer-refused", false );
-        }
-        return commitPublished( saved, completions );
-    }
-
-    /** The answers a publish gets before anything is saved, or null when it may go ahead. */
-    private PublishResponse refusePublish( final Participant p, final String authorKey, final int version ) {
-        final int base = record.basePageVersion();
-        final Gate.Refusal refused = Gate.identity( p, authorKey );
-        if( refused != null ) {
-            return new PublishResponse( refused.status(), base, refused.reason(), false );
-        }
-        Gate.confirm( p, version, head );
-        return Gate.publishable( version, head, hasUnpublished(), doc.isEmpty(), base );
+    /**
+     * The second half of a successful save (section 7.3): N (the filters' rewrite of S_V) is diffed outside the lock, W
+     * (the edits made during the save) composed, {@code N.map(W)} appended as a server update, {@code local = W.map(N)}
+     * on the new base, filter-made meta changes folded as server meta ops (stored before the base change), and the base
+     * change committed with a snapshot of the live head. A store failure answers 503 and leaves the marker: the
+     * pending-publish rule finishes it later.
+     *
+     * @throws IllegalStateException when {@code ticket} is not the publish in progress
+     */
+    public PublishResponse finishPublish( final PublishStart.Ticket ticket, final PublishOutcome saved ) {
+        Objects.requireNonNull( saved, "saved" );
+        return endTicket( ticket, completions -> flow.finish( ticket, saved, completions ) );
     }
 
     /**
-     * After the page save: the new base, with a server update when the save filters rewrote the text, committed with
-     * its snapshot in one store step; memory follows only when that step succeeded.
+     * A save that threw. If the page holds version B+1 by the publisher with S_V's text, the save persisted before it
+     * failed and the publish is finished (A2); another version B+1 is an outside write, merged, and the answer is 409
+     * {@code publish-merged-retry} (E20), as for a version conflict; otherwise the draft is unchanged, the others get a
+     * {@code publish-failed} event, and the answer is 422 {@code writer-refused} carrying the exception (E19), or 500
+     * {@code writer-failed} for a runtime exception.
+     *
+     * @throws IllegalStateException when {@code ticket} is not the publish in progress
      */
-    private PublishResponse commitPublished( final PublishOutcome saved, final List< Runnable > completions ) {
-        final String newBase = CollabText.toLf( saved.savedBody() );
-        final List< StoredUpdate > extra = newBase.equals( doc ) ? List.of()
-            : List.of( new StoredUpdate( head + 1, StoredUpdate.SERVER, SERVER_CLIENT, null,
-                TextDiff.changeSet( doc, newBase ) ) );
-        final SessionRecord updated = SessionLoader.draftMarkers( record.withBase( saved.version(), newBase, saved.savedMeta(),
-            CollabText.contentHash( newBase ) ), false, lastEditAt );
+    public PublishResponse failPublish( final PublishStart.Ticket ticket, final Exception failure ) {
+        Objects.requireNonNull( failure, "failure" );
+        return endTicket( ticket, completions -> flow.failed( ticket, failure, completions ) );
+    }
+
+    private PublishResponse endTicket( final PublishStart.Ticket t, final Function< List< Runnable >, PublishResponse > body ) {
+        lock.lock();
         try {
-            store.commitBaseChange( id, extra, new Snapshot( head + extra.size(), metaSeq, saved.version(), newBase,
-                saved.savedMeta(), ChangeSet.empty( newBase.length() ) ), updated );
+            if( d.ticket == null || d.ticket != t ) {
+                throw new IllegalStateException( "not the publish in progress on " + d.pageName() );
+            }
+        } finally {
+            lock.unlock();
+        }
+        final List< Runnable > completions = new ArrayList<>();
+        final PublishResponse out;
+        baseLock.lock();
+        try {
+            out = body.apply( completions );
+        } finally {
+            baseLock.unlock();
+            completions.forEach( Runnable::run );
+            endPublish();
+        }
+        if( out.status() == 200 ) {
+            recheckEdit();
+        }
+        return out;
+    }
+
+    /** Clears the publishing flag and runs the external merges queued meanwhile (A3). */
+    private void endPublish() {
+        final boolean drain;
+        lock.lock();
+        try {
+            d.publishing = false;
+            d.ticket = null;
+            drain = d.mergeQueued;
+            d.mergeQueued = false;
+        } finally {
+            lock.unlock();
+        }
+        if( drain ) {
+            settle();
+        }
+    }
+
+    // ---- external writes (section 7.4) -----------------------------------------------------------------------------
+
+    /**
+     * Section 7.4: merges the page's versions after the base up to {@code latest}, each diffed against its predecessor,
+     * detected by content hash (A1), so a repeated or older event merges nothing and an overwrite without a new version
+     * is still merged. While a publish is in its save the change is queued and merged when the publish ends (A3). Called
+     * by the page listener (Phase 2), by {@link #load} and by publish (the backstop). Participants who lost {@code edit}
+     * are evicted afterwards (A5). A failure is logged and retried by {@link #settle}.
+     */
+    public void reconcile( final PageState latest ) {
+        reconcileTo( Objects.requireNonNull( latest, "latest" ) );
+    }
+
+    /**
+     * Retries what the session owes the page store: a queued or failed merge (against the page's latest version) and a
+     * pending publish whose completion was lost. The registry calls it on its tick.
+     */
+    public void settle() {
+        final Optional< PageState > latest;
+        try {
+            latest = writer.latest( pageName() );
         } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {}: {} was saved as version {} but the base change was not stored: {}", id,
-                record.pageName(), saved.version(), e.getMessage() );
-            return new PublishResponse( 503, record.basePageVersion(), STORE, false );
+            LOG.warn( "collab session {}: reading the latest page to settle failed: {}", id, e.getMessage() );
+            flow.owe();
+            return;
         }
-        if( !extra.isEmpty() ) {
-            applyAccepted( extra, newBase );
-            wakeAll( extra, completions );
+        reconcileTo( latest.orElse( null ) );
+    }
+
+    private void reconcileTo( final PageState target ) {
+        if( queuedBehindPublish() ) {
+            return;
         }
-        record = updated;
-        meta = MetaJson.normalise( saved.savedMeta() );
-        local = ChangeSet.empty( newBase.length() );
-        lastSnapshotVersion = head;
-        oversize.update( doc, true );
-        return new PublishResponse( 200, saved.version(), null, false );
+        final List< Runnable > completions = new ArrayList<>();
+        boolean changed = false;
+        baseLock.lock();
+        try {
+            if( !queuedBehindPublish() ) {
+                changed = flow.reconcile( target, completions );
+            }
+        } finally {
+            baseLock.unlock();
+        }
+        completions.forEach( Runnable::run );
+        if( changed ) {
+            recheckEdit();
+        }
+    }
+
+    /** True (and queued) when a publish is running: its end merges (A3). */
+    private boolean queuedBehindPublish() {
+        lock.lock();
+        try {
+            if( d.publishing ) {
+                d.mergeQueued = true;
+            }
+            return d.publishing;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** A5: every participant's {@code edit} is re-checked after a publish or merge; those who lost it are evicted. */
+    private void recheckEdit() {
+        final List< Participant > all;
+        final String page;
+        lock.lock();
+        try {
+            all = List.copyOf( roster.all() );
+            page = d.pageName();
+        } finally {
+            lock.unlock();
+        }
+        for( final Participant p : all ) {
+            boolean ok;
+            try {
+                ok = permissions.canEdit( p.wikiSession, page );
+            } catch( final RuntimeException e ) {
+                LOG.warn( "collab session {}: the edit check of {} on {} failed; evicting: {}", id, p.id, page, e.getMessage() );
+                ok = false;
+            }
+            if( !ok ) {
+                LOG.info( "collab session {}: participant {} lost edit on {}; evicted", id, p.id, page );
+                evict( p.id );
+            }
+        }
     }
 
     // ---- state -----------------------------------------------------------------------------------------------
 
-    private boolean hasUnpublished() {
-        return !local.empty() || !meta.equals( MetaJson.normalise( record.baseMeta() ) );
-    }
-
     public View view() {
         lock.lock();
         try {
-            final Map< String, Selection > selections = roster.selectionsExcept( null );
-            return new View( id, record.pageName(), doc, head, record.baseBody(), local, record.basePageVersion(),
-                ring.asList(), oversize.active(), oversize.ceiling(), oversize.maxPageBytes(), metaSeq,
-                Collections.unmodifiableMap( new LinkedHashMap<>( meta ) ), lastEditAt,
-                Collections.unmodifiableMap( selections ), roster.size(), presenceSeq );
+            return new View( id, d.pageName(), d.doc, d.head, d.record.baseBody(), d.local, d.record.basePageVersion(),
+                d.ring.asList(), d.oversize.active(), d.oversize.ceiling(), d.oversize.maxPageBytes(), d.metaSeq,
+                Collections.unmodifiableMap( new LinkedHashMap<>( d.meta ) ), d.lastEditAt,
+                Collections.unmodifiableMap( roster.selectionsExcept( null ) ), roster.size(), d.presenceSeq,
+                d.publishPending(), d.mergeQueued || d.mergeOwed );
         } finally {
             lock.unlock();
         }

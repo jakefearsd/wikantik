@@ -1,0 +1,130 @@
+{
+  "format": 1,
+  "seed": 12,
+  "profile": "PUBLISH_STORM",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "strip-trailing-spaces",
+    "clients": 2
+  },
+  "initialDoc": "文r   p𝕏n 編\n作j字zs𝕏kc  😀ab作😀pg集𝄞\nu\nq🎉😀𝄞 zi協tu\nf dkzxg𝄞lr\n𝄞n ig集文𝕏wo kodvts😀m中z  r",
+  "steps": [
+    {
+      "id": 89,
+      "action": "PERSIST_THEN_FAIL"
+    },
+    {
+      "id": 146,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 21,
+      "to": 23,
+      "insert": "q𝕏ztm𝄞 w eh \nj𝄞𝕏sna\nzz中nrv協vt😀gz😀 a"
+    },
+    {
+      "id": 156,
+      "action": "PUBLISH",
+      "client": 1
+    },
+    {
+      "id": 157,
+      "action": "SEND_PUSH",
+      "client": 0
+    },
+    {
+      "id": 184,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    },
+    {
+      "id": 186,
+      "action": "TIMEOUT",
+      "client": 0,
+      "op": "push"
+    },
+    {
+      "id": 194,
+      "action": "DELIVER",
+      "messageId": "186.0"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 4 (basePageVersion equals the writer's latest version) violated: basePageVersion=1 writer latest=2",
+    "at": "q1",
+    "kind": "invariant 4"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "文r   p𝕏n 編\n作j字zs𝕏kc  😀ab作😀pg集𝄞\nu\nq🎉😀𝄞 zi協tu\nf dkzxg𝄞lr\n𝄞n ig集文𝕏wo kodvts😀m中z  r\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            21,
+            [
+              2,
+              "q𝕏ztm𝄞 w eh ",
+              "j𝄞𝕏sna",
+              "zz中nrv協vt😀gz😀 a"
+            ],
+            69
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "文r   p𝕏n 編\n作j字zs𝕏kcq𝕏ztm𝄞 w eh \nj𝄞𝕏sna\nzz中nrv協vt😀gz😀 a😀ab作😀pg集𝄞\nu\nq🎉😀𝄞 zi協tu\nf dkzxg𝄞lr\n𝄞n ig集文𝕏wo kodvts😀m中z  r\n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c1",
+              "changes": [
+                21,
+                [
+                  2,
+                  "q𝕏ztm𝄞 w eh ",
+                  "j𝄞𝕏sna",
+                  "zz中nrv協vt😀gz😀 a"
+                ],
+                69
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "文r   p𝕏n 編\n作j字zs𝕏kc  😀ab作😀pg集𝄞\nu\nq🎉😀𝄞 zi協tu\nf dkzxg𝄞lr\n𝄞n ig集文𝕏wo kodvts😀m中z  r\n"
+        }
+      ]
+    }
+  ]
+}

@@ -18,6 +18,7 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.testing.SimNetwork.Message;
 import com.wikantik.collab.testing.SimNetwork.Type;
@@ -77,6 +78,16 @@ import java.util.stream.Collectors;
  * {@code CRASH_RECOVER} (F8) discards the server and reloads one over the same store and page writer
  * ({@link Recovery}); the parked pulls die with it.</p>
  *
+ * <p><b>Publish and external writes</b> (Task 4, weighted by the session's overlay only): a server whose publish
+ * unlocks during the save ({@link SimServer#beginPublish}) leaves the publish pending inside the page save until a
+ * {@code RELEASE_PUBLISH} step (or quiescence) completes it, so pushes, pulls and {@code EXTERNAL_SAVE}s interleave with
+ * it; an {@code EXTERNAL_SAVE} writes a new page version and delivers the listener's event
+ * ({@link SimServer#externalSaved}). {@code STORE_FAULT} arms a one-shot fault on a publish-time store operation and
+ * {@code PERSIST_THEN_FAIL} makes the next save persist and then throw (E39). A crash with a publish inside its save
+ * persists that save on even steps and drops it on odd ones. The scheduler owns {@code externalChangePending}: set by
+ * {@code EXTERNAL_SAVE}, cleared when a publish, reload or reconcile completes and the server reports nothing queued or
+ * owed ({@link SimServer#reconciled}); at quiescence the server settles what it owes ({@link SimServer#settle}).</p>
+ *
  * <p><b>Coverage</b>: every run counts what it explored ({@link SimTrace#counters()}, keys below), so a test can assert
  * that a profile retune did not silently stop exercising a path.</p>
  *
@@ -123,8 +134,25 @@ public final class SimScheduler {
     public static final String TRUNCATIONS = "truncations";
     /** Counter: pulls answered 410 (below the ring and the truncated log, A10). */
     public static final String GONE_PULLS = "pulls410";
+    /** Counter: publishes held inside the page save and then released ({@code RELEASE_PUBLISH}, section 7.3). */
+    public static final String RELEASED_PUBLISHES = "publishesReleased";
+    /** Counter: {@code EXTERNAL_SAVE} steps (section 7.4). */
+    public static final String EXTERNAL_SAVES = "externalSaves";
+    /** Counter: publish-time store faults armed ({@code STORE_FAULT}). */
+    public static final String STORE_FAULTS = "storeFaults";
+    /** Counter: saves armed to persist and then fail ({@code PERSIST_THEN_FAIL}, E39). */
+    public static final String PERSIST_FAILS = "persistThenFails";
+    /** Counter: publishes held inside the save when the server crashed (F8 + E39). */
+    public static final String ABANDONED_PUBLISHES = "publishesAbandonedByCrash";
     static final List< String > COUNTERS = List.of( DUPLICATE_ANSWERS, OUT_OF_ORDER_PULLS, TRIMMED_PULLS, EXPIRED_PULLS,
-        LEAVES, REJOINS, RESYNCS, CRASHES, RETIRED_REFUSED, RECONNECTS, TRUNCATIONS, GONE_PULLS );
+        LEAVES, REJOINS, RESYNCS, CRASHES, RETIRED_REFUSED, RECONNECTS, TRUNCATIONS, GONE_PULLS, RELEASED_PUBLISHES,
+        EXTERNAL_SAVES, STORE_FAULTS, PERSIST_FAILS, ABANDONED_PUBLISHES );
+    /** Counters only a server with external merge and pending publishes (the session's overlay) can move. */
+    static final List< String > SESSION_ONLY_COUNTERS = List.of( RELEASED_PUBLISHES, EXTERNAL_SAVES, STORE_FAULTS,
+        PERSIST_FAILS, ABANDONED_PUBLISHES );
+    /** The store operations a publish (and an external merge) writes through: the targets of {@code STORE_FAULT}. */
+    static final List< String > FAULT_OPS = List.of( InMemoryCollabStore.Op.UPDATE_SESSION.name(),
+        InMemoryCollabStore.Op.APPEND_META.name(), InMemoryCollabStore.Op.COMMIT_BASE_CHANGE.name() );
 
     static final String PAGE = "SimPage";
     static final int REPLAY_EVERY = 25;
@@ -307,6 +335,10 @@ public final class SimScheduler {
         }
     }
 
+    /** A publish the server holds inside its page save, and the request it answers. */
+    private record PendingPublish( Message request, Object handle ) {
+    }
+
     private static final class World {
         private final SimTrace header;
         private final SimProfile profile;
@@ -321,6 +353,13 @@ public final class SimScheduler {
         /** Per participant, the pulls the server holds, oldest first: {@code requestId -> since}. */
         private final Map< String, Deque< Map.Entry< String, Integer > > > parked = new LinkedHashMap<>();
         private Overlay overlay = Overlay.NONE;
+        /** Publishes inside the save, oldest first; released by {@code RELEASE_PUBLISH} or at quiescence. */
+        private final Deque< PendingPublish > pendingPublishes = new ArrayDeque<>();
+        /**
+         * Owned by the scheduler (plan amendment, Task 4): set by {@code EXTERNAL_SAVE}, cleared when a publish, a reload
+         * or a reconcile completes and the server reports nothing queued or owed. It explains invariant 4's gap.
+         */
+        private boolean externalPending;
         private SimEnv env;
         private SimServer server;
         private String tag = "start";
@@ -410,7 +449,8 @@ public final class SimScheduler {
                 }
                 case ADVANCE_CLOCK -> s.millis( 1000L * ( 1 + rnd.nextInt( 30 ) ) );
                 case EXTERNAL_SAVE -> edit( s, writerBody(), rnd );
-                case CRASH_RECOVER, TRUNCATE, TIMEOUT -> s;
+                case STORE_FAULT -> s.op( FAULT_OPS.get( rnd.nextInt( FAULT_OPS.size() ) ) );
+                case CRASH_RECOVER, TRUNCATE, RELEASE_PUBLISH, PERSIST_THEN_FAIL, TIMEOUT -> s;
             };
         }
 
@@ -446,7 +486,8 @@ public final class SimScheduler {
         }
 
         private boolean inFlight( final String request ) {
-            return isParked( request ) || net.ids().stream().anyMatch( id -> request.equals( net.peek( id ).requestId() ) );
+            return isParked( request ) || net.ids().stream().anyMatch( id -> request.equals( net.peek( id ).requestId() ) )
+                || pendingPublishes.stream().anyMatch( pp -> request.equals( pp.request().requestId() ) );
         }
 
         private boolean canSend( final Kind k, final Peer p ) {
@@ -466,6 +507,7 @@ public final class SimScheduler {
             return switch( k ) {
                 case SEND_PUSH, SEND_PULL, PUBLISH, LEAVE -> peers.stream().anyMatch( p -> canSend( k, p ) );
                 case DELIVER, DROP, DUPLICATE -> !net.isEmpty();
+                case RELEASE_PUBLISH -> !pendingPublishes.isEmpty();
                 default -> true;
             };
         }
@@ -550,13 +592,36 @@ public final class SimScheduler {
                     }
                     case EXTERNAL_SAVE -> {
                         final String body = writerBody();
-                        env.writer().externalSave( header.pageName(), replaceIn( body, s ).apply( body ), Map.of(), "agent" );
+                        final int version = env.writer().externalSave( header.pageName(), replaceIn( body, s ).apply( body ),
+                            Map.of(), "agent" );
+                        externalPending = true;
+                        count( EXTERNAL_SAVES, 1 );
+                        server.externalSaved( version );
+                        drain();
+                        settled();
                     }
                     case CRASH_RECOVER -> {
-                        // F8: the server and everything it held in memory (participants, parked pulls) is gone
+                        // F8: the server and everything it held in memory (participants, parked pulls, publishes inside
+                        // their save) is gone; a held save committed before the crash on even steps, never ran on odd ones
+                        for( final PendingPublish pp : pendingPublishes ) {
+                            server.abandonPublish( pp.handle(), s.id() % 2 == 0 );
+                            count( ABANDONED_PUBLISHES, 1 );
+                        }
+                        pendingPublishes.clear();
                         server = Recovery.recover( env.store(), env.writer(), ( st, wr ) -> reload.apply( env ) );
                         parked.clear();
                         count( CRASHES, 1 );
+                        settled();
+                    }
+                    case RELEASE_PUBLISH -> releasePublish();
+                    case STORE_FAULT -> {
+                        env.store().failOn( InMemoryCollabStore.Op.valueOf( s.op() ), 1 );
+                        count( STORE_FAULTS, 1 );
+                    }
+                    case PERSIST_THEN_FAIL -> {
+                        env.writer().persistThenFail( new WikiException( "injected: the process died after the page store"
+                            + " committed the save" ) );
+                        count( PERSIST_FAILS, 1 );
                     }
                     case LEAVE -> withPeer( s, p -> {
                         // the server drops the participant (presence timeout) without telling the client
@@ -757,7 +822,16 @@ public final class SimScheduler {
                         reply( m, Type.PULL_RESULT, r );
                     }
                 }
-                case PUBLISH -> reply( m, Type.PUBLISH_RESULT, server.publish( m.participantId(), p.authorKey, m.version(), "sim" ) );
+                case PUBLISH -> {
+                    final SimServer.PublishStart started = server.beginPublish( m.participantId(), p.authorKey, m.version(),
+                        "sim" );
+                    if( started.pending() != null ) {
+                        pendingPublishes.addLast( new PendingPublish( m, started.pending() ) );
+                    } else {
+                        reply( m, Type.PUBLISH_RESULT, started.result() );
+                        settled();
+                    }
+                }
                 case JOIN -> {
                     final Joined j = server.join( p.authorKey, (String) m.result(), null, null );
                     clientOf.put( j.participantId(), m.client() );
@@ -771,6 +845,37 @@ public final class SimScheduler {
                 default -> throw new IllegalStateException( "not a request: " + m );
             }
             drain();
+        }
+
+        /** Completes the oldest publish held inside its save and answers its request. */
+        private void releasePublish() {
+            final PendingPublish pp = pendingPublishes.pollFirst();
+            if( pp == null ) {
+                return;
+            }
+            final PublishResult r = server.releasePublish( pp.handle() );
+            count( RELEASED_PUBLISHES, 1 );
+            reply( pp.request(), Type.PUBLISH_RESULT, r );
+            drain();
+            settled();
+        }
+
+        /** A clear point for {@link #externalPending}: cleared once the server has nothing queued or owed. */
+        private void settled() {
+            if( externalPending && server.reconciled() ) {
+                externalPending = false;
+            }
+        }
+
+        /** The server's view with the scheduler's {@link #externalPending} folded in (invariant 4). */
+        private InvariantView view() {
+            final InvariantView v = server.view();
+            if( !externalPending || v.externalChangePending() ) {
+                return v;
+            }
+            return new InvariantView( v.sessionId(), v.doc(), v.head(), v.baseBody(), v.local(), v.basePageVersion(), v.ring(),
+                v.oversize(), v.maxPageBytes(), v.store(), v.writer(), v.pageName(), true, v.publishPending(),
+                v.oversizeCeiling(), v.poisoned() );
         }
 
         /** Queues every completed parked pull as the answer to the request that parked it; returns how many. */
@@ -913,7 +1018,7 @@ public final class SimScheduler {
         }
 
         private Outcome afterStep( final boolean replay ) {
-            final InvariantView v = server.view();
+            final InvariantView v = view();
             if( v.poisoned() ) {
                 return new Outcome( Status.UNSUPPORTED, "unsupported scenario: the server reports poisoned", tag );
             }
@@ -932,8 +1037,12 @@ public final class SimScheduler {
                     }
                     tag = "q" + round;
                     seq = 0;
-                    while( !net.isEmpty() ) {
-                        deliver( net.ids().get( 0 ) );
+                    while( !net.isEmpty() || !pendingPublishes.isEmpty() ) {
+                        if( net.isEmpty() ) {
+                            releasePublish();
+                        } else {
+                            deliver( net.ids().get( 0 ) );
+                        }
                         final Outcome u = afterStep( false );
                         if( u != null ) {
                             return u;
@@ -942,11 +1051,11 @@ public final class SimScheduler {
                             throw new SimFailure( "convergence/network", "convergence: the network never drained" );
                         }
                     }
-                    if( !retryAll() ) {
+                    if( !retryAll() && !settleServer() ) {
                         break;
                     }
                 }
-                final InvariantView v = server.view();
+                final InvariantView v = view();
                 for( final Peer p : peers ) {
                     if( !p.sim.doc().equals( v.doc() ) ) {
                         throw new SimFailure( "convergence/doc", "convergence: client " + p.name + " differs from the server "
@@ -961,6 +1070,18 @@ public final class SimScheduler {
                 tag = "end";
                 return new Outcome( Status.PASS, "converged at head " + v.head() + " with doc length " + v.doc().length(), tag );
             } );
+        }
+
+        /**
+         * With everything delivered, lets the server retry what it owes the page store (a failed merge, an unfinished
+         * publish); true when that moved the head or answered a parked pull, so the clients have more to do.
+         */
+        private boolean settleServer() {
+            final int head = server.view().head();
+            server.settle();
+            final int woke = drain();
+            settled();
+            return woke > 0 || server.view().head() != head || !net.isEmpty();
         }
 
         /** With the network empty, abandons lost requests and sends what each client still needs; false when nothing is left. */

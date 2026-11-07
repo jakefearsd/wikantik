@@ -335,6 +335,18 @@ public abstract class AbstractCollabStoreContractTest {
     }
 
     @Test
+    void snapshotAtOrBelowIsTheNewestNotAboveTheVersion() {   // E39: S_V is rebuilt from it plus the log (A2, A10)
+        final SessionRecord s = created( "PageA" );
+        store.writeSnapshot( s.id(), snap( 5 ) );
+        store.writeSnapshot( s.id(), snap( 10 ) );
+        assertEquals( 5, store.snapshotAtOrBelow( s.id(), 9 ).orElseThrow().version() );
+        assertEquals( 10, store.snapshotAtOrBelow( s.id(), 10 ).orElseThrow().version() );
+        assertEquals( 10, store.snapshotAtOrBelow( s.id(), 99 ).orElseThrow().version() );
+        assertTrue( store.snapshotAtOrBelow( s.id(), 4 ).isEmpty() );
+        assertTrue( store.snapshotAtOrBelow( UUID.randomUUID(), 4 ).isEmpty() );
+    }
+
+    @Test
     void writeSnapshotAtAnExistingVersionReplacesIt() {
         final SessionRecord s = created( "PageA" );
         store.writeSnapshot( s.id(), snap( 5 ) );

@@ -18,13 +18,17 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.collab.CollabConfig;
 import com.wikantik.collab.CollabPageWriter;
+import com.wikantik.collab.CollabPermissions;
+import com.wikantik.collab.CollabPorts;
 import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.CollabStore;
 import com.wikantik.collab.PullWaiter;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
+import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishResponse;
 import com.wikantik.collab.model.PullResponse;
 import com.wikantik.collab.model.PushResponse;
@@ -60,8 +64,12 @@ import java.util.function.Function;
  * a slot queued before it is offered to the session, and completed slots are released strictly in queue order.</p>
  *
  * <p>The session has no poisoned state: the view always reports {@code poisoned=false}, so a session run can never end
- * as an UNSUPPORTED scenario (its tolerance is 0). Publish is the session's naive Task 3 publish (Task 4 replaces
- * it).</p>
+ * as an UNSUPPORTED scenario (its tolerance is 0).</p>
+ *
+ * <p><b>Publish</b> is section 7.3's: {@link #publish} runs it synchronously; {@link #beginPublish} holds it inside the
+ * page save (the session's lock is released, {@link ScriptedPageWriter#publishAsync} paused) until the scheduler's
+ * {@code RELEASE_PUBLISH} step, so pushes, pulls and external saves interleave with it (E16, E20).
+ * {@link #externalSaved} is the page listener's event: the session reconciles (or queues while publishing, A3).</p>
  */
 public final class CollabSessionSimServer implements SimServer {
 
@@ -77,8 +85,26 @@ public final class CollabSessionSimServer implements SimServer {
         env.writer(), env.clock(), env.maxPageBytes(), env.ringSize(), SIM_SNAPSHOT_EVERY );
     /** Every author's public name is the author key itself (the simulator's authors are synthetic). */
     static final com.wikantik.collab.CollabIdentity IDENTITY = key -> key;
-    /** Session-only actions: explicit A10 truncation in every profile (the stub's corpus stays as it is). */
-    public static final SimScheduler.Overlay OVERLAY = new SimScheduler.Overlay( Map.of( SimProfile.Kind.TRUNCATE, 2 ) );
+    /** Every participant may edit (permission changes are session tests of their own, E31). */
+    static final CollabPermissions ALLOW_ALL = new CollabPermissions() {
+        @Override
+        public boolean canEdit( final Object participantSession, final String pageName ) {
+            return true;
+        }
+
+        @Override
+        public boolean canCreate( final Object participantSession, final String pageName ) {
+            return true;
+        }
+    };
+    /**
+     * Session-only actions, in every profile (the stub's corpus stays as it is): explicit A10 truncation, external saves,
+     * publishes held inside the save and released later, one-shot publish-time store faults and saves that persist and
+     * then fail (E39).
+     */
+    public static final SimScheduler.Overlay OVERLAY = new SimScheduler.Overlay( Map.of( SimProfile.Kind.TRUNCATE, 2,
+        SimProfile.Kind.EXTERNAL_SAVE, 3, SimProfile.Kind.RELEASE_PUBLISH, 6, SimProfile.Kind.STORE_FAULT, 1,
+        SimProfile.Kind.PERSIST_THEN_FAIL, 1 ) );
 
     private final CollabSession session;
     private final CollabStore store;
@@ -106,8 +132,8 @@ public final class CollabSessionSimServer implements SimServer {
                                                  final Clock clock, final long maxPageBytes, final int ringSize,
                                                  final int snapshotEvery ) {
         final SessionRecord rec = CollabSession.newRecord( idFor( pageName ), pageName, writer.latest( pageName ), "sim", clock );
-        return new CollabSessionSimServer( CollabSession.create( rec, store, writer, IDENTITY, clock, config( ringSize, snapshotEvery ),
-            maxPageBytes ), store, writer );
+        return new CollabSessionSimServer( CollabSession.create( rec, ports( store, writer, clock ),
+            config( ringSize, snapshotEvery ), maxPageBytes ), store, writer );
     }
 
     /** F8 recovery: the session reloaded from the store alone. */
@@ -116,8 +142,12 @@ public final class CollabSessionSimServer implements SimServer {
                                                  final int snapshotEvery ) {
         final UUID id = store.sessionForPage( pageName ).map( SessionRecord::id ).orElseThrow(
             () -> new IllegalStateException( "no collab session to reload for page " + pageName ) );
-        return new CollabSessionSimServer( CollabSession.load( id, store, writer, IDENTITY, clock, config( ringSize, snapshotEvery ),
-            maxPageBytes ), store, writer );
+        return new CollabSessionSimServer( CollabSession.load( id, ports( store, writer, clock ),
+            config( ringSize, snapshotEvery ), maxPageBytes ), store, writer );
+    }
+
+    static CollabPorts ports( final CollabStore store, final CollabPageWriter writer, final Clock clock ) {
+        return new CollabPorts( store, writer, IDENTITY, ALLOW_ALL, clock );
     }
 
     public CollabSession session() {
@@ -218,8 +248,74 @@ public final class CollabSessionSimServer implements SimServer {
 
     @Override
     public PublishResult publish( final String participantId, final String authorKey, final int version, final String note ) {
-        final PublishResponse r = session.publish( participantId, authorKey, version, note );
+        return result( session.publish( participantId, authorKey, version, note ) );
+    }
+
+    /** A publish held inside its save: the session's ticket and the paused page save. */
+    private record Held( com.wikantik.collab.PublishStart.Ticket ticket, ScriptedPageWriter.PendingPublish save ) {
+    }
+
+    @Override
+    public SimServer.PublishStart beginPublish( final String participantId, final String authorKey, final int version,
+                                                final String note ) {
+        if( !( writer instanceof ScriptedPageWriter scripted ) ) {
+            return new SimServer.PublishStart( publish( participantId, authorKey, version, note ), null );
+        }
+        final com.wikantik.collab.PublishStart st = session.startPublish( participantId, authorKey, version, note );
+        if( st.response() != null ) {
+            return new SimServer.PublishStart( result( st.response() ), null );
+        }
+        scripted.pauseNextPublish();
+        return new SimServer.PublishStart( null, new Held( st.ticket(), scripted.publishAsync( st.ticket().request() ) ) );
+    }
+
+    @Override
+    public PublishResult releasePublish( final Object pending ) {
+        final Held h = (Held) pending;
+        final PublishOutcome saved;
+        try {
+            saved = h.save().complete();
+        } catch( final WikiException e ) {
+            return result( session.failPublish( h.ticket(), e ) );
+        }
+        return result( session.finishPublish( h.ticket(), saved ) );
+    }
+
+    @Override
+    public void abandonPublish( final Object pending, final boolean persist ) {
+        if( !persist ) {
+            return;   // the save never ran; the pending-publish marker stays for the reload to clear
+        }
+        try {
+            ( (Held) pending ).save().complete();
+        } catch( final WikiException e ) {
+            // the save was refused (a conflict, say): nothing persisted, which the reload finds out by itself
+            LOG.warn( "abandoned publish of {}: the save failed: {}", session.pageName(), e.getMessage() );
+        }
+    }
+
+    private static PublishResult result( final PublishResponse r ) {
         return new PublishResult( r.status(), r.pageVersion(), r.reason(), r.unchanged() );
+    }
+
+    @Override
+    public void externalSaved( final int version ) {
+        writer.version( session.pageName(), version ).ifPresent( session::reconcile );
+    }
+
+    @Override
+    public boolean reconciled() {
+        return !session.view().reconcilePending();
+    }
+
+    @Override
+    public void settle() {
+        session.settle();
+    }
+
+    @Override
+    public boolean acceptsExternalSaves() {
+        return true;
     }
 
     @Override
@@ -245,11 +341,16 @@ public final class CollabSessionSimServer implements SimServer {
         }
     }
 
+    /**
+     * The session's view; a merge it queued behind a publish or owes after a failed store write explains invariant 4's
+     * gap like an undelivered external-save event (the scheduler adds its own {@code EXTERNAL_SAVE} flag).
+     */
     @Override
     public InvariantView view() {
         final CollabSession.View v = session.view();
         return new InvariantView( v.id(), v.doc(), v.head(), v.baseBody(), v.local(), v.basePageVersion(), v.ring(),
-            v.oversize(), v.maxPageBytes(), store, writer, v.pageName(), false, false, v.oversizeCeiling(), false );
+            v.oversize(), v.maxPageBytes(), store, writer, v.pageName(), v.reconcilePending(), v.publishPending(),
+            v.oversizeCeiling(), false );
     }
 
     @Override

@@ -26,6 +26,7 @@ import com.wikantik.collab.testing.SimServer.PushResult;
 import com.wikantik.collab.testing.SimServer.Update;
 import com.wikantik.collab.testing.SimServer.Wakeup;
 import com.wikantik.collab.text.ChangeSet;
+import com.wikantik.collab.text.CollabText;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -60,12 +61,13 @@ import java.util.function.Supplier;
  * <p>Each run builds a fresh server from the factory, joins {@code threads} participants and releases one worker per
  * participant through a {@link CyclicBarrier}. {@link #pushRace} has every worker push to the same version at once, round
  * after round (E38: exactly one is accepted per version). {@link #run} has every worker perform a seeded mix of local
- * edit, push, pull (parking when caught up), publish and leave-then-rejoin (E40; external saves wait for Phase 1, the
- * stub ignores them). Every run is bounded by {@code runTimeout}: on timeout the harness dumps every thread's stack
- * (deadlock diagnosis) and fails. After each run it asserts that the versions acknowledged to pushes and the server
- * updates in the store log are exactly {@code 1..head} with no gap or double claim, that every parked pull was answered
- * exactly once, that the clients converge, and {@link CollabInvariants} (with replay; invariant 2 is store log == ring
- * suffix).</p>
+ * edit, push, pull (parking when caught up), publish, leave-then-rejoin and, against a server that merges them
+ * ({@link SimServer#acceptsExternalSaves()}), an outside save delivered as the page listener would (E40). Every run is
+ * bounded by {@code runTimeout}: on timeout the harness dumps every thread's stack (deadlock diagnosis) and fails. After
+ * each run it asserts that the versions acknowledged to pushes and the server updates in the store log are exactly
+ * {@code 1..head} with no gap or double claim, that every parked pull was answered exactly once, that the clients
+ * converge, that no publish is left in flight (the publishing flag reset and no pending-publish marker), and
+ * {@link CollabInvariants} (with replay; invariant 2 is store log == ring suffix).</p>
  *
  * <p>Wakeups (parked-pull answers) may be drained by any thread; draining and routing them to their participant's inbox
  * happens under one harness lock so a participant's answers keep their order. That lock never wraps another server
@@ -83,7 +85,7 @@ public final class ConcurrencyHarness {
 
     /** What happened across all runs of one call (all counts are totals). */
     public record Report( int runs, long rounds, long accepted, long stale, long pulls, long parked, long wakeups,
-                          long publishes, long leaves, long joins, int maxHead ) {
+                          long publishes, long leaves, long joins, int maxHead, long externalSaves ) {
     }
 
     private final int threads;
@@ -120,11 +122,12 @@ public final class ConcurrencyHarness {
         final AtomicLong publishes = new AtomicLong();
         final AtomicLong leaves = new AtomicLong();
         final AtomicLong joins = new AtomicLong();
+        final AtomicLong externalSaves = new AtomicLong();
         int maxHead;
 
         Report report( final int runs ) {
             return new Report( runs, rounds.get(), accepted.get(), stale.get(), pulls.get(), parked.get(), wakeups.get(),
-                publishes.get(), leaves.get(), joins.get(), maxHead );
+                publishes.get(), leaves.get(), joins.get(), maxHead, externalSaves.get() );
         }
     }
 
@@ -322,8 +325,10 @@ public final class ConcurrencyHarness {
 
         void publish( final Worker w ) {
             final PublishResult r = server.publish( w.sim.participantId(), w.author, w.sim.version(), "stress" );
-            final boolean ok = r.status() == 200 || r.status() == 409 && "stale-base".equals( r.reason() )
-                || r.status() == 400 && "empty".equals( r.reason() );
+            final boolean ok = r.status() == 200
+                || r.status() == 409 && ( "stale-base".equals( r.reason() ) || "publish-merged-retry".equals( r.reason() ) )
+                || r.status() == 400 && "empty".equals( r.reason() )
+                || r.status() == 423 && "publish-in-progress".equals( r.reason() );
             if( !ok ) {
                 throw fail( w.author + "'s publish answered " + r.status() + " " + r.reason() );
             }
@@ -347,6 +352,19 @@ public final class ConcurrencyHarness {
             w.parkedSince.clear();
             w.sim.resync( server.join( w.author ) );
             tally.joins.incrementAndGet();
+        }
+
+        /** An outside save of the page's latest text with one edit, then the listener's event (section 7.4). */
+        void externalSave( final Worker w ) {
+            final ScriptedPageWriter writer = (ScriptedPageWriter) server.view().writer();
+            final String page = server.view().pageName();
+            final String body = writer.latest( page ).map( s -> CollabText.toLf( s.body() ) ).orElse( "" );
+            final int at = w.rnd.nextInt( body.length() + 1 );
+            final String next = body.length() > MAX_DOC ? body.substring( 0, at ) + body.substring( Math.min( body.length(),
+                at + 40 ) ) : body.substring( 0, at ) + "ext" + w.index + "\n" + body.substring( at );
+            final int version = writer.externalSave( page, next, Map.of(), "agent-" + w.index );
+            server.externalSaved( version );
+            tally.externalSaves.incrementAndGet();
         }
 
         void localEdit( final Worker w ) {
@@ -378,6 +396,8 @@ public final class ConcurrencyHarness {
                 publish( w );
             } else if( k < 95 ) {
                 leaveAndRejoin( w );
+            } else if( k < 98 && server.acceptsExternalSaves() ) {
+                externalSave( w );
             }
             route();
         }
@@ -415,8 +435,14 @@ public final class ConcurrencyHarness {
         }
         execute( seed, run, bodies );
         checkLog( seed, run, m.server.view(), claimsOf( m ) );
+        m.server.settle();
+        m.route();
         quiesce( m );
         final InvariantView v = m.server.view();
+        if( v.publishPending() ) {
+            throw m.fail( "a publish is still in flight after every worker finished (the publishing flag or the"
+                + " pending-publish marker was not reset)" );
+        }
         checkLog( seed, run, v, claimsOf( m ) );
         for( final Worker w : m.workers ) {
             if( !w.sim.doc().equals( v.doc() ) || w.sim.version() != v.head() ) {

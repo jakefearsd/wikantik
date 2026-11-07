@@ -98,6 +98,23 @@ class CollabSessionTest {
         }
     }
 
+    /** Every participant may edit (section 7.3's permission re-check is CollabSessionPublishTest's). */
+    static final CollabPermissions ALLOW = new CollabPermissions() {
+        @Override
+        public boolean canEdit( final Object participantSession, final String pageName ) {
+            return true;
+        }
+
+        @Override
+        public boolean canCreate( final Object participantSession, final String pageName ) {
+            return true;
+        }
+    };
+
+    private CollabPorts ports( final CollabStore st, final CollabPageWriter w ) {
+        return new CollabPorts( st, w, IDENTITY, ALLOW, clock );
+    }
+
     static CollabConfig config( final int ring, final int snapshotEvery, final int pushesPerSecond ) {
         return new CollabConfig( true, 20, 65536, 25, 45, 30, ring, snapshotEvery, 10, 0, pushesPerSecond );
     }
@@ -105,7 +122,7 @@ class CollabSessionTest {
     private CollabSession create( final String page, final ScriptedPageWriter w, final CollabConfig c, final long max ) {
         final SessionRecord rec = CollabSession.newRecord( UUID.nameUUIDFromBytes( page.getBytes() ), page,
             w.latest( page ), "creator", clock );
-        return CollabSession.create( rec, store, w, IDENTITY, clock, c, max );
+        return CollabSession.create( rec, ports( store, w ), c, max );
     }
 
     @BeforeEach
@@ -532,7 +549,7 @@ class CollabSessionTest {
         // the ring holds 3; a batch of 5 wakes a waiter parked at 0: its slice must come from memory, and reads after the
         // commit must never reach the store (which here refuses every read once the session is loaded)
         final ReadFailingStore failing = new ReadFailingStore( store );
-        final CollabSession s = CollabSession.load( session.id(), failing, writer, IDENTITY, clock, config( 3, 500, 1000 ), 1000 );
+        final CollabSession s = CollabSession.load( session.id(), ports( failing, writer ), config( 3, 500, 1000 ), 1000 );
         final JoinResponse a = s.join( JoinRequest.of( "alice", null, null ) );
         final JoinResponse b = s.join( JoinRequest.of( "bob", null, null ) );
         final Waiter w = new Waiter();
@@ -576,6 +593,7 @@ class CollabSessionTest {
         @Override public void commitBaseChange( final UUID id, final List< StoredUpdate > u, final Snapshot s, final SessionRecord r ) { d.commitBaseChange( id, u, s, r ); }
         @Override public void writeSnapshot( final UUID id, final Snapshot s ) { d.writeSnapshot( id, s ); }
         @Override public Optional< Snapshot > latestSnapshot( final UUID id ) { check(); return d.latestSnapshot( id ); }
+        @Override public Optional< Snapshot > snapshotAtOrBelow( final UUID id, final int v ) { check(); return d.snapshotAtOrBelow( id, v ); }
         @Override public void truncateUpdatesBelow( final UUID id, final int cut ) { d.truncateUpdatesBelow( id, cut ); }
         @Override public void deleteSession( final UUID id ) { d.deleteSession( id ); }
     }
@@ -638,7 +656,7 @@ class CollabSessionTest {
         }
         // the write at 2 failed; the next push retried it at 3
         assertEquals( 3, store.latestSnapshot( s.id() ).orElseThrow().version() );
-        final CollabSession reloaded = CollabSession.load( s.id(), store, writer, IDENTITY, clock, config( 3, 2, 1000 ), 1000 );
+        final CollabSession reloaded = CollabSession.load( s.id(), ports( store, writer ), config( 3, 2, 1000 ), 1000 );
         assertEquals( "xxx\n", reloaded.view().doc() );
     }
 
@@ -664,7 +682,7 @@ class CollabSessionTest {
         // once bob leaves, alice's confirmed version (5, her last push) is the cut
         assertEquals( 200, s.leave( b.participantId(), "bob" ).status() );
         assertEquals( 5, s.truncateLog() );
-        final CollabSession reloaded = CollabSession.load( s.id(), store, writer, IDENTITY, clock, config( 2, 2, 1000 ), 1000 );
+        final CollabSession reloaded = CollabSession.load( s.id(), ports( store, writer ), config( 2, 2, 1000 ), 1000 );
         assertEquals( doc, reloaded.view().doc() );
         assertEquals( 6, reloaded.view().head() );
     }
@@ -684,7 +702,7 @@ class CollabSessionTest {
             List.of( new Update( a.clientId(), ChangeSet.replace( doc.length(), 0, 0, "lost" ) ) ) ).status() );
         final CollabSession.View committed = s.view();
 
-        final CollabSession r = CollabSession.load( s.id(), store, writer, IDENTITY, clock, config( 3, 4, 1000 ), 1000 );
+        final CollabSession r = CollabSession.load( s.id(), ports( store, writer ), config( 3, 4, 1000 ), 1000 );
 
         final CollabSession.View v = r.view();
         assertEquals( committed.id(), v.id() );
@@ -707,7 +725,7 @@ class CollabSessionTest {
     @Test
     void loadWithoutASessionOrSnapshotFails() {
         assertThrows( IllegalStateException.class,
-            () -> CollabSession.load( UUID.randomUUID(), store, writer, IDENTITY, clock, config( 3, 500, 1000 ), 1000 ) );
+            () -> CollabSession.load( UUID.randomUUID(), ports( store, writer ), config( 3, 500, 1000 ), 1000 ) );
     }
 
     @Test
@@ -717,7 +735,7 @@ class CollabSessionTest {
         assertEquals( "a\nb\n", s.view().doc() );
         assertEquals( CollabText.contentHash( "a\nb\n" ), store.session( s.id() ).orElseThrow().baseContentHash() );
         final SessionRecord moved = CollabSession.newRecord( UUID.randomUUID(), "Other", Optional.empty(), "c", clock ).withHead( 3 );
-        assertThrows( IllegalArgumentException.class, () -> CollabSession.create( moved, store, w, IDENTITY, clock, config( 3, 500, 1000 ), 1000 ) );
+        assertThrows( IllegalArgumentException.class, () -> CollabSession.create( moved, ports( store, w ), config( 3, 500, 1000 ), 1000 ) );
     }
 
     @Test
@@ -727,7 +745,7 @@ class CollabSessionTest {
         assertEquals( "", rec.baseBody() );
     }
 
-    // ---- publish (naive until Task 4) -------------------------------------------------------------------------
+    // ---- publish (section 7.3; the full matrix is CollabSessionPublishTest) -------------------------------------
 
     @Test
     void publishSavesTheDocAndCommitsTheBaseChangeWithASnapshot() {
@@ -763,15 +781,17 @@ class CollabSessionTest {
     }
 
     @Test
-    void publishEdgeCases() {   // E1, E21, stale, writer refusal
+    void publishEdgeCases() {   // E1, E21, not-synced, writer refusal
         final JoinResponse a = join( "alice" );
         final PublishResponse unchanged = session.publish( a.participantId(), "alice", 0, "n" );
         assertTrue( unchanged.unchanged() );
         assertEquals( 1, unchanged.pageVersion() );
         push( a, "alice", 0, typeAt( a, BODY, 0, "X" ) );
-        assertEquals( "stale-base", session.publish( a.participantId(), "alice", 0, "n" ).reason() );
+        assertEquals( "not-synced", session.publish( a.participantId(), "alice", 2, "n" ).reason() );
         writer.failNextPublish( new VersionConflictException( PAGE, 1, 2, false ) );
-        assertEquals( 409, session.publish( a.participantId(), "alice", 1, "n" ).status() );
+        final PublishResponse conflict = session.publish( a.participantId(), "alice", 1, "n" );
+        assertEquals( 409, conflict.status() );
+        assertEquals( "publish-merged-retry", conflict.reason() );
         writer.failNextPublish( new com.wikantik.api.exceptions.WikiException( "refused" ) );
         assertEquals( 422, session.publish( a.participantId(), "alice", 1, "n" ).status() );
         assertEquals( "X" + BODY, session.view().doc() );

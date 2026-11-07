@@ -100,6 +100,13 @@ public interface CollabStore {
     Optional< Snapshot > latestSnapshot( UUID id );
 
     /**
+     * The snapshot with the highest version that is {@code <= version}, or empty when there is none (or no such
+     * session). With the log after it, it rebuilds the document at {@code version}: E39 recovery rebuilds the published
+     * text S_V this way, which A10's truncation keeps possible by never cutting above a pending publish's version.
+     */
+    Optional< Snapshot > snapshotAtOrBelow( UUID id, int version );
+
+    /**
      * Truncation clamped to a snapshot. Let {@code S} be the newest snapshot whose version is {@code <= cut}: deletes
      * the updates with {@code version <= S.version()} (they are folded into {@code S}) and the snapshots older than
      * {@code S}; {@code S}, every newer snapshot and every update after {@code S} are kept, so snapshot {@code S} plus

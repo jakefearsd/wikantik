@@ -66,17 +66,17 @@ final class Gate {
     }
 
     /**
-     * A publish's answer before the save, or null to save: 409 {@code stale-base} unless at head, 200 {@code unchanged}
-     * with nothing to publish (E21), 400 {@code empty} for an empty draft (E1).
+     * A publish's answer before the save (section 7.3), or null to save: 200 {@code unchanged} with nothing to publish
+     * (E21), 400 {@code empty} for an empty draft (E1), 413 {@code oversize} for a draft over the page limit (7.4).
      */
-    static PublishResponse publishable( final int version, final int head, final boolean unpublished,
-                                        final boolean docEmpty, final int base ) {
-        if( version != head ) {
-            return new PublishResponse( 409, base, CollabSession.STALE, false );
-        }
+    static PublishResponse publishable( final boolean unpublished, final boolean docEmpty, final boolean oversize,
+                                        final int base ) {
         if( !unpublished ) {
             return new PublishResponse( 200, base, null, true );
         }
-        return docEmpty ? new PublishResponse( 400, base, "empty", false ) : null;
+        if( docEmpty ) {
+            return new PublishResponse( 400, base, "empty", false );
+        }
+        return oversize ? new PublishResponse( 413, base, "oversize", false ) : null;
     }
 }

@@ -18,6 +18,7 @@
  */
 package com.wikantik.collab;
 
+import com.wikantik.collab.model.PullCursor;
 import com.wikantik.collab.model.PullResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,10 +43,15 @@ final class Waiters {
 
     /** How a parked pull is answered, from what it asked for. */
     interface Answer {
-        PullResponse of( String participantId, int since, long presenceSince );
+        PullResponse of( String participantId, PullCursor cursor );
     }
 
-    private record Parked( int since, long presenceSince, Instant deadline, PullWaiter waiter ) {
+    /** Which parked pulls a change answers. */
+    interface Behind {
+        boolean test( String participantId, PullCursor cursor );
+    }
+
+    private record Parked( PullCursor cursor, Instant deadline, PullWaiter waiter ) {
     }
 
     private final UUID sessionId;
@@ -67,9 +73,9 @@ final class Waiters {
     }
 
     /** Parks {@code w}; a pull the participant already had parked is displaced and answered {@code displacedAnswer}. */
-    Runnable park( final String participantId, final int since, final long presenceSince, final Instant deadline,
-                   final PullWaiter w, final PullResponse displacedAnswer ) {
-        final Parked old = parked.put( participantId, new Parked( since, presenceSince, deadline, w ) );
+    Runnable park( final String participantId, final PullCursor cursor, final Instant deadline, final PullWaiter w,
+                   final PullResponse displacedAnswer ) {
+        final Parked old = parked.put( participantId, new Parked( cursor, deadline, w ) );
         return old == null ? null : completion( participantId, old.waiter(), displacedAnswer );
     }
 
@@ -82,22 +88,19 @@ final class Waiters {
     /** Removes every parked pull, each answered by {@code answer}. */
     List< Runnable > drainAll( final Answer answer ) {
         final List< Runnable > out = new ArrayList<>( parked.size() );
-        parked.forEach( ( id, p ) -> out.add( completion( id, p.waiter(), answer.of( id, p.since(), p.presenceSince() ) ) ) );
+        parked.forEach( ( id, p ) -> out.add( completion( id, p.waiter(), answer.of( id, p.cursor() ) ) ) );
         parked.clear();
         return out;
     }
 
-    /**
-     * Removes the parked pulls whose {@code presenceSince} is below {@code presenceSeq}, except {@code exceptParticipant}'s
-     * (the participant whose change it was), each answered by {@code answer}.
-     */
-    List< Runnable > drainWhere( final long presenceSeq, final String exceptParticipant, final Answer answer ) {
+    /** Removes the parked pulls {@code behind} selects, each answered by {@code answer}. */
+    List< Runnable > drainWhere( final Behind behind, final Answer answer ) {
         final List< Runnable > out = new ArrayList<>();
         for( final Iterator< Map.Entry< String, Parked > > it = parked.entrySet().iterator(); it.hasNext(); ) {
             final Map.Entry< String, Parked > e = it.next();
             final Parked p = e.getValue();
-            if( p.presenceSince() < presenceSeq && !e.getKey().equals( exceptParticipant ) ) {
-                out.add( completion( e.getKey(), p.waiter(), answer.of( e.getKey(), p.since(), p.presenceSince() ) ) );
+            if( behind.test( e.getKey(), p.cursor() ) ) {
+                out.add( completion( e.getKey(), p.waiter(), answer.of( e.getKey(), p.cursor() ) ) );
                 it.remove();
             }
         }
@@ -112,7 +115,7 @@ final class Waiters {
             if( now.isBefore( p.deadline() ) ) {
                 return false;
             }
-            out.add( completion( e.getKey(), p.waiter(), answer.of( e.getKey(), p.since(), p.presenceSince() ) ) );
+            out.add( completion( e.getKey(), p.waiter(), answer.of( e.getKey(), p.cursor() ) ) );
             return true;
         } );
         return out;

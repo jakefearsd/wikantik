@@ -18,8 +18,15 @@
  */
 package com.wikantik.collab.text;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Property;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -32,6 +39,134 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TextDiffTest {
 
     private static final String[] PIECES = { "a", "b", "\n", "\n\n", " ", "😀", "😁", "xyz", "" };
+
+    private final List< String > warns = new ArrayList<>();
+    private AbstractAppender appender;
+
+    @BeforeEach
+    void captureLog() {
+        appender = new AbstractAppender( "textDiffTest", null, null, true, Property.EMPTY_ARRAY ) {
+            @Override
+            public void append( final LogEvent e ) {
+                if ( e.getLevel().isMoreSpecificThan( org.apache.logging.log4j.Level.WARN ) ) {
+                    warns.add( e.getMessage().getFormattedMessage() );
+                }
+            }
+        };
+        appender.start();
+        final org.apache.logging.log4j.core.LoggerContext ctx =
+                ( org.apache.logging.log4j.core.LoggerContext ) LogManager.getContext( false );
+        final org.apache.logging.log4j.core.config.Configuration config = ctx.getConfiguration();
+        final org.apache.logging.log4j.core.config.LoggerConfig lc =
+                org.apache.logging.log4j.core.config.LoggerConfig.newBuilder().setAdditivity( false )
+                        .setLevel( org.apache.logging.log4j.Level.WARN ).setLoggerName( TextDiff.class.getName() )
+                        .setIncludeLocation( "false" ).setRefs( new org.apache.logging.log4j.core.config.AppenderRef[ 0 ] )
+                        .setConfig( config ).build();
+        lc.addAppender( appender, org.apache.logging.log4j.Level.WARN, null );
+        config.addLogger( TextDiff.class.getName(), lc );
+        ctx.updateLoggers();
+    }
+
+    @AfterEach
+    void releaseLog() {
+        final org.apache.logging.log4j.core.LoggerContext ctx =
+                ( org.apache.logging.log4j.core.LoggerContext ) LogManager.getContext( false );
+        ctx.getConfiguration().removeLogger( TextDiff.class.getName() );
+        ctx.updateLoggers();
+        appender.stop();
+    }
+
+    /**
+     * A multi-hunk line edit. Kept, deleted and inserted lines are unique and start and end with different letters
+     * (K..k, D..d, I..i), so no hunk can slide and the optimal line diff has exactly one hunk per edited region.
+     */
+    private record MultiHunk( String a, String b, List< int[] > spans ) {
+    }
+
+    private static String line( final Random r, final char first, final char last, final int seq, final int n ) {
+        return first + Integer.toString( seq ) + "." + n + "-" + Integer.toString( r.nextInt( 1 << 20 ), 36 )
+                + ( r.nextInt( 5 ) == 0 ? " \uD83D\uDE00 " : "" ) + last + "\n";
+    }
+
+    private static MultiHunk multiHunk( final Random r, final int seq ) {
+        final int n = 6 + r.nextInt( 50 );
+        final StringBuilder a = new StringBuilder();
+        final StringBuilder b = new StringBuilder();
+        final List< int[] > spans = new ArrayList<>();
+        int i = 0;
+        int fresh = 0;
+        while ( i < n ) {
+            final boolean edit = i > 0 && r.nextInt( 4 ) == 0;   // every hunk follows at least one kept line
+            if ( !edit ) {
+                final String kept = line( r, 'K', 'k', seq, i++ );
+                a.append( kept );
+                b.append( kept );
+                continue;
+            }
+            final int del = Math.min( r.nextInt( 4 ), n - i );
+            final int ins = del == 0 ? 1 + r.nextInt( 3 ) : r.nextInt( 4 );   // line counts change
+            final int from = a.length();
+            for ( int k = 0; k < del; k++ ) {
+                a.append( line( r, 'D', 'd', seq, i + k ) );
+            }
+            for ( int k = 0; k < ins; k++ ) {
+                b.append( line( r, 'I', 'i', seq, fresh++ ) );
+            }
+            spans.add( new int[] { from, a.length() } );
+            i += del;
+            if ( i < n ) {   // a kept line closes the hunk
+                final String kept = line( r, 'K', 'k', seq, i++ );
+                a.append( kept );
+                b.append( kept );
+            }
+        }
+        return new MultiHunk( a.toString(), b.toString(), spans );
+    }
+
+    @Test
+    void randomMultiHunkLineEditsDiffToOneRangePerHunkInsideIt() {
+        final Random r = new Random( 41 );
+        int hunks = 0;
+        for ( int seq = 0; seq < 2000; seq++ ) {
+            final MultiHunk m = multiHunk( r, seq );
+            final ChangeSet cs = TextDiff.changeSet( m.a(), m.b() );
+            assertEquals( m.b(), cs.apply( m.a() ), "case " + seq );
+            assertFalse( CollabText.splitsSurrogatePair( m.a(), cs ), "case " + seq );
+            final List< int[] > touched = cs.touchedRanges();
+            final int c = seq;
+            assertEquals( m.spans().size(), touched.size(), () -> "case " + c + ": one range per hunk; a=" + m.a()
+                    + " b=" + m.b() + " spans=" + m.spans().stream().map( java.util.Arrays::toString ).toList() + " touched="
+                    + touched.stream().map( java.util.Arrays::toString ).toList() );
+            for ( int k = 0; k < touched.size(); k++ ) {
+                final int[] t = touched.get( k );
+                final int[] span = m.spans().get( k );
+                assertTrue( t[ 0 ] >= span[ 0 ] && t[ 1 ] <= span[ 1 ], "case " + seq + " hunk " + k + ": range ["
+                        + t[ 0 ] + ", " + t[ 1 ] + "] outside its span [" + span[ 0 ] + ", " + span[ 1 ] + "]" );
+            }
+            hunks += touched.size();
+        }
+        assertTrue( hunks > 2000, "the generator produced multi-hunk edits: " + hunks );
+        assertTrue( warns.isEmpty(), "no fallback under the default cap: " + warns );
+    }
+
+    @Test
+    void theCoarseFallbackIsExactAndWarns() {
+        final Random r = new Random( 43 );
+        int fellBack = 0;
+        for ( int seq = 0; seq < 300; seq++ ) {
+            final MultiHunk m = multiHunk( r, seq );
+            final int before = warns.size();
+            final ChangeSet cs = TextDiff.changeSet( m.a(), m.b(), 1 );
+            assertEquals( m.b(), cs.apply( m.a() ), "case " + seq );
+            if ( m.spans().size() > 1 ) {
+                assertEquals( 1, cs.touchedRanges().size(), "case " + seq + ": one coarse span" );
+                assertEquals( before + 1, warns.size(), "case " + seq + ": the fallback is logged" );
+                assertTrue( warns.get( warns.size() - 1 ).contains( "exceeded 1 edits" ), warns.get( warns.size() - 1 ) );
+                fellBack++;
+            }
+        }
+        assertTrue( fellBack > 50, "the fallback ran: " + fellBack );
+    }
 
     private static String random( final Random r ) {
         final StringBuilder sb = new StringBuilder();

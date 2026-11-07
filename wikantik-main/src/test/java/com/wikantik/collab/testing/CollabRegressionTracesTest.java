@@ -34,7 +34,11 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/** Replays every committed shrunk trace in {@code collab/regressions/} against a fresh stub and a fresh session, forever (F1). */
+/**
+ * Replays every committed shrunk trace in {@code collab/regressions/} against a fresh stub and a fresh session, forever
+ * (F1); a trace in a subdirectory named after a target ({@code session/}) uses actions only that target's overlay takes
+ * (pending publishes, publish-time faults) and replays against that target alone.
+ */
 class CollabRegressionTracesTest {
 
     private static Path dir() throws URISyntaxException {
@@ -50,16 +54,30 @@ class CollabRegressionTracesTest {
 
     @TestFactory
     Stream< DynamicTest > everyCommittedTraceReplaysCleanly() throws IOException, URISyntaxException {
-        final List< Path > traces;
-        try( Stream< Path > s = Files.list( dir() ) ) {
-            traces = s.filter( p -> p.getFileName().toString().endsWith( ".json" ) ).sorted().toList();
+        final List< Path > shared = traces( dir() );
+        return SimTarget.all().stream().flatMap( target -> {
+            final List< Path > own;
+            try {
+                own = Files.isDirectory( dir().resolve( target.name() ) ) ? traces( dir().resolve( target.name() ) ) : List.of();
+            } catch( final IOException | URISyntaxException e ) {
+                throw new IllegalStateException( "cannot list the " + target + " regression traces", e );
+            }
+            return Stream.concat( shared.stream(), own.stream() ).map( p -> replay( target, p ) );
+        } );
+    }
+
+    private static List< Path > traces( final Path d ) throws IOException {
+        try( Stream< Path > s = Files.list( d ) ) {
+            return s.filter( p -> p.getFileName().toString().endsWith( ".json" ) ).sorted().toList();
         }
-        return SimTarget.all().stream().flatMap( target -> traces.stream().map( p -> DynamicTest.dynamicTest(
-            target + " " + p.getFileName(), () -> {
-                final SimTrace recorded = SimTrace.fromJson( Files.readString( p, StandardCharsets.UTF_8 ) );
-                final SimTrace replayed = target.replay( recorded );
-                assertEquals( SimTrace.Status.PASS, replayed.outcome().status(), target + " " + p.getFileName() + " (seed "
-                    + recorded.seed() + ", " + recorded.profile() + "): " + replayed.outcome().message() );
-            } ) ) );
+    }
+
+    private static DynamicTest replay( final SimTarget target, final Path p ) {
+        return DynamicTest.dynamicTest( target + " " + p.getFileName(), () -> {
+            final SimTrace recorded = SimTrace.fromJson( Files.readString( p, StandardCharsets.UTF_8 ) );
+            final SimTrace replayed = target.replay( recorded );
+            assertEquals( SimTrace.Status.PASS, replayed.outcome().status(), target + " " + p.getFileName() + " (seed "
+                + recorded.seed() + ", " + recorded.profile() + "): " + replayed.outcome().message() );
+        } );
     }
 }

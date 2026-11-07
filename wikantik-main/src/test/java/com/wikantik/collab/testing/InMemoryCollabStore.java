@@ -342,6 +342,18 @@ public final class InMemoryCollabStore implements CollabStore {
     }
 
     @Override
+    public Optional< Snapshot > snapshotAtOrBelow( final UUID id, final int version ) {
+        lock.lock();
+        try {
+            final TreeMap< Integer, Snapshot > m = snapshots.get( id );
+            final Map.Entry< Integer, Snapshot > e = m == null ? null : m.floorEntry( version );
+            return e == null ? Optional.empty() : Optional.of( detach( e.getValue() ) );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
     public void truncateUpdatesBelow( final UUID id, final int cut ) {
         lock.lock();
         try {

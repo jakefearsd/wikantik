@@ -1075,11 +1075,20 @@ is asserted first.
 
 | Phase | Content | Ships |
 |---|---|---|
-| **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures (F0) and seeded property tests. Test harness F1–F9 + `CollabInvariants` against a stub session, so Phase 1 is written test-first into it. **A2: atomic per-page save lock + `PageSaveHelper` returns the written version and a no-op flag** (fixes today's strict-mode race). **A7: async-supported filter fixes + `AsyncListener` timing/MDC.** A8 limiter decision. | Nothing user-visible (A2 is a bug fix) |
+| **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures (F0) and seeded property tests. Test harness F1–F9 + `CollabInvariants` against a stub session, so Phase 1 is written test-first into it. **A2: atomic per-page save lock + `PageSaveHelper` returns the written version and a no-op flag** (fixes today's strict-mode race). **A7: async-supported filter fixes + `AsyncListener` timing/MDC.** A8 limiter decision. | Nothing user-visible (A2 is a bug fix). **Done 2026-11-07** — plan `docs/superpowers/plans/2026-11-06-multiedit-phase0-foundations.md`, commits `51418c774a..f2eda61eeb` on main |
 | **1 — Core text collaboration** | Migration, `CollabStore`, `CollabSession` (push/pull/ring/snapshot), `CollabResource` (join/updates/leave), publish via `PageSaveHelper` with normalisation mapping, frontend `collabPeer` + Publish button, kill switch default **off**, convergence fuzz test, REST IT | Dark; enable on a staging instance |
 | **2 — Presence + metadata + external merges** | Presence + remote cursors + `PresenceBar`; meta ops + form integration; `CollabPageEventListener` (external merges, rename, delete); external-change toast/highlight; Selenide two-browser test | Enable in prod for the admin group first (optional `wikantik.collab.enabled` per-group follow-up if wanted) |
 | **3 — Draft UX + attribution** | Draft banner, discard, publish dialog diff, offline-draft import from `useDraft`, `page_version_contributor` + history UI, audit entries, metrics | Default **on** |
 | **4 — Polish / later** | Reader "being edited" badge, WebSocket transport, draft expiry admin view at `/admin/collab`, multi-node (§12.4), watch-only participants | As needed |
+
+**Phase 0 outcome (2026-11-07).** What now exists: the Java `ChangeSet`/`TextDiff` port, held to `@codemirror/state`
+by a 1,200-case shared corpus (about 52,000 individual checks); the collaboration ports, an in-memory store and the
+contract tests both stores must pass; a deterministic simulator with LEAVE, crash, reorder, drop and duplicate faults
+(about 8,000 seeds in roughly 10 s, 20k-seed soaks green, mutants killed and shrunk); cross-language trace replay of
+215 traces (about 11,000 snapshots) through the real `@codemirror/collab`; a concurrency harness; and the atomic guarded
+save (A2, `PageManager.saveText` with a `SaveGuard` under a per-page lock) plus the async-capable `/api/*` filters (A7)
+and the dedicated `/api/collab/*` rate-limit bucket (A8). The full gate (`bin/run-tests.sh --parallel 4`) passed.
+Phase 1 obligations carried forward are recorded in the SDD ledger's deferred-minor lines.
 
 Rough size: Phase 0 ≈ 2 weeks (the port is ~600 lines; the harness roughly as much again),
 Phase 1 ≈ 2 weeks, Phase 2 ≈ 1.5 weeks, Phase 3 ≈ 1 week, for one developer working TDD. The

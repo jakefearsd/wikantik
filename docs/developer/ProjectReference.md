@@ -343,6 +343,16 @@ limits), `POST /api/fences/render` for editor previews, `bin/check-plantuml.sh` 
 `wikantik.fences.plantuml.*` keys with kill switch `wikantik.fences.plantuml.enabled`. Pending after release: push `EditPageHelp` to prod and update the live
 design pages.
 
+### Collaborative Editing (MultiEdit) — [MultiEdit.MD](../MultiEdit.MD)
+
+**Phase 0 (foundations) complete 2026-11-07; Phase 1 (core text collaboration, dark behind a default-off kill switch) is
+next.** `docs/MultiEdit.MD` is the design — its §0 review amendments are authoritative where they conflict with the body.
+Phase 0 shipped nothing user-visible: the `ChangeSet`/`TextDiff` Java port pinned to `@codemirror/state` by a shared
+corpus, collaboration ports + in-memory store + contract tests, a deterministic fuzz simulator with cross-language trace
+replay, the atomic guarded page save (A2), async-capable `/api/*` filters (A7) and a dedicated `/api/collab/*`
+rate-limit bucket (A8). Plans: [Phase 0](../superpowers/plans/2026-11-06-multiedit-phase0-foundations.md),
+[Phase 1](../superpowers/plans/2026-11-06-multiedit-phase1-core-text.md).
+
 ### Other subsystems
 
 - **[PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Canonical explainer distinguishing the Page Graph (wikilink edges) from the Knowledge Graph (LLM-extracted entities). Reference this before touching either subsystem.

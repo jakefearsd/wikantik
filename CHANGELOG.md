@@ -10,6 +10,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **A strict-mode save could be silently overtaken.** A save carrying `expectedVersion` checked the version before the
   pre-save filters ran and outside any lock, so an unguarded save landing in between was overwritten. The check now runs
   under a per-page lock together with the write, and `PageSaveHelper.saveTracked` reports the version this call wrote.
+- **A refused stale save no longer runs the pre-save filters.** A strict-mode save whose `expectedVersion` is already
+  stale now fails before the filters, so refused retries no longer count against the spam filter. The identical-text
+  check also runs under the page lock.
+
+### Changed
+- **Every `/api/*` filter is now async-capable.** The request-metrics filter times async requests to completion and
+  request correlation ids are cleared on the request thread; groundwork for upcoming editor work, no behaviour change.
+- **`/api/collab/*` gets its own per-IP rate-limit bucket** (`WIKANTIK_RATELIMIT_SESSION_PERCLIENT`, default 100/s).
+  Requests carrying an `Authorization` header always use the default bucket. Turning the rate limiter fully off now
+  also requires the session limit to be 0.
 
 ## [2.5.9] - 2026-11-06
 

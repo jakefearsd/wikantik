@@ -28,13 +28,24 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.AppenderRef;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -85,6 +96,11 @@ class RateLimitFilterTest {
         when( req.getServletPath() ).thenReturn( servletPath );
         when( req.getPathInfo() ).thenReturn( pathInfo );
         when( req.getRemoteAddr() ).thenReturn( ip );
+        return req;
+    }
+
+    private static HttpServletRequest withAuthorization( final HttpServletRequest req, final String value ) {
+        when( req.getHeader( "Authorization" ) ).thenReturn( value );
         return req;
     }
 
@@ -405,5 +421,159 @@ class RateLimitFilterTest {
         final HttpServletResponse blocked = response();
         f.doFilter( request( "/api/bundle", null, null, "3.3.3.3" ), blocked, chain );
         verify( blocked ).setStatus( 429 );
+    }
+
+    // ------------------------------------------------------------------ session-limited paths (MultiEdit A8)
+
+    /**
+     * SECURITY REGRESSION: RateLimitFilter runs before BasicAuthFilter, so an exemption
+     * keyed only on the /api/collab/ path let {@code Authorization: Basic} requests reach
+     * bcrypt login unthrottled. A request carrying an Authorization header is never a
+     * session-path request: it is limited by the default bucket.
+     */
+    @Test
+    void basicAuthRequestToCollabPathIsLimitedByTheDefaultBucket() throws Exception {
+        final RateLimitFilter f = new RateLimitFilter( config( 2, 100, 0, List.of(), ticker ) );
+        f.init( null );
+        final FilterChain chain = mock( FilterChain.class );
+        f.doFilter( withAuthorization( request( "/api/collab/x", "8.8.8.8" ), "Basic dTpw" ), response(), chain );
+        f.doFilter( withAuthorization( request( "/api/collab/x", "8.8.8.8" ), "Basic dTpw" ), response(), chain );
+        final HttpServletResponse blocked = response();
+        final FilterChain blockedChain = mock( FilterChain.class );
+        f.doFilter( withAuthorization( request( "/api/collab/x", "8.8.8.8" ), "Basic dTpw" ), blocked, blockedChain );
+        verify( blockedChain, never() ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        verify( blocked ).setStatus( 429 );
+    }
+
+    @Test
+    void cookieCollabRequestsAreLimitedBySessionBucketAtItsOwnRate() throws Exception {
+        final RateLimitFilter.Config cfg = RateLimitFilter.Config.of( 2, 100, 0,
+                List.of( "/api/bundle" ), List.of( "/api/collab/" ), 5, List.of(), ticker );
+        final SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        MeterRegistryHolder.set( reg );
+        final RateLimitFilter f = new RateLimitFilter( cfg );
+        f.init( null );
+        final FilterChain chain = mock( FilterChain.class );
+        for ( int i = 0; i < 5; i++ ) {
+            f.doFilter( request( "/api/collab/P/updates", "8.8.8.8" ), response(), chain );
+        }
+        verify( chain, times( 5 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        final HttpServletResponse blocked = response();
+        final FilterChain blockedChain = mock( FilterChain.class );
+        f.doFilter( request( "/api/collab/P/updates", "8.8.8.8" ), blocked, blockedChain );
+        verify( blockedChain, never() ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        verify( blocked ).setStatus( 429 );
+        assertEquals( 1.0, reg.get( "wikantik_ratelimit.rejected_total" ).tag( "tier", "session" )
+                .counter().count(), 0.0001 );
+        // the session bucket is separate: the ordinary bucket still has its full allowance
+        final FilterChain other = mock( FilterChain.class );
+        f.doFilter( request( "/api/pages/Main", "8.8.8.8" ), response(), other );
+        f.doFilter( request( "/api/pages/Main", "8.8.8.8" ), response(), other );
+        verify( other, times( 2 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+    }
+
+    @Test
+    void sessionBucketDefaultsToOneHundredPerClient() {
+        final RateLimitFilter.Config cfg = config( 2, 100, 0, List.of(), ticker );
+        assertEquals( 100, RateLimitFilter.DEFAULT_SESSION_PERCLIENT );
+        assertEquals( RateLimitFilter.DEFAULT_SESSION_PERCLIENT, cfg.sessionPerClient() );
+        assertEquals( RateLimitFilter.DEFAULT_SESSION_PERCLIENT,
+                RateLimitFilter.Config.fromEnvironment().sessionPerClient() );
+    }
+
+    @Test
+    void overBroadSessionPrefixIsRefusedWithAWarning() throws Exception {
+        final List< LogEvent > warnings = captureWarnings();
+        try {
+            final RateLimitFilter.Config cfg = RateLimitFilter.Config.of( 2, 100, 0, List.of( "/api/bundle" ),
+                    List.of( "/api/", "/", "/api", "/api/collab/" ), 100, List.of(), ticker );
+            assertEquals( List.of( "/api/collab/" ), cfg.sessionPathPrefixes(),
+                    "only a prefix naming two segments below the root may be a session path" );
+            assertTrue( warnings.stream().filter( e -> e.getLevel() == Level.WARN )
+                            .map( e -> e.getMessage().getFormattedMessage() )
+                            .filter( m -> m.contains( "too broad" ) ).count() >= 3,
+                    "each refused prefix is WARNed: " + warnings );
+            // and a refused prefix really is not a session path: /api/pages stays on the default bucket
+            final RateLimitFilter f = new RateLimitFilter( cfg );
+            f.init( null );
+            final FilterChain chain = mock( FilterChain.class );
+            f.doFilter( request( "/api/pages/Main", "8.8.8.8" ), response(), chain );
+            f.doFilter( request( "/api/pages/Main", "8.8.8.8" ), response(), chain );
+            final HttpServletResponse blocked = response();
+            f.doFilter( request( "/api/pages/Main", "8.8.8.8" ), blocked, chain );
+            verify( blocked ).setStatus( 429 );
+        } finally {
+            releaseWarnings();
+        }
+    }
+
+    @Test
+    void blankSessionPathsEnvValueDisablesSessionPaths() {
+        assertEquals( List.of(), RateLimitFilter.Config.sessionPathsFrom( "" ) );
+        assertEquals( List.of(), RateLimitFilter.Config.sessionPathsFrom( "   " ) );
+        assertEquals( List.of( "/api/collab/" ), RateLimitFilter.Config.sessionPathsFrom( null ),
+                "unset means the documented default" );
+        assertEquals( List.of( "/api/live/", "/api/collab/" ),
+                RateLimitFilter.Config.sessionPathsFrom( " /api/live , /api/collab/ " ) );
+    }
+
+    @Test
+    void withNoSessionPathsCollabRequestsUseTheDefaultBucket() throws Exception {
+        final RateLimitFilter f = new RateLimitFilter( RateLimitFilter.Config.of( 2, 100, 0,
+                List.of( "/api/bundle" ), List.of(), 100, List.of(), ticker ) );
+        f.init( null );
+        final FilterChain chain = mock( FilterChain.class );
+        f.doFilter( request( "/api/collab/x", "8.8.8.8" ), response(), chain );
+        f.doFilter( request( "/api/collab/x", "8.8.8.8" ), response(), chain );
+        final HttpServletResponse blocked = response();
+        f.doFilter( request( "/api/collab/x", "8.8.8.8" ), blocked, chain );
+        verify( blocked ).setStatus( 429 );
+    }
+
+    private AbstractAppender appender;
+    private LoggerConfig loggerConfig;
+    private boolean addedLoggerConfig;
+    private Level priorLevel;
+
+    private List< LogEvent > captureWarnings() {
+        final List< LogEvent > captured = new CopyOnWriteArrayList<>();
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext( false );
+        final Configuration cfg = ctx.getConfiguration();
+        appender = new AbstractAppender( "RateLimitFilterTest-" + System.nanoTime(), null,
+                PatternLayout.createDefaultLayout(), true, null ) {
+            @Override
+            public void append( final LogEvent event ) {
+                captured.add( event.toImmutable() );
+            }
+        };
+        appender.start();
+        cfg.addAppender( appender );
+        final String loggerName = RateLimitFilter.class.getName();
+        loggerConfig = cfg.getLoggerConfig( loggerName );
+        addedLoggerConfig = !loggerConfig.getName().equals( loggerName );
+        if ( addedLoggerConfig ) {
+            loggerConfig = LoggerConfig.newBuilder().setAdditivity( false ).setLevel( Level.WARN )
+                    .setLoggerName( loggerName ).setIncludeLocation( "true" )
+                    .setRefs( new AppenderRef[ 0 ] ).setConfig( cfg ).build();
+            cfg.addLogger( loggerName, loggerConfig );
+        }
+        priorLevel = loggerConfig.getLevel();
+        loggerConfig.setLevel( Level.WARN );
+        loggerConfig.addAppender( appender, Level.WARN, null );
+        ctx.updateLoggers();
+        return captured;
+    }
+
+    private void releaseWarnings() {
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext( false );
+        loggerConfig.removeAppender( appender.getName() );
+        if ( addedLoggerConfig ) {
+            ctx.getConfiguration().removeLogger( loggerConfig.getName() );
+        } else {
+            loggerConfig.setLevel( priorLevel );
+        }
+        ctx.getConfiguration().getAppenders().remove( appender.getName() );
+        ctx.updateLoggers();
+        appender.stop();
     }
 }

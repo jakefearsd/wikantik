@@ -77,20 +77,36 @@ import java.util.List;
  *       default {@code /api/bundle,/api/search,/sparql}</li>
  *   <li>{@code WIKANTIK_RATELIMIT_SESSION_PATHS} — CSV path prefixes of
  *       session-limited endpoints, default {@code /api/collab/}; each prefix is
- *       normalised to end in {@code /}</li>
+ *       normalised to end in {@code /}. A variable that is <em>set but blank</em>
+ *       disables session paths entirely (every request is classified as default or
+ *       expensive); an unset variable means the default.</li>
+ *   <li>{@code WIKANTIK_RATELIMIT_SESSION_PERCLIENT} — default 100 req/s</li>
  *   <li>{@code WIKANTIK_RATELIMIT_EXEMPT_CIDRS} — CSV IPv4 CIDRs, default empty
  *       (loopback is always exempt regardless)</li>
  * </ul>
  *
  * <p><b>Session-limited paths.</b> A request whose path (after the context path)
- * starts with a session-limited prefix (default {@code /api/collab/}) skips every
- * bucket here — the per-IP default bucket and the expensive/global buckets. Those
- * endpoints are long-lived collaborative-editing sessions whose steady polling would
- * exhaust a per-IP bucket shared by everyone behind one NAT; the collab session
- * enforces its own per-participant caps (Phase 1), so this filter steps aside.</p>
+ * starts with a session-limited prefix (default {@code /api/collab/}) is limited by
+ * its own per-IP <b>session</b> bucket ({@code WIKANTIK_RATELIMIT_SESSION_PERCLIENT})
+ * instead of the default and expensive buckets. Those endpoints are long-lived
+ * collaborative-editing sessions whose steady polling would exhaust the default bucket
+ * shared by everyone behind one NAT; the collab session adds its own per-participant
+ * caps (Phase 1), and the session bucket keeps a ceiling on any one address. Two
+ * guards stop the classification from becoming a bypass:</p>
+ * <ul>
+ *   <li>A request carrying an {@code Authorization} header is <em>never</em> a
+ *       session-path request — it is classified as default/expensive as before. This
+ *       filter runs before {@code BasicAuthFilter}, so a Basic-auth request to a
+ *       session path would otherwise reach the (deliberately slow) password check
+ *       under the generous session limit.</li>
+ *   <li>A configured prefix naming fewer than two segments below the root (three
+ *       path segments counting the root, e.g. {@code /} or {@code /api/}) is too broad:
+ *       it is WARNed at startup and refused, so a mis-set variable cannot move the
+ *       whole API onto the session bucket.</li>
+ * </ul>
  *
  * <p>On limit: {@code 429} + {@code Retry-After: 1}, a SecurityLog line, and a
- * {@code wikantik_ratelimit.rejected_total{tier=...}} counter.</p>
+ * {@code wikantik_ratelimit.rejected_total{tier=default|expensive|session}} counter.</p>
  *
  * <p>Filter ordering: after {@code RequestMetricsFilter} (429s get measured),
  * before the auth filters (reject cheaply before any auth/DB work).</p>
@@ -105,6 +121,7 @@ public class RateLimitFilter implements Filter {
     public static final String ENV_EXPENSIVE_GLOBAL    = "WIKANTIK_RATELIMIT_EXPENSIVE_GLOBAL";
     public static final String ENV_EXPENSIVE_PATHS     = "WIKANTIK_RATELIMIT_EXPENSIVE_PATHS";
     public static final String ENV_SESSION_PATHS       = "WIKANTIK_RATELIMIT_SESSION_PATHS";
+    public static final String ENV_SESSION_PERCLIENT   = "WIKANTIK_RATELIMIT_SESSION_PERCLIENT";
     public static final String ENV_EXEMPT_CIDRS        = "WIKANTIK_RATELIMIT_EXEMPT_CIDRS";
 
     public static final int DEFAULT_DEFAULT_PERCLIENT   = 25;
@@ -112,6 +129,11 @@ public class RateLimitFilter implements Filter {
     public static final int DEFAULT_EXPENSIVE_GLOBAL    = 10;
     public static final String DEFAULT_EXPENSIVE_PATHS  = "/api/bundle,/api/search,/sparql";
     public static final String DEFAULT_SESSION_PATHS    = "/api/collab/";
+    public static final int DEFAULT_SESSION_PERCLIENT   = 100;
+
+    private static final String TIER_DEFAULT = "default";
+    private static final String TIER_EXPENSIVE = "expensive";
+    private static final String TIER_SESSION = "session";
 
     /** Exact paths that must never be limited (monitoring probes). */
     private static final String EXEMPT_EXACT_PATH = "/api/health";
@@ -123,7 +145,7 @@ public class RateLimitFilter implements Filter {
      */
     record Config( int defaultPerClient, int expensivePerClient, int expensiveGlobal,
                    List< String > expensivePathPrefixes,
-                   List< String > sessionPathPrefixes,
+                   List< String > sessionPathPrefixes, int sessionPerClient,
                    List< InternalNetworkFilter.CidrRange > exemptRanges,
                    Ticker ticker ) {
 
@@ -131,25 +153,55 @@ public class RateLimitFilter implements Filter {
                           final List< String > expensivePathPrefixes, final List< String > exemptCidrs,
                           final Ticker ticker ) {
             return of( defaultPerClient, expensivePerClient, expensiveGlobal, expensivePathPrefixes,
-                    parseSessionPaths( DEFAULT_SESSION_PATHS ), exemptCidrs, ticker );
+                    sessionPathsFrom( null ), DEFAULT_SESSION_PERCLIENT, exemptCidrs, ticker );
         }
 
         static Config of( final int defaultPerClient, final int expensivePerClient, final int expensiveGlobal,
                           final List< String > expensivePathPrefixes, final List< String > sessionPathPrefixes,
                           final List< String > exemptCidrs, final Ticker ticker ) {
+            return of( defaultPerClient, expensivePerClient, expensiveGlobal, expensivePathPrefixes,
+                    sessionPathPrefixes, DEFAULT_SESSION_PERCLIENT, exemptCidrs, ticker );
+        }
+
+        static Config of( final int defaultPerClient, final int expensivePerClient, final int expensiveGlobal,
+                          final List< String > expensivePathPrefixes, final List< String > sessionPathPrefixes,
+                          final int sessionPerClient, final List< String > exemptCidrs, final Ticker ticker ) {
             return new Config( defaultPerClient, expensivePerClient, expensiveGlobal,
                     List.copyOf( expensivePathPrefixes ), normalisePrefixes( sessionPathPrefixes ),
-                    parseCidrs( exemptCidrs ), ticker );
+                    sessionPerClient, parseCidrs( exemptCidrs ), ticker );
         }
 
-        private static List< String > parseSessionPaths( final String csv ) {
-            return normalisePrefixes( Arrays.stream( csv.split( "," ) ).toList() );
+        /**
+         * Session-path prefixes from the raw {@link #ENV_SESSION_PATHS} value: {@code null}
+         * (unset) means {@link #DEFAULT_SESSION_PATHS}; a blank value disables session paths.
+         */
+        static List< String > sessionPathsFrom( final String raw ) {
+            if ( raw == null ) {
+                return normalisePrefixes( List.of( DEFAULT_SESSION_PATHS ) );
+            }
+            return normalisePrefixes( Arrays.stream( raw.split( "," ) ).toList() );
         }
 
-        /** Trims, drops blanks, and appends a trailing slash so a prefix never matches a sibling like /api/collabX. */
+        /**
+         * Trims, drops blanks, appends a trailing slash so a prefix never matches a sibling
+         * like /api/collabX, and refuses (with a WARN) a prefix too broad to be a session path.
+         */
         private static List< String > normalisePrefixes( final List< String > prefixes ) {
             return prefixes.stream().map( String::trim ).filter( s -> !s.isEmpty() )
-                    .map( s -> s.endsWith( "/" ) ? s : s + "/" ).toList();
+                    .map( s -> s.endsWith( "/" ) ? s : s + "/" )
+                    .filter( Config::narrowEnough ).toList();
+        }
+
+        /** A session prefix must name at least two segments below the root, e.g. {@code /api/collab/}. */
+        private static boolean narrowEnough( final String prefix ) {
+            final long segments = Arrays.stream( prefix.split( "/" ) ).filter( seg -> !seg.isEmpty() ).count();
+            if ( segments < 2 ) {
+                LOG.warn( "Refusing session rate-limit prefix '{}' from {}: too broad (it must name at least "
+                        + "two path segments, e.g. /api/collab/) — those requests use the default bucket",
+                        prefix, ENV_SESSION_PATHS );
+                return false;
+            }
+            return true;
         }
 
         static Config fromEnvironment() {
@@ -163,7 +215,8 @@ public class RateLimitFilter implements Filter {
                     envIntOr( ENV_DEFAULT_PERCLIENT, DEFAULT_DEFAULT_PERCLIENT ),
                     envIntOr( ENV_EXPENSIVE_PERCLIENT, DEFAULT_EXPENSIVE_PERCLIENT ),
                     envIntOr( ENV_EXPENSIVE_GLOBAL, DEFAULT_EXPENSIVE_GLOBAL ),
-                    paths, parseSessionPaths( envOr( ENV_SESSION_PATHS, DEFAULT_SESSION_PATHS ) ),
+                    paths, sessionPathsFrom( System.getenv( ENV_SESSION_PATHS ) ),
+                    envIntOr( ENV_SESSION_PERCLIENT, DEFAULT_SESSION_PERCLIENT ),
                     parseCidrs( cidrs ), Ticker.systemTicker() );
         }
 
@@ -202,8 +255,10 @@ public class RateLimitFilter implements Filter {
     private boolean disabled;
     private SlidingWindowRateLimiter defaultLimiter;
     private SlidingWindowRateLimiter expensiveLimiter;
+    private SlidingWindowRateLimiter sessionLimiter;
     private Counter rejectedDefault;
     private Counter rejectedExpensive;
+    private Counter rejectedSession;
 
     /** Container constructor — configuration resolved from the environment in {@link #init}. */
     public RateLimitFilter() {
@@ -220,7 +275,7 @@ public class RateLimitFilter implements Filter {
             config = Config.fromEnvironment();
         }
         disabled = config.defaultPerClient() <= 0 && config.expensivePerClient() <= 0
-                && config.expensiveGlobal() <= 0;
+                && config.expensiveGlobal() <= 0 && config.sessionPerClient() <= 0;
         if ( disabled ) {
             LOG.info( "RateLimitFilter DISABLED (all limits <= 0)" );
             return;
@@ -230,20 +285,20 @@ public class RateLimitFilter implements Filter {
         defaultLimiter = new SlidingWindowRateLimiter( 0, config.defaultPerClient(), 10000, config.ticker() );
         expensiveLimiter = new SlidingWindowRateLimiter(
                 config.expensiveGlobal(), config.expensivePerClient(), 10000, config.ticker() );
+        sessionLimiter = new SlidingWindowRateLimiter( 0, config.sessionPerClient(), 10000, config.ticker() );
 
         final MeterRegistry reg = MeterRegistryHolder.get();
         if ( reg != null ) {
-            rejectedDefault = Counter.builder( "wikantik_ratelimit.rejected_total" )
-                    .description( "HTTP requests rejected by the per-client rate limiter (429)" )
-                    .tag( "tier", "default" ).register( reg );
-            rejectedExpensive = Counter.builder( "wikantik_ratelimit.rejected_total" )
-                    .description( "HTTP requests rejected by the per-client rate limiter (429)" )
-                    .tag( "tier", "expensive" ).register( reg );
+            rejectedDefault = rejectionCounter( reg, TIER_DEFAULT );
+            rejectedExpensive = rejectionCounter( reg, TIER_EXPENSIVE );
+            rejectedSession = rejectionCounter( reg, TIER_SESSION );
         }
         LOG.info( "RateLimitFilter initialised: default={}/s per client; expensive={}/s per client, "
-                        + "{}/s global, paths={}; exemptCidrs={} (+loopback always){}",
+                        + "{}/s global, paths={}; session={}/s per client, paths={}; exemptCidrs={} "
+                        + "(+loopback always){}",
                 config.defaultPerClient(), config.expensivePerClient(), config.expensiveGlobal(),
-                config.expensivePathPrefixes(), config.exemptRanges().size(),
+                config.expensivePathPrefixes(), config.sessionPerClient(), config.sessionPathPrefixes(),
+                config.exemptRanges().size(),
                 reg == null ? "; no MeterRegistry — metrics will NOT publish" : "" );
     }
 
@@ -271,25 +326,52 @@ public class RateLimitFilter implements Filter {
             return;
         }
 
-        if ( isSessionPath( path ) ) {
+        final String tier = tierOf( httpReq, path );
+        if ( limiterFor( tier ).tryAcquire( "ip:" + ip ) ) {
             chain.doFilter( request, response );
             return;
         }
 
-        final boolean expensive = isExpensivePath( path );
-        final SlidingWindowRateLimiter limiter = expensive ? expensiveLimiter : defaultLimiter;
-        if ( limiter.tryAcquire( "ip:" + ip ) ) {
-            chain.doFilter( request, response );
-            return;
-        }
-
-        SECURITY.warn( "Rate limit exceeded: tier={}, ip={}, path={}",
-                expensive ? "expensive" : "default", ip, rawUri );
-        final Counter counter = expensive ? rejectedExpensive : rejectedDefault;
+        SECURITY.warn( "Rate limit exceeded: tier={}, ip={}, path={}", tier, ip, rawUri );
+        final Counter counter = counterFor( tier );
         if ( counter != null ) {
             counter.increment();
         }
         sendRateLimited( httpRes );
+    }
+
+    /**
+     * The bucket a request is charged to. A request with an {@code Authorization} header
+     * is never a session-path request (it would otherwise reach the Basic-auth password
+     * check, which runs after this filter, under the generous session limit).
+     */
+    private String tierOf( final HttpServletRequest req, final String path ) {
+        if ( req.getHeader( "Authorization" ) == null && isSessionPath( path ) ) {
+            return TIER_SESSION;
+        }
+        return isExpensivePath( path ) ? TIER_EXPENSIVE : TIER_DEFAULT;
+    }
+
+    private SlidingWindowRateLimiter limiterFor( final String tier ) {
+        return switch ( tier ) {
+            case TIER_SESSION -> sessionLimiter;
+            case TIER_EXPENSIVE -> expensiveLimiter;
+            default -> defaultLimiter;
+        };
+    }
+
+    private Counter counterFor( final String tier ) {
+        return switch ( tier ) {
+            case TIER_SESSION -> rejectedSession;
+            case TIER_EXPENSIVE -> rejectedExpensive;
+            default -> rejectedDefault;
+        };
+    }
+
+    private static Counter rejectionCounter( final MeterRegistry reg, final String tier ) {
+        return Counter.builder( "wikantik_ratelimit.rejected_total" )
+                .description( "HTTP requests rejected by the per-client rate limiter (429)" )
+                .tag( "tier", tier ).register( reg );
     }
 
     private boolean isSessionPath( final String path ) {

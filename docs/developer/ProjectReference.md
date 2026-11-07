@@ -345,8 +345,10 @@ design pages.
 
 ### Collaborative Editing (MultiEdit) — [MultiEdit.MD](../MultiEdit.MD)
 
-**Phase 0 (foundations) complete 2026-11-07; Phase 1 (core text collaboration, dark behind a default-off kill switch) is
-next.** `docs/MultiEdit.MD` is the design — its §0 review amendments are authoritative where they conflict with the body.
+**Phases 0, 1 and 2 are complete as of 2026-11-07; collaboration ships dark behind the default-off kill switch
+`wikantik.collab.enabled`, and Phase 3 (draft UX, attribution) is merged but not yet gated.** Phase 2 added presence
+and remote carets, frontmatter/tag co-editing, external-writer merges, rename following and delete/recreate; see the
+"Phase 2 outcome" and operator enablement notes in MultiEdit.MD section 15. `docs/MultiEdit.MD` is the design — its §0 review amendments are authoritative where they conflict with the body.
 Phase 0 shipped nothing user-visible: the `ChangeSet`/`TextDiff` Java port pinned to `@codemirror/state` by a shared
 corpus, collaboration ports + in-memory store + contract tests, a deterministic fuzz simulator with cross-language trace
 replay, the atomic guarded page save (A2), async-capable `/api/*` filters (A7) and a dedicated `/api/collab/*`

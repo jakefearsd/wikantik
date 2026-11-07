@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Collaborative editing: presence, tags and outside writers (dark).** Behind `wikantik.collab.enabled` (default off),
+  editors on the same page now see each other's carets and names, co-edit tags and other frontmatter fields, and have
+  saves from the REST API, MCP, renames and the directory watcher merged into the live draft. A page rename takes the
+  session to the new name, and a delete freezes the draft until someone with `createPages` recreates the page. Page
+  reads fail loudly instead of reading as missing or empty, so a provider hiccup cannot empty a draft. Not enabled
+  anywhere by default; see `docs/MultiEdit.MD` section 15.
+
 ### Fixed
 - **A strict-mode save could be silently overtaken.** A save carrying `expectedVersion` checked the version before the
   pre-save filters ran and outside any lock, so an unguarded save landing in between was overwritten. The check now runs

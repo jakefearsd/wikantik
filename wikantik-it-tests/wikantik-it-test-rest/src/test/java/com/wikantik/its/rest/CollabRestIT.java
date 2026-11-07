@@ -267,6 +267,12 @@ public class CollabRestIT {
             a.pull( a.presenceSeq ); // parks as a real long-poll until something is ahead of the cursors
         }
         assertTrue( a.doc.contains( "edited by agent" ) && a.doc.contains( "A-edit" ), "the draft holds both: " + a.doc );
+        final JsonObject change = a.event( "external-change" );
+        assertNotNull( change, "the agent write reached A as an external-change event: " + a.events );
+        assertTrue( change.has( "source" ) && change.has( "pageVersion" ), change.toString() );
+        final String beforePublish = lf( pageContent( janne, page ) );
+        assertTrue( beforePublish.contains( "edited by agent" ) && !beforePublish.contains( "A-edit" ),
+            "A's own edit is still only in the draft, nothing was published: " + beforePublish );
 
         HttpResponse< String > published = a.publish( a.version );
         for( int i = 0; i < 3 && published.statusCode() == 409; i++ ) {
@@ -280,12 +286,121 @@ public class CollabRestIT {
         a.leave();
     }
 
+    /** A and B add different tags at the same time (presence-only pushes carrying meta ops); the publish has both. */
+    @Test
+    void twoUsersAddDifferentTagsConcurrentlyAndBothArePublished() throws Exception {
+        final String page = seed( "Tag me\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        final Peer b = new Peer( alice, page ).join( null );
+
+        final CompletableFuture< HttpResponse< String > > fa = CompletableFuture.supplyAsync( () -> a.pushMeta( tagAdd( "tag-from-a" ), null ) );
+        final CompletableFuture< HttpResponse< String > > fb = CompletableFuture.supplyAsync( () -> b.pushMeta( tagAdd( "tag-from-b" ), null ) );
+        assertEquals( 200, fa.get( 20, TimeUnit.SECONDS ).statusCode() );
+        assertEquals( 200, fb.get( 20, TimeUnit.SECONDS ).statusCode() );
+
+        a.pull( 0 );
+        b.pull( 0 );
+        for( final Peer p : List.of( a, b ) ) {
+            final String ops = p.lastPull.getAsJsonArray( "metaOps" ).toString();
+            assertTrue( ops.contains( "tag-from-a" ) && ops.contains( "tag-from-b" ), "both tags reached " + p.participantId + ": " + ops );
+        }
+        final HttpResponse< String > published = a.publish( a.version );
+        assertEquals( 200, published.statusCode(), published.body() );
+        final String tags = obj( send( janne, "GET", "/api/pages/" + page, null ) ).getAsJsonObject( "metadata" )
+            .get( "tags" ).toString();
+        assertTrue( tags.contains( "tag-from-a" ) && tags.contains( "tag-from-b" ), "both tags are in the published frontmatter: " + tags );
+        a.leave();
+        b.leave();
+    }
+
+    /** B's selection (a presence-only push) appears in A's pull, under B's participant id, with its coordinates. */
+    @Test
+    void aSelectionPushedByOneUserAppearsInTheOthersPull() throws Exception {
+        final String page = seed( "Select some of this\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        final Peer b = new Peer( alice, page ).join( null );
+        final JsonObject selection = new JsonObject();
+        selection.addProperty( "anchor", 2 );
+        selection.addProperty( "head", 6 );
+        selection.addProperty( "version", b.version );
+        selection.addProperty( "unconfirmed", 0 );
+        assertEquals( 200, b.pushMeta( new JsonArray(), selection ).statusCode() );
+
+        a.pull( 0 );
+        final JsonObject p = a.lastPull.getAsJsonObject( "presence" ).getAsJsonObject( b.participantId );
+        assertNotNull( p, "B is in A's presence map: " + a.lastPull );
+        assertEquals( 2, p.get( "anchor" ).getAsInt() );
+        assertEquals( 6, p.get( "head" ).getAsInt() );
+        assertFalse( p.get( "displayName" ).getAsString().isBlank(), p.toString() );
+        a.leave();
+        b.leave();
+    }
+
+    /** A rename through the REST endpoint: a page-renamed event, and every later call under the new name works. */
+    @Test
+    void aRenameGivesAPageRenamedEventAndTheSessionContinuesUnderTheNewName() throws Exception {
+        final String page = seed( "Rename me\n" );
+        final String renamed = newPage();
+        final Peer a = new Peer( janne, page ).join( null );
+        final Peer b = new Peer( alice, page ).join( null );
+
+        final HttpResponse< String > r = send( janne, "POST", "/api/pages/" + page + "/rename",
+            GSON.toJson( Map.of( "newName", renamed, "changeReferrers", false ) ) );
+        assertEquals( 200, r.statusCode(), r.body() );
+
+        final JsonObject ev = a.awaitEvent( "page-renamed" );
+        assertEquals( renamed, ev.get( "to" ).getAsString(), ev.toString() );
+        a.page = renamed;
+        b.awaitEvent( "page-renamed" );
+        b.page = renamed;
+
+        assertEquals( 200, a.insert( 0, "after rename " ).statusCode(), "a push under the new name" );
+        b.pull( 0 );
+        assertTrue( b.doc.startsWith( "after rename " ), b.doc );
+        final HttpResponse< String > published = a.publish( a.version );
+        assertEquals( 200, published.statusCode(), published.body() );
+        assertTrue( lf( pageContent( janne, renamed ) ).startsWith( "after rename " ) );
+        a.leave();
+        b.leave();
+    }
+
+    /** A delete freezes the draft (page-deleted, then 409 frozen on a push); a recreate publish by an admin succeeds. */
+    @Test
+    void aDeleteFreezesTheDraftAndAnAdminCanRecreateIt() throws Exception {
+        final String page = seed( "Delete me\n" );
+        final Peer a = new Peer( janne, page ).join( null );
+        assertEquals( 200, a.insert( 0, "keep this " ).statusCode() );
+        a.pull( 0 );
+
+        assertEquals( 200, send( janne, "DELETE", "/api/pages/" + page, null ).statusCode() );
+        assertNotNull( a.awaitEvent( "page-deleted" ), "page-deleted reached A" );
+
+        final HttpResponse< String > push = a.insert( 0, "late " );
+        assertEquals( 409, push.statusCode(), push.body() );
+        assertEquals( "frozen", reason( push ), push.body() );
+
+        final HttpResponse< String > recreate = a.publish( a.version );
+        assertEquals( 200, recreate.statusCode(), recreate.body() );
+        assertTrue( lf( pageContent( janne, page ) ).startsWith( "keep this " ), "the draft's text is the recreated page" );
+        a.leave();
+    }
+
+    private static JsonArray tagAdd( final String tag ) {
+        final JsonObject op = new JsonObject();
+        op.addProperty( "field", "tags" );
+        op.addProperty( "add", tag );
+        final JsonArray ops = new JsonArray();
+        ops.add( op );
+        return ops;
+    }
+
     // ---- the peer --------------------------------------------------------------------------------------------------
 
     /** One participant of a collaboration session, as the browser's transport would be. */
     private static final class Peer {
         final HttpClient client;
-        final String page;
+        String page;
+        final List< JsonObject > events = new ArrayList<>();
         String sessionId;
         String participantId;
         String clientId;
@@ -357,7 +472,44 @@ public class CollabRestIT {
             metaSeq = lastPull.get( "metaSeq" ).getAsLong();
             presenceSeq = lastPull.get( "presenceSeq" ).getAsLong();
             eventSeq = lastPull.get( "eventSeq" ).getAsLong();
+            for( final JsonElement e : lastPull.getAsJsonArray( "events" ) ) {
+                events.add( e.getAsJsonObject() );
+            }
             return this;
+        }
+
+        /** The first event of {@code type} pulled so far, or null. */
+        JsonObject event( final String type ) {
+            return events.stream().filter( e -> type.equals( e.get( "type" ).getAsString() ) ).findFirst().orElse( null );
+        }
+
+        /** Pulls (parking as a real long-poll) until an event of {@code type} has arrived; bounded. */
+        JsonObject awaitEvent( final String type ) throws Exception {
+            final long deadline = System.currentTimeMillis() + 20_000;
+            while( event( type ) == null && System.currentTimeMillis() < deadline ) {
+                pull( presenceSeq );
+            }
+            final JsonObject e = event( type );
+            assertNotNull( e, "no " + type + " event within 20 s; saw " + events );
+            return e;
+        }
+
+        /** A push with no text updates: meta ops and/or a selection ({@code null} for none). Skips the version check. */
+        HttpResponse< String > pushMeta( final JsonArray metaOps, final JsonObject selection ) {
+            try {
+                final JsonObject body = new JsonObject();
+                body.addProperty( "sessionId", sessionId );
+                body.addProperty( "participantId", participantId );
+                body.addProperty( "version", version );
+                body.add( "updates", new JsonArray() );
+                body.add( "metaOps", metaOps );
+                if( selection != null ) {
+                    body.add( "selection", selection );
+                }
+                return send( client, "POST", "/api/collab/" + page + "/updates", body.toString() );
+            } catch( final IOException | InterruptedException e ) {
+                throw new IllegalStateException( e );
+            }
         }
 
         HttpResponse< String > publish( final int atVersion ) throws Exception {

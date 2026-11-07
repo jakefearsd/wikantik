@@ -1076,8 +1076,8 @@ is asserted first.
 | Phase | Content | Ships |
 |---|---|---|
 | **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures (F0) and seeded property tests. Test harness F1–F9 + `CollabInvariants` against a stub session, so Phase 1 is written test-first into it. **A2: atomic per-page save lock + `PageSaveHelper` returns the written version and a no-op flag** (fixes today's strict-mode race). **A7: async-supported filter fixes + `AsyncListener` timing/MDC.** A8 limiter decision. | Nothing user-visible (A2 is a bug fix). **Done 2026-11-07** — plan `docs/superpowers/plans/2026-11-06-multiedit-phase0-foundations.md`, commits `51418c774a..f2eda61eeb` on main |
-| **1 — Core text collaboration** | Migration, `CollabStore`, `CollabSession` (push/pull/ring/snapshot), `CollabResource` (join/updates/leave), publish via `PageSaveHelper` with normalisation mapping, frontend `collabPeer` + Publish button, kill switch default **off**, convergence fuzz test, REST IT | Dark; enable on a staging instance |
-| **2 — Presence + metadata + external merges** | Presence + remote cursors + `PresenceBar`; meta ops + form integration; `CollabPageEventListener` (external merges, rename, delete); external-change toast/highlight; Selenide two-browser test | Enable in prod for the admin group first (optional `wikantik.collab.enabled` per-group follow-up if wanted) |
+| **1 — Core text collaboration** | Migration, `CollabStore`, `CollabSession` (push/pull/ring/snapshot), `CollabResource` (join/updates/leave), publish via `PageSaveHelper` with normalisation mapping, frontend `collabPeer` + Publish button, kill switch default **off**, convergence fuzz test, REST IT | Dark; enable on a staging instance. **Done 2026-11-07** (merged with Phase 2 for the gate and the final review, ruling P13) |
+| **2 — Presence + metadata + external merges** | Presence + remote cursors + `PresenceBar`; meta ops + form integration; `CollabPageEventListener` (external merges, rename, delete); external-change toast/highlight; Selenide two-browser test | Enable in prod for the admin group first (optional `wikantik.collab.enabled` per-group follow-up if wanted). **Done 2026-11-07, dark** (kill switch still default off) |
 | **3 — Draft UX + attribution** | Draft banner, discard, publish dialog diff, offline-draft import from `useDraft`, `page_version_contributor` + history UI, audit entries, metrics | Default **on** |
 | **4 — Polish / later** | Reader "being edited" badge, WebSocket transport, draft expiry admin view at `/admin/collab`, multi-node (§12.4), watch-only participants | As needed |
 
@@ -1089,6 +1089,26 @@ contract tests both stores must pass; a deterministic simulator with LEAVE, cras
 save (A2, `PageManager.saveText` with a `SaveGuard` under a per-page lock) plus the async-capable `/api/*` filters (A7)
 and the dedicated `/api/collab/*` rate-limit bucket (A8). The full gate (`bin/run-tests.sh --parallel 4`) passed.
 Phase 1 obligations carried forward are recorded in the SDD ledger's deferred-minor lines.
+
+**Phase 2 outcome (2026-11-07).** Presence and remote carets (`PresenceBar`, `remoteCursors.js`; selections ride on
+`POST /updates`, A8/A12), metadata co-editing (A14: tags, related and aliases as idempotent ADD/REMOVE ops; scalar
+fields last-writer-wins; the frontmatter form shows "changed by" and conflict notes), and external writers merged into
+the live draft by `CollabPageEventListener` (REST/MCP saves, cluster renames, block-id assignment, directory-watcher
+writes, ACL rewrites; the draft follows the page by content hash, A1). Page renames move the session to the new name
+(`page-renamed`; the editor follows on the same session); a page delete freezes the draft (`page-deleted`, then `409
+frozen`), and a user with `createPages` recreates the page by publishing; a page recreated under a draft merges as one
+external change with `recreated: true`. Page reads fail loudly (`PageReadException`), never as "missing" or an empty
+body, so a transient provider error cannot empty a draft's base. Tests: the Phase 2 fuzz covers presence, meta ops,
+rename and delete; `CollabRestIT` (tags, selection, agent write, rename, delete and recreate) and the two-browser
+`CollabTwoBrowserIT` (carets and names, a tag across browsers, rename while both edit, delete then Recreate) run in
+`wikantik-it-test-rest`, the only IT module with collaboration on (`it.extra.jvmargs`).
+
+**Enabling it for the admin group first (operator).** The kill switch stays **off** by default and this phase does not
+flip it. To pilot: (1) make sure the pilot users are in the `Admin` group (`/admin/security`), since join requires
+`edit` on the page and an authenticated session; (2) set `wikantik.collab.enabled=true` in
+`wikantik-custom.properties` (or `-Dwikantik.collab.enabled=true`) on one instance and restart; (3) watch the server log
+for `collab` WARN lines and `/api/capabilities` (`collab.enabled`). Turning it off again leaves live sessions able to
+publish and discard but refuses new joins (503), and pages edit as before. A per-group switch is not built.
 
 Rough size: Phase 0 ≈ 2 weeks (the port is ~600 lines; the harness roughly as much again),
 Phase 1 ≈ 2 weeks, Phase 2 ≈ 1.5 weeks, Phase 3 ≈ 1 week, for one developer working TDD. The

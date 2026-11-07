@@ -23,6 +23,7 @@ import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideConfig;
 import com.codeborne.selenide.SelenideDriver;
+import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.its.RestSeedHelper;
 import com.wikantik.its.WithIntegrationTestSetup;
@@ -32,18 +33,22 @@ import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static com.codeborne.selenide.Condition.attribute;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Condition.visible;
 import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$$;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -56,7 +61,8 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
 
     private static final Logger LOG = LoggerFactory.getLogger( CollabTwoBrowserIT.class );
 
-    private static final String PAGE = "CollabTwoBrowserIT" + UUID.randomUUID().toString().replace( "-", "" ).substring( 0, 8 );
+    /** Per test instance: sessions of an earlier test (its participants linger until the presence timeout) must not leak in. */
+    private final String PAGE = "CollabTwoBrowserIT" + UUID.randomUUID().toString().replace( "-", "" ).substring( 0, 8 );
     private static final String SEED = "Collab E2E seed.\n";
     private static final String ALICE = "Alice";
     private static final String ALICE_PASSWORD = "password";
@@ -66,6 +72,8 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
 
     private WebDriver janneBrowser;
     private WebDriver aliceBrowser;
+    /** Pages a test created or renamed to besides {@link #PAGE}; deleted in the guarded teardown. */
+    private final List< String > extraPages = new ArrayList<>();
 
     @BeforeEach
     void twoBrowsersSignedIn() throws Exception {
@@ -108,7 +116,24 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
             Selenide.closeWebDriver();
         } finally {
             RestSeedHelper.deletePageQuietly( PAGE );
+            for ( final String p : extraPages ) {
+                RestSeedHelper.deletePageQuietly( p );
+            }
         }
+    }
+
+    /** Both editors open on {@link #PAGE}, live, each showing the other; the current browser is janne's. */
+    private void bothInTheEditor() {
+        use( janneBrowser );
+        EditWikiPage.open( PAGE );
+        awaitLive();
+        use( aliceBrowser );
+        EditWikiPage.open( PAGE );
+        awaitLive();
+        awaitEditorsCount( "2 editing" );
+        use( janneBrowser );
+        awaitEditorsCount( "2 editing" );
+        EditWikiPage.awaitDocumentEquals( SEED, WAIT );
     }
 
     @Test
@@ -154,6 +179,8 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
         // Alice publishes; her page view shows the merged text.
         use( aliceBrowser );
         $( "[data-testid=editor-save]" ).shouldBe( visible, WAIT ).shouldBe( Condition.enabled, WAIT ).click();
+        // Phase 3: publishing in collaboration mode goes through the publish dialog; its confirm enables once the summary loads
+        $( "[data-testid=publish-dialog-confirm]" ).shouldBe( visible, WAIT ).shouldBe( Condition.enabled, WAIT ).click();
         new WebDriverWait( aliceBrowser, WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
         $( "[data-testid=page-view]" ).shouldBe( visible, WAIT )
             .shouldHave( text( "JANNE-SAYS-HI" ), WAIT ).shouldHave( text( "ALICE-SAYS-HI" ), WAIT )
@@ -166,6 +193,74 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
         assertTrue( after.contains( "ALICE-SAYS-HI" ) && after.contains( "JANNE-SAYS-HI" ), after );
     }
 
+    /** Each browser shows the other's caret, labelled with the other's name (the one the presence bar lists). */
+    @Test
+    void eachBrowserSeesTheOthersCaretAndName() {
+        bothInTheEditor();
+        EditWikiPage.setCaret( 3 );
+        use( aliceBrowser );
+        EditWikiPage.setCaret( 7 );
+
+        awaitRemoteCaretLabelledWithAPresentName();   // Alice sees janne's caret
+        use( janneBrowser );
+        awaitRemoteCaretLabelledWithAPresentName();   // janne sees Alice's caret
+        $( ".collab-presence-list" ).shouldHave( text( ALICE ), WAIT );
+    }
+
+    /** A tag Alice adds in the frontmatter form appears in janne's form without anyone publishing. */
+    @Test
+    void aTagAddedByOneBrowserAppearsForTheOther() {
+        final String tag = "e2etag" + UUID.randomUUID().toString().replace( "-", "" ).substring( 0, 6 );
+        bothInTheEditor();
+        use( aliceBrowser );
+        final SelenideElement input = $( ".fm-field-tags .ui-taginput-field" ).shouldBe( visible, WAIT );
+        input.click();
+        input.sendKeys( tag, Keys.ENTER );
+        $$( ".fm-field-tags .chip" ).findBy( text( tag ) ).shouldBe( visible, WAIT );
+
+        use( janneBrowser );
+        $$( ".fm-field-tags .chip" ).findBy( text( tag ) ).shouldBe( visible, PROPAGATE );
+    }
+
+    /** A rename while both are editing: both editors follow to the new name, on the same session, and still sync. */
+    @Test
+    void aRenameWhileBothAreEditingTakesBothToTheNewName() throws Exception {
+        final String renamed = PAGE + "Renamed";
+        extraPages.add( renamed );
+        bothInTheEditor();
+        RestSeedHelper.post( "/api/pages/" + PAGE + "/rename",
+            "{\"newName\":\"" + renamed + "\",\"changeReferrers\":false}" );
+
+        for ( final WebDriver d : List.of( janneBrowser, aliceBrowser ) ) {
+            use( d );
+            new WebDriverWait( d, WAIT ).until( x -> x.getCurrentUrl().contains( "/edit/" + renamed ) );
+            $( "[data-testid=page-editor]" ).shouldHave( attribute( "data-page-name", renamed ), WAIT );
+            awaitLive();
+        }
+        // still one live session under the new name: janne's typing reaches Alice
+        use( janneBrowser );
+        EditWikiPage.setCaret( EditWikiPage.documentText().length() );
+        EditWikiPage.pressKeys( "AFTER-RENAME" );
+        use( aliceBrowser );
+        EditWikiPage.awaitDocumentContaining( "AFTER-RENAME", PROPAGATE );
+    }
+
+    /** The page is deleted under both editors; both are told it is gone; janne (createPages) recreates it. */
+    @Test
+    void aDeleteFreezesBothEditorsAndOneCanRecreateThePage() throws Exception {
+        bothInTheEditor();
+        RestSeedHelper.deletePageQuietly( PAGE );
+
+        use( aliceBrowser );
+        $( "[data-testid=collab-frozen]" ).shouldBe( visible, WAIT );
+        use( janneBrowser );
+        $( "[data-testid=collab-frozen]" ).shouldBe( visible, WAIT );
+        $( "[data-testid=editor-save]" ).shouldHave( text( "Recreate page" ), WAIT ).shouldBe( Condition.enabled, WAIT ).click();
+        new WebDriverWait( janneBrowser, WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT ).shouldHave( text( "Collab E2E seed." ), WAIT );
+        assertTrue( RestSeedHelper.get( "/api/pages/" + PAGE ).contains( "Collab E2E seed." ), "the page exists again" );
+    }
+
     // ---- helpers ---------------------------------------------------------------------------------------------------
 
     private static void use( final WebDriver driver ) {
@@ -174,6 +269,14 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
 
     private static void awaitLive() {
         $( "[data-testid=collab-status]" ).shouldBe( visible, WAIT ).shouldHave( attribute( "data-status", "live" ), WAIT );
+    }
+
+    /** A remote caret is drawn, labelled with a name the presence bar lists (the label is hover-only, so read textContent). */
+    private static void awaitRemoteCaretLabelledWithAPresentName() {
+        final SelenideElement label = $( ".cm-remote-caret-label" ).should( Condition.exist, PROPAGATE );
+        final String name = label.getAttribute( "textContent" );
+        assertTrue( name != null && !name.isBlank(), "the remote caret carries a name" );
+        $( ".collab-presence-list" ).shouldHave( text( name.trim() ), PROPAGATE );
     }
 
     private static void awaitEditorsCount( final String label ) {

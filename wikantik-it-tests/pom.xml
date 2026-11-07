@@ -43,6 +43,10 @@
   <properties>
     <!-- IT modules: main classes are Selenide page objects/helpers exercised only by the Cargo ITs, so the unit coverage ratchet is skipped here -->
     <wikantik.coverage.check.skip>true</wikantik.coverage.check.skip>
+    <!-- Extra JVM args for a module's Cargo Tomcat (a module overrides this property). The collaboration IT wiki is the only
+         user: collaboration changes the editor, so it is on for wikantik-it-test-rest alone, never for the shared
+         Selenide suite. -->
+    <it.extra.jvmargs></it.extra.jvmargs>
     <!-- it.db.port, it.wikantik.servlet.port (root pom), it.wikantik.rmi.port and
          it.wikantik.ajp.port are intentionally NOT given static defaults — build-helper
          reserve-network-port (the reserve-it-ports execution below) sets each to a
@@ -443,7 +447,7 @@
                     <!-- wikantik.profiling.dir redirected into the test target/
                          so the JFR endpoint IT (ProfilingResourceIT) can
                          create the directory without root privileges. -->
-                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token ${jacoco.it.agent}</cargo.jvmargs>
+                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token ${it.extra.jvmargs} ${jacoco.it.agent}</cargo.jvmargs>
                     <!-- Reserved per module by build-helper so parallel IT
                          modules don't share Cargo's default RMI port (8205). -->
                     <cargo.rmi.port>${it.wikantik.rmi.port}</cargo.rmi.port>

@@ -36,6 +36,10 @@
     <it-wikantik.groupdatabase>com.wikantik.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>
     <it-wikantik.userdatabase>com.wikantik.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
     <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
+
+    <!-- Collaborative editing is on for this module's wiki only (CollabRestIT, CollabTwoBrowserIT); it changes the editor,
+         so the shared Selenide suite (wikantik-it-test-custom-jdbc) keeps it off. A 4 s long-poll keeps timeout tests quick. -->
+    <it.extra.jvmargs>-Dwikantik.collab.enabled=true -Dwikantik.collab.poll.timeoutSeconds=4</it.extra.jvmargs>
   </properties>
 
   <build>
@@ -101,6 +105,14 @@
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Selenide page objects and helpers for CollabTwoBrowserIT (the classes only; its ITs are not scanned here). -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-selenide-tests</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 

@@ -1,0 +1,579 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.collab;
+
+import com.wikantik.collab.CollabSessionRegistry.Disabled;
+import com.wikantik.collab.CollabSessionRegistry.JoinOutcome;
+import com.wikantik.collab.CollabSessionRegistry.Joined;
+import com.wikantik.collab.CollabSessionRegistry.Refused;
+import com.wikantik.collab.model.JoinRequest;
+import com.wikantik.collab.model.JoinResponse;
+import com.wikantik.collab.model.PullResponse;
+import com.wikantik.collab.model.PushResponse;
+import com.wikantik.collab.model.SessionRecord;
+import com.wikantik.collab.model.StoredUpdate;
+import com.wikantik.collab.model.Update;
+import com.wikantik.collab.testing.InMemoryCollabStore;
+import com.wikantik.collab.testing.MutableClock;
+import com.wikantik.collab.testing.ScriptedPageWriter;
+import com.wikantik.collab.text.ChangeSet;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
+/**
+ * Task 5: the registry of live sessions (section 7.7, A5, A10 Minor, A13) against the Phase 0 doubles. The wiki session
+ * of every join is the author key itself, so the permission double can revoke by author.
+ */
+class CollabSessionRegistryTest {
+
+    private static final String PAGE = "Page";
+    private static final String BODY = "hello\nworld\n";
+    private static final Instant T0 = Instant.parse( "2026-01-01T00:00:00Z" );
+
+    /** Edit and create rights by wiki session (here: the author key); counts the edit checks. */
+    private static final class Permissions implements CollabPermissions {
+        final Set< String > noEdit = new HashSet<>();
+        final Set< String > noCreate = new HashSet<>();
+        final AtomicInteger editChecks = new AtomicInteger();
+
+        @Override
+        public boolean canEdit( final Object participantSession, final String pageName ) {
+            editChecks.incrementAndGet();
+            return !noEdit.contains( participantSession );
+        }
+
+        @Override
+        public boolean canCreate( final Object participantSession, final String pageName ) {
+            return !noCreate.contains( participantSession );
+        }
+    }
+
+    /** Records completions; a second completion fails the test (F6, E32). */
+    private static final class Waiter implements PullWaiter {
+        final List< PullResponse > got = new ArrayList<>();
+
+        @Override
+        public void complete( final PullResponse r ) {
+            if( !got.isEmpty() ) {
+                fail( "waiter completed twice: " + got + " then " + r );
+            }
+            got.add( r );
+        }
+    }
+
+    private InMemoryCollabStore store;
+    private ScriptedPageWriter writer;
+    private MutableClock clock;
+    private Permissions permissions;
+    private CollabSessionRegistry registry;
+
+    /** maxParticipants, pollTimeout, presenceTimeout, recheck, snapshotEvery, idleMinutes as given; the rest default. */
+    private static CollabConfig config( final int maxParticipants, final int pollTimeout, final int presenceTimeout,
+                                        final int recheckSeconds, final int snapshotEvery, final int idleMinutes ) {
+        return new CollabConfig( true, maxParticipants, 65536, pollTimeout, presenceTimeout, recheckSeconds, 100,
+            snapshotEvery, idleMinutes, 0, 1000 );
+    }
+
+    private CollabSessionRegistry registry( final CollabConfig c ) {
+        return new CollabSessionRegistry( store, writer, permissions, key -> null, clock, c, 1 << 20 );
+    }
+
+    @BeforeEach
+    void setUp() {
+        store = new InMemoryCollabStore();
+        writer = new ScriptedPageWriter();
+        writer.seed( PAGE, BODY, Map.of( "title", "T" ) );
+        clock = new MutableClock( T0 );
+        permissions = new Permissions();
+        registry = registry( config( 20, 25, 45, 30, 500, 10 ) );
+    }
+
+    private static JoinRequest req( final String author ) {
+        return new JoinRequest( author, null, author, author.toUpperCase(), null, null );
+    }
+
+    private Joined join( final String author ) {
+        return assertInstanceOf( Joined.class, registry.join( PAGE, req( author ) ) );
+    }
+
+    private static PushResponse type( final Joined j, final String author, final String text ) {
+        final CollabSession.View v = j.session().view();
+        return j.session().push( j.response().participantId(), author, v.head(),
+            List.of( new Update( j.response().clientId(), ChangeSet.replace( v.doc().length(), 0, 0, text ) ) ) );
+    }
+
+    private void leave( final Joined j, final String author ) {
+        assertEquals( 200, j.session().leave( j.response().participantId(), author ).status() );
+    }
+
+    /** One tick to notice the session is empty, then the idle time, then the evicting tick. */
+    private void idleOut() {
+        registry.tick();
+        clock.advance( Duration.ofMinutes( 10 ) );
+        registry.tick();
+    }
+
+    // ---- join -----------------------------------------------------------------------------------------------
+
+    @Test
+    void theFirstJoinCreatesTheSessionAndLaterJoinsShareIt() {
+        final Joined a = join( "alice" );
+        final Joined b = join( "bob" );
+        assertSame( a.session(), b.session() );
+        assertEquals( a.response().sessionId(), b.response().sessionId() );
+        assertSame( a.session(), registry.live( a.response().sessionId() ).orElseThrow() );
+        assertSame( a.session(), registry.liveForPage( PAGE ).orElseThrow() );
+        assertEquals( BODY, a.response().doc() );
+        assertEquals( 1, a.response().basePageVersion() );
+        assertEquals( "alice", store.sessionForPage( PAGE ).orElseThrow().createdBy() );
+        assertTrue( registry.live( UUID.randomUUID() ).isEmpty() );
+    }
+
+    @Test
+    void aJoinLoadsAStoredDraft() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "draft " ).status() );
+        leave( a, "alice" );
+        idleOut();
+        assertTrue( registry.live( a.response().sessionId() ).isEmpty() );
+        final Joined again = join( "bob" );
+        assertNotEquals( a.session(), again.session() );
+        assertEquals( a.response().sessionId(), again.response().sessionId() );
+        assertEquals( "draft " + BODY, again.response().doc() );
+        assertTrue( again.response().unpublished() );
+    }
+
+    @Test
+    void aNewPageGetsASessionAtBaseVersionZero() {
+        final Joined j = assertInstanceOf( Joined.class, registry.join( "Fresh", req( "alice" ) ) );
+        assertEquals( 0, j.response().basePageVersion() );
+        assertEquals( "", j.response().doc() );
+    }
+
+    @Test
+    void derivedPagesAreRefused() {
+        writer.seed( "Derived", "from a pdf\n", Map.of( "derived_from", "report.pdf" ) );
+        assertEquals( new Refused( 409, "derived-page" ), registry.join( "Derived", req( "alice" ) ) );
+        assertTrue( store.sessionForPage( "Derived" ).isEmpty() );
+    }
+
+    @Test
+    void noEditIs403() {
+        permissions.noEdit.add( "mallory" );
+        assertEquals( new Refused( 403, "forbidden" ), registry.join( PAGE, req( "mallory" ) ) );
+        assertTrue( store.sessionForPage( PAGE ).isEmpty() );
+    }
+
+    @Test
+    void aNewPageAlsoNeedsCreate() {
+        permissions.noCreate.add( "alice" );
+        assertEquals( new Refused( 403, "forbidden" ), registry.join( "Fresh", req( "alice" ) ) );
+        // an existing page does not
+        join( "alice" );
+    }
+
+    @Test
+    void sessionFullIs429() {
+        registry = registry( config( 2, 25, 45, 30, 500, 10 ) );
+        join( "alice" );
+        join( "bob" );
+        assertEquals( new Refused( 429, "session-full" ), registry.join( PAGE, req( "carol" ) ) );
+        assertEquals( 2, registry.liveForPage( PAGE ).orElseThrow().view().participants() );
+    }
+
+    @Test
+    void disablingRefusesJoinsButKeepsLiveSessionsAndDrafts() {
+        final Joined a = join( "alice" );
+        assertTrue( registry.isEnabled() );
+        registry.setEnabled( false );
+        assertFalse( registry.isEnabled() );
+        assertInstanceOf( Disabled.class, registry.join( PAGE, req( "bob" ) ) );
+        assertSame( a.session(), registry.live( a.response().sessionId() ).orElseThrow() );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        registry.setEnabled( true );
+        join( "bob" );
+    }
+
+    @Test
+    void theKillSwitchStartsFromTheConfiguration() {
+        final CollabConfig off = new CollabConfig( false, 20, 65536, 25, 45, 30, 100, 500, 10, 0, 1000 );
+        final CollabSessionRegistry dark = registry( off );
+        assertFalse( dark.isEnabled() );
+        assertInstanceOf( Disabled.class, dark.join( PAGE, req( "alice" ) ) );
+    }
+
+    @Test
+    void aStoreFailureWhileOpeningIs503AndTheNextJoinWorks() {
+        store.failOn( InMemoryCollabStore.Op.CREATE_SESSION, 1 );
+        assertEquals( new Refused( 503, "store" ), registry.join( PAGE, req( "alice" ) ) );
+        assertTrue( registry.liveForPage( PAGE ).isEmpty() );
+        join( "alice" );
+    }
+
+    @Test
+    void aStoreFailureWhileSeedingIs503AndTheNextJoinSeeds() {
+        store.failOn( InMemoryCollabStore.Op.APPEND_UPDATES, 1 );
+        final JoinRequest seeded = new JoinRequest( "alice", null, "alice", "A", "template\n", null );
+        assertEquals( new Refused( 503, "store" ), registry.join( "Fresh", seeded ) );
+        final Joined j = assertInstanceOf( Joined.class, registry.join( "Fresh", seeded ) );
+        assertEquals( "template\n", j.response().doc() );
+    }
+
+    @Test
+    void aMalformedInitialTextIs400() {
+        final JoinRequest bad = new JoinRequest( "alice", null, "alice", "A", "lone \uD800 surrogate", null );
+        assertEquals( new Refused( 400, "rejected" ), registry.join( "Fresh", bad ) );
+    }
+
+    // ---- presence and waiters --------------------------------------------------------------------------------
+
+    @Test
+    void e13_aParticipantExpiredByPresenceTimeoutRejoinsWithoutLosingEdits() {
+        final Joined a = join( "alice" );
+        final Joined b = join( "bob" );
+        clock.advance( Duration.ofSeconds( 30 ) );
+        assertEquals( 200, type( b, "bob", "b" ).status() );   // bob stays seen
+        clock.advance( Duration.ofSeconds( 16 ) );
+        registry.tick();
+        assertEquals( 1, a.session().view().participants(), "alice timed out, bob did not" );
+        // alice's unsent edit meets 409 rejoin, she rejoins under her old clientID and pushes it again
+        final CollabSession.View v = a.session().view();
+        final Update pending = new Update( a.response().clientId(), ChangeSet.replace( v.doc().length(), 0, 0, "a" ) );
+        final PushResponse refused = a.session().push( a.response().participantId(), "alice", v.head(), List.of( pending ) );
+        assertEquals( 409, refused.status() );
+        assertEquals( "rejoin", refused.reason() );
+        final Joined again = assertInstanceOf( Joined.class, registry.join( PAGE,
+            new JoinRequest( "alice", a.response().clientId(), "alice", "A", null, null ) ) );
+        assertEquals( a.response().clientId(), again.response().clientId() );
+        assertEquals( 200, again.session().push( again.response().participantId(), "alice", again.response().version(),
+            List.of( pending ) ).status() );
+        assertEquals( "ab" + BODY, again.session().view().doc() );
+    }
+
+    @Test
+    void e32_aParkedPullTimesOutOnTheTickAndIsAnsweredOnce() {
+        final Joined a = join( "alice" );
+        final Waiter w = new Waiter();
+        assertNull( a.session().pullOrPark( a.response().participantId(), "alice", 0, null, w ) );
+        clock.advance( Duration.ofSeconds( 24 ) );
+        registry.tick();
+        assertTrue( w.got.isEmpty() );
+        clock.advance( Duration.ofSeconds( 2 ) );
+        registry.tick();
+        assertEquals( 1, w.got.size() );
+        assertEquals( 200, w.got.get( 0 ).status() );
+        assertTrue( w.got.get( 0 ).updates().isEmpty() );
+        registry.tick();   // never a second answer
+        assertEquals( 1, w.got.size() );
+    }
+
+    @Test
+    void e32_theParkedPullOfAnExpiredParticipantIsAnsweredOnce() {
+        registry = registry( config( 20, 60, 45, 30, 500, 10 ) );
+        final Joined a = join( "alice" );
+        final Waiter w = new Waiter();
+        assertNull( a.session().pullOrPark( a.response().participantId(), "alice", 0, null, w ) );
+        clock.advance( Duration.ofSeconds( 46 ) );
+        registry.tick();
+        assertEquals( 0, a.session().view().participants() );
+        assertEquals( 1, w.got.size() );
+        clock.advance( Duration.ofSeconds( 20 ) );
+        registry.tick();
+        assertEquals( 1, w.got.size() );
+    }
+
+    @Test
+    void e32_aPushWakesAParkedPullOnce() {
+        final Joined a = join( "alice" );
+        final Joined b = join( "bob" );
+        final Waiter w = new Waiter();
+        assertNull( a.session().pullOrPark( a.response().participantId(), "alice", 0, Long.MAX_VALUE, null, w ) );
+        assertEquals( 200, type( b, "bob", "b" ).status() );
+        assertEquals( 1, w.got.size() );
+        assertEquals( 1, w.got.get( 0 ).updates().size() );
+        clock.advance( Duration.ofSeconds( 30 ) );
+        registry.tick();
+        assertEquals( 1, w.got.size() );
+    }
+
+    // ---- permissions (A5) -------------------------------------------------------------------------------------
+
+    @Test
+    void e30_editRightsAreRecheckedOnTheCadence() {
+        final Joined a = join( "alice" );
+        final Joined b = join( "bob" );
+        permissions.noEdit.add( "alice" );
+        final int checksAtJoin = permissions.editChecks.get();
+        clock.advance( Duration.ofSeconds( 29 ) );
+        registry.tick();
+        assertEquals( checksAtJoin, permissions.editChecks.get(), "no re-check before the cadence" );
+        assertEquals( 2, a.session().view().participants() );
+        clock.advance( Duration.ofSeconds( 1 ) );
+        registry.tick();
+        assertTrue( permissions.editChecks.get() > checksAtJoin );
+        assertEquals( 1, a.session().view().participants(), "alice lost edit and was evicted" );
+        assertEquals( 409, type( a, "alice", "a" ).status() );
+        assertEquals( 200, type( b, "bob", "b" ).status() );
+        // her rejoin is refused while she lacks edit
+        assertEquals( new Refused( 403, "forbidden" ), registry.join( PAGE, req( "alice" ) ) );
+    }
+
+    @Test
+    void evictAuthorRemovesThatUsersParticipantsFromEverySession() {
+        final Joined a1 = join( "alice" );
+        final Joined a2 = join( "alice" );
+        final Joined b = join( "bob" );
+        final Joined other = assertInstanceOf( Joined.class, registry.join( "Other", req( "alice" ) ) );
+        registry.evictAuthor( "alice" );
+        assertEquals( 1, a1.session().view().participants() );
+        assertEquals( 0, other.session().view().participants() );
+        assertEquals( 409, type( a2, "alice", "a" ).status() );
+        assertEquals( 200, type( b, "bob", "b" ).status() );
+    }
+
+    // ---- idle eviction (section 7.7, A10 Minor) ---------------------------------------------------------------
+
+    @Test
+    void idleEvictionDeletesADraftWithoutChanges() {
+        final Joined a = join( "alice" );
+        leave( a, "alice" );
+        registry.tick();
+        clock.advance( Duration.ofMinutes( 9 ) );
+        registry.tick();
+        assertTrue( registry.live( a.response().sessionId() ).isPresent(), "not idle long enough" );
+        clock.advance( Duration.ofMinutes( 1 ) );
+        registry.tick();
+        assertTrue( registry.live( a.response().sessionId() ).isEmpty() );
+        assertTrue( store.sessionForPage( PAGE ).isEmpty() );
+        assertEquals( 0, registry.liveCount() );
+    }
+
+    @Test
+    void idleEvictionKeepsADraftWithChanges() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        leave( a, "alice" );
+        idleOut();
+        assertTrue( registry.live( a.response().sessionId() ).isEmpty() );
+        assertTrue( store.sessionForPage( PAGE ).isPresent() );
+    }
+
+    @Test
+    void aSessionWithParticipantsIsNeverIdle() {
+        final Joined a = join( "alice" );
+        for( int i = 0; i < 20; i++ ) {   // 800 s of activity, each step inside the presence timeout
+            clock.advance( Duration.ofSeconds( 40 ) );
+            assertEquals( 200, type( a, "alice", "x" ).status() );
+            registry.tick();
+        }
+        assertSame( a.session(), registry.live( a.response().sessionId() ).orElseThrow() );
+        assertEquals( 1, a.session().view().participants() );
+    }
+
+    @Test
+    void aJoinRestartsTheIdleClock() {
+        final Joined a = join( "alice" );
+        leave( a, "alice" );
+        registry.tick();
+        clock.advance( Duration.ofMinutes( 9 ) );
+        leave( join( "bob" ), "bob" );
+        clock.advance( Duration.ofMinutes( 1 ) );
+        registry.tick();
+        assertTrue( registry.live( a.response().sessionId() ).isPresent(), "idle counts from after bob's join" );
+        clock.advance( Duration.ofMinutes( 10 ) );
+        registry.tick();
+        assertTrue( registry.live( a.response().sessionId() ).isEmpty() );
+    }
+
+    @Test
+    void theStoredUnpublishedFlagIsNotTrusted() {
+        // has_unpublished is persisted only at snapshot cadence: the store's flag may be stale either way
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        final SessionRecord stored = store.session( id ).orElseThrow();
+        store.updateSession( SessionLoader.draftMarkers( stored, true, T0 ) );
+        leave( a, "alice" );
+        idleOut();
+        assertTrue( store.session( id ).isEmpty(), "no changes in memory: deleted despite the stored flag" );
+        // and after a reload: the reloaded session decides from its rebuilt local, not the flag
+        final Joined b = join( "bob" );
+        final UUID id2 = b.response().sessionId();
+        store.updateSession( SessionLoader.draftMarkers( store.session( id2 ).orElseThrow(), true, T0 ) );
+        forceReload( id2 );
+        final Joined c = join( "carol" );
+        assertEquals( id2, c.response().sessionId() );
+        assertNotEquals( b.session(), c.session() );
+        leave( c, "carol" );
+        idleOut();
+        assertTrue( store.session( id2 ).isEmpty() );
+    }
+
+    private void forceReload( final UUID id ) {
+        for( int i = 0; i < CollabSessionRegistry.STORE_FAILURE_LIMIT; i++ ) {
+            registry.observe( id, 503, "store" );
+        }
+        assertTrue( registry.live( id ).isEmpty() );
+    }
+
+    // ---- the ambiguous-commit wedge ---------------------------------------------------------------------------
+
+    @Test
+    void repeatedStoreFailuresEvictTheSessionSoTheNextJoinReloadsIt() {
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        // an append that committed but was reported failed: the store is one ahead of memory, every push is now a 503
+        store.appendUpdates( id, List.of( new StoredUpdate( 1, StoredUpdate.SERVER, CollabSession.SERVER_CLIENT, null,
+            ChangeSet.replace( BODY.length(), 0, 0, "lost " ) ) ) );
+        for( int i = 0; i < CollabSessionRegistry.STORE_FAILURE_LIMIT; i++ ) {
+            final PushResponse r = type( a, "alice", "x" );
+            assertEquals( 503, r.status() );
+            assertTrue( registry.live( id ).isPresent(), "still live after " + i + " failures" );
+            registry.observe( id, r.status(), r.reason() );
+        }
+        assertTrue( registry.live( id ).isEmpty() );
+        assertEquals( 0, a.session().view().participants(), "participants of the wedged session are dropped" );
+        assertTrue( store.session( id ).isPresent(), "the draft is kept" );
+        final Joined again = join( "alice" );
+        assertEquals( id, again.response().sessionId() );
+        assertEquals( "lost " + BODY, again.response().doc() );
+        assertEquals( 200, type( again, "alice", "x" ).status() );
+    }
+
+    @Test
+    void aSuccessResetsTheStoreFailureCount() {
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        for( int round = 0; round < 3; round++ ) {
+            for( int i = 1; i < CollabSessionRegistry.STORE_FAILURE_LIMIT; i++ ) {
+                registry.observe( id, 503, "store" );
+            }
+            registry.observe( id, 409, "stale-base" );   // neither resets nor counts
+            registry.observe( id, 200, null );
+        }
+        registry.observe( id, 503, "overloaded" );   // only store failures count
+        registry.observe( UUID.randomUUID(), 503, "store" );   // unknown ids are ignored
+        assertTrue( registry.live( id ).isPresent() );
+    }
+
+    // ---- truncation on the tick (A10) -------------------------------------------------------------------------
+
+    @Test
+    void theTickTruncatesTheLogOnceALaggingParticipantLeaves() {
+        registry = registry( config( 20, 25, 45, 30, 2, 10 ) );
+        final Joined lagging = join( "alice" );
+        final Joined b = join( "bob" );
+        for( int i = 0; i < 4; i++ ) {
+            assertEquals( 200, type( b, "bob", "x" ).status() );
+        }
+        final UUID id = b.response().sessionId();
+        assertEquals( 4, store.updatesSince( id, 0 ).size(), "alice confirmed only version 0" );
+        assertNull( b.session().pullOrPark( b.response().participantId(), "bob", 4, null, new Waiter() ) );
+        leave( lagging, "alice" );
+        clock.advance( Duration.ofSeconds( 30 ) );
+        registry.tick();
+        assertTrue( store.updatesSince( id, 0 ).isEmpty(), "cut at the head, clamped to the snapshot at 4" );
+    }
+
+    // ---- rename and freeze (Phase 2's listener) ---------------------------------------------------------------
+
+    @Test
+    void rekeyMovesALiveSessionToTheNewName() {
+        final Joined a = join( "alice" );
+        registry.rekey( PAGE, "Renamed" );
+        assertTrue( registry.liveForPage( PAGE ).isEmpty() );
+        assertSame( a.session(), registry.liveForPage( "Renamed" ).orElseThrow() );
+        assertEquals( "Renamed", a.session().pageName() );
+        assertEquals( "Renamed", store.session( a.response().sessionId() ).orElseThrow().pageName() );
+        writer.rename( PAGE, "Renamed" );
+        assertSame( a.session(), assertInstanceOf( Joined.class, registry.join( "Renamed", req( "bob" ) ) ).session() );
+    }
+
+    @Test
+    void rekeyMovesAStoredDraft() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        leave( a, "alice" );
+        idleOut();
+        registry.rekey( PAGE, "Renamed" );
+        assertTrue( store.sessionForPage( PAGE ).isEmpty() );
+        writer.rename( PAGE, "Renamed" );
+        final Joined again = assertInstanceOf( Joined.class, registry.join( "Renamed", req( "bob" ) ) );
+        assertEquals( a.response().sessionId(), again.response().sessionId() );
+        assertEquals( "x" + BODY, again.response().doc() );
+    }
+
+    @Test
+    void rekeyOntoALiveSessionIsRefused() {
+        join( "alice" );
+        writer.seed( "Other", "other\n", Map.of() );
+        assertInstanceOf( Joined.class, registry.join( "Other", req( "bob" ) ) );
+        assertThrows( IllegalStateException.class, () -> registry.rekey( PAGE, "Other" ) );
+        assertTrue( registry.liveForPage( PAGE ).isPresent() );
+        registry.rekey( "Nothing", "Else" );   // no session: nothing to do
+    }
+
+    @Test
+    void freezeStopsPushesAndIsStored() {
+        final Joined a = join( "alice" );
+        registry.freeze( PAGE );
+        final PushResponse r = type( a, "alice", "x" );
+        assertEquals( 409, r.status() );
+        assertEquals( "frozen", r.reason() );
+        assertEquals( SessionRecord.FROZEN, store.session( a.response().sessionId() ).orElseThrow().status() );
+    }
+
+    @Test
+    void freezeMarksAStoredDraft() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        leave( a, "alice" );
+        idleOut();
+        registry.freeze( PAGE );
+        assertEquals( SessionRecord.FROZEN, store.session( a.response().sessionId() ).orElseThrow().status() );
+        registry.freeze( "Nothing" );
+    }
+
+    @Test
+    void joinResponsesComeFromTheSession() {
+        final JoinOutcome o = registry.join( PAGE, req( "alice" ) );
+        final JoinResponse r = assertInstanceOf( Joined.class, o ).response();
+        assertEquals( 1, r.participants().size() );
+        assertEquals( "ALICE", r.participants().get( 0 ).displayName() );
+    }
+}

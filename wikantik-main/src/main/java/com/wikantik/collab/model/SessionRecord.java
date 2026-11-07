@@ -91,4 +91,18 @@ public record SessionRecord( UUID id, String pageName, String status, int basePa
             hasUnpublished, pendingPublishVersion, pendingPublishBaseVersion, pendingPublishAuthor, createdBy,
             createdAt, lastEditAt );
     }
+
+    /** The record under another page name (a rename, section 7.4 / A1). */
+    public SessionRecord withPageName( final String newPageName ) {
+        return new SessionRecord( id, newPageName, status, basePageVersion, baseBody, baseMeta, baseContentHash,
+            headVersion, metaSeq, hasUnpublished, pendingPublishVersion, pendingPublishBaseVersion,
+            pendingPublishAuthor, createdBy, createdAt, lastEditAt );
+    }
+
+    /** The record with another status ({@link #ACTIVE} or {@link #FROZEN}). */
+    public SessionRecord withStatus( final String newStatus ) {
+        return new SessionRecord( id, pageName, newStatus, basePageVersion, baseBody, baseMeta, baseContentHash,
+            headVersion, metaSeq, hasUnpublished, pendingPublishVersion, pendingPublishBaseVersion,
+            pendingPublishAuthor, createdBy, createdAt, lastEditAt );
+    }
 }

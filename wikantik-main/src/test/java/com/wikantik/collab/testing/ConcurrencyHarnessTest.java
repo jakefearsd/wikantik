@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * F7: real threads, for locking only (E38, E40). Tagged {@code stress}; the default build runs the short form
+ * F7: real threads, for locking only (E38, E40, and E33 at the registry). Tagged {@code stress}; the default build runs the short form
  * ({@value ConcurrencyHarness#DEFAULT_RUNS} runs), run with {@code -Dcollab.stress.runs=20000} for a soak.
  */
 @Tag( "stress" )
@@ -99,6 +99,19 @@ class ConcurrencyHarnessTest {
         assertTrue( r.joins() > r.runs() * 12L, r.toString() );
         // the session merges outside saves on the workers' threads (the harness also asserted no publish was left in flight)
         assertEquals( "session".equals( name ), r.externalSaves() > 0, r.toString() );
+    }
+
+    @Test
+    void e33_idleEvictionRacingJoinsLosesNoDraftAndNoJoinLandsInADeadSession() {
+        final int runs = Math.max( 1, ConcurrencyHarness.runs() / 5 );
+        int evictions = 0;
+        for( int run = 0; run < runs; run++ ) {
+            final RegistryRace.Report r = new RegistryRace( 4, 25, RUN_TIMEOUT ).run();
+            assertEquals( 4 * 25 * 2, r.joins(), r.toString() );
+            assertEquals( 4 * 25, r.accepted(), r.toString() );
+            evictions += r.evictionsSeen();
+        }
+        assertTrue( evictions > 0, "idle eviction really raced the joins" );
     }
 
     @Test

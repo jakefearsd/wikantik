@@ -732,4 +732,70 @@ public final class CollabSession {
             lock.unlock();
         }
     }
+
+    // ---- registry hooks (Task 5) -------------------------------------------------------------------------------
+
+    /**
+     * What {@link CollabSessionRegistry} needs from a session beyond the request API: its participants, whether it has
+     * unpublished changes, and rename and freeze. Static and nested, apart from the session's own logic; every method
+     * takes the session lock.
+     */
+    static final class Hooks {
+
+        /** One participant as the registry sees it, for presence timeouts, permission re-checks and author eviction. */
+        record Member( String participantId, String authorKey, Object wikiSession, Instant lastSeen ) {
+        }
+
+        private Hooks() {
+        }
+
+        /** The live participants, in join order. */
+        static List< Member > members( final CollabSession s ) {
+            s.lock.lock();
+            try {
+                return s.roster.all().stream().map( p -> new Member( p.id, p.authorKey, p.wikiSession, p.lastSeen() ) )
+                    .toList();
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /**
+         * True when the draft differs from its base page version (section 7.7), decided from memory: the stored
+         * {@code has_unpublished} flag is written only at snapshot cadence and is never trusted.
+         */
+        static boolean hasUnpublishedChanges( final CollabSession s ) {
+            s.lock.lock();
+            try {
+                return s.hasUnpublished();
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /**
+         * Moves the session to {@code newPageName}: the store first, then memory.
+         *
+         * @throws IllegalStateException when the new name already has a session (from the store)
+         */
+        static void rename( final CollabSession s, final String newPageName ) {
+            relabel( s, r -> r.withPageName( newPageName ) );
+        }
+
+        /** Freezes the session (its page was deleted): the store first, then memory; pushes then answer 409 frozen. */
+        static void freeze( final CollabSession s ) {
+            relabel( s, r -> r.withStatus( SessionRecord.FROZEN ) );
+        }
+
+        private static void relabel( final CollabSession s, final java.util.function.UnaryOperator< SessionRecord > f ) {
+            s.lock.lock();
+            try {
+                final SessionRecord next = f.apply( s.record );
+                s.store.updateSession( next );
+                s.record = next;
+            } finally {
+                s.lock.unlock();
+            }
+        }
+    }
 }

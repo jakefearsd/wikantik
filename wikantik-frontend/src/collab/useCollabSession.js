@@ -2,7 +2,7 @@
  * React hook owning one collaborative-editing session for a page: joins on mount, leaves on unmount and on `pagehide`
  * (via `navigator.sendBeacon`), and exposes the pieces the editor needs.
  *
- * Returns `{ status, participants, presence, events, resync, dismissResync: () => setResync(null), restart, publish, discard, docAtJoin, startVersion, clientID,
+ * Returns `{ status, participants, presence, events, resync, dismissResync, restart, publish, discard, docAtJoin, startVersion, clientID,
  * sessionId, metadata, draft, basePageVersion, extensions }`. `extensions` is the `collab()` + `collabPeer()` pair to
  * mount in a CodeMirror view initialised from `docAtJoin` (A4: the editor is uncontrolled in collab mode; A10: on
  * `status === 'resync'` the host shows `resync.unsyncedText` in a recovery panel and calls `restart()`: it awaits the leave of
@@ -12,7 +12,7 @@
  * `status`: idle | joining | live | reconnecting | resync | frozen | auth-required, or a refused join: disabled |
  * unavailable (derived page) | full | forbidden | error.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { collab } from '@codemirror/collab';
 import { createCollabTransport } from './collabTransport.js';
 import { collabPeer, createPeerHandle } from './collabPeer.js';
@@ -118,6 +118,8 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
     };
   }, [pageName, enabled, transportOverride, key, generation]);
 
+  const dismissResync = useCallback(() => setResync(null), []);
+
   async function publish(changeNote = '') {
     const transport = transportRef.current;
     const handle = handleRef.current;
@@ -170,7 +172,11 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
     // capture again right before the remount: whatever was typed while the leaves were awaited is in the document too
     const fresh = handle?.capture('restart');
     // the recovery payload survives the remount until dismissResync(); with nothing unsynced there is nothing to recover
-    setResync((prev) => (fresh?.unsyncedText ? { ...fresh, reason: prev?.reason ?? fresh.reason } : null));
+    // (a null capture, view already destroyed, never replaces a payload onResync already delivered)
+    setResync((prev) => {
+      if (!fresh) return prev?.unsyncedText ? prev : null;
+      return fresh.unsyncedText ? { ...fresh, reason: prev?.reason ?? fresh.reason } : null;
+    });
     handle?.destroy();
     setEvents([]);
     setState({ key, status: 'joining' });
@@ -181,6 +187,6 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   return {
     ...current,
     status: enabled ? current.status : 'idle',
-    participants, presence, events, resync, dismissResync: () => setResync(null), restart, publish, discard,
+    participants, presence, events, resync, dismissResync, restart, publish, discard,
   };
 }

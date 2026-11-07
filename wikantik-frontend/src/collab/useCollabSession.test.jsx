@@ -298,4 +298,25 @@ describe('useCollabSession', () => {
     expect(result.current.resync).toBeNull();
     view.destroy();
   });
+
+  it('restart() after the view was destroyed keeps the recovery payload that was already delivered', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello', maxPageBytes: 8 });
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    view.dispatch({ changes: { from: 5, insert: ' far too large' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(result.current.status).toBe('resync');
+    expect(result.current.resync.unsyncedText).toContain('far too large');
+    view.destroy(); // the peer detaches: a fresh capture is no longer possible
+    await act(async () => { await result.current.restart(); await vi.advanceTimersByTimeAsync(200); });
+    expect(result.current.resync?.unsyncedText).toContain('far too large');
+    expect(result.current.resync.reason).toBe('oversize');
+    act(() => result.current.dismissResync());
+    expect(result.current.resync).toBeNull();
+  });
 });

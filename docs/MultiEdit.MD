@@ -2,12 +2,176 @@
 
 | | |
 |---|---|
-| **Status** | Proposed (design only — nothing implemented) |
+| **Status** | Proposed, revised after a code-verified review (2026-11-06). **§0 Review amendments are authoritative** wherever they conflict with a later section. Nothing implemented. |
 | **Date** | 2026-11-06 |
 | **Scope** | Real-time concurrent editing of one page by several people in the **existing Markdown (CodeMirror 6) editor**. No WYSIWYG. |
 | **Replaces** | "single-author per page" (README) / the "Real-time collaborative editor" item under *Later* in `ROADMAP.md` |
 
 ---
+
+## 0. Review amendments (authoritative)
+
+A review of this design against the code (2026-11-06; every claim below was checked at the cited
+lines) found gaps. These amendments override the sections they name.
+
+### Critical
+
+**A1 — External writes: the right events, detection by content, rename.** (overrides §3, §7.4)
+- No `POST_SAVE` fires in this build: only `PageEventFilter` fires it, and nothing registers one
+  (`PageEventFilter.java:104`). Saves end in `POST_SAVE_END` (`DefaultFilterManager.java:291-297`),
+  which the existing listeners use (`StructuralIndexEventListener`, `OntologyEventListener`,
+  `CitationEventListener`). `CollabPageEventListener` listens for **`POST_SAVE_END`**, for
+  **`POST_SAVE_BEGIN`** (the only event `PageDirectoryWatcher` fires, `PageDirectoryWatcher.java:333-347`),
+  and for **`WikiPageRenameEvent`**.
+- Detect an external change by **content hash** (the session's base hash against the latest
+  text's hash), never by version number. `VersioningFileProvider` lets an on-disk edit overwrite
+  the current version without adding one.
+- Rename writes the renamed page and every referrer's link rewrite with `putPageText`
+  (`DefaultPageRenamer.java:129, :208`): no filters, no save events. On `WikiPageRenameEvent`, the
+  listener rekeys the renamed page's session and reconciles **every live session among the
+  referrers** by content hash.
+- Publish always reconciles by content hash **before** it saves. That is the backstop for any
+  event that was missed.
+
+**A2 — Publish needs an atomic save; Phase 0 fixes `PageSaveHelper`.** (overrides §7.3)
+- Today the optimistic check (`PageSaveHelper.checkOptimisticLocking`, `:89-108`) and the save
+  (`:80`) run with no lock between them; `DefaultPageLifecycle.saveText` (`:73-115`) takes none,
+  and the provider's lock covers only `putPageText`. A writer with no `expectedVersion` (MCP,
+  cluster rename) can save between the check and the write. That is a defect today for every
+  strict-mode client, not only for collaboration.
+- **Phase 0 (test first):**
+  - add a per-page **striped save lock** covering check → filters → put → post-save, taken by every
+    `saveText` caller;
+  - make `PageSaveHelper` return **the version it wrote** plus a **no-op flag**. It returns
+    `pm.getPage(pageName)` (the latest) at `:82`, and `saveText` silently creates no version for
+    identical text (`DefaultPageLifecycle.java:76-80`).
+- Publish reads back that exact version. Crash recovery (E39) claims version B+1 only when that
+  version's text hash and author match the pending-publish marker.
+
+**A3 — External saves that arrive during a publish.** (overrides §7.4 while `publishing`)
+- While `publishing` is set, external events are **queued**, not merged.
+- After the post-publish step, the session merges each version above the published one **in
+  order**, each read with `getPureText(page, v)` and diffed against its predecessor, never against
+  "latest". Merging against the stale base would re-insert the session's own just-published text.
+
+**A4 — The editor becomes uncontrolled in collab mode.** (overrides §8.2)
+- `CodeEditor` is controlled (`value`/`onChange`, `CodeEditor.jsx:506-507`). A `value` that
+  differs from the document makes `@uiw/react-codemirror` dispatch a whole-document replacement,
+  which `collab()` would broadcast as a local edit, reverting other people's work.
+- In collab mode `CodeEditor` is **uncontrolled**. Every write goes through the view as a minimal
+  transaction (`replaceBody`, `PageEditor.jsx:396-408`): attachment rename, `updateBody`, restore
+  and conversion. A real-CodeMirror test asserts that no full-document replacement ever reaches
+  `collab()`.
+- Resync **remounts** with a fresh `EditorState`. A reconfigure would keep the collab field's
+  stale start version.
+
+### Important
+
+- **A5 — Permissions** (overrides §9):
+  - Each participant holds its **wiki `Session`**: `PermissionFilter.canAccess` needs one
+    (`RestServletBase.java:437-447`), so `canEdit(authorKey, page)` cannot be implemented.
+  - There is no event for policy-grant or page-ACL changes: only `GROUP_ADD`/`GROUP_REMOVE` fire.
+    So edit rights are re-checked after every external merge and every publish, and on the 30 s
+    cadence. Participants are evicted on `LOGOUT`/`SESSION_EXPIRED`.
+  - Publish runs an **uncached** `edit` check: `PageSaveHelper` performs no ACL check of its own
+    (`doPut` does, `PageResource.java:434`).
+- **A6 — Push is bound to the caller.** The server derives the participant from the requesting
+  session's author key. A push naming another participant's `clientID` is refused.
+- **A7 — Async filter audit, corrected** (overrides §12.1):
+  - The `/api/*` filters lacking `async-supported` are `BasicAuthFilter`, `RememberMeAuthFilter`,
+    `MustChangePasswordFilter` and `BuildVersionFilter`. `CsrfProtectionFilter` (web fragment) is
+    already async.
+  - `RequestMetricsFilter` (records in `finally`, `:73`) and `RequestCorrelationFilter` (clears
+    the MDC, `:90-95`) need an `AsyncListener` so long-polls are timed and logged correctly.
+  - `BackpressureFilter` releases its permit when the filter returns (`:172-178`), so parked polls
+    do not hold permits.
+- **A8 — Rate limits** (overrides §12.2):
+  - The default limit is 25 requests per second per IP (`RateLimitFilter.java:99`), and one typist
+    alone approaches it.
+  - Presence is **folded into push and pull** (no separate presence endpoint in v1), and pull
+    wake-ups are coalesced (~50 ms).
+  - `/api/collab/*` gets a **per-participant** limiter. That needs a code change in
+    `RateLimitFilter`, which is configured through environment variables.
+- **A9 — Line endings.**
+  - The save path stores CRLF with a trailing CRLF (`TextUtil.normalizePostData`, `:541-567`).
+  - Every text the session diffs (saved, external, recovered) is **normalised to LF** first, and
+    the draft ends in `\n` before publish. Otherwise every publish echoes a whole-document update.
+- **A10 — The update log is kept, not deleted on publish** (overrides §7.6 and the §16.4 proposal):
+  - Publish writes a snapshot at the publish point in the same transaction.
+  - Loading a session rebuilds the in-memory ring from `collab_update`, and catch-up beyond the
+    ring is served from the database.
+  - The log is truncated only below the lowest confirmed participant version.
+  - `410 resync` becomes rare. Where it is unavoidable, the client shows the user's unsynced text
+    in a **recovery panel** instead of re-applying it as a diff (re-applying cannot be mapped
+    correctly and duplicates text after a lost ack).
+- **A11 — New pages, templates and restore** (overrides §6.2 `join`):
+  - `join` may carry `initialText` and `initialMeta`, used only when it creates the session. That
+    covers a template's content (`PageEditor.jsx:481-486`) and restore of an old version
+    (`:461-472`).
+  - A new page's session has `base_page_version` **0**, meaning "must not exist". Publish checks
+    that under the A2 lock (today `expectedVersion <= 0` disables the check, `PageSaveHelper.java:92`).
+  - Uploads on an unsaved page attach once *any* participant's publish creates the page.
+- **A12 — Presence coordinates.** A participant sends its local selection with its synced version
+  and its count of unconfirmed updates, piggybacked on push and pull. The server, or each
+  receiver, maps the selection through the corresponding updates.
+- **A13 — Session expiry.**
+  - A 25 s long-poll keeps the 60-minute idle timeout (`web.xml:397`) from ever expiring on an open
+    tab. That is accepted; the participant timeout governs presence instead.
+  - When the HTTP session does expire, the client keeps its unsent edits and prompts the user to
+    log in again. Discarding unsent edits applies only to permission revocation.
+- **A14 — Metadata operations** (overrides §8.2 and D4):
+  - Field widgets emit on every keystroke (`FieldWidget.jsx:41, :158`), so field ops are
+    **debounced**.
+  - The RawYaml and AdvancedKeyValues tabs return whole objects (`FrontmatterEditor.jsx:39-97`);
+    these are **diffed into field ops**.
+  - `tags`, `related` and `aliases` use **set add/remove** ops, so concurrent additions survive.
+  - Values are normalised through JSON on both sides, so SnakeYAML's `Date` against a JSON string
+    is not a phantom conflict.
+
+### Minor
+
+- **Topology and caching:** prod is docker1 behind Cloudflare, not Caddy, with `CF-Connecting-IP`
+  handled by `RemoteIpValve` (`docker/config/server.xml:53-56`). A 25 s poll is well inside
+  Cloudflare's ~100 s limit. Responses carry `Cache-Control: no-store`; check Cloudflare's bot and
+  WAF rate rules before enabling.
+- **Config:** types are `int`/`boolean` (the `Type:` vocabulary; the §11 table is corrected).
+- **Migration:**
+  - `V066` grants on every table to `:app_user`.
+  - `page_version_contributor` is keyed by **`canonical_id`**, so it survives renames.
+  - Renaming a page onto a name that holds a frozen draft is refused, citing the draft.
+- **Deleted users:** `UserDeletionService` tombstones the login rather than pseudonymising it
+  (`:36-60`). Collab only evicts that user's participants.
+- **Protocol:**
+  - `docHash` (§14) is part of the pull response in §6.2.
+  - Every 409 carries a `reason`: `stale-base`, `publish-merged-retry`, `oversize`, `frozen`,
+    `conflict-meta`.
+  - The §7.4 diamond property is stated with `before=true`, matching its pseudo-code.
+- **Audit:** the save context carries no user (`EventActors.java:29-35`), so collab audit entries
+  name the publisher and the contributors themselves. @mention notifications credit the publisher;
+  this is accepted for v1.
+- **Tests:**
+  - jqwik is not in the build, so property tests are seeded loops.
+  - Invariant 3 (full replay) is checked at quiescence and on a sample of steps: checking it after
+    every step is quadratic.
+  - F3 traces pin protocol messages, not the simulator's random-number draws.
+- **Orphans:**
+  - A publish that leaves no participant with `edit` freezes the draft for an administrator.
+  - Idle eviction deletes drafts with no changes, such as those left by crashed tabs.
+  - An admin purge lands before Phase 4.
+- **Live preview:** remote updates re-render the preview on a throttle (~250 ms), not per update.
+- **Docs:** CLAUDE.md's `/api` servlet count changes when `CollabResource` lands.
+
+### §16 decisions
+
+1. Any editor may publish. Publish runs a fresh, uncached `edit` check, and the publish dialog
+   names participants who still have unsynced typing.
+2. Agents do not join drafts. The page and for-agent payloads gain a `draft_active` flag, so an
+   agent knows a human is mid-edit.
+3. No autosave-publish.
+4. Keystroke history is not kept as a product feature. The log is truncated per A10, and
+   contributors are kept.
+5. Strict-mode PUTs succeed against the page version and merge into the draft. That is sound only
+   once A2's lock lands.
 
 ## 1. Summary
 
@@ -614,16 +778,16 @@ it, then regenerate the reference with `bin/config-reference.sh --write`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `wikantik.collab.enabled` | Boolean | `false` | Kill switch; off = today's single-author editor |
-| `wikantik.collab.maxParticipants` | Integer | `20` | Per session |
-| `wikantik.collab.maxUpdateBytes` | Integer | `65536` | Max JSON body of one push |
-| `wikantik.collab.poll.timeoutSeconds` | Integer | `25` | Long-poll park time (keep under Caddy/LB idle timeouts) |
-| `wikantik.collab.presence.timeoutSeconds` | Integer | `45` | Drop silent participants from presence |
-| `wikantik.collab.permission.recheckSeconds` | Integer | `30` | Edit-permission cache per participant |
-| `wikantik.collab.history.inMemoryUpdates` | Integer | `2000` | Ring size before a lagging client must resync |
-| `wikantik.collab.snapshot.everyUpdates` | Integer | `500` | Snapshot cadence |
-| `wikantik.collab.memory.idleEvictMinutes` | Integer | `10` | Evict empty sessions from memory |
-| `wikantik.collab.draft.retentionDays` | Integer | `0` | 0 = keep unpublished drafts forever; never auto-publishes |
+| `wikantik.collab.enabled` | boolean | `false` | Kill switch; off = today's single-author editor |
+| `wikantik.collab.maxParticipants` | int | `20` | Per session |
+| `wikantik.collab.maxUpdateBytes` | int | `65536` | Max JSON body of one push |
+| `wikantik.collab.poll.timeoutSeconds` | int | `25` | Long-poll park time (keep under Caddy/LB idle timeouts) |
+| `wikantik.collab.presence.timeoutSeconds` | int | `45` | Drop silent participants from presence |
+| `wikantik.collab.permission.recheckSeconds` | int | `30` | Edit-permission cache per participant |
+| `wikantik.collab.history.inMemoryUpdates` | int | `2000` | Ring size before a lagging client must resync |
+| `wikantik.collab.snapshot.everyUpdates` | int | `500` | Snapshot cadence |
+| `wikantik.collab.memory.idleEvictMinutes` | int | `10` | Evict empty sessions from memory |
+| `wikantik.collab.draft.retentionDays` | int | `0` | 0 = keep unpublished drafts forever; never auto-publishes |
 
 The SPA learns `enabled` from the existing capability/config payload it already fetches (or from
 `join` returning 503).
@@ -911,7 +1075,7 @@ is asserted first.
 
 | Phase | Content | Ships |
 |---|---|---|
-| **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures (F0) and property tests. Test harness F1–F9 + `CollabInvariants` against a stub session, so Phase 1 is written test-first into it. Async-supported filter audit (§12.1) + rate-limit/backpressure decisions (§12.2). | Nothing user-visible |
+| **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures (F0) and seeded property tests. Test harness F1–F9 + `CollabInvariants` against a stub session, so Phase 1 is written test-first into it. **A2: atomic per-page save lock + `PageSaveHelper` returns the written version and a no-op flag** (fixes today's strict-mode race). **A7: async-supported filter fixes + `AsyncListener` timing/MDC.** A8 limiter decision. | Nothing user-visible (A2 is a bug fix) |
 | **1 — Core text collaboration** | Migration, `CollabStore`, `CollabSession` (push/pull/ring/snapshot), `CollabResource` (join/updates/leave), publish via `PageSaveHelper` with normalisation mapping, frontend `collabPeer` + Publish button, kill switch default **off**, convergence fuzz test, REST IT | Dark; enable on a staging instance |
 | **2 — Presence + metadata + external merges** | Presence + remote cursors + `PresenceBar`; meta ops + form integration; `CollabPageEventListener` (external merges, rename, delete); external-change toast/highlight; Selenide two-browser test | Enable in prod for the admin group first (optional `wikantik.collab.enabled` per-group follow-up if wanted) |
 | **3 — Draft UX + attribution** | Draft banner, discard, publish dialog diff, offline-draft import from `useDraft`, `page_version_contributor` + history UI, audit entries, metrics | Default **on** |

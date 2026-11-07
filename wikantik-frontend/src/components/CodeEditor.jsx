@@ -66,6 +66,7 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *                                 fixed at mount: a new session (resync) REMOUNTS the editor with a new `key`, since a
  *                                 reconfigure would keep the collab field's stale start version.
  *   collabDoc   string            the joined document (`join().doc`); collab mode only
+ *   onEditorReady (view) => void  called once the CodeMirror view exists (the imperative handle works from then on)
  *   className   string            applied to the wrapping div
  *   'data-testid' string         applied to the wrapping div
  */
@@ -129,7 +130,7 @@ const BASIC_SETUP = {
 };
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, tagSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, readOnly = false, collabExtensions, collabDoc, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, tagSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, readOnly = false, collabExtensions, collabDoc, onEditorReady, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -214,9 +215,12 @@ const CodeEditor = forwardRef(function CodeEditor(
     () => livePreviewExtension({ getContext: () => livePreviewContextRef.current || {} }),
     [],
   );
+  const onEditorReadyRef = useRef(onEditorReady);
+  onEditorReadyRef.current = onEditorReady;
   const handleCreateEditor = useCallback((view) => {
     viewRef.current = view;
     if (livePreviewRef.current && typeof view.state.field === 'function') setLivePreview(view, true);
+    onEditorReadyRef.current?.(view);
   }, []);
   useEffect(() => {
     const view = viewRef.current;

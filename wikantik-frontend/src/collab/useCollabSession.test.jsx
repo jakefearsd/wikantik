@@ -232,6 +232,34 @@ describe('useCollabSession', () => {
     expect(out).toMatchObject({ ok: false, status: 409, reason: 'rejoin' });
   });
 
+  it('presence lists every other live participant; one without a cursor has null selection fields', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    const bob = server.transportFor('bob');
+    const bj = await bob.join({});
+    await bob.push({ sessionId: bj.sessionId, participantId: bj.participantId, version: 0, updates: [], metaOps: [], selection: { anchor: 1, head: 3, version: 0, unconfirmed: 0 } });
+    const carl = server.transportFor('carl');
+    const cj = await carl.join({});
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(result.current.status).toBe('live');
+    expect(result.current.presence[bj.participantId]).toMatchObject({ displayName: 'bob', anchor: 1, head: 3, version: 0, unconfirmed: 0 });
+    expect(result.current.presence[cj.participantId]).toEqual(expect.objectContaining({
+      displayName: 'carl', anchor: null, head: null, version: null, unconfirmed: null,
+    }));
+    expect(result.current.participants.map((p) => p.displayName).sort()).toEqual(['ada', 'bob', 'carl']);
+    // a later leave drops the entry
+    await carl.leave({ sessionId: cj.sessionId, participantId: cj.participantId });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(result.current.presence[cj.participantId]).toBeUndefined();
+    expect(Object.keys(result.current.presence)).toEqual([bj.participantId]);
+    view.destroy();
+  });
+
   it('keeps only the last 200 events', async () => {
     const transport = server.transportFor('ada');
     const { result } = renderHook(() => useCollabSession('P', { transport }));

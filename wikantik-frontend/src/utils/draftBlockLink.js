@@ -50,9 +50,13 @@ export async function draftBlockLink(view, offset, draft) {
   } catch (err) {
     failed = err;
   }
-  const edits = view.state.field(inFlight).get(key);
-  view.dispatch({ effects: untrack.of(key) });
+  // A reconfigure while the request was in flight (e.g. the editor turned read-only) drops the appended field: the edits
+  // made meanwhile are then unknown, so the answer cannot be placed safely.
+  const tracked = view.state.field(inFlight, false);
+  const edits = tracked?.get(key);
+  if (tracked) view.dispatch({ effects: untrack.of(key) });
   if (failed) throw failure(refusalCode(failed), failed);
+  if (!edits) throw failure('changed');
   const { id, change, block } = answer;
   const from = Math.min(block.from, change ? change.from : block.from);
   const to = Math.max(block.to, change ? change.to : block.to);

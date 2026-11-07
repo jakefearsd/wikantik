@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { EditorState } from '@codemirror/state';
+import { EditorState, StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { draftBlockLink } from './draftBlockLink';
 
@@ -62,6 +62,16 @@ describe('draftBlockLink', () => {
       call.resolve({ id: 'bb', change: { from: 13, to: 13, insert: ' ^bb' }, block: { index: 1, from: 8, to: 13 } });
       expect(await codeOf(p)).toBe('changed');
     }
+  });
+
+  it('refuses with code "changed" when a reconfigure dropped the tracking while the request was in flight', async () => {
+    const view = viewOf('Alpha.\n\nBeta.\n');
+    const call = deferredDraft();
+    const p = draftBlockLink(view, 9, call.draft);
+    view.dispatch({ effects: StateEffect.reconfigure.of([EditorState.readOnly.of(true)]) }); // e.g. a collab resync
+    view.dispatch({ changes: { from: 0, insert: 'unseen ' } });
+    call.resolve({ id: 'bb', change: { from: 13, to: 13, insert: ' ^bb' }, block: { index: 1, from: 8, to: 13 } });
+    expect(await codeOf(p)).toBe('changed');
   });
 
   it('passes the server refusal on as the code, and any other failure as "failed"', async () => {

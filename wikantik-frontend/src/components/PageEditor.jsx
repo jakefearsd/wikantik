@@ -201,11 +201,12 @@ export default function PageEditor({ collabTransport } = {}) {
   };
 
   const login = user?.authenticated ? user.loginPrincipal : null;
-  // The server holds a collaborative draft: no localStorage autosave then.
+  // In collab mode the server holds the draft: the autosave effect below stays off, and an existing offline draft is
+  // offered once for import into the shared draft (§8.2).
   const { draft, saveDraft, clearDraft } = useDraft({
     login,
     pageId: name,
-    enabled: !!login && !collabWanted,
+    enabled: !!login,
   });
   const [restorePrompt, setRestorePrompt] = useState(false);
   const [restoring, setRestoring] = useState(null);
@@ -224,13 +225,19 @@ export default function PageEditor({ collabTransport } = {}) {
   // What a NEW session starts from (A11): a new page's template, a restored version. Null = the page as saved.
   const [collabSeed, setCollabSeed] = useState(null);
   const [loadedFor, setLoadedFor] = useState(null);
+  // Frontmatter with blocking errors cannot be fixed while editing together (no shared meta ops yet), so such a page is
+  // edited single-author; latched per page so the editor never flips back and forth while the user fixes it.
+  const frontmatterBlocked = displayViolations.some((v) => v.severity === 'ERROR');
+  const [collabBlockedFor, setCollabBlockedFor] = useState(null);
+  if (collabWanted && frontmatterBlocked && collabBlockedFor !== name) setCollabBlockedFor(name);
+  const collabBlocked = collabBlockedFor === name;
   const collab = useCollabSession(name, {
     transport: collabTransport,
     initialText: collabSeed?.name === name ? collabSeed.initialText : undefined,
     initialMeta: collabSeed?.name === name ? collabSeed.initialMeta : undefined,
-    enabled: collabWanted && loadedFor === name,
+    enabled: collabWanted && !collabBlocked && loadedFor === name,
   });
-  const collabMode = collabWanted && !COLLAB_FALLBACK.has(collab.status);
+  const collabMode = collabWanted && !collabBlocked && !COLLAB_FALLBACK.has(collab.status);
   const collabEditing = collabMode && !!collab.extensions && COLLAB_EDITING.has(collab.status);
   const collabForbidden = collabMode && collab.status === 'forbidden';
   const collabReadOnly = collabEditing && (collab.status === 'frozen' || collab.status === 'resync');
@@ -246,8 +253,9 @@ export default function PageEditor({ collabTransport } = {}) {
   );
   // A (re)join: the editor remounts from the joined document; the body and metadata follow the session.
   const [restoreOffer, setRestoreOffer] = useState(null);
+  const [offlineDraftOffer, setOfflineDraftOffer] = useState(null);
   const [joinedExtensions, setJoinedExtensions] = useState(null);
-  if (collabWanted && collab.extensions && collab.extensions !== joinedExtensions) {
+  if (collabMode && collab.extensions && collab.extensions !== joinedExtensions) {
     setJoinedExtensions(collab.extensions);
     const joinedDoc = String(collab.docAtJoin ?? '');
     setBody(joinedDoc);
@@ -258,15 +266,39 @@ export default function PageEditor({ collabTransport } = {}) {
     // (the server may end a session's text in a newline (A9): that alone does not make it someone else's session)
     const differs = seedText != null && seedText.replace(/\n+$/, '') !== joinedDoc.replace(/\n+$/, '');
     setRestoreOffer(differs && !joinedExtensions ? { text: seedText, from: collabSeed.restoreFrom } : null);
+    // An offline (localStorage) draft of this page, offered once on entering collab mode (§8.2).
+    if (!joinedExtensions && draft?.content) {
+      const offline = stripFrontmatter(draft.content).replace(/\r\n?/g, '\n');
+      setOfflineDraftOffer(offline !== joinedDoc ? { text: offline, savedAt: draft.savedAt } : null);
+    }
   }
-  const [confirmConvert, setConfirmConvert] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-  const collabEditingRef = useRef(collabEditing);
+  // Programmatic writes (attachment rename, upload placeholders, drops) cannot reach a collab editor that is joining or
+  // stopped (resync, frozen): they are queued and applied once a writable editor is mounted, never dropped silently.
+  const collabWriteBlocked = collabMode && !(collabEditing && !collabReadOnly);
+  const collabModeRef = useRef(collabMode);
+  const collabWriteBlockedRef = useRef(collabWriteBlocked);
+  const collabFrozenRef = useRef(false);
   useEffect(() => {
-    collabEditingRef.current = collabEditing;
+    collabModeRef.current = collabMode;
+    collabWriteBlockedRef.current = collabWriteBlocked;
+    collabFrozenRef.current = collabMode && collab.status === 'frozen';
   });
+  const pendingWritesRef = useRef([]);
+  // Fallback body writer for edits made without a view: never in collab mode, where the uncontrolled editor would
+  // diverge from React state (A4).
+  const fallbackSetBody = useCallback((update) => {
+    if (collabModeRef.current) {
+      console.warn('[collab] body update skipped: the collab editor view is not mounted');
+      return;
+    }
+    setBody(update);
+  }, []);
 
-  const guardActive = collabMode ? collabEditing && unsynced : isDirty;
+  const guardActive = collabMode
+    ? (collabEditing && unsynced) || !!collab.resync?.unsyncedText
+    : isDirty || (collabWanted && !!collab.resync?.unsyncedText);
   useNavigationGuard(guardActive);
   const guardedNavigate = useGuardedNavigate();
 
@@ -341,14 +373,14 @@ export default function PageEditor({ collabTransport } = {}) {
     }
     const markup = linkMarkup(text.slice(loc.from, loc.to), m.target);
     if (!editorRef.current?.replaceRange?.(loc.from, loc.to, markup)) {
-      setBody((prev) => prev.slice(0, loc.from) + markup + prev.slice(loc.to));
+      fallbackSetBody((prev) => prev.slice(0, loc.from) + markup + prev.slice(loc.to));
     }
     setJustLinked((prev) => {
       const forScan = currentScan;
       const targets = new Set(prev.forScan === forScan ? prev.targets : []);
       return { forScan, targets: targets.add(m.target) };
     });
-  }, [toast, rescanMentions, currentScan]);
+  }, [toast, rescanMentions, currentScan, fallbackSetBody]);
 
   const jumpToMention = useCallback((m) => {
     const text = editorRef.current?.getText?.() ?? bodyRef.current;
@@ -475,10 +507,25 @@ export default function PageEditor({ collabTransport } = {}) {
   // Text edits made outside typing go through the editor as transactions: a React `value` change can be
   // deferred by @uiw/react-codemirror while the user types, and the editor's onChange would then overwrite it.
   // insertText/replaceText return false when there is no editor view; callers then fall back to setBody.
+  // In collab mode while the editor cannot take writes, they are queued (and reported as handled).
+  const queueCollabWrite = useCallback((op) => {
+    if (collabFrozenRef.current) {
+      console.warn('[collab] write refused: the page is read-only', op.kind);
+      toast.error('This page is read-only now — the change to its text was not applied');
+      return;
+    }
+    pendingWritesRef.current.push(op);
+  }, [toast]);
   const editorEdits = useMemo(() => ({
-    insertText: (pos, text) => editorRef.current?.insertText?.(pos, text) ?? false,
-    replaceText: (find, replacement) => editorRef.current?.replaceText?.(find, replacement) ?? false,
-  }), []);
+    insertText: (pos, text) => {
+      if (collabWriteBlockedRef.current) { queueCollabWrite({ kind: 'insert', pos, text }); return true; }
+      return editorRef.current?.insertText?.(pos, text) ?? false;
+    },
+    replaceText: (find, replacement) => {
+      if (collabWriteBlockedRef.current) { queueCollabWrite({ kind: 'replace', find, replacement }); return true; }
+      return editorRef.current?.replaceText?.(find, replacement) ?? false;
+    },
+  }), [queueCollabWrite]);
 
   // Replace the whole body while the editor is open (conversion, draft restore, conflict reload): through the view
   // as one undoable transaction touching only the changed span, so the caret is mapped and nothing is parked behind
@@ -491,26 +538,31 @@ export default function PageEditor({ collabTransport } = {}) {
     const live = editor?.getText?.();
     if (live === text) return;
     if (live != null && editor.applyChanges?.([minimalChange(live, text)])) return;
-    if (collabEditingRef.current) {
-      // The collab editor is uncontrolled: a body set beside the view would never reach the shared draft (A4).
-      console.warn('[collab] body replacement skipped: the editor view is not mounted');
-      return;
+    fallbackSetBody(text);
+  }, [fallbackSetBody]);
+
+  // Queued collab writes (see queueCollabWrite) go in once the editor takes writes again, each as one transaction.
+  const applyPendingWrites = useCallback(() => {
+    const ops = pendingWritesRef.current;
+    const editor = editorRef.current;
+    if (!ops.length || collabWriteBlockedRef.current || editor?.getText?.() == null) return;
+    pendingWritesRef.current = [];
+    for (const op of ops) {
+      if (op.kind === 'rename') editor.applyChanges(attachmentLinkChanges(editor.getText(), op.oldName, op.newName));
+      else if (op.kind === 'replace') editor.replaceText(op.find, op.replacement);
+      else if (op.kind === 'insert') editor.insertText(op.pos, op.text);
     }
-    setBody(text);
   }, []);
-  // Fallback body writer for edits made without a view (uploads): never in collab mode, where it would diverge.
-  const fallbackSetBody = useCallback((update) => {
-    if (collabEditingRef.current) {
-      console.warn('[collab] body update skipped: the editor view is not mounted');
-      return;
-    }
-    setBody(update);
-  }, []);
+  // A fresh view: its mount runs inside react-codemirror's layout effect, before this component's refs are updated.
+  const handleEditorReady = useCallback(() => { setTimeout(applyPendingWrites, 0); }, [applyPendingWrites]);
+  useEffect(() => {
+    if (!collabWriteBlocked) applyPendingWrites();
+  }, [collabWriteBlocked, applyPendingWrites]);
 
   const handleInsert = useCallback((text, pos) => {
     if (editorEdits.insertText(pos, text)) return;
-    setBody(prev => prev.slice(0, pos) + text + prev.slice(pos));
-  }, [editorEdits]);
+    fallbackSetBody(prev => prev.slice(0, pos) + text + prev.slice(pos));
+  }, [editorEdits, fallbackSetBody]);
 
   const getDropOffset = useCallback(() => {
     return editorRef.current ? editorRef.current.getSelection().selStart : 0;
@@ -528,6 +580,10 @@ export default function PageEditor({ collabTransport } = {}) {
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
+    if (collabWriteBlockedRef.current) {
+      queueCollabWrite({ kind: 'rename', oldName, newName });
+      return result;
+    }
     // This resolves at an arbitrary moment, typically while the user types. Rewrite the links in the LIVE editor
     // text as one transaction (the caret is mapped through it); a setBody here would be parked by the typing
     // latch and later replayed stale over the keystrokes typed in between.
@@ -536,7 +592,7 @@ export default function PageEditor({ collabTransport } = {}) {
     if (live != null && editor.applyChanges?.(attachmentLinkChanges(live, oldName, newName))) return result;
     fallbackSetBody((prev) => rewriteAttachmentLinks(prev, oldName, newName));
     return result;
-  }, [attachments, fallbackSetBody]);
+  }, [attachments, fallbackSetBody, queueCollabWrite]);
 
   // Captured once per page: the route state is cleared after it is applied, so Back / reload to
   // /edit/P does not re-apply the restore (and clearing it must not re-trigger the load effect).
@@ -670,11 +726,11 @@ export default function PageEditor({ collabTransport } = {}) {
 
     // Through the view as one transaction: setBody would be deferred by react-codemirror's typing latch.
     if (editor.applyEdit?.(next.text, next.selStart, next.selEnd)) return;
-    setBody(next.text);
+    fallbackSetBody(next.text);
     requestAnimationFrame(() => {
       editorRef.current?.setSelection(next.selStart, next.selEnd);
     });
-  }, []);
+  }, [fallbackSetBody]);
 
   // #4 — Cmd/Ctrl+S save. The handler is registered once but calls the LATEST save via a ref, so it
   // always saves the current body/metadata (not a stale first-render closure).
@@ -774,6 +830,8 @@ export default function PageEditor({ collabTransport } = {}) {
     const pos = view.state.selection.main.head;
     const linked = draftBlockLink(view, pos, (text, offset) => api.draftBlocks(name, { text, metadata: metadataRef.current, offset }))
       .then(({ id, change }) => {
+        // a resync remount while the server answered: this view is destroyed, and its text is not the editor's any more
+        if (editorRef.current?.getView?.() !== view) throw Object.assign(new Error('Block link: changed'), { code: 'changed' });
         if (change) {
           view.dispatch({
             changes: change,
@@ -864,11 +922,6 @@ export default function PageEditor({ collabTransport } = {}) {
   const handleItalic = useCallback(() => applyFormat('italic'), [applyFormat]);
   const handleLink = useCallback(() => applyFormat('link'), [applyFormat]);
 
-  // In collab mode a conversion rewrites the shared draft: ask first, naming how many people it affects.
-  const requestConvert = () => {
-    if (collabEditing) setConfirmConvert(true);
-    else handleConvert();
-  };
   const handleConvert = async () => {
     // Convert exactly what the editor shows, and apply the result only if it still shows that: anything typed
     // during the request would otherwise be silently discarded by the replacement.
@@ -1019,7 +1072,9 @@ export default function PageEditor({ collabTransport } = {}) {
   };
 
   // Written in an effect (runs after every render) rather than during render.
-  const commit = collabEditing ? publishContent : saveContent;
+  // Any collab state publishes (a join in progress answers "Not connected…"): never the single-author PUT, which would
+  // write e.g. the recovery text over the shared draft.
+  const commit = collabMode ? publishContent : saveContent;
   useEffect(() => {
     latestSaveRef.current = commit;
   });
@@ -1111,6 +1166,17 @@ export default function PageEditor({ collabTransport } = {}) {
   }, [handleFiles, getDropOffset]);
 
   const handleCancel = () => guardedNavigate(`/wiki/${name}`);
+
+  const discardSharedDraft = async () => {
+    setConfirmDiscard(false);
+    const res = await collab.discard();
+    if (res.ok) {
+      toast.success('Shared draft discarded');
+      return;
+    }
+    console.warn('[collab] discard failed', res.status, res.reason, res.message);
+    setError(res.reason === 'not-live' ? 'Not connected to the shared draft — try again once it reconnects.' : (res.message || 'Discard failed'));
+  };
 
   const copyRecoveryText = async () => {
     try {
@@ -1218,6 +1284,12 @@ export default function PageEditor({ collabTransport } = {}) {
           <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
+          {collabEditing && (
+            <button type="button" className="btn btn-ghost" data-testid="collab-discard" disabled={collabReadOnly}
+              onClick={() => setConfirmDiscard(true)}>
+              Discard draft
+            </button>
+          )}
           {!collabForbidden && (
           <button
             className="btn btn-primary"
@@ -1234,10 +1306,19 @@ export default function PageEditor({ collabTransport } = {}) {
 
       {(markupSyntax === 'wiki' || markupSyntax === 'likely-wiki') && (
         <div className="info-banner">
-          <span>This page uses legacy wiki syntax. Convert to Markdown?</span>
-          <button className="btn btn-primary btn-sm" onClick={requestConvert} disabled={converting || collabReadOnly}>
-            {converting ? 'Converting…' : 'Convert to Markdown'}
-          </button>
+          {collabMode ? (
+            // Publish does not carry the page's markup flag yet, so a converted page would stay marked as wiki syntax.
+            <span data-testid="collab-no-convert">
+              This page uses legacy wiki syntax. Converting it to Markdown isn&apos;t available while editing together.
+            </span>
+          ) : (
+            <>
+              <span>This page uses legacy wiki syntax. Convert to Markdown?</span>
+              <button className="btn btn-primary btn-sm" onClick={handleConvert} disabled={converting}>
+                {converting ? 'Converting…' : 'Convert to Markdown'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -1293,6 +1374,28 @@ export default function PageEditor({ collabTransport } = {}) {
       {collabWanted && collab.status === 'full' && (
         <div className="info-banner" role="status" data-testid="collab-full">
           Too many people are editing this page together — you are editing on your own, and saving merges your changes into theirs.
+        </div>
+      )}
+      {collabWanted && collabBlocked && (
+        <div className="info-banner" role="status" data-testid="collab-frontmatter-blocked">
+          This page&apos;s frontmatter has errors that can&apos;t be fixed while editing together — you are editing on your
+          own. Fix them, then save.
+        </div>
+      )}
+      {collabEditing && offlineDraftOffer && (
+        <div className="draft-restore-banner" role="status" data-testid="collab-offline-draft">
+          <span className="draft-restore-text">
+            You have an offline draft of this page from {formatRelative(offlineDraftOffer.savedAt)}. Restore it into the
+            shared draft? (Its text only; the frontmatter stays as it is.)
+          </span>
+          <button type="button" className="draft-btn draft-btn-restore" disabled={collabReadOnly}
+            onClick={() => { replaceBody(offlineDraftOffer.text); clearDraft(); setOfflineDraftOffer(null); }}>
+            Restore into the shared draft
+          </button>
+          <button type="button" className="draft-btn draft-btn-discard"
+            onClick={() => { clearDraft(); setOfflineDraftOffer(null); }}>
+            Discard it
+          </button>
         </div>
       )}
       {collabWanted && collab.status === 'error' && (
@@ -1440,6 +1543,7 @@ export default function PageEditor({ collabTransport } = {}) {
             collabExtensions={collabEditing ? collabExtensions : undefined}
             collabDoc={collabEditing ? collab.docAtJoin : undefined}
             readOnly={collabReadOnly || collabForbidden}
+            onEditorReady={handleEditorReady}
             onPasteConverted={handlePasteConverted}
             onPasteImages={handlePasteImages}
             pasteAsMarkdown={!isLegacyWiki}
@@ -1528,14 +1632,13 @@ export default function PageEditor({ collabTransport } = {}) {
         </div>
       )}
 
-      {confirmConvert && (
+      {confirmDiscard && (
         <ConfirmDialog
-          title="Convert to Markdown?"
-          message={`Converting this changes the page for all ${editorsLabel(editorCount)}.`}
-          confirmLabel="Convert for everyone"
-          danger={false}
-          onConfirm={() => { setConfirmConvert(false); handleConvert(); }}
-          onCancel={() => setConfirmConvert(false)}
+          title="Discard the shared draft?"
+          message={`Discarding resets the shared draft to the published page for all ${editorsLabel(editorCount)}. Unpublished changes are lost.`}
+          confirmLabel="Discard for everyone"
+          onConfirm={discardSharedDraft}
+          onCancel={() => setConfirmDiscard(false)}
         />
       )}
       {loginOpen && <LoginForm onClose={() => { setLoginOpen(false); collab.resume(); }} />}

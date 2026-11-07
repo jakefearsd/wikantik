@@ -107,6 +107,7 @@ export function createFakeCollabServer({
       clientID, lastSeen: Date.now(), expired: false, selection: null,
     };
     participants.set(p.participantId, p);
+    presenceSeq += 1; // the presence map lists every live participant, so a join changes it
     addEvent({ type: 'participant-joined', participant: publicParticipant(p) });
     return reply(200, {
       sessionId: 's-1f3a', participantId: p.participantId, clientID,
@@ -176,8 +177,12 @@ export function createFakeCollabServer({
     const presence = {};
     if (presenceSeq > s.presenceSince) {
       for (const o of participants.values()) {
-        if (o === p || o.expired || !o.selection) continue;
-        presence[o.participantId] = { displayName: o.displayName, color: o.color, ...o.selection };
+        // every other live participant; one without a cursor has all-null selection fields (server fix 93b0e48ed2)
+        if (o === p || o.expired) continue;
+        presence[o.participantId] = {
+          displayName: o.displayName, color: o.color,
+          anchor: null, head: null, version: null, unconfirmed: null, ...(o.selection ?? {}),
+        };
       }
     }
     return reply(200, {
@@ -246,6 +251,7 @@ export function createFakeCollabServer({
       else {
         if (p && !p.expired) {
           p.expired = true;
+          presenceSeq += 1;
           addEvent({ type: 'participant-left', participantId: p.participantId });
         }
         res = reply(204);

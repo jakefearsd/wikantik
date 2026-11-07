@@ -13,6 +13,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **A refused stale save no longer runs the pre-save filters.** A strict-mode save whose `expectedVersion` is already
   stale now fails before the filters, so refused retries no longer count against the spam filter. The identical-text
   check also runs under the page lock.
+- **A rename could overwrite a concurrent save of a referring page.** The link rewrite of each referrer read, rewrote and
+  wrote the page with no lock, so a save of that referrer landing in between was lost. Each rewrite now runs under the
+  referrer's save lock, as do ACL rewrites and every `putPageText`; an ACL rewrite also fires `POST_SAVE_BEGIN` so render
+  caches flush. A save that persisted but then failed in its post-save handling now reports the version it wrote
+  (`SavedButPostSaveFailedException`).
 
 ### Changed
 - **Every `/api/*` filter is now async-capable.** The request-metrics filter times async requests to completion and

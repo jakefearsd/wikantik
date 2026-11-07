@@ -64,7 +64,8 @@ class GuardedSaveTest {
     @AfterEach
     void tearDown() {
         for( final String n : new String[]{ "GuardRace", "GuardOk", "GuardWrote", "GuardSame", "GuardRe", "GuardStale",
-                "GuardStaleSame", "GuardLocks" } ) {
+                "GuardStaleSame", "GuardLocks", "GuardPut", "GuardPutA", "GuardPutB", "GuardReent", "GuardTarget",
+                "GuardRenamed", "GuardReferrer", "GuardPostFail", "GuardPostRt" } ) {
             engine.deleteTestPage( n );
         }
         engine.stop();
@@ -243,5 +244,174 @@ class GuardedSaveTest {
                 SaveOptions.builder().author( "A" ).expectedVersion( 7 ).build() ) );
         save( "GuardLocks", "two", SaveGuard.NONE );
         assertEquals( 0, lifecycle().lockCount() );
+    }
+
+    // --- Unevented writers (putPageText, rename referrer rewrites) take the same page lock ---
+
+    /**
+     * A guard that blocks on its second evaluation: the authoritative one, made under the page lock immediately before
+     * the write (the first is the fail-fast check before the pre-save filters).
+     */
+    private static SaveGuard blockingAtTheWrite( final CountDownLatch entered, final CountDownLatch release ) {
+        final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        return ( current, text ) -> {
+            if( calls.incrementAndGet() == 2 ) {
+                entered.countDown();
+                try {
+                    release.await( 20, TimeUnit.SECONDS );
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+    }
+
+    /** Waits until a thread queues on the lock of {@code name}, or {@code task} finishes (it did not wait). */
+    private void awaitQueuedOrDone( final String name, final Future< ? > task ) throws InterruptedException {
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 10 );
+        while( lifecycle().waitingOn( name ) == 0 && !task.isDone() && System.nanoTime() < deadline ) {
+            Thread.sleep( 5 );
+        }
+    }
+
+    @Test
+    void aPutPageTextWaitsForAGuardedSaveOfThatPage() throws Exception {
+        save( "GuardPut", "seed", SaveGuard.NONE );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final ExecutorService ex = Executors.newFixedThreadPool( 2 );
+        try {
+            final Future< SaveOutcome > a = ex.submit( () -> save( "GuardPut", "guarded", blockingAtTheWrite( entered, release ) ) );
+            assertTrue( entered.await( 20, TimeUnit.SECONDS ) );
+            final Future< ? > b = ex.submit( () -> {
+                pm.putPageText( pm.getPage( "GuardPut" ), "put" );
+                return null;
+            } );
+            awaitQueuedOrDone( "GuardPut", b );
+            assertFalse( b.isDone(), "putPageText must wait while a guarded save of the page holds its lock" );
+            release.countDown();
+            a.get( 20, TimeUnit.SECONDS );
+            b.get( 20, TimeUnit.SECONDS );
+            assertEquals( "put", pm.getPureText( "GuardPut", -1 ).trim() );
+        } finally {
+            release.countDown();
+            ex.shutdownNow();
+        }
+    }
+
+    @Test
+    void putPageTextOfAnotherPageDoesNotWait() throws Exception {
+        save( "GuardPutA", "seed", SaveGuard.NONE );
+        save( "GuardPutB", "seed", SaveGuard.NONE );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final ExecutorService ex = Executors.newFixedThreadPool( 2 );
+        try {
+            final Future< SaveOutcome > a = ex.submit( () -> save( "GuardPutA", "guarded", blockingAtTheWrite( entered, release ) ) );
+            assertTrue( entered.await( 20, TimeUnit.SECONDS ) );
+            ex.submit( () -> {
+                pm.putPageText( pm.getPage( "GuardPutB" ), "put" );
+                return null;
+            } ).get( 10, TimeUnit.SECONDS );
+            assertFalse( a.isDone() );
+            assertEquals( "put", pm.getPureText( "GuardPutB", -1 ).trim() );
+            release.countDown();
+            a.get( 20, TimeUnit.SECONDS );
+        } finally {
+            release.countDown();
+            ex.shutdownNow();
+        }
+    }
+
+    @Test
+    void aReentrantPutInsideTheGuardedSectionDoesNotDeadlock() throws Exception {
+        save( "GuardReent", "seed", SaveGuard.NONE );
+        final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        final SaveGuard putting = ( current, text ) -> {
+            if( calls.incrementAndGet() == 2 ) {
+                try {
+                    pm.putPageText( pm.getPage( "GuardReent" ), "inner" );
+                } catch( final com.wikantik.api.exceptions.ProviderException e ) {
+                    throw new IllegalStateException( e );
+                }
+            }
+        };
+        final SaveOutcome out = assertTimeoutPreemptively( Duration.ofSeconds( 10 ), () -> save( "GuardReent", "outer", putting ) );
+        assertEquals( 3, out.version() );
+        assertEquals( "inner", pm.getPureText( "GuardReent", 2 ).trim() );
+        assertEquals( "outer", pm.getPureText( "GuardReent", -1 ).trim() );
+        assertEquals( 0, lifecycle().lockCount() );
+    }
+
+    @Test
+    void aReferrerRewriteDoesNotLoseAConcurrentSave() throws Exception {
+        save( "GuardTarget", "the target", SaveGuard.NONE );
+        save( "GuardReferrer", "see [GuardTarget]() here", SaveGuard.NONE );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final ExecutorService ex = Executors.newFixedThreadPool( 2 );
+        try {
+            final Future< SaveOutcome > a = ex.submit( () -> save( "GuardReferrer", "see [GuardTarget]() here, and the saved edit",
+                    blockingAtTheWrite( entered, release ) ) );
+            assertTrue( entered.await( 20, TimeUnit.SECONDS ) );
+            final Future< String > rename = ex.submit( () -> {
+                final Context ctx = Wiki.context().create( engine, pm.getPage( "GuardTarget" ) );
+                return engine.getManager( com.wikantik.content.PageRenamer.class )
+                        .renamePage( ctx, "GuardTarget", "GuardRenamed", true );
+            } );
+            awaitQueuedOrDone( "GuardReferrer", rename );
+            release.countDown();
+            a.get( 20, TimeUnit.SECONDS );
+            assertEquals( "GuardRenamed", rename.get( 20, TimeUnit.SECONDS ) );
+        } finally {
+            release.countDown();
+            ex.shutdownNow();
+        }
+        final String referrer = pm.getPureText( "GuardReferrer", -1 );
+        assertTrue( referrer.contains( "and the saved edit" ), "the concurrent save survives: " + referrer );
+        assertTrue( referrer.contains( "[GuardRenamed]()" ), "the link is rewritten: " + referrer );
+        assertFalse( referrer.contains( "[GuardTarget]()" ), "no stale link remains: " + referrer );
+    }
+
+    // --- Ruling I2: a save that persisted and then failed in its post-save handling reports what it wrote ---
+
+    private void failingPostSave( final String pageName, final Exception failure ) {
+        engine.getManager( FilterManager.class ).addPageFilter( new PageFilter() {
+            @Override
+            public void postSave( final Context context, final String content ) throws com.wikantik.api.exceptions.FilterException {
+                if( pageName.equals( context.getPage().getName() ) && content.contains( "FAIL" ) ) {
+                    if( failure instanceof RuntimeException re ) {
+                        throw re;
+                    }
+                    throw (com.wikantik.api.exceptions.FilterException) failure;
+                }
+            }
+        }, 100 );
+    }
+
+    @Test
+    void aPostSaveFilterFailureStillReportsTheWrittenVersion() throws Exception {
+        final var failure = new com.wikantik.api.exceptions.FilterException( "post-save filter failed" );
+        failingPostSave( "GuardPostFail", failure );
+        save( "GuardPostFail", "seed", SaveGuard.NONE );
+        final var thrown = assertThrows( com.wikantik.api.pages.SavedButPostSaveFailedException.class,
+                () -> save( "GuardPostFail", "FAIL this time", SaveGuard.NONE ) );
+        assertSame( failure, thrown.getCause() );
+        assertEquals( 2, thrown.outcome().version() );
+        assertEquals( 2, thrown.outcome().page().getVersion() );
+        assertFalse( thrown.outcome().unchanged() );
+        assertEquals( "FAIL this time", pm.getPureText( "GuardPostFail", 2 ).trim() );
+        assertEquals( 0, lifecycle().lockCount() );
+    }
+
+    @Test
+    void aRuntimeFailureAfterTheWriteStillReportsTheWrittenVersion() throws Exception {
+        final var failure = new IllegalStateException( "listener blew up" );
+        failingPostSave( "GuardPostRt", failure );
+        final var thrown = assertThrows( com.wikantik.api.pages.SavedButPostSaveFailedException.class,
+                () -> helper.saveTracked( "GuardPostRt", "FAIL at once", SaveOptions.builder().author( "A" ).build() ) );
+        assertSame( failure, thrown.getCause() );
+        assertEquals( 1, thrown.outcome().version() );
+        assertInstanceOf( com.wikantik.api.exceptions.WikiException.class, thrown, "existing callers still see a WikiException" );
     }
 }

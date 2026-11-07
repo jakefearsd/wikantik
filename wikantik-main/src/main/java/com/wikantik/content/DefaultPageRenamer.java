@@ -31,6 +31,7 @@ import com.wikantik.auth.AuthorKeys;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
+import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.util.TextUtil;
 
@@ -183,36 +184,40 @@ public class DefaultPageRenamer implements PageRenamer {
         }
 
         final Engine engine = context.getEngine();
+        final PageLifecycle lifecycle = PageSubsystemBridge.fromLegacyEngine( engine ).pageLifecycle();
         for( String pageName : referrers ) {
             //  In case the page was just changed from under us, let's do this small kludge.
             if( pageName.equals( fromPage.getName() ) ) {
                 pageName = toPage.getName();
             }
-            
-            //  An unreadable referrer yields "" here, which no rewrite changes, so it is never written.
-            final String sourceText = RenameTextReader.referrerText( engine, pageName );
-            final Page referrerPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
-            String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
-            newText = rewriteWikiLinks( newText, fromPage.getName(), toPage.getName() );
-
-            camelCase = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
-            if( camelCase ) {
-                newText = replaceCCReferrerString(newText, fromPage.getName(), toPage.getName() );
-            }
-            
-            if( !sourceText.equals( newText ) ) {
-                referrerPage.setAttribute( Page.CHANGENOTE, fromPage.getName()+" ==> "+toPage.getName() );
-                referrerPage.setAuthor( AuthorKeys.authorKeyFor( context.getWikiSession() ) );
-
-                try {
-                    PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( referrerPage, newText );
-                    com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().updateReferences( referrerPage );
-                } catch( final ProviderException e ) {
-                    //  We fail with an error, but we will try to continue to rename other referrers as well.
-                    LOG.error("Unable to perform rename.",e);
-                }
-            }
+            final String referrer = pageName;
+            RenameReferrerWrite.write( engine, lifecycle, referrer, fromPage.getName() + " ==> " + toPage.getName(),
+                    () -> rewriteReferrer( context, referrer, fromPage, toPage ) );
         }
+    }
+
+    /** Under the referrer's save lock: rewrites its links to the renamed page; the page written, or null when unchanged. */
+    private Page rewriteReferrer( final Context context, final String pageName, final Page fromPage, final Page toPage )
+            throws ProviderException {
+        final Engine engine = context.getEngine();
+        //  An unreadable referrer yields "" here, which no rewrite changes, so it is never written.
+        final String sourceText = RenameTextReader.referrerText( engine, pageName );
+        final Page referrerPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
+        String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
+        newText = rewriteWikiLinks( newText, fromPage.getName(), toPage.getName() );
+
+        camelCase = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
+        if( camelCase ) {
+            newText = replaceCCReferrerString(newText, fromPage.getName(), toPage.getName() );
+        }
+
+        if( sourceText.equals( newText ) ) {
+            return null;
+        }
+        referrerPage.setAttribute( Page.CHANGENOTE, fromPage.getName()+" ==> "+toPage.getName() );
+        referrerPage.setAuthor( AuthorKeys.authorKeyFor( context.getWikiSession() ) );
+        PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( referrerPage, newText );
+        return referrerPage;
     }
 
     private Set<String> getReferencesToChange( final Page fromPage, final Engine engine ) {

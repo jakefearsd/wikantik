@@ -21,9 +21,11 @@ package com.wikantik.page.subsystem.lifecycle;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.pages.SaveGuard;
 import com.wikantik.api.pages.SaveOutcome;
+import com.wikantik.api.pages.SavedButPostSaveFailedException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.acl.AccessRuleShapeCheck;
@@ -31,6 +33,8 @@ import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.util.TextUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -44,6 +48,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class DefaultPageLifecycle implements PageLifecycle {
 
+    private static final Logger LOG = LogManager.getLogger( DefaultPageLifecycle.class );
 
     private final Engine               engine;
     private final PageRepository       repository;
@@ -102,6 +107,12 @@ public class DefaultPageLifecycle implements PageLifecycle {
         return pageLocks.size();
     }
 
+    /** Number of threads waiting for the lock of {@code name} (0 when it is free or unregistered). Test seam. */
+    int waitingOn( final String name ) {
+        final PageLock pl = pageLocks.get( name );
+        return pl == null ? 0 : pl.lock.getQueueLength();
+    }
+
     @Override
     public void saveText( final Context context, final String text ) throws WikiException {
         saveText( context, text, SaveGuard.NONE );
@@ -156,14 +167,46 @@ public class DefaultPageLifecycle implements PageLifecycle {
             release( name, pl );
         }
 
-        // Post-save filters see the text as stored (after the pre-save filters).
-        getFilterManager().doPostSaveFiltering( context, saveText );
+        final SaveOutcome outcome = new SaveOutcome( repository.getPage( name, written ), written, false );
+        try {
+            // Post-save filters see the text as stored (after the pre-save filters).
+            getFilterManager().doPostSaveFiltering( context, saveText );
 
-        // Reindex the saved page
-        page.setVersion( PageProvider.LATEST_VERSION );
-        getSearchManager().reindexPage( page );
+            // Reindex the saved page
+            page.setVersion( PageProvider.LATEST_VERSION );
+            getSearchManager().reindexPage( page );
+        } catch( final WikiException | RuntimeException e ) {
+            // The page is stored: the caller still learns which version this call wrote (ruling I2).
+            LOG.warn( "Page '{}' was saved as version {}, but the handling after the save failed: {}", name, written,
+                    e.toString(), e );
+            throw new SavedButPostSaveFailedException( name, outcome, e );
+        }
+        return outcome;
+    }
 
-        return new SaveOutcome( repository.getPage( name, written ), written, false );
+    @Override
+    public void putPageText( final Page page, final String text ) throws ProviderException {
+        if( page == null || page.getName() == null || page.getName().isEmpty() ) {
+            repository.putPageText( page, text );   // refuses the illegal name; there is no page lock to take
+            return;
+        }
+        final String name = page.getName();
+        final PageLock pl = acquire( name );
+        try {
+            repository.putPageText( page, text );
+        } finally {
+            release( name, pl );
+        }
+    }
+
+    @Override
+    public < T > T underPageLock( final String pageName, final PageLockedAction< T > action ) throws WikiException {
+        final PageLock pl = acquire( pageName );
+        try {
+            return action.run();
+        } finally {
+            release( pageName, pl );
+        }
     }
 
     /**

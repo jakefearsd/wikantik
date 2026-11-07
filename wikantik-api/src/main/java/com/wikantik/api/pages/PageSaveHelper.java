@@ -76,6 +76,17 @@ public class PageSaveHelper {
      */
     public SaveOutcome saveTracked( final String pageName, final String text, final SaveOptions options )
             throws WikiException {
+        return saveTracked( pageName, text, options, SaveGuard.NONE );
+    }
+
+    /**
+     * As {@link #saveTracked(String, String, SaveOptions)}, with a further precondition the caller adds to the options'
+     * checks; it is evaluated after them, under the page's save lock, atomically with the write.
+     *
+     * @throws SavedButPostSaveFailedException when the page was written but the post-save handling failed
+     */
+    public SaveOutcome saveTracked( final String pageName, final String text, final SaveOptions options,
+                                    final SaveGuard extra ) throws WikiException {
         final PageManager pm = pageManager;
         final String effectiveText = buildEffectiveText( pm, pageName, text, options );
 
@@ -83,7 +94,12 @@ public class PageSaveHelper {
         final Page page = Wiki.contents().page( engine, pageName );
         applyAttributes( page, options );
         final Context context = Wiki.context().create( engine, page );
-        return pm.saveText( context, effectiveText, guardFor( pageName, options ) );
+        final SaveGuard optionsGuard = guardFor( pageName, options );
+        final SaveGuard guard = extra == SaveGuard.NONE ? optionsGuard : ( current, currentText ) -> {
+            optionsGuard.check( current, currentText );
+            extra.check( current, currentText );
+        };
+        return pm.saveText( context, effectiveText, guard );
     }
 
     /** The version and content-hash optimistic-locking checks as a guard, evaluated under the page's save lock. */

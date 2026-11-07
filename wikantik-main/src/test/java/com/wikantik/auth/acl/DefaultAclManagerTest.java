@@ -116,6 +116,38 @@ public class DefaultAclManagerTest
         Assertions.assertEquals( 0, p.length );
     }
 
+    /** Held strongly: WikiEventManager keeps listeners by weak reference. */
+    private com.wikantik.event.WikiEventListener saveListener;
+
+    /**
+     * setPermissions writes with putPageText (no filters), so it fires POST_SAVE_BEGIN itself, as the directory watcher
+     * does for an outside write: render caches flush and live collaboration sessions reconcile. It fires after the page
+     * lock is released, so a listener may save the page.
+     */
+    @Test
+    public void setPermissionsFiresPostSaveBegin() throws Exception {
+        final java.util.List< String > fired = new java.util.concurrent.CopyOnWriteArrayList<>();
+        saveListener = event -> {
+            if( event instanceof com.wikantik.event.WikiPageEvent e && e.getType() == com.wikantik.event.WikiPageEvent.POST_SAVE_BEGIN ) {
+                fired.add( e.getPageName() );
+            }
+        };
+        com.wikantik.event.WikiEventManager.addWikiEventListener(
+                m_engine.getManager( com.wikantik.filters.FilterManager.class ), saveListener );
+        final Page page = m_engine.getManager( PageManager.class ).getPage( "TestDefaultPage" );
+        final Acl acl = Wiki.acls().acl();
+        final AclEntry entry = Wiki.acls().entry();
+        entry.setPrincipal( new WikiPrincipal( "Alice" ) );
+        entry.addPermission( PermissionFactory.getPagePermission( page, "view" ) );
+        acl.addEntry( entry );
+
+        m_engine.getManager( AclManager.class ).setPermissions( page, acl );
+
+        Assertions.assertEquals( java.util.List.of( "TestDefaultPage" ), fired );
+        Assertions.assertTrue( m_engine.getManager( PageManager.class ).getPureText( "TestDefaultPage", -1 )
+                .contains( "[{ALLOW view Alice}]" ) );
+    }
+
     @Test
     public void testAclRegex()
     {

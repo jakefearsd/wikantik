@@ -286,7 +286,12 @@ public class DefaultAclManager implements AclManager {
         if( acl.getAclEntry( LOCKED_PRINCIPAL ) != null ) {
             throw new WikiSecurityException( "Refusing to write the ACL of a locked page " + page.getName() );
         }
-        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
+        AclPageWrite.write( engine, page.getName(), pageManager -> rewriteRules( pageManager, page, acl ) );
+    }
+
+    /** Under the page's save lock: writes {@code acl} in place of the page's readable rules. */
+    private static void rewriteRules( final PageManager pageManager, final Page page, final Acl acl )
+            throws WikiSecurityException {
         final String pageText;
         try {
             pageText = pageManager.getPageText( page.getName(), page.getVersion() );

@@ -24,8 +24,11 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.api.pages.SaveGuard;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.SaveOutcome;
+import com.wikantik.api.pages.SavedButPostSaveFailedException;
+import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.model.PageState;
@@ -44,7 +47,9 @@ import java.util.Optional;
  * LF-normalised (A9); the content hash is {@link CollabText#contentHash} of the LF body, the basis the session uses.
  *
  * <p>A new-page publish ({@code expectedVersion} 0) sets {@code expectAbsent}, so "the page must not exist" is
- * checked under the page's save lock together with the write.</p>
+ * checked under the page's save lock together with the write. A publish on a base version requires the page to exist,
+ * under the same lock: a page renamed or deleted away is a {@code page-gone} conflict, not a recreate (ruling Q1; REST
+ * PUT and {@link PageSaveHelper} keep creating a missing page).</p>
  */
 public final class PageSaveHelperPageWriter implements CollabPageWriter {
 
@@ -99,7 +104,7 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
                 .metadata( request.meta() )
                 .replaceMetadata( true )
                 .build();
-        final SaveOutcome out = helper.saveTracked( name, request.body(), options );
+        final SaveOutcome out = save( name, request, options );
         final int version = out.page() == null ? 0 : Math.max( out.version(), 1 );
         final int readVersion = out.version() > 0 ? out.version() : PageProvider.LATEST_VERSION;
         final String text = pages.getPureText( name, readVersion );
@@ -109,6 +114,29 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
         }
         final ParsedPage saved = FrontmatterParser.parse( text == null ? "" : text );
         return new PublishOutcome( version, lf( saved.body() ), saved.metadata(), out.unchanged() );
+    }
+
+    /**
+     * The guarded save. A publish on a base version ({@code expectedVersion} above 0) requires the page to still exist,
+     * checked under the save lock: a page renamed or deleted away is a {@link VersionConflictException#pageGone} conflict,
+     * never recreated (E27/E28). A save that persisted and then failed in its post-save handling is reported as the
+     * version it wrote: the page is published, and the failure is logged (ruling I2).
+     */
+    private SaveOutcome save( final String name, final PublishRequest request, final SaveOptions options )
+            throws WikiException {
+        final int expected = request.expectedVersion();
+        final SaveGuard mustExist = expected > 0 ? ( current, currentText ) -> {
+            if( current == null ) {
+                throw VersionConflictException.pageGone( expected );
+            }
+        } : SaveGuard.NONE;
+        try {
+            return helper.saveTracked( name, request.body(), options, mustExist );
+        } catch( final SavedButPostSaveFailedException e ) {
+            LOG.warn( "Page '{}' was published as version {}, but the handling after the save failed; reporting it as"
+                    + " published: {}", name, e.outcome().version(), e.getMessage(), e );
+            return e.outcome();
+        }
     }
 
     private static String lf( final String text ) {

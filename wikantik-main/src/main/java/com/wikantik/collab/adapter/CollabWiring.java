@@ -110,6 +110,7 @@ public final class CollabWiring implements AutoCloseable {
             try {
                 tick.run();
             } catch( final Throwable t ) {
+                // LOG.error justified: an escaping Throwable (often an Error) from the scheduler's tick, kept alive here
                 LOG.error( "Collaboration tick failed; it will run again next second: {}", t.getMessage(), t );
             }
         };

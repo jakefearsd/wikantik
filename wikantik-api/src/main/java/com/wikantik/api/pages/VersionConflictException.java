@@ -27,6 +27,9 @@ public class VersionConflictException extends WikiException {
 
     private static final long serialVersionUID = 1L;
 
+    /** The message of a conflict raised because the page the save expected no longer exists (renamed or deleted). */
+    public static final String PAGE_GONE = "page-gone";
+
     private final int currentVersion;
     private final int expectedVersion;
     private final boolean hashConflict;
@@ -42,6 +45,21 @@ public class VersionConflictException extends WikiException {
         this.currentVersion = currentVersion;
         this.expectedVersion = expectedVersion;
         this.hashConflict = hashConflict;
+    }
+
+    private VersionConflictException( final String message, final int currentVersion, final int expectedVersion ) {
+        super( message );
+        this.currentVersion = currentVersion;
+        this.expectedVersion = expectedVersion;
+        this.hashConflict = false;
+    }
+
+    /**
+     * A conflict for a save that expected {@code expectedVersion} of a page that no longer exists: it was renamed or
+     * deleted away, so the save must not recreate it. The message is {@link #PAGE_GONE}; the current version is 0.
+     */
+    public static VersionConflictException pageGone( final int expectedVersion ) {
+        return new VersionConflictException( PAGE_GONE, 0, expectedVersion );
     }
 
     public int getCurrentVersion() { return currentVersion; }

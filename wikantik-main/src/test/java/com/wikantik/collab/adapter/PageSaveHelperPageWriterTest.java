@@ -174,25 +174,64 @@ class PageSaveHelperPageWriterTest {
     }
 
     /**
-     * Ruling I2, documented gap. {@code DefaultPageLifecycle.saveText} persists the page and only then runs the post-save
-     * filters and the reindex; when one of those throws, {@code saveTracked} propagates the exception and the
-     * {@link com.wikantik.api.pages.SaveOutcome} (the only carrier of the written version) is lost. The adapter cannot
-     * recover the version without guessing from the latest page (racy under concurrent saves) or changing the
-     * {@code PageManager} contract (a typed exception carrying the outcome), which is outside this adapter.
+     * Ruling I2. {@code DefaultPageLifecycle.saveText} persists the page and only then runs the post-save filters and the
+     * reindex; when one of those throws, the save reports what it wrote in a {@code SavedButPostSaveFailedException},
+     * and the adapter reports that version as published.
      */
     @Test
-    @org.junit.jupiter.api.Disabled( "gap I2: saveTracked loses the written version when a post-save step throws after persisting;"
-            + " needs a PageManager change (exception carrying the SaveOutcome)" )
     void publishReportsTheWrittenVersionEvenWhenPostSaveHandlingThrows() throws Exception {
-        final PageManager real = engine.getManager( PageManager.class );
-        final PageManager spied = spy( real );
-        doAnswer( inv -> {
-            inv.callRealMethod();
-            throw new com.wikantik.api.exceptions.WikiException( "post-save filter failed" ) { };
-        } ).when( spied ).saveText( any(), any(), any( com.wikantik.api.pages.SaveGuard.class ) );
-        final PageSaveHelperPageWriter failing =
-                new PageSaveHelperPageWriter( spied, new PageSaveHelper( engine, spied ) );
-        final PublishOutcome out = failing.publish( req( "one\n", Map.of(), 0 ) );
+        engine.getManager( com.wikantik.filters.FilterManager.class ).addPageFilter( new com.wikantik.api.filters.PageFilter() {
+            @Override
+            public void postSave( final com.wikantik.api.core.Context context, final String content )
+                    throws com.wikantik.api.exceptions.FilterException {
+                if( "CollabW".equals( context.getPage().getName() ) ) {
+                    throw new com.wikantik.api.exceptions.FilterException( "post-save filter failed" );
+                }
+            }
+        }, 100 );
+        final PublishOutcome out = writer.publish( req( "one\n", Map.of(), 0 ) );
         assertEquals( 1, out.version() );
+        assertFalse( out.unchanged() );
+        assertTrue( out.savedBody().startsWith( "one" ) );
+        final PublishOutcome second = writer.publish( req( "two\n", Map.of(), 1 ) );
+        assertEquals( 2, second.version() );
+    }
+
+    // --- A publish never recreates a page renamed or deleted away (E27/E28; ruling Q1) ---
+
+    @Test
+    void aPublishToAPageRenamedAwayIsAConflictNotARecreate() throws Exception {
+        writer.publish( req( "one\n", Map.of(), 0 ) );
+        final PageManager pm = engine.getManager( PageManager.class );
+        final com.wikantik.api.core.Context ctx =
+                com.wikantik.api.spi.Wiki.context().create( engine, pm.getPage( "CollabW" ) );
+        try {
+            engine.getManager( com.wikantik.content.PageRenamer.class ).renamePage( ctx, "CollabW", "CollabWMoved", true );
+            final VersionConflictException e =
+                    assertThrows( VersionConflictException.class, () -> writer.publish( req( "mine\n", Map.of(), 1 ) ) );
+            assertEquals( VersionConflictException.PAGE_GONE, e.getMessage() );
+            assertNull( pm.getPage( "CollabW" ), "the publish must not recreate the page under its old name" );
+            assertTrue( pm.getPureText( "CollabWMoved", -1 ).startsWith( "one" ) );
+        } finally {
+            engine.deleteTestPage( "CollabWMoved" );
+        }
+    }
+
+    @Test
+    void aPublishToADeletedPageIsAConflict() throws Exception {
+        writer.publish( req( "one\n", Map.of(), 0 ) );
+        final PageManager pm = engine.getManager( PageManager.class );
+        pm.deletePage( "CollabW" );
+        final VersionConflictException e =
+                assertThrows( VersionConflictException.class, () -> writer.publish( req( "mine\n", Map.of(), 1 ) ) );
+        assertEquals( VersionConflictException.PAGE_GONE, e.getMessage() );
+        assertNull( pm.getPage( "CollabW" ) );
+    }
+
+    @Test
+    void expectedVersionZeroStillCreates() throws Exception {
+        final PublishOutcome out = writer.publish( req( "fresh\n", Map.of(), 0 ) );
+        assertEquals( 1, out.version() );
+        assertTrue( writer.latest( "CollabW" ).orElseThrow().body().startsWith( "fresh" ) );
     }
 }

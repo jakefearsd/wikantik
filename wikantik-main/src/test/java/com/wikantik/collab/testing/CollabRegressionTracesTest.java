@@ -34,7 +34,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/** Replays every committed shrunk trace in {@code collab/regressions/} against a fresh stub, forever (F1). */
+/** Replays every committed shrunk trace in {@code collab/regressions/} against a fresh stub and a fresh session, forever (F1). */
 class CollabRegressionTracesTest {
 
     private static Path dir() throws URISyntaxException {
@@ -54,11 +54,12 @@ class CollabRegressionTracesTest {
         try( Stream< Path > s = Files.list( dir() ) ) {
             traces = s.filter( p -> p.getFileName().toString().endsWith( ".json" ) ).sorted().toList();
         }
-        return traces.stream().map( p -> DynamicTest.dynamicTest( p.getFileName().toString(), () -> {
-            final SimTrace recorded = SimTrace.fromJson( Files.readString( p, StandardCharsets.UTF_8 ) );
-            final SimTrace replayed = SimScheduler.replay( recorded, SimScheduler.STUB );
-            assertEquals( SimTrace.Status.PASS, replayed.outcome().status(),
-                p.getFileName() + " (seed " + recorded.seed() + ", " + recorded.profile() + "): " + replayed.outcome().message() );
-        } ) );
+        return SimTarget.all().stream().flatMap( target -> traces.stream().map( p -> DynamicTest.dynamicTest(
+            target + " " + p.getFileName(), () -> {
+                final SimTrace recorded = SimTrace.fromJson( Files.readString( p, StandardCharsets.UTF_8 ) );
+                final SimTrace replayed = target.replay( recorded );
+                assertEquals( SimTrace.Status.PASS, replayed.outcome().status(), target + " " + p.getFileName() + " (seed "
+                    + recorded.seed() + ", " + recorded.profile() + "): " + replayed.outcome().message() );
+            } ) ) );
     }
 }

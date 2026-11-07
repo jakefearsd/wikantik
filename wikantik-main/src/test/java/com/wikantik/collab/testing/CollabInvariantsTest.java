@@ -251,4 +251,22 @@ class CollabInvariantsTest {
         failsNaming( with( valid(), b -> { b.head = 3; b.doc = "ZYXhello\n"; b.local = X.compose( two ).compose( three );
             b.ring = List.of( log.get( 0 ), log.get( 2 ) ); return b; } ), false, 2 );
     }
+
+    @Test
+    void inv3_theLogMustContinueFromTheSnapshot() {
+        // inv2 tolerates a log that starts late (truncation), but replay needs every update after the snapshot
+        final InvariantView v = mocked( List.of( upd( 2, X ) ), 2 );
+        when( v.store().latestSnapshot( any() ) ).thenReturn( java.util.Optional.of(
+            new com.wikantik.collab.model.Snapshot( 0, 0, 1, BASE, Map.of(), ChangeSet.empty( 6 ) ) ) );
+        final InvariantView gapped = with( v, b -> { b.doc = "Xhello\n"; b.local = X; return b; } );
+        assertDoesNotThrow( () -> CollabInvariants.check( gapped, false ) );
+        failsNaming( gapped, true, 3 );
+    }
+
+    @Test
+    void inv3_theLatestSnapshotIsOnTheSessionsBase() {
+        // every base change writes a snapshot with it (commitBaseChange), so the latest one carries the current base
+        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, 7, BASE, Map.of(), ChangeSet.empty( 6 ) ) );
+        failsNaming( valid(), true, 3 );
+    }
 }

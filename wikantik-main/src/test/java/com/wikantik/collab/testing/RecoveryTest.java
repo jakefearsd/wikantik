@@ -28,12 +28,14 @@ import com.wikantik.collab.testing.SimServer.PushResult;
 import com.wikantik.collab.testing.SimServer.Update;
 import com.wikantik.collab.text.ChangeSet;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -41,8 +43,61 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** F8: crash points come from the doubles; recovery is a fresh server over the same store and page writer (E35, E37). */
+/**
+ * F8: crash points come from the doubles; recovery is a fresh server over the same store and page writer (E35, E37).
+ * Every test runs against the stub and against the real session.
+ */
 class RecoveryTest {
+
+    /** How to build, and how to reload, one kind of server over the given doubles. */
+    interface Server {
+        SimServer fresh( InMemoryCollabStore store, ScriptedPageWriter writer, MutableClock clock, long max, int ring );
+
+        SimServer reload( CollabStore store, CollabPageWriter writer, MutableClock clock, long max, int ring );
+    }
+
+    private static final Server STUB = new Server() {
+        @Override
+        public SimServer fresh( final InMemoryCollabStore st, final ScriptedPageWriter w, final MutableClock c, final long max,
+                                final int ring ) {
+            return new StubCollabAuthority( PAGE, st, w, c, max, ring );
+        }
+
+        @Override
+        public SimServer reload( final CollabStore st, final CollabPageWriter w, final MutableClock c, final long max,
+                                 final int ring ) {
+            return StubCollabAuthority.reload( PAGE, st, w, c, max, ring );
+        }
+
+        @Override
+        public String toString() {
+            return "stub";
+        }
+    };
+
+    /** The session with the default snapshot cadence, so the log is not truncated under these short tests. */
+    private static final Server SESSION = new Server() {
+        @Override
+        public SimServer fresh( final InMemoryCollabStore st, final ScriptedPageWriter w, final MutableClock c, final long max,
+                                final int ring ) {
+            return CollabSessionSimServer.create( PAGE, st, w, c, max, ring, 500 );
+        }
+
+        @Override
+        public SimServer reload( final CollabStore st, final CollabPageWriter w, final MutableClock c, final long max,
+                                 final int ring ) {
+            return CollabSessionSimServer.reload( PAGE, st, w, c, max, ring, 500 );
+        }
+
+        @Override
+        public String toString() {
+            return "session";
+        }
+    };
+
+    static Stream< Server > servers() {
+        return Stream.of( STUB, SESSION );
+    }
 
     private static final String PAGE = "Page";
     private static final String BODY = "hello  \nworld\n";
@@ -52,7 +107,6 @@ class RecoveryTest {
     private InMemoryCollabStore store;
     private ScriptedPageWriter writer;
     private MutableClock clock;
-    private BiFunction< CollabStore, CollabPageWriter, SimServer > reload;
 
     @BeforeEach
     void setUp() {
@@ -61,11 +115,14 @@ class RecoveryTest {
         writer.seed( PAGE, BODY, Map.of() );
         writer.rewriteOnSave( SimEnv.rewrite( "strip-trailing-spaces" ) );
         clock = new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) );
-        reload = ( s, w ) -> StubCollabAuthority.reload( PAGE, s, w, clock, MAX, RING );
     }
 
-    private StubCollabAuthority fresh() {
-        return new StubCollabAuthority( PAGE, store, writer, clock, MAX, RING );
+    private SimServer fresh( final Server server ) {
+        return server.fresh( store, writer, clock, MAX, RING );
+    }
+
+    private BiFunction< CollabStore, CollabPageWriter, SimServer > reload( final Server server ) {
+        return ( s, w ) -> server.reload( s, w, clock, MAX, RING );
     }
 
     private static PushResult type( final SimServer s, final Joined j, final String author, final String text ) {
@@ -87,9 +144,10 @@ class RecoveryTest {
         assertEquals( expected.local().apply( expected.baseBody() ), actual.local().apply( actual.baseBody() ) );
     }
 
-    @Test
-    void e35_aFailedAppendLeavesMemoryUnchanged() {
-        final StubCollabAuthority s = fresh();
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void e35_aFailedAppendLeavesMemoryUnchanged( final Server server ) {
+        final SimServer s = fresh( server );
         final Joined a = s.join( "alice" );
         assertEquals( 200, type( s, a, "alice", "one" ).status() );
         final InvariantView before = s.view();
@@ -113,23 +171,25 @@ class RecoveryTest {
         CollabInvariants.check( s.view(), true );
     }
 
-    @Test
-    void aFailedAppendIsNotRecovered() {
-        final StubCollabAuthority s = fresh();
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void aFailedAppendIsNotRecovered( final Server server ) {
+        final SimServer s = fresh( server );
         final Joined a = s.join( "alice" );
         type( s, a, "alice", "one" );
         store.failOn( Op.APPEND_UPDATES, 1 );
         assertEquals( 503, type( s, a, "alice", "lost" ).status() );
 
-        final SimServer r = Recovery.recover( store, writer, reload );
+        final SimServer r = Recovery.recover( store, writer, reload( server ) );
 
         assertEquals( "hello  \nworld\none", r.view().doc() );
         assertSameCommittedState( s.view(), r.view() );
     }
 
-    @Test
-    void recoveredEqualsCommitted() {
-        final StubCollabAuthority s = fresh();
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void recoveredEqualsCommitted( final Server server ) {
+        final SimServer s = fresh( server );
         final Joined a = s.join( "alice" );
         final Joined b = s.join( "bob" );
         for( int i = 0; i < 5; i++ ) {
@@ -143,19 +203,20 @@ class RecoveryTest {
         assertTrue( committed.basePageVersion() > 1 );
         assertNotEquals( committed.baseBody(), committed.doc() );
 
-        final SimServer r = Recovery.recover( store, writer, reload );
+        final SimServer r = Recovery.recover( store, writer, reload( server ) );
 
         assertNotSame( s, r );
         assertSameCommittedState( committed, r.view() );
         CollabInvariants.check( r.view(), true );
     }
 
-    @Test
-    void clientsContinueAfterRecovery() {
-        final StubCollabAuthority s = fresh();
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void clientsContinueAfterRecovery( final Server server ) {
+        final SimServer s = fresh( server );
         final Joined a = s.join( "alice" );
         type( s, a, "alice", "one" );
-        final SimServer r = Recovery.recover( store, writer, reload );
+        final SimServer r = Recovery.recover( store, writer, reload( server ) );
 
         // the old participant is gone: rejoin
         assertEquals( 409, type( r, a, "alice", "two" ).status() );
@@ -172,14 +233,15 @@ class RecoveryTest {
         CollabInvariants.check( r.view(), true );
     }
 
-    @Test
-    void participantIdsAreNeverReusedAcrossRecoveries() {
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void participantIdsAreNeverReusedAcrossRecoveries( final Server server ) {
         // a straggler request from a pre-crash participant must never be taken for a post-crash one (A10)
-        final StubCollabAuthority s = fresh();
+        final SimServer s = fresh( server );
         final Joined before = s.join( "alice" );
-        final SimServer r1 = Recovery.recover( store, writer, reload );
+        final SimServer r1 = Recovery.recover( store, writer, reload( server ) );
         final Joined first = r1.join( "alice" );
-        final SimServer r2 = Recovery.recover( store, writer, reload );
+        final SimServer r2 = Recovery.recover( store, writer, reload( server ) );
         final Joined second = r2.join( "alice" );
         assertNotEquals( before.participantId(), first.participantId() );
         assertNotEquals( first.participantId(), second.participantId() );
@@ -190,19 +252,21 @@ class RecoveryTest {
         assertEquals( 409, type( r2, first, "alice", "late" ).status() );
     }
 
-    @Test
-    void recoveryOfAnOversizeDocumentEntersOversizeState() {
-        final StubCollabAuthority s = new StubCollabAuthority( PAGE, store, writer, clock, 5, RING );
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void recoveryOfAnOversizeDocumentEntersOversizeState( final Server server ) {
+        final SimServer s = server.fresh( store, writer, clock, 5, RING );
         assertTrue( s.view().oversize() );
-        final SimServer r = Recovery.recover( store, writer, ( st, w ) -> StubCollabAuthority.reload( PAGE, st, w, clock, 5, RING ) );
+        final SimServer r = Recovery.recover( store, writer, ( st, w ) -> server.reload( st, w, clock, 5, RING ) );
         assertTrue( r.view().oversize() );
         assertEquals( s.view().oversizeCeiling(), r.view().oversizeCeiling() );
         CollabInvariants.check( r.view(), true );
     }
 
-    @Test
-    void reloadWithoutASessionFails() {
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void reloadWithoutASessionFails( final Server server ) {
         assertThrows( IllegalStateException.class,
-            () -> StubCollabAuthority.reload( PAGE, new InMemoryCollabStore(), writer, clock, MAX, RING ) );
+            () -> server.reload( new InMemoryCollabStore(), writer, clock, MAX, RING ) );
     }
 }

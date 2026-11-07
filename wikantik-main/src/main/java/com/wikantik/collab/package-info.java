@@ -22,9 +22,11 @@
  * {@link com.wikantik.collab.CollabPermissions}, {@link com.wikantik.collab.CollabIdentity}) and on injected clocks and
  * executors, never on the engine, JDBC or wall-clock time, so every concurrent and failure case is driven by test
  * doubles. {@code CollabSeamArchTest} enforces it: no zero-argument {@code now()} of {@code Instant},
- * {@code LocalDateTime}, {@code LocalDate}, {@code ZonedDateTime} or {@code OffsetDateTime}, no {@code new Date()},
- * {@code System.currentTimeMillis/nanoTime}, {@code Thread.sleep} or system clocks; no thread or executor creation;
- * no {@code synchronized} methods; no engine or JDBC dependency. Production adapters live in
+ * {@code LocalDateTime}, {@code LocalDate}, {@code LocalTime}, {@code Year}, {@code ZonedDateTime} or
+ * {@code OffsetDateTime}, no {@code new Date()}, {@code System.currentTimeMillis/nanoTime}, {@code Thread.sleep}, system
+ * clocks ({@code Clock.systemUTC/systemDefaultZone/system(zone)}) or {@code Clock.tick*}; no thread or executor creation
+ * (including {@code java.util.Timer} and {@code CompletableFuture.runAsync/supplyAsync} without an executor;
+ * {@code Executors.callable} is allowed); no {@code synchronized} methods; no engine or JDBC dependency. Production adapters live in
  * {@code ..collab.adapter..} and are exempt.
  */
 package com.wikantik.collab;

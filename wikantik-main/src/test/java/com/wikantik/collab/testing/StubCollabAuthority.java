@@ -55,6 +55,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * parking and section 7.6 ring (with A10's fall-through to the store), and a deliberately naive publish. There are no
  * external merges, meta ops, presence, frozen state or permission checks; those land in Phase 1/2.
  *
+ * <p>Phase 1 additions (final-review amendments): a join reissues the caller's prior clientID when a participant of the
+ * same author held it and left (section 7.2 "same clientID"), and {@link #truncate} cuts the store's log below the lowest
+ * version a live participant has confirmed (A10; the store clamps the cut to a snapshot, which the stub writes only at
+ * creation and publish).</p>
+ *
  * <p>Decisions: an unknown (never joined or left) participant gets 409 from push, pull and publish (stands for the
  * {@code rejoin} answer of 7.2). Publish is naive (requires {@code version == head}, no pending-publish
  * bookkeeping); if the writer's filters rewrote the text, {@code doc} and the saved base differ, so the stub appends a
@@ -85,7 +90,31 @@ public final class StubCollabAuthority implements SimServer {
     /** Reloads per store, so participant ids stay unique across recoveries and runs stay deterministic. */
     private static final Map< CollabStore, Integer > BOOTS = Collections.synchronizedMap( new WeakHashMap<>() );
 
-    private record Participant( String authorKey, String clientId ) {
+    /** {@code confirmed}: the highest version the participant has shown it holds (A10's truncation never cuts above it). */
+    private static final class Participant {
+        final String authorKey;
+        final String clientId;
+        int confirmed;
+
+        Participant( final String authorKey, final String clientId, final int confirmed ) {
+            this.authorKey = authorKey;
+            this.clientId = clientId;
+            this.confirmed = confirmed;
+        }
+
+        String authorKey() {
+            return authorKey;
+        }
+
+        String clientId() {
+            return clientId;
+        }
+
+        void confirm( final int version, final int head ) {
+            if( version >= 0 && version <= head ) {
+                confirmed = Math.max( confirmed, version );
+            }
+        }
     }
 
     private record Waiter( int since, Instant deadline ) {
@@ -111,6 +140,8 @@ public final class StubCollabAuthority implements SimServer {
     private final Deque< StoredUpdate > ring = new ArrayDeque<>();
 
     private final Map< String, Participant > participants = new LinkedHashMap<>();
+    /** clientID to author key of participants that left (a rejoin by the same author gets the clientID back, 7.2). */
+    private final Map< String, String > retiredClients = new LinkedHashMap<>();
     private final Map< String, Waiter > waiters = new LinkedHashMap<>();
     private final List< Wakeup > wakeups = new ArrayList<>();
     private int nextParticipant = 1;
@@ -197,11 +228,27 @@ public final class StubCollabAuthority implements SimServer {
 
     // ---- public surface: every call holds the session lock (E38/E40 run these on real threads) ----
 
+    /** The stub creates its session in its constructor, never on a join, so {@code initialText}/{@code initialMeta} are ignored. */
     @Override
-    public Joined join( final String authorKey ) {
+    public Joined join( final String authorKey, final String priorClientId, final String initialText,
+                        final Map< String, Object > initialMeta ) {
         lock.lock();
         try {
-            return joinLocked( authorKey );
+            return joinLocked( authorKey, priorClientId );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void truncate() {
+        lock.lock();
+        try {
+            int cut = head;
+            for( final Participant p : participants.values() ) {
+                cut = Math.min( cut, p.confirmed );
+            }
+            store.truncateUpdatesBelow( id, cut );
         } finally {
             lock.unlock();
         }
@@ -277,9 +324,15 @@ public final class StubCollabAuthority implements SimServer {
         }
     }
 
-    private Joined joinLocked( final String authorKey ) {
+    private Joined joinLocked( final String authorKey, final String priorClientId ) {
         final int n = nextParticipant++;
-        final Participant p = new Participant( Objects.requireNonNull( authorKey ), idPrefix + "c" + n );
+        final boolean reissue = priorClientId != null && Objects.requireNonNull( authorKey ).equals( retiredClients.get( priorClientId ) )
+            && participants.values().stream().noneMatch( x -> x.clientId().equals( priorClientId ) );
+        if( reissue ) {
+            retiredClients.remove( priorClientId );
+        }
+        final Participant p = new Participant( Objects.requireNonNull( authorKey ), reissue ? priorClientId : idPrefix + "c" + n,
+            head );
         participants.put( idPrefix + "p" + n, p );
         return new Joined( idPrefix + "p" + n, p.clientId(), head, doc );
     }
@@ -295,6 +348,7 @@ public final class StubCollabAuthority implements SimServer {
         if( !p.authorKey().equals( authorKey ) ) {
             return new PushResult( 403, head, NOT_YOURS );
         }
+        p.confirm( version, head );
         if( version != head ) {
             return new PushResult( 409, head, "stale-base" );
         }
@@ -366,6 +420,7 @@ public final class StubCollabAuthority implements SimServer {
         if( since < 0 || since > head ) {
             return new PullResult( 400, List.of(), head, false, "bad-since" );
         }
+        p.confirm( since, head );
         if( since == head ) {
             if( waiters.put( participantId, new Waiter( since, clock.instant().plus( POLL_TIMEOUT ) ) ) != null ) {
                 // F6: every request is answered exactly once, so the displaced pull gets an empty 200
@@ -411,7 +466,10 @@ public final class StubCollabAuthority implements SimServer {
     }
 
     private void leaveLocked( final String participantId ) {
-        participants.remove( participantId );
+        final Participant gone = participants.remove( participantId );
+        if( gone != null ) {
+            retiredClients.put( gone.clientId(), gone.authorKey() );
+        }
         if( waiters.remove( participantId ) != null ) {
             wakeups.add( new Wakeup( participantId, new PullResult( 200, List.of(), head, false, null ) ) );
         }
@@ -435,6 +493,7 @@ public final class StubCollabAuthority implements SimServer {
         if( !p.authorKey().equals( authorKey ) ) {
             return new PublishResult( 403, basePageVersion, NOT_YOURS, false );
         }
+        p.confirm( version, head );
         if( version != head ) {
             return new PublishResult( 409, basePageVersion, "stale-base", false );
         }

@@ -51,6 +51,10 @@ class CollabSeamArchRulesTest {
         detects( d, "offsetNow" );
         detects( d, "localDateNow" );
         detects( d, "newDate" );
+        detects( d, "localTimeNow" );
+        detects( d, "yearNow" );
+        detects( d, "systemClock" );
+        detects( d, "tickClock" );
         assertFalse( d.stream().anyMatch( x -> x.contains( "SeamViolations.injectedClock(" ) ),
             "the injected-clock overloads are sanctioned: " + d );
     }
@@ -61,15 +65,26 @@ class CollabSeamArchRulesTest {
         detects( d, "newThread" );
         detects( d, "virtualThread" );
         detects( d, "executor" );
-        assertFalse( d.stream().anyMatch( x -> x.contains( "SeamViolations.injectedClock(" ) ), d.toString() );
+        detects( d, "timer" );
+        detects( d, "runAsync" );
+        detects( d, "supplyAsync" );
+        for( final String sanctioned : List.of( "injectedClock(", "executorsCallable(", "asyncOnInjectedExecutor(" ) ) {
+            assertFalse( d.stream().anyMatch( x -> x.contains( "SeamViolations." + sanctioned ) ), sanctioned + ": " + d );
+        }
     }
 
     @Test
     void ruleDescriptionsNameEachForbiddenCallOnce() {
         final String clock = CollabSeamArchTest.no_wall_clock_or_sleep.getDescription();
         assertTrue( clock.indexOf( "LocalDateTime.now" ) == clock.lastIndexOf( "LocalDateTime.now" ), clock );
-        for( final String named : List.of( "ZonedDateTime.now", "OffsetDateTime.now", "LocalDate.now", "new Date()" ) ) {
+        for( final String named : List.of( "ZonedDateTime.now", "OffsetDateTime.now", "LocalDate.now", "new Date()",
+                "LocalTime.now", "Year.now", "Clock.system(zone)", "Clock.tick*" ) ) {
             assertTrue( clock.contains( named ), clock );
         }
+        final String threads = CollabSeamArchTest.no_thread_or_executor_creation.getDescription();
+        for( final String named : List.of( "java.util.Timer", "CompletableFuture.runAsync/supplyAsync without an executor" ) ) {
+            assertTrue( threads.contains( named ), threads );
+        }
+        assertFalse( threads.contains( "Executors.*" ), "Executors.callable creates no thread: " + threads );
     }
 }

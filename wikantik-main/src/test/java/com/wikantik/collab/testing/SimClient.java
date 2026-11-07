@@ -53,6 +53,8 @@ public final class SimClient {
      * <li>{@code gap}: the receive just before it was a gap and was ignored; {@code fromVersion, version}.</li>
      * <li>{@code push}: a push answer; informational only, not replayed.</li>
      * <li>{@code sendable}: snapshot after each step, {@code version}, the {@code doc} and the {@code sendable} updates; the replay's expected value.</li>
+     * <li>{@code rejoin}: the same clientID was reissued to a new participant ({@link #reconnect}); {@code participantId,
+     *     clientId}; the state is unchanged.</li>
      * <li>{@code resync}: rejoin; {@code version, clientId, participantId, doc, unsynced} (and {@code rebased} when the
  *     unsent edits were kept, see {@link #rejoin}: the {@code local} entries that follow re-apply them). Later updates
  *     carry the new clientId.</li>
@@ -262,6 +264,27 @@ public final class SimClient {
         adopt( fresh );
         snapshot();
         rebased.forEach( this::localEdit );
+    }
+
+    /**
+     * Section 7.2 "same clientID": the server dropped this participant but reissued the client's clientID to the new
+     * one, so nothing about the collab state changes: the client keeps its version and unconfirmed updates and pulls on
+     * from its own version, where updates of its own that were accepted (an answer lost, E9) are recognised by clientID.
+     * Trace: a {@code rejoin} entry ({@code participantId}, {@code clientId}) the replay checks against the library's
+     * clientID and otherwise ignores.
+     *
+     * @throws IllegalArgumentException when the fresh participant carries another clientID
+     */
+    public void reconnect( final Joined fresh ) {
+        if( !clientId.equals( fresh.clientId() ) ) {
+            throw new IllegalArgumentException( "reconnect needs the same clientID: " + clientId + " vs " + fresh.clientId() );
+        }
+        participantId = fresh.participantId();
+        final JsonObject d = new JsonObject();
+        d.addProperty( "participantId", fresh.participantId() );
+        d.addProperty( "clientId", fresh.clientId() );
+        trace.add( new TraceEntry( "rejoin", d ) );
+        snapshot();
     }
 
     public List< TraceEntry > traceEntries() {

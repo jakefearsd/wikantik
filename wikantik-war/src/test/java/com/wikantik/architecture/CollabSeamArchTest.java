@@ -32,9 +32,13 @@ import com.tngtech.archunit.lang.ArchRule;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.Year;
 import java.time.ZonedDateTime;
 import java.util.Date;
+import java.util.Timer;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -95,8 +99,13 @@ class CollabSeamArchTest {
             .or( callTo( ZonedDateTime.class, "now" ) )
             .or( callTo( OffsetDateTime.class, "now" ) )
             .or( callTo( Date.class, "<init>" ) )
+            .or( callTo( LocalTime.class, "now" ) )
+            .or( callTo( Year.class, "now" ) )
             .or( callTo( java.time.Clock.class, "systemUTC" ) )
-            .or( callTo( java.time.Clock.class, "systemDefaultZone" ) );
+            .or( callTo( java.time.Clock.class, "systemDefaultZone" ) )
+            .or( callTo( java.time.Clock.class, "system", java.time.ZoneId.class ) )
+            .or( JavaCall.Predicates.target( HasOwner.Predicates.With.owner( JavaClass.Predicates.equivalentTo( java.time.Clock.class ) ) )
+                .and( DescribedPredicate.describe( "named tick*", (JavaCall<?> c) -> c.getName().startsWith( "tick" ) ) ) );
 
     @ArchTest
     static final ArchRule no_wall_clock_or_sleep =
@@ -104,8 +113,8 @@ class CollabSeamArchTest {
             .and().resideOutsideOfPackage( ADAPTERS )
             .should().callCodeUnitWhere( READS_THE_CLOCK_OR_SLEEPS )
             .as( "collab core must not call Thread.sleep, System.currentTimeMillis/nanoTime, zero-arg"
-               + " Instant.now/LocalDateTime.now/LocalDate.now/ZonedDateTime.now/OffsetDateTime.now, new Date(),"
-               + " or Clock.systemUTC/systemDefaultZone — inject a clock/scheduler" );
+               + " Instant.now/LocalDateTime.now/LocalDate.now/LocalTime.now/Year.now/ZonedDateTime.now/OffsetDateTime.now,"
+               + " new Date(), or Clock.systemUTC/systemDefaultZone/Clock.system(zone)/Clock.tick* — inject a clock/scheduler" );
 
     /** Creating threads or executors; an injected executor or scheduler is the sanctioned pattern. */
     private static final DescribedPredicate<JavaCall<?>> CREATES_THREADS_OR_EXECUTORS =
@@ -114,7 +123,12 @@ class CollabSeamArchTest {
             .or( anyCallTo( Thread.class, "ofPlatform" ) )
             .or( anyCallTo( Thread.class, "startVirtualThread" ) )
             .or( JavaCall.Predicates.target(
-                HasOwner.Predicates.With.owner( JavaClass.Predicates.equivalentTo( Executors.class ) ) ) )
+                HasOwner.Predicates.With.owner( JavaClass.Predicates.equivalentTo( Executors.class ) ) )
+                .and( DescribedPredicate.describe( "not Executors.callable (wraps a task, creates no thread)",
+                    (JavaCall<?> c) -> !"callable".equals( c.getName() ) ) ) )
+            .or( anyCallTo( Timer.class, "<init>" ) )
+            .or( callTo( CompletableFuture.class, "runAsync", Runnable.class ) )
+            .or( callTo( CompletableFuture.class, "supplyAsync", java.util.function.Supplier.class ) )
             .or( anyCallTo( ForkJoinPool.class, "commonPool" ) )
             .or( anyCallTo( ForkJoinPool.class, "<init>" ) )
             .or( anyCallTo( ThreadPoolExecutor.class, "<init>" ) )
@@ -126,7 +140,8 @@ class CollabSeamArchTest {
             .and().resideOutsideOfPackage( ADAPTERS )
             .should().callCodeUnitWhere( CREATES_THREADS_OR_EXECUTORS )
             .as( "collab core must not create threads or executors (new Thread, Thread.ofVirtual/ofPlatform/"
-               + "startVirtualThread, Executors.*, ForkJoinPool, ThreadPoolExecutor, ScheduledThreadPoolExecutor)"
+               + "startVirtualThread, any Executors factory but callable, ForkJoinPool, ThreadPoolExecutor,"
+               + " ScheduledThreadPoolExecutor, java.util.Timer, CompletableFuture.runAsync/supplyAsync without an executor)"
                + " — inject an executor/scheduler" );
 
     @ArchTest

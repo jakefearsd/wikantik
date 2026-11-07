@@ -33,6 +33,7 @@ import java.util.TreeSet;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -128,6 +129,41 @@ class SimSchedulerTest {
         assertTrue( SimProfile.AGENT_HEAVY.weight( Kind.LEAVE ) > 0 );
         assertEquals( 0, SimProfile.CALM.weight( Kind.CRASH_RECOVER ) );
         assertEquals( 0, SimProfile.CALM.weight( Kind.LEAVE ) );
+        // A10 truncation: TIGHT only in the profiles (the stub corpus); the session adds it everywhere by its overlay
+        for( final SimProfile p : SimProfile.values() ) {
+            assertEquals( p == SimProfile.TIGHT, p.weight( Kind.TRUNCATE ) > 0, p.name() );
+            assertTrue( CollabSessionSimServer.OVERLAY.weights().get( Kind.TRUNCATE ) > 0 );
+        }
+        assertEquals( 2, SimProfile.TIGHT.ringSize() );
+    }
+
+    @Test
+    void anOverlayChangesOnlyTheServerItBelongsTo() {
+        // a zero-weight action added to the profiles must not move the stub's random draws (its corpus stays put)
+        final SimTrace plain = new SimScheduler( 5, SimProfile.LOSSY, SimScheduler.STUB, 3 ).run( 120 );
+        final SimTrace noOverlay = new SimScheduler( 5, SimProfile.LOSSY, SimScheduler.STUB, SimScheduler.STUB_RELOAD,
+            SimScheduler.Overlay.NONE, 3 ).run( 120 );
+        assertEquals( plain.toJson(), noOverlay.toJson() );
+        final SimTrace overlaid = new SimScheduler( 5, SimProfile.LOSSY, SimScheduler.STUB, SimScheduler.STUB_RELOAD,
+            CollabSessionSimServer.OVERLAY, 3 ).run( 120 );
+        assertTrue( overlaid.toJson().contains( "\"action\": \"TRUNCATE\"" ) );
+        assertFalse( plain.toJson().contains( "\"action\": \"TRUNCATE\"" ) );
+    }
+
+    @Test
+    void anExceptionKindNamesTheFirstWikantikFrame() {
+        // a failure inside a JDK call: the kind names the wiki code that made the call, not the JDK frame
+        final Function< SimEnv, SimServer > throwsInJdk = env -> new ForwardingServer( SimScheduler.STUB.apply( env ) ) {
+            @Override
+            public PushResult push( final String participantId, final String authorKey, final int version,
+                                    final List< Update > updates ) {
+                return List.< PushResult >of().get( version + 1 );
+            }
+        };
+        final SimTrace.Outcome o = new SimScheduler( 1, SimProfile.CALM, throwsInJdk, 2 ).run( 80 ).outcome();
+        assertEquals( SimTrace.Status.FAIL, o.status() );
+        assertTrue( o.kind().matches( "exception java\\.lang\\.\\w*IndexOutOfBoundsException at "
+            + "com\\.wikantik\\.collab\\.testing\\.SimSchedulerTest.*" ), o.kind() );
     }
 
     /** A CALM run with extra steps spliced in after every {@code every}-th step (ids are kept unique). */
@@ -168,14 +204,15 @@ class SimSchedulerTest {
 
     @Test
     void aDroppedParticipantRejoinsKeepingItsUnsentEdits() {   // 7.2 expired participants
-        long rejoins = 0;
+        long kept = 0;
         for( long seed = 1; seed <= 20; seed++ ) {
             final SimTrace r = SimScheduler.replay( spliced( seed, Kind.LEAVE, 9 ), SimScheduler.STUB );
             assertEquals( SimTrace.Status.PASS, r.outcome().status(), seed + ": " + r.outcome().message() );
             assertTrue( r.counters().get( SimScheduler.LEAVES ) > 0, seed + ": " + r.counters() );
-            rejoins += r.counters().get( SimScheduler.REJOINS );
+            // the server still knows the clientID, so the client gets it back and keeps its whole state (7.2)
+            kept += r.counters().get( SimScheduler.RECONNECTS );
         }
-        assertTrue( rejoins > 0, "no dropped participant ever rejoined with its edits kept" );
+        assertTrue( kept > 0, "no dropped participant ever rejoined with its edits kept" );
     }
 
     /**
@@ -247,7 +284,7 @@ class SimSchedulerTest {
     @Test
     void eachProfileExploresWhatItClaims() {
         final Map< SimProfile, Map< String, Long > > seen = new EnumMap<>( SimProfile.class );
-        for( final SimProfile p : List.of( SimProfile.LOSSY, SimProfile.CALM, SimProfile.AGENT_HEAVY ) ) {
+        for( final SimProfile p : List.of( SimProfile.LOSSY, SimProfile.CALM, SimProfile.AGENT_HEAVY, SimProfile.TIGHT ) ) {
             final Map< String, Long > sum = new TreeMap<>();
             for( long seed = 1; seed <= 60; seed++ ) {
                 final SimTrace t = new SimScheduler( seed, p, SimScheduler.STUB, 2 + (int) ( seed % 3 ) ).run( 200 );
@@ -259,7 +296,16 @@ class SimSchedulerTest {
         }
         final Map< String, Long > lossy = seen.get( SimProfile.LOSSY );
         for( final String c : SimScheduler.COUNTERS ) {
-            assertTrue( lossy.get( c ) > 0, "LOSSY never exercised " + c + ": " + lossy );
+            if( !List.of( SimScheduler.TRUNCATIONS, SimScheduler.GONE_PULLS ).contains( c ) ) {
+                assertTrue( lossy.get( c ) > 0, "LOSSY never exercised " + c + ": " + lossy );
+            }
+        }
+        // TIGHT is the A10 regime: everything LOSSY does, plus truncation and the 410 resync it causes
+        final Map< String, Long > tight = seen.get( SimProfile.TIGHT );
+        for( final String c : SimScheduler.COUNTERS ) {
+            if( !c.equals( SimScheduler.OUT_OF_ORDER_PULLS ) ) {
+                assertTrue( tight.get( c ) > 0, "TIGHT never exercised " + c + ": " + tight );
+            }
         }
         final Map< String, Long > calm = seen.get( SimProfile.CALM );
         // one pull at a time on a lossless network: CALM's own path is the long-poll timeout
@@ -268,8 +314,30 @@ class SimSchedulerTest {
             assertEquals( 0L, calm.get( c ), "CALM has no faults, yet " + c + ": " + calm );
         }
         final Map< String, Long > agents = seen.get( SimProfile.AGENT_HEAVY );
-        for( final String c : List.of( SimScheduler.LEAVES, SimScheduler.REJOINS, SimScheduler.DUPLICATE_ANSWERS ) ) {
+        for( final String c : List.of( SimScheduler.LEAVES, SimScheduler.RECONNECTS, SimScheduler.DUPLICATE_ANSWERS ) ) {
             assertTrue( agents.get( c ) > 0, "AGENT_HEAVY never exercised " + c + ": " + agents );
+        }
+    }
+
+    @Test
+    void theSessionExploresTheRecoveryAndA10Paths() {
+        // the session fuzz is only as good as the paths it reaches: crashes and reloads, 410s after truncation, reissued
+        // clientIDs, rebased rejoins and resyncs
+        final Map< String, Long > sum = new TreeMap<>();
+        for( final SimProfile p : List.of( SimProfile.TIGHT, SimProfile.LOSSY ) ) {
+            for( long seed = 1; seed <= 60; seed++ ) {
+                final SimTrace t = SimTarget.SESSION.scheduler( seed, p, 2 + (int) ( seed % 3 ) ).run( 200 );
+                assertEquals( SimTrace.Status.PASS, t.outcome().status(), p + " " + seed + ": " + t.outcome().message() );
+                t.counters().forEach( ( k, v ) -> sum.merge( k, v, Long::sum ) );
+                // replay of a session run is deterministic too (ids carry the clock and a per-store load count)
+                if( seed % 20 == 0 ) {
+                    assertEquals( t.toJson(), SimTarget.SESSION.replay( t ).toJson(), p + " " + seed );
+                }
+            }
+        }
+        for( final String c : List.of( SimScheduler.CRASHES, SimScheduler.TRUNCATIONS, SimScheduler.GONE_PULLS,
+                SimScheduler.RECONNECTS, SimScheduler.REJOINS, SimScheduler.RESYNCS, SimScheduler.RETIRED_REFUSED ) ) {
+            assertTrue( sum.get( c ) > 0, "the session never exercised " + c + ": " + sum );
         }
     }
 
@@ -298,8 +366,9 @@ class SimSchedulerTest {
         }
 
         @Override
-        public Joined join( final String authorKey ) {
-            return d.join( authorKey );
+        public Joined join( final String authorKey, final String priorClientId, final String initialText,
+                            final Map< String, Object > initialMeta ) {
+            return d.join( authorKey, priorClientId, initialText, initialMeta );
         }
 
         @Override
@@ -335,6 +404,11 @@ class SimSchedulerTest {
         @Override
         public void tick() {
             d.tick();
+        }
+
+        @Override
+        public void truncate() {
+            d.truncate();
         }
     }
 }

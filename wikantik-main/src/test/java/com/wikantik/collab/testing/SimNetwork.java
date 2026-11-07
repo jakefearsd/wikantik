@@ -44,7 +44,8 @@ public final class SimNetwork {
 
     /**
      * One message. Requests: {@code participantId}, {@code version} (push/publish base, pull {@code since}) and, for a
-     * push, {@code updates}. Answers: {@code requestId} and {@code result} (a {@code PushResult}, {@code PullResult},
+     * push, {@code updates}; a join carries the prior clientID it offers back (a {@code String}, or null) in
+     * {@code result}. Answers: {@code requestId} and {@code result} (a {@code PushResult}, {@code PullResult},
      * {@code PublishResult}, {@code Joined}, or none for {@code LEFT}).
      */
     public record Message( String id, Type type, int client, String requestId, String participantId, int version,

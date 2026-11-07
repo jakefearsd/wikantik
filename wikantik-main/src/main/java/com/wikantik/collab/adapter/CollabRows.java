@@ -19,9 +19,7 @@
 package com.wikantik.collab.adapter;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
-import com.google.gson.ToNumberPolicy;
 import com.google.gson.reflect.TypeToken;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
@@ -46,8 +44,8 @@ final class CollabRows {
     }
 
     static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() { }.getType();
-    static final Gson GSON = new GsonBuilder().serializeNulls()
-        .setObjectToNumberStrategy( ToNumberPolicy.LONG_OR_DOUBLE ).create();
+    /** The one meta codec (A14), shared with the session's comparisons. */
+    static final Gson GSON = com.wikantik.collab.MetaJson.GSON;
 
     static final String SESSION_COLUMNS = "id, page_name, status, base_page_version, base_body, base_meta::text,"
         + " base_content_hash, head_version, meta_seq, has_unpublished, pending_publish_version,"

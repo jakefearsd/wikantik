@@ -58,9 +58,12 @@ import java.util.stream.Collectors;
  *
  * <p><b>Clients</b> are {@link SimClient}s driven like {@code collabPeer} will drive the library: at most one in-flight
  * push, pull, publish, leave and join each; a 409 {@code stale-base} pulls and then re-pushes. A 409 {@code rejoin} (the
- * server dropped the participant: a {@code LEAVE} step or a crash) rejoins (section 7.2 "expired participants"): the
- * unconfirmed edits are rebased onto the fresh document and kept when none of them was ever sent, otherwise the client
- * resyncs (A10: a sent edit may already be in the fresh document, so it goes to the recovery panel, never re-applied).
+ * server dropped the participant: a {@code LEAVE} step or a crash) rejoins (section 7.2 "expired participants"),
+ * offering its clientID back: when the server reissues it the client keeps its whole state and pulls on from its own
+ * version ({@link SimClient#reconnect}); otherwise (a reloaded server does not know it) the unconfirmed edits are rebased
+ * onto the fresh document and kept when none of them was ever sent, else the client resyncs (A10: a sent edit may
+ * already be in the fresh document, so it goes to the recovery panel, never re-applied). {@code TRUNCATE} asks the
+ * server for its A10 log truncation; a client the log no longer reaches gets 410 and resyncs.
  * A 410 or 413 resyncs, but first sends {@code leave} for the old participant and waits for its answer, so a straggler
  * push from the old participant cannot be accepted after its text moved to the recovery panel; the scheduler fails the
  * run if one ever is. A request unanswered for the profile's step budget times out and is retried at once, as a recorded
@@ -114,25 +117,48 @@ public final class SimScheduler {
     public static final String CRASHES = "crashRecovers";
     /** Counter: pushes from a participant its client had already abandoned, refused by the server. */
     public static final String RETIRED_REFUSED = "retiredPushesRefused";
+    /** Counter: rejoins that got the client's own clientID back and kept its whole collab state (7.2). */
+    public static final String RECONNECTS = "reconnects";
+    /** Counter: {@code TRUNCATE} steps (A10). */
+    public static final String TRUNCATIONS = "truncations";
+    /** Counter: pulls answered 410 (below the ring and the truncated log, A10). */
+    public static final String GONE_PULLS = "pulls410";
     static final List< String > COUNTERS = List.of( DUPLICATE_ANSWERS, OUT_OF_ORDER_PULLS, TRIMMED_PULLS, EXPIRED_PULLS,
-        LEAVES, REJOINS, RESYNCS, CRASHES, RETIRED_REFUSED );
+        LEAVES, REJOINS, RESYNCS, CRASHES, RETIRED_REFUSED, RECONNECTS, TRUNCATIONS, GONE_PULLS );
 
     static final String PAGE = "SimPage";
-    /** Small, so pulls regularly fall through the ring to the store (E12). */
-    static final int RING_SIZE = 4;
     static final int REPLAY_EVERY = 25;
     static final int MAX_QUIESCENCE_ROUNDS = 400;
     private static final Instant EPOCH = Instant.parse( "2026-01-01T00:00:00Z" );
     private static final String CJK = "中文字編集協作";
     private static final String[] ASTRAL = { "😀", "𝄞", "🎉", "𝕏" };
 
+    /**
+     * A per-server-factory weight overlay: an action named here takes this weight instead of the profile's, so a server
+     * can be fuzzed with actions the other server does not take without changing the other server's generated traces
+     * (the stub's committed corpus). Replay ignores it: a trace carries its steps.
+     */
+    public record Overlay( Map< Kind, Integer > weights ) {
+        /** The profile's weights unchanged (the stub, and the trace corpus). */
+        public static final Overlay NONE = new Overlay( Map.of() );
+
+        public Overlay {
+            weights = Map.copyOf( weights );
+        }
+
+        int weight( final SimProfile p, final Kind k ) {
+            return weights.getOrDefault( k, p.weight( k ) );
+        }
+    }
+
     private final long seed;
     private final SimProfile profile;
     private final Function< SimEnv, SimServer > serverFactory;
     private final Function< SimEnv, SimServer > reload;
+    private final Overlay overlay;
     private final int clients;
 
-    /** {@link #STUB} gets {@link #STUB_RELOAD} for crash steps; any other factory gets none. */
+    /** {@link #STUB} and {@link CollabSessionSimServer#SESSION} get their reloads for crash steps; any other factory none. */
     public SimScheduler( final long seed, final SimProfile profile, final Function< SimEnv, SimServer > serverFactory,
                          final int clients ) {
         this( seed, profile, serverFactory, defaultReload( serverFactory ), clients );
@@ -140,6 +166,11 @@ public final class SimScheduler {
 
     public SimScheduler( final long seed, final SimProfile profile, final Function< SimEnv, SimServer > serverFactory,
                          final Function< SimEnv, SimServer > reload, final int clients ) {
+        this( seed, profile, serverFactory, reload, Overlay.NONE, clients );
+    }
+
+    public SimScheduler( final long seed, final SimProfile profile, final Function< SimEnv, SimServer > serverFactory,
+                         final Function< SimEnv, SimServer > reload, final Overlay overlay, final int clients ) {
         if( clients < 1 || clients > 26 ) {
             throw new IllegalArgumentException( "clients must be 1..26: " + clients );
         }
@@ -147,20 +178,25 @@ public final class SimScheduler {
         this.profile = Objects.requireNonNull( profile );
         this.serverFactory = Objects.requireNonNull( serverFactory );
         this.reload = Objects.requireNonNull( reload );
+        this.overlay = Objects.requireNonNull( overlay );
         this.clients = clients;
     }
 
     static Function< SimEnv, SimServer > defaultReload( final Function< SimEnv, SimServer > factory ) {
-        return factory == STUB ? STUB_RELOAD : NO_RELOAD;
+        if( factory == STUB ) {
+            return STUB_RELOAD;
+        }
+        return factory == CollabSessionSimServer.SESSION ? CollabSessionSimServer.SESSION_RELOAD : NO_RELOAD;
     }
 
     /** Generates and executes up to {@code steps} steps (fewer if one fails), then drives the run to quiescence. */
     public SimTrace run( final int steps ) {
         final SplittableRandom rnd = new SplittableRandom( seed );
         final String initialDoc = rnd.nextInt( 10 ) == 0 ? "" : text( rnd, rnd.nextInt( 120 ) );
-        final SimTrace header = new SimTrace( seed, profile, PAGE, profile.maxPageBytes(), RING_SIZE, profile.rewrite(),
-            clients, initialDoc, List.of(), Outcome.NOT_RUN, List.of() );
+        final SimTrace header = new SimTrace( seed, profile, PAGE, profile.maxPageBytes(), profile.ringSize(),
+            profile.rewrite(), clients, initialDoc, List.of(), Outcome.NOT_RUN, List.of() );
         final World w = new World( header, serverFactory, reload );
+        w.overlay = overlay;
         final List< Step > done = new ArrayList<>();
         Outcome o = w.start();
         for( int i = 0; i < steps && o == null; i++ ) {
@@ -284,6 +320,7 @@ public final class SimScheduler {
         private final Map< String, Integer > clientOf = new LinkedHashMap<>();
         /** Per participant, the pulls the server holds, oldest first: {@code requestId -> since}. */
         private final Map< String, Deque< Map.Entry< String, Integer > > > parked = new LinkedHashMap<>();
+        private Overlay overlay = Overlay.NONE;
         private SimEnv env;
         private SimServer server;
         private String tag = "start";
@@ -346,7 +383,7 @@ public final class SimScheduler {
             final Map< Kind, Integer > w = new EnumMap<>( Kind.class );
             for( final Kind k : Kind.values() ) {
                 if( k != Kind.TIMEOUT && eligible( k ) ) {
-                    w.put( k, profile.weight( k ) );
+                    w.put( k, overlay.weight( profile, k ) );
                 }
             }
             final int total = w.values().stream().mapToInt( Integer::intValue ).sum();
@@ -373,7 +410,7 @@ public final class SimScheduler {
                 }
                 case ADVANCE_CLOCK -> s.millis( 1000L * ( 1 + rnd.nextInt( 30 ) ) );
                 case EXTERNAL_SAVE -> edit( s, writerBody(), rnd );
-                case CRASH_RECOVER, TIMEOUT -> s;
+                case CRASH_RECOVER, TRUNCATE, TIMEOUT -> s;
             };
         }
 
@@ -529,6 +566,11 @@ public final class SimScheduler {
                             drain();
                         }
                     } );
+                    case TRUNCATE -> {
+                        server.truncate();
+                        count( TRUNCATIONS, 1 );
+                        drain();
+                    }
                     case TIMEOUT -> withPeer( s, p -> timeout( p, s.op() ) );
                 }
                 return afterStep( s.id() % REPLAY_EVERY == 0 );
@@ -626,12 +668,16 @@ public final class SimScheduler {
             p.leaveAt = ordinal;
         }
 
+        /**
+         * A rejoin offers the client's clientID back (7.2 "same clientID"); a resync does not (its unsynced text went to
+         * the recovery panel, so it starts afresh).
+         */
         private void startJoin( final Peer p ) {
             if( p.join != null ) {
                 return;
             }
             final String id = newId();
-            net.send( new Message( id, Type.JOIN, indexOf( p ), id, null, 0, null, null ) );
+            net.send( new Message( id, Type.JOIN, indexOf( p ), id, null, 0, null, p.resync ? null : p.sim.clientId() ) );
             p.join = id;
             p.joinAt = ordinal;
         }
@@ -713,7 +759,7 @@ public final class SimScheduler {
                 }
                 case PUBLISH -> reply( m, Type.PUBLISH_RESULT, server.publish( m.participantId(), p.authorKey, m.version(), "sim" ) );
                 case JOIN -> {
-                    final Joined j = server.join( p.authorKey );
+                    final Joined j = server.join( p.authorKey, (String) m.result(), null, null );
                     clientOf.put( j.participantId(), m.client() );
                     reply( m, Type.JOINED, j );
                 }
@@ -779,7 +825,11 @@ public final class SimScheduler {
                         p.publish = null;
                         p.repush = false;
                         p.retired.add( p.sim.participantId() );
-                        if( !p.resync && p.sent == 0 ) {
+                        final Joined j = (Joined) m.result();
+                        if( !p.resync && j.clientId().equals( p.sim.clientId() ) ) {
+                            p.sim.reconnect( j );
+                            count( RECONNECTS, 1 );
+                        } else if( !p.resync && p.sent == 0 ) {
                             p.sim.rejoin( (Joined) m.result() );
                             count( REJOINS, 1 );
                         } else {
@@ -853,7 +903,10 @@ public final class SimScheduler {
             }
             switch( r.status() ) {
                 case 409 -> startRejoin( p );
-                case 410 -> startResync( p );
+                case 410 -> {
+                    count( GONE_PULLS, 1 );
+                    startResync( p );
+                }
                 case 503 -> { }
                 default -> throw refused( p, "pull", r.status(), r.reason() );
             }
@@ -964,8 +1017,17 @@ public final class SimScheduler {
                 final StackTraceElement[] st = e.getStackTrace();
                 return new Outcome( Status.FAIL, "exception: " + e + " at " + Arrays.stream( st ).limit( 4 )
                     .map( StackTraceElement::toString ).collect( Collectors.joining( " < " ) ), tag,
-                    "exception " + e.getClass().getName() + " at " + ( st.length > 0 ? st[ 0 ] : "?" ) );
+                    "exception " + e.getClass().getName() + " at " + firstOwnFrame( st ) );
             }
+        }
+
+        /**
+         * The first {@code com.wikantik} frame (else the first frame): a failure inside a JDK call is identified by the
+         * code that made it, so the shrinker keeps the same bug rather than any exception from that JDK method.
+         */
+        static String firstOwnFrame( final StackTraceElement[] st ) {
+            return Arrays.stream( st ).filter( f -> f.getClassName().startsWith( "com.wikantik." ) ).findFirst()
+                .map( StackTraceElement::toString ).orElse( st.length > 0 ? st[ 0 ].toString() : "?" );
         }
 
         private static String firstDifference( final String client, final String server ) {

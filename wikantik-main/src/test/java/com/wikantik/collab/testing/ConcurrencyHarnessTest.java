@@ -21,13 +21,18 @@ package com.wikantik.collab.testing;
 import com.wikantik.collab.testing.ConcurrencyHarness.Report;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -51,20 +56,38 @@ class ConcurrencyHarnessTest {
             new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) ), 1 << 20, 4 );
     };
 
-    @Test
-    void e38_parallelPushesToOneVersionAcceptExactlyOne() {
+    /**
+     * The real session over the same doubles, with a snapshot every 16 updates so cadence snapshots and the truncation
+     * behind them run under contention.
+     */
+    static final Supplier< SimServer > SESSION = () -> {
+        final ScriptedPageWriter writer = new ScriptedPageWriter();
+        writer.seed( "Stress", "seed text  \nsecond line\n", Map.of() );
+        writer.rewriteOnSave( SimEnv.rewrite( "strip-trailing-spaces" ) );
+        return CollabSessionSimServer.create( "Stress", new InMemoryCollabStore(), writer,
+            new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) ), 1 << 20, 4, 16 );
+    };
+
+    static Stream< Arguments > servers() {
+        return Stream.of( Arguments.of( "stub", STUB ), Arguments.of( "session", SESSION ) );
+    }
+
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void e38_parallelPushesToOneVersionAcceptExactlyOne( final String name, final Supplier< SimServer > server ) {
         final int runs = ConcurrencyHarness.runs();
-        final Report r = new ConcurrencyHarness( 16, runs, RUN_TIMEOUT, STUB ).pushRace( 38 );
+        final Report r = new ConcurrencyHarness( 16, runs, RUN_TIMEOUT, server ).pushRace( 38 );
         assertEquals( runs, r.runs() );
         assertTrue( r.rounds() > 0 );
         assertEquals( r.rounds(), r.accepted(), "exactly one push per contested version: " + r );
         assertEquals( r.rounds() * 15L, r.stale(), "every other push is a stale-base 409: " + r );
     }
 
-    @Test
-    void e40_mixedTrafficOnRealThreadsHoldsTheInvariants() {
+    @ParameterizedTest( name = "{0}" )
+    @MethodSource( "servers" )
+    void e40_mixedTrafficOnRealThreadsHoldsTheInvariants( final String name, final Supplier< SimServer > server ) {
         final int runs = ConcurrencyHarness.runs();
-        final Report r = new ConcurrencyHarness( 12, runs, RUN_TIMEOUT, STUB ).run( 40 );
+        final Report r = new ConcurrencyHarness( 12, runs, RUN_TIMEOUT, server ).run( 40 );
         assertEquals( runs, r.runs() );
         // the mix really happened (the harness itself asserted contiguity, ring == log, waiters and invariants)
         assertTrue( r.accepted() > 0, r.toString() );
@@ -124,6 +147,26 @@ class ConcurrencyHarnessTest {
     }
 
     @Test
+    void aLoggedClientUpdateThatNoPushClaimedIsCaught() {
+        // one accepted push is answered as stale: its update is in the log, but no push holds the acknowledgement
+        final AtomicBoolean lied = new AtomicBoolean();
+        final Supplier< SimServer > hider = () -> new Forwarding( STUB.get() ) {
+            @Override
+            public PushResult push( final String participantId, final String authorKey, final int version,
+                                    final List< Update > updates ) {
+                final PushResult r = super.push( participantId, authorKey, version, updates );
+                if( r.status() == 200 && !updates.isEmpty() && lied.compareAndSet( false, true ) ) {
+                    return new PushResult( 409, r.version(), "stale-base" );
+                }
+                return r;
+            }
+        };
+        final AssertionError e = assertThrows( AssertionError.class,
+            () -> new ConcurrencyHarness( 4, 1, RUN_TIMEOUT, hider ).run( 5 ) );
+        assertTrue( e.getMessage().contains( "no push claimed" ), e.getMessage() );
+    }
+
+    @Test
     void runsDefaultsAndCanBeOverridden() {
         final String old = System.getProperty( "collab.stress.runs" );
         try {
@@ -149,8 +192,9 @@ class ConcurrencyHarnessTest {
         }
 
         @Override
-        public Joined join( final String authorKey ) {
-            return d.join( authorKey );
+        public Joined join( final String authorKey, final String priorClientId, final String initialText,
+                            final Map< String, Object > initialMeta ) {
+            return d.join( authorKey, priorClientId, initialText, initialMeta );
         }
 
         @Override
@@ -186,6 +230,11 @@ class ConcurrencyHarnessTest {
         @Override
         public void tick() {
             d.tick();
+        }
+
+        @Override
+        public void truncate() {
+            d.truncate();
         }
     }
 }

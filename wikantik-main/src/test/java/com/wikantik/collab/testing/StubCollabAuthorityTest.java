@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -486,5 +487,37 @@ class StubCollabAuthorityTest {
         assertEquals( tight.view().doc().getBytes( java.nio.charset.StandardCharsets.UTF_8 ).length,
             tight.view().oversizeCeiling() );
         CollabInvariants.check( tight.view(), true );
+    }
+
+    @Test
+    void aRejoinGetsItsPriorClientIdBackOnlyFromTheSameAuthorAndWhenNotLive() {   // 7.2 "same clientID"
+        final SimServer.Joined a = server.join( "alice" );
+        assertNotEquals( a.clientId(), server.join( "alice", a.clientId(), null, null ).clientId(), "a is still live" );
+        server.leave( a.participantId() );
+        assertNotEquals( a.clientId(), server.join( "mallory", a.clientId(), null, null ).clientId() );
+        final SimServer.Joined again = server.join( "alice", a.clientId(), null, null );
+        assertEquals( a.clientId(), again.clientId() );
+        assertNotEquals( a.participantId(), again.participantId() );
+        assertEquals( 409, server.push( a.participantId(), "alice", 0, List.of() ).status() );
+        assertEquals( 200, server.push( again.participantId(), "alice", 0, List.of( typeAt( again, BODY, 0, "X" ) ) ).status() );
+    }
+
+    @Test
+    void truncateCutsBelowTheLowestConfirmedVersionClampedToASnapshot() {   // A10
+        final SimServer.Joined a = server.join( "alice" );
+        final SimServer.Joined b = server.join( "bob" );   // confirms 0
+        String doc = BODY;
+        for( int i = 0; i < 5; i++ ) {
+            assertEquals( 200, server.push( a.participantId(), "alice", i, List.of( typeAt( a, doc, 0, "a" ) ) ).status() );
+            doc = "a" + doc;
+        }
+        assertEquals( 200, server.publish( a.participantId(), "alice", 5, "n" ).status() );   // a snapshot at 5
+        server.truncate();
+        assertEquals( 1, store.updatesSince( server.view().sessionId(), 0 ).get( 0 ).version(), "bob still confirms 0" );
+        server.leave( b.participantId() );
+        server.truncate();
+        assertTrue( store.updatesSince( server.view().sessionId(), 0 ).isEmpty(), "folded into the snapshot at 5" );
+        assertEquals( 410, server.pull( a.participantId(), "alice", 0 ).status() );
+        CollabInvariants.check( server.view(), true );
     }
 }

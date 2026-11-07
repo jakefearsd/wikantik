@@ -6,13 +6,13 @@
  */
 import { describe, it, expect } from 'vitest';
 import { EditorState, ChangeSet } from '@codemirror/state';
-import { collab, receiveUpdates, sendableUpdates, getSyncedVersion } from '@codemirror/collab';
+import { collab, receiveUpdates, sendableUpdates, getSyncedVersion, getClientID } from '@codemirror/collab';
 
 const files = import.meta.glob('./__fixtures__/collab-traces/*.json', { eager: true, import: 'default' });
-// 4 profiles x 50 seeds, 12 extra LOSSY seeds that reach a resync, 2 crafted traces, 1 committed regression trace.
-const EXPECTED_TRACES = 4 * 50 + 12 + 2 + 1;
+// 5 profiles x 50 seeds (TIGHT makes resyncs routine), 2 crafted traces, 1 committed regression trace.
+const EXPECTED_TRACES = 5 * 50 + 2 + 1;
 
-const ENTRY_TYPES = new Set(['join', 'resync', 'local', 'receive', 'sendable', 'gap', 'push']);
+const ENTRY_TYPES = new Set(['join', 'resync', 'rejoin', 'local', 'receive', 'sendable', 'gap', 'push']);
 
 function join(entry) {
   return EditorState.create({
@@ -64,6 +64,10 @@ function replayClient(entries, table, label) {
       case 'join':
       case 'resync':
         state = join(e);
+        break;
+      case 'rejoin':
+        // the server reissued this client's clientID to a new participant: the collab state carries on unchanged
+        expect(getClientID(state), `${at}: clientID`).toBe(e.clientId);
         break;
       case 'local':
         state = state.update({ changes: ChangeSet.fromJSON(e.changes) }).state;
@@ -118,6 +122,7 @@ describe('Java SimClient traces replayed through @codemirror/collab', () => {
     const has = (type) => traces.filter(([, t]) => entriesOf(t).some((e) => e.type === type)).length;
     ['join', 'local', 'receive', 'sendable'].forEach((k) => expect(has(k), k).toBeGreaterThan(0));
     expect(has('resync')).toBeGreaterThanOrEqual(10);
+    expect(has('rejoin')).toBeGreaterThanOrEqual(10);
     expect(has('gap')).toBeGreaterThanOrEqual(1);
     const names = traces.map(([n]) => n);
     expect(names.some((n) => n.includes('crafted-foreign-then-own'))).toBe(true);

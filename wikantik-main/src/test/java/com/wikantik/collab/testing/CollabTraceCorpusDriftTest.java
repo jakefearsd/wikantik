@@ -48,10 +48,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code collabTraceReplay.test.js}, which replays each client's entries through the real {@code @codemirror/collab}.
  * It holds, per file, only what that replay needs (profile, seed, initial document, per-client entries):
  * <ul>
- * <li>{@code <profile>-<seed>.json}: seeds 1..50 of every profile (120 steps), plus {@link #RESYNC_SEEDS} of LOSSY, which
- *     are known to reach a resync (chosen when resyncs were rare, about 1 seed in 100; since LOSSY gained crash and leave
- *     steps they are common, and rejoins that rebase the unsent edits appear as a {@code resync} with {@code rebased}
- *     followed by {@code local} entries);</li>
+ * <li>{@code <profile>-<seed>.json}: seeds 1..50 of every profile (120 steps). {@link SimProfile#TIGHT} (small ring,
+ *     small page limit, leaves, crashes and A10 truncation) makes resyncs routine, replacing Phase 0's hand-picked LOSSY
+ *     resync seeds; rejoins that rebase the unsent edits appear as a {@code resync} with {@code rebased} followed by
+ *     {@code local} entries, and rejoins that got the clientID back as a {@code rejoin} entry;</li>
  * <li>{@code crafted-*.json}: SimClient driven directly through cases the one-pull-at-a-time protocol never produces
  *     (a foreign update ahead of own updates in one batch; a real gap);</li>
  * <li>{@code regression-<name>.json}: every committed regression trace, replayed through the scheduler.</li>
@@ -67,12 +67,12 @@ class CollabTraceCorpusDriftTest {
 
     static final int SEEDS = 50;
     static final int STEPS = 120;
-    /** LOSSY seeds (beyond 1..50) whose 120-step run contains a resync; asserted below so a generator change is noticed. */
-    static final long[] RESYNC_SEEDS = { 74, 185, 187, 618, 688, 884, 1127, 1204, 1270, 1301, 1394, 1468 };
+    /** At least this many TIGHT traces must contain a resync; asserted so a generator change that loses them is noticed. */
+    static final int MIN_TIGHT_RESYNCS = 10;
     static final Path DIR = Path.of( "..", "wikantik-frontend", "src", "collab", "__fixtures__", "collab-traces" );
     static final Path REGRESSIONS = Path.of( "src", "test", "resources", "collab", "regressions" );
     private static final Pattern GENERATED =
-        Pattern.compile( "(calm|lossy|agent_heavy|publish_storm)-\\d+\\.json|crafted-.*\\.json|regression-.*\\.json" );
+        Pattern.compile( "(calm|lossy|agent_heavy|publish_storm|tight)-\\d+\\.json|crafted-.*\\.json|regression-.*\\.json" );
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
     static String file( final SimProfile profile, final long seed ) {
@@ -85,18 +85,19 @@ class CollabTraceCorpusDriftTest {
 
     static Map< String, String > generate() throws IOException {
         final Map< String, String > out = new TreeMap<>();
+        int tightResyncs = 0;
         for( final SimProfile profile : SimProfile.values() ) {
             for( long seed = 1; seed <= SEEDS; seed++ ) {
                 final SimTrace t = run( profile, seed );
+                assertEquals( SimTrace.Status.PASS, t.outcome().status(), profile + " " + seed + ": " + t.outcome().message() );
+                if( profile == SimProfile.TIGHT && t.clientTraces().stream()
+                        .anyMatch( l -> l.stream().anyMatch( e -> e.contains( "\"type\":\"resync\"" ) ) ) ) {
+                    tightResyncs++;
+                }
                 out.put( file( profile, seed ), export( t.profile().name(), t.seed(), t.initialDoc(), t.clientTraces() ) );
             }
         }
-        for( final long seed : RESYNC_SEEDS ) {
-            final SimTrace t = run( SimProfile.LOSSY, seed );
-            assertTrue( t.clientTraces().stream().anyMatch( l -> l.stream().anyMatch( e -> e.contains( "\"type\":\"resync\"" ) ) ),
-                "LOSSY seed " + seed + " no longer reaches a resync; re-probe RESYNC_SEEDS" );
-            out.put( file( SimProfile.LOSSY, seed ), export( t.profile().name(), t.seed(), t.initialDoc(), t.clientTraces() ) );
-        }
+        assertTrue( tightResyncs >= MIN_TIGHT_RESYNCS, "only " + tightResyncs + " TIGHT traces reach a resync" );
         out.put( "crafted-foreign-then-own.json", craftedForeignThenOwn() );
         out.put( "crafted-gap.json", craftedGap() );
         if( Files.isDirectory( REGRESSIONS ) ) {
@@ -258,7 +259,7 @@ class CollabTraceCorpusDriftTest {
     @Test
     void corpusIsCurrent() throws IOException {
         final Map< String, String > expected = generate();
-        assertTrue( expected.size() >= 4 * SEEDS + RESYNC_SEEDS.length + 2, "corpus size " + expected.size() );
+        assertTrue( expected.size() >= SimProfile.values().length * SEEDS + 2, "corpus size " + expected.size() );
         if( Boolean.getBoolean( "collab.traces.write" ) ) {
             Files.createDirectories( DIR );
             try( var existing = Files.list( DIR ) ) {

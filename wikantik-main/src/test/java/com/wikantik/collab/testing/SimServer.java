@@ -21,6 +21,7 @@ package com.wikantik.collab.testing;
 import com.wikantik.collab.text.ChangeSet;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The protocol surface the deterministic simulator drives. {@link StubCollabAuthority} implements it for Phase 0;
@@ -69,9 +70,17 @@ public interface SimServer {
 
     /**
      * Joins as {@code authorKey}. The participant is bound to that author (A6): later calls naming it must pass the same
-     * {@code authorKey} or get 403 {@code not-your-participant}.
+     * {@code authorKey} or get 403 {@code not-your-participant}. {@code priorClientId} (nullable) is the clientID the
+     * caller held before: it is reissued when the server still knows it as this author's and no live participant holds
+     * it (section 7.2 "same clientID"), so the client keeps its collab state. {@code initialText}/{@code initialMeta}
+     * (nullable, A11) are used only by a join that follows the session's creation.
      */
-    Joined join( String authorKey );
+    Joined join( String authorKey, String priorClientId, String initialText, Map< String, Object > initialMeta );
+
+    /** A plain join: no prior clientID, no initial content. */
+    default Joined join( final String authorKey ) {
+        return join( authorKey, null, null, null );
+    }
 
     PushResult push( String participantId, String authorKey, int version, List< Update > updates );
 
@@ -88,4 +97,10 @@ public interface SimServer {
 
     /** Advances time-driven behaviour (long-poll timeouts) from the clock. */
     void tick();
+
+    /**
+     * A10 log truncation: cuts the store's log below the lowest version a live participant has confirmed (the store
+     * clamps the cut to a snapshot), so a lagging client's pull below both the ring and the store answers 410.
+     */
+    void truncate();
 }

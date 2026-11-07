@@ -155,6 +155,7 @@ public final class ConcurrencyHarness {
         final AtomicInteger acceptedThisRound = new AtomicInteger();
         final AtomicInteger round = new AtomicInteger();
         final Queue< String > errors = new ConcurrentLinkedQueue<>();
+        final Map< Integer, String > claims = new ConcurrentHashMap<>();
         final CyclicBarrier start = new CyclicBarrier( threads );
         final CyclicBarrier end = new CyclicBarrier( threads, () -> {
             final int acc = acceptedThisRound.getAndSet( 0 );
@@ -187,6 +188,10 @@ public final class ConcurrencyHarness {
                     if( r.status() == 200 ) {
                         acceptedThisRound.incrementAndGet();
                         tally.accepted.incrementAndGet();
+                        final String prior = claims.put( r.version(), j.clientId() );
+                        if( prior != null ) {
+                            errors.add( "version " + r.version() + " acknowledged to " + prior + " and " + j.clientId() );
+                        }
                     } else if( r.status() == 409 && "stale-base".equals( r.reason() ) ) {
                         tally.stale.incrementAndGet();
                     } else {
@@ -205,7 +210,7 @@ public final class ConcurrencyHarness {
             throw new AssertionError( "seed " + seed + " run " + run + ": " + errors );
         }
         final InvariantView v = server.view();
-        checkLog( seed, run, v, Map.of() );
+        checkLog( seed, run, v, claims );
         CollabInvariants.check( v, true );
         tally.maxHead = Math.max( tally.maxHead, v.head() );
     }
@@ -333,9 +338,10 @@ public final class ConcurrencyHarness {
             tally.leaves.incrementAndGet();
             route();
             consume( w );
-            if( !w.parkedSince.isEmpty() ) {
-                throw fail( w.author + " left with " + w.parkedSince.size() + " parked pull(s) never answered" );
-            }
+            // A parked pull may still be answered after leave returns: another thread's push can have collected it and
+            // not yet completed it (the session completes waiters outside its lock). Its answer is still counted by the
+            // exactly-once check at the end of the run; the abandoned participant's late answers are never consumed.
+            w.parkedSince.clear();
             w.sim.resync( server.join( w.author ) );
             tally.joins.incrementAndGet();
         }
@@ -476,22 +482,34 @@ public final class ConcurrencyHarness {
     }
 
     /**
-     * Versions {@code 1..head} are each either a server update in the log or acknowledged to exactly one push from
-     * the client whose update the log holds there; no push is acknowledged a version beyond head.
+     * The retained log is contiguous and ends at head (a session may have truncated below a snapshot, A10). Each retained
+     * version is either a server update no push claimed, or a client update acknowledged to exactly one push from the
+     * client whose update the log holds there: a client update that no push claimed fails too (an accepted push whose
+     * acknowledgement the server withheld or misreported). No push is acknowledged a version beyond head.
      */
     private static void checkLog( final long seed, final int run, final InvariantView v, final Map< Integer, String > claims ) {
         final List< StoredUpdate > log = v.store().updatesSince( v.sessionId(), 0 );
         final String where = "seed " + seed + " run " + run + ": ";
-        if( log.size() != v.head() ) {
-            throw new AssertionError( where + "the store log holds " + log.size() + " updates but head is version " + v.head() );
+        final int first = log.isEmpty() ? v.head() + 1 : log.get( 0 ).version();
+        if( log.size() != v.head() - first + 1 ) {
+            throw new AssertionError( where + "the store log holds " + log.size() + " updates from version " + first
+                + " but head is version " + v.head() );
         }
         for( int i = 0; i < log.size(); i++ ) {
             final StoredUpdate u = log.get( i );
-            if( u.version() != i + 1 ) {
-                throw new AssertionError( where + "store log version " + u.version() + " at position " + ( i + 1 ) );
+            if( u.version() != first + i ) {
+                throw new AssertionError( where + "store log version " + u.version() + " at position " + ( first + i ) );
             }
             final String owner = claims.get( u.version() );
-            if( SERVER_CLIENT.equals( u.clientId() ) ? owner != null : owner != null && !owner.equals( u.clientId() ) ) {
+            if( SERVER_CLIENT.equals( u.clientId() ) ) {
+                if( owner != null ) {
+                    throw new AssertionError( where + "version " + u.version() + " is a server update but was acknowledged to "
+                        + owner );
+                }
+            } else if( owner == null ) {
+                throw new AssertionError( where + "version " + u.version() + " is logged for " + u.clientId()
+                    + " but no push claimed it" );
+            } else if( !owner.equals( u.clientId() ) ) {
                 throw new AssertionError( where + "version " + u.version() + " is logged for " + u.clientId()
                     + " but was acknowledged to " + owner );
             }

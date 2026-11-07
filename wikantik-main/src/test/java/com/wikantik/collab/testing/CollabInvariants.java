@@ -37,7 +37,8 @@ import java.util.Optional;
  *
  * <p>Differences worth knowing: invariant 2 tolerates log truncation (the ring need only equal the overlapping suffix of the retained log;
  * every logged update, text or server, consumes a version); invariant 3 compares doc and local by effect (the simulator
- * has no meta yet) and needs a snapshot at or below the head; invariants 2 to 4 are skipped for a poisoned stub;
+ * has no meta yet), needs a snapshot at or below the head on the session's current base page version (creation writes
+ * one at version 0 and every base change writes one with it) and the log contiguous from that snapshot to the head; invariants 2 to 4 are skipped for a poisoned stub;
  * invariant 5 uses the oversize ceiling; invariant 7 is a no-op until
  * presence exists (Phase 2).</p>
  */
@@ -122,12 +123,27 @@ public final class CollabInvariants {
             throw fail( 3, text, "no snapshot in the store" );
         }
         final Snapshot s = snap.get();
+        if( s.basePageVersion() != v.basePageVersion() ) {
+            // every base change writes its snapshot in the same step (commitBaseChange), and so does creation (v0)
+            throw fail( 3, text, "the latest snapshot (version " + s.version() + ") is on base page version "
+                + s.basePageVersion() + " but the session is on " + v.basePageVersion() );
+        }
         String doc = s.body();
         ChangeSet local = s.local();
+        int expected = s.version() + 1;
         try {
             for( final StoredUpdate u : v.store().updatesSince( v.sessionId(), s.version() ) ) {
+                if( u.version() != expected ) {
+                    throw fail( 3, text, "the log after snapshot " + s.version() + " is not contiguous: version "
+                        + u.version() + " where " + expected + " was due" );
+                }
+                expected++;
                 doc = u.changes().apply( doc );
                 local = local.compose( u.changes() );
+            }
+            if( expected - 1 != v.head() ) {
+                throw fail( 3, text, "the log after snapshot " + s.version() + " ends at " + ( expected - 1 )
+                    + " but head=" + v.head() );
             }
             if( !doc.equals( v.doc() ) ) {
                 throw fail( 3, text, "replayed doc=" + show( doc ) + " doc=" + show( v.doc() ) );

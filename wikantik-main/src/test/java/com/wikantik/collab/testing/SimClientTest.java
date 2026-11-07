@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SimClientTest {
@@ -274,5 +275,26 @@ class SimClientTest {
         a.rejoin( new Joined( "p2", "c2", 1, "ac" ) );       // someone else already deleted it
         assertEquals( "ac", a.doc() );
         assertTrue( a.sendable().isEmpty() );
+    }
+
+    @Test
+    void reconnectUnderTheSameClientIdKeepsTheWholeCollabState() {   // 7.2 "same clientID"
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        a.localEdit( insert( "abc", 3, "X" ) );
+        a.reconnect( new Joined( "p-new", "ca", 5, "whatever the head is" ) );
+        assertEquals( "p-new", a.participantId() );
+        assertEquals( "ca", a.clientId() );
+        assertEquals( 0, a.version(), "it keeps pulling from its own version" );
+        assertEquals( "abcX", a.doc() );
+        assertEquals( 1, a.sendable().size() );
+        final List< String > types = a.traceEntries().stream().map( SimClient.TraceEntry::type ).toList();
+        assertEquals( "rejoin", types.get( types.size() - 2 ) );
+        assertTrue( a.trace().get( types.size() - 2 ).contains( "\"participantId\":\"p-new\"" ) );
+    }
+
+    @Test
+    void reconnectUnderAnotherClientIdIsRefused() {
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        assertThrows( IllegalArgumentException.class, () -> a.reconnect( new Joined( "p2", "cb", 0, "abc" ) ) );
     }
 }

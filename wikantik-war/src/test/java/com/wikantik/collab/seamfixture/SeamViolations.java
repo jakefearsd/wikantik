@@ -19,11 +19,18 @@
 package com.wikantik.collab.seamfixture;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.Year;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Date;
+import java.util.Timer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 /**
@@ -61,6 +68,44 @@ public final class SeamViolations {
 
     public static Object executor() {
         return Executors.newSingleThreadExecutor();
+    }
+
+    public static Object localTimeNow() {
+        return LocalTime.now();
+    }
+
+    public static Object yearNow() {
+        return Year.now();
+    }
+
+    public static Object systemClock() {
+        return Clock.system( ZoneOffset.UTC );
+    }
+
+    public static Object tickClock() {
+        return Clock.tickSeconds( ZoneOffset.UTC );
+    }
+
+    public static Object timer() {
+        return new Timer( true );
+    }
+
+    public static Object runAsync() {
+        return CompletableFuture.runAsync( () -> { } );
+    }
+
+    public static Object supplyAsync() {
+        return CompletableFuture.supplyAsync( () -> "x" );
+    }
+
+    /** Sanctioned: wraps a task, creates no thread. */
+    public static Object executorsCallable() {
+        return Executors.callable( () -> { } );
+    }
+
+    /** Sanctioned: async work on an injected executor. */
+    public static Object asyncOnInjectedExecutor( final Executor executor ) {
+        return CompletableFuture.runAsync( () -> { }, executor ).thenApply( v -> Duration.ZERO );
     }
 
     /** Sanctioned: the injected-clock overloads. */

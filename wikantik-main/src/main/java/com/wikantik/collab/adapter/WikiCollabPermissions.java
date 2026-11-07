@@ -131,6 +131,28 @@ public final class WikiCollabPermissions implements CollabPermissions {
         return grants( auth, session, acl, view ) && grants( auth, session, acl, edit );
     }
 
+    /**
+     * Ruling F3': the rules {@link DefaultAclManager#aclForText} reads from {@code text}: a non-empty ACL (rules, or the
+     * lock of rules it cannot read) restricts. True (fail closed, logged) when the ACL manager cannot read a text it is
+     * handed or the parse fails.
+     */
+    @Override
+    public boolean restricts( final String pageName, final String text ) {
+        final AclManager acls = AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager();
+        if( !( acls instanceof DefaultAclManager reader ) ) {
+            LOG.warn( "Treating the guard of '{}' as restricting: the ACL manager ({}) cannot read a text", pageName,
+                    acls == null ? "none" : acls.getClass().getName() );
+            return true;
+        }
+        try {
+            return !reader.aclForText( Wiki.contents().page( engine, pageName ), text ).isEmpty();
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Treating the guard of '{}' as restricting: its access rules could not be read: {}", pageName,
+                    e.toString() );
+            return true;
+        }
+    }
+
     /** True when the session holds a principal {@code acl} lists for {@code permission} (an unresolved one resolved now). */
     private static boolean grants( final AuthorizationManager auth, final Session session, final Acl acl,
                                    final Permission permission ) {

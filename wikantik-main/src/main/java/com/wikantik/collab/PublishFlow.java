@@ -96,7 +96,7 @@ final class PublishFlow {
      * then the pre-save answers or the ticket with its stored marker.
      */
     PublishStart start( final Participant p, final String note, final String markupSyntax,
-                        final boolean createChecked, final boolean admin, final List< Runnable > completions ) {
+                        final boolean createChecked, final String letPast, final List< Runnable > completions ) {
         final Optional< PageState > latest;
         final ExternalMerge.Result merged;
         try {
@@ -121,7 +121,7 @@ final class PublishFlow {
         }
         lock.lock();
         try {
-            return snapshotForSave( p, note, markupSyntax, createChecked, admin, latest );
+            return snapshotForSave( p, note, markupSyntax, createChecked, letPast, latest );
         } finally {
             lock.unlock();
         }
@@ -144,14 +144,14 @@ final class PublishFlow {
      * check was skipped answers 409 {@code frozen}, and the publisher's retry meets the check.
      */
     private PublishStart snapshotForSave( final Participant p, final String note, final String markupSyntax,
-                                          final boolean createChecked, final boolean admin,
+                                          final boolean createChecked, final String letPast,
                                           final Optional< PageState > latest ) {
         final boolean recreate = d.frozen();
         if( recreate && !createChecked ) {
             return new PublishStart( new PublishResponse( 409, d.record.basePageVersion(), CollabSession.FROZEN, false ),
                 null );
         }
-        final PublishResponse guarded = Gate.guardedPublish( d, p, admin );   // ruling F3
+        final PublishResponse guarded = Gate.guardedPublish( d, p, letPast );   // ruling F3'
         if( guarded != null ) {
             return new PublishStart( guarded, null );
         }

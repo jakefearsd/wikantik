@@ -85,6 +85,12 @@ class CollabSessionLifecycleTest {
         public boolean canCreate( final Object participantSession, final String pageName ) {
             return !noCreate.contains( participantSession );
         }
+
+        /** Ruling F3': a guard restricts when it holds a rule (these tests' pages carry none unless they say so). */
+        @Override
+        public boolean restricts( final String pageName, final String text ) {
+            return text.contains( "[{ALLOW" );
+        }
     };
 
     /** Records completions; a second completion fails the test (F6: exactly once). */

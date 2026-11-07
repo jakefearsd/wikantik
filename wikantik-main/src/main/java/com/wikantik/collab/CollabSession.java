@@ -628,7 +628,7 @@ public final class CollabSession {
                                       final String changeNote, final String markupSyntax ) {
         final Participant p;
         final boolean frozen;
-        final boolean guarded;
+        final String guard;
         lock.lock();
         try {
             final Gate.Refusal refused = Gate.identity( roster, participantId, authorKey, clock.instant() );
@@ -637,12 +637,12 @@ public final class CollabSession {
             }
             p = roster.get( participantId );
             frozen = d.frozen();
-            guarded = Gate.guardRestricts( d.record.guardText() );
+            guard = d.record.guardText();
         } finally {
             lock.unlock();
         }
-        // ruling F3: a guarded draft is published only by an administrator (asked uncached, no lock held)
-        final boolean admin = guarded && EditRecheck.isAdmin( id, p, permissions );
+        // ruling F3': a guard the engine reads rules in lets only an administrator publish (asked uncached, no lock held)
+        final String letPast = EditRecheck.guardLetPast( id, p, permissions, guard, pageName() );
         // a frozen draft recreates its page: the publisher needs createPages, checked uncached (A5, E28)
         if( EditRecheck.recreateRefused( frozen, id, p, permissions, pageName() ) ) {
             return flow.answered( 403, NO_CREATE );
@@ -666,7 +666,7 @@ public final class CollabSession {
         baseLock.lock();
         try {
             // frozen here means createPages was checked; a freeze landing after it is answered 409 frozen at the save
-            out = flow.start( p, changeNote == null ? "" : changeNote, markupSyntax, frozen, admin, completions );
+            out = flow.start( p, changeNote == null ? "" : changeNote, markupSyntax, frozen, letPast, completions );
         } finally {
             baseLock.unlock();
             if( out == null || out.response() != null ) {

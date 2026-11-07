@@ -78,6 +78,15 @@ class CollabSessionRegistryFrozenAccessTest {
             return admins.contains( participantSession );
         }
 
+        /** The test's rule shapes: an ALLOW restricts, {@code [{ALLOW broken}]} cannot be evaluated (throws). */
+        @Override
+        public boolean restricts( final String pageName, final String text ) {
+            if( text.contains( "[{ALLOW broken}]" ) ) {
+                throw new IllegalStateException( "test: the access rules cannot be read" );
+            }
+            return text.contains( "[{ALLOW " );
+        }
+
         @Override
         public boolean mayAccessAsIf( final Object participantSession, final String pageName, final String baseText ) {
             if( baseText.contains( "[{ALLOW broken}]" ) ) {
@@ -256,6 +265,57 @@ class CollabSessionRegistryFrozenAccessTest {
             root.response().participantId(), "root", root.session().view().head(), "" );
         assertEquals( 200, published.status(), published::toString );
         assertInstanceOf( Joined.class, joinAs( "mallory" ), "published by an administrator: the page's own rules apply" );
+    }
+
+    /** Ruling F3': a deleted page with no rules is recreated and published by anyone with createPages. */
+    @Test
+    void aGuardWithoutRulesLetsACreatePagesUserRecreateAndPublish() {
+        writer.seed( PAGE, "an open page\n", Map.of() );
+        final Joined alice = assertInstanceOf( Joined.class, joinAs( "alice" ) );
+        type( alice, "alice", "edit " );
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+        final Joined bob = assertInstanceOf( Joined.class, joinAs( "bob" ) );
+
+        final com.wikantik.collab.model.PublishResponse published = bob.session().publish(
+            bob.response().participantId(), "bob", bob.session().view().head(), "" );
+
+        assertEquals( 200, published.status(), published::toString );
+    }
+
+    @Test
+    void aFrontmatterRuleInTheGuardMakesPublishingAdminOnly() {
+        writer.seed( PAGE, "plain body\n", Map.of( "acl", "[{ALLOW edit alice}]" ) );
+        final Joined alice = assertInstanceOf( Joined.class, joinAs( "alice" ) );
+        type( alice, "alice", "x" );
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+
+        final com.wikantik.collab.model.PublishResponse refused = alice.session().publish(
+            alice.response().participantId(), "alice", alice.session().view().head(), "" );
+
+        assertEquals( 409, refused.status(), refused::toString );
+        assertEquals( CollabSession.GUARDED, refused.reason() );
+    }
+
+    @Test
+    void aGuardThatCannotBeEvaluatedMakesPublishingAdminOnly() {
+        writer.seed( PAGE, "[{ALLOW broken}]\nx\n", Map.of() );
+        permissions.admins.add( "alice" );   // joins as an administrator, then is not one any more
+        final Joined alice = assertInstanceOf( Joined.class, joinAs( "alice" ) );
+        type( alice, "alice", "y" );
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+        permissions.admins.clear();
+
+        final com.wikantik.collab.model.PublishResponse refused = alice.session().publish(
+            alice.response().participantId(), "alice", alice.session().view().head(), "" );
+        assertEquals( 409, refused.status(), refused::toString );
+        assertEquals( CollabSession.GUARDED, refused.reason() );
+
+        permissions.admins.add( "alice" );
+        assertEquals( 200, alice.session().publish( alice.response().participantId(), "alice",
+            alice.session().view().head(), "" ).status(), "an administrator still publishes it" );
     }
 
     // ---- a missed or failed freeze (security re-review 1) ----------------------------------------------------------

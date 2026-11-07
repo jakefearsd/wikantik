@@ -65,6 +65,27 @@ final class EditRecheck {
     }
 
     /**
+     * Ruling F3': the guard {@code p}'s publish may pass, or null. No guard is passed trivially; a guard that does not
+     * restrict ({@link CollabPermissions#restricts}: the engine reads no rules in it) is passed by anyone; one that
+     * restricts, or cannot be evaluated (fail closed, logged), only by an administrator.
+     */
+    static String guardLetPast( final UUID session, final Participant p, final CollabPermissions permissions,
+                                final String guard, final String page ) {
+        if( guard == null ) {
+            return null;
+        }
+        boolean restricts;
+        try {
+            restricts = permissions.restricts( page, guard );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: the guard of {} could not be evaluated; only an administrator may publish: {}",
+                session, page, e.getMessage() );
+            restricts = true;
+        }
+        return !restricts || isAdmin( session, p, permissions ) ? guard : null;
+    }
+
+    /**
      * Ruling F3: whether {@code p} is an administrator, asked uncached with no session lock held. Fails closed: a check
      * that throws is a refusal (logged).
      */

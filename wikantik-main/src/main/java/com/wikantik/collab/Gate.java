@@ -129,26 +129,15 @@ final class Gate {
         return oversize ? new PublishResponse( 413, base, "oversize", false ) : null;
     }
 
-    /** Anything shaped like an access rule: a brace, then {@code allow} or {@code deny} in any case. */
-    private static final java.util.regex.Pattern RULE_SHAPED = java.util.regex.Pattern.compile( "(?i)\\{\\s*(allow|deny)" );
-
     /**
-     * Ruling F3: whether a draft's guard restricts its publishing to administrators: it is set and its text holds
-     * anything shaped like an access rule (broader than what the wiki enforces, so it errs towards administrators). A
-     * deleted page with no rules had nothing to declassify, and its draft is recreated by anyone with
-     * {@code createPages}.
+     * Ruling F3', under the lock: 409 {@code guarded} when the draft has a guard other than the one this publish was let
+     * past ({@code letPast}: none restricted, or the publisher is an administrator), else null. A guard that appeared
+     * or changed since it was evaluated is refused too (fail closed; the retry evaluates it). A recreate merge may have
+     * stripped the old rules from the draft, so a routine publish would declassify its restricted text.
      */
-    static boolean guardRestricts( final String guardText ) {
-        return guardText != null && RULE_SHAPED.matcher( guardText ).find();
-    }
-
-    /**
-     * Ruling F3, under the lock: 409 {@code guarded} when the draft's guard restricts publishing and the publisher was
-     * not found an administrator, else null. A recreate merge may have stripped the old rules from the draft, so a
-     * routine publish would declassify its restricted text onto the looser recreated page.
-     */
-    static PublishResponse guardedPublish( final Draft d, final Participant p, final boolean admin ) {
-        if( admin || !guardRestricts( d.record.guardText() ) ) {
+    static PublishResponse guardedPublish( final Draft d, final Participant p, final String letPast ) {
+        final String guard = d.record.guardText();
+        if( guard == null || guard.equals( letPast ) ) {
             return null;
         }
         LOG.info( "collab session {} ({}): publish by {} refused: the draft is guarded; an administrator must publish",

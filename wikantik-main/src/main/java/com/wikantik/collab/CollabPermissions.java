@@ -62,4 +62,13 @@ public interface CollabPermissions {
     default boolean mayAccessAsIf( final Object participantSession, final String pageName, final String baseText ) {
         return false;
     }
+
+    /**
+     * Ruling F3': whether {@code text}, read as {@code pageName}'s text by the wiki's own access-rule parse, holds access
+     * rules (a non-empty ACL) or is locked by rules it cannot read. A frozen draft's guard that restricts makes the draft
+     * publishable only by an administrator. A port that cannot evaluate it answers true (the default): fail closed.
+     */
+    default boolean restricts( final String pageName, final String text ) {
+        return true;
+    }
 }

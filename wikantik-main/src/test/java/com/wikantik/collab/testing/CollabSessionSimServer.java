@@ -136,6 +136,12 @@ public final class CollabSessionSimServer implements SimServer {
             return true;
         }
 
+        /** Ruling F3': a guard restricts when it holds a rule (these tests' pages carry none unless they say so). */
+        @Override
+        public boolean restricts( final String pageName, final String text ) {
+            return text.contains( "[{ALLOW" );
+        }
+
         void revoke( final String authorKey ) {
             revoked.add( authorKey );
         }

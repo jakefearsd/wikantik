@@ -81,6 +81,12 @@ class CollabSessionRegistryLifecycleTest {
             return true;
         }
 
+        /** Ruling F3': a guard restricts when it holds a rule (these tests' pages carry none unless they say so). */
+        @Override
+        public boolean restricts( final String pageName, final String text ) {
+            return text.contains( "[{ALLOW" );
+        }
+
         @Override
         public boolean signedIn( final Object participantSession ) {
             if( throwing.contains( participantSession ) ) {

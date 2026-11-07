@@ -82,6 +82,12 @@ class CollabSessionContributorsTest {
         public boolean canCreate( final Object participantSession, final String pageName ) {
             return true;
         }
+
+        /** Ruling F3': a guard restricts when it holds a rule (these tests' pages carry none unless they say so). */
+        @Override
+        public boolean restricts( final String pageName, final String text ) {
+            return text.contains( "[{ALLOW" );
+        }
     };
 
     private InMemoryCollabStore store;

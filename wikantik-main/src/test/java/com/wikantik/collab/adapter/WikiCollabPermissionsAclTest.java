@@ -157,4 +157,33 @@ class WikiCollabPermissionsAclTest {
 
         assertFalse( new WikiCollabPermissions( engine ).mayAccessAsIf( bob, "GonePage", text ), text );
     }
+
+    // ---- ruling F3': a guard restricts exactly when the engine's own access-rule parse says so -----------------------
+
+    @Test
+    void aFrontmatterRuleMakesTheGuardRestrict() {
+        final WikiCollabPermissions permissions = new WikiCollabPermissions( engine );
+        assertTrue( permissions.restricts( "GonePage",
+            FrontmatterWriter.writeUnfolded( Map.of( "acl", "[{ALLOW edit Bob}]" ), "body\n" ) ) );
+        assertTrue( permissions.restricts( "GonePage",
+            FrontmatterWriter.writeUnfolded( Map.of( "note", "[{ALLOW view Bob}]" ), "body\n" ) ),
+            "a rule in any field counts" );
+    }
+
+    @Test
+    void aBodyRuleOrALockMakesTheGuardRestrict() {
+        final WikiCollabPermissions permissions = new WikiCollabPermissions( engine );
+        assertTrue( permissions.restricts( "GonePage", "[{ALLOW edit Bob}]\nbody\n" ) );
+        assertTrue( permissions.restricts( "GonePage", "[{ALLOW frobnicate Bob}]\nbody\n" ), "a lock restricts" );
+        assertTrue( permissions.restricts( "GonePage", "%% [{ALLOW edit Bob}] %%\nbody\n" ), "a commented rule locks" );
+    }
+
+    @Test
+    void aTextWithoutRulesDoesNotRestrict() {
+        final WikiCollabPermissions permissions = new WikiCollabPermissions( engine );
+        assertFalse( permissions.restricts( "GonePage", "just a page\n" ) );
+        assertFalse( permissions.restricts( "GonePage", "`[{ALLOW edit Bob}]` shown as code\n" ) );
+        assertFalse( permissions.restricts( "GonePage",
+            FrontmatterWriter.writeUnfolded( Map.of( "title", "Plain" ), "body\n" ) ) );
+    }
 }

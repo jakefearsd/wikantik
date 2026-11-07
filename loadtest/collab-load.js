@@ -4,7 +4,7 @@
  *   k6 run -e BASE_URL=http://localhost:8080 -e LOADTEST_ADMIN_USER=testbot -e LOADTEST_ADMIN_PASS=... loadtest/collab-load.js
  *
  * against a LOCAL deployment started with wikantik.collab.enabled=true (never prod: it creates pages, drafts and
- * publishes). N simulated editors (default 20) are spread over M pages (default 5). Each editor joins its page's shared
+ * publishes). N simulated editors (default 15) are spread over M pages (default 5). Each editor joins its page's shared
  * draft, then pushes a small insertion at typing cadence (about one push per second, jittered), resyncing from the
  * server when its base is stale (409 stale-base is normal under contention and is counted, not failed). A few
  * listener VUs per page only long-poll, as idle viewers do. Roughly 1 push in 50 is followed by a publish.
@@ -12,7 +12,7 @@
  * Reports: push latency (p95 target below 150 ms), the 409 and 429 rates of pushes, and publish latency.
  *
  * Environment: BASE_URL, LOADTEST_ADMIN_USER, LOADTEST_ADMIN_PASS (the editors share one account, each with its own
- * participant), EDITORS (20), PAGES (5), LISTENERS_PER_PAGE (1), DURATION (2m), PUBLISH_EVERY (50 pushes, 0 = never).
+ * participant; at most 4 seats per page, see below), EDITORS (15), PAGES (5), LISTENERS_PER_PAGE (1), DURATION (2m), PUBLISH_EVERY (50 pushes, 0 = never).
  */
 import http from 'k6/http';
 import { check, sleep, fail } from 'k6';
@@ -22,13 +22,15 @@ import exec from 'k6/execution';
 const BASE = (__ENV.BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
 const USER = __ENV.LOADTEST_ADMIN_USER || 'testbot';
 const PASS = __ENV.LOADTEST_ADMIN_PASS || '';
-const EDITORS = parseInt(__ENV.EDITORS || '20', 10);
+// one account holds at most 4 seats per session (CollabSessionRegistry.MAX_SEATS_PER_AUTHOR): with the shared login,
+// EDITORS / PAGES + LISTENERS_PER_PAGE must stay at or under 4, or the extra joins answer 429 session-full
+const EDITORS = parseInt(__ENV.EDITORS || '15', 10);
 const PAGES = parseInt(__ENV.PAGES || '5', 10);
 const LISTENERS_PER_PAGE = parseInt(__ENV.LISTENERS_PER_PAGE || '1', 10);
 const DURATION = __ENV.DURATION || '2m';
 const PUBLISH_EVERY = parseInt(__ENV.PUBLISH_EVERY || '50', 10);
-const RUN = Math.random().toString(36).slice(2, 8);
-const pageName = (i) => `CollabLoad${RUN}P${i}`;
+// module scope runs once per VU, so the run id is drawn in setup() and handed to every VU (and teardown) as data
+const pageName = (run, i) => `CollabLoad${run}P${i}`;
 
 const pushLatency = new Trend('collab_push_latency', true);
 const publishLatency = new Trend('collab_publish_latency', true);
@@ -39,6 +41,8 @@ const pushFailed = new Rate('collab_push_failed_rate');
 const publishes = new Counter('collab_publishes');
 
 export const options = {
+  // each VU logs in once and keeps its session: k6 otherwise clears the cookie jar every iteration (all 401s)
+  noCookiesReset: true,
   scenarios: {
     editors: { executor: 'constant-vus', vus: EDITORS, duration: DURATION, exec: 'editor' },
     listeners: {
@@ -56,6 +60,7 @@ const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/
 
 /** Seeds the pages once; each VU logs in for itself (k6 gives every VU its own cookie jar). */
 export function setup() {
+  const run = Math.random().toString(36).slice(2, 8);
   const jar = http.cookieJar();
   const login = http.post(`${BASE}/api/auth/login`, JSON.stringify({ username: USER, password: PASS }), { headers: JSON_HEADERS });
   if (login.status !== 200) fail(`setup login as ${USER} answered ${login.status}: ${login.body}`);
@@ -64,18 +69,18 @@ export function setup() {
     fail('collaboration is not enabled on this wiki (start it with wikantik.collab.enabled=true)');
   }
   for (let i = 0; i < PAGES; i++) {
-    const r = http.put(`${BASE}/api/pages/${pageName(i)}`,
+    const r = http.put(`${BASE}/api/pages/${pageName(run, i)}`,
       JSON.stringify({ content: `Collab load page ${i}.\n`, metadata: { type: 'article' } }), { headers: JSON_HEADERS });
-    if (r.status !== 200) fail(`seeding ${pageName(i)} answered ${r.status}: ${r.body}`);
+    if (r.status !== 200) fail(`seeding ${pageName(run, i)} answered ${r.status}: ${r.body}`);
   }
   jar.clear(BASE);
-  return { pages: PAGES };
+  return { run };
 }
 
-export function teardown() {
+export function teardown(data) {
   http.post(`${BASE}/api/auth/login`, JSON.stringify({ username: USER, password: PASS }), { headers: JSON_HEADERS });
   for (let i = 0; i < PAGES; i++) {
-    http.del(`${BASE}/api/pages/${pageName(i)}`, null, { headers: JSON_HEADERS });
+    http.del(`${BASE}/api/pages/${pageName(data.run, i)}`, null, { headers: JSON_HEADERS });
   }
 }
 
@@ -114,7 +119,10 @@ function insertion(length, pos, text) {
 function join(page) {
   const r = http.post(`${BASE}/api/collab/${page}/join`,
     JSON.stringify({ priorClientId: null, initialText: null, initialMeta: null }), { headers: JSON_HEADERS, tags: { name: 'join' } });
-  if (r.status !== 200) fail(`join ${page} answered ${r.status}: ${r.body}`);
+  if (r.status !== 200) {
+    sleep(1);   // a refused join must not spin: the next iteration retries it
+    fail(`join ${page} answered ${r.status}: ${r.body}`);
+  }
   const j = r.json();
   return {
     page, sessionId: j.sessionId, participantId: j.participantId, clientId: j.clientID, version: j.version,
@@ -161,10 +169,10 @@ function push(s, text) {
   return r.status;
 }
 
-export function editor() {
+export function editor(data) {
   ensureLogin();
   if (!st) {
-    st = join(pageName((exec.vu.idInTest - 1) % PAGES));
+    st = join(pageName(data.run, (exec.vu.idInTest - 1) % PAGES));
     st.pushes = 0;
   }
   const status = push(st, 'x');
@@ -173,9 +181,9 @@ export function editor() {
     if (!pull(st, '10s')) st = null;
   } else if (status === 200) {
     st.pushes++;
-    // keep the cursors and the document length truthful about others' edits; returns at once (our own push is ahead)
-    if (!pull(st, '10s')) st = null;
-    if (st && PUBLISH_EVERY > 0 && st.pushes % PUBLISH_EVERY === 0) {
+    // no pull here: with nobody else ahead it would park for the whole poll timeout and stall the typing cadence. A
+    // later push that is behind answers 409, and the pull above catches up at once (others are ahead by then).
+    if (PUBLISH_EVERY > 0 && st.pushes % PUBLISH_EVERY === 0) {
       const p = http.post(`${BASE}/api/collab/${st.page}/publish`,
         JSON.stringify({ sessionId: st.sessionId, participantId: st.participantId, version: st.version, changeNote: 'load' }),
         { headers: JSON_HEADERS, tags: { name: 'publish' } });
@@ -189,9 +197,9 @@ export function editor() {
   sleep(0.6 + Math.random() * 0.8);   // typing cadence
 }
 
-export function listener() {
+export function listener(data) {
   ensureLogin();
-  if (!st) st = join(pageName((exec.vu.idInTest - 1) % PAGES));
+  if (!st) st = join(pageName(data.run, (exec.vu.idInTest - 1) % PAGES));
   // the real long-poll: parked until a peer pushes or the server's poll timeout elapses
   if (!pull(st, '60s')) st = null;
 }

@@ -26,8 +26,10 @@ import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 /**
  * The pending-publish marker of {@link PublishFlow} (A2, E39, as amended by ruling D): recording on it the page version
@@ -115,6 +117,16 @@ final class PublishMarker {
      */
     static boolean claimsSaved( final String savedHash, final PageState now ) {
         return savedHash == null || savedHash.equals( now.contentHash() );
+    }
+
+    /**
+     * True when the marked version cannot be judged yet: {@code atVersion} found nothing, the draft is not frozen, and no
+     * page exists under the draft's name at all ({@code latest}, asked only then): the page was renamed away and the
+     * rekey is still owed, or a delete's freeze is still to land. The marker then waits rather than being dropped.
+     */
+    static boolean waitsForTheName( final Optional< PageState > atVersion, final boolean frozen,
+                                    final Supplier< Optional< PageState > > latest ) {
+        return atVersion.isEmpty() && !frozen && latest.get().isEmpty();
     }
 
     /** A2's content-hash rule, for a marker without a saved version: {@code saved} is by the author with S_V's text. */

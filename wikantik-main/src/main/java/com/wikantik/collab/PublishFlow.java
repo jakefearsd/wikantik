@@ -537,7 +537,7 @@ final class PublishFlow {
         }
         final int at = savedVersion != null ? savedVersion : b + 1;
         final Optional< PageState > next = writer.version( page, at );
-        if( next.isEmpty() && !frozen && writer.latest( page ).isEmpty() ) {
+        if( PublishMarker.waitsForTheName( next, frozen, () -> writer.latest( page ) ) ) {
             // No page under the draft's name and the draft is not frozen: the page was renamed away and the rekey is still
             // owed (or a delete's freeze is still to land, or the orphan sweep's). Neither tells whether the publish's
             // version stands, so the marker waits: dropping it here would merge the published text again as an outside

@@ -150,6 +150,63 @@ class TextDiffTest {
     }
 
     @Test
+    void aCommonPrefixEndingMidLineStillDiffsExactly() {
+        // the shared "A" ends inside a line: the trim must not hand the line diff a partial line
+        final String a = "AB\nQ\n";
+        final String b = "AC\nAB\nQ\n";
+        final ChangeSet cs = TextDiff.changeSet( a, b );
+        assertEquals( b, cs.apply( a ) );
+        assertEquals( 1, cs.touchedRanges().size(), "one insertion" );
+        // the same shape between kept lines, with a mid-line prefix and a mid-line suffix around the edit
+        final String c = "K\nAB\nQ\nAB\nZ\n";
+        final String d = "K\nAC\nAB\nQ\nAB\nZ\n";
+        final ChangeSet cd = TextDiff.changeSet( c, d );
+        assertEquals( d, cd.apply( c ) );
+        assertEquals( 1, cd.touchedRanges().size(), "one insertion" );
+    }
+
+    /** Lines from a tiny alphabet: no unique column-0 marker, many repeated lines and shared prefixes and suffixes. */
+    private static String plainLines( final Random r, final int n ) {
+        final StringBuilder sb = new StringBuilder();
+        for ( int i = 0; i < n; i++ ) {
+            final int len = r.nextInt( 4 );
+            for ( int k = 0; k < len; k++ ) {
+                sb.append( "AB \uD83D\uDE00".charAt( r.nextInt( 3 ) ) );
+            }
+            if ( r.nextInt( 9 ) == 0 ) {
+                sb.append( "\uD83D\uDE00" );
+            }
+            sb.append( '\n' );
+        }
+        return sb.toString();
+    }
+
+    @Test
+    void randomLineEditsWithoutUniqueMarkersApplyExactly() {
+        final Random r = new Random( 47 );
+        for ( int seq = 0; seq < 3000; seq++ ) {
+            final String[] lines = plainLines( r, 2 + r.nextInt( 30 ) ).split( "(?<=\n)" );
+            final List< String > b = new ArrayList<>( List.of( lines ) );
+            for ( int k = 1 + r.nextInt( 4 ); k > 0; k-- ) {   // multi-hunk line inserts, deletes and replacements
+                final int at = r.nextInt( b.size() + 1 );
+                final int del = Math.min( r.nextInt( 3 ), b.size() - at );
+                b.subList( at, at + del ).clear();
+                b.addAll( at, List.of( plainLines( r, r.nextInt( 3 ) ).split( "(?<=\n)" ) ).stream()
+                        .filter( x -> !x.isEmpty() ).toList() );
+            }
+            final String from = String.join( "", lines );
+            final String to = String.join( "", b );
+            final ChangeSet cs = TextDiff.changeSet( from, to );
+            assertEquals( to, cs.apply( from ), "case " + seq );
+            assertFalse( CollabText.splitsSurrogatePair( from, cs ), "case " + seq );
+            for ( final int[] t : cs.touchedRanges() ) {
+                assertTrue( t[ 0 ] <= t[ 1 ] && t[ 1 ] <= from.length(), "case " + seq );
+            }
+        }
+        assertTrue( warns.isEmpty(), "no fallback: " + warns );
+    }
+
+    @Test
     void theCoarseFallbackIsExactAndWarns() {
         final Random r = new Random( 43 );
         int fellBack = 0;

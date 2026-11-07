@@ -101,6 +101,7 @@ final class PublishFlow {
             owe();   // the page moved and the merge did not land: settle retries it
             return answered( 503, CollabSession.STORE );
         }
+        settled();   // the marker is settled and the session is merged up to the page: nothing is owed any more
         if( merged == ExternalMerge.Result.CHANGED ) {
             return answered( 409, CollabSession.MERGED_RETRY );
         }
@@ -299,6 +300,15 @@ final class PublishFlow {
         return !before.equals( baseKey() );
     }
 
+    private void settled() {
+        lock.lock();
+        try {
+            d.mergeOwed = false;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     void owe() {
         lock.lock();
         try {
@@ -311,10 +321,15 @@ final class PublishFlow {
     private String baseKey() {
         lock.lock();
         try {
-            return d.record.basePageVersion() + ":" + d.record.baseContentHash();
+            return d.baseKey();
         } finally {
             lock.unlock();
         }
+    }
+
+    /** A save's non-{@link Exception} throwable (an {@link Error}) as the runtime failure {@link #failed} handles. */
+    static Exception asException( final Throwable cause ) {
+        return cause instanceof Exception e ? e : new IllegalStateException( "the page save threw " + cause, cause );
     }
 
     /**

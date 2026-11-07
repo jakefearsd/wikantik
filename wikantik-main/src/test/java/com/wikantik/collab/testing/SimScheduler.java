@@ -1056,6 +1056,13 @@ public final class SimScheduler {
                     }
                 }
                 final InvariantView v = view();
+                // fault points are one-shot, so after settleServer() nothing may be left queued or owed: a merge or a
+                // pending publish still outstanding here would hide invariant 4 for good
+                if( v.externalChangePending() || v.publishPending() ) {
+                    throw new SimFailure( "convergence/unsettled", "convergence: the server is not settled at quiescence"
+                        + " (externalChangePending=" + v.externalChangePending() + ", publishPending=" + v.publishPending()
+                        + ")" );
+                }
                 for( final Peer p : peers ) {
                     if( !p.sim.doc().equals( v.doc() ) ) {
                         throw new SimFailure( "convergence/doc", "convergence: client " + p.name + " differs from the server "
@@ -1078,7 +1085,14 @@ public final class SimScheduler {
          */
         private boolean settleServer() {
             final int head = server.view().head();
-            server.settle();
+            // like the registry tick, retry while something is owed: each armed store fault is one-shot and there is at
+            // most one per operation, so a few rounds always get through (the convergence check then demands it)
+            for( int round = 0; round <= FAULT_OPS.size(); round++ ) {
+                server.settle();
+                if( server.reconciled() && !server.view().publishPending() ) {
+                    break;
+                }
+            }
             final int woke = drain();
             settled();
             return woke > 0 || server.view().head() != head || !net.isEmpty();

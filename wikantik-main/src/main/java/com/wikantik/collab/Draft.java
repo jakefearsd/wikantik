@@ -84,6 +84,19 @@ final class Draft {
         return record.pageName();
     }
 
+    /** A3: true, with the change queued for the publish's end, while a publish is running. */
+    boolean queueIfPublishing() {
+        if( publishing ) {
+            mergeQueued = true;
+        }
+        return publishing;
+    }
+
+    /** The base page version and content hash, to tell whether a step changed the base. */
+    String baseKey() {
+        return record.basePageVersion() + ":" + record.baseContentHash();
+    }
+
     void applyAccepted( final List< StoredUpdate > accepted, final String next ) {
         ChangeSet l = local;
         for( final StoredUpdate u : accepted ) {

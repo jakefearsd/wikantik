@@ -491,6 +491,10 @@ public final class CollabSession {
             saved = writer.publish( st.ticket().request() );
         } catch( final WikiException | RuntimeException e ) {
             return failPublish( st.ticket(), e );
+        } catch( final Error e ) {
+            // a filter overflowed the stack, memory ran out, a class failed to link: the publish still ends
+            abandonPublish( st.ticket(), e );
+            throw e;
         }
         return finishPublish( st.ticket(), saved );
     }
@@ -524,6 +528,7 @@ public final class CollabSession {
             lock.unlock();
         }
         final List< Runnable > completions = new ArrayList<>();
+        final String before = baseKey();
         PublishStart out = null;
         baseLock.lock();
         try {
@@ -535,7 +540,20 @@ public final class CollabSession {
             }
         }
         completions.forEach( Runnable::run );
+        if( !before.equals( baseKey() ) ) {
+            recheckEdit();   // the A1 backstop merged an outside write (A5)
+        }
         return out;
+    }
+
+    /** The base page version and content hash, to tell whether a step changed the base. */
+    private String baseKey() {
+        lock.lock();
+        try {
+            return d.baseKey();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -566,6 +584,19 @@ public final class CollabSession {
         return endTicket( ticket, completions -> flow.failed( ticket, failure, completions ) );
     }
 
+    /**
+     * Ends a ticket whose save threw something that is not an {@link Exception} (a {@link StackOverflowError} from a
+     * filter, say), or that its driver gives up on: it is handled as a save that failed with a runtime exception, so a
+     * version it did persist is still claimed or merged, the publishing flag is reset and queued merges run. Answers 500
+     * {@code writer-failed} unless the save turns out to have persisted. The caller rethrows an {@link Error}.
+     *
+     * @throws IllegalStateException when {@code ticket} is not the publish in progress
+     */
+    public PublishResponse abandonPublish( final PublishStart.Ticket ticket, final Throwable cause ) {
+        Objects.requireNonNull( cause, "cause" );
+        return failPublish( ticket, PublishFlow.asException( cause ) );
+    }
+
     private PublishResponse endTicket( final PublishStart.Ticket t, final Function< List< Runnable >, PublishResponse > body ) {
         lock.lock();
         try {
@@ -576,17 +607,23 @@ public final class CollabSession {
             lock.unlock();
         }
         final List< Runnable > completions = new ArrayList<>();
+        final String before = baseKey();
         final PublishResponse out;
         baseLock.lock();
         try {
             out = body.apply( completions );
+        } catch( final RuntimeException | Error e ) {
+            // the post-save half broke: the marker (if the save persisted) is left for settle(), and it is owed
+            LOG.warn( "collab session {}: ending the publish of {} failed; settled later: {}", id, d.pageName(), e.toString() );
+            flow.owe();
+            throw e;
         } finally {
             baseLock.unlock();
             completions.forEach( Runnable::run );
             endPublish();
         }
-        if( out.status() == 200 ) {
-            recheckEdit();
+        if( out.status() == 200 || !before.equals( baseKey() ) ) {
+            recheckEdit();   // after a publish, or a merge of an outside write found by the failed save (A5)
         }
         return out;
     }
@@ -661,10 +698,7 @@ public final class CollabSession {
     private boolean queuedBehindPublish() {
         lock.lock();
         try {
-            if( d.publishing ) {
-                d.mergeQueued = true;
-            }
-            return d.publishing;
+            return d.queueIfPublishing();
         } finally {
             lock.unlock();
         }
@@ -681,19 +715,7 @@ public final class CollabSession {
         } finally {
             lock.unlock();
         }
-        for( final Participant p : all ) {
-            boolean ok;
-            try {
-                ok = permissions.canEdit( p.wikiSession, page );
-            } catch( final RuntimeException e ) {
-                LOG.warn( "collab session {}: the edit check of {} on {} failed; evicting: {}", id, p.id, page, e.getMessage() );
-                ok = false;
-            }
-            if( !ok ) {
-                LOG.info( "collab session {}: participant {} lost edit on {}; evicted", id, p.id, page );
-                evict( p.id );
-            }
-        }
+        EditRecheck.lost( id, all, permissions, page ).forEach( this::evict );
     }
 
     // ---- state -----------------------------------------------------------------------------------------------

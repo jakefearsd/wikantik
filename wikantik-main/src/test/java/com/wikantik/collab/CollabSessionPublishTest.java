@@ -872,4 +872,151 @@ class CollabSessionPublishTest {
         assertEquals( once.doc(), session.view().doc() );
         checkInvariants();
     }
+    // ---- fix round 1 ------------------------------------------------------------------------------------------------
+
+    /** Delegates to the test's page writer; the next {@code latest()} or {@code publish} can be made to throw. */
+    private final class Flaky implements CollabPageWriter {
+        Runnable beforePublish;
+        Error publishError;
+        RuntimeException latestFailure;
+
+        @Override
+        public Optional< PageState > latest( final String pageName ) {
+            final RuntimeException e = latestFailure;
+            latestFailure = null;
+            if( e != null ) {
+                throw e;
+            }
+            return writer.latest( pageName );
+        }
+
+        @Override
+        public Optional< PageState > version( final String pageName, final int version ) {
+            return writer.version( pageName, version );
+        }
+
+        @Override
+        public PublishOutcome publish( final PublishRequest request ) throws WikiException {
+            if( beforePublish != null ) {
+                beforePublish.run();
+            }
+            final Error e = publishError;
+            publishError = null;
+            if( e != null ) {
+                throw e;
+            }
+            return writer.publish( request );
+        }
+    }
+
+    private CollabSession over( final CollabStore st, final CollabPageWriter w ) {
+        store = new InMemoryCollabStore();
+        final SessionRecord rec = CollabSession.newRecord( UUID.randomUUID(), PAGE, writer.latest( PAGE ), "c", clock );
+        return CollabSession.create( rec, ports( st == null ? store : st, w ), config( 3, 500 ), 1000 );
+    }
+
+    @Test
+    void anErrorFromTheSaveAbandonsThePublishAndTheQueuedMergeLands() {   // I1
+        final Flaky flaky = new Flaky();
+        session = over( null, flaky );
+        final JoinResponse a = join( "alice" );
+        type( a, "alice", 0, "X" );
+        // during the save an outside writer saves (its event queues, A3), then a filter blows the stack
+        flaky.beforePublish = () -> {
+            flaky.beforePublish = null;
+            external( BODY + "agent\n", Map.of( "title", "T" ), "agent" );
+        };
+        flaky.publishError = new StackOverflowError();
+        assertThrows( StackOverflowError.class, () -> publish( a, "alice" ) );
+        assertFalse( session.view().publishPending(), "the publishing flag and the marker are reset" );
+        assertEquals( "Xhello\nworld\nagent\n", session.view().doc(), "the queued outside save was merged" );
+        assertEquals( 2, session.view().basePageVersion() );
+        final PublishResponse next = publish( a, "alice" );
+        assertEquals( 200, next.status(), "the next publish is not refused 423" );
+        assertEquals( "Xhello\nworld\nagent\n", latestBody() );
+        checkInvariants();
+    }
+
+    @Test
+    void abandonPublishEndsASplitPublishWhoseSaveThrewAnError() {   // I1, the startPublish/finishPublish path
+        final JoinResponse a = join( "alice" );
+        type( a, "alice", 0, "X" );
+        final PublishStart.Ticket t = start( a, "alice" );
+        final PublishResponse r = session.abandonPublish( t, new StackOverflowError() );
+        assertEquals( 500, r.status() );
+        assertFalse( session.view().publishPending() );
+        assertThrows( IllegalStateException.class, () -> session.finishPublish( t, new PublishOutcome( 2, "x", Map.of(), false ) ),
+            "an abandoned ticket is over" );
+        assertEquals( 200, publish( a, "alice" ).status() );
+        checkInvariants();
+    }
+
+    @Test
+    void anErrorInsideFinishLeavesAStateSettleRepairs() {   // M6
+        final int[] failCommit = { 1 };
+        final CollabStore failing = (CollabStore) Proxy.newProxyInstance( CollabStore.class.getClassLoader(),
+            new Class< ? >[]{ CollabStore.class }, ( proxy, m, args ) -> {
+                if( m.getName().equals( "commitBaseChange" ) && failCommit[ 0 ]-- > 0 ) {
+                    throw new StackOverflowError();
+                }
+                try {
+                    return m.invoke( store, args );
+                } catch( final java.lang.reflect.InvocationTargetException e ) {
+                    throw e.getCause();
+                }
+            } );
+        session = over( failing, writer );
+        final JoinResponse a = join( "alice" );
+        type( a, "alice", 0, "X" );
+        assertThrows( StackOverflowError.class, () -> publish( a, "alice" ) );
+        final CollabSession.View broken = session.view();
+        assertTrue( broken.publishPending() || broken.reconcilePending(), "the registry tick sees something to settle" );
+        assertTrue( broken.reconcilePending(), "a failure inside the post-save half is owed" );
+        session.settle();
+        final CollabSession.View v = session.view();
+        assertFalse( v.publishPending() );
+        assertFalse( v.reconcilePending() );
+        assertEquals( 2, v.basePageVersion() );
+        assertEquals( "Xhello\nworld\n", v.doc(), "claimed, not merged back in" );
+        assertEquals( 200, publish( a, "alice" ).status() );
+    }
+
+    @Test
+    void aSuccessfulStartClearsAStaleOwedMerge() {   // M6
+        final Flaky flaky = new Flaky();
+        session = over( null, flaky );
+        final JoinResponse a = join( "alice" );
+        type( a, "alice", 0, "X" );
+        flaky.latestFailure = new IllegalStateException( "page store down" );
+        session.settle();
+        assertTrue( session.view().reconcilePending() );
+        final PublishStart.Ticket t = start( a, "alice" );
+        assertFalse( session.view().reconcilePending(), "the start reconciled with the page: nothing is owed" );
+        assertEquals( 200, assertDoesNotThrowSave( t ).status() );
+    }
+
+    @Test
+    void theBackstopMergeRechecksEdit() {   // M3, A5
+        final JoinResponse a = join( "alice" );
+        join( "bob" );
+        type( a, "alice", 0, "X" );
+        writer.externalSave( PAGE, BODY + "[{ALLOW edit alice}]\n", Map.of( "title", "T" ), "agent" );   // event missed
+        noEdit.add( "bob" );
+        assertEquals( "publish-merged-retry", publish( a, "alice" ).reason() );
+        assertEquals( 1, session.view().participants(), "bob lost edit with the merged ACL" );
+    }
+
+    @Test
+    void theMergeInsideAFailedSaveRechecksEdit() {   // M3, A5
+        final JoinResponse a = join( "alice" );
+        join( "bob" );
+        type( a, "alice", 0, "X" );
+        final PublishStart.Ticket t = start( a, "alice" );
+        writer.externalSave( PAGE, BODY + "[{ALLOW edit alice}]\n", Map.of( "title", "T" ), "agent" );   // event missed
+        noEdit.add( "bob" );
+        final WikiException conflict = assertThrows( WikiException.class, () -> writer.publish( t.request() ) );
+        assertEquals( "publish-merged-retry", session.failPublish( t, conflict ).reason() );
+        assertEquals( 2, session.view().basePageVersion() );
+        assertEquals( 1, session.view().participants(), "bob lost edit with the merged ACL" );
+    }
 }

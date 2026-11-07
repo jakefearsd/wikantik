@@ -1,0 +1,66 @@
+{
+  "format": 1,
+  "seed": 729,
+  "profile": "AGENT_HEAVY",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 2
+  },
+  "initialDoc": "𝕏w jd𝄞sb😀hdk\n🎉j",
+  "steps": [
+    {
+      "id": 139,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    },
+    {
+      "id": 160,
+      "action": "EXTERNAL_SAVE",
+      "from": 24,
+      "to": 24,
+      "insert": "fm\nh編"
+    },
+    {
+      "id": 193,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "convergence: the server is not settled at quiescence (externalChangePending=true, publishPending=false)",
+    "at": "q1",
+    "kind": "convergence/unsettled"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "𝕏w jd𝄞sb😀hdk\n🎉j\n"
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "𝕏w jd𝄞sb😀hdk\n🎉j\n"
+        }
+      ]
+    }
+  ]
+}

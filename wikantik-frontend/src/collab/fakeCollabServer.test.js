@@ -242,7 +242,8 @@ describe('fakeCollabServer matches the fixture', () => {
     const j = await joinSample(server);
     await push(server, { version: 0, updates: [{ clientID: j.clientID, changes: [11, [0, '!']] }] });
     await replay(server, 'publish.200', { version: 1 });
-    await replay(server, 'publish.409.not-synced', { version: 0 });
+    await replay(server, 'publish.409.not-synced'); // version 9: above head (1)
+    expect((await replay(server, 'publish.200', { version: 0 })).body.pageVersion, 'an older synced version publishes head').toBeGreaterThan(0);
     server.config.publishMergedRetry = true;
     await replay(server, 'publish.409.publish-merged-retry', { version: 1 });
     server.config.publishInvalid = true;

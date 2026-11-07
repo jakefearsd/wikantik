@@ -277,6 +277,9 @@ public final class CollabSessionSimServer implements SimServer {
             saved = h.save().complete();
         } catch( final WikiException e ) {
             return result( session.failPublish( h.ticket(), e ) );
+        } catch( final RuntimeException | Error e ) {
+            session.abandonPublish( h.ticket(), e );
+            throw e;
         }
         return result( session.finishPublish( h.ticket(), saved ) );
     }

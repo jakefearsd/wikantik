@@ -264,7 +264,8 @@ export function createFakeCollabServer({
       config.publishMergedRetry = false;
       return reply(409, { reason: 'publish-merged-retry' });
     }
-    if (body.version !== version) return reply(409, { reason: 'not-synced' });
+    // the server publishes head (section 7.3): only a version it never issued is not-synced
+    if (!Number.isInteger(body.version) || body.version < 0 || body.version > version) return reply(409, { reason: 'not-synced' });
     if (config.publishInvalid) {
       return reply(422, { error: 'frontmatter_validation_failed', violations: [{ field: 'tags', severity: 'ERROR', message: 'tags must be a list' }] });
     }

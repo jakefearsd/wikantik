@@ -1,0 +1,166 @@
+{
+  "format": 1,
+  "seed": 321,
+  "profile": "LOSSY",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 300,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 2
+  },
+  "initialDoc": "𝕏f中𝄞hizc作z𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq",
+  "steps": [
+    {
+      "id": 62,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 13,
+      "to": 13,
+      "insert": "vcij字"
+    },
+    {
+      "id": 64,
+      "action": "SEND_PUSH",
+      "client": 0
+    },
+    {
+      "id": 65,
+      "action": "DELIVER",
+      "messageId": "64.0"
+    },
+    {
+      "id": 95,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    },
+    {
+      "id": 129,
+      "action": "PUBLISH",
+      "client": 1
+    },
+    {
+      "id": 133,
+      "action": "DELIVER",
+      "messageId": "129.0"
+    },
+    {
+      "id": 148,
+      "action": "STORE_FAULT",
+      "op": "UPDATE_SESSION"
+    },
+    {
+      "id": 178,
+      "action": "EXTERNAL_SAVE",
+      "from": 10,
+      "to": 10,
+      "insert": "字"
+    },
+    {
+      "id": 180,
+      "action": "CRASH_RECOVER"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "convergence: the server is not settled at quiescence (externalChangePending=true, publishPending=false)",
+    "at": "q2",
+    "kind": "convergence/unsettled"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "𝕏f中𝄞hizc作z𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            12,
+            [
+              0,
+              "vcij字"
+            ],
+            31
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "𝕏f中𝄞hizc作zvcij字𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq\n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c1",
+              "changes": [
+                12,
+                [
+                  0,
+                  "vcij字"
+                ],
+                31
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 1
+        },
+        {
+          "type": "resync",
+          "version": 1,
+          "clientId": "mjuohs00.2-c1",
+          "participantId": "mjuohs00.2-p1",
+          "doc": "𝕏f中𝄞hizc作zvcij字𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq\n",
+          "unsynced": 1
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "𝕏f中𝄞hizc作zvcij字𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "𝕏f中𝄞hizc作z𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq\n"
+        },
+        {
+          "type": "resync",
+          "version": 1,
+          "clientId": "mjuohs00.2-c2",
+          "participantId": "mjuohs00.2-p2",
+          "doc": "𝕏f中𝄞hizc作zvcij字𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq\n",
+          "unsynced": 0,
+          "rebased": 0
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "𝕏f中𝄞hizc作zvcij字𝕏du\n作\n協😀n🎉s ec作q𝕏𝄞𝄞l作\nsq\n",
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

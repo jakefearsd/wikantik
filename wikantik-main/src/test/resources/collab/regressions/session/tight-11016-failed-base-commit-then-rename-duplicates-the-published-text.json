@@ -1,0 +1,192 @@
+{
+  "format": 1,
+  "seed": 11016,
+  "profile": "TIGHT",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 200,
+    "ringSize": 2,
+    "rewrite": "none",
+    "clients": 2
+  },
+  "initialDoc": "😀𝄞jx𝄞r 𝄞😀😀😀集\n w字🎉\nhkb\nzln集ao\n\n協ad🎉g文dm協y we作𝄞hq\n t😀rzx集z ie\nyzb\n\n𝄞ju  do\nl\n編編w集u集作中bairf",
+  "steps": [
+    {
+      "id": 5,
+      "action": "LOCAL_EDIT",
+      "client": 1,
+      "from": 0,
+      "to": 0,
+      "insert": "wwujd𝕏⟦NBROA⟧"
+    },
+    {
+      "id": 9,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 16,
+      "action": "DELIVER",
+      "messageId": "9.0"
+    },
+    {
+      "id": 33,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 38,
+      "action": "PUBLISH",
+      "client": 1
+    },
+    {
+      "id": 39,
+      "action": "DELIVER",
+      "messageId": "33.0"
+    },
+    {
+      "id": 41,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    },
+    {
+      "id": 48,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 51,
+      "action": "STORE_FAULT",
+      "op": "UPDATE_SESSION"
+    },
+    {
+      "id": 53,
+      "action": "RENAME"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "token oracle: text duplicated: token NBROA appears 2 times in the draft",
+    "at": "q4",
+    "kind": "token-oracle/duplicate"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "😀𝄞jx𝄞r 𝄞😀😀😀集\n w字🎉\nhkb\nzln集ao\n\n協ad🎉g文dm協y we作𝄞hq\n t😀rzx集z ie\nyzb\n\n𝄞ju  do\nl\n編編w集u集作中bairf\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                [
+                  0,
+                  "wwujd𝕏⟦NBROA⟧"
+                ],
+                101
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "wwujd𝕏⟦NBROA⟧😀𝄞jx𝄞r 𝄞😀😀😀集\n w字🎉\nhkb\nzln集ao\n\n協ad🎉g文dm協y we作𝄞hq\n t😀rzx集z ie\nyzb\n\n𝄞ju  do\nl\n編編w集u集作中bairf\n",
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 1,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "wwujd𝕏⟦NBROA⟧😀𝄞jx𝄞r 𝄞😀😀😀集\n w字🎉\nhkb\nzln集ao\n\n協ad🎉g文dm協y we作𝄞hq\n t😀rzx集z ie\nyzb\n\n𝄞ju  do\nl\n編編w集u集作中bairf\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "😀𝄞jx𝄞r 𝄞😀😀😀集\n w字🎉\nhkb\nzln集ao\n\n協ad🎉g文dm協y we作𝄞hq\n t😀rzx集z ie\nyzb\n\n𝄞ju  do\nl\n編編w集u集作中bairf\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            [
+              0,
+              "wwujd𝕏⟦NBROA⟧"
+            ],
+            101
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "wwujd𝕏⟦NBROA⟧😀𝄞jx𝄞r 𝄞😀😀😀集\n w字🎉\nhkb\nzln集ao\n\n協ad🎉g文dm協y we作𝄞hq\n t😀rzx集z ie\nyzb\n\n𝄞ju  do\nl\n編編w集u集作中bairf\n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                [
+                  0,
+                  "wwujd𝕏⟦NBROA⟧"
+                ],
+                101
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 1
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                [
+                  0,
+                  "wwujd𝕏⟦NBROA⟧"
+                ],
+                101
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "wwujd𝕏⟦NBROA⟧😀𝄞jx𝄞r 𝄞😀😀😀集\n w字🎉\nhkb\nzln集ao\n\n協ad🎉g文dm協y we作𝄞hq\n t😀rzx集z ie\nyzb\n\n𝄞ju  do\nl\n編編w集u集作中bairf\n",
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

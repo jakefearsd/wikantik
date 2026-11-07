@@ -1,0 +1,279 @@
+{
+  "format": 1,
+  "seed": 18636,
+  "profile": "CALM",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 2
+  },
+  "initialDoc": "eaj d文\n😀\n𝄞xt編lu\n協\nc\n😀字xjcmnxle集 sfzufcbb",
+  "steps": [
+    {
+      "id": 19,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 1,
+      "to": 7,
+      "insert": "p⟦OJSLY⟧"
+    },
+    {
+      "id": 42,
+      "action": "SEND_PUSH",
+      "client": 0
+    },
+    {
+      "id": 48,
+      "action": "DELIVER",
+      "messageId": "42.0"
+    },
+    {
+      "id": 58,
+      "action": "DELETE"
+    },
+    {
+      "id": 79,
+      "action": "EXTERNAL_SAVE",
+      "from": 0,
+      "to": 0,
+      "insert": "yh⟦IBDMJ⟧"
+    },
+    {
+      "id": 96,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 102,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    },
+    {
+      "id": 103,
+      "action": "DELIVER",
+      "messageId": "96.0"
+    },
+    {
+      "id": 105,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 118,
+      "action": "DELIVER",
+      "messageId": "105.0"
+    },
+    {
+      "id": 143,
+      "action": "STORE_FAULT",
+      "op": "UPDATE_SESSION"
+    },
+    {
+      "id": 157,
+      "action": "RENAME"
+    },
+    {
+      "id": 167,
+      "action": "PUBLISH",
+      "client": 0
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "token oracle: text duplicated: token OJSLY appears 2 times in the draft",
+    "at": "q5",
+    "kind": "token-oracle/duplicate"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "eaj d文\n😀\n𝄞xt編lu\n協\nc\n😀字xjcmnxle集 sfzufcbb\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            1,
+            [
+              6,
+              "p⟦OJSLY⟧"
+            ],
+            37
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "ep⟦OJSLY⟧😀\n𝄞xt編lu\n協\nc\n😀字xjcmnxle集 sfzufcbb\n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c1",
+              "changes": [
+                1,
+                [
+                  6,
+                  "p⟦OJSLY⟧"
+                ],
+                37
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 2
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c1",
+              "changes": [
+                1,
+                [
+                  6,
+                  "p⟦OJSLY⟧"
+                ],
+                37
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                [
+                  1,
+                  "yh⟦IBDMJ⟧"
+                ],
+                8,
+                [
+                  36
+                ],
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "sendable": []
+        },
+        {
+          "type": "resync",
+          "version": 2,
+          "clientId": "mjuohs00.1-c4",
+          "participantId": "mjuohs00.1-p4",
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "unsynced": 0
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 2,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "eaj d文\n😀\n𝄞xt編lu\n協\nc\n😀字xjcmnxle集 sfzufcbb\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c1",
+              "changes": [
+                1,
+                [
+                  6,
+                  "p⟦OJSLY⟧"
+                ],
+                37
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                [
+                  1,
+                  "yh⟦IBDMJ⟧"
+                ],
+                8,
+                [
+                  36
+                ],
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "sendable": []
+        },
+        {
+          "type": "resync",
+          "version": 2,
+          "clientId": "mjuohs00.1-c3",
+          "participantId": "mjuohs00.1-p3",
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "unsynced": 0
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 2,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "yh⟦IBDMJ⟧p⟦OJSLY⟧\n",
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

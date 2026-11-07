@@ -515,6 +515,7 @@ final class PublishFlow {
         final Integer savedVersion;
         final String savedHash;
         final String page;
+        final boolean frozen;
         lock.lock();
         try {
             v = d.record.pendingPublishVersion();
@@ -526,11 +527,22 @@ final class PublishFlow {
             savedVersion = d.record.pendingPublishSavedVersion();
             savedHash = d.record.pendingPublishSavedHash();
             page = d.pageName();
+            frozen = d.frozen();
         } finally {
             lock.unlock();
         }
         final int at = savedVersion != null ? savedVersion : b + 1;
         final Optional< PageState > next = writer.version( page, at );
+        if( next.isEmpty() && !frozen && writer.latest( page ).isEmpty() ) {
+            // No page under the draft's name and the draft is not frozen: the page was renamed away and the rekey is still
+            // owed (or a delete's freeze is still to land, or the orphan sweep's). Neither tells whether the publish's
+            // version stands, so the marker waits: dropping it here would merge the published text again as an outside
+            // write once the draft reaches the new name, duplicating it (fuzz seed TIGHT 11016). Only frozen counts,
+            // not deleteSeen, which stays set after the page is recreated (CALM 18636).
+            LOG.debug( "collab session {} ({}): no page under this name yet; the pending publish is settled later", d.id,
+                page );
+            return false;
+        }
         if( next.isPresent() && author.equals( next.get().author() ) ) {
             final PublishStart.Ticket t = marker.recovered( v, b, author, page );
             if( t == null ) {

@@ -24,6 +24,7 @@ import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredMetaOp;
 import com.wikantik.collab.model.StoredUpdate;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -152,13 +153,26 @@ public interface CollabStore {
     /**
      * Every draft, active and frozen, without its bodies: oldest real edit first ({@link DraftEntry#lastActivity}, ties
      * by page name). {@link DraftEntry#lastEditAt} is the later of the stored {@code lastEditAt} and the newest retained
-     * text update or authored meta op; a server update (a merge, a seed) or an unauthored meta op is not an edit.
+     * edit. An <em>edit</em> is a logged update or meta op with an author key: a participant's push, and a seed's text
+     * and initial meta (A11, stored with its creator's key; the session's own clock counts a seeded text too). A server
+     * update or meta op without an author (an external merge, a publish rewrite, a discard) is not an edit.
      */
     List< DraftEntry > draftEntries();
 
     /**
-     * The page names that have a draft, active or frozen, each with its stored {@code hasUnpublished} flag. Reads only
-     * those two columns: the draft-active index reloads it often.
+     * How much later than the stored {@code lastEditAt} marker a logged edit must be to count as one the marker never
+     * recorded ({@link #unpublishedByPage}): the marker is the application's clock when the push began, the log row's
+     * time the database's at its insert, so the edit the marker did record is a little later than the marker itself.
+     */
+    Duration UNRECORDED_EDIT_SLACK = Duration.ofSeconds( 5 );
+
+    /**
+     * Every page with a draft, active or frozen, mapped to whether it holds unpublished changes as far as the store can
+     * tell without reading any body: its stored {@code hasUnpublished} flag, or a logged edit (as for
+     * {@link #draftEntries}) newer than its stored {@code lastEditAt} by more than {@link #UNRECORDED_EDIT_SLACK} (any
+     * logged edit when no marker is stored). The second clause keeps a draft whose session never stored its markers (a
+     * crash: they are written at snapshot cadence and when a session leaves memory) from reading as published. One cheap
+     * query; the draft-active index reloads it often.
      */
     Map< String, Boolean > unpublishedByPage();
 

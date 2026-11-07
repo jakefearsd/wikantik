@@ -110,6 +110,34 @@ class CollabWiringTest {
     }
 
     @Test
+    void closeStoresTheDraftMarkersOfTheLiveSessions() throws Exception {
+        engine.stop();
+        engine = TestEngine.build( TestEngine.getTestProperties( "/wikantik-vers-custom.properties" ) );
+        final String page = "CollabWiringClose";
+        engine.saveText( page, "hello\n" );
+        final com.wikantik.collab.testing.InMemoryCollabStore store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        wiring = CollabTestWiring.wire( engine, store );
+        final com.wikantik.api.core.Session admin = engine.adminSession();
+        final String key = com.wikantik.auth.AuthorKeys.authorKeyFor( admin );
+        final CollabSessionRegistry.Joined j = assertInstanceOf( CollabSessionRegistry.Joined.class,
+            wiring.registry().join( page, new com.wikantik.collab.model.JoinRequest( key, null, admin, "Admin", null,
+                null ) ) );
+        final com.wikantik.collab.CollabSession.View v = j.session().view();
+        assertEquals( 200, j.session().push( j.response().participantId(), key, v.head(), java.util.List.of(
+            new com.wikantik.collab.model.Update( j.response().clientId(),
+                com.wikantik.collab.text.ChangeSet.replace( v.doc().length(), 0, 0, "x" ) ) ) ).status() );
+        assertFalse( store.session( j.response().sessionId() ).orElseThrow().hasUnpublished(), "not stored yet" );
+
+        wiring.close();
+        wiring = null;
+
+        final com.wikantik.collab.model.SessionRecord stored = store.session( j.response().sessionId() ).orElseThrow();
+        assertTrue( stored.hasUnpublished(), "a restart reads the draft as unpublished" );
+        assertNotNull( stored.lastEditAt() );
+        engine.deleteQuietly( page );
+    }
+
+    @Test
     void aFailingTickDoesNotEscapeEither() {
         final Runnable task = CollabWiring.guarded( () -> { throw new IllegalStateException( "boom" ); } );
         assertDoesNotThrow( task::run );

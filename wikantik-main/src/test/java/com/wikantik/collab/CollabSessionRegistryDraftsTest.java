@@ -555,6 +555,105 @@ class CollabSessionRegistryDraftsTest {
         assertTrue( registry.draftActive( "Elsewhere" ) );
     }
 
+    // ---- draft state survives restarts (fix round 2) ----------------------------------------------------------
+
+    @Test
+    void closeStoresTheMarkersOfEveryLiveSession() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        final Joined c = join( "Other", "carol" );
+        assertEquals( 200, type( c, "carol", "c" ).status() );
+        assertTrue( mem.session( a.response().sessionId() ).orElseThrow().lastEditAt() == null, "not yet stored" );
+
+        registry.close();
+
+        for( final Joined j : List.of( a, c ) ) {
+            final SessionRecord stored = mem.session( j.response().sessionId() ).orElseThrow();
+            assertTrue( stored.hasUnpublished() );
+            assertEquals( T0, stored.lastEditAt() );
+        }
+    }
+
+    @Test
+    void closeStoresEachSessionOnItsOwn() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        final Joined c = join( "Other", "carol" );
+        assertEquals( 200, type( c, "carol", "c" ).status() );
+        mem.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+
+        final List< LogEvent > events = CollabLogCapture.warnings( registry::close );
+
+        final long stored = List.of( a, c ).stream()
+            .filter( j -> mem.session( j.response().sessionId() ).orElseThrow().hasUnpublished() ).count();
+        assertEquals( 1, stored, "the other session's markers are still stored" );
+        assertTrue( events.stream().anyMatch( e -> e.getLevel() == Level.WARN
+            && e.getMessage().getFormattedMessage().contains( "draft markers not stored" ) ), events::toString );
+    }
+
+    @Test
+    void draftActiveSurvivesACrashWhoseEditsAreOnlyInTheLog() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );   // no snapshot, no unload: the markers never stored
+
+        registry = registry( config( 0 ) );   // the node died; a new one starts over the same store
+        registry.tick();
+
+        assertTrue( registry.draftActive( PAGE ), "the log holds an edit the stored flag never recorded" );
+    }
+
+    @Test
+    void draftActiveStaysFalseAfterACrashThatFollowedAPublish() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        assertEquals( 200, a.session().publish( a.response().participantId(), "alice", a.session().view().head(), "" )
+            .status() );
+
+        registry = registry( config( 0 ) );
+        registry.tick();
+
+        assertFalse( registry.draftActive( PAGE ), "the publish stored the markers after the last edit" );
+    }
+
+    /** As {@link #config}, with snapshots every {@code snapshotEvery} updates and the given permission re-check. */
+    private static CollabConfig snapshotting( final int snapshotEvery, final int recheckSeconds ) {
+        return new CollabConfig( true, 20, 65536, 25, 3600, recheckSeconds, 100, snapshotEvery, 10, 0, 1000 );
+    }
+
+    @Test
+    void aFailedMarkerWriteStopsTheTickTruncatingTheLog() {
+        registry = registry( snapshotting( 2, 30 ) );
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "1" ).status() );
+        mem.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );   // the snapshot at 2 stores no markers
+        assertEquals( 200, type( a, "alice", "2" ).status() );
+        assertTrue( mem.latestSnapshot( a.response().sessionId() ).orElseThrow().version() == 2 );
+        assertEquals( null, a.session().pullOrPark( a.response().participantId(), "alice", 2, null, r -> { } ) );
+
+        clock.advance( Duration.ofSeconds( 30 ) );
+        registry.tick();   // the permission re-check truncates the log
+
+        assertEquals( 2, mem.updatesSince( a.response().sessionId(), 0 ).size(),
+            "the logged edit times are kept while the stored marker is stale" );
+    }
+
+    @Test
+    void aFailedUnloadMarkerWriteSkipsTheIdleTruncation() {
+        registry = registry( snapshotting( 2, 86_400 ) );   // no permission re-check (nor its truncation) meanwhile
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "1" ).status() );
+        assertEquals( 200, type( a, "alice", "2" ).status() );
+        leave( a, "alice" );
+        clock.advance( Duration.ofMinutes( 1 ) );
+        mem.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );   // the unload stores no markers
+
+        idleOut();
+
+        assertTrue( registry.live( a.response().sessionId() ).isEmpty() );
+        assertEquals( 2, mem.updatesSince( a.response().sessionId(), 0 ).size(),
+            "the idle truncation is skipped while the stored marker is stale" );
+    }
+
     // ---- purge races and owed renames (fix round 1, items 4 and 5) --------------------------------------------
 
     @Test

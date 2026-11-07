@@ -513,6 +513,15 @@ public final class CollabSessionRegistry {
         return admin.draftActive( pageName );
     }
 
+    /**
+     * The node is shutting down (after the tick has stopped): stores the draft markers of every live session, so a
+     * restart reads each draft's unpublished state and last edit. Best-effort and never throws: each session on its own,
+     * a failure logged at WARN. Sessions stay in memory; nothing is evicted.
+     */
+    public void close() {
+        admin.storeAllMarkers();
+    }
+
     /** The participants across the live sessions. */
     public int participantCount() {
         return forEachLive( s -> Hooks.members( s ).size() );

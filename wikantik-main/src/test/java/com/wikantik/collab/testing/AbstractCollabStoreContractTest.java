@@ -899,7 +899,8 @@ public abstract class AbstractCollabStoreContractTest {
 
         store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, StoredUpdate.SERVER, "server", null, CS ) ) );
         store.appendMetaOps( s.id(), List.of( new StoredMetaOp( 1, null, "title", "merged" ) ) );
-        assertEquals( T0, store.draftEntries().get( 0 ).lastEditAt(), "a merge or a seed is not an edit" );
+        assertEquals( T0, store.draftEntries().get( 0 ).lastEditAt(), "an unauthored server update or meta op (a merge,"
+            + " a publish rewrite, a discard) is not an edit" );
 
         store.appendUpdates( s.id(), List.of( upd( 2 ) ) );
         final Instant afterText = store.draftEntries().get( 0 ).lastEditAt();
@@ -930,5 +931,35 @@ public abstract class AbstractCollabStoreContractTest {
         assertEquals( Map.of( "PageA", false, "PageB", true ), store.unpublishedByPage() );
         store.deleteSession( a.id() );
         assertEquals( Map.of( "PageB", true ), store.unpublishedByPage() );
+    }
+
+    @Test
+    void aSeedsAuthoredServerUpdateIsAnEdit() {
+        final SessionRecord s = created( "PageA" );   // marker T0
+        final Instant before = Instant.now().minusSeconds( 5 );
+        store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, StoredUpdate.SERVER, "server", "alice", CS ) ) );
+        assertFalse( store.draftEntries().get( 0 ).lastEditAt().isBefore( before ),
+            "a seed is stored as a server update with its creator's key: an edit" );
+    }
+
+    @Test
+    void unpublishedByPageCountsEditsTheStoredMarkerNeverRecorded() {
+        final SessionRecord stale = created( "Stale" );   // flag false, marker T0: a crash after later edits
+        store.appendUpdates( stale.id(), List.of( upd( 1 ) ) );
+        final SessionRecord metaOnly = sessionAt( "MetaOnly", T0, null );   // never edited, by its marker
+        store.createSession( metaOnly );
+        store.appendMetaOps( metaOnly.id(), List.of( op( 1 ) ) );
+        final SessionRecord merged = created( "Merged" );
+        store.appendUpdates( merged.id(), List.of( new StoredUpdate( 1, StoredUpdate.SERVER, "server", null, CS ) ) );
+        store.appendMetaOps( merged.id(), List.of( new StoredMetaOp( 1, null, "title", "merged" ) ) );
+        final SessionRecord recorded = created( "Recorded" );
+        store.appendUpdates( recorded.id(), List.of( upd( 1 ) ) );
+        final Instant later = Instant.now().plusSeconds( 3600 ).truncatedTo( ChronoUnit.MILLIS );
+        store.updateSession( new SessionRecord( recorded.id(), "Recorded", SessionRecord.ACTIVE, 3, "base body",
+            Map.of( "k", "v" ), "hash-3", 0, 0L, false, null, null, null, "alice", T0, later ) );
+
+        assertEquals( Map.of( "Stale", true, "MetaOnly", true, "Merged", false, "Recorded", false ),
+            store.unpublishedByPage(), "an authored edit newer than the marker (or with no marker) is unpublished;"
+                + " a merge is not an edit, and an edit the marker already recorded follows the stored flag" );
     }
 }

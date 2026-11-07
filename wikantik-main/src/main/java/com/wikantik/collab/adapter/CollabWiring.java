@@ -159,13 +159,20 @@ public final class CollabWiring implements AutoCloseable {
         }
     }
 
-    /** Unregisters the page event listener and stops the tick thread. */
+    /**
+     * Unregisters the page event listener, stops the tick thread, then stores every live session's draft markers
+     * ({@link CollabSessionRegistry#close}) so a restart reads each draft's unpublished state.
+     */
     @Override
     public void close() {
         WikiEventManager.removeWikiEventListener( listener );
-        if( ticker == null ) {
-            return;
+        if( ticker != null ) {
+            stopTicking();
         }
+        registry.close();
+    }
+
+    private void stopTicking() {
         ticker.shutdownNow();
         try {
             if( !ticker.awaitTermination( 2, TimeUnit.SECONDS ) ) {

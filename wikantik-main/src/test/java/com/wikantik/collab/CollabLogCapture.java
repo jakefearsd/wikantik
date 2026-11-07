@@ -40,7 +40,12 @@ final class CollabLogCapture {
     private CollabLogCapture() {
     }
 
-    /** The WARN and ERROR events the collab package logged while {@code r} ran. */
+    /**
+     * The WARN and ERROR events the collab package logged while {@code r} ran. Other tests in the same JVM leave
+     * per-class logger configs behind ({@code Configurator.setLevel}), often at a level above WARN; each such config
+     * under the package is opened to WARN, made non-additive and given the capturing appender for the duration, then
+     * restored, so every event is captured exactly once whatever ran before.
+     */
     static List< LogEvent > warnings( final Runnable r ) {
         final List< LogEvent > got = Collections.synchronizedList( new ArrayList<>() );
         final AbstractAppender appender = new AbstractAppender( "collabLogCapture", null, null, true,
@@ -53,6 +58,17 @@ final class CollabLogCapture {
         appender.start();
         final LoggerContext ctx = ( LoggerContext ) LogManager.getContext( false );
         final Configuration cfg = ctx.getConfiguration();
+        final List< LoggerConfig > children = cfg.getLoggers().values().stream()
+            .filter( c -> c.getName().startsWith( PACKAGE + "." ) ).toList();
+        final List< Level > levels = children.stream().map( LoggerConfig::getLevel ).toList();
+        final List< Boolean > additive = children.stream().map( LoggerConfig::isAdditive ).toList();
+        children.forEach( c -> {
+            if( c.getLevel().intLevel() < Level.WARN.intLevel() ) {   // ERROR, FATAL or OFF would drop a WARN
+                c.setLevel( Level.WARN );
+            }
+            c.setAdditive( false );
+            c.addAppender( appender, Level.WARN, null );
+        } );
         final LoggerConfig lc = LoggerConfig.newBuilder().setAdditivity( false ).setLevel( Level.WARN )
             .setLoggerName( PACKAGE ).setIncludeLocation( "false" ).setRefs( new AppenderRef[ 0 ] ).setConfig( cfg )
             .build();
@@ -63,6 +79,11 @@ final class CollabLogCapture {
             r.run();
         } finally {
             cfg.removeLogger( PACKAGE );
+            for( int i = 0; i < children.size(); i++ ) {
+                children.get( i ).removeAppender( appender.getName() );
+                children.get( i ).setLevel( levels.get( i ) );
+                children.get( i ).setAdditive( additive.get( i ) );
+            }
             ctx.updateLoggers();
             appender.stop();
         }

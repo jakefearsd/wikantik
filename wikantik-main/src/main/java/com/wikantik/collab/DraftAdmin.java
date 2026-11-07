@@ -196,6 +196,14 @@ final class DraftAdmin {
         }
     }
 
+    /** Stores every live session's draft markers (shutdown): each on its own, a failure logged at WARN. */
+    void storeAllMarkers() {
+        SessionSweeps.forEachLive( byId.values(), s -> {
+            CollabSession.Hooks.storeMarkers( s );
+            return 0;
+        } );
+    }
+
     // ---- purge -------------------------------------------------------------------------------------------------
 
     /** An administrator's purge of draft {@code id} (see the class comment). */

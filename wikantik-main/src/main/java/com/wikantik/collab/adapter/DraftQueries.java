@@ -41,9 +41,14 @@ final class DraftQueries {
         this.jdbc = jdbc;
     }
 
+    /** An edit: a logged row with an author key ({@link com.wikantik.collab.CollabStore#draftEntries}). */
+    private static final String EDIT = " author_key IS NOT NULL";
+    private static final String NEWER_THAN_MARKER = " AND ( s.last_edit_at IS NULL OR created_at > s.last_edit_at"
+        + " + interval '" + com.wikantik.collab.CollabStore.UNRECORDED_EDIT_SLACK.toSeconds() + " seconds' )";
+
     /**
-     * The real last edit is the later of the marker and the newest retained text update or authored meta op
-     * ({@code GREATEST} ignores NULLs); the ordering and its code-point tie-break match the in-memory twin.
+     * The real last edit is the later of the marker and the newest retained edit ({@code GREATEST} ignores NULLs); the
+     * ordering and its code-point tie-break match the in-memory twin.
      */
     List< DraftEntry > entries() {
         try {
@@ -51,9 +56,9 @@ final class DraftQueries {
                 + " FROM ( SELECT s.id, s.page_name, s.status, s.has_unpublished,"
                 + " s.pending_publish_version IS NOT NULL AS pending, s.created_by, s.created_at,"
                 + " GREATEST( s.last_edit_at,"
-                + " ( SELECT max( u.created_at ) FROM collab_update u WHERE u.session_id = s.id AND u.kind = 'text' ),"
-                + " ( SELECT max( m.created_at ) FROM collab_meta_op m WHERE m.session_id = s.id"
-                + " AND m.author_key IS NOT NULL ) ) AS last_edit FROM collab_session s ) d"
+                + " ( SELECT max( created_at ) FROM collab_update WHERE session_id = s.id AND" + EDIT + " ),"
+                + " ( SELECT max( created_at ) FROM collab_meta_op WHERE session_id = s.id AND" + EDIT + " ) )"
+                + " AS last_edit FROM collab_session s ) d"
                 + " ORDER BY coalesce( last_edit, created_at ), page_name COLLATE \"C\"", ps -> { }, rs -> {
                     final Timestamp last = rs.getTimestamp( 8 );
                     return new DraftEntry( rs.getObject( 1, UUID.class ), rs.getString( 2 ), rs.getString( 3 ),
@@ -65,11 +70,17 @@ final class DraftQueries {
         }
     }
 
-    /** Page name to the stored {@code has_unpublished} flag: two columns only. */
+    /**
+     * Page name to its stored {@code has_unpublished} flag, or-ed with "the log holds an edit the marker never recorded"
+     * (two {@code EXISTS} probes per draft; no bodies).
+     */
     Map< String, Boolean > unpublishedByPage() {
         try {
             final Map< String, Boolean > out = new LinkedHashMap<>();
-            jdbc.query( "SELECT page_name, has_unpublished FROM collab_session", ps -> { },
+            jdbc.query( "SELECT s.page_name, s.has_unpublished"
+                + " OR EXISTS ( SELECT 1 FROM collab_update WHERE session_id = s.id AND" + EDIT + NEWER_THAN_MARKER + " )"
+                + " OR EXISTS ( SELECT 1 FROM collab_meta_op WHERE session_id = s.id AND" + EDIT + NEWER_THAN_MARKER
+                + " ) FROM collab_session s", ps -> { },
                 rs -> out.put( rs.getString( 1 ), rs.getBoolean( 2 ) ) );
             return out;
         } catch( final SQLException e ) {

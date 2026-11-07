@@ -87,6 +87,11 @@ final class Draft {
     long presenceSeq;
 
     boolean publishing;
+    /**
+     * True while the last attempt to store the draft markers failed: truncation is skipped, so the logged edit times
+     * (which {@code CollabStore#draftEntries} and {@code unpublishedByPage} read) outlive the stale marker.
+     */
+    boolean markersStale;
     PublishStart.Ticket ticket;
     PublishStart.Ticket unfinished;
     boolean mergeQueued;
@@ -255,8 +260,11 @@ final class Draft {
             final SessionRecord marked = SessionLoader.draftMarkers( record, hasUnpublished(), lastEditAt );
             store.updateSession( marked );
             record = marked;
+            markersStale = false;
         } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): draft markers not stored: {}", id, pageName(), e.getMessage() );
+            markersStale = true;
+            LOG.warn( "collab session {} ({}): draft markers not stored; the log is not truncated until they are: {}",
+                id, pageName(), e.getMessage() );
         }
     }
 
@@ -265,6 +273,11 @@ final class Draft {
      * for the pending-publish rule, E39); the store clamps the cut to a snapshot. Returns the cut, or -1 (logged).
      */
     int truncate( final int lowestConfirmed ) {
+        if( markersStale ) {
+            // the logged edit times are the only record of the edits the stored marker missed (retention, the index)
+            LOG.debug( "collab session {} ({}): truncation skipped until the draft markers are stored", id, pageName() );
+            return -1;
+        }
         final Integer pending = record.pendingPublishVersion();
         final int cut = pending == null ? lowestConfirmed : Math.min( lowestConfirmed, pending );
         try {

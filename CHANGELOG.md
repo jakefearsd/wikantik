@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.9] - 2026-11-06
+
 ### Security
 - **A long paragraph no longer takes minutes to parse** (#129). flexmark's heading factory (0.62 through 0.64.8) rebuilt the open
   paragraph's text on every line that starts with a non-letter, so 4,000 lines of `> %x` took 5.6 s and a page at the

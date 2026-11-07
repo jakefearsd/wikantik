@@ -18,6 +18,7 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.collab.CollabStore;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.text.ChangeSet;
@@ -33,6 +34,10 @@ import java.util.function.UnaryOperator;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class CollabInvariantsTest {
 
@@ -59,7 +64,7 @@ class CollabInvariantsTest {
     private InvariantView valid() {
         final ChangeSet cs = ChangeSet.replace( 6, 0, 0, "X" );
         return new InvariantView( id, "Xhello\n", 1, BASE, cs, 1,
-            store.updatesSince( id, 0 ), false, 1000, store, writer, PAGE, false, false );
+            store.updatesSince( id, 0 ), false, 1000, store, writer, PAGE, false, false, 0, false );
     }
 
     private static InvariantView with( final InvariantView v, final UnaryOperator< Builder > f ) {
@@ -68,18 +73,19 @@ class CollabInvariantsTest {
 
     private static final class Builder {
         UUID sessionId; String doc; int head; String baseBody; ChangeSet local; int basePageVersion;
-        List< StoredUpdate > ring; boolean oversize; long maxPageBytes; InvariantView v;
-        boolean externalChangePending; boolean publishPending;
+        List< StoredUpdate > ring; boolean oversize; long maxPageBytes; InvariantView v; CollabStore store;
+        boolean externalChangePending; boolean publishPending; long oversizeCeiling; boolean poisoned;
 
         Builder( final InvariantView v ) {
-            this.v = v; sessionId = v.sessionId(); doc = v.doc(); head = v.head(); baseBody = v.baseBody(); local = v.local();
+            this.v = v; store = v.store(); sessionId = v.sessionId(); doc = v.doc(); head = v.head(); baseBody = v.baseBody(); local = v.local();
             basePageVersion = v.basePageVersion(); ring = v.ring(); oversize = v.oversize(); maxPageBytes = v.maxPageBytes();
             externalChangePending = v.externalChangePending(); publishPending = v.publishPending();
+            oversizeCeiling = v.oversizeCeiling(); poisoned = v.poisoned();
         }
 
         InvariantView build() {
             return new InvariantView( sessionId, doc, head, baseBody, local, basePageVersion, ring, oversize, maxPageBytes,
-                v.store(), v.writer(), v.pageName(), externalChangePending, publishPending );
+                store, v.writer(), v.pageName(), externalChangePending, publishPending, oversizeCeiling, poisoned );
         }
     }
 
@@ -146,14 +152,89 @@ class CollabInvariantsTest {
     }
 
     @Test
-    void inv5_oversizeStateIsAllowedToExceedLimit() {
-        assertDoesNotThrow( () -> CollabInvariants.check( with( valid(), b -> { b.maxPageBytes = 3; b.oversize = true; return b; } ) ) );
-    }
-
-    @Test
     void inv6_loneSurrogateInDoc() {
         final ChangeSet cs = ChangeSet.replace( 6, 0, 0, "\uD83D" );
         final InvariantView v = with( valid(), b -> { b.doc = "\uD83Dhello\n"; b.local = cs; return b; } );
         failsNaming( v, false, 6 );
+    }
+
+    private static final ChangeSet X = ChangeSet.replace( 6, 0, 0, "X" );
+
+    private void snapshotAt0( final String body, final ChangeSet local ) {
+        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, body, Map.of(), local ) );
+    }
+
+    @Test
+    void inv3_comparesLocalByEffectNotStructure() {
+        // same effect (doc reached from baseBody), different structure from the view's local
+        snapshotAt0( BASE, ChangeSet.replace( 6, 0, 6, BASE ) );
+        assertDoesNotThrow( () -> CollabInvariants.check( valid(), true ) );
+    }
+
+    @Test
+    void inv3_docMatchesButReplayedLocalEffectDoesNot() {
+        snapshotAt0( BASE, ChangeSet.replace( 6, 0, 1, "j" ) );
+        failsNaming( valid(), true, 3 );
+    }
+
+    @Test
+    void inv2_headDisagreesWithSessionRecord() {
+        final InvariantView v = valid();
+        failsNaming( with( v, b -> { b.head = 0; return b; } ), false, 2 );
+    }
+
+    @Test
+    void inv2_truncatedLogIsFine() {
+        store.truncateUpdatesBelow( id, 2 );
+        assertDoesNotThrow( () -> CollabInvariants.check( valid(), false ) );
+    }
+
+    private InvariantView mocked( final List< StoredUpdate > log, final int sessionHead ) {
+        final CollabStore m = mock( CollabStore.class );
+        final Instant t = Instant.parse( "2026-01-01T00:00:00Z" );
+        when( m.session( any() ) ).thenReturn( java.util.Optional.of( new SessionRecord( id, PAGE, SessionRecord.ACTIVE, 1,
+            BASE, Map.of(), sessionHead, 0, false, null, null, "stub", t, t ) ) );
+        when( m.updatesSince( any(), anyInt() ) ).thenReturn( log );
+        return with( valid(), b -> { b.store = m; b.head = sessionHead; b.ring = List.of(); return b; } );
+    }
+
+    private static StoredUpdate upd( final int version, final ChangeSet cs ) {
+        return new StoredUpdate( version, "text", "c1", "alice", cs );
+    }
+
+    @Test
+    void inv2_retainedLogGapIsAViolation() {
+        final ChangeSet two = ChangeSet.replace( 7, 0, 0, "Y" );
+        failsNaming( mocked( List.of( upd( 1, X ), upd( 3, two ) ), 3 ), false, 2 );
+    }
+
+    @Test
+    void inv2_retainedLogMustEndAtHead() {
+        failsNaming( mocked( List.of( upd( 1, X ) ), 2 ), false, 2 );
+    }
+
+    @Test
+    void inv2_ringEntryDisagreeingWithRetainedLog() {
+        final StoredUpdate forged = upd( 1, ChangeSet.replace( 6, 0, 0, "Z" ) );
+        failsNaming( with( valid(), b -> { b.ring = List.of( forged ); return b; } ), false, 2 );
+    }
+
+    @Test
+    void inv2_ringMustEndAtHead() {
+        final StoredUpdate old = upd( 1, X );
+        store.appendUpdates( id, List.of( upd( 2, ChangeSet.replace( 7, 0, 0, "Y" ) ) ) );
+        failsNaming( with( valid(), b -> { b.head = 2; b.doc = "YXhello\n"; b.local = X.compose( ChangeSet.replace( 7, 0, 0, "Y" ) ); b.ring = List.of( old ); return b; } ), false, 2 );
+    }
+
+    @Test
+    void inv5_oversizeStateBoundedByCeiling() {
+        failsNaming( with( valid(), b -> { b.maxPageBytes = 3; b.oversize = true; b.oversizeCeiling = 5; return b; } ), false, 5 );
+        assertDoesNotThrow( () -> CollabInvariants.check( with( valid(), b -> { b.maxPageBytes = 3; b.oversize = true; b.oversizeCeiling = 7; return b; } ) ) );
+    }
+
+    @Test
+    void poisonedSkipsInvariants2To4ButNotOthers() {
+        assertDoesNotThrow( () -> CollabInvariants.check( with( valid(), b -> { b.head = 9; b.basePageVersion = 0; b.poisoned = true; return b; } ), true ) );
+        failsNaming( with( valid(), b -> { b.doc = "Yhello\n"; b.poisoned = true; return b; } ), false, 1 );
     }
 }

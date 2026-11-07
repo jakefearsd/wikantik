@@ -56,8 +56,16 @@ import java.util.UUID;
  * {@code rejoin} answer of 7.2). Publish is naive (requires {@code version == head}, no pending-publish
  * bookkeeping); if the writer's filters rewrote the text, {@code doc} and the saved base differ, so the stub appends a
  * server update {@code TextDiff.changeSet(doc, base)} to converge everyone; Phase 1 does the full 7.3 mapping. A
- * writer exception maps to 409 for a version conflict and 422 otherwise. A store failure during publish leaves the
- * page saved and the session behind (503); the real session's pending-publish rule covers that, the stub does not.</p>
+ * writer exception maps to 409 for a version conflict and 422 otherwise.
+ *
+ * <p><b>Poisoning.</b> The stub does not model publish crash recovery (the real session's pending-publish rule does). Any
+ * failure after the page was saved (a store fault during publish, or a writer that persisted then failed) sets a
+ * {@code poisoned} flag: every later push, pull and publish answers 503 {@code poisoned}, and the view reports
+ * {@code publishPending} so invariants 2 to 4 are skipped. Task 12/14 must keep publish-time store faults and
+ * {@code persistThenFail} at weight 0 against the stub; a poisoned stub is an unsupported scenario, not a failure.</p>
+ *
+ * <p>Oversize is session state (see {@link #enterOrLeaveOversize}): a publish rewrite can push the doc over
+ * {@code maxPageBytes}; pushes may then only shrink it, and the state clears when the doc is back within the limit.</p>
  */
 public final class StubCollabAuthority implements SimServer {
 
@@ -65,6 +73,8 @@ public final class StubCollabAuthority implements SimServer {
     /** The long-poll timeout of section 7.5. */
     static final Duration POLL_TIMEOUT = Duration.ofSeconds( 25 );
     static final String SERVER_CLIENT = "server";
+    private static final String POISONED = "poisoned";
+    private static final String NOT_YOURS = "not-your-participant";
 
     private record Participant( String authorKey, String clientId ) {
     }
@@ -78,7 +88,7 @@ public final class StubCollabAuthority implements SimServer {
     private final Clock clock;
     private final long maxPageBytes;
     private final int ringSize;
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
 
     private String doc;
     private int head;
@@ -92,6 +102,9 @@ public final class StubCollabAuthority implements SimServer {
     private final Map< String, Waiter > waiters = new LinkedHashMap<>();
     private final List< Wakeup > wakeups = new ArrayList<>();
     private int nextParticipant = 1;
+    private boolean oversize;
+    private long oversizeCeiling;
+    private boolean poisoned;
 
     public StubCollabAuthority( final String pageName, final CollabStore store, final CollabPageWriter writer,
                                 final Clock clock, final long maxPageBytes, final int ringSize ) {
@@ -104,12 +117,14 @@ public final class StubCollabAuthority implements SimServer {
             throw new IllegalArgumentException( "ringSize must be >= 1: " + ringSize );
         }
         this.ringSize = ringSize;
+        this.id = UUID.nameUUIDFromBytes( pageName.getBytes( StandardCharsets.UTF_8 ) );
         final PageState latest = writer.latest( pageName ).orElse( null );
         doc = latest == null ? "" : CollabText.toLf( latest.body() );
         baseBody = doc;
         basePageVersion = latest == null ? 0 : latest.version();
         baseMeta = latest == null ? Map.of() : latest.meta();
         local = ChangeSet.empty( doc.length() );
+        enterOrLeaveOversize( true );
         final Instant now = clock.instant();
         store.createSession( new SessionRecord( id, pageName, SessionRecord.ACTIVE, basePageVersion, baseBody, baseMeta, 0,
             0, false, null, null, "stub", now, now ) );
@@ -125,13 +140,19 @@ public final class StubCollabAuthority implements SimServer {
     }
 
     @Override
-    public synchronized PushResult push( final String participantId, final int version, final List< Update > updates ) {
+    public synchronized PushResult push( final String participantId, final String authorKey, final int version, final List< Update > updates ) {
+        if( poisoned ) {
+            return new PushResult( 503, head, POISONED );
+        }
         final Participant p = participants.get( participantId );
         if( p == null ) {
-            return new PushResult( 409, head );
+            return new PushResult( 409, head, "rejoin" );
+        }
+        if( !p.authorKey().equals( authorKey ) ) {
+            return new PushResult( 403, head, NOT_YOURS );
         }
         if( version != head ) {
-            return new PushResult( 409, head );
+            return new PushResult( 409, head, "stale-base" );
         }
         // validate the whole chain before touching anything
         String cur = doc;
@@ -139,33 +160,33 @@ public final class StubCollabAuthority implements SimServer {
         for( final Update u : updates ) {
             if( !p.clientId().equals( u.clientId() ) ) {
                 LOG.warn( "push from {} names clientId {} (bound to {}): refused", participantId, u.clientId(), p.clientId() );
-                return new PushResult( 400, head );
+                return new PushResult( 400, head, "rejected" );
             }
             final ChangeSet cs = u.changes();
             if( cs.length() != cur.length() ) {
                 LOG.warn( "push from {}: change set length {} does not match document length {}", participantId, cs.length(),
                     cur.length() );
-                return new PushResult( 400, head );
+                return new PushResult( 400, head, "rejected" );
             }
             final String next = cs.apply( cur );
             if( CollabText.splitsSurrogatePair( cur, cs ) || CollabText.hasLoneSurrogate( next ) ) {
                 LOG.warn( "push from {}: update would leave a lone surrogate", participantId );
-                return new PushResult( 400, head );
+                return new PushResult( 400, head, "rejected" );
             }
             if( utf8( next ) > Math.max( maxPageBytes, utf8( cur ) ) ) {
-                return new PushResult( 413, head );
+                return new PushResult( 413, head, "oversize" );
             }
             accepted.add( new StoredUpdate( head + accepted.size() + 1, "text", p.clientId(), p.authorKey(), cs ) );
             cur = next;
         }
         if( accepted.isEmpty() ) {
-            return new PushResult( 200, head );
+            return new PushResult( 200, head, null );
         }
         try {
             store.appendUpdates( id, accepted );
         } catch( final RuntimeException e ) {
             LOG.warn( "push from {}: store append failed, nothing applied", participantId, e );
-            return new PushResult( 503, head );
+            return new PushResult( 503, head, "store" );
         }
         ChangeSet l = local;
         for( final StoredUpdate u : accepted ) {
@@ -175,8 +196,9 @@ public final class StubCollabAuthority implements SimServer {
         local = l;
         doc = cur;
         head += accepted.size();
+        enterOrLeaveOversize( false );
         wakeWaiters();
-        return new PushResult( 200, head );
+        return new PushResult( 200, head, null );
     }
 
     private void remember( final StoredUpdate u ) {
@@ -187,16 +209,26 @@ public final class StubCollabAuthority implements SimServer {
     }
 
     @Override
-    public synchronized PullResult pull( final String participantId, final int since ) {
-        if( !participants.containsKey( participantId ) ) {
-            return new PullResult( 409, List.of(), head, false );
+    public synchronized PullResult pull( final String participantId, final String authorKey, final int since ) {
+        if( poisoned ) {
+            return new PullResult( 503, List.of(), head, false, POISONED );
+        }
+        final Participant p = participants.get( participantId );
+        if( p == null ) {
+            return new PullResult( 409, List.of(), head, false, "rejoin" );
+        }
+        if( !p.authorKey().equals( authorKey ) ) {
+            return new PullResult( 403, List.of(), head, false, NOT_YOURS );
         }
         if( since < 0 || since > head ) {
-            return new PullResult( 400, List.of(), head, false );
+            return new PullResult( 400, List.of(), head, false, "bad-since" );
         }
         if( since == head ) {
-            waiters.put( participantId, new Waiter( since, clock.instant().plus( POLL_TIMEOUT ) ) );
-            return new PullResult( 200, List.of(), head, true );
+            if( waiters.put( participantId, new Waiter( since, clock.instant().plus( POLL_TIMEOUT ) ) ) != null ) {
+                // F6: every request is answered exactly once, so the displaced pull gets an empty 200
+                wakeups.add( new Wakeup( participantId, new PullResult( 200, List.of(), head, false, null ) ) );
+            }
+            return new PullResult( 200, List.of(), head, true, null );
         }
         return slice( since );
     }
@@ -208,14 +240,14 @@ public final class StubCollabAuthority implements SimServer {
         } else {
             source = store.updatesSince( id, since );
             if( source.isEmpty() || source.get( 0 ).version() != since + 1 || source.get( source.size() - 1 ).version() != head ) {
-                return new PullResult( 410, List.of(), head, false );
+                return new PullResult( 410, List.of(), head, false, "resync" );
             }
         }
         final List< Update > out = new ArrayList<>();
         for( final StoredUpdate u : source ) {
             out.add( new Update( u.clientId(), u.changes() ) );
         }
-        return new PullResult( 200, out, head, false );
+        return new PullResult( 200, out, head, false, null );
     }
 
     private void wakeWaiters() {
@@ -231,7 +263,7 @@ public final class StubCollabAuthority implements SimServer {
         for( final Map.Entry< String, Waiter > e : new ArrayList<>( waiters.entrySet() ) ) {
             if( !now.isBefore( e.getValue().deadline() ) ) {
                 waiters.remove( e.getKey() );
-                wakeups.add( new Wakeup( e.getKey(), new PullResult( 200, List.of(), head, false ) ) );
+                wakeups.add( new Wakeup( e.getKey(), new PullResult( 200, List.of(), head, false, null ) ) );
             }
         }
     }
@@ -240,7 +272,7 @@ public final class StubCollabAuthority implements SimServer {
     public synchronized void leave( final String participantId ) {
         participants.remove( participantId );
         if( waiters.remove( participantId ) != null ) {
-            wakeups.add( new Wakeup( participantId, new PullResult( 200, List.of(), head, false ) ) );
+            wakeups.add( new Wakeup( participantId, new PullResult( 200, List.of(), head, false, null ) ) );
         }
     }
 
@@ -252,16 +284,26 @@ public final class StubCollabAuthority implements SimServer {
     }
 
     @Override
-    public synchronized PublishResult publish( final String participantId, final int version, final String note ) {
+    public synchronized PublishResult publish( final String participantId, final String authorKey, final int version,
+                                               final String note ) {
+        if( poisoned ) {
+            return new PublishResult( 503, basePageVersion, POISONED, false );
+        }
         final Participant p = participants.get( participantId );
-        if( p == null || version != head ) {
-            return new PublishResult( 409, basePageVersion );
+        if( p == null ) {
+            return new PublishResult( 409, basePageVersion, "rejoin", false );
+        }
+        if( !p.authorKey().equals( authorKey ) ) {
+            return new PublishResult( 403, basePageVersion, NOT_YOURS, false );
+        }
+        if( version != head ) {
+            return new PublishResult( 409, basePageVersion, "stale-base", false );
         }
         if( local.empty() ) {
-            return new PublishResult( 200, basePageVersion );
+            return new PublishResult( 200, basePageVersion, null, true );
         }
         if( doc.isEmpty() ) {
-            return new PublishResult( 400, basePageVersion );
+            return new PublishResult( 400, basePageVersion, "empty", false );
         }
         final PublishOutcome out;
         try {
@@ -269,10 +311,10 @@ public final class StubCollabAuthority implements SimServer {
                 note == null ? "" : note ) );
         } catch( final VersionConflictException e ) {
             LOG.warn( "publish of {} refused: {}", pageName, e.getMessage() );
-            return new PublishResult( 409, basePageVersion );
+            return failedPublish( 409, "stale-base" );
         } catch( final WikiException e ) {
             LOG.warn( "publish of {} refused: {}", pageName, e.getMessage() );
-            return new PublishResult( 422, basePageVersion );
+            return failedPublish( 422, "writer-refused" );
         }
         final String newBase = CollabText.toLf( out.savedBody() );
         final List< StoredUpdate > extra = new ArrayList<>();
@@ -288,9 +330,9 @@ public final class StubCollabAuthority implements SimServer {
             final SessionRecord rec = store.session( id ).orElseThrow();
             store.updateSession( rec.withBase( out.version(), newBase, out.savedMeta() ) );
         } catch( final RuntimeException e ) {
-            LOG.warn( "publish of {} saved page version {} but the store failed; session not advanced", pageName,
-                out.version(), e );
-            return new PublishResult( 503, basePageVersion );
+            LOG.warn( "publish of {} saved page version {} but the store failed; stub poisoned", pageName, out.version(), e );
+            poisoned = true;
+            return new PublishResult( 503, basePageVersion, "store", false );
         }
         extra.forEach( this::remember );
         head = newHead;
@@ -299,16 +341,46 @@ public final class StubCollabAuthority implements SimServer {
         basePageVersion = out.version();
         baseMeta = out.savedMeta();
         local = ChangeSet.empty( newBase.length() );
+        enterOrLeaveOversize( true );
         if( !extra.isEmpty() ) {
             wakeWaiters();
         }
-        return new PublishResult( 200, out.version() );
+        return new PublishResult( 200, out.version(), null, false );
+    }
+
+    /** A writer failure: if the page version advanced anyway (persist-then-fail) the stub cannot recover, so poison it. */
+    private PublishResult failedPublish( final int status, final String reason ) {
+        final int latest = writer.latest( pageName ).map( PageState::version ).orElse( 0 );
+        if( latest != basePageVersion ) {
+            LOG.warn( "publish of {} failed after the page moved to version {}; stub poisoned", pageName, latest );
+            poisoned = true;
+            return new PublishResult( 503, basePageVersion, "store", false );
+        }
+        return new PublishResult( status, basePageVersion, reason, false );
+    }
+
+    /**
+     * Oversize is session state: entered when a publish rewrite (or load) lands the doc over the limit, ceiling ratcheting
+     * down as the doc shrinks, cleared once the doc is within the limit. {@code mayEnter} is false for pushes, which are
+     * refused rather than allowed to cross the limit.
+     */
+    private void enterOrLeaveOversize( final boolean mayEnter ) {
+        final long bytes = utf8( doc );
+        if( bytes <= maxPageBytes ) {
+            oversize = false;
+            oversizeCeiling = 0;
+        } else if( !oversize && mayEnter ) {
+            oversize = true;
+            oversizeCeiling = bytes;
+        } else if( oversize ) {
+            oversizeCeiling = Math.min( oversizeCeiling, bytes );
+        }
     }
 
     @Override
     public synchronized InvariantView view() {
         return new InvariantView( id, doc, head, baseBody, local, basePageVersion, List.copyOf( ring ),
-            utf8( doc ) > maxPageBytes, maxPageBytes, store, writer, pageName, false, false );
+            oversize, maxPageBytes, store, writer, pageName, false, poisoned, oversizeCeiling, poisoned );
     }
 
     private static long utf8( final String s ) {

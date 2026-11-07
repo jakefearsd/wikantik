@@ -19,23 +19,26 @@
 package com.wikantik.collab.testing;
 
 import com.wikantik.collab.model.PageState;
+import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.text.ChangeSet;
 import com.wikantik.collab.text.CollabText;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * Section 13.0's session invariants, checked after every simulated step. A failure is an {@link AssertionError} whose
  * message starts {@code "invariant N (text)"}.
  *
- * <p>Differences worth knowing: invariant 2 counts every logged update (text and server kinds both consume a
- * version); invariant 3 compares doc and local only (the simulator has no meta yet) and needs a snapshot at or below
- * the head, which the stub writes at creation and at each publish; invariant 5's "size never grows in oversize state"
- * is a push-time rule (asserted in the stub's tests), not checkable from a single view; invariant 7 is a no-op until
+ * <p>Differences worth knowing: invariant 2 tolerates log truncation (the ring need only equal the overlapping suffix of the retained log;
+ * every logged update, text or server, consumes a version); invariant 3 compares doc and local by effect (the simulator
+ * has no meta yet) and needs a snapshot at or below the head; invariants 2 to 4 are skipped for a poisoned stub;
+ * invariant 5 uses the oversize ceiling; invariant 7 is a no-op until
  * presence exists (Phase 2).</p>
  */
 public final class CollabInvariants {
@@ -49,11 +52,13 @@ public final class CollabInvariants {
 
     public static void check( final InvariantView v, final boolean checkReplay ) {
         inv1( v );
-        inv2( v );
-        if( checkReplay ) {
-            inv3( v );
+        if( !v.poisoned() ) {
+            inv2( v );
+            if( checkReplay ) {
+                inv3( v );
+            }
+            inv4( v );
         }
-        inv4( v );
         inv5( v );
         inv6( v );
         // invariant 7 (presence participants hold an edit grant): no presence yet, nothing to check
@@ -77,28 +82,41 @@ public final class CollabInvariants {
     }
 
     private static void inv2( final InvariantView v ) {
-        final String text = "head equals the logged update count and the ring is a contiguous suffix of the log";
-        final List< StoredUpdate > log = v.store().updatesSince( v.sessionId(), 0 );
-        if( log.size() != v.head() ) {
-            throw fail( 2, text, "head=" + v.head() + " store log has " + log.size() + " updates" );
+        final String text = "head matches the store, the retained log is contiguous to head, the ring is its suffix";
+        final int stored = v.store().session( v.sessionId() ).map( SessionRecord::headVersion ).orElse( -1 );
+        if( stored != v.head() ) {
+            throw fail( 2, text, "head=" + v.head() + " store headVersion=" + stored );
         }
-        for( int i = 0; i < log.size(); i++ ) {
-            if( log.get( i ).version() != i + 1 ) {
-                throw fail( 2, text, "store log is not contiguous from 1 at index " + i );
+        final List< StoredUpdate > log = v.store().updatesSince( v.sessionId(), 0 );
+        for( int i = 1; i < log.size(); i++ ) {
+            if( log.get( i ).version() != log.get( i - 1 ).version() + 1 ) {
+                throw fail( 2, text, "retained log has a gap before version " + log.get( i ).version() );
             }
         }
-        final List< StoredUpdate > ring = v.ring();
-        if( ring.size() > log.size() ) {
-            throw fail( 2, text, "ring (" + ring.size() + ") is longer than the log (" + log.size() + ")" );
+        if( !log.isEmpty() && log.get( log.size() - 1 ).version() != v.head() ) {
+            throw fail( 2, text, "retained log ends at " + log.get( log.size() - 1 ).version() + " but head=" + v.head() );
         }
-        final List< StoredUpdate > suffix = log.subList( log.size() - ring.size(), log.size() );
-        if( !suffix.equals( ring ) ) {
-            throw fail( 2, text, "ring " + ring + " is not the log suffix " + suffix );
+        final List< StoredUpdate > ring = v.ring();
+        for( int i = 1; i < ring.size(); i++ ) {
+            if( ring.get( i ).version() != ring.get( i - 1 ).version() + 1 ) {
+                throw fail( 2, text, "ring has a gap before version " + ring.get( i ).version() );
+            }
+        }
+        if( !ring.isEmpty() && ring.get( ring.size() - 1 ).version() != v.head() ) {
+            throw fail( 2, text, "ring ends at " + ring.get( ring.size() - 1 ).version() + " but head=" + v.head() );
+        }
+        final Map< Integer, StoredUpdate > byVersion = new HashMap<>();
+        log.forEach( u -> byVersion.put( u.version(), u ) );
+        final int firstRetained = log.isEmpty() ? Integer.MAX_VALUE : log.get( 0 ).version();
+        for( final StoredUpdate r : ring ) {
+            if( r.version() >= firstRetained && !r.equals( byVersion.get( r.version() ) ) ) {
+                throw fail( 2, text, "ring entry " + r + " differs from the retained log entry " + byVersion.get( r.version() ) );
+            }
         }
     }
 
     private static void inv3( final InvariantView v ) {
-        final String text = "replaying snapshot + log reproduces doc and local";
+        final String text = "replaying snapshot + log reproduces doc and local (by effect)";
         final Optional< Snapshot > snap = v.store().latestSnapshot( v.sessionId() );
         if( snap.isEmpty() ) {
             throw fail( 3, text, "no snapshot in the store" );
@@ -111,14 +129,15 @@ public final class CollabInvariants {
                 doc = u.changes().apply( doc );
                 local = local.compose( u.changes() );
             }
+            if( !doc.equals( v.doc() ) ) {
+                throw fail( 3, text, "replayed doc=" + show( doc ) + " doc=" + show( v.doc() ) );
+            }
+            // by effect, not structure: a reload recomputes local with TextDiff (section 7.1)
+            if( local.length() != v.baseBody().length() || !local.apply( v.baseBody() ).equals( v.doc() ) ) {
+                throw fail( 3, text, "replayed local does not turn baseBody into doc: " + local );
+            }
         } catch( final IllegalArgumentException e ) {
             throw fail( 3, text, "replay failed: " + e.getMessage() );
-        }
-        if( !doc.equals( v.doc() ) ) {
-            throw fail( 3, text, "replayed doc=" + show( doc ) + " doc=" + show( v.doc() ) );
-        }
-        if( !local.equals( v.local() ) ) {
-            throw fail( 3, text, "replayed local=" + local + " local=" + v.local() );
         }
     }
 
@@ -135,8 +154,12 @@ public final class CollabInvariants {
 
     private static void inv5( final InvariantView v ) {
         final long bytes = v.doc().getBytes( StandardCharsets.UTF_8 ).length;
+        final String text = "utf8Bytes(doc) <= maxPageBytes unless in oversize state, where it is <= the ceiling";
         if( !v.oversize() && bytes > v.maxPageBytes() ) {
-            throw fail( 5, "utf8Bytes(doc) <= maxPageBytes unless in oversize state", bytes + " > " + v.maxPageBytes() );
+            throw fail( 5, text, bytes + " > " + v.maxPageBytes() );
+        }
+        if( v.oversize() && bytes > v.oversizeCeiling() ) {
+            throw fail( 5, text, "oversize state grew: " + bytes + " > ceiling " + v.oversizeCeiling() );
         }
     }
 

@@ -38,32 +38,40 @@ public interface SimServer {
     record Joined( String participantId, String clientId, int version, String doc ) {
     }
 
-    /** {@code status}: 200 accepted, 400 rejected, 409 stale / unknown participant, 413 oversize, 503 store failure. */
-    record PushResult( int status, int version ) {
+    /**
+     * {@code status}: 200 accepted, 400 rejected, 403 (participant belongs to another author), 409 stale / unknown
+     * participant, 413 oversize, 503 store failure. {@code reason} is null on 200; 409 reasons are {@code stale-base},
+     * {@code rejoin}, {@code frozen}, {@code poisoned}; 403 is {@code not-your-participant}.
+     */
+    record PushResult( int status, int version, String reason ) {
     }
 
     /**
      * {@code status}: 200, 400 (bad {@code since}), 409 (unknown participant), 410 (resync). {@code parked} true means
      * the pull is waiting and its answer arrives through {@link #drainWakeups()}.
      */
-    record PullResult( int status, List< Update > updates, int version, boolean parked ) {
+    record PullResult( int status, List< Update > updates, int version, boolean parked, String reason ) {
     }
 
     /** A parked pull's eventual answer. */
     record Wakeup( String participantId, PullResult result ) {
     }
 
-    /** {@code status}: 200 (also "unchanged"), 400, 409, 422 (writer refused), 503. */
-    record PublishResult( int status, int pageVersion ) {
+    /** {@code status}: 200 ({@code unchanged} true when there was nothing to save, E21), 400, 409, 422 (writer refused), 503. */
+    record PublishResult( int status, int pageVersion, String reason, boolean unchanged ) {
     }
 
+    /**
+     * Joins as {@code authorKey}. The participant is bound to that author (A6): later calls naming it must pass the same
+     * {@code authorKey} or get 403 {@code not-your-participant}.
+     */
     Joined join( String authorKey );
 
-    PushResult push( String participantId, int version, List< Update > updates );
+    PushResult push( String participantId, String authorKey, int version, List< Update > updates );
 
-    PullResult pull( String participantId, int since );
+    PullResult pull( String participantId, String authorKey, int since );
 
-    PublishResult publish( String participantId, int version, String note );
+    PublishResult publish( String participantId, String authorKey, int version, String note );
 
     void leave( String participantId );
 

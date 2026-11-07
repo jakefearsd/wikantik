@@ -94,7 +94,7 @@ class SimClientTest {
         final SimClient a = client( "a", "ca", 0, "abc" );
         final ChangeSet cs = insert( "abc", 0, "X" );
         a.localEdit( cs );
-        a.onPushResult( new PushResult( 503, 0 ) );          // the response was lost / failed; push was applied server-side
+        a.onPushResult( new PushResult( 503, 0, null ) );          // the response was lost / failed; push was applied server-side
         assertEquals( 1, a.sendable().size() );
 
         a.receive( List.of( new Update( "ca", cs ) ), 0 );   // the pull brings the client's own update back

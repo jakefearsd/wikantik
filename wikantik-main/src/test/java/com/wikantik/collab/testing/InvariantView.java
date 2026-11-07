@@ -28,10 +28,12 @@ import java.util.UUID;
 
 /**
  * A read-only snapshot of a session's state for {@link CollabInvariants}. {@code oversize} is the session's oversize
- * state flag (section 7.4); the two pending flags explain a legitimate gap in invariant 4.
+ * state flag (section 7.4) and {@code oversizeCeiling} the byte size it must not exceed while in that state (it ratchets
+ * down as the doc shrinks); the two pending flags explain a legitimate gap in invariant 4. {@code poisoned} marks a
+ * stub that hit a store fault after a page save: its state is unsupported and invariants 2 to 4 are skipped.
  */
 public record InvariantView( UUID sessionId, String doc, int head, String baseBody, ChangeSet local, int basePageVersion,
                              List< StoredUpdate > ring, boolean oversize, long maxPageBytes, CollabStore store,
                              CollabPageWriter writer, String pageName, boolean externalChangePending,
-                             boolean publishPending ) {
+                             boolean publishPending, long oversizeCeiling, boolean poisoned ) {
 }

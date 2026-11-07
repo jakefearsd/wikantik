@@ -19,9 +19,11 @@
 package com.wikantik.collab;
 
 import com.wikantik.collab.CollabSession.Hooks;
+import com.wikantik.collab.model.DraftListing;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
 import com.wikantik.collab.model.PageState;
+import com.wikantik.collab.model.PurgeOutcome;
 import com.wikantik.collab.model.SessionRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,6 +38,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
 
 /**
@@ -56,12 +59,20 @@ import java.util.function.ToIntFunction;
  * {@code permission.recheckSeconds} re-checks each participant's {@code edit} with its wiki session (A5, E30) and
  * truncates the log (A10). A session without participants for {@code memory.idleEvictMinutes} leaves memory; its draft
  * is deleted when, by the session's memory, it has no unpublished changes (section 7.7, A10 Minor), and kept otherwise.
- * The stored {@code has_unpublished} flag is never consulted: it is written only at snapshot cadence. Each tick
- * first calls {@link CollabSession#settle}, the only retry of an owed external merge or an unfinished publish, and a
- * session that still owes one (a publish in its save, a stored pending-publish marker, a queued or failed merge) is
- * never evicted. Each tick also retries owed renames (with backoff, {@link Renames}), runs the orphan sweep
- * ({@link OrphanSweep}: a draft whose page has been missing for {@link #ORPHAN_GRACE} with no rename owed is frozen),
- * and, once after {@link #requestEditRecheck} (a group changed), re-checks every participant's {@code edit}.</p>
+ * The stored {@code has_unpublished} flag is never consulted: it is written only at snapshot cadence. The tick settles
+ * a session ({@link OrphanSweep#settle}: one page read, then a reconcile) on every tick while it owes the page store
+ * something (a publish in its save, a stored pending-publish marker, a queued or failed merge; such a session is never
+ * evicted) and otherwise, when it has participants, every {@link SessionSlot#SETTLE_EVERY}: the page listener delivers
+ * saves at once, and this is the safety net for a missed event. Each tick also retries owed renames (with backoff,
+ * {@link Renames}), runs the orphan sweep on that same read ({@link OrphanSweep}: a draft whose page has been missing
+ * for {@link #ORPHAN_GRACE} with no rename owed is frozen), reloads the draft index every
+ * {@link DraftIndex#RELOAD_EVERY}, runs draft retention at most hourly ({@link DraftAdmin}), and, once after
+ * {@link #requestEditRecheck} (a group changed), re-checks every participant's {@code edit}. Step failures are logged
+ * by {@link TickLog}: a warning clock per step, a repeating {@link Error} once per window.</p>
+ *
+ * <p><b>Drafts</b> ({@link DraftAdmin}): the administrators' {@link #drafts} list, {@link #purge} (participants are
+ * evicted with {@link #PURGED}; never publishes) and retention ({@code draft.retentionDays}). {@link #draftActive}
+ * answers from memory only: the live sessions and the {@link DraftIndex}.</p>
  *
  * <p><b>Engine events</b> arrive through {@code CollabPageEventListener} (adapter package): {@link #rekey} and
  * {@link #settleAll} on a rename, {@link #freeze} on a true delete (ruling Q10), {@link #evictSignedOut} and
@@ -93,7 +104,9 @@ public final class CollabSessionRegistry {
     static final String DERIVED = "derived-page";
     static final String FORBIDDEN = "forbidden";
     static final String FULL = "session-full";
-    private static final String DERIVED_FROM = "derived_from";
+    /** A participant's eviction reason when an administrator purges the draft. */
+    public static final String PURGED = "purged";
+    private static final String REGISTRY = "collab registry";
 
     /** The answer to {@link #join}. */
     public sealed interface JoinOutcome permits Joined, Refused, Disabled {
@@ -123,6 +136,10 @@ public final class CollabSessionRegistry {
     private final OrphanSweep orphans;
     /** Opened slots only. */
     private final Map< UUID, SessionSlot > byId = new ConcurrentHashMap<>();
+    private final DraftIndex index = new DraftIndex();
+    private final DraftAdmin admin;
+    /** The registry-wide tick steps' failure log (each session slot has its own). */
+    private final TickLog tickLog = new TickLog();
     /** Set by {@link #requestEditRecheck}; the next tick re-checks every live session's participants. */
     private final AtomicBoolean editRecheckRequested = new AtomicBoolean();
     private volatile boolean enabled;
@@ -147,6 +164,7 @@ public final class CollabSessionRegistry {
         this.enabled = config.enabled();
         this.renames = new Renames( slots, store, clock, this::freezeAt, writer::exists );
         this.orphans = new OrphanSweep( writer, renames, this::freezeAt );
+        this.admin = new DraftAdmin( store, slots, byId, index, this::unmap );
     }
 
     // ---- kill switch -----------------------------------------------------------------------------------------
@@ -214,25 +232,7 @@ public final class CollabSessionRegistry {
 
     /** {@code latest} is null when the page does not exist. 403 comes first: a non-editor learns nothing more. */
     private Refused refuse( final String pageName, final JoinRequest r, final PageState latest ) {
-        if( !mayJoin( r, pageName, latest == null ) ) {
-            return new Refused( 403, FORBIDDEN );
-        }
-        if( latest != null && latest.meta().containsKey( DERIVED_FROM ) ) {
-            return new Refused( 409, DERIVED );
-        }
-        return null;
-    }
-
-    /** {@code edit}, plus {@code createPages} for a new page; a check that throws fails closed (logged). */
-    private boolean mayJoin( final JoinRequest r, final String pageName, final boolean create ) {
-        final Object who = r.wikiSession();
-        try {
-            return permissions.canEdit( who, pageName ) && ( !create || permissions.canCreate( who, pageName ) );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab: the permission check for {} joining {} failed; refusing: {}", r.authorKey(), pageName,
-                e.toString() );
-            return false;
-        }
+        return JoinRefusals.refuse( permissions, pageName, r, latest );
     }
 
     /** Null to retry (the page moved under the join); else the outcome. */
@@ -296,6 +296,7 @@ public final class CollabSessionRegistry {
         }
         slot.opened( s, clock.instant() );
         byId.put( s.id(), slot );
+        index.add( pageName );
         return Opened.OK;
     }
 
@@ -330,6 +331,9 @@ public final class CollabSessionRegistry {
         try {
             renames.retryPending();
             final Instant now = clock.instant();
+            tickLog.run( REGISTRY, "draft index", now, () -> index.reloadIfDue( store, now ) );
+            tickLog.run( REGISTRY, "draft retention", now,
+                () -> admin.expireIfDue( config.draftRetentionDays(), now ) );
             final boolean recheck = editRecheckRequested.getAndSet( false );
             for( final SessionSlot slot : List.copyOf( byId.values() ) ) {
                 if( !slot.closed() ) {
@@ -347,13 +351,11 @@ public final class CollabSessionRegistry {
         slot.step( s, now, "waiter expiry", () -> s.expireWaiters().forEach( Runnable::run ) );
         slot.step( s, now, "presence", () -> SessionSweeps.expirePresence( s,
             now.minusSeconds( config.presenceTimeoutSeconds() ) ) );
-        // the only retry of an owed external merge or an unfinished publish (Task 4); empty sessions owing nothing skip
-        slot.step( s, now, "settle", () -> {
-            if( slot.needsSettle() ) {
-                s.settle();
-            }
-        } );
-        slot.step( s, now, "orphan sweep", () -> orphans.sweep( slot, s, now ) );
+        // the safety net for a missed page event and the only retry of an owed merge or an unfinished publish; its one
+        // page read is shared with the orphan sweep
+        final AtomicReference< OrphanSweep.Seen > seen = new AtomicReference<>();
+        slot.step( s, now, "settle", () -> seen.set( orphans.settle( slot, s, now ) ) );
+        slot.step( s, now, "orphan sweep", () -> orphans.sweep( slot, s, now, seen.get() ) );
         slot.step( s, now, "requested re-check", () -> {
             if( recheck ) {
                 s.recheckEdits();   // a group changed (E29): at most one tick later
@@ -404,6 +406,7 @@ public final class CollabSessionRegistry {
     private void deleteDraft( final CollabSession s ) {
         try {
             store.deleteSession( s.id() );
+            index.remove( s.pageName() );
         } catch( final RuntimeException e ) {
             LOG.warn( "collab session {} ({}): unchanged draft not deleted; the next join reloads it: {}", s.id(),
                 s.pageName(), e.toString() );
@@ -500,6 +503,43 @@ public final class CollabSessionRegistry {
         forEachLive( SessionSweeps::settleQuietly );
     }
 
+    // ---- drafts: the admin list, purge, the draft-active index, the contributor ledger -------------------------
+
+    /** Every stored draft (active and frozen), oldest edit first, overlaid with its live session's state. */
+    public List< DraftListing > drafts() {
+        return admin.drafts();
+    }
+
+    /**
+     * An administrator's purge of draft {@code id}: 204, 404 {@code unknown}, 423 {@code publish-in-progress} or 503
+     * {@code store} (the draft is kept). Every participant is evicted with {@link #PURGED} first. Never publishes.
+     */
+    public PurgeOutcome purge( final UUID id ) {
+        return admin.purge( id );
+    }
+
+    /**
+     * True when {@code pageName} has a live session with participants or unpublished changes, or a stored draft as the
+     * draft index knows it (reloaded every {@link DraftIndex#RELOAD_EVERY}, updated at once on this node's changes).
+     * Never reads the store.
+     */
+    public boolean draftActive( final String pageName ) {
+        return admin.draftActive( pageName );
+    }
+
+    /** The participants across the live sessions. */
+    public int participantCount() {
+        return forEachLive( s -> Hooks.members( s ).size() );
+    }
+
+    /**
+     * The contributors credited to each version of the page whose {@code canonical_id} is {@code canonicalId}; empty
+     * (logged) when the store cannot tell.
+     */
+    public Map< Integer, List< String > > contributorsByVersion( final String canonicalId ) {
+        return admin.contributorsByVersion( canonicalId );
+    }
+
     /** True when {@code pageName} has a draft in the store, active or frozen. */
     public boolean hasDraft( final String pageName ) {
         return store.sessionForPage( pageName ).isPresent();
@@ -519,7 +559,11 @@ public final class CollabSessionRegistry {
      * @throws IllegalStateException when {@code to} already has a session, live or stored
      */
     public void rekey( final String from, final String to ) {
-        renames.rekey( from, to );
+        try {
+            renames.rekey( from, to );
+        } finally {
+            admin.reindex( from, to );
+        }
     }
 
     /**

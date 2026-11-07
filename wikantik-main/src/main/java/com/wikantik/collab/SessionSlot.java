@@ -18,9 +18,6 @@
  */
 package com.wikantik.collab;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -30,20 +27,24 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * One page's place in {@link CollabSessionRegistry}. Its lock ({@link #lock}) serialises opening, joining and evicting
  * the page's session; the idle clock is guarded by it, and {@code closed} is written under it (read by the tick
- * without it). The session, the re-check clock and the warning clock are read without it.
+ * without it). The session, the re-check clock, the settle clock and the step warning clocks are read without it.
  */
 final class SessionSlot {
 
-    private static final Logger LOG = LogManager.getLogger( SessionSlot.class );
-    /** A repeating tick failure is logged at WARN at most this often per session. */
-    private static final Duration WARN_EVERY = Duration.ofMinutes( 1 );
+    /**
+     * The safety-net settle of a session with participants: the page listener delivers saves at once, so the tick
+     * reads the page only this often, for a missed event (Phase 1 Task 5 ruling, after Phase 2's listener).
+     */
+    static final Duration SETTLE_EVERY = Duration.ofSeconds( 15 );
 
     private final ReentrantLock lock = new ReentrantLock();
     private final AtomicInteger storeFailures = new AtomicInteger();
+    private final TickLog tickLog = new TickLog();
     private volatile CollabSession session;
     private volatile Instant lastRecheck;
     private volatile boolean closed;
-    private volatile Instant lastWarn;
+    /** When the tick last read the page to settle (null: not since opening). Tick thread only. */
+    private volatile Instant lastSettle;
     /** When the orphan sweep first found the session's page missing (null: present). Tick thread only. */
     private volatile Instant absentSince;
     private Instant emptySince;
@@ -113,11 +114,22 @@ final class SessionSlot {
     }
 
     /**
-     * Whether an opened slot's session needs {@link CollabSession#settle} on this tick: it has participants, or it owes
-     * the page store a publish or a merge. An empty session owing nothing is skipped (one page read saved per tick).
+     * Whether an opened slot's session is settled on this tick (tick thread only): it owes the page store a publish or a
+     * merge, or the orphan sweep found its page missing (checked every tick until the grace resolves), or it has
+     * participants and {@link #SETTLE_EVERY} has passed since the last settle read (the first tick after opening
+     * settles). An empty session owing nothing is never settled.
      */
-    boolean needsSettle() {
-        return !CollabSession.Hooks.members( session ).isEmpty() || CollabSession.Hooks.owesThePageStore( session );
+    boolean needsSettle( final Instant now ) {
+        if( absentSince != null || CollabSession.Hooks.owesThePageStore( session ) ) {
+            return true;
+        }
+        return !CollabSession.Hooks.members( session ).isEmpty()
+            && ( lastSettle == null || !now.isBefore( lastSettle.plus( SETTLE_EVERY ) ) );
+    }
+
+    /** The settle read the page at {@code now} (tick thread only); a read that failed is not recorded. */
+    void settled( final Instant now ) {
+        lastSettle = now;
     }
 
     /**
@@ -135,15 +147,6 @@ final class SessionSlot {
     /** The orphan sweep found the page (or a reason not to look): its grace starts over. Tick thread only. */
     void present() {
         absentSince = null;
-    }
-
-    /** True at most once per {@code every} (tick thread only): rate-limits a repeating warning. */
-    boolean warnDue( final Instant now, final Duration every ) {
-        if( lastWarn != null && now.isBefore( lastWarn.plus( every ) ) ) {
-            return false;
-        }
-        lastWarn = now;
-        return true;
     }
 
     /**
@@ -170,23 +173,11 @@ final class SessionSlot {
     }
 
     /**
-     * Runs one registry tick step for this slot's session {@code s}. Nothing escapes: an {@link Error} is logged at ERROR
-     * every time, anything else at WARN at most once a minute (DEBUG in between); the next tick retries.
+     * Runs one registry tick step for this slot's session {@code s}. Nothing escapes; a failure is logged by
+     * {@link TickLog} (a warning clock per step; a repeating {@link Error} also once per window) and the next tick
+     * retries.
      */
-    @SuppressWarnings( "PMD.AvoidCatchingThrowable" )
     void step( final CollabSession s, final Instant now, final String what, final Runnable r ) {
-        try {
-            r.run();
-        } catch( final Throwable t ) {
-            if( t instanceof Error ) {
-                // LOG.error justified: an Error escaped a tick step (stack overflow, out of memory); operator attention
-                LOG.error( "collab session {}: tick step '{}' failed with an error; retried next tick", s.id(), what, t );
-            } else if( warnDue( now, WARN_EVERY ) ) {
-                LOG.warn( "collab session {}: tick step '{}' failed; retried next tick (repeats muted for a minute): {}",
-                    s.id(), what, t.toString(), t );
-            } else {
-                LOG.debug( "collab session {}: tick step '{}' failed again: {}", s.id(), what, t.toString() );
-            }
-        }
+        tickLog.run( "collab session " + s.id(), what, now, r );
     }
 }

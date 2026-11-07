@@ -112,6 +112,8 @@ class CollabSessionRegistryTest {
         final CollabPageWriter d;
         final AtomicInteger latestReads = new AtomicInteger();
         volatile String explodeOn;
+        /** When set, latest() of this page throws an unchecked exception (a page store that cannot read it). */
+        volatile String failOn;
         /** When set, version() signals {@code versionEntered} and then waits for this latch (holding the base lock). */
         volatile java.util.concurrent.CountDownLatch blockVersion;
         final java.util.concurrent.CountDownLatch versionEntered = new java.util.concurrent.CountDownLatch( 1 );
@@ -127,6 +129,9 @@ class CollabSessionRegistryTest {
             latestReads.incrementAndGet();
             if( pageName.equals( explodeOn ) ) {
                 throw new StackOverflowError( "test: latest(" + pageName + ")" );
+            }
+            if( pageName.equals( failOn ) ) {
+                throw new IllegalStateException( "test: cannot read " + pageName );
             }
             final Optional< PageState > out = d.latest( pageName );
             final Runnable hook = afterLatest;
@@ -476,13 +481,103 @@ class CollabSessionRegistryTest {
         final Joined a = join( "alice" );
         registry.tick();
         final int withAParticipant = flaky.latestReads.get();
+        clock.advance( Duration.ofSeconds( 15 ) );
         registry.tick();
         assertTrue( flaky.latestReads.get() > withAParticipant, "a session with participants is settled" );
         leave( a, "alice" );
         final int empty = flaky.latestReads.get();
+        clock.advance( Duration.ofSeconds( 15 ) );
         registry.tick();
+        clock.advance( Duration.ofSeconds( 15 ) );
         registry.tick();
         assertEquals( empty, flaky.latestReads.get(), "an empty session owing nothing is not settled" );
+    }
+
+    // ---- settle cadence (Phase 3 Task 4: the page listener delivers saves; the tick is the safety net) -----------
+
+    @Test
+    void aSessionWithParticipantsSettlesEveryFifteenSecondsNotEverySecond() {
+        join( "alice" );
+        join( "bob" );
+        final int before = flaky.latestReads.get();
+        for( int i = 0; i < 30; i++ ) {
+            registry.tick();
+            clock.advance( Duration.ofSeconds( 1 ) );
+        }
+        assertEquals( 2, flaky.latestReads.get() - before,
+            "one page read per 15 s, shared by the settle and the orphan sweep" );
+    }
+
+    @Test
+    void aMissedExternalSaveIsStillMergedByTheSafetyNet() {
+        final Joined a = join( "alice" );
+        registry.tick();
+        writer.externalSave( PAGE, "changed elsewhere\n", Map.of( "title", "T" ), "test" );   // no event delivered
+        clock.advance( Duration.ofSeconds( 14 ) );
+        registry.tick();
+        assertEquals( BODY, a.session().view().doc(), "not yet" );
+        clock.advance( Duration.ofSeconds( 1 ) );
+        registry.tick();
+        assertEquals( "changed elsewhere\n", a.session().view().doc() );
+    }
+
+    @Test
+    void anOwedSessionStillSettlesEveryTick() throws Exception {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        registry.tick();
+        final ScriptedPageWriter.PauseHandle pause = writer.pauseNextPublish();
+        final java.util.concurrent.CompletableFuture< com.wikantik.collab.model.PublishResponse > publish =
+            java.util.concurrent.CompletableFuture.supplyAsync( () -> a.session().publish( a.response().participantId(),
+                "alice", a.session().view().head(), "" ) );
+        pause.awaitEntered( Duration.ofSeconds( 10 ) );
+        final int before = flaky.latestReads.get();
+        for( int i = 0; i < 5; i++ ) {
+            registry.tick();
+            clock.advance( Duration.ofSeconds( 1 ) );
+        }
+        assertTrue( flaky.latestReads.get() - before >= 5, "a session owing the page store settles on every tick" );
+        pause.release();
+        assertEquals( 200, publish.get( 10, java.util.concurrent.TimeUnit.SECONDS ).status() );
+    }
+
+    // ---- tick log hygiene (registry-wide steps: CollabSessionRegistryDraftsTest#oneStepsWarningDoesNotMuteAnother) ---
+
+    @Test
+    void aRepeatingErrorIsLoggedOncePerWindow() {
+        final Joined a = join( "alice" );
+        flaky.explodeOn = PAGE;
+        final List< org.apache.logging.log4j.core.LogEvent > first = CollabLogCapture.warnings( () -> {
+            for( int i = 0; i < 10; i++ ) {
+                registry.tick();
+                clock.advance( Duration.ofSeconds( 1 ) );
+            }
+        } );
+        assertEquals( 1, CollabLogCapture.stepFailures( first, org.apache.logging.log4j.Level.ERROR, "settle" ),
+            first::toString );
+        clock.advance( Duration.ofSeconds( 50 ) );
+        assertEquals( 200, type( a, "alice", "a" ).status() );   // alice stays present
+        final List< org.apache.logging.log4j.core.LogEvent > later = CollabLogCapture.warnings( registry::tick );
+        assertEquals( 1, CollabLogCapture.stepFailures( later, org.apache.logging.log4j.Level.ERROR, "settle" ),
+            "logged again once the window has passed" );
+    }
+
+    @Test
+    void aSessionStepsWarningIsLoggedOncePerWindow() {
+        final Joined a = join( "alice" );
+        flaky.failOn = PAGE;
+        final List< org.apache.logging.log4j.core.LogEvent > first = CollabLogCapture.warnings( () -> {
+            for( int i = 0; i < 10; i++ ) {
+                registry.tick();
+                clock.advance( Duration.ofSeconds( 1 ) );
+            }
+        } );
+        assertEquals( 1, CollabLogCapture.stepFailures( first, org.apache.logging.log4j.Level.WARN, "settle" ),
+            first::toString );
+        clock.advance( Duration.ofSeconds( 50 ) );
+        assertEquals( 200, type( a, "alice", "a" ).status() );
+        final List< org.apache.logging.log4j.core.LogEvent > later = CollabLogCapture.warnings( registry::tick );
+        assertEquals( 1, CollabLogCapture.stepFailures( later, org.apache.logging.log4j.Level.WARN, "settle" ) );
     }
 
     @Test

@@ -31,8 +31,8 @@ import java.util.function.ToIntFunction;
 
 /**
  * The registry's server-side participant removals: the presence timeout (E13, {@link Hooks#expirePresence}, no
- * tombstone), lost {@code edit} (A5/E30), a signed-out wiki session (A13) and a deleted user (evictions with a reason
- * and a tombstone,
+ * tombstone), lost {@code edit} (A5/E30), a signed-out wiki session (A13), a deleted user and a purged draft (evictions
+ * with a reason and a tombstone,
  * {@link CollabSession#evict(String, String)}), and a session leaving memory ({@link Hooks#dropAll}, no
  * tombstone). Each answers the participant's parked pull.
  */
@@ -149,6 +149,13 @@ final class SessionSweeps {
             LOG.warn( "collab session {}: settling after a rename failed; the tick retries: {}", s.id(), e.toString() );
         }
         return 0;
+    }
+
+    /**
+     * Every participant, each with {@code reason} and a tombstone (an administrator purged the draft); returns how many.
+     */
+    static int evictEveryone( final CollabSession s, final String reason ) {
+        return evictWhere( s, m -> true, reason );
     }
 
     /** Everyone: the session leaves memory. */

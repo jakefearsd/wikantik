@@ -937,10 +937,10 @@ class CollabSessionTest {
     }
 
     @Test
-    void aRetiredClientIdIsForgottenAfterThePresenceTimeout() {
+    void aRetiredClientIdIsForgottenAfterTheIdleEvictionPeriod() {   // kept that long for an A13 re-login
         final JoinResponse a = join( "alice" );
         session.leave( a.participantId(), "alice" );
-        clock.advance( Duration.ofSeconds( 46 ) );
+        clock.advance( Duration.ofMinutes( 10 ).plusSeconds( 1 ) );
         assertNotEquals( a.clientId(),
             session.join( new JoinRequest( "alice", a.clientId(), null, "A", null, null ) ).clientId() );
     }

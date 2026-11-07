@@ -163,12 +163,12 @@ public final class CollabSession {
         this.d = new Draft( record, ports.store(), maxPageBytes, config.historyInMemoryUpdates() );
         final int load = LOADS.computeIfAbsent( ports.store(), k -> new AtomicInteger() ).incrementAndGet();
         this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-", ports.identity(),
-            Duration.ofSeconds( config.presenceTimeoutSeconds() ) );
+            Duration.ofSeconds( config.presenceTimeoutSeconds() ), Duration.ofMinutes( config.memoryIdleEvictMinutes() ) );
         this.answers = new Answers( d, roster, new Waiters( id ) );
         this.life = new Lifecycle( d, roster, answers );
         this.pusher = new SessionPush( d, roster, answers, config );
         this.flow = new PublishFlow( d, lock, writer, ports.identity(), answers,
-            new ExternalMerge( d, lock, writer, ports.identity(), answers ), life );
+            new ExternalMerge( d, lock, writer, ports.identity(), answers ) );
         d.follow = ( oldHead, applied, newHead ) -> Presence.follow( roster.all(), oldHead, applied, newHead );
     }
 
@@ -278,7 +278,7 @@ public final class CollabSession {
             final Participant p = roster.add( r, now, d.head, config.pushesPerSecond() );
             life.joined( p, completions );
             out = new JoinResponse( id, p.id, p.clientId, d.head, d.doc, d.metaSeq, d.meta, d.record.basePageVersion(),
-                roster.peers(), d.hasUnpublished(), d.lastEditAt, life.joinEventSeq() );
+                roster.peers(), d.hasUnpublished(), d.lastEditAt, life.joinEventSeq(), d.frozen() );
         } finally {
             lock.unlock();
         }
@@ -615,7 +615,8 @@ public final class CollabSession {
         PublishStart out = null;
         baseLock.lock();
         try {
-            out = flow.start( p, changeNote == null ? "" : changeNote, markupSyntax, completions );
+            // frozen here means createPages was checked; a freeze landing after it is answered 409 frozen at the save
+            out = flow.start( p, changeNote == null ? "" : changeNote, markupSyntax, frozen, completions );
         } finally {
             baseLock.unlock();
             if( out == null || out.response() != null ) {
@@ -782,20 +783,10 @@ public final class CollabSession {
      */
     public void rekey( final String newPageName ) {
         Objects.requireNonNull( newPageName, "newPageName" );
-        baseLock.lock();   // a rename must not interleave with a base change (publish completion, merge)
-        try {
-            final List< Runnable > completions = new ArrayList<>();
-            lock.lock();
-            try {
-                life.rekey( newPageName, completions );
-            } finally {
-                lock.unlock();
-            }
-            completions.forEach( Runnable::run );
-        } finally {
-            baseLock.unlock();
-        }
+        Hooks.requireLockOrder( lock );
+        Hooks.rekey( this, newPageName ).forEach( Runnable::run );
     }
+
 
     /**
      * The page was deleted: the status becomes {@code frozen} in the store and in memory, {@code page-deleted} is emitted
@@ -803,19 +794,8 @@ public final class CollabSession {
      * someone with {@code createPages} recreates the page. A page that exists again unfreezes it on {@link #settle}.
      */
     public void freeze() {
-        baseLock.lock();   // a freeze must not interleave with a base change (publish completion, merge)
-        try {
-            final List< Runnable > completions = new ArrayList<>();
-            lock.lock();
-            try {
-                life.freeze( completions );
-            } finally {
-                lock.unlock();
-            }
-            completions.forEach( Runnable::run );
-        } finally {
-            baseLock.unlock();
-        }
+        Hooks.requireLockOrder( lock );
+        Hooks.freeze( this ).forEach( Runnable::run );
     }
 
     /** True while the draft's page is deleted. */
@@ -947,6 +927,57 @@ public final class CollabSession {
                 s.lock.unlock();
             }
             completions.forEach( Runnable::run );
+        }
+
+        /**
+         * {@link CollabSession#rekey} under the base lock (a rename must not interleave with a base change), returning
+         * the parked-pull completions for the caller to run once it holds no lock (the registry also holds the slot).
+         *
+         * @throws IllegalStateException with the session unchanged, when the store refuses (the new name has a draft)
+         */
+        static List< Runnable > rekey( final CollabSession s, final String newPageName ) {
+            final List< Runnable > completions = new ArrayList<>();
+            s.baseLock.lock();
+            try {
+                s.lock.lock();
+                try {
+                    s.life.rekey( newPageName, completions );
+                } finally {
+                    s.lock.unlock();
+                }
+            } finally {
+                s.baseLock.unlock();
+            }
+            return completions;
+        }
+
+        /** {@link CollabSession#freeze} under the base lock, returning the completions as {@link #rekey} does. */
+        static List< Runnable > freeze( final CollabSession s ) {
+            final List< Runnable > completions = new ArrayList<>();
+            s.baseLock.lock();
+            try {
+                s.lock.lock();
+                try {
+                    s.life.freeze( completions );
+                } finally {
+                    s.lock.unlock();
+                }
+            } finally {
+                s.baseLock.unlock();
+            }
+            return completions;
+        }
+
+        /** The base lock is taken before the session lock, never under it: rename and freeze refuse otherwise. */
+        static void requireLockOrder( final ReentrantLock sessionLock ) {
+            if( sessionLock.isHeldByCurrentThread() ) {
+                throw new IllegalStateException( "collab: rename or freeze called under the session lock" );
+            }
+        }
+
+        /** For tests: true while the calling thread holds the session's base lock. */
+        static boolean baseLockHeld( final CollabSession s ) {
+            return s.baseLock.isHeldByCurrentThread();
         }
 
         /** True when {@code r} is a rejoin that replaces its own stale entry (it takes no new seat). */

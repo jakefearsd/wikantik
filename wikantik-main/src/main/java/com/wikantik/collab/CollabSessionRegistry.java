@@ -109,6 +109,7 @@ public final class CollabSessionRegistry {
     private final CollabConfig config;
     private final long maxPageBytes;
     private final PageSlots slots = new PageSlots();
+    private final Renames renames;
     /** Opened slots only. */
     private final Map< UUID, SessionSlot > byId = new ConcurrentHashMap<>();
     private volatile boolean enabled;
@@ -131,6 +132,7 @@ public final class CollabSessionRegistry {
         this.config = Objects.requireNonNull( config, "config" );
         this.maxPageBytes = maxPageBytes;
         this.enabled = config.enabled();
+        this.renames = new Renames( slots, store );
     }
 
     // ---- kill switch -----------------------------------------------------------------------------------------
@@ -160,6 +162,11 @@ public final class CollabSessionRegistry {
     public JoinOutcome join( final String pageName, final JoinRequest r ) {
         if( !enabled ) {
             return new Disabled();
+        }
+        if( !renames.joinable( pageName ) ) {
+            // a rename into this page is still owed: opening a session now would leave the renamed draft no home
+            LOG.warn( "collab: join of {} by {} refused: a rename into it is pending", pageName, r.authorKey() );
+            return new Refused( 503, CollabSession.STORE );
         }
         while( true ) {
             // read (again, on a retry): a rename or delete may have moved the page meanwhile
@@ -299,6 +306,7 @@ public final class CollabSessionRegistry {
     @SuppressWarnings( "PMD.AvoidCatchingThrowable" )
     public void tick() {
         try {
+            renames.retryPending();
             final Instant now = clock.instant();
             for( final SessionSlot slot : List.copyOf( byId.values() ) ) {
                 if( !slot.closed() ) {
@@ -434,60 +442,22 @@ public final class CollabSessionRegistry {
     }
 
     /**
-     * The page {@code from} was renamed to {@code to}: its live session or stored draft follows. Runs under
-     * {@code from}'s slot lock, so it cannot interleave with a join opening that slot: a stored draft is renamed and the
-     * unopened slot retired (a waiting joiner retries from a fresh read); a live session is renamed by
-     * {@link CollabSession#rekey}, which waits for the session's base lock and writes the store, with the page map
-     * free: {@code to} is reserved for the slot first (a joiner of {@code to} waits on the slot, then joins the moved
-     * session), and {@code from} is unmapped before the slot is released.
+     * The page {@code from} was renamed to {@code to}: its live session or stored draft follows ({@link Renames}). A
+     * rename that fails is remembered: the tick retries it, and a join of {@code to} retries it first and is refused
+     * (503 {@code store}) rather than open a second session while it is owed.
      *
      * @throws IllegalStateException when {@code to} already has a session, live or stored
      */
     public void rekey( final String from, final String to ) {
-        if( from.equals( to ) ) {
-            return;
-        }
-        while( true ) {
-            final SessionSlot slot = slots.slotFor( from );
-            slot.lock();
-            try {
-                if( !slot.closed() ) {
-                    if( slot.session() == null ) {
-                        renameStored( from, to );
-                        slot.close();
-                        unmap( slot, null );
-                    } else {
-                        moveLive( slot, from, to );
-                    }
-                    return;
-                }
-            } finally {
-                slot.unlock();
-            }
-            // evicted while we waited: the next slot is a fresh one
-        }
-    }
-
-    /** Under the slot lock; the page map is held only to reserve and swap keys, never across the session's rename. */
-    private void moveLive( final SessionSlot slot, final String from, final String to ) {
-        slots.reserve( from, to, slot );
-        boolean moved = false;
-        try {
-            slot.session().rekey( to );
-            moved = true;
-        } finally {
-            slots.release( moved ? from : to, slot );   // refused: the reservation of to goes; moved: from goes
-        }
-    }
-
-    private void renameStored( final String from, final String to ) {
-        store.sessionForPage( from ).ifPresent( rec -> store.updateSession( rec.withPageName( to ) ) );
+        renames.rekey( from, to );
     }
 
     /** The page was deleted: its live session or stored draft is frozen for an administrator. */
     public void freeze( final String pageName ) {
         final SessionSlot slot = slots.get( pageName );
-        if( slot != null && slot.freezeIfLive() ) {
+        final List< Runnable > done = slot == null ? null : slot.freezeIfLive();
+        if( done != null ) {
+            done.forEach( Runnable::run );   // after the slot lock is released
             return;
         }
         store.sessionForPage( pageName ).ifPresent( rec -> store.updateSession( rec.withStatus( SessionRecord.FROZEN ) ) );

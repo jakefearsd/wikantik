@@ -182,6 +182,7 @@ final class CollabWire {
         draft.addProperty( "lastEditAt", j.lastEditAt() == null ? null : j.lastEditAt().toString() );
         o.add( "draft", draft );
         o.addProperty( "eventSeq", j.eventSeq() );
+        o.addProperty( "frozen", j.frozen() );
         return new Answer( 200, o );
     }
 

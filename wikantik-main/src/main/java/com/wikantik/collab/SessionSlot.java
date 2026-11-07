@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -126,15 +127,14 @@ final class SessionSlot {
         return true;
     }
 
-    /** Freezes the opened session under the slot lock (its page was deleted); false when not opened or closed. */
-    boolean freezeIfLive() {
+    /**
+     * Freezes the opened session under the slot lock (its page was deleted); returns the parked-pull completions for the
+     * caller to run after the lock is released, or null when the slot is not opened or closed.
+     */
+    List< Runnable > freezeIfLive() {
         lock.lock();
         try {
-            if( closed || session == null ) {
-                return false;
-            }
-            session.freeze();
-            return true;
+            return closed || session == null ? null : CollabSession.Hooks.freeze( session );
         } finally {
             lock.unlock();
         }

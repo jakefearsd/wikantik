@@ -89,9 +89,16 @@ describe('fakeCollabServer matches the fixture', () => {
   beforeEach(() => { vi.useFakeTimers(); server = createFakeCollabServer(); });
   afterEach(() => { vi.useRealTimers(); });
 
+  it('a join into a frozen draft says so explicitly', async () => {
+    server.freeze();
+    const body = await joinSample(server, 'raj');
+    expect(body.frozen).toBe(true);
+  });
+
   it('join 200 and its error statuses', async () => {
-    await expectCase(server, 'join.200');
+    const joined = await expectCase(server, 'join.200');
     expect(byId['join.200'].response.body.doc).toBe('Hello world');
+    expect(joined.body.frozen).toBe(false);
     for (const [id, flag] of [['join.403', 'forbidJoin'], ['join.409.derived-page', 'derived'],
       ['join.429.session-full', 'full'], ['join.503.collab-disabled', 'disabled']]) {
       const s = createFakeCollabServer();

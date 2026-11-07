@@ -876,6 +876,85 @@ class CollabSessionRegistryTest {
     }
 
     @Test
+    void aFailedRekeyIsRememberedAndRetriedOnTheTick() {
+        final Joined a = join( "alice" );
+        store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        assertThrows( RuntimeException.class, () -> registry.rekey( PAGE, "Renamed" ) );
+        assertEquals( PAGE, a.session().pageName(), "the store refused: still on the old name" );
+        writer.rename( PAGE, "Renamed" );
+
+        registry.tick();
+
+        assertEquals( "Renamed", a.session().pageName() );
+        assertSame( a.session(), registry.liveForPage( "Renamed" ).orElseThrow() );
+        assertEquals( "Renamed", store.session( a.response().sessionId() ).orElseThrow().pageName() );
+    }
+
+    @Test
+    void aJoinOfTheNewNameDuringAPendingRekeyJoinsTheMovedSession() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        assertThrows( RuntimeException.class, () -> registry.rekey( PAGE, "Renamed" ) );
+        writer.rename( PAGE, "Renamed" );
+
+        final Joined b = assertInstanceOf( Joined.class, registry.join( "Renamed", req( "bob" ) ) );
+
+        assertEquals( a.response().sessionId(), b.response().sessionId(), "never a second session for the page" );
+        assertEquals( "x" + BODY, b.response().doc() );
+        assertEquals( "Renamed", a.session().pageName() );
+    }
+
+    @Test
+    void aJoinOfTheNewNameWhileTheRekeyStillFailsIsRefusedNotDuplicated() {
+        final Joined a = join( "alice" );
+        store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        assertThrows( RuntimeException.class, () -> registry.rekey( PAGE, "Renamed" ) );
+        writer.rename( PAGE, "Renamed" );
+        store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+
+        assertEquals( new Refused( 503, "store" ), registry.join( "Renamed", req( "bob" ) ) );
+        assertTrue( store.sessionForPage( "Renamed" ).isEmpty(), "no second session was created" );
+
+        registry.tick();   // the retry lands
+        assertSame( a.session(), assertInstanceOf( Joined.class, registry.join( "Renamed", req( "bob" ) ) ).session() );
+    }
+
+    @Test
+    void registryRekeyAndFreezeCompleteParkedPullsOutsideTheSlotLock() throws Exception {
+        final Joined a = join( "alice" );
+        final List< String > blocked = new ArrayList<>();
+        final PullWaiter checking = r -> {
+            // another thread's join needs the page's slot lock: it must not wait for this completion
+            final java.util.concurrent.CompletableFuture< JoinOutcome > other = java.util.concurrent.CompletableFuture
+                .supplyAsync( () -> registry.join( a.session().pageName(), req( "carol" ) ) );
+            try {
+                other.get( 3, java.util.concurrent.TimeUnit.SECONDS );
+            } catch( final java.util.concurrent.TimeoutException e ) {
+                blocked.add( r.events().toString() );
+            } catch( final Exception e ) {
+                blocked.add( e.toString() );
+            }
+        };
+        park( a, checking );
+        registry.rekey( PAGE, "Renamed" );
+        writer.rename( PAGE, "Renamed" );
+        park( a, checking );
+        writer.delete( "Renamed" );
+        registry.freeze( "Renamed" );
+        assertEquals( List.of(), blocked, "a parked pull was completed while the slot lock was held" );
+    }
+
+    /** Parks {@code a}'s pull at every current cursor with {@code w}. */
+    private static void park( final Joined a, final PullWaiter w ) {
+        final String pid = a.response().participantId();
+        final PullResponse first = a.session().pullOrPark( pid, "alice",
+            new com.wikantik.collab.model.PullCursor( 0, 0, 0, 0 ), null, new Waiter() );
+        assertNull( a.session().pullOrPark( pid, "alice", new com.wikantik.collab.model.PullCursor( 0, first.metaSeq(),
+            first.presenceSeq(), first.eventSeq() ), null, w ) );
+    }
+
+    @Test
     void joinResponsesComeFromTheSession() {
         final JoinOutcome o = registry.join( PAGE, req( "alice" ) );
         final JoinResponse r = assertInstanceOf( Joined.class, o ).response();

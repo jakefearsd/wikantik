@@ -105,6 +105,38 @@ class CollabSessionLifecycleTest {
         }
     }
 
+    /** The scripted writer with a one-shot hook run at the start of the next latest() read. */
+    private static final class HookedWriter implements CollabPageWriter {
+        final CollabPageWriter d;
+        volatile Runnable onLatest;
+
+        HookedWriter( final CollabPageWriter d ) {
+            this.d = d;
+        }
+
+        @Override
+        public java.util.Optional< com.wikantik.collab.model.PageState > latest( final String pageName ) {
+            final Runnable hook = onLatest;
+            if( hook != null ) {
+                onLatest = null;
+                hook.run();
+            }
+            return d.latest( pageName );
+        }
+
+        @Override
+        public java.util.Optional< com.wikantik.collab.model.PageState > version( final String pageName,
+                                                                               final int version ) {
+            return d.version( pageName, version );
+        }
+
+        @Override
+        public com.wikantik.collab.model.PublishOutcome publish( final com.wikantik.collab.model.PublishRequest request )
+                throws com.wikantik.api.exceptions.WikiException {
+            return d.publish( request );
+        }
+    }
+
     private static CollabConfig config() {
         return new CollabConfig( true, 20, 65536, 25, PRESENCE_TIMEOUT, 30, 100, 500, 10, 0, 1000 );
     }
@@ -485,6 +517,8 @@ class CollabSessionLifecycleTest {
         assertTrue( session.frozen() );
         final JoinResponse again = join( "ada" );
         assertEquals( "xhello\nworld\n", again.doc(), "a join into a frozen draft gets its text to copy" );
+        assertTrue( again.frozen(), "told explicitly, not only by an event that may have left the window" );
+        assertFalse( ada.frozen() );
         assertEquals( "frozen", type( again, "ada", 1, "y" ).reason() );
         final PullResponse r = session.pullOrPark( again.participantId(), "ada",
             new PullCursor( 1, Long.MAX_VALUE, Long.MAX_VALUE, again.eventSeq() ), null, new Waiter() );
@@ -493,7 +527,7 @@ class CollabSessionLifecycleTest {
     }
 
     @Test
-    void aSaveThatFindsThePageGoneFreezesTheSession() throws Exception {
+    void aSaveThatFindsThePageGoneNeverFreezesAndIsRetryable() throws Exception {   // ruling Q10
         final JoinResponse ada = join( "ada" );
         assertEquals( 200, type( ada, "ada", 0, "x" ).status() );
         final ScriptedPageWriter.PauseHandle pause = writer.pauseNextPublish();
@@ -505,11 +539,95 @@ class CollabSessionLifecycleTest {
 
         final PublishResponse r = first.get( 10, TimeUnit.SECONDS );
         assertEquals( 409, r.status() );
-        assertEquals( "frozen", r.reason() );
-        assertTrue( session.frozen(), "the client gets the recreate flow, not a retry into the same conflict" );
-        assertTrue( types( events( ada, "ada" ) ).contains( "page-deleted" ) );
-        assertTrue( writer.latest( PAGE ).isEmpty() );
+        assertEquals( "publish-merged-retry", r.reason() );
+        assertFalse( session.frozen(), "only the delete listener freezes a draft" );
+        assertTrue( session.view().reconcilePending(), "owed: settle or the listener resolves it" );
+        final CollabSession.View v = session.view();
+        assertEquals( 1, v.head(), "no merge applied" );
+
+        session.freeze();   // the delete listener
+        assertTrue( session.frozen() );
         assertEquals( 200, session.publish( ada.participantId(), "ada", 1, "" ).status(), "recreate" );
+    }
+
+    @Test
+    void e27b_aSaveFailingBeforeTheRekeyLandsIsRetriedUnderTheNewName() throws Exception {
+        final JoinResponse ada = join( "ada" );
+        assertEquals( 200, type( ada, "ada", 0, "x" ).status() );
+        final ScriptedPageWriter.PauseHandle pause = writer.pauseNextPublish();
+        final CompletableFuture< PublishResponse > first = CompletableFuture.supplyAsync(
+            () -> session.publish( ada.participantId(), "ada", 1, "" ) );
+        pause.awaitEntered( Duration.ofSeconds( 10 ) );
+        writer.rename( PAGE, "Renamed" );   // the rename's event (the rekey) lands after the save failed
+        pause.release();
+
+        final PublishResponse r = first.get( 10, TimeUnit.SECONDS );
+        assertEquals( 409, r.status() );
+        assertEquals( "publish-merged-retry", r.reason() );
+        assertFalse( session.frozen(), "a rename is not a delete" );
+        session.settle();   // the tick: the old name is gone, nothing to merge, still not frozen
+        assertFalse( session.frozen() );
+
+        session.rekey( "Renamed" );
+        final PublishResponse retry = session.publish( ada.participantId(), "ada", session.view().head(), "" );
+        assertEquals( 200, retry.status() );
+        assertEquals( "xhello\r\nworld\r\n", writer.latest( "Renamed" ).orElseThrow().body() );
+        assertTrue( writer.latest( PAGE ).isEmpty() );
+    }
+
+    @Test
+    void aDraftFrozenMidPublishIsRecreatedOnlyAfterACreateCheck() {
+        final HookedWriter hooked = new HookedWriter( writer );
+        writer.seed( "Hooked", BODY, Map.of( "title", "T" ) );
+        session = CollabSession.create( CollabSession.newRecord( UUID.randomUUID(), "Hooked", writer.latest( "Hooked" ),
+            "creator", clock ), new CollabPorts( store, hooked, IDENTITY, permissions, clock ), config(), 1 << 20 );
+        final JoinResponse ada = join( "ada" );
+        assertEquals( 200, type( ada, "ada", 0, "x" ).status() );
+        noCreate.add( "ada" );
+        // the page is deleted and the draft frozen after the publish read "not frozen" (no create check made)
+        hooked.onLatest = () -> {
+            writer.delete( "Hooked" );
+            session.freeze();
+        };
+
+        final PublishResponse r = session.publish( ada.participantId(), "ada", 1, "" );
+
+        assertEquals( 409, r.status() );
+        assertEquals( "frozen", r.reason() );
+        assertTrue( writer.latest( "Hooked" ).isEmpty(), "never recreated without createPages" );
+        assertEquals( "no-create", session.publish( ada.participantId(), "ada", 1, "" ).reason() );
+    }
+
+    @Test
+    void rekeyAndFreezeCompleteParkedPullsOutsideTheBaseLock() {
+        final JoinResponse ada = join( "ada" );
+        final List< String > held = new ArrayList<>();
+        final PullWaiter checking = r -> {
+            if( CollabSession.Hooks.baseLockHeld( session ) || session.lockHeldByCurrentThread() ) {
+                held.add( r.events().toString() );
+            }
+        };
+        final PullResponse first = session.pullOrPark( ada.participantId(), "ada", new PullCursor( 0, 0, 0, 0 ), null,
+            new Waiter() );
+        assertNull( session.pullOrPark( ada.participantId(), "ada", new PullCursor( 0, first.metaSeq(),
+            first.presenceSeq(), first.eventSeq() ), null, checking ) );
+        session.rekey( "Renamed" );
+        final PullResponse second = session.pullOrPark( ada.participantId(), "ada", new PullCursor( 0, 0, 0, 0 ), null,
+            new Waiter() );
+        assertNull( session.pullOrPark( ada.participantId(), "ada", new PullCursor( 0, second.metaSeq(),
+            second.presenceSeq(), second.eventSeq() ), null, checking ) );
+        session.freeze();
+        assertEquals( List.of(), held, "completed with a lock held" );
+    }
+
+    @Test
+    void aSignedOutParticipantReclaimsItsClientIdAfterLoggingInAgain() {   // A13: an SSO re-login takes minutes
+        final JoinResponse ada = join( "ada" );
+        session.evict( ada.participantId(), CollabSession.SIGNED_OUT );
+        clock.advance( Duration.ofMinutes( 5 ) );
+        assertEquals( "rejoin", type( ada, "ada", 0, "x" ).reason(), "the tombstone is gone, the client rejoins" );
+        final JoinResponse again = session.join( new JoinRequest( "ada", ada.clientId(), "ada", null, null, null ) );
+        assertEquals( ada.clientId(), again.clientId(), "its unconfirmed edits are recognised as its own" );
     }
 
     @Test

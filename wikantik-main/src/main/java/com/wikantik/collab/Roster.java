@@ -33,8 +33,8 @@ import java.util.Map;
 /**
  * The participants of one session (section 7.1) and the ids it issues. Participant ids are {@code <tag>p<n>}; a new
  * clientID is {@code <tag>c<n>}, but a join gets its prior clientID back when a participant of the same author held it
- * and left within the retention (the presence timeout) and no live participant holds it (section 7.2 "same clientID").
- * The tag is unique per session load, so ids never repeat across restarts. Display names come from
+ * and left within the client retention (the idle-eviction period, A13) and no live participant holds it (section
+ * 7.2 "same clientID"). The tag is unique per session load, so ids never repeat across restarts. Display names come from
  * {@link CollabIdentity} (the join's name only when it has none, a neutral {@code "Editor <n>"} when neither has one,
  * never the login); colours from a fixed palette by join order within the
  * session, never from the login (section 8.3). Guarded by the session lock.
@@ -62,6 +62,8 @@ final class Roster {
     private final String idTag;
     private final CollabIdentity identity;
     private final Duration retention;
+    /** How long a retired clientID is kept: at least the idle-eviction period, so an A13 re-login reclaims it. */
+    private final Duration clientRetention;
     private final Map< String, Participant > participants = new LinkedHashMap<>();
     /** clientID of a participant that left, to its author and the time it left. */
     private final Map< String, Retired > retiredClients = new LinkedHashMap<>();
@@ -69,10 +71,17 @@ final class Roster {
     private final Map< String, Tombstone > tombstones = new LinkedHashMap<>();
     private int next = 1;
 
-    Roster( final String idTag, final CollabIdentity identity, final Duration retention ) {
+    /**
+     * @param retention       how long a tombstone is kept (the presence timeout)
+     * @param clientRetention how long a retired clientID is kept for its author's rejoin (the session's idle-eviction
+     *                        period: a signed-out user's SSO re-login can take minutes, A13); never below
+     *                        {@code retention}
+     */
+    Roster( final String idTag, final CollabIdentity identity, final Duration retention, final Duration clientRetention ) {
         this.idTag = idTag;
         this.identity = identity;
         this.retention = retention;
+        this.clientRetention = clientRetention.compareTo( retention ) > 0 ? clientRetention : retention;
     }
 
     Participant add( final JoinRequest r, final Instant now, final int head, final int pushesPerSecond ) {
@@ -121,10 +130,11 @@ final class Roster {
         return idTag + "c" + n;
     }
 
-    /** Forgets the clientIDs retired and the tombstones laid longer ago than the retention, so both stay bounded. */
+    /** Forgets the clientIDs and tombstones older than their retentions, so both stay bounded. */
     private void prune( final Instant now ) {
+        final Instant clients = now.minus( clientRetention );
+        retiredClients.values().removeIf( r -> r.at().isBefore( clients ) );
         final Instant horizon = now.minus( retention );
-        retiredClients.values().removeIf( r -> r.at().isBefore( horizon ) );
         tombstones.values().removeIf( t -> t.at().isBefore( horizon ) );
     }
 

@@ -459,6 +459,7 @@ class CollabResourceTest {
             .getAsString() );
         assertTrue( b.getAsJsonObject( "draft" ).get( "lastEditAt" ).isJsonNull(), "explicit null" );
         assertEquals( 1, b.get( "eventSeq" ).getAsLong(), "after its own participant-joined" );
+        assertFalse( b.get( "frozen" ).getAsBoolean() );
     }
 
     @Test
@@ -980,6 +981,7 @@ class CollabResourceTest {
         final Joined a = join( "ada" );
         writer.delete( PAGE );
         registry.freeze( PAGE );
+        assertTrue( join( "raj" ).body.get( "frozen" ).getAsBoolean(), "a joiner is told the draft is frozen" );
         noCreate.add( "ada" );
         assertFixture( "publish.403.no-create", post( "ada", "publish", publishBody( a, 0 ) ) );
         assertTrue( writer.latest( PAGE ).isEmpty() );

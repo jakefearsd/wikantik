@@ -59,17 +59,15 @@ final class PublishFlow {
     private final CollabIdentity identity;
     private final Answers answers;
     private final ExternalMerge merge;
-    private final Lifecycle life;
 
     PublishFlow( final Draft d, final ReentrantLock lock, final CollabPageWriter writer, final CollabIdentity identity,
-                 final Answers answers, final ExternalMerge merge, final Lifecycle life ) {
+                 final Answers answers, final ExternalMerge merge ) {
         this.d = d;
         this.lock = lock;
         this.writer = writer;
         this.identity = identity;
         this.answers = answers;
         this.merge = merge;
-        this.life = life;
     }
 
     /** A publish answered before any save. */
@@ -94,7 +92,7 @@ final class PublishFlow {
      * then the pre-save answers or the ticket with its stored marker.
      */
     PublishStart start( final Participant p, final String note, final String markupSyntax,
-                        final List< Runnable > completions ) {
+                        final boolean createChecked, final List< Runnable > completions ) {
         final Optional< PageState > latest;
         final ExternalMerge.Result merged;
         try {
@@ -119,7 +117,7 @@ final class PublishFlow {
         }
         lock.lock();
         try {
-            return snapshotForSave( p, note, markupSyntax, latest );
+            return snapshotForSave( p, note, markupSyntax, createChecked, latest );
         } finally {
             lock.unlock();
         }
@@ -137,11 +135,17 @@ final class PublishFlow {
     /**
      * Under the lock: 200 {@code unchanged} (E21), 400 {@code empty} (E1), 413 {@code oversize}; else V, S_V, M_V on base
      * B, the save request (a field still equal to the base keeps the base's original typed value) and the stored marker.
-     * A frozen draft recreates its deleted page: B is 0 ("must not exist", A11) and it is published even unchanged.
+     * A frozen draft recreates its deleted page: B is 0 ("must not exist", A11) and it is published even unchanged,
+     * but only when the publisher's {@code createPages} was checked ({@code createChecked}); a draft frozen after that
+     * check was skipped answers 409 {@code frozen}, and the publisher's retry meets the check.
      */
     private PublishStart snapshotForSave( final Participant p, final String note, final String markupSyntax,
-                                          final Optional< PageState > latest ) {
+                                          final boolean createChecked, final Optional< PageState > latest ) {
         final boolean recreate = d.frozen();
+        if( recreate && !createChecked ) {
+            return new PublishStart( new PublishResponse( 409, d.record.basePageVersion(), CollabSession.FROZEN, false ),
+                null );
+        }
         final int b = recreate ? 0 : d.record.basePageVersion();
         final PublishResponse early = Gate.publishable( recreate || d.hasUnpublished(), d.doc.isEmpty(),
             Oversize.utf8( d.doc ) > d.oversize.maxPageBytes(), b );
@@ -250,11 +254,11 @@ final class PublishFlow {
 
     /**
      * A save that threw: version B+1 by the publisher with S_V's text means it persisted before failing (finished, A2);
-     * a page-gone conflict on a page that is still missing freezes the draft and answers 409 {@code frozen} (E28: the
-     * client offers the recreate, not a retry into the same conflict); another B+1, or a version conflict (a rename
-     * included: the session's current name is read), is an outside write, merged, and answered 409
-     * {@code publish-merged-retry} (E20, E27); otherwise the draft is unchanged and the others are told
-     * ({@code publish-failed}, E19).
+     * a page-gone conflict (renamed or deleted away under the save) merges nothing and freezes nothing (ruling Q10: only
+     * the delete listener freezes): it is owed a reconcile and answered 409 {@code publish-merged-retry}, and the rekey,
+     * the freeze or {@code settle} resolves it before the retry; another B+1, or a version conflict, is an outside write,
+     * merged, and answered 409 {@code publish-merged-retry} (E20, E27); otherwise the draft is unchanged and the others
+     * are told ({@code publish-failed}, E19).
      */
     PublishResponse failed( final PublishStart.Ticket t, final Exception e, final List< Runnable > completions ) {
         LOG.warn( "collab session {} ({}): the save of the publish at version {} failed: {}", d.id, t.request().pageName(),
@@ -275,10 +279,12 @@ final class PublishFlow {
             return unfinishedLocked( t );
         }
         if( isPageGone( e ) && next.isEmpty() ) {
-            final PublishResponse gone = frozenIfGone( page, completions );
-            if( gone != null ) {
-                return gone;
-            }
+            // renamed or deleted away under the save: never frozen here (ruling Q10: only the delete listener freezes);
+            // owed, so settle, the rekey or the freeze resolves it, and the publisher retries
+            LOG.info( "collab session {} ({}): the page was gone at the save; owed a reconcile, publish to be retried",
+                d.id, page );
+            owe();
+            return answered( 409, CollabSession.MERGED_RETRY ).response();
         }
         if( next.isPresent() || e instanceof VersionConflictException ) {
             try {
@@ -299,30 +305,6 @@ final class PublishFlow {
      */
     static boolean isPageGone( final Exception e ) {
         return e instanceof VersionConflictException && PAGE_GONE.equals( e.getMessage() );
-    }
-
-    /**
-     * After a page-gone save: when the page is still missing under the session's current name it was deleted, so the
-     * draft is frozen ({@code page-deleted}) and the answer is 409 {@code frozen}; null when it exists (a rename: the
-     * caller merges) or the freeze failed (logged; the caller answers the conflict).
-     */
-    private PublishResponse frozenIfGone( final String page, final List< Runnable > completions ) {
-        try {
-            if( writer.latest( page ).isPresent() ) {
-                return null;
-            }
-            lock.lock();
-            try {
-                life.freeze( completions );
-                return new PublishResponse( 409, d.record.basePageVersion(), CollabSession.FROZEN, false );
-            } finally {
-                lock.unlock();
-            }
-        } catch( final RuntimeException re ) {
-            LOG.warn( "collab session {} ({}): the page is gone but the draft could not be frozen: {}", d.id, page,
-                re.getMessage() );
-            return null;
-        }
     }
 
     /** 422 {@code writer-refused} (the exception rides along for the HTTP body) or 500 {@code writer-failed}. */

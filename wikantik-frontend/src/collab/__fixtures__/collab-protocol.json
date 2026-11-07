@@ -10,7 +10,7 @@
     "presence": "AMBIGUITY (6.2 says presence:{...}): chosen as a map keyed by participantId of {displayName, color, anchor, head, version, unconfirmed}, excluding the requester, always the full map of the OTHER LIVE participants (with or without a selection) when `presenceSeq` > the request's presenceSince, else {}. anchor, head, version and unconfirmed are nullable: a participant that has not sent a selection has all four null. A join or leave changes the map (presenceSeq advances). The response carries `presenceSeq`.",
     "cursors": "AMBIGUITY: 6.2 gives GET /updates a presenceSince cursor but no cursor for `events` or a head version. Chosen: response also carries `metaSeq`, `presenceSeq` and `eventSeq`; every event carries a monotonically increasing `seq`; the request adds `eventsSince`. The new head version is `since + updates.length`.",
     "longPoll": "GET /updates parks up to poll.timeoutSeconds. On timeout it answers 200 with empty updates/metaOps/events and presence {}.",
-    "join": "join takes priorClientId (the server reissues it when it still knows it, 7.2), initialText and initialMeta (A11; used only when the join creates the session). `doc` is the document at `version`.",
+    "join": "join takes priorClientId (the server reissues it when it still knows it, 7.2), initialText and initialMeta (A11; used only when the join creates the session). `doc` is the document at `version`. `frozen` (additive): true when the draft's page was deleted (pushes answer 409 frozen; a publish with createPages recreates it), so a joiner never depends on the page-deleted event still being in the event window.",
     "ownUpdates": "A pull returns the caller's own updates too; receiveUpdates recognises them by clientID as confirmations. A 200 on POST /updates does NOT remove them; only the pull does.",
     "publish422": "The 422 bodies are those of PageResource.doPut: {error:'frontmatter_validation_failed'|'access_rule_shape'|'math_validation_failed', violations:[...]}. One example is recorded (frontmatter).",
     "errorBodiesWithoutReason": "400 on POST /updates is {reason:'rejected', message} (malformed changes, length mismatch, lone surrogate, clientID not this participant's); 400 on GET /updates is {reason:'bad-since'} (since out of range). 413 is {reason:'oversize'}. 401/403 bodies are the usual RestServletBase error envelope {error, message}, except 403 not-your-participant.",
@@ -61,7 +61,8 @@
             "unpublished": false,
             "contributors": [],
             "lastEditAt": null
-          }
+          },
+          "frozen": false
         }
       }
     },

@@ -126,6 +126,7 @@ export function createFakeCollabServer({
       version, doc: text(), metaSeq, metadata: { ...metadata }, basePageVersion,
       participants: [...participants.values()].filter((x) => !x.expired).map(publicParticipant),
       draft: { unpublished: version > 0, contributors: [], lastEditAt: null },
+      frozen: !!config.frozen,
     });
   }
 

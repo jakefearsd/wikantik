@@ -28,10 +28,12 @@ import java.util.UUID;
  * The answer to a join (section 6.2): the participant's identity, the head document and version the client starts
  * from, the frontmatter, the base page version and who else is here. {@code lastEditAt} is null until the first edit.
  * {@code eventSeq} is the session's event sequence at the join, so a new joiner asks only for later events.
+ * {@code frozen} is true when the draft's page was deleted (pushes answer 409 {@code frozen}; a publish with
+ * {@code createPages} recreates it), so the client never depends on a {@code page-deleted} event still being held.
  */
 public record JoinResponse( UUID sessionId, String participantId, String clientId, int version, String doc,
                             long metaSeq, Map< String, Object > metadata, int basePageVersion, List< Peer > participants,
-                            boolean unpublished, Instant lastEditAt, long eventSeq ) {
+                            boolean unpublished, Instant lastEditAt, long eventSeq, boolean frozen ) {
 
     /** One participant as other participants see it. */
     public record Peer( String participantId, String displayName, String color ) {

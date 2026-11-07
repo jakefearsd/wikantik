@@ -216,7 +216,7 @@ public class CollabDraftUxIT extends WithIntegrationTestSetup {
             """, Env.TESTS_BASE_URL, PAGE );
         assertTrue( status instanceof Number n && n.intValue() == 204, "purge answered: " + status );
         $( "[data-testid=collab-evicted]" ).shouldBe( visible, WAIT )
-            .shouldHave( text( "An administrator removed this draft" ), WAIT );
+            .shouldHave( text( "An administrator removed this shared draft, including its unpublished changes" ), WAIT );
 
         // Alice, who had unsynced text, keeps it in a recovery block (the purge ends her session; the editor offers her
         // text back rather than losing it). NOTE: she lands in the resync recovery panel, not the "administrator removed

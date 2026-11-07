@@ -1,0 +1,118 @@
+{
+  "format": 1,
+  "seed": 249,
+  "profile": "CALM",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 2
+  },
+  "initialDoc": "pzt\n 協gvzl文rwxr編abr\ncgujlunl uzjk\nz𝄞 編\n\n e字🎉\nuslolm𝄞djx中oe",
+  "steps": [
+    {
+      "id": 76,
+      "action": "STORE_FAULT",
+      "op": "UPDATE_SESSION"
+    },
+    {
+      "id": 102,
+      "action": "EXTERNAL_SAVE",
+      "from": 5,
+      "to": 5,
+      "insert": "文q𝄞y😀l"
+    },
+    {
+      "id": 103,
+      "action": "DELETE"
+    },
+    {
+      "id": 105,
+      "action": "EXTERNAL_SAVE",
+      "from": 0,
+      "to": 0,
+      "insert": "作編js"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 4 (basePageVersion equals the writer's latest version) violated: basePageVersion=2 writer latest=1",
+    "at": "q4",
+    "kind": "invariant 4"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "pzt\n 協gvzl文rwxr編abr\ncgujlunl uzjk\nz𝄞 編\n\n e字🎉\nuslolm𝄞djx中oe\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "server",
+              "changes": [
+                5,
+                [
+                  0,
+                  "文q𝄞y😀l"
+                ],
+                57
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "pzt\n 文q𝄞y😀l協gvzl文rwxr編abr\ncgujlunl uzjk\nz𝄞 編\n\n e字🎉\nuslolm𝄞djx中oe\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "pzt\n 協gvzl文rwxr編abr\ncgujlunl uzjk\nz𝄞 編\n\n e字🎉\nuslolm𝄞djx中oe\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "server",
+              "changes": [
+                5,
+                [
+                  0,
+                  "文q𝄞y😀l"
+                ],
+                57
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "pzt\n 文q𝄞y😀l協gvzl文rwxr編abr\ncgujlunl uzjk\nz𝄞 編\n\n e字🎉\nuslolm𝄞djx中oe\n",
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

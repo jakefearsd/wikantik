@@ -1,0 +1,81 @@
+{
+  "format": 1,
+  "seed": 1,
+  "profile": "AGENT_HEAVY",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 3
+  },
+  "initialDoc": "協g\n🎉s😀eq gra作o𝄞 協zuey\nnkc協yyi😀o j集jpyqx c 集wk文 v\n作if😀mqvw\n𝄞i文𝄞\nad\nn𝕏e🎉m𝄞l\n字 \ngst 🎉s\nado\n字𝄞aae\nofkt oy中",
+  "steps": [
+    {
+      "id": 5,
+      "action": "DELETE"
+    },
+    {
+      "id": 11,
+      "action": "PUBLISH",
+      "client": 2
+    },
+    {
+      "id": 19,
+      "action": "DELIVER",
+      "messageId": "11.0"
+    },
+    {
+      "id": 25,
+      "action": "DELIVER",
+      "messageId": "13.0"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 3 (replaying snapshot + log reproduces doc and local (by effect)) violated: the latest snapshot (version 0) is on base page version 0 but the session is on 1",
+    "at": "25",
+    "kind": "invariant 3"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "協g\n🎉s😀eq gra作o𝄞 協zuey\nnkc協yyi😀o j集jpyqx c 集wk文 v\n作if😀mqvw\n𝄞i文𝄞\nad\nn𝕏e🎉m𝄞l\n字 \ngst 🎉s\nado\n字𝄞aae\nofkt oy中\n"
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "協g\n🎉s😀eq gra作o𝄞 協zuey\nnkc協yyi😀o j集jpyqx c 集wk文 v\n作if😀mqvw\n𝄞i文𝄞\nad\nn𝕏e🎉m𝄞l\n字 \ngst 🎉s\nado\n字𝄞aae\nofkt oy中\n"
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "authorKey": "author-C",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p3",
+          "clientId": "mjuohs00.1-c3",
+          "version": 0,
+          "doc": "協g\n🎉s😀eq gra作o𝄞 協zuey\nnkc協yyi😀o j集jpyqx c 集wk文 v\n作if😀mqvw\n𝄞i文𝄞\nad\nn𝕏e🎉m𝄞l\n字 \ngst 🎉s\nado\n字𝄞aae\nofkt oy中\n"
+        }
+      ]
+    }
+  ]
+}

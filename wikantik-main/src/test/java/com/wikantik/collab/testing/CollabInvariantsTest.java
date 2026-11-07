@@ -19,6 +19,7 @@
 package com.wikantik.collab.testing;
 
 import com.wikantik.collab.CollabStore;
+import com.wikantik.collab.model.Selection;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.text.ChangeSet;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
@@ -268,5 +270,87 @@ class CollabInvariantsTest {
         // every base change writes a snapshot with it (commitBaseChange), so the latest one carries the current base
         store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, 7, BASE, Map.of(), ChangeSet.empty( 6 ) ) );
         failsNaming( valid(), true, 3 );
+    }
+
+    // ---- Phase 2: invariants 7, 8 and 9, and invariant 4 on a frozen draft ---------------------------------------
+
+    /** {@link #valid()} with Phase 2 state: server-held selections, live participants' last edit checks, meta, frozen. */
+    private InvariantView phase2( final Map< String, Selection > selections, final Map< String, Boolean > grants,
+                                  final Map< String, Object > meta, final boolean frozen ) {
+        final InvariantView v = valid();
+        return new InvariantView( v.sessionId(), v.doc(), v.head(), v.baseBody(), v.local(), v.basePageVersion(), v.ring(),
+            v.oversize(), v.maxPageBytes(), v.store(), v.writer(), v.pageName(), v.externalChangePending(),
+            v.publishPending(), v.oversizeCeiling(), v.poisoned(), selections, grants, meta, 3, frozen );
+    }
+
+    @Test
+    void inv7_aLiveParticipantWhoseLastEditCheckFailed() {
+        assertDoesNotThrow( () -> CollabInvariants.check( phase2( Map.of(), Map.of( "p1", true, "p2", true ), Map.of(),
+            false ) ) );
+        failsNaming( phase2( Map.of(), Map.of( "p1", true, "p2", false ), Map.of(), false ), false, 7 );
+    }
+
+    @Test
+    void inv8_aSelectionWithNoUnconfirmedUpdatesMustBeAtTheHead() {
+        // head is 1; the doc "Xhello\n" has 7 chars
+        assertDoesNotThrow( () -> CollabInvariants.check( phase2( Map.of( "p1", new Selection( 7, 0, 1, 0 ) ), Map.of(),
+            Map.of(), false ) ) );
+        failsNaming( phase2( Map.of( "p1", new Selection( 0, 0, 0, 0 ) ), Map.of(), Map.of(), false ), false, 8 );
+    }
+
+    @Test
+    void inv8_aSelectionAtTheHeadMustLieWithinTheHeadDocument() {
+        failsNaming( phase2( Map.of( "p1", new Selection( 2, 8, 1, 0 ) ), Map.of(), Map.of(), false ), false, 8 );
+    }
+
+    @Test
+    void inv8_aSelectionAheadOfTheHeadIsAViolationEvenWithUnconfirmedUpdates() {
+        failsNaming( phase2( Map.of( "p1", new Selection( 0, 0, 2, 1 ) ), Map.of(), Map.of(), false ), false, 8 );
+        // positions with unconfirmed updates are in a document the server may not have yet: not range-checked
+        assertDoesNotThrow( () -> CollabInvariants.check( phase2( Map.of( "p1", new Selection( 40, 40, 1, 2 ) ),
+            Map.of(), Map.of(), false ) ) );
+    }
+
+    @Test
+    void inv8_atQuiescenceTheServerHoldsEachClientsLastSelection() {
+        final InvariantView v = phase2( Map.of( "p1", new Selection( 1, 3, 1, 0 ) ), Map.of(), Map.of(), false );
+        assertDoesNotThrow( () -> CollabInvariants.presenceAtQuiescence( v, Map.of( "p1", new Selection( 1, 3, 1, 0 ) ) ) );
+        final AssertionError moved = assertThrows( AssertionError.class,
+            () -> CollabInvariants.presenceAtQuiescence( v, Map.of( "p1", new Selection( 1, 4, 1, 0 ) ) ) );
+        assertTrue( moved.getMessage().startsWith( "invariant 8 " ), moved.getMessage() );
+        final AssertionError missing = assertThrows( AssertionError.class,
+            () -> CollabInvariants.presenceAtQuiescence( v, Map.of( "p2", new Selection( 0, 0, 1, 0 ) ) ) );
+        assertTrue( missing.getMessage().startsWith( "invariant 8 " ), missing.getMessage() );
+    }
+
+    @Test
+    void inv9_atQuiescenceEveryClientDisplaysTheServersMeta() {
+        final InvariantView v = phase2( Map.of(), Map.of(), Map.of( "tags", List.of( "a", "b" ), "status", "draft" ), false );
+        assertDoesNotThrow( () -> CollabInvariants.metaAtQuiescence( v, Map.of( "A",
+            Map.of( "status", "draft", "tags", List.of( "a", "b" ) ) ) ) );
+        final AssertionError e = assertThrows( AssertionError.class, () -> CollabInvariants.metaAtQuiescence( v,
+            Map.of( "A", Map.of( "status", "draft", "tags", List.of( "b", "a" ) ) ) ) );
+        assertTrue( e.getMessage().startsWith( "invariant 9 " ), e.getMessage() );
+    }
+
+    @Test
+    void inv9_anAcceptedAddSurvivesUnlessSomethingLaterTookItOut() {
+        final InvariantView v = phase2( Map.of(), Map.of(), Map.of( "tags", List.of( "a" ), "aliases", "solo" ), false );
+        assertDoesNotThrow( () -> CollabInvariants.addsSurvive( v, Map.of( "tags", Set.of( "a" ), "aliases",
+            Set.of( "solo" ) ) ) );
+        final AssertionError e = assertThrows( AssertionError.class,
+            () -> CollabInvariants.addsSurvive( v, Map.of( "tags", Set.of( "a", "x" ) ) ) );
+        assertTrue( e.getMessage().startsWith( "invariant 9 " ), e.getMessage() );
+        assertThrows( AssertionError.class, () -> CollabInvariants.addsSurvive( v, Map.of( "related", Set.of( "P" ) ) ) );
+    }
+
+    @Test
+    void inv4_aFrozenDraftWantsNoPageUnderItsName() {
+        // the page still exists: a frozen draft over a live page is a violation
+        failsNaming( phase2( Map.of(), Map.of(), Map.of(), true ), false, 4 );
+        writer.delete( PAGE );
+        assertDoesNotThrow( () -> CollabInvariants.check( phase2( Map.of(), Map.of(), Map.of(), true ) ) );
+        // and an unfrozen draft over a deleted page is one too (the writer's latest is then 0)
+        failsNaming( phase2( Map.of(), Map.of(), Map.of(), false ), false, 4 );
     }
 }

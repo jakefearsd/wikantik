@@ -18,6 +18,11 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.collab.model.CollabEvent;
+import com.wikantik.collab.model.MetaEdit;
+import com.wikantik.collab.model.MetaOp;
+import com.wikantik.collab.model.PullCursor;
+import com.wikantik.collab.model.Selection;
 import com.wikantik.collab.text.ChangeSet;
 
 import java.util.List;
@@ -35,25 +40,53 @@ public interface SimServer {
     record Update( String clientId, ChangeSet changes ) {
     }
 
-    /** Result of {@link #join}. */
-    record Joined( String participantId, String clientId, int version, String doc ) {
+    /**
+     * Result of {@link #join}. Phase 2: the metadata and its sequence, the event cursor the joiner starts from, and
+     * whether the draft is frozen (its page deleted). A server without them (the stub) answers empty metadata at 0, 0,
+     * false.
+     */
+    record Joined( String participantId, String clientId, int version, String doc, long metaSeq, Map< String, Object > meta,
+                   long eventSeq, boolean frozen ) {
+        public Joined {
+            meta = meta == null ? Map.of() : meta;
+        }
+
+        public Joined( final String participantId, final String clientId, final int version, final String doc ) {
+            this( participantId, clientId, version, doc, 0, Map.of(), 0, false );
+        }
     }
 
     /**
      * {@code status}: 200 accepted, 400 rejected, 403 (participant belongs to another author), 409 stale / unknown
      * participant, 413 oversize, 503 store failure. {@code reason} is null on 200; otherwise: 400 {@code rejected};
      * 403 {@code not-your-participant}; 409 {@code stale-base}, {@code rejoin} or {@code frozen} (reserved for Phase 2);
-     * 413 {@code oversize}; 503 {@code store} (append failed, nothing applied) or {@code poisoned}.
+     * 413 {@code oversize}; 503 {@code store} (append failed, nothing applied) or {@code poisoned}. Phase 2: 403
+     * {@code evicted} with {@code detail} naming why; {@code metaSeq} is the meta sequence after an accepted push.
      */
-    record PushResult( int status, int version, String reason ) {
+    record PushResult( int status, int version, String reason, long metaSeq, String detail ) {
+        public PushResult( final int status, final int version, final String reason ) {
+            this( status, version, reason, 0, null );
+        }
     }
 
     /**
      * {@code status}: 200, 400 {@code bad-since}, 403 {@code not-your-participant}, 409 {@code rejoin} (unknown
      * participant), 410 {@code resync}, 503 {@code poisoned}. {@code parked} true means the pull is waiting and its answer
-     * arrives through {@link #drainWakeups()}.
+     * arrives through {@link #drainWakeups()}. Phase 2: the meta ops after the request's meta cursor up to
+     * {@code metaSeq}, the events after its event cursor up to {@code eventSeq}, and 403 {@code evicted} with
+     * {@code detail}; a server without them (the stub) answers none.
      */
-    record PullResult( int status, List< Update > updates, int version, boolean parked, String reason ) {
+    record PullResult( int status, List< Update > updates, int version, boolean parked, String reason,
+                       List< MetaOp > metaOps, long metaSeq, List< CollabEvent > events, long eventSeq, String detail ) {
+        public PullResult {
+            metaOps = metaOps == null ? List.of() : metaOps;
+            events = events == null ? List.of() : events;
+        }
+
+        public PullResult( final int status, final List< Update > updates, final int version, final boolean parked,
+                           final String reason ) {
+            this( status, updates, version, parked, reason, List.of(), 0, List.of(), 0, null );
+        }
     }
 
     /** A parked pull's eventual answer. */
@@ -87,6 +120,27 @@ public interface SimServer {
     PushResult push( String participantId, String authorKey, int version, List< Update > updates );
 
     PullResult pull( String participantId, String authorKey, int since );
+
+    /**
+     * A push with A14's meta edits and A12's piggybacked selection (nullable). The default (the stub) has neither: it
+     * ignores the selection and refuses meta edits, which the scheduler never sends it.
+     */
+    default PushResult push( final String participantId, final String authorKey, final int version,
+                             final List< Update > updates, final List< MetaEdit > metaEdits, final Selection selection ) {
+        if( !metaEdits.isEmpty() ) {
+            throw new UnsupportedOperationException( "this server has no metadata" );
+        }
+        return push( participantId, authorKey, version, updates );
+    }
+
+    /**
+     * A pull with all its cursors (text, meta ops, presence, events) and the piggybacked selection (nullable). The
+     * default (the stub) serves the text cursor alone.
+     */
+    default PullResult pull( final String participantId, final String authorKey, final PullCursor cursor,
+                             final Selection selection ) {
+        return pull( participantId, authorKey, cursor.since() );
+    }
 
     PublishResult publish( String participantId, String authorKey, int version, String note );
 
@@ -159,6 +213,43 @@ public interface SimServer {
 
     /** The server drops a participant itself (presence timeout), with no author check; its client is not told. */
     void evict( String participantId );
+
+    /**
+     * Phase 2: the server removes a participant for {@code reason}: null is the presence timeout ({@link #evict(String)});
+     * {@code signed-out} and {@code lost-edit} (its author's {@code edit} grant revoked, found by the re-check) leave a
+     * tombstone, so its later requests answer 403 {@code evicted} with that reason. The stub supports only null.
+     */
+    default void evict( final String participantId, final String reason ) {
+        if( reason != null ) {
+            throw new UnsupportedOperationException( "this server has no evictions with a reason" );
+        }
+        evict( participantId );
+    }
+
+    /** The listener's event for a rename of the page to {@code to}, after the page store renamed it (section 7.4, A1). */
+    default void renamed( final String to ) {
+        throw new UnsupportedOperationException( "this server does not follow renames" );
+    }
+
+    /** The listener's event for the page's deletion, after the page store deleted it (section 7.4): the draft freezes. */
+    default void deleted() {
+        throw new UnsupportedOperationException( "this server does not follow deletes" );
+    }
+
+    /** True while the draft is frozen (its page deleted). */
+    default boolean frozen() {
+        return false;
+    }
+
+    /**
+     * True when the server has Phase 2's lifecycle (presence, metadata, tombstoned evictions, rename, delete): the
+     * scheduler then draws a reason for each {@code LEAVE}, keeps a pull parked for every client at quiescence (so its
+     * last selection is held) and checks invariants 8 and 9 there. Execution reads it from the server, so a replay
+     * behaves as the run did.
+     */
+    default boolean lifecycle() {
+        return false;
+    }
 
     /** The answers to parked pulls completed since the last call (by a push, a leave or a timeout), in order. */
     List< Wakeup > drainWakeups();

@@ -53,11 +53,15 @@ public enum SimProfile {
 
     /**
      * The things a step can do. {@link #TIMEOUT} is never drawn: the scheduler forces it when a request runs out of steps.
-     * {@link #LEAVE} is the server dropping a participant without telling its client (presence timeout); a client that
-     * resyncs sends its own leave over the network instead.
+     * {@link #LEAVE} is the server dropping a participant without telling its client (presence timeout, or with a
+     * lifecycle overlay a tombstoned eviction: {@code signed-out}, or {@code lost-edit} after a revoked grant); a client
+     * that resyncs sends its own leave over the network instead. {@link #SELECT} moves a client's selection, sent on its
+     * next push or pull (A12); {@link #META_EDIT} is one metadata edit (a SET, or a set-field ADD/REMOVE, A14);
+     * {@link #RENAME} and {@link #DELETE} rename or delete the page under the draft and deliver the listener's event.
      */
     public enum Kind { LOCAL_EDIT, SEND_PUSH, SEND_PULL, DELIVER, DROP, DUPLICATE, ADVANCE_CLOCK, EXTERNAL_SAVE, PUBLISH,
-        CRASH_RECOVER, LEAVE, TRUNCATE, RELEASE_PUBLISH, STORE_FAULT, PERSIST_THEN_FAIL, TIMEOUT }
+        CRASH_RECOVER, LEAVE, TRUNCATE, RELEASE_PUBLISH, STORE_FAULT, PERSIST_THEN_FAIL, SELECT, META_EDIT, RENAME, DELETE,
+        TIMEOUT }
 
     private final Map< Kind, Integer > weights;
     private final int pushTimeoutSteps;
@@ -99,6 +103,12 @@ public enum SimProfile {
         m.put( Kind.RELEASE_PUBLISH, 0 );
         m.put( Kind.STORE_FAULT, 0 );
         m.put( Kind.PERSIST_THEN_FAIL, 0 );
+        // Phase 2, weighted by the session's overlay only (the stub has no presence, metadata, rename or delete): a
+        // selection change (A12), a metadata edit (A14), and the page renamed or deleted under the draft (section 7.4)
+        m.put( Kind.SELECT, 0 );
+        m.put( Kind.META_EDIT, 0 );
+        m.put( Kind.RENAME, 0 );
+        m.put( Kind.DELETE, 0 );
         m.put( Kind.TIMEOUT, 0 );
         return m;
     }

@@ -18,12 +18,16 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.testing.SimProfile.Kind;
+import com.wikantik.collab.testing.SimServer.Joined;
 import com.wikantik.collab.testing.SimServer.PullResult;
 import com.wikantik.collab.testing.SimServer.Update;
 import com.wikantik.collab.testing.SimServer.Wakeup;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -123,7 +127,8 @@ class SimSchedulerTest {
     void crashRecoverAndLeaveAreWeightedWhereTheRulingsSay() {
         for( final SimProfile p : SimProfile.values() ) {
             assertEquals( 0, p.weight( Kind.EXTERNAL_SAVE ), p.name() );
-            for( final Kind sessionOnly : List.of( Kind.RELEASE_PUBLISH, Kind.STORE_FAULT, Kind.PERSIST_THEN_FAIL ) ) {
+            for( final Kind sessionOnly : List.of( Kind.RELEASE_PUBLISH, Kind.STORE_FAULT, Kind.PERSIST_THEN_FAIL,
+                    Kind.SELECT, Kind.META_EDIT, Kind.RENAME, Kind.DELETE ) ) {
                 assertEquals( 0, p.weight( sessionOnly ), p.name() + " " + sessionOnly );
                 assertTrue( CollabSessionSimServer.OVERLAY.weights().get( sessionOnly ) > 0, sessionOnly.name() );
             }
@@ -299,14 +304,15 @@ class SimSchedulerTest {
         final Map< String, Long > lossy = seen.get( SimProfile.LOSSY );
         for( final String c : SimScheduler.COUNTERS ) {
             if( !List.of( SimScheduler.TRUNCATIONS, SimScheduler.GONE_PULLS ).contains( c )
-                    && !SimScheduler.SESSION_ONLY_COUNTERS.contains( c ) ) {
+                    && !SimScheduler.SESSION_ONLY_COUNTERS.contains( c ) && !SimScheduler.LIFECYCLE_COUNTERS.contains( c ) ) {
                 assertTrue( lossy.get( c ) > 0, "LOSSY never exercised " + c + ": " + lossy );
             }
         }
         // TIGHT is the A10 regime: everything LOSSY does, plus truncation and the 410 resync it causes
         final Map< String, Long > tight = seen.get( SimProfile.TIGHT );
         for( final String c : SimScheduler.COUNTERS ) {
-            if( !c.equals( SimScheduler.OUT_OF_ORDER_PULLS ) && !SimScheduler.SESSION_ONLY_COUNTERS.contains( c ) ) {
+            if( !c.equals( SimScheduler.OUT_OF_ORDER_PULLS ) && !SimScheduler.SESSION_ONLY_COUNTERS.contains( c )
+                    && !SimScheduler.LIFECYCLE_COUNTERS.contains( c ) ) {
                 assertTrue( tight.get( c ) > 0, "TIGHT never exercised " + c + ": " + tight );
             }
         }
@@ -362,6 +368,157 @@ class SimSchedulerTest {
                 SimScheduler.RECONNECTS, SimScheduler.REJOINS, SimScheduler.RESYNCS, SimScheduler.RETIRED_REFUSED ) ) {
             assertTrue( sum.get( c ) > 0, "the session never exercised " + c + ": " + sum );
         }
+    }
+
+    // ---- Phase 2: presence, metadata, rename, delete, tombstoned evictions --------------------------------------
+
+    @Test
+    void theSessionExploresPresenceMetaRenameDeleteAndEvictions() {
+        // Task 8: selections, meta edits (and the pushes that carry them), renames, deletes and the 409 frozen they cause,
+        // recreates, signed-out and lost-grant evictions and the 403 evicted their tombstones answer
+        final Map< String, Long > sum = new TreeMap<>();
+        for( final SimProfile p : List.of( SimProfile.CALM, SimProfile.LOSSY, SimProfile.TIGHT ) ) {
+            for( long seed = 1; seed <= 60; seed++ ) {
+                final SimTrace t = SimTarget.SESSION.scheduler( seed, p, 2 + (int) ( seed % 3 ) ).run( 200 );
+                assertEquals( SimTrace.Status.PASS, t.outcome().status(), p + " " + seed + ": " + t.outcome().message() );
+                t.counters().forEach( ( k, v ) -> sum.merge( k, v, Long::sum ) );
+                if( seed % 20 == 0 ) {
+                    assertEquals( t.toJson(), SimTarget.SESSION.replay( t ).toJson(), p + " " + seed );
+                    assertEquals( t.toJson(), SimTrace.fromJson( t.toJson() ).toJson(), p + " " + seed );
+                }
+            }
+        }
+        for( final String c : SimScheduler.LIFECYCLE_COUNTERS ) {
+            assertTrue( sum.get( c ) > 0, "the session never exercised " + c + ": " + sum );
+        }
+    }
+
+    @Test
+    void thePhase2StepsRoundTripThroughJson() {
+        final List< SimTrace.Step > steps = List.of(
+            SimTrace.Step.of( 0, Kind.SELECT ).client( 1 ).edit( 3, 0, null ),
+            SimTrace.Step.of( 1, Kind.META_EDIT ).client( 0 ).op( "add:tags" ).edit( -1, -1, "a" ),
+            SimTrace.Step.of( 2, Kind.META_EDIT ).client( 0 ).op( "unset:status" ),
+            SimTrace.Step.of( 3, Kind.RENAME ),
+            SimTrace.Step.of( 4, Kind.DELETE ),
+            SimTrace.Step.of( 5, Kind.LEAVE ).client( 1 ).op( CollabSession.SIGNED_OUT ),
+            SimTrace.Step.of( 6, Kind.LOCAL_EDIT ).client( 0 ).edit( 0, 0, "x" ) );
+        final SimTrace t = scripted( "abc\n", 2, steps );
+        assertEquals( steps, SimTrace.fromJson( t.toJson() ).steps() );
+        assertTrue( t.toJson().contains( "\"from\": 3" ) && !t.toJson().contains( "\"from\": -1" ), t.toJson() );
+    }
+
+    @Test
+    void theStubNeverTakesAPhase2Step() {
+        for( long seed = 1; seed <= 10; seed++ ) {
+            final String json = new SimScheduler( seed, SimProfile.LOSSY, SimScheduler.STUB, 3 ).run( 200 ).toJson();
+            for( final Kind k : List.of( Kind.SELECT, Kind.META_EDIT, Kind.RENAME, Kind.DELETE ) ) {
+                assertFalse( json.contains( "\"action\": \"" + k + "\"" ), seed + " " + k );
+            }
+            assertFalse( json.contains( "\"op\": \"signed-out\"" ) || json.contains( "\"op\": \"lost-edit\"" ), "" + seed );
+        }
+    }
+
+    private static SimTrace scripted( final String doc, final int clients, final List< SimTrace.Step > steps ) {
+        return new SimTrace( 1, SimProfile.CALM, SimScheduler.PAGE, 64 * 1024, 4, "none", clients, doc, steps,
+            SimTrace.Outcome.NOT_RUN, List.of() );
+    }
+
+    @Test
+    void aSignedOutClientKeepsItsEditsAndRejoinsUnderItsClientId() {   // A13, ruling Q11
+        final SimTrace t = SimTarget.SESSION.replay( scripted( "abc\n", 2, List.of(
+            SimTrace.Step.of( 0, Kind.LOCAL_EDIT ).client( 0 ).edit( 0, 0, "X" ),
+            SimTrace.Step.of( 1, Kind.LEAVE ).client( 0 ).op( CollabSession.SIGNED_OUT ),
+            SimTrace.Step.of( 2, Kind.SEND_PUSH ).client( 0 ) ) ) );
+        assertEquals( SimTrace.Status.PASS, t.outcome().status(), t.outcome().message() );
+        assertEquals( 1L, t.counters().get( SimScheduler.EVICTIONS ) );
+        assertTrue( t.counters().get( SimScheduler.EVICTED_ANSWERS ) >= 1, t.counters().toString() );
+        assertEquals( 1L, t.counters().get( SimScheduler.RECONNECTS ) );
+        assertEquals( 0L, t.counters().get( SimScheduler.RESYNCS ) );
+        assertTrue( t.outcome().message().contains( "doc length 5" ), t.outcome().message() );   // "Xabc\n": kept
+    }
+
+    @Test
+    void aClientWhoLostItsGrantDropsItsUnsyncedTextAndMeta() {   // A5, A13
+        final SimTrace t = SimTarget.SESSION.replay( scripted( "abc\n", 2, List.of(
+            SimTrace.Step.of( 0, Kind.LOCAL_EDIT ).client( 0 ).edit( 0, 0, "X" ),
+            SimTrace.Step.of( 1, Kind.META_EDIT ).client( 0 ).op( "add:tags" ).edit( -1, -1, "a" ),
+            SimTrace.Step.of( 2, Kind.LEAVE ).client( 0 ).op( CollabSession.LOST_EDIT ),
+            SimTrace.Step.of( 3, Kind.SEND_PUSH ).client( 0 ) ) ) );
+        assertEquals( SimTrace.Status.PASS, t.outcome().status(), t.outcome().message() );
+        assertTrue( t.counters().get( SimScheduler.EVICTED_ANSWERS ) >= 1, t.counters().toString() );
+        assertEquals( 1L, t.counters().get( SimScheduler.RESYNCS ) );
+        assertEquals( 0L, t.counters().get( SimScheduler.META_PUSHES ) );
+        assertTrue( t.outcome().message().contains( "doc length 4" ), t.outcome().message() );   // "X" to recovery only
+    }
+
+    @Test
+    void aDeletedPageFreezesTheDraftUntilItIsRecreated() {   // E28
+        final SimTrace t = SimTarget.SESSION.replay( scripted( "abc\n", 2, List.of(
+            SimTrace.Step.of( 0, Kind.LOCAL_EDIT ).client( 0 ).edit( 0, 0, "X" ),
+            SimTrace.Step.of( 1, Kind.DELETE ),
+            SimTrace.Step.of( 2, Kind.SEND_PUSH ).client( 0 ),
+            SimTrace.Step.of( 3, Kind.DELIVER ).message( "2.0" ),
+            SimTrace.Step.of( 4, Kind.DELIVER ).message( "3.0" ),
+            SimTrace.Step.of( 5, Kind.LOCAL_EDIT ).client( 0 ).edit( 0, 0, "Y" ) ) ) );
+        assertEquals( SimTrace.Status.PASS, t.outcome().status(), t.outcome().message() );
+        assertEquals( 1L, t.counters().get( SimScheduler.DELETES ) );
+        assertEquals( 1L, t.counters().get( SimScheduler.FROZEN_PUSHES ) );
+        assertEquals( 1L, t.counters().get( SimScheduler.UNFREEZES ) );
+        // told 409 frozen, the client typed nothing more (no Y); after the recreate it reloaded: its X went to recovery
+        assertTrue( t.outcome().message().contains( "doc length 4" ), t.outcome().message() );
+        final String clientA = t.clientTraces().get( 0 ).toString();
+        assertFalse( clientA.contains( "\"insert\":\"Y\"" ) || clientA.contains( "\"Y\"" ), clientA );
+    }
+
+    @Test
+    void aRenamedPageKeepsItsDraftAndPublishesUnderTheNewName() {   // E27
+        final SimTrace t = SimTarget.SESSION.replay( scripted( "abc\n", 2, List.of(
+            SimTrace.Step.of( 0, Kind.LOCAL_EDIT ).client( 0 ).edit( 0, 0, "X" ),
+            SimTrace.Step.of( 1, Kind.SEND_PUSH ).client( 0 ),
+            SimTrace.Step.of( 2, Kind.RENAME ),
+            SimTrace.Step.of( 3, Kind.PUBLISH ).client( 1 ),
+            SimTrace.Step.of( 4, Kind.SELECT ).client( 1 ).edit( 1, 2, null ),
+            SimTrace.Step.of( 5, Kind.META_EDIT ).client( 1 ).op( "set:status" ).edit( -1, -1, "active" ) ) ) );
+        assertEquals( SimTrace.Status.PASS, t.outcome().status(), t.outcome().message() );
+        assertEquals( 1L, t.counters().get( SimScheduler.RENAMES ) );
+        assertEquals( 1L, t.counters().get( SimScheduler.META_PUSHES ) );
+        assertTrue( t.outcome().message().contains( "doc length 5" ), t.outcome().message() );
+    }
+
+    /**
+     * Java parity with the frontend fake for a rejoin (Task 3 concern; fake commit bfcf421937). A live stale entry is
+     * reclaimed with its clientID in both. An entry that has already expired (the presence timeout removed it) is NOT
+     * reclaimed by the fake (fresh clientID), but the Java session reissues its clientID to the same author for as long
+     * as it keeps retired clientIDs (the idle-eviction period, A13 and ruling Q11; section 7.2 "same clientID"), and
+     * only after that hands out a fresh one. Pinned here; the fake diverges.
+     */
+    @Test
+    void anExpiredParticipantsRejoinGetsItsClientIdBackWithinTheRetention() {
+        final ScriptedPageWriter writer = new ScriptedPageWriter();
+        writer.seed( "P", "abc\n", Map.of() );
+        final MutableClock clock = new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) );
+        final CollabSessionSimServer server = CollabSessionSimServer.create( "P", new InMemoryCollabStore(), writer, clock,
+            64 * 1024, 4, 6 );
+        final Joined a = server.join( "author-a" );
+        // a live stale entry: reclaimed, the old participant replaced
+        final Joined live = server.join( "author-a", a.clientId(), null, null );
+        assertEquals( a.clientId(), live.clientId() );
+        assertFalse( server.session().hasParticipant( a.participantId() ) );
+        // an already-expired entry (timed out): Java reissues the clientID (the fake does not)
+        server.evict( live.participantId() );
+        clock.advance( Duration.ofMinutes( 9 ) );
+        final Joined expired = server.join( "author-a", live.clientId(), null, null );
+        assertEquals( live.clientId(), expired.clientId() );
+        // signed out (a tombstoned eviction): reissued too, so an SSO re-login keeps the collab state (ruling Q11)
+        server.evict( expired.participantId(), CollabSession.SIGNED_OUT );
+        final Joined relogin = server.join( "author-a", expired.clientId(), null, null );
+        assertEquals( expired.clientId(), relogin.clientId() );
+        // past the retention (10 minutes here), a fresh clientID; another author never gets it
+        server.evict( relogin.participantId() );
+        assertNotEquals( relogin.clientId(), server.join( "author-b", relogin.clientId(), null, null ).clientId() );
+        clock.advance( Duration.ofMinutes( 11 ) );
+        assertNotEquals( relogin.clientId(), server.join( "author-a", relogin.clientId(), null, null ).clientId() );
     }
 
     @Test

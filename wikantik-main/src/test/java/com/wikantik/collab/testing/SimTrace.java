@@ -114,7 +114,10 @@ public final class SimTrace {
 
     /**
      * One scheduled action. Unused fields are -1 / null / 0. {@code op} is the request kind a {@code TIMEOUT} abandons
-     * ({@code push}, {@code pull}, {@code join}, {@code publish}).
+     * ({@code push}, {@code pull}, {@code join}, {@code publish}), a {@code LEAVE}'s eviction reason ({@code signed-out},
+     * {@code lost-edit}; none is the presence timeout) or a {@code META_EDIT}'s {@code "<kind>:<field>"} (kind
+     * {@code add}, {@code remove}, {@code set} or {@code unset}, its item or value in {@code insert}). A {@code SELECT}
+     * carries its anchor and head in {@code from} and {@code to}.
      */
     public record Step( int id, SimProfile.Kind action, int client, String messageId, int from, int to, String insert,
                         long millis, String op ) {
@@ -153,9 +156,11 @@ public final class SimTrace {
             if( messageId != null ) {
                 o.addProperty( "messageId", messageId );
             }
-            if( insert != null ) {
+            if( from >= 0 ) {
                 o.addProperty( "from", from );
                 o.addProperty( "to", to );
+            }
+            if( insert != null ) {
                 o.addProperty( "insert", insert );
             }
             if( millis != 0 ) {

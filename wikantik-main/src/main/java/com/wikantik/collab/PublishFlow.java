@@ -50,8 +50,8 @@ import java.util.concurrent.locks.ReentrantLock;
 final class PublishFlow {
 
     private static final Logger LOG = LogManager.getLogger( PublishFlow.class );
-    /** The message of the save adapter's page-gone conflict ({@code VersionConflictException.PAGE_GONE}, Task 4). */
-    static final String PAGE_GONE = "page-gone";
+    /** The message of the save adapter's page-gone conflict; the single source is {@link VersionConflictException#PAGE_GONE}. */
+    static final String PAGE_GONE = VersionConflictException.PAGE_GONE;
 
     private final Draft d;
     private final ReentrantLock lock;
@@ -300,11 +300,11 @@ final class PublishFlow {
     }
 
     /**
-     * The save adapter's page-gone conflict (Phase 2 Task 4: {@code expectedVersion > 0} on a missing page), told by its
-     * message until {@code VersionConflictException.PAGE_GONE} reaches this module.
+     * The save adapter's page-gone conflict (Phase 2 Task 4: {@code expectedVersion > 0} on a missing page):
+     * {@link VersionConflictException#isPageGone()}.
      */
     static boolean isPageGone( final Exception e ) {
-        return e instanceof VersionConflictException && PAGE_GONE.equals( e.getMessage() );
+        return e instanceof VersionConflictException conflict && conflict.isPageGone();
     }
 
     /** 422 {@code writer-refused} (the exception rides along for the HTTP body) or 500 {@code writer-failed}. */

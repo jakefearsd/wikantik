@@ -101,21 +101,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
      * (renamed or deleted away) is refused, never a recreate, mirroring the save adapter (Phase 2 Task 4's
      * {@code VersionConflictException.pageGone}).
      */
-    public static final String PAGE_GONE = "page-gone";
-
-    /** The page-gone conflict, told apart by its message. */
-    static final class PageGoneException extends VersionConflictException {
-        private static final long serialVersionUID = 1L;
-
-        PageGoneException( final String pageName, final int expectedVersion ) {
-            super( pageName, 0, expectedVersion, false );
-        }
-
-        @Override
-        public String getMessage() {
-            return PAGE_GONE;
-        }
-    }
+    public static final String PAGE_GONE = VersionConflictException.PAGE_GONE;
 
     /** How long a paused {@link #publish} waits for {@link PauseHandle#release} before giving up. */
     public static final Duration DEFAULT_RELEASE_TIMEOUT = Duration.ofSeconds( 30 );
@@ -343,7 +329,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
             // A11: 0 means "the page must not exist"; a positive version on a missing page is page-gone (renamed or
             // deleted away under the publish), never a recreate
             if( request.expectedVersion() > 0 && current == 0 ) {
-                throw new PageGoneException( request.pageName(), request.expectedVersion() );
+                throw VersionConflictException.pageGone( request.expectedVersion() );
             }
             final boolean conflict = request.expectedVersion() == 0
                 ? current > 0

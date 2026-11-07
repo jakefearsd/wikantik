@@ -33,6 +33,7 @@ public class VersionConflictException extends WikiException {
     private final int currentVersion;
     private final int expectedVersion;
     private final boolean hashConflict;
+    private final boolean pageGone;
 
     public VersionConflictException( final String pageName,
                                      final int currentVersion,
@@ -45,6 +46,7 @@ public class VersionConflictException extends WikiException {
         this.currentVersion = currentVersion;
         this.expectedVersion = expectedVersion;
         this.hashConflict = hashConflict;
+        this.pageGone = false;
     }
 
     private VersionConflictException( final String message, final int currentVersion, final int expectedVersion ) {
@@ -52,6 +54,7 @@ public class VersionConflictException extends WikiException {
         this.currentVersion = currentVersion;
         this.expectedVersion = expectedVersion;
         this.hashConflict = false;
+        this.pageGone = true;
     }
 
     /**
@@ -65,4 +68,7 @@ public class VersionConflictException extends WikiException {
     public int getCurrentVersion() { return currentVersion; }
     public int getExpectedVersion() { return expectedVersion; }
     public boolean isHashConflict() { return hashConflict; }
+
+    /** True for a {@link #pageGone} conflict: the page the save expected no longer exists. */
+    public boolean isPageGone() { return pageGone; }
 }

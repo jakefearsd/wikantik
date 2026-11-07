@@ -68,6 +68,8 @@ public class CollabRestIT {
     private static final Gson GSON_NULLS = new GsonBuilder().serializeNulls().create();
     /** wikantik.collab.poll.timeoutSeconds in the IT properties. */
     private static final long POLL_TIMEOUT_MS = 4_000;
+    /** How long a test lets a long-poll reach the server and park, per attempt; each well below the poll timeout. */
+    private static final long[] PARK_DWELLS_MS = { 700, 1_500, 2_500 };
 
     private static String baseUrl;
     private static HttpClient janne;
@@ -218,9 +220,9 @@ public class CollabRestIT {
         a.pull( 0 );
 
         final long t0 = System.nanoTime();
-        final CompletableFuture< HttpResponse< String > > parked = b.pullAsync();
-        Thread.sleep( 700 );
-        assertFalse( parked.isDone(), "the poll is parked, not answered, while nothing changed" );
+        // Whether the poll reached the server before the push does not change this test's answer (a late poll catches up
+        // with the same update), so one dwell suffices: only "unanswered while nothing changed" needs it, bounded.
+        final CompletableFuture< HttpResponse< String > > parked = parkedPull( b, PARK_DWELLS_MS[ 0 ] );
         assertEquals( 200, a.insert( 0, "wake! " ).statusCode() );
 
         final HttpResponse< String > woke = parked.get( POLL_TIMEOUT_MS * 3, TimeUnit.MILLISECONDS );
@@ -503,6 +505,17 @@ public class CollabRestIT {
     /** An administrator lists the drafts and purges one; the participant's next call is refused as evicted (purged). */
     @Test
     void anAdminListsDraftsAndPurgesOneAndTheParticipantIsEvicted() throws Exception {
+        // B's long-poll must be parked when the purge lands; no server signal says it has arrived, so a poll that
+        // arrived after the purge (answered 403/409 instead) retries the scenario on a fresh page with a longer dwell
+        for( int attempt = 0; attempt < PARK_DWELLS_MS.length; attempt++ ) {
+            if( purgeWhileParked( PARK_DWELLS_MS[ attempt ], attempt == PARK_DWELLS_MS.length - 1 ) ) {
+                return;
+            }
+        }
+    }
+
+    /** One attempt; false (retry) when B's poll arrived after the purge and {@code last} is not set. */
+    private boolean purgeWhileParked( final long dwellMs, final boolean last ) throws Exception {
         final String page = seed( "Purge base\n" );
         final Peer a = new Peer( janne, page ).join( null );
         final Peer b = new Peer( alice, page ).join( null );
@@ -520,12 +533,14 @@ public class CollabRestIT {
         assertNotNull( id, "the draft is listed: " + drafts );
 
         // B is parked in a long-poll when the purge lands, as an open editor is: that pull is answered with the event.
-        final CompletableFuture< HttpResponse< String > > parked = b.pullAsync();
-        Thread.sleep( 500 );
+        final CompletableFuture< HttpResponse< String > > parked = parkedPull( b, dwellMs );
         final HttpResponse< String > purge = send( janne, "DELETE", "/admin/collab/drafts/" + id, null );
         assertEquals( 204, purge.statusCode(), purge.body() );
 
         final HttpResponse< String > told = parked.get( 20, TimeUnit.SECONDS );
+        if( !last && ( told.statusCode() == 403 || told.statusCode() == 409 ) ) {
+            return false;   // the poll reached the server only after the purge: not parked yet
+        }
         assertEquals( 200, told.statusCode(), told.body() );
         boolean evictedEvent = false;
         for( final JsonElement e : obj( told ).getAsJsonArray( "events" ) ) {
@@ -542,6 +557,7 @@ public class CollabRestIT {
         for( final JsonElement d : after ) {
             assertFalse( id.equals( d.getAsJsonObject().get( "sessionId" ).getAsString() ), "the purged draft is gone" );
         }
+        return true;
     }
 
     /** {@code GET /draft} is rate limited per participant: a burst is answered 429 with a retry hint. */
@@ -590,6 +606,22 @@ public class CollabRestIT {
         assertEquals( 200, f.statusCode(), f.body() );
         return List.of( obj( p ).get( "draft_active" ).getAsBoolean(),
             obj( f ).getAsJsonObject( "data" ).get( "draft_active" ).getAsBoolean() );
+    }
+
+    /**
+     * Starts {@code peer}'s long-poll and checks it is still unanswered {@code dwellMs} later, as a parked poll is (a
+     * poll answered meanwhile fails the test with its body). Every dwell is well below the poll timeout.
+     */
+    private static CompletableFuture< HttpResponse< String > > parkedPull( final Peer peer, final long dwellMs )
+            throws Exception {
+        final CompletableFuture< HttpResponse< String > > poll = peer.pullAsync();
+        try {
+            final HttpResponse< String > early = poll.get( dwellMs, TimeUnit.MILLISECONDS );
+            throw new AssertionError( "the poll was answered while nothing changed: " + early.statusCode() + " "
+                + early.body() );
+        } catch( final java.util.concurrent.TimeoutException parked ) {
+            return poll;   // still open: parked (or still on its way, which the callers tolerate)
+        }
     }
 
     private void awaitDraftActive( final String page, final String canonicalId, final boolean expected ) throws Exception {

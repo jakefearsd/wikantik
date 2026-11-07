@@ -198,4 +198,19 @@ class RequestMetricsFilterTest {
         assertNotNull( timer );
         assertEquals( 1, timer.count() );
     }
+
+    @Test
+    void recordsExactlyOnceAndRethrowsWhenTheChainThrowsAnError() throws Exception {
+        stubRegistryAvailable();
+        when( request.getMethod() ).thenReturn( "GET" );
+        when( request.getRequestURI() ).thenReturn( "/api/search" );
+        when( response.getStatus() ).thenReturn( 500 );
+        doThrow( new StackOverflowError( "boom" ) ).when( chain ).doFilter( request, response );
+
+        assertThrows( StackOverflowError.class, () -> filter.doFilter( request, response, chain ) );
+
+        final Timer timer = registry.find( "http.server.requests" ).tag( "status", "500" ).timer();
+        assertNotNull( timer );
+        assertEquals( 1, timer.count() );
+    }
 }

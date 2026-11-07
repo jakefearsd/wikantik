@@ -24,8 +24,6 @@ import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
-import jakarta.servlet.AsyncEvent;
-import jakarta.servlet.AsyncListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -89,28 +87,9 @@ public class RequestCorrelationFilter implements Filter {
 
         try {
             chain.doFilter( request, response );
-        } catch ( final IOException | ServletException | RuntimeException e ) {
-            clearContext();
-            throw e;
-        }
-        if ( request.isAsyncStarted() ) {
-            // Keep the correlation id for the async completion; clear it there. The container
-            // thread's own context is cleared now so it cannot leak into the next request.
-            request.getAsyncContext().addListener( new AsyncListener() {
-                @Override public void onComplete( final AsyncEvent event ) {
-                    clearContext();
-                }
-                @Override public void onTimeout( final AsyncEvent event ) {
-                    // the container follows a timeout with onComplete; cleared there
-                }
-                @Override public void onError( final AsyncEvent event ) {
-                    // the container follows an error with onComplete; cleared there
-                }
-                @Override public void onStartAsync( final AsyncEvent event ) {
-                    event.getAsyncContext().addListener( this );
-                }
-            } );
-        } else {
+        } finally {
+            // ThreadContext is thread-local: always clear on THIS (the original container) thread,
+            // async or not. Nothing logs from the async completion path, so no listener is needed.
             clearContext();
         }
     }

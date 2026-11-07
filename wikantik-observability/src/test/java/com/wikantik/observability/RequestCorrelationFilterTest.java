@@ -210,24 +210,28 @@ class RequestCorrelationFilterTest {
 
 
     @Test
-    void keepsTheCorrelationIdUntilTheAsyncRequestCompletes() throws Exception {
+    void clearsTheOriginalThreadEvenWhenTheRequestWentAsync() throws Exception {
         when( request.getHeader( "X-Request-Id" ) ).thenReturn( "async-id" );
         when( request.getMethod() ).thenReturn( "GET" );
         when( request.getRequestURI() ).thenReturn( "/api/collab/P/updates" );
         when( request.getRemoteAddr() ).thenReturn( "127.0.0.1" );
-        when( request.isAsyncStarted() ).thenReturn( true );
-        final jakarta.servlet.AsyncContext asyncContext = mock( jakarta.servlet.AsyncContext.class );
-        when( request.getAsyncContext() ).thenReturn( asyncContext );
+        lenient().when( request.isAsyncStarted() ).thenReturn( true );
 
         filter.doFilter( request, response, chain );
 
-        assertEquals( "async-id", ThreadContext.get( "requestId" ), "id kept while the request is async" );
-        final org.mockito.ArgumentCaptor< jakarta.servlet.AsyncListener > captor =
-                org.mockito.ArgumentCaptor.forClass( jakarta.servlet.AsyncListener.class );
-        verify( asyncContext ).addListener( captor.capture() );
+        assertNull( ThreadContext.get( "requestId" ), "original thread must not keep the id" );
+    }
 
-        captor.getValue().onComplete( mock( jakarta.servlet.AsyncEvent.class ) );
+    @Test
+    void clearsTheContextAndRethrowsWhenTheChainThrowsAnError() throws Exception {
+        when( request.getHeader( "X-Request-Id" ) ).thenReturn( "err-id" );
+        when( request.getMethod() ).thenReturn( "GET" );
+        when( request.getRequestURI() ).thenReturn( "/api/x" );
+        when( request.getRemoteAddr() ).thenReturn( "127.0.0.1" );
+        doThrow( new StackOverflowError( "boom" ) ).when( chain ).doFilter( request, response );
 
-        assertNull( ThreadContext.get( "requestId" ), "cleared when the async request completes" );
+        assertThrows( StackOverflowError.class, () -> filter.doFilter( request, response, chain ) );
+
+        assertNull( ThreadContext.get( "requestId" ) );
     }
 }

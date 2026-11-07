@@ -65,6 +65,7 @@ class ApiFilterChainAsyncTest {
         final String servlet = servletFor( servletPatterns );
 
         final TreeSet< String > offenders = new TreeSet<>();
+        final TreeSet< String > matched = new TreeSet<>();
         for ( final Document d : docs ) {
             for ( final Element fm : elements( d, "filter-mapping" ) ) {
                 final String name = text( fm, "filter-name" );
@@ -73,11 +74,15 @@ class ApiFilterChainAsyncTest {
                 if ( sn != null && sn.equals( servlet ) ) {
                     applies = true;
                 }
+                if ( applies ) {
+                    matched.add( name );
+                }
                 if ( applies && !Boolean.TRUE.equals( async.get( name ) ) ) {
                     offenders.add( name );
                 }
             }
         }
+        assertTrue( matched.size() >= 5, "chain resolution looks broken; matched only " + matched );
         assertTrue( offenders.isEmpty(), "Filters on " + PATH + " that are not async-supported: " + offenders );
     }
 

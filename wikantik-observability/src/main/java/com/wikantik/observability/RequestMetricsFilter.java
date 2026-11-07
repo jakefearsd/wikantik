@@ -70,30 +70,31 @@ public class RequestMetricsFilter implements Filter {
         final HttpServletResponse httpResponse = (HttpServletResponse) response;
         final long startNanos = System.nanoTime();
 
+        boolean asyncRegistered = false;
         try {
             chain.doFilter( request, response );
-        } catch ( final IOException | ServletException | RuntimeException e ) {
-            record( registry, httpRequest, httpResponse, startNanos );
-            throw e;
-        }
-        if ( request.isAsyncStarted() ) {
-            // The request outlives this call (long-poll): record when it actually completes.
-            request.getAsyncContext().addListener( new AsyncListener() {
-                @Override public void onComplete( final AsyncEvent event ) {
-                    record( registry, httpRequest, httpResponse, startNanos );
-                }
-                @Override public void onTimeout( final AsyncEvent event ) {
-                    // the container follows a timeout with onComplete; recorded there
-                }
-                @Override public void onError( final AsyncEvent event ) {
-                    // the container follows an error with onComplete; recorded there
-                }
-                @Override public void onStartAsync( final AsyncEvent event ) {
-                    event.getAsyncContext().addListener( this );
-                }
-            } );
-        } else {
-            record( registry, httpRequest, httpResponse, startNanos );
+            if ( request.isAsyncStarted() ) {
+                // The request outlives this call (long-poll): record when it actually completes.
+                request.getAsyncContext().addListener( new AsyncListener() {
+                    @Override public void onComplete( final AsyncEvent event ) {
+                        record( registry, httpRequest, httpResponse, startNanos );
+                    }
+                    @Override public void onTimeout( final AsyncEvent event ) {
+                        // the container follows a timeout with onComplete; recorded there
+                    }
+                    @Override public void onError( final AsyncEvent event ) {
+                        // the container follows an error with onComplete; recorded there
+                    }
+                    @Override public void onStartAsync( final AsyncEvent event ) {
+                        event.getAsyncContext().addListener( this );
+                    }
+                } );
+                asyncRegistered = true;
+            }
+        } finally {
+            if ( !asyncRegistered ) {
+                record( registry, httpRequest, httpResponse, startNanos );
+            }
         }
     }
 

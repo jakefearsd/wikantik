@@ -411,6 +411,7 @@ class StubCollabAuthorityTest {
         store.failOn( InMemoryCollabStore.Op.WRITE_SNAPSHOT, 1 );
         final SimServer.PublishResult r = server.publish( a.participantId(), "alice", 1, "n" );
         assertEquals( 503, r.status() );
+        assertEquals( "poisoned", r.reason() );
         assertTrue( server.view().poisoned() );
         assertTrue( server.view().publishPending() );
         CollabInvariants.check( server.view(), true );
@@ -425,7 +426,9 @@ class StubCollabAuthorityTest {
         final SimServer.Joined a = server.join( "alice" );
         server.push( a.participantId(), "alice", 0, List.of( typeAt( a, BODY, 0, "X" ) ) );
         writer.persistThenFail( new VersionConflictException( PAGE, 2, 1, false ) );
-        assertEquals( 503, server.publish( a.participantId(), "alice", 1, "n" ).status() );
+        final SimServer.PublishResult r = server.publish( a.participantId(), "alice", 1, "n" );
+        assertEquals( 503, r.status() );
+        assertEquals( "poisoned", r.reason() );
         assertTrue( server.view().poisoned() );
         CollabInvariants.check( server.view(), true );
     }
@@ -457,5 +460,26 @@ class StubCollabAuthorityTest {
             List.of( new SimServer.Update( a.clientId(), ChangeSet.replace( d2.length(), 0, 1200, "" ) ) ) ).status() );
         assertFalse( server.view().oversize() );
         CollabInvariants.check( server.view(), true );
+    }
+
+    @Test
+    void oversizeCeilingResetsWhenAPublishRewriteGrowsAnAlreadyOversizeDoc() {
+        final ScriptedPageWriter w = seeded( "P3", "hello\n" );
+        final StubCollabAuthority tight = new StubCollabAuthority( "P3", store, w, clock, 500, 3 );
+        final SimServer.Joined a = tight.join( "alice" );
+        assertEquals( 200, tight.push( a.participantId(), "alice", 0, List.of( typeAt( a, "hello\n", 0, "X" ) ) ).status() );
+        w.rewriteOnSave( s -> s + "y".repeat( 593 ) );
+        assertEquals( 200, tight.publish( a.participantId(), "alice", tight.view().head(), "n" ).status() );
+        assertTrue( tight.view().oversize() );
+        final String d = tight.view().doc();
+        // a non-growing edit so the next publish has something to save
+        assertEquals( 200, tight.push( a.participantId(), "alice", tight.view().head(),
+            List.of( new SimServer.Update( a.clientId(), ChangeSet.replace( d.length(), 0, 1, "Z" ) ) ) ).status() );
+        w.rewriteOnSave( s -> s + "w".repeat( 50 ) );
+        assertEquals( 200, tight.publish( a.participantId(), "alice", tight.view().head(), "n" ).status() );
+        assertTrue( tight.view().oversize() );
+        assertEquals( tight.view().doc().getBytes( java.nio.charset.StandardCharsets.UTF_8 ).length,
+            tight.view().oversizeCeiling() );
+        CollabInvariants.check( tight.view(), true );
     }
 }

@@ -40,15 +40,17 @@ public interface SimServer {
 
     /**
      * {@code status}: 200 accepted, 400 rejected, 403 (participant belongs to another author), 409 stale / unknown
-     * participant, 413 oversize, 503 store failure. {@code reason} is null on 200; 409 reasons are {@code stale-base},
-     * {@code rejoin}, {@code frozen}, {@code poisoned}; 403 is {@code not-your-participant}.
+     * participant, 413 oversize, 503 store failure. {@code reason} is null on 200; otherwise: 400 {@code rejected};
+     * 403 {@code not-your-participant}; 409 {@code stale-base}, {@code rejoin} or {@code frozen} (reserved for Phase 1);
+     * 413 {@code oversize}; 503 {@code store} (append failed, nothing applied) or {@code poisoned}.
      */
     record PushResult( int status, int version, String reason ) {
     }
 
     /**
-     * {@code status}: 200, 400 (bad {@code since}), 409 (unknown participant), 410 (resync). {@code parked} true means
-     * the pull is waiting and its answer arrives through {@link #drainWakeups()}.
+     * {@code status}: 200, 400 {@code bad-since}, 403 {@code not-your-participant}, 409 {@code rejoin} (unknown
+     * participant), 410 {@code resync}, 503 {@code poisoned}. {@code parked} true means the pull is waiting and its answer
+     * arrives through {@link #drainWakeups()}.
      */
     record PullResult( int status, List< Update > updates, int version, boolean parked, String reason ) {
     }
@@ -57,7 +59,11 @@ public interface SimServer {
     record Wakeup( String participantId, PullResult result ) {
     }
 
-    /** {@code status}: 200 ({@code unchanged} true when there was nothing to save, E21), 400, 409, 422 (writer refused), 503. */
+    /**
+     * {@code status}: 200 ({@code unchanged} true when there was nothing to save, E21), 400 {@code empty}, 403
+     * {@code not-your-participant}, 409 {@code rejoin} / {@code stale-base}, 422 {@code writer-refused}, 503
+     * {@code poisoned} (including the publish whose post-save failure poisoned the stub).
+     */
     record PublishResult( int status, int pageVersion, String reason, boolean unchanged ) {
     }
 

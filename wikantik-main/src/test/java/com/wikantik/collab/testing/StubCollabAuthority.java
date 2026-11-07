@@ -60,7 +60,7 @@ import java.util.UUID;
  *
  * <p><b>Poisoning.</b> The stub does not model publish crash recovery (the real session's pending-publish rule does). Any
  * failure after the page was saved (a store fault during publish, or a writer that persisted then failed) sets a
- * {@code poisoned} flag: every later push, pull and publish answers 503 {@code poisoned}, and the view reports
+ * {@code poisoned} flag: the triggering publish and every later push, pull and publish answer 503 {@code poisoned}, and the view reports
  * {@code publishPending} so invariants 2 to 4 are skipped. Task 12/14 must keep publish-time store faults and
  * {@code persistThenFail} at weight 0 against the stub; a poisoned stub is an unsupported scenario, not a failure.</p>
  *
@@ -332,7 +332,7 @@ public final class StubCollabAuthority implements SimServer {
         } catch( final RuntimeException e ) {
             LOG.warn( "publish of {} saved page version {} but the store failed; stub poisoned", pageName, out.version(), e );
             poisoned = true;
-            return new PublishResult( 503, basePageVersion, "store", false );
+            return new PublishResult( 503, basePageVersion, POISONED, false );
         }
         extra.forEach( this::remember );
         head = newHead;
@@ -354,14 +354,15 @@ public final class StubCollabAuthority implements SimServer {
         if( latest != basePageVersion ) {
             LOG.warn( "publish of {} failed after the page moved to version {}; stub poisoned", pageName, latest );
             poisoned = true;
-            return new PublishResult( 503, basePageVersion, "store", false );
+            return new PublishResult( 503, basePageVersion, POISONED, false );
         }
         return new PublishResult( status, basePageVersion, reason, false );
     }
 
     /**
-     * Oversize is session state: entered when a publish rewrite (or load) lands the doc over the limit, ceiling ratcheting
-     * down as the doc shrinks, cleared once the doc is within the limit. {@code mayEnter} is false for pushes, which are
+     * Oversize is session state: entered when a publish rewrite (or load) lands the doc over the limit, with the ceiling
+     * reset to the new size by every such publish (even when already oversize), ratcheting down as pushes shrink the doc,
+     * cleared once the doc is within the limit. {@code mayEnter} is false for pushes, which are
      * refused rather than allowed to cross the limit.
      */
     private void enterOrLeaveOversize( final boolean mayEnter ) {
@@ -369,7 +370,8 @@ public final class StubCollabAuthority implements SimServer {
         if( bytes <= maxPageBytes ) {
             oversize = false;
             oversizeCeiling = 0;
-        } else if( !oversize && mayEnter ) {
+        } else if( mayEnter ) {
+            // a publish rewrite (or load) sets the ceiling afresh, even when already oversize; only pushes ratchet it
             oversize = true;
             oversizeCeiling = bytes;
         } else if( oversize ) {

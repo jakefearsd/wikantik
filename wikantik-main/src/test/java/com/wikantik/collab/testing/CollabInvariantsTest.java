@@ -237,4 +237,14 @@ class CollabInvariantsTest {
         assertDoesNotThrow( () -> CollabInvariants.check( with( valid(), b -> { b.head = 9; b.basePageVersion = 0; b.poisoned = true; return b; } ), true ) );
         failsNaming( with( valid(), b -> { b.doc = "Yhello\n"; b.poisoned = true; return b; } ), false, 1 );
     }
+
+    @Test
+    void inv2_gappedRingIsAViolation() {
+        final ChangeSet two = ChangeSet.replace( 7, 0, 0, "Y" );
+        final ChangeSet three = ChangeSet.replace( 8, 0, 0, "Z" );
+        store.appendUpdates( id, List.of( upd( 2, two ), upd( 3, three ) ) );
+        final List< StoredUpdate > log = store.updatesSince( id, 0 );
+        failsNaming( with( valid(), b -> { b.head = 3; b.doc = "ZYXhello\n"; b.local = X.compose( two ).compose( three );
+            b.ring = List.of( log.get( 0 ), log.get( 2 ) ); return b; } ), false, 2 );
+    }
 }

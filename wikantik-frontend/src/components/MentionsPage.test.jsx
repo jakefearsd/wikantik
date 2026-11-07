@@ -59,7 +59,8 @@ describe('MentionsPage', () => {
   it('renders mentions list on mount with default unread filter', async () => {
     renderPage();
     await waitFor(() => expect(api.listMyMentions).toHaveBeenCalledWith({ status: 'unread', limit: 50 }));
-    expect(screen.getByText(/hi @Alice A please/)).toBeTruthy();
+    // The list renders after the call resolves, a render later: wait for it, not just for the call.
+    expect(await screen.findByText(/hi @Alice A please/)).toBeTruthy();
     expect(screen.getByText(/thx/)).toBeTruthy();
     // Owner mention has "(your page)" tag.
     expect(screen.getByText('(your page)')).toBeTruthy();

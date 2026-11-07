@@ -22,6 +22,17 @@ export function DiffHtml({ html }) {
   );
 }
 
+/** "v8 — Ana +2 (note)": the author plus a count of the other contributors. */
+function versionLabel(v) {
+  const others = Array.isArray(v.contributors) ? v.contributors.filter((c) => c && c !== v.author).length : 0;
+  const who = `${v.author || 'unknown'}${others > 0 ? ` +${others}` : ''}`;
+  return `v${v.version} — ${who} (${v.changeNote || 'no note'})`;
+}
+
+function versionTitle(v) {
+  return Array.isArray(v.contributors) && v.contributors.length > 0 ? v.contributors.join(', ') : undefined;
+}
+
 export default function DiffViewer() {
   const { name } = useParams();
   const [versions, setVersions] = useState(null);
@@ -153,8 +164,8 @@ export default function DiffViewer() {
                 }}
               >
                 {versions.map(v => (
-                  <option key={v.version} value={v.version}>
-                    v{v.version} — {v.author || 'unknown'} ({v.changeNote || 'no note'})
+                  <option key={v.version} value={v.version} title={versionTitle(v)}>
+                    {versionLabel(v)}
                   </option>
                 ))}
               </select>
@@ -177,8 +188,8 @@ export default function DiffViewer() {
                 }}
               >
                 {versions.map(v => (
-                  <option key={v.version} value={v.version}>
-                    v{v.version} — {v.author || 'unknown'} ({v.changeNote || 'no note'})
+                  <option key={v.version} value={v.version} title={versionTitle(v)}>
+                    {versionLabel(v)}
                   </option>
                 ))}
               </select>

@@ -135,4 +135,17 @@ describe('DiffViewer restore link', () => {
     expect(screen.queryByTestId('diff-restore')).not.toBeInTheDocument();
     warn.mockRestore();
   });
+
+  it('diffViewerOptionsCountContributors', async () => {
+    api.getHistory.mockResolvedValue({ versions: [
+      { version: 2, author: 'Ana', contributors: ['Ana', 'Ben', 'Cy'], changeNote: 'fix' },
+      { version: 1, author: 'Dee', changeNote: 'initial' },
+    ] });
+    api.getDiff.mockResolvedValue({ diff: '<p>x</p>' });
+    renderDiffViewer();
+    const opts = await screen.findAllByRole('option', { name: 'v2 — Ana +2 (fix)' });
+    expect(opts).toHaveLength(2);
+    expect(opts[0]).toHaveAttribute('title', 'Ana, Ben, Cy');
+    expect(screen.getAllByRole('option', { name: 'v1 — Dee (initial)' })).toHaveLength(2);
+  });
 });

@@ -152,4 +152,34 @@ describe('ChangeNotesPanel restore links', () => {
     expect(screen.queryByTestId('restore-v2')).not.toBeInTheDocument();
     expect(screen.queryByTestId('restore-v1')).not.toBeInTheDocument();
   });
+
+  const openWith = async (versions) => {
+    api.getHistory.mockResolvedValue({ versions });
+    renderPanel();
+    fireEvent.click(screen.getByText(/Change Notes/));
+    await screen.findByText('v1');
+  };
+
+  it('aVersionWithContributorsNamesThem', async () => {
+    await openWith([{ version: 1, author: 'Ana', contributors: ['Ana', 'Ben', 'Cy'], changeNote: 'n' }]);
+    expect(screen.getByText(/Ana with Ben and Cy/)).toBeInTheDocument();
+  });
+
+  it('theAuthorIsNotRepeated', async () => {
+    await openWith([{ version: 1, author: 'Ana', contributors: ['Ana', 'Ben'], changeNote: 'n' }]);
+    expect(screen.getByText(/Ana with Ben/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ben and Ana|Ana and Ana|Ana, Ana/)).toBeNull();
+  });
+
+  it('noContributorsRendersAsToday', async () => {
+    await openWith([
+      { version: 1, author: 'Ana', changeNote: 'n' },
+      { version: 2, author: 'Ben', contributors: [], changeNote: 'n' },
+      { version: 3, author: 'Cy', contributors: ['Cy'], changeNote: 'n' },
+    ]);
+    expect(screen.getByText('Ana')).toBeInTheDocument();
+    expect(screen.getByText('Ben')).toBeInTheDocument();
+    expect(screen.getByText('Cy')).toBeInTheDocument();
+    expect(screen.queryByText(/ with /)).toBeNull();
+  });
 });

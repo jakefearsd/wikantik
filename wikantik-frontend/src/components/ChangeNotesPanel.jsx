@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
+/** The contributors other than the author; display names, rendered as plain text. */
+function othersOf(v) {
+  return Array.isArray(v.contributors) ? v.contributors.filter((c) => c && c !== v.author) : [];
+}
+
+function joinNames(names) {
+  if (names.length < 2) return names.join('');
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 export default function ChangeNotesPanel({ pageName, canEdit = false }) {
   const [expanded, setExpanded] = useState(false);
   const [versions, setVersions] = useState(null);
@@ -84,7 +94,9 @@ export default function ChangeNotesPanel({ pageName, canEdit = false }) {
                         v{v.version}
                       </td>
                       <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap' }}>
-                        {v.author || '—'}
+                        {othersOf(v).length > 0
+                          ? `${v.author || '—'} with ${joinNames(othersOf(v))}`
+                          : (v.author || '—')}
                       </td>
                       <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
                         {v.lastModified ? new Date(v.lastModified).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}

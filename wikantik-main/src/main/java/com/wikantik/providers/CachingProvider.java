@@ -155,7 +155,29 @@ public class CachingProvider implements PageProvider {
         if( name == null ) {
             return null;
         }
-        return cachingManager.get( CachingManager.CACHE_PAGES, name, () -> provider.getPageInfo( name, PageProvider.LATEST_VERSION ) );
+        return loadUnderReadLock( () ->
+                cachingManager.get( CachingManager.CACHE_PAGES, name, () -> provider.getPageInfo( name, PageProvider.LATEST_VERSION ) ) );
+    }
+
+    /** A cache read that may load from the provider. */
+    @FunctionalInterface
+    private interface CacheLoad< T > {
+        T get() throws ProviderException;
+    }
+
+    /**
+     * Runs a cache read that may load from the provider under the read lock. The writes (put, delete, move) invalidate
+     * under the write lock, so a load cannot read the provider before a write and store what it read after the write's
+     * invalidation: a deleted page would read as existing, an overwritten one as its old version. The write lock holder
+     * may take the read lock (putPageText re-populates the cache this way).
+     */
+    private < T > T loadUnderReadLock( final CacheLoad< T > load ) throws ProviderException {
+        rwLock.readLock().lock();
+        try {
+            return load.get();
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
 
@@ -252,12 +274,12 @@ public class CachingProvider implements PageProvider {
             return null;
         }
 
-        return cachingManager.get( CachingManager.CACHE_PAGES_TEXT, pageName, () -> {
+        return loadUnderReadLock( () -> cachingManager.get( CachingManager.CACHE_PAGES_TEXT, pageName, () -> {
             if( pageExists( pageName ) ) {
                 return provider.getPageText( pageName, PageProvider.LATEST_VERSION );
             }
             return null;
-        } );
+        } ) );
     }
 
     /**
@@ -503,7 +525,8 @@ public class CachingProvider implements PageProvider {
         if( pageName == null ) {
             return List.of();
         }
-        return cachingManager.get( CachingManager.CACHE_PAGES_HISTORY, pageName, () -> provider.getVersionHistory( pageName ) );
+        return loadUnderReadLock( () ->
+                cachingManager.get( CachingManager.CACHE_PAGES_HISTORY, pageName, () -> provider.getVersionHistory( pageName ) ) );
     }
 
     /**

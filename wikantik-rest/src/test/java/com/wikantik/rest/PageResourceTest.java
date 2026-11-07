@@ -353,6 +353,89 @@ class PageResourceTest {
         assertNotNull( pm.getPage( "RestPutPage" ) );
     }
 
+    // ----- A save that was stored but failed in its post-save handling -----
+
+    /** A post-save filter that fails, with a message that must not reach the client (D5), on pages named "RestPostFail*". */
+    private static void installFailingPostSaveFilter() {
+        engine.getManager( com.wikantik.filters.FilterManager.class ).addPageFilter( new com.wikantik.api.filters.PageFilter() {
+            @Override
+            public void postSave( final com.wikantik.api.core.Context context, final String content ) {
+                if( context.getPage().getName().startsWith( "RestPostFail" ) && content.contains( "TRIGGER" ) ) {
+                    throw new IllegalStateException( "boom at /srv/secret/path/index.lock" );
+                }
+            }
+        }, 0 );
+    }
+
+    private String sendSaved( final String pageName, final JsonObject body, final boolean patch,
+                              final HttpServletResponse response ) throws Exception {
+        final HttpServletRequest request = createRequest( pageName );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        if( patch ) {
+            servlet.doPatch( request, response );
+        } else {
+            servlet.doPut( request, response );
+        }
+        return sw.toString();
+    }
+
+    @Test
+    void aPutStoredButFailingAfterTheSaveAnswers200WithTheVersionAndAGenericWarning() throws Exception {
+        installFailingPostSaveFilter();
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "TRIGGER the failing filter" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final String json = sendSaved( "RestPostFailPut", body, false, response );
+        try {
+            Mockito.verify( response, Mockito.never() ).setStatus( Mockito.intThat( s -> s >= 400 ) );
+            Mockito.verify( response, Mockito.never() ).sendError( Mockito.anyInt(), Mockito.anyString() );
+            Mockito.verify( response, Mockito.never() ).sendError( Mockito.anyInt() );
+            assertFalse( json.contains( "/srv/secret" ), json );
+            assertFalse( json.contains( "boom" ), json );
+            final JsonObject obj = gson.fromJson( json, JsonObject.class );
+            assertTrue( obj.get( "success" ).getAsBoolean(), json );
+            assertEquals( 1, obj.get( "version" ).getAsInt(), json );
+            final JsonArray warnings = obj.getAsJsonArray( "warnings" );
+            assertEquals( 1, warnings.size(), json );
+            assertEquals( PageResource.POST_SAVE_FAILED_CODE, warnings.get( 0 ).getAsJsonObject().get( "code" ).getAsString() );
+            assertEquals( PageResource.POST_SAVE_FAILED_MESSAGE,
+                    warnings.get( 0 ).getAsJsonObject().get( "message" ).getAsString() );
+            assertNotNull( engine.getManager( PageManager.class ).getPage( "RestPostFailPut" ) );
+        } finally {
+            engine.deleteQuietly( "RestPostFailPut" );
+        }
+    }
+
+    @Test
+    void aPatchStoredButFailingAfterTheSaveAnswers200WithAGenericWarning() throws Exception {
+        installFailingPostSaveFilter();
+        engine.saveText( "RestPostFailPatch", "---\ntype: article\n---\nBody." );
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "category", "TRIGGER" );
+        patchBody.add( "metadata", meta );
+        patchBody.addProperty( "action", "merge" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final String json = sendSaved( "RestPostFailPatch", patchBody, true, response );
+        try {
+            Mockito.verify( response, Mockito.never() ).setStatus( Mockito.intThat( s -> s >= 400 ) );
+            Mockito.verify( response, Mockito.never() ).sendError( Mockito.anyInt(), Mockito.anyString() );
+            assertFalse( json.contains( "/srv/secret" ), json );
+            final JsonObject obj = gson.fromJson( json, JsonObject.class );
+            assertTrue( obj.get( "success" ).getAsBoolean(), json );
+            assertEquals( Math.max( engine.getManager( PageManager.class ).getPage( "RestPostFailPatch" ).getVersion(), 1 ),
+                    obj.get( "version" ).getAsInt(), json );
+            final JsonArray warnings = obj.getAsJsonArray( "warnings" );
+            assertEquals( 1, warnings.size(), json );
+            assertEquals( PageResource.POST_SAVE_FAILED_MESSAGE,
+                    warnings.get( 0 ).getAsJsonObject().get( "message" ).getAsString() );
+        } finally {
+            engine.deleteQuietly( "RestPostFailPatch" );
+        }
+    }
+
     @Test
     void testPutPageEmptyContentReturns400() throws Exception {
         // Empty content used to NPE (saveText returns null → getVersion() NPE → 500).

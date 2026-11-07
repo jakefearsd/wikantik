@@ -65,7 +65,8 @@ class GuardedSaveTest {
     void tearDown() {
         for( final String n : new String[]{ "GuardRace", "GuardOk", "GuardWrote", "GuardSame", "GuardRe", "GuardStale",
                 "GuardStaleSame", "GuardLocks", "GuardPut", "GuardPutA", "GuardPutB", "GuardReent", "GuardTarget",
-                "GuardRenamed", "GuardReferrer", "GuardPostFail", "GuardPostRt" } ) {
+                "GuardRenamed", "GuardReferrer", "GuardPostFail", "GuardPostRt", "GuardMoveFrom", "GuardMoveTo",
+                "GuardDel" } ) {
             engine.deleteTestPage( n );
         }
         engine.stop();
@@ -360,6 +361,7 @@ class GuardedSaveTest {
                         .renamePage( ctx, "GuardTarget", "GuardRenamed", true );
             } );
             awaitQueuedOrDone( "GuardReferrer", rename );
+            assertTrue( lifecycle().waitingOn( "GuardReferrer" ) > 0, "the referrer rewrite must queue on the referrer's lock" );
             release.countDown();
             a.get( 20, TimeUnit.SECONDS );
             assertEquals( "GuardRenamed", rename.get( 20, TimeUnit.SECONDS ) );
@@ -371,6 +373,109 @@ class GuardedSaveTest {
         assertTrue( referrer.contains( "and the saved edit" ), "the concurrent save survives: " + referrer );
         assertTrue( referrer.contains( "[GuardRenamed]()" ), "the link is rewritten: " + referrer );
         assertFalse( referrer.contains( "[GuardTarget]()" ), "no stale link remains: " + referrer );
+    }
+
+    /**
+     * The rename reads the old page's text and re-writes it under the new name: a save of the old page that is mid-write
+     * when the rename starts must land before the rename's read (its text moves to the new name), never be reverted by
+     * the rename writing the text it read before the save.
+     */
+    @Test
+    void aSaveOfTheOldPageDuringARenameIsNeverReverted() throws Exception {
+        save( "GuardMoveFrom", "the original", SaveGuard.NONE );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final ExecutorService ex = Executors.newFixedThreadPool( 2 );
+        try {
+            final Future< SaveOutcome > a = ex.submit( () -> save( "GuardMoveFrom", "the saved edit",
+                    blockingAtTheWrite( entered, release ) ) );
+            assertTrue( entered.await( 20, TimeUnit.SECONDS ) );
+            final Future< String > rename = ex.submit( () -> {
+                final Context ctx = Wiki.context().create( engine, pm.getPage( "GuardMoveFrom" ) );
+                return engine.getManager( com.wikantik.content.PageRenamer.class )
+                        .renamePage( ctx, "GuardMoveFrom", "GuardMoveTo", true );
+            } );
+            awaitQueuedOrDone( "GuardMoveFrom", rename );
+            assertTrue( lifecycle().waitingOn( "GuardMoveFrom" ) > 0, "the rename must queue on the old name's lock" );
+            release.countDown();
+            a.get( 20, TimeUnit.SECONDS );
+            assertEquals( "GuardMoveTo", rename.get( 20, TimeUnit.SECONDS ) );
+        } finally {
+            release.countDown();
+            ex.shutdownNow();
+        }
+        assertEquals( "the saved edit", pm.getPureText( "GuardMoveTo", -1 ).trim() );
+        assertNull( pm.getPage( "GuardMoveFrom" ) );
+        assertEquals( 0, lifecycle().lockCount() );
+    }
+
+    /** Two pages' locks are taken in name order whatever order the caller names them in. */
+    @Test
+    void twoPageLocksAreTakenInNameOrder() throws Exception {
+        final CountDownLatch holding = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final ExecutorService ex = Executors.newFixedThreadPool( 2 );
+        try {
+            final Future< ? > first = ex.submit( () -> lifecycle().underPageLocks( "LockZ", "LockA", () -> {
+                holding.countDown();
+                try {
+                    release.await( 20, TimeUnit.SECONDS );
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                }
+                return null;
+            } ) );
+            assertTrue( holding.await( 20, TimeUnit.SECONDS ) );
+            final Future< ? > second = ex.submit( () -> lifecycle().underPageLocks( "LockA", "LockZ", () -> null ) );
+            awaitQueuedOrDone( "LockA", second );
+            assertEquals( 1, lifecycle().waitingOn( "LockA" ), "the second caller waits on the lower name first" );
+            assertEquals( 0, lifecycle().waitingOn( "LockZ" ) );
+            release.countDown();
+            first.get( 20, TimeUnit.SECONDS );
+            second.get( 20, TimeUnit.SECONDS );
+        } finally {
+            release.countDown();
+            ex.shutdownNow();
+        }
+        assertEquals( 0, lifecycle().lockCount() );
+    }
+
+    /**
+     * A delete waits for a guarded save that already passed its "the page exists" check (the collab publish's guard), so
+     * the save lands before the delete and the delete removes it: the save never recreates the deleted page.
+     */
+    @Test
+    void aGuardedSaveRacingADeleteNeverRecreatesThePage() throws Exception {
+        save( "GuardDel", "one", SaveGuard.NONE );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final SaveGuard blocking = blockingAtTheWrite( entered, release );
+        final SaveGuard mustExist = ( current, text ) -> {
+            if( current == null ) {
+                throw VersionConflictException.pageGone( 1 );
+            }
+            blocking.check( current, text );
+        };
+        final ExecutorService ex = Executors.newFixedThreadPool( 2 );
+        try {
+            final Future< SaveOutcome > a = ex.submit( () -> save( "GuardDel", "two", mustExist ) );
+            assertTrue( entered.await( 20, TimeUnit.SECONDS ) );
+            final Future< ? > delete = ex.submit( () -> {
+                pm.deletePage( "GuardDel" );
+                return null;
+            } );
+            awaitQueuedOrDone( "GuardDel", delete );
+            assertTrue( lifecycle().waitingOn( "GuardDel" ) > 0, "the delete must queue on the page's lock" );
+            release.countDown();
+            assertEquals( 2, a.get( 20, TimeUnit.SECONDS ).version() );
+            delete.get( 20, TimeUnit.SECONDS );
+        } finally {
+            release.countDown();
+            ex.shutdownNow();
+        }
+        assertNull( pm.getPage( "GuardDel" ), "the delete ran last: the page stays deleted" );
+        assertThrows( VersionConflictException.class, () -> save( "GuardDel", "three", mustExist ) );
+        assertNull( pm.getPage( "GuardDel" ) );
     }
 
     // --- Ruling I2: a save that persisted and then failed in its post-save handling reports what it wrote ---

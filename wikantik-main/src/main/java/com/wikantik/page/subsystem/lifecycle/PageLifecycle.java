@@ -61,12 +61,24 @@ public interface PageLifecycle {
     < T > T underPageLock( String pageName, PageLockedAction< T > action ) throws WikiException;
 
     /**
+     * Runs {@code action} holding the save locks of both pages, taken in name order so two writers that lock the same pair
+     * (two renames) cannot deadlock. Equal names take one lock.
+     */
+    < T > T underPageLocks( String first, String second, PageLockedAction< T > action ) throws WikiException;
+
+    /**
      * {@link #underPageLock} on {@code lifecycle}, or {@code action} run directly when there is none (the page manager is
      * not the default one, e.g. a test double, so no save takes the lock either).
      */
     static < T > T underPageLock( final PageLifecycle lifecycle, final String pageName, final PageLockedAction< T > action )
             throws WikiException {
         return lifecycle == null ? action.run() : lifecycle.underPageLock( pageName, action );
+    }
+
+    /** {@link #underPageLocks} on {@code lifecycle}, or {@code action} run directly when there is none. */
+    static < T > T underPageLocks( final PageLifecycle lifecycle, final String first, final String second,
+                                   final PageLockedAction< T > action ) throws WikiException {
+        return lifecycle == null ? action.run() : lifecycle.underPageLocks( first, second, action );
     }
 
     /** Work done under a page's save lock. */

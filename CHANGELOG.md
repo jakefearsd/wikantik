@@ -13,11 +13,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **A refused stale save no longer runs the pre-save filters.** A strict-mode save whose `expectedVersion` is already
   stale now fails before the filters, so refused retries no longer count against the spam filter. The identical-text
   check also runs under the page lock.
-- **A rename could overwrite a concurrent save of a referring page.** The link rewrite of each referrer read, rewrote and
-  wrote the page with no lock, so a save of that referrer landing in between was lost. Each rewrite now runs under the
-  referrer's save lock, as do ACL rewrites and every `putPageText`; an ACL rewrite also fires `POST_SAVE_BEGIN` so render
-  caches flush. A save that persisted but then failed in its post-save handling now reports the version it wrote
-  (`SavedButPostSaveFailedException`).
+- **Renames and deletes could silently revert or resurrect a concurrent save.** A rename read the page text unlocked
+  and re-wrote it under the new name after the move, reverting a save that landed in between. A delete could also land
+  between a guarded save's check and its write, so the save recreated the page. Each referrer's link rewrite had the
+  same problem, losing a save of that referrer. Renames now hold the old and new names' save locks, taken in name order,
+  across the checks, the read, the move and the re-write. Referrer rewrites, ACL rewrites, deletes, version deletes and
+  every `putPageText` take the page's save lock. An ACL rewrite also fires `POST_SAVE_BEGIN`, so render caches flush.
+  The page cache also no longer stores a page it read just before a delete or a write invalidated it, so a deleted
+  page no longer reads as still existing.
+- **A save that persisted but then failed in its post-save handling no longer looks like a failed save.** The save now
+  throws `SavedButPostSaveFailedException`, a `WikiException` subtype that carries the version written. This includes
+  a post-save `RuntimeException`, which used to surface unwrapped. REST `PUT`/`PATCH` answer 200 with the saved version
+  and a generic `post_save_failed` warning; the cause goes to the server log only.
 
 ### Changed
 - **Every `/api/*` filter is now async-capable.** The request-metrics filter times async requests to completion and

@@ -37,13 +37,16 @@ import com.wikantik.api.content.ContentValidationException;
 import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
+import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
+import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.identity.IdentityDisplay;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
+import com.wikantik.api.pages.SavedButPostSaveFailedException;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
@@ -71,6 +74,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -94,6 +98,13 @@ public class PageResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( PageResource.class );
+
+    /** Warning code of a save that was stored but whose post-save processing failed. */
+    static final String POST_SAVE_FAILED_CODE = "post_save_failed";
+
+    /** Generic warning text for it: the cause stays in the server log (D5). */
+    static final String POST_SAVE_FAILED_MESSAGE =
+            "Saved; post-save processing failed and some derived data (search index, references) may lag.";
     private static final AtomicBoolean MAX_PAGE_BYTES_WARNED = new AtomicBoolean();
 
     /**
@@ -514,7 +525,8 @@ public class PageResource extends RestServletBase {
             // Also clear the math-content warning sink.
             FrontmatterWarningSink.clear();
             ContentWarningSink.clear();
-            final Page saved = helper.saveText( pageName, content, optionsBuilder.build() );
+            final Saved outcome = saveReportingPostSaveFailure( helper, pageName, content, optionsBuilder.build() );
+            final Page saved = outcome.page();
 
             // Defence in depth: a save that did not persist (e.g. vetoed by a filter)
             // returns null — surface a clean error rather than NPE on getVersion().
@@ -528,7 +540,7 @@ public class PageResource extends RestServletBase {
             result.put( "success", true );
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
-            result.put( "warnings", FrontmatterWarningSink.drain( pageName ) );
+            result.put( "warnings", withPostSaveWarning( FrontmatterWarningSink.drain( pageName ), outcome ) );
             result.put( "mathWarnings", ContentWarningSink.drain() );
 
             sendJson( response, result );
@@ -606,6 +618,34 @@ public class PageResource extends RestServletBase {
      * cause for logging callers but never reveals filesystem paths, JDBC URLs, or
      * stack frames in the response body.
      */
+    /** A REST save's result: the page stored, and whether its post-save processing failed after it was stored. */
+    private record Saved( Page page, boolean postSaveFailed ) { }
+
+    /**
+     * Saves, answering a save that was stored but whose post-save processing then failed as saved: the page WAS written,
+     * so an error would invite a confused retry. The cause is logged here and never sent to the client (D5).
+     */
+    private static Saved saveReportingPostSaveFailure( final PageSaveHelper helper, final String pageName,
+                                                       final String text, final SaveOptions options ) throws WikiException {
+        try {
+            return new Saved( helper.saveText( pageName, text, options ), false );
+        } catch ( final SavedButPostSaveFailedException e ) {
+            LOG.warn( "Page {} was saved as version {}, but its post-save processing failed; answering it as saved: {}",
+                    pageName, e.outcome().version(), e.getCause(), e );
+            return new Saved( e.outcome().page(), true );
+        }
+    }
+
+    /** {@code warnings} plus the generic post-save warning when the save's post-save processing failed. */
+    private static List< FieldViolation > withPostSaveWarning( final List< FieldViolation > warnings, final Saved outcome ) {
+        if ( !outcome.postSaveFailed() ) {
+            return warnings;
+        }
+        final List< FieldViolation > all = new ArrayList<>( warnings );
+        all.add( FieldViolation.of( null, Severity.WARNING, POST_SAVE_FAILED_CODE, POST_SAVE_FAILED_MESSAGE ) );
+        return all;
+    }
+
     static String sanitizeSaveErrorMessage( final Throwable t ) {
         // Walk the cause chain looking for a recognisable validation reason; if we
         // find one, surface a short message. Otherwise fall back to a generic string
@@ -783,12 +823,16 @@ public class PageResource extends RestServletBase {
                     .changeNote( "Metadata " + action + " via REST PATCH" )
                     .author( effectiveAuthor )
                     .build();
-            final Page saved = helper.saveText( pageName, newText, options );
+            final Saved outcome = saveReportingPostSaveFailure( helper, pageName, newText, options );
+            final Page saved = outcome.page();
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
+            if ( outcome.postSaveFailed() ) {
+                result.put( "warnings", withPostSaveWarning( List.of(), outcome ) );
+            }
             final PublicIdentity identity = getSubsystems().auth().publicIdentity();
             result.put( "author", IdentityDisplay.ofAuthor( identity, saved.getAuthor() ) ); // D7
             // Edit permission was enforced above, so the caller is an editor: stored frontmatter, exactly as written.

@@ -89,45 +89,15 @@ public class DefaultPageRenamer implements PageRenamer {
             throw new WikiException( "You cannot rename the page to itself" );
         }
         
-        //  Preconditions: "from" page must exist, and "to" page must not yet exist.
+        //  The move runs holding the old and the new name's save locks (RenameMove): a save of the old page cannot land
+        //  between the read of its text and the re-write under the new name.
         final Engine engine = context.getEngine();
-        final Page fromPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( renameFrom );
-        if( fromPage == null ) {
-            throw new WikiException("No such page "+renameFrom);
-        }
-        Page toPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( renameToClean );
-        if( toPage != null ) {
-            throw new WikiException( "Page already exists " + renameToClean );
-        }
-        
-        // Read the text before anything moves: the rename re-saves it under the new name, and a text that cannot be read
-        // must abort the rename with nothing changed — never be re-saved as "" (getPureText answers "" on a provider error).
-        final String pageText = RenameTextReader.textOf( engine, renameFrom );
-
-        final Set< String > referrers = getReferencesToChange( fromPage, engine );
-        final Set< String > newNameReferrers = RenameRenderEviction.referrersOf( engine, renameToClean );
-
-        //  Do the actual rename by changing from the frompage to the topage, including all the attachments
-        //  Remove references to attachments under old name
-        final List< Attachment > attachmentsOldName = PageSubsystemBridge.fromLegacyEngine( engine ).attachments().listAttachments( fromPage );
-        for( final Attachment att: attachmentsOldName ) {
-            final Page fromAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
-            com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().pageRemoved( fromAttPage );
-        }
-
-        PageSubsystemBridge.fromLegacyEngine( engine ).pages().getProvider().movePage( renameFrom, renameToClean );
-        if( PageSubsystemBridge.fromLegacyEngine( engine ).attachments().attachmentsEnabled() ) {
-            PageSubsystemBridge.fromLegacyEngine( engine ).attachments().getCurrentProvider().moveAttachmentsForPage( renameFrom, renameToClean );
-        }
-        
-        //  Add a comment to the page notifying what changed.  This adds a new revision to the repo with no actual change.
-        toPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( renameToClean );
-        if( toPage == null ) {
-            throw new ProviderException( "Rename seems to have failed for some strange reason - please check logs!" );
-        }
-        toPage.setAttribute( Page.CHANGENOTE, fromPage.getName() + " ==> " + toPage.getName() );
-        toPage.setAuthor( AuthorKeys.authorKeyFor( context.getWikiSession() ) );
-        PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( toPage, pageText );
+        final RenameMove.Moved moved = RenameMove.move( context, renameFrom, renameToClean,
+                from -> getReferencesToChange( from, engine ) );
+        final Page fromPage = moved.fromPage();
+        final Page toPage = moved.toPage();
+        final Set< String > referrers = moved.referrers();
+        final Set< String > newNameReferrers = moved.newNameReferrers();
 
         //  Update the references
         com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().pageRemoved( fromPage );

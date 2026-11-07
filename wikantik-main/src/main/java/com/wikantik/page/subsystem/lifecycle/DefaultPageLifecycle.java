@@ -63,6 +63,20 @@ public class DefaultPageLifecycle implements PageLifecycle {
         this.repository = repository;
         this.accessRuleShapes = new AccessRuleShapeCheck(
                 name -> repository.wikiPageExists( name ) ? repository.getPureText( name, PageProvider.LATEST_VERSION ) : null );
+        if( repository instanceof DefaultPageRepository defaultRepository ) {
+            defaultRepository.lockProviderWritesWith( this::lockedProviderWrite );
+        }
+    }
+
+    /** A provider delete of {@code name} under its page lock (see {@link DefaultPageRepository#lockProviderWritesWith}). */
+    private void lockedProviderWrite( final String name, final DefaultPageRepository.ProviderWrite write )
+            throws ProviderException {
+        final PageLock pl = acquire( name );
+        try {
+            write.run();
+        } finally {
+            release( name, pl );
+        }
     }
 
     // --- Lazy accessors for managers initialised after PageManager ---
@@ -207,6 +221,18 @@ public class DefaultPageLifecycle implements PageLifecycle {
         } finally {
             release( pageName, pl );
         }
+    }
+
+    @Override
+    public < T > T underPageLocks( final String first, final String second, final PageLockedAction< T > action )
+            throws WikiException {
+        if( first.equals( second ) ) {
+            return underPageLock( first, action );
+        }
+        final boolean inOrder = first.compareTo( second ) < 0;
+        final String low = inOrder ? first : second;
+        final String high = inOrder ? second : first;
+        return underPageLock( low, () -> underPageLock( high, action ) );
     }
 
     /**

@@ -62,6 +62,29 @@ public class DefaultPageRepository implements PageRepository {
     private final PageSorter      pageSorter;
     /** The object on behalf of which {@link WikiEventManager} events are fired. */
     private final Object          eventSource;
+    /** Runs the provider deletes under the page's save lock; set by the lifecycle that owns the locks. */
+    private volatile ProviderWriteLock writeLock = ( name, write ) -> write.run();
+
+    /** A provider write that removes page text. */
+    @FunctionalInterface
+    public interface ProviderWrite {
+        void run() throws ProviderException;
+    }
+
+    /** Runs a {@link ProviderWrite} of the named page under that page's save lock. */
+    @FunctionalInterface
+    public interface ProviderWriteLock {
+        void write( String pageName, ProviderWrite write ) throws ProviderException;
+    }
+
+    /**
+     * Runs the provider deletes ({@link #deletePage(Page)}, {@link #deleteVersion}) through {@code lock}, so a delete
+     * cannot land between a guarded save's check and its write (a save that passed "the page exists" would recreate it).
+     * The events around a delete fire outside the lock.
+     */
+    void lockProviderWritesWith( final ProviderWriteLock lock ) {
+        this.writeLock = lock;
+    }
 
     /**
      * Constructor used by {@code DefaultPageManager}.
@@ -364,7 +387,7 @@ public class DefaultPageRepository implements PageRepository {
         if ( page instanceof Attachment att ) {
             getAttachmentManager().deleteVersion( att );
         } else {
-            provider.deleteVersion( page.getName(), page.getVersion() );
+            writeLock.write( page.getName(), () -> provider.deleteVersion( page.getName(), page.getVersion() ) );
             // Note: removing the latest version does not itself reindex search or update references.
         }
     }
@@ -392,7 +415,7 @@ public class DefaultPageRepository implements PageRepository {
     @Override
     public void deletePage( final Page page ) throws ProviderException {
         fireEvent( WikiPageEvent.PAGE_DELETE_REQUEST, page.getName() );
-        provider.deletePage( page.getName() );
+        writeLock.write( page.getName(), () -> provider.deletePage( page.getName() ) );
         fireEvent( WikiPageEvent.PAGE_DELETED, page.getName() );
     }
 

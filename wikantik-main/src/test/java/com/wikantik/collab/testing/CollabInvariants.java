@@ -29,12 +29,16 @@ import com.wikantik.collab.text.CollabText;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
  * Section 13.0's session invariants, checked after every simulated step. A failure is an {@link AssertionError} whose
@@ -55,8 +59,31 @@ import java.util.Set;
  * the server's metadata ({@link #metaAtQuiescence}), and after every step every item an accepted ADD put in a set field
  * is present unless a later REMOVE, SET or server op of that field took it out ({@link #addsSurvive}); the scheduler
  * keeps that ledger.</p>
+ *
+ * <p>Phase 3 adds two, against the scheduler's own {@link Attribution} model. <b>Invariant 10</b> (contributors,
+ * ruling R2): the session's contributor keys are the authors of every accepted update and meta op after the last
+ * completed publish's (V, M_V) ({@link #contributors}). <b>Invariant 11</b> (the page-version ledger, rulings R2 and
+ * R4): every completed publish's page version holds exactly the authors with accepted ops in (V_prev, V] or
+ * (M_prev, M_V], whatever crashes happened ({@link #ledger}).</p>
  */
 public final class CollabInvariants {
+
+    /**
+     * Known defect D1 (CollabKnownDefectsTest): a publish whose save stores nothing new (the latest version already holds
+     * its text once normalised or rewritten by a save filter, {@code PublishOutcome.unchanged}) is finished as a publish
+     * of that existing version B, and its contributors replace B's ledger rows. While true, invariant 11's model follows
+     * the product (rows at B replaced); the expectation is that B keeps the rows of the publish that wrote it.
+     */
+    public static volatile boolean tolerateUnchangedSaveCredit = true;
+
+    /**
+     * Known defect D2 (CollabKnownDefectsTest): a publish writes its ledger rows before the commit that clears its
+     * marker; when that commit fails and the retry does not claim the saved version (a save filter rewrote it, so its
+     * hash is not S_V's; or the page was deleted and recreated first), the marker is cleared but the rows stay, while the
+     * contributors stay pending and are credited again by the next publish. While true, invariant 11's model accepts
+     * exactly those rows (and nothing else) when the scheduler resolves such a publish as unclaimed.
+     */
+    public static volatile boolean tolerateOrphanedRows = true;
 
     private CollabInvariants() {
     }
@@ -297,5 +324,157 @@ public final class CollabInvariants {
 
     private static String show( final String s ) {
         return s.length() > 80 ? s.substring( 0, 80 ) + "..." : s;
+    }
+
+    /**
+     * Invariant 10: the session's contributor keys ({@code server}, compared as a set: the session orders them by first
+     * contribution, which a publish does not reset) are the authors the scheduler's {@link Attribution} model holds
+     * after the last completed publish point.
+     */
+    public static void contributors( final Collection< String > server, final Attribution model ) {
+        final Set< String > held = new TreeSet<>( server );
+        final Set< String > expected = model.contributors();
+        if( !held.equals( expected ) ) {
+            throw fail( 10, "the contributors are the authors of every accepted update and meta op after the last"
+                + " completed publish's (V, M_V)", "the session holds " + held + " but the accepted ops after (V "
+                + model.lastVersion + ", M_V " + model.lastMetaSeq + ") are by " + expected );
+        }
+    }
+
+    /**
+     * Invariant 11: the page-version ledger ({@code server}, version to sorted author keys) is the {@link Attribution}
+     * model's: every completed publish replaced its version's rows with the authors whose accepted ops lie in
+     * (V_prev, V] or (M_prev, M_V], a publish that created the page cleared the earlier rows first (ruling R4), and
+     * nothing else wrote a row.
+     */
+    public static void ledger( final Map< Integer, List< String > > server, final Attribution model ) {
+        ledger( server, model, List.of() );
+    }
+
+    /**
+     * Invariant 11 while a publish is marked but not finished ({@code inFlight}: the model as it would be once that
+     * publish completes; empty when none is marked): the publish writes its rows before the commit that clears its
+     * marker, and its retry rewrites them (ruling R4: replaced per version), so the ledger may already be an
+     * {@code inFlight} one. Once the marker is settled only the model's ledger passes.
+     */
+    public static void ledger( final Map< Integer, List< String > > server, final Attribution model,
+                               final List< Attribution > inFlight ) {
+        final Map< Integer, List< String > > expected = model.ledger();
+        if( server.equals( expected ) || inFlight.stream().anyMatch( a -> server.equals( a.ledger() ) ) ) {
+            return;
+        }
+        final Set< Integer > versions = new TreeSet<>( expected.keySet() );
+        versions.addAll( server.keySet() );
+        for( final Integer pv : versions ) {
+            final List< String > held = server.getOrDefault( pv, List.of() );
+            final List< String > want = expected.getOrDefault( pv, List.of() );
+            if( !held.equals( want ) ) {
+                throw fail( 11, "the ledger rows of every completed publish's page version are the authors with accepted"
+                    + " ops in (V_prev, V] or (M_prev, M_V]", "page version " + pv + " has " + held + " but its publish"
+                    + " credits " + want + " (ledger " + server + ", expected " + expected + ")" );
+            }
+        }
+    }
+
+    /**
+     * The scheduler's own model of attribution (rulings R2 and R4), built from what it observed rather than from the
+     * session's bookkeeping: every accepted client update (by collab version) and meta op (by meta seq) with the author
+     * whose push carried it, and every completed publish with its publish point (V, M_V). Server changes (merges,
+     * publish rewrites) are never entered, so they credit nobody.
+     */
+    public static final class Attribution {
+
+        private record Op( String author, boolean text, long at ) {
+        }
+
+        private final List< Op > ops = new ArrayList<>();
+        private final TreeMap< Integer, List< String > > rows = new TreeMap<>();
+        private int lastVersion;
+        private long lastMetaSeq;
+
+        /** An accepted text update by {@code author} at collab version {@code version}. */
+        public void text( final String author, final int version ) {
+            ops.add( new Op( author, true, version ) );
+        }
+
+        /** An accepted meta op by {@code author} stored at meta seq {@code seq}. */
+        public void meta( final String author, final long seq ) {
+            ops.add( new Op( author, false, seq ) );
+        }
+
+        /**
+         * A completed publish whose save wrote page version {@code pageVersion} from the publish point
+         * ({@code version}, {@code metaSeq}): that version's rows become the authors of the ops up to the point that no
+         * earlier publish credited (none: no rows); {@code created} (the publish created the page) clears every earlier
+         * row first. The point then becomes the last one.
+         */
+        public void published( final int pageVersion, final int version, final long metaSeq, final boolean created ) {
+            orphaned( pageVersion, version, metaSeq, created );
+            advance( version, metaSeq );
+        }
+
+        /**
+         * The rows a publish from ({@code version}, {@code metaSeq}) writes at {@code pageVersion}, without completing it:
+         * the publish point does not advance, so its authors stay contributors. Only known defect D2 leaves such rows
+         * ({@link CollabInvariants#tolerateOrphanedRows}).
+         */
+        public void orphaned( final int pageVersion, final int version, final long metaSeq, final boolean created ) {
+            final Set< String > credited = upTo( version, metaSeq );
+            if( created ) {
+                rows.clear();
+            }
+            if( credited.isEmpty() ) {
+                rows.remove( pageVersion );
+            } else {
+                rows.put( pageVersion, List.copyOf( credited ) );
+            }
+        }
+
+        /**
+         * A completed publish whose save stored nothing new (the save filter's rewrite made it identical to the latest
+         * version): no version was written, so no row changes, but the publish point still advances (the rewrite took
+         * the edits out; rewrites credit nobody).
+         */
+        public void publishedUnchanged( final int version, final long metaSeq ) {
+            advance( version, metaSeq );
+        }
+
+        /** An independent copy (the in-flight alternative of {@link CollabInvariants#ledger(Map, Attribution, Attribution)}). */
+        public Attribution copy() {
+            final Attribution c = new Attribution();
+            c.ops.addAll( ops );
+            c.rows.putAll( rows );
+            c.lastVersion = lastVersion;
+            c.lastMetaSeq = lastMetaSeq;
+            return c;
+        }
+
+        /** The authors of the accepted ops after the last publish point. */
+        public Set< String > contributors() {
+            final Set< String > out = new TreeSet<>();
+            ops.forEach( o -> out.add( o.author() ) );
+            return out;
+        }
+
+        /** Page version to the sorted author keys of its rows. */
+        public Map< Integer, List< String > > ledger() {
+            return Collections.unmodifiableMap( new TreeMap<>( rows ) );
+        }
+
+        private Set< String > upTo( final int version, final long metaSeq ) {
+            final Set< String > out = new TreeSet<>();
+            for( final Op o : ops ) {
+                if( o.text() ? o.at() <= version : o.at() <= metaSeq ) {
+                    out.add( o.author() );
+                }
+            }
+            return out;
+        }
+
+        private void advance( final int version, final long metaSeq ) {
+            ops.removeIf( o -> o.text() ? o.at() <= version : o.at() <= metaSeq );
+            lastVersion = version;
+            lastMetaSeq = metaSeq;
+        }
     }
 }

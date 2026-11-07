@@ -1,0 +1,123 @@
+{
+  "format": 1,
+  "seed": 179,
+  "profile": "AGENT_HEAVY",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 4
+  },
+  "initialDoc": " j𝕏c𝕏 z作 zrawcp q 😀aik fz  作 ",
+  "steps": [
+    {
+      "id": 9,
+      "action": "LOCAL_EDIT",
+      "client": 2,
+      "from": 32,
+      "to": 33,
+      "insert": ""
+    },
+    {
+      "id": 22,
+      "action": "SEND_PUSH",
+      "client": 2
+    },
+    {
+      "id": 27,
+      "action": "PUBLISH",
+      "client": 0
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 11 (the ledger rows of every completed publish's page version are the authors with accepted ops in (V_prev, V] or (M_prev, M_V]) violated: page version 1 has [author-C] but its publish credits [] (ledger {1=[author-C]}, expected {})",
+    "at": "q1",
+    "kind": "invariant 11"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": " j𝕏c𝕏 z作 zrawcp q 😀aik fz  作 \n"
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": " j𝕏c𝕏 z作 zrawcp q 😀aik fz  作 \n"
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "authorKey": "author-C",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p3",
+          "clientId": "mjuohs00.1-c3",
+          "version": 0,
+          "doc": " j𝕏c𝕏 z作 zrawcp q 😀aik fz  作 \n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            32,
+            [
+              1
+            ]
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": " j𝕏c𝕏 z作 zrawcp q 😀aik fz  作 ",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c3",
+              "changes": [
+                32,
+                [
+                  1
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "D",
+      "authorKey": "author-D",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p4",
+          "clientId": "mjuohs00.1-c4",
+          "version": 0,
+          "doc": " j𝕏c𝕏 z作 zrawcp q 😀aik fz  作 \n"
+        }
+      ]
+    }
+  ]
+}

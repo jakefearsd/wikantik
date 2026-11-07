@@ -25,6 +25,7 @@ import com.wikantik.collab.model.MetaEdit;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PullCursor;
 import com.wikantik.collab.model.Selection;
+import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.StoredMetaOp;
 import com.wikantik.collab.testing.SimClient.MetaState;
 import com.wikantik.collab.testing.SimNetwork.Message;
@@ -40,6 +41,7 @@ import com.wikantik.collab.testing.SimTrace.Status;
 import com.wikantik.collab.testing.SimTrace.Step;
 import com.wikantik.collab.text.ChangeSet;
 import com.wikantik.collab.text.CollabText;
+import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -56,6 +58,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.TreeMap;
@@ -113,6 +116,16 @@ import java.util.stream.Collectors;
  * reload would. At quiescence a frozen draft is recreated by an outside save of its own text, every client keeps a pull
  * parked (carrying its last selection), and invariant 8's and 9's quiescence halves are checked; invariant 9's ADD
  * ledger is checked after every step.</p>
+ *
+ * <p><b>Phase 3, attribution</b> (a server with {@link SimServer#lifecycle()}): the page carries a {@code canonical_id}
+ * ({@link #CANONICAL_ID}, seeded and on every outside save) so publishes are attributed. The scheduler keeps its own
+ * {@link CollabInvariants.Attribution} model: an accepted push credits its author with the versions and meta seqs it
+ * moved the head and the meta sequence by; a publish that takes a ticket records (V, M_V), B and S_V as the save
+ * begins (cross-checked against the stored marker); it completes when its release answers 200, or, once its marker is
+ * gone (an unfinished publish retried, the reload's pending-publish rule after a crash), when version B+1 is by its
+ * author with S_V's stored text (A2's claim rule); otherwise it credits nobody. Invariants 10 and 11 are checked after
+ * every step and at quiescence; while a publish is marked, the rows it may already have written before a failed
+ * commit are accepted too.</p>
  *
  * <p><b>Coverage</b>: every run counts what it explored ({@link SimTrace#counters()}, keys below), so a test can assert
  * that a profile retune did not silently stop exercising a path.</p>
@@ -194,13 +207,26 @@ public final class SimScheduler {
     public static final String LEDGER_ADDS = "addsLedgered";
     /** Counter: client selections compared with the server's at quiescence (invariant 8). */
     public static final String PRESENCE_CHECKED = "selectionsCheckedAtQuiescence";
+    /** Counter: completed publishes entered in invariant 11's model (each credits its page version's rows). */
+    public static final String CREDITED_PUBLISHES = "publishesCredited";
+    /** Counter: completed publishes whose save was held inside the page save when the server crashed (F8). */
+    public static final String CREDITED_AFTER_CRASH = "publishesCreditedAfterCrash";
+    /** Counter: publishes whose marker was cleared without the session claiming the saved version (A2: no credit). */
+    public static final String UNCLAIMED_PUBLISHES = "publishesUnclaimed";
     static final List< String > COUNTERS = List.of( DUPLICATE_ANSWERS, OUT_OF_ORDER_PULLS, TRIMMED_PULLS, EXPIRED_PULLS,
         LEAVES, REJOINS, RESYNCS, CRASHES, RETIRED_REFUSED, RECONNECTS, TRUNCATIONS, GONE_PULLS, RELEASED_PUBLISHES,
         EXTERNAL_SAVES, STORE_FAULTS, PERSIST_FAILS, ABANDONED_PUBLISHES, SELECTS, META_EDITS, META_PUSHES, RENAMES, DELETES,
-        FROZEN_PUSHES, UNFREEZES, EVICTIONS, EVICTED_ANSWERS, LEDGER_ADDS, PRESENCE_CHECKED );
-    /** Counters only a server with Phase 2's lifecycle (the session) can move. */
+        FROZEN_PUSHES, UNFREEZES, EVICTIONS, EVICTED_ANSWERS, LEDGER_ADDS, PRESENCE_CHECKED, CREDITED_PUBLISHES,
+        CREDITED_AFTER_CRASH, UNCLAIMED_PUBLISHES );
+    /** Counters only a server with Phase 2's lifecycle (the session) can move; Phase 3's attribution rides on it. */
     static final List< String > LIFECYCLE_COUNTERS = List.of( SELECTS, META_EDITS, META_PUSHES, RENAMES, DELETES,
-        FROZEN_PUSHES, UNFREEZES, EVICTIONS, EVICTED_ANSWERS, LEDGER_ADDS, PRESENCE_CHECKED );
+        FROZEN_PUSHES, UNFREEZES, EVICTIONS, EVICTED_ANSWERS, LEDGER_ADDS, PRESENCE_CHECKED, CREDITED_PUBLISHES,
+        CREDITED_AFTER_CRASH, UNCLAIMED_PUBLISHES );
+    /**
+     * The simulated page's {@code canonical_id}: seeded with the page and carried by every outside save, as the
+     * structural spine keeps it on every real save, so a publish can be attributed (the ledger is keyed by it).
+     */
+    static final String CANONICAL_ID = "sim-page-id";
     /** The set fields and scalar fields a {@code META_EDIT} touches, and the small item vocabulary (so edits collide). */
     static final List< String > SET_FIELDS = List.of( "tags", "tags", "related", "aliases" );
     static final List< String > SCALAR_FIELDS = List.of( "status", "summary" );
@@ -403,6 +429,33 @@ public final class SimScheduler {
     private record PendingPublish( Message request, Object handle ) {
     }
 
+    /**
+     * A publish the server took a ticket for, as the scheduler observed it when the save began: the publish point
+     * (V, M_V), the base B it saves on (0 for a recreate), its author and S_V. {@code crashed} once a crash caught it
+     * inside its save (F8).
+     */
+    private static final class Ticket {
+        final int version;
+        final long metaSeq;
+        final int base;
+        final String author;
+        final String doc;
+        boolean crashed;
+
+        Ticket( final int version, final long metaSeq, final int base, final String author, final String doc ) {
+            this.version = version;
+            this.metaSeq = metaSeq;
+            this.base = base;
+            this.author = author;
+            this.doc = doc;
+        }
+    }
+
+    /** The simulated page's metadata as seeded and as every outside save writes it: its {@code canonical_id} alone. */
+    static Map< String, Object > pageMeta() {
+        return Map.of( "canonical_id", CANONICAL_ID );
+    }
+
     /** What a push carries besides its text (in {@link Message#result()} of the request): meta edits and the selection. */
     private record PushExtras( List< MetaState.Entry > meta, Selection selection ) {
     }
@@ -449,6 +502,13 @@ public final class SimScheduler {
          */
         private String owedRename;
         private boolean owedFreeze;
+        /**
+         * Invariants 10 and 11's model (Phase 3), kept for a server with {@link SimServer#lifecycle()} only: every
+         * accepted update and meta op with its pusher's author, and every completed publish with its publish point.
+         */
+        private CollabInvariants.Attribution attribution;
+        /** The publish whose marker the server holds (inside its save, or unfinished and owed); null when none. */
+        private Ticket ticket;
         private String tag = "start";
         private int seq;
         private int ordinal;
@@ -477,11 +537,12 @@ public final class SimScheduler {
         Outcome start() {
             return guarded( () -> {
                 final ScriptedPageWriter writer = new ScriptedPageWriter();
-                writer.seed( header.pageName(), header.initialDoc(), Map.of() );
+                writer.seed( header.pageName(), header.initialDoc(), pageMeta() );
                 writer.rewriteOnSave( SimEnv.rewrite( header.rewrite() ) );
                 env = new SimEnv( header.pageName(), new MutableClock( EPOCH ), new InMemoryCollabStore(), writer,
                     header.maxPageBytes(), header.ringSize() );
                 server = factory.apply( env );
+                attribution = server.lifecycle() ? new CollabInvariants.Attribution() : null;
                 for( int i = 0; i < header.clients(); i++ ) {
                     final String name = String.valueOf( (char) ( 'A' + i ) );
                     final Peer p = new Peer( name, "author-" + name );
@@ -801,7 +862,7 @@ public final class SimScheduler {
                     case EXTERNAL_SAVE -> {
                         final String body = writerBody();
                         final int version = env.writer().externalSave( env.pageName(), replaceIn( body, s ).apply( body ),
-                            Map.of(), "agent" );
+                            pageMeta(), "agent" );
                         externalPending = true;
                         count( EXTERNAL_SAVES, 1 );
                         server.externalSaved( version );
@@ -814,6 +875,9 @@ public final class SimScheduler {
                         for( final PendingPublish pp : pendingPublishes ) {
                             server.abandonPublish( pp.handle(), s.id() % 2 == 0 );
                             count( ABANDONED_PUBLISHES, 1 );
+                            if( ticket != null ) {
+                                ticket.crashed = true;   // the reload's pending-publish rule claims or clears it
+                            }
                         }
                         pendingPublishes.clear();
                         // reloaded under the name the store holds (a refused rekey leaves the old one there)
@@ -1052,8 +1116,12 @@ public final class SimScheduler {
                     final PushExtras x = (PushExtras) m.result();
                     final List< MetaEdit > edits = x.meta().stream().map( MetaState.Entry::edit ).toList();
                     accountServerOps();
+                    final InvariantView before = attribution == null ? null : server.view();
                     final PushResult r = server.push( m.participantId(), p.authorKey, m.version(), m.updates(), edits,
                         x.selection() );
+                    if( before != null && r.status() == 200 ) {
+                        attribute( p.authorKey, before );
+                    }
                     if( r.status() == 200 && !edits.isEmpty() ) {
                         ledger( x.meta() );
                         count( META_PUSHES, 1 );
@@ -1083,6 +1151,13 @@ public final class SimScheduler {
                         "sim" );
                     if( started.pending() != null ) {
                         pendingPublishes.addLast( new PendingPublish( m, started.pending() ) );
+                        if( attribution != null ) {
+                            // one ticket at a time: a new one means this call settled the previous marker first
+                            if( ticket != null ) {
+                                resolveByClaim();
+                            }
+                            ticket = newTicket( p.authorKey );
+                        }
                     } else {
                         reply( m, Type.PUBLISH_RESULT, started.result() );
                         settled();
@@ -1151,9 +1226,137 @@ public final class SimScheduler {
             }
             final PublishResult r = server.releasePublish( pp.handle() );
             count( RELEASED_PUBLISHES, 1 );
+            if( attribution != null && ticket != null && r.status() == 200 ) {
+                // the save returned and the post-save half finished: the publish is complete at the answered version
+                complete( ticket, r.pageVersion() );
+            }
             reply( pp.request(), Type.PUBLISH_RESULT, r );
             drain();
             settled();
+        }
+
+        // -- attribution (Phase 3: invariants 10 and 11) --
+
+        /**
+         * A push the server accepted, against the view {@code before} it: the versions it moved the head by are its text
+         * updates and the seqs it moved the meta sequence by its meta ops, all by its author (the simulator is single
+         * threaded, so nothing else wrote in between).
+         */
+        private void attribute( final String author, final InvariantView before ) {
+            final InvariantView after = server.view();
+            for( int v = before.head() + 1; v <= after.head(); v++ ) {
+                attribution.text( author, v );
+            }
+            for( long m = before.metaSeq() + 1; m <= after.metaSeq(); m++ ) {
+                attribution.meta( author, m );
+            }
+        }
+
+        /**
+         * The ticket a publish just took: (V, M_V) and S_V are the head, meta sequence and document now (the save is
+         * paused, so nothing has moved since the ticket), B is the base, or 0 for a frozen draft's recreate. The store's
+         * marker must name the same V and B.
+         */
+        private Ticket newTicket( final String author ) {
+            final InvariantView v = server.view();
+            final Ticket t = new Ticket( v.head(), v.metaSeq(), v.frozen() ? 0 : v.basePageVersion(), author, v.doc() );
+            final SessionRecord rec = env.store().session( sessionId ).orElseThrow();
+            if( !Objects.equals( rec.pendingPublishVersion(), t.version )
+                    || !Objects.equals( rec.pendingPublishBaseVersion(), t.base ) ) {
+                throw new SimFailure( "attribution/marker", "attribution: the publish by " + author + " took its ticket at"
+                    + " version " + t.version + " on base " + t.base + " but the stored marker names version "
+                    + rec.pendingPublishVersion() + " on base " + rec.pendingPublishBaseVersion() );
+            }
+            return t;
+        }
+
+        /**
+         * With no save of it still running, a ticket whose marker the store no longer holds was settled by the server
+         * (an unfinished publish retried, the reload's pending-publish rule): resolved by the claim rule.
+         */
+        private void resolveIfSettled() {
+            if( ticket == null || !pendingPublishes.isEmpty() ) {
+                return;
+            }
+            final SessionRecord rec = env.store().session( sessionId ).orElseThrow();
+            if( !Objects.equals( rec.pendingPublishVersion(), ticket.version )
+                    || !Objects.equals( rec.pendingPublishBaseVersion(), ticket.base ) ) {
+                resolveByClaim();
+            }
+        }
+
+        /**
+         * A2 / E39: a settled marker was a completed publish when version B+1 of the session's page is by the ticket's
+         * author with S_V's text as the save stores it; otherwise the save never ran (or was another write) and the
+         * publish credits nobody.
+         */
+        private void resolveByClaim() {
+            final Ticket t = ticket;
+            final Optional< PageState > next = env.writer().version( server.view().pageName(), t.base + 1 );
+            if( next.isPresent() && t.author.equals( next.get().author() ) && next.get().contentHash().equals(
+                    CollabText.contentHash( TextUtil.normalizePostData( t.doc ) ) ) ) {
+                complete( t, t.base + 1 );
+                return;
+            }
+            count( UNCLAIMED_PUBLISHES, 1 );
+            ticket = null;
+            if( CollabInvariants.tolerateOrphanedRows ) {
+                // known defect D2: rows an earlier attempt wrote before its failed commit stay behind; accepted only when
+                // the ledger is exactly the model plus those rows
+                final Map< Integer, List< String > > held = server.ledger( CANONICAL_ID );
+                for( final CollabInvariants.Attribution alt : orphans( t ) ) {
+                    if( held.equals( alt.ledger() ) && !held.equals( attribution.ledger() ) ) {
+                        attribution = alt;
+                        return;
+                    }
+                }
+            }
+        }
+
+        /**
+         * The model as it would be with {@code t}'s rows written but the publish not completed: at B+1 (the save wrote a
+         * new version), and with known defect D1 tolerated at B too (the save stored nothing new).
+         */
+        private List< CollabInvariants.Attribution > orphans( final Ticket t ) {
+            final List< CollabInvariants.Attribution > out = new ArrayList<>();
+            for( final int pv : rowVersions( t ) ) {
+                final CollabInvariants.Attribution alt = attribution.copy();
+                alt.orphaned( pv, t.version, t.metaSeq, t.base == 0 );
+                out.add( alt );
+            }
+            return out;
+        }
+
+        /** The page versions a finish attempt of {@code t} may credit: B+1, and B while known defect D1 is tolerated. */
+        private static List< Integer > rowVersions( final Ticket t ) {
+            return CollabInvariants.tolerateUnchangedSaveCredit && t.base > 0 ? List.of( t.base + 1, t.base )
+                : List.of( t.base + 1 );
+        }
+
+        /** The ticket's publish completed at {@code pageVersion}; a version at or below B means the save stored nothing new. */
+        private void complete( final Ticket t, final int pageVersion ) {
+            if( pageVersion <= t.base && CollabInvariants.tolerateUnchangedSaveCredit ) {
+                // known defect D1: the product credits the existing version B, replacing its rows
+                attribution.published( pageVersion, t.version, t.metaSeq, false );
+            } else if( pageVersion <= t.base ) {
+                attribution.publishedUnchanged( t.version, t.metaSeq );
+            } else {
+                attribution.published( pageVersion, t.version, t.metaSeq, t.base == 0 );
+            }
+            count( CREDITED_PUBLISHES, 1 );
+            if( t.crashed ) {
+                count( CREDITED_AFTER_CRASH, 1 );
+            }
+            ticket = null;
+        }
+
+        /** Invariants 10 and 11 against the model, after settling whatever ticket the server settled. */
+        private void checkAttribution() {
+            resolveIfSettled();
+            CollabInvariants.contributors( server.contributors(), attribution );
+            // a marked publish may have written its rows already, before the commit that failed (its retry rewrites them)
+            CollabInvariants.ledger( server.ledger( CANONICAL_ID ), attribution,
+                ticket == null ? List.of() : orphans( ticket ) );
         }
 
         /** A clear point for {@link #externalPending}: cleared once the server has nothing queued or owed. */
@@ -1407,6 +1610,7 @@ public final class SimScheduler {
             if( server.lifecycle() ) {
                 accountServerOps();
                 CollabInvariants.addsSurvive( v, mustHold );
+                checkAttribution();
                 if( wasFrozen && !v.frozen() ) {
                     count( UNFREEZES, 1 );
                 }
@@ -1496,6 +1700,11 @@ public final class SimScheduler {
             CollabInvariants.presenceAtQuiescence( v, selections );
             count( PRESENCE_CHECKED, selections.size() );
             CollabInvariants.addsSurvive( v, mustHold );
+            checkAttribution();
+            if( ticket != null ) {
+                throw new SimFailure( "attribution/unsettled", "attribution: the publish at version " + ticket.version
+                    + " by " + ticket.author + " is still marked at quiescence" );
+            }
         }
 
         /**

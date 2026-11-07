@@ -1,0 +1,144 @@
+{
+  "format": 1,
+  "seed": 103,
+  "profile": "PUBLISH_STORM",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "strip-trailing-spaces",
+    "clients": 3
+  },
+  "initialDoc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏 \n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n",
+  "steps": [
+    {
+      "id": 25,
+      "action": "META_EDIT",
+      "client": 1,
+      "insert": "a",
+      "op": "add:tags"
+    },
+    {
+      "id": 39,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 69,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    },
+    {
+      "id": 83,
+      "action": "PUBLISH",
+      "client": 2
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 11 (the ledger rows of every completed publish's page version are the authors with accepted ops in (V_prev, V] or (M_prev, M_V]) violated: page version 2 has [author-B] but its publish credits [] (ledger {2=[author-B]}, expected {})",
+    "at": "q4",
+    "kind": "invariant 11"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏 \n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏 \n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n",
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "server",
+              "changes": [
+                67,
+                [
+                  1
+                ],
+                61
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏\n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏 \n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n"
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 0
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏 \n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "authorKey": "author-C",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p3",
+          "clientId": "mjuohs00.1-c3",
+          "version": 0,
+          "doc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏 \n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "編quiky 𝄞hc bmdst i\n🎉f\n\ngflggf𝄞l oyfs集😀h🎉 y🎉npyp𝄞集字🎉chhl\nj𝕏 \n\nat𝄞zbx vptsdszkv🎉no𝄞編g😀bju\n協\no😀s u文cr\n作l🎉集中😀\n𝕏fr\n\n\n",
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

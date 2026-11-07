@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -458,6 +459,17 @@ public final class CollabSessionSimServer implements SimServer {
     @Override
     public boolean lifecycle() {
         return true;
+    }
+
+    /** The session's contributor keys since the last publish ({@code View.contributorKeys}), first-contribution order. */
+    @Override
+    public Set< String > contributors() {
+        return new LinkedHashSet<>( session.view().contributorKeys() );
+    }
+
+    @Override
+    public Map< Integer, List< String > > ledger( final String canonicalId ) {
+        return store.contributorsByVersion( canonicalId );
     }
 
     @Override

@@ -407,4 +407,25 @@ class RecoveryTest {
         assertEquals( Map.of(), store.contributorsByVersion( CID ) );
         assertEquals( List.of( "alice" ), recovered.view().contributorKeys(), "alice's edit is still unpublished" );
     }
+
+    /**
+     * F8 under the fuzz (Phase 3 Task 6): session runs whose crashes caught a publish inside its save, the save persisted
+     * and the reload's pending-publish rule finished it. Invariants 10 and 11 held after every step of each (the run
+     * passes), so the reloaded session credited the persisted version exactly as an uncrashed publish would have, from
+     * the publish point recorded before the crash; and each such run replays to the same trace.
+     */
+    @Test
+    void crashesInsideTheSaveKeepTheLedgerAndTheContributorsInTheFuzz() {
+        int found = 0;
+        for( long seed = 1; seed <= 400 && found < 3; seed++ ) {
+            final SimTrace t = SimTarget.SESSION.scheduler( seed, SimProfile.TIGHT, 2 + (int) ( seed % 3 ) )
+                .run( CollabConvergenceFuzzTest.STEPS );
+            assertEquals( SimTrace.Status.PASS, t.outcome().status(), "TIGHT " + seed + ": " + t.outcome().message() );
+            if( t.counters().get( SimScheduler.CREDITED_AFTER_CRASH ) > 0 ) {
+                found++;
+                assertEquals( t.toJson(), SimTarget.SESSION.replay( t ).toJson(), "TIGHT " + seed + " replays" );
+            }
+        }
+        assertEquals( 3, found, "the TIGHT fuzz no longer finishes a publish across a crash" );
+    }
 }

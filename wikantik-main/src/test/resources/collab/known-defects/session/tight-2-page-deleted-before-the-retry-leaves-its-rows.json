@@ -1,0 +1,264 @@
+{
+  "format": 1,
+  "seed": 2,
+  "profile": "TIGHT",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 200,
+    "ringSize": 2,
+    "rewrite": "none",
+    "clients": 4
+  },
+  "initialDoc": "",
+  "steps": [
+    {
+      "id": 4,
+      "action": "LOCAL_EDIT",
+      "client": 1,
+      "from": 1,
+      "to": 1,
+      "insert": " xv集"
+    },
+    {
+      "id": 7,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 9,
+      "action": "DELIVER",
+      "messageId": "7.0"
+    },
+    {
+      "id": 15,
+      "action": "STORE_FAULT",
+      "op": "COMMIT_BASE_CHANGE"
+    },
+    {
+      "id": 61,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 63,
+      "action": "DELIVER",
+      "messageId": "61.0"
+    },
+    {
+      "id": 74,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 83,
+      "action": "DELETE"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 11 (the ledger rows of every completed publish's page version are the authors with accepted ops in (V_prev, V] or (M_prev, M_V]) violated: page version 2 has [author-B] but its publish credits [] (ledger {2=[author-B]}, expected {})",
+    "at": "q5",
+    "kind": "invariant 11"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                1,
+                [
+                  0,
+                  " xv集"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "\n xv集",
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 1,
+          "updates": [
+            {
+              "clientID": "server",
+              "changes": [
+                5,
+                [
+                  0,
+                  " xv集",
+                  ""
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "\n xv集 xv集\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            1,
+            [
+              0,
+              " xv集"
+            ]
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "\n xv集",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                1,
+                [
+                  0,
+                  " xv集"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 1
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                1,
+                [
+                  0,
+                  " xv集"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "\n xv集",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "authorKey": "author-C",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p3",
+          "clientId": "mjuohs00.1-c3",
+          "version": 0,
+          "doc": "\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                1,
+                [
+                  0,
+                  " xv集"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "\n xv集",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "D",
+      "authorKey": "author-D",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p4",
+          "clientId": "mjuohs00.1-c4",
+          "version": 0,
+          "doc": "\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                1,
+                [
+                  0,
+                  " xv集"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "\n xv集",
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

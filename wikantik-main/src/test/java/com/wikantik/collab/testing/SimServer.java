@@ -27,6 +27,7 @@ import com.wikantik.collab.text.ChangeSet;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The protocol surface the deterministic simulator drives. {@link StubCollabAuthority} implements it for Phase 0;
@@ -249,6 +250,22 @@ public interface SimServer {
      */
     default boolean lifecycle() {
         return false;
+    }
+
+    /**
+     * Phase 3: the author keys with contributions since the last publish (invariant 10). The scheduler asks only a server
+     * with {@link #lifecycle()}; the stub has no contributors.
+     */
+    default Set< String > contributors() {
+        throw new UnsupportedOperationException( "this server does not track contributors" );
+    }
+
+    /**
+     * Phase 3: the page-version contributor ledger of the page whose {@code canonical_id} is {@code canonicalId}: page
+     * version to its contributors' sorted author keys (invariant 11). Asked only of a server with {@link #lifecycle()}.
+     */
+    default Map< Integer, List< String > > ledger( final String canonicalId ) {
+        throw new UnsupportedOperationException( "this server has no contributor ledger" );
     }
 
     /** The answers to parked pulls completed since the last call (by a push, a leave or a timeout), in order. */

@@ -35,6 +35,7 @@ import java.util.UUID;
 import java.util.function.UnaryOperator;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -352,5 +353,106 @@ class CollabInvariantsTest {
         assertDoesNotThrow( () -> CollabInvariants.check( phase2( Map.of(), Map.of(), Map.of(), true ) ) );
         // and an unfrozen draft over a deleted page is one too (the writer's latest is then 0)
         failsNaming( phase2( Map.of(), Map.of(), Map.of(), false ), false, 4 );
+    }
+
+    // ---- Phase 3: contributors (invariant 10) and the page-version ledger (invariant 11) ---------------------------
+
+    @Test
+    void inv10_contributorsAreTheAuthorsWithAcceptedOpsAfterTheLastPublishPoint() {
+        final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
+        m.text( "alice", 1 );
+        m.meta( "bob", 1 );
+        m.published( 2, 1, 0, false );   // V = 1, M_V = 0: bob's meta op (seq 1) is after the publish point
+        m.text( "carol", 2 );
+        assertEquals( Set.of( "bob", "carol" ), m.contributors() );
+        assertDoesNotThrow( () -> CollabInvariants.contributors( List.of( "carol", "bob" ), m ) );
+        final AssertionError missing = assertThrows( AssertionError.class,
+            () -> CollabInvariants.contributors( List.of( "bob" ), m ) );
+        assertTrue( missing.getMessage().startsWith( "invariant 10 " ), missing.getMessage() );
+        final AssertionError stale = assertThrows( AssertionError.class,
+            () -> CollabInvariants.contributors( List.of( "alice", "bob", "carol" ), m ) );
+        assertTrue( stale.getMessage().startsWith( "invariant 10 " ), stale.getMessage() );
+    }
+
+    @Test
+    void inv10_withNoCompletedPublishEveryAcceptedOpCounts() {
+        final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
+        assertDoesNotThrow( () -> CollabInvariants.contributors( List.of(), m ) );
+        m.text( "alice", 1 );
+        m.meta( "alice", 1 );
+        m.meta( "bob", 2 );
+        assertDoesNotThrow( () -> CollabInvariants.contributors( List.of( "alice", "bob" ), m ) );
+        assertThrows( AssertionError.class, () -> CollabInvariants.contributors( List.of(), m ) );
+    }
+
+    @Test
+    void inv11_theLedgerRowsOfEachPublishedVersionAreTheAuthorsUpToItsPublishPoint() {
+        final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
+        m.text( "alice", 1 );
+        m.meta( "bob", 1 );
+        m.text( "carol", 2 );   // during the save: after V = 1, so it counts toward the next version
+        m.published( 2, 1, 1, false );
+        m.text( "alice", 3 );
+        m.published( 3, 3, 1, false );
+        assertEquals( Map.of( 2, List.of( "alice", "bob" ), 3, List.of( "alice", "carol" ) ), m.ledger() );
+        assertDoesNotThrow( () -> CollabInvariants.ledger( Map.of( 2, List.of( "alice", "bob" ), 3,
+            List.of( "alice", "carol" ) ), m ) );
+        for( final Map< Integer, List< String > > wrong : List.of(
+                Map.of( 2, List.of( "alice", "bob", "carol" ), 3, List.of( "alice" ) ),   // credited at the head, not V
+                Map.of( 3, List.of( "alice", "carol" ) ),                                   // a version's rows missing
+                Map.of( 1, List.of( "x" ), 2, List.of( "alice", "bob" ), 3, List.of( "alice", "carol" ) ) ) ) {
+            final AssertionError e = assertThrows( AssertionError.class, () -> CollabInvariants.ledger( wrong, m ) );
+            assertTrue( e.getMessage().startsWith( "invariant 11 " ), e.getMessage() );
+        }
+    }
+
+    @Test
+    void inv11_aPublishThatCreatesThePageReplacesEveryEarlierRow() {
+        final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
+        m.text( "alice", 1 );
+        m.published( 2, 1, 0, false );
+        m.text( "bob", 2 );
+        m.published( 1, 2, 0, true );   // a recreate: version numbers restart (ruling R4)
+        assertEquals( Map.of( 1, List.of( "bob" ) ), m.ledger() );
+        assertThrows( AssertionError.class, () -> CollabInvariants.ledger( Map.of( 1, List.of( "bob" ), 2,
+            List.of( "alice" ) ), m ) );
+    }
+
+    @Test
+    void inv11_aPublishCreditingNobodyReplacesTheVersionsRowsWithNone() {
+        final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
+        m.text( "alice", 1 );
+        m.published( 2, 1, 0, false );
+        m.published( 2, 1, 0, false );   // the same version again credits nobody: its rows are replaced by none (R4)
+        assertEquals( Map.of(), m.ledger() );
+        assertDoesNotThrow( () -> CollabInvariants.ledger( Map.of(), m ) );
+    }
+
+    @Test
+    void inv11_aSaveThatWroteNoNewVersionAdvancesThePublishPointButWritesNoRows() {
+        final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
+        m.text( "alice", 1 );
+        m.published( 2, 1, 0, false );
+        m.text( "bob", 2 );   // trailing spaces the save filter strips: the save stores nothing new
+        m.publishedUnchanged( 2, 0 );
+        assertEquals( Map.of( 2, List.of( "alice" ) ), m.ledger(), "version 2 keeps the rows of its own publish" );
+        assertEquals( Set.of(), m.contributors(), "the rewrite took bob's edit out: nobody is owed credit" );
+    }
+
+    @Test
+    void inv11_aMarkedPublishMayHaveWrittenItsRowsBeforeItsCommit() {
+        final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
+        m.text( "alice", 1 );
+        final CollabInvariants.Attribution inFlight = m.copy();
+        inFlight.published( 2, 1, 0, false );
+        assertEquals( Map.of(), m.ledger(), "the copy is independent" );
+        final Map< Integer, List< String > > early = Map.of( 2, List.of( "alice" ) );
+        assertDoesNotThrow( () -> CollabInvariants.ledger( early, m, List.of( inFlight ) ) );
+        assertDoesNotThrow( () -> CollabInvariants.ledger( Map.of(), m, List.of( inFlight ) ) );
+        // once the marker is settled without the publish (unclaimed), rows it wrote early are a violation
+        final AssertionError e = assertThrows( AssertionError.class, () -> CollabInvariants.ledger( early, m, List.of() ) );
+        assertTrue( e.getMessage().startsWith( "invariant 11 " ), e.getMessage() );
+        assertThrows( AssertionError.class,
+            () -> CollabInvariants.ledger( Map.of( 2, List.of( "bob" ) ), m, List.of( inFlight ) ) );
     }
 }

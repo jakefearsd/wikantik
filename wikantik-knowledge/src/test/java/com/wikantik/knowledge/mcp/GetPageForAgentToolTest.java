@@ -143,6 +143,36 @@ class GetPageForAgentToolTest {
         assertFalse( draftActive( tool ), "the short constructors answer false" );
     }
 
+    @Test
+    void theStructuredContentPassesTheSdksOutputValidation() {
+        // The MCP server validates structuredContent against the tool's outputSchema with the SDK's Jackson-backed
+        // validator before it answers. A Gson JsonObject there cannot be serialised ("asBigDecimal"), so every call
+        // failed with "Tool output validation failed" once draft_active was added to a JsonObject payload.
+        final GetPageForAgentTool live = new GetPageForAgentTool( svc, PageViewGate.ALLOW_ALL, () -> null, slug -> true );
+        final ForAgentProjection p = new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article", null,
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE, null, null, null, "s",
+                List.of(), List.of(),
+                List.of( new RecentChange( 7, Instant.parse( "2026-04-22T11:10:00Z" ), null, "tidy" ) ),
+                List.of(), null, null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md", false, List.of(), List.of() );
+        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+
+        final McpSchema.CallToolResult result = live.execute( Map.of( "canonical_id", "01ABC" ) );
+
+        final io.modelcontextprotocol.json.schema.JsonSchemaValidator.ValidationResponse v =
+            io.modelcontextprotocol.json.McpJsonDefaults.getSchemaValidator()
+                .validate( live.definition().outputSchema(), result.structuredContent() );
+        assertTrue( v.valid(), "the SDK rejects the structured content: " + v.errorMessage() );
+        final Map< ?, ? > structured = assertInstanceOf( Map.class, result.structuredContent() );
+        assertEquals( Boolean.TRUE, structured.get( "draft_active" ) );
+        assertEquals( "HybridRetrieval", structured.get( "slug" ) );
+        final Map< ?, ? > change = assertInstanceOf( Map.class,
+            assertInstanceOf( List.class, structured.get( "recent_changes" ) ).get( 0 ) );
+        assertEquals( 7L, ( (Number) change.get( "version" ) ).longValue() );
+        assertFalse( change.get( "version" ) instanceof Double, "an integer stays an integer" );
+    }
+
     private static boolean draftActive( final GetPageForAgentTool t ) {
         final McpSchema.CallToolResult result = t.execute( Map.of( "canonical_id", "01ABC" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();

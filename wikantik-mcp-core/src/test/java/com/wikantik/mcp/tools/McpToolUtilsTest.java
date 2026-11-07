@@ -62,6 +62,29 @@ class McpToolUtilsTest {
     }
 
     @Test
+    void aGsonTreeBecomesPlainJavaValuesInTheStructuredContent() {
+        // The SDK serialises structuredContent with Jackson, which cannot write a Gson JsonElement.
+        final com.google.gson.JsonObject data = new com.google.gson.JsonObject();
+        data.addProperty( "n", 7 );
+        data.addProperty( "x", 1.5 );
+        data.addProperty( "flag", true );
+        data.add( "none", com.google.gson.JsonNull.INSTANCE );
+        final com.google.gson.JsonArray list = new com.google.gson.JsonArray();
+        list.add( "a" );
+        data.add( "list", list );
+
+        final McpSchema.CallToolResult result = McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, data );
+
+        final Map< ?, ? > structured = ( Map< ?, ? > ) result.structuredContent();
+        assertEquals( 7L, structured.get( "n" ) );
+        assertEquals( 1.5, structured.get( "x" ) );
+        assertEquals( Boolean.TRUE, structured.get( "flag" ) );
+        assertTrue( structured.containsKey( "none" ) );
+        assertEquals( java.util.List.of( "a" ), structured.get( "list" ) );
+        assertTrue( textOf( result ).contains( "\"n\":7" ) );
+    }
+
+    @Test
     void errorResultSetsIsErrorAndMessage() {
         final McpSchema.CallToolResult result = McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "boom" );
 

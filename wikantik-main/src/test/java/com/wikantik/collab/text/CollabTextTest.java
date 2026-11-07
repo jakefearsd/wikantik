@@ -65,9 +65,9 @@ class CollabTextTest {
         assertFalse( CollabText.splitsSurrogatePair( doc, ChangeSet.replace( 4, 3, 3, "z" ) ), "after the pair" );
         assertFalse( CollabText.splitsSurrogatePair( doc, ChangeSet.empty( 4 ) ) );
         assertFalse( CollabText.splitsSurrogatePair( "", ChangeSet.replace( 0, 0, 0, "q" ) ) );
-        // a kept-span boundary (an unmerged JSON form) is not a change boundary
-        assertFalse( CollabText.splitsSurrogatePair( doc,
-                ChangeSetJson.fromJson( JsonParser.parseString( "[2, 2]" ).getAsJsonArray() ) ) );
+        // an unmerged kept-span boundary ([2, 2]) cannot even arrive: the JSON reader refuses the non-canonical form
+        assertThrows( IllegalArgumentException.class,
+                () -> ChangeSetJson.fromJson( JsonParser.parseString( "[2, 2]" ).getAsJsonArray() ) );
         // a later change splitting a second pair is found too
         final String two = EMOJI + "x" + EMOJI; // 0-1 pair, x=2, 3-4 pair
         assertTrue( CollabText.splitsSurrogatePair( two,

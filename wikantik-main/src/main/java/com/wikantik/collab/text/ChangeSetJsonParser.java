@@ -37,12 +37,12 @@ final class ChangeSetJsonParser {
         final SectionBuilder b = new SectionBuilder();
         long length = 0;
         long newLength = 0;
-        Shape previous = Shape.CHANGE;
+        JsonShape previous = JsonShape.CHANGE;
         for ( int i = 0; i < json.size(); i++ ) {
             final JsonElement part = json.get( i );
             final int[] lengths = parsePart( b, part, i );
-            final Shape shape = isNumber( part ) ? Shape.KEPT : lengths[ 1 ] == 0 ? Shape.DELETION : Shape.CHANGE;
-            requireCanonical( previous, shape, i );
+            final JsonShape shape = JsonShape.of( isNumber( part ), lengths[ 1 ] );
+            shape.requireCanonicalAfter( previous, i );
             previous = shape;
             length += lengths[ 0 ];
             newLength += lengths[ 1 ];
@@ -51,24 +51,6 @@ final class ChangeSetJsonParser {
             }
         }
         return b.build();
-    }
-
-    /** What a JSON element does: keeps, purely deletes, or inserts (with or without deleting). */
-    private enum Shape { KEPT, DELETION, CHANGE }
-
-    /**
-     * CodeMirror's {@code toJSON} merges adjacent kept spans and adjacent pure deletions into one section, so a
-     * neighbouring pair of either is not its output and is refused (it would also break the JSON round trip).
-     */
-    private static void requireCanonical( final Shape previous, final Shape shape, final int index ) {
-        if ( shape == Shape.KEPT && previous == Shape.KEPT ) {
-            throw new IllegalArgumentException( "Invalid change set: element " + index + " is a kept span adjacent to the"
-                    + " kept span at element " + ( index - 1 ) + " (not canonical: CodeMirror merges them)" );
-        }
-        if ( shape == Shape.DELETION && previous == Shape.DELETION ) {
-            throw new IllegalArgumentException( "Invalid change set: element " + index + " is a pure deletion adjacent to"
-                    + " the pure deletion at element " + ( index - 1 ) + " (not canonical: CodeMirror merges them)" );
-        }
     }
 
     /** Pushes element {@code index} onto {@code b}; returns its {@code {oldLength, newLength}}. */

@@ -1,0 +1,166 @@
+{
+  "protocol": "wikantik-collab",
+  "protocolVersion": 1,
+  "source": "docs/MultiEdit.MD sections 0 (A6, A8, A10-A13), 6.1, 6.2 and the Phase 1 plan amendments (Session core, Task 3)",
+  "notes": {
+    "basePath": "All paths are under /api/collab/{pageName}. Sample page: PageName.",
+    "changes": "Every `changes` value is CodeMirror ChangeSet.toJSON(): a number is an unchanged span, [deleted, ...insertedLines] a replacement. Lengths are UTF-16 code units. Sample doc 'Hello world' is 11 units.",
+    "reasonOnEvery409": "Every 409 body carries a `reason` (stale-base, rejoin, frozen, rate-limited, publish-merged-retry, derived-page). The rejoin 409 also keeps the legacy `rejoin:true`, the stale-base 409 keeps `accepted:false` plus the head `version`.",
+    "rateLimited": "AMBIGUITY: the controller ruling lists rate-limited as a 409 on POST /updates; the Phase 1 plan amendment (Session core, Task 3, A8) says 429. This fixture records 409 per the ruling. The frontend treats `reason:'rate-limited'` on ANY status (409 or 429) as back off and retry, so either server choice works for the client. Java Task 7 must pick one and the controller must reconcile.",
+    "noPresenceEndpoint": "There is no /presence endpoint (A8). The selection {anchor, head, version, unconfirmed} rides on POST /updates (key `selection`, optional; a push with empty `updates` is a presence-only push). anchor/head are in the sender's LOCAL document coordinates; `version` is the sender's synced version and `unconfirmed` the count of its unconfirmed updates (A12), so a receiver maps them through the corresponding updates.",
+    "presence": "AMBIGUITY (6.2 says presence:{...}): chosen as a map keyed by participantId of {displayName, color, anchor, head, version, unconfirmed}, excluding the requester, always the full map of other participants when `presenceSeq` > the request's presenceSince, else {}. The response carries `presenceSeq`.",
+    "cursors": "AMBIGUITY: 6.2 gives GET /updates a presenceSince cursor but no cursor for `events` or a head version. Chosen: response also carries `metaSeq`, `presenceSeq` and `eventSeq`; every event carries a monotonically increasing `seq`; the request adds `eventsSince`. The new head version is `since + updates.length`.",
+    "longPoll": "GET /updates parks up to poll.timeoutSeconds. On timeout it answers 200 with empty updates/metaOps/events and presence {}.",
+    "join": "join takes priorClientId (the server reissues it when it still knows it, 7.2), initialText and initialMeta (A11; used only when the join creates the session). `doc` is the document at `version`.",
+    "ownUpdates": "A pull returns the caller's own updates too; receiveUpdates recognises them by clientID as confirmations. A 200 on POST /updates does NOT remove them; only the pull does.",
+    "publish422": "The 422 bodies are those of PageResource.doPut: {error:'frontmatter_validation_failed'|'access_rule_shape'|'math_validation_failed', violations:[...]}. One example is recorded (frontmatter).",
+    "errorBodiesWithoutReason": "400 and 413 use reason 'bad-request' and 'oversize'. 401/403 bodies are the usual RestServletBase error envelope {error, message}."
+  },
+  "cases": [
+    {
+      "id": "join.200",
+      "method": "POST", "path": "/join",
+      "request": { "body": { "priorClientId": null, "initialText": null, "initialMeta": null } },
+      "response": { "status": 200, "body": {
+        "sessionId": "s-1f3a", "participantId": "pt-1", "clientID": "p7f3k2",
+        "version": 0, "doc": "Hello world",
+        "metaSeq": 0, "metadata": { "tags": ["a"] }, "basePageVersion": 7,
+        "participants": [ { "participantId": "pt-1", "displayName": "Ada", "color": "#1b6ec2" } ],
+        "draft": { "unpublished": false, "contributors": [], "lastEditAt": null }
+      } }
+    },
+    {
+      "id": "join.403", "method": "POST", "path": "/join",
+      "request": { "body": {} },
+      "response": { "status": 403, "body": { "error": "forbidden", "message": "No edit permission on PageName" } }
+    },
+    {
+      "id": "join.409.derived-page", "method": "POST", "path": "/join",
+      "request": { "body": {} },
+      "response": { "status": 409, "body": { "reason": "derived-page" } }
+    },
+    {
+      "id": "join.429.session-full", "method": "POST", "path": "/join",
+      "request": { "body": {} },
+      "response": { "status": 429, "body": { "reason": "session-full" } }
+    },
+    {
+      "id": "join.503.collab-disabled", "method": "POST", "path": "/join",
+      "request": { "body": {} },
+      "response": { "status": 503, "body": { "reason": "collab-disabled" } }
+    },
+    {
+      "id": "updates.post.200", "method": "POST", "path": "/updates",
+      "request": { "body": {
+        "sessionId": "s-1f3a", "version": 0,
+        "updates": [ { "clientID": "p7f3k2", "changes": [11, [0, "!"]] } ],
+        "metaOps": [ { "field": "tags", "value": ["a", "b"] } ],
+        "selection": { "anchor": 12, "head": 12, "version": 0, "unconfirmed": 1 }
+      } },
+      "response": { "status": 200, "body": { "accepted": true, "version": 1, "metaSeq": 1 } }
+    },
+    {
+      "id": "updates.post.409.stale-base", "method": "POST", "path": "/updates",
+      "request": { "body": {
+        "sessionId": "s-1f3a", "version": 0,
+        "updates": [ { "clientID": "p7f3k2", "changes": [12, [0, "?"]] } ], "metaOps": []
+      } },
+      "response": { "status": 409, "body": { "accepted": false, "reason": "stale-base", "version": 1 } }
+    },
+    {
+      "id": "updates.post.409.rejoin", "method": "POST", "path": "/updates",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 1, "updates": [], "metaOps": [] } },
+      "response": { "status": 409, "body": { "rejoin": true, "reason": "rejoin" } }
+    },
+    {
+      "id": "updates.post.409.frozen", "method": "POST", "path": "/updates",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 1, "updates": [], "metaOps": [] } },
+      "response": { "status": 409, "body": { "reason": "frozen" } }
+    },
+    {
+      "id": "updates.post.409.rate-limited", "method": "POST", "path": "/updates",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 1, "updates": [], "metaOps": [] } },
+      "response": { "status": 409, "body": { "reason": "rate-limited", "retryAfterMs": 500 } }
+    },
+    {
+      "id": "updates.post.400", "method": "POST", "path": "/updates",
+      "request": { "body": {
+        "sessionId": "s-1f3a", "version": 1,
+        "updates": [ { "clientID": "p7f3k2", "changes": [3, [0, "x"]] } ], "metaOps": []
+      } },
+      "response": { "status": 400, "body": { "reason": "bad-request", "message": "changes length 3 does not match document length 12" } }
+    },
+    {
+      "id": "updates.post.413", "method": "POST", "path": "/updates",
+      "request": { "body": {
+        "sessionId": "s-1f3a", "version": 1,
+        "updates": [ { "clientID": "p7f3k2", "changes": [12, [0, "a very large insertion"]] } ], "metaOps": []
+      } },
+      "response": { "status": 413, "body": { "reason": "oversize", "message": "document would exceed maxPageBytes" } }
+    },
+    {
+      "id": "updates.get.200", "method": "GET", "path": "/updates",
+      "request": { "query": { "sessionId": "s-1f3a", "since": 0, "metaSince": 0, "presenceSince": 0, "eventsSince": 0 } },
+      "response": { "status": 200, "body": {
+        "updates": [ { "clientID": "p7f3k2", "changes": [11, [0, "!"]] } ],
+        "metaOps": [ { "field": "tags", "value": ["a", "b"] } ], "metaSeq": 1,
+        "presence": { "pt-2": { "displayName": "Raj", "color": "#c2410c", "anchor": 3, "head": 5, "version": 1, "unconfirmed": 0 } },
+        "presenceSeq": 1,
+        "events": [ { "seq": 1, "type": "participant-joined", "participant": { "participantId": "pt-2", "displayName": "Raj", "color": "#c2410c" } } ],
+        "eventSeq": 1
+      } }
+    },
+    {
+      "id": "updates.get.200.empty", "method": "GET", "path": "/updates",
+      "request": { "query": { "sessionId": "s-1f3a", "since": 1, "metaSince": 1, "presenceSince": 1, "eventsSince": 1 } },
+      "response": { "status": 200, "body": {
+        "updates": [], "metaOps": [], "metaSeq": 1, "presence": {}, "presenceSeq": 1, "events": [], "eventSeq": 1
+      } }
+    },
+    {
+      "id": "updates.get.410", "method": "GET", "path": "/updates",
+      "request": { "query": { "sessionId": "s-1f3a", "since": 0, "metaSince": 0, "presenceSince": 0, "eventsSince": 0 } },
+      "response": { "status": 410, "body": { "resync": true, "reason": "resync" } }
+    },
+    {
+      "id": "updates.get.409.rejoin", "method": "GET", "path": "/updates",
+      "request": { "query": { "sessionId": "s-1f3a", "since": 1, "metaSince": 1, "presenceSince": 1, "eventsSince": 1 } },
+      "response": { "status": 409, "body": { "rejoin": true, "reason": "rejoin" } }
+    },
+    {
+      "id": "publish.200", "method": "POST", "path": "/publish",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 1, "changeNote": "Fix greeting" } },
+      "response": { "status": 200, "body": { "pageVersion": 8, "warnings": [], "mathWarnings": [] } }
+    },
+    {
+      "id": "publish.409.publish-merged-retry", "method": "POST", "path": "/publish",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 1, "changeNote": "" } },
+      "response": { "status": 409, "body": { "reason": "publish-merged-retry" } }
+    },
+    {
+      "id": "publish.409.not-synced", "method": "POST", "path": "/publish",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 0, "changeNote": "" } },
+      "response": { "status": 409, "body": { "reason": "not-synced" } }
+    },
+    {
+      "id": "publish.422", "method": "POST", "path": "/publish",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 1, "changeNote": "" } },
+      "response": { "status": 422, "body": { "error": "frontmatter_validation_failed", "violations": [ { "field": "tags", "severity": "ERROR", "message": "tags must be a list" } ] } }
+    },
+    {
+      "id": "publish.423", "method": "POST", "path": "/publish",
+      "request": { "body": { "sessionId": "s-1f3a", "version": 1, "changeNote": "" } },
+      "response": { "status": 423, "body": { "reason": "publish-in-progress" } }
+    },
+    {
+      "id": "discard.204", "method": "POST", "path": "/discard",
+      "request": { "body": { "sessionId": "s-1f3a" } },
+      "response": { "status": 204, "body": null }
+    },
+    {
+      "id": "leave.204", "method": "POST", "path": "/leave",
+      "request": { "body": { "sessionId": "s-1f3a" } },
+      "response": { "status": 204, "body": null }
+    }
+  ]
+}

@@ -1,0 +1,308 @@
+/**
+ * In-memory collab authority for tests: implements the JSON contract recorded in
+ * `__fixtures__/collab-protocol.json` (see fakeCollabServer.test.js) on top of @codemirror/state.
+ *
+ * Two layers:
+ *  - `server.handle(call)` is the HTTP layer: `{method, path, query?, body?, user?}` -> Promise<{status, body}>.
+ *  - `server.transportFor(user)` adapts it to the collabTransport interface (throws `{status, body}` errors
+ *    like api/client.js does) with seeded random request/response latency, so delivery is reordered
+ *    deterministically under fake timers.
+ *
+ * Time comes only from setTimeout/Date.now so vitest fake timers drive everything.
+ */
+import { ChangeSet, Text } from '@codemirror/state';
+
+/** mulberry32: small seeded PRNG. */
+export function seededRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const COLORS = ['#1b6ec2', '#c2410c', '#15803d', '#7e22ce', '#be123c'];
+const utf8Bytes = (s) => new TextEncoder().encode(s).length;
+const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+
+export function createFakeCollabServer({
+  initialText = 'Hello world',
+  initialMeta = {},
+  pollTimeoutMs = 25000,
+  maxPageBytes = 1_000_000,
+  pushesPerSecond = Infinity,
+  seed = 1,
+  maxLatencyMs = 0,
+} = {}) {
+  const rand = seededRandom(seed);
+  let maxLatency = maxLatencyMs;
+  let doc = Text.of(initialText.split('\n'));
+  let version = 0;
+  let ringStart = 0;
+  const log = []; // log[i] is update number ringStart + i + 1
+  let metadata = { ...initialMeta };
+  let metaSeq = 0;
+  const metaLog = [];
+  let presenceSeq = 0;
+  let eventSeq = 0;
+  const events = [];
+  const participants = new Map(); // user -> participant
+  const knownClientIds = new Set();
+  let nextPid = 1;
+  let nextClient = 1;
+  const waiters = new Set();
+  const config = {
+    forbidJoin: false, derived: false, full: false, disabled: false, frozen: false,
+    publishing: false, publishMergedRetry: false, publishInvalid: false,
+  };
+  const calls = [];
+  const drops = [];
+  const pushTimes = new Map();
+  let basePageVersion = 7;
+
+  const text = () => doc.toString();
+  const reply = (status, body) => ({ status, body: body === undefined ? null : body });
+
+  function wake() {
+    for (const w of [...waiters]) w.check();
+  }
+  function addEvent(e) {
+    events.push({ seq: ++eventSeq, ...e });
+    wake();
+  }
+  function participantFor(user, sessionId) {
+    const p = participants.get(user);
+    if (!p || p.expired) return null;
+    if (sessionId && sessionId !== 's-1f3a') return null;
+    p.lastSeen = Date.now();
+    return p;
+  }
+  const publicParticipant = (p) => ({ participantId: p.participantId, displayName: p.displayName, color: p.color });
+
+  function join(user, body) {
+    if (config.disabled) return reply(503, { reason: 'collab-disabled' });
+    if (config.forbidJoin) return reply(403, { error: 'forbidden', message: 'No edit permission on PageName' });
+    if (config.derived) return reply(409, { reason: 'derived-page' });
+    if (config.full) return reply(429, { reason: 'session-full' });
+    if (participants.size === 0 && version === 0 && body?.initialText != null) {
+      doc = Text.of(String(body.initialText).split('\n'));
+    }
+    if (participants.size === 0 && body?.initialMeta) metadata = { ...body.initialMeta };
+    const prior = body?.priorClientId;
+    const old = participants.get(user);
+    const clientID = prior && knownClientIds.has(prior) ? prior : `c${nextClient++}`;
+    knownClientIds.add(clientID);
+    const p = {
+      participantId: `pt-${nextPid++}`,
+      displayName: user,
+      color: COLORS[(nextPid - 2) % COLORS.length],
+      clientID, lastSeen: Date.now(), expired: false, selection: null,
+    };
+    participants.set(user, p);
+    if (!old || old.expired) addEvent({ type: 'participant-joined', participant: publicParticipant(p) });
+    return reply(200, {
+      sessionId: 's-1f3a', participantId: p.participantId, clientID,
+      version, doc: text(), metaSeq, metadata: { ...metadata }, basePageVersion,
+      participants: [...participants.values()].filter((x) => !x.expired).map(publicParticipant),
+      draft: { unpublished: version > 0, contributors: [], lastEditAt: null },
+    });
+  }
+
+  function push(user, body) {
+    const p = participantFor(user, body.sessionId);
+    if (!p) return reply(409, { rejoin: true, reason: 'rejoin' });
+    if (config.frozen) return reply(409, { reason: 'frozen' });
+    if (pushesPerSecond !== Infinity) {
+      const now = Date.now();
+      const recent = (pushTimes.get(user) ?? []).filter((t) => now - t < 1000);
+      recent.push(now);
+      pushTimes.set(user, recent);
+      if (recent.length > pushesPerSecond) return reply(409, { reason: 'rate-limited', retryAfterMs: 500 });
+    }
+    const updates = body.updates ?? [];
+    if (updates.length > 0 && body.version !== version) {
+      return reply(409, { accepted: false, reason: 'stale-base', version });
+    }
+    let next = doc;
+    const parsed = [];
+    for (const u of updates) {
+      if (u.clientID !== p.clientID) return reply(400, { reason: 'bad-request', message: 'clientID is not this participant\'s' });
+      let cs;
+      try { cs = ChangeSet.fromJSON(u.changes); } catch (e) {
+        return reply(400, { reason: 'bad-request', message: `malformed changes: ${e.message}` });
+      }
+      if (cs.length !== next.length) {
+        return reply(400, { reason: 'bad-request', message: `changes length ${cs.length} does not match document length ${next.length}` });
+      }
+      next = cs.apply(next);
+      if (utf8Bytes(next.toString()) > Math.max(maxPageBytes, utf8Bytes(doc.toString()))) {
+        return reply(413, { reason: 'oversize', message: 'document would exceed maxPageBytes' });
+      }
+      parsed.push({ clientID: u.clientID, changes: cs.toJSON() });
+    }
+    doc = next;
+    for (const u of parsed) log.push(u);
+    version += parsed.length;
+    for (const op of body.metaOps ?? []) {
+      if (op.value === null) delete metadata[op.field]; else metadata[op.field] = op.value;
+      metaSeq += 1;
+      metaLog.push({ ...op, seq: metaSeq });
+    }
+    if (body.selection) {
+      const { anchor, head, version: v, unconfirmed } = body.selection;
+      p.selection = { anchor, head, version: v, unconfirmed };
+      presenceSeq += 1;
+    }
+    wake();
+    return reply(200, { accepted: true, version, metaSeq });
+  }
+
+  const cursors = (q) => ({
+    since: Number(q.since),
+    metaSince: Number(q.metaSince ?? 0),
+    presenceSince: Number(q.presenceSince ?? 0),
+    eventsSince: Number(q.eventsSince ?? 0),
+  });
+  function buildPull(p, s) {
+    const presence = {};
+    if (presenceSeq > s.presenceSince) {
+      for (const o of participants.values()) {
+        if (o === p || o.expired || !o.selection) continue;
+        presence[o.participantId] = { displayName: o.displayName, color: o.color, ...o.selection };
+      }
+    }
+    return reply(200, {
+      updates: log.slice(s.since - ringStart).map((u) => ({ clientID: u.clientID, changes: u.changes })),
+      metaOps: metaLog.filter((m) => m.seq > s.metaSince).map(({ seq: _seq, ...op }) => op),
+      metaSeq,
+      presence, presenceSeq,
+      events: events.filter((e) => e.seq > s.eventsSince),
+      eventSeq,
+    });
+  }
+  const hasNews = (s) => s.since < version || metaSeq > s.metaSince || presenceSeq > s.presenceSince || eventSeq > s.eventsSince;
+  function pull(user, q) {
+    const p = participantFor(user, q.sessionId);
+    if (!p) return Promise.resolve(reply(409, { rejoin: true, reason: 'rejoin' }));
+    const s = cursors(q);
+    if (s.since < ringStart) return Promise.resolve(reply(410, { resync: true, reason: 'resync' }));
+    if (hasNews(s)) return Promise.resolve(buildPull(p, s));
+    return new Promise((resolve) => {
+      const w = { check() { if (hasNews(s)) done(buildPull(p, s)); } };
+      const timer = setTimeout(() => done(reply(200, {
+        updates: [], metaOps: [], metaSeq, presence: {}, presenceSeq, events: [], eventSeq,
+      })), pollTimeoutMs);
+      function done(res) {
+        clearTimeout(timer);
+        waiters.delete(w);
+        resolve(res);
+      }
+      waiters.add(w);
+    });
+  }
+
+  function publish(user, body) {
+    const p = participantFor(user, body.sessionId);
+    if (!p) return reply(409, { rejoin: true, reason: 'rejoin' });
+    if (config.publishing) return reply(423, { reason: 'publish-in-progress' });
+    if (config.publishMergedRetry) {
+      config.publishMergedRetry = false;
+      return reply(409, { reason: 'publish-merged-retry' });
+    }
+    if (body.version !== version) return reply(409, { reason: 'not-synced' });
+    if (config.publishInvalid) {
+      return reply(422, { error: 'frontmatter_validation_failed', violations: [{ field: 'tags', severity: 'ERROR', message: 'tags must be a list' }] });
+    }
+    basePageVersion += 1;
+    addEvent({ type: 'published', by: p.displayName, pageVersion: basePageVersion });
+    return reply(200, { pageVersion: basePageVersion, warnings: [], mathWarnings: [] });
+  }
+
+  async function handle({ method, path, query = {}, body = {}, user = 'ada' }) {
+    const entry = { method, path, user, query, body, status: null };
+    calls.push(entry);
+    const key = `${method} ${path}`;
+    let res;
+    if (key === 'POST /join') res = join(user, body);
+    else if (key === 'POST /updates') res = push(user, body);
+    else if (key === 'GET /updates') res = await pull(user, query);
+    else if (key === 'POST /publish') res = publish(user, body);
+    else if (key === 'POST /discard') res = participantFor(user, body.sessionId) ? reply(204) : reply(409, { rejoin: true, reason: 'rejoin' });
+    else if (key === 'POST /leave') {
+      const p = participants.get(user);
+      if (p && !p.expired) {
+        p.expired = true;
+        addEvent({ type: 'participant-left', participantId: p.participantId });
+      }
+      res = reply(204);
+    } else res = reply(404, { error: 'not_found' });
+    const dropIdx = drops.findIndex((d) => d.method === method && d.path === path);
+    if (dropIdx >= 0) {
+      drops.splice(dropIdx, 1);
+      res = { dropped: true };
+    }
+    entry.status = res.dropped ? 'dropped' : res.status;
+    return res;
+  }
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const latency = () => (maxLatency > 0 ? Math.floor(rand() * (maxLatency + 1)) : 0);
+
+  function transportFor(user) {
+    async function call(method, path, { query, body, signal } = {}) {
+      if (signal?.aborted) throw abortError();
+      const pre = latency();
+      if (pre) await sleep(pre);
+      const resPromise = handle({ method, path, query, body, user });
+      const res = signal
+        ? await Promise.race([
+          resPromise,
+          new Promise((_, rej) => signal.addEventListener('abort', () => rej(abortError()), { once: true })),
+        ])
+        : await resPromise;
+      const post = latency();
+      if (post) await sleep(post);
+      if (res.dropped) throw new TypeError('Failed to fetch');
+      if (res.status >= 400) {
+        throw Object.assign(new Error(res.body?.message || res.body?.reason || `HTTP ${res.status}`), { status: res.status, body: res.body });
+      }
+      return res.body;
+    }
+    return {
+      join: (b) => call('POST', '/join', { body: { priorClientId: b?.priorClientId ?? null, initialText: b?.initialText ?? null, initialMeta: b?.initialMeta ?? null } }),
+      push: (b) => call('POST', '/updates', { body: b }),
+      pull: ({ signal, ...q }) => call('GET', '/updates', { query: q, signal }),
+      publish: (b) => call('POST', '/publish', { body: b }),
+      discard: (b) => call('POST', '/discard', { body: b }),
+      leave: (b) => call('POST', '/leave', { body: b }),
+      leaveBeacon: (b) => { handle({ method: 'POST', path: '/leave', body: b, user }); return true; },
+    };
+  }
+
+  return {
+    handle, transportFor, config, calls,
+    /** Changes the random per-request/response latency bound (set it after the editors joined under fake timers). */
+    setLatency(ms) { maxLatency = ms; },
+    get doc() { return text(); },
+    get version() { return version; },
+    get metadata() { return { ...metadata }; },
+    /** An update from outside the editors (an agent or a disk save merged by the session). */
+    externalReplace(from, to, insert) {
+      const cs = ChangeSet.of({ from, to, insert }, doc.length);
+      doc = cs.apply(doc);
+      log.push({ clientID: 'server', changes: cs.toJSON() });
+      version += 1;
+      wake();
+    },
+    /** Drop the response of the next matching call (the server still applies it): a lost acknowledgement. */
+    dropNextResponse(method, path) { drops.push({ method, path }); },
+    expire(user) { const p = participants.get(user); if (p) p.expired = true; },
+    /** Truncate the in-memory ring below `v`, so a pull from an older version gets 410. */
+    truncateBelow(v) { log.splice(0, v - ringStart); ringStart = v; },
+    forgetClientIds() { knownClientIds.clear(); },
+    participant: (user) => participants.get(user) ?? null,
+  };
+}

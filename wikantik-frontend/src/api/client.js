@@ -103,6 +103,16 @@ function unwrapEnvelope(parsed) {
   return parsed;
 }
 
+/** Context-path-aware URL for fire-and-forget calls (`navigator.sendBeacon`) that cannot go through request(). */
+export function apiUrl(path) {
+  return `${BASE}${path}`;
+}
+
+/** Raw request for the collab transport: same credentials, error mapping and build-version detection as `api`. */
+export function collabRequest(path, options) {
+  return request(path, options);
+}
+
 export const api = {
   // Pages
   getPagePreview: (name, { section, signal } = {}) =>

@@ -1,0 +1,352 @@
+/**
+ * The client half of the collaboration protocol: `@codemirror/collab`'s documented peer pattern over a transport.
+ *
+ *  - one in-flight push of `sendableUpdates` (debounced ~100 ms; the selection piggybacks, A8/A12);
+ *  - a long-poll pull loop feeding `receiveUpdates` (own updates come back as confirmations, so a lost push response
+ *    can never duplicate text, 7.2);
+ *  - 409 stale-base: wait for the pull to reach the server's head, then retry (the rebase is receiveUpdates');
+ *  - 409 rejoin: rejoin with the prior clientID and keep the unsent edits (7.2); a different clientID cannot adopt them;
+ *  - 410 / 413 / 400 and an unadoptable rejoin: `onResync` receives the unsynced text and the peer stops. The peer NEVER
+ *    re-applies it (A10: re-applying cannot be mapped and duplicates text after a lost ack);
+ *  - 401/403: keep every unsent edit and stop in `auth-required` until `resume()` (A13); frozen pages stop in `frozen`;
+ *  - network errors / 5xx: exponential backoff 500 ms doubling, capped at 10 s; rate-limited: wait `retryAfterMs`.
+ *
+ * `createCollabPeerCore` is host-agnostic (a `{getState, dispatch}` pair) so the whole loop is testable with plain
+ * EditorStates; `collabPeer` wraps it in the CodeMirror `ViewPlugin`.
+ */
+import { ChangeSet, Transaction } from '@codemirror/state';
+import { ViewPlugin } from '@codemirror/view';
+import { getSyncedVersion, receiveUpdates, sendableUpdates } from '@codemirror/collab';
+
+const LOG = (...a) => console.warn('[collab]', ...a);
+
+/** Status values the peer reports: live | reconnecting | resync | frozen | auth-required | disabled | unavailable. */
+export function createCollabPeerCore({
+  transport,
+  session: initialSession,
+  host,
+  getSelection,
+  debounceMs = 100,
+  presenceMinIntervalMs = 150,
+  backoffBaseMs = 500,
+  backoffCapMs = 10000,
+  onStatus = () => {},
+  onResync = () => {},
+  onPresence = () => {},
+  onEvents = () => {},
+  onMetaOps = () => {},
+  onSessionChange = () => {},
+}) {
+  const session = { ...initialSession };
+  let status = null;
+  let destroyed = false;
+  let stopped = false;
+  let pushing = false;
+  let pushTimer = null;
+  let gateVersion = 0;
+  let pushFailures = 0;
+  let pullFailures = 0;
+  let pullRunning = false;
+  let pullAbort = null;
+  let metaSince = 0;
+  let presenceSince = 0;
+  let eventsSince = 0;
+  let lastSentSelection = null;
+  let lastPushAt = -Infinity;
+  let rejoinPromise = null;
+  const timers = new Set();
+  let syncWaiters = [];
+
+  const backoff = (n) => Math.min(backoffCapMs, backoffBaseMs * 2 ** Math.max(0, n - 1));
+
+  function setStatus(next) {
+    if (next === status) return;
+    status = next;
+    onStatus(next);
+  }
+
+  /** Resolves true after `ms`, false when the peer was destroyed meanwhile. */
+  function delay(ms) {
+    return new Promise((resolve) => {
+      const rec = { id: null, resolve };
+      rec.id = setTimeout(() => { timers.delete(rec); resolve(!destroyed); }, ms);
+      timers.add(rec);
+    });
+  }
+
+  function readSelection() {
+    try {
+      if (getSelection) return getSelection();
+      const { anchor, head } = host.getState().selection.main;
+      return { anchor, head };
+    } catch (e) {
+      LOG('could not read the selection', e);
+      return null;
+    }
+  }
+  const sameSelection = (a, b) => !!a && !!b && a.anchor === b.anchor && a.head === b.head;
+
+  function isSynced() {
+    return sendableUpdates(host.getState()).length === 0 && !pushing;
+  }
+  function checkSynced() {
+    if (!syncWaiters.length || !isSynced()) return;
+    const ws = syncWaiters;
+    syncWaiters = [];
+    ws.forEach((w) => w(true));
+  }
+
+  function unsyncedText(state) {
+    const updates = sendableUpdates(state);
+    if (!updates.length) return '';
+    const composed = updates.map((u) => u.changes).reduce((a, b) => a.compose(b));
+    const parts = [];
+    composed.iterChanges((_fa, _ta, _fb, _tb, inserted) => { if (inserted.length) parts.push(inserted.toString()); });
+    return parts.join('\n');
+  }
+
+  function stop(next) {
+    stopped = true;
+    pullAbort?.abort();
+    setStatus(next);
+    const ws = syncWaiters;
+    syncWaiters = [];
+    ws.forEach((w) => w(false));
+  }
+
+  function resync(reason) {
+    if (stopped) return;
+    const state = host.getState();
+    const payload = { reason, docText: state.doc.toString(), unsyncedText: unsyncedText(state) };
+    stop('resync');
+    onResync(payload);
+  }
+
+  function schedulePush(ms = debounceMs) {
+    if (destroyed || stopped || pushTimer) return;
+    pushTimer = setTimeout(() => { pushTimer = null; pushNow(); }, ms);
+  }
+
+  async function rejoin() {
+    if (rejoinPromise) return rejoinPromise;
+    rejoinPromise = (async () => {
+      let failures = 0;
+      while (!destroyed && !stopped) {
+        try {
+          const j = await transport.join({ priorClientId: session.clientID });
+          if (destroyed || stopped) return;
+          const synced = getSyncedVersion(host.getState());
+          if (j.clientID !== session.clientID) { resync('rejoin-new-client'); return; }
+          if (j.version < synced) { resync('rejoin-behind'); return; }
+          session.sessionId = j.sessionId;
+          session.participantId = j.participantId;
+          presenceSince = 0;
+          lastSentSelection = null;
+          onSessionChange(j);
+          return;
+        } catch (err) {
+          const code = err?.body?.reason;
+          if (err?.status === 401 || err?.status === 403) { stop('auth-required'); return; }
+          if (code === 'collab-disabled') { stop('disabled'); return; }
+          if (code === 'derived-page') { stop('unavailable'); return; }
+          failures += 1;
+          setStatus('reconnecting');
+          if (!(await delay(backoff(failures)))) return;
+        }
+      }
+    })().finally(() => { rejoinPromise = null; });
+    return rejoinPromise;
+  }
+
+  /** Common classification of an error from either loop; true when the caller should simply loop again. */
+  async function handleError(err, { where, sentVersion }) {
+    const status4 = err?.status;
+    const reason = err?.body?.reason;
+    if (reason === 'stale-base' || (status4 === 409 && err?.body?.accepted === false)) {
+      const head = err.body.version;
+      if (typeof head === 'number' && sentVersion !== undefined && head < sentVersion) { resync('server-behind'); return; }
+      gateVersion = Math.max(gateVersion, head ?? 0);
+      return;
+    }
+    if (reason === 'rate-limited' || status4 === 429) {
+      await delay(err.body?.retryAfterMs ?? backoff(where === 'push' ? ++pushFailures : ++pullFailures));
+      return;
+    }
+    if (reason === 'rejoin' || err?.body?.rejoin) { await rejoin(); return; }
+    if (reason === 'frozen') { stop('frozen'); return; }
+    if (status4 === 401 || status4 === 403) { stop('auth-required'); return; }
+    if (status4 === 410 || err?.body?.resync) { resync('resync'); return; }
+    if (status4 === 413 || reason === 'oversize') { resync('oversize'); return; }
+    if (status4 === 400) { resync('bad-request'); return; }
+    if (err?.name === 'AbortError') return;
+    const n = where === 'push' ? ++pushFailures : ++pullFailures;
+    LOG(`${where} failed (attempt ${n}); backing off`, err?.message ?? err);
+    setStatus('reconnecting');
+    await delay(backoff(n));
+  }
+
+  async function pushNow() {
+    if (destroyed || stopped || pushing) return;
+    const state = host.getState();
+    const updates = sendableUpdates(state);
+    const selection = readSelection();
+    const selectionChanged = !!selection && !sameSelection(selection, lastSentSelection);
+    if (!updates.length && !selectionChanged) { checkSynced(); return; }
+    const version = getSyncedVersion(state);
+    if (updates.length && version < gateVersion) return; // the pull has not caught up with the server's head yet
+    if (!updates.length) {
+      const wait = presenceMinIntervalMs - (Date.now() - lastPushAt);
+      if (wait > 0) { schedulePush(wait); return; }
+    }
+    pushing = true;
+    lastPushAt = Date.now();
+    try {
+      const res = await transport.push({
+        sessionId: session.sessionId,
+        version,
+        updates: updates.map((u) => ({ clientID: u.clientID, changes: u.changes.toJSON() })),
+        metaOps: [],
+        ...(selection ? { selection: { anchor: selection.anchor, head: selection.head, version, unconfirmed: updates.length } } : {}),
+      });
+      pushFailures = 0;
+      if (selection) lastSentSelection = selection;
+      if (updates.length && typeof res?.version === 'number') gateVersion = Math.max(gateVersion, res.version);
+      if (status === 'reconnecting') setStatus('live');
+    } catch (err) {
+      if (destroyed) return;
+      await handleError(err, { where: 'push', sentVersion: version });
+    } finally {
+      pushing = false;
+    }
+    if (destroyed || stopped) return;
+    checkSynced();
+    const next = sendableUpdates(host.getState()).length;
+    if (next && getSyncedVersion(host.getState()) >= gateVersion) schedulePush(0);
+    else if (next === 0 && readSelection() && !sameSelection(readSelection(), lastSentSelection)) schedulePush(presenceMinIntervalMs);
+  }
+
+  function applyPull(res, since) {
+    const state = host.getState();
+    if (getSyncedVersion(state) !== since) return; // cannot happen (only this loop receives); stay safe
+    if (res.updates?.length) {
+      const updates = res.updates.map((u) => ({ clientID: u.clientID, changes: ChangeSet.fromJSON(u.changes) }));
+      host.dispatch(receiveUpdates(state, updates));
+    }
+    if (typeof res.metaSeq === 'number') metaSince = res.metaSeq;
+    if (res.metaOps?.length) onMetaOps(res.metaOps);
+    if (typeof res.presenceSeq === 'number' && res.presenceSeq > presenceSince) {
+      presenceSince = res.presenceSeq;
+      onPresence(res.presence ?? {});
+    }
+    if (typeof res.eventSeq === 'number') eventsSince = res.eventSeq;
+    if (res.events?.length) onEvents(res.events);
+  }
+
+  async function pullLoop() {
+    if (pullRunning) return;
+    pullRunning = true;
+    try {
+      while (!destroyed && !stopped) {
+        const since = getSyncedVersion(host.getState());
+        pullAbort = new AbortController();
+        const startedAt = Date.now();
+        let res;
+        try {
+          res = await transport.pull({ sessionId: session.sessionId, since, metaSince, presenceSince, eventsSince, signal: pullAbort.signal });
+        } catch (err) {
+          if (destroyed || stopped) break;
+          await handleError(err, { where: 'pull' });
+          if (!stopped && !destroyed && getSyncedVersion(host.getState()) >= gateVersion) schedulePush(0);
+          continue;
+        }
+        if (destroyed || stopped) break;
+        pullFailures = 0;
+        setStatus('live');
+        applyPull(res, since);
+        checkSynced();
+        if (sendableUpdates(host.getState()).length && getSyncedVersion(host.getState()) >= gateVersion) schedulePush(0);
+        const empty = !res.updates?.length && !res.events?.length && !res.metaOps?.length;
+        if (empty && Date.now() - startedAt < 50 && !(await delay(500))) break;
+      }
+    } finally {
+      pullRunning = false;
+    }
+  }
+
+  return {
+    start() { if (!destroyed) pullLoop(); },
+    notifyChange() { schedulePush(); },
+    notifySelection() {
+      const sel = readSelection();
+      if (sel && !sameSelection(sel, lastSentSelection)) schedulePush(Math.max(debounceMs, presenceMinIntervalMs - (Date.now() - lastPushAt)));
+    },
+    /** Resolves true once every local edit is confirmed by the server; false if the peer stops first. */
+    whenSynced() {
+      if (destroyed || stopped) return Promise.resolve(false);
+      if (isSynced()) return Promise.resolve(true);
+      return new Promise((resolve) => { syncWaiters.push(resolve); });
+    },
+    getStatus: () => status,
+    getSyncedVersion: () => getSyncedVersion(host.getState()),
+    getSession: () => ({ ...session }),
+    /** After `auth-required` (the user logged in again): restart both loops, keeping every unsent edit (A13). */
+    resume() {
+      if (destroyed || status !== 'auth-required') return;
+      stopped = false;
+      pushFailures = 0;
+      pullFailures = 0;
+      setStatus('reconnecting');
+      pullLoop();
+      schedulePush(0);
+    },
+    destroy() {
+      destroyed = true;
+      if (pushTimer) clearTimeout(pushTimer);
+      pushTimer = null;
+      pullAbort?.abort();
+      timers.forEach((t) => { clearTimeout(t.id); t.resolve(false); });
+      timers.clear();
+      const ws = syncWaiters;
+      syncWaiters = [];
+      ws.forEach((w) => w(false));
+    },
+  };
+}
+
+/** Lets React code reach the peer that CodeMirror instantiates inside the view. */
+export function createPeerHandle() {
+  const handle = {
+    core: null,
+    attach(core) { handle.core = core; },
+    detach() { handle.core = null; },
+    whenSynced: () => (handle.core ? handle.core.whenSynced() : Promise.resolve(true)),
+    getSyncedVersion: () => (handle.core ? handle.core.getSyncedVersion() : null),
+    resume: () => handle.core?.resume(),
+  };
+  return handle;
+}
+
+/** The CodeMirror extension: one peer per view. `config` is createCollabPeerCore's options minus `host`, plus `handle`. */
+export function collabPeer({ handle, ...config }) {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.core = createCollabPeerCore({
+        ...config,
+        host: { getState: () => view.state, dispatch: (tr) => view.dispatch(tr) },
+      });
+      handle?.attach(this.core);
+      this.core.start();
+    }
+
+    update(u) {
+      const local = u.transactions.some((tr) => tr.docChanged && !tr.annotation(Transaction.remote));
+      if (local) this.core.notifyChange();
+      else if (u.selectionSet) this.core.notifySelection();
+    }
+
+    destroy() {
+      handle?.detach();
+      this.core.destroy();
+    }
+  });
+}

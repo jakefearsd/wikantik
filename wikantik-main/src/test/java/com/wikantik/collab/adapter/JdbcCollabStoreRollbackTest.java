@@ -134,6 +134,25 @@ class JdbcCollabStoreRollbackTest {
     }
 
     @Test
+    void appendWithSnapshotRollsBackWhicheverStatementFails() {
+        final Snapshot snap = new Snapshot( 1, 1L, 3, "reset", Map.of(), CS );
+        // 1 lock, 2 update insert, 3 head bump, 4 meta-op insert, 5 meta-seq bump, 6 snapshot upsert
+        for( int failing = 2; failing <= 6; failing++ ) {
+            faulty.reset();
+            faulty.failOn( failing, new RuntimeException( "boom at " + failing ) );
+            assertThrows( RuntimeException.class, () -> faultyStore.appendWithSnapshot( s.id(),
+                List.of( new StoredUpdate( 1, StoredUpdate.SERVER, "server", null, CS ) ),
+                List.of( new StoredMetaOp( 1, null, "title", "t" ) ), snap ), "statement " + failing );
+            assertTrue( clean.updatesSince( s.id(), 0 ).isEmpty(), "statement " + failing );
+            assertTrue( clean.metaOpsSince( s.id(), 0 ).isEmpty(), "statement " + failing );
+            assertTrue( clean.latestSnapshot( s.id() ).isEmpty(), "statement " + failing );
+            assertEquals( 0, clean.session( s.id() ).orElseThrow().headVersion(), "statement " + failing );
+            assertEquals( 0L, clean.session( s.id() ).orElseThrow().metaSeq(), "statement " + failing );
+            assertTrue( faulty.rollbacks() >= 1, "the transaction must be rolled back explicitly" );
+        }
+    }
+
+    @Test
     void commitBaseChangeRollsBackWhicheverStatementFails() {
         final Snapshot snap = new Snapshot( 1, 0L, 4, "base@4", Map.of(), CS );
         final SessionRecord updated = s.withBase( 4, "base@4", Map.of(), "hash-4" );

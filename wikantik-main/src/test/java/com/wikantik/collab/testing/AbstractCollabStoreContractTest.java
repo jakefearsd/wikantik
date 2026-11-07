@@ -387,6 +387,62 @@ public abstract class AbstractCollabStoreContractTest {
         assertThrows( IllegalArgumentException.class, () -> store.appendBatch( UUID.randomUUID(), List.of(), List.of() ) );
     }
 
+    // ---- a draft reset: text, meta and the snapshot in one step ------------------------------------------------
+
+    private static Snapshot snapAt( final int version, final long metaSeq ) {
+        return new Snapshot( version, metaSeq, 3, "reset@" + version, Map.of(), CS, Map.of() );
+    }
+
+    @Test
+    void appendWithSnapshotStoresAllThreeInOneStep() {
+        final SessionRecord s = created( "PageA" );
+        store.writeSnapshot( s.id(), new Snapshot( 0, 0L, 3, "b", Map.of(), CS, threeAuthorsOutOfKeyOrder() ) );
+        store.appendWithSnapshot( s.id(), upds( 1, 2 ), List.of( op( 1 ) ), snapAt( 2, 1 ) );
+        final SessionRecord after = store.session( s.id() ).orElseThrow();
+        assertEquals( 2, after.headVersion() );
+        assertEquals( 1L, after.metaSeq() );
+        assertEquals( upds( 1, 2 ), store.updatesSince( s.id(), 0 ) );
+        assertEquals( List.of( op( 1 ) ), store.metaOpsSince( s.id(), 0 ) );
+        final Snapshot latest = store.latestSnapshot( s.id() ).orElseThrow();
+        assertEquals( snapAt( 2, 1 ), latest );
+        assertTrue( latest.contributors().isEmpty() );
+    }
+
+    @Test
+    void appendWithSnapshotWithNoChangesWritesTheSnapshotAtTheHead() {
+        final SessionRecord s = created( "PageA" );
+        store.appendBatch( s.id(), upds( 1, 1 ), List.of( op( 1 ) ) );
+        store.appendWithSnapshot( s.id(), List.of(), List.of(), snapAt( 1, 1 ) );
+        assertEquals( snapAt( 1, 1 ), store.latestSnapshot( s.id() ).orElseThrow() );
+        assertEquals( 1, store.session( s.id() ).orElseThrow().headVersion() );
+    }
+
+    @Test
+    void appendWithSnapshotRejectsAMisplacedSnapshotOrAGapAndStoresNothing() {
+        final SessionRecord s = created( "PageA" );
+        store.appendBatch( s.id(), upds( 1, 1 ), List.of( op( 1 ) ) );
+        assertThrows( IllegalStateException.class,
+            () -> store.appendWithSnapshot( s.id(), upds( 2, 2 ), List.of( op( 2 ) ), snapAt( 1, 2 ) ), "not the new head" );
+        assertThrows( IllegalStateException.class,
+            () -> store.appendWithSnapshot( s.id(), upds( 2, 2 ), List.of( op( 2 ) ), snapAt( 2, 1 ) ), "not the new seq" );
+        assertThrows( IllegalStateException.class,
+            () -> store.appendWithSnapshot( s.id(), upds( 3, 3 ), List.of(), snapAt( 2, 1 ) ), "a text gap" );
+        assertThrows( IllegalStateException.class,
+            () -> store.appendWithSnapshot( s.id(), List.of(), List.of( op( 3 ) ), snapAt( 1, 2 ) ), "a meta gap" );
+        final SessionRecord after = store.session( s.id() ).orElseThrow();
+        assertEquals( 1, after.headVersion() );
+        assertEquals( 1L, after.metaSeq() );
+        assertEquals( 1, store.updatesSince( s.id(), 0 ).size() );
+        assertEquals( 1, store.metaOpsSince( s.id(), 0 ).size() );
+        assertTrue( store.latestSnapshot( s.id() ).isEmpty() );
+    }
+
+    @Test
+    void appendWithSnapshotOnAnUnknownSessionThrowsIllegalArgument() {
+        assertThrows( IllegalArgumentException.class,
+            () -> store.appendWithSnapshot( UUID.randomUUID(), List.of(), List.of(), snapAt( 0, 0 ) ) );
+    }
+
     // ---- snapshots -----------------------------------------------------------------------------------------
 
     @Test

@@ -26,8 +26,12 @@ import org.apache.logging.log4j.Logger;
 import java.util.Objects;
 
 /**
- * {@link CollabIdentity} over {@link PublicIdentity}: always a public display name, never the stored login. When
- * resolution yields nothing or fails the answer is {@link PublicIdentity#UNKNOWN}, not the key.
+ * {@link CollabIdentity} over {@link PublicIdentity}: a public display name, never the stored login. When no display
+ * name resolves the answer is null (ruling R14), so the session's own labels apply: a participant's {@code "Editor <n>"},
+ * which keeps several nameless authors apart, and the {@code "Unknown contributor"} of the contributor list. No name
+ * resolves when {@link PublicIdentity} answers blank, one of its placeholders ({@link PublicIdentity#UNKNOWN},
+ * {@link PublicIdentity#UNKNOWN_CONTRIBUTOR}), the key itself (it passes an unknown principal through unchanged, and
+ * that is the login), or fails. {@link PublicIdentity#FORMER_MEMBER} is a public label and is kept.
  */
 public final class PublicIdentityCollabIdentity implements CollabIdentity {
 
@@ -41,12 +45,17 @@ public final class PublicIdentityCollabIdentity implements CollabIdentity {
 
     @Override
     public String displayName( final String authorKey ) {
+        final String name;
         try {
-            final String name = identity.displayName( authorKey );
-            return name == null || name.isBlank() ? PublicIdentity.UNKNOWN : name;
+            name = identity.displayName( authorKey );
         } catch( final RuntimeException e ) {
-            LOG.warn( "Display-name resolution failed; answering '{}': {}", PublicIdentity.UNKNOWN, e.getMessage(), e );
-            return PublicIdentity.UNKNOWN;
+            LOG.warn( "Display-name resolution failed; answering no name: {}", e.getMessage(), e );
+            return null;
         }
+        if( name == null || name.isBlank() || PublicIdentity.UNKNOWN.equals( name )
+                || PublicIdentity.UNKNOWN_CONTRIBUTOR.equals( name ) || name.equals( authorKey ) ) {
+            return null;
+        }
+        return name;
     }
 }

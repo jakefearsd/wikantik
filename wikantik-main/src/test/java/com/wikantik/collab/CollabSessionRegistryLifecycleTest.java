@@ -203,6 +203,12 @@ class CollabSessionRegistryLifecycleTest {
         }
 
         @Override
+        public void appendWithSnapshot( final UUID id, final List< StoredUpdate > updates, final List< StoredMetaOp > ops,
+                                        final Snapshot snapshot ) {
+            d.appendWithSnapshot( id, updates, ops, snapshot );
+        }
+
+        @Override
         public List< StoredMetaOp > metaOpsSince( final UUID id, final long sinceSeq ) {
             return d.metaOpsSince( id, sinceSeq );
         }

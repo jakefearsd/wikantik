@@ -184,6 +184,27 @@ public final class JdbcCollabStore implements CollabStore {
     }
 
     @Override
+    public void appendWithSnapshot( final UUID id, final List< StoredUpdate > updates, final List< StoredMetaOp > ops,
+                                    final Snapshot snapshot ) {
+        try {
+            jdbc.inTransaction( conn -> {
+                final long[] counters = lockCounters( conn, id );
+                if( snapshot.version() != counters[ 0 ] + updates.size()
+                        || snapshot.metaSeq() != counters[ 1 ] + ops.size() ) {
+                    throw new IllegalStateException( "snapshot at " + snapshot.version() + "/" + snapshot.metaSeq()
+                        + " is not the new head " + ( counters[ 0 ] + updates.size() ) + "/" + ( counters[ 1 ] + ops.size() ) );
+                }
+                writes.appendUpdatesTx( conn, id, (int) counters[ 0 ], updates );
+                writes.appendMetaOpsTx( conn, id, counters[ 1 ], ops );
+                writes.writeSnapshotTx( conn, id, snapshot );
+                return null;
+            } );
+        } catch( final SQLException e ) {
+            throw translate( e, "appendWithSnapshot " + id );
+        }
+    }
+
+    @Override
     public List< StoredMetaOp > metaOpsSince( final UUID id, final long sinceSeq ) {
         try {
             return jdbc.query( "SELECT seq, author_key, field, value::text FROM collab_meta_op"

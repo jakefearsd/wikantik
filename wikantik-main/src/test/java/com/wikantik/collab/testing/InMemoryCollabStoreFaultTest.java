@@ -104,6 +104,12 @@ class InMemoryCollabStoreFaultTest {
         assertEquals( 1, store.latestSnapshot( s.id() ).orElseThrow().version() );
         assertEquals( "b", store.latestSnapshot( s.id() ).orElseThrow().body() );
 
+        store.failOn( InMemoryCollabStore.Op.APPEND_WITH_SNAPSHOT, 1 );
+        assertThrows( IllegalStateException.class, () -> store.appendWithSnapshot( s.id(), List.of( upd( 2 ) ), List.of(),
+            new Snapshot( 2, 0L, 1, "b2", Map.of(), com.wikantik.collab.text.ChangeSet.empty( 0 ) ) ) );
+        assertEquals( 1, store.session( s.id() ).orElseThrow().headVersion() );
+        assertEquals( 1, store.latestSnapshot( s.id() ).orElseThrow().version() );
+
         store.failOn( InMemoryCollabStore.Op.DELETE, 1 );
         assertThrows( IllegalStateException.class, () -> store.deleteSession( s.id() ) );
         assertTrue( store.session( s.id() ).isPresent() );

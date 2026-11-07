@@ -21,5 +21,10 @@ package com.wikantik.collab;
 /** Port resolving a stored author key (login) to the public display name. */
 public interface CollabIdentity {
 
+    /**
+     * The public display name of {@code authorKey}, or null when it has none (ruling R14); never the key itself. Every
+     * caller tolerates null: presence falls back to the join's name or {@code "Editor <n>"}, the contributor list to
+     * {@code "Unknown contributor"}, an outside writer to {@code agent}, and a byline omits {@code by}.
+     */
     String displayName( String authorKey );
 }

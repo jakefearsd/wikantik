@@ -82,6 +82,17 @@ public interface CollabStore {
      */
     void appendBatch( UUID id, List< StoredUpdate > updates, List< StoredMetaOp > ops );
 
+    /**
+     * A draft reset (discard) as one atomic step: {@code updates} and {@code ops} as {@link #appendBatch}, and
+     * {@code snapshot} written at the result, so the reset state (an emptied contributor record among it) can never be
+     * lost to a separate snapshot write that fails. Either list may be empty. {@code snapshot.version()} must equal the
+     * head after the append and {@code snapshot.metaSeq()} the meta seq after it; all-or-nothing.
+     *
+     * @throws IllegalArgumentException for an unknown session
+     * @throws IllegalStateException    when a list is not contiguous or the snapshot is not at the new head and seq
+     */
+    void appendWithSnapshot( UUID id, List< StoredUpdate > updates, List< StoredMetaOp > ops, Snapshot snapshot );
+
     /** Retained meta ops with {@code seq > sinceSeq}, ascending; a gap is detected as for {@link #updatesSince}. */
     List< StoredMetaOp > metaOpsSince( UUID id, long sinceSeq );
 

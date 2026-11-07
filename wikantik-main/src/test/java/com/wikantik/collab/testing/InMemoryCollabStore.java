@@ -50,7 +50,7 @@ public final class InMemoryCollabStore implements CollabStore {
     /** The mutating operations that carry a fault point. */
     public enum Op {
         CREATE_SESSION, UPDATE_SESSION, APPEND_UPDATES, APPEND_META, APPEND_BATCH, WRITE_SNAPSHOT, COMMIT_BASE_CHANGE, TRUNCATE, DELETE,
-        RECORD_CONTRIBUTORS
+        RECORD_CONTRIBUTORS, APPEND_WITH_SNAPSHOT
     }
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -350,6 +350,34 @@ public final class InMemoryCollabStore implements CollabStore {
             if( !ops.isEmpty() ) {
                 storeMeta( id, sessions.get( id ), ops );
             }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void appendWithSnapshot( final UUID id, final List< StoredUpdate > list, final List< StoredMetaOp > ops,
+                                    final Snapshot snapshot ) {
+        lock.lock();
+        try {
+            fault( Op.APPEND_WITH_SNAPSHOT );
+            final SessionRecord s = require( id );
+            // every check before any write: all-or-nothing
+            checkContiguous( s, list );
+            checkContiguousMeta( s, ops );
+            if( snapshot.version() != s.headVersion() + list.size() || snapshot.metaSeq() != s.metaSeq() + ops.size() ) {
+                throw new IllegalStateException( "snapshot at " + snapshot.version() + "/" + snapshot.metaSeq()
+                    + " is not the new head " + ( s.headVersion() + list.size() ) + "/" + ( s.metaSeq() + ops.size() ) );
+            }
+            if( !list.isEmpty() ) {
+                final TreeMap< Integer, StoredUpdate > log = updates.get( id );
+                list.forEach( u -> log.put( u.version(), u ) );
+                sessions.put( id, s.withHead( s.headVersion() + list.size() ) );
+            }
+            if( !ops.isEmpty() ) {
+                storeMeta( id, sessions.get( id ), ops );
+            }
+            snapshots.get( id ).put( snapshot.version(), detach( snapshot ) );
         } finally {
             lock.unlock();
         }

@@ -27,16 +27,17 @@ import com.wikantik.collab.text.TextDiff;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Section 6.2's discard, with the session's base lock held (so the base cannot move): the draft text is replaced by the
- * base as one server update and the meta restored by server meta ops, stored in one all-or-nothing step and only then
- * applied in memory, followed by a best-effort snapshot (the base itself does not change). The diff runs outside the
- * session lock (as publish's does); a push landing meanwhile moves the head and the diff is taken again, under the lock
- * after {@value #ATTEMPTS} tries. A discard clears the contributors (its snapshot carries none) and emits
+ * base as one server update and the meta restored by server meta ops, stored together with a snapshot of the reset draft
+ * in one all-or-nothing step ({@link CollabStore#appendWithSnapshot}) and only then applied in memory (the base itself
+ * does not change). The diff runs outside the session lock (as publish's does); a push landing meanwhile moves the head
+ * and the diff is taken again, under the lock after {@value #ATTEMPTS} tries. A discard clears the contributors (its snapshot carries none, durably) and emits
  * {@code draft-state} after {@code draft-discarded}.
  */
 final class DraftDiscard {
@@ -88,7 +89,13 @@ final class DraftDiscard {
         return doc.equals( baseBody ) ? ChangeSet.empty( doc.length() ) : TextDiff.changeSet( doc, baseBody );
     }
 
-    /** Under the session lock: {@code back} turns the live document into {@code baseBody}. */
+    /**
+     * Under the session lock: {@code back} turns the live document into {@code baseBody}. The reset (text, meta and a
+     * snapshot of the reset draft with no contributors) is one store step, so the cleared contributor record can never
+     * be lost to a snapshot write that fails after the reset was stored; a failure answers 503 with nothing changed.
+     * Edits that cancelled out (nothing to reset) still clear the contributors durably, without a
+     * {@code draft-discarded} event.
+     */
     private PushResponse apply( final ChangeSet back, final String baseBody, final String by, final Answers answers,
                                 final List< Runnable > completions ) {
         if( d.publishPending() ) {
@@ -96,66 +103,40 @@ final class DraftDiscard {
         }
         final List< StoredMetaOp > ops = SessionLoader.metaOps( d.meta, MetaJson.normalise( d.record.baseMeta() ),
             d.metaSeq, null );
-        final Draft.State before = d.state();
-        if( back.empty() && ops.isEmpty() && d.local.empty() ) {
-            if( !d.contributors.isEmpty() ) {
-                // edits that cancelled out: nothing to reset, but nobody is credited for them any more
-                d.contributors.clear();
-                snapshot();
-                d.announce( before );
-                answers.wakeAll( List.of(), completions );
-            }
+        final boolean cancelledOut = back.empty() && ops.isEmpty() && d.local.empty();
+        if( cancelledOut && d.contributors.isEmpty() ) {
             return PushResponse.accepted( d.head, d.metaSeq );
         }
+        final Draft.State before = d.state();
         final List< StoredUpdate > extra = back.empty() ? List.of()
             : List.of( new StoredUpdate( d.head + 1, StoredUpdate.SERVER, CollabSession.SERVER_CLIENT, null, back ) );
-        if( !store( extra, ops ) ) {
+        final Map< String, Object > metaAfter = new LinkedHashMap<>( d.meta );
+        ops.forEach( op -> SessionLoader.applyMetaOp( metaAfter, op ) );
+        final ChangeSet emptyLocal = ChangeSet.empty( baseBody.length() );
+        try {
+            d.store.appendWithSnapshot( d.id, extra, ops, new Snapshot( d.head + extra.size(), d.metaSeq + ops.size(),
+                d.record.basePageVersion(), baseBody, metaAfter, emptyLocal, Map.of() ) );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {} ({}): discard not stored, nothing applied: {}", d.id, d.pageName(),
+                e.getMessage() );
             return PushResponse.refused( 503, d.head, CollabSession.STORE );
         }
         d.ring.addAll( extra );
         d.head += extra.size();
         d.doc = baseBody;
-        d.local = ChangeSet.empty( baseBody.length() );
+        d.local = emptyLocal;
         if( !ops.isEmpty() ) {
             d.applyMetaOps( ops );
         }
+        d.lastSnapshotVersion = d.head;
         d.oversize.update( d.doc, true );
         d.record = SessionLoader.draftMarkers( d.record, false, d.lastEditAt );
         d.contributors.clear();
-        snapshot();
-        d.feed.emit( "draft-discarded", Map.of( "by", by ) );
+        if( !cancelledOut ) {
+            d.feed.emit( "draft-discarded", Map.of( "by", by ) );
+        }
         d.announce( before );
         answers.wakeAll( extra, completions );
         return PushResponse.accepted( d.head, d.metaSeq );
-    }
-
-    /** The text and the meta in one store step (all or nothing); false (logged, nothing stored) on a failure. */
-    private boolean store( final List< StoredUpdate > extra, final List< StoredMetaOp > ops ) {
-        try {
-            if( ops.isEmpty() ) {
-                if( !extra.isEmpty() ) {
-                    d.store.appendUpdates( d.id, extra );
-                }
-            } else {
-                d.store.appendBatch( d.id, extra, ops );
-            }
-            return true;
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): discard not stored, nothing applied: {}", d.id, d.pageName(),
-                e.getMessage() );
-            return false;
-        }
-    }
-
-    /** A snapshot of the reset draft, so a reload starts from an empty {@code local}; a failure only warns (E36). */
-    private void snapshot() {
-        try {
-            d.store.writeSnapshot( d.id, new Snapshot( d.head, d.metaSeq, d.record.basePageVersion(), d.doc, d.meta,
-                d.local, d.contributors.snapshot() ) );
-            d.lastSnapshotVersion = d.head;
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): snapshot after the discard failed; the next cadence retries: {}", d.id,
-                d.pageName(), e.getMessage() );
-        }
     }
 }

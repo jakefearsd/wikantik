@@ -24,6 +24,7 @@ import com.wikantik.collab.CollabStore;
 import com.wikantik.collab.PublishStart;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
+import com.wikantik.collab.model.MetaEdit;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.testing.InMemoryCollabStore.Op;
@@ -357,6 +358,38 @@ class RecoveryTest {
         assertEquals( List.of( "bob" ), recovered.view().contributorKeys(), "bob's edit counts toward the next version" );
         recovered.settle();
         assertEquals( 1, writes.get(), "nothing owed, nothing written again" );
+    }
+
+    /** As {@link #aliceSavesWhileBobTypes}, but Bob's edit during the save is a meta-only edit (after M_V). */
+    private PublishStart.Ticket aliceSavesWhileBobEditsMeta( final CollabSession s ) {
+        final JoinResponse a = joinAs( s, "alice" );
+        final JoinResponse b = joinAs( s, "bob" );
+        append( s, a, "alice", "A" );
+        final PublishStart st = s.startPublish( a.participantId(), "alice", s.view().head(), "note" );
+        assertNull( st.response(), "answered before the save: " + st.response() );
+        assertEquals( 200, s.push( b.participantId(), "bob", s.view().head(), List.of(),
+            List.of( MetaEdit.set( "summary", "during the save" ) ), null ).status() );
+        return st.ticket();
+    }
+
+    @Test
+    void e39_recoveryCreditsAMetaEditDuringTheSaveToTheNextVersionOnly() throws Exception {
+        final AtomicInteger noCrashWrites = new AtomicInteger();
+        final CollabSession live = ledgerSession( noCrashWrites );
+        final PublishStart.Ticket lt = aliceSavesWhileBobEditsMeta( live );
+        assertEquals( 200, live.finishPublish( lt, writer.publish( lt.request() ) ).status() );
+        final Map< Integer, List< String > > noCrash = store.contributorsByVersion( CID );
+        assertEquals( Map.of( 2, List.of( "alice" ) ), noCrash );
+
+        setUp();
+        final AtomicInteger writes = new AtomicInteger();
+        final CollabSession crashed = ledgerSession( writes );
+        final PublishStart.Ticket t = aliceSavesWhileBobEditsMeta( crashed );
+        writer.publish( t.request() );   // persisted; the process died before the post-save half
+        final CollabSession recovered = reloadLedgerSession( writes );
+        assertEquals( noCrash, store.contributorsByVersion( CID ), "M_V comes from the snapshot at V, not the live seq" );
+        assertEquals( 1, writes.get() );
+        assertEquals( List.of( "bob" ), recovered.view().contributorKeys() );
     }
 
     @Test

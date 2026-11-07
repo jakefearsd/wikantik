@@ -171,6 +171,7 @@ class CollabSessionDiscardTest {
         final String doc = session.view().doc();
         store.failOn( InMemoryCollabStore.Op.APPEND_UPDATES, 1 );
         store.failOn( InMemoryCollabStore.Op.APPEND_BATCH, 1 );
+        store.failOn( InMemoryCollabStore.Op.APPEND_WITH_SNAPSHOT, 1 );   // the discard's one store step
 
         final PushResponse r = session.discard( a.participantId(), "ada" );
 

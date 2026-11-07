@@ -1472,6 +1472,7 @@ class CollabResourceTest {
         store.failOn( InMemoryCollabStore.Op.APPEND_META, 1 );
         store.failOn( InMemoryCollabStore.Op.APPEND_UPDATES, 1 );
         store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );
+        store.failOn( InMemoryCollabStore.Op.APPEND_WITH_SNAPSHOT, 1 );   // the discard's one store step
 
         final Resp r = post( "ada", "discard", ids( a ) );
 

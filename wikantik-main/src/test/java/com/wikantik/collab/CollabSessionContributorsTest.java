@@ -111,7 +111,11 @@ class CollabSessionContributorsTest {
     }
 
     private CollabPorts ports() {
-        return new CollabPorts( counting(), writer, IDENTITY, ALLOW, clock );
+        return ports( IDENTITY );
+    }
+
+    private CollabPorts ports( final CollabIdentity identity ) {
+        return new CollabPorts( counting(), writer, identity, ALLOW, clock );
     }
 
     private CollabSession createOn( final String page, final int snapshotEvery ) {
@@ -209,6 +213,27 @@ class CollabSessionContributorsTest {
         final PublishResponse second = publish( b, "bob" );
         assertEquals( 200, second.status(), second.toString() );
         assertEquals( Map.of( 2, List.of( "alice", "carol" ), 3, List.of( "bob", "carol" ) ), ledger() );
+    }
+
+    @Test
+    void aMetaEditDuringTheSaveIsCreditedToTheNextVersionOnly() throws Exception {
+        final JoinResponse a = join( "alice" );
+        final JoinResponse b = join( "bob" );
+        type( a, "alice", "A" );
+        final ScriptedPageWriter.PauseHandle pause = writer.pauseNextPublish();
+        final int v = session.view().head();
+        final CompletableFuture< PublishResponse > saving = CompletableFuture.supplyAsync(
+            () -> session.publish( a.participantId(), "alice", v, "note", "markdown" ) );
+        pause.awaitEntered( Duration.ofSeconds( 10 ) );
+        editMeta( b, "bob", MetaEdit.set( "summary", "during the save" ) );   // after M_V: not in V
+        pause.release();
+        final PublishResponse first = saving.get( 10, TimeUnit.SECONDS );
+        assertEquals( 200, first.status(), first.toString() );
+        assertEquals( Map.of( 2, List.of( "alice" ) ), ledger(), "bob's meta edit landed after M_V" );
+        assertEquals( List.of( "bob" ), session.view().contributorKeys() );
+        final PublishResponse second = publish( b, "bob" );
+        assertEquals( 200, second.status(), second.toString() );
+        assertEquals( Map.of( 2, List.of( "alice" ), 3, List.of( "bob" ) ), ledger() );
     }
 
     @Test
@@ -310,6 +335,60 @@ class CollabSessionContributorsTest {
         assertNull( store.session( session.id() ).orElseThrow().pendingPublishVersion() );
         assertEquals( 2, session.view().basePageVersion() );
         assertEquals( List.of(), session.view().contributorKeys() );
+    }
+
+    @Test
+    void aDiscardsClearIsDurableEvenWhenASnapshotWriteWouldFail() {
+        final JoinResponse a = join( "alice" );
+        final JoinResponse b = join( "bob" );
+        type( a, "alice", "A" );
+        type( b, "bob", "B" );
+        store.failOn( InMemoryCollabStore.Op.WRITE_SNAPSHOT, 1 );   // a separate snapshot write would fail
+        assertEquals( 200, session.discard( b.participantId(), "bob" ).status() );
+        session = reload( 500 );   // a restart
+        assertEquals( List.of(), session.view().contributorKeys(), "the discard's clear is in the same store step" );
+        final JoinResponse c = join( "carol" );
+        type( c, "carol", "C" );
+        assertEquals( 503, publish( c, "carol" ).status(), "the armed snapshot fault is still there: the discard never"
+            + " wrote a separate snapshot" );
+        assertEquals( 200, publish( c, "carol" ).status() );
+        assertEquals( Map.of( 2, List.of( "carol" ) ), ledger(), "the pre-discard contributors are not credited" );
+    }
+
+    @Test
+    void aDiscardOfCancelledOutEditsClearsDurably() {
+        final JoinResponse a = join( "alice" );
+        type( a, "alice", "A" );
+        final CollabSession.View v = session.view();
+        assertEquals( 200, session.push( a.participantId(), "alice", v.head(), List.of( new Update( a.clientId(),
+            ChangeSet.replace( v.doc().length(), v.doc().length() - 1, v.doc().length(), "" ) ) ) ).status() );
+        assertFalse( session.view().unpublished() );
+        assertEquals( List.of( "alice" ), session.view().contributorKeys() );
+        store.failOn( InMemoryCollabStore.Op.WRITE_SNAPSHOT, 1 );
+        assertEquals( 200, session.discard( a.participantId(), "alice" ).status() );
+        assertEquals( List.of(), session.view().contributorKeys() );
+        session = reload( 500 );
+        assertEquals( List.of(), session.view().contributorKeys() );
+    }
+
+    @Test
+    void aFailedDiscardAnswers503AndChangesNothing() {
+        final JoinResponse a = join( "alice" );
+        type( a, "alice", "A" );
+        editMeta( a, "alice", MetaEdit.set( "summary", "s" ) );
+        final CollabSession.View before = session.view();
+        store.failOn( InMemoryCollabStore.Op.APPEND_WITH_SNAPSHOT, 1 );
+        final PushResponse r = session.discard( a.participantId(), "alice" );
+        assertEquals( 503, r.status(), r.toString() );
+        final CollabSession.View after = session.view();
+        assertEquals( before.doc(), after.doc() );
+        assertEquals( before.head(), after.head() );
+        assertEquals( before.metaSeq(), after.metaSeq() );
+        assertEquals( before.meta(), after.meta() );
+        assertEquals( List.of( "alice" ), after.contributorKeys() );
+        session = reload( 500 );
+        assertEquals( before.doc(), session.view().doc(), "nothing was stored" );
+        assertEquals( List.of( "alice" ), session.view().contributorKeys() );
     }
 
     // ---- persistence --------------------------------------------------------------------------------------------------
@@ -427,6 +506,33 @@ class CollabSessionContributorsTest {
         final String theirs = third.participants().stream().filter( p -> p.participantId().equals( third.participantId() ) )
             .findFirst().orElseThrow().displayName();
         assertEquals( "Editor 4", theirs, "a new author still gets the next number" );
+    }
+
+    @Test
+    void namelessAuthorsThroughThePublicIdentityAdapterGetEditorNumbers() {   // ruling R14
+        final com.wikantik.api.identity.PublicIdentity pi = org.mockito.Mockito.mock(
+            com.wikantik.api.identity.PublicIdentity.class );
+        org.mockito.Mockito.when( pi.displayName( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenReturn( com.wikantik.api.identity.PublicIdentity.UNKNOWN_CONTRIBUTOR );
+        org.mockito.Mockito.when( pi.displayName( "ada@example.com" ) ).thenReturn( "Ada L" );
+        final SessionRecord rec = CollabSession.newRecord( UUID.nameUUIDFromBytes( PAGE.getBytes() ), PAGE,
+            writer.latest( PAGE ), "creator", clock );
+        session = CollabSession.create( rec, new CollabPorts( new InMemoryCollabStore(), writer,
+            new com.wikantik.collab.adapter.PublicIdentityCollabIdentity( pi ), ALLOW, clock ), config( 500 ), 100_000 );
+        final JoinResponse x = session.join( JoinRequest.of( "x@example.com", "sx", null ) );
+        final JoinResponse y = session.join( JoinRequest.of( "y@example.com", "sy", null ) );
+        final JoinResponse ada = session.join( JoinRequest.of( "ada@example.com", "sa", null ) );
+        assertEquals( List.of( "Editor 1", "Editor 2", "Ada L" ),
+            ada.participants().stream().map( JoinResponse.Peer::displayName ).toList(), "distinguishable, never the login" );
+        type( x, "x@example.com", "x" );
+        editMeta( y, "y@example.com", MetaEdit.set( "summary", "y" ) );
+        final JoinResponse late = session.join( JoinRequest.of( "z@example.com", "sz", null ) );
+        assertEquals( List.of( "Unknown contributor", "Unknown contributor" ), late.contributors() );
+        final PullResponse r = session.pullOrPark( ada.participantId(), "ada@example.com",
+            new PullCursor( session.view().head(), 0, Long.MAX_VALUE, Long.MAX_VALUE ), null, w -> { } );
+        assertEquals( "Editor 2", r.metaOps().get( r.metaOps().size() - 1 ).by(), "a meta op names its live author" );
+        assertTrue( late.participants().stream().noneMatch( p -> p.displayName().contains( "@" ) ) );
+        assertEquals( "Editor 4", late.participants().get( 3 ).displayName() );
     }
 
     /** Captures WARN and above from one class's logger, raising its level to WARN for the duration. */

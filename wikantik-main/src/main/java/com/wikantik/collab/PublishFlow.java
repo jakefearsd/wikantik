@@ -214,7 +214,7 @@ final class PublishFlow {
         final Draft.State before = d.state();
         final Map< String, Object > savedMeta = MetaJson.normalise( saved.savedMeta() );
         final String canonicalId = canonicalId( savedMeta );
-        if( !saved.unchanged() && !marker.saved( saved.version(), canonicalId ) ) {
+        if( !saved.unchanged() && !marker.saved( saved.version(), canonicalId, CollabText.contentHash( savedBody ) ) ) {
             return unfinished( t );
         }
         final ChangeSet w = d.composedSince( t.version(), t.doc().length() );
@@ -363,7 +363,10 @@ final class PublishFlow {
             LOG.warn( "collab session {}: reading version {} after a failed save failed: {}", d.id, at, re.getMessage() );
             return unfinishedLocked( t );
         }
-        if( next.isPresent() && ( reported > 0 ? t.authorKey().equals( next.get().author() ) : PublishMarker.claims( next.get(), t ) ) ) {
+        // a reported version is claimed by version and author alone: its text was never read back, so no saved hash is
+        // known to compare (ruling D2b's fallback); the claim's finish stores the hash of the text read now
+        if( next.isPresent() && ( reported > 0 ? t.authorKey().equals( next.get().author() )
+                : PublishMarker.claims( next.get(), t ) ) ) {
             return finish( t, outcomeOf( next.get() ), completions );
         }
         if( !marker.dropUnclaimed() ) {
@@ -496,10 +499,11 @@ final class PublishFlow {
     }
 
     /**
-     * A2 / E39 as amended by ruling D: with a pending-publish marker (V, B, author) the post-save half runs again when
-     * the publish's version is claimed. A marker that names the version its save wrote (stored as soon as the save
-     * returned) claims exactly that version when its author is the marked one, whatever its text (a save filter may have
-     * rewritten it); a marker without one (the process died inside the save, or the save threw without naming a version)
+     * A2 / E39 as amended by rulings D and D2b: with a pending-publish marker (V, B, author) the post-save half runs
+     * again when the publish's version is claimed. A marker that names the version its save wrote (stored as soon as the
+     * save returned) claims exactly that version when its author is the marked one and it still holds the text the save
+     * stored (the saved hash, whatever a save filter made of S_V; version and author alone when only the version was
+     * reported, {@link PublishMarker#claimsSaved}); a marker without one (the process died inside the save, or the save threw without naming a version)
      * claims version B+1 only when its author is the marked one and its text hash is S_V's as the save stores it (A9:
      * CRLF, trailing newline). Otherwise (the page moved on: deleted, recreated or written by someone else; or the save
      * never ran) the publish's early ledger rows are removed and the marker is cleared ({@link #dropUnclaimed}), and a
@@ -510,6 +514,7 @@ final class PublishFlow {
         final int b;
         final String author;
         final Integer savedVersion;
+        final String savedHash;
         final String page;
         lock.lock();
         try {
@@ -520,6 +525,7 @@ final class PublishFlow {
             b = d.record.pendingPublishBaseVersion();
             author = d.record.pendingPublishAuthor();
             savedVersion = d.record.pendingPublishSavedVersion();
+            savedHash = d.record.pendingPublishSavedHash();
             page = d.pageName();
         } finally {
             lock.unlock();
@@ -531,7 +537,8 @@ final class PublishFlow {
             if( t == null ) {
                 LOG.warn( "collab session {} ({}): the published text at version {} cannot be rebuilt; page version {} is"
                     + " treated as an outside write", d.id, page, v, at );
-            } else if( savedVersion != null || PublishMarker.claims( next.get(), t ) ) {
+            } else if( savedVersion != null ? PublishMarker.claimsSaved( savedHash, next.get() )
+                    : PublishMarker.claims( next.get(), t ) ) {
                 return finish( t, outcomeOf( next.get() ), completions ).status() == 200;
             }
         }

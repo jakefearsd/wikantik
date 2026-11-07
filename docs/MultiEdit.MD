@@ -48,12 +48,15 @@ lines) found gaps. These amendments override the sections they name.
 - Publish reads back that exact version. Crash recovery (E39) claims version B+1 only when that
   version's text hash and author match the pending-publish marker.
   - *Amended (Phase 3, ruling D, V068):* the version a save wrote is stored on the marker
-    (`pending_publish_saved_version`, plus the `canonical_id` it credits under) as soon as the save
-    returns or reports it with its failure, and every later claim (the retry, `failed()`, E39)
-    matches **that version and the marked author**, never the text hash, which a save filter's
-    rewrite breaks. The hash rule remains only for a marker with no saved version (the process died
-    inside the save). An unclaimed publish (the page moved on) removes the ledger rows at its saved
-    version, so credit never duplicates; a save that stored nothing new credits nobody.
+    (`pending_publish_saved_version`, plus the `canonical_id` it credits under and the content hash
+    of the text it stored, `pending_publish_saved_hash`) as soon as the save returns or reports it
+    with its failure, and every later claim (the retry, `failed()`, E39) matches **that version, the
+    marked author and the saved hash** (ruling D2b), never S_V's hash, which a save filter's rewrite
+    breaks. A read-back failure reports only the version, so its claim falls back to version and
+    author. S_V's hash rule remains only for a marker with no saved version (the process died inside
+    the save). An unclaimed publish (the page moved on) clears every ledger row at its saved version
+    number (ruling D2a; all earlier rows for a recreate), so credit never duplicates; a save that
+    stored nothing new credits nobody.
 
 **A3 — External saves that arrive during a publish.** (overrides §7.4 while `publishing`)
 - While `publishing` is set, external events are **queued**, not merged.
@@ -726,7 +729,8 @@ CREATE TABLE IF NOT EXISTS collab_session (
     has_unpublished    BOOLEAN NOT NULL DEFAULT FALSE,
     pending_publish_version      INTEGER,          -- collab version V being published (§7.3); NULL when idle
     pending_publish_base_version INTEGER,          -- page version B the publish expects to supersede
-    -- (V068) pending_publish_saved_version INTEGER, pending_publish_canonical_id TEXT: what the save wrote
+    -- (V068) pending_publish_saved_version INTEGER, pending_publish_canonical_id TEXT,
+    --        pending_publish_saved_hash TEXT: what the save wrote
     created_by         TEXT NOT NULL,              -- author key
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_edit_at       TIMESTAMPTZ

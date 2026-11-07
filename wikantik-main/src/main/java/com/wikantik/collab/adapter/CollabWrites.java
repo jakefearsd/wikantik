@@ -142,7 +142,8 @@ final class CollabWrites {
         final String sql = "UPDATE collab_session SET page_name = ?, status = ?, base_page_version = ?, base_body = ?,"
             + " base_meta = ?::jsonb, base_content_hash = ?, has_unpublished = ?, pending_publish_version = ?,"
             + " pending_publish_base_version = ?, pending_publish_author = ?, last_edit_at = ?,"
-            + " pending_publish_saved_version = ?, pending_publish_canonical_id = ? WHERE id = ?";
+            + " pending_publish_saved_version = ?, pending_publish_canonical_id = ?, pending_publish_saved_hash = ?"
+            + " WHERE id = ?";
         final SqlBinder binder = ps -> {
             ps.setString( 1, s.pageName() );
             ps.setString( 2, s.status() );
@@ -157,7 +158,8 @@ final class CollabWrites {
             CollabRows.setInstant( ps, 11, s.lastEditAt() );
             CollabRows.setInteger( ps, 12, s.pendingPublishSavedVersion() );
             ps.setString( 13, s.pendingPublishCanonicalId() );
-            ps.setObject( 14, s.id() );
+            ps.setString( 14, s.pendingPublishSavedHash() );
+            ps.setObject( 15, s.id() );
         };
         return conn == null ? jdbc.update( sql, binder ) : jdbc.update( conn, sql, binder );
     }

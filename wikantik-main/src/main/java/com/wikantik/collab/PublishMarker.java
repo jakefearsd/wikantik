@@ -50,18 +50,19 @@ final class PublishMarker {
     }
 
     /**
-     * Under the lock: records on the pending-publish marker the page version its save wrote and the canonical id it was
-     * saved under (ruling D), so the retry and the reload's pending-publish rule claim the publish by (saved version,
-     * author) and find its early ledger rows when it goes unclaimed. Always written, also when memory already holds it,
-     * so the ledger rows {@link PublishFlow} credits next never exist without a stored marker naming them. The
-     * session keeps it in memory even when the store refuses (false, logged): its own retry still claims by it, and a crash before the
-     * next session write falls back to the content-hash rule.
+     * Under the lock: records on the pending-publish marker the page version its save wrote, the canonical id it was
+     * saved under and the content hash of the text it stored (rulings D and D2b), so the retry and the reload's
+     * pending-publish rule claim the publish by (saved version, author, saved hash) ({@link #claimsSaved}) and find its
+     * early ledger rows when it goes unclaimed. Always written, also when memory already holds it, so the ledger rows
+     * {@link PublishFlow} credits next never exist without a stored marker naming them. The session keeps it in memory
+     * even when the store refuses (false, logged): its own retry still claims by it, and a crash before the next
+     * session write falls back to the content-hash rule.
      */
-    boolean saved( final int savedVersion, final String canonicalId ) {
+    boolean saved( final int savedVersion, final String canonicalId, final String savedHash ) {
         if( d.record.pendingPublishVersion() == null ) {
             return true;
         }
-        final SessionRecord marked = d.record.withPublishSaved( savedVersion, canonicalId );
+        final SessionRecord marked = d.record.withPublishSaved( savedVersion, canonicalId, savedHash );
         d.record = marked;
         try {
             d.store.updateSession( marked );
@@ -73,11 +74,15 @@ final class PublishMarker {
         }
     }
 
-    /** {@link #saved} without a canonical id (a failed save that only reported its version), taking the lock. */
+    /**
+     * {@link #saved} for a failed save that only reported its version ({@link PublishReadBackException}): its text was
+     * never read, so neither the canonical id nor the saved hash is known, and a claim of it falls back to (saved
+     * version, author). Takes the lock.
+     */
     boolean savedLocked( final int savedVersion ) {
         lock.lock();
         try {
-            return saved( savedVersion, null );
+            return saved( savedVersion, null, null );
         } finally {
             lock.unlock();
         }
@@ -100,6 +105,16 @@ final class PublishMarker {
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Ruling D2b: a marker's saved version is claimed only when the version now in the page store holds the text the
+     * save stored ({@code savedHash}), so a page deleted and recreated up to that version number, even by the same
+     * author, is not mistaken for the publish. When only the version was reported ({@code savedHash} null: a read-back
+     * failure, {@link #savedLocked}) the claim falls back to version and author, which the caller has checked.
+     */
+    static boolean claimsSaved( final String savedHash, final PageState now ) {
+        return savedHash == null || savedHash.equals( now.contentHash() );
     }
 
     /** A2's content-hash rule, for a marker without a saved version: {@code saved} is by the author with S_V's text. */

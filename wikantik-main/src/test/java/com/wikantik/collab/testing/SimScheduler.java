@@ -440,7 +440,8 @@ public final class SimScheduler {
      * A publish the server took a ticket for, as the scheduler observed it when the save began: the publish point
      * (V, M_V), the base B it saves on (0 for a recreate), its author and S_V. {@code crashed} once a crash caught it
      * inside its save (F8). {@code saved}: the new version its save wrote, once the save returned it to the server
-     * (null while it has not, after a save that threw, or when a crash lost the stored copy).
+     * (null while it has not, after a save that threw, or when a crash lost the stored copy), and {@code savedHash} the
+     * content hash of the text it stored (ruling D2b).
      */
     private static final class Ticket {
         final int version;
@@ -450,6 +451,7 @@ public final class SimScheduler {
         final String doc;
         boolean crashed;
         Integer saved;
+        String savedHash;
 
         Ticket( final int version, final long metaSeq, final int base, final String author, final String doc ) {
             this.version = version;
@@ -1319,7 +1321,7 @@ public final class SimScheduler {
          */
         private void resolveByClaim() {
             final Ticket t = ticket;
-            if( t.saved != null ? byAuthor( t, t.saved ) : claimedByHash( t ) ) {
+            if( t.saved != null ? savedStillThere( t ) : claimedByHash( t ) ) {
                 complete( t, t.saved != null ? t.saved : t.base + 1 );
                 return;
             }
@@ -1332,10 +1334,13 @@ public final class SimScheduler {
             }
         }
 
-        /** Version {@code at} of the session's page is by the ticket's author. */
-        private boolean byAuthor( final Ticket t, final int at ) {
-            final Optional< PageState > v = env.writer().version( server.view().pageName(), at );
-            return v.isPresent() && t.author.equals( v.get().author() );
+        /**
+         * Rulings D and D2b: the version the save wrote is still there, by the ticket's author, holding the text the save
+         * stored (a page recreated up to that version number with other text is not the publish).
+         */
+        private boolean savedStillThere( final Ticket t ) {
+            final Optional< PageState > v = env.writer().version( server.view().pageName(), t.saved );
+            return v.isPresent() && t.author.equals( v.get().author() ) && v.get().contentHash().equals( t.savedHash );
         }
 
         /** A2: version B+1 of the session's page is by the ticket's author with S_V's text as the save stores it. */
@@ -1354,9 +1359,11 @@ public final class SimScheduler {
             if( returned != null ) {
                 if( !returned.unchanged() ) {
                     t.saved = returned.version();
+                    t.savedHash = CollabText.contentHash( returned.savedBody() );
                 }
             } else if( claimedByHash( t ) ) {
                 t.saved = t.base + 1;
+                t.savedHash = env.writer().version( server.view().pageName(), t.saved ).orElseThrow().contentHash();
             }
         }
 
@@ -1372,6 +1379,7 @@ public final class SimScheduler {
                 .orElse( null );
             if( !Objects.equals( stored, ticket.saved ) ) {
                 ticket.saved = null;
+                ticket.savedHash = null;
             }
         }
 

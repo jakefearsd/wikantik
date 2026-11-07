@@ -240,7 +240,7 @@ public final class InMemoryCollabStore implements CollabStore {
         return new SessionRecord( old.id(), s.pageName(), s.status(), s.basePageVersion(), s.baseBody(), s.baseMeta(),
             s.baseContentHash(), old.headVersion(), old.metaSeq(), s.hasUnpublished(), s.pendingPublishVersion(),
             s.pendingPublishBaseVersion(), s.pendingPublishAuthor(), s.pendingPublishSavedVersion(),
-            s.pendingPublishCanonicalId(), old.createdBy(), old.createdAt(), s.lastEditAt() );
+            s.pendingPublishCanonicalId(), s.pendingPublishSavedHash(), old.createdBy(), old.createdAt(), s.lastEditAt() );
     }
 
     /**

@@ -158,7 +158,7 @@ final class SessionLoader {
         return new SessionRecord( r.id(), r.pageName(), r.status(), r.basePageVersion(), r.baseBody(), r.baseMeta(),
             r.baseContentHash(), r.headVersion(), r.metaSeq(), unpublished, r.pendingPublishVersion(),
             r.pendingPublishBaseVersion(), r.pendingPublishAuthor(), r.pendingPublishSavedVersion(),
-            r.pendingPublishCanonicalId(), r.createdBy(), r.createdAt(), lastEdit );
+            r.pendingPublishCanonicalId(), r.pendingPublishSavedHash(), r.createdBy(), r.createdAt(), lastEdit );
     }
 
     /**

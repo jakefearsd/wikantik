@@ -170,6 +170,36 @@ class PublishAttributionTest {
         assertEquals( 2, after.view().basePageVersion() );
     }
 
+    /**
+     * Ruling D2b: the page is deleted and its own publisher recreates it, through the classic editor, up to the very
+     * version number the unfinished publish saved, with other text, before the retry. Version and author match; the
+     * text does not, so the retry does not claim it: the early rows go and the contributor stays pending.
+     */
+    @Test
+    void aPageRecreatedBySameAuthorUpToTheSavedVersionIsNotClaimed() {
+        final CollabSessionSimServer s = server( "hello\n", "none" );
+        final Joined a = s.join( A );
+        type( s, a, A, 0, "X" );
+        store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );
+        assertEquals( 503, s.publish( a.participantId(), A, s.view().head(), "alice's" ).status() );
+        assertEquals( 2, record( s ).pendingPublishSavedVersion() );
+        assertEquals( CollabText.contentHash( "Xhello\n" ), record( s ).pendingPublishSavedHash() );
+        // all before the session hears of any of it (its listener events are still on the way), so the retry meets the
+        // recreated version 2 itself
+        writer.delete( PAGE );
+        writer.externalSave( PAGE, "first\n", Map.of( "canonical_id", CID ), A );
+        assertEquals( 2, writer.externalSave( PAGE, "second\n", Map.of( "canonical_id", CID ), A ),
+            "the same author, the same version number" );
+
+        s.settle();
+
+        assertNull( record( s ).pendingPublishVersion() );
+        assertEquals( Map.of(), s.ledger( CID ), "not claimed: no version 2 credit for the recreated page" );
+        assertTrue( s.contributors().contains( A ), "alice's publish did not complete: she is still owed credit" );
+        assertEquals( 2, s.view().basePageVersion(), "the recreated page merged as an outside write" );
+        assertTrue( s.view().doc().contains( "second" ), s.view().doc() );
+    }
+
     @Test
     void aPublishLostWithItsPageDoesNotKeepItsRowsAndItsContributors() {
         final CollabSessionSimServer s = server( "hello\n", "none" );

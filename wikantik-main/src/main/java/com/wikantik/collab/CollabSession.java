@@ -194,7 +194,7 @@ public final class CollabSession {
         final String body = latest.map( p -> CollabText.toLf( p.body() ) ).orElse( "" );
         return new SessionRecord( id, pageName, SessionRecord.ACTIVE, latest.map( PageState::version ).orElse( 0 ), body,
             latest.map( PageState::meta ).orElse( Map.of() ), CollabText.contentHash( body ), 0, 0, false, null, null,
-            null, null, null, createdBy, clock.instant(), null );
+            null, null, null, null, createdBy, clock.instant(), null );
     }
 
     /**

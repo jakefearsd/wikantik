@@ -68,6 +68,13 @@ export function createFakeCollabServer({
   const drops = [];
   const pushTimes = new Map();
   let basePageVersion = 7;
+  // Draft summary state (Phase 3): who has contributed since the last publish, and what the published page holds.
+  let contributors = []; // display names, in first-contribution order
+  let unpublishedFlag = false;
+  let lastEditAt = null;
+  let publishedText = initialText;
+  let publishedMeta = { ...initialMeta };
+  let failPublishBy = null;
 
   const text = () => doc.toString();
   const reply = (status, body) => ({ status, body: body === undefined ? null : body });
@@ -91,6 +98,27 @@ export function createFakeCollabServer({
     p.lastSeen = Date.now();
     return { p };
   }
+  const isoNow = () => new Date(Date.now()).toISOString();
+  const draftSummary = () => ({ unpublished: unpublishedFlag, contributors: [...contributors], lastEditAt });
+  /** Emits draft-state: the contributor set or `unpublished` changed (never on a plain edit). */
+  function emitDraftState() {
+    addEvent({ type: 'draft-state', ...draftSummary() });
+  }
+  /** Decision 2: an author counts at their first update or meta op since the last publish. */
+  function contribute(name) {
+    lastEditAt = isoNow();
+    const changed = !unpublishedFlag || !contributors.includes(name);
+    unpublishedFlag = true;
+    if (!contributors.includes(name)) contributors.push(name);
+    if (changed) emitDraftState();
+  }
+  function clearDraft() {
+    const changed = unpublishedFlag || contributors.length > 0;
+    unpublishedFlag = false;
+    contributors = [];
+    lastEditAt = null;
+    return changed;
+  }
   const publicParticipant = (p) => ({ participantId: p.participantId, displayName: p.displayName, color: p.color });
 
   function join(user, body) {
@@ -103,8 +131,9 @@ export function createFakeCollabServer({
     if (config.full && !stale) return reply(429, { reason: 'session-full' });
     if (participants.size === 0 && version === 0 && body?.initialText != null) {
       doc = Text.of(String(body.initialText).split('\n'));
+      publishedText = String(body.initialText);
     }
-    if (participants.size === 0 && body?.initialMeta) metadata = { ...body.initialMeta };
+    if (participants.size === 0 && body?.initialMeta) { metadata = { ...body.initialMeta }; publishedMeta = { ...body.initialMeta }; }
     if (stale) {
       participants.delete(stale.participantId);
       addEvent({ type: 'participant-left', participantId: stale.participantId, reason: 'timeout' });
@@ -125,7 +154,7 @@ export function createFakeCollabServer({
       sessionId: 's-1f3a', participantId: p.participantId, clientID,
       version, doc: text(), metaSeq, metadata: { ...metadata }, basePageVersion,
       participants: [...participants.values()].filter((x) => !x.expired).map(publicParticipant),
-      draft: { unpublished: version > 0, contributors: [], lastEditAt: null },
+      draft: draftSummary(),
       frozen: !!config.frozen,
     });
   }
@@ -222,6 +251,7 @@ export function createFakeCollabServer({
       p.selection = { anchor, head, version: v, unconfirmed };
       presenceSeq += 1;
     }
+    if (parsed.length > 0 || resolved.ops.length > 0) contribute(p.displayName);
     wake();
     return reply(200, { accepted: true, version, metaSeq });
   }
@@ -288,12 +318,53 @@ export function createFakeCollabServer({
     }
     // the server publishes head (section 7.3): only a version it never issued is not-synced
     if (!Number.isInteger(body.version) || body.version < 0 || body.version > version) return reply(409, { reason: 'not-synced' });
+    if (body.markupSyntax != null && body.markupSyntax !== 'markdown') {
+      return reply(400, { reason: 'rejected', message: 'markupSyntax must be markdown' });
+    }
+    if (failPublishBy !== null) {
+      const by = failPublishBy;
+      failPublishBy = null;
+      addEvent({ type: 'publish-failed', by });
+      return reply(500, { error: 'publish_failed', message: 'the save failed' });
+    }
     if (config.publishInvalid) {
       return reply(422, { error: 'frontmatter_validation_failed', violations: [{ field: 'tags', severity: 'ERROR', message: 'tags must be a list' }] });
     }
     basePageVersion += 1;
+    publishedText = text();
+    publishedMeta = { ...metadata };
     addEvent({ type: 'published', by: p.displayName, pageVersion: basePageVersion });
+    if (clearDraft()) emitDraftState();
     return reply(200, { pageVersion: basePageVersion, warnings: [], mathWarnings: [] });
+  }
+
+  function discard(user, body) {
+    const r = resolve(user, body.sessionId, body.participantId);
+    if (r.error) return r.error;
+    addEvent({ type: 'draft-discarded', by: r.p.displayName });
+    if (clearDraft()) emitDraftState();
+    return reply(204);
+  }
+
+  /** Placeholder diff: the tests assert presence, not the HTML. */
+  function diffHtml() {
+    const before = publishedText.split('\n');
+    const after = text().split('\n');
+    if (publishedText === text()) return '';
+    const esc = (l) => l.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const removed = before.filter((l) => !after.includes(l)).map((l) => `-${esc(l)}`);
+    const added = after.filter((l) => !before.includes(l)).map((l) => `+${esc(l)}`);
+    return `<pre>${[...removed, ...added].join('\n')}</pre>`;
+  }
+  function metaChanges() {
+    const fields = [...new Set([...Object.keys(publishedMeta), ...Object.keys(metadata)])].sort();
+    return fields.filter((f) => !jsonEq(publishedMeta[f], metadata[f]))
+      .map((field) => ({ field, before: publishedMeta[field] ?? null, after: metadata[field] ?? null }));
+  }
+  function draftGet(user, q) {
+    const r = resolve(user, q.sessionId, q.participantId);
+    if (r.error) return r.error;
+    return reply(200, { basePageVersion, version, ...draftSummary(), diff: diffHtml(), metaChanges: metaChanges() });
   }
 
   async function handle({ method, path, pageName, query = {}, body = {}, user = 'ada' }) {
@@ -306,7 +377,8 @@ export function createFakeCollabServer({
     else if (key === 'POST /updates') res = push(user, body);
     else if (key === 'GET /updates') res = await pull(user, query);
     else if (key === 'POST /publish') res = publish(user, body);
-    else if (key === 'POST /discard') res = resolve(user, body.sessionId, body.participantId).error ?? reply(204);
+    else if (key === 'POST /discard') res = discard(user, body);
+    else if (key === 'GET /draft') res = draftGet(user, query);
     else if (key === 'POST /leave') {
       const p = participants.get(body.participantId);
       if (p && p.owner !== user) res = reply(403, { reason: 'not-your-participant' });
@@ -437,6 +509,23 @@ export function createFakeCollabServer({
         ...(recreated ? { recreated: true } : {}),
       });
     },
+    /** An administrator removed the draft: every live participant is evicted `purged` and the draft is emptied. */
+    purge() {
+      for (const p of participants.values()) {
+        if (p.expired || p.evicted) continue;
+        p.evicted = 'purged';
+        p.expired = true;
+        presenceSeq += 1;
+        addEvent({ type: 'evicted', participantId: p.participantId, reason: 'purged' });
+        addEvent({ type: 'participant-left', participantId: p.participantId, reason: 'evicted' });
+      }
+      if (clearDraft()) emitDraftState();
+      wake();
+    },
+    /** The server refuses the document as too large: an `oversize {bytes, limit}` event. */
+    oversize(bytes, limit) { addEvent({ type: 'oversize', bytes, limit }); },
+    /** The next publish fails on the server: it emits publish-failed {by} and answers 500 once. */
+    failNextPublish(by) { failPublishBy = by; },
     forgetClientIds() { clientOwner.clear(); },
   };
 }

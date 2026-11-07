@@ -509,3 +509,205 @@ describe('Phase 2 fixture cases against the fake', () => {
     expect(() => server.evict('pt-99', 'lost-edit')).toThrow(/pt-99/);
   });
 });
+
+describe('Phase 3 fixture cases against the fake: draft state, draft summary, publish events, purge', () => {
+  let server;
+  beforeEach(() => { vi.useFakeTimers(); server = createFakeCollabServer({ initialMeta: { tags: ['a'], summary: 's' } }); });
+  afterEach(() => { vi.useRealTimers(); });
+  const call = (method, path, { user = 'ada', pid = 'pt-1', body = {}, query = {}, pageName } = {}) => server.handle({
+    method, path, user, pageName,
+    body: { sessionId: 's-1f3a', participantId: pid, ...body },
+    query: { sessionId: 's-1f3a', participantId: pid, ...query },
+  });
+  const pull = (user = 'ada', pid = 'pt-1', extra = {}) => call('GET', '/updates', { user, pid, query: { since: 0, metaSince: 0, presenceSince: 0, eventsSince: 0, ...extra } });
+  const edit = (j, version, ins = '!') => call('POST', '/updates', { user: j.owner, pid: j.participantId, body: { version, updates: [{ clientID: j.clientID, changes: [version === 0 ? 11 : 12, [0, ins]] }], metaOps: [] } });
+  const joinAs = async (user) => ({ ...(await joinSample(server, user)), owner: user });
+  const stateEvents = (res) => res.body.events.filter((e) => e.type === 'draft-state');
+
+  it('fixture lists the new cases and notes', () => {
+    for (const id of ['join.200.draft-contributors', 'updates.get.200.draft-events', 'draft.get.200', 'draft.get.200.unchanged',
+      'draft.get.403.evicted', 'draft.get.404', 'publish.200.markup', 'updates.get.403.purged']) expect(byId[id], id).toBeDefined();
+    for (const n of ['draftState', 'draftSummary', 'contributorsAreDisplayNames', 'purged']) expect(fixture.notes[n], n).toBeTypeOf('string');
+  });
+
+  it('join carries the contributors, in first-contribution order, as display names', async () => {
+    const ada = await joinAs('ada');
+    const raj = await joinAs('raj');
+    await edit(raj, 0);
+    await edit(ada, 1);
+    await edit(raj, 2);
+    const late = await joinAs('kim');
+    expect(late.draft.contributors).toEqual(['raj', 'ada']);
+    expect(late.draft.unpublished).toBe(true);
+    expect(late.draft.lastEditAt).toBeTypeOf('string');
+    const recorded = byId['join.200.draft-contributors'].response.body;
+    expect(shapeDiff(late.draft, recorded.draft)).toEqual([]);
+    expect((await joinSample(createFakeCollabServer())).draft).toEqual({ unpublished: false, contributors: [], lastEditAt: null });
+  });
+
+  it('draft-state fires on a first contribution and a first meta contribution, not on every edit', async () => {
+    const ada = await joinAs('ada');
+    const raj = await joinAs('raj');
+    await edit(ada, 0);
+    await edit(ada, 1);
+    await call('POST', '/updates', { user: 'raj', pid: raj.participantId, body: { version: 2, updates: [], metaOps: [{ field: 'status', value: 'draft' }] } });
+    await edit(raj, 2);
+    const res = await pull();
+    const states = stateEvents(res);
+    expect(states.map((e) => e.contributors)).toEqual([['ada'], ['ada', 'raj']]);
+    expect(states.every((e) => e.unpublished === true)).toBe(true);
+    const recorded = byId['updates.get.200.draft-events'].response.body.events[0];
+    expect(shapeDiff(states[0], recorded)).toEqual([]);
+    expect(states[0].lastEditAt).toBeTypeOf('string');
+  });
+
+  it('publish emits published then an emptied draft-state; a later edit starts the set afresh', async () => {
+    const ada = await joinAs('ada');
+    const raj = await joinAs('raj');
+    await edit(ada, 0);
+    const pub = await call('POST', '/publish', { body: { version: 1 } });
+    expect(pub.status).toBe(200);
+    const res = await pull();
+    const types = res.body.events.map((e) => e.type);
+    expect(types.slice(-2)).toEqual(['published', 'draft-state']);
+    const recorded = Object.fromEntries(byId['updates.get.200.draft-events'].response.body.events.map((e) => [e.type, e]));
+    expect(shapeDiff(res.body.events.at(-2), recorded.published)).toEqual([]);
+    expect(res.body.events.at(-1)).toMatchObject({ unpublished: false, contributors: [] });
+    await edit(raj, 1);
+    expect(stateEvents(await pull()).at(-1)).toMatchObject({ unpublished: true, contributors: ['raj'] });
+  });
+
+  it('discard emits draft-discarded and an emptied draft-state; discarding nothing emits no state', async () => {
+    const ada = await joinAs('ada');
+    await call('POST', '/discard');
+    expect((await pull()).body.events.map((e) => e.type)).toEqual(['participant-joined', 'draft-discarded']);
+    await edit(ada, 0);
+    await call('POST', '/discard');
+    const res = await pull();
+    const tail = res.body.events.slice(-3);
+    expect(tail.map((e) => e.type)).toEqual(['draft-state', 'draft-discarded', 'draft-state']);
+    expect(tail[1]).toMatchObject({ by: 'ada' });
+    expect(tail[2]).toMatchObject({ unpublished: false, contributors: [] });
+    const recorded = Object.fromEntries(byId['updates.get.200.draft-events'].response.body.events.map((e) => [e.type, e]));
+    expect(shapeDiff(tail[1], recorded['draft-discarded'])).toEqual([]);
+  });
+
+  it('failNextPublish emits publish-failed {by} and answers 500 once; oversize emits {bytes, limit}', async () => {
+    await joinAs('ada');
+    server.failNextPublish('ada');
+    const bad = await call('POST', '/publish', { body: { version: 0 } });
+    expect(bad.status).toBe(500);
+    expect((await call('POST', '/publish', { body: { version: 0 } })).status).toBe(200);
+    server.oversize(1000001, 1000000);
+    const res = await pull();
+    const recorded = Object.fromEntries(byId['updates.get.200.draft-events'].response.body.events.map((e) => [e.type, e]));
+    const failed = res.body.events.find((e) => e.type === 'publish-failed');
+    const over = res.body.events.find((e) => e.type === 'oversize');
+    expect(shapeDiff(failed, recorded['publish-failed'])).toEqual([]);
+    expect(failed.by).toBe('ada');
+    expect(shapeDiff(over, recorded.oversize)).toEqual([]);
+    expect(over).toMatchObject({ bytes: 1000001, limit: 1000000 });
+  });
+
+  it('GET /draft summarises the unpublished change, with the contributors and meta changes in field order', async () => {
+    const ada = await joinAs('ada');
+    await call('POST', '/updates', { body: { version: 0, updates: [{ clientID: ada.clientID, changes: [11, [0, '!']] }], metaOps: [
+      { field: 'tags', add: 'c' }, { field: 'summary', value: null }, { field: 'status', value: 'draft' }] } });
+    const res = await call('GET', '/draft');
+    expect(res.status).toBe(200);
+    expect(shapeDiff(res.body, byId['draft.get.200'].response.body)).toEqual([]);
+    expect(res.body).toMatchObject({ basePageVersion: 7, version: 1, unpublished: true, contributors: ['ada'] });
+    expect(res.body.diff).toContain('Hello world!');
+    expect(res.body.metaChanges).toEqual([
+      { field: 'status', before: null, after: 'draft' },
+      { field: 'summary', before: 's', after: null },
+      { field: 'tags', before: ['a'], after: ['a', 'c'] },
+    ]);
+  });
+
+  it('GET /draft with no change has an empty diff and no meta changes; after a publish it is empty again', async () => {
+    const ada = await joinAs('ada');
+    const none = await call('GET', '/draft');
+    expect(none.status).toBe(200);
+    expect(shapeDiff(none.body, byId['draft.get.200.unchanged'].response.body)).toEqual([]);
+    expect(none.body).toMatchObject({ diff: '', metaChanges: [], unpublished: false, contributors: [], lastEditAt: null });
+    await edit(ada, 0);
+    await call('POST', '/publish', { body: { version: 1 } });
+    const after = await call('GET', '/draft');
+    expect(after.body).toMatchObject({ diff: '', metaChanges: [], unpublished: false, basePageVersion: 8 });
+  });
+
+  it('GET /draft refusals: not-your-participant, evicted, rejoin, 404', async () => {
+    const ada = await joinAs('ada');
+    expect((await call('GET', '/draft', { user: 'mallory' })).body).toEqual({ reason: 'not-your-participant' });
+    expect((await call('GET', '/draft', { user: 'mallory' })).status).toBe(403);
+    const unknownPid = await call('GET', '/draft', { pid: 'pt-99' });
+    expect(unknownPid.status).toBe(409);
+    expect(unknownPid.body.reason).toBe('rejoin');
+    const wrongSession = await call('GET', '/draft', { query: { sessionId: 's-other' } });
+    expect(wrongSession.status).toBe(409);
+    expect(wrongSession.body.reason).toBe('rejoin');
+    const noPid = await call('GET', '/draft', { pid: '' });
+    expect(noPid.status).toBe(400);
+    const nf = await call('GET', '/draft', { pageName: 'Other' });
+    expect(nf.status).toBe(404);
+    expect(shapeDiff(nf.body, byId['draft.get.404'].response.body)).toEqual([]);
+    server.evict(ada.participantId, 'lost-edit');
+    const ev = await call('GET', '/draft');
+    expect(ev.status).toBe(403);
+    expect(shapeDiff(ev.body, byId['draft.get.403.evicted'].response.body)).toEqual([]);
+  });
+
+  it('cross-session addressing: session A under page B answers 404, an evicted or unknown id answers 409 rejoin', async () => {
+    const ada = await joinAs('ada');
+    for (const [method, path] of [['POST', '/updates'], ['GET', '/updates'], ['POST', '/publish'], ['POST', '/discard'], ['GET', '/draft']]) {
+      const r = await call(method, path, { pageName: 'PageB', query: { since: 0 }, body: { version: 0 } });
+      expect(r.status, `${method} ${path} under page B`).toBe(404);
+    }
+    server.expire('ada');
+    for (const [method, path] of [['POST', '/updates'], ['GET', '/updates'], ['POST', '/publish'], ['GET', '/draft']]) {
+      const r = await call(method, path, { pid: ada.participantId, query: { since: 0 }, body: { version: 0 } });
+      expect(r.status, `${method} ${path} expired`).toBe(409);
+      expect(r.body.reason).toBe('rejoin');
+    }
+    const unknown = await call('POST', '/updates', { pid: 'pt-404', body: { version: 0, updates: [] } });
+    expect(unknown.status).toBe(409);
+    expect(unknown.body.reason).toBe('rejoin');
+  });
+
+  it('POST /publish accepts markupSyntax markdown and records it; another value is rejected', async () => {
+    await joinAs('ada');
+    const c = byId['publish.200.markup'];
+    const res = await call('POST', '/publish', { body: { ...structuredClone(c.request.body), version: 0 } });
+    expect(res.status).toBe(200);
+    expect(shapeDiff(res.body, c.response.body)).toEqual([]);
+    expect(server.calls.at(-1).body.markupSyntax).toBe('markdown');
+    const bad = await call('POST', '/publish', { body: { version: 0, markupSyntax: 'jspwiki-1' } });
+    expect(bad.status).toBe(400);
+    expect(bad.body.reason).toBe('rejected');
+  });
+
+  it('purge evicts every participant with reason purged and empties the draft', async () => {
+    const ada = await joinAs('ada');
+    const raj = await joinAs('raj');
+    await edit(ada, 0);
+    const parked = call('GET', '/updates', { user: 'raj', pid: raj.participantId, query: { since: 1, metaSince: 0, presenceSince: 99, eventsSince: 99 } });
+    server.purge();
+    const released = await parked;
+    expect(released.status).toBe(403);
+    expect(released.body).toEqual({ reason: 'evicted', detail: 'purged' });
+    const get = await pull('ada', ada.participantId, { since: 1 });
+    expect(get.status).toBe(403);
+    expect(shapeDiff(get.body, byId['updates.get.403.purged'].response.body)).toEqual([]);
+    expect(get.body.detail).toBe('purged');
+    expect((await call('POST', '/updates', { pid: ada.participantId, body: { version: 1, updates: [] } })).body).toEqual({ reason: 'evicted', detail: 'purged' });
+    expect(server.isLive(ada.participantId)).toBe(false);
+    expect(server.isLive(raj.participantId)).toBe(false);
+    const fresh = await joinAs('kim');
+    expect(fresh.draft).toEqual({ unpublished: false, contributors: [], lastEditAt: null });
+    const events = (await pull('kim', fresh.participantId)).body.events;
+    const evicted = events.filter((e) => e.type === 'evicted');
+    expect(evicted.map((e) => [e.participantId, e.reason])).toEqual([[ada.participantId, 'purged'], [raj.participantId, 'purged']]);
+    expect(events.find((e) => e.type === 'draft-state' && e.contributors.length === 0)).toMatchObject({ unpublished: false });
+  });
+});

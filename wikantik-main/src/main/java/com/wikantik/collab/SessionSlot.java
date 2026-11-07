@@ -18,6 +18,9 @@
  */
 package com.wikantik.collab;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,16 +28,21 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * One page's place in {@link CollabSessionRegistry}. Its lock ({@link #lock}) serialises opening, joining and evicting
- * the page's session; {@code closed} and the idle clock are guarded by it. The session and the re-check clock are read
- * without it.
+ * the page's session; the idle clock is guarded by it, and {@code closed} is written under it (read by the tick
+ * without it). The session, the re-check clock and the warning clock are read without it.
  */
 final class SessionSlot {
+
+    private static final Logger LOG = LogManager.getLogger( SessionSlot.class );
+    /** A repeating tick failure is logged at WARN at most this often per session. */
+    private static final Duration WARN_EVERY = Duration.ofMinutes( 1 );
 
     private final ReentrantLock lock = new ReentrantLock();
     private final AtomicInteger storeFailures = new AtomicInteger();
     private volatile CollabSession session;
     private volatile Instant lastRecheck;
-    private boolean closed;
+    private volatile boolean closed;
+    private volatile Instant lastWarn;
     private Instant emptySince;
 
     void lock() {
@@ -61,7 +69,7 @@ final class SessionSlot {
         lastRecheck = now;
     }
 
-    /** Under the lock. */
+    /** Authoritative under the lock; a hint without it (the tick skips closed slots). */
     boolean closed() {
         return closed;
     }
@@ -101,6 +109,23 @@ final class SessionSlot {
         return true;
     }
 
+    /**
+     * Whether an opened slot's session needs {@link CollabSession#settle} on this tick: it has participants, or it owes
+     * the page store a publish or a merge. An empty session owing nothing is skipped (one page read saved per tick).
+     */
+    boolean needsSettle() {
+        return !CollabSession.Hooks.members( session ).isEmpty() || CollabSession.Hooks.owesThePageStore( session );
+    }
+
+    /** True at most once per {@code every} (tick thread only): rate-limits a repeating warning. */
+    boolean warnDue( final Instant now, final Duration every ) {
+        if( lastWarn != null && now.isBefore( lastWarn.plus( every ) ) ) {
+            return false;
+        }
+        lastWarn = now;
+        return true;
+    }
+
     /** Counts one 503 {@code store}; true when {@code limit} have come in a row. */
     boolean storeFailed( final int limit ) {
         return storeFailures.incrementAndGet() >= limit;
@@ -109,5 +134,25 @@ final class SessionSlot {
     /** A success breaks the run of store failures. */
     void storeSucceeded() {
         storeFailures.set( 0 );
+    }
+
+    /**
+     * Runs one registry tick step for this slot's session {@code s}. Nothing escapes: an {@link Error} is logged at ERROR
+     * every time, anything else at WARN at most once a minute (DEBUG in between); the next tick retries.
+     */
+    @SuppressWarnings( "PMD.AvoidCatchingThrowable" )
+    void step( final CollabSession s, final Instant now, final String what, final Runnable r ) {
+        try {
+            r.run();
+        } catch( final Throwable t ) {
+            if( t instanceof Error ) {
+                LOG.error( "collab session {}: tick step '{}' failed with an error; retried next tick", s.id(), what, t );
+            } else if( warnDue( now, WARN_EVERY ) ) {
+                LOG.warn( "collab session {}: tick step '{}' failed; retried next tick (repeats muted for a minute): {}",
+                    s.id(), what, t.toString(), t );
+            } else {
+                LOG.debug( "collab session {}: tick step '{}' failed again: {}", s.id(), what, t.toString() );
+            }
+        }
     }
 }

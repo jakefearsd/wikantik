@@ -788,6 +788,19 @@ public final class CollabSession {
         }
 
         /**
+         * True while this session object's publish is in its save (between start and finish/fail). A reload then would
+         * give the page two writers: the reloaded session settling the marker and this object finishing the publish.
+         */
+        static boolean publishing( final CollabSession s ) {
+            s.lock.lock();
+            try {
+                return s.d.publishing;
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /**
          * Moves the session to {@code newPageName}: the store first, then memory.
          *
          * @throws IllegalStateException when the new name already has a session (from the store)

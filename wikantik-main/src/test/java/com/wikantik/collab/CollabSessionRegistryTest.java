@@ -22,8 +22,12 @@ import com.wikantik.collab.CollabSessionRegistry.Disabled;
 import com.wikantik.collab.CollabSessionRegistry.JoinOutcome;
 import com.wikantik.collab.CollabSessionRegistry.Joined;
 import com.wikantik.collab.CollabSessionRegistry.Refused;
+import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
+import com.wikantik.collab.model.PageState;
+import com.wikantik.collab.model.PublishOutcome;
+import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.collab.model.PullResponse;
 import com.wikantik.collab.model.PushResponse;
 import com.wikantik.collab.model.SessionRecord;
@@ -42,10 +46,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -70,11 +76,15 @@ class CollabSessionRegistryTest {
     private static final class Permissions implements CollabPermissions {
         final Set< String > noEdit = new HashSet<>();
         final Set< String > noCreate = new HashSet<>();
+        final Set< String > throwing = new HashSet<>();
         final AtomicInteger editChecks = new AtomicInteger();
 
         @Override
         public boolean canEdit( final Object participantSession, final String pageName ) {
             editChecks.incrementAndGet();
+            if( throwing.contains( participantSession ) ) {
+                throw new IllegalStateException( "authorization backend down for " + participantSession );
+            }
             return !noEdit.contains( participantSession );
         }
 
@@ -97,8 +107,39 @@ class CollabSessionRegistryTest {
         }
     }
 
+    /** The scripted writer, counting latest() reads and throwing an Error for one page on demand. */
+    private static final class FlakyWriter implements CollabPageWriter {
+        final CollabPageWriter d;
+        final AtomicInteger latestReads = new AtomicInteger();
+        volatile String explodeOn;
+
+        FlakyWriter( final CollabPageWriter d ) {
+            this.d = d;
+        }
+
+        @Override
+        public Optional< PageState > latest( final String pageName ) {
+            latestReads.incrementAndGet();
+            if( pageName.equals( explodeOn ) ) {
+                throw new StackOverflowError( "test: latest(" + pageName + ")" );
+            }
+            return d.latest( pageName );
+        }
+
+        @Override
+        public Optional< PageState > version( final String pageName, final int version ) {
+            return d.version( pageName, version );
+        }
+
+        @Override
+        public PublishOutcome publish( final PublishRequest request ) throws WikiException {
+            return d.publish( request );
+        }
+    }
+
     private InMemoryCollabStore store;
     private ScriptedPageWriter writer;
+    private FlakyWriter flaky;
     private MutableClock clock;
     private Permissions permissions;
     private CollabSessionRegistry registry;
@@ -111,7 +152,7 @@ class CollabSessionRegistryTest {
     }
 
     private CollabSessionRegistry registry( final CollabConfig c ) {
-        return new CollabSessionRegistry( store, writer, permissions, key -> null, clock, c, 1 << 20 );
+        return new CollabSessionRegistry( store, flaky, permissions, key -> null, clock, c, 1 << 20 );
     }
 
     @BeforeEach
@@ -119,6 +160,7 @@ class CollabSessionRegistryTest {
         store = new InMemoryCollabStore();
         writer = new ScriptedPageWriter();
         writer.seed( PAGE, BODY, Map.of( "title", "T" ) );
+        flaky = new FlakyWriter( writer );
         clock = new MutableClock( T0 );
         permissions = new Permissions();
         registry = registry( config( 20, 25, 45, 30, 500, 10 ) );
@@ -338,6 +380,7 @@ class CollabSessionRegistryTest {
     void e30_editRightsAreRecheckedOnTheCadence() {
         final Joined a = join( "alice" );
         final Joined b = join( "bob" );
+        assertEquals( 200, type( a, "alice", "mine " ).status() );
         permissions.noEdit.add( "alice" );
         final int checksAtJoin = permissions.editChecks.get();
         clock.advance( Duration.ofSeconds( 29 ) );
@@ -352,6 +395,71 @@ class CollabSessionRegistryTest {
         assertEquals( 200, type( b, "bob", "b" ).status() );
         // her rejoin is refused while she lacks edit
         assertEquals( new Refused( 403, "forbidden" ), registry.join( PAGE, req( "alice" ) ) );
+        // her synced edits stay in the shared draft: only unsent edits are lost on revocation (A13)
+        assertEquals( "bmine " + BODY, b.session().view().doc() );
+    }
+
+    @Test
+    void aThrowingEditCheckFailsClosedAndTheRecheckGoesOn() {
+        final Joined a = join( "alice" );
+        join( "bob" );
+        final Joined c = join( "carol" );
+        permissions.throwing.add( "alice" );   // alice's check throws ...
+        permissions.noEdit.add( "bob" );       // ... and bob, checked after her, lost edit
+        clock.advance( Duration.ofSeconds( 30 ) );
+        assertDoesNotThrow( registry::tick );
+        assertEquals( 1, a.session().view().participants(), "alice (check failed) and bob (no edit) are evicted" );
+        assertEquals( 200, type( c, "carol", "c" ).status() );
+    }
+
+    @Test
+    void aThrowingEditCheckOnJoinIs403() {
+        permissions.throwing.add( "mallory" );
+        assertEquals( new Refused( 403, "forbidden" ), registry.join( PAGE, req( "mallory" ) ) );
+    }
+
+    @Test
+    void noEditIsRefusedBeforeTheDerivedPageCheck() {
+        writer.seed( "Derived", "from a pdf\n", Map.of( "derived_from", "report.pdf" ) );
+        permissions.noEdit.add( "mallory" );
+        assertEquals( new Refused( 403, "forbidden" ), registry.join( "Derived", req( "mallory" ) ) );
+    }
+
+    // ---- the tick survives anything ----------------------------------------------------------------------------
+
+    @Test
+    void anErrorInOneSessionDoesNotStopTheTickOrTheOtherSessions() {
+        final List< Joined > quiet = new ArrayList<>();
+        for( int i = 0; i < 4; i++ ) {
+            writer.seed( "Quiet" + i, "q\n", Map.of() );
+            quiet.add( assertInstanceOf( Joined.class, registry.join( "Quiet" + i, req( "q" + i ) ) ) );
+        }
+        writer.seed( "Bad", "bad\n", Map.of() );
+        final Joined bad = assertInstanceOf( Joined.class, registry.join( "Bad", req( "eve" ) ) );
+        clock.advance( Duration.ofSeconds( 40 ) );
+        assertEquals( 200, type( bad, "eve", "e" ).status() );   // eve stays present, so her session is settled
+        flaky.explodeOn = "Bad";
+        clock.advance( Duration.ofSeconds( 6 ) );
+        assertDoesNotThrow( registry::tick );
+        for( final Joined q : quiet ) {
+            assertEquals( 0, q.session().view().participants(), "every quiet participant timed out" );
+        }
+        assertEquals( 1, bad.session().view().participants() );
+        assertDoesNotThrow( registry::tick );
+    }
+
+    @Test
+    void emptySessionsWithNothingOwedAreNotSettled() {
+        final Joined a = join( "alice" );
+        registry.tick();
+        final int withAParticipant = flaky.latestReads.get();
+        registry.tick();
+        assertTrue( flaky.latestReads.get() > withAParticipant, "a session with participants is settled" );
+        leave( a, "alice" );
+        final int empty = flaky.latestReads.get();
+        registry.tick();
+        registry.tick();
+        assertEquals( empty, flaky.latestReads.get(), "an empty session owing nothing is not settled" );
     }
 
     @Test
@@ -546,6 +654,53 @@ class CollabSessionRegistryTest {
         registry.observe( id, 503, "overloaded" );   // only store failures count
         registry.observe( UUID.randomUUID(), 503, "store" );   // unknown ids are ignored
         assertTrue( registry.live( id ).isPresent() );
+    }
+
+    @Test
+    void theWedgeEvictionWaitsForAPublishInItsSave() throws Exception {
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        final PublishStart st = a.session().startPublish( a.response().participantId(), "alice",
+            a.session().view().head(), "note" );
+        assertNull( st.response() );
+        assertTrue( CollabSession.Hooks.publishing( a.session() ) );
+        for( int i = 0; i < CollabSessionRegistry.STORE_FAILURE_LIMIT; i++ ) {
+            registry.observe( id, 503, "store" );
+        }
+        assertSame( a.session(), registry.live( id ).orElseThrow(), "no reload while this object's publish is in its save" );
+        assertEquals( 200, a.session().finishPublish( st.ticket(), flaky.publish( st.ticket().request() ) ).status() );
+        assertFalse( CollabSession.Hooks.publishing( a.session() ) );
+        registry.observe( id, 503, "store" );   // still failing after the publish: now it goes
+        assertTrue( registry.live( id ).isEmpty() );
+    }
+
+    @Test
+    void theWedgeEvictionDoesNotWaitForAnOwedMerge() {
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        oweAMerge( a.session() );
+        for( int i = 0; i < CollabSessionRegistry.STORE_FAILURE_LIMIT; i++ ) {
+            registry.observe( id, 503, "store" );
+        }
+        assertTrue( registry.live( id ).isEmpty(), "the reload settles the owed merge" );
+        final Joined again = join( "bob" );
+        assertEquals( BODY + "external\n", again.response().doc() );
+    }
+
+    @Test
+    void aDraftReloadedWithEditsAfterItsLastSnapshotIsKept() {
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        forceReload( id );
+        assertFalse( store.session( id ).orElseThrow().hasUnpublished(), "the flag was never written (snapshot cadence)" );
+        final Joined b = join( "bob" );
+        assertNotEquals( a.session(), b.session() );
+        leave( b, "bob" );
+        idleOut();
+        assertTrue( registry.live( id ).isEmpty() );
+        assertTrue( store.session( id ).isPresent(), "the reloaded draft has edits: kept" );
     }
 
     // ---- truncation on the tick (A10) -------------------------------------------------------------------------

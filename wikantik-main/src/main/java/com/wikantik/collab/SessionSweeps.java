@@ -42,10 +42,24 @@ final class SessionSweeps {
         evictWhere( s, m -> m.lastSeen().isBefore( horizon ), "timed out" );
     }
 
-    /** Participants whose wiki session no longer has {@code edit} on the page (A5). */
+    /**
+     * Participants whose wiki session no longer has {@code edit} on the page (A5). A check that throws fails closed:
+     * that participant is evicted (as {@code CollabSession}'s post-publish re-check does) and the sweep goes on.
+     */
     static void recheckEdit( final CollabSession s, final CollabPermissions permissions ) {
         final String pageName = s.pageName();
-        evictWhere( s, m -> !permissions.canEdit( m.wikiSession(), pageName ), "lost edit" );
+        evictWhere( s, m -> !mayEdit( s, m, permissions, pageName ), "lost edit" );
+    }
+
+    private static boolean mayEdit( final CollabSession s, final Member m, final CollabPermissions permissions,
+                                    final String pageName ) {
+        try {
+            return permissions.canEdit( m.wikiSession(), pageName );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: the edit check of {} on {} failed; evicting: {}", s.id(), m.participantId(),
+                pageName, e.toString() );
+            return false;
+        }
     }
 
     /** Every participant of {@code authorKey}. */

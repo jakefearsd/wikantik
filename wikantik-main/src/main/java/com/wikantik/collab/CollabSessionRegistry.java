@@ -170,16 +170,27 @@ public final class CollabSessionRegistry {
         }
     }
 
-    /** {@code latest} is null when the page does not exist. */
+    /** {@code latest} is null when the page does not exist. 403 comes first: a non-editor learns nothing more. */
     private Refused refuse( final String pageName, final JoinRequest r, final PageState latest ) {
+        if( !mayJoin( r, pageName, latest == null ) ) {
+            return new Refused( 403, FORBIDDEN );
+        }
         if( latest != null && latest.meta().containsKey( DERIVED_FROM ) ) {
             return new Refused( 409, DERIVED );
         }
-        final Object who = r.wikiSession();
-        if( !permissions.canEdit( who, pageName ) || latest == null && !permissions.canCreate( who, pageName ) ) {
-            return new Refused( 403, FORBIDDEN );
-        }
         return null;
+    }
+
+    /** {@code edit}, plus {@code createPages} for a new page; a check that throws fails closed (logged). */
+    private boolean mayJoin( final JoinRequest r, final String pageName, final boolean create ) {
+        final Object who = r.wikiSession();
+        try {
+            return permissions.canEdit( who, pageName ) && ( !create || permissions.canCreate( who, pageName ) );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab: the permission check for {} joining {} failed; refusing: {}", r.authorKey(), pageName,
+                e.toString() );
+            return false;
+        }
     }
 
     private SessionSlot slotFor( final String pageName ) {
@@ -265,28 +276,43 @@ public final class CollabSessionRegistry {
 
     // ---- tick ------------------------------------------------------------------------------------------------
 
-    /** The timers: long-poll timeouts, presence timeouts, permission re-checks and truncation, idle eviction. */
+    /**
+     * The timers: long-poll timeouts, presence timeouts, the settle retry, permission re-checks and truncation, idle
+     * eviction. Nothing escapes, not even an {@link Error}: a periodic task that throws is silently cancelled by its
+     * executor, which would stop every session's timers.
+     */
+    @SuppressWarnings( "PMD.AvoidCatchingThrowable" )
     public void tick() {
-        final Instant now = clock.instant();
-        for( final SessionSlot slot : List.copyOf( byId.values() ) ) {
-            final CollabSession s = slot.session();
-            try {
-                tickSession( slot, s, now );
-            } catch( final RuntimeException e ) {
-                LOG.warn( "collab: tick of session {} failed; retried on the next tick: {}", s.id(), e.toString(), e );
+        try {
+            final Instant now = clock.instant();
+            for( final SessionSlot slot : List.copyOf( byId.values() ) ) {
+                if( !slot.closed() ) {
+                    tickSession( slot, slot.session(), now );
+                }
             }
+        } catch( final Throwable t ) {
+            LOG.error( "collab: the registry tick failed; the next tick retries: {}", t.toString(), t );
         }
     }
 
+    /** Each step on its own, so one failing step neither skips the others nor the other sessions. */
     private void tickSession( final SessionSlot slot, final CollabSession s, final Instant now ) {
-        s.settle();   // the only retry of an owed external merge or an unfinished publish (Task 4)
-        s.expireWaiters().forEach( Runnable::run );
-        SessionSweeps.expirePresence( s, now.minusSeconds( config.presenceTimeoutSeconds() ) );
-        if( slot.recheckDue( now, config.permissionRecheckSeconds() ) ) {
-            SessionSweeps.recheckEdit( s, permissions );
-            s.truncateLog();
-        }
-        evictIfIdle( slot, s, now );
+        slot.step( s, now, "waiter expiry", () -> s.expireWaiters().forEach( Runnable::run ) );
+        slot.step( s, now, "presence", () -> SessionSweeps.expirePresence( s,
+            now.minusSeconds( config.presenceTimeoutSeconds() ) ) );
+        // the only retry of an owed external merge or an unfinished publish (Task 4); empty sessions owing nothing skip
+        slot.step( s, now, "settle", () -> {
+            if( slot.needsSettle() ) {
+                s.settle();
+            }
+        } );
+        slot.step( s, now, "permission re-check", () -> {
+            if( slot.recheckDue( now, config.permissionRecheckSeconds() ) ) {
+                SessionSweeps.recheckEdit( s, permissions );
+                s.truncateLog();
+            }
+        } );
+        slot.step( s, now, "idle eviction", () -> evictIfIdle( slot, s, now ) );
     }
 
     private void evictIfIdle( final SessionSlot slot, final CollabSession s, final Instant now ) {
@@ -363,18 +389,38 @@ public final class CollabSessionRegistry {
         }
     }
 
+    /**
+     * Drops a wedged session, unless this object's publish is in its save: a reload then would settle the pending marker
+     * while this object finishes the publish (two writers). The count stays at the limit, so the next store failure after
+     * the publish ends evicts. An owed merge does not defer it: the reload settles that.
+     */
     private void evictWedged( final SessionSlot slot ) {
         slot.lock();
         try {
-            if( !slot.closed() ) {
-                final CollabSession s = slot.session();
-                LOG.warn( "collab session {} ({}): {} consecutive store failures; dropped from memory for a reload",
-                    s.id(), s.pageName(), STORE_FAILURE_LIMIT );
-                evictLocked( slot, s, false );
+            final CollabSession s = slot.session();
+            if( slot.closed() || deferredByPublish( s ) ) {
+                return;
             }
+            // participants go first, so no new publish can start; then check again for one that started meanwhile
+            SessionSweeps.evictAll( s );
+            if( deferredByPublish( s ) ) {
+                return;   // stays live; its participants rejoin this object
+            }
+            LOG.warn( "collab session {} ({}): {} consecutive store failures; dropped from memory for a reload",
+                s.id(), s.pageName(), STORE_FAILURE_LIMIT );
+            evictLocked( slot, s, false );
         } finally {
             slot.unlock();
         }
+    }
+
+    private static boolean deferredByPublish( final CollabSession s ) {
+        if( !Hooks.publishing( s ) ) {
+            return false;
+        }
+        LOG.warn( "collab session {} ({}): store failures, but a publish is in its save; reload deferred", s.id(),
+            s.pageName() );
+        return true;
     }
 
     /** Evicts every participant of {@code authorKey} in every live session (a deleted user, A10 Minor). */

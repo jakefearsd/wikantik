@@ -62,7 +62,7 @@ class CollabDraftTest {
                 return DraftSummary.refused( 429, "rate-limited", null );
             }
             snapshots++;
-            return new DraftSummary( 200, null, null, 1, 0, false, List.of(), null, "text", "text", Map.of(), Map.of() );
+            return new DraftSummary( 200, null, null, 1, 0, 0L, false, List.of(), null, "text", "text", Map.of(), Map.of() );
         } );
         draft = new CollabDraft( ( page, from, to ) -> "", () -> 0L );
     }

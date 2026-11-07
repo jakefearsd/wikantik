@@ -25,12 +25,13 @@ import java.util.Objects;
 
 /**
  * The draft summary (docs/MultiEdit.MD section 6.2, {@code GET /draft}): a snapshot of the draft taken under the session
- * lock. {@code status} 200 carries the base page version, the head {@code version}, whether the draft differs from its
+ * lock. {@code status} 200 carries the base page version, the head {@code version} and {@code metaSeq} (so a caller can
+ * tell later text and field edits from those summarised), whether the draft differs from its
  * base, its contributors' public names (first-contribution order), the last edit time (null before any), and the base
  * and head bodies and meta for the caller to diff. A refusal ({@link #refused}) carries only {@code status},
  * {@code reason} and {@code detail} (403 {@code evicted} names why).
  */
-public record DraftSummary( int status, String reason, String detail, int basePageVersion, int version,
+public record DraftSummary( int status, String reason, String detail, int basePageVersion, int version, long metaSeq,
                             boolean unpublished, List< String > contributors, Instant lastEditAt, String baseBody,
                             String doc, Map< String, Object > baseMeta, Map< String, Object > meta ) {
 
@@ -41,6 +42,9 @@ public record DraftSummary( int status, String reason, String detail, int basePa
         if( status == 200 ) {
             ModelChecks.nonNegative( basePageVersion, "basePageVersion" );
             ModelChecks.nonNegative( version, "version" );
+            if( metaSeq < 0 ) {
+                throw new IllegalArgumentException( "metaSeq must not be negative: " + metaSeq );
+            }
             Objects.requireNonNull( baseBody, "baseBody" );
             Objects.requireNonNull( doc, "doc" );
         }
@@ -51,6 +55,6 @@ public record DraftSummary( int status, String reason, String detail, int basePa
         if( status == 200 ) {
             throw new IllegalArgumentException( "a refusal is not 200" );
         }
-        return new DraftSummary( status, reason, detail, 0, 0, false, List.of(), null, null, null, Map.of(), Map.of() );
+        return new DraftSummary( status, reason, detail, 0, 0, 0L, false, List.of(), null, null, null, Map.of(), Map.of() );
     }
 }

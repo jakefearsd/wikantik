@@ -1789,6 +1789,7 @@ class CollabResourceTest {
         final JsonObject b = r.body();
         assertEquals( 1, b.get( "basePageVersion" ).getAsInt() );
         assertEquals( 1, b.get( "version" ).getAsInt() );
+        assertEquals( 3, b.get( "metaSeq" ).getAsLong(), "the meta sequence summarised: later field edits are newer" );
         assertTrue( b.get( "unpublished" ).getAsBoolean() );
         assertEquals( arr( "Ada" ), b.get( "contributors" ) );
         assertEquals( T0.toString(), b.get( "lastEditAt" ).getAsString() );
@@ -1814,6 +1815,7 @@ class CollabResourceTest {
         assertFalse( b.get( "unpublished" ).getAsBoolean() );
         assertTrue( b.get( "lastEditAt" ).isJsonNull(), "an explicit null" );
         assertEquals( 0, b.get( "version" ).getAsInt() );
+        assertEquals( 0, b.get( "metaSeq" ).getAsLong() );
         assertTrue( diffCalls.isEmpty(), "no diff is rendered for an unchanged text" );
     }
 

@@ -1184,6 +1184,20 @@ describe('PageEditor collaborative mode', () => {
     expect(lastPublish().body.version).toBe(summaryVersion + 1);
   });
 
+  it('newerFieldEditsAreCountedToo', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const dialog = await openPublishDialog();
+    expect(within(dialog).queryByTestId('publish-dialog-newer')).toBeNull();
+    const bob = await joinAs('bob');
+    await bob.t.push({ ...idsOf(bob), version: server.version, updates: [], metaOps: [{ field: 'summary', value: 'Bobs' }] });
+    await until(() => within(dialog).queryByTestId('publish-dialog-newer') !== null);
+    expect(within(dialog).getByTestId('publish-dialog-newer')).toHaveTextContent('1 newer edit will be included');
+    act(() => { server.externalReplace(0, 0, '>> '); });
+    await until(() => docOf(view) === '>> Hello world');
+    await until(() => within(dialog).getByTestId('publish-dialog-newer').textContent.includes('2 newer edits'));
+  });
+
   it('someoneElsesPublishShowsAToastAndUpdatesTheVersion', async () => {
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');

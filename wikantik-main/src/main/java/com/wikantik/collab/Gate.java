@@ -79,7 +79,7 @@ final class Gate {
             return DraftSummary.refused( 429, "rate-limited", null );
         }
         roster.get( participantId ).touch( now );
-        return new DraftSummary( 200, null, null, d.record.basePageVersion(), d.head, d.hasUnpublished(),
+        return new DraftSummary( 200, null, null, d.record.basePageVersion(), d.head, d.metaSeq, d.hasUnpublished(),
             d.contributorNames(), d.lastEditAt, d.record.baseBody(), d.doc, MetaJson.normalise( d.record.baseMeta() ),
             d.meta );
     }

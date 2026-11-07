@@ -396,7 +396,7 @@ export function createFakeCollabServer({
   function draftGet(user, q) {
     const r = resolve(user, q.sessionId, q.participantId);
     if (r.error) return r.error;
-    return reply(200, { basePageVersion, version, ...draftSummary(), diff: diffHtml(), metaChanges: metaChanges() });
+    return reply(200, { basePageVersion, version, metaSeq, ...draftSummary(), diff: diffHtml(), metaChanges: metaChanges() });
   }
 
   async function handle({ method, path, pageName, query = {}, body = {}, user = 'ada' }) {

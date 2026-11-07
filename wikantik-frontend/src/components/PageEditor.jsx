@@ -1383,9 +1383,13 @@ export default function PageEditor({ collabTransport } = {}) {
     await publishContent();
     closePublishDialog();
   };
-  // edits that reached this editor after the summary was taken (they are published too: publish takes the head)
-  const newerEdits = publishDialog?.summary?.version != null && syncedVersion != null
+  // edits that reached this editor after the summary was taken, text and fields (they are published too: publish takes
+  // the head and the draft's meta)
+  const newerText = publishDialog?.summary?.version != null && syncedVersion != null
     ? Math.max(0, syncedVersion - publishDialog.summary.version) : 0;
+  const newerMeta = publishDialog?.summary?.metaSeq != null && typeof collabMeta?.seq === 'number'
+    ? Math.max(0, collabMeta.seq - publishDialog.summary.metaSeq) : 0;
+  const newerEdits = newerText + newerMeta;
   const save = collabMode && !collabFrozen ? () => openPublishDialog('publish') : commit;
   useEffect(() => {
     latestSaveRef.current = save;

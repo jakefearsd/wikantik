@@ -101,6 +101,7 @@ function summaryOf(body) {
     ...draftOf(body),
     basePageVersion: typeof body?.basePageVersion === 'number' ? body.basePageVersion : null,
     version: typeof body?.version === 'number' ? body.version : null,
+    metaSeq: typeof body?.metaSeq === 'number' ? body.metaSeq : null,
     diff: typeof body?.diff === 'string' ? body.diff : '',
     metaChanges: (Array.isArray(body?.metaChanges) ? body.metaChanges : [])
       .filter((c) => c && typeof c.field === 'string')
@@ -613,6 +614,8 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
       dismissCarried() { setCarried(null); },
       /** The edits the server has not confirmed: for a recovery that has to show them (recreating a deleted page). */
       unconfirmed: () => m.state.unconfirmed(),
+      /** The server meta sequence this editor has reached (pulls and acks): field edits after a summary's are newer. */
+      seq: m.state.serverSeq(),
       pending: m.queue.hasWaiting() || !!m.handle.core?.hasPendingMeta() || (!m.handle.core && m.state.pending().length > 0)
         || !!carriedEdits?.length,
     };

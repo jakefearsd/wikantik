@@ -121,6 +121,7 @@ final class CollabDraft {
         final JsonObject o = new JsonObject();
         o.addProperty( "basePageVersion", d.basePageVersion() );
         o.addProperty( "version", d.version() );
+        o.addProperty( "metaSeq", d.metaSeq() );
         o.addProperty( "unpublished", d.unpublished() );
         o.add( "contributors", CollabWire.GSON.toJsonTree( d.contributors() ) );
         o.addProperty( "lastEditAt", d.lastEditAt() == null ? null : d.lastEditAt().toString() );

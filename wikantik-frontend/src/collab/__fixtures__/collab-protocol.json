@@ -1035,6 +1035,7 @@
         "body": {
           "basePageVersion": 7,
           "version": 1,
+          "metaSeq": 3,
           "unpublished": true,
           "contributors": [
             "Raj"
@@ -1081,6 +1082,7 @@
         "body": {
           "basePageVersion": 7,
           "version": 0,
+          "metaSeq": 0,
           "unpublished": false,
           "contributors": [],
           "lastEditAt": null,

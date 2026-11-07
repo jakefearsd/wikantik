@@ -14,6 +14,11 @@
 //   validateRaw   optional ({frontmatter}) => Promise<{metadata,violations}> for Raw→Form sync
 //   pageSearch    optional (query) => Promise<options> for the related-pages picker
 //   tagSuggestions optional string[] of existing tags offered as autocomplete in the tags field
+// Co-editing (all optional; docs/MultiEdit.MD A14, §8.2):
+//   onFieldChange (key, value) => void — field widgets report here instead of onChange (one field, not a whole object)
+//   onReplace     (prev, next) => void — Raw YAML and Advanced report whole objects here, with the metadata the edit was
+//                 made from (Raw YAML: the metadata its text was built from), so only what the user changed is diffed
+//   onFieldFocus / onFieldBlur (key) => void, remoteChanged / externalConflicts { [key]: displayName } — see FieldWidget
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Tabs from '../ui/Tabs';
 import FieldWidget from './FieldWidget';
@@ -36,12 +41,12 @@ function fmtMeta(v) {
   return String(v);
 }
 
-function AdvancedKeyValues({ metadata, unknownKeys, onChange }) {
+function AdvancedKeyValues({ metadata, unknownKeys, onChange, onReplace }) {
   if (unknownKeys.length === 0) return null;
   const removeKey = (k) => {
     const next = { ...metadata };
     delete next[k];
-    onChange(next);
+    if (onReplace) onReplace(metadata, next); else onChange(next);
   };
   return (
     <details className="fm-advanced">
@@ -63,10 +68,13 @@ function AdvancedKeyValues({ metadata, unknownKeys, onChange }) {
   );
 }
 
-function RawYaml({ metadata, onChange, validateRaw }) {
+function RawYaml({ metadata, onChange, onReplace, validateRaw }) {
   const [text, setText] = useState(() => metadataToYaml(metadata));
   const [error, setError] = useState(null);
   const dirty = useRef(false);
+  // the metadata `text` was built from: a co-edited form diffs against it, so a field changed remotely while the text was
+  // open is not reverted to the stale value the text still shows
+  const [base, setBase] = useState(metadata);
 
   const sync = () => {
     if (!dirty.current) return;
@@ -75,7 +83,10 @@ function RawYaml({ metadata, onChange, validateRaw }) {
       .then((res) => {
         if (res && res.metadata) {
           setError(null);
-          onChange(res.metadata);
+          if (onReplace) {
+            onReplace(base, res.metadata);
+            setBase(res.metadata);
+          } else onChange(res.metadata);
         } else {
           const yaml = (res?.violations || []).find((v) => v.field === '__yaml__');
           setError(yaml ? yaml.message : 'Could not parse YAML.');
@@ -109,6 +120,12 @@ export default function FrontmatterEditor({
   validateRaw = (payload) => api.validateFrontmatter(payload),
   pageSearch,
   tagSuggestions,
+  onFieldChange,
+  onReplace,
+  onFieldFocus,
+  onFieldBlur,
+  remoteChanged,
+  externalConflicts,
 }) {
   // `schema` is schemaProp when the caller supplies one (no fetch needed — that
   // case is a pure derivation, not effect-worthy); otherwise it's whatever the
@@ -193,16 +210,22 @@ export default function FrontmatterEditor({
   const violationsFor = (key) =>
     violations.filter((v) => v.field === key || (v.field && v.field.startsWith(key + '.')));
 
+  const changeField = (key, val) => (onFieldChange ? onFieldChange(key, val) : setField(key, val));
+
   const renderField = (f) => (
     <FieldWidget
       key={f.key}
       spec={f}
       value={metadata?.[f.key]}
-      onChange={(v) => setField(f.key, v)}
+      onChange={(v) => changeField(f.key, v)}
       violations={violationsFor(f.key)}
-      onApplySuggestion={(s) => setField(f.key, s)}
+      onApplySuggestion={(s) => changeField(f.key, s)}
       pageSearch={pageSearch}
       tagSuggestions={tagSuggestions}
+      onFieldFocus={onFieldFocus}
+      onFieldBlur={onFieldBlur}
+      remoteChanged={remoteChanged}
+      externalConflicts={externalConflicts}
     />
   );
 
@@ -248,10 +271,10 @@ export default function FrontmatterEditor({
               </div>
             )}
 
-            <AdvancedKeyValues metadata={metadata || {}} unknownKeys={unknownKeys} onChange={onChange} />
+            <AdvancedKeyValues metadata={metadata || {}} unknownKeys={unknownKeys} onChange={onChange} onReplace={onReplace} />
           </div>
         ) : (
-          <RawYaml metadata={metadata} onChange={onChange} validateRaw={validateRaw} />
+          <RawYaml metadata={metadata} onChange={onChange} onReplace={onReplace} validateRaw={validateRaw} />
         )}
       </Tabs>
     </div>

@@ -455,4 +455,101 @@ describe('useCollabSession', () => {
     expect(view.dom.querySelectorAll('.cm-external-change').length).toBeGreaterThan(0);
     view.destroy();
   });
+  const mountView = (result) => new EditorView({
+    state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+    parent: document.body,
+  });
+
+  it('meta: a field edit still inside the debounce window is pushed on unmount, before the leave', async () => {
+    const transport = server.transportFor('ada');
+    const { result, unmount } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = mountView(result);
+    act(() => { result.current.meta.edit('summary', 'typed'); });
+    expect(result.current.meta.view().summary).toBe('typed');
+    expect(result.current.meta.pending).toBe(true);
+    unmount();
+    await flush();
+    expect(server.metadata.summary).toBe('typed');
+    const push = server.calls.findIndex((c) => c.path === '/updates' && c.method === 'POST' && (c.body.metaOps || []).length);
+    const leave = server.calls.findIndex((c) => c.path === '/leave');
+    expect(push).toBeGreaterThan(-1);
+    expect(push).toBeLessThan(leave);
+    view.destroy();
+  });
+
+  it('meta: remote ops update the view, my acked edit stops being pending', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello', initialMeta: { tags: ['a'] }, pollTimeoutMs: 5000 });
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = mountView(result);
+    act(() => { result.current.meta.setField('tags', ['a', 'b']); });
+    await flush();
+    expect(server.metadata.tags).toEqual(['a', 'b']);
+    expect(result.current.meta.pending).toBe(false);
+    const bob = server.transportFor('bob');
+    await act(async () => {
+      const j = await bob.join({});
+      await bob.push({ sessionId: j.sessionId, participantId: j.participantId, version: 0, updates: [], metaOps: [{ field: 'status', value: 'active' }] });
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(result.current.meta.view()).toEqual({ tags: ['a', 'b'], status: 'active' });
+    view.destroy();
+  });
+
+  it('presence is seeded from the join, before the first pull', async () => {
+    const bob = server.transportFor('bob');
+    await bob.join({});
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    expect(Object.values(result.current.presenceNow()).map((p) => p.displayName)).toEqual(['bob']);
+    expect(result.current.participants.map((p) => p.displayName)).toEqual(['ada', 'bob']);
+  });
+
+  it('after page-renamed, the page name changing to the new name keeps the session (no leave, no rejoin)', async () => {
+    const transport = server.transportFor('ada');
+    const { result, rerender } = renderHook(({ name }) => useCollabSession(name, { transport }), { initialProps: { name: 'P' } });
+    await flush();
+    const view = mountView(result);
+    await act(async () => { server.renamePage('Q'); await vi.advanceTimersByTimeAsync(50); });
+    expect(result.current.renamedTo).toBe('Q');
+    rerender({ name: 'Q' });
+    await flush();
+    expect(result.current.status).toBe('live');
+    expect(server.calls.filter((c) => c.path === '/join')).toHaveLength(1);
+    expect(server.calls.some((c) => c.path === '/leave')).toBe(false);
+    rerender({ name: 'Other' });
+    await flush();
+    expect(server.calls.some((c) => c.path === '/leave')).toBe(true);
+    view.destroy();
+  });
+
+  it('page-deleted makes the status frozen; publish then recreates without waiting for a sync', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = mountView(result);
+    await act(async () => { server.freeze(); await vi.advanceTimersByTimeAsync(50); });
+    expect(result.current.status).toBe('frozen');
+    // a push meets the frozen draft and stops the peer: whenSynced can never resolve true now
+    await act(async () => { view.dispatch({ changes: { from: 5, insert: '!' } }); await vi.advanceTimersByTimeAsync(300); });
+    expect(server.calls.some((c) => c.path === '/updates' && c.reason === 'frozen')).toBe(true);
+    let outcome;
+    await act(async () => { const p = result.current.publish('again'); await vi.advanceTimersByTimeAsync(50); outcome = await p; });
+    expect(outcome).toMatchObject({ ok: true });
+    view.destroy();
+  });
+
+  it('an eviction for lost edit rights is forbidden with evictedReason', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = mountView(result);
+    await act(async () => { server.evict('pt-1', 'lost-edit'); await vi.advanceTimersByTimeAsync(50); });
+    expect(result.current.status).toBe('forbidden');
+    expect(result.current.evictedReason).toBe('lost-edit');
+    view.destroy();
+  });
 });

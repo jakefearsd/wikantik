@@ -138,4 +138,34 @@ describe('FieldWidget', () => {
     const options = [...container.querySelectorAll('datalist option')].map((o) => o.value);
     expect(options).toEqual(['finance', 'investing']);
   });
+  describe('co-editing hooks', () => {
+    const spec = { key: 'summary', label: 'Summary', widget: 'TEXT' };
+
+    it('reports focus and blur of the field, not moves inside it', () => {
+      const onFieldFocus = vi.fn();
+      const onFieldBlur = vi.fn();
+      render(<FieldWidget spec={spec} value="x" onChange={noop} onFieldFocus={onFieldFocus} onFieldBlur={onFieldBlur} />);
+      const input = screen.getByLabelText('Summary');
+      fireEvent.focus(input);
+      expect(onFieldFocus).toHaveBeenCalledWith('summary');
+      fireEvent.blur(input, { relatedTarget: document.body });
+      expect(onFieldBlur).toHaveBeenCalledWith('summary');
+    });
+
+    it('shows "changed by" when another editor changed the field', () => {
+      render(<FieldWidget spec={spec} value="mine" onChange={noop} remoteChanged={{ summary: 'Raj', tags: 'Bo' }} />);
+      expect(screen.getByTestId('fm-remote-summary')).toHaveTextContent('changed by Raj');
+      expect(screen.getByLabelText('Summary')).toHaveValue('mine');
+    });
+
+    it('shows no indicator for another field\'s remote change', () => {
+      render(<FieldWidget spec={spec} value="mine" onChange={noop} remoteChanged={{ tags: 'Bo' }} />);
+      expect(screen.queryByTestId('fm-remote-summary')).toBeNull();
+    });
+
+    it('notes an outside change it kept the user\'s value over', () => {
+      render(<FieldWidget spec={spec} value="mine" onChange={noop} externalConflicts={{ summary: 'wiki-agent' }} />);
+      expect(screen.getByTestId('fm-conflict-summary')).toHaveTextContent('kept yours; wiki-agent also changed this');
+    });
+  });
 });

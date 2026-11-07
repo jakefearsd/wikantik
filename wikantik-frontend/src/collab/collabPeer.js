@@ -367,8 +367,15 @@ export function createCollabPeerCore({
       pushFailures = 0;
       pullFailures = 0;
       setStatus('reconnecting');
-      pullLoop();
-      schedulePush(0);
+      // a signed-out eviction ended the participant on the server: rejoin (same clientID, so the edits are adoptable) first
+      const signedOut = evictedReason === 'signed-out';
+      evictedReason = null;
+      const go = () => {
+        if (destroyed || stopped) return;
+        pullLoop();
+        schedulePush(0);
+      };
+      if (signedOut) rejoin().then(go); else go();
     },
     destroy() {
       destroyed = true;

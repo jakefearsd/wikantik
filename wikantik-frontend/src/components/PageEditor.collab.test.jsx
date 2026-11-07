@@ -22,12 +22,19 @@ vi.mock('../api/client', () => ({
     listAttachments: vi.fn(() => Promise.resolve({ attachments: [] })),
     listPages: vi.fn(() => Promise.resolve({ pages: [] })),
     scanMentions: vi.fn(() => Promise.resolve({ mentions: [] })),
-    getFrontmatterSchema: vi.fn(() => Promise.resolve({ fields: [] })),
+    getFrontmatterSchema: vi.fn(() => Promise.resolve({
+      fields: [
+        { key: 'type', label: 'Type', widget: 'TEXT' },
+        { key: 'summary', label: 'Summary', widget: 'TEXT' },
+        { key: 'tags', label: 'Tags', widget: 'TAGS' },
+      ],
+    })),
     listTags: vi.fn(() => Promise.resolve({ tags: [] })),
     validateFrontmatter: vi.fn(() => Promise.resolve({ metadata: {}, violations: [] })),
     search: vi.fn(() => Promise.resolve({ results: [] })),
     getPageKnowledge: vi.fn(() => Promise.resolve({ entities: [], edges: [] })),
     draftBlocks: vi.fn(),
+    getDiff: vi.fn(),
   },
 }));
 vi.mock('../hooks/usePagePreview', () => ({ loadPreview: vi.fn(), evictPreview: vi.fn() }));
@@ -62,7 +69,7 @@ function currentView() {
 
 async function mount({ transport = server.transportFor('ada'), state, collab = true } = {}) {
   api.getCapabilities.mockResolvedValue(collab ? { collab: { enabled: true } } : {});
-  render(
+  const { container } = render(
     <MemoryRouter initialEntries={[{ pathname: '/edit/Existing', state }]}>
       <CapabilitiesProvider>
         <NavigationGuardProvider>
@@ -75,8 +82,42 @@ async function mount({ transport = server.transportFor('ada'), state, collab = t
     </MemoryRouter>,
   );
   await until(() => currentView() !== null);
-  return { view: currentView(), transport };
+  return { view: currentView(), transport, container };
 }
+
+/** A second editor (another user) in its own router, in its own container. */
+async function mountSecond(user) {
+  const { container } = render(
+    <MemoryRouter initialEntries={[{ pathname: '/edit/Existing' }]}>
+      <CapabilitiesProvider>
+        <NavigationGuardProvider>
+          <Routes>
+            <Route path="/edit/:name" element={<PageEditor collabTransport={server.transportFor(user)} />} />
+          </Routes>
+        </NavigationGuardProvider>
+      </CapabilitiesProvider>
+    </MemoryRouter>,
+  );
+  await until(() => container.querySelector('.cm-editor') !== null);
+  return container;
+}
+
+/** Another participant driven straight over the wire. */
+async function joinAs(user) {
+  const t = server.transportFor(user);
+  const j = await t.join({});
+  return { t, j };
+}
+async function pushMeta({ t, j }, metaOps) {
+  await t.push({ sessionId: j.sessionId, participantId: j.participantId, version: server.version, updates: [], metaOps });
+}
+/** Every meta op the editors pushed (and the server accepted). */
+function pushedMetaOps() {
+  return server.calls.filter((c) => c.method === 'POST' && c.path === '/updates' && c.status === 200)
+    .flatMap((c) => c.body.metaOps || []);
+}
+const tagsIn = (root) => [...root.querySelectorAll('[data-field="tags"] .chip span')].map((el) => el.textContent);
+const wait = (ms) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
 
 /** Every text update the editors pushed, as ChangeSets with the length of the document they applied to. */
 function pushedChanges() {
@@ -106,6 +147,7 @@ beforeEach(() => {
     uploadAttachment: vi.fn(), renameAttachment, deleteAttachment: vi.fn(),
   }));
   api.getPage.mockResolvedValue({ content: 'saved page text', metadata: {}, version: 7, markupSyntax: 'markdown' });
+  api.validateFrontmatter.mockImplementation(() => Promise.resolve({ metadata: {}, violations: [] }));
   server = createFakeCollabServer({ initialText: 'Hello world', pollTimeoutMs: 2000 });
 });
 
@@ -210,20 +252,33 @@ describe('PageEditor collaborative mode', () => {
     expect(screen.queryByTestId('editor-save')).toBeNull();
   });
 
-  it('422IsRenderedAsToday: a refused publish shows the frontmatter violations, then falls back to single-author to fix them', async () => {
+  it('a422KeepsCollabModeAndMapsViolations: a refused publish shows the violations on their fields and stays together', async () => {
     server.config.publishInvalid = true;
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
     fireEvent.click(screen.getByTestId('editor-save'));
-    // exactly as a refused save: the violation lands in the frontmatter summary, the toast names it, no navigation
+    // exactly as a refused save: the violation lands in the frontmatter summary and on its field, the toast names it
     await until(() => toast.error.mock.calls.length > 0);
     expect(toast.error).toHaveBeenCalledWith('Fix the highlighted frontmatter fields');
     expect(document.querySelector('.fm-summary')).toHaveTextContent('1 error');
+    expect(document.querySelector('[data-field="tags"]')).toHaveTextContent('tags must be a list');
+    await wait(600);
     expect(screen.queryByTestId('wiki-view')).toBeNull();
-    // the frontmatter cannot be fixed while editing together: the editor falls back to single-author with a notice
-    await screen.findByTestId('collab-frontmatter-blocked');
-    await until(() => screen.getByTestId('editor-save').textContent === 'Save');
-    expect(server.liveParticipantIds()).toEqual([]);
+    // still editing together: no single-author fallback, the participant stays
+    expect(screen.queryByTestId('collab-frontmatter-blocked')).toBeNull();
+    expect(screen.getByTestId('editor-save')).toHaveTextContent('Publish');
+    expect(screen.getByTestId('collab-status')).toHaveTextContent(/live/i);
+    expect(server.liveParticipantIds()).toHaveLength(1);
+    expect(currentView()).toBe(view);
+    // fixing the field clears its refused-publish violation, so Publish is available again
+    expect(screen.getByTestId('editor-save')).toBeDisabled();
+    server.config.publishInvalid = false;
+    const tags = screen.getByLabelText('Tags');
+    fireEvent.change(tags, { target: { value: 'fixed' } });
+    fireEvent.keyDown(tags, { key: 'Enter' });
+    await until(() => !screen.getByTestId('editor-save').disabled);
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByTestId('wiki-view');
   });
 
   it('recoveryPanelShowsUnsyncedTextAndRestartRemounts', async () => {
@@ -412,9 +467,11 @@ describe('PageEditor collaborative mode', () => {
     let done;
     act(() => { done = getCommand('copy-block-link').run(); });
     await until(() => api.draftBlocks.mock.calls.length === 1);
-    server.config.publishInvalid = true;
-    fireEvent.click(screen.getByTestId('editor-save'));
-    await screen.findByTestId('collab-frontmatter-blocked');
+    // the participant is gone and the feature is switched off: the rejoin is refused and the editor falls back
+    server.config.disabled = true;
+    server.expireParticipant(server.liveParticipantIds()[0]);
+    placeCaret(view, 3); // a presence push meets the expired participant
+    await until(() => screen.getByTestId('editor-save').textContent === 'Save');
     await until(() => currentView() !== null && currentView() !== view);
     const fresh = currentView();
     await act(async () => {
@@ -426,16 +483,24 @@ describe('PageEditor collaborative mode', () => {
     expect(toast.success).not.toHaveBeenCalledWith('Block link copied');
   });
 
-  it('frontmatter with blocking errors never edits together: single-author with a notice, the session is left', async () => {
-    api.validateFrontmatter.mockResolvedValue({ metadata: {}, violations: [{ field: 'type', severity: 'ERROR', code: 'x', message: 'bad type' }] });
+  it('aBlockingFrontmatterErrorIsFixableInCollabMode: the error only disables Publish; fixing the field enables it', async () => {
+    api.validateFrontmatter.mockImplementation(({ frontmatter } = {}) => Promise.resolve(/bogus/.test(frontmatter || '')
+      ? { metadata: {}, violations: [{ field: 'type', severity: 'ERROR', code: 'type.bad', message: 'bad type' }] }
+      : { metadata: {}, violations: [] }));
     server = createFakeCollabServer({ initialText: 'Hello world', initialMeta: { type: 'bogus' }, pollTimeoutMs: 2000 });
-    await mount();
-    expect(await screen.findByTestId('collab-frontmatter-blocked')).toHaveTextContent(/reload/i);
-    await until(() => screen.getByTestId('editor-save').textContent === 'Save');
-    expect(screen.queryByTestId('collab-status')).toBeNull();
-    await until(() => server.liveParticipantIds().length === 0);
-    const view = currentView();
-    expect(view.state.readOnly).toBe(false);
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    await until(() => screen.getByTestId('editor-save').disabled);
+    expect(screen.getByTestId('editor-save')).toHaveTextContent('Publish');
+    expect(screen.queryByTestId('collab-frontmatter-blocked')).toBeNull();
+    expect(server.liveParticipantIds()).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'note' } });
+    await until(() => server.metadata.type === 'note');
+    await until(() => !screen.getByTestId('editor-save').disabled);
+    expect(currentView()).toBe(view);
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByTestId('wiki-view');
+    expect(server.calls.find((c) => c.path === '/publish').status).toBe(200);
   });
 
   it('Discard asks first, naming the editors, then discards the shared draft', async () => {
@@ -566,5 +631,249 @@ describe('PageEditor collaborative mode', () => {
     expect(draftHook.clearDraft).toHaveBeenCalled();
     expect(screen.queryByTestId('collab-offline-draft')).toBeNull();
     expect(docOf(view)).toBe('Hello world');
+  });
+  it('frontmatterIsEditableInCollabMode: a tag added in the form reaches the server as an add, and a second editor shows it', async () => {
+    const { view, container: ada } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    expect(screen.queryByTestId('collab-frontmatter-locked')).toBeNull();
+    const bob = await mountSecond('bob');
+    const input = within(ada).getByLabelText('Tags');
+    fireEvent.change(input, { target: { value: 'x' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(tagsIn(ada)).toEqual(['x']);
+    await until(() => pushedMetaOps().some((op) => op.field === 'tags' && op.add === 'x'));
+    expect(pushedMetaOps().filter((op) => op.field === 'tags')).toEqual([{ field: 'tags', add: 'x' }]);
+    expect(server.metadata.tags).toEqual(['x']);
+    await until(() => tagsIn(bob).includes('x'));
+  });
+
+  it('aRemoteOpOnMyFocusedFieldShowsTheIndicatorAndKeepsMyInput, then applies it on blur when I changed nothing', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello world', initialMeta: { summary: 'Original' }, pollTimeoutMs: 2000 });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    await until(() => screen.getByLabelText('Summary').value === 'Original');
+    fireEvent.focus(screen.getByLabelText('Summary'));
+    const bob = await joinAs('bob');
+    await pushMeta(bob, [{ field: 'summary', value: 'Bobs' }]);
+    await until(() => screen.queryByTestId('fm-remote-summary') !== null);
+    expect(screen.getByTestId('fm-remote-summary')).toHaveTextContent('changed by bob');
+    expect(screen.getByLabelText('Summary')).toHaveValue('Original');
+    fireEvent.blur(screen.getByLabelText('Summary'), { relatedTarget: document.body });
+    await until(() => screen.getByLabelText('Summary').value === 'Bobs');
+    expect(screen.queryByTestId('fm-remote-summary')).toBeNull();
+    await wait(600);
+    expect(server.metadata.summary).toBe('Bobs');
+  });
+
+  it('onBlurMyValueIsSentLastWriterWins: a value I typed while focused wins over the remote one on blur', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello world', initialMeta: { summary: 'Original' }, pollTimeoutMs: 2000 });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    fireEvent.focus(screen.getByLabelText('Summary'));
+    fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Mine' } });
+    await until(() => server.metadata.summary === 'Mine');
+    const bob = await joinAs('bob');
+    await pushMeta(bob, [{ field: 'summary', value: 'Bobs' }]);
+    await until(() => screen.queryByTestId('fm-remote-summary') !== null);
+    expect(screen.getByLabelText('Summary')).toHaveValue('Mine');
+    expect(server.metadata.summary).toBe('Bobs');
+    fireEvent.blur(screen.getByLabelText('Summary'), { relatedTarget: document.body });
+    await until(() => server.metadata.summary === 'Mine');
+    expect(screen.getByLabelText('Summary')).toHaveValue('Mine');
+    expect(screen.queryByTestId('fm-remote-summary')).toBeNull();
+  });
+
+  it('rawYamlEditsBecomeFieldOps: a Raw YAML edit is sent as field ops, a set field as an add', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello world', initialMeta: { tags: ['a'], status: 'draft' }, pollTimeoutMs: 2000 });
+    api.validateFrontmatter.mockImplementation(({ frontmatter } = {}) => Promise.resolve(/status: active/.test(frontmatter || '')
+      ? { metadata: { tags: ['a', 'b'], status: 'active' }, violations: [] }
+      : { metadata: {}, violations: [] }));
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    fireEvent.click(screen.getByRole('tab', { name: 'Raw YAML' }));
+    const raw = screen.getByLabelText('Raw frontmatter YAML');
+    fireEvent.change(raw, { target: { value: 'tags: [a, b]\nstatus: active' } });
+    fireEvent.blur(raw);
+    await until(() => server.metadata.status === 'active');
+    expect(server.metadata.tags).toEqual(['a', 'b']);
+    const ops = pushedMetaOps();
+    expect(ops).toEqual(expect.arrayContaining([{ field: 'tags', add: 'b' }, { field: 'status', value: 'active' }]));
+    expect(ops.some((op) => op.field === 'tags' && 'value' in op)).toBe(false);
+  });
+
+  it('externalChangeShowsAToastWithViewDiff: the diff of the outside save opens in a dialog', async () => {
+    api.getDiff.mockResolvedValue({ diffHtml: '<p class="diff-probe">changed lines</p>' });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.externalChange({ source: 'wiki-agent', text: 'Hello brave world' }); });
+    await until(() => docOf(view) === 'Hello brave world');
+    await until(() => toast.info.mock.calls.some(([m]) => m === 'Updated by wiki-agent'));
+    const notice = screen.getByTestId('collab-external-change');
+    expect(notice).toHaveTextContent('Updated by wiki-agent');
+    fireEvent.click(within(notice).getByRole('button', { name: 'View diff' }));
+    const dialog = await screen.findByRole('dialog');
+    await until(() => dialog.querySelector('.diff-probe') !== null);
+    expect(api.getDiff).toHaveBeenCalledWith('Existing', 7, 8);
+  });
+
+  it('conflictFieldsAreFlaggedOnTheForm: a field an outside save also changed says mine was kept', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello world', initialMeta: { summary: 'Original' }, pollTimeoutMs: 2000 });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Mine' } });
+    await until(() => server.metadata.summary === 'Mine');
+    act(() => { server.externalChange({ source: 'wiki-agent', conflictFields: ['summary'] }); });
+    await until(() => screen.queryByTestId('fm-conflict-summary') !== null);
+    expect(screen.getByTestId('fm-conflict-summary')).toHaveTextContent('kept yours; wiki-agent also changed this');
+    expect(screen.getByLabelText('Summary')).toHaveValue('Mine');
+  });
+
+  it('pageRenamedUpdatesTheUrlWithoutReloading: the editor follows the new name on the same session and view', async () => {
+    const transport = server.transportFor('ada');
+    const join = vi.spyOn(transport, 'join');
+    const { view } = await mount({ transport });
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.renamePage('Renamed'); });
+    await until(() => screen.getByTestId('page-editor').dataset.pageName === 'Renamed');
+    expect(screen.getByTestId('editor-heading')).toHaveTextContent('Edit: Renamed');
+    await wait(300);
+    expect(currentView()).toBe(view);
+    expect(join).toHaveBeenCalledTimes(1);
+    expect(api.getPage).not.toHaveBeenCalledWith('Renamed', expect.anything());
+    expect(api.getPage.mock.calls.filter(([n]) => n === 'Renamed')).toEqual([]);
+    expect(server.calls.some((c) => c.path === '/leave')).toBe(false);
+    placeCaret(view, 11);
+    typeAtCaret(view, '!');
+    await until(() => server.doc === 'Hello world!');
+  });
+
+  it('pageDeletedShowsTheFrozenBannerAndRecreate: Publish becomes Recreate page and recreates it', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.freeze(); });
+    const banner = await screen.findByTestId('collab-frozen');
+    expect(banner).toHaveTextContent('This page was deleted — copy your text or recreate the page');
+    await until(() => currentView().state.readOnly);
+    const save = screen.getByTestId('editor-save');
+    expect(save).toHaveTextContent('Recreate page');
+    expect(save).not.toBeDisabled();
+    fireEvent.click(save);
+    await screen.findByTestId('wiki-view');
+    expect(server.calls.find((c) => c.path === '/publish').status).toBe(200);
+  });
+
+  it('recreateWithoutCreatePagesExplainsWhy', async () => {
+    server.setCanCreate(false);
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.freeze(); });
+    await screen.findByTestId('collab-frozen');
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await until(() => screen.queryByTestId('editor-error') !== null);
+    expect(screen.getByTestId('editor-error')).toHaveTextContent(/permission to create pages/);
+    expect(server.calls.find((c) => c.path === '/publish').reason).toBe('no-create');
+    expect(screen.queryByTestId('wiki-view')).toBeNull();
+  });
+
+  it('evictedForLostEditGoesReadOnlyWithAMessage', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.evict(server.liveParticipantIds()[0], 'lost-edit'); });
+    const banner = await screen.findByTestId('collab-evicted');
+    expect(banner).toHaveTextContent(/no longer have permission/i);
+    expect(banner).toHaveTextContent(/discarded/);
+    expect(currentView().state.readOnly).toBe(true);
+    expect(screen.queryByTestId('collab-forbidden')).toBeNull();
+    expect(screen.queryByTestId('editor-save')).toBeNull();
+  });
+
+  it('signedOutKeepsEditsAndPromptsLogin: after signing in again the kept text reaches the shared draft', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.evict(server.liveParticipantIds()[0], 'signed-out'); });
+    await screen.findByTestId('collab-auth-required');
+    placeCaret(view, 11);
+    typeAtCaret(view, ' kept');
+    await wait(300);
+    expect(docOf(view)).toBe('Hello world kept');
+    expect(server.doc).toBe('Hello world');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    fireEvent.change(await screen.findByTestId('login-username'), { target: { value: 'ada' } });
+    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByTestId('login-submit'));
+    await until(() => server.doc === 'Hello world kept');
+    await until(() => screen.queryByTestId('collab-auth-required') === null);
+  });
+
+  it('restoreIsRefusedWhenAPresenceEntryArrivesBeforeTheClick: the alone check reads the live presence map', async () => {
+    draftHook.draft = { content: 'Hello offline world', savedAt: Date.now() - 60000 };
+    const base = server.transportFor('ada');
+    let armed = false;
+    let clickNow = false;
+    let clicked = false;
+    const transport = {
+      ...base,
+      pull: (q) => {
+        if (clickNow) {
+          // the presence map has reached the peer, the editor has not re-rendered yet: click the still-shown Restore
+          clickNow = false;
+          const btn = screen.queryByRole('button', { name: 'Restore into the shared draft' });
+          if (btn) { fireEvent.click(btn); clicked = true; }
+        }
+        return base.pull(q).then((res) => {
+          if (armed && Object.keys(res.presence || {}).length) { armed = false; clickNow = true; }
+          return res;
+        });
+      },
+    };
+    const { view } = await mount({ transport });
+    await until(() => docOf(view) === 'Hello world');
+    expect(within(screen.getByTestId('collab-offline-draft')).getByRole('button', { name: 'Restore into the shared draft' })).toBeInTheDocument();
+    armed = true;
+    await joinAs('bob');
+    await until(() => clicked);
+    await wait(300);
+    expect(docOf(view)).toBe('Hello world');
+    expect(server.doc).toBe('Hello world');
+    expect(draftHook.clearDraft).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith(expect.stringMatching(/joined/i));
+    expect(within(screen.getByTestId('collab-offline-draft')).queryByRole('button', { name: 'Restore into the shared draft' })).toBeNull();
+  });
+
+  it('thePresenceBarReplacesTheEditingCount', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    await joinAs('bob');
+    await until(() => screen.queryByRole('status', { name: 'Collaborators' })?.textContent.includes('2 editing'));
+    const bar = screen.getByRole('status', { name: 'Collaborators' });
+    expect(bar).toHaveTextContent('ada');
+    expect(bar).toHaveTextContent('bob');
+    expect(screen.getByTestId('collab-status').textContent).not.toMatch(/·/);
+  });
+
+  it('theGuardCoversUnsentMetaEdits: leaving with a field edit not yet acknowledged asks first', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Mine' } });
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    expect(await screen.findByTestId('guard-stay')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('guard-stay'));
+    await until(() => server.metadata.summary === 'Mine');
+    await wait(100);
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    await screen.findByTestId('wiki-view');
+  });
+
+  it('Publish sends a field edit still inside its debounce window before publishing', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Mine' } });
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByTestId('wiki-view');
+    const publish = server.calls.findIndex((c) => c.path === '/publish');
+    const metaPush = server.calls.findIndex((c) => c.path === '/updates' && c.method === 'POST' && (c.body.metaOps || []).some((op) => op.field === 'summary'));
+    expect(metaPush).toBeGreaterThan(-1);
+    expect(metaPush).toBeLessThan(publish);
+    expect(server.metadata.summary).toBe('Mine');
   });
 });

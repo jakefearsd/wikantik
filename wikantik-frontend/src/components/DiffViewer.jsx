@@ -4,6 +4,24 @@ import { api } from '../api/client';
 import Spinner from './ui/Spinner';
 import '../styles/article.css';
 
+/** The server's rendered diff (`/api/diff`'s `diffHtml`), styled as on the compare page. Shared with the editor's outside-change dialog. */
+export function DiffHtml({ html }) {
+  return (
+    <article
+      className="article-prose"
+      data-testid="diff-html"
+      style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-lg)',
+        overflowX: 'auto',
+      }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
 export default function DiffViewer() {
   const { name } = useParams();
   const [versions, setVersions] = useState(null);
@@ -188,19 +206,7 @@ export default function DiffViewer() {
             </div>
           )}
 
-          {diffHtml && !diffLoading && fromVer !== toVer && (
-            <article
-              className="article-prose"
-              style={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-lg)',
-                overflowX: 'auto',
-              }}
-              dangerouslySetInnerHTML={{ __html: diffHtml }}
-            />
-          )}
+          {diffHtml && !diffLoading && fromVer !== toVer && <DiffHtml html={diffHtml} />}
         </>
       )}
     </div>

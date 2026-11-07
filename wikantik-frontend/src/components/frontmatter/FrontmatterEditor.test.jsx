@@ -258,4 +258,53 @@ describe('FrontmatterEditor', () => {
     );
     expect(container.querySelector('.fm-meta-strip')).toBeFalsy();
   });
+  describe('co-editing', () => {
+    it('routes field widget edits to onFieldChange instead of a whole object', () => {
+      const onChange = vi.fn();
+      const onFieldChange = vi.fn();
+      render(<FrontmatterEditor schema={SCHEMA} metadata={{ type: 'article', custom: 1 }} onChange={onChange} onFieldChange={onFieldChange} />);
+      fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'typed' } });
+      expect(onFieldChange).toHaveBeenCalledWith('summary', 'typed');
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('hands a Raw YAML edit to onReplace with the metadata the text was made from', async () => {
+      const onChange = vi.fn();
+      const onReplace = vi.fn();
+      const validateRaw = vi.fn().mockResolvedValue({ metadata: { type: 'hub' }, violations: [] });
+      const { rerender } = render(
+        <FrontmatterEditor schema={SCHEMA} metadata={{ type: 'article' }} onChange={onChange} onReplace={onReplace} validateRaw={validateRaw} />,
+      );
+      fireEvent.click(screen.getByRole('tab', { name: 'Raw YAML' }));
+      // a remote change lands while the text is open: the diff base stays what the text was made from
+      rerender(<FrontmatterEditor schema={SCHEMA} metadata={{ type: 'article', status: 'active' }} onChange={onChange} onReplace={onReplace} validateRaw={validateRaw} />);
+      const textarea = screen.getByLabelText('Raw frontmatter YAML');
+      fireEvent.change(textarea, { target: { value: 'type: hub' } });
+      fireEvent.blur(textarea);
+      await waitFor(() => expect(onReplace).toHaveBeenCalledWith({ type: 'article' }, { type: 'hub' }));
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('hands an Advanced key removal to onReplace', () => {
+      const onReplace = vi.fn();
+      render(<FrontmatterEditor schema={SCHEMA} metadata={{ type: 'article', custom: 'v' }} onChange={() => {}} onReplace={onReplace} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove custom' }));
+      expect(onReplace).toHaveBeenCalledWith({ type: 'article', custom: 'v' }, { type: 'article' });
+    });
+
+    it('passes focus, blur, remote-change and conflict markers down to the fields', () => {
+      const onFieldFocus = vi.fn();
+      const onFieldBlur = vi.fn();
+      render(<FrontmatterEditor schema={SCHEMA} metadata={{ summary: 'mine' }} onChange={() => {}}
+        onFieldFocus={onFieldFocus} onFieldBlur={onFieldBlur}
+        remoteChanged={{ summary: 'Raj' }} externalConflicts={{ type: 'wiki-agent' }} />);
+      const input = screen.getByLabelText('Summary');
+      fireEvent.focus(input);
+      fireEvent.blur(input, { relatedTarget: document.body });
+      expect(onFieldFocus).toHaveBeenCalledWith('summary');
+      expect(onFieldBlur).toHaveBeenCalledWith('summary');
+      expect(screen.getByTestId('fm-remote-summary')).toHaveTextContent('changed by Raj');
+      expect(screen.getByTestId('fm-conflict-type')).toHaveTextContent('wiki-agent');
+    });
+  });
 });

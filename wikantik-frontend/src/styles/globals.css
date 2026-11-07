@@ -2911,3 +2911,12 @@ h3:focus-within .heading-anchor {
 .cm-remote-caret:hover .cm-remote-caret-label, .cm-remote-caret.cm-remote-approx .cm-remote-caret-label { opacity: 1; }
 .cm-remote-approx { opacity: 0.6; border-left-style: dotted; }
 .cm-external-change { background-color: rgba(250, 204, 21, 0.35); transition: background-color 1s; }
+/* the presence bar sits inside the toolbar's status chip: no second border, and it may wrap on narrow screens */
+.collab-status:has(.collab-presence) { white-space: normal; }
+/* Co-edited frontmatter (A14): who changed my focused field, and an outside change my value was kept over */
+.fm-remote-changed, .fm-external-conflict {
+  display: inline-block; margin-top: 2px; font-size: 0.75rem; color: var(--warning);
+}
+.collab-external-change { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+.collab-diff-modal { width: min(56rem, calc(100vw - 32px)); max-height: 85vh; overflow: auto; }
+.collab-diff-title { font-size: 1.1rem; margin: 0 0 var(--space-md); }

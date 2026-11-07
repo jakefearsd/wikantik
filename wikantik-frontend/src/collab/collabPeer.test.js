@@ -501,6 +501,23 @@ describe('collabPeer metadata', () => {
     expect(gone.a.statuses.at(-1)).toBe('forbidden');
   });
 
+  it('after a signed-out eviction, resume() rejoins with the prior clientID and sends every kept edit (A13)', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const a = await makeEditor(server, 'ada');
+    server.evict(a.joined.participantId, 'signed-out');
+    a.type('Q', 3);
+    a.core.queueMetaEdits([{ field: 'tags', add: 'x' }]);
+    await advance(1000);
+    expect(a.statuses.at(-1)).toBe('auth-required');
+    a.core.resume();
+    await settle(server, [a]);
+    expect(server.doc).toBe('abcQ');
+    expect(server.metadata.tags).toEqual(['x']);
+    expect(a.core.getSession().participantId).not.toBe(a.joined.participantId);
+    expect(a.core.getEvictedReason()).toBeNull();
+    a.core.destroy();
+  });
+
   it('onMetaFailed hands back the inflight meta when a resync or an eviction abandons it, not on signed-out', async () => {
     const edits = [{ field: 'tags', add: 'x' }];
     const server = createFakeCollabServer({ initialText: 'abc' });

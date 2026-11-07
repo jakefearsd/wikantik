@@ -77,6 +77,9 @@ import { EditorView } from '@codemirror/view';
 import { sendableUpdates } from '@codemirror/collab';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { useCollabSession } from '../collab/useCollabSession';
+import PresenceBar from '../collab/PresenceBar';
+import Modal from './ui/Modal';
+import { DiffHtml } from './DiffViewer';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -99,8 +102,8 @@ const BLOCK_QUERY_LIMIT = 20;
 
 /** Join outcomes after which the page is edited single-author (feature off, derived page, session full, join failed). */
 const COLLAB_FALLBACK = new Set(['disabled', 'unavailable', 'full', 'error']);
-/** Statuses in which a joined collab editor is mounted. */
-const COLLAB_EDITING = new Set(['live', 'reconnecting', 'resync', 'frozen', 'auth-required']);
+/** Statuses in which a joined collab editor is mounted ('forbidden' with a joined editor: evicted, read-only). */
+const COLLAB_EDITING = new Set(['live', 'reconnecting', 'resync', 'frozen', 'auth-required', 'forbidden']);
 const COLLAB_STATUS_LABEL = {
   joining: 'Joining…', live: 'Live', reconnecting: 'Reconnecting…', resync: 'Out of sync', frozen: 'Read-only',
   'auth-required': 'Signed out', forbidden: 'Read-only',
@@ -143,6 +146,9 @@ function publishFailureMessage(res) {
   if (res.reason === 'not-live') return 'Not connected to the shared draft — your edits are kept; publish again once it reconnects.';
   if (res.reason === 'publish-in-progress') return 'Someone else is publishing this page — try again in a moment.';
   if (res.reason === 'retries-exhausted') return 'The page kept changing while publishing — try again.';
+  if (res.reason === 'no-create') {
+    return 'This page was deleted, and recreating it needs permission to create pages, which you don\u2019t have. Copy your text to keep it.';
+  }
   return res.message || 'Publish failed';
 }
 
@@ -251,23 +257,31 @@ export default function PageEditor({ collabTransport } = {}) {
   // What a NEW session starts from (A11): a new page's template, a restored version. Null = the page as saved.
   const [collabSeed, setCollabSeed] = useState(null);
   const [loadedFor, setLoadedFor] = useState(null);
-  // Frontmatter with blocking errors cannot be fixed while editing together (no shared meta ops yet), so such a page is
-  // edited single-author; latched per page so the editor never flips back and forth while the user fixes it.
-  const frontmatterBlocked = displayViolations.some((v) => v.severity === 'ERROR');
-  const [collabBlockedFor, setCollabBlockedFor] = useState(null);
-  if (collabWanted && frontmatterBlocked && collabBlockedFor !== name) setCollabBlockedFor(name);
-  const collabBlocked = collabBlockedFor === name;
+  // A page renamed under the session (`page-renamed`): the editor follows the new name on the same session, without
+  // reloading the page (the load effect below skips it) and without leaving the session.
+  const [collabKeptFor, setCollabKeptFor] = useState(null);
+  // Frontmatter is co-edited (A14): blocking errors only disable Publish, and a refused publish stays in collab mode.
   const collab = useCollabSession(name, {
     transport: collabTransport,
     initialText: collabSeed?.name === name ? collabSeed.initialText : undefined,
     initialMeta: collabSeed?.name === name ? collabSeed.initialMeta : undefined,
-    enabled: collabWanted && !collabBlocked && loadedFor === name,
+    enabled: collabWanted && (loadedFor === name || collabKeptFor === name),
   });
-  const collabMode = collabWanted && !collabBlocked && !COLLAB_FALLBACK.has(collab.status);
+  const collabMode = collabWanted && !COLLAB_FALLBACK.has(collab.status);
   const collabEditing = collabMode && !!collab.extensions && COLLAB_EDITING.has(collab.status);
-  const collabForbidden = collabMode && collab.status === 'forbidden';
-  const collabReadOnly = collabEditing && (collab.status === 'frozen' || collab.status === 'resync');
-  const editorCount = Math.max(1, collab.participants?.length || 0);
+  // a join refused for lack of edit permission (no editor joined); an eviction keeps the joined editor, read-only
+  const collabForbidden = collabMode && collab.status === 'forbidden' && !collab.extensions;
+  const collabEvicted = collabEditing && collab.status === 'forbidden';
+  const collabFrozen = collabEditing && collab.status === 'frozen';
+  const collabReadOnly = collabEditing && (collabFrozen || collab.status === 'resync' || collabEvicted);
+  // me plus everyone in the live presence map
+  const editorCount = 1 + Object.keys(collab.presence ?? {}).length;
+  const collabMeta = collabEditing ? collab.meta : null;
+  const renamedTo = collabMode ? collab.renamedTo : null;
+  if (renamedTo && renamedTo !== name && collabKeptFor !== renamedTo) setCollabKeptFor(renamedTo);
+  useEffect(() => {
+    if (renamedTo && renamedTo !== name) navigate(`/edit/${renamedTo}`, { replace: true, state: { collabKeep: true } });
+  }, [renamedTo, name, navigate]);
   // Unsynced local edits (sendableUpdates non-empty): the only collab work that leaving would lose.
   const [unsynced, setUnsynced] = useState(false);
   const unsyncedListener = useMemo(() => EditorView.updateListener.of((u) => {
@@ -285,7 +299,6 @@ export default function PageEditor({ collabTransport } = {}) {
     setJoinedExtensions(collab.extensions);
     const joinedDoc = String(collab.docAtJoin ?? '');
     setBody(joinedDoc);
-    setMetadata(collab.metadata ?? {});
     setUnsynced(false);
     // A restore into a session that already existed (others are editing): offer it instead of clobbering their work.
     const seedText = collabSeed?.name === name && collabSeed.restoreFrom ? String(collabSeed.initialText ?? '').replace(/\r\n?/g, '\n') : null;
@@ -298,8 +311,29 @@ export default function PageEditor({ collabTransport } = {}) {
       setOfflineDraftOffer(offline !== joinedDoc ? { text: offline, savedAt: draft.savedAt } : null);
     }
   }
+  // In collab mode the form shows the co-edited metadata; the metadata state follows it (validation, preview, a fallback).
+  const metaView = collabMeta ? collabMeta.view() : null;
+  if (metaView && metaView !== metadata) setMetadata(metaView);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  // An outside save merged into the session (§7.4): a notice with the diff of that page version, and a toast.
+  const externalChange = collabMode ? collab.externalChange : null;
+  const [externalDismissed, setExternalDismissed] = useState(null);
+  const [diffFor, setDiffFor] = useState(null); // { pageVersion, html, error }
+  useEffect(() => {
+    if (externalChange) toast.info(`Updated by ${externalChange.source || 'an outside change'}`);
+  }, [externalChange, toast]);
+  const showExternal = externalChange && externalChange !== externalDismissed ? externalChange : null;
+  const openExternalDiff = (ev) => {
+    const to = ev.pageVersion;
+    setDiffFor({ pageVersion: to, html: null, error: null });
+    api.getDiff(name, to - 1, to)
+      .then((d) => setDiffFor((cur) => (cur?.pageVersion === to ? { ...cur, html: d?.diffHtml || d?.diff || '' } : cur)))
+      .catch((err) => {
+        console.warn('[collab] could not load the diff of the outside change', to, err?.message || err);
+        setDiffFor((cur) => (cur?.pageVersion === to ? { ...cur, error: err?.message || 'Could not load the diff' } : cur));
+      });
+  };
   // Programmatic writes (attachment rename, upload placeholders, drops) cannot reach a collab editor that is joining or
   // stopped (resync, frozen): they are queued and applied once a writable editor is mounted, never dropped silently.
   const collabWriteBlocked = collabMode && !(collabEditing && !collabReadOnly);
@@ -323,7 +357,7 @@ export default function PageEditor({ collabTransport } = {}) {
   }, []);
 
   const guardActive = collabMode
-    ? (collabEditing && unsynced) || !!collab.resync?.unsyncedText
+    ? (collabEditing && (unsynced || !!collabMeta?.pending)) || !!collab.resync?.unsyncedText
     : isDirty || (collabWanted && !!collab.resync?.unsyncedText);
   useNavigationGuard(guardActive);
   const guardedNavigate = useGuardedNavigate();
@@ -636,8 +670,12 @@ export default function PageEditor({ collabTransport } = {}) {
   }
   const pathname = location.pathname;
 
+  // (only for the rename this editor followed: history state outlives a reload, the component state does not)
+  const collabKeep = location.state?.collabKeep === true && collabKeptFor === name;
   useEffect(() => {
     if (capabilitiesLoading) return;
+    // the page was renamed under the live session: same editor, same session, nothing to reload
+    if (collabKeep) return;
     api.getPage(name).then(async (page) => {
       const meta = page.metadata || {};
       const pageBody = page.content || '';
@@ -690,7 +728,7 @@ export default function PageEditor({ collabTransport } = {}) {
       setLoaded(true);
       setLoadedFor(name);
     });
-  }, [name, draft, restoreVersion, pathname, navigate, location.state?.initialContent, location.state?.initialMetadata, capabilitiesLoading, collabWanted]);
+  }, [name, draft, restoreVersion, pathname, navigate, location.state?.initialContent, location.state?.initialMetadata, capabilitiesLoading, collabWanted, collabKeep]);
 
   // Debounced autosave — fires 800 ms after the user stops typing.
   useEffect(() => {
@@ -1210,7 +1248,23 @@ export default function PageEditor({ collabTransport } = {}) {
     setError(res.reason === 'not-live' ? 'Not connected to the shared draft — try again once it reconnects.' : (res.message || 'Discard failed'));
   };
 
+  // A co-edited field: a refused publish's violation on it is the user's to re-check now (live validation takes over).
+  const coEditField = (field, value) => {
+    setViolations((vs) => (vs.some((v) => String(v.field || '').split('.')[0] === field)
+      ? vs.filter((v) => String(v.field || '').split('.')[0] !== field) : vs));
+    collabMeta?.setField(field, value);
+  };
   const copyRecoveryText = () => copyText(collab.resync?.unsyncedText || '');
+  // Ruling P10, at click time: the rendered "alone" may lag a participant whose presence already reached the session.
+  const restoreOfflineDraft = () => {
+    if (Object.keys(collab.presenceNow?.() ?? {}).length > 0) {
+      toast.info('Someone else joined the shared draft — copy what you need from your offline draft instead.');
+      return;
+    }
+    replaceBody(offlineDraftOffer.text);
+    clearDraft();
+    setOfflineDraftOffer(null);
+  };
   const copyText = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -1308,30 +1362,35 @@ export default function PageEditor({ collabTransport } = {}) {
             aria-pressed={railOpen} title="Toggle outline rail">
             Outline
           </button>
-          {collabMode && (
+          {collabMode && (collabEditing ? (
+            <div className="collab-status" data-testid="collab-status" data-status={collab.status}>
+              <PresenceBar self={collab.self} presence={collab.presence} status={collab.status} />
+            </div>
+          ) : (
             <span className="collab-status" data-testid="collab-status" data-status={collab.status} role="status">
               {COLLAB_STATUS_LABEL[collab.status] || collab.status}
-              {collabEditing && collab.status === 'live' ? ` · ${editorCount} editing` : ''}
             </span>
-          )}
+          ))}
           <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
-          {collabEditing && (
+          {collabEditing && !collabEvicted && (
             <button type="button" className="btn btn-ghost" data-testid="collab-discard" disabled={collabReadOnly}
               onClick={() => setConfirmDiscard(true)}>
               Discard draft
             </button>
           )}
-          {!collabForbidden && (
+          {!collabForbidden && !collabEvicted && (
           <button
             className="btn btn-primary"
             data-testid="editor-save"
             onClick={save}
-            disabled={saving || hasBlockingErrors || (collabMode && !(collab.status === 'live' || collab.status === 'reconnecting'))}
+            disabled={saving || hasBlockingErrors || (collabMode && !(collab.status === 'live' || collab.status === 'reconnecting' || collabFrozen))}
             title={hasBlockingErrors ? 'Fix the highlighted errors before saving' : undefined}
           >
-            {collabMode ? (saving ? 'Publishing…' : 'Publish') : (saving ? 'Saving…' : 'Save')}
+            {collabFrozen
+              ? (saving ? 'Recreating…' : 'Recreate page')
+              : collabMode ? (saving ? 'Publishing…' : 'Publish') : (saving ? 'Saving…' : 'Save')}
           </button>
           )}
         </div>
@@ -1394,9 +1453,24 @@ export default function PageEditor({ collabTransport } = {}) {
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setLoginOpen(true)}>Sign in again</button>
         </div>
       )}
-      {collabEditing && collab.status === 'frozen' && (
+      {collabFrozen && (
         <div className="warning-banner" role="alert" data-testid="collab-frozen">
-          This page can no longer be edited here (it was deleted or moved while you were editing). Copy anything you need.
+          This page was deleted — copy your text or recreate the page.
+        </div>
+      )}
+      {collabEvicted && (
+        <div className="warning-banner" role="alert" data-testid="collab-evicted">
+          You no longer have permission to edit this page. Your edits that had not reached the shared draft were discarded,
+          and the editor is now read-only.
+        </div>
+      )}
+      {showExternal && (
+        <div className="info-banner collab-external-change" role="status" data-testid="collab-external-change">
+          <span>Updated by {showExternal.source || 'an outside change'}.</span>
+          {Number.isInteger(showExternal.pageVersion) && showExternal.pageVersion > 1 && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openExternalDiff(showExternal)}>View diff</button>
+          )}
+          <button type="button" className="btn-link" onClick={() => setExternalDismissed(showExternal)}>Dismiss</button>
         </div>
       )}
       {collabForbidden && (
@@ -1407,12 +1481,6 @@ export default function PageEditor({ collabTransport } = {}) {
       {collabWanted && collab.status === 'full' && (
         <div className="info-banner" role="status" data-testid="collab-full">
           Too many people are editing this page together — you are editing on your own, and saving merges your changes into theirs.
-        </div>
-      )}
-      {collabWanted && collabBlocked && (
-        <div className="info-banner" role="status" data-testid="collab-frontmatter-blocked">
-          This page&apos;s frontmatter has errors that can&apos;t be fixed while editing together — you are editing on your
-          own. Fix them and save; editing together resumes when you reload the editor.
         </div>
       )}
       {collabEditing && offlineDraftOffer && (
@@ -1426,7 +1494,7 @@ export default function PageEditor({ collabTransport } = {}) {
                 the shared draft? (Its text only; the frontmatter stays as it is.)
               </span>
               <button type="button" className="draft-btn draft-btn-restore" disabled={collabReadOnly}
-                onClick={() => { replaceBody(offlineDraftOffer.text); clearDraft(); setOfflineDraftOffer(null); }}>
+                onClick={restoreOfflineDraft}>
                 Restore into the shared draft
               </button>
             </>
@@ -1536,16 +1604,18 @@ export default function PageEditor({ collabTransport } = {}) {
           {activeMetaTab === 'frontmatter' && (
             <>
               <ValidationSummary violations={displayViolations} validating={validating} onJump={jumpToField} />
-              {collabMode && (
-                <p className="field-hint" data-testid="collab-frontmatter-locked">
-                  The frontmatter can&apos;t be changed while editing together yet; it is published as shown.
-                </p>
-              )}
-              {/* Shared frontmatter editing (meta ops) is not wired yet, so a local edit would be silently dropped. */}
-              <fieldset disabled={collabMode} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+              {/* Co-edited in collab mode (A14); not while joining (the join's metadata replaces it) or read-only. */}
+              <fieldset disabled={collabMode && (!collabMeta || collabReadOnly)}
+                style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
                 <FrontmatterEditor
                   metadata={metadata}
                   onChange={setMetadata}
+                  onFieldChange={collabMeta ? coEditField : undefined}
+                  onReplace={collabMeta ? collabMeta.change : undefined}
+                  onFieldFocus={collabMeta ? collabMeta.focus : undefined}
+                  onFieldBlur={collabMeta ? collabMeta.blur : undefined}
+                  remoteChanged={collabMeta?.remoteChanged}
+                  externalConflicts={collabMeta?.conflicts}
                   violations={displayViolations}
                   pageSearch={pageSearch}
                   tagSuggestions={tagSuggestions}
@@ -1691,6 +1761,18 @@ export default function PageEditor({ collabTransport } = {}) {
           onCancel={() => setConfirmDiscard(false)}
         />
       )}
+      <Modal isOpen={!!diffFor} onClose={() => setDiffFor(null)} labelledBy="collab-diff-title" testId="collab-diff"
+        className="collab-diff-modal">
+        <h2 id="collab-diff-title" className="collab-diff-title">
+          Outside change: version {diffFor ? diffFor.pageVersion - 1 : ''} → {diffFor?.pageVersion}
+        </h2>
+        {diffFor?.error && <div className="error-banner">{diffFor.error}</div>}
+        {diffFor && !diffFor.error && diffFor.html == null && <p className="field-hint">Loading…</p>}
+        {diffFor?.html != null && <DiffHtml html={diffFor.html} />}
+        <div className="modal-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setDiffFor(null)}>Close</button>
+        </div>
+      </Modal>
       {loginOpen && <LoginForm onClose={() => { setLoginOpen(false); collab.resume(); }} />}
 
       <AttachmentPanel

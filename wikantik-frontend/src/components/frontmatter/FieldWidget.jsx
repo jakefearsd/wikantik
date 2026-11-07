@@ -124,7 +124,15 @@ function PageRefs({ value, onChange, pageSearch }) {
   );
 }
 
-export default function FieldWidget({ spec, value, onChange, violations = [], onApplySuggestion, pageSearch, tagSuggestions = [] }) {
+/**
+ * Co-editing props (all optional): `onFieldFocus(key)` / `onFieldBlur(key)` fire when focus enters or leaves the field
+ * (moves inside it do not count); `remoteChanged` and `externalConflicts` map a field key to the display name of another
+ * editor who changed it while it was focused, or of an outside writer whose change to it was not applied over ours.
+ */
+export default function FieldWidget({
+  spec, value, onChange, violations = [], onApplySuggestion, pageSearch, tagSuggestions = [],
+  onFieldFocus, onFieldBlur, remoteChanged, externalConflicts,
+}) {
   const { key, label, widget, canonicalValues, open } = spec;
 
   let control;
@@ -199,11 +207,29 @@ export default function FieldWidget({ spec, value, onChange, violations = [], on
   const isRunbook = widget === 'RUNBOOK_BLOCK';
   const ownViolations = isRunbook ? violations.filter((v) => v.field === 'runbook') : violations;
 
+  const changedBy = remoteChanged?.[key];
+  const conflictWith = externalConflicts?.[key];
+  const handleFocus = onFieldFocus
+    ? (e) => { if (!e.currentTarget.contains(e.relatedTarget)) onFieldFocus(key); }
+    : undefined;
+  const handleBlur = onFieldBlur
+    ? (e) => { if (!e.currentTarget.contains(e.relatedTarget)) onFieldBlur(key); }
+    : undefined;
+
   return (
-    <div className={`fm-field fm-field-${key}${isWideField(spec) ? ' fm-field--wide' : ''}`} data-field={key}>
+    <div className={`fm-field fm-field-${key}${isWideField(spec) ? ' fm-field--wide' : ''}`} data-field={key}
+      onFocus={handleFocus} onBlur={handleBlur}>
       <label className="fm-label">{SHORT_LABELS[key] || label}</label>
       <div className="fm-control">
         {control}
+        {changedBy && (
+          <span className="fm-remote-changed" role="status" data-testid={`fm-remote-${key}`}>changed by {changedBy}</span>
+        )}
+        {conflictWith && (
+          <span className="fm-external-conflict" role="status" data-testid={`fm-conflict-${key}`}>
+            kept yours; {conflictWith} also changed this
+          </span>
+        )}
         <ViolationList violations={ownViolations} onApplySuggestion={onApplySuggestion} />
       </div>
     </div>

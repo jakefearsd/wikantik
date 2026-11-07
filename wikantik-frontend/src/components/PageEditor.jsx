@@ -174,6 +174,9 @@ function publishFailureMessage(res) {
   if (res.reason === 'not-live') return 'Not connected to the shared draft — your edits are kept; publish again once it reconnects.';
   if (res.reason === 'publish-in-progress') return 'Someone else is publishing this page — try again in a moment.';
   if (res.reason === 'retries-exhausted') return 'The page kept changing while publishing — try again.';
+  if (res.reason === 'guarded') {
+    return 'This draft held restricted content from a deleted page; an administrator must publish it.';
+  }
   if (res.reason === 'no-create') {
     return 'This page was deleted, and recreating it needs permission to create pages, which you don\u2019t have. Copy your text to keep it.';
   }

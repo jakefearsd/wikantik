@@ -213,6 +213,7 @@ final class Lifecycle {
         if( d.frozen() ) {
             return;
         }
+        d.deleteSeen = true;   // even if the store write below fails: a later recreate still guards (re-review 1)
         final SessionRecord next = d.record.frozenGuarded();   // the deleted page's rules keep guarding (F2)
         d.store.updateSession( next );
         d.record = next;

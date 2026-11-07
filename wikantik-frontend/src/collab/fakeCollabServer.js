@@ -337,6 +337,8 @@ export function createFakeCollabServer({
     if (r.error) return r.error;
     const { p } = r;
     if (config.frozen && !config.canCreate) return reply(403, { reason: 'no-create' });
+    // ruling F3: a draft that held a deleted page's restricted text is published only by an administrator
+    if (config.guarded) return reply(409, { reason: 'guarded', message: 'the draft is guarded: an administrator must publish it' });
     if (config.publishing) return reply(423, { reason: 'publish-in-progress' });
     if (config.publishMergedRetry) {
       config.publishMergedRetry = false;

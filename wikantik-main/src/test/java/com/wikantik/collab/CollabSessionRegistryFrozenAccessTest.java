@@ -238,18 +238,61 @@ class CollabSessionRegistryFrozenAccessTest {
         assertInstanceOf( Joined.class, joinAs( "alice" ), "the base rules admit alice" );
     }
 
+    /** Ruling F3: while guarded, only an administrator may publish: a routine publish could declassify the text. */
     @Test
-    void aPublishByAParticipantLiftsTheGuard() {
+    void aGuardedDraftIsPublishedOnlyByAnAdministrator() {
         final Joined alice = theDeletedPageIsRecreatedByMallory();
         final Joined again = assertInstanceOf( Joined.class, joinAs( "alice", alice.response().clientId() ) );
-        final com.wikantik.collab.model.PublishResponse published = again.session().publish(
-            again.response().participantId(), "alice", again.session().view().head(), "" );
-        assertEquals( 200, published.status(), published::toString );
 
-        assertInstanceOf( Joined.class, joinAs( "mallory" ), "published again: the page's own rules apply" );
+        final com.wikantik.collab.model.PublishResponse refused = again.session().publish(
+            again.response().participantId(), "alice", again.session().view().head(), "" );
+
+        assertEquals( 409, refused.status(), refused::toString );
+        assertEquals( CollabSession.GUARDED, refused.reason() );
+        assertForbidden( joinAs( "mallory" ) );
+        permissions.admins.add( "root" );
+        final Joined root = assertInstanceOf( Joined.class, joinAs( "root" ) );
+        final com.wikantik.collab.model.PublishResponse published = root.session().publish(
+            root.response().participantId(), "root", root.session().view().head(), "" );
+        assertEquals( 200, published.status(), published::toString );
+        assertInstanceOf( Joined.class, joinAs( "mallory" ), "published by an administrator: the page's own rules apply" );
     }
 
-    /** Re-review (b): the base text's frontmatter is part of the page's text, and its rules count. */
+    // ---- a missed or failed freeze (security re-review 1) ----------------------------------------------------------
+
+    /** The freeze's store write fails: the draft stays active, its page gone; then mallory recreates the page. */
+    private void theFreezeFailsThenMalloryRecreates() {
+        final Joined alice = assertInstanceOf( Joined.class, joinAs( "alice" ) );
+        type( alice, "alice", "unpublished " );
+        writer.delete( PAGE );
+        store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        try {
+            registry.freeze( PAGE );
+        } catch( final RuntimeException expected ) {
+            // the listener logs it; the draft stays active
+        }
+        assertTrue( !alice.session().frozen(), "the freeze did not land" );
+        writer.externalSave( PAGE, "mallory's page\n", Map.of(), "mallory" );
+        alice.session().settle();
+    }
+
+    @Test
+    void aFailedFreezeStillGuardsTheDraftOfAPageRecreatedAtItsBaseVersion() {
+        theFreezeFailsThenMalloryRecreates();   // base 1, recreated as version 1 with other content
+
+        assertForbidden( joinAs( "mallory" ) );
+        assertInstanceOf( Joined.class, joinAs( "alice" ) );
+    }
+
+    @Test
+    void aFailedFreezeStillGuardsTheDraftOfAPageRecreatedBelowItsBase() {
+        writer.externalSave( PAGE, RESTRICTED + "v2\n", Map.of(), "alice" );   // base 2: the recreate restarts at 1
+        theFreezeFailsThenMalloryRecreates();
+
+        assertForbidden( joinAs( "mallory" ) );
+    }
+
+        /** Re-review (b): the base text's frontmatter is part of the page's text, and its rules count. */
     @Test
     void aRuleInTheBaseFrontmatterGuardsTheDraft() {
         writer.seed( PAGE, "plain body\n", Map.of( "acl", "[{ALLOW edit alice}]" ) );

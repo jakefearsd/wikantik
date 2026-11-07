@@ -169,8 +169,11 @@ public record SessionRecord( UUID id, String pageName, String status, int basePa
         return withStatus( FROZEN ).withGuard( guardText != null ? guardText : fullBaseText() );
     }
 
-    /** The base page's full text as the page stores it: its frontmatter written back over its body. */
+    /**
+     * The base page's full text: its frontmatter written back over its body, every scalar on one line (a long access rule
+     * folded across lines would no longer read as one rule).
+     */
     public String fullBaseText() {
-        return FrontmatterWriter.write( baseMeta, baseBody );
+        return FrontmatterWriter.writeUnfolded( baseMeta, baseBody );
     }
 }

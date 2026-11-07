@@ -143,4 +143,18 @@ class WikiCollabPermissionsAclTest {
             groups.removeGroup( "CollabGuardGroup" );
         }
     }
+
+    /** Re-review 3: a rule long enough for the YAML writer to fold across lines is still read as a rule (a lock). */
+    @Test
+    void aLongFrontmatterRuleSurvivesTheWritersLineFolding() throws Exception {
+        final Session bob = WikiSessionTest.authenticatedSession( engine, Users.BOB, Users.BOB_PASS );
+        final String names = "Bob, Alice, Charlie, SomeoneWithAVeryLongLoginName, AnotherQuiteLongName, YetAnotherOne";
+        final com.wikantik.collab.model.SessionRecord rec = com.wikantik.collab.CollabSession.newRecord(
+            java.util.UUID.randomUUID(), "GonePage", java.util.Optional.of( new com.wikantik.collab.model.PageState( 3,
+                "body\n", Map.of( "acl", "[{ALLOW edit " + names + "}]" ), "h", "bob" ) ), "bob",
+            java.time.Clock.systemUTC() );
+        final String text = rec.fullBaseText();   // the text a frozen draft's guard holds
+
+        assertFalse( new WikiCollabPermissions( engine ).mayAccessAsIf( bob, "GonePage", text ), text );
+    }
 }

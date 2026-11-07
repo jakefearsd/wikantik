@@ -78,4 +78,13 @@ class FrontmatterWriterTest {
         assertEquals( FrontmatterWriter.write( meta, "body\n" ), FrontmatterWriter.writeLike( "old\ntext\n", meta, "body\n" ) );
         assertEquals( FrontmatterWriter.write( meta, "body" ), FrontmatterWriter.writeLike( null, meta, "body" ) );
     }
+
+    @Test
+    void writeUnfoldedKeepsALongScalarOnOneLine() {
+        final String rule = "[{ALLOW edit Bob, Alice, Charlie, SomeoneWithAVeryLongLoginName, AnotherQuiteLongName, More}]";
+        final String text = FrontmatterWriter.writeUnfolded( Map.of( "acl", rule ), "body" );
+        assertTrue( text.contains( rule ), text );
+        assertTrue( FrontmatterWriter.write( Map.of( "acl", rule ), "body" ).indexOf( rule ) < 0,
+            "the stored form folds it (why the scanned form must not)" );
+    }
 }

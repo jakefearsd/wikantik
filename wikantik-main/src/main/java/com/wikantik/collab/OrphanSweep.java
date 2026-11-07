@@ -106,6 +106,7 @@ final class OrphanSweep {
             slot.present();
             return;
         }
+        CollabSession.Hooks.deleteSeen( s );   // a recreate before the grace ends still guards the draft
         if( slot.absentFor( now, GRACE ) ) {
             LOG.warn( "collab session {}: page {} has been missing for {} with no rename owed; its draft is frozen",
                 s.id(), name, GRACE );

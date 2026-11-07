@@ -169,7 +169,7 @@ final class ExternalMerge {
             if( !d.appendMetaOps( MetaMerge.ops( mm.changes(), d.metaSeq ) ) ) {
                 return Result.FAILED;
             }
-            if( !d.commit( extra, docAfter, localAfter, rebased( st, body, recreated, localAfter, theirs ) ) ) {
+            if( !d.commit( extra, docAfter, localAfter, rebased( st, body, same, recreated, localAfter, theirs ) ) ) {
                 return Result.FAILED;
             }
             if( recreated || !extra.isEmpty() || mm.touched() ) {
@@ -184,10 +184,18 @@ final class ExternalMerge {
         }
     }
 
-    /** Under the lock: the record on the merged version's base (active again for a recreated page), with its markers. */
-    private SessionRecord rebased( final PageState st, final String body, final boolean recreated,
+    /**
+     * Under the lock: the record on the merged version's base (active again for a recreated page), with its markers. A
+     * draft whose page was deleted and is now back (a recreate, or a delete seen and the base version back with other
+     * content than the base, {@code same} false) is guarded by the pre-merge base's full text when the freeze never stored a guard (its write
+     * failed, or the delete event was missed): the recreator inherits nothing (security re-review 1, ruling F2).
+     */
+    private SessionRecord rebased( final PageState st, final String body, final boolean same, final boolean recreated,
                                    final ChangeSet localAfter, final Map< String, Object > theirs ) {
-        final SessionRecord based = d.record.withBase( st.version(), body, st.meta(), CollabText.contentHash( body ) );
+        final boolean guard = recreated || d.deleteSeen && !same && st.version() == d.record.basePageVersion();
+        final String guardText = d.record.guardText() != null || !guard ? d.record.guardText() : d.record.fullBaseText();
+        final SessionRecord based = d.record.withBase( st.version(), body, st.meta(), CollabText.contentHash( body ) )
+            .withGuard( guardText );
         return SessionLoader.draftMarkers( recreated ? based.withStatus( SessionRecord.ACTIVE ) : based,
             !localAfter.empty() || !d.meta.equals( theirs ), d.lastEditAt );
     }

@@ -65,6 +65,20 @@ final class EditRecheck {
     }
 
     /**
+     * Ruling F3: whether {@code p} is an administrator, asked uncached with no session lock held. Fails closed: a check
+     * that throws is a refusal (logged).
+     */
+    static boolean isAdmin( final UUID session, final Participant p, final CollabPermissions permissions ) {
+        try {
+            return permissions.isAdmin( p.wikiSession );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: the administrator check of {} failed; treating it as no administrator: {}",
+                session, p.id, e.getMessage() );
+            return false;
+        }
+    }
+
+    /**
      * A5/E28: whether {@code p} may create {@code page} (publishing a frozen draft recreates its page), asked uncached
      * with no session lock held. Fails closed: a check that throws is a refusal (logged).
      */

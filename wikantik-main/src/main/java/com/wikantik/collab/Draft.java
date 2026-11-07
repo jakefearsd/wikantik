@@ -97,6 +97,14 @@ final class Draft {
     PublishStart.Ticket unfinished;
     boolean mergeQueued;
     boolean mergeOwed;
+    /**
+     * Memory only: this session saw its page deleted (a freeze was attempted, or the orphan sweep found the page missing
+     * with no rename owed). A merge that then finds the page back at the base version with other content is a recreate,
+     * and guards the draft (security re-review 1).
+     */
+    boolean deleteSeen;
+    /** The guard a publish in its save was allowed past (an administrator's, F3); only that guard is lifted. */
+    String publishGuard;
 
     Follow follow = ( oldHead, applied, newHead ) -> { };
     /** The names the session's page held before its renames (post-join calls may still use them). */

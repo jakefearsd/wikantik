@@ -780,6 +780,19 @@ describe('PageEditor collaborative mode', () => {
     expect(screen.queryByTestId('wiki-view')).toBeNull();
   });
 
+  it('aGuardedDraftExplainsThatAnAdministratorMustPublish', async () => {
+    server.config.guarded = true;
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    await publishThroughDialog();
+    await until(() => screen.queryByTestId('editor-error') !== null);
+    expect(screen.getByTestId('editor-error')).toHaveTextContent(
+      'This draft held restricted content from a deleted page; an administrator must publish it');
+    expect(server.calls.find((c) => c.path === '/publish').reason).toBe('guarded');
+    expect(screen.queryByTestId('wiki-view')).toBeNull();
+    expect(screen.getByTestId('editor-save')).toHaveTextContent('Publish');
+  });
+
   it('evictedForLostEditGoesReadOnlyWithAMessage', async () => {
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');

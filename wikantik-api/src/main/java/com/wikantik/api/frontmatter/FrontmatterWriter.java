@@ -39,6 +39,23 @@ public final class FrontmatterWriter {
      * @return the combined page text
      */
     public static String write( final Map< String, Object > metadata, final String body ) {
+        return write( metadata, body, true );
+    }
+
+    /**
+     * {@link #write} that never folds a long scalar across lines: for a text that is scanned rather than stored (the
+     * access rules a deleted page's frontmatter held, MultiEdit ruling F1), where a folded {@code [{ALLOW …}]} would no
+     * longer read as one rule.
+     *
+     * @param metadata the frontmatter fields (null or empty means no frontmatter block)
+     * @param body     the page body text (may be null)
+     * @return the combined page text, each scalar on one line
+     */
+    public static String writeUnfolded( final Map< String, Object > metadata, final String body ) {
+        return write( metadata, body, false );
+    }
+
+    private static String write( final Map< String, Object > metadata, final String body, final boolean fold ) {
         final String safeBody = body == null ? "" : body;
 
         if ( metadata == null || metadata.isEmpty() ) {
@@ -48,6 +65,10 @@ public final class FrontmatterWriter {
         final DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle( DumperOptions.FlowStyle.BLOCK );
         options.setPrettyFlow( true );
+        if ( !fold ) {
+            options.setSplitLines( false );
+            options.setWidth( Integer.MAX_VALUE );
+        }
 
         final Yaml yaml = new Yaml( options );
         final String yamlStr = yaml.dump( metadata );

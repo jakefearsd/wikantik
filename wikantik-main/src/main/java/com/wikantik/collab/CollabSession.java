@@ -119,6 +119,8 @@ public final class CollabSession {
     static final String FROZEN = "frozen";
     /** 403 reason: a frozen draft is published (recreating its page) only with {@code createPages}. */
     static final String NO_CREATE = "no-create";
+    /** 409 reason (ruling F3): a guarded draft (frozen once, not published since) is published only by an administrator. */
+    static final String GUARDED = "guarded";
     /** 403 reason (and event type) of an evicted participant; the answer's {@code detail} names why. */
     public static final String EVICTED = "evicted";
     /** Eviction reason: the participant no longer holds {@code edit} on the page (A5). */
@@ -626,6 +628,7 @@ public final class CollabSession {
                                       final String changeNote, final String markupSyntax ) {
         final Participant p;
         final boolean frozen;
+        final boolean guarded;
         lock.lock();
         try {
             final Gate.Refusal refused = Gate.identity( roster, participantId, authorKey, clock.instant() );
@@ -634,9 +637,12 @@ public final class CollabSession {
             }
             p = roster.get( participantId );
             frozen = d.frozen();
+            guarded = Gate.guardRestricts( d.record.guardText() );
         } finally {
             lock.unlock();
         }
+        // ruling F3: a guarded draft is published only by an administrator (asked uncached, no lock held)
+        final boolean admin = guarded && EditRecheck.isAdmin( id, p, permissions );
         // a frozen draft recreates its page: the publisher needs createPages, checked uncached (A5, E28)
         if( EditRecheck.recreateRefused( frozen, id, p, permissions, pageName() ) ) {
             return flow.answered( 403, NO_CREATE );
@@ -660,7 +666,7 @@ public final class CollabSession {
         baseLock.lock();
         try {
             // frozen here means createPages was checked; a freeze landing after it is answered 409 frozen at the save
-            out = flow.start( p, changeNote == null ? "" : changeNote, markupSyntax, frozen, completions );
+            out = flow.start( p, changeNote == null ? "" : changeNote, markupSyntax, frozen, admin, completions );
         } finally {
             baseLock.unlock();
             if( out == null || out.response() != null ) {
@@ -955,6 +961,16 @@ public final class CollabSession {
                 final String guard = rec.guardText() != null ? rec.guardText()
                     : pageMissing && ( s.d.frozen() || rec.basePageVersion() > 0 ) ? rec.fullBaseText() : null;
                 return guard != null && !s.roster.knows( authorKey, s.clock.instant() ) ? guard : null;
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /** The orphan sweep found the page missing with no rename owed: a later recreate guards the draft. */
+        static void deleteSeen( final CollabSession s ) {
+            s.lock.lock();
+            try {
+                s.d.deleteSeen = true;
             } finally {
                 s.lock.unlock();
             }

@@ -160,8 +160,12 @@ lines) found gaps. These amendments override the sections they name.
     When a draft is frozen, the full text of the deleted page (frontmatter included) is stored as its guard. While the
     guard is set, only the draft's existing participants, administrators, and callers that pass view+edit under the
     guard's access rules may join. Authors evicted for `lost-edit` don't count as participants. The guard survives
-    the page's recreation and every merge, so a recreator never inherits the old unpublished text. It is lifted only
-    when a participant publishes the draft again.
+    the page's recreation and every merge, so a recreator never inherits the old unpublished text. A freeze whose
+    store write failed, or a delete event that was missed, still guards: the merge of the recreated page sets the guard
+    from the pre-merge base. Ruling F3: while the guard holds anything shaped like an access rule, only an
+    administrator may publish the draft (anyone else gets 409 `guarded`). The recreate merge can strip the old rules
+    from the draft, so a routine publish would otherwise declassify its text. An administrator's publish lifts the
+    guard. A deleted page with no rules had nothing to declassify, so anyone with `createPages` can recreate it.
 - **Deleted users:** `UserDeletionService` tombstones the login rather than pseudonymising it
   (`:36-60`). Collab only evicts that user's participants.
 - **Protocol:**

@@ -14,7 +14,10 @@ import { getSyncedVersion, sendableUpdates } from '@codemirror/collab';
 export const setRemotePresence = StateEffect.define();
 
 const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$/;
-const colorOf = (c) => (typeof c === 'string' && SAFE_COLOR.test(c) ? c : '#6b7280');
+/** Server-supplied colours reach inline styles, so anything but a hex colour becomes this grey. */
+export const colorOf = (c) => (typeof c === 'string' && SAFE_COLOR.test(c) ? c : '#6b7280');
+/** The one label rule for a participant: the display name, or a placeholder (never a login name). */
+export const labelOf = (name) => (typeof name === 'string' && name.trim() ? name.trim() : 'Anonymous');
 
 export function placeAtHead(pos, version, unconfirmed, state) {
   const len = state.doc.length;
@@ -72,7 +75,7 @@ function fromPresence(map, state) {
     if (p?.anchor == null || p.head == null || p.version == null) continue; // no selection yet: in the bar, no caret
     const a = placeAtHead(p.anchor, p.version, p.unconfirmed ?? 0, state);
     const h = placeAtHead(p.head, p.version, p.unconfirmed ?? 0, state);
-    out.push({ id, name: p.displayName, color: p.color, anchor: a.pos, head: h.pos, approximate: a.approximate || h.approximate });
+    out.push({ id, name: labelOf(p.displayName), color: p.color, anchor: a.pos, head: h.pos, approximate: a.approximate || h.approximate });
   }
   return out;
 }

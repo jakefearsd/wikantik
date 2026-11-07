@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { collab, getSyncedVersion, receiveUpdates } from '@codemirror/collab';
 import { ChangeSet } from '@codemirror/state';
-import { placeAtHead, remoteCursors, remoteCursorField, setRemotePresence } from './remoteCursors.js';
+import { labelOf, colorOf, placeAtHead, remoteCursors, remoteCursorField, setRemotePresence } from './remoteCursors.js';
 
 const mk = (doc = 'Hello world', startVersion = 3) =>
   EditorState.create({ doc, extensions: [collab({ startVersion, clientID: 'me' }), remoteCursors()] });
@@ -62,5 +62,21 @@ describe('remoteCursors field', () => {
     s.field(remoteCursorField).deco.between(0, 100, (from, to, v) => { found.push([from, to, v.spec.class ?? v.spec.widget?.constructor?.name]); });
     expect(found.some(([f, t]) => f === 1 && t === 4)).toBe(true);
     expect(entries(s).find((e) => e.id === 'b').approximate).toBe(true);
+  });
+
+  it('uses the shared placeholder label for a missing displayName', () => {
+    let s = mk();
+    s = s.update({ effects: setRemotePresence.of({ a: entry({ displayName: undefined }) }) }).state;
+    expect(entries(s)[0].name).toBe(labelOf(undefined));
+    expect(labelOf('  ')).toBe(labelOf(null));
+    expect(labelOf(' Ada ')).toBe('Ada');
+  });
+});
+
+describe('colorOf', () => {
+  it('accepts hex and rejects anything else with the grey fallback', () => {
+    expect(colorOf('#1b6ec2')).toBe('#1b6ec2');
+    expect(colorOf('url(https://x/)')).toBe('#6b7280');
+    expect(colorOf(undefined)).toBe('#6b7280');
   });
 });

@@ -94,4 +94,12 @@ describe('collabTransport', () => {
     await t.push({ sessionId: 's', participantId: 'p', version: 0, updates: [], metaOps: [] });
     expect(fetchMock.mock.calls[0][0]).toBe('/api/collab/New%20Name/updates');
   });
+
+  it('pull uses the retargeted path too', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { updates: [], metaOps: [], events: [], presence: {} }));
+    const t = createCollabTransport('Old');
+    t.retarget('New');
+    await t.pull({ sessionId: 's', participantId: 'p', since: 0 });
+    expect(fetchMock.mock.calls[0][0]).toMatch(/^\/api\/collab\/New\/updates\?/);
+  });
 });

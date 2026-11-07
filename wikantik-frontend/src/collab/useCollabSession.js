@@ -104,6 +104,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             onEvents: (batch) => {
               setEvents((prev) => [...prev, ...batch].slice(-MAX_EVENTS));
               for (const e of batch) {
+                // no pre-mount replay needed: the peer (and so its pull loop) only starts once the view mounts
                 if (e.type === 'external-change' && e.ranges?.length) {
                   dispatchToView(addExternalHighlight.of({ ranges: e.ranges, version: e.version, id: `ext-${e.seq ?? e.version}` }));
                 } else if (e.type === 'page-renamed' && e.to) {
@@ -117,6 +118,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
               sessionRef.current = { sessionId: rj.sessionId, clientID: rj.clientID, participantId: rj.participantId };
               setSelf(selfOf(rj));
               presenceRef.current = {};
+              dispatchToView(setRemotePresence.of({}));
               setPresence({});
             },
           }),
@@ -209,6 +211,11 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
       if (!fresh) return prev?.unsyncedText ? prev : null;
       return fresh.unsyncedText ? { ...fresh, reason: prev?.reason ?? fresh.reason } : null;
     });
+    try {
+      viewRef.current?.dispatch({ effects: setRemotePresence.of({}) });
+    } catch (e) {
+      console.warn('[collab] could not clear carets before restart', e);
+    }
     handle?.destroy();
     setEvents([]);
     setPresence({});

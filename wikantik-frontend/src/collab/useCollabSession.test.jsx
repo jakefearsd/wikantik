@@ -5,6 +5,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { getSyncedVersion } from '@codemirror/collab';
 import { useCollabSession } from './useCollabSession.js';
+import { setRemotePresence } from './remoteCursors.js';
 import { createFakeCollabServer } from './fakeCollabServer.js';
 
 describe('useCollabSession', () => {
@@ -401,6 +402,57 @@ describe('useCollabSession', () => {
     expect(result.current.renamedTo).toBe('New');
     expect(server.calls.filter((c) => c.path === '/join')).toHaveLength(1);
     expect(result.current.status).toBe('live');
+    view.destroy();
+  });
+
+  const recorder = () => {
+    const seen = [];
+    const ext = EditorView.updateListener.of((u) => {
+      for (const tr of u.transactions) for (const e of tr.effects) if (e.is(setRemotePresence)) seen.push(e.value);
+    });
+    return { seen, ext };
+  };
+
+  it('a session change clears stale carets immediately', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const rec = recorder();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions, rec.ext] }),
+      parent: document.body,
+    });
+    server.expire('ada');
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(rec.seen.some((m) => Object.keys(m).length === 0)).toBe(true);
+    view.destroy();
+  });
+
+  it('restart clears carets before remounting', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const rec = recorder();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions, rec.ext] }),
+      parent: document.body,
+    });
+    await act(async () => { await result.current.restart(); await vi.advanceTimersByTimeAsync(200); });
+    expect(rec.seen.some((m) => Object.keys(m).length === 0)).toBe(true);
+    view.destroy();
+  });
+
+  it('an external-change that arrives before the view mounts is highlighted once it does', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    await act(async () => { server.externalChange({ source: 'disk', text: 'Hello there' }); await vi.advanceTimersByTimeAsync(50); });
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    expect(view.dom.querySelectorAll('.cm-external-change').length).toBeGreaterThan(0);
     view.destroy();
   });
 });

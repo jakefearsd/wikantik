@@ -1,3 +1,5 @@
+import { colorOf, labelOf } from './remoteCursors.js';
+
 const STATUS_LABELS = {
   live: 'Live', joining: 'Connecting', reconnecting: 'Reconnecting', resync: 'Resync needed', frozen: 'Page deleted',
   'auth-required': 'Sign in again',
@@ -18,8 +20,8 @@ export default function PresenceBar({ self, presence, status }) {
       <ul className="collab-presence-list">
         {people.map((p) => (
           <li key={p.participantId} className="collab-presence-person">
-            <span className="collab-presence-avatar" style={{ backgroundColor: p.color }}>{initials(p.displayName)}</span>
-            <span className="collab-presence-name" style={{ color: p.color }}>{p.displayName || 'Anonymous'}</span>
+            <span className="collab-presence-avatar" style={{ backgroundColor: colorOf(p.color) }}>{initials(labelOf(p.displayName))}</span>
+            <span className="collab-presence-name" style={{ color: colorOf(p.color) }}>{labelOf(p.displayName)}</span>
           </li>
         ))}
       </ul>

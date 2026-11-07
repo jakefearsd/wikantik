@@ -1034,12 +1034,15 @@ public final class CollabSession {
         }
 
         /**
-         * Evicts every participant with {@code reason} (a tombstone each; parked pulls answer 403 {@code evicted}) in one
-         * step under the session lock, unless a publish is running or its marker is stored: then nobody is evicted and
-         * false is returned. No publish can start in between, so a purge never tells clients {@code purged} and then
-         * keeps the draft for a publish that started meanwhile. Completions run after the lock is released.
+         * Runs {@code delete}, then evicts every participant with {@code reason} (a tombstone each; parked pulls answer
+         * 403 {@code evicted}), in one step under the session lock, unless a publish is running or its marker is stored:
+         * then nothing runs, nobody is evicted and false is returned. No publish can start in between, so a purge never
+         * tells clients {@code purged} and then keeps the draft for a publish that started meanwhile; and a
+         * {@code delete} that throws evicts nobody (the exception propagates), so nobody is told a kept draft was removed
+         * (final review M1). Completions run after the lock is released.
          */
-        static boolean evictAllUnlessPublishing( final CollabSession s, final String reason ) {
+        static boolean deleteThenEvictAllUnlessPublishing( final CollabSession s, final String reason,
+                                                           final Runnable delete ) {
             final List< Runnable > completions = new ArrayList<>();
             final int n;
             s.lock.lock();
@@ -1047,6 +1050,7 @@ public final class CollabSession {
                 if( s.d.publishPending() ) {
                     return false;
                 }
+                delete.run();
                 final List< Participant > all = List.copyOf( s.roster.all() );
                 for( final Participant p : all ) {
                     s.life.evict( p.id, reason, s.clock.instant(), completions );

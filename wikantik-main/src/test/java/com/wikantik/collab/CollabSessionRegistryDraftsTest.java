@@ -314,6 +314,29 @@ class CollabSessionRegistryDraftsTest {
         assertEquals( "x" + BODY, again.response().doc() );
     }
 
+    @Test
+    void aPurgeStoreFailureEvictsNobody() {
+        final Joined a = join( "alice" );
+        final Joined b = join( "bob" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        final Waiter parked = new Waiter();
+        assertEquals( null, b.session().pullOrPark( b.response().participantId(), "bob", b.session().view().head(),
+            null, parked ) );
+        final UUID id = a.response().sessionId();
+        mem.failOn( InMemoryCollabStore.Op.DELETE, 1 );
+
+        assertEquals( new PurgeOutcome( 503, "store", PAGE, true ), registry.purge( id, "admin" ) );
+
+        assertTrue( parked.got.isEmpty() || parked.got.get( 0 ).status() == 200,
+            "nobody is told the draft was removed when it was kept: " + parked.got );
+        assertTrue( a.session().hasParticipant( a.response().participantId() ), "alice is still in the draft" );
+        assertTrue( b.session().hasParticipant( b.response().participantId() ) );
+        assertEquals( 200, type( a, "alice", "y" ).status(), "and goes on editing it" );
+        assertEquals( a.session(), registry.live( id ).orElseThrow(), "the live session stays in memory" );
+        assertEquals( 204, registry.purge( id, "admin" ).status(), "a retry removes it" );
+        assertEquals( 403, type( a, "alice", "z" ).status() );
+    }
+
     // ---- retention ---------------------------------------------------------------------------------------------
 
     @Test

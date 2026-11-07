@@ -37,12 +37,13 @@ import java.util.function.BiConsumer;
  * administrator's purge, and draft retention.
  *
  * <p><b>Removal</b>, shared by purge and retention, never publishes. A live session is removed under its slot lock:
- * every participant is evicted with {@link CollabSessionRegistry#PURGED} (their parked pulls answer 403
- * {@code evicted}), the slot is closed and unmapped, then the draft is deleted. A stored draft is removed under its
+ * the draft is deleted, then every participant is evicted with {@link CollabSessionRegistry#PURGED} (their parked
+ * pulls answer 403 {@code evicted}), and the slot is closed and unmapped; a failed delete evicts nobody. A stored draft is removed under its
  * page's slot lock too, so a join cannot load it meanwhile (a join waiting on that slot retries from a fresh slot). A
  * session that is publishing, or holds a pending-publish marker, is refused (423 {@code publish-in-progress}); the
- * check and the evictions are one step under the session lock, so nobody is evicted when it refuses. A store failure
- * answers 503 {@code store} and keeps the draft; a session already out of memory reloads on the next join. A rename
+ * check, the delete and the evictions are one step under the session lock, so nobody is evicted when it refuses. A
+ * store failure answers 503 {@code store} and keeps the draft: a live one stays in memory with its participants, and
+ * one already out of memory reloads on the next join. A rename
  * still owed out of a removed draft's page is harmless: its retry finds no draft to move and is settled.</p>
  *
  * <p><b>Retention</b> ({@code wikantik.collab.draft.retentionDays}; 0 keeps drafts for ever): at most every
@@ -247,18 +248,23 @@ final class DraftAdmin {
         if( refused != null ) {
             return refused;
         }
-        // the publish check and the evictions are one step: nobody is told "purged" for a draft that a publish keeps
-        if( !CollabSession.Hooks.evictAllUnlessPublishing( s, CollabSessionRegistry.PURGED ) ) {
-            return inProgress( s.pageName(), true );
+        // the publish check, the delete and the evictions are one step: nobody is told "purged" for a draft that a
+        // publish keeps, nor for one the store failed to delete (final review M1: the session then stays as it was)
+        try {
+            if( !CollabSession.Hooks.deleteThenEvictAllUnlessPublishing( s, CollabSessionRegistry.PURGED,
+                    () -> store.deleteSession( s.id() ) ) ) {
+                return inProgress( s.pageName(), true );
+            }
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab: draft {} of {} could not be deleted; kept, its participants not evicted: {}", s.id(),
+                s.pageName(), e.toString() );
+            return new PurgeOutcome( 503, CollabSession.STORE, s.pageName(), true );
         }
         slot.close();
         SessionSweeps.evictAll( s );
         unmap.accept( slot, s );
-        final PurgeOutcome out = delete( s.id(), s.pageName(), true );
-        if( out.status() != 204 ) {
-            unloaded( s, false );   // kept, but out of memory: its markers and the index, as any unload
-        }
-        return out;
+        index.remove( s.pageName() );
+        return new PurgeOutcome( 204, null, s.pageName(), true );
     }
 
     /**

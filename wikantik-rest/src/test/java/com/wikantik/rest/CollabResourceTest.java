@@ -120,7 +120,10 @@ class CollabResourceTest {
 
     /** Fixture cases whose server half is Phase 2 (docs/superpowers/plans/...phase2..., Task 7). */
     private static final Set< String > DEFERRED_TO_PHASE_2 = Set.of(
-        "updates.get.200.lifecycle-events" );
+        "updates.get.200.lifecycle-events",
+        // Phase 3 (docs/superpowers/plans/2026-11-07-multiedit-phase3-...md, Task 7): draft state, summary, purge
+        "join.200.draft-contributors", "updates.get.200.draft-events", "draft.get.200", "draft.get.200.unchanged",
+        "draft.get.403.evicted", "draft.get.404", "publish.200.markup", "updates.get.403.purged" );
 
     private InMemoryCollabStore store;
     private ScriptedPageWriter writer;

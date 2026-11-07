@@ -21,7 +21,6 @@ package com.wikantik.mcp.tools;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
@@ -35,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -101,42 +99,10 @@ public final class McpToolUtils {
     public static McpSchema.CallToolResult jsonResult( final Gson gson, final Object data ) {
         return McpSchema.CallToolResult.builder()
                 .content( List.of( new McpSchema.TextContent( gson.toJson( data ) ) ) )
-                .structuredContent( data instanceof JsonElement tree ? plain( tree ) : data )
+                .structuredContent( data instanceof JsonElement tree ? GsonTrees.plain( tree ) : data )
                 .build();
     }
 
-    /** {@code tree} as plain Java values; an integral number becomes a {@code Long}, any other a {@code Double}. */
-    private static Object plain( final JsonElement tree ) {
-        if( tree == null || tree.isJsonNull() ) {
-            return null;
-        }
-        if( tree.isJsonObject() ) {
-            final Map< String, Object > out = new LinkedHashMap<>();
-            for( final Map.Entry< String, JsonElement > e : tree.getAsJsonObject().entrySet() ) {
-                out.put( e.getKey(), plain( e.getValue() ) );
-            }
-            return out;
-        }
-        if( tree.isJsonArray() ) {
-            final List< Object > out = new ArrayList<>();
-            for( final JsonElement e : tree.getAsJsonArray() ) {
-                out.add( plain( e ) );
-            }
-            return out;
-        }
-        final JsonPrimitive p = tree.getAsJsonPrimitive();
-        if( p.isBoolean() ) {
-            return p.getAsBoolean();
-        }
-        if( p.isNumber() ) {
-            final java.math.BigDecimal n = p.getAsBigDecimal();
-            return n.stripTrailingZeros().scale() <= 0 && n.abs().compareTo( LONG_LIMIT ) <= 0
-                ? (Object) n.longValueExact() : (Object) n.doubleValue();
-        }
-        return p.getAsString();
-    }
-
-    private static final java.math.BigDecimal LONG_LIMIT = java.math.BigDecimal.valueOf( Long.MAX_VALUE );
 
     /**
      * Builds an error {@link McpSchema.CallToolResult} with the given message.

@@ -150,6 +150,7 @@ final class ExternalMerge {
         final ChangeSet e = same ? ChangeSet.empty( baseBody.length() ) : TextDiff.changeSet( baseBody, body );
         lock.lock();
         try {
+            final Draft.State before = d.state();
             final ChangeSet ePrime = e.map( d.local );
             final ChangeSet localAfter = d.local.map( e, true );
             final String docAfter = ePrime.apply( d.doc );
@@ -166,6 +167,7 @@ final class ExternalMerge {
             if( recreated || !extra.isEmpty() || mm.touched() ) {
                 d.feed.emit( "external-change", event( st, ePrime, mm, recreated ) );
             }
+            d.announce( before );   // a merge credits nobody, but may change unpublished
             answers.wakeAll( extra, completions );
             return extra.isEmpty() && mm.changes().isEmpty() ? Result.BASE_ONLY : Result.CHANGED;
         } finally {

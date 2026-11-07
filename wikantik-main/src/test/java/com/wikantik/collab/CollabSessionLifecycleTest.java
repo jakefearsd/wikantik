@@ -603,7 +603,7 @@ class CollabSessionLifecycleTest {
         final JoinResponse ada = join( "ada" );
         final List< String > held = new ArrayList<>();
         final PullWaiter checking = r -> {
-            if( CollabSession.Hooks.baseLockHeld( session ) || session.lockHeldByCurrentThread() ) {
+            if( CollabSession.Hooks.baseLockHeld( session ) || CollabSession.Hooks.lockHeld( session ) ) {
                 held.add( r.events().toString() );
             }
         };

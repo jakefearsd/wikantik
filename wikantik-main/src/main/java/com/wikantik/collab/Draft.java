@@ -30,12 +30,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * The mutable state of one session (section 7.1) and the store primitives that change it, store first and memory only
@@ -46,10 +48,22 @@ import java.util.UUID;
  * completion failed: its S_V for the pending-publish rule), {@code mergeQueued} (an external change arrived while
  * publishing, A3) and {@code mergeOwed} (a merge or the pending-publish rule failed and is retried by
  * {@code settle}).</p>
+ *
+ * <p>It also records the draft's contributors since the last publish ({@link Contributors}): every snapshot carries
+ * them, and a {@code draft-state} event is emitted when the contributor set or {@code unpublished} changes
+ * ({@link #announce}).</p>
  */
 final class Draft {
 
     private static final Logger LOG = LogManager.getLogger( Draft.class );
+
+    /** What a {@code draft-state} event reports: the contributor keys (first-contribution order) and unpublished. */
+    record State( List< String > contributorKeys, boolean unpublished ) {
+    }
+
+    /** M_V and its meta seq, as the publish snapshot at V recorded them. */
+    record AtPublish( Map< String, Object > meta, long metaSeq ) {
+    }
 
     /** Moves the kept selections after an update moved the head ({@link Presence#follow}); set by the session. */
     interface Follow {
@@ -83,6 +97,10 @@ final class Draft {
     final Set< String > formerNames = new LinkedHashSet<>();
     /** The seq of the latest {@code page-deleted} event, 0 when none (a joiner into a frozen draft is shown it). */
     long deletedEventSeq;
+    /** Who contributed since the last publish; replaced only when a publish commits. */
+    Contributors contributors = Contributors.of( Map.of() );
+    /** An author key's public name, null when it has none ({@link CollabIdentity}); set by the session. */
+    Function< String, String > names = key -> null;
 
     Draft( final SessionRecord record, final CollabStore store, final long maxPageBytes, final int ringSize ) {
         this.id = record.id();
@@ -142,6 +160,22 @@ final class Draft {
      * ops; a store failure propagates with nothing applied in memory that the store does not hold.
      */
     void seed( final JoinRequest r, final Instant now ) {
+        final State before = state();
+        seedText( r, now );
+        if( r.initialMeta() != null ) {
+            final List< StoredMetaOp > ops = SessionLoader.metaOps( meta, MetaJson.normalise( r.initialMeta() ), metaSeq,
+                r.authorKey() );
+            if( !ops.isEmpty() ) {
+                store.appendMetaOps( id, ops );
+                applyMetaOps( ops );
+                contributors.record( List.of(), ops );
+            }
+        }
+        announce( before );
+    }
+
+    /** The seed's text, stored with the creator's key so it is credited to the creator (ruling R2). */
+    private void seedText( final JoinRequest r, final Instant now ) {
         if( r.initialText() != null ) {
             final String text = CollabText.toLf( r.initialText() );
             if( CollabText.hasLoneSurrogate( text ) ) {
@@ -152,18 +186,42 @@ final class Draft {
                     r.authorKey(), TextDiff.changeSet( doc, text ) );
                 store.appendUpdates( id, List.of( u ) );
                 applyAccepted( List.of( u ), text );
+                contributors.record( List.of( u ), List.of() );
                 lastEditAt = now;
                 oversize.update( doc, true );
             }
         }
-        if( r.initialMeta() != null ) {
-            final List< StoredMetaOp > ops = SessionLoader.metaOps( meta, MetaJson.normalise( r.initialMeta() ), metaSeq,
-                r.authorKey() );
-            if( !ops.isEmpty() ) {
-                store.appendMetaOps( id, ops );
-                applyMetaOps( ops );
-            }
+    }
+
+    // ---- draft state ---------------------------------------------------------------------------------------------
+
+    State state() {
+        return new State( contributors.authors(), hasUnpublished() );
+    }
+
+    /**
+     * Emits {@code draft-state {unpublished, contributors, lastEditAt}} when the state differs from {@code before}: an
+     * author's first contribution since the last publish, a publish, a discard, a merge that changed
+     * {@code unpublished}; never on a plain edit. Names come from the identity, never the key ({@link Contributors#names}).
+     * The caller wakes parked pulls.
+     */
+    void announce( final State before ) {
+        final State now = state();
+        if( now.equals( before ) ) {
+            return;
         }
+        final Map< String, Object > f = new LinkedHashMap<>();
+        f.put( "unpublished", now.unpublished() );
+        f.put( "contributors", contributorNames() );
+        if( lastEditAt != null ) {
+            f.put( "lastEditAt", lastEditAt.toString() );   // absent until the first edit (events hold no nulls)
+        }
+        feed.emit( "draft-state", f );
+    }
+
+    /** The contributors' public names, first-contribution order. */
+    List< String > contributorNames() {
+        return Contributors.names( contributors.authors(), names );
     }
 
     // ---- snapshots and truncation ------------------------------------------------------------------------------
@@ -175,7 +233,8 @@ final class Draft {
     /** The cadence snapshot, the draft markers, then truncation below {@code lowestConfirmed}. Failures only warn (E36). */
     void snapshot( final int lowestConfirmed ) {
         try {
-            store.writeSnapshot( id, new Snapshot( head, metaSeq, record.basePageVersion(), doc, meta, local ) );
+            store.writeSnapshot( id, new Snapshot( head, metaSeq, record.basePageVersion(), doc, meta, local,
+                contributors.snapshot() ) );
         } catch( final RuntimeException e ) {
             LOG.warn( "collab session {} ({}): snapshot at {} failed; retried on the next push: {}", id, pageName(), head,
                 e.getMessage() );
@@ -217,8 +276,17 @@ final class Draft {
      */
     boolean commit( final List< StoredUpdate > extra, final String docAfter, final ChangeSet localAfter,
                     final SessionRecord updated ) {
+        return commit( extra, docAfter, localAfter, updated, contributors );
+    }
+
+    /**
+     * {@link #commit(List, String, ChangeSet, SessionRecord)} whose snapshot carries {@code contributorsAfter}, which
+     * replaces the live contributors only when the store step succeeded (a publish's {@link Contributors#afterPublish}).
+     */
+    boolean commit( final List< StoredUpdate > extra, final String docAfter, final ChangeSet localAfter,
+                    final SessionRecord updated, final Contributors contributorsAfter ) {
         final Snapshot snap = new Snapshot( head + extra.size(), metaSeq, updated.basePageVersion(), docAfter, meta,
-            localAfter );
+            localAfter, contributorsAfter.snapshot() );
         try {
             store.commitBaseChange( id, extra, snap, updated );
         } catch( final RuntimeException e ) {
@@ -233,6 +301,7 @@ final class Draft {
         doc = docAfter;
         local = localAfter;
         record = updated;
+        contributors = contributorsAfter;
         lastSnapshotVersion = head;
         final boolean was = oversize.active();
         oversize.update( doc, true );
@@ -291,19 +360,20 @@ final class Draft {
     }
 
     /**
-     * M_V of the publish marked at version {@code v}: the meta of the snapshot the publish wrote at {@code v} before its
-     * marker. Falls back to the live meta (logged) when that snapshot is absent, as for a marker stored before publishes
-     * wrote one; the fold may then revert meta edits made during that save. A store failure propagates: the caller's
-     * pending-publish rule is retried by {@code settle}.
+     * M_V of the publish marked at version {@code v} and its meta seq: those of the snapshot the publish wrote at
+     * {@code v} before its marker. Falls back to the live meta and seq (logged) when that snapshot is absent, as for a
+     * marker stored before publishes wrote one; the fold may then revert meta edits made during that save, and meta
+     * contributors of that save are credited to it. A store failure propagates: the caller's pending-publish rule is
+     * retried by {@code settle}.
      */
-    Map< String, Object > metaAtPublish( final int v ) {
+    AtPublish atPublish( final int v ) {
         final Optional< Snapshot > snap = store.snapshotAtOrBelow( id, v );
         if( snap.isPresent() && snap.get().version() == v ) {
-            return MetaJson.normalise( snap.get().meta() );
+            return new AtPublish( MetaJson.normalise( snap.get().meta() ), snap.get().metaSeq() );
         }
         LOG.warn( "collab session {} ({}): no snapshot at the published version {}; recovering with the live meta", id,
             pageName(), v );
-        return meta;
+        return new AtPublish( meta, metaSeq );
     }
 
     /** The document at version {@code v}: from the newest snapshot at or below it plus the log; null when not rebuildable. */

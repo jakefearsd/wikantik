@@ -104,9 +104,11 @@ class CollabSessionDiscardTest {
         type( a, "ada", "XYZ " );
         final int head = session.view().head();
         final List< PullResponse > got = new ArrayList<>();
-        // park raj at head, with an event cursor at the current event sequence
+        // park raj at head, with an event cursor at the current event sequence (after ada's draft-state)
+        final long seen = session.pullOrPark( b.participantId(), "raj", new PullCursor( head, session.metaSeq(),
+            Long.MAX_VALUE, 0 ), null, x -> { } ).eventSeq();
         final PullResponse now = session.pullOrPark( b.participantId(), "raj",
-            new PullCursor( head, session.metaSeq(), Long.MAX_VALUE, b.eventSeq() ), null, got::add );
+            new PullCursor( head, session.metaSeq(), Long.MAX_VALUE, seen ), null, got::add );
         assertEquals( null, now );
 
         session.discard( a.participantId(), "ada" );
@@ -220,6 +222,7 @@ class CollabSessionDiscardTest {
         session.discard( a.participantId(), "ada" );
         final JoinResponse b = join( "raj" );
         assertEquals( 1, a.eventSeq(), "its own participant-joined" );
-        assertEquals( 3, b.eventSeq(), "a new joiner starts after the events it need not replay" );
+        // participant-joined, draft-state (ada's first edit), draft-discarded, draft-state (emptied), then raj's own
+        assertEquals( 5, b.eventSeq(), "a new joiner starts after the events it need not replay" );
     }
 }

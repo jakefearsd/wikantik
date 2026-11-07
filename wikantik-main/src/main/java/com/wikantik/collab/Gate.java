@@ -18,6 +18,7 @@
  */
 package com.wikantik.collab;
 
+import com.wikantik.collab.model.DraftSummary;
 import com.wikantik.collab.model.PublishResponse;
 
 import java.time.Instant;
@@ -56,6 +57,21 @@ final class Gate {
         }
         return t.authorKey().equals( authorKey ) ? new Refusal( 403, CollabSession.EVICTED, t.reason() )
             : new Refusal( 403, CollabSession.NOT_YOURS );
+    }
+
+    /**
+     * The draft summary for an identity-checked participant (marked seen), else the refusal; under the session lock.
+     */
+    static DraftSummary summary( final Roster roster, final String participantId, final String authorKey,
+                                 final Instant now, final Draft d ) {
+        final Refusal refused = identity( roster, participantId, authorKey, now );
+        if( refused != null ) {
+            return DraftSummary.refused( refused.status(), refused.reason(), refused.detail() );
+        }
+        roster.get( participantId ).touch( now );
+        return new DraftSummary( 200, null, null, d.record.basePageVersion(), d.head, d.hasUnpublished(),
+            d.contributorNames(), d.lastEditAt, d.record.baseBody(), d.doc, MetaJson.normalise( d.record.baseMeta() ),
+            d.meta );
     }
 
     /** Null when the push may proceed; marks the participant seen and takes one push token. */

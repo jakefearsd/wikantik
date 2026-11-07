@@ -39,12 +39,13 @@ public record PublishStart( PublishResponse response, Ticket ticket ) {
     }
 
     /**
-     * A publish inside its save: the snapshot it saves ({@code version} V, {@code doc} S_V, {@code meta} M_V, normalised)
-     * on base page version {@code baseVersion} B, by {@code authorKey} (shown as {@code displayName}), and the save
-     * request (whose meta keeps the base's original typed value for every field the draft left unchanged).
+     * A publish inside its save: the snapshot it saves ({@code version} V, {@code doc} S_V, {@code meta} M_V, normalised,
+     * at meta seq {@code metaSeq}) on base page version {@code baseVersion} B, by {@code authorKey} (shown as
+     * {@code displayName}), and the save request (whose meta keeps the base's original typed value for every field the
+     * draft left unchanged). V and {@code metaSeq} bound the contributors the publish credits (ruling R2).
      */
     public record Ticket( String participantId, String authorKey, String displayName, int version, String doc,
-                          Map< String, Object > meta, int baseVersion, PublishRequest request ) {
+                          Map< String, Object > meta, long metaSeq, int baseVersion, PublishRequest request ) {
         public Ticket {
             Objects.requireNonNull( authorKey, "authorKey" );
             Objects.requireNonNull( doc, "doc" );

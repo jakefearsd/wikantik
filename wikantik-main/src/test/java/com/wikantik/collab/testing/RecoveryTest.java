@@ -19,7 +19,12 @@
 package com.wikantik.collab.testing;
 
 import com.wikantik.collab.CollabPageWriter;
+import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.CollabStore;
+import com.wikantik.collab.PublishStart;
+import com.wikantik.collab.model.JoinRequest;
+import com.wikantik.collab.model.JoinResponse;
+import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.testing.InMemoryCollabStore.Op;
 import com.wikantik.collab.testing.SimServer.Joined;
@@ -28,18 +33,24 @@ import com.wikantik.collab.testing.SimServer.PushResult;
 import com.wikantik.collab.testing.SimServer.Update;
 import com.wikantik.collab.text.ChangeSet;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -268,5 +279,99 @@ class RecoveryTest {
     void reloadWithoutASessionFails( final Server server ) {
         assertThrows( IllegalStateException.class,
             () -> server.reload( new InMemoryCollabStore(), writer, clock, MAX, RING ) );
+    }
+
+    // ---- E39 and the contributor ledger (session only: the stub keeps no ledger) ---------------------------------
+
+    private static final String CID = "01HZRECOVERY00000000000001";
+
+    /** {@code store} as a session sees it, counting {@code recordContributors} calls into {@code writes}. */
+    private CollabStore counting( final AtomicInteger writes ) {
+        final InMemoryCollabStore target = store;
+        return (CollabStore) Proxy.newProxyInstance( CollabStore.class.getClassLoader(), new Class< ? >[] { CollabStore.class },
+            ( proxy, m, args ) -> {
+                if( m.getName().equals( "recordContributors" ) ) {
+                    writes.incrementAndGet();
+                }
+                try {
+                    return m.invoke( target, args );
+                } catch( final InvocationTargetException e ) {
+                    throw e.getCause();
+                }
+            } );
+    }
+
+    private CollabSession ledgerSession( final AtomicInteger writes ) {
+        writer.seed( PAGE, BODY, Map.of( "canonical_id", CID ) );
+        writer.rewriteOnSave( UnaryOperator.identity() );
+        return CollabSessionSimServer.create( PAGE, counting( writes ), writer, clock, MAX, RING, 500 ).session();
+    }
+
+    private CollabSession reloadLedgerSession( final AtomicInteger writes ) {
+        return CollabSessionSimServer.reload( PAGE, counting( writes ), writer, clock, MAX, RING, 500 ).session();
+    }
+
+    private static void append( final CollabSession s, final JoinResponse j, final String author, final String text ) {
+        final CollabSession.View v = s.view();
+        final int end = v.doc().length();
+        assertEquals( 200, s.push( j.participantId(), author, v.head(),
+            List.of( new com.wikantik.collab.model.Update( j.clientId(), ChangeSet.replace( end, end, end, text ) ) ) )
+            .status() );
+    }
+
+    private static JoinResponse joinAs( final CollabSession s, final String author ) {
+        return s.join( JoinRequest.of( author, author, null ) );
+    }
+
+    /** Alice edits, the publish starts, Bob edits during the save, the save persists; the crash point is the caller's. */
+    private PublishStart.Ticket aliceSavesWhileBobTypes( final CollabSession s ) throws Exception {
+        final JoinResponse a = joinAs( s, "alice" );
+        final JoinResponse b = joinAs( s, "bob" );
+        append( s, a, "alice", "A" );
+        final PublishStart st = s.startPublish( a.participantId(), "alice", s.view().head(), "note" );
+        assertNull( st.response(), "answered before the save: " + st.response() );
+        append( s, b, "bob", "B" );   // after V
+        return st.ticket();
+    }
+
+    @Test
+    void e39_recoveryRecordsThePublishedVersionsContributors() throws Exception {
+        final AtomicInteger noCrashWrites = new AtomicInteger();
+        final CollabSession live = ledgerSession( noCrashWrites );
+        final PublishStart.Ticket lt = aliceSavesWhileBobTypes( live );
+        final PublishOutcome saved = writer.publish( lt.request() );
+        assertEquals( 200, live.finishPublish( lt, saved ).status() );
+        final Map< Integer, List< String > > noCrash = store.contributorsByVersion( CID );
+        assertEquals( Map.of( 2, List.of( "alice" ) ), noCrash );
+
+        setUp();
+        final AtomicInteger writes = new AtomicInteger();
+        final CollabSession crashed = ledgerSession( writes );
+        final PublishStart.Ticket t = aliceSavesWhileBobTypes( crashed );
+        writer.publish( t.request() );   // the save persisted; the process died before the post-save half
+        assertEquals( 0, writes.get() );
+        final CollabSession recovered = reloadLedgerSession( writes );
+        assertEquals( noCrash, store.contributorsByVersion( CID ), "the rows match a run without the crash" );
+        assertEquals( 1, writes.get(), "written once" );
+        assertNull( store.session( recovered.id() ).orElseThrow().pendingPublishVersion() );
+        assertEquals( List.of( "bob" ), recovered.view().contributorKeys(), "bob's edit counts toward the next version" );
+        recovered.settle();
+        assertEquals( 1, writes.get(), "nothing owed, nothing written again" );
+    }
+
+    @Test
+    void e39_aForeignVersionRecordsNothing() throws Exception {
+        final AtomicInteger writes = new AtomicInteger();
+        final CollabSession s = ledgerSession( writes );
+        final JoinResponse a = joinAs( s, "alice" );
+        append( s, a, "alice", "A" );
+        assertNull( s.startPublish( a.participantId(), "alice", s.view().head(), "note" ).response() );
+        // crash before the save; another writer saves version 2 meanwhile
+        writer.externalSave( PAGE, BODY + "agent\n", Map.of( "canonical_id", CID ), "agent" );
+        final CollabSession recovered = reloadLedgerSession( writes );
+        assertEquals( 2, recovered.view().basePageVersion() );
+        assertEquals( 0, writes.get() );
+        assertEquals( Map.of(), store.contributorsByVersion( CID ) );
+        assertEquals( List.of( "alice" ), recovered.view().contributorKeys(), "alice's edit is still unpublished" );
     }
 }

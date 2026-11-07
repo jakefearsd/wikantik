@@ -36,7 +36,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * base as one server update and the meta restored by server meta ops, stored in one all-or-nothing step and only then
  * applied in memory, followed by a best-effort snapshot (the base itself does not change). The diff runs outside the
  * session lock (as publish's does); a push landing meanwhile moves the head and the diff is taken again, under the lock
- * after {@value #ATTEMPTS} tries.
+ * after {@value #ATTEMPTS} tries. A discard clears the contributors (its snapshot carries none) and emits
+ * {@code draft-state} after {@code draft-discarded}.
  */
 final class DraftDiscard {
 
@@ -95,7 +96,15 @@ final class DraftDiscard {
         }
         final List< StoredMetaOp > ops = SessionLoader.metaOps( d.meta, MetaJson.normalise( d.record.baseMeta() ),
             d.metaSeq, null );
+        final Draft.State before = d.state();
         if( back.empty() && ops.isEmpty() && d.local.empty() ) {
+            if( !d.contributors.isEmpty() ) {
+                // edits that cancelled out: nothing to reset, but nobody is credited for them any more
+                d.contributors.clear();
+                snapshot();
+                d.announce( before );
+                answers.wakeAll( List.of(), completions );
+            }
             return PushResponse.accepted( d.head, d.metaSeq );
         }
         final List< StoredUpdate > extra = back.empty() ? List.of()
@@ -112,8 +121,10 @@ final class DraftDiscard {
         }
         d.oversize.update( d.doc, true );
         d.record = SessionLoader.draftMarkers( d.record, false, d.lastEditAt );
+        d.contributors.clear();
         snapshot();
         d.feed.emit( "draft-discarded", Map.of( "by", by ) );
+        d.announce( before );
         answers.wakeAll( extra, completions );
         return PushResponse.accepted( d.head, d.metaSeq );
     }
@@ -140,7 +151,7 @@ final class DraftDiscard {
     private void snapshot() {
         try {
             d.store.writeSnapshot( d.id, new Snapshot( d.head, d.metaSeq, d.record.basePageVersion(), d.doc, d.meta,
-                d.local ) );
+                d.local, d.contributors.snapshot() ) );
             d.lastSnapshotVersion = d.head;
         } catch( final RuntimeException e ) {
             LOG.warn( "collab session {} ({}): snapshot after the discard failed; the next cadence retries: {}", d.id,

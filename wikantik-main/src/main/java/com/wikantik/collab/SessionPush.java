@@ -37,7 +37,9 @@ import java.util.List;
  * refusal applies nothing, not even the selection. Meta edits are then resolved in request order against the live meta
  * ({@link MetaEdits}; an edit that changes nothing yields no op), the text and the ops are stored in one step (store
  * first, memory only on success: 503 {@code store}, E35) and applied, and parked pulls are woken. A push without text
- * skips the version check (presence and meta are placed by their own cursors).
+ * skips the version check (presence and meta are placed by their own cursors). An accepted push records its author as
+ * a contributor ({@link Contributors}) and emits {@code draft-state} when the contributor set or {@code unpublished}
+ * changed.
  */
 final class SessionPush {
 
@@ -83,16 +85,19 @@ final class SessionPush {
             presenceOnly( p, selection, completions );
             return PushResponse.accepted( d.head, d.metaSeq );
         }
+        final Draft.State before = d.state();
         if( !store( participantId, accepted, ops ) ) {
             return PushResponse.refused( 503, d.head, CollabSession.STORE );
         }
         d.lastEditAt = now;
         d.applyMetaOps( ops );
+        d.contributors.record( accepted, ops );
         if( accepted.isEmpty() ) {
             presenceOnly( p, selection, completions );
         } else {
             applyText( p, version, accepted, check.next(), selection );
         }
+        d.announce( before );
         answers.wakeAll( accepted, completions );
         return PushResponse.accepted( d.head, d.metaSeq );
     }

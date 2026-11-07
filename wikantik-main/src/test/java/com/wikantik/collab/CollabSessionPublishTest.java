@@ -205,6 +205,11 @@ class CollabSessionPublishTest {
         return CollabText.toLf( writer.latest( PAGE ).orElseThrow().body() );
     }
 
+    /** The event sequence {@code j} has now seen (the draft-state of an earlier edit is not news to the tests that use it). */
+    private long seen( final JoinResponse j, final String author ) {
+        return pullAll( j, author, session.view().head() ).eventSeq();
+    }
+
     private PullResponse pullAll( final JoinResponse j, final String author, final int since ) {
         final Waiter w = new Waiter();
         final PullResponse r = session.pullOrPark( j.participantId(), author, new PullCursor( since, 0, Long.MAX_VALUE, 0 ),
@@ -367,7 +372,7 @@ class CollabSessionPublishTest {
         final CollabSession.View before = session.view();
         final List< WikiException > refusals = List.of( new FrontmatterValidationException( List.of() ),
             new ContentValidationException( List.of() ), new AccessRuleShapeException( List.of() ) );
-        long eventSeq = b.eventSeq();   // the joins' events are not news
+        long eventSeq = seen( b, "bob" );   // the joins' events are not news
         for( final WikiException e : refusals ) {
             final Waiter w = new Waiter();
             assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, eventSeq ), null, w ) );
@@ -442,7 +447,7 @@ class CollabSessionPublishTest {
         final JoinResponse b = join( "bob" );
         replace( a, "alice", "world", "there" );
         final Waiter w = new Waiter();
-        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, b.eventSeq() ), null, w ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, seen( b, "bob" ) ), null, w ) );
         external( "hello\nearth\nadded line\n", Map.of( "title", "T" ), "agent" );
         final CollabSession.View v = session.view();
         assertEquals( "hello\nearth\nadded line\n", v.baseBody() );
@@ -495,7 +500,7 @@ class CollabSessionPublishTest {
         final JoinResponse b = join( "bob" );
         type( a, "alice", 0, "0123456789" );
         final Waiter w = new Waiter();
-        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, b.eventSeq() ), null, w ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, seen( b, "bob" ) ), null, w ) );
         external( BODY + "abcdefghijklmnopqrstuvw\n", Map.of( "title", "T" ), "agent" );
         final CollabSession.View v = session.view();
         assertEquals( 46, v.doc().length(), "the merge is always applied" );
@@ -827,7 +832,7 @@ class CollabSessionPublishTest {
         final JoinResponse b = join( "bob" );
         type( a, "alice", 0, "X" );
         final Waiter w = new Waiter();
-        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, b.eventSeq() ), null, w ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", new PullCursor( 1, 0, Long.MAX_VALUE, seen( b, "bob" ) ), null, w ) );
         assertEquals( 200, publish( a, "alice" ).status() );
         final List< CollabEvent > published = events( w.only(), "published" );
         assertEquals( 1, published.size(), "woken by the event alone: the publish needed no server update" );

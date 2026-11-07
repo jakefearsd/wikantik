@@ -19,6 +19,7 @@
 package com.wikantik.collab;
 
 import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.collab.model.DraftSummary;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
 import com.wikantik.collab.model.LeaveResponse;
@@ -128,12 +129,16 @@ public final class CollabSession {
     /** Loads per store, for the id tag (see the class comment). */
     private static final Map< CollabStore, AtomicInteger > LOADS = Collections.synchronizedMap( new WeakHashMap<>() );
 
-    /** A read-only copy of the session state, for invariant checks, the registry and tests. */
+    /**
+     * A read-only copy of the session state, for invariant checks, the registry and tests. {@code contributorKeys} are
+     * the author keys with contributions since the last publish (first-contribution order; never shown to users), and
+     * {@code unpublished} whether the draft differs from its base.
+     */
     public record View( UUID id, String pageName, String doc, int head, String baseBody, ChangeSet local,
                         int basePageVersion, List< StoredUpdate > ring, boolean oversize, long oversizeCeiling,
                         long maxPageBytes, long metaSeq, Map< String, Object > meta, Instant lastEditAt,
                         Map< String, Selection > selections, int participants, long presenceSeq, boolean publishPending,
-                        boolean reconcilePending ) {
+                        boolean reconcilePending, List< String > contributorKeys, boolean unpublished ) {
     }
 
     private final UUID id;
@@ -170,6 +175,7 @@ public final class CollabSession {
         this.flow = new PublishFlow( d, lock, writer, ports.identity(), answers,
             new ExternalMerge( d, lock, writer, ports.identity(), answers ) );
         d.follow = ( oldHead, applied, newHead ) -> Presence.follow( roster.all(), oldHead, applied, newHead );
+        d.names = ports.identity()::displayName;
     }
 
     // ---- creation and reload ---------------------------------------------------------------------------------
@@ -227,6 +233,7 @@ public final class CollabSession {
         d.metaSeq = l.record().metaSeq();
         d.lastEditAt = l.record().lastEditAt();
         d.lastSnapshotVersion = l.snapshotVersion();
+        d.contributors = l.contributors();
         d.ring.addAll( l.ring() );
         d.feed.addMetaOps( ports.store().metaOpsSince( id, Math.max( 0, d.metaSeq - config.historyInMemoryUpdates() ) ) );
         d.oversize.update( d.doc, true );
@@ -252,11 +259,6 @@ public final class CollabSession {
         }
     }
 
-    /** For tests: true while the calling thread holds the session lock. */
-    boolean lockHeldByCurrentThread() {
-        return lock.isHeldByCurrentThread();
-    }
-
     // ---- join and leave --------------------------------------------------------------------------------------
 
     /**
@@ -280,7 +282,7 @@ public final class CollabSession {
             p.signedInAtJoin( signedIn );
             life.joined( p, completions );
             out = new JoinResponse( id, p.id, p.clientId, d.head, d.doc, d.metaSeq, d.meta, d.record.basePageVersion(),
-                roster.peers(), d.hasUnpublished(), d.lastEditAt, life.joinEventSeq(), d.frozen() );
+                roster.peers(), d.hasUnpublished(), d.lastEditAt, life.joinEventSeq(), d.frozen(), d.contributorNames() );
         } finally {
             lock.unlock();
         }
@@ -373,6 +375,21 @@ public final class CollabSession {
         lock.lock();
         try {
             return d.metaSeq;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * The draft summary (section 6.2's {@code GET /draft}): base and head bodies and meta, the contributors' public
+     * names, unpublished and the last edit, as one snapshot under the lock; the caller diffs. Identity-checked like any
+     * request (403 {@code not-your-participant}, 409 {@code rejoin}, 403 {@code evicted} with its reason) and marks the
+     * participant seen; neither version-checked nor rate-limited.
+     */
+    public DraftSummary draftSummary( final String participantId, final String authorKey ) {
+        lock.lock();
+        try {
+            return Gate.summary( roster, participantId, authorKey, clock.instant(), d );
         } finally {
             lock.unlock();
         }
@@ -841,7 +858,7 @@ public final class CollabSession {
                 d.ring.asList(), d.oversize.active(), d.oversize.ceiling(), d.oversize.maxPageBytes(), d.metaSeq,
                 Collections.unmodifiableMap( new LinkedHashMap<>( d.meta ) ), d.lastEditAt,
                 Collections.unmodifiableMap( roster.selectionsExcept( null ) ), roster.size(), d.presenceSeq,
-                d.publishPending(), d.mergeQueued || d.mergeOwed );
+                d.publishPending(), d.mergeQueued || d.mergeOwed, d.contributors.authors(), d.hasUnpublished() );
         } finally {
             lock.unlock();
         }
@@ -1002,6 +1019,11 @@ public final class CollabSession {
             if( sessionLock.isHeldByCurrentThread() ) {
                 throw new IllegalStateException( "collab: rename or freeze called under the session lock" );
             }
+        }
+
+        /** For tests: true while the calling thread holds the session lock. */
+        static boolean lockHeld( final CollabSession s ) {
+            return s.lock.isHeldByCurrentThread();
         }
 
         /** For tests: true while the calling thread holds the session's base lock. */

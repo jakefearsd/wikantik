@@ -30,10 +30,13 @@ import java.util.UUID;
  * {@code eventSeq} is the session's event sequence at the join, so a new joiner asks only for later events.
  * {@code frozen} is true when the draft's page was deleted (pushes answer 409 {@code frozen}; a publish with
  * {@code createPages} recreates it), so the client never depends on a {@code page-deleted} event still being held.
+ * {@code contributors} are the public names of the authors with unpublished contributions, in first-contribution order
+ * (Phase 3, ruling R2).
  */
 public record JoinResponse( UUID sessionId, String participantId, String clientId, int version, String doc,
                             long metaSeq, Map< String, Object > metadata, int basePageVersion, List< Peer > participants,
-                            boolean unpublished, Instant lastEditAt, long eventSeq, boolean frozen ) {
+                            boolean unpublished, Instant lastEditAt, long eventSeq, boolean frozen,
+                            List< String > contributors ) {
 
     /** One participant as other participants see it. */
     public record Peer( String participantId, String displayName, String color ) {
@@ -47,5 +50,7 @@ public record JoinResponse( UUID sessionId, String participantId, String clientI
         Objects.requireNonNull( doc, "doc" );
         metadata = ModelChecks.copyMeta( metadata, "metadata" );
         participants = List.copyOf( participants );
+        contributors = List.copyOf( Objects.requireNonNull( contributors, "contributors" ) );
     }
+
 }

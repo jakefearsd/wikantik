@@ -71,6 +71,8 @@ final class Roster {
     private final Map< String, Retired > retiredClients = new LinkedHashMap<>();
     /** Evicted participant id to its tombstone, oldest first. */
     private final Map< String, Tombstone > tombstones = new LinkedHashMap<>();
+    /** The {@code "Editor <n>"} number each nameless author got first, so a rejoin keeps its label in the session. */
+    private final Map< String, Integer > editorNumbers = new LinkedHashMap<>();
     private int next = 1;
 
     /**
@@ -96,15 +98,19 @@ final class Roster {
     }
 
     /**
-     * The public name: {@link CollabIdentity}'s, else the join's, else the neutral {@code "Editor <n>"}. Never the
-     * author key: logins are private, the display name is the public identity.
+     * The public name: {@link CollabIdentity}'s, else the join's, else the neutral {@code "Editor <n>"}, where n is the
+     * join number of the author's first nameless join in this session (a rejoin keeps its label). Never the author key:
+     * logins are private, the display name is the public identity.
      */
     private String displayName( final JoinRequest r, final int n ) {
         final String fromIdentity = identity.displayName( r.authorKey() );
         if( fromIdentity != null && !fromIdentity.isBlank() ) {
             return fromIdentity;
         }
-        return r.displayName() != null && !r.displayName().isBlank() ? r.displayName() : "Editor " + n;
+        if( r.displayName() != null && !r.displayName().isBlank() ) {
+            return r.displayName();
+        }
+        return "Editor " + editorNumbers.computeIfAbsent( r.authorKey(), k -> n );
     }
 
     /**

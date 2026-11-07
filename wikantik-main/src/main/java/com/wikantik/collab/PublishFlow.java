@@ -154,7 +154,8 @@ final class PublishFlow {
         }
         final Map< String, Object > original = latest.filter( l -> l.version() == b
             && l.contentHash().equals( d.record.baseContentHash() ) ).map( PageState::meta ).orElse( Map.of() );
-        final PublishStart.Ticket t = new PublishStart.Ticket( p.id, p.authorKey, p.displayName, d.head, d.doc, d.meta, b,
+        final PublishStart.Ticket t = new PublishStart.Ticket( p.id, p.authorKey, p.displayName, d.head, d.doc, d.meta,
+            d.metaSeq, b,
             new PublishRequest( d.pageName(), d.doc, MetaMerge.published( d.meta, original ), b, p.authorKey, note,
                 markupSyntax ) );
         final SessionRecord marked = d.record.withPending( d.head, b, p.authorKey );
@@ -163,7 +164,7 @@ final class PublishFlow {
             // it back, so a recovered fold never takes meta edits made during the save for filter changes (review M5).
             // Labelled with the draft's base, not B: a recreate saves on B = 0, but local is relative to the base
             d.store.writeSnapshot( d.id, new Snapshot( d.head, d.metaSeq, d.record.basePageVersion(), d.doc, d.meta,
-                d.local ) );
+                d.local, d.contributors.snapshot() ) );
             d.lastSnapshotVersion = d.head;
             d.store.updateSession( marked );
         } catch( final RuntimeException e ) {
@@ -191,11 +192,15 @@ final class PublishFlow {
 
     /**
      * Under the lock: W = the edits after V, the server update {@code N.map(W)}, {@code local = W.map(N)} on the new base,
-     * the filters' meta changes folded as server meta ops (stored before the base change), the base change committed
-     * with a snapshot of the live head, a {@code published} event.
+     * the contributors credited at (V, M_V) written to the ledger ({@link #credit}; before the commit clears the marker,
+     * so a failure leaves the publish to {@code settle}, whose retry writes them), the filters' meta changes folded as
+     * server meta ops (stored before the base change), the base change committed with a snapshot of the live head and of
+     * the contributors after the publish (live only once committed), a {@code published} event, then
+     * {@code draft-state}.
      */
     private PublishResponse applyPublished( final PublishStart.Ticket t, final ChangeSet n, final String savedBody,
                                             final PublishOutcome saved, final List< Runnable > completions ) {
+        final Draft.State before = d.state();
         final ChangeSet w = d.composedSince( t.version(), t.doc().length() );
         if( w == null ) {
             LOG.warn( "collab session {} ({}): the edits after the published version {} are not available; the publish is"
@@ -208,6 +213,9 @@ final class PublishFlow {
         final List< StoredUpdate > extra = u.empty() ? List.of()
             : List.of( new StoredUpdate( d.head + 1, StoredUpdate.SERVER, CollabSession.SERVER_CLIENT, null, u ) );
         final Map< String, Object > savedMeta = MetaJson.normalise( saved.savedMeta() );
+        if( !credit( t, saved.version(), savedMeta ) ) {
+            return unfinished( t );
+        }
         if( !d.appendMetaOps( MetaMerge.ops( MetaMerge.fold( t.meta(), d.meta, savedMeta ), d.metaSeq ) ) ) {
             return unfinished( t );
         }
@@ -217,13 +225,39 @@ final class PublishFlow {
         final SessionRecord updated = SessionLoader.draftMarkers( t.baseVersion() == 0
             ? based.withStatus( SessionRecord.ACTIVE ) : based, !localAfter.empty() || !d.meta.equals( savedMeta ),
             d.lastEditAt );
-        if( !d.commit( extra, docAfter, localAfter, updated ) ) {
+        if( !d.commit( extra, docAfter, localAfter, updated, d.contributors.afterPublish( t.version(), t.metaSeq() ) ) ) {
             return unfinished( t );
         }
         d.unfinished = null;
         d.feed.emit( "published", byline( t, "pageVersion", saved.version() ) );
+        d.announce( before );
         answers.wakeAll( extra, completions );
         return new PublishResponse( 200, saved.version(), null, false );
+    }
+
+    /**
+     * Under the lock: replaces the ledger rows of page version {@code pageVersion} with the authors whose contributions
+     * are inside the published snapshot (V, M_V; ruling R2), clearing the page's earlier rows when the publish created
+     * it (base 0, ruling R4). Idempotent, so the pending-publish rule repeats it safely. A saved page without a
+     * {@code canonical_id} cannot be attributed: skipped with a WARN. False (logged) when the store refused.
+     */
+    private boolean credit( final PublishStart.Ticket t, final int pageVersion, final Map< String, Object > savedMeta ) {
+        final Object id = savedMeta.get( "canonical_id" );
+        final String canonicalId = id == null ? "" : id.toString().trim();
+        if( canonicalId.isEmpty() ) {
+            LOG.warn( "collab session {} ({}): page version {} was saved without a canonical_id; its contributors are not"
+                + " recorded", d.id, d.pageName(), pageVersion );
+            return true;
+        }
+        try {
+            d.store.recordContributors( canonicalId, pageVersion, d.contributors.creditedAt( t.version(), t.metaSeq() ),
+                t.baseVersion() == 0 );
+            return true;
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {} ({}): the contributors of page version {} were not recorded; the publish is"
+                + " finished later: {}", d.id, d.pageName(), pageVersion, e.getMessage() );
+            return false;
+        }
     }
 
     private static Map< String, Object > byline( final PublishStart.Ticket t, final String key, final Object value ) {
@@ -453,9 +487,9 @@ final class PublishFlow {
             if( sv == null ) {
                 return null;
             }
-            final Map< String, Object > mv = d.metaAtPublish( v );
-            return new PublishStart.Ticket( null, author, identity.displayName( author ), v, sv, mv, b,
-                new PublishRequest( page, sv, mv, b, author, "" ) );
+            final Draft.AtPublish at = d.atPublish( v );
+            return new PublishStart.Ticket( null, author, identity.displayName( author ), v, sv, at.meta(), at.metaSeq(),
+                b, new PublishRequest( page, sv, at.meta(), b, author, "" ) );
         } finally {
             lock.unlock();
         }

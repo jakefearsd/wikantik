@@ -84,7 +84,7 @@ class CollabSessionTest {
         @Override
         public void complete( final PullResponse r ) {
             if( checkUnlocked != null ) {
-                assertFalse( checkUnlocked.lockHeldByCurrentThread(), "waiters are completed outside the session lock" );
+                assertFalse( CollabSession.Hooks.lockHeld( checkUnlocked ), "waiters are completed outside the session lock" );
             }
             if( !got.isEmpty() ) {
                 fail( "waiter completed twice: " + got + " then " + r );
@@ -963,6 +963,19 @@ class CollabSessionTest {
         assertNull( e.version() );
         assertNull( e.unconfirmed() );
         assertFalse( r.presence().containsKey( raj.participantId() ) );
+    }
+
+    @Test
+    void aJoinCarriesTheContributorsOfTheUnpublishedDraft() {
+        final JoinResponse first = join( "ada" );
+        assertEquals( List.of(), first.contributors(), "a clean draft has none" );
+        final PushResponse r = push( first, "ada", 0, typeAt( first, BODY, 0, "x" ) );
+        assertEquals( 200, r.status() );
+        final JoinResponse second = join( "raj" );
+        assertEquals( List.of( "Ada Lovelace" ), second.contributors() );
+        assertTrue( second.unpublished() );
+        assertEquals( List.of( "ada" ), session.view().contributorKeys() );
+        assertTrue( session.view().unpublished() );
     }
 
     @Test

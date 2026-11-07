@@ -38,9 +38,12 @@ final class SessionLoader {
 
     private static final Logger LOG = LogManager.getLogger( SessionLoader.class );
 
-    /** The state {@link #load} rebuilt. {@code ring} is the contiguous tail of the retained log, at most the ring size. */
+    /**
+     * The state {@link #load} rebuilt. {@code ring} is the contiguous tail of the retained log, at most the ring size;
+     * {@code contributors} the snapshot's plus every authored update and meta op after it.
+     */
     record Loaded( SessionRecord record, String doc, int head, ChangeSet local, Map< String, Object > meta,
-                   int snapshotVersion, List< StoredUpdate > ring ) {
+                   int snapshotVersion, List< StoredUpdate > ring, Contributors contributors ) {
     }
 
     private SessionLoader() {
@@ -79,7 +82,8 @@ final class SessionLoader {
     /**
      * Doc and head from the latest snapshot plus the log after it, meta from the snapshot plus the meta ops after it,
      * local from the snapshot's local composed with the log (or {@code TextDiff.changeSet(baseBody, doc)} when the
-     * snapshot belongs to another base), the ring from the log's tail.
+     * snapshot belongs to another base), the ring from the log's tail, the contributors from the snapshot's plus the
+     * authored updates and meta ops after it (ruling R5).
      *
      * @throws IllegalStateException when the session or its snapshot is missing, or the log is not contiguous from the
      *                               snapshot to the recorded head
@@ -92,7 +96,8 @@ final class SessionLoader {
         String doc = snap.body();
         ChangeSet local = snap.local();
         int version = snap.version();
-        for( final StoredUpdate u : store.updatesSince( id, snap.version() ) ) {
+        final List< StoredUpdate > log = store.updatesSince( id, snap.version() );
+        for( final StoredUpdate u : log ) {
             if( u.version() != version + 1 ) {
                 throw new IllegalStateException( "collab log of " + id + " has a gap before version " + u.version() );
             }
@@ -111,9 +116,12 @@ final class SessionLoader {
             local = TextDiff.changeSet( rec.baseBody(), doc );
         }
         final Map< String, Object > meta = new LinkedHashMap<>( snap.meta() );
-        store.metaOpsSince( id, snap.metaSeq() ).forEach( op -> applyMetaOp( meta, op ) );
+        final List< StoredMetaOp > ops = store.metaOpsSince( id, snap.metaSeq() );
+        ops.forEach( op -> applyMetaOp( meta, op ) );
+        final Contributors contributors = Contributors.of( snap.contributors() );
+        contributors.record( log, ops );
         return new Loaded( rec, doc, version, local, meta, snap.version(),
-            tail( store.updatesSince( id, Math.max( 0, version - ringSize ) ) ) );
+            tail( store.updatesSince( id, Math.max( 0, version - ringSize ) ) ), contributors );
     }
 
     /** {@code value} null removes the field (section 6.1). */

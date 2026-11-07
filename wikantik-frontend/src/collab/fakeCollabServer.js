@@ -49,8 +49,8 @@ export function createFakeCollabServer({
   let presenceSeq = 0;
   let eventSeq = 0;
   const events = [];
-  const participants = new Map(); // user -> participant
-  const knownClientIds = new Set();
+  const participants = new Map(); // participantId -> participant (two tabs of one user are two participants)
+  const clientOwner = new Map(); // clientID -> author key
   let nextPid = 1;
   let nextClient = 1;
   const waiters = new Set();
@@ -73,12 +73,16 @@ export function createFakeCollabServer({
     events.push({ seq: ++eventSeq, ...e });
     wake();
   }
-  function participantFor(user, sessionId) {
-    const p = participants.get(user);
-    if (!p || p.expired) return null;
-    if (sessionId && sessionId !== 's-1f3a') return null;
+  /** Resolves the request's participant: it must exist, belong to the author key (A6) and not be expired. */
+  function resolve(user, sessionId, participantId) {
+    if (!participantId) return { error: reply(400, { reason: 'rejected', message: 'participantId required' }) };
+    const p = participants.get(participantId);
+    if (sessionId && sessionId !== 's-1f3a') return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
+    if (!p) return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
+    if (p.owner !== user) return { error: reply(403, { reason: 'not-your-participant' }) };
+    if (p.expired) return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
     p.lastSeen = Date.now();
-    return p;
+    return { p };
   }
   const publicParticipant = (p) => ({ participantId: p.participantId, displayName: p.displayName, color: p.color });
 
@@ -92,17 +96,18 @@ export function createFakeCollabServer({
     }
     if (participants.size === 0 && body?.initialMeta) metadata = { ...body.initialMeta };
     const prior = body?.priorClientId;
-    const old = participants.get(user);
-    const clientID = prior && knownClientIds.has(prior) ? prior : `c${nextClient++}`;
-    knownClientIds.add(clientID);
+    const held = [...participants.values()].some((x) => x.clientID === prior && !x.expired);
+    const clientID = prior && clientOwner.get(prior) === user && !held ? prior : `c${nextClient++}`;
+    clientOwner.set(clientID, user);
     const p = {
       participantId: `pt-${nextPid++}`,
+      owner: user,
       displayName: user,
       color: COLORS[(nextPid - 2) % COLORS.length],
       clientID, lastSeen: Date.now(), expired: false, selection: null,
     };
-    participants.set(user, p);
-    if (!old || old.expired) addEvent({ type: 'participant-joined', participant: publicParticipant(p) });
+    participants.set(p.participantId, p);
+    addEvent({ type: 'participant-joined', participant: publicParticipant(p) });
     return reply(200, {
       sessionId: 's-1f3a', participantId: p.participantId, clientID,
       version, doc: text(), metaSeq, metadata: { ...metadata }, basePageVersion,
@@ -112,15 +117,16 @@ export function createFakeCollabServer({
   }
 
   function push(user, body) {
-    const p = participantFor(user, body.sessionId);
-    if (!p) return reply(409, { rejoin: true, reason: 'rejoin' });
+    const r = resolve(user, body.sessionId, body.participantId);
+    if (r.error) return r.error;
+    const { p } = r;
     if (config.frozen) return reply(409, { reason: 'frozen' });
     if (pushesPerSecond !== Infinity) {
       const now = Date.now();
-      const recent = (pushTimes.get(user) ?? []).filter((t) => now - t < 1000);
+      const recent = (pushTimes.get(p.participantId) ?? []).filter((t) => now - t < 1000);
       recent.push(now);
-      pushTimes.set(user, recent);
-      if (recent.length > pushesPerSecond) return reply(409, { reason: 'rate-limited', retryAfterMs: 500 });
+      pushTimes.set(p.participantId, recent);
+      if (recent.length > pushesPerSecond) return reply(429, { reason: 'rate-limited', retryAfterMs: 500 });
     }
     const updates = body.updates ?? [];
     if (updates.length > 0 && body.version !== version) {
@@ -129,13 +135,13 @@ export function createFakeCollabServer({
     let next = doc;
     const parsed = [];
     for (const u of updates) {
-      if (u.clientID !== p.clientID) return reply(400, { reason: 'bad-request', message: 'clientID is not this participant\'s' });
+      if (u.clientID !== p.clientID) return reply(400, { reason: 'rejected', message: 'clientID is not this participant\'s' });
       let cs;
       try { cs = ChangeSet.fromJSON(u.changes); } catch (e) {
-        return reply(400, { reason: 'bad-request', message: `malformed changes: ${e.message}` });
+        return reply(400, { reason: 'rejected', message: `malformed changes: ${e.message}` });
       }
       if (cs.length !== next.length) {
-        return reply(400, { reason: 'bad-request', message: `changes length ${cs.length} does not match document length ${next.length}` });
+        return reply(400, { reason: 'rejected', message: `changes length ${cs.length} does not match document length ${next.length}` });
       }
       next = cs.apply(next);
       if (utf8Bytes(next.toString()) > Math.max(maxPageBytes, utf8Bytes(doc.toString()))) {
@@ -185,9 +191,11 @@ export function createFakeCollabServer({
   }
   const hasNews = (s) => s.since < version || metaSeq > s.metaSince || presenceSeq > s.presenceSince || eventSeq > s.eventsSince;
   function pull(user, q) {
-    const p = participantFor(user, q.sessionId);
-    if (!p) return Promise.resolve(reply(409, { rejoin: true, reason: 'rejoin' }));
+    const r = resolve(user, q.sessionId, q.participantId);
+    if (r.error) return Promise.resolve(r.error);
+    const { p } = r;
     const s = cursors(q);
+    if (!(s.since >= 0) || s.since > version) return Promise.resolve(reply(400, { reason: 'bad-since' }));
     if (s.since < ringStart) return Promise.resolve(reply(410, { resync: true, reason: 'resync' }));
     if (hasNews(s)) return Promise.resolve(buildPull(p, s));
     return new Promise((resolve) => {
@@ -205,8 +213,9 @@ export function createFakeCollabServer({
   }
 
   function publish(user, body) {
-    const p = participantFor(user, body.sessionId);
-    if (!p) return reply(409, { rejoin: true, reason: 'rejoin' });
+    const r = resolve(user, body.sessionId, body.participantId);
+    if (r.error) return r.error;
+    const { p } = r;
     if (config.publishing) return reply(423, { reason: 'publish-in-progress' });
     if (config.publishMergedRetry) {
       config.publishMergedRetry = false;
@@ -222,7 +231,7 @@ export function createFakeCollabServer({
   }
 
   async function handle({ method, path, query = {}, body = {}, user = 'ada' }) {
-    const entry = { method, path, user, query, body, status: null };
+    const entry = { method, path, user, query, body, status: null, reason: null };
     calls.push(entry);
     const key = `${method} ${path}`;
     let res;
@@ -230,14 +239,17 @@ export function createFakeCollabServer({
     else if (key === 'POST /updates') res = push(user, body);
     else if (key === 'GET /updates') res = await pull(user, query);
     else if (key === 'POST /publish') res = publish(user, body);
-    else if (key === 'POST /discard') res = participantFor(user, body.sessionId) ? reply(204) : reply(409, { rejoin: true, reason: 'rejoin' });
+    else if (key === 'POST /discard') res = resolve(user, body.sessionId, body.participantId).error ?? reply(204);
     else if (key === 'POST /leave') {
-      const p = participants.get(user);
-      if (p && !p.expired) {
-        p.expired = true;
-        addEvent({ type: 'participant-left', participantId: p.participantId });
+      const p = participants.get(body.participantId);
+      if (p && p.owner !== user) res = reply(403, { reason: 'not-your-participant' });
+      else {
+        if (p && !p.expired) {
+          p.expired = true;
+          addEvent({ type: 'participant-left', participantId: p.participantId });
+        }
+        res = reply(204);
       }
-      res = reply(204);
     } else res = reply(404, { error: 'not_found' });
     const dropIdx = drops.findIndex((d) => d.method === method && d.path === path);
     if (dropIdx >= 0) {
@@ -245,6 +257,7 @@ export function createFakeCollabServer({
       res = { dropped: true };
     }
     entry.status = res.dropped ? 'dropped' : res.status;
+    entry.reason = res.body?.reason;
     return res;
   }
 
@@ -299,10 +312,12 @@ export function createFakeCollabServer({
     },
     /** Drop the response of the next matching call (the server still applies it): a lost acknowledgement. */
     dropNextResponse(method, path) { drops.push({ method, path }); },
-    expire(user) { const p = participants.get(user); if (p) p.expired = true; },
+    expire(user) { for (const p of participants.values()) if (p.owner === user) p.expired = true; },
+    expireParticipant(id) { const p = participants.get(id); if (p) p.expired = true; },
+    liveParticipantIds: () => [...participants.values()].filter((p) => !p.expired).map((p) => p.participantId),
+    isLive: (id) => { const p = participants.get(id); return !!p && !p.expired; },
     /** Truncate the in-memory ring below `v`, so a pull from an older version gets 410. */
     truncateBelow(v) { log.splice(0, v - ringStart); ringStart = v; },
-    forgetClientIds() { knownClientIds.clear(); },
-    participant: (user) => participants.get(user) ?? null,
+    forgetClientIds() { clientOwner.clear(); },
   };
 }

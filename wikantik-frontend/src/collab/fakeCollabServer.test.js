@@ -50,15 +50,15 @@ async function expectCase(server, id, { user = 'ada' } = {}) {
 async function joinSample(server, user = 'ada') {
   return (await server.handle({ method: 'POST', path: '/join', body: {}, user })).body;
 }
-const push = (server, body, user = 'ada') => server.handle({ method: 'POST', path: '/updates', body: { sessionId: 's-1f3a', metaOps: [], ...body }, user });
+const push = (server, body, user = 'ada', participantId = 'pt-1') => server.handle({ method: 'POST', path: '/updates', body: { sessionId: 's-1f3a', participantId, metaOps: [], ...body }, user });
 
 describe('fixture file', () => {
   it('covers every endpoint and status the ruling lists', () => {
     const ids = fixture.cases.map((c) => c.id);
     for (const want of [
       'join.200', 'join.403', 'join.409.derived-page', 'join.429.session-full', 'join.503.collab-disabled',
-      'updates.post.200', 'updates.post.409.stale-base', 'updates.post.409.rejoin', 'updates.post.409.rate-limited',
-      'updates.post.400', 'updates.post.413', 'updates.get.200', 'updates.get.200.empty', 'updates.get.410',
+      'updates.post.200', 'updates.post.409.stale-base', 'updates.post.409.rejoin', 'updates.post.429.rate-limited',
+      'updates.post.400.rejected', 'updates.post.413', 'updates.get.200', 'updates.get.200.empty', 'updates.get.410',
       'publish.200', 'publish.409.publish-merged-retry', 'publish.422', 'publish.423', 'discard.204', 'leave.204',
     ]) expect(ids, want).toContain(want);
   });
@@ -101,6 +101,7 @@ describe('fakeCollabServer matches the fixture', () => {
 
   it('join reissues a prior clientID the server still knows, and applies initialText only on creation', async () => {
     const first = await joinSample(server);
+    server.expire('ada'); // a live participant keeps its clientID; only an expired one's is reissued
     const again = (await server.handle({ method: 'POST', path: '/join', body: { priorClientId: first.clientID }, user: 'ada' })).body;
     expect(again.clientID).toBe(first.clientID);
     expect(again.participantId).not.toBe(first.participantId);
@@ -113,10 +114,11 @@ describe('fakeCollabServer matches the fixture', () => {
   });
 
   /** Runs a recorded request against `srv`, substituting the participant's real clientID, and checks the response. */
-  async function replay(srv, id, { clientID, user = 'ada', version } = {}) {
+  async function replay(srv, id, { clientID, user = 'ada', version, participantId = 'pt-1' } = {}) {
     const c = byId[id];
     const body = structuredClone(c.request.body ?? {});
     body.sessionId = 's-1f3a';
+    body.participantId = participantId;
     for (const u of body.updates ?? []) if (clientID) u.clientID = clientID;
     if (version !== undefined) body.version = version;
     const res = await srv.handle({ method: c.method, path: c.path, body, user });
@@ -129,7 +131,7 @@ describe('fakeCollabServer matches the fixture', () => {
     const j = await joinSample(server);
     await replay(server, 'updates.post.200', { clientID: j.clientID });
     await replay(server, 'updates.post.409.stale-base', { clientID: j.clientID });
-    await replay(server, 'updates.post.400', { clientID: j.clientID, version: 1 });
+    await replay(server, 'updates.post.400.rejected', { clientID: j.clientID, version: 1 });
     const spoof = await push(server, { version: 1, updates: [{ clientID: 'someone-else', changes: [12, [0, 'x']] }] });
     expect(spoof.status).toBe(400);
     server.config.frozen = true;
@@ -152,16 +154,16 @@ describe('fakeCollabServer matches the fixture', () => {
     await joinSample(lim);
     await push(lim, { version: 0, updates: [] });
     const rl = await push(lim, { version: 0, updates: [] });
-    expect(rl.status).toBe(byId['updates.post.409.rate-limited'].response.status);
-    expect(shapeDiff(rl.body, byId['updates.post.409.rate-limited'].response.body)).toEqual([]);
+    expect(rl.status).toBe(429);
+    expect(shapeDiff(rl.body, byId['updates.post.429.rate-limited'].response.body)).toEqual([]);
   });
 
   it('GET /updates: 200 with content, empty on timeout, 410, rejoin', async () => {
     const s = createFakeCollabServer({ pollTimeoutMs: 1000 });
     const ada = await joinSample(s, 'ada');
-    await joinSample(s, 'raj');
+    const raj = await joinSample(s, 'raj');
     await s.handle({ method: 'POST', path: '/updates', user: 'raj', body: {
-      sessionId: 's-1f3a', version: 0, updates: [{ clientID: (await joinSample(s, 'raj')).clientID, changes: [11, [0, '!']] }],
+      sessionId: 's-1f3a', participantId: raj.participantId, version: 0, updates: [{ clientID: raj.clientID, changes: [11, [0, '!']] }],
       metaOps: [{ field: 'tags', value: ['a', 'b'] }], selection: { anchor: 3, head: 5, version: 1, unconfirmed: 0 },
     } });
     const got = await s.handle({ method: 'GET', path: '/updates', user: 'ada', query: byId['updates.get.200'].request.query });
@@ -169,7 +171,7 @@ describe('fakeCollabServer matches the fixture', () => {
     expect(shapeDiff(got.body, byId['updates.get.200'].response.body)).toEqual([]);
     expect(got.body.updates).toHaveLength(1);
 
-    const parked = s.handle({ method: 'GET', path: '/updates', user: 'ada', query: { sessionId: 's-1f3a', since: s.version, metaSince: got.body.metaSeq, presenceSince: got.body.presenceSeq, eventsSince: got.body.eventSeq } });
+    const parked = s.handle({ method: 'GET', path: '/updates', user: 'ada', query: { sessionId: 's-1f3a', participantId: 'pt-1', since: s.version, metaSince: got.body.metaSeq, presenceSince: got.body.presenceSeq, eventsSince: got.body.eventSeq } });
     await vi.advanceTimersByTimeAsync(1000);
     const empty = await parked;
     expect(empty.status).toBe(200);
@@ -188,11 +190,48 @@ describe('fakeCollabServer matches the fixture', () => {
     expect(ada.sessionId).toBe('s-1f3a');
   });
 
+  it('GET /updates 400 bad-since when since is beyond the head', async () => {
+    await joinSample(server);
+    const res = await server.handle({ method: 'GET', path: '/updates', user: 'ada', query: byId['updates.get.400.bad-since'].request.query });
+    expect(res.status).toBe(400);
+    expect(shapeDiff(res.body, byId['updates.get.400.bad-since'].response.body)).toEqual([]);
+  });
+
+  it('another user\'s participantId is 403 not-your-participant on every endpoint, and a missing one is 400', async () => {
+    await joinSample(server, 'ada');
+    const bob = await joinSample(server, 'bob');
+    const res = await push(server, { version: 0, updates: [] }, 'bob', 'pt-1');
+    expect(res.status).toBe(403);
+    expect(shapeDiff(res.body, byId['updates.post.403.not-your-participant'].response.body)).toEqual([]);
+    for (const [method, path, extra] of [['POST', '/publish', { version: 0 }], ['POST', '/discard', {}], ['POST', '/leave', {}]]) {
+      const r = await server.handle({ method, path, user: 'bob', body: { sessionId: 's-1f3a', participantId: 'pt-1', ...extra } });
+      expect(r.status, path).toBe(403);
+    }
+    const g = await server.handle({ method: 'GET', path: '/updates', user: 'bob', query: { sessionId: 's-1f3a', participantId: 'pt-1', since: 0 } });
+    expect(g.status).toBe(403);
+    const none = await server.handle({ method: 'POST', path: '/updates', user: 'bob', body: { sessionId: 's-1f3a', version: 0, updates: [] } });
+    expect(none.status).toBe(400);
+    expect(server.isLive('pt-1')).toBe(true);
+    expect(bob.participantId).toBe('pt-2');
+  });
+
+  it('two joins by one user are two participants; leaving one leaves the other live', async () => {
+    const a = await joinSample(server, 'ada');
+    const b = await joinSample(server, 'ada');
+    expect(a.participantId).not.toBe(b.participantId);
+    expect(a.clientID).not.toBe(b.clientID);
+    await server.handle({ method: 'POST', path: '/leave', user: 'ada', body: { sessionId: 's-1f3a', participantId: a.participantId } });
+    expect(server.isLive(a.participantId)).toBe(false);
+    expect(server.isLive(b.participantId)).toBe(true);
+    const ok = await push(server, { version: 0, updates: [] }, 'ada', b.participantId);
+    expect(ok.status).toBe(200);
+  });
+
   it('a parked pull is woken by a push', async () => {
     const a = await joinSample(server, 'ada');
     const b = await joinSample(server, 'bob');
-    const parked = server.handle({ method: 'GET', path: '/updates', user: 'ada', query: { sessionId: 's-1f3a', since: 0, presenceSince: 99, metaSince: 99, eventsSince: 99 } });
-    await push(server, { version: 0, updates: [{ clientID: b.clientID, changes: [11, [0, '?']] }] }, 'bob');
+    const parked = server.handle({ method: 'GET', path: '/updates', user: 'ada', query: { sessionId: 's-1f3a', participantId: 'pt-1', since: 0, presenceSince: 99, metaSince: 99, eventsSince: 99 } });
+    await push(server, { version: 0, updates: [{ clientID: b.clientID, changes: [11, [0, '?']] }] }, 'bob', b.participantId);
     const res = await parked;
     expect(res.body.updates).toHaveLength(1);
     expect(a.version).toBe(0);

@@ -25,7 +25,7 @@ async function makeEditor(server, user, opts = {}) {
   };
   editor.core = createCollabPeerCore({
     transport,
-    session: { sessionId: joined.sessionId, clientID: joined.clientID },
+    session: { sessionId: joined.sessionId, clientID: joined.clientID, participantId: joined.participantId },
     host,
     onStatus: (s) => editor.statuses.push(s),
     onResync: (r) => editor.resyncs.push(r),
@@ -82,6 +82,7 @@ describe('collabPeer', () => {
         if (/[\uDC00-\uDFFF]/.test(doc[at] ?? '') && at > 0) at -= 1;
         e.type(words[Math.floor(rand() * words.length)], at);
       }
+      if (rand() < 0.03) server.dropNextResponse('POST', '/updates'); // a lost acknowledgement now and then
       await advance(Math.floor(rand() * 70));
     }
     await settle(server, editors);
@@ -90,6 +91,9 @@ describe('collabPeer', () => {
       expect(e.resyncs).toEqual([]);
     }
     expect(server.version).toBeGreaterThan(100);
+    const pushes = server.calls.filter((c) => c.method === 'POST' && c.path === '/updates');
+    expect(pushes.filter((c) => c.status === 409 && c.reason === 'stale-base').length).toBeGreaterThanOrEqual(1);
+    expect(pushes.filter((c) => c.status === 'dropped').length).toBeGreaterThanOrEqual(1);
     for (const e of editors) e.core.destroy();
   }, 60000);
 
@@ -273,6 +277,65 @@ describe('collabPeer', () => {
     expect(a.resyncs).toHaveLength(1);
     expect(a.resyncs[0].reason).toBe('rejoin-new-client');
     expect(a.resyncs[0].unsyncedText).toContain('K');
+    await advance(100);
+    // the participant the rejoin's join just created is not left behind as a ghost, and the stale one is gone too
+    expect(server.liveParticipantIds()).toEqual([]);
+    await expect(a.core.whenLeft()).resolves.toBeDefined();
+  });
+
+  it('a resync leaves the stale participant, and whenLeft resolves after that leave', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc', maxPageBytes: 5 });
+    const a = await makeEditor(server, 'ada');
+    a.type('0123456789', 3);
+    await advance(500);
+    expect(a.resyncs).toHaveLength(1);
+    await a.core.whenLeft();
+    expect(server.isLive(a.joined.participantId)).toBe(false);
+  });
+
+  it('two tabs of the same user are two participants and neither disturbs the other', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc', seed: 3 });
+    const t1 = await makeEditor(server, 'ada');
+    const t2 = await makeEditor(server, 'ada');
+    expect(t1.joined.participantId).not.toBe(t2.joined.participantId);
+    expect(t1.joined.clientID).not.toBe(t2.joined.clientID);
+    t1.type('1', 0);
+    t2.type('2', 3);
+    await settle(server, [t1, t2]);
+    expect(server.doc).toBe('1abc2');
+    // tab 2 closes (pagehide beacon): tab 1 keeps working, unaffected
+    t2.core.destroy();
+    t2.transport.leaveBeacon({ sessionId: t2.joined.sessionId, participantId: t2.joined.participantId });
+    t1.type('3', 1);
+    await settle(server, [t1]);
+    expect(server.doc).toBe('13abc2');
+    expect(server.isLive(t1.joined.participantId)).toBe(true);
+    expect(server.isLive(t2.joined.participantId)).toBe(false);
+    expect(t1.resyncs).toEqual([]);
+    expect(server.calls.filter((c) => c.user === 'ada' && c.status === 409 && c.reason === 'rejoin')).toEqual([]);
+  });
+
+  it('a stale-base 409 without a numeric version is malformed: it backs off instead of retrying at once', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const sent = [];
+    const a = await makeEditor(server, 'ada', {
+      wrap: (t) => ({
+        ...t,
+        push: async (b) => {
+          if (b.updates.length) {
+            sent.push(Date.now());
+            if (sent.length <= 2) throw Object.assign(new Error('stale'), { status: 409, body: { accepted: false, reason: 'stale-base' } });
+          }
+          return t.push(b);
+        },
+      }),
+    });
+    a.type('Q', 3);
+    await settle(server, [a]);
+    expect(sent.length).toBeGreaterThanOrEqual(3);
+    expect(sent[1] - sent[0]).toBeGreaterThanOrEqual(500);
+    expect(sent[2] - sent[1]).toBeGreaterThanOrEqual(1000);
+    expect(server.doc).toBe('abcQ');
   });
 
   it('rate-limited pushes back off by retryAfterMs and then succeed', async () => {
@@ -281,7 +344,7 @@ describe('collabPeer', () => {
     for (let i = 0; i < 6; i++) { a.type(String(i), a.state.doc.length); await advance(110); }
     await settle(server, [a]);
     expect(server.doc).toBe('abc012345');
-    expect(server.calls.some((c) => c.status === 409 && c.path === '/updates' && c.user === 'ada')).toBe(true);
+    expect(server.calls.some((c) => c.status === 429 && c.path === '/updates' && c.user === 'ada')).toBe(true);
     expect(a.resyncs).toEqual([]);
   });
 

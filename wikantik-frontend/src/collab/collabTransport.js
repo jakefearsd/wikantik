@@ -17,12 +17,12 @@ export function createCollabTransport(pageName) {
     /** `{priorClientId, initialText, initialMeta}`: the server reissues priorClientId when it still knows it (7.2). */
     join: ({ priorClientId = null, initialText = null, initialMeta = null } = {}) =>
       post('join', { priorClientId, initialText, initialMeta }),
-    /** `{sessionId, version, updates, metaOps, selection?}`; a push with no updates is a presence-only push (A8). */
+    /** `{sessionId, participantId, version, updates, metaOps, selection?}`; a push with no updates is a presence-only push (A8). */
     push: (body) => post('updates', body),
-    /** Long-poll: `{sessionId, since, metaSince, presenceSince, eventsSince, signal}`. */
-    pull: ({ signal, sessionId, since, metaSince = 0, presenceSince = 0, eventsSince = 0 }) => {
+    /** Long-poll: `{sessionId, participantId, since, metaSince, presenceSince, eventsSince, signal}`. */
+    pull: ({ signal, sessionId, participantId, since, metaSince = 0, presenceSince = 0, eventsSince = 0 }) => {
       const qs = new URLSearchParams({
-        sessionId, since: String(since), metaSince: String(metaSince),
+        sessionId, participantId, since: String(since), metaSince: String(metaSince),
         presenceSince: String(presenceSince), eventsSince: String(eventsSince),
       });
       return collabRequest(`${base}/updates?${qs}`, { signal });

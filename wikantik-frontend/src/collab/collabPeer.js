@@ -7,7 +7,9 @@
  *  - 409 stale-base: wait for the pull to reach the server's head, then retry (the rebase is receiveUpdates');
  *  - 409 rejoin: rejoin with the prior clientID and keep the unsent edits (7.2); a different clientID cannot adopt them;
  *  - 410 / 413 / 400 and an unadoptable rejoin: `onResync` receives the unsynced text and the peer stops. The peer NEVER
- *    re-applies it (A10: re-applying cannot be mapped and duplicates text after a lost ack);
+ *    re-applies it (A10: re-applying cannot be mapped and duplicates text after a lost ack). Resync lifecycle: on resync the
+ *    peer leaves its (now stale) participant, and on `rejoin-new-client` the participant that rejoin's join just created (a
+ *    ghost otherwise); `whenLeft()` resolves when that leave finished, so a host can await it before any fresh join;
  *  - 401/403: keep every unsent edit and stop in `auth-required` until `resume()` (A13); frozen pages stop in `frozen`;
  *  - network errors / 5xx: exponential backoff 500 ms doubling, capped at 10 s; rate-limited: wait `retryAfterMs`.
  *
@@ -54,6 +56,7 @@ export function createCollabPeerCore({
   let lastSentSelection = null;
   let lastPushAt = -Infinity;
   let rejoinPromise = null;
+  let leavePromise = Promise.resolve();
   const timers = new Set();
   let syncWaiters = [];
 
@@ -114,11 +117,20 @@ export function createCollabPeerCore({
     ws.forEach((w) => w(false));
   }
 
-  function resync(reason) {
+  function leaveQuietly(participantId) {
+    return Promise.resolve()
+      .then(() => transport.leave({ sessionId: session.sessionId, participantId }))
+      .catch((e) => LOG('leave failed', e?.status, e?.message));
+  }
+
+  function resync(reason, { ghostParticipantId } = {}) {
     if (stopped) return;
     const state = host.getState();
     const payload = { reason, docText: state.doc.toString(), unsyncedText: unsyncedText(state) };
     stop('resync');
+    // leave the stale participant (and a ghost created by an unadoptable rejoin) before the host may join afresh
+    const ids = new Set([session.participantId, ghostParticipantId].filter(Boolean));
+    leavePromise = Promise.all([...ids].map(leaveQuietly));
     onResync(payload);
   }
 
@@ -134,10 +146,10 @@ export function createCollabPeerCore({
       while (!destroyed && !stopped) {
         try {
           const j = await transport.join({ priorClientId: session.clientID });
-          if (destroyed || stopped) return;
+          if (destroyed || stopped) { leaveQuietly(j.participantId); return; }
           const synced = getSyncedVersion(host.getState());
-          if (j.clientID !== session.clientID) { resync('rejoin-new-client'); return; }
-          if (j.version < synced) { resync('rejoin-behind'); return; }
+          if (j.clientID !== session.clientID) { resync('rejoin-new-client', { ghostParticipantId: j.participantId }); return; }
+          if (j.version < synced) { resync('rejoin-behind', { ghostParticipantId: j.participantId }); return; }
           session.sessionId = j.sessionId;
           session.participantId = j.participantId;
           presenceSince = 0;
@@ -162,13 +174,15 @@ export function createCollabPeerCore({
   async function handleError(err, { where, sentVersion }) {
     const status4 = err?.status;
     const reason = err?.body?.reason;
-    if (reason === 'stale-base' || (status4 === 409 && err?.body?.accepted === false)) {
+    const stale = reason === 'stale-base' || (status4 === 409 && err?.body?.accepted === false);
+    if (stale && Number.isInteger(err?.body?.version)) {
       const head = err.body.version;
-      if (typeof head === 'number' && sentVersion !== undefined && head < sentVersion) { resync('server-behind'); return; }
-      gateVersion = Math.max(gateVersion, head ?? 0);
+      if (sentVersion !== undefined && head < sentVersion) { resync('server-behind'); return; }
+      gateVersion = Math.max(gateVersion, head);
       return;
     }
-    if (reason === 'rate-limited' || status4 === 429) {
+    // a stale-base without a numeric version is malformed: fall through to the generic backoff (no immediate retry loop)
+    if (status4 === 429) {
       await delay(err.body?.retryAfterMs ?? backoff(where === 'push' ? ++pushFailures : ++pullFailures));
       return;
     }
@@ -177,7 +191,8 @@ export function createCollabPeerCore({
     if (status4 === 401 || status4 === 403) { stop('auth-required'); return; }
     if (status4 === 410 || err?.body?.resync) { resync('resync'); return; }
     if (status4 === 413 || reason === 'oversize') { resync('oversize'); return; }
-    if (status4 === 400) { resync('bad-request'); return; }
+    if (reason === 'bad-since') { resync('bad-since'); return; }
+    if (status4 === 400) { resync('rejected'); return; }
     if (err?.name === 'AbortError') return;
     const n = where === 'push' ? ++pushFailures : ++pullFailures;
     LOG(`${where} failed (attempt ${n}); backing off`, err?.message ?? err);
@@ -203,11 +218,13 @@ export function createCollabPeerCore({
     try {
       const res = await transport.push({
         sessionId: session.sessionId,
+        participantId: session.participantId,
         version,
         updates: updates.map((u) => ({ clientID: u.clientID, changes: u.changes.toJSON() })),
         metaOps: [],
         ...(selection ? { selection: { anchor: selection.anchor, head: selection.head, version, unconfirmed: updates.length } } : {}),
       });
+      if (destroyed) return;
       pushFailures = 0;
       if (selection) lastSentSelection = selection;
       if (updates.length && typeof res?.version === 'number') gateVersion = Math.max(gateVersion, res.version);
@@ -252,7 +269,7 @@ export function createCollabPeerCore({
         const startedAt = Date.now();
         let res;
         try {
-          res = await transport.pull({ sessionId: session.sessionId, since, metaSince, presenceSince, eventsSince, signal: pullAbort.signal });
+          res = await transport.pull({ sessionId: session.sessionId, participantId: session.participantId, since, metaSince, presenceSince, eventsSince, signal: pullAbort.signal });
         } catch (err) {
           if (destroyed || stopped) break;
           await handleError(err, { where: 'pull' });
@@ -286,6 +303,8 @@ export function createCollabPeerCore({
       if (isSynced()) return Promise.resolve(true);
       return new Promise((resolve) => { syncWaiters.push(resolve); });
     },
+    /** Resolves once the leave started by a resync has finished (immediately when there was none). */
+    whenLeft: () => leavePromise,
     getStatus: () => status,
     getSyncedVersion: () => getSyncedVersion(host.getState()),
     getSession: () => ({ ...session }),
@@ -317,8 +336,12 @@ export function createCollabPeerCore({
 export function createPeerHandle() {
   const handle = {
     core: null,
-    attach(core) { handle.core = core; },
+    lastCore: null,
+    attach(core) { handle.core = core; handle.lastCore = core; },
     detach() { handle.core = null; },
+    destroy() { handle.core?.destroy(); },
+    /** Resolves when the last peer's resync leave finished. */
+    whenLeft: () => (handle.lastCore ? handle.lastCore.whenLeft() : Promise.resolve()),
     whenSynced: () => (handle.core ? handle.core.whenSynced() : Promise.resolve(true)),
     getSyncedVersion: () => (handle.core ? handle.core.getSyncedVersion() : null),
     resume: () => handle.core?.resume(),

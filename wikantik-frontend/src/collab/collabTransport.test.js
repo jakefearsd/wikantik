@@ -39,9 +39,9 @@ describe('collabTransport', () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { updates: [] }));
     const t = createCollabTransport('P');
     const ctl = new AbortController();
-    await t.pull({ sessionId: 's1', since: 3, metaSince: 1, presenceSince: 2, eventsSince: 4, signal: ctl.signal });
+    await t.pull({ sessionId: 's1', participantId: 'pt1', since: 3, metaSince: 1, presenceSince: 2, eventsSince: 4, signal: ctl.signal });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('/api/collab/P/updates?sessionId=s1&since=3&metaSince=1&presenceSince=2&eventsSince=4');
+    expect(url).toBe('/api/collab/P/updates?sessionId=s1&participantId=pt1&since=3&metaSince=1&presenceSince=2&eventsSince=4');
     expect(init.method ?? 'GET').toBe('GET');
     expect(init.signal).toBe(ctl.signal);
   });
@@ -75,11 +75,11 @@ describe('collabTransport', () => {
     const beacon = vi.fn().mockReturnValue(true);
     vi.stubGlobal('navigator', { ...globalThis.navigator, sendBeacon: beacon });
     const t = createCollabTransport('P');
-    expect(t.leaveBeacon({ sessionId: 's1' })).toBe(true);
+    expect(t.leaveBeacon({ sessionId: 's1', participantId: 'pt1' })).toBe(true);
     const [url, blob] = beacon.mock.calls[0];
     expect(url).toBe('/api/collab/P/leave');
     expect(blob.type).toBe('application/json');
-    expect(JSON.parse(await blob.text())).toEqual({ sessionId: 's1' });
+    expect(JSON.parse(await blob.text())).toEqual({ sessionId: 's1', participantId: 'pt1' });
   });
 
   it('leaveBeacon returns false where sendBeacon is missing', () => {

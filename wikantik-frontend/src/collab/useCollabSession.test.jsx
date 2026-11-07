@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { EditorState } from '@codemirror/state';
@@ -49,7 +50,7 @@ describe('useCollabSession', () => {
     renderHook(() => useCollabSession('P', { transport }));
     await flush();
     act(() => { window.dispatchEvent(new Event('pagehide')); });
-    expect(beacon).toHaveBeenCalledWith({ sessionId: 's-1f3a' });
+    expect(beacon).toHaveBeenCalledWith({ sessionId: 's-1f3a', participantId: 'pt-1' });
   });
 
   it('a join that resolves after unmount leaves immediately (strict-mode double mount)', async () => {
@@ -84,7 +85,7 @@ describe('useCollabSession', () => {
       outcome = await p;
     });
     expect(outcome).toMatchObject({ ok: true, pageVersion: 8 });
-    expect(server.calls.find((c) => c.path === '/publish').body).toMatchObject({ sessionId: 's-1f3a', version: 0, changeNote: 'note' });
+    expect(server.calls.find((c) => c.path === '/publish').body).toMatchObject({ sessionId: 's-1f3a', participantId: 'pt-1', version: 0, changeNote: 'note' });
   });
 
   it('publish retries after publish-merged-retry and reports 422 violations', async () => {
@@ -121,7 +122,7 @@ describe('useCollabSession', () => {
     await act(async () => { await bob.join({}); await vi.advanceTimersByTimeAsync(50); });
     expect(result.current.participants.map((p) => p.displayName).sort()).toEqual(['ada', 'bob']);
     expect(result.current.events.some((e) => e.type === 'participant-joined')).toBe(true);
-    await act(async () => { await bob.leave({ sessionId: 's-1f3a' }); await vi.advanceTimersByTimeAsync(50); });
+    await act(async () => { await bob.leave({ sessionId: 's-1f3a', participantId: 'pt-2' }); await vi.advanceTimersByTimeAsync(50); });
     expect(result.current.participants.map((p) => p.displayName)).toEqual(['ada']);
     view.destroy();
   });
@@ -141,7 +142,7 @@ describe('useCollabSession', () => {
     const bob = server.transportFor('bob');
     const bj = await bob.join({});
     await act(async () => {
-      await bob.push({ sessionId: bj.sessionId, version: 1, updates: [{ clientID: bj.clientID, changes: [0, [0, '>> '], 11] }], metaOps: [] }).catch(() => {});
+      await bob.push({ sessionId: bj.sessionId, participantId: bj.participantId, version: 1, updates: [{ clientID: bj.clientID, changes: [0, [0, '>> '], 11] }], metaOps: [] }).catch(() => {});
       await vi.advanceTimersByTimeAsync(100);
     });
     expect(view.state.doc.toString()).toBe('>> Hello there');
@@ -161,5 +162,108 @@ describe('useCollabSession', () => {
     const before = server.calls.length;
     await act(async () => { await vi.advanceTimersByTimeAsync(20000); });
     expect(server.calls.length).toBe(before);
+  });
+
+  it('rendered under a real StrictMode it converges without resync and leaves only the discarded first join', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }), { wrapper: StrictMode });
+    await flush();
+    expect(result.current.status).toBe('live');
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    view.dispatch({ changes: { from: 5, insert: '!' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+    expect(server.doc).toBe('Hello!');
+    expect(result.current.resync).toBeNull();
+    expect(result.current.status).toBe('live');
+    const joins = server.calls.filter((c) => c.path === '/join');
+    const leaves = server.calls.filter((c) => c.path === '/leave');
+    expect(joins).toHaveLength(2);
+    expect(leaves).toHaveLength(1);
+    expect(leaves[0].body.participantId).toBe('pt-1');
+    expect(server.liveParticipantIds()).toEqual([result.current.participants[0].participantId]);
+    expect(server.calls.filter((c) => c.status === 409 && c.reason === 'rejoin')).toEqual([]);
+    view.destroy();
+  });
+
+  it('restart() after a resync leaves the stale participant first, then joins afresh', async () => {
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    const base = server.transportFor('ada');
+    const transport = { ...base, pull: async (q) => { await gate; return base.pull(q); } };
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    const oldId = result.current.participants[0].participantId;
+    const bob = server.transportFor('bob');
+    const bj = await bob.join({});
+    for (let v = 0; v < 3; v += 1) {
+      await bob.push({ sessionId: bj.sessionId, participantId: bj.participantId, version: v, updates: [{ clientID: bj.clientID, changes: [v === 0 ? 5 : 5 + v, [0, String(v)]] }], metaOps: [] });
+    }
+    server.truncateBelow(2);
+    release();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(result.current.status).toBe('resync');
+    expect(result.current.resync.reason).toBe('resync');
+    view.destroy();
+    await act(async () => { await result.current.restart(); await vi.advanceTimersByTimeAsync(200); });
+    const log = server.calls.filter((c) => (c.path === '/join' && c.user === 'ada') || (c.path === '/leave' && c.body.participantId === oldId));
+    const order = log.map((c) => c.path);
+    expect(order.indexOf('/leave')).toBeGreaterThan(-1);
+    expect(order.lastIndexOf('/join')).toBeGreaterThan(order.indexOf('/leave'));
+    expect(server.isLive(oldId)).toBe(false);
+    expect(result.current.status).toBe('live');
+    expect(result.current.resync).toBeNull();
+    expect(result.current.participants.map((p) => p.participantId)).not.toContain(oldId);
+  });
+
+  it('discard resolves {ok:false} instead of throwing when the server refuses', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    server.expire('ada');
+    let out;
+    await act(async () => { out = await result.current.discard(); });
+    expect(out).toMatchObject({ ok: false, status: 409, reason: 'rejoin' });
+  });
+
+  it('keeps only the last 200 events', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    for (let i = 0; i < 250; i += 1) {
+      const t = server.transportFor(`u${i}`);
+      await t.join({});
+    }
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(result.current.events.length).toBe(200);
+    view.destroy();
+  });
+
+  it('unmounting destroys the peer: no more requests even with the view still alive', async () => {
+    const transport = server.transportFor('ada');
+    const { result, unmount } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    await flush();
+    unmount();
+    await flush();
+    const before = server.calls.length;
+    view.dispatch({ changes: { from: 0, insert: 'x' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(20000); });
+    expect(server.calls.length).toBe(before);
+    view.destroy();
   });
 });

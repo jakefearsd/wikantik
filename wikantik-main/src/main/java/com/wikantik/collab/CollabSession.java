@@ -53,6 +53,7 @@ import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 /**
@@ -389,12 +390,14 @@ public final class CollabSession {
      * The draft summary (section 6.2's {@code GET /draft}): base and head bodies and meta, the contributors' public
      * names, unpublished and the last edit, as one snapshot under the lock; the caller diffs. Identity-checked like any
      * request (403 {@code not-your-participant}, 409 {@code rejoin}, 403 {@code evicted} with its reason) and marks the
-     * participant seen; neither version-checked nor rate-limited.
+     * participant seen; not version-checked. {@code admit} is the caller's rate budget, asked only once the identity
+     * check passed and before the snapshot is copied: false answers 429 {@code rate-limited} and copies nothing, so a
+     * refused caller never spends a budget and a rate-limited one costs no snapshot.
      */
-    public DraftSummary draftSummary( final String participantId, final String authorKey ) {
+    public DraftSummary draftSummary( final String participantId, final String authorKey, final BooleanSupplier admit ) {
         lock.lock();
         try {
-            return Gate.summary( roster, participantId, authorKey, clock.instant(), d );
+            return Gate.summary( roster, participantId, authorKey, clock.instant(), d, admit );
         } finally {
             lock.unlock();
         }

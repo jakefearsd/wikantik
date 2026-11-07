@@ -465,7 +465,7 @@ class CollabSessionContributorsTest {
         join( "bob" );
         type( a, "alice", "X" );
         editMeta( a, "alice", MetaEdit.set( "title", "New title" ) );
-        final DraftSummary s = session.draftSummary( a.participantId(), "alice" );
+        final DraftSummary s = session.draftSummary( a.participantId(), "alice", () -> true );
         assertEquals( 200, s.status() );
         assertNull( s.reason() );
         assertEquals( 1, s.basePageVersion() );
@@ -478,17 +478,45 @@ class CollabSessionContributorsTest {
         assertEquals( Map.of( "title", "T", "canonical_id", CID ), s.baseMeta() );
         assertEquals( Map.of( "title", "New title", "canonical_id", CID ), s.meta() );
 
-        final DraftSummary notYours = session.draftSummary( a.participantId(), "bob" );
+        final DraftSummary notYours = session.draftSummary( a.participantId(), "bob", () -> true );
         assertEquals( 403, notYours.status() );
         assertEquals( CollabSession.NOT_YOURS, notYours.reason() );
         assertEquals( List.of(), notYours.contributors() );
-        assertEquals( 409, session.draftSummary( "nobody", "alice" ).status() );
-        assertEquals( CollabSession.REJOIN, session.draftSummary( "nobody", "alice" ).reason() );
+        assertEquals( 409, session.draftSummary( "nobody", "alice", () -> true ).status() );
+        assertEquals( CollabSession.REJOIN, session.draftSummary( "nobody", "alice", () -> true ).reason() );
         session.evict( a.participantId(), CollabSession.LOST_EDIT );
-        final DraftSummary evicted = session.draftSummary( a.participantId(), "alice" );
+        final DraftSummary evicted = session.draftSummary( a.participantId(), "alice", () -> true );
         assertEquals( 403, evicted.status() );
         assertEquals( CollabSession.EVICTED, evicted.reason() );
         assertEquals( CollabSession.LOST_EDIT, evicted.detail() );
+    }
+
+    /**
+     * The caller's rate budget is asked only after the identity check and before the snapshot: a refused identity never
+     * spends it, and a refused budget answers 429 rate-limited with no draft content.
+     */
+    @Test
+    void draftSummaryAsksTheBudgetOnlyAfterTheIdentityCheck() {
+        final JoinResponse a = join( "alice" );
+        join( "bob" );
+        final int[] asked = { 0 };
+        final java.util.function.BooleanSupplier spend = () -> ++asked[ 0 ] > 0;
+        assertEquals( 403, session.draftSummary( a.participantId(), "bob", spend ).status() );
+        assertEquals( 409, session.draftSummary( "nobody", "alice", spend ).status() );
+        assertEquals( 0, asked[ 0 ], "a refused identity spends no budget" );
+
+        final DraftSummary limited = session.draftSummary( a.participantId(), "alice", () -> false );
+        assertEquals( 429, limited.status() );
+        assertEquals( "rate-limited", limited.reason() );
+        assertNull( limited.doc(), "no snapshot is copied" );
+        assertEquals( 200, session.draftSummary( a.participantId(), "alice", spend ).status() );
+        assertEquals( 1, asked[ 0 ] );
+
+        session.evict( a.participantId(), CollabSession.LOST_EDIT );
+        final DraftSummary evicted = session.draftSummary( a.participantId(), "alice", spend );
+        assertEquals( 403, evicted.status() );
+        assertEquals( CollabSession.LOST_EDIT, evicted.detail() );
+        assertEquals( 1, asked[ 0 ] );
     }
 
     @Test

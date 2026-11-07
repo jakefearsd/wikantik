@@ -49,8 +49,10 @@ import java.util.function.LongSupplier;
  * <p>Any refusal of the session (403 {@code not-your-participant}, 403 {@code evicted} with its {@code detail}, 409
  * {@code rejoin}) is answered as every post-join call answers it. A diff of up to {@code maxPageBytes} per call is
  * worth bounding: each participant may fetch {@value #BURST} summaries at once and {@value #PER_SECOND} a second after
- * that (429 {@code rate-limited} with {@code retryAfterMs}); the budget is spent only by an identity-checked
- * participant, so another user's refused call never uses it up.</p>
+ * that (429 {@code rate-limited} with {@code retryAfterMs}). The order, inside {@link CollabSession#draftSummary}, is
+ * the identity check, then the budget, then the snapshot: the budget is spent only by an
+ * identity-checked participant, so another user's refused call never uses it up, and a rate-limited call copies no
+ * snapshot.</p>
  */
 final class CollabDraft {
 
@@ -99,17 +101,22 @@ final class CollabDraft {
     /** The summary for {@code participantId}, or the refusal; {@code observe} gets the session's answer. */
     Answer summarise( final CollabSession s, final String participantId, final String authorKey,
                       final BiConsumer< Integer, String > observe ) {
-        final DraftSummary d = s.draftSummary( participantId, authorKey );   // the one step under the session lock
+        // under the session lock: the identity check, then this budget (only for an identity-checked participant), then
+        // the snapshot (only when the budget admitted it)
+        final long[] waitNanos = { 0 };
+        final DraftSummary d = s.draftSummary( participantId, authorKey, () -> {
+            waitNanos[ 0 ] = acquire( s.id() + "/" + participantId );
+            return waitNanos[ 0 ] == 0;
+        } );
+        if( waitNanos[ 0 ] > 0 ) {
+            LOG.info( "collab session {}: draft summary for {} refused: rate-limited", s.id(), participantId );
+            final Answer a = CollabWire.reason( 429, "rate-limited" );
+            ( ( JsonObject ) a.body() ).addProperty( "retryAfterMs", Math.max( 1, waitNanos[ 0 ] / 1_000_000 ) );
+            return a;
+        }
         observe.accept( d.status(), d.reason() );
         if( d.status() != 200 ) {
             return CollabWire.refusal( d.status(), d.reason(), d.detail(), 0 );
-        }
-        final long waitNanos = acquire( s.id() + "/" + participantId );
-        if( waitNanos > 0 ) {
-            LOG.info( "collab session {}: draft summary for {} refused: rate-limited", s.id(), participantId );
-            final Answer a = CollabWire.reason( 429, "rate-limited" );
-            ( ( JsonObject ) a.body() ).addProperty( "retryAfterMs", Math.max( 1, waitNanos / 1_000_000 ) );
-            return a;
         }
         final JsonObject o = new JsonObject();
         o.addProperty( "basePageVersion", d.basePageVersion() );

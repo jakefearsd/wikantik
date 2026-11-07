@@ -106,12 +106,13 @@ public final class RestJson {
         response.setStatus( status );
         response.setContentType( "application/json" );
         response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( RestServletBase.GSON.toJson( Map.of(
-                "error", true,
-                "status", status,
-                "message", message,
-                "reason", reason
-        ) ) );
+        // a LinkedHashMap, not Map.of: a null message is dropped rather than throwing; a null reason is "unknown"
+        final Map< String, Object > body = new java.util.LinkedHashMap<>();
+        body.put( "error", true );
+        body.put( "status", status );
+        body.put( "message", message );
+        body.put( "reason", reason == null ? "unknown" : reason );
+        response.getWriter().write( RestServletBase.GSON.toJson( body ) );
     }
 
     /**

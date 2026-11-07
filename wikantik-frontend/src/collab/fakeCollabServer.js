@@ -80,7 +80,7 @@ export function createFakeCollabServer({
   let announced = JSON.stringify({ unpublished: false, contributors: [] }); // the last draft-state reported
   let publishedText = initialText;
   let publishedMeta = { ...initialMeta };
-  let failPublishBy = null;
+  let failPublish = null; // { by } armed by failNextPublish (by may be null: no display name)
   let deletedEventSeq = 0; // the latest page-deleted, so a frozen draft's joiners are told (Lifecycle.joinEventSeq)
 
   const text = () => doc.toString();
@@ -347,10 +347,11 @@ export function createFakeCollabServer({
     if (body.markupSyntax != null && body.markupSyntax !== 'markdown' && body.markupSyntax !== 'wiki') {
       return reply(400, { reason: 'rejected', message: 'markupSyntax must be markdown or wiki' });
     }
-    if (failPublishBy !== null) {
-      const by = failPublishBy;
-      failPublishBy = null;
-      addEvent({ type: 'publish-failed', by, status: 500, reason: 'writer-failed' });
+    if (failPublish !== null) {
+      const { by } = failPublish;
+      failPublish = null;
+      // as the server: `by` is absent when the publisher has no display name
+      addEvent({ type: 'publish-failed', ...(by != null ? { by } : {}), status: 500, reason: 'writer-failed' });
       return reply(500, { reason: 'writer-failed' });
     }
     if (config.publishInvalid) {
@@ -567,7 +568,7 @@ export function createFakeCollabServer({
     /** The server refuses the document as too large: an `oversize {bytes, limit}` event. */
     oversize(bytes, limit) { addEvent({ type: 'oversize', bytes, limit }); },
     /** The next publish fails on the server: it emits publish-failed {by, status, reason} and answers 500 writer-failed once. */
-    failNextPublish(by) { failPublishBy = by; },
+    failNextPublish(by) { failPublish = { by }; },
     forgetClientIds() { clientOwner.clear(); clientReleasedAt.clear(); },
   };
 }

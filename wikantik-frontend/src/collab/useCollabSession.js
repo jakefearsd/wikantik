@@ -301,7 +301,8 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
                 } else if (NOTICE_TYPES.includes(e.type) && isNews(e)) {
                   const notice = e.type === 'oversize'
                     ? { type: e.type, bytes: finite(e.bytes), limit: finite(e.limit), seq: e.seq ?? null }
-                    : { type: e.type, by: labelOf(e.by), seq: e.seq ?? null };
+                    // `by` is absent when the author has no display name: null, so the editor says "Someone"
+                    : { type: e.type, by: typeof e.by === 'string' && e.by.trim() ? e.by.trim() : null, seq: e.seq ?? null };
                   patch(e.type === 'oversize' && notice.limit !== null ? { notice, oversizeLimit: notice.limit } : { notice });
                 }
               }

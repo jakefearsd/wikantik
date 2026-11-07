@@ -179,10 +179,8 @@ public class AdminCollabResource extends RestServletBase {
         final String admin = loginOf( request );
         final PurgeOutcome out = reg.get().purge( id, admin );
         switch( out.status() ) {
-            case HttpServletResponse.SC_NO_CONTENT -> {
-                LOG.info( "collab: draft {} of {} purged by {}", id, out.pageName(), admin );
-                response.setStatus( HttpServletResponse.SC_NO_CONTENT );
-            }
+            // the registry logs and audits a purge itself (DraftAdmin.purge)
+            case HttpServletResponse.SC_NO_CONTENT -> response.setStatus( HttpServletResponse.SC_NO_CONTENT );
             case HttpServletResponse.SC_NOT_FOUND -> sendError( response, out.status(), "No such draft",
                 out.reason() );
             case 423 -> sendError( response, out.status(), "A publish of this draft is in progress; try again",

@@ -287,4 +287,30 @@ class AdminCollabResourceTest {
             engine.stop();
         }
     }
+
+    /** A signed-in user without {@code AllPermission} is refused too, not only an anonymous caller. */
+    @Test
+    void anAuthenticatedNonAdminIs403() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            final AdminAuthFilter filter = new AdminAuthFilter();
+            final FilterConfig fc = Mockito.mock( FilterConfig.class );
+            Mockito.doReturn( engine.getServletContext() ).when( fc ).getServletContext();
+            filter.init( fc );
+            final com.wikantik.api.core.Session janne = engine.janneSession();   // the shared mock HTTP session
+            assertTrue( janne.isAuthenticated(), "signed in (janne holds no AllPermission)" );
+            for( final String method : List.of( "GET", "DELETE" ) ) {
+                final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/collab/drafts" );
+                Mockito.doReturn( method ).when( request ).getMethod();
+                final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+                Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+                final FilterChain chain = Mockito.mock( FilterChain.class );
+                filter.doFilter( request, response, chain );
+                verify( chain, never() ).doFilter( any(), any() );
+                verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+            }
+        } finally {
+            engine.stop();
+        }
+    }
 }

@@ -440,8 +440,8 @@ export default function PageEditor({ collabTransport } = {}) {
     if (!notice || announcedRef.current.notice === notice) return;
     announcedRef.current.notice = notice;
     if (notice.by && notice.by === selfName) return;
-    if (notice.type === 'publish-failed') toast.error(`${notice.by}'s publish was refused`);
-    else if (notice.type === 'draft-discarded') toast.info(`${notice.by} discarded the shared draft`);
+    if (notice.type === 'publish-failed') toast.error(`${notice.by || 'Someone'}'s publish was refused`);
+    else if (notice.type === 'draft-discarded') toast.info(`${notice.by || 'Someone'} discarded the shared draft`);
   }, [notice, selfName, toast]);
   // E25: the server reported the draft over the page size limit; the warning follows the local document's size
   const oversizeLimit = collabMode ? collab.oversizeLimit : null;

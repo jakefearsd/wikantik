@@ -1199,6 +1199,16 @@ describe('PageEditor collaborative mode', () => {
     await until(() => toast.info.mock.calls.some(([m]) => m === 'bob discarded the shared draft'));
   });
 
+  it('aPublishFailedWithoutAnAuthorNamesSomeone', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const bob = await joinAs('bob');
+    server.failNextPublish(null); // the server omits `by` for a publisher without a display name
+    await bob.t.publish({ ...idsOf(bob), version: server.version, changeNote: 'x' }).catch(() => {});
+    await until(() => toast.error.mock.calls.some(([m]) => m === "Someone's publish was refused"));
+    expect(toast.error.mock.calls.filter(([m]) => /null|undefined|Anonymous/.test(m))).toEqual([]);
+  });
+
   it('oversizeBannerFollowsTheLocalSize', async () => {
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');

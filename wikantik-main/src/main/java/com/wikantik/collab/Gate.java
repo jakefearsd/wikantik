@@ -22,6 +22,7 @@ import com.wikantik.collab.model.DraftSummary;
 import com.wikantik.collab.model.PublishResponse;
 
 import java.time.Instant;
+import java.util.function.BooleanSupplier;
 
 /**
  * The refusals every request meets before it touches the document: the participant must exist (409 {@code rejoin},
@@ -61,12 +62,16 @@ final class Gate {
 
     /**
      * The draft summary for an identity-checked participant (marked seen), else the refusal; under the session lock.
+     * {@code admit} (the caller's rate budget) is asked after the identity check and before the snapshot is copied.
      */
     static DraftSummary summary( final Roster roster, final String participantId, final String authorKey,
-                                 final Instant now, final Draft d ) {
+                                 final Instant now, final Draft d, final BooleanSupplier admit ) {
         final Refusal refused = identity( roster, participantId, authorKey, now );
         if( refused != null ) {
             return DraftSummary.refused( refused.status(), refused.reason(), refused.detail() );
+        }
+        if( !admit.getAsBoolean() ) {
+            return DraftSummary.refused( 429, "rate-limited", null );
         }
         roster.get( participantId ).touch( now );
         return new DraftSummary( 200, null, null, d.record.basePageVersion(), d.head, d.hasUnpublished(),

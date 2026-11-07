@@ -213,4 +213,28 @@ class RequestMetricsFilterTest {
         assertNotNull( timer );
         assertEquals( 1, timer.count() );
     }
+
+    /**
+     * If the async context is already completing when the listener is added, the
+     * container throws IllegalStateException; the latency is then recorded synchronously
+     * (and the exception does not escape the filter).
+     */
+    @Test
+    void recordsSynchronouslyWhenTheAsyncListenerCannotBeAdded() throws Exception {
+        stubRegistryAvailable();
+        when( request.getMethod() ).thenReturn( "GET" );
+        when( request.getRequestURI() ).thenReturn( "/api/collab/P/updates" );
+        when( request.isAsyncStarted() ).thenReturn( true );
+        final jakarta.servlet.AsyncContext asyncContext = mock( jakarta.servlet.AsyncContext.class );
+        when( request.getAsyncContext() ).thenReturn( asyncContext );
+        doThrow( new IllegalStateException( "async already completed" ) )
+                .when( asyncContext ).addListener( any( jakarta.servlet.AsyncListener.class ) );
+        when( response.getStatus() ).thenReturn( 200 );
+
+        assertDoesNotThrow( () -> filter.doFilter( request, response, chain ) );
+
+        final Timer timer = registry.find( "http.server.requests" ).tag( "status", "200" ).timer();
+        assertNotNull( timer, "recorded synchronously when the listener could not be registered" );
+        assertEquals( 1, timer.count() );
+    }
 }

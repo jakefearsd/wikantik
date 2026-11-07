@@ -32,6 +32,9 @@ import jakarta.servlet.AsyncListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -44,6 +47,8 @@ import java.util.regex.Pattern;
  * high-cardinality metrics (e.g., {@code /api/pages/MainPage} becomes {@code /api/pages/{page}}).</p>
  */
 public class RequestMetricsFilter implements Filter {
+
+    private static final Logger LOG = LogManager.getLogger( RequestMetricsFilter.class );
 
     private static final Pattern WIKI_PAGE = Pattern.compile( "^/wiki/.+" );
     private static final Pattern API_RESOURCE = Pattern.compile( "^/api/[^/]+/.+" );
@@ -74,27 +79,44 @@ public class RequestMetricsFilter implements Filter {
         try {
             chain.doFilter( request, response );
             if ( request.isAsyncStarted() ) {
-                // The request outlives this call (long-poll): record when it actually completes.
-                request.getAsyncContext().addListener( new AsyncListener() {
-                    @Override public void onComplete( final AsyncEvent event ) {
-                        record( registry, httpRequest, httpResponse, startNanos );
-                    }
-                    @Override public void onTimeout( final AsyncEvent event ) {
-                        // the container follows a timeout with onComplete; recorded there
-                    }
-                    @Override public void onError( final AsyncEvent event ) {
-                        // the container follows an error with onComplete; recorded there
-                    }
-                    @Override public void onStartAsync( final AsyncEvent event ) {
-                        event.getAsyncContext().addListener( this );
-                    }
-                } );
-                asyncRegistered = true;
+                asyncRegistered = recordOnAsyncCompletion( request, registry, httpRequest, httpResponse, startNanos );
             }
         } finally {
             if ( !asyncRegistered ) {
                 record( registry, httpRequest, httpResponse, startNanos );
             }
+        }
+    }
+
+    /**
+     * Registers a listener that records the latency when the async request completes.
+     * Returns {@code false} — the caller then records synchronously — when the container
+     * refuses the listener (IllegalStateException: the async cycle already completed).
+     */
+    private static boolean recordOnAsyncCompletion( final ServletRequest request, final MeterRegistry registry,
+                                                    final HttpServletRequest httpRequest,
+                                                    final HttpServletResponse httpResponse, final long startNanos ) {
+        try {
+            // The request outlives this call (long-poll): record when it actually completes.
+            request.getAsyncContext().addListener( new AsyncListener() {
+                @Override public void onComplete( final AsyncEvent event ) {
+                    record( registry, httpRequest, httpResponse, startNanos );
+                }
+                @Override public void onTimeout( final AsyncEvent event ) {
+                    // the container follows a timeout with onComplete; recorded there
+                }
+                @Override public void onError( final AsyncEvent event ) {
+                    // the container follows an error with onComplete; recorded there
+                }
+                @Override public void onStartAsync( final AsyncEvent event ) {
+                    event.getAsyncContext().addListener( this );
+                }
+            } );
+            return true;
+        } catch ( final IllegalStateException e ) {
+            LOG.warn( "Could not register the async metrics listener for {} {} — recording the latency now: {}",
+                    httpRequest.getMethod(), httpRequest.getRequestURI(), e.getMessage() );
+            return false;
         }
     }
 

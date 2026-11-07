@@ -24,6 +24,7 @@ import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.collab.model.PageState;
+import com.wikantik.collab.text.CollabText;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -134,5 +135,17 @@ class PageSaveHelperPageWriterTest {
         assertThrows( VersionConflictException.class, () -> racing.publish( req( "mine\n", Map.of(), 0 ) ) );
         assertTrue( intruded.get() );
         assertTrue( engine.getManager( PageManager.class ).getPureText( "CollabW", -1 ).contains( "other user's text" ) );
+    }
+
+    @Test
+    void contentHashIsOverTheLfBodyEvenWithFrontmatterAndCrlfStorage() throws Exception {
+        helper.saveText( "CollabW", "---\r\ntype: note\r\n---\r\nline one\r\nline two\r\n",
+                SaveOptions.builder().author( "bob" ).build() );
+        final PageState latest = writer.latest( "CollabW" ).orElseThrow();
+        assertFalse( latest.body().contains( "\r" ) );
+        assertEquals( CollabText.contentHash( latest.body() ), latest.contentHash() );
+        final PublishOutcome out = writer.publish( req( latest.body() + "more\n", latest.meta(), 1 ) );
+        final PageState after = writer.latest( "CollabW" ).orElseThrow();
+        assertEquals( CollabText.contentHash( out.savedBody() ), after.contentHash() );
     }
 }

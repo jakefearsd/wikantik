@@ -31,6 +31,7 @@ import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
+import com.wikantik.collab.text.CollabText;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -40,7 +41,7 @@ import java.util.Optional;
 /**
  * {@link CollabPageWriter} over {@link PageSaveHelper#saveTracked} (the guarded, atomic save of A2) and the
  * {@link PageManager}. Bodies and metadata cross this port split (frontmatter parsed off the stored text) and
- * LF-normalised (A9); the content hash is over the stored text, as the save guard computes it.
+ * LF-normalised (A9); the content hash is {@link CollabText#contentHash} of the LF body, the basis the session uses.
  *
  * <p>A new-page publish ({@code expectedVersion} 0) sets {@code expectAbsent}, so "the page must not exist" is
  * checked under the page's save lock together with the write.</p>
@@ -82,8 +83,9 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
             return Optional.empty();
         }
         final ParsedPage parsed = FrontmatterParser.parse( text );
-        return Optional.of( new PageState( Math.max( page.getVersion(), 1 ), lf( parsed.body() ), parsed.metadata(),
-                PageSaveHelper.computeContentHash( text ), page.getAuthor() ) );
+        final String body = lf( parsed.body() );
+        return Optional.of( new PageState( Math.max( page.getVersion(), 1 ), body, parsed.metadata(),
+                CollabText.contentHash( body ), page.getAuthor() ) );
     }
 
     @Override
@@ -99,7 +101,12 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
                 .build();
         final SaveOutcome out = helper.saveTracked( name, request.body(), options );
         final int version = out.page() == null ? 0 : Math.max( out.version(), 1 );
-        final String text = pages.getPureText( name, out.version() > 0 ? out.version() : PageProvider.LATEST_VERSION );
+        final int readVersion = out.version() > 0 ? out.version() : PageProvider.LATEST_VERSION;
+        final String text = pages.getPureText( name, readVersion );
+        if( text == null ) {
+            LOG.warn( "Page '{}' version {} was saved but its text could not be read back; reporting an empty body",
+                    name, readVersion );
+        }
         final ParsedPage saved = FrontmatterParser.parse( text == null ? "" : text );
         return new PublishOutcome( version, lf( saved.body() ), saved.metadata(), out.unchanged() );
     }

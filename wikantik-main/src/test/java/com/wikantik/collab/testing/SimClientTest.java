@@ -169,6 +169,18 @@ class SimClientTest {
     }
 
     @Test
+    void everySendableSnapshotCarriesTheDocumentAfterTheStep() {
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        a.localEdit( insert( "abc", 0, "X" ) );
+        a.receive( List.of( new Update( "cb", insert( "abc", 3, "R" ) ) ), 0 );
+        final List< SimClient.TraceEntry > snaps = a.traceEntries().stream()
+            .filter( t -> t.type().equals( "sendable" ) ).toList();
+        assertEquals( 2, snaps.size() );
+        assertEquals( "Xabc", snaps.get( 0 ).data().get( "doc" ).getAsString() );
+        assertEquals( "XabcR", snaps.get( 1 ).data().get( "doc" ).getAsString() );
+    }
+
+    @Test
     void laterCleanResyncClearsStaleRecoveryText() {
         final SimClient a = client( "a", "ca", 0, "abc" );
         a.localEdit( insert( "abc", 3, "MINE" ) );

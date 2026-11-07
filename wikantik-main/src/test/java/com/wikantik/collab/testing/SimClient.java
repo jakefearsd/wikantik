@@ -51,7 +51,7 @@ public final class SimClient {
      *     is applied.</li>
      * <li>{@code gap}: the receive just before it was a gap and was ignored; {@code fromVersion, version}.</li>
      * <li>{@code push}: a push answer; informational only, not replayed.</li>
-     * <li>{@code sendable}: snapshot after each step, {@code version} and {@code sendable} updates; the replay's expected value.</li>
+     * <li>{@code sendable}: snapshot after each step, {@code version}, the {@code doc} and the {@code sendable} updates; the replay's expected value.</li>
      * <li>{@code resync}: rejoin; {@code version, clientId, participantId, doc, unsynced}. Later updates carry the new clientId.</li>
      * </ul>
      */
@@ -229,6 +229,7 @@ public final class SimClient {
     private void snapshot() {
         final JsonObject d = new JsonObject();
         d.addProperty( "version", version );
+        d.addProperty( "doc", doc );
         d.add( "sendable", updatesJson( unconfirmed ) );
         trace.add( new TraceEntry( "sendable", d ) );
     }

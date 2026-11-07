@@ -430,7 +430,7 @@ describe('PageEditor collaborative mode', () => {
     api.validateFrontmatter.mockResolvedValue({ metadata: {}, violations: [{ field: 'type', severity: 'ERROR', code: 'x', message: 'bad type' }] });
     server = createFakeCollabServer({ initialText: 'Hello world', initialMeta: { type: 'bogus' }, pollTimeoutMs: 2000 });
     await mount();
-    await screen.findByTestId('collab-frontmatter-blocked');
+    expect(await screen.findByTestId('collab-frontmatter-blocked')).toHaveTextContent(/reload/i);
     await until(() => screen.getByTestId('editor-save').textContent === 'Save');
     expect(screen.queryByTestId('collab-status')).toBeNull();
     await until(() => server.liveParticipantIds().length === 0);
@@ -511,6 +511,51 @@ describe('PageEditor collaborative mode', () => {
     expect(draftHook.clearDraft).toHaveBeenCalled();
     expect(screen.queryByTestId('collab-offline-draft')).toBeNull();
     expect(pushedChanges().filter(isWholeDocumentReplacement)).toEqual([]);
+  });
+
+  it('with others in the session an offline draft is only offered as text to copy, never applied to the shared draft', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    draftHook.draft = { content: 'Hello stale offline world', savedAt: Date.now() - 60000 };
+    const bob = server.transportFor('bob');
+    const bj = await bob.join({});
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const offer = screen.getByTestId('collab-offline-draft');
+    expect(offer).toHaveTextContent(/others are editing/i);
+    expect(within(offer).queryByRole('button', { name: 'Restore into the shared draft' })).toBeNull();
+    expect(within(offer).getByTestId('collab-offline-draft-text')).toHaveTextContent('Hello stale offline world');
+    fireEvent.click(within(offer).getByRole('button', { name: 'Copy my offline text' }));
+    await until(() => writeText.mock.calls.length === 1);
+    expect(writeText.mock.calls[0][0]).toBe('Hello stale offline world');
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(server.doc).toBe('Hello world');
+    expect(docOf(view)).toBe('Hello world');
+    expect(pushedChanges()).toEqual([]);
+    // once the other editor has left, it may be restored
+    await bob.leave({ sessionId: bj.sessionId, participantId: bj.participantId });
+    await until(() => within(screen.getByTestId('collab-offline-draft')).queryByRole('button', { name: 'Restore into the shared draft' }) !== null);
+  });
+
+  it('an upload placeholder queued while out of sync lands next to the text it was placed at, not at a stale offset', async () => {
+    server = createFakeCollabServer({ initialText: 'Intro\n\nOutro', maxPageBytes: 14, pollTimeoutMs: 2000 });
+    useAttachments.mockImplementation(() => ({
+      list: [], uploadAttachment: vi.fn(() => new Promise(() => {})), renameAttachment, deleteAttachment: vi.fn(),
+    }));
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Intro\n\nOutro');
+    placeCaret(view, 0);
+    typeAtCaret(view, 'too much text');
+    await screen.findByTestId('collab-recovery');
+    placeCaret(view, 'too much textIntro\n\n'.length); // right before "Outro"
+    const file = new File(['x'], 'pic.png', { type: 'image/png' });
+    fireEvent.change(screen.getByTestId('editor-image-input'), { target: { files: [file] } });
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(docOf(view)).toBe('too much textIntro\n\nOutro'); // queued, not written into the stopped editor
+    fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+    await until(() => currentView() !== null && currentView() !== view);
+    await until(() => docOf(currentView()).includes('Uploading pic.png'));
+    expect(docOf(currentView())).toBe('Intro\n\n![Uploading pic.png…]()Outro');
   });
 
   it('a declined offline draft is cleared and the shared draft is untouched', async () => {

@@ -113,6 +113,32 @@ function sessionKeyOf(extensions) {
   if (!sessionKeys.has(extensions)) sessionKeys.set(extensions, nextSessionKey++);
   return sessionKeys.get(extensions);
 }
+/**
+ * Where a queued insert goes once the editor is remounted (its offset is stale: the remounted document lacks the user's
+ * unsynced text and has everyone else's): next to the text that surrounded it when it was queued, trying the full
+ * context, then the text after it, then the text before it, with long and then short anchors. With no anchor found it
+ * goes at the end of the document — never into someone else's text at a stale offset.
+ */
+const ANCHOR_LENGTHS = [40, 12];
+function anchoredInsertPos(text, { before = '', after = '' }) {
+  for (const n of ANCHOR_LENGTHS) {
+    const b = before.slice(-n);
+    const a = after.slice(0, n);
+    if (b && a) {
+      const at = text.indexOf(b + a);
+      if (at >= 0) return at + b.length;
+    }
+    if (a) {
+      const at = text.indexOf(a);
+      if (at >= 0) return at;
+    }
+    if (b) {
+      const at = text.lastIndexOf(b);
+      if (at >= 0) return at + b.length;
+    }
+  }
+  return text.length;
+}
 function publishFailureMessage(res) {
   if (res.reason === 'not-live') return 'Not connected to the shared draft — your edits are kept; publish again once it reconnects.';
   if (res.reason === 'publish-in-progress') return 'Someone else is publishing this page — try again in a moment.';
@@ -518,7 +544,13 @@ export default function PageEditor({ collabTransport } = {}) {
   }, [toast]);
   const editorEdits = useMemo(() => ({
     insertText: (pos, text) => {
-      if (collabWriteBlockedRef.current) { queueCollabWrite({ kind: 'insert', pos, text }); return true; }
+      if (collabWriteBlockedRef.current) {
+        // remember the text around the insert point: the offset means nothing in the remounted document
+        const around = editorRef.current?.getText?.() ?? bodyRef.current ?? '';
+        const at = Math.max(0, Math.min(pos, around.length));
+        queueCollabWrite({ kind: 'insert', before: around.slice(Math.max(0, at - 40), at), after: around.slice(at, at + 40), text });
+        return true;
+      }
       return editorRef.current?.insertText?.(pos, text) ?? false;
     },
     replaceText: (find, replacement) => {
@@ -550,7 +582,7 @@ export default function PageEditor({ collabTransport } = {}) {
     for (const op of ops) {
       if (op.kind === 'rename') editor.applyChanges(attachmentLinkChanges(editor.getText(), op.oldName, op.newName));
       else if (op.kind === 'replace') editor.replaceText(op.find, op.replacement);
-      else if (op.kind === 'insert') editor.insertText(op.pos, op.text);
+      else if (op.kind === 'insert') editor.insertText(anchoredInsertPos(editor.getText(), op), op.text);
     }
   }, []);
   // A fresh view: its mount runs inside react-codemirror's layout effect, before this component's refs are updated.
@@ -1178,12 +1210,13 @@ export default function PageEditor({ collabTransport } = {}) {
     setError(res.reason === 'not-live' ? 'Not connected to the shared draft — try again once it reconnects.' : (res.message || 'Discard failed'));
   };
 
-  const copyRecoveryText = async () => {
+  const copyRecoveryText = () => copyText(collab.resync?.unsyncedText || '');
+  const copyText = async (text) => {
     try {
-      await navigator.clipboard.writeText(collab.resync?.unsyncedText || '');
+      await navigator.clipboard.writeText(text);
       toast.success('Copied');
     } catch (err) {
-      console.warn('[collab] could not copy the recovery text to the clipboard', err?.message || err);
+      console.warn('[collab] could not copy the text to the clipboard', err?.message || err);
       toast.error("Couldn't copy — select the text and copy it by hand");
     }
   };
@@ -1379,19 +1412,36 @@ export default function PageEditor({ collabTransport } = {}) {
       {collabWanted && collabBlocked && (
         <div className="info-banner" role="status" data-testid="collab-frontmatter-blocked">
           This page&apos;s frontmatter has errors that can&apos;t be fixed while editing together — you are editing on your
-          own. Fix them, then save.
+          own. Fix them and save; editing together resumes when you reload the editor.
         </div>
       )}
       {collabEditing && offlineDraftOffer && (
         <div className="draft-restore-banner" role="status" data-testid="collab-offline-draft">
-          <span className="draft-restore-text">
-            You have an offline draft of this page from {formatRelative(offlineDraftOffer.savedAt)}. Restore it into the
-            shared draft? (Its text only; the frontmatter stays as it is.)
-          </span>
-          <button type="button" className="draft-btn draft-btn-restore" disabled={collabReadOnly}
-            onClick={() => { replaceBody(offlineDraftOffer.text); clearDraft(); setOfflineDraftOffer(null); }}>
-            Restore into the shared draft
-          </button>
+          {/* Ruling P10: replacing the shared text with a stale local copy would silently delete what others wrote since
+              (undo is per author), so it is a restore only while nobody else is in the session; otherwise text to copy. */}
+          {editorCount <= 1 ? (
+            <>
+              <span className="draft-restore-text">
+                You have an offline draft of this page from {formatRelative(offlineDraftOffer.savedAt)}. Restore it into
+                the shared draft? (Its text only; the frontmatter stays as it is.)
+              </span>
+              <button type="button" className="draft-btn draft-btn-restore" disabled={collabReadOnly}
+                onClick={() => { replaceBody(offlineDraftOffer.text); clearDraft(); setOfflineDraftOffer(null); }}>
+                Restore into the shared draft
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="draft-restore-text">
+                You have an offline draft of this page from {formatRelative(offlineDraftOffer.savedAt)}. Others are
+                editing the shared draft now, so it is not applied: copy what you need from it and paste it in yourself.
+              </span>
+              <pre className="collab-recovery-text" data-testid="collab-offline-draft-text">{offlineDraftOffer.text}</pre>
+              <button type="button" className="draft-btn draft-btn-restore" onClick={() => copyText(offlineDraftOffer.text)}>
+                Copy my offline text
+              </button>
+            </>
+          )}
           <button type="button" className="draft-btn draft-btn-discard"
             onClick={() => { clearDraft(); setOfflineDraftOffer(null); }}>
             Discard it

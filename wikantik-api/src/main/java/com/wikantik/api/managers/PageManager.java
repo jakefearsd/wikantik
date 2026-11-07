@@ -23,6 +23,8 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.pages.PageSorter;
+import com.wikantik.api.pages.SaveGuard;
+import com.wikantik.api.pages.SaveOutcome;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEventListener;
 
@@ -147,19 +149,21 @@ public interface PageManager extends WikiEventListener {
     void saveText( Context context, String text ) throws WikiException;
 
     /**
-     * Saves the page text after evaluating {@code guard} atomically with the write. The default implementation
-     * (for test doubles) checks and then saves without atomicity; {@code DefaultPageManager} holds a per-page lock
-     * across the guard check and the write.
+     * Saves the page text after evaluating {@code guard} atomically with the write. {@code DefaultPageManager} holds a
+     * per-page lock across the guard check and the write, and reports an unchanged outcome for identical text.
+     *
+     * <p>The default implementation (for test doubles) is <b>not atomic</b>: it checks the guard, then saves, then reads
+     * the latest version, so a concurrent save can land in between and the reported version may not be the one this
+     * call wrote. It also <b>never reports unchanged</b>: {@link SaveOutcome#unchanged()} is always {@code false}.</p>
      *
      * @return the version this call wrote (or the existing latest version when nothing changed)
      */
-    default com.wikantik.api.pages.SaveOutcome saveText( final Context context, final String text,
-            final com.wikantik.api.pages.SaveGuard guard ) throws WikiException {
+    default SaveOutcome saveText( final Context context, final String text, final SaveGuard guard ) throws WikiException {
         final String name = context.getPage().getName();
-        guard.check( getPage( name ), getPureText( name, com.wikantik.api.providers.PageProvider.LATEST_VERSION ) );
+        guard.check( getPage( name ), getPureText( name, PageProvider.LATEST_VERSION ) );
         saveText( context, text );
         final Page latest = getPage( name );
-        return new com.wikantik.api.pages.SaveOutcome( latest, latest == null ? 0 : latest.getVersion(), false );
+        return new SaveOutcome( latest, latest == null ? 0 : latest.getVersion(), false );
     }
 
     /**

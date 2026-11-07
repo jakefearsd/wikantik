@@ -63,7 +63,8 @@ class GuardedSaveTest {
 
     @AfterEach
     void tearDown() {
-        for( final String n : new String[]{ "GuardRace", "GuardOk", "GuardWrote", "GuardSame", "GuardRe" } ) {
+        for( final String n : new String[]{ "GuardRace", "GuardOk", "GuardWrote", "GuardSame", "GuardRe", "GuardStale",
+                "GuardStaleSame", "GuardLocks" } ) {
             engine.deleteTestPage( n );
         }
         engine.stop();
@@ -164,21 +165,83 @@ class GuardedSaveTest {
         assertEquals( before, pm.getPage( "GuardSame" ).getVersion() );
     }
 
+    private DefaultPageLifecycle lifecycle() {
+        return (DefaultPageLifecycle) ( (com.wikantik.pages.DefaultPageManager) pm ).getLifecycle();
+    }
+
+    /**
+     * Post-save filters and events run after the page lock is released: a POST_SAVE_END listener sees no page lock
+     * registered, and a save of the same page from ANOTHER thread (which a held lock would block, reentrant or not)
+     * completes.
+     */
     @Test
-    void aReentrantSaveOfTheSamePageDoesNotDeadlock() {
+    void postSaveEventsRunOutsideThePageLock() throws Exception {
         final AtomicBoolean fired = new AtomicBoolean();
-        listener = event -> {
-            if( event instanceof WikiPageEvent e && e.getType() == WikiPageEvent.POST_SAVE_END
-                    && "GuardRe".equals( e.getPageName() ) && fired.compareAndSet( false, true ) ) {
-                try {
-                    save( "GuardRe", "inner", SaveGuard.NONE );
-                } catch( final Exception ex ) {
-                    throw new IllegalStateException( ex );
+        final java.util.concurrent.atomic.AtomicInteger locksSeen = new java.util.concurrent.atomic.AtomicInteger( -1 );
+        final java.util.concurrent.atomic.AtomicReference< Throwable > innerFailure = new java.util.concurrent.atomic.AtomicReference<>();
+        final ExecutorService other = Executors.newSingleThreadExecutor();
+        try {
+            listener = event -> {
+                if( event instanceof WikiPageEvent e && e.getType() == WikiPageEvent.POST_SAVE_END
+                        && "GuardRe".equals( e.getPageName() ) && fired.compareAndSet( false, true ) ) {
+                    locksSeen.set( lifecycle().lockCount() );
+                    try {
+                        other.submit( () -> save( "GuardRe", "inner", SaveGuard.NONE ) ).get( 5, TimeUnit.SECONDS );
+                    } catch( final Exception ex ) {
+                        innerFailure.set( ex );
+                    }
                 }
-            }
-        };
-        WikiEventManager.addWikiEventListener( engine.getManager( FilterManager.class ), listener );
-        assertTimeoutPreemptively( Duration.ofSeconds( 10 ), () -> save( "GuardRe", "outer", SaveGuard.NONE ) );
+            };
+            WikiEventManager.addWikiEventListener( engine.getManager( FilterManager.class ), listener );
+            assertTimeoutPreemptively( Duration.ofSeconds( 20 ), () -> save( "GuardRe", "outer", SaveGuard.NONE ) );
+        } finally {
+            other.shutdownNow();
+        }
         assertTrue( fired.get() );
+        assertEquals( 0, locksSeen.get(), "no page lock may be held while post-save events run" );
+        assertNull( innerFailure.get(), () -> "a save from another thread during POST_SAVE_END must not block: "
+                + innerFailure.get() );
+        assertEquals( "inner", pm.getPureText( "GuardRe", -1 ).trim() );
+    }
+
+    @Test
+    void aStaleStrictSaveIsRefusedBeforeThePreSaveFiltersRun() throws Exception {
+        final java.util.concurrent.atomic.AtomicInteger preSaves = new java.util.concurrent.atomic.AtomicInteger();
+        engine.getManager( FilterManager.class ).addPageFilter( new PageFilter() {
+            @Override
+            public String preSave( final Context context, final String content ) {
+                if( "GuardStale".equals( context.getPage().getName() ) ) {
+                    preSaves.incrementAndGet();
+                }
+                return content;
+            }
+        }, 100 );
+        save( "GuardStale", "one", SaveGuard.NONE );
+        save( "GuardStale", "two", SaveGuard.NONE );
+        final int before = preSaves.get();
+        assertThrows( VersionConflictException.class, () -> helper.saveTracked( "GuardStale", "three",
+                SaveOptions.builder().author( "A" ).expectedVersion( 1 ).build() ) );
+        assertEquals( before, preSaves.get(), "a stale strict save must fail fast, before any pre-save filter" );
+        assertEquals( "two", pm.getPureText( "GuardStale", -1 ).trim() );
+    }
+
+    @Test
+    void aStaleStrictSaveOfIdenticalTextStillConflicts() throws Exception {
+        save( "GuardStaleSame", "one", SaveGuard.NONE );
+        save( "GuardStaleSame", "two", SaveGuard.NONE );
+        final int latest = pm.getPage( "GuardStaleSame" ).getVersion();
+        assertThrows( VersionConflictException.class, () -> helper.saveTracked( "GuardStaleSame", "two",
+                SaveOptions.builder().author( "A" ).expectedVersion( 1 ).build() ) );
+        assertEquals( latest, pm.getPage( "GuardStaleSame" ).getVersion() );
+    }
+
+    @Test
+    void theLockRegistryIsEmptyAfterSaves() throws Exception {
+        save( "GuardLocks", "one", SaveGuard.NONE );
+        save( "GuardLocks", "one", SaveGuard.NONE );
+        assertThrows( VersionConflictException.class, () -> helper.saveTracked( "GuardLocks", "x",
+                SaveOptions.builder().author( "A" ).expectedVersion( 7 ).build() ) );
+        save( "GuardLocks", "two", SaveGuard.NONE );
+        assertEquals( 0, lifecycle().lockCount() );
     }
 }

@@ -20,6 +20,8 @@ package com.wikantik.page.subsystem.lifecycle;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.api.pages.SaveGuard;
+import com.wikantik.api.pages.SaveOutcome;
 
 /**
  * Orchestrates the page-save lifecycle: pre-save filtering, persistence,
@@ -34,6 +36,5 @@ public interface PageLifecycle {
     void saveText( Context context, String text ) throws WikiException;
 
     /** Guarded save: the guard is checked atomically with the write; reports the version written. */
-    com.wikantik.api.pages.SaveOutcome saveText( Context context, String text, com.wikantik.api.pages.SaveGuard guard )
-            throws WikiException;
+    SaveOutcome saveText( Context context, String text, SaveGuard guard ) throws WikiException;
 }

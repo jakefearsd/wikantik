@@ -31,6 +31,8 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.pages.PageSorter;
+import com.wikantik.api.pages.SaveGuard;
+import com.wikantik.api.pages.SaveOutcome;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserProfile;
@@ -176,8 +178,8 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     @Override public PageSorter getPageSorter()                                                  { return repository.getPageSorter(); }
 
     @Override public void saveText( final Context c, final String t ) throws WikiException       { lifecycle.saveText( c, t ); }
-    @Override public com.wikantik.api.pages.SaveOutcome saveText( final Context c, final String t,
-            final com.wikantik.api.pages.SaveGuard g ) throws WikiException                       { return lifecycle.saveText( c, t, g ); }
+    @Override public SaveOutcome saveText( final Context c, final String t, final SaveGuard g )
+            throws WikiException                                                                  { return lifecycle.saveText( c, t, g ); }
 
     // -------------------------------------------------------------------------
     // Event helper (retained for subclass / listener registration on *this*)

@@ -97,37 +97,39 @@ public class DefaultPageLifecycle implements PageLifecycle {
         pageLocks.computeIfPresent( name, ( k, v ) -> --v.refs == 0 ? null : v );
     }
 
+    /** Number of page locks currently registered (held or awaited); 0 when no save is in flight. Test seam. */
+    int lockCount() {
+        return pageLocks.size();
+    }
+
     @Override
     public void saveText( final Context context, final String text ) throws WikiException {
         saveText( context, text, SaveGuard.NONE );
     }
 
+    /**
+     * The guard is evaluated twice: once before the pre-save filters, so a stale save fails fast without running them
+     * (filters such as the spam filter count every attempt), and again under the page lock immediately before the
+     * write, which is the authoritative check. The identical-text comparison and the latest read reported for an
+     * unchanged outcome also happen under the lock, so an unchanged outcome names the version whose text matched.
+     */
     @Override
     public SaveOutcome saveText( final Context context, final String text, final SaveGuard guard ) throws WikiException {
-        // Check if page data actually changed; bail if not
         final Page page = context.getPage();
         final String name = page.getName();
-        final String oldText = repository.getPureText( name, page.getVersion() );
         final String proposedText = TextUtil.normalizePostData( text );
-        if ( oldText != null && oldText.equals( proposedText ) ) {
-            return unchanged( name, guard );
-        }
 
-        // Check if creation of empty pages is allowed; bail if not
-        final boolean allowEmpty = TextUtil.getBooleanProperty(
-                CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(),
-                Engine.PROP_ALLOW_CREATION_OF_EMPTY_PAGES,
-                false );
-        if ( !allowEmpty && !repository.wikiPageExists( name, page.getVersion() ) && text.isBlank() ) {
-            return unchanged( name, guard );
+        // Under the lock: bail on identical text, and fail fast on a stale guard before running any filter.
+        final SaveOutcome early = unchangedOrPrecheck( page, proposedText, text, guard );
+        if ( early != null ) {
+            return early;
         }
 
         // Set the page author: the login (the stable storage key), never the session's full name; PublicIdentity turns it
         // into the current display name when it is shown.
-        final Page page2 = context.getPage();
         final String authorKey = AuthorKeys.authorKeyFor( context.getWikiSession() );
-        if ( page2.getAuthor() == null && authorKey != null ) {
-            page2.setAuthor( authorKey );
+        if ( page.getAuthor() == null && authorKey != null ) {
+            page.setAuthor( authorKey );
         }
 
         // Run pre-save filters. They depend on the input text, not on the stored page, so they run before the lock.
@@ -154,7 +156,7 @@ public class DefaultPageLifecycle implements PageLifecycle {
             release( name, pl );
         }
 
-        // Refresh the context for post-save filtering
+        // Post-save filters see the text as stored (after the pre-save filters).
         getFilterManager().doPostSaveFiltering( context, saveText );
 
         // Reindex the saved page
@@ -164,9 +166,31 @@ public class DefaultPageLifecycle implements PageLifecycle {
         return new SaveOutcome( repository.getPage( name, written ), written, false );
     }
 
-    private SaveOutcome unchanged( final String name, final SaveGuard guard ) throws WikiException {
-        final Page latest = repository.getPage( name );
-        guard.check( latest, repository.getPureText( name, PageProvider.LATEST_VERSION ) );
-        return new SaveOutcome( latest, latest == null ? 0 : latest.getVersion(), true );
+    /**
+     * Under the page lock: the unchanged outcome when the text is identical to the stored one (or an empty page would
+     * be created and that is not allowed), otherwise {@code null} after a fail-fast evaluation of {@code guard}. The
+     * guard is checked in both cases, so a stale strict save of identical text still conflicts.
+     */
+    private SaveOutcome unchangedOrPrecheck( final Page page, final String proposedText, final String rawText,
+                                             final SaveGuard guard ) throws WikiException {
+        final String name = page.getName();
+        final PageLock pl = acquire( name );
+        try {
+            final Page latest = repository.getPage( name );
+            guard.check( latest, repository.getPureText( name, PageProvider.LATEST_VERSION ) );
+            final String oldText = repository.getPureText( name, page.getVersion() );
+            final boolean identical = oldText != null && oldText.equals( proposedText );
+            if ( identical || !allowEmpty() && !repository.wikiPageExists( name, page.getVersion() ) && rawText.isBlank() ) {
+                return new SaveOutcome( latest, latest == null ? 0 : latest.getVersion(), true );
+            }
+            return null;
+        } finally {
+            release( name, pl );
+        }
+    }
+
+    private boolean allowEmpty() {
+        return TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(),
+                Engine.PROP_ALLOW_CREATION_OF_EMPTY_PAGES, false );
     }
 }

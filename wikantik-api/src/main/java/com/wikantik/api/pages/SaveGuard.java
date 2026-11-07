@@ -22,7 +22,8 @@ import com.wikantik.api.core.Page;
 
 /**
  * A precondition evaluated by the page manager while it holds the per-page save lock, immediately before the write, so
- * that nothing can land between the check and the write.
+ * that nothing can land between the check and the write. The page manager may also evaluate it earlier (before the
+ * pre-save filters, to fail fast), so a guard must be side-effect free; the check under the lock is authoritative.
  */
 @FunctionalInterface
 public interface SaveGuard {

@@ -542,7 +542,13 @@ public final class CollabSession {
      */
     public PublishResponse publish( final String participantId, final String authorKey, final int version,
                                     final String changeNote ) {
-        final PublishStart st = startPublish( participantId, authorKey, version, changeNote );
+        return publish( participantId, authorKey, version, changeNote, null );
+    }
+
+    /** As {@link #publish(String, String, int, String)}, saving with the editor's {@code markupSyntax} (null: none). */
+    public PublishResponse publish( final String participantId, final String authorKey, final int version,
+                                    final String changeNote, final String markupSyntax ) {
+        final PublishStart st = startPublish( participantId, authorKey, version, changeNote, markupSyntax );
         if( st.response() != null ) {
             return st.response();
         }
@@ -568,6 +574,12 @@ public final class CollabSession {
      */
     public PublishStart startPublish( final String participantId, final String authorKey, final int version,
                                       final String changeNote ) {
+        return startPublish( participantId, authorKey, version, changeNote, null );
+    }
+
+    /** As {@link #startPublish(String, String, int, String)}; the save request carries {@code markupSyntax}. */
+    public PublishStart startPublish( final String participantId, final String authorKey, final int version,
+                                      final String changeNote, final String markupSyntax ) {
         final Participant p;
         final boolean frozen;
         lock.lock();
@@ -603,7 +615,7 @@ public final class CollabSession {
         PublishStart out = null;
         baseLock.lock();
         try {
-            out = flow.start( p, changeNote == null ? "" : changeNote, completions );
+            out = flow.start( p, changeNote == null ? "" : changeNote, markupSyntax, completions );
         } finally {
             baseLock.unlock();
             if( out == null || out.response() != null ) {

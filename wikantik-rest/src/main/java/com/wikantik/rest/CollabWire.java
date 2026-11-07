@@ -49,6 +49,13 @@ final class CollabWire {
     static final Gson GSON = new GsonBuilder().serializeNulls()
         .registerTypeAdapter( Date.class, RestServletBase.UTC_ISO_DATE_SERIALIZER ).create();
 
+    /**
+     * PageResource's own serialisation (nulls omitted), for the bodies the collab surface shares with it: the 422
+     * validation bodies and the save warnings. A tree built with it carries no JSON nulls, so writing it with
+     * {@link #GSON} adds none.
+     */
+    private static final Gson PAGE_BODIES = RestServletBase.GSON;
+
     static final String REASON = "reason";
     static final String MESSAGE = "message";
 
@@ -90,11 +97,16 @@ final class CollabWire {
         return new Answer( 400, o );
     }
 
-    /** 403 for a caller without the needed permission, in the RestServletBase envelope's shape. */
+    /** 403 for a caller without {@code edit} on the page, in the RestServletBase envelope's shape. */
     static Answer forbidden( final String pageName ) {
+        return forbidden( pageName, "edit" );
+    }
+
+    /** 403 for a caller without {@code permission} ({@code view} or {@code edit}) on the page. */
+    static Answer forbidden( final String pageName, final String permission ) {
         final JsonObject o = new JsonObject();
         o.addProperty( "error", "forbidden" );
-        o.addProperty( MESSAGE, "No edit permission on " + pageName );
+        o.addProperty( MESSAGE, "No " + permission + " permission on " + pageName );
         return new Answer( 403, o );
     }
 
@@ -246,12 +258,13 @@ final class CollabWire {
     static Answer published( final int pageVersion, final Object warnings, final Object mathWarnings ) {
         final JsonObject o = new JsonObject();
         o.addProperty( "pageVersion", pageVersion );
-        o.add( "warnings", GSON.toJsonTree( warnings ) );
-        o.add( "mathWarnings", GSON.toJsonTree( mathWarnings ) );
+        o.add( "warnings", PAGE_BODIES.toJsonTree( warnings ) );
+        o.add( "mathWarnings", PAGE_BODIES.toJsonTree( mathWarnings ) );
         return new Answer( 200, o );
     }
 
+    /** A body built exactly as {@code PageResource} serialises it (null fields omitted). */
     static Answer of( final int status, final Map< String, Object > body ) {
-        return new Answer( status, GSON.toJsonTree( body ) );
+        return new Answer( status, PAGE_BODIES.toJsonTree( body ) );
     }
 }

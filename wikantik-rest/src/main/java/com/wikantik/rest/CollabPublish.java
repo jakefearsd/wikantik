@@ -47,12 +47,13 @@ final class CollabPublish {
     }
 
     static Answer run( final CollabSession s, final String participantId, final String authorKey, final int version,
-                       final String changeNote, final String pageName, final BiConsumer< Integer, String > observe ) {
+                       final String changeNote, final String markupSyntax, final String pageName,
+                       final BiConsumer< Integer, String > observe ) {
         FrontmatterWarningSink.clear();
         ContentWarningSink.clear();
         final PublishResponse r;
         try {
-            r = s.publish( participantId, authorKey, version, changeNote );
+            r = s.publish( participantId, authorKey, version, changeNote, markupSyntax );
         } catch( final RuntimeException e ) {
             LOG.error( "collab session {}: publish of {} by {} failed: {}", s.id(), pageName, participantId,
                 e.getMessage(), e );

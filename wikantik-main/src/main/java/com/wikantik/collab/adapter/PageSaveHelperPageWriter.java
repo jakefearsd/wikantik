@@ -93,7 +93,7 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
         final String name = request.pageName();
         final SaveOptions options = SaveOptions.builder()
                 .author( request.authorKey() )
-                .changeNote( request.changeNote() )
+                .changeNote( request.changeNote() ).markupSyntax( request.markupSyntax() )
                 .expectedVersion( request.expectedVersion() )
                 .expectAbsent( request.expectedVersion() == 0 )
                 .metadata( request.meta() )

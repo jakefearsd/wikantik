@@ -93,7 +93,8 @@ final class PublishFlow {
      * backstop (an outside change the publisher has not seen is merged and answered 409 {@code publish-merged-retry}),
      * then the pre-save answers or the ticket with its stored marker.
      */
-    PublishStart start( final Participant p, final String note, final List< Runnable > completions ) {
+    PublishStart start( final Participant p, final String note, final String markupSyntax,
+                        final List< Runnable > completions ) {
         final Optional< PageState > latest;
         final ExternalMerge.Result merged;
         try {
@@ -118,7 +119,7 @@ final class PublishFlow {
         }
         lock.lock();
         try {
-            return snapshotForSave( p, note, latest );
+            return snapshotForSave( p, note, markupSyntax, latest );
         } finally {
             lock.unlock();
         }
@@ -138,7 +139,8 @@ final class PublishFlow {
      * B, the save request (a field still equal to the base keeps the base's original typed value) and the stored marker.
      * A frozen draft recreates its deleted page: B is 0 ("must not exist", A11) and it is published even unchanged.
      */
-    private PublishStart snapshotForSave( final Participant p, final String note, final Optional< PageState > latest ) {
+    private PublishStart snapshotForSave( final Participant p, final String note, final String markupSyntax,
+                                          final Optional< PageState > latest ) {
         final boolean recreate = d.frozen();
         final int b = recreate ? 0 : d.record.basePageVersion();
         final PublishResponse early = Gate.publishable( recreate || d.hasUnpublished(), d.doc.isEmpty(),
@@ -149,7 +151,8 @@ final class PublishFlow {
         final Map< String, Object > original = latest.filter( l -> l.version() == b
             && l.contentHash().equals( d.record.baseContentHash() ) ).map( PageState::meta ).orElse( Map.of() );
         final PublishStart.Ticket t = new PublishStart.Ticket( p.id, p.authorKey, p.displayName, d.head, d.doc, d.meta, b,
-            new PublishRequest( d.pageName(), d.doc, MetaMerge.published( d.meta, original ), b, p.authorKey, note ) );
+            new PublishRequest( d.pageName(), d.doc, MetaMerge.published( d.meta, original ), b, p.authorKey, note,
+                markupSyntax ) );
         final SessionRecord marked = d.record.withPending( d.head, b, p.authorKey );
         try {
             // M_V made durable before the marker (A10: a snapshot at the publish point): the pending-publish rule reads

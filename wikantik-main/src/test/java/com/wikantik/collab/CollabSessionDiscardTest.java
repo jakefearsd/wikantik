@@ -167,13 +167,41 @@ class CollabSessionDiscardTest {
         final JoinResponse a = join( "ada" );
         type( a, "ada", "XYZ " );
         final String doc = session.view().doc();
-        store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );
+        store.failOn( InMemoryCollabStore.Op.APPEND_UPDATES, 1 );
+        store.failOn( InMemoryCollabStore.Op.APPEND_BATCH, 1 );
 
         final PushResponse r = session.discard( a.participantId(), "ada" );
 
         assertEquals( 503, r.status() );
         assertEquals( "store", r.reason() );
         assertEquals( doc, session.view().doc() );
+    }
+
+    /** Any one store write failing leaves a meta-carrying draft either fully discarded or untouched, never half. */
+    @Test
+    void aStoreFailureNeverHalfDiscardsAMetaCarryingDraft() {
+        for( final InMemoryCollabStore.Op op : InMemoryCollabStore.Op.values() ) {
+            setUp();
+            final JoinResponse a = session.join( new JoinRequest( "ada", null, null, null, null,
+                Map.of( "title", "Changed" ) ) );
+            type( a, "ada", "XYZ " );
+            final long metaSeq = session.metaSeq();
+            store.failOn( op, 1 );
+
+            final PushResponse r = session.discard( a.participantId(), "ada" );
+
+            final boolean textReset = BODY.equals( session.view().doc() );
+            final boolean metaReset = "T".equals( session.view().meta().get( "title" ) );
+            assertEquals( textReset, metaReset, op + ": text and meta reset together" );
+            if( r.status() == 503 ) {
+                assertFalse( textReset, op + ": a refused discard changes nothing" );
+                assertEquals( metaSeq, session.metaSeq(), op.toString() );
+                assertEquals( 0, store.metaOpsSince( session.id(), metaSeq ).size(), op + ": nothing half-stored" );
+            } else {
+                assertEquals( 200, r.status(), op.toString() );
+                assertTrue( textReset, op.toString() );
+            }
+        }
     }
 
     @Test

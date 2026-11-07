@@ -34,6 +34,8 @@ import org.apache.logging.log4j.ThreadContext;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -49,25 +51,46 @@ import java.util.function.Function;
  * {@code pullOrPark} returns, and a concurrent push may wake it at once): such an answer is kept and written by
  * {@link #start}.</p>
  *
- * <p><b>Coalescing</b> (A8): a 200 answer that wakes a parked pull is written {@code coalesceMs} later, so a burst of
+ * <p><b>Writes never block the waker.</b> An answer from the session is handed off ({@link Dispatch}: in production
+ * {@link AsyncContext#start}, the container's pool), so a client that stops reading its socket holds up only its own
+ * write, never the pusher that woke it, the coalescing scheduler or another participant's answer.</p>
+ *
+ * <p><b>Coalescing</b> (A8): a 200 answer that wakes a parked pull is handed off {@code coalesceMs} later, so a burst of
  * keystrokes reaches the other editors as one or two pulls rather than one per keystroke (the remaining updates are
- * fetched by the client's next pull at once). Presence wakes are coalesced the same way. Refusals and timeouts are
- * written at once; a container timeout during the delay writes the delayed answer straight away.</p>
+ * fetched by the client's next pull at once). Presence wakes are coalesced the same way; the scheduler only schedules.
+ * Refusals are handed off at once.</p>
+ *
+ * <p><b>The container timeout</b> ({@link #onTimeout}, on a container thread) writes the answer itself when no write has
+ * begun: the empty answer, or the held one when a coalesced answer was still waiting. When a write is already in flight
+ * on another thread it waits (bounded by {@value #IN_FLIGHT_WAIT_SECONDS} s) until that write has completed the request,
+ * because returning from {@code onTimeout} with the request incomplete makes the container error-dispatch a response
+ * that is still being written.</p>
  *
  * <p><b>A removed participant.</b> The session answers a removed participant's parked pull itself: 403
  * {@code evicted} with the eviction's reason as {@code detail} (its tombstone answers every later call the same way),
  * 409 {@code rejoin} for a timeout, and the presence map for its own leave. This waiter writes what it is given.</p>
  *
- * <p>Completions run on the thread that woke the pull (a pusher, the tick); the write restores this request's log
- * context (MDC), so the access and correlation logs name the right request.</p>
+ * <p>Every write restores this request's log context (MDC), whatever thread it runs on, so the access and correlation
+ * logs name the right request.</p>
  */
 final class CollabPull implements PullWaiter, AsyncListener {
 
     private static final Logger LOG = LogManager.getLogger( CollabPull.class );
+    /** How long a container timeout waits for a write already in flight on another thread. */
+    static final long IN_FLIGHT_WAIT_SECONDS = 30;
 
     /** Runs {@code task} after {@code millis}; production uses a scheduler, tests run it inline or by hand. */
     interface Delayer {
         void after( long millis, Runnable task );
+    }
+
+    /** Runs a response write off the waking thread; production {@link AsyncContext#start}, tests inline or a pool. */
+    interface Dispatch {
+        void run( AsyncContext ac, Runnable write );
+    }
+
+    /** How answers leave the waking thread: the coalescing delay and the hand-off that runs the write. */
+    record Handoff( Delayer delayer, Dispatch dispatch, long coalesceMs ) {
     }
 
     private final CollabSession session;
@@ -75,11 +98,15 @@ final class CollabPull implements PullWaiter, AsyncListener {
     private final PullCursor cursor;
     private final HttpServletResponse response;
     private final Delayer delayer;
+    private final Dispatch dispatch;
     private final long coalesceMs;
     private final Consumer< PullResponse > observe;
     private final Map< String, String > mdc;
     private final ReentrantLock lock = new ReentrantLock();
+    /** Claimed by whoever begins the one write (or the completion without one). */
     private final AtomicBoolean written = new AtomicBoolean();
+    /** Opened once the request is complete. */
+    private final CountDownLatch completed = new CountDownLatch( 1 );
     /** Guarded by {@code lock}. */
     private AsyncContext async;
     /** Guarded by {@code lock}: an answer has been chosen. */
@@ -88,14 +115,15 @@ final class CollabPull implements PullWaiter, AsyncListener {
     private Answer answer;
 
     CollabPull( final CollabSession session, final String participantId, final PullCursor cursor,
-                final HttpServletResponse response, final Delayer delayer, final long coalesceMs,
+                final HttpServletResponse response, final Handoff handoff,
                 final Consumer< PullResponse > observe ) {
         this.session = session;
         this.participantId = participantId;
         this.cursor = cursor;
         this.response = response;
-        this.delayer = delayer;
-        this.coalesceMs = coalesceMs;
+        this.delayer = handoff.delayer();
+        this.dispatch = handoff.dispatch();
+        this.coalesceMs = handoff.coalesceMs();
         this.observe = observe;
         this.mdc = ThreadContext.getImmutableContext();
     }
@@ -138,8 +166,12 @@ final class CollabPull implements PullWaiter, AsyncListener {
     /** The session's answer (exactly once per park, from any thread, outside the session lock). */
     @Override
     public void complete( final PullResponse r ) {
+        if( isAnswered() ) {
+            return;   // the container timed it out or it failed: nothing to observe
+        }
         observe.accept( r );
         final Answer a = CollabWire.pulled( r );
+        final AsyncContext ac;
         final boolean delay;
         lock.lock();
         try {
@@ -148,7 +180,8 @@ final class CollabPull implements PullWaiter, AsyncListener {
             }
             answered = true;
             answer = a;
-            if( async == null ) {
+            ac = async;
+            if( ac == null ) {
                 return;   // not in async mode yet: start() writes it
             }
             delay = coalesceMs > 0 && a.status() == 200;
@@ -156,24 +189,43 @@ final class CollabPull implements PullWaiter, AsyncListener {
             lock.unlock();
         }
         if( delay ) {
-            delayer.after( coalesceMs, () -> write( a ) );
+            delayer.after( coalesceMs, () -> handOff( ac, a ) );
         } else {
-            write( a );
+            handOff( ac, a );
+        }
+    }
+
+    private boolean isAnswered() {
+        lock.lock();
+        try {
+            return answered;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** Runs the write off this thread; if the hand-off is refused, the container timeout still answers (logged). */
+    private void handOff( final AsyncContext ac, final Answer a ) {
+        try {
+            dispatch.run( ac, () -> write( a ) );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab: could not hand off the long-poll answer of {}; its timeout answers it: {}", participantId,
+                e.toString() );
         }
     }
 
     /** Async mode has started on the request thread: arms the listener and writes an answer that came first. */
     void start( final AsyncContext ac, final long timeoutMillis ) {
         ac.setTimeout( timeoutMillis );
-        ac.addListener( this );
         final Answer early;
         lock.lock();
         try {
-            async = ac;
+            async = ac;   // before the listener: a timeout or error may arrive as soon as it is registered
             early = answer;
         } finally {
             lock.unlock();
         }
+        ac.addListener( this );
         if( early != null ) {
             write( early );
         }
@@ -192,7 +244,11 @@ final class CollabPull implements PullWaiter, AsyncListener {
         } finally {
             lock.unlock();
         }
-        write( a );
+        if( written.compareAndSet( false, true ) ) {
+            doWrite( a );
+        } else {
+            awaitInFlight( "timeout" );
+        }
     }
 
     @Override
@@ -207,12 +263,30 @@ final class CollabPull implements PullWaiter, AsyncListener {
         }
         if( written.compareAndSet( false, true ) ) {
             completeAsync();
+            completed.countDown();
+        } else {
+            awaitInFlight( "error" );
         }
     }
 
     @Override
     public void onComplete( final AsyncEvent event ) {
         written.set( true );
+        completed.countDown();
+    }
+
+    /** A container callback found another thread's write in flight: wait until it completes the request (bounded). */
+    private void awaitInFlight( final String why ) {
+        try {
+            if( !completed.await( IN_FLIGHT_WAIT_SECONDS, TimeUnit.SECONDS ) ) {
+                LOG.warn( "collab: the long-poll answer of {} was still being written {} s after the {}; giving up",
+                    participantId, IN_FLIGHT_WAIT_SECONDS, why );
+            }
+        } catch( final InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            LOG.warn( "collab: interrupted waiting for the long-poll answer of {} to finish: {}", participantId,
+                e.getMessage() );
+        }
     }
 
     @Override
@@ -221,9 +295,13 @@ final class CollabPull implements PullWaiter, AsyncListener {
     }
 
     private void write( final Answer a ) {
-        if( !written.compareAndSet( false, true ) ) {
-            return;
+        if( written.compareAndSet( false, true ) ) {
+            doWrite( a );
         }
+    }
+
+    /** The one write, by the thread that claimed it; completes the request whatever happens. */
+    private void doWrite( final Answer a ) {
         final Map< String, String > outer = ThreadContext.getImmutableContext();
         ThreadContext.clearMap();
         ThreadContext.putAll( mdc );
@@ -233,6 +311,7 @@ final class CollabPull implements PullWaiter, AsyncListener {
             LOG.warn( "collab: writing the long-poll answer of {} failed: {}", participantId, e.toString() );
         } finally {
             completeAsync();
+            completed.countDown();
             ThreadContext.clearMap();
             ThreadContext.putAll( outer );
         }

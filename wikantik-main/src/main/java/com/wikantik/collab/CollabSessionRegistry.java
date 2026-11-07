@@ -149,6 +149,11 @@ public final class CollabSessionRegistry {
         return config;
     }
 
+    /** The page size limit ({@code wikantik.api.maxPageBytes}); the HTTP surface sizes the join body from it. */
+    public long maxPageBytes() {
+        return maxPageBytes;
+    }
+
     // ---- join ------------------------------------------------------------------------------------------------
 
     /** Creates or loads {@code pageName}'s session and joins it (see the class comment for the refusals). */

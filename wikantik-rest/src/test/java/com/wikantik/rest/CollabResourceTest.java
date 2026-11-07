@@ -24,12 +24,18 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
+import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.frontmatter.schema.Severity;
+import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.collab.CollabConfig;
+import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.CollabPermissions;
 import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.model.PageState;
+import com.wikantik.collab.model.PublishOutcome;
+import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.collab.model.PullCursor;
 import com.wikantik.collab.model.PullResponse;
 import com.wikantik.collab.testing.FakeAsyncContext;
@@ -45,6 +51,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.io.Writer;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -58,10 +67,14 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -117,6 +130,8 @@ class CollabResourceTest {
     private final Set< String > noView = new HashSet<>();
     private final List< Runnable > delayed = new ArrayList<>();
     private CollabSessionRegistry registry;
+    /** When set, the next call's response writes through it (then it is cleared). */
+    private Writer nextWriter;
     private CollabResource resource;
 
     /** The wiki session of a participant is its login here. */
@@ -166,9 +181,14 @@ class CollabResourceTest {
     }
 
     private void use( final CollabConfig c, final long maxPageBytes, final long coalesceMs ) {
-        registry = new CollabSessionRegistry( store, writer, permissions, key -> key.substring( 0, 1 ).toUpperCase()
+        use( c, maxPageBytes, coalesceMs, writer, ( ac, task ) -> task.run() );
+    }
+
+    private void use( final CollabConfig c, final long maxPageBytes, final long coalesceMs,
+                      final CollabPageWriter pageWriter, final CollabPull.Dispatch dispatch ) {
+        registry = new CollabSessionRegistry( store, pageWriter, permissions, key -> key.substring( 0, 1 ).toUpperCase()
             + key.substring( 1 ), clock, c, maxPageBytes );
-        resource = new CollabResource( registry, access, ( ms, task ) -> delayed.add( task ), coalesceMs );
+        resource = new CollabResource( registry, access, ( ms, task ) -> delayed.add( task ), dispatch, coalesceMs );
     }
 
     // ---- request/response doubles -------------------------------------------------------------------------------
@@ -207,6 +227,10 @@ class CollabResourceTest {
                        final Map< String, String > query ) throws Exception {
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final Resp resp = new Resp();
+        if( nextWriter != null ) {
+            when( resp.mock.getWriter() ).thenReturn( new PrintWriter( nextWriter, true ) );
+            nextWriter = null;
+        }
         when( req.getMethod() ).thenReturn( method );
         when( req.getPathInfo() ).thenReturn( path );
         when( req.getRequestURI() ).thenReturn( "/api/collab" + path );
@@ -466,6 +490,7 @@ class CollabResourceTest {
         final Resp r = post( "ada", "join", new JsonObject() );
         assertEquals( 403, r.status );
         assertEquals( "forbidden", r.body().get( "error" ).getAsString() );
+        assertEquals( "No view permission on " + PAGE, r.body().get( "message" ).getAsString() );
     }
 
     @Test
@@ -805,8 +830,12 @@ class CollabResourceTest {
 
     /** Parks ada at the head with every cursor current; returns the pull's response. */
     private Resp park( final Joined a ) throws Exception {
+        return park( a, "ada" );
+    }
+
+    private Resp park( final Joined a, final String user ) throws Exception {
         final CollabSession s = session( a );
-        final Resp p = pull( "ada", a, s.view().head(), s.metaSeq(), s.view().presenceSeq(), Long.MAX_VALUE );
+        final Resp p = pull( user, a, s.view().head(), s.metaSeq(), s.view().presenceSeq(), Long.MAX_VALUE );
         assertNotNull( p.async, "parked: async started" );
         assertFalse( p.async.isCompleted(), "parked: not answered" );
         assertEquals( 25_000, p.async.getTimeout() );
@@ -888,7 +917,8 @@ class CollabResourceTest {
         final CollabSession s = session( a );
         final Resp resp = new Resp();
         final CollabPull w = new CollabPull( s, a.participantId, new PullCursor( 0, 0, 0, 0 ), resp.mock,
-            ( ms, task ) -> fail( "not delayed" ), 50, x -> { } );
+            new CollabPull.Handoff( ( ms, task ) -> fail( "not delayed" ), ( c, task ) -> fail( "not dispatched" ),
+                50 ), x -> { } );
         w.complete( new PullResponse( 200, List.of(), 0, null, Map.of(), 0 ) );
         assertEquals( "", resp.out.toString(), "nothing written before async mode" );
         final FakeAsyncContext ac = new FakeAsyncContext();
@@ -993,6 +1023,18 @@ class CollabResourceTest {
         final Joined a = join( "ada" );
         final Resp r = call( "POST", "ada", "/OtherPage/updates", pushBody( a, 0, arr() ).toString(), Map.of() );
         assertEquals( 404, r.status );
+    }
+
+    @Test
+    void requestsUnderTheOldNameReachARenamedSession() throws Exception {
+        final Joined a = join( "ada" );
+        registry.rekey( PAGE, "NewName" );
+        assertEquals( 200, call( "POST", "ada", "/" + PAGE + "/updates", pushBody( a, 0, arr() ).toString(),
+            Map.of() ).status, "the old name still reaches it" );
+        assertEquals( 200, call( "POST", "ada", "/NewName/updates", pushBody( a, 0, arr() ).toString(),
+            Map.of() ).status, "and so does the new one" );
+        assertEquals( 404, call( "POST", "ada", "/OtherPage/updates", pushBody( a, 0, arr() ).toString(),
+            Map.of() ).status );
     }
 
     // ---- publish ---------------------------------------------------------------------------------------------------
@@ -1110,6 +1152,203 @@ class CollabResourceTest {
         assertEquals( 403, leave.status );
         assertEquals( "not-your-participant", leave.reason() );
         assertTrue( session( a ).hasParticipant( a.participantId ), "ada is still here" );
+    }
+
+    // ---- fix round 1 -----------------------------------------------------------------------------------------------
+
+    @Test
+    void invalidPageNamesAre400BeforeAnythingElse() throws Exception {
+        final Joined r = join( "raj" );
+        noView.add( "ada" );   // a view check would answer 403: the name check must come first
+        for( final String name : List.of( "Foo/bar.png", "Foo:bar", "Foo\u0001bar", "x".repeat( 201 ) ) ) {
+            for( final String action : List.of( "join", "updates", "publish", "discard", "leave" ) ) {
+                final Resp resp = call( "POST", "ada", "/" + name + "/" + action, ids( r ).toString(), Map.of() );
+                assertEquals( 400, resp.status, () -> name + " " + action + ": " + resp.out );
+                assertEquals( "rejected", resp.reason() );
+            }
+            final Resp get = call( "GET", "ada", "/" + name + "/updates", null, Map.of( "sessionId", r.sessionId,
+                "participantId", r.participantId, "since", "0" ) );
+            assertEquals( 400, get.status, name );
+            assertTrue( store.sessionForPage( name ).isEmpty(), "no session for " + name );
+        }
+    }
+
+    @Test
+    void aBlockedWriterDoesNotDelayAnotherWaitersAnswer() throws Exception {
+        final ExecutorService pool = Executors.newCachedThreadPool();
+        try {
+            use( config( 20, 1000, 100, 500 ), CollabSessionRegistry.DEFAULT_MAX_PAGE_BYTES, 0, writer,
+                ( ac, task ) -> pool.execute( task ) );
+            final Joined a = join( "ada" );
+            final Joined r = join( "raj" );
+            final Joined b = join( "bob" );
+            final CountDownLatch release = new CountDownLatch( 1 );
+            final CountDownLatch entered = new CountDownLatch( 1 );
+            nextWriter = new Writer() {
+                @Override
+                public void write( final char[] buf, final int off, final int len ) throws IOException {
+                    entered.countDown();
+                    try {
+                        release.await();
+                    } catch( final InterruptedException e ) {
+                        Thread.currentThread().interrupt();
+                        throw new InterruptedIOException( "interrupted" );
+                    }
+                }
+
+                @Override
+                public void flush() {
+                    // nothing buffered
+                }
+
+                @Override
+                public void close() {
+                    // nothing held
+                }
+            };
+            final Resp stuck = park( a );   // parked first, so it is woken first
+            final Resp other = park( r, "raj" );
+            final CompletableFuture< Resp > pushed = CompletableFuture.supplyAsync( () -> {
+                try {
+                    return push( "bob", b, 0, update( b, 11, arr( 0, "!" ), 1 ) );
+                } catch( final Exception e ) {
+                    throw new IllegalStateException( e );
+                }
+            } );
+            assertEquals( 200, pushed.get( 5, TimeUnit.SECONDS ).status, "the pusher is never held by a write" );
+            awaitCompleted( other );
+            assertEquals( 1, other.body().getAsJsonArray( "updates" ).size() );
+            assertTrue( entered.await( 5, TimeUnit.SECONDS ) );
+            assertFalse( stuck.async.isCompleted(), "the stuck write is still in flight" );
+
+            // a container timeout while that write is in flight waits for it instead of returning (no error dispatch)
+            final Thread timeout = new Thread( stuck.async::fireTimeout );
+            timeout.start();
+            timeout.join( 300 );
+            assertTrue( timeout.isAlive(), "onTimeout waits for the in-flight write" );
+            release.countDown();
+            timeout.join( 5_000 );
+            assertFalse( timeout.isAlive() );
+            stuck.async.assertCompletedOnce();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private static void awaitCompleted( final Resp r ) throws InterruptedException {
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 5 );
+        while( !r.async.isCompleted() && System.nanoTime() < deadline ) {
+            Thread.sleep( 5 );
+        }
+        r.async.assertCompletedOnce();
+    }
+
+    @Test
+    void discardChecksEditUncached() throws Exception {
+        final Joined a = join( "ada" );
+        push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) );
+        noEdit.add( "ada" );
+        final Resp r = post( "ada", "discard", ids( a ) );
+        assertEquals( 403, r.status );
+        assertEquals( "forbidden", r.body().get( "error" ).getAsString() );
+        assertEquals( "Hello world!\n", session( a ).view().doc(), "nothing discarded" );
+    }
+
+    @Test
+    void publishPassesTheMarkupSyntaxToTheSave() throws Exception {
+        final List< PublishRequest > seen = new ArrayList<>();
+        final CollabPageWriter capturing = new CollabPageWriter() {
+            @Override
+            public Optional< PageState > latest( final String pageName ) {
+                return writer.latest( pageName );
+            }
+
+            @Override
+            public Optional< PageState > version( final String pageName, final int version ) {
+                return writer.version( pageName, version );
+            }
+
+            @Override
+            public PublishOutcome publish( final PublishRequest request ) throws WikiException {
+                seen.add( request );
+                return writer.publish( request );
+            }
+        };
+        use( config( 20, 1000, 100, 500 ), CollabSessionRegistry.DEFAULT_MAX_PAGE_BYTES, 0, capturing,
+            ( ac, task ) -> task.run() );
+        final Joined a = join( "ada" );
+        push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) );
+        final JsonObject body = publishBody( a, 1 );
+        body.addProperty( "markupSyntax", "markdown" );
+        assertEquals( 200, post( "ada", "publish", body ).status );
+        assertEquals( "markdown", seen.get( 0 ).markupSyntax() );
+
+        final int head = session( a ).view().head();
+        push( "ada", a, head, update( a, session( a ).view().doc().length() - 1, arr( 0, "?" ), 1 ) );
+        assertEquals( 200, post( "ada", "publish", publishBody( a, session( a ).view().head() ) ).status );
+        assertNull( seen.get( 1 ).markupSyntax(), "absent stays absent" );
+    }
+
+    @Test
+    void publish422AccessRuleShapeIsPageResourcesBodyWithoutNulls() throws Exception {
+        final Joined a = join( "ada" );
+        push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) );
+        final AccessRuleShapeException e = new AccessRuleShapeException( List.of( new AccessRuleShapeException.Violation(
+            AccessRuleShapeException.CODE, "unclosed", 3, null, "[{ALLOW edit", "close the rule" ) ) );
+        writer.failNextPublish( e );
+        final Resp r = post( "ada", "publish", publishBody( a, 1 ) );
+        assertEquals( 422, r.status );
+        assertEquals( JsonParser.parseString( RestServletBase.GSON.toJson( PageResource.accessRuleShapeErrorBody( e ) ) ),
+            r.body(), "exactly PageResource's body" );
+        assertFalse( r.body().getAsJsonArray( "violations" ).get( 0 ).getAsJsonObject().has( "field" ),
+            "no null fields" );
+    }
+
+    @Test
+    void aMetaCarryingDiscardWithAStoreFailureChangesNothing() throws Exception {
+        final Joined a = join( "ada" );
+        final JsonObject body = pushBody( a, 0, arr( update( a, 11, arr( 0, "!" ), 1 ) ) );
+        body.add( "metaOps", arr( obj( "field", "status", "value", "draft" ) ) );
+        assertEquals( 200, post( "ada", "updates", body ).status );
+        final long metaSeq = session( a ).metaSeq();
+        store.failOn( InMemoryCollabStore.Op.APPEND_BATCH, 1 );
+        store.failOn( InMemoryCollabStore.Op.APPEND_META, 1 );
+        store.failOn( InMemoryCollabStore.Op.APPEND_UPDATES, 1 );
+        store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );
+
+        final Resp r = post( "ada", "discard", ids( a ) );
+
+        assertEquals( 503, r.status );
+        assertEquals( "Hello world!\n", session( a ).view().doc() );
+        assertEquals( "draft", session( a ).view().meta().get( "status" ), "the meta is not half-reset" );
+        assertEquals( metaSeq, session( a ).metaSeq() );
+        for( final InMemoryCollabStore.Op op : InMemoryCollabStore.Op.values() ) {
+            store.failOn( op, 1_000_000 );   // disarm whatever the failed discard did not reach
+        }
+        assertEquals( 204, post( "ada", "discard", ids( a ) ).status, "a retry discards" );
+        assertEquals( "Hello world\n", session( a ).view().doc() );
+        assertFalse( session( a ).view().meta().containsKey( "status" ) );
+    }
+
+    @Test
+    void theJoinBodyCapFollowsMaxPageBytes() throws Exception {
+        use( config( 20, 1000, 100, 500 ), 16, 0 );
+        final String big = "x".repeat( 200_000 );
+        final Resp r = call( "POST", "ada", "/NewPage/join", obj( "initialText", big ).toString(), Map.of() );
+        assertEquals( 413, r.status );
+        assertEquals( "oversize", r.reason() );
+        assertTrue( store.sessionForPage( "NewPage" ).isEmpty() );
+    }
+
+    @Test
+    void oneUsersTwoJoinsAreTwoParticipants() throws Exception {
+        final Joined first = join( "ada" );
+        final Joined second = join( "ada" );
+        assertFalse( first.participantId.equals( second.participantId ), "two tabs, two participants" );
+        assertFalse( first.clientId.equals( second.clientId ) );
+        assertEquals( first.sessionId, second.sessionId );
+        assertTrue( session( first ).hasParticipant( first.participantId ) );
+        assertTrue( session( first ).hasParticipant( second.participantId ) );
     }
 
     // ---- headers ---------------------------------------------------------------------------------------------------

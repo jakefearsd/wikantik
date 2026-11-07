@@ -26,10 +26,18 @@ import java.util.Objects;
  * {@code 0} means "the page must not exist": the save conflicts if it does. A positive {@code expectedVersion} on a page
  * that does not exist (renamed or deleted away under the publish) never recreates it: the save refuses with the
  * page-gone {@code VersionConflictException} (message {@code page-gone}). {@code authorKey} is required; a
- * server-initiated publish passes the system key {@code "system"}.
+ * server-initiated publish passes the system key {@code "system"}. {@code markupSyntax} is the editor's markup syntax,
+ * passed to the save as {@code PageResource.doPut} passes it; null leaves the page's syntax as the save pipeline decides.
  */
 public record PublishRequest( String pageName, String body, Map< String, Object > meta, int expectedVersion,
-                              String authorKey, String changeNote ) {
+                              String authorKey, String changeNote, String markupSyntax ) {
+
+    /** A request without a markup syntax. */
+    public PublishRequest( final String pageName, final String body, final Map< String, Object > meta,
+                           final int expectedVersion, final String authorKey, final String changeNote ) {
+        this( pageName, body, meta, expectedVersion, authorKey, changeNote, null );
+    }
+
     public PublishRequest {
         ModelChecks.nonBlank( pageName, "pageName" );
         Objects.requireNonNull( body, "body" );

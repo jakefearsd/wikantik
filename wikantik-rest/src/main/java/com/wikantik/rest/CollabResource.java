@@ -25,6 +25,7 @@ import com.wikantik.collab.adapter.CollabWiring;
 import com.wikantik.collab.model.LeaveResponse;
 import com.wikantik.collab.model.PushResponse;
 import com.wikantik.rest.CollabWire.Answer;
+import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -109,6 +110,7 @@ public class CollabResource extends RestServletBase {
     private final boolean registryFixed;
     private transient Access access;
     private transient CollabPull.Delayer delayer;
+    private transient CollabPull.Dispatch dispatch;
     private transient ScheduledExecutorService coalescer;
     private final long coalesceMs;
 
@@ -121,10 +123,17 @@ public class CollabResource extends RestServletBase {
     /** For tests: a fixed registry (null: none wired), the caller's access, a delayer and the coalescing window. */
     CollabResource( final CollabSessionRegistry registry, final Access access, final CollabPull.Delayer delayer,
                     final long coalesceMs ) {
+        this( registry, access, delayer, ( ac, task ) -> task.run(), coalesceMs );
+    }
+
+    /** For tests: as above, with how long-poll answers are handed off for writing. */
+    CollabResource( final CollabSessionRegistry registry, final Access access, final CollabPull.Delayer delayer,
+                    final CollabPull.Dispatch dispatch, final long coalesceMs ) {
         this.fixedRegistry = registry;
         this.registryFixed = true;
         this.access = access;
         this.delayer = delayer;
+        this.dispatch = dispatch;
         this.coalesceMs = coalesceMs;
     }
 
@@ -141,7 +150,11 @@ public class CollabResource extends RestServletBase {
                 return t;
             } );
             final ScheduledExecutorService s = coalescer;
+            // the coalescer only schedules: the write itself is handed to the container's pool (dispatch)
             delayer = ( ms, task ) -> s.schedule( task, ms, TimeUnit.MILLISECONDS );
+        }
+        if( dispatch == null ) {
+            dispatch = AsyncContext::start;
         }
     }
 
@@ -174,7 +187,7 @@ public class CollabResource extends RestServletBase {
             sendNotFound( response, "Unknown collaboration call" );
             return;
         }
-        final Caller caller = authenticated( request, response );
+        final Caller caller = admitted( request, response, route[ 0 ] );
         if( caller == null ) {
             return;
         }
@@ -202,8 +215,8 @@ public class CollabResource extends RestServletBase {
         final Target t = ( Target ) target;
         CollabWire.write( response, switch( action ) {
             case UPDATES -> push( t, caller, body );
-            case "publish" -> publish( t, caller, page, body );
-            case "discard" -> discard( t, caller );
+            case "publish" -> publish( t, caller, t.session().pageName(), body );   // checks and saves the current name
+            case "discard" -> discard( t, caller, t.session().pageName() );
             default -> leave( t, caller );
         } );
     }
@@ -216,7 +229,7 @@ public class CollabResource extends RestServletBase {
             sendNotFound( response, "Unknown collaboration call" );
             return;
         }
-        final Caller caller = authenticated( request, response );
+        final Caller caller = admitted( request, response, route[ 0 ] );
         if( caller == null ) {
             return;
         }
@@ -229,9 +242,17 @@ public class CollabResource extends RestServletBase {
         pull( request, response, ( Target ) target, caller );
     }
 
-    /** The caller, or null once a 401 has been sent. */
-    private Caller authenticated( final HttpServletRequest request, final HttpServletResponse response )
+    /**
+     * The caller, or null once an answer has been sent: 400 {@code rejected} for a page name the wiki refuses (D5/D21,
+     * checked before any permission or session lookup), else 401 without an authenticated session.
+     */
+    private Caller admitted( final HttpServletRequest request, final HttpServletResponse response, final String page )
             throws IOException {
+        if( PageResource.isInvalidPageName( page ) ) {
+            CollabWire.write( response, CollabWire.rejected( "Page name is invalid: must be 1-"
+                + PageResource.MAX_PAGE_NAME_LENGTH + " characters and must not contain ':', '/', '\\', or control chars." ) );
+            return null;
+        }
         final Caller caller = access.caller( request );
         if( caller == null ) {
             sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
@@ -255,7 +276,7 @@ public class CollabResource extends RestServletBase {
         if( s.isEmpty() ) {
             return CollabWire.refusal( 409, REJOIN, 0 );
         }
-        if( !s.get().pageName().equals( page ) ) {
+        if( !s.get().answersTo( page ) ) {   // its current name or one it held before a rename
             final JsonObject o = new JsonObject();
             o.addProperty( "error", "not_found" );
             return new Answer( 404, o );
@@ -280,8 +301,9 @@ public class CollabResource extends RestServletBase {
                        final Caller caller ) throws IOException {
         final CollabSession s = t.session();
         final long timeoutMillis = registry().map( r -> r.config().pollTimeoutSeconds() ).orElse( 25 ) * 1000L;
-        CollabPull.serve( request, response, cursor -> new CollabPull( s, t.participantId(), cursor, response, delayer,
-            coalesceMs, r -> observe( s, r.status(), r.reason() ) ), caller.authorKey(), timeoutMillis );
+        CollabPull.serve( request, response, cursor -> new CollabPull( s, t.participantId(), cursor, response,
+            new CollabPull.Handoff( delayer, dispatch, coalesceMs ), r -> observe( s, r.status(), r.reason() ) ),
+            caller.authorKey(), timeoutMillis );
     }
 
     // ---- publish, discard, leave -----------------------------------------------------------------------------------
@@ -299,10 +321,15 @@ public class CollabResource extends RestServletBase {
             return CollabWire.forbidden( page );
         }
         return CollabPublish.run( t.session(), t.participantId(), caller.authorKey(), version, note == null ? "" : note,
+            RestJson.getJsonString( body, "markupSyntax" ),
             page, ( status, reason ) -> observe( t.session(), status, reason ) );
     }
 
-    private Answer discard( final Target t, final Caller caller ) {
+    /** An uncached {@code edit} check first (A5): a discard rewrites the shared draft. */
+    private Answer discard( final Target t, final Caller caller, final String page ) {
+        if( !access.mayEdit( caller, page, false ) ) {
+            return CollabWire.forbidden( page );
+        }
         final PushResponse r = t.session().discard( t.participantId(), caller.authorKey() );
         observe( t.session(), r.status(), r.reason() );
         return r.ok() ? CollabWire.noContent() : CollabWire.refusal( r.status(), r.reason(), r.detail(), r.version() );

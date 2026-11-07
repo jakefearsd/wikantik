@@ -43,8 +43,12 @@ import java.util.Optional;
 final class CollabJoin {
 
     private static final Logger LOG = LogManager.getLogger( CollabJoin.class );
-    /** A join body may carry a whole template or restored page (A11). */
-    private static final long JOIN_MAX_BYTES = 8L * 1024 * 1024;
+    /**
+     * A join body may carry a whole template or restored page (A11): up to {@code maxPageBytes} of text, which JSON
+     * escaping can grow to six bytes per byte (a backslash-u escape), plus room for the initial frontmatter.
+     */
+    private static final long JSON_ESCAPE_FACTOR = 6;
+    private static final long META_ALLOWANCE_BYTES = 64L * 1024;
     private static final String DISABLED = "collab-disabled";
     private static final Gson GSON = new Gson();
 
@@ -57,9 +61,10 @@ final class CollabJoin {
             return CollabWire.reason( 503, DISABLED );
         }
         if( !access.mayView( caller, page ) ) {
-            return CollabWire.forbidden( page );
+            return CollabWire.forbidden( page, "view" );
         }
-        final Object parsed = CollabRequests.readJson( request, JOIN_MAX_BYTES );
+        final long cap = registry.get().maxPageBytes() * JSON_ESCAPE_FACTOR + META_ALLOWANCE_BYTES;
+        final Object parsed = CollabRequests.readJson( request, cap );
         if( parsed instanceof Answer refused ) {
             return refused;
         }

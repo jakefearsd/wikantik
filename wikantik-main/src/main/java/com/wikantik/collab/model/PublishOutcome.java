@@ -21,7 +21,10 @@ package com.wikantik.collab.model;
 import java.util.Map;
 import java.util.Objects;
 
-/** Result of a publish: the version now latest and the body/meta as actually saved (filters may alter them). */
+/**
+ * Result of a publish: the version now latest and the body/meta as actually saved (filters may alter them).
+ * {@code savedBody} is the stored text (CRLF line endings, trailing CRLF); callers apply {@code CollabText.toLf}.
+ */
 public record PublishOutcome( int version, String savedBody, Map< String, Object > savedMeta, boolean unchanged ) {
     public PublishOutcome {
         ModelChecks.nonNegative( version, "version" );

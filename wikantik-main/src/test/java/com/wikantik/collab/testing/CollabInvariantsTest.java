@@ -22,6 +22,7 @@ import com.wikantik.collab.CollabStore;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.text.ChangeSet;
+import com.wikantik.collab.text.CollabText;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,9 +56,9 @@ class CollabInvariantsTest {
         writer.seed( PAGE, BASE, Map.of() );
         id = UUID.randomUUID();
         final Instant t = Instant.parse( "2026-01-01T00:00:00Z" );
-        store.createSession( new SessionRecord( id, PAGE, SessionRecord.ACTIVE, 1, BASE, Map.of(), 0, 0, false, null, null,
-            "stub", t, t ) );
-        store.appendUpdates( id, List.of( new StoredUpdate( 1, "text", "c1", "alice", ChangeSet.replace( 6, 0, 0, "X" ) ) ) );
+        store.createSession( new SessionRecord( id, PAGE, SessionRecord.ACTIVE, 1, BASE, Map.of(),
+            CollabText.contentHash( BASE ), 0, 0, false, null, null, null, "stub", t, t ) );
+        store.appendUpdates( id, List.of( new StoredUpdate( 1, StoredUpdate.TEXT, "c1", "alice", ChangeSet.replace( 6, 0, 0, "X" ) ) ) );
     }
 
     /** A consistent view: base "hello\n", one update inserting X, ring holding it. */
@@ -117,21 +118,21 @@ class CollabInvariantsTest {
 
     @Test
     void inv2_ringNotASuffixOfTheStoreLog() {
-        final StoredUpdate forged = new StoredUpdate( 1, "text", "c1", "alice", ChangeSet.replace( 6, 0, 0, "Z" ) );
+        final StoredUpdate forged = new StoredUpdate( 1, StoredUpdate.TEXT, "c1", "alice", ChangeSet.replace( 6, 0, 0, "Z" ) );
         failsNaming( with( valid(), b -> { b.ring = List.of( forged ); return b; } ), false, 2 );
     }
 
     @Test
     void inv3_replayDisagreesWithDocOnlyWhenChecked() {
         // snapshot says the body at version 0 was different, so replay reproduces a different doc
-        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, "jello\n", Map.of(), ChangeSet.empty( 6 ) ) );
+        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, 1, "jello\n", Map.of(), ChangeSet.empty( 6 ) ) );
         assertDoesNotThrow( () -> CollabInvariants.check( valid(), false ) );
         failsNaming( valid(), true, 3 );
     }
 
     @Test
     void inv3_passesWithAMatchingSnapshot() {
-        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, BASE, Map.of(), ChangeSet.empty( 6 ) ) );
+        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, 1, BASE, Map.of(), ChangeSet.empty( 6 ) ) );
         assertDoesNotThrow( () -> CollabInvariants.check( valid(), true ) );
     }
 
@@ -161,7 +162,7 @@ class CollabInvariantsTest {
     private static final ChangeSet X = ChangeSet.replace( 6, 0, 0, "X" );
 
     private void snapshotAt0( final String body, final ChangeSet local ) {
-        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, body, Map.of(), local ) );
+        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 0, 0, 1, body, Map.of(), local ) );
     }
 
     @Test
@@ -185,7 +186,10 @@ class CollabInvariantsTest {
 
     @Test
     void inv2_truncatedLogIsFine() {
+        store.writeSnapshot( id, new com.wikantik.collab.model.Snapshot( 1, 0, 1, "Xhello\n", Map.of(),
+            ChangeSet.replace( 6, 0, 0, "X" ) ) );
         store.truncateUpdatesBelow( id, 2 );
+        assertTrue( store.updatesSince( id, 0 ).isEmpty(), "update 1 is folded into the snapshot" );
         assertDoesNotThrow( () -> CollabInvariants.check( valid(), false ) );
     }
 
@@ -193,13 +197,13 @@ class CollabInvariantsTest {
         final CollabStore m = mock( CollabStore.class );
         final Instant t = Instant.parse( "2026-01-01T00:00:00Z" );
         when( m.session( any() ) ).thenReturn( java.util.Optional.of( new SessionRecord( id, PAGE, SessionRecord.ACTIVE, 1,
-            BASE, Map.of(), sessionHead, 0, false, null, null, "stub", t, t ) ) );
+            BASE, Map.of(), CollabText.contentHash( BASE ), sessionHead, 0, false, null, null, null, "stub", t, t ) ) );
         when( m.updatesSince( any(), anyInt() ) ).thenReturn( log );
         return with( valid(), b -> { b.store = m; b.head = sessionHead; b.ring = List.of(); return b; } );
     }
 
     private static StoredUpdate upd( final int version, final ChangeSet cs ) {
-        return new StoredUpdate( version, "text", "c1", "alice", cs );
+        return new StoredUpdate( version, StoredUpdate.TEXT, "c1", "alice", cs );
     }
 
     @Test

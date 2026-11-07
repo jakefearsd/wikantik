@@ -41,7 +41,9 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class InMemoryCollabStore implements CollabStore {
 
     /** The mutating operations that carry a fault point. */
-    public enum Op { CREATE_SESSION, UPDATE_SESSION, APPEND_UPDATES, APPEND_META, WRITE_SNAPSHOT, TRUNCATE, DELETE }
+    public enum Op {
+        CREATE_SESSION, UPDATE_SESSION, APPEND_UPDATES, APPEND_META, WRITE_SNAPSHOT, COMMIT_BASE_CHANGE, TRUNCATE, DELETE
+    }
 
     private final ReentrantLock lock = new ReentrantLock();
     private final Map< UUID, SessionRecord > sessions = new HashMap<>();
@@ -150,12 +152,67 @@ public final class InMemoryCollabStore implements CollabStore {
             if( !old.pageName().equals( s.pageName() ) && idForPage( s.pageName() ).isPresent() ) {
                 throw new IllegalStateException( "page already has a collab session: " + s.pageName() );
             }
-            sessions.put( s.id(), new SessionRecord( old.id(), s.pageName(), s.status(), s.basePageVersion(),
-                s.baseBody(), s.baseMeta(), old.headVersion(), old.metaSeq(), s.hasUnpublished(),
-                s.pendingPublishVersion(), s.pendingPublishBaseVersion(), old.createdBy(), old.createdAt(),
-                s.lastEditAt() ) );
+            sessions.put( s.id(), merged( old, s ) );
         } finally {
             lock.unlock();
+        }
+    }
+
+    /** {@code s}'s mutable fields over {@code old}'s immutable ones (the {@link #updateSession} field rules). */
+    private static SessionRecord merged( final SessionRecord old, final SessionRecord s ) {
+        return new SessionRecord( old.id(), s.pageName(), s.status(), s.basePageVersion(), s.baseBody(), s.baseMeta(),
+            s.baseContentHash(), old.headVersion(), old.metaSeq(), s.hasUnpublished(), s.pendingPublishVersion(),
+            s.pendingPublishBaseVersion(), s.pendingPublishAuthor(), old.createdBy(), old.createdAt(), s.lastEditAt() );
+    }
+
+    /**
+     * Validates every step first and only then mutates, all under the lock, so a failure (including the fault point)
+     * changes nothing.
+     */
+    @Override
+    public void commitBaseChange( final UUID id, final List< StoredUpdate > serverUpdates, final Snapshot snapshot,
+                                  final SessionRecord updated ) {
+        lock.lock();
+        try {
+            fault( Op.COMMIT_BASE_CHANGE );
+            final SessionRecord old = require( id );
+            if( !updated.id().equals( id ) ) {
+                throw new IllegalArgumentException( "session record " + updated.id() + " is not collab session " + id );
+            }
+            for( final StoredUpdate u : serverUpdates ) {
+                if( !StoredUpdate.SERVER.equals( u.kind() ) ) {
+                    throw new IllegalArgumentException( "commitBaseChange appends server updates only, got " + u );
+                }
+            }
+            checkContiguous( old, serverUpdates );
+            final int newHead = old.headVersion() + serverUpdates.size();
+            if( snapshot.version() != newHead ) {
+                throw new IllegalStateException( "snapshot version " + snapshot.version() + " is not the new head " + newHead );
+            }
+            if( snapshot.basePageVersion() != updated.basePageVersion() ) {
+                throw new IllegalArgumentException( "snapshot base page version " + snapshot.basePageVersion()
+                    + " is not the session's new base " + updated.basePageVersion() );
+            }
+            if( !old.pageName().equals( updated.pageName() ) && idForPage( updated.pageName() ).isPresent() ) {
+                throw new IllegalStateException( "page already has a collab session: " + updated.pageName() );
+            }
+            final TreeMap< Integer, StoredUpdate > log = updates.get( id );
+            serverUpdates.forEach( u -> log.put( u.version(), u ) );
+            snapshots.get( id ).put( snapshot.version(), snapshot );
+            sessions.put( id, merged( old, updated ).withHead( newHead ) );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private static void checkContiguous( final SessionRecord s, final List< StoredUpdate > list ) {
+        int expected = s.headVersion();
+        for( final StoredUpdate u : list ) {
+            expected++;
+            if( u.version() != expected ) {
+                throw new IllegalStateException( "update version " + u.version() + " is not " + expected
+                    + " (head " + s.headVersion() + ")" );
+            }
         }
     }
 
@@ -168,14 +225,7 @@ public final class InMemoryCollabStore implements CollabStore {
             if( list.isEmpty() ) {
                 return;
             }
-            int expected = s.headVersion();
-            for( final StoredUpdate u : list ) {
-                expected++;
-                if( u.version() != expected ) {
-                    throw new IllegalStateException( "update version " + u.version() + " is not " + expected
-                        + " (head " + s.headVersion() + ")" );
-                }
-            }
+            checkContiguous( s, list );
             final TreeMap< Integer, StoredUpdate > log = updates.get( id );
             list.forEach( u -> log.put( u.version(), u ) );
             sessions.put( id, s.withHead( s.headVersion() + list.size() ) );
@@ -214,10 +264,7 @@ public final class InMemoryCollabStore implements CollabStore {
             }
             final TreeMap< Long, StoredMetaOp > log = metaOps.get( id );
             ops.forEach( o -> log.put( o.seq(), o ) );
-            sessions.put( id, new SessionRecord( s.id(), s.pageName(), s.status(), s.basePageVersion(), s.baseBody(),
-                s.baseMeta(), s.headVersion(), s.metaSeq() + ops.size(), s.hasUnpublished(),
-                s.pendingPublishVersion(), s.pendingPublishBaseVersion(), s.createdBy(), s.createdAt(),
-                s.lastEditAt() ) );
+            sessions.put( id, s.withMetaSeq( s.metaSeq() + ops.size() ) );
         } finally {
             lock.unlock();
         }
@@ -258,15 +305,15 @@ public final class InMemoryCollabStore implements CollabStore {
     }
 
     @Override
-    public void truncateUpdatesBelow( final UUID id, final int version ) {
+    public void truncateUpdatesBelow( final UUID id, final int cut ) {
         lock.lock();
         try {
             fault( Op.TRUNCATE );
             require( id );
-            updates.get( id ).headMap( version, false ).clear();
             final TreeMap< Integer, Snapshot > snaps = snapshots.get( id );
-            final Integer floor = snaps.floorKey( version );
+            final Integer floor = snaps.floorKey( cut );
             if( floor != null ) {
+                updates.get( id ).headMap( floor, true ).clear();
                 snaps.headMap( floor, false ).clear();
             }
         } finally {

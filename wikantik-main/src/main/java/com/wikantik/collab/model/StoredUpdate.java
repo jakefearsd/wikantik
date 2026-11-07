@@ -27,14 +27,20 @@ import java.util.Objects;
  * {@code "server"} (server-originated; {@code authorKey} may be null, as in section 10's author_key column).
  */
 public record StoredUpdate( int version, String kind, String clientId, String authorKey, ChangeSet changes ) {
+
+    /** A client edit. */
+    public static final String TEXT = "text";
+    /** A server-originated change (a publish rewrite or an external merge). */
+    public static final String SERVER = "server";
+
     public StoredUpdate {
         ModelChecks.nonNegative( version, "version" );
         Objects.requireNonNull( kind, "kind" );
-        if( !"text".equals( kind ) && !"server".equals( kind ) ) {
+        if( !TEXT.equals( kind ) && !SERVER.equals( kind ) ) {
             throw new IllegalArgumentException( "kind must be text or server: " + kind );
         }
         Objects.requireNonNull( clientId, "clientId" );
-        if( "text".equals( kind ) ) {
+        if( TEXT.equals( kind ) ) {
             ModelChecks.nonBlank( authorKey, "authorKey" );
         }
         Objects.requireNonNull( changes, "changes" );

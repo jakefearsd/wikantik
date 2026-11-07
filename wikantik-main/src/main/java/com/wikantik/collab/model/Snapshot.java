@@ -23,11 +23,16 @@ import com.wikantik.collab.text.ChangeSet;
 import java.util.Map;
 import java.util.Objects;
 
-/** A checkpoint of a session at {@code version}/{@code metaSeq}; {@code local} is the unpublished change set. */
-public record Snapshot( int version, long metaSeq, String body, Map< String, Object > meta, ChangeSet local ) {
+/**
+ * A checkpoint of a session at {@code version}/{@code metaSeq}; {@code local} is the unpublished change set, relative to
+ * the page version {@code basePageVersion} the session was based on when the snapshot was taken.
+ */
+public record Snapshot( int version, long metaSeq, int basePageVersion, String body, Map< String, Object > meta,
+                        ChangeSet local ) {
     public Snapshot {
         ModelChecks.nonNegative( version, "version" );
         ModelChecks.nonNegative( metaSeq, "metaSeq" );
+        ModelChecks.nonNegative( basePageVersion, "basePageVersion" );
         Objects.requireNonNull( body, "body" );
         meta = ModelChecks.copyMeta( meta, "meta" );
         Objects.requireNonNull( local, "local" );

@@ -34,6 +34,9 @@ public interface CollabPageWriter {
     /** A specific saved version of the page, or empty when it does not exist. */
     Optional< PageState > version( String pageName, int version );
 
-    /** Saves a page, failing when {@code expectedVersion} is no longer the latest. */
+    /**
+     * Saves a page, failing with {@code VersionConflictException} when {@code expectedVersion} is no longer the latest;
+     * {@code expectedVersion} 0 means the page must not exist (see {@link PublishRequest}).
+     */
     PublishOutcome publish( PublishRequest request ) throws WikiException;
 }

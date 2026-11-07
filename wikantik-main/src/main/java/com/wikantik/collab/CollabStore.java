@@ -45,9 +45,11 @@ public interface CollabStore {
     Optional< SessionRecord > sessionForPage( String pageName );
 
     /**
-     * May change status, pageName, basePageVersion, baseBody, baseMeta, hasUnpublished, pendingPublishVersion,
-     * pendingPublishBaseVersion and lastEditAt. Never changes id, headVersion, metaSeq, createdBy or createdAt: the
-     * stored values are kept.
+     * May change status, pageName, basePageVersion, baseBody, baseMeta, baseContentHash, hasUnpublished, the
+     * pending-publish triple (pendingPublishVersion, pendingPublishBaseVersion, pendingPublishAuthor) and lastEditAt.
+     * Never changes id, headVersion, metaSeq, createdBy or createdAt: the stored values are kept. A base change
+     * (basePageVersion, baseBody, baseMeta, baseContentHash) belongs in {@link #commitBaseChange}, which writes the
+     * snapshot with it.
      *
      * @throws IllegalStateException if renaming to a page that already has a session
      */
@@ -73,6 +75,24 @@ public interface CollabStore {
     /** Retained meta ops with {@code seq > sinceSeq}, ascending; a gap is detected as for {@link #updatesSince}. */
     List< StoredMetaOp > metaOpsSince( UUID id, long sinceSeq );
 
+    /**
+     * Commits a change of the session's base page version as one atomic step: appends {@code serverUpdates} (each of
+     * kind {@link StoredUpdate#SERVER}; contiguity rules as {@link #appendUpdates}, an empty list appends nothing),
+     * writes {@code snapshot}, and applies {@code updated} with the field rules of {@link #updateSession}. Used by
+     * publish completion and external merges: every base change writes a snapshot in the same transaction, so a
+     * reload never pairs a new base with an old snapshot.
+     *
+     * <p>{@code snapshot.version()} must equal the head after the append ({@code headVersion + serverUpdates.size()})
+     * and {@code snapshot.basePageVersion()} must equal {@code updated.basePageVersion()}. All-or-nothing: on any
+     * failure (a contiguity or snapshot mismatch, a rename clash, a storage fault) nothing is changed.</p>
+     *
+     * @throws IllegalArgumentException for an unknown session, a non-server update, an {@code updated} record for
+     *                                  another session, or a snapshot base version that is not {@code updated}'s
+     * @throws IllegalStateException    when the updates are not contiguous to the head, the snapshot is not at the new
+     *                                  head, or {@code updated} renames onto a page that already has a session
+     */
+    void commitBaseChange( UUID id, List< StoredUpdate > serverUpdates, Snapshot snapshot, SessionRecord updated );
+
     /** Writing at an existing version replaces that snapshot. */
     void writeSnapshot( UUID id, Snapshot s );
 
@@ -80,10 +100,13 @@ public interface CollabStore {
     Optional< Snapshot > latestSnapshot( UUID id );
 
     /**
-     * Deletes updates with {@code version < version} and snapshots older than the newest snapshot at or below
-     * {@code version} (at least one snapshot covering the retained log is kept). Never changes headVersion (A10).
+     * Truncation clamped to a snapshot. Let {@code S} be the newest snapshot whose version is {@code <= cut}: deletes
+     * the updates with {@code version <= S.version()} (they are folded into {@code S}) and the snapshots older than
+     * {@code S}; {@code S}, every newer snapshot and every update after {@code S} are kept, so snapshot {@code S} plus
+     * the retained log always reloads the head. If no snapshot is at or below {@code cut} nothing is deleted. Never
+     * changes headVersion (A10).
      */
-    void truncateUpdatesBelow( UUID id, int version );
+    void truncateUpdatesBelow( UUID id, int cut );
 
     /** Removes the session and its updates, meta ops and snapshots, and frees the page name for createSession. */
     void deleteSession( UUID id );

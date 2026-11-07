@@ -36,7 +36,13 @@ class RecordsTest {
 
     private static SessionRecord session( final Integer pv, final Integer pbv ) {
         final Instant t = Instant.EPOCH;
-        return new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b", Map.of(), 0, 0, false, pv, pbv, "u", t, t );
+        return session( pv, pbv, pv == null ? null : "alice" );
+    }
+
+    private static SessionRecord session( final Integer pv, final Integer pbv, final String author ) {
+        final Instant t = Instant.EPOCH;
+        return new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b", Map.of(), "h", 0, 0, false, pv, pbv, author,
+            "u", t, t );
     }
 
     @Test
@@ -81,9 +87,54 @@ class RecordsTest {
     void metaIsCopiedDefensivelyAndMayHoldNulls() {
         final Map< String, Object > m = new HashMap<>();
         m.put( "k", null );
-        final PageState ps = new PageState( 1, "b", m, "h" );
+        final PageState ps = new PageState( 1, "b", m, "h", null );
         m.put( "x", 1 );
         assertEquals( 1, ps.meta().size() );
         assertThrows( UnsupportedOperationException.class, () -> ps.meta().put( "y", 2 ) );
+    }
+
+    @Test
+    void pendingPublishTripleIsAllNullOrAllSet() {
+        assertDoesNotThrow( () -> session( 3, 2, "alice" ) );
+        assertThrows( IllegalArgumentException.class, () -> session( 3, 2, null ) );
+        assertThrows( IllegalArgumentException.class, () -> session( null, null, "alice" ) );
+        assertThrows( IllegalArgumentException.class, () -> session( 3, 2, " " ) );
+    }
+
+    @Test
+    void withPendingSetsAndClearsTheTriple() {
+        final SessionRecord s = session( null, null ).withPending( 5, 4, "bob" );
+        assertEquals( 5, s.pendingPublishVersion() );
+        assertEquals( 4, s.pendingPublishBaseVersion() );
+        assertEquals( "bob", s.pendingPublishAuthor() );
+        final SessionRecord cleared = s.withPending( null, null, null );
+        assertEquals( null, cleared.pendingPublishAuthor() );
+        assertThrows( IllegalArgumentException.class, () -> s.withPending( 5, 4, null ) );
+    }
+
+    @Test
+    void baseContentHashIsRequired() {
+        final Instant t = Instant.EPOCH;
+        assertThrows( NullPointerException.class, () -> new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b",
+            Map.of(), null, 0, 0, false, null, null, null, "u", t, t ) );
+    }
+
+    @Test
+    void snapshotBasePageVersionMustNotBeNegative() {
+        assertDoesNotThrow( () -> new Snapshot( 0, 0, 0, "b", Map.of(), CS ) );
+        assertThrows( IllegalArgumentException.class, () -> new Snapshot( 0, 0, -1, "b", Map.of(), CS ) );
+    }
+
+    @Test
+    void pageStateAuthorMayBeNullForAnUnknownAuthor() {
+        assertEquals( null, new PageState( 1, "b", Map.of(), "h", null ).author() );
+        assertEquals( "alice", new PageState( 1, "b", Map.of(), "h", "alice" ).author() );
+    }
+
+    @Test
+    void storedUpdateKindConstants() {
+        assertEquals( "text", StoredUpdate.TEXT );
+        assertEquals( "server", StoredUpdate.SERVER );
+        assertDoesNotThrow( () -> new StoredUpdate( 1, StoredUpdate.SERVER, "c", null, CS ) );
     }
 }

@@ -130,9 +130,9 @@ public final class StubCollabAuthority implements SimServer {
         local = ChangeSet.empty( doc.length() );
         enterOrLeaveOversize( true );
         final Instant now = clock.instant();
-        store.createSession( new SessionRecord( id, pageName, SessionRecord.ACTIVE, basePageVersion, baseBody, baseMeta, 0,
-            0, false, null, null, "stub", now, now ) );
-        store.writeSnapshot( id, new Snapshot( 0, 0, doc, baseMeta, local ) );
+        store.createSession( new SessionRecord( id, pageName, SessionRecord.ACTIVE, basePageVersion, baseBody, baseMeta,
+            CollabText.contentHash( baseBody ), 0, 0, false, null, null, null, "stub", now, now ) );
+        store.writeSnapshot( id, new Snapshot( 0, 0, basePageVersion, doc, baseMeta, local ) );
     }
 
     private StubCollabAuthority( final String pageName, final CollabStore store, final CollabPageWriter writer,
@@ -320,7 +320,7 @@ public final class StubCollabAuthority implements SimServer {
             if( utf8( next ) > Math.max( maxPageBytes, utf8( cur ) ) ) {
                 return new PushResult( 413, head, "oversize" );
             }
-            accepted.add( new StoredUpdate( head + accepted.size() + 1, "text", p.clientId(), p.authorKey(), cs ) );
+            accepted.add( new StoredUpdate( head + accepted.size() + 1, StoredUpdate.TEXT, p.clientId(), p.authorKey(), cs ) );
             cur = next;
         }
         if( accepted.isEmpty() ) {
@@ -458,16 +458,17 @@ public final class StubCollabAuthority implements SimServer {
         final String newBase = CollabText.toLf( out.savedBody() );
         final List< StoredUpdate > extra = new ArrayList<>();
         if( !newBase.equals( doc ) ) {
-            extra.add( new StoredUpdate( head + 1, "server", SERVER_CLIENT, null, TextDiff.changeSet( doc, newBase ) ) );
+            extra.add( new StoredUpdate( head + 1, StoredUpdate.SERVER, SERVER_CLIENT, null, TextDiff.changeSet( doc, newBase ) ) );
         }
         final int newHead = head + extra.size();
         try {
             if( !extra.isEmpty() ) {
                 store.appendUpdates( id, extra );
             }
-            store.writeSnapshot( id, new Snapshot( newHead, 0, newBase, out.savedMeta(), ChangeSet.empty( newBase.length() ) ) );
+            store.writeSnapshot( id, new Snapshot( newHead, 0, out.version(), newBase, out.savedMeta(),
+                ChangeSet.empty( newBase.length() ) ) );
             final SessionRecord rec = store.session( id ).orElseThrow();
-            store.updateSession( rec.withBase( out.version(), newBase, out.savedMeta() ) );
+            store.updateSession( rec.withBase( out.version(), newBase, out.savedMeta(), CollabText.contentHash( newBase ) ) );
         } catch( final RuntimeException e ) {
             LOG.warn( "publish of {} saved page version {} but the store failed; stub poisoned", pageName, out.version(), e );
             poisoned = true;

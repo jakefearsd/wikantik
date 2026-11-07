@@ -65,8 +65,8 @@ public abstract class AbstractCollabStoreContractTest {
     // ---- helpers -------------------------------------------------------------------------------------------
 
     private static SessionRecord session( final String page ) {
-        return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 3, "base body", Map.of( "k", "v" ), 0, 0L,
-            false, null, null, "alice", T0, T0 );
+        return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 3, "base body", Map.of( "k", "v" ),
+            "hash-3", 0, 0L, false, null, null, null, "alice", T0, T0 );
     }
 
     private SessionRecord created( final String page ) {
@@ -76,7 +76,7 @@ public abstract class AbstractCollabStoreContractTest {
     }
 
     private static StoredUpdate upd( final int version ) {
-        return new StoredUpdate( version, "text", "c1", "alice", CS );
+        return new StoredUpdate( version, StoredUpdate.TEXT, "c1", "alice", CS );
     }
 
     private static List< StoredUpdate > upds( final int from, final int to ) {
@@ -92,7 +92,7 @@ public abstract class AbstractCollabStoreContractTest {
     }
 
     private static Snapshot snap( final int version ) {
-        return new Snapshot( version, 0L, "body@" + version, Map.of(), CS );
+        return new Snapshot( version, 0L, 3, "body@" + version, Map.of(), CS );
     }
 
     private int head( final SessionRecord s ) {
@@ -134,8 +134,8 @@ public abstract class AbstractCollabStoreContractTest {
 
     private static SessionRecord frozen( final SessionRecord s ) {
         return new SessionRecord( s.id(), s.pageName(), SessionRecord.FROZEN, s.basePageVersion(), s.baseBody(),
-            s.baseMeta(), s.headVersion(), s.metaSeq(), s.hasUnpublished(), s.pendingPublishVersion(),
-            s.pendingPublishBaseVersion(), s.createdBy(), s.createdAt(), s.lastEditAt() );
+            s.baseMeta(), s.baseContentHash(), s.headVersion(), s.metaSeq(), s.hasUnpublished(), s.pendingPublishVersion(),
+            s.pendingPublishBaseVersion(), s.pendingPublishAuthor(), s.createdBy(), s.createdAt(), s.lastEditAt() );
     }
 
     // ---- updateSession -------------------------------------------------------------------------------------
@@ -145,7 +145,7 @@ public abstract class AbstractCollabStoreContractTest {
         final SessionRecord s = created( "PageA" );
         final Instant later = T0.plusSeconds( 60 );
         final SessionRecord changed = new SessionRecord( s.id(), "PageB", SessionRecord.FROZEN, 9, "new base",
-            Map.of( "a", "b" ), 0, 0L, true, 7, 8, "alice", T0, later );
+            Map.of( "a", "b" ), "hash-9", 0, 0L, true, 7, 8, "bob", "alice", T0, later );
         store.updateSession( changed );
         assertEquals( changed, store.session( s.id() ).orElseThrow() );
         assertTrue( store.sessionForPage( "PageA" ).isEmpty() );
@@ -158,7 +158,7 @@ public abstract class AbstractCollabStoreContractTest {
         store.appendUpdates( s.id(), upds( 1, 3 ) );
         store.appendMetaOps( s.id(), List.of( op( 1 ), op( 2 ) ) );
         final SessionRecord attempt = new SessionRecord( s.id(), "PageA", SessionRecord.ACTIVE, 3, "base body",
-            Map.of(), 99, 99L, false, null, null, "mallory", T0.plusSeconds( 1 ), T0.plusSeconds( 5 ) );
+            Map.of(), "hash-3", 99, 99L, false, null, null, null, "mallory", T0.plusSeconds( 1 ), T0.plusSeconds( 5 ) );
         store.updateSession( attempt );
         final SessionRecord stored = store.session( s.id() ).orElseThrow();
         assertEquals( 3, stored.headVersion() );
@@ -173,7 +173,8 @@ public abstract class AbstractCollabStoreContractTest {
         created( "PageA" );
         final SessionRecord b = created( "PageB" );
         final SessionRecord clash = new SessionRecord( b.id(), "PageA", b.status(), b.basePageVersion(), b.baseBody(),
-            b.baseMeta(), 0, 0L, false, null, null, b.createdBy(), b.createdAt(), b.lastEditAt() );
+            b.baseMeta(), b.baseContentHash(), 0, 0L, false, null, null, null, b.createdBy(), b.createdAt(),
+            b.lastEditAt() );
         assertThrows( IllegalStateException.class, () -> store.updateSession( clash ) );
         assertEquals( "PageB", store.session( b.id() ).orElseThrow().pageName() );
     }
@@ -181,7 +182,7 @@ public abstract class AbstractCollabStoreContractTest {
     @Test
     void updateSessionOnTheSamePageNameIsAllowed() {
         final SessionRecord s = created( "PageA" );
-        store.updateSession( s.withBase( 8, "other", Map.of() ) );
+        store.updateSession( s.withBase( 8, "other", Map.of(), "hash-8" ) );
         assertEquals( 8, store.session( s.id() ).orElseThrow().basePageVersion() );
     }
 
@@ -242,7 +243,7 @@ public abstract class AbstractCollabStoreContractTest {
                 final Callable< Boolean > task = () -> {
                     gate.await();
                     try {
-                        store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, "text", client, "alice", CS ) ) );
+                        store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, StoredUpdate.TEXT, client, "alice", CS ) ) );
                         return true;
                     } catch( final IllegalStateException expected ) {
                         return false;
@@ -314,7 +315,7 @@ public abstract class AbstractCollabStoreContractTest {
     void writeSnapshotAtAnExistingVersionReplacesIt() {
         final SessionRecord s = created( "PageA" );
         store.writeSnapshot( s.id(), snap( 5 ) );
-        store.writeSnapshot( s.id(), new Snapshot( 5, 2L, "replaced", Map.of(), CS ) );
+        store.writeSnapshot( s.id(), new Snapshot( 5, 2L, 3, "replaced", Map.of(), CS ) );
         final Snapshot latest = store.latestSnapshot( s.id() ).orElseThrow();
         assertEquals( "replaced", latest.body() );
         assertEquals( 2L, latest.metaSeq() );
@@ -328,18 +329,33 @@ public abstract class AbstractCollabStoreContractTest {
     // ---- truncation ----------------------------------------------------------------------------------------
 
     @Test
-    void truncateKeepsVersionsAtAndAbove() {
+    void truncateDeletesUpdatesFoldedIntoTheSnapshotAndKeepsTheRest() {
         final SessionRecord s = created( "PageA" );
         store.appendUpdates( s.id(), upds( 1, 10 ) );
+        store.writeSnapshot( s.id(), snap( 5 ) );
         store.truncateUpdatesBelow( s.id(), 6 );
-        final List< StoredUpdate > kept = store.updatesSince( s.id(), 0 );
-        assertEquals( upds( 6, 10 ), kept );
+        assertEquals( upds( 6, 10 ), store.updatesSince( s.id(), 0 ) );
+    }
+
+    @Test
+    void truncateWithNoSnapshotAtOrBelowTheCutDeletesNothing() {
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), upds( 1, 10 ) );
+        store.writeSnapshot( s.id(), snap( 8 ) );
+        store.truncateUpdatesBelow( s.id(), 6 );
+        assertEquals( upds( 1, 10 ), store.updatesSince( s.id(), 0 ) );
+        assertEquals( 8, store.latestSnapshot( s.id() ).orElseThrow().version() );
+        final SessionRecord t = created( "PageB" );
+        store.appendUpdates( t.id(), upds( 1, 3 ) );
+        store.truncateUpdatesBelow( t.id(), 100 );
+        assertEquals( upds( 1, 3 ), store.updatesSince( t.id(), 0 ), "no snapshot at all: nothing is deleted" );
     }
 
     @Test
     void truncateNeverChangesTheHead() {
         final SessionRecord s = created( "PageA" );
         store.appendUpdates( s.id(), upds( 1, 10 ) );
+        store.writeSnapshot( s.id(), snap( 10 ) );
         store.truncateUpdatesBelow( s.id(), 100 );
         assertEquals( 10, head( s ) );
         assertTrue( store.updatesSince( s.id(), 0 ).isEmpty() );
@@ -354,18 +370,32 @@ public abstract class AbstractCollabStoreContractTest {
         store.writeSnapshot( s.id(), snap( 5 ) );
         store.writeSnapshot( s.id(), snap( 10 ) );
         store.truncateUpdatesBelow( s.id(), 7 );
-        // snapshot 5 covers the retained log from 7; 0 is gone, 10 stays, so the latest is unchanged
+        // snapshot 5 is the newest at or below 7; 0 is gone, 10 stays, so the latest is unchanged
         assertEquals( 10, store.latestSnapshot( s.id() ).orElseThrow().version() );
         store.truncateUpdatesBelow( s.id(), 10 );
         assertEquals( 10, store.latestSnapshot( s.id() ).orElseThrow().version() );
     }
 
     @Test
-    void truncateKeepsAtLeastOneSnapshotCoveringTheRetainedLog() {
+    void truncateKeepsTheNewestSnapshotAtOrBelowTheCut() {
         final SessionRecord s = created( "PageA" );
         store.writeSnapshot( s.id(), snap( 5 ) );
         store.truncateUpdatesBelow( s.id(), 20 );
         assertEquals( 5, store.latestSnapshot( s.id() ).orElseThrow().version() );
+    }
+
+    @Test
+    void truncateBelowACutPastTheSnapshotKeepsTheLogAfterItReloadable() {
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), upds( 1, 19 ) );
+        store.writeSnapshot( s.id(), snap( 5 ) );
+        store.truncateUpdatesBelow( s.id(), 20 );
+        final Snapshot base = store.latestSnapshot( s.id() ).orElseThrow();
+        assertEquals( 5, base.version() );
+        // snapshot 5 + the retained log is a contiguous path to the head: a reload is possible
+        assertEquals( upds( 6, 19 ), store.updatesSince( s.id(), base.version() ) );
+        assertEquals( upds( 6, 19 ), store.updatesSince( s.id(), 0 ) );
+        assertEquals( 19, head( s ) );
     }
 
     @Test
@@ -377,10 +407,139 @@ public abstract class AbstractCollabStoreContractTest {
     void updatesSinceReturnsOnlyTheRetainedSuffixSoACallerCanDetectTheGap() {
         final SessionRecord s = created( "PageA" );
         store.appendUpdates( s.id(), upds( 1, 10 ) );
+        store.writeSnapshot( s.id(), snap( 5 ) );
         store.truncateUpdatesBelow( s.id(), 6 );
         final List< StoredUpdate > got = store.updatesSince( s.id(), 2 );
         assertEquals( 6, got.get( 0 ).version() );
         assertTrue( got.get( 0 ).version() > 2 + 1 );
+    }
+
+    // ---- commitBaseChange ----------------------------------------------------------------------------------
+
+    private static StoredUpdate serverUpd( final int version ) {
+        return new StoredUpdate( version, StoredUpdate.SERVER, "server", null, CS );
+    }
+
+    private static Snapshot baseSnap( final int version, final int basePageVersion ) {
+        return new Snapshot( version, 0L, basePageVersion, "base@" + basePageVersion, Map.of(), CS );
+    }
+
+    private static SessionRecord rebased( final SessionRecord s, final int basePageVersion ) {
+        return s.withBase( basePageVersion, "base@" + basePageVersion, Map.of( "v", basePageVersion ),
+            "hash-" + basePageVersion ).withPending( null, null, null );
+    }
+
+    @Test
+    void commitBaseChangeAppendsWritesTheSnapshotAndUpdatesTheSession() {
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), upds( 1, 2 ) );
+        store.updateSession( s.withPending( 4, 3, "alice" ) );
+        store.commitBaseChange( s.id(), List.of( serverUpd( 3 ) ), baseSnap( 3, 4 ), rebased( s, 4 ) );
+        final SessionRecord stored = store.session( s.id() ).orElseThrow();
+        assertEquals( 3, stored.headVersion() );
+        assertEquals( 4, stored.basePageVersion() );
+        assertEquals( "base@4", stored.baseBody() );
+        assertEquals( "hash-4", stored.baseContentHash() );
+        assertEquals( Map.of( "v", 4 ), stored.baseMeta() );
+        assertEquals( null, stored.pendingPublishVersion() );
+        assertEquals( null, stored.pendingPublishAuthor() );
+        assertEquals( serverUpd( 3 ), store.updatesSince( s.id(), 2 ).get( 0 ) );
+        assertEquals( baseSnap( 3, 4 ), store.latestSnapshot( s.id() ).orElseThrow() );
+    }
+
+    @Test
+    void commitBaseChangeWithNoServerUpdatesSnapshotsAtTheCurrentHead() {
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), upds( 1, 2 ) );
+        store.commitBaseChange( s.id(), List.of(), baseSnap( 2, 4 ), rebased( s, 4 ) );
+        assertEquals( 2, head( s ) );
+        assertEquals( 4, store.session( s.id() ).orElseThrow().basePageVersion() );
+        assertEquals( 2, store.latestSnapshot( s.id() ).orElseThrow().version() );
+    }
+
+    @Test
+    void commitBaseChangeKeepsTheImmutableFields() {
+        final SessionRecord s = created( "PageA" );
+        store.appendMetaOps( s.id(), List.of( op( 1 ) ) );
+        final SessionRecord attempt = new SessionRecord( s.id(), "PageA", SessionRecord.ACTIVE, 4, "base@4", Map.of(),
+            "hash-4", 77, 77L, false, null, null, null, "mallory", T0.plusSeconds( 9 ), T0.plusSeconds( 9 ) );
+        store.commitBaseChange( s.id(), List.of(), baseSnap( 0, 4 ), attempt );
+        final SessionRecord stored = store.session( s.id() ).orElseThrow();
+        assertEquals( 0, stored.headVersion() );
+        assertEquals( 1L, stored.metaSeq() );
+        assertEquals( "alice", stored.createdBy() );
+        assertEquals( T0, stored.createdAt() );
+    }
+
+    private void assertUntouched( final SessionRecord s, final SessionRecord before, final int headBefore ) {
+        assertEquals( before, store.session( s.id() ).orElseThrow() );
+        assertEquals( headBefore, store.updatesSince( s.id(), 0 ).size() );
+        assertTrue( store.latestSnapshot( s.id() ).isEmpty() );
+    }
+
+    @Test
+    void commitBaseChangeRejectsAGapAndChangesNothing() {
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), upds( 1, 2 ) );
+        final SessionRecord before = store.session( s.id() ).orElseThrow();
+        assertThrows( IllegalStateException.class,
+            () -> store.commitBaseChange( s.id(), List.of( serverUpd( 4 ) ), baseSnap( 4, 4 ), rebased( s, 4 ) ) );
+        assertUntouched( s, before, 2 );
+    }
+
+    @Test
+    void commitBaseChangeRejectsASnapshotNotAtTheNewHeadAndChangesNothing() {
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), upds( 1, 2 ) );
+        final SessionRecord before = store.session( s.id() ).orElseThrow();
+        assertThrows( IllegalStateException.class,
+            () -> store.commitBaseChange( s.id(), List.of( serverUpd( 3 ) ), baseSnap( 2, 4 ), rebased( s, 4 ) ) );
+        assertUntouched( s, before, 2 );
+    }
+
+    @Test
+    void commitBaseChangeRejectsASnapshotForAnotherBaseAndChangesNothing() {
+        final SessionRecord s = created( "PageA" );
+        final SessionRecord before = store.session( s.id() ).orElseThrow();
+        assertThrows( IllegalArgumentException.class,
+            () -> store.commitBaseChange( s.id(), List.of( serverUpd( 1 ) ), baseSnap( 1, 5 ), rebased( s, 4 ) ) );
+        assertUntouched( s, before, 0 );
+    }
+
+    @Test
+    void commitBaseChangeRejectsAClientUpdateAndChangesNothing() {
+        final SessionRecord s = created( "PageA" );
+        final SessionRecord before = store.session( s.id() ).orElseThrow();
+        assertThrows( IllegalArgumentException.class,
+            () -> store.commitBaseChange( s.id(), List.of( upd( 1 ) ), baseSnap( 1, 4 ), rebased( s, 4 ) ) );
+        assertUntouched( s, before, 0 );
+    }
+
+    /** The session update is the last of the three steps: its failure must undo the append and the snapshot. */
+    @Test
+    void commitBaseChangeIsAtomicWhenTheSessionUpdateFails() {
+        created( "PageB" );
+        final SessionRecord s = created( "PageA" );
+        store.appendUpdates( s.id(), upds( 1, 2 ) );
+        final SessionRecord before = store.session( s.id() ).orElseThrow();
+        final SessionRecord renamedOntoB = new SessionRecord( s.id(), "PageB", SessionRecord.ACTIVE, 4, "base@4",
+            Map.of(), "hash-4", 0, 0L, false, null, null, null, "alice", T0, T0 );
+        assertThrows( IllegalStateException.class,
+            () -> store.commitBaseChange( s.id(), List.of( serverUpd( 3 ) ), baseSnap( 3, 4 ), renamedOntoB ) );
+        assertUntouched( s, before, 2 );
+        assertEquals( 2, head( s ) );
+    }
+
+    @Test
+    void commitBaseChangeRejectsARecordForAnotherSessionOrAnUnknownSession() {
+        final SessionRecord s = created( "PageA" );
+        final SessionRecord other = created( "PageB" );
+        assertThrows( IllegalArgumentException.class,
+            () -> store.commitBaseChange( s.id(), List.of(), baseSnap( 0, 4 ), rebased( other, 4 ) ) );
+        assertEquals( 3, store.session( s.id() ).orElseThrow().basePageVersion() );
+        final UUID unknown = UUID.randomUUID();
+        assertThrows( IllegalArgumentException.class,
+            () -> store.commitBaseChange( unknown, List.of(), baseSnap( 0, 4 ), rebased( s, 4 ) ) );
     }
 
     // ---- delete --------------------------------------------------------------------------------------------

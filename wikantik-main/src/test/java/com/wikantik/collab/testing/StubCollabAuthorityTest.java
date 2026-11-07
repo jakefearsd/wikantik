@@ -241,8 +241,13 @@ class StubCollabAuthorityTest {
             server.push( a.participantId(), "alice", i, List.of( typeAt( a, doc, 0, "a" ) ) );
             doc = "a" + doc;
         }
-        store.truncateUpdatesBelow( server.view().sessionId(), 4 );
-        CollabInvariants.check( server.view(), false );
+        // a valid snapshot at version 3 (truncation clamps to it), so updates 1..3 can be folded away
+        final java.util.UUID sid = server.view().sessionId();
+        store.writeSnapshot( sid, new com.wikantik.collab.model.Snapshot( 3, 0, server.view().basePageVersion(),
+            "aaa" + BODY, java.util.Map.of(), ChangeSet.replace( BODY.length(), 0, 0, "aaa" ) ) );
+        store.truncateUpdatesBelow( sid, 4 );
+        assertEquals( 4, store.updatesSince( sid, 0 ).get( 0 ).version() );
+        CollabInvariants.check( server.view(), true );
         assertEquals( 410, server.pull( a.participantId(), "alice", 0 ).status() );
         assertEquals( 200, server.pull( a.participantId(), "alice", 3 ).status() );
     }
@@ -338,7 +343,7 @@ class StubCollabAuthorityTest {
         assertEquals( "server", r.updates().get( 0 ).clientId() );
         assertEquals( "Xhello\nWORLD\n", r.updates().get( 0 ).changes().apply( "Xhello\nworld\n" ) );
         final StoredUpdate su = store.updatesSince( server.view().sessionId(), 1 ).get( 0 );
-        assertEquals( "server", su.kind() );
+        assertEquals( StoredUpdate.SERVER, su.kind() );
         CollabInvariants.check( server.view(), true );
     }
 

@@ -19,17 +19,19 @@
 package com.wikantik.collab.testing;
 
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
+import com.wikantik.collab.text.CollabText;
 import com.wikantik.util.TextUtil;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -81,7 +83,8 @@ public final class ScriptedPageWriter implements CollabPageWriter {
         PublishOutcome completeWith( Exception e ) throws WikiException;
     }
 
-    private record Version( String body, Map< String, Object > meta ) {
+    /** One stored version; {@code author} is the author key that wrote it, null when unknown (a seeded version). */
+    private record Version( String body, Map< String, Object > meta, String author ) {
     }
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -91,14 +94,28 @@ public final class ScriptedPageWriter implements CollabPageWriter {
     private Handle armedPause;
     private Exception failNext;
     private Exception persistThenFailNext;
+    private volatile Duration releaseTimeout = DEFAULT_RELEASE_TIMEOUT;
+
+    /** How long a paused {@link #publish} waits for {@link PauseHandle#release} before giving up. */
+    public static final Duration DEFAULT_RELEASE_TIMEOUT = Duration.ofSeconds( 30 );
 
     // ---- setup / knobs -------------------------------------------------------------------------------------
+
+    /** Overrides {@link #DEFAULT_RELEASE_TIMEOUT} (tests of the timeout itself). */
+    void releaseTimeout( final Duration timeout ) {
+        releaseTimeout = Objects.requireNonNull( timeout );
+    }
+
+    /** Null-tolerant unmodifiable copy (page meta can hold null values, which {@code Map.copyOf} rejects). */
+    private static Map< String, Object > copyMeta( final Map< String, Object > meta ) {
+        return Collections.unmodifiableMap( new LinkedHashMap<>( meta ) );
+    }
 
     public void seed( final String pageName, final String body, final Map< String, Object > meta ) {
         lock.lock();
         try {
             final List< Version > v = new ArrayList<>();
-            v.add( new Version( TextUtil.normalizePostData( body ), Map.copyOf( meta ) ) );
+            v.add( new Version( TextUtil.normalizePostData( body ), copyMeta( meta ), null ) );
             pages.put( pageName, v );
         } finally {
             lock.unlock();
@@ -157,7 +174,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
         lock.lock();
         try {
             final List< Version > v = pages.computeIfAbsent( pageName, k -> new ArrayList<>() );
-            v.add( new Version( TextUtil.normalizePostData( body ), Map.copyOf( meta ) ) );
+            v.add( new Version( TextUtil.normalizePostData( body ), copyMeta( meta ), authorKey ) );
             version = v.size();
         } finally {
             lock.unlock();
@@ -181,7 +198,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
                 throw new IllegalStateException( "no such page: " + pageName );
             }
             final Version last = v.get( v.size() - 1 );
-            v.set( v.size() - 1, new Version( TextUtil.normalizePostData( body ), last.meta() ) );
+            v.set( v.size() - 1, new Version( TextUtil.normalizePostData( body ), last.meta(), last.author() ) );
         } finally {
             lock.unlock();
         }
@@ -253,14 +270,14 @@ public final class ScriptedPageWriter implements CollabPageWriter {
 
     private static PageState state( final List< Version > v, final int version ) {
         final Version x = v.get( version - 1 );
-        return new PageState( version, x.body(), x.meta(), PageSaveHelper.computeContentHash( x.body() ) );
+        return new PageState( version, x.body(), x.meta(), CollabText.contentHash( x.body() ), x.author() );
     }
 
     @Override
     public PublishOutcome publish( final PublishRequest request ) throws WikiException {
         final Handle pause = enter();
         if( pause != null ) {
-            pause.awaitRelease();
+            pause.awaitRelease( releaseTimeout );
         }
         return store( request, pause );
     }
@@ -302,7 +319,11 @@ public final class ScriptedPageWriter implements CollabPageWriter {
             }
             final List< Version > v = pages.computeIfAbsent( request.pageName(), k -> new ArrayList<>() );
             final int current = v.size();
-            if( request.expectedVersion() > 0 && request.expectedVersion() != current ) {
+            // A11: 0 means "the page must not exist"; a positive version on a missing page passes, as the real save does
+            final boolean conflict = request.expectedVersion() == 0
+                ? current > 0
+                : current > 0 && request.expectedVersion() != current;
+            if( conflict ) {
                 throw new VersionConflictException( request.pageName(), current, request.expectedVersion(), false );
             }
             final String stored = TextUtil.normalizePostData( rewrite.apply( request.body() ) );
@@ -310,7 +331,7 @@ public final class ScriptedPageWriter implements CollabPageWriter {
                     && v.get( current - 1 ).meta().equals( request.meta() ) ) {
                 return new PublishOutcome( current, stored, request.meta(), true );
             }
-            v.add( new Version( stored, Map.copyOf( request.meta() ) ) );
+            v.add( new Version( stored, copyMeta( request.meta() ), request.authorKey() ) );
             outcome = new PublishOutcome( v.size(), stored, request.meta(), false );
             persistFail = persistThenFailNext;
             persistThenFailNext = null;
@@ -346,12 +367,20 @@ public final class ScriptedPageWriter implements CollabPageWriter {
             }
         }
 
-        void awaitRelease() {
+        /** Bounded, so a test that forgets to release fails instead of hanging the build. */
+        void awaitRelease( final Duration timeout ) {
+            long nanos = timeout.toNanos();
             hl.lock();
             try {
                 while( !released ) {
-                    changed.awaitUninterruptibly();
+                    if( nanos <= 0 ) {
+                        throw new IllegalStateException( "the paused publish was not released within " + timeout );
+                    }
+                    nanos = changed.awaitNanos( nanos );
                 }
+            } catch( final InterruptedException e ) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException( "interrupted waiting for the paused publish to be released", e );
             } finally {
                 hl.unlock();
             }

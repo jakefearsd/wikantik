@@ -18,6 +18,8 @@
  */
 package com.wikantik.collab.text;
 
+import com.wikantik.api.pages.PageSaveHelper;
+
 /**
  * Text rules of the collaboration layer: documents are LF-only (CodeMirror's internal form) and lengths are UTF-16
  * code units, so a change must never cut a surrogate pair in two.
@@ -25,6 +27,14 @@ package com.wikantik.collab.text;
 public final class CollabText {
 
     private CollabText() {
+    }
+
+    /**
+     * The collaboration layer's content hash of a page body: SHA-256 hex of {@link #toLf}{@code (body)}, so a stored
+     * CRLF body and its LF form hash alike. Meta is not part of the hash; it is compared separately.
+     */
+    public static String contentHash( final String body ) {
+        return PageSaveHelper.computeContentHash( toLf( body ) );
     }
 
     /** {@code text} with every {@code \r\n} and lone {@code \r} turned into {@code \n}; LF-only text is returned as is. */

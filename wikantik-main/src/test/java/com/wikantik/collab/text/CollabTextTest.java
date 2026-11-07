@@ -87,4 +87,13 @@ class CollabTextTest {
         assertTrue( CollabText.splitsSurrogatePair( EMOJI,
                 ChangeSetJson.fromJson( JsonParser.parseString( "[[1, \"x\"], 1]" ).getAsJsonArray() ) ) );
     }
+
+    @Test
+    void contentHashIsSha256HexOfTheLfBody() {
+        assertEquals( com.wikantik.api.pages.PageSaveHelper.computeContentHash( "a\nb\n" ),
+            CollabText.contentHash( "a\r\nb\r\n" ) );
+        assertEquals( CollabText.contentHash( "a\nb\n" ), CollabText.contentHash( "a\r\nb\r\n" ) );
+        assertEquals( 64, CollabText.contentHash( "" ).length() );
+        assertFalse( CollabText.contentHash( "a\n" ).equals( CollabText.contentHash( "b\n" ) ) );
+    }
 }

@@ -21,8 +21,13 @@ package com.wikantik.collab.model;
 import java.util.Map;
 import java.util.Objects;
 
-/** A saved page version. {@code body} is as stored (CRLF allowed); callers apply {@code CollabText.toLf}. */
-public record PageState( int version, String body, Map< String, Object > meta, String contentHash ) {
+/**
+ * A saved page version. {@code body} is as stored (CRLF allowed); callers apply {@code CollabText.toLf}.
+ * {@code contentHash} is {@link com.wikantik.collab.text.CollabText#contentHash} of {@code body} (SHA-256 hex of the
+ * LF-normalised body; meta is compared separately). {@code author} is the author key that wrote this version, or
+ * {@code null} when the author is unknown.
+ */
+public record PageState( int version, String body, Map< String, Object > meta, String contentHash, String author ) {
     public PageState {
         ModelChecks.nonNegative( version, "version" );
         Objects.requireNonNull( body, "body" );

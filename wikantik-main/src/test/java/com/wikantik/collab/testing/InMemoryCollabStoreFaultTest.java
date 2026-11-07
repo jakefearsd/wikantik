@@ -39,12 +39,12 @@ class InMemoryCollabStoreFaultTest {
     private static final Instant T0 = Instant.parse( "2026-01-01T00:00:00Z" );
 
     private static SessionRecord session( final String page ) {
-        return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 1, "b", Map.of(), 0, 0L, false, null,
-            null, "alice", T0, T0 );
+        return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 1, "b", Map.of(), "h", 0, 0L, false, null,
+            null, null, "alice", T0, T0 );
     }
 
     private static StoredUpdate upd( final int v ) {
-        return new StoredUpdate( v, "text", "c", "alice", com.wikantik.collab.text.ChangeSet.empty( 0 ) );
+        return new StoredUpdate( v, StoredUpdate.TEXT, "c", "alice", com.wikantik.collab.text.ChangeSet.empty( 0 ) );
     }
 
     @Test
@@ -74,7 +74,7 @@ class InMemoryCollabStoreFaultTest {
         store.createSession( s );
 
         store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
-        assertThrows( IllegalStateException.class, () -> store.updateSession( s.withBase( 9, "x", Map.of() ) ) );
+        assertThrows( IllegalStateException.class, () -> store.updateSession( s.withBase( 9, "x", Map.of(), "h9" ) ) );
         assertEquals( 1, store.session( s.id() ).orElseThrow().basePageVersion() );
 
         store.failOn( InMemoryCollabStore.Op.APPEND_META, 1 );
@@ -84,13 +84,24 @@ class InMemoryCollabStoreFaultTest {
 
         store.failOn( InMemoryCollabStore.Op.WRITE_SNAPSHOT, 1 );
         assertThrows( IllegalStateException.class, () -> store.writeSnapshot( s.id(),
-            new Snapshot( 0, 0L, "b", Map.of(), com.wikantik.collab.text.ChangeSet.empty( 0 ) ) ) );
+            new Snapshot( 0, 0L, 1, "b", Map.of(), com.wikantik.collab.text.ChangeSet.empty( 0 ) ) ) );
         assertTrue( store.latestSnapshot( s.id() ).isEmpty() );
 
         store.appendUpdates( s.id(), List.of( upd( 1 ) ) );
+        store.writeSnapshot( s.id(), new Snapshot( 1, 0L, 1, "b", Map.of(), com.wikantik.collab.text.ChangeSet.empty( 0 ) ) );
         store.failOn( InMemoryCollabStore.Op.TRUNCATE, 1 );
         assertThrows( IllegalStateException.class, () -> store.truncateUpdatesBelow( s.id(), 5 ) );
         assertEquals( 1, store.updatesSince( s.id(), 0 ).size() );
+
+        store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );
+        assertThrows( IllegalStateException.class, () -> store.commitBaseChange( s.id(),
+            List.of( new StoredUpdate( 2, StoredUpdate.SERVER, "server", null, com.wikantik.collab.text.ChangeSet.empty( 0 ) ) ),
+            new Snapshot( 2, 0L, 9, "b9", Map.of(), com.wikantik.collab.text.ChangeSet.empty( 0 ) ),
+            s.withBase( 9, "b9", Map.of(), "h9" ) ) );
+        assertEquals( 1, store.session( s.id() ).orElseThrow().headVersion() );
+        assertEquals( 1, store.session( s.id() ).orElseThrow().basePageVersion() );
+        assertEquals( 1, store.latestSnapshot( s.id() ).orElseThrow().version() );
+        assertEquals( "b", store.latestSnapshot( s.id() ).orElseThrow().body() );
 
         store.failOn( InMemoryCollabStore.Op.DELETE, 1 );
         assertThrows( IllegalStateException.class, () -> store.deleteSession( s.id() ) );

@@ -57,7 +57,8 @@ class ScriptedPageWriterTest {
         final PageState s = w.latest( "P" ).orElseThrow();
         assertEquals( 1, s.version() );
         assertEquals( "one\r\n", s.body() );
-        assertEquals( com.wikantik.api.pages.PageSaveHelper.computeContentHash( "one\r\n" ), s.contentHash() );
+        assertEquals( com.wikantik.collab.text.CollabText.contentHash( "one\n" ), s.contentHash(),
+            "content hash basis: SHA-256 hex of the LF body" );
         assertTrue( w.latest( "Missing" ).isEmpty() );
         assertTrue( w.version( "P", 2 ).isEmpty() );
         assertEquals( "one\r\n", w.version( "P", 1 ).orElseThrow().body() );
@@ -74,12 +75,74 @@ class ScriptedPageWriterTest {
     }
 
     @Test
-    void staleExpectedVersionConflictsAndZeroSkipsTheCheck() throws Exception {
+    void staleExpectedVersionConflicts() throws Exception {
         final ScriptedPageWriter w = seeded();
         w.publish( req( "two", 1 ) );
         final VersionConflictException e = assertThrows( VersionConflictException.class, () -> w.publish( req( "x", 1 ) ) );
         assertEquals( 2, e.getCurrentVersion() );
-        assertEquals( 3, w.publish( req( "x", 0 ) ).version() );
+        assertEquals( 3, w.publish( req( "x", 2 ) ).version() );
+    }
+
+    /** A11: expectedVersion 0 means "the page must not exist". */
+    @Test
+    void expectedVersionZeroOnAnExistingPageConflicts() throws Exception {
+        final ScriptedPageWriter w = seeded();
+        final VersionConflictException e = assertThrows( VersionConflictException.class, () -> w.publish( req( "x", 0 ) ) );
+        assertEquals( 1, e.getCurrentVersion() );
+        assertEquals( 1, w.history( "P" ).size() );
+        final ScriptedPageWriter fresh = new ScriptedPageWriter();
+        assertEquals( 1, fresh.publish( req( "new", 0 ) ).version() );
+    }
+
+    /** A11: a positive expectedVersion on a missing page passes, as the real save does. */
+    @Test
+    void positiveExpectedVersionOnAMissingPageStores() throws Exception {
+        final ScriptedPageWriter w = new ScriptedPageWriter();
+        final PublishOutcome o = w.publish( req( "created", 3 ) );
+        assertFalse( o.unchanged() );
+        assertEquals( 1, o.version() );
+        assertEquals( List.of( "created\r\n" ), w.history( "P" ) );
+    }
+
+    @Test
+    void pageStateCarriesTheAuthorKeyThatWroteTheVersion() throws Exception {
+        final ScriptedPageWriter w = seeded();
+        assertNull( w.latest( "P" ).orElseThrow().author(), "a seeded version has no known author" );
+        w.publish( req( "two", 1 ) );
+        assertEquals( "alice", w.latest( "P" ).orElseThrow().author() );
+        w.externalSave( "P", "three", META, "bob" );
+        assertEquals( "bob", w.latest( "P" ).orElseThrow().author() );
+        assertEquals( "alice", w.version( "P", 2 ).orElseThrow().author() );
+    }
+
+    @Test
+    void metaWithNullValuesIsTolerated() throws Exception {
+        final Map< String, Object > meta = new java.util.HashMap<>();
+        meta.put( "summary", null );
+        meta.put( "title", "T" );
+        final ScriptedPageWriter w = new ScriptedPageWriter();
+        w.seed( "P", "one", meta );
+        assertTrue( w.latest( "P" ).orElseThrow().meta().containsKey( "summary" ) );
+        w.externalSave( "P", "two", meta, "bob" );
+        final PublishOutcome o = w.publish( new PublishRequest( "P", "three", meta, 2, "alice", "" ) );
+        assertEquals( 3, o.version() );
+        assertTrue( w.latest( "P" ).orElseThrow().meta().containsKey( "summary" ) );
+        assertNull( w.latest( "P" ).orElseThrow().meta().get( "summary" ) );
+    }
+
+    @Test
+    void aPausedPublishThatIsNeverReleasedTimesOut() {
+        final ScriptedPageWriter w = seeded();
+        w.releaseTimeout( Duration.ofMillis( 50 ) );
+        w.pauseNextPublish();
+        final IllegalStateException e = assertThrows( IllegalStateException.class, () -> w.publish( req( "x", 1 ) ) );
+        assertTrue( e.getMessage().contains( "released" ), e.getMessage() );
+        assertEquals( 1, w.history( "P" ).size() );
+    }
+
+    @Test
+    void releaseTimeoutDefaultsToThirtySeconds() {
+        assertEquals( Duration.ofSeconds( 30 ), ScriptedPageWriter.DEFAULT_RELEASE_TIMEOUT );
     }
 
     @Test

@@ -500,4 +500,34 @@ describe('collabPeer metadata', () => {
     const gone = await run('account-deleted');
     expect(gone.a.statuses.at(-1)).toBe('forbidden');
   });
+
+  it('onMetaFailed hands back the inflight meta when a resync or an eviction abandons it, not on signed-out', async () => {
+    const edits = [{ field: 'tags', add: 'x' }];
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const failed = [];
+    const a = await makeEditor(server, 'ada', { core: { onMetaFailed: (e) => failed.push(e) } });
+    server.evict(a.joined.participantId, 'lost-edit');
+    a.core.queueMetaEdits(edits);
+    await advance(1000);
+    expect(failed).toEqual([edits]);
+
+    const s2 = createFakeCollabServer({ initialText: 'abc' });
+    const f2 = [];
+    const b = await makeEditor(s2, 'bob', { core: { onMetaFailed: (e) => f2.push(e) } });
+    s2.evict(b.joined.participantId, 'signed-out');
+    b.core.queueMetaEdits(edits);
+    await advance(1000);
+    expect(f2).toEqual([]);
+
+    const s3 = createFakeCollabServer({ initialText: 'abc' });
+    const f3 = [];
+    const c = await makeEditor(s3, 'cy', {
+      core: { onMetaFailed: (e) => f3.push(e) },
+      wrap: (t) => ({ ...t, push: async () => { throw Object.assign(new Error('gone'), { status: 410, body: { resync: true } }); } }),
+    });
+    c.core.queueMetaEdits(edits);
+    await advance(1000);
+    expect(c.statuses.at(-1)).toBe('resync');
+    expect(f3).toEqual([edits]);
+  });
 });

@@ -77,6 +77,16 @@ describe('collab-meta-cases fixture', () => {
     expect(gap.map((s) => s.pending)).toEqual([1, 1, 1, 1, 0]);
     const wins = byName['a remote op after mine wins'].steps;
     expect(wins.at(-1).view.status).toBe('archived');
+    const lost = byName['lost ack: the op arrives by pull, the resend is a no-op'].steps;
+    expect(lost.map((s) => s.view.tags)).toEqual(Array(6).fill(['x']).map((v, i) => (i < 3 ? ['x'] : v)));
+    expect(lost.map((s) => s.pending)).toEqual([1, 1, 1, 1, 1, 0]);
+    const conc = byName['concurrent adds from two participants both survive'].steps;
+    expect(conc[2].view.tags).toEqual(['a', 'theirs', 'mine']);
+    expect(conc.at(-1).view.tags).toEqual(['a', 'theirs', 'mine']);
+    expect(conc.at(-1).pending).toBe(0);
+    const before = byName['a remote op before mine is overlaid'].steps;
+    expect(before.map((s) => s.view.status)).toEqual(['active', 'active', 'active', 'active', 'active']);
+    expect(before.map((s) => s.pending)).toEqual([1, 1, 1, 1, 0]);
     const last = byName['removing the last item leaves an empty list; a scalar counts as one item'].steps;
     expect(last[0].view.tags).toEqual([]);
   });

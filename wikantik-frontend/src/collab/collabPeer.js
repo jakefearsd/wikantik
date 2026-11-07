@@ -39,6 +39,7 @@ export function createCollabPeerCore({
   onMetaOps = () => {},
   onMetaAck = () => {},
   onEvicted = () => {},
+  onMetaFailed = () => {},
   onSessionChange = () => {},
 }) {
   const session = { ...initialSession };
@@ -113,6 +114,14 @@ export function createCollabPeerCore({
     return parts.join('\n');
   }
 
+  /** The peer is abandoning its queued meta (resync, permission loss): hand it back so the host can `failed()` it. */
+  function abandonMeta() {
+    if (!metaPending.length) return;
+    const edits = metaPending;
+    metaPending = [];
+    onMetaFailed(edits);
+  }
+
   function stop(next) {
     stopped = true;
     pullAbort?.abort();
@@ -139,6 +148,7 @@ export function createCollabPeerCore({
     if (stopped) return;
     const payload = capture(reason);
     stop('resync');
+    abandonMeta();
     // leave the stale participant (and a ghost created by an unadoptable rejoin) before the host may join afresh
     const ids = new Set([session.participantId, ghostParticipantId].filter(Boolean));
     leavePromise = Promise.all([...ids].map(leaveQuietly));
@@ -186,6 +196,7 @@ export function createCollabPeerCore({
     evictedReason = detail ?? null;
     if (detail === 'signed-out') { stop('auth-required'); return; }
     stop('forbidden');
+    abandonMeta();
     onEvicted({ reason: evictedReason });
   }
 

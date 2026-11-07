@@ -86,7 +86,9 @@ export function createMetaState({ meta = {}, metaSeq = 0 } = {}) {
       for (const e of entries) if (e.state === 'inflight' && (!edits || edits.includes(e.edit))) e.state = 'unsent';
     },
     acked(edits, seq) {
-      for (const e of entries) if (edits.includes(e.edit) && e.state !== 'unsent') { e.state = 'acked'; e.ackedSeq = seq; }
+      // a reply without a numeric metaSeq cannot be waited on: treat it as the seq already reached (retire at once)
+      const at = typeof seq === 'number' ? seq : serverSeq;
+      for (const e of entries) if (edits.includes(e.edit) && e.state !== 'unsent') { e.state = 'acked'; e.ackedSeq = at; }
       // a pull may already have reached this seq (it overtook the ack): nothing more to wait for
       entries = entries.filter((e) => !(e.state === 'acked' && e.ackedSeq <= serverSeq));
     },
@@ -114,10 +116,12 @@ export function createMetaQueue({
   schedule = (fn, ms) => { const id = setTimeout(fn, ms); return () => clearTimeout(id); },
 } = {}) {
   const waiting = new Map(); // field -> { edit, cancel }
+  let disposed = false;
   function send(edits) { if (edits.length) onSend(edits); }
   return {
     /** A keystroke-driven SET: the latest value per field goes out once typing pauses. */
     edit(field, value) {
+      if (disposed) return;
       waiting.get(field)?.cancel();
       const edit = { field, value: value === undefined ? null : value };
       const cancel = schedule(() => { waiting.delete(field); send([edit]); }, debounceMs);
@@ -129,6 +133,13 @@ export function createMetaQueue({
       const edits = [...waiting.values()].map((w) => { w.cancel(); return w.edit; });
       waiting.clear();
       send(edits);
+    },
+    /** Teardown: flushes what is still inside the debounce window (never drops it), returns it, and goes quiet. */
+    dispose() {
+      const edits = [...waiting.values()].map((w) => w.edit);
+      this.flush();
+      disposed = true;
+      return edits;
     },
     hasWaiting: () => waiting.size > 0,
   };

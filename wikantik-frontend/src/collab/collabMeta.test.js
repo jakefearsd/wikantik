@@ -51,6 +51,20 @@ describe('createMetaQueue', () => {
     expect(sent).toHaveLength(2);
   });
 
+  it('dispose flushes a debounced edit instead of dropping it, then goes quiet', () => {
+    const sent = [];
+    const q = createMetaQueue({ onSend: (e) => sent.push(...e) });
+    q.edit('summary', 'half typed');
+    vi.advanceTimersByTime(100);
+    expect(q.dispose()).toEqual([{ field: 'summary', value: 'half typed' }]);
+    expect(sent).toEqual([{ field: 'summary', value: 'half typed' }]);
+    vi.advanceTimersByTime(1000);
+    expect(sent).toHaveLength(1);
+    q.edit('summary', 'late');
+    vi.advanceTimersByTime(1000);
+    expect(sent).toHaveLength(1);
+  });
+
   it('flushSendsAtOnce', () => {
     const sent = [];
     const q = createMetaQueue({ onSend: (e) => sent.push(e) });
@@ -102,6 +116,16 @@ describe('createMetaState', () => {
     m.acked(sent, 1);
     expect(m.pending()).toEqual([]);
     expect(m.view().tags).toEqual(['x']);
+  });
+
+  it('an ack without a metaSeq retires the edit at once rather than pinning it', () => {
+    const m = createMetaState({ meta: { tags: [] }, metaSeq: 5 });
+    m.add('tags', 'x');
+    m.acked(m.takeSendable(), undefined);
+    expect(m.pending()).toEqual([]);
+    m.add('tags', 'y');
+    m.acked(m.takeSendable(), null);
+    expect(m.pending()).toEqual([]);
   });
 
   it('aRemoteOpAfterMineWins', () => {
@@ -167,7 +191,7 @@ describe('meta state against the fake server', () => {
     return { meta, core, views };
   }
 
-  it('myTagAddSurvivesTheGapBetweenAckAndPull (end to end, with a lost ack)', async () => {
+  it('an ack that overtakes its pull still retires the edit end to end, with one x after a lost ack', async () => {
     const server = createFakeCollabServer({ initialMeta: { tags: ['a'] } });
     let dropAck = true;
     const a = await metaEditor(server, 'ada', (t) => ({

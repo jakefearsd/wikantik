@@ -1,0 +1,246 @@
+{
+  "format": 1,
+  "seed": 3145,
+  "profile": "LOSSY",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 300,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 3
+  },
+  "initialDoc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉vq h集協 xqgv ",
+  "steps": [
+    {
+      "id": 2,
+      "action": "LOCAL_EDIT",
+      "client": 1,
+      "from": 88,
+      "to": 88,
+      "insert": " el\n⟦XYNFP⟧"
+    },
+    {
+      "id": 3,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 5,
+      "action": "DELIVER",
+      "messageId": "3.0"
+    },
+    {
+      "id": 6,
+      "action": "DELIVER",
+      "messageId": "5.0"
+    },
+    {
+      "id": 12,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 13,
+      "action": "DELIVER",
+      "messageId": "12.0"
+    },
+    {
+      "id": 14,
+      "action": "LEAVE",
+      "client": 1,
+      "op": "signed-out"
+    },
+    {
+      "id": 21,
+      "action": "DELIVER",
+      "messageId": "13.0"
+    },
+    {
+      "id": 29,
+      "action": "DELIVER",
+      "messageId": "21.0"
+    },
+    {
+      "id": 35,
+      "action": "DELIVER",
+      "messageId": "29.0"
+    },
+    {
+      "id": 51,
+      "action": "DELIVER",
+      "messageId": "35.0"
+    },
+    {
+      "id": 58,
+      "action": "CRASH_RECOVER"
+    },
+    {
+      "id": 70,
+      "action": "DELIVER",
+      "messageId": "51.0"
+    },
+    {
+      "id": 71,
+      "action": "SEND_PULL",
+      "client": 1
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "token oracle: text duplicated: token XYNFP appears 2 times in the draft",
+    "at": "q2",
+    "kind": "token-oracle/duplicate"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉vq h集協 xqgv \n"
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉vq h集協 xqgv \n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            88,
+            [
+              0,
+              " el",
+              "⟦XYNFP⟧"
+            ],
+            12
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉v el\n⟦XYNFP⟧q h集協 xqgv \n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                88,
+                [
+                  0,
+                  " el",
+                  "⟦XYNFP⟧"
+                ],
+                12
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 1
+        },
+        {
+          "type": "rejoin",
+          "participantId": "mjuohs00.1-p4",
+          "clientId": "mjuohs00.1-c2"
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉v el\n⟦XYNFP⟧q h集協 xqgv \n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                88,
+                [
+                  0,
+                  " el",
+                  "⟦XYNFP⟧"
+                ],
+                12
+              ]
+            }
+          ]
+        },
+        {
+          "type": "resync",
+          "version": 1,
+          "clientId": "mjuohs00.2-c1",
+          "participantId": "mjuohs00.2-p1",
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉v el\n⟦XYNFP⟧q h集協 xqgv \n",
+          "unsynced": 0,
+          "rebased": 1
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉v el\n⟦XYNFP⟧q h集協 xqgv \n",
+          "sendable": []
+        },
+        {
+          "type": "local",
+          "changes": [
+            99,
+            [
+              0,
+              " el",
+              "⟦XYNFP⟧"
+            ],
+            12
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉v el\n⟦XYNFP⟧ el\n⟦XYNFP⟧q h集協 xqgv \n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.2-c1",
+              "changes": [
+                99,
+                [
+                  0,
+                  " el",
+                  "⟦XYNFP⟧"
+                ],
+                12
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "authorKey": "author-C",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p3",
+          "clientId": "mjuohs00.1-c3",
+          "version": 0,
+          "doc": "作協bygx  😀m集🎉f  o tw\nr𝕏ka\nxvo文𝄞ni  g efztds字g𝄞中c編😀協ujvhim集🎉\nzszku 🎉\n𝄞yvv中𝕏l 🎉vq h集協 xqgv \n"
+        }
+      ]
+    }
+  ]
+}

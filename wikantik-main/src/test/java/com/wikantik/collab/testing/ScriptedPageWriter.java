@@ -22,6 +22,7 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.PageReadException;
+import com.wikantik.collab.PublishReadBackException;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
@@ -95,6 +96,8 @@ public final class ScriptedPageWriter implements CollabPageWriter {
     private Handle armedPause;
     private Exception failNext;
     private Exception persistThenFailNext;
+    /** The next save persists, then fails to read its text back, reporting the version ({@link #persistThenFailUnread}). */
+    private boolean persistThenFailUnreadNext;
     /** The outcome of the last publish whose save returned normally (not thrown); {@link #takeLastReturned}. */
     private PublishOutcome lastReturned;
     private volatile Duration releaseTimeout = DEFAULT_RELEASE_TIMEOUT;
@@ -148,6 +151,21 @@ public final class ScriptedPageWriter implements CollabPageWriter {
         lock.lock();
         try {
             failNext = Objects.requireNonNull( e );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * The next save persists and then throws {@link PublishReadBackException} naming the version it wrote: the
+     * production adapter's only way to fail after persisting (a failure in the post-save handling is reported as the
+     * version written, a read-back failure as this exception). The caller learns the version, so
+     * {@link #takeLastReturned} reports the outcome.
+     */
+    public void persistThenFailUnread() {
+        lock.lock();
+        try {
+            persistThenFailUnreadNext = true;
         } finally {
             lock.unlock();
         }
@@ -367,6 +385,12 @@ public final class ScriptedPageWriter implements CollabPageWriter {
             }
             v.add( new Version( stored, copyMeta( request.meta() ), request.authorKey() ) );
             outcome = new PublishOutcome( v.size(), stored, request.meta(), false );
+            if( persistThenFailUnreadNext ) {
+                persistThenFailUnreadNext = false;
+                lastReturned = outcome;
+                throw new PublishReadBackException( "injected: page '" + request.pageName() + "' version " + v.size()
+                    + " was saved but could not be read back", v.size(), null );
+            }
             persistFail = persistThenFailNext;
             persistThenFailNext = null;
         } finally {

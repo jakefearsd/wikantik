@@ -136,9 +136,10 @@ final class PublishMarker {
      * An unclaimed publish: the ledger rows at the version its save wrote (the marker names both that version and the
      * canonical id the publish credits under) are replaced by none, whether this publish's credit wrote them or they
      * were left by an earlier page at that version number, so a publish that did not complete credits nobody and its
-     * contributors, still pending, are credited once by the next publish. A recreate's save (base 0) created the page and
-     * restarted its numbering, so every earlier row goes too (ruling R4). Then the marker is cleared. False (logged) when
-     * a store write failed: the marker stays and the retry repeats both steps.
+     * contributors, still pending, are credited once by the next publish (ruling D2a). Only that version's rows: a
+     * recreate's (base 0) earlier rows were already cleared by its credit if that ran (R4), and are kept if it never did
+     * (review M2). Then the marker is cleared. False (logged) when a store write failed: the marker stays and the retry
+     * repeats both steps.
      */
     boolean dropUnclaimed() {
         lock.lock();
@@ -147,8 +148,7 @@ final class PublishMarker {
             final String canonicalId = d.record.pendingPublishCanonicalId();
             if( savedVersion != null && canonicalId != null && savedVersion > 0 ) {
                 try {
-                    d.store.recordContributors( canonicalId, savedVersion, Set.of(),
-                        d.record.pendingPublishBaseVersion() == 0 );
+                    d.store.recordContributors( canonicalId, savedVersion, Set.of(), false );
                 } catch( final RuntimeException e ) {
                     LOG.warn( "collab session {} ({}): removing the ledger rows of the unclaimed publish of page version {}"
                         + " failed; retried later: {}", d.id, d.pageName(), savedVersion, e.getMessage() );

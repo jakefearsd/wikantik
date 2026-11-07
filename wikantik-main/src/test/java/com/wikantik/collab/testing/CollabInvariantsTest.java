@@ -429,18 +429,17 @@ class CollabInvariantsTest {
     }
 
     @Test
-    void inv11_aSaveThatWroteNoNewVersionWritesNoRowsAndLeavesItsAuthorsPending() {
+    void inv11_aSaveThatWroteNoNewVersionWritesNoRowsButAdvancesThePublishPoint() {
         final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
         m.text( "alice", 1 );
         m.published( 2, 1, 0, false );
         m.text( "bob", 2 );   // trailing spaces the save filter strips: the save stores nothing new
         m.publishedUnchanged( 2, 0 );
         assertEquals( Map.of( 2, List.of( "alice" ) ), m.ledger(), "version 2 keeps the rows of its own publish" );
-        assertEquals( Set.of( "bob" ), m.contributors(), "bob's edit was absorbed, not published: still owed credit" );
+        assertEquals( Set.of(), m.contributors(), "re-ruling D1': the save absorbed bob's edit; nobody is owed credit" );
         m.text( "carol", 3 );
         m.published( 3, 3, 0, false );
-        assertEquals( Map.of( 2, List.of( "alice" ), 3, List.of( "bob", "carol" ) ), m.ledger(),
-            "the next real publish credits him" );
+        assertEquals( Map.of( 2, List.of( "alice" ), 3, List.of( "carol" ) ), m.ledger(), "bob is never credited" );
     }
 
     @Test

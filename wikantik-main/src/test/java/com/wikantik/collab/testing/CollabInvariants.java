@@ -416,25 +416,26 @@ public final class CollabInvariants {
 
         /**
          * A completed publish whose save stored nothing new (normalising or the save filter's rewrite made it identical to
-         * the latest version): no version was written, so no row changes (rewrites credit nobody, ruling R2), and the
-         * publish point does not advance: the authors of the absorbed edits stay contributors and are credited by the
-         * next real publish. So it records nothing.
+         * the latest version): no version was written, so no row changes (rewrites credit nobody, ruling R2), but the
+         * publish point advances (re-ruling D1': every edit up to V was absorbed), so only later ops stay contributors.
          */
         public void publishedUnchanged( final int version, final long metaSeq ) {
-            // deliberately nothing: neither rows nor the publish point move (see above)
+            advance( version, metaSeq );
         }
 
         /**
          * A publish that went unclaimed after the server learnt the version {@code pageVersion} its save wrote (the page
-         * moved on): the rows at that version are removed, whoever wrote them, and with {@code created} (its save created
-         * the page, restarting the numbering, ruling R4) every row is. The publish point does not advance.
+         * moved on): the rows at that version are removed, whoever wrote them (ruling D2a). The publish point does not
+         * advance. A recreate's credit, if it ran before the publish failed, also cleared every earlier row (R4): the
+         * scheduler applies {@link #clearAll} then.
          */
-        public void unclaimed( final int pageVersion, final boolean created ) {
-            if( created ) {
-                rows.clear();
-            } else {
-                rows.remove( pageVersion );
-            }
+        public void unclaimed( final int pageVersion ) {
+            rows.remove( pageVersion );
+        }
+
+        /** A recreate's credit cleared every earlier row (ruling R4). */
+        public void clearAll() {
+            rows.clear();
         }
 
         /** An independent copy (the in-flight alternative of {@link CollabInvariants#ledger(Map, Attribution, Attribution)}). */

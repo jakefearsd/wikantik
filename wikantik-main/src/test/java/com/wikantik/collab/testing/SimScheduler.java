@@ -18,7 +18,6 @@
  */
 package com.wikantik.collab.testing;
 
-import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.model.CollabEvent;
 import com.wikantik.collab.model.MetaEdit;
@@ -28,6 +27,7 @@ import com.wikantik.collab.model.PullCursor;
 import com.wikantik.collab.model.Selection;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.StoredMetaOp;
+import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.testing.SimClient.MetaState;
 import com.wikantik.collab.testing.SimNetwork.Message;
 import com.wikantik.collab.testing.SimNetwork.Type;
@@ -127,9 +127,15 @@ import java.util.stream.Collectors;
  * the reload's pending-publish rule after a crash), when the version its save wrote is by its author, or, when the
  * server never learnt that version (the save threw, or a crash caught it inside the save or before the version was
  * stored), when version B+1 is by its author with S_V's stored text (A2's claim rule); otherwise it credits nobody. A
- * save that stored nothing new credits nobody and leaves its contributors pending (ruling R2). Invariants 10 and 11 are
+ * save that stored nothing new credits nobody and still advances the publish point (re-ruling D1'). Invariants 10 and 11 are
  * checked after every step and at quiescence; while a publish is marked, the rows it may already have written before a
  * failed commit are accepted too.</p>
+ *
+ * <p><b>Token oracle</b> (lifecycle runs): every generated insert carries a unique token and no generated edit cuts one
+ * ({@link TokenOracle}); after every step and at quiescence no token may appear twice in the draft or in a stored page
+ * version, and a token may leave the draft only through a client's update or a server update for text a recorded
+ * outside delete took out of the page. This is independent of the attribution model, which mirrors the product's claim
+ * rule: a wrongly rejected claim merges the publisher's edits a second time and fails here.</p>
  *
  * <p><b>Coverage</b>: every run counts what it explored ({@link SimTrace#counters()}, keys below), so a test can assert
  * that a profile retune did not silently stop exercising a path.</p>
@@ -518,6 +524,9 @@ public final class SimScheduler {
          * accepted update and meta op with its pusher's author, and every completed publish with its publish point.
          */
         private CollabInvariants.Attribution attribution;
+        /** The text-duplication oracle (lifecycle runs only; null otherwise), and the token cores generated so far. */
+        private TokenOracle oracle;
+        private final Set< String > tokens = new HashSet<>();
         /** The publish whose marker the server holds (inside its save, or unfinished and owed); null when none. */
         private Ticket ticket;
         private String tag = "start";
@@ -554,6 +563,7 @@ public final class SimScheduler {
                     header.maxPageBytes(), header.ringSize() );
                 server = factory.apply( env );
                 attribution = server.lifecycle() ? new CollabInvariants.Attribution() : null;
+                oracle = server.lifecycle() ? new TokenOracle() : null;
                 for( int i = 0; i < header.clients(); i++ ) {
                     final String name = String.valueOf( (char) ( 'A' + i ) );
                     final Peer p = new Peer( name, "author-" + name );
@@ -809,6 +819,15 @@ public final class SimScheduler {
             if( from == to && ins.isEmpty() ) {
                 ins = "x";
             }
+            if( server.lifecycle() ) {
+                // the token oracle: never cut a token, and give every insert a unique one
+                final boolean insertOnly = from == to;
+                from = TokenOracle.snap( doc, from, true );
+                to = insertOnly ? from : TokenOracle.snap( doc, to, false );
+                if( !ins.isEmpty() ) {
+                    ins = ins + TokenOracle.token( rnd, tokens );
+                }
+            }
             return s.edit( from, to, ins );
         }
 
@@ -827,7 +846,9 @@ public final class SimScheduler {
                     case LOCAL_EDIT -> {
                         final Peer p = peer( s.client() );
                         if( p != null && !p.sim.frozen() ) {
-                            p.sim.localEdit( replaceIn( p.sim.doc(), s ) );
+                            final String before = p.sim.doc();
+                            p.sim.localEdit( replaceIn( before, s ) );
+                            recordEdit( s, before, p.sim.doc(), false );
                         }
                     }
                     case SELECT -> withPeer( s, p -> {
@@ -855,6 +876,9 @@ public final class SimScheduler {
                     }
                     case DELETE -> {
                         if( renameOrDeletePossible() ) {
+                            if( oracle != null ) {
+                                oracle.edited( writerBody(), "" );   // the page's text is deleted (a recorded delete)
+                            }
                             env.writer().delete( env.pageName() );
                             owedFreeze = true;
                             externalPending = true;
@@ -882,8 +906,9 @@ public final class SimScheduler {
                     }
                     case EXTERNAL_SAVE -> {
                         final String body = writerBody();
-                        final int version = env.writer().externalSave( env.pageName(), replaceIn( body, s ).apply( body ),
-                            pageMeta(), "agent" );
+                        final String saved = replaceIn( body, s ).apply( body );
+                        recordEdit( s, body, saved, true );
+                        final int version = env.writer().externalSave( env.pageName(), saved, pageMeta(), "agent" );
                         externalPending = true;
                         count( EXTERNAL_SAVES, 1 );
                         server.externalSaved( version );
@@ -899,6 +924,7 @@ public final class SimScheduler {
                             count( ABANDONED_PUBLISHES, 1 );
                             if( ticket != null ) {
                                 ticket.crashed = true;   // the reload's pending-publish rule claims or clears it
+                                crashWindow( ticket );
                             }
                         }
                         pendingPublishes.clear();
@@ -917,8 +943,10 @@ public final class SimScheduler {
                         count( STORE_FAULTS, 1 );
                     }
                     case PERSIST_THEN_FAIL -> {
-                        env.writer().persistThenFail( new WikiException( "injected: the process died after the page store"
-                            + " committed the save" ) );
+                        // the production adapter reports the version a save wrote even when it fails afterwards
+                        // (PublishReadBackException); a save that persisted without the session learning its version
+                        // is the crash window, which CRASH_RECOVER covers
+                        env.writer().persistThenFailUnread();
                         count( PERSIST_FAILS, 1 );
                     }
                     case LEAVE -> withPeer( s, p -> {
@@ -1329,8 +1357,14 @@ public final class SimScheduler {
             ticket = null;
             if( t.saved != null ) {
                 // the server knew the version the save wrote: rows it credited there (or held from an earlier page at
-                // that number) are removed, and a recreate's save restarted the numbering, so every earlier row goes
-                attribution.unclaimed( t.saved, t.base == 0 );
+                // that number) are removed (ruling D2a). A recreate's credit clears every earlier row when it runs (R4),
+                // which the scheduler cannot see directly: the ledger tells whether it ran
+                final CollabInvariants.Attribution kept = attribution.copy();
+                kept.unclaimed( t.saved );
+                final CollabInvariants.Attribution cleared = kept.copy();
+                cleared.clearAll();
+                attribution = t.base == 0 && !server.ledger( CANONICAL_ID ).equals( kept.ledger() )
+                    && server.ledger( CANONICAL_ID ).equals( cleared.ledger() ) ? cleared : kept;
             }
         }
 
@@ -1410,8 +1444,58 @@ public final class SimScheduler {
             ticket = null;
         }
 
+        /**
+         * The documented residual M1 (docs/MultiEdit.MD A2): a crash after the save persisted but before the server stored
+         * the version it wrote leaves the reload to A2's content-hash rule, which a save filter's rewrite breaks, so the
+         * reload merges the publish as an outside write and applies the publisher's edits a second time. When this crash
+         * hit that window, the token oracle allows those edits' tokens twice.
+         */
+        private void crashWindow( final Ticket t ) {
+            if( oracle == null ) {
+                return;
+            }
+            final String page = server.view().pageName();
+            final Optional< PageState > saved = env.writer().version( page, t.base + 1 );
+            if( saved.isPresent() && t.author.equals( saved.get().author() ) && !saved.get().contentHash().equals(
+                    CollabText.contentHash( TextUtil.normalizePostData( t.doc ) ) ) ) {
+                final String base = t.base == 0 ? ""
+                    : env.writer().version( page, t.base ).map( PageState::body ).orElse( "" );
+                oracle.residualM1( saved.get().body(), base );
+            }
+        }
+
+        /**
+         * The token oracle's record of an applied edit: its tokens, and, for an outside save ({@code page}), the tokens it
+         * took out of the page (a recorded delete). A client's own deletes are judged from the log.
+         */
+        private void recordEdit( final Step s, final String before, final String after, final boolean page ) {
+            if( oracle != null ) {
+                oracle.inserted( s.insert() == null ? "" : s.insert() );
+                if( page ) {
+                    oracle.edited( before, after );
+                }
+            }
+        }
+
+        /** The token oracle: no token twice in the draft or any stored page version, none lost without a delete. */
+        private void checkTokens() {
+            if( oracle == null ) {
+                return;
+            }
+            final InvariantView v = server.view();
+            final List< StoredUpdate > logged = v.head() > oracle.lastHead() ? env.store().updatesSince( sessionId,
+                oracle.lastHead() ) : List.of();
+            oracle.checkDraft( v.doc(), v.head(), logged );
+            final String page = server.view().pageName();
+            final List< String > versions = env.writer().history( page );
+            for( int i = 0; i < versions.size(); i++ ) {
+                oracle.checkVersion( page + " version " + ( i + 1 ), versions.get( i ) );
+            }
+        }
+
         /** Invariants 10 and 11 against the model, after settling whatever ticket the server settled. */
         private void checkAttribution() {
+            checkTokens();
             resolveIfSettled();
             CollabInvariants.contributors( server.contributors(), attribution );
             // a marked publish may have written its rows already, before the commit that failed (its retry rewrites them)
@@ -1498,15 +1582,18 @@ public final class SimScheduler {
                             p.sim.meta().failed( inflight );
                             p.sim.reconnect( j );
                             count( RECONNECTS, 1 );
+                            // p.sent is kept: the same clientID's sent updates may still be accepted (recognised on a
+                            // later pull), so a later rejoin under a new clientID must not rebase them (the token
+                            // oracle's LOSSY 3145: a crash after a signed-out reconnect re-applied an accepted edit)
                         } else if( !p.resync && p.sent == 0 ) {
                             p.sim.rejoin( (Joined) m.result() );
                             count( REJOINS, 1 );
                         } else {
                             p.sim.resync( (Joined) m.result() );
                             count( RESYNCS, 1 );
+                            p.sent = 0;
                         }
                         p.resync = false;
-                        p.sent = 0;
                         p.sentSelection = null;   // a new participant: the server holds no selection for it yet
                     }
                 }
@@ -1780,11 +1867,14 @@ public final class SimScheduler {
                 retryListenerEvents();   // the registry's tick: faults are one-shot, so this gets through
                 return true;
             }
-            if( server.lifecycle() && server.frozen() && pendingPublishes.isEmpty() ) {
-                // a frozen draft at quiescence: someone recreates the page with the draft's text (as the editor's
-                // recreate does, ruling Q5), through an outside save the listener reports
+            if( server.lifecycle() && server.frozen() && pendingPublishes.isEmpty() && !pageExists() ) {
+                // a frozen draft at quiescence: someone restores the page with the draft's base text, through an outside
+                // save the listener reports, so the draft is active again with its unpublished edits on top. (The
+                // editor's recreate, ruling Q5, publishes the draft through the collab path, A11. An outside save of the
+                // draft's own text would merge its unpublished edits a second time: a 3-way merge cannot tell that text
+                // from a coincidentally equal outside edit, which the token oracle reports as duplication.)
                 final InvariantView v = server.view();
-                final int version = env.writer().externalSave( env.pageName(), v.doc(), v.meta(), "recreator" );
+                final int version = env.writer().externalSave( env.pageName(), v.baseBody(), v.meta(), "recreator" );
                 externalPending = true;
                 count( EXTERNAL_SAVES, 1 );
                 server.externalSaved( version );

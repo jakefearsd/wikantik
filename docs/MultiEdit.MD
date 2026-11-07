@@ -55,8 +55,15 @@ lines) found gaps. These amendments override the sections they name.
     breaks. A read-back failure reports only the version, so its claim falls back to version and
     author. S_V's hash rule remains only for a marker with no saved version (the process died inside
     the save). An unclaimed publish (the page moved on) clears every ledger row at its saved version
-    number (ruling D2a; all earlier rows for a recreate), so credit never duplicates; a save that
-    stored nothing new credits nobody.
+    number (ruling D2a; only that version's rows: a recreate's credit cleared the earlier ones when it
+    ran), so credit never duplicates. A save that stored nothing new credits nobody but still
+    advances the publish point: every edit up to V was absorbed (re-ruling D1').
+  - *Known limitation (M1, parked):* the process can die after the page save commits but before
+    the saved version is stored on the marker. The reload then has only S_V's hash rule, which a
+    save filter's rewrite breaks, so it merges the publish as an outside write and applies the
+    publisher's edits a second time. Closing it needs the save and the marker write in one
+    transaction, or a nonce carried by the save and matched on claim. The fuzz's token oracle
+    allows exactly this window's tokens twice.
 
 **A3 — External saves that arrive during a publish.** (overrides §7.4 while `publishing`)
 - While `publishing` is set, external events are **queued**, not merged.

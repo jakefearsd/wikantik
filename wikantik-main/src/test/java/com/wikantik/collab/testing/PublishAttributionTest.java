@@ -110,23 +110,28 @@ class PublishAttributionTest {
         assertEquals( 2, r.pageVersion(), "answered as today: the latest version" );
         assertEquals( 2, writer.latest( PAGE ).orElseThrow().version(), "nothing new was stored" );
         assertEquals( Map.of( 2, List.of( A ) ), s.ledger( CID ), "version 2 keeps the rows of the publish that wrote it" );
-        assertEquals( Set.of( B ), s.contributors(), "bob's absorbed edit was not published: he stays pending" );
+        assertEquals( Set.of(), s.contributors(), "re-ruling D1': the save absorbed bob's edit; the publish point advances" );
         assertNull( record( s ).pendingPublishVersion() );
     }
 
+    /** Re-ruling D1': the absorbed edit is not credited by a later real publish either; edits after V stay pending. */
     @Test
-    void anAbsorbedEditsAuthorIsCreditedByTheNextRealPublish() {
+    void anAbsorbedEditsAuthorIsNotCreditedByTheNextRealPublish() {
         final CollabSessionSimServer s = server( "hello\n", "strip-trailing-spaces" );
         final Joined b = s.join( B );
         type( s, b, B, 5, " " );
-        assertEquals( 200, s.publish( b.participantId(), B, s.view().head(), "spaces" ).status() );
+        final SimServer.PublishStart started = s.beginPublish( b.participantId(), B, s.view().head(), "spaces" );
+        final Joined c = s.join( "author-c" );
+        type( s, c, "author-c", 0, "C" );   // typed during the unchanged save: after V, so still pending
+        assertEquals( 200, s.releasePublish( started.pending() ).status() );
         assertEquals( Map.of(), s.ledger( CID ), "the unchanged save credits nobody" );
+        assertEquals( Set.of( "author-c" ), s.contributors(), "only the edit after V stays pending" );
         final Joined a = s.join( A );
         type( s, a, A, 0, "X" );
 
         assertEquals( 200, s.publish( a.participantId(), A, s.view().head(), "alice's" ).status() );
 
-        assertEquals( Map.of( 2, List.of( A, B ) ), s.ledger( CID ) );
+        assertEquals( Map.of( 2, List.of( A, "author-c" ) ), s.ledger( CID ), "bob's absorbed space is not credited" );
         assertEquals( Set.of(), s.contributors() );
     }
 
@@ -198,6 +203,32 @@ class PublishAttributionTest {
         assertTrue( s.contributors().contains( A ), "alice's publish did not complete: she is still owed credit" );
         assertEquals( 2, s.view().basePageVersion(), "the recreated page merged as an outside write" );
         assertTrue( s.view().doc().contains( "second" ), s.view().doc() );
+    }
+
+    /**
+     * Review M2: an unclaimed recreate publish drops only the rows at the version its save wrote. Its credit clears the
+     * earlier rows when it runs (R4); when it never ran (here the ledger refused), the earlier rows stay.
+     */
+    @Test
+    void anUnclaimedRecreateWhoseCreditNeverRanKeepsTheEarlierRows() {
+        final CollabSessionSimServer s = server( "hello\n", "none" );
+        final Joined a = s.join( A );
+        type( s, a, A, 0, "X" );
+        assertEquals( 200, s.publish( a.participantId(), A, s.view().head(), "alice's" ).status() );
+        assertEquals( Map.of( 2, List.of( A ) ), s.ledger( CID ) );
+        writer.delete( PAGE );
+        s.deleted();
+        assertTrue( s.frozen() );
+        store.failOn( InMemoryCollabStore.Op.RECORD_CONTRIBUTORS, 1 );
+        final PublishResult r = s.publish( a.participantId(), A, s.view().head(), "recreate" );
+        assertEquals( 503, r.status(), r.reason() );
+        assertEquals( 1, record( s ).pendingPublishSavedVersion(), "the recreate's save wrote version 1" );
+        writer.delete( PAGE );   // gone again before the retry: unclaimed
+
+        s.settle();
+
+        assertNull( record( s ).pendingPublishVersion() );
+        assertEquals( Map.of( 2, List.of( A ) ), s.ledger( CID ), "the credit never ran: the earlier rows stay" );
     }
 
     @Test

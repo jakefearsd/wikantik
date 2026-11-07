@@ -205,9 +205,9 @@ final class PublishFlow {
      *
      * <p>A save that stored nothing new ({@link PublishOutcome#unchanged}: normalising or a save filter made the text the
      * latest version's) wrote no version: nothing is marked and nobody is credited (ruling R2: rewrites credit nobody),
-     * so the existing version keeps its rows, and the contributors are left pending for the next real publish (their
-     * edits were absorbed, not published). The draft still adopts the saved text and the client is answered 200 at the
-     * latest version.</p>
+     * so the existing version keeps its rows. Re-ruling D1': every edit up to V was absorbed (the A1 backstop rules out
+     * an outside save in between), so the publish point still advances to (V, M_V) and only the edits after it stay
+     * pending. The draft adopts the saved text and the client is answered 200 at the latest version.</p>
      */
     private PublishResponse applyPublished( final PublishStart.Ticket t, final ChangeSet n, final String savedBody,
                                             final PublishOutcome saved, final List< Runnable > completions ) {
@@ -242,7 +242,7 @@ final class PublishFlow {
         final SessionRecord updated = SessionLoader.draftMarkers( t.baseVersion() == 0
             ? based.withStatus( SessionRecord.ACTIVE ) : based, !localAfter.empty() || !d.meta.equals( savedMeta ),
             d.lastEditAt );
-        if( !d.commit( extra, docAfter, localAfter, updated, contributorsAfter( t, saved ) ) ) {
+        if( !d.commit( extra, docAfter, localAfter, updated, d.contributors.afterPublish( t.version(), t.metaSeq() ) ) ) {
             return unfinished( t );
         }
         d.unfinished = null;
@@ -265,14 +265,6 @@ final class PublishFlow {
         }
         final Set< String > credited = d.contributors.creditedAt( t.version(), t.metaSeq() );
         return credit( t, saved.version(), canonicalId, credited ) ? Optional.of( credited ) : Optional.empty();
-    }
-
-    /**
-     * The contributors after this publish: those of edits after (V, M_V); all of them, unchanged, after a save that
-     * stored nothing new (their edits were absorbed, not published, so the next real publish credits them).
-     */
-    private Contributors contributorsAfter( final PublishStart.Ticket t, final PublishOutcome saved ) {
-        return saved.unchanged() ? d.contributors : d.contributors.afterPublish( t.version(), t.metaSeq() );
     }
 
     /** The saved meta's {@code canonical_id}, trimmed; null when it has none. */

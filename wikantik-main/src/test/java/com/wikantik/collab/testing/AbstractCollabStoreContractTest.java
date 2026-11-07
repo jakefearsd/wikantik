@@ -114,6 +114,15 @@ public abstract class AbstractCollabStoreContractTest {
         assertEquals( s, store.sessionForPage( "PageA" ).orElseThrow() );
     }
 
+    /** Review M4: a created session's marker fields, including the saved version, canonical id and hash, round-trip. */
+    @Test
+    void createSessionRoundTripsTheSavedPublishFields() {
+        final SessionRecord s = session( "PageA" ).withPending( 4, 3, "alice" ).withPublishSaved( 5, "cid-1", "hash-5" );
+        store.createSession( s );
+        assertEquals( s, store.session( s.id() ).orElseThrow() );
+        assertEquals( s, store.sessionForPage( "PageA" ).orElseThrow() );
+    }
+
     @Test
     void readersReturnEmptyForUnknowns() {
         final UUID unknown = UUID.randomUUID();

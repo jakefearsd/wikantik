@@ -26,6 +26,7 @@ export function seededRandom(seed) {
 
 const COLORS = ['#1b6ec2', '#c2410c', '#15803d', '#7e22ce', '#be123c'];
 const utf8Bytes = (s) => new TextEncoder().encode(s).length;
+const MAX_META_VALUE_BYTES = 64 * 1024;
 const LIST_FIELDS = new Set(['tags', 'related', 'aliases']);
 const jsonEq = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const normalise = (v) => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
@@ -138,13 +139,24 @@ export function createFakeCollabServer({
         if (!LIST_FIELDS.has(op.field)) return bad('add and remove are allowed only on tags, related and aliases');
         const item = op[present[0]];
         if (typeof item !== 'string') return bad('add and remove take a string');
-        const cur = scratch[op.field];
-        const list = Array.isArray(cur) ? [...cur] : typeof cur === 'string' && cur ? [cur] : [];
-        const has = list.includes(item);
-        if (present[0] === 'add') { if (!has) list.push(item); } else if (has) list.splice(list.indexOf(item), 1);
-        value = list;
+        const cur = scratch[op.field] ?? null;
+        // Q7: set items compare as strings (a numeric 2024 equals "2024"); a scalar is a one-item list.
+        const list = Array.isArray(cur) ? [...cur] : cur !== null ? [cur] : [];
+        const has = list.some((x) => String(x) === item);
+        if (present[0] === 'add') {
+          if (has) continue;
+          value = [...list.map(String), item];
+        } else {
+          // Q6: REMOVE drops every equal item; an absent item or field stores nothing.
+          if (!has) continue;
+          value = list.filter((x) => String(x) !== item).map(String);
+        }
       }
-      if (jsonEq(value, scratch[op.field]) && (value !== null || op.field in scratch === false)) continue;
+      // Q8: a single value over 64 KiB refuses the whole push.
+      if (value !== null && utf8Bytes(JSON.stringify(value)) > MAX_META_VALUE_BYTES) {
+        return bad(`meta value for ${op.field} exceeds ${MAX_META_VALUE_BYTES} bytes`);
+      }
+      if (jsonEq(value, scratch[op.field])) continue;
       if (value === null) delete scratch[op.field]; else scratch[op.field] = value;
       out.push({ field: op.field, value });
     }

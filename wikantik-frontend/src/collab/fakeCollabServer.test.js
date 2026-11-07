@@ -309,6 +309,48 @@ describe('Phase 2 fixture cases against the fake', () => {
     expect(server.metadata.tags).toEqual(['a', 'z']);
   });
 
+  it('ADD and REMOVE are idempotent, REMOVE drops every equal item, null SET of an absent field is a no-op (Q6)', async () => {
+    await joinSample(server);
+    const absent = await push(server, { version: 0, updates: [], metaOps: [
+      { field: 'aliases', remove: 'x' }, { field: 'nothing', value: null }, { field: 'tags', add: 'a' },
+    ] });
+    expect(absent.status).toBe(200);
+    expect(absent.body.metaSeq).toBe(0);
+    expect(server.metadata).toEqual({ tags: ['a'], related: ['OldPage'], summary: 's' });
+    expect((await pullAll(server)).body.metaOps).toEqual([]);
+    await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', value: ['a', 'b', 'a'] }] });
+    const rm = await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', remove: 'a' }] });
+    expect(rm.body.metaSeq).toBe(2);
+    expect(server.metadata.tags).toEqual(['b']);
+    await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', remove: 'b' }] });
+    expect(server.metadata.tags).toEqual([]);
+  });
+
+  it('set-field items compare and store as strings (Q7); other fields stay JSON-compared', async () => {
+    await joinSample(server);
+    await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', value: [2024] }] });
+    const same = await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', add: '2024' }] });
+    expect(same.body.metaSeq).toBe(1);
+    await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', add: 'x' }] });
+    expect(server.metadata.tags).toEqual(['2024', 'x']);
+    await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', remove: '2024' }] });
+    expect(server.metadata.tags).toEqual(['x']);
+    const other = await push(server, { version: 0, updates: [], metaOps: [{ field: 'year', value: 2024 }, { field: 'year', value: '2024' }] });
+    expect(other.body.metaSeq).toBe(5);
+    expect(server.metadata.year).toBe('2024');
+  });
+
+  it('a meta value over 64 KiB refuses the whole push (Q8)', async () => {
+    await joinSample(server);
+    const big = 'x'.repeat(65 * 1024);
+    const res = await push(server, { version: 0, updates: [], metaOps: [{ field: 'status', value: 'ok' }, { field: 'summary', value: big }] });
+    expect(res.status).toBe(400);
+    expect(res.body.reason).toBe('rejected');
+    expect(server.metadata.status).toBeUndefined();
+    const fine = await push(server, { version: 0, updates: [], metaOps: [{ field: 'summary', value: 'y'.repeat(60 * 1024) }] });
+    expect(fine.status).toBe(200);
+  });
+
   it('a meta-only push skips the version check', async () => {
     await joinSample(server);
     await push(server, { version: 0, updates: [{ clientID: 'c1', changes: [11, [0, '!']] }] });

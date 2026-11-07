@@ -79,6 +79,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Connectors](#connectors)
 - [Export](#export)
 - [Import](#import)
+- [Collaborative editing](#collaborative-editing)
 
 ## General
 
@@ -963,6 +964,22 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.import.maxConcurrent`** — Maximum number of vault import jobs that may run at the same time across the wiki. An apply arriving while this many jobs are running is refused with HTTP 429.
 - **`wikantik.import.maxNoteTextBytes`** — Maximum total size, in bytes, of Markdown note text held in memory while a vault import is planned (each note is also capped by wikantik.api.maxPageBytes). A vault whose buffered note text would exceed it is refused with HTTP 413 naming this key. This bounds the raw UTF-8 bytes only: decoded strings, rewritten drafts and the plan itself mean heap use can be several times this budget for each concurrent plan (see wikantik.import.maxConcurrentPlans), so size the heap accordingly.
 - **`wikantik.import.maxConcurrentPlans`** — Maximum number of vault import plans computed at the same time across the wiki -- both dry runs (POST /api/import/obsidian/plan) and the re-plan an apply performs. A request arriving while this many plans are in progress is refused with HTTP 429.
+
+## Collaborative editing
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.collab.enabled` | `boolean` | `false` | `wikantik_collab_enabled` | Master switch for collaborative text editing. While false the feature is dark: no collaboration endpoints are active and the editor behaves as before. |
+| `wikantik.collab.maxParticipants` | `int` | `20` | `wikantik_collab_maxParticipants` | Maximum number of participants in one page's collaborative session. A further join is refused. |
+| `wikantik.collab.maxUpdateBytes` | `int` | `65536` | `wikantik_collab_maxUpdateBytes` | Maximum size, in bytes, of a single collaborative update a client may submit. Larger updates are refused. |
+| `wikantik.collab.poll.timeoutSeconds` | `int` | `25` | `wikantik_collab_poll_timeoutSeconds` | How long, in seconds, a collaboration long-poll waits for new updates before returning empty. |
+| `wikantik.collab.presence.timeoutSeconds` | `int` | `45` | `wikantik_collab_presence_timeoutSeconds` | Seconds without contact after which a participant is dropped from the session's presence list. |
+| `wikantik.collab.permission.recheckSeconds` | `int` | `30` | `wikantik_collab_permission_recheckSeconds` | Interval, in seconds, at which a participant's page permissions are re-verified during a session. |
+| `wikantik.collab.history.inMemoryUpdates` | `int` | `2000` | `wikantik_collab_history_inMemoryUpdates` | Number of recent updates a session keeps in memory for catching up late or reconnecting clients. |
+| `wikantik.collab.snapshot.everyUpdates` | `int` | `500` | `wikantik_collab_snapshot_everyUpdates` | A durable snapshot of the collaborative document is written after this many updates. |
+| `wikantik.collab.memory.idleEvictMinutes` | `int` | `10` | `wikantik_collab_memory_idleEvictMinutes` | Minutes a session with no participants stays in memory before it is evicted. |
+| `wikantik.collab.draft.retentionDays` | `int` | `0` | `wikantik_collab_draft_retentionDays` | Days a stored collaborative draft is kept before cleanup. 0 keeps drafts indefinitely. |
+| `wikantik.collab.pushesPerSecond` | `int` | `20` | `wikantik_collab_pushesPerSecond` | Per-participant cap on updates accepted per second. Requests over it are refused with HTTP 429. |
 
 The following settings come from `wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties` (bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`).
 

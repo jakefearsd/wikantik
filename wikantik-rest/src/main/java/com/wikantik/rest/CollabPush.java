@@ -31,6 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -45,6 +46,8 @@ import java.util.function.BiConsumer;
 final class CollabPush {
 
     private static final Logger LOG = LogManager.getLogger( CollabPush.class );
+    /** One refusal WARN a minute per participant (final review item 5); the rest at DEBUG. */
+    private static final CollabWarnThrottle WARNS = new CollabWarnThrottle( Clock.systemUTC() );
 
     /** Either {@code refusal} (a message) or the parsed push. */
     record Parsed( String refusal, int version, List< Update > updates, List< MetaEdit > metaEdits,
@@ -66,8 +69,14 @@ final class CollabPush {
                        final JsonObject body, final int pushesPerSecond, final BiConsumer< Integer, String > observe ) {
         final Parsed p = parse( body );
         if( p.refusal() != null ) {
-            LOG.warn( "collab session {}: push from {} refused before the session: {}", s.id(), participantId,
-                p.refusal() );
+            final long quiet = WARNS.admit( participantId );
+            if( quiet == CollabWarnThrottle.QUIET ) {
+                LOG.debug( "collab session {}: push from {} refused before the session: {}", s.id(), participantId,
+                    p.refusal() );
+            } else {
+                LOG.warn( "collab session {}: push from {} refused before the session: {}{}", s.id(), participantId,
+                    p.refusal(), CollabWarnThrottle.quietSuffix( quiet ) );
+            }
             return CollabWire.rejected( p.refusal() );
         }
         final PushResponse r = s.push( participantId, authorKey, p.version(), p.updates(), p.metaEdits(),

@@ -113,6 +113,8 @@ const COLLAB_STATUS_LABEL = {
   'auth-required': 'Signed out', forbidden: 'Read-only',
 };
 const editorsLabel = (n) => `${n} editor${n === 1 ? '' : 's'}`;
+/** "for all 3 editors", or "for everyone" when I am alone (a count of one reads oddly). */
+const forEditors = (n) => (n > 1 ? `all ${editorsLabel(n)}` : 'everyone');
 /** A stable small number per joined session (its extensions object): the collab editor's remount key (A4). */
 const sessionKeys = new WeakMap();
 let nextSessionKey = 1;
@@ -160,6 +162,9 @@ function anchoredInsertPos(text, { before = '', after = '' }) {
 const offeredOfflineDrafts = new Set();
 const offlineDraftKey = (login, page, savedAt) => `${login}\u0000${page}\u0000${savedAt}`;
 const LEAVE_NOTE = 'Your changes stay in the shared draft until someone publishes or discards them';
+/** Handed-back insert texts with `find` replaced (first match each); a text left empty (a failed upload) drops out. */
+const replaceInUnplaced = (list, find, replacement) =>
+  list.map((t) => (t.includes(find) ? t.replace(find, () => replacement) : t)).filter(Boolean);
 /** Local work the server never got (unsynced text, field edits), as one text to copy. */
 const hasLocalWork = (w) => !!w && (!!w.unsyncedText || w.metaEdits?.length > 0);
 function localWorkText(w) {
@@ -367,8 +372,12 @@ export default function PageEditor({ collabTransport } = {}) {
   useEffect(() => { publishDialogRef.current = publishDialog; });
   // Queued inserts whose place in the remounted document is ambiguous: handed back to the user, never guessed.
   const [unplacedInserts, setUnplacedInserts] = useState([]);
+  // the ref is the source of truth, kept in step synchronously: a replace arriving before the next render must see it
   const unplacedRef = useRef(unplacedInserts);
-  useEffect(() => { unplacedRef.current = unplacedInserts; });
+  const updateUnplaced = useCallback((next, { defer = false } = {}) => {
+    unplacedRef.current = next;
+    if (defer) queueMicrotask(() => setUnplacedInserts(next)); else setUnplacedInserts(next);
+  }, []);
   // Recreate with local work the publish cannot carry: { unsyncedText, metaEdits, asking }
   const [recreateCheck, setRecreateCheck] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -381,7 +390,8 @@ export default function PageEditor({ collabTransport } = {}) {
   }, [externalChange, toast]);
   const showExternal = externalChange && externalChange !== externalDismissed ? externalChange : null;
 
-  // Draft notices (Phase 3), each about someone else's action (my own already has its own feedback).
+  // Draft notices (Phase 3). Toasts are about someone else's action (my own has its own feedback); the page state a
+  // publish changed (its version, its markup syntax) follows every publish, my own other tab's included.
   const selfName = collab.self?.displayName ?? null;
   const published = collabMode ? collab.published : null;
   const notice = collabMode ? collab.notice : null;
@@ -389,20 +399,43 @@ export default function PageEditor({ collabTransport } = {}) {
   if (published !== seenPublished) {
     setSeenPublished(published);
     // the page has a newer version now: a later single-author save must expect it
-    if (published && published.by !== selfName && published.pageVersion != null) setOriginalVersion(published.pageVersion);
+    if (published?.pageVersion != null) setOriginalVersion(published.pageVersion);
   }
+  // R12: converted for everyone but not yet published as Markdown (the draft is never reverted); the retry carries the flag
+  const [convertPending, setConvertPending] = useState(false);
+  const convertPendingRef = useRef(false);
+  useEffect(() => { convertPendingRef.current = convertPending; });
+  // the page's markup syntax could not be re-read after a publish (tried twice): a later publish may state it wrongly
+  const [markupStale, setMarkupStale] = useState(false);
+  const refreshMarkup = useCallback(() => {
+    const read = () => api.getPage(name);
+    return read()
+      .catch((err) => {
+        console.warn('[collab] could not refresh the page after a publish; retrying once', err?.message || err);
+        return read();
+      })
+      .then((page) => {
+        const syntax = page?.markupSyntax || 'markdown';
+        if (syntax === 'markdown') setConvertPending(false);
+        // a converted, unpublished draft keeps its Markdown flag until it is published as such
+        if (syntax === 'markdown' || !convertPendingRef.current) setMarkupSyntax(syntax);
+        setMarkupStale(false);
+      })
+      .catch((err) => {
+        console.warn('[collab] could not refresh the page after a publish', err?.message || err);
+        setMarkupStale(true);
+      });
+  }, [name]);
   const announcedRef = useRef({ published: null, notice: null });
   useEffect(() => {
     if (!published || announcedRef.current.published === published) return;
     announcedRef.current.published = published;
+    // the publish may have changed the page's markup syntax (Convert and publish), from any tab
+    refreshMarkup();
     if (published.by === selfName) return;
     toast.info(published.pageVersion != null
       ? `Published by ${published.by} as version ${published.pageVersion}` : `Published by ${published.by}`);
-    // the publish may have changed the page's markup syntax (Convert and publish)
-    api.getPage(name)
-      .then((page) => setMarkupSyntax(page?.markupSyntax || 'markdown'))
-      .catch((err) => console.warn('[collab] could not refresh the page after a publish', err?.message || err));
-  }, [published, selfName, name, toast]);
+  }, [published, selfName, refreshMarkup, toast]);
   useEffect(() => {
     if (!notice || announcedRef.current.notice === notice) return;
     announcedRef.current.notice = notice;
@@ -704,12 +737,12 @@ export default function PageEditor({ collabTransport } = {}) {
       // a finished upload whose placeholder was handed back (not placed): its link follows it into the recovery panel
       const live = editorRef.current?.getText?.();
       if (live != null && !live.includes(find) && unplacedRef.current.some((t) => t.includes(find))) {
-        setUnplacedInserts((list) => list.map((t) => (t.includes(find) ? t.replace(find, () => replacement) : t)).filter(Boolean));
+        updateUnplaced(replaceInUnplaced(unplacedRef.current, find, replacement));
         return true;
       }
       return editorRef.current?.replaceText?.(find, replacement) ?? false;
     },
-  }), [queueCollabWrite]);
+  }), [queueCollabWrite, updateUnplaced]);
 
   // Replace the whole body while the editor is open (conversion, draft restore, conflict reload): through the view
   // as one undoable transaction touching only the changed span, so the caret is mapped and nothing is parked behind
@@ -731,18 +764,22 @@ export default function PageEditor({ collabTransport } = {}) {
     const editor = editorRef.current;
     if (!ops.length || collabWriteBlockedRef.current || editor?.getText?.() == null) return;
     pendingWritesRef.current = [];
-    const unplaced = [];
+    let unplaced = unplacedRef.current;
     for (const op of ops) {
       if (op.kind === 'rename') editor.applyChanges(attachmentLinkChanges(editor.getText(), op.oldName, op.newName));
-      else if (op.kind === 'replace') editor.replaceText(op.find, op.replacement);
-      else if (op.kind === 'insert') {
+      else if (op.kind === 'replace') {
+        // a placeholder handed back below (an upload that finished while out of sync) gets its final link there
+        if (!editor.getText().includes(op.find) && unplaced.some((t) => t.includes(op.find))) {
+          unplaced = replaceInUnplaced(unplaced, op.find, op.replacement);
+        } else editor.replaceText(op.find, op.replacement);
+      } else if (op.kind === 'insert') {
         const at = anchoredInsertPos(editor.getText(), op);
-        if (at === null) unplaced.push(op.text); else editor.insertText(at, op.text);
+        if (at === null) unplaced = [...unplaced, op.text]; else editor.insertText(at, op.text);
       }
     }
-    // (outside the caller's effect: the panel is news for the next render, not a cascade of this one)
-    if (unplaced.length) queueMicrotask(() => setUnplacedInserts((list) => [...list, ...unplaced]));
-  }, []);
+    // (state outside the caller's effect: the panel is news for the next render, not a cascade of this one)
+    if (unplaced !== unplacedRef.current) updateUnplaced(unplaced, { defer: true });
+  }, [updateUnplaced]);
   // A fresh view: its mount runs inside react-codemirror's layout effect, before this component's refs are updated.
   const handleEditorReady = useCallback(() => { setTimeout(applyPendingWrites, 0); }, [applyPendingWrites]);
   useEffect(() => {
@@ -1146,8 +1183,11 @@ export default function PageEditor({ collabTransport } = {}) {
   // Decision 8: in collab mode the markup syntax travels with a page version, so converting publishes for everyone.
   const convertAndPublish = async () => {
     setConfirmConvert(false);
-    if (await convertBody()) await publishContent({ stay: true, note: 'Converted to Markdown', markup: 'markdown' });
+    if (!(await convertBody())) return;
+    // R12: a failed publish does not revert the shared draft (it is Markdown for everyone now): offer the retry instead
+    if (!(await publishAsMarkdown())) setConvertPending(true);
   };
+  const publishAsMarkdown = () => publishContent({ stay: true, note: 'Converted to Markdown', markup: 'markdown' });
 
   // #4 — extracted save function used by button and keyboard shortcut. Sends body + metadata object
   // (replaceMetadata=true for full-object replace); maps a 422 to inline field violations, surfaces
@@ -1189,10 +1229,10 @@ export default function PageEditor({ collabTransport } = {}) {
     setError(null);
     setAccessRuleViolations([]);
     try {
-      // the markup syntax goes exactly as the single-author PUT sends it
-      const syntax = markup ?? markupSyntax;
-      const res = await collab.publish(note || changeNote || (isNew ? 'Created page' : 'Updated page'),
-        { markupSyntax: syntax === 'markdown' ? 'markdown' : undefined });
+      // always the editor's known syntax: left out, the server would infer it from the file extension (R12).
+      // "likely-wiki" is only a heuristic over a page stored as Markdown.
+      const syntax = markup ?? (markupSyntax === 'wiki' ? 'wiki' : 'markdown');
+      const res = await collab.publish(note || changeNote || (isNew ? 'Created page' : 'Updated page'), { markupSyntax: syntax });
       if (!res.ok) {
         if (res.status === 422) showRefusal(res.body);
         else {
@@ -1203,6 +1243,7 @@ export default function PageEditor({ collabTransport } = {}) {
       }
       setViolations([]);
       setMathViolations([]);
+      if (syntax === 'markdown') setConvertPending(false);
       evictPreview(name);
       const warns = res.warnings || [];
       const mathWarns = res.mathWarnings || [];
@@ -1636,6 +1677,19 @@ export default function PageEditor({ collabTransport } = {}) {
           onViewChanges={() => openPublishDialog('view')}
           onDismiss={() => setDraftBannerOpen(false)} />
       )}
+      {collabEditing && convertPending && (
+        <div className="warning-banner" role="alert" data-testid="collab-convert-unpublished">
+          <span>Converted for everyone but not published — </span>
+          <button type="button" className="btn btn-primary btn-sm" disabled={saving || collabReadOnly}
+            onClick={publishAsMarkdown}>Publish as Markdown</button>
+        </div>
+      )}
+      {collabEditing && markupStale && (
+        <div className="warning-banner" role="alert" data-testid="collab-markup-stale">
+          <span>Couldn&apos;t check this page&apos;s markup syntax after the latest publish, so publishing may mark it wrongly.</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={refreshMarkup}>Retry</button>
+        </div>
+      )}
       {oversize && (
         <div className="warning-banner" role="alert" data-testid="collab-oversize">
           This draft is over the page size limit ({bodyBytes.toLocaleString()} of {oversizeLimit.toLocaleString()}); trim it to publish
@@ -1647,7 +1701,7 @@ export default function PageEditor({ collabTransport } = {}) {
           <span>The text around it now appears more than once, so it was not inserted. Copy it and paste it where it belongs:</span>
           <pre className="collab-recovery-text">{unplacedInserts.join('\n')}</pre>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyText(unplacedInserts.join('\n'))}>Copy</button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUnplacedInserts([])}>Dismiss</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => updateUnplaced([])}>Dismiss</button>
         </div>
       )}
 
@@ -1811,6 +1865,8 @@ export default function PageEditor({ collabTransport } = {}) {
           <button type="button" className="btn btn-primary btn-sm" disabled={saving || hasBlockingErrors}
             onClick={async () => {
               const p = pendingUpload;
+              // R13: this first publish of a NEW page bypasses the publish dialog — accepted: there is no published page
+              // to diff against, and the uploads need the page to exist
               if (await commit({ stay: true })) {
                 setPendingUpload(null);
                 for (const h of p.handles) await h.start();
@@ -2035,7 +2091,7 @@ export default function PageEditor({ collabTransport } = {}) {
       {confirmConvert && (
         <ConfirmDialog
           title="Convert to Markdown and publish?"
-          message={`This converts and publishes the page for all ${editorsLabel(editorCount)}.`}
+          message={`This converts and publishes the page for ${forEditors(editorCount)}.`}
           confirmLabel="Convert and publish"
           danger={false}
           onConfirm={convertAndPublish}
@@ -2048,7 +2104,7 @@ export default function PageEditor({ collabTransport } = {}) {
       {confirmDiscard && (
         <ConfirmDialog
           title="Discard the shared draft?"
-          message={`Discarding resets the shared draft to the published page for all ${editorsLabel(editorCount)}. Unpublished changes are lost.`}
+          message={`Discarding resets the shared draft to the published page for ${forEditors(editorCount)}. Unpublished changes are lost.`}
           confirmLabel="Discard for everyone"
           onConfirm={discardSharedDraft}
           onCancel={() => setConfirmDiscard(false)}

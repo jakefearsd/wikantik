@@ -329,8 +329,8 @@ export function createFakeCollabServer({
     }
     // the server publishes head (section 7.3): only a version it never issued is not-synced
     if (!Number.isInteger(body.version) || body.version < 0 || body.version > version) return reply(409, { reason: 'not-synced' });
-    if (body.markupSyntax != null && body.markupSyntax !== 'markdown') {
-      return reply(400, { reason: 'rejected', message: 'markupSyntax must be markdown' });
+    if (body.markupSyntax != null && body.markupSyntax !== 'markdown' && body.markupSyntax !== 'wiki') {
+      return reply(400, { reason: 'rejected', message: 'markupSyntax must be markdown or wiki' });
     }
     if (failPublishBy !== null) {
       const by = failPublishBy;

@@ -1309,7 +1309,11 @@ describe('PageEditor collaborative mode', () => {
 
   it('convertAndPublishConfirmsAppliesOneTransactionAndPublishesMarkdown', async () => {
     server = createFakeCollabServer({ initialText: "Hello ''world''", pollTimeoutMs: 2000 });
-    api.getPage.mockResolvedValue({ content: "Hello ''world''", metadata: {}, version: 7, markupSyntax: 'wiki' });
+    // the page as the server holds it: Markdown once a publish said so (the editor re-reads it after every publish)
+    api.getPage.mockImplementation(() => Promise.resolve(
+      server.calls.some((c) => c.path === '/publish' && c.status === 200 && c.body.markupSyntax === 'markdown')
+        ? { content: 'Hello *world*', metadata: {}, version: 8, markupSyntax: 'markdown' }
+        : { content: "Hello ''world''", metadata: {}, version: 7, markupSyntax: 'wiki' }));
     api.convertWikiToMarkdown.mockResolvedValue({ markdown: 'Hello *world*', warnings: ['a note'] });
     await joinAs('bob');
     const { view } = await mount();
@@ -1346,22 +1350,152 @@ describe('PageEditor collaborative mode', () => {
     expect(api.getPage).toHaveBeenLastCalledWith('Existing');
   });
 
-  it('collabPublishSendsMarkupSyntaxLikeThePut', async () => {
+  it('collabPublishSendsMarkupSyntaxLikeThePut: always the editor\'s known syntax, never left for the server to infer', async () => {
+    const publishFor = async (syntax) => {
+      server = createFakeCollabServer({ initialText: 'Hello world', pollTimeoutMs: 2000 });
+      api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 7, markupSyntax: syntax });
+      const { view } = await mount();
+      await until(() => docOf(view) === 'Hello world');
+      await publishThroughDialog();
+      await screen.findByTestId('wiki-view');
+      expect(lastPublish().status).toBe(200);
+      const sent = lastPublish().body.markupSyntax;
+      cleanup();
+      return sent;
+    };
+    expect(await publishFor('markdown')).toBe('markdown');
+    // a legacy page states it is wiki (undefined would let the server infer from the file extension)
+    expect(await publishFor('wiki')).toBe('wiki');
+    // "likely-wiki" is a heuristic over a page stored as Markdown
+    expect(await publishFor('likely-wiki')).toBe('markdown');
+  });
+
+  it('everyCollabPublishPathSendsADefinedMarkupSyntax: recreate and publish-and-upload too', async () => {
+    api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 7, markupSyntax: 'wiki' });
     let { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
-    await publishThroughDialog();
-    await screen.findByTestId('wiki-view');
-    expect(lastPublish().body.markupSyntax).toBe('markdown');
-    cleanup();
-    // a legacy page publishes without the flag, as the PUT omits it
-    server = createFakeCollabServer({ initialText: 'Hello world', pollTimeoutMs: 2000 });
-    api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 7, markupSyntax: 'wiki' });
-    ({ view } = await mount());
-    await until(() => docOf(view) === 'Hello world');
-    await publishThroughDialog();
+    act(() => { server.freeze(); });
+    await screen.findByTestId('collab-frozen');
+    fireEvent.click(screen.getByTestId('editor-save'));
     await screen.findByTestId('wiki-view');
     expect(lastPublish().status).toBe(200);
-    expect('markupSyntax' in lastPublish().body).toBe(false);
+    expect(lastPublish().body.markupSyntax).toBe('wiki');
+    cleanup();
+    // a new page: a pasted file waits for the first publish, which bypasses the dialog (R13)
+    server = createFakeCollabServer({ initialText: '', pollTimeoutMs: 2000 });
+    api.getPage.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+    useAttachments.mockImplementation(() => ({ list: [], uploadAttachment: vi.fn(() => new Promise(() => {})), renameAttachment, deleteAttachment: vi.fn() }));
+    ({ view } = await mount({ state: { initialContent: '# New' } }));
+    await until(() => docOf(view) === '# New');
+    placeCaret(view, docOf(view).length);
+    fireEvent.change(screen.getByTestId('editor-image-input'), { target: { files: [new File(['x'], 'pic.png', { type: 'image/png' })] } });
+    fireEvent.click(within(await screen.findByTestId('upload-needs-save')).getByRole('button', { name: 'Publish and upload' }));
+    await until(() => lastPublish()?.status === 200);
+    expect(lastPublish().body.markupSyntax).toBe('markdown');
+    expect(screen.queryByTestId('publish-dialog')).toBeNull();
+  });
+
+  it('aFailedConvertAndPublishOffersPublishAsMarkdown: the draft stays converted, the retry carries the flag', async () => {
+    server = createFakeCollabServer({ initialText: "Hello ''world''", pollTimeoutMs: 2000 });
+    api.getPage.mockResolvedValue({ content: "Hello ''world''", metadata: {}, version: 7, markupSyntax: 'wiki' });
+    api.convertWikiToMarkdown.mockResolvedValue({ markdown: 'Hello *world*', warnings: [] });
+    const { view } = await mount();
+    await until(() => docOf(view) === "Hello ''world''");
+    server.failNextPublish('ada');
+    fireEvent.click(screen.getByRole('button', { name: 'Convert and publish' }));
+    const ask = await screen.findByRole('dialog');
+    expect(ask).toHaveTextContent('This converts and publishes the page for everyone');
+    fireEvent.click(within(ask).getByRole('button', { name: 'Convert and publish' }));
+    const banner = await screen.findByTestId('collab-convert-unpublished');
+    expect(banner).toHaveTextContent('Converted for everyone but not published');
+    expect(docOf(view)).toBe('Hello *world*'); // not reverted
+    await until(() => server.doc === 'Hello *world*');
+    // it stays (persistent) until the page is published as Markdown
+    await wait(300);
+    expect(screen.getByTestId('collab-convert-unpublished')).toBeInTheDocument();
+    fireEvent.click(within(banner).getByRole('button', { name: 'Publish as Markdown' }));
+    await until(() => lastPublish()?.status === 200);
+    expect(lastPublish().body).toMatchObject({ markupSyntax: 'markdown', changeNote: 'Converted to Markdown' });
+    await until(() => screen.queryByTestId('collab-convert-unpublished') === null);
+  });
+
+  it('anotherTabsConvertMakesMyNextPublishMarkdown: my own other tab\'s publish still refreshes the markup and version', async () => {
+    server = createFakeCollabServer({ initialText: "Hello ''world''", pollTimeoutMs: 2000 });
+    const convertedPublished = () => server.calls.some((c) => c.path === '/publish' && c.status === 200 && c.body.markupSyntax === 'markdown');
+    api.getPage.mockImplementation(() => Promise.resolve(convertedPublished()
+      ? { content: 'Hello *world*', metadata: {}, version: 8, markupSyntax: 'markdown' }
+      : { content: "Hello ''world''", metadata: {}, version: 7, markupSyntax: 'wiki' }));
+    api.convertWikiToMarkdown.mockResolvedValue({ markdown: 'Hello *world*', warnings: [] });
+    const { container: tabA } = await mount();
+    const tabB = await mountSecond('ada');
+    await until(() => within(tabB).queryByRole('button', { name: 'Convert and publish' }) !== null);
+    fireEvent.click(within(tabA).getByRole('button', { name: 'Convert and publish' }));
+    fireEvent.click(within(within(tabA).getByRole('dialog')).getByRole('button', { name: 'Convert and publish' }));
+    await until(() => convertedPublished());
+    // tab B (same person): no toast about my own publish, but the page's markup follows
+    await until(() => within(tabB).queryByRole('button', { name: 'Convert and publish' }) === null);
+    expect(toast.info).not.toHaveBeenCalledWith(expect.stringMatching(/^Published by ada/));
+    const publishes = server.calls.filter((c) => c.path === '/publish').length;
+    fireEvent.click(within(tabB).getByTestId('editor-save'));
+    const dialog = await screen.findByTestId('publish-dialog');
+    await until(() => !within(dialog).getByTestId('publish-dialog-confirm').disabled);
+    fireEvent.click(within(dialog).getByTestId('publish-dialog-confirm'));
+    await until(() => server.calls.filter((c) => c.path === '/publish').length > publishes);
+    await until(() => lastPublish().status === 200);
+    expect(lastPublish().body.markupSyntax).toBe('markdown');
+  });
+
+  it('aFailedRefreshAfterAPublishRetriesOnceThenKeepsAWarning', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    api.getPage.mockClear();
+    api.getPage.mockRejectedValue(new Error('offline'));
+    const bob = await joinAs('bob');
+    await bob.t.publish({ ...idsOf(bob), version: server.version, changeNote: 'by bob' });
+    const warning = await screen.findByTestId('collab-markup-stale');
+    expect(api.getPage).toHaveBeenCalledTimes(2); // the first try and one retry
+    api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 8, markupSyntax: 'markdown' });
+    fireEvent.click(within(warning).getByRole('button', { name: 'Retry' }));
+    await until(() => screen.queryByTestId('collab-markup-stale') === null);
+  });
+
+  it('leavingWhenOnlyOthersHaveUnpublishedChangesShowsNoNote', async () => {
+    const bob = await joinAs('bob');
+    await pushMeta(bob, [{ field: 'summary', value: 'Bobs' }]);
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    await screen.findByTestId('collab-draft-chip'); // unpublished, by bob only
+    await wait(50);
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    await screen.findByTestId('wiki-view');
+    expect(toast.info).not.toHaveBeenCalledWith(expect.stringMatching(/stay in the shared draft/));
+  });
+
+  it('anUploadFinishingBeforeTheRemountGivesTheRecoveryPanelItsLink', async () => {
+    server = createFakeCollabServer({ initialText: 'abcdefghijkl abcdefghijkl', maxPageBytes: 30, pollTimeoutMs: 2000 });
+    const uploaded = deferred();
+    useAttachments.mockImplementation(() => ({
+      list: [], uploadAttachment: vi.fn(() => uploaded.promise), renameAttachment, deleteAttachment: vi.fn(),
+    }));
+    const { view } = await mount();
+    await until(() => docOf(view) === 'abcdefghijkl abcdefghijkl');
+    act(() => {
+      placeCaret(view, 12);
+      typeAtCaret(view, 'unsynced two');
+      placeCaret(view, 0);
+      typeAtCaret(view, 'unsynced one ');
+    });
+    await screen.findByTestId('collab-recovery');
+    placeCaret(view, 'unsynced one abcdefghijkl'.length);
+    fireEvent.change(screen.getByTestId('editor-image-input'), { target: { files: [new File(['x'], 'pic.png', { type: 'image/png' })] } });
+    // the upload finishes while the editor is still out of sync: its link replacement is queued behind the insert
+    await act(async () => { uploaded.resolve({}); await new Promise((r) => setTimeout(r, 20)); });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+    await until(() => currentView() !== null && currentView() !== view);
+    const panel = await screen.findByTestId('collab-insert-recovery');
+    expect(panel).not.toHaveTextContent('Uploading');
+    expect(panel).toHaveTextContent('pic.png');
+    expect(docOf(currentView())).toBe('abcdefghijkl abcdefghijkl');
   });
 
   it('theRecreatePanelSurvivesAnUnfreeze', async () => {

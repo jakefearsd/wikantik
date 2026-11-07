@@ -728,13 +728,15 @@ describe('Phase 3 fixture cases against the fake: draft state, draft summary, pu
     expect(unknown.body.reason).toBe('rejoin');
   });
 
-  it('POST /publish accepts markupSyntax markdown and records it; another value is rejected', async () => {
+  it('POST /publish accepts markupSyntax markdown or wiki and records it; another value is rejected', async () => {
     await joinAs('ada');
     const c = byId['publish.200.markup'];
     const res = await call('POST', '/publish', { body: { ...structuredClone(c.request.body), version: 0 } });
     expect(res.status).toBe(200);
     expect(shapeDiff(res.body, c.response.body)).toEqual([]);
     expect(server.calls.at(-1).body.markupSyntax).toBe('markdown');
+    const wiki = await call('POST', '/publish', { body: { version: 0, markupSyntax: 'wiki' } });
+    expect(wiki.status).toBe(200);
     const bad = await call('POST', '/publish', { body: { version: 0, markupSyntax: 'jspwiki-1' } });
     expect(bad.status).toBe(400);
     expect(bad.body.reason).toBe('rejected');

@@ -213,7 +213,11 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
                 .click();
         // The editor is dirty (we typed new content), so the unsaved-changes guard dialog appears;
         // click "Leave without saving" to confirm navigation away from the editor.
-        $( "[data-testid=guard-leave]" ).shouldBe( visible, ASYNC_WAIT ).click();
+        // Collaborative editing differs by design: typed text is synced into the shared draft, which survives the
+        // leave, so there is no unsaved-changes guard to confirm (it guards only unsynced typing).
+        if ( !CollabMode.enabled() ) {
+            $( "[data-testid=guard-leave]" ).shouldBe( visible, ASYNC_WAIT ).click();
+        }
         $( "[data-testid=page-view]" ).shouldBe( visible, ASYNC_WAIT );
     }
 

@@ -78,7 +78,7 @@ public class PasteAsMarkdownIT extends WithIntegrationTestSetup {
         awaitDocument( DOCS_MARKDOWN );
         $( ".wk-toast-message" ).shouldHave( Condition.text( "Pasted as Markdown" ), Duration.ofSeconds( 5 ) );
 
-        $( "[data-testid=editor-save]" ).click();
+        EditWikiPage.publish();
         final SelenideElement view = $( "[data-testid=page-view]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         view.$( "h2" ).shouldHave( Condition.text( "Pasted Plan" ) );
         view.$( "strong" ).shouldHave( Condition.exactText( "three" ) );

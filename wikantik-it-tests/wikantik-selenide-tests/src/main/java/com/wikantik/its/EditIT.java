@@ -20,6 +20,7 @@ package com.wikantik.its;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
+import com.wikantik.pages.Page;
 import com.wikantik.pages.spa.EditWikiPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
@@ -39,8 +40,20 @@ public class EditIT extends WithIntegrationTestSetup {
     void createPageAndTestEditPermissions( final EditorMode mode ) {
         final String pageName = "RandomPage" + mode.name() + System.currentTimeMillis();
 
-        final ViewWikiPage randomPage = EditWikiPage.openInMode( pageName, mode )
-                                                    .saveText( "random page [{ALLOW edit janne}] [{ALLOW view All}]", "random page" );
+        final String firstVersion = "random page [{ALLOW edit janne}] [{ALLOW view All}]";
+        final ViewWikiPage randomPage;
+        if ( CollabMode.enabled() ) {
+            // By design collaborative editing needs a signed-in session: an anonymous visitor gets the read-only
+            // editor with no Publish button. Assert that, then publish the first version signed in and sign out so
+            // the permission scenario below starts from the same state as in single-author mode.
+            EditWikiPage.pinMode( mode );
+            Page.withUrl( Page.baseUrl() + "/edit/" + pageName ).openAs( new EditWikiPage() );
+            Selenide.$( "[data-testid=collab-status][data-status=forbidden]" )
+                    .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+            randomPage = EditWikiPage.openInMode( pageName, mode ).saveText( firstVersion, "random page" ).clickOnLogout();
+        } else {
+            randomPage = EditWikiPage.openInMode( pageName, mode ).saveText( firstVersion, "random page" );
+        }
         Assertions.assertEquals( pageName, randomPage.wikiTitle() );
         Assertions.assertEquals( "random page", randomPage.wikiPageContent() );
 

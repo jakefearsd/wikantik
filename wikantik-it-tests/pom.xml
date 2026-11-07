@@ -47,6 +47,10 @@
          user: collaboration changes the editor, so it is on for wikantik-it-test-rest alone, never for the shared
          Selenide suite. -->
     <it.extra.jvmargs></it.extra.jvmargs>
+    <!-- Collaborative editing for the browser suite: the run-tests.sh collab flag sets it.collab.jvmargs to the
+         server flags and it.collab=true (read by CollabMode). Both off by default (collab is default-OFF). -->
+    <it.collab.jvmargs></it.collab.jvmargs>
+    <it.collab>false</it.collab>
     <!-- it.db.port, it.wikantik.servlet.port (root pom), it.wikantik.rmi.port and
          it.wikantik.ajp.port are intentionally NOT given static defaults — build-helper
          reserve-network-port (the reserve-it-ports execution below) sets each to a
@@ -234,6 +238,7 @@
                        Selenide suite. Override with -Dit-wikantik.config.headless=false
                        when you need to watch a test run. -->
                   <it-wikantik.config.headless>true</it-wikantik.config.headless>
+                  <it.collab>${it.collab}</it.collab>
                   <!-- Selenium's HTTP read timeout, in SECONDS (Selenium default 180).
                        It bounds every WebDriver command, including the newSession call
                        that starts the browser. At 180 a start-up stalled by the parallel
@@ -447,7 +452,7 @@
                     <!-- wikantik.profiling.dir redirected into the test target/
                          so the JFR endpoint IT (ProfilingResourceIT) can
                          create the directory without root privileges. -->
-                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token ${it.extra.jvmargs} ${jacoco.it.agent}</cargo.jvmargs>
+                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token ${it.extra.jvmargs} ${it.collab.jvmargs} ${jacoco.it.agent}</cargo.jvmargs>
                     <!-- Reserved per module by build-helper so parallel IT
                          modules don't share Cargo's default RMI port (8205). -->
                     <cargo.rmi.port>${it.wikantik.rmi.port}</cargo.rmi.port>

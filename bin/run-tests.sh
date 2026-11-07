@@ -83,6 +83,9 @@ MODES (default, no args: the default gate = unit, then default-gate IT modules)
   --it                   Default-gate IT modules only (assumes --unit ran)
   --module <name>        One IT module: rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
   --fullloop             ONLY the opt-in Authentik SCIM full-loop (-Pscim-fullloop)
+  --collab               Run the IT modules with collaborative editing ON (server
+                         wikantik.collab.enabled=true, browser suite in collab mode).
+                         --all additionally runs a collab-mode custom-jdbc pass.
   --list                 Show modules and their gate, then exit
 
 STATIC CHECKS (after the unit phase, whenever it runs)
@@ -108,6 +111,7 @@ EXAMPLES
   bin/run-tests.sh --module rest        # REST + SCIM IT only
   bin/run-tests.sh --it --parallel 4    # default IT modules, 4-way
   bin/run-tests.sh --module sso -o both # Keycloak SSO IT, output to log AND console
+  bin/run-tests.sh --module custom-jdbc --collab   # Selenide editor suite, collaborative editing ON
   bin/run-tests.sh --fullloop           # ONLY the opt-in Authentik full-loop (heavy)
 
 EXIT: 0 only if every phase/module that ran reached BUILD SUCCESS.
@@ -302,6 +306,7 @@ handle_embed_signal() {
 RUN_UNIT=1
 RUN_IT=1
 RUN_FULLLOOP=0
+COLLAB=0         # --collab: IT modules run with collaborative editing on
 STRICT_AUDIT=0   # --all: npm audit findings fail the run instead of warning
 ONE_MODULE=""
 
@@ -346,6 +351,7 @@ while [ $# -gt 0 ]; do
     --help|-h) usage; exit 0 ;;
     --list)    list_modules; exit 0 ;;
     --all)     RUN_UNIT=1; RUN_IT=1; RUN_FULLLOOP=1; STRICT_AUDIT=1 ;;
+    --collab)  COLLAB=1 ;;
     --fullloop) RUN_UNIT=0; RUN_IT=0; ONE_MODULE="scim-fullloop" ;;
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
@@ -368,6 +374,11 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# Collaborative-editing server flags + the browser-suite switch (read as -Dit.collab by CollabMode).
+COLLAB_FLAGS="-Dwikantik.collab.enabled=true -Dwikantik.collab.poll.timeoutSeconds=4"
+COLLAB_MVN=()
+[ "$COLLAB" = 1 ] && COLLAB_MVN=( "-Dit.collab.jvmargs=${COLLAB_FLAGS}" "-Dit.collab=true" )
 
 # Kill only OUR stray maven/surefire/cargo JVMs — never the dev Tomcat or app.jar,
 # and never a build that belongs to a DIFFERENT checkout.
@@ -605,13 +616,13 @@ if [ "$RUN_IT" = 1 ]; then
     # Phase 1), so the ~6000 unit tests are not re-run.
     it_pl="$(IFS=,; echo "${IT_MODULES[*]}")"
     run_step "IT (parallel x${IT_PARALLELISM})" "${LOG_DIR}/it-parallel.log" \
-      clean install -Pintegration-tests -fae -T "${IT_PARALLELISM}" "${EMBED_MVN_OPT}" -pl "$it_pl"
+      clean install -Pintegration-tests -fae -T "${IT_PARALLELISM}" "${EMBED_MVN_OPT}" "${COLLAB_MVN[@]}" -pl "$it_pl"
   else
     for mod in "${IT_MODULES[@]}"; do
       # -pl <module> WITHOUT -am: deps resolve from the Phase-1 install, so unit
       # tests are not re-run. Sequential (default). -fae within the module.
       run_step "IT: ${mod}" "${LOG_DIR}/it-$(basename "$mod").log" \
-        clean install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
+        clean install -Pintegration-tests -fae "${EMBED_MVN_OPT}" "${COLLAB_MVN[@]}" -pl "$mod"
     done
   fi
 elif [ -n "$ONE_MODULE" ]; then
@@ -622,7 +633,7 @@ elif [ -n "$ONE_MODULE" ]; then
       clean install -Pintegration-tests,scim-fullloop -fae -pl "$mod"
   else
     run_step "IT: ${mod}" "${LOG_DIR}/it-${ONE_MODULE}.log" \
-      clean install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
+      clean install -Pintegration-tests -fae "${EMBED_MVN_OPT}" "${COLLAB_MVN[@]}" -pl "$mod"
   fi
 fi
 
@@ -637,6 +648,13 @@ if [ "$RUN_FULLLOOP" = 1 ]; then
   else
     echo "no such IT module: $fl_mod" >&2; overall_rc=1
   fi
+fi
+
+# --all: one extra collab-mode pass of the browser suite (R9) — unless the whole run is already --collab.
+if [ "$RUN_FULLLOOP" = 1 ] && [ "$COLLAB" = 0 ]; then
+  cj_mod="wikantik-it-tests/wikantik-it-test-custom-jdbc"
+  run_step "IT: ${cj_mod} (collab)" "${LOG_DIR}/it-custom-jdbc-collab.log" \
+    clean install -Pintegration-tests -fae "${EMBED_MVN_OPT}" "-Dit.collab.jvmargs=${COLLAB_FLAGS}" "-Dit.collab=true" -pl "$cj_mod"
 fi
 
 total_dur="$(fmt_dur $(( $(date +%s) - run_start_epoch )) )"

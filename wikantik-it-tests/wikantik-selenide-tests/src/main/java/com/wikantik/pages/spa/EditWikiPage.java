@@ -22,6 +22,7 @@ import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
+import com.wikantik.its.CollabMode;
 import com.wikantik.its.EditorMode;
 import com.wikantik.its.environment.PlatformKeys;
 import com.wikantik.pages.Page;
@@ -102,11 +103,36 @@ public class EditWikiPage implements SpaPage {
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
     public static EditWikiPage openInMode( final String pageName, final EditorMode mode ) {
+        signInIfCollab();
         pinMode( mode );
         final EditWikiPage page = Page.withUrl( Page.baseUrl() + "/edit/" + pageName ).openAs( new EditWikiPage() );
         $( "[data-testid=page-editor]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         $( "[data-testid=editor-textarea]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+        CollabMode.awaitEditorReady();
         return page.assertMode( mode );
+    }
+
+    /**
+     * Collaborative editing needs a signed-in session (an anonymous join is refused, so the editor opens read-only
+     * as {@code forbidden}), so in collab mode every editor entry point signs Janne in first when nobody is. In
+     * single-author mode this does nothing: those ITs keep editing as the anonymous user they always did.
+     */
+    public static void signInIfCollab() {
+        if ( !CollabMode.enabled() ) {
+            return;
+        }
+        final String base = Page.baseUrl();
+        if ( !WebDriverRunner.hasWebDriverStarted() || !WebDriverRunner.url().startsWith( base )
+                || !WebDriverRunner.url().contains( "/wiki/" ) && !WebDriverRunner.url().contains( "/edit/" ) ) {
+            ViewWikiPage.open( "Main" );
+        }
+        $( "[data-testid=user-badge-signin], [data-testid=user-badge][data-authenticated=true]" )
+            .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+        if ( $( "[data-testid=user-badge-signin]" ).exists() ) {
+            new ViewWikiPage().clickOnLogin().performLogin();
+            $( "[data-testid=user-badge][data-authenticated=true]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+            com.wikantik.its.RestSeedHelper.awaitAdminReady();
+        }
     }
 
     /**
@@ -416,7 +442,7 @@ public class EditWikiPage implements SpaPage {
         $( ".editor-preview .article-prose" )
             .shouldBe( Condition.text( preview ), Duration.ofSeconds( 5 ) );
 
-        $( "[data-testid=editor-save]" ).click();
+        publish();
 
         // Wait for the router to navigate away from /edit/ and the viewer to
         // mount. Use both URL and testid checks: some tests save under the
@@ -427,6 +453,19 @@ public class EditWikiPage implements SpaPage {
 
         $( "[data-testid=page-view]" ).shouldBe( Condition.visible, DEFAULT_WAIT );
         return new ViewWikiPage();
+    }
+
+    /**
+     * Clicks Save. In collab mode Save opens the Publish dialog (draft summary, change note), so this also confirms
+     * it; the caller then waits for the page view as in single-author mode.
+     */
+    public static void publish() {
+        $( "[data-testid=editor-save]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) )
+            .shouldBe( Condition.enabled, Duration.ofSeconds( 10 ) ).click();
+        if ( CollabMode.enabled() ) {
+            $( "[data-testid=publish-dialog]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+            $( "[data-testid=publish-dialog-confirm]" ).shouldBe( Condition.enabled, Duration.ofSeconds( 10 ) ).click();
+        }
     }
 
     /**

@@ -113,6 +113,28 @@ public final class RestSeedHelper {
         }
     }
 
+    /**
+     * Collab mode: lists {@code GET /admin/collab/drafts} and {@code DELETE}s each entry, so no draft outlives its
+     * test. Throws on any non-2xx (a 404 on a purge is tolerated: the draft is already gone).
+     */
+    public static void purgeAllDrafts() throws Exception {
+        final String body = get( "/admin/collab/drafts" );
+        final java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile( "\"sessionId\"\\s*:\\s*\"([0-9a-fA-F-]{36})\"" ).matcher( body );
+        while ( m.find() ) {
+            final HttpRequest req = HttpRequest.newBuilder(
+                    URI.create( Env.TESTS_BASE_URL + "/admin/collab/drafts/" + m.group( 1 ) ) )
+                .header( "Authorization", authHeader() )
+                .DELETE()
+                .build();
+            final HttpResponse< String > resp = CLIENT.send( req, HttpResponse.BodyHandlers.ofString() );
+            if ( resp.statusCode() != 404 && ( resp.statusCode() < 200 || resp.statusCode() >= 300 ) ) {
+                throw new IllegalStateException( "purgeAllDrafts: DELETE draft " + m.group( 1 ) + " failed: "
+                    + resp.statusCode() + " " + resp.body() );
+            }
+        }
+    }
+
     /** POST /admin/knowledge-graph/hub-discovery/run; returns the raw JSON body. */
     public static String runDiscovery() throws Exception {
         return post( "/admin/knowledge-graph/hub-discovery/run", "" );

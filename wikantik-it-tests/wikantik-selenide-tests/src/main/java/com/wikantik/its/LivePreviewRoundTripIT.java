@@ -116,7 +116,7 @@ public class LivePreviewRoundTripIT extends WithIntegrationTestSetup {
         assertEquals( body, EditWikiPage.documentText(), "after scrolling and two mode toggles the editor document must "
             + "still be the seeded page, byte for byte" );
 
-        $( "[data-testid=editor-save]" ).shouldBe( visible, WAIT ).click();
+        EditWikiPage.publish();
         new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
         $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
 
@@ -138,6 +138,9 @@ public class LivePreviewRoundTripIT extends WithIntegrationTestSetup {
         final Map< ?, ? > size = Selenide.executeJavaScript( """
             const s = document.querySelector(arguments[0]);
             if (!s) throw new Error('no editor scroller ' + arguments[0]);
+            // CodeMirror only draws what is inside the browser window: with collaborative editing on, the taller
+            // toolbar leaves the editor at the fold of a 768px window, so bring it fully into view first.
+            s.scrollIntoView({ block: 'start' });
             s.scrollTop = 0;
             return { scrollHeight: s.scrollHeight, clientHeight: s.clientHeight };
             """, SCROLLER );

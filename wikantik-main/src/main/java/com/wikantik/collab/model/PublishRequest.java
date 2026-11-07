@@ -21,7 +21,10 @@ package com.wikantik.collab.model;
 import java.util.Map;
 import java.util.Objects;
 
-/** A request to save a page, conditional on {@code expectedVersion} still being the latest. */
+/**
+ * A request to save a page, conditional on {@code expectedVersion} still being the latest. {@code authorKey} is
+ * required; a server-initiated publish passes the system key {@code "system"}.
+ */
 public record PublishRequest( String pageName, String body, Map< String, Object > meta, int expectedVersion,
                               String authorKey, String changeNote ) {
     public PublishRequest {

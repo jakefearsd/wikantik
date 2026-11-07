@@ -53,7 +53,7 @@ final class ModelChecks {
 
     /**
      * Unmodifiable insertion-ordered copy. Deliberately not {@code Map.copyOf}: page meta can hold null values (empty
-     * YAML fields), which {@code Map.copyOf} rejects.
+     * YAML fields), which {@code Map.copyOf} rejects. The copy is shallow: values are not copied.
      */
     static Map< String, Object > copyMeta( final Map< String, Object > meta, final String name ) {
         Objects.requireNonNull( meta, name );

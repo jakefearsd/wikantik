@@ -22,7 +22,10 @@ import com.wikantik.collab.text.ChangeSet;
 
 import java.util.Objects;
 
-/** One accepted update in a session's log. {@code kind} is {@code "text"} (a client edit) or {@code "server"}. */
+/**
+ * One accepted update in a session's log. {@code kind} is {@code "text"} (a client edit; {@code authorKey} required) or
+ * {@code "server"} (server-originated; {@code authorKey} may be null, as in section 10's author_key column).
+ */
 public record StoredUpdate( int version, String kind, String clientId, String authorKey, ChangeSet changes ) {
     public StoredUpdate {
         ModelChecks.nonNegative( version, "version" );
@@ -31,7 +34,9 @@ public record StoredUpdate( int version, String kind, String clientId, String au
             throw new IllegalArgumentException( "kind must be text or server: " + kind );
         }
         Objects.requireNonNull( clientId, "clientId" );
-        Objects.requireNonNull( authorKey, "authorKey" );
+        if( "text".equals( kind ) ) {
+            ModelChecks.nonBlank( authorKey, "authorKey" );
+        }
         Objects.requireNonNull( changes, "changes" );
     }
 }

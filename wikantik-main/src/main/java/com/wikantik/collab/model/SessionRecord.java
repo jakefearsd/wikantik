@@ -44,6 +44,13 @@ public record SessionRecord( UUID id, String pageName, String status, int basePa
         baseMeta = ModelChecks.copyMeta( baseMeta, "baseMeta" );
         ModelChecks.nonNegative( headVersion, "headVersion" );
         ModelChecks.nonNegative( metaSeq, "metaSeq" );
+        if( ( pendingPublishVersion == null ) != ( pendingPublishBaseVersion == null ) ) {
+            throw new IllegalArgumentException( "pendingPublishVersion and pendingPublishBaseVersion must be both null or both set" );
+        }
+        if( pendingPublishVersion != null ) {
+            ModelChecks.nonNegative( pendingPublishVersion, "pendingPublishVersion" );
+            ModelChecks.nonNegative( pendingPublishBaseVersion, "pendingPublishBaseVersion" );
+        }
         ModelChecks.nonBlank( createdBy, "createdBy" );
         Objects.requireNonNull( createdAt, "createdAt" );
         Objects.requireNonNull( lastEditAt, "lastEditAt" );

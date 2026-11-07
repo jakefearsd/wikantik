@@ -18,13 +18,13 @@
  */
 package com.wikantik.collab.model;
 
-import java.util.Objects;
-
-/** One last-writer-wins meta field assignment; {@code value} may be null (an empty or cleared field). */
+/**
+ * One last-writer-wins meta field assignment; {@code value} may be null (an empty or cleared field) and
+ * {@code authorKey} may be null for a server-originated op.
+ */
 public record StoredMetaOp( long seq, String authorKey, String field, Object value ) {
     public StoredMetaOp {
         ModelChecks.nonNegative( seq, "seq" );
-        Objects.requireNonNull( authorKey, "authorKey" );
         ModelChecks.nonBlank( field, "field" );
     }
 }

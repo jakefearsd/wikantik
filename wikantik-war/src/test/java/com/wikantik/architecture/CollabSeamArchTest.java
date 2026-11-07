@@ -52,24 +52,39 @@ class CollabSeamArchTest {
 
     private static final String ADAPTERS = "..collab.adapter..";
 
-    private static DescribedPredicate<JavaCall<?>> callTo( final Class<?> owner, final String name ) {
+    /** Matches a call to {@code owner.name} taking exactly the given parameter types (the full signature). */
+    private static DescribedPredicate<JavaCall<?>> callTo( final Class<?> owner, final String name,
+                                                           final Class<?>... params ) {
+        final java.util.List<String> paramNames = java.util.Arrays.stream( params ).map( Class::getName ).toList();
         return JavaCall.Predicates.target( HasName.Predicates.name( name ) )
             .and( JavaCall.Predicates.target(
-                HasOwner.Predicates.With.owner( JavaClass.Predicates.equivalentTo( owner ) ) ) );
+                HasOwner.Predicates.With.owner( JavaClass.Predicates.equivalentTo( owner ) ) ) )
+            .and( DescribedPredicate.describe( "with parameters " + paramNames,
+                (JavaCall<?> c) -> c.getTarget().getRawParameterTypes().stream()
+                    .map( JavaClass::getName ).toList().equals( paramNames ) ) );
     }
 
+    /**
+     * Zero-argument {@code now()} overloads only: {@code Instant.now(Clock)} is the sanctioned injected-clock pattern.
+     */
     private static final DescribedPredicate<JavaCall<?>> READS_THE_CLOCK_OR_SLEEPS =
-        callTo( Thread.class, "sleep" )
+        callTo( Thread.class, "sleep", long.class )
+            .or( callTo( Thread.class, "sleep", long.class, int.class ) )
+            .or( callTo( Thread.class, "sleep", java.time.Duration.class ) )
             .or( callTo( System.class, "currentTimeMillis" ) )
+            .or( callTo( System.class, "nanoTime" ) )
             .or( callTo( Instant.class, "now" ) )
-            .or( callTo( LocalDateTime.class, "now" ) );
+            .or( callTo( LocalDateTime.class, "now" ) )
+            .or( callTo( java.time.Clock.class, "systemUTC" ) )
+            .or( callTo( java.time.Clock.class, "systemDefaultZone" ) );
 
     @ArchTest
     static final ArchRule no_wall_clock_or_sleep =
         noClasses().that().resideInAPackage( "com.wikantik.collab.." )
             .and().resideOutsideOfPackage( ADAPTERS )
             .should().callMethodWhere( READS_THE_CLOCK_OR_SLEEPS )
-            .as( "collab core must not call Thread.sleep, System.currentTimeMillis, Instant.now or "
+            .as( "collab core must not call Thread.sleep, System.currentTimeMillis/nanoTime, zero-arg Instant.now/LocalDateTime.now,"
+               + " Clock.systemUTC/systemDefaultZone or "
                + "LocalDateTime.now — inject a clock/scheduler" );
 
     @ArchTest
@@ -85,6 +100,6 @@ class CollabSeamArchTest {
             .and().resideOutsideOfPackage( ADAPTERS )
             .should().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.WikiEngine" )
             .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.api.core.Engine" )
-            .orShould().dependOnClassesThat().resideInAPackage( "java.sql.." )
-            .as( "collab core must not depend on WikiEngine, Engine or java.sql — use the ports" );
+            .orShould().dependOnClassesThat().resideInAnyPackage( "java.sql..", "javax.sql..", "com.wikantik.jdbc.." )
+            .as( "collab core must not depend on WikiEngine, Engine java.sql, javax.sql or com.wikantik.jdbc — use the ports" );
 }

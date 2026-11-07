@@ -1,0 +1,2017 @@
+{
+  "format": 1,
+  "seed": 1,
+  "profile": "LOSSY",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 300,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 2
+  },
+  "initialDoc": "協g\n🎉s😀eq gra作o𝄞 協zuey\nnkc協yyi😀o j集jpyqx c 集wk文 v\n作if😀mqvw\n𝄞i文𝄞\nad\nn𝕏e🎉m𝄞l\n字 \ngst 🎉s\nado\n字𝄞aae\nofkt oy中",
+  "steps": [
+    {
+      "id": 0,
+      "action": "SEND_PULL",
+      "client": 0
+    },
+    {
+      "id": 1,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 12,
+      "to": 12,
+      "insert": "𝄞作\nt"
+    },
+    {
+      "id": 2,
+      "action": "SEND_PUSH",
+      "client": 0
+    },
+    {
+      "id": 3,
+      "action": "DUPLICATE",
+      "messageId": "0.0"
+    },
+    {
+      "id": 4,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 15,
+      "to": 15,
+      "insert": "g \nx\n"
+    },
+    {
+      "id": 5,
+      "action": "ADVANCE_CLOCK",
+      "millis": 25000
+    },
+    {
+      "id": 6,
+      "action": "DELIVER",
+      "messageId": "2.0"
+    },
+    {
+      "id": 7,
+      "action": "DUPLICATE",
+      "messageId": "0.0"
+    },
+    {
+      "id": 8,
+      "action": "LOCAL_EDIT",
+      "client": 1,
+      "from": 89,
+      "to": 89,
+      "insert": "x"
+    },
+    {
+      "id": 9,
+      "action": "DELIVER",
+      "messageId": "3.0"
+    },
+    {
+      "id": 10,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 56,
+      "to": 56,
+      "insert": " rmc"
+    },
+    {
+      "id": 11,
+      "action": "DELIVER",
+      "messageId": "6.0"
+    },
+    {
+      "id": 12,
+      "action": "DELIVER",
+      "messageId": "0.0"
+    },
+    {
+      "id": 13,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 76,
+      "to": 76,
+      "insert": "\n\nn"
+    },
+    {
+      "id": 14,
+      "action": "DUPLICATE",
+      "messageId": "7.0"
+    },
+    {
+      "id": 15,
+      "action": "SEND_PUSH",
+      "client": 0
+    },
+    {
+      "id": 16,
+      "action": "DROP",
+      "messageId": "7.0"
+    },
+    {
+      "id": 17,
+      "action": "DROP",
+      "messageId": "9.0"
+    },
+    {
+      "id": 18,
+      "action": "SEND_PULL",
+      "client": 1
+    },
+    {
+      "id": 19,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 20,
+      "action": "DELIVER",
+      "messageId": "12.0"
+    },
+    {
+      "id": 21,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 127,
+      "to": 127,
+      "insert": "作x"
+    },
+    {
+      "id": 22,
+      "action": "DROP",
+      "messageId": "15.0"
+    },
+    {
+      "id": 23,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 6,
+      "to": 6,
+      "insert": "cgn🎉kk"
+    },
+    {
+      "id": 24,
+      "action": "DROP",
+      "messageId": "18.0"
+    },
+    {
+      "id": 25,
+      "action": "TIMEOUT",
+      "client": 0,
+      "op": "push"
+    },
+    {
+      "id": 26,
+      "action": "DELIVER",
+      "messageId": "19.0"
+    },
+    {
+      "id": 27,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 89,
+      "to": 94,
+      "insert": "\no🎉作d\n"
+    },
+    {
+      "id": 28,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 138,
+      "to": 138,
+      "insert": "e𝄞"
+    },
+    {
+      "id": 29,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 30,
+      "action": "DELIVER",
+      "messageId": "14.0"
+    },
+    {
+      "id": 31,
+      "action": "DUPLICATE",
+      "messageId": "26.0"
+    },
+    {
+      "id": 32,
+      "action": "SEND_PULL",
+      "client": 0
+    },
+    {
+      "id": 33,
+      "action": "DROP",
+      "messageId": "30.0"
+    },
+    {
+      "id": 34,
+      "action": "DELIVER",
+      "messageId": "25.0"
+    },
+    {
+      "id": 35,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 62,
+      "to": 62,
+      "insert": "x"
+    },
+    {
+      "id": 36,
+      "action": "DELIVER",
+      "messageId": "26.0"
+    },
+    {
+      "id": 37,
+      "action": "DELIVER",
+      "messageId": "29.0"
+    },
+    {
+      "id": 38,
+      "action": "DELIVER",
+      "messageId": "37.0"
+    },
+    {
+      "id": 39,
+      "action": "ADVANCE_CLOCK",
+      "millis": 10000
+    },
+    {
+      "id": 40,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 41,
+      "action": "DELIVER",
+      "messageId": "31.0"
+    },
+    {
+      "id": 42,
+      "action": "TIMEOUT",
+      "client": 1,
+      "op": "pull"
+    },
+    {
+      "id": 43,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 90,
+      "to": 90,
+      "insert": "𝄞文"
+    },
+    {
+      "id": 44,
+      "action": "DELIVER",
+      "messageId": "32.0"
+    },
+    {
+      "id": 45,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 76,
+      "to": 76,
+      "insert": "hywwg"
+    },
+    {
+      "id": 46,
+      "action": "DELIVER",
+      "messageId": "40.0"
+    },
+    {
+      "id": 47,
+      "action": "DELIVER",
+      "messageId": "42.0"
+    },
+    {
+      "id": 48,
+      "action": "DELIVER",
+      "messageId": "46.0"
+    },
+    {
+      "id": 49,
+      "action": "ADVANCE_CLOCK",
+      "millis": 22000
+    },
+    {
+      "id": 50,
+      "action": "ADVANCE_CLOCK",
+      "millis": 9000
+    },
+    {
+      "id": 51,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 52,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 33,
+      "to": 33,
+      "insert": "😀\ntf"
+    },
+    {
+      "id": 53,
+      "action": "DELIVER",
+      "messageId": "34.0"
+    },
+    {
+      "id": 54,
+      "action": "DELIVER",
+      "messageId": "44.0"
+    },
+    {
+      "id": 55,
+      "action": "DELIVER",
+      "messageId": "47.0"
+    },
+    {
+      "id": 56,
+      "action": "DELIVER",
+      "messageId": "51.0"
+    },
+    {
+      "id": 57,
+      "action": "DELIVER",
+      "messageId": "56.0"
+    },
+    {
+      "id": 58,
+      "action": "DROP",
+      "messageId": "57.0"
+    },
+    {
+      "id": 59,
+      "action": "SEND_PULL",
+      "client": 0
+    }
+  ],
+  "outcome": {
+    "status": "PASS",
+    "message": "converged at head 13 with doc length 161",
+    "at": "end"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "p1",
+          "clientId": "c1",
+          "version": 0,
+          "doc": "協g\n🎉s😀eq gra作o𝄞 協zuey\nnkc協yyi😀o j集jpyqx c 集wk文 v\n作if😀mqvw\n𝄞i文𝄞\nad\nn𝕏e🎉m𝄞l\n字 \ngst 🎉s\nado\n字𝄞aae\nofkt oy中\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            12,
+            [
+              0,
+              "𝄞作",
+              "t"
+            ],
+            103
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                12,
+                [
+                  0,
+                  "𝄞作",
+                  "t"
+                ],
+                103
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            15,
+            [
+              0,
+              "g ",
+              "x",
+              ""
+            ],
+            105
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                12,
+                [
+                  0,
+                  "𝄞作",
+                  "t"
+                ],
+                103
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            56,
+            [
+              0,
+              " rmc"
+            ],
+            69
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                12,
+                [
+                  0,
+                  "𝄞作",
+                  "t"
+                ],
+                103
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "local",
+          "changes": [
+            76,
+            [
+              0,
+              "",
+              "",
+              "n"
+            ],
+            53
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                12,
+                [
+                  0,
+                  "𝄞作",
+                  "t"
+                ],
+                103
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            }
+          ]
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "c1",
+              "changes": [
+                12,
+                [
+                  0,
+                  "𝄞作",
+                  "t"
+                ],
+                103
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            127,
+            [
+              0,
+              "作x"
+            ],
+            5
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            6,
+            [
+              0,
+              "cgn🎉kk"
+            ],
+            128
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            89,
+            [
+              5,
+              "",
+              "o🎉作d",
+              ""
+            ],
+            47
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            138,
+            [
+              0,
+              "e𝄞"
+            ],
+            5
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            62,
+            [
+              0,
+              "x"
+            ],
+            84
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                62,
+                [
+                  0,
+                  "x"
+                ],
+                84
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            90,
+            [
+              0,
+              "𝄞文"
+            ],
+            57
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                62,
+                [
+                  0,
+                  "x"
+                ],
+                84
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                90,
+                [
+                  0,
+                  "𝄞文"
+                ],
+                57
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            76,
+            [
+              0,
+              "hywwg"
+            ],
+            74
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                62,
+                [
+                  0,
+                  "x"
+                ],
+                84
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                90,
+                [
+                  0,
+                  "𝄞文"
+                ],
+                57
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "hywwg"
+                ],
+                74
+              ]
+            }
+          ]
+        },
+        {
+          "type": "local",
+          "changes": [
+            33,
+            [
+              0,
+              "😀",
+              "tf"
+            ],
+            122
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 1,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                62,
+                [
+                  0,
+                  "x"
+                ],
+                84
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                90,
+                [
+                  0,
+                  "𝄞文"
+                ],
+                57
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "hywwg"
+                ],
+                74
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                33,
+                [
+                  0,
+                  "😀",
+                  "tf"
+                ],
+                122
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 6
+        },
+        {
+          "type": "receive",
+          "fromVersion": 1,
+          "updates": [
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 6,
+          "sendable": [
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                62,
+                [
+                  0,
+                  "x"
+                ],
+                84
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                90,
+                [
+                  0,
+                  "𝄞文"
+                ],
+                57
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "hywwg"
+                ],
+                74
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                33,
+                [
+                  0,
+                  "😀",
+                  "tf"
+                ],
+                122
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 12
+        },
+        {
+          "type": "receive",
+          "fromVersion": 6,
+          "updates": [
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                62,
+                [
+                  0,
+                  "x"
+                ],
+                84
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                90,
+                [
+                  0,
+                  "𝄞文"
+                ],
+                57
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "hywwg"
+                ],
+                74
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                33,
+                [
+                  0,
+                  "😀",
+                  "tf"
+                ],
+                122
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 12,
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 12,
+          "updates": [
+            {
+              "clientID": "c2",
+              "changes": [
+                129,
+                [
+                  0,
+                  "x"
+                ],
+                31
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 13,
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "p2",
+          "clientId": "c2",
+          "version": 0,
+          "doc": "協g\n🎉s😀eq gra作o𝄞 協zuey\nnkc協yyi😀o j集jpyqx c 集wk文 v\n作if😀mqvw\n𝄞i文𝄞\nad\nn𝕏e🎉m𝄞l\n字 \ngst 🎉s\nado\n字𝄞aae\nofkt oy中\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            89,
+            [
+              0,
+              "x"
+            ],
+            26
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "sendable": [
+            {
+              "clientID": "c2",
+              "changes": [
+                89,
+                [
+                  0,
+                  "x"
+                ],
+                26
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 6
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "c1",
+              "changes": [
+                12,
+                [
+                  0,
+                  "𝄞作",
+                  "t"
+                ],
+                103
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                15,
+                [
+                  0,
+                  "g ",
+                  "x",
+                  ""
+                ],
+                105
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                56,
+                [
+                  0,
+                  " rmc"
+                ],
+                69
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "",
+                  "",
+                  "n"
+                ],
+                53
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                127,
+                [
+                  0,
+                  "作x"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                6,
+                [
+                  0,
+                  "cgn🎉kk"
+                ],
+                128
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 6,
+          "sendable": [
+            {
+              "clientID": "c2",
+              "changes": [
+                113,
+                [
+                  0,
+                  "x"
+                ],
+                28
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 6
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 12
+        },
+        {
+          "type": "receive",
+          "fromVersion": 6,
+          "updates": [
+            {
+              "clientID": "c1",
+              "changes": [
+                89,
+                [
+                  5,
+                  "",
+                  "o🎉作d",
+                  ""
+                ],
+                47
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                138,
+                [
+                  0,
+                  "e𝄞"
+                ],
+                5
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                62,
+                [
+                  0,
+                  "x"
+                ],
+                84
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                90,
+                [
+                  0,
+                  "𝄞文"
+                ],
+                57
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                76,
+                [
+                  0,
+                  "hywwg"
+                ],
+                74
+              ]
+            },
+            {
+              "clientID": "c1",
+              "changes": [
+                33,
+                [
+                  0,
+                  "😀",
+                  "tf"
+                ],
+                122
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 12,
+          "sendable": [
+            {
+              "clientID": "c2",
+              "changes": [
+                129,
+                [
+                  0,
+                  "x"
+                ],
+                31
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 13
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 13
+        },
+        {
+          "type": "receive",
+          "fromVersion": 12,
+          "updates": [
+            {
+              "clientID": "c2",
+              "changes": [
+                129,
+                [
+                  0,
+                  "x"
+                ],
+                31
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 13,
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

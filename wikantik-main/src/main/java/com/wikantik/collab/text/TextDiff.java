@@ -50,8 +50,8 @@ public final class TextDiff {
             throw new IllegalArgumentException( "TextDiff inputs must be LF-only" );
         }
         final List< int[] > hunks = new ArrayList<>();   // {aFrom, aTo, bFrom, bTo}
-        final int prefix = commonPrefix( from, 0, from.length(), to, 0, to.length() );
-        final int suffix = commonSuffix( from, prefix, from.length(), to, prefix, to.length() );
+        final int prefix = HunkScan.commonPrefix( from, 0, from.length(), to, 0, to.length() );
+        final int suffix = HunkScan.commonSuffix( from, prefix, from.length(), to, prefix, to.length() );
         final int aEnd = from.length() - suffix;
         final int bEnd = to.length() - suffix;
         if ( prefix < aEnd && prefix < bEnd ) {
@@ -59,15 +59,15 @@ public final class TextDiff {
         } else if ( prefix < aEnd || prefix < bEnd ) {
             hunks.add( new int[] { prefix, aEnd, prefix, bEnd } );
         }
-        return build( from, to, widenAndMerge( from, to, hunks ) );
+        return build( from, to, HunkScan.widenAndMerge( from, to, hunks ) );
     }
 
     private static void lineHunks( final String a, final int a0, final int a1, final String b, final int b0, final int b1,
                                    final List< int[] > out ) {
-        final int[] aLines = lineStarts( a, a0, a1 );
-        final int[] bLines = lineStarts( b, b0, b1 );
-        final String[] aText = lines( a, aLines, a1 );
-        final String[] bText = lines( b, bLines, b1 );
+        final int[] aLines = HunkScan.lineStarts( a, a0, a1 );
+        final int[] bLines = HunkScan.lineStarts( b, b0, b1 );
+        final String[] aText = HunkScan.lines( a, aLines, a1 );
+        final String[] bText = HunkScan.lines( b, bLines, b1 );
         final Revision rev;
         try {
             rev = Diff.diff( aText, bText, new MyersDiff() );
@@ -94,86 +94,11 @@ public final class TextDiff {
 
     private static void refine( final String a, final int a0, final int a1, final String b, final int b0, final int b1,
                                 final List< int[] > out ) {
-        final int p = commonPrefix( a, a0, a1, b, b0, b1 );
-        final int s = commonSuffix( a, a0 + p, a1, b, b0 + p, b1 );
+        final int p = HunkScan.commonPrefix( a, a0, a1, b, b0, b1 );
+        final int s = HunkScan.commonSuffix( a, a0 + p, a1, b, b0 + p, b1 );
         if ( a0 + p < a1 - s || b0 + p < b1 - s ) {
             out.add( new int[] { a0 + p, a1 - s, b0 + p, b1 - s } );
         }
-    }
-
-    /** Offsets of each line start in {@code [from, to)}; lines keep their {@code \n}. */
-    private static int[] lineStarts( final String s, final int from, final int to ) {
-        int count = from < to ? 1 : 0;
-        for ( int i = from; i < to - 1; i++ ) {
-            if ( s.charAt( i ) == '\n' ) {
-                count++;
-            }
-        }
-        final int[] starts = new int[ count ];
-        if ( count > 0 ) {
-            int n = 1;
-            starts[ 0 ] = from;
-            for ( int i = from; i < to - 1; i++ ) {
-                if ( s.charAt( i ) == '\n' ) {
-                    starts[ n++ ] = i + 1;
-                }
-            }
-        }
-        return starts;
-    }
-
-    private static String[] lines( final String s, final int[] starts, final int end ) {
-        final String[] out = new String[ starts.length ];
-        for ( int i = 0; i < starts.length; i++ ) {
-            out[ i ] = s.substring( starts[ i ], i + 1 < starts.length ? starts[ i + 1 ] : end );
-        }
-        return out;
-    }
-
-    private static int commonPrefix( final String a, final int a0, final int a1, final String b, final int b0, final int b1 ) {
-        final int max = Math.min( a1 - a0, b1 - b0 );
-        int i = 0;
-        while ( i < max && a.charAt( a0 + i ) == b.charAt( b0 + i ) ) {
-            i++;
-        }
-        return i;
-    }
-
-    private static int commonSuffix( final String a, final int a0, final int a1, final String b, final int b0, final int b1 ) {
-        final int max = Math.min( a1 - a0, b1 - b0 );
-        int i = 0;
-        while ( i < max && a.charAt( a1 - 1 - i ) == b.charAt( b1 - 1 - i ) ) {
-            i++;
-        }
-        return i;
-    }
-
-    private static boolean insidePair( final String s, final int pos ) {
-        return pos > 0 && pos < s.length() && Character.isHighSurrogate( s.charAt( pos - 1 ) )
-                && Character.isLowSurrogate( s.charAt( pos ) );
-    }
-
-    /** Widens boundaries off surrogate pairs, then merges hunks the widening made touch or overlap. */
-    private static List< int[] > widenAndMerge( final String a, final String b, final List< int[] > hunks ) {
-        final List< int[] > out = new ArrayList<>();
-        for ( final int[] h : hunks ) {
-            while ( h[ 0 ] > 0 && ( insidePair( a, h[ 0 ] ) || insidePair( b, h[ 2 ] ) ) ) {
-                h[ 0 ]--;
-                h[ 2 ]--;
-            }
-            while ( h[ 1 ] < a.length() && ( insidePair( a, h[ 1 ] ) || insidePair( b, h[ 3 ] ) ) ) {
-                h[ 1 ]++;
-                h[ 3 ]++;
-            }
-            final int[] last = out.isEmpty() ? null : out.get( out.size() - 1 );
-            if ( last != null && h[ 0 ] <= last[ 1 ] ) {
-                last[ 1 ] = Math.max( last[ 1 ], h[ 1 ] );
-                last[ 3 ] = Math.max( last[ 3 ], h[ 3 ] );
-            } else {
-                out.add( h );
-            }
-        }
-        return out;
     }
 
     private static ChangeSet build( final String a, final String b, final List< int[] > hunks ) {

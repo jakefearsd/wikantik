@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Collaborative editing: shared drafts, publishing and attribution (dark).** Behind `wikantik.collab.enabled`
+  (default off), several editors can edit one page at once in a shared draft that survives closing the editor, and
+  **Save** becomes **Publish**. A banner shows who has unpublished changes and when they last edited; publishing goes
+  through a dialog with the diff, the changed frontmatter fields and the contributors; and every published version
+  records its contributors, shown by display name in the page history. Discard, offline-draft import, and Convert and
+  publish for legacy-syntax pages are included. Operators get `collab.*` audit entries, `wikantik_collab_*` metrics,
+  draft retention (`wikantik.collab.draft.retentionDays`, default keep forever), an admin drafts list and purge
+  (`GET`/`DELETE /admin/collab/drafts`), and a k6 load scenario (`loadtest/collab-load.js`); the page and for-agent
+  payloads carry `draft_active`. Not enabled anywhere by default: the default-on checklist is in `docs/MultiEdit.MD`
+  section 15, and the user guide is `docs/user/CollaborativeEditing.md`.
 - **Collaborative editing: presence, tags and outside writers (dark).** Behind `wikantik.collab.enabled` (default off),
   editors on the same page now see each other's carets and names, co-edit tags and other frontmatter fields, and have
   saves from the REST API, MCP, renames and the directory watcher merged into the live draft. A page rename takes the

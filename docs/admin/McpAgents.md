@@ -246,7 +246,7 @@ allow-all and logs an `ERROR`.
 | `retrieve_context` | Discover which pages and sections are relevant to a query |
 | `get_page` | Fetch one page's frontmatter metadata and URL by name |
 | `read_pages` | Batched raw-markdown read of up to 20 pages |
-| `get_page_for_agent` | Token-budgeted page projection: summary, key facts, outline, verification state |
+| `get_page_for_agent` | Token-budgeted page projection: summary, key facts, outline, verification state, and `draft_active` (true while someone is editing the page collaboratively or its shared draft holds unpublished changes; your write still lands and merges into the draft, but a human may publish over it soon) |
 | `get_page_by_id` | Resolve a rename-stable `canonical_id` to the current page descriptor |
 | `get_page_neighbors` | A page's 1-hop Page Graph neighborhood without bodies: wikilinks out and in, plus cluster siblings and hub |
 | `list_pages` | Browse pages by metadata filters |

@@ -800,6 +800,16 @@ Multi-statement writes (append updates + bump `head_version`; publish cleanup) r
 (`V065__deleted_logins` / `UserDeletionService`) must cover `author_key` in these tables — add
 them to whatever pseudonymisation that service already performs.
 
+**Phase 3 (Decision 4) — contributor rows are replaced, not merged.** `recordContributors(canonicalId, v, keys,
+created)` deletes the rows at `(canonical_id, v)` and inserts the new ones in one transaction; a publish that created
+the page (base version 0: a new page or a recreate) first deletes every earlier row of that `canonical_id`, because
+version numbers restart. A publish whose saved frontmatter has no `canonical_id` records nothing and logs a WARN.
+Contributors persist in the snapshot (`V067`, `collab_snapshot.contributors JSONB`), not in a per-push table.
+*Residual risk:* a page deleted and recreated through the **single-author** editor (or REST/MCP) with the same
+`canonical_id` keeps the old version's rows until a collaborative publish creates it again, so the history of the
+recreated page can show contributors of the deleted page's same-numbered versions. Accepted: it needs a delete and a
+same-`canonical_id` recreate outside collaboration, and it misattributes credit without exposing text.
+
 ## 11. Configuration
 
 Declare each key in `wikantik-main/src/main/resources/ini/wikantik.properties` (new
@@ -1107,10 +1117,10 @@ is asserted first.
 | Phase | Content | Ships |
 |---|---|---|
 | **0 — Foundations** | Java `ChangeSet` + `TextDiff` port with shared fixtures (F0) and seeded property tests. Test harness F1–F9 + `CollabInvariants` against a stub session, so Phase 1 is written test-first into it. **A2: atomic per-page save lock + `PageSaveHelper` returns the written version and a no-op flag** (fixes today's strict-mode race). **A7: async-supported filter fixes + `AsyncListener` timing/MDC.** A8 limiter decision. | Nothing user-visible (A2 is a bug fix). **Done 2026-11-07** — plan `docs/superpowers/plans/2026-11-06-multiedit-phase0-foundations.md`, commits `51418c774a..f2eda61eeb` on main |
-| **1 — Core text collaboration** | Migration, `CollabStore`, `CollabSession` (push/pull/ring/snapshot), `CollabResource` (join/updates/leave), publish via `PageSaveHelper` with normalisation mapping, frontend `collabPeer` + Publish button, kill switch default **off**, convergence fuzz test, REST IT | Dark; enable on a staging instance. **Done 2026-11-07** (merged with Phase 2 for the gate and the final review, ruling P13) |
-| **2 — Presence + metadata + external merges** | Presence + remote cursors + `PresenceBar`; meta ops + form integration; `CollabPageEventListener` (external merges, rename, delete); external-change toast/highlight; Selenide two-browser test | Enable in prod for the admin group first (optional `wikantik.collab.enabled` per-group follow-up if wanted). **Done 2026-11-07, dark** (kill switch still default off) |
-| **3 — Draft UX + attribution** | Draft banner, discard, publish dialog diff, offline-draft import from `useDraft`, `page_version_contributor` + history UI, audit entries, metrics | Default **on** |
-| **4 — Polish / later** | Reader "being edited" badge, WebSocket transport, draft expiry admin view at `/admin/collab`, multi-node (§12.4), watch-only participants | As needed |
+| **1 — Core text collaboration** | Migration, `CollabStore`, `CollabSession` (push/pull/ring/snapshot), `CollabResource` (join/updates/leave), publish via `PageSaveHelper` with normalisation mapping, frontend `collabPeer` + Publish button, kill switch default **off**, convergence fuzz test, REST IT | Dark; enable on a staging instance. **Done 2026-11-07** (merged with Phase 2 for the gate and the final review, ruling P13; gated with Phase 3, Task 14) |
+| **2 — Presence + metadata + external merges** | Presence + remote cursors + `PresenceBar`; meta ops + form integration; `CollabPageEventListener` (external merges, rename, delete); external-change toast/highlight; Selenide two-browser test | Enable in prod for the admin group first (optional `wikantik.collab.enabled` per-group follow-up if wanted). **Done 2026-11-07, dark** (kill switch still default off; gated with Phase 3, Task 14) |
+| **3 — Draft UX + attribution** | Draft banner, discard, publish dialog diff, offline-draft import from `useDraft`, `page_version_contributor` + history UI, audit entries, metrics | Default-on ready; kill switch still off (Decision 1). **Done 2026-11-07** — plan `docs/superpowers/plans/2026-11-07-multiedit-phase3-draft-ux-attribution.md`; the flip waits on the default-on checklist below |
+| **4 — Polish / later** | Reader "being edited" badge, WebSocket transport, draft expiry admin view at `/admin/collab`, multi-node (§12.4), watch-only participants | As needed. **Not started** (Phase 3 shipped the admin drafts REST list and purge, not the view) |
 
 **Phase 0 outcome (2026-11-07).** What now exists: the Java `ChangeSet`/`TextDiff` port, held to `@codemirror/state`
 by a 1,200-case shared corpus (about 52,000 individual checks); the collaboration ports, an in-memory store and the
@@ -1140,6 +1150,116 @@ flip it. To pilot: (1) make sure the pilot users are in the `Admin` group (`/adm
 `wikantik-custom.properties` (or `-Dwikantik.collab.enabled=true`) on one instance and restart; (3) watch the server log
 for `collab` WARN lines and `/api/capabilities` (`collab.enabled`). Turning it off again leaves live sessions able to
 publish and discard but refuses new joins (503), and pages edit as before. A per-group switch is not built.
+
+**Phase 3 outcome (2026-11-07).** A shared draft now explains itself and credits its authors. Opening the editor shows
+a banner when the draft holds unpublished changes ("Unpublished changes by Ana and Raj — last edit 2h ago") with
+Publish, View changes, Discard and Dismiss. Publishing goes through a dialog with the server-rendered diff
+(`GET /api/collab/{page}/draft`, through `DifferenceManager`), the changed frontmatter fields, the contributors and
+the change note. Every published version records its contributors in `page_version_contributor` (keyed by
+`canonical_id`, `V067` keeps the running map in the snapshot), shown by display name in the history and diff views
+through `PublicIdentity`. An offline browser draft is offered once for import (a restore only while nobody else is in
+the session, ruling P10). Convert to Markdown becomes Convert and publish. Operability: eight `collab.*` audit event
+types, seven `wikantik_collab_*` meters, draft retention (`draft.retentionDays`), the admin drafts list and purge
+(`/admin/collab/drafts`), the page and for-agent `draft_active` flag, and the collab load scenario
+(`loadtest/collab-load.js`). The editor Selenide suite passes in collaborative mode (`bin/run-tests.sh --collab`,
+ruling P12), and `--all` runs that pass. The Phase 1 and 2 close-out gates (ruling P13) and the combined Phase 1+2
+final review (security rulings F1, F2, F3') were folded into this phase's close-out. Gate results (Task 14):
+`bin/run-tests.sh --parallel 4` green at 9450468f58 (15,183 unit tests, PMD ratchet, npm audit, eslint, 4,786 vitest
+tests with coverage, and the five IT modules: rest 413, custom-jdbc 192, sso 6, knowledge-disabled 5, dense 5); the
+collab-mode Selenide pass (`bin/run-tests.sh --module custom-jdbc --collab`) 192/192; soaks
+`-Dcollab.fuzz.seeds=50000` (all ten target and profile pairs) and `-Dcollab.stress.runs=5000` green; telemetry
+conformance against a local collab-enabled deploy 3 pass, 0 fail (the two log checks skip: the local deploy does not log
+JSON), with all seven `wikantik_collab_*` families scraped. The gate found the defects listed below.
+Operator guide: `docs/admin/WikantikOperations.md` §1.11; user guide: `docs/user/CollaborativeEditing.md` and the wiki
+page `CollaborativeEditing`.
+
+**Phase 3 planner decisions** (plan `docs/superpowers/plans/2026-11-07-multiedit-phase3-draft-ux-attribution.md`):
+
+1. **No default flip in Phase 3.** Phase 3 delivers default-on *readiness*; the flip is a separate one-line change,
+   gated by the checklist below (no admin-group soak yet, no per-group gate, §0's Cloudflare check outstanding).
+2. **Credit at the publish point.** A publish of collab version V and meta seq M_V credits an author with an accepted
+   text update at version ≤ V or a meta op at seq ≤ M_V since the last publish; edits made during the save go to the
+   next version. The creator's A11 seed counts. External merges, discards and publish rewrites credit nobody; the
+   publisher is credited only if they contributed. An unchanged save credits nobody but advances the publish point
+   (re-ruling D1').
+3. **No names appended to the change note.** The version author is the publisher (`AuthorKeys`); contributors are rows.
+   Both render at read time through `PublicIdentity`, so renames and deletions show correctly. @mentions credit the
+   publisher.
+4. **Contributor rows are replaced, not merged**, and a creating publish clears the `canonical_id`'s earlier rows (§10,
+   with its residual risk).
+5. **Contributors persist in the snapshot** (`V067`), not a per-push table; a reload replays retained authored updates.
+6. **The draft diff is rendered by the server** (`GET /api/collab/{page}/draft`); no npm diff dependency.
+7. **§0's "orphaned draft freezes for an administrator"** is a `collab.orphaned` audit entry plus the admin drafts list,
+   not the `frozen` status (which means "page deleted"). An administrator can purge it.
+8. **Convert to Markdown in collab mode is "Convert and publish"**: one transaction, published at once with
+   `markupSyntax: "markdown"`, so the syntax always travels with a page version (ruling R12: a failed publish never
+   reverts the conversion; a "Publish as Markdown" banner retries).
+9. **The collab-mode Selenide run** (`bin/run-tests.sh --module custom-jdbc --collab`) joins `--all` and the close-out;
+   it joins the default `--parallel 4` gate when the default flips.
+
+**Default-on checklist.** Every item must be ticked before `wikantik.collab.enabled` defaults to `true`; the flip itself
+is a separate one-line change to `ini/wikantik.properties` (and the regenerated configuration reference).
+
+- [x] The collab-mode Selenide run is green (P12): `bin/run-tests.sh --module custom-jdbc --collab`, and `--all` runs
+      it. Green at 9450468f58: 192/192 with collaboration on.
+- [ ] An admin-group (or staging) soak of at least a week with collaboration on (§15 "Enabling it for the admin group
+      first"), with the collab meters in jakemon (push p95 from `wikantik_collab_push_latency_seconds`, the `rebase` and
+      `rejected` shares of `wikantik_collab_push_total`, `wikantik_collab_resync_total`, publish results) and the
+      `collab.*` audit entries reviewed (`/admin/audit`), including any `collab.orphaned`.
+- [ ] Cloudflare bot and WAF rate rules checked for `/api/collab/*` (§0 Minor): one push a second per typing editor and
+      one held long-poll per open editor must not trip a challenge or a rate rule.
+- [ ] `WIKANTIK_RATELIMIT_SESSION_PERCLIENT` sized from the load figure (`loadtest/collab-load.js`), allowing for several
+      editors behind one NAT sharing the per-IP bucket.
+- [ ] `wikantik.collab.draft.retentionDays` chosen for prod (default `0` keeps unpublished drafts forever).
+- [ ] The per-group gate decided: built (a `wikantik.collab.*` group key) or explicitly declined.
+
+**Defects found and fixed by the close-out gate** (Task 14):
+
+- `get_page_for_agent` failed every call on the knowledge MCP once `draft_active` was added: its payload became a Gson
+  `JsonObject`, which the SDK's Jackson output validation cannot serialise (`DisplayNameLeakProbeIT`).
+  `McpToolUtils.jsonResult` now turns a Gson tree into plain values for `structuredContent` (87914ed55b).
+- The 50,000-seed fuzz soak found two text faults the 10,000-seed runs had not reached. An unfinished publish (its base
+  commit failed) whose page was renamed while the rekey was refused dropped its marker on the next settle (no page under
+  the old name read as "the page moved on"), then merged its own published version as an outside write at the new name,
+  duplicating text; the marker now waits while no page exists under the draft's name and the draft is not frozen
+  (87ebca1e44, 431d7b6ff5). And an outside deletion whose position was ambiguous (the deleted run repeats, as
+  `<A><B>` losing `<A>` also reads as losing `A><`) was placed by prefix trimming across a collaborator's insertion, so
+  the merge cut the neighbouring text; `TextDiff.changeSet(from, to, avoid)` now slides such a deletion off the draft's
+  own edits (e61d1dace1). Both seeds are committed regression traces.
+- `loadtest/collab-load.js` had never run: k6 cleared each VU's cookies every iteration, each VU drew its own page
+  names, and the default seat count exceeded the per-author cap (f1e60b2d0c).
+- Gate housekeeping: `CollabDraftUxIT` still expected the purge notice's old wording (fa508be901); a live-preview vitest
+  asserted before a whole-document reparse finished under load (9450468f58); two refactors keep the complexity ratchet
+  green after these fixes (431d7b6ff5, 8792735783).
+
+**Known residuals** (from the Phase 1–3 SDD ledgers; accepted for the dark launch, each a candidate follow-up):
+
+- **M1, hash-only crash window.** A crash between a publish's save commit and its marker write leaves the marker with
+  no saved version, so E39 falls back to the hash-only claim, and a save filter's rewrite could then duplicate text.
+  Follow-up: a nonce on the page version.
+- **`deleteSeen` is memory-only.** A stored-only draft whose freeze write failed, followed by a restart before a
+  same-base-version recreate, is unguarded (a below-base recreate is still caught). Merge-before-freeze (needs an
+  engine hook under the delete's locks) is the same class.
+- **Revoked author slip-back.** A revoked author can slip back in through another tab's non-revoked retired clientID, or
+  after cap eviction drops the tombstone. A restrictive recreated ACL can lock participants out (denial, no leak).
+- **Purge: 409 versus 403, and purge versus rejoin.** After a purge, a call with no parked pull gets 409 `rejoin` (the
+  session is gone, so there is no tombstone to answer 403 `purged`): the client rejoins a fresh draft and re-pushes its
+  own unsynced text. A push's 409 rejoin racing ahead of the `evicted(purged)` event can still show the recovery
+  panel instead of the purge notice. Follow-up: a purged-session marker.
+- **410 recovery can list accepted edits.** After a 410 resync the recovery panel can still list edits the server had
+  accepted (a lost ack), inviting a paste-back duplicate; `confirmAcceptedBeforeResync` closes it for the 409 path.
+- **Decision 4's same-`canonical_id` recreate** outside collaboration keeps stale contributor rows (§10).
+- **Ambiguous merges in general.** External writes arrive as before/after snapshots, so a diff must guess where an
+  edit sat. The close-out fix places an ambiguous *deletion* off the draft's own edits; an ambiguous replacement, or a
+  publish's save-filter rewrite (N mapped over the edits made during the save), can still land shifted along a repeat.
+  Rare (it needs a repeated run at the edit's edge and a concurrent edit inside it), but the result can cut the text
+  beside the concurrent edit by up to the repeat's length.
+- **Smaller ones:** the single-slot notice can drop the earlier of two toasts in one pull (chip and draft state stay
+  right); a publish-and-upload on a new page bypasses the dialog (ruling R13); a shared draft markup flag is parked
+  (R12); `sessions()` is unpaged (one row per page).
+- **Accepted and not revisited:** a resend after a lost ack can re-add a tag another editor removed (last-writer-wins
+  by value); `observe()` before the lock in `CollabPull.complete()` (benign race); the 30 s latch on a container thread
+  while a response write is in flight; `docHash` divergence detection (§14) stays deferred.
 
 Rough size: Phase 0 ≈ 2 weeks (the port is ~600 lines; the harness roughly as much again),
 Phase 1 ≈ 2 weeks, Phase 2 ≈ 1.5 weeks, Phase 3 ≈ 1 week, for one developer working TDD. The

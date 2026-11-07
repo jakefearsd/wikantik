@@ -138,6 +138,13 @@ If someone saved the page after you opened it, saving shows **Version Conflict**
 
 To go back to an older version, open **Change Notes** on the page, or the version comparison page, and click **Restore**. That opens the editor with the old text and the banner "Editing a copy of version N — saving creates version N+1". See [Reading.md](Reading.md#see-the-page-history-and-compare-versions).
 
+### Editing together
+
+When an administrator has turned collaborative editing on, opening the editor joins the page's shared draft: everyone
+editing the page types into the same text, sees the others' names and cursors, and **Save** becomes **Publish**, which
+writes the draft as one new version and credits everyone whose changes it includes. Unpublished changes stay in the
+shared draft when you leave. See [CollaborativeEditing.md](CollaborativeEditing.md) for the full guide.
+
 ### Other editor banners
 
 - "This page uses legacy wiki syntax. Convert to Markdown?" offers a **Convert to Markdown** button.

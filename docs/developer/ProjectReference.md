@@ -345,15 +345,26 @@ design pages.
 
 ### Collaborative Editing (MultiEdit) — [MultiEdit.MD](../MultiEdit.MD)
 
-**Phases 0, 1 and 2 are complete as of 2026-11-07; collaboration ships dark behind the default-off kill switch
-`wikantik.collab.enabled`, and Phase 3 (draft UX, attribution) is merged but not yet gated.** Phase 2 added presence
+**Phases 0–3 are complete as of 2026-11-07 and gated (Phase 3 Task 14, which also ran the Phase 1 and 2 close-outs,
+ruling P13); collaboration ships dark behind the default-off kill switch `wikantik.collab.enabled`. The flip waits on
+the default-on checklist in MultiEdit.MD section 15** (admin-group soak with the metrics and audit reviewed, the
+Cloudflare WAF/bot check, rate-limit sizing, a prod retention value, the per-group decision). Phase 3 added the
+draft banner, the publish dialog with a server-rendered diff (`GET /api/collab/{page}/draft`), contributors per
+published version (`page_version_contributor` by `canonical_id`; the running map in the snapshot, V067; publish claims bound to the saved version, V068; the deleted-page guard, V069) shown by display name in history,
+offline-draft import, discard, Convert and publish, eight `collab.*` audit events, seven `wikantik_collab_*` meters,
+draft retention, the admin drafts list and purge (`/admin/collab/drafts`, `AdminCollabResource`), `draft_active` on
+the page and for-agent payloads, `loadtest/collab-load.js`, and a collab-mode Selenide pass (`bin/run-tests.sh
+--collab`, in `--all`). Known residuals are listed in section 15; operator notes in WikantikOperations.md §1.11; user
+guide `docs/user/CollaborativeEditing.md`. Phase 2 added presence
 and remote carets, frontmatter/tag co-editing, external-writer merges, rename following and delete/recreate; see the
 "Phase 2 outcome" and operator enablement notes in MultiEdit.MD section 15. `docs/MultiEdit.MD` is the design — its §0 review amendments are authoritative where they conflict with the body.
 Phase 0 shipped nothing user-visible: the `ChangeSet`/`TextDiff` Java port pinned to `@codemirror/state` by a shared
 corpus, collaboration ports + in-memory store + contract tests, a deterministic fuzz simulator with cross-language trace
 replay, the atomic guarded page save (A2), async-capable `/api/*` filters (A7) and a dedicated `/api/collab/*`
 rate-limit bucket (A8). Plans: [Phase 0](../superpowers/plans/2026-11-06-multiedit-phase0-foundations.md),
-[Phase 1](../superpowers/plans/2026-11-06-multiedit-phase1-core-text.md).
+[Phase 1](../superpowers/plans/2026-11-06-multiedit-phase1-core-text.md),
+[Phase 2](../superpowers/plans/2026-11-06-multiedit-phase2-presence-meta-external.md),
+[Phase 3](../superpowers/plans/2026-11-07-multiedit-phase3-draft-ux-attribution.md).
 
 ### Other subsystems
 

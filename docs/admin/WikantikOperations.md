@@ -363,6 +363,68 @@ psql -h localhost -U postgres -d wikantik -c "DELETE FROM deleted_logins WHERE l
 The identity cache holds the tombstone set for up to 60 seconds, so the released name may keep showing "former member"
 until it refreshes (or the app restarts). Once released, the name's old content attributes to its next holder.
 
+### 1.11 Collaborative editing (MultiEdit)
+
+Real-time multi-user editing (design: `docs/MultiEdit.MD`, user guide: `docs/user/CollaborativeEditing.md`) ships
+**dark**: `wikantik.collab.enabled` defaults to `false`. Do not turn it on for everyone until the default-on checklist
+in MultiEdit.MD section 15 is ticked. To pilot it, enable it on one instance (`-Dwikantik.collab.enabled=true` or
+`wikantik-custom.properties`) and restart. Turning it off again refuses new joins (503); editors already in a draft
+can still publish or discard it.
+
+**Drafts and retention.** Each page has at most one shared draft (`collab_session` and its `collab_update`,
+`collab_meta_op` and `collab_snapshot` rows). A draft with unpublished changes is kept until someone publishes or
+discards it, or until retention removes it. `wikantik.collab.draft.retentionDays` (default `0` = keep forever) runs at
+most hourly and removes every stored draft nobody has edited for longer than that, unless people are in it. Retention
+and purge never publish. Choose a value before the default flips; drafts are small, but they hold unpublished text.
+
+**Listing and purging drafts (admin).** `GET /admin/collab/drafts` lists every stored draft, oldest edit first (session id,
+page, status, creator login and display name, created and last-edit times, whether it is live, its participant count,
+and whether a publish is pending). `DELETE /admin/collab/drafts/{id}`
+removes one: every participant is evicted with reason `purged` and sees "An administrator removed this shared draft, including its unpublished changes"; the
+answer is 204, 404 `unknown`, 423 `publish-in-progress`, or 503 `store` (the draft is kept). The delete is
+CSRF-checked like every admin write. There is no admin UI for this yet (Phase 4).
+
+```bash
+source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')
+curl -s -u "${login}:${password}" http://localhost:8080/admin/collab/drafts | jq .
+```
+
+**Audit entries** (`/admin/audit`, target type `page`, the page name as target id, the session id in `detail`):
+
+| Event | Category | Actor | When |
+|-------|----------|-------|------|
+| `collab.session.open` | CONTENT | the creator | a page's draft is created |
+| `collab.join` | CONTENT | the joiner | a participant joins (detail: `participantId`) |
+| `collab.publish` | CONTENT | the publisher | a publish writes a version (detail lists the contributors' author keys) |
+| `collab.discard` | CONTENT | the discarder | the draft is reset to the published page |
+| `collab.evict` | CONTENT | the evicted author | a participant is removed (detail: `reason`, e.g. lost edit permission) |
+| `collab.purge` | ADMIN | the administrator | `DELETE /admin/collab/drafts/{id}` |
+| `collab.expire` | ADMIN | system | retention removed a draft |
+| `collab.orphaned` | CONTENT | system | a publish left unpublished changes and no participant with `edit`; the draft waits in the drafts list for someone with `edit` or an admin purge |
+
+**Metrics** (`/metrics`; every labelled series is registered at 0 up front):
+
+| Meter | Meaning |
+|-------|---------|
+| `wikantik_collab_push_total{result=accepted\|rebase\|rejected}` | pushes; a high `rebase` share means heavy contention, `rejected` should stay near 0 |
+| `wikantik_collab_push_latency_seconds` | push latency, with a percentile histogram (alert on p95) |
+| `wikantik_collab_publish_total{result=published\|unchanged\|conflict\|refused\|failed\|store}` | publishes |
+| `wikantik_collab_external_merges_total` | REST/MCP/rename/watcher writes merged into a live draft |
+| `wikantik_collab_resync_total` | 410 resyncs (a client fell behind the in-memory ring and reloaded) |
+| `wikantik_collab_sessions_active`, `wikantik_collab_participants_active` | gauges |
+
+**Rate limits.** `/api/collab/*` has its own per-IP bucket, `WIKANTIK_RATELIMIT_SESSION_PERCLIENT` (default 100
+requests/s), on top of the per-participant `wikantik.collab.pushesPerSecond` (default 20). Several editors behind one
+NAT share the per-IP bucket; size it from the load figure below. Check the Cloudflare bot and WAF rate rules for
+`/api/collab/*` before enabling in prod: a typing editor sends about one push a second and holds one long-poll open.
+
+**Load scenario.** `loadtest/collab-load.js` (k6, see `loadtest/README.md`) drives N editors over M pages against a
+**local** collab-enabled deployment, never prod. First measured figure (2026-11-07; local Tomcat, single node, 15
+editors and 5 listeners over 5 pages for 2 minutes): no failed or throttled pushes, client push latency p95 6.3 ms,
+publish p95 44 ms, about 1.3 requests/s per editor from the script. A real editor also holds a long-poll, so budget about
+2 requests/s per active editor: the default per-IP bucket of 100/s covers about 50 active editors behind one address.
+One account holds at most 4 seats in a session, which bounds the script's editors per page.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

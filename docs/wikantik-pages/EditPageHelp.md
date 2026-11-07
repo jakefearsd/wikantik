@@ -144,3 +144,7 @@ The **Frontmatter** tab edits the page's metadata (type, tags, cluster, summary 
 ## Conflicts
 
 If someone saved the page after you opened it, you can overwrite their version, discard yours, or copy your text and reload.
+
+## Editing together
+
+When the wiki has collaborative editing turned on, several people can edit a page at once in one shared draft, and **Save** becomes **Publish**. See [Collaborative Editing](CollaborativeEditing).

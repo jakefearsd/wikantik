@@ -18,41 +18,25 @@
  */
 package com.wikantik.markdown.extensions.math;
 
+import com.wikantik.markdown.extensions.math.DisplayMathBlocks.Located;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 
 /**
  * Pre-processes Markdown source text to convert {@code $$...$$} display math blocks
  * into {@code ```math} fenced code blocks that the Flexmark GitLab extension can render.
  *
- * <p>Only standalone {@code $$} delimiters (on their own line, with optional whitespace)
- * are transformed. Inline occurrences within a paragraph are left untouched.</p>
+ * <p>{@link DisplayMathBlocks} finds the blocks with the reader's block structure (#128). Each becomes a fence longer
+ * than any backtick run alone on one of its content lines, so a {@code ```} inside the math never ends it; a block its
+ * container ended gets no closing fence.</p>
+ * <p>Inline occurrences within a paragraph are left untouched.</p>
  */
 public final class DisplayMathPreProcessor {
 
-    /**
-     * Matches a {@code $$} delimiter that occupies an entire line (optional surrounding whitespace).
-     * The pattern captures a pair of opening/closing delimiters with content between them.
-     *
-     * <p>Explanation:
-     * <ul>
-     *   <li>Group 1 ({@code ^([ \t]*)}) — captures the leading indentation of the opening
-     *       delimiter so we can re-apply it to the emitted {@code ```math} / {@code ```}
-     *       fences. This is essential for math blocks nested inside list items, where
-     *       dropping the indent would break list continuation and cause subsequent
-     *       indented prose to be parsed as an indented code block.</li>
-     *   <li>{@code \$\$[ \t]*$} — the opening {@code $$} with optional trailing whitespace</li>
-     *   <li>Group 2 ({@code (.*?)}) — the math content (non-greedy, including newlines via DOTALL)</li>
-     *   <li>The closing {@code $$} must also be on its own line (leading/trailing whitespace allowed)</li>
-     * </ul>
-     */
-    private static final Pattern DISPLAY_MATH_BLOCK = Pattern.compile(
-            "^([ \\t]*)\\$\\$[ \\t]*$\\r?\\n(.*?)^[ \\t]*\\$\\$[ \\t]*$",
-            Pattern.MULTILINE | Pattern.DOTALL
-    );
+    /** What the opening {@code $$} line becomes after its indent and fence: the info string and the line break. */
+    private static final String MATH_INFO = "math\n";
+    private static final int MIN_FENCE = 3;
 
     private DisplayMathPreProcessor() {
         // utility class
@@ -76,6 +60,7 @@ public final class DisplayMathPreProcessor {
      * {@code text[targetStart, targetEnd)}. The math content is copied verbatim:
      * {@code source[sourceContent, sourceContent + contentLength)} is {@code text[targetContent, targetContent +
      * contentLength)}; everything else in the edit is generated fence markup. Text outside the edits is copied unchanged.
+     * A block its container ended has no closing fence: its edit ends with its content.
      *
      * @param sourceStart   start of the block in the source
      * @param sourceEnd     end of the block in the source
@@ -105,56 +90,86 @@ public final class DisplayMathPreProcessor {
      * @return the transformed text with its edits (none, and the very same text, when there is no display math)
      */
     public static Tracked transformTracked( final String source ) {
-        // No display-math delimiter anywhere means the DOTALL/MULTILINE regex below
-        // cannot match. Most pages carry no math at all, and this runs on every parse —
-        // including once per hit on the search path — so short-circuit on a plain indexOf
-        // instead of a backtracking scan of the whole body.
+        // Most pages carry no math at all, and this runs on every parse: no "$$", no parse.
         if ( !source.contains( "$$" ) ) {
             return new Tracked( source, List.of() );
         }
-
-        final Matcher matcher = DISPLAY_MATH_BLOCK.matcher( source );
-        final StringBuilder result = new StringBuilder();
-        final List< Edit > edits = new ArrayList<>();
-        int copied = 0;
-        while ( matcher.find() ) {
-            result.append( source, copied, matcher.start() );
-            final int targetStart = result.length();
-            final String indent = matcher.group( 1 );
-            final String content = content( matcher.group( 2 ) );
-            result.append( replacement( indent, content ) );
-            edits.add( new Edit( matcher.start(), matcher.end(), targetStart, result.length(),
-                    matcher.start( 2 ), targetStart + indent.length() + MATH_OPEN.length(), content.length() ) );
-            copied = matcher.end();
-        }
-        if ( edits.isEmpty() ) {
+        final List< Located > blocks = DisplayMathBlocks.find( source );
+        if ( blocks.isEmpty() ) {
             return new Tracked( source, List.of() );
+        }
+        final StringBuilder result = new StringBuilder( source.length() + 16 * blocks.size() );
+        final List< Edit > edits = new ArrayList<>( blocks.size() );
+        int copied = 0;
+        for ( final Located block : blocks ) {
+            result.append( source, copied, block.lineStart );
+            final int targetStart = result.length();
+            final String indent = source.substring( block.lineStart, block.indentEnd );
+            final String content = block.contentEnd < 0 ? "" : source.substring( block.contentStart, block.contentEnd );
+            final String fence = "`".repeat( fenceLength( content ) );
+            result.append( indent ).append( fence );
+            final int sourceEnd;
+            final int targetContent;
+            if ( block.closerEnd >= 0 ) {
+                result.append( MATH_INFO );
+                targetContent = result.length();
+                if ( !content.isEmpty() ) {
+                    result.append( content ).append( '\n' );
+                }
+                result.append( indent ).append( fence );
+                sourceEnd = block.closerEnd;
+            } else if ( content.isEmpty() ) {
+                result.append( "math" );
+                targetContent = result.length();
+                sourceEnd = block.openerEnd;
+            } else {
+                result.append( MATH_INFO );
+                targetContent = result.length();
+                result.append( content );
+                sourceEnd = block.contentEnd;
+            }
+            edits.add( new Edit( block.lineStart, sourceEnd, targetStart, result.length(),
+                    block.closerEnd < 0 && block.contentEnd < 0 ? sourceEnd : block.contentStart, targetContent, content.length() ) );
+            copied = sourceEnd;
         }
         result.append( source, copied, source.length() );
         return new Tracked( result.toString(), List.copyOf( edits ) );
     }
 
-    /** The opening fence written in place of the opening {@code $$} line (after its indent). */
-    private static final String MATH_OPEN = "```math\n";
-
-    /**
-     * The captured math content less its trailing line break — the regex captures it because (.*?) extends to the
-     * line before the closing $$ delimiter. Handles both \n and \r\n.
-     */
-    private static String content( final String captured ) {
-        if ( captured.endsWith( "\r\n" ) ) {
-            return captured.substring( 0, captured.length() - 2 );
+    /** One more than the longest run of backticks alone on a line of {@code content}, and at least three. */
+    private static int fenceLength( final String content ) {
+        int longest = 0;
+        int lineStart = 0;
+        while ( lineStart <= content.length() ) {
+            final int nl = content.indexOf( '\n', lineStart );
+            final int lineEnd = nl < 0 ? content.length() : nl;
+            longest = Math.max( longest, backtickRun( content, lineStart, lineEnd ) );
+            if ( nl < 0 ) {
+                break;
+            }
+            lineStart = nl + 1;
         }
-        return captured.endsWith( "\n" ) ? captured.substring( 0, captured.length() - 1 ) : captured;
+        return Math.max( MIN_FENCE, longest + 1 );
     }
 
-    /** The {@code ```math} fence that replaces one block. */
-    private static String replacement( final String indent, final String content ) {
-        // Preserve the opening delimiter's indent on both fences so math blocks
-        // inside list items keep the list's continuation indent intact.
-        return content.isEmpty()
-                ? indent + MATH_OPEN + indent + "```"
-                : indent + MATH_OPEN + content + "\n" + indent + "```";
+    /** The length of the backtick run that is alone (spaces and tabs around it) on {@code s[from, to)}, else 0. */
+    private static int backtickRun( final CharSequence s, final int from, final int to ) {
+        int i = from;
+        while ( i < to && isBlank( s.charAt( i ) ) ) {
+            i++;
+        }
+        final int runStart = i;
+        while ( i < to && s.charAt( i ) == '`' ) {
+            i++;
+        }
+        final int run = i - runStart;
+        while ( i < to && ( isBlank( s.charAt( i ) ) || s.charAt( i ) == '\r' ) ) {
+            i++;
+        }
+        return i == to ? run : 0;
     }
 
+    private static boolean isBlank( final char c ) {
+        return DisplayMathBlocks.isBlank( c );
+    }
 }

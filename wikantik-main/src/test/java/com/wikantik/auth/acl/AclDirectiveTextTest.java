@@ -447,7 +447,8 @@ class AclDirectiveTextTest {
 
     @Test
     void aRuleInADisplayMathBlockThatAFenceBreaksIsStripped() {
-        // Round 1 mapped this rule's span to nothing: the render path read (and enforced) it, nothing removed it.
+        // Round 1 mapped this rule's span to nothing: the render path read (and enforced) it, nothing removed it. Since #128
+        // it is math source no reading takes for a rule, and the text scan calls it code (the fence line): hidden as math.
         final String out = AclDirectiveText.strip( AclDirectiveFixtures.MATH_FENCE.text() );
         assertNothingReadable( out );
         assertFalse( out.contains( LOGIN ), out );

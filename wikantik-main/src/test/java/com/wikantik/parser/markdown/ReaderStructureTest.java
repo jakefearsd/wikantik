@@ -88,15 +88,18 @@ class ReaderStructureTest {
     @Test
     void theRenderEndsTheMathBlockWithTheListItem() throws Exception {
         final String html = render( LIST_BODY );
-        assertTrue( html.contains( "<div class=\"math-display\" data-block=\"1\">\nx\n</div>\n</li></ul>\n<p data-block=\"2\">y</p>" ), html );
+        // the $$ line after "y" has no $$ line below it, so it is text: no generated fence swallows "- next" (#128)
+        assertTrue( html.contains( "<div class=\"math-display\" data-block=\"1\">\nx\n</div>\n</li></ul>\n<p data-block=\"2\">y\n$$</p>\n"
+                                   + "<ul><li data-block=\"3\">next</li></ul>" ), html );
     }
 
     @Test
     void displayMathInAListItemEndsWithTheItem() {
         for ( final String body : new String[]{ LIST_BODY, LIST_BODY.replace( "\n", "\r\n" ) } ) {
             final RenderPathAccessRules.Structure structure = ReaderStructure.of( body, 0 );
-            assertEquals( List.of( body.indexOf( "  $$" ) + "," + ( body.lastIndexOf( "$$" ) + 2 ) ),
-                    structure.math().stream().map( r -> r[ 0 ] + "," + r[ 1 ] ).toList(), "math() keeps the editor's whole pair" );
+            assertEquals( List.of( body.indexOf( "  $$" ) + "," + ( body.indexOf( "  x" ) + 3 ) ),
+                    structure.math().stream().map( r -> r[ 0 ] + "," + r[ 1 ] ).toList(),
+                    "math() is the block, which ends with the item, as in the editor (#128)" );
             final List< int[] > math = structure.renderedMath();
             assertEquals( 1, math.size(), "one rendered math span" );
             assertEquals( body.indexOf( "  $$" ), math.get( 0 )[ 0 ], "starts at the opener line (its indent is part of the block)" );

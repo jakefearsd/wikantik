@@ -50,7 +50,7 @@ export function findInlineMath(text) {
     const c = text[i];
     if (c === '\\') { i += 1; continue; }
     if (c !== '$') continue;
-    if (text[i + 1] === '$') { i += 1; continue; }
+    if (text[i + 1] === '$') continue; // this `$` is text; the next one is tried on its own, as the reader does
     const end = matchInlineMath(text, i);
     if (end < 0) continue;
     out.push({ from: i, to: end, tex: text.slice(i + 1, end - 1) });

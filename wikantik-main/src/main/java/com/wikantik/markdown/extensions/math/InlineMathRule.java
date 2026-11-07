@@ -52,7 +52,8 @@ final class InlineMathRule {
     }
 
     /**
-     * Scans {@code s} left to right, honouring {@code \} escapes and skipping {@code $$} pairs.
+     * Scans {@code s} left to right, honouring {@code \} escapes; a {@code $} before a {@code $} is text and the second is tried
+     * on its own, as in the render ({@code $$x$$} is {@code $} + math + {@code $}).
      *
      * @return {@code [start, endExclusive]} of each inline-math span, delimiters included
      */
@@ -65,10 +66,6 @@ final class InlineMathRule {
             if ( c == '\\' ) {
                 i += 2;
             } else if ( c == '$' ) {
-                if ( i + 1 < n && s.charAt( i + 1 ) == '$' ) {
-                    i += 2;
-                    continue;
-                }
                 final int end = matchEnd( s, i );
                 if ( end > 0 ) {
                     spans.add( new int[] { i, end } );

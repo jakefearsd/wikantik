@@ -43,9 +43,15 @@
   {"name": "a code span in a table cell holds its pipe-split text: the secret in it stays", "input": "| h | h |\n|---|---|\n| `x | %%secret%% | y` |", "output": "| h | h |\n|---|---|\n| `x | %%secret%% | y` |"},
   {"name": "a table inside a list item: a dollar in one cell opens no math across the cells", "input": "- | a | b |\n  |---|---|\n  | $5 | x |\n  | %%secret%% | y$ |", "output": "- | a | b |\n  |---|---|\n  | $5 | x |\n  |  | y$ |"},
   {"name": "display math in a list item ends where the item does: a comment after it is removed", "input": "- item\n  $$\n  x\ny %%secret%%\n  $$\n- next\n", "output": "- item\n  $$\n  x\ny \n  $$\n- next\n"},
-  {"name": "a display math block whose first line is a fence is empty: a comment after it is removed", "input": "$$\n```\n%%secret%%\n```\n$$\n", "output": "$$\n```\n\n```\n$$\n"},
+  {"name": "a fence line inside display math is math, so the comment markers after it are math too", "input": "$$\n```\n%%secret%%\n```\n$$\n", "output": "$$\n```\n%%secret%%\n```\n$$\n"},
   {"name": "a dollar inside a wikilink opens math that closes after it: nothing is hidden", "input": "[[Note $x]] %%secret%% y$ z", "output": "[[Note $x]] %%secret%% y$ z"},
   {"name": "a table whose header has fewer cells than its delimiter row is still a table: the code span in its body keeps the marker", "input": "| a ` |\n|---|---|\n| `%%secret` | %% |", "output": "| a ` |\n|---|---|\n| `%%secret` | %% |"},
   {"name": "a table may have several header rows: the first holds no code span for the backtick of the second", "input": "<b t=\"|---|---|\n | a`%%```\n|---|---|\n | %%|`", "output": "<b t=\"|---|---|\n | a`\n\n|`"},
-  {"name": "an HTML block ends at a blank line (CRLF too), so the math after it holds the markers", "input": "<b t=\"\">\n\n$|%%1. ```\n%%$$\n      $$\n]]b ", "output": "<b t=\"\">\n\n$|%%1. ```\n%%$$\n      $$\n]]b "}
+  {"name": "an HTML block ends at a blank line (CRLF too), so the math after it holds the markers", "input": "<b t=\"\">\n\n$|%%1. ```\n%%$$\n      $$\n]]b ", "output": "<b t=\"\">\n\n$|%%1. ```\n%%$$\n      $$\n]]b "},
+  {"name": "a $$ closer indented four or more columns still closes display math (the reader's pre-pass reads any indent)", "input": "$$\nx %%k\n    $$\nafter %%c%% z\n", "output": "$$\nx %%k\n    $$\nafter  z\n"},
+  {"name": "a fence line inside display math does not end it: the comment after the math is removed, the fence after that is code", "input": "$$\na\n```\nb\n$$\n%%c%%\n```\nd %%e%%\n", "output": "$$\na\n```\nb\n$$\n\n```\nd %%e%%\n"},
+  {"name": "$$ lines inside a fenced code block are code, not display math", "input": "```\n%%x\n$$\n%%\n$$\n```\n%%y%% z\n", "output": "```\n%%x\n$$\n%%\n$$\n```\n z\n"},
+  {"name": "display math ends with its list item and its later $$ line, with no $$ line below, is text: both comments are removed", "input": "- i\n  $$\n  x\ny %%s%%\n  $$\n%%t%% z\n", "output": "- i\n  $$\n  x\ny \n  $$\n z\n"},
+  {"name": "display math ends with its list item and its later $$ line opens the next block", "input": "- i\n  $$\n  x\ny %%s%%\n  $$\nm %%u%%\n$$\nafter %%v%%\n", "output": "- i\n  $$\n  x\ny \n  $$\nm %%u%%\n$$\nafter \n"},
+  {"name": "display math right after an HTML comment is math: an HTML block that has ended holds nothing more", "input": "<!-- c -->\n$$\n%%s%%\n$$\nafter %%t%% z\n", "output": "<!-- c -->\n$$\n%%s%%\n$$\nafter  z\n"}
 ]

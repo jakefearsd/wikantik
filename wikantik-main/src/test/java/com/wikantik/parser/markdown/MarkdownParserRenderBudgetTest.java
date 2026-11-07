@@ -174,6 +174,20 @@ class MarkdownParserRenderBudgetTest {
                 engine.getManager( PageManager.class ).getPureText( name, -1 ) );
     }
 
+    /** #128: the $$ pre-pass parses the page to find its blocks; that parse must not run the attributes extension unbudgeted. */
+    @Test
+    void aPageWithDisplayMathAndTheQuadraticAttributeInputRendersWithinBudget() {
+        final String html = assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> view( "RbMathQuadratic", "$$\nm\n$$\n\n" + CRAFTED ) );
+        assertTrue( html.contains( "math-display" ) && html.contains( "TAIL-MARKER" ), html );
+    }
+
+    @Test
+    void aPageWithDisplayMathThatOverflowsTheAttributesParserStillRenders() {
+        final String overflowing = "x {" + "a ".repeat( 20_000 ) + "}\n\n$$\ny\n$$\n\nTAIL-MARKER";
+        final String html = assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> view( "RbMathOverflow", overflowing ) );
+        assertTrue( html.contains( "TAIL-MARKER" ), html );
+    }
+
     @Test
     void aFallbackAfterAStackOverflowIsNotCached() throws Exception {
         // A stack overflow depends on how deep the render already is (a nested render has less stack), not only on the

@@ -78,9 +78,9 @@ public final class RenderPathAccessRules {
      * @param code  inline code spans and code blocks the author wrote (a {@code $$} block's generated fence is math)
      * @param html  HTML blocks, HTML comments and inline HTML tags
      * @param math  inline math and {@code $$} display-math blocks, the <em>wide</em> reading kept for locking access rules:
-     *              the whole {@code $$…$$} pair the pre-pass rewrote, wherever the render ends the fence, so a rule
-     *              is locked wherever readers could disagree (#104). It is the text scan's reading, not the editor's:
-     *              comments and the editor follow {@code renderedMath}
+     *              each {@code $$} block the pre-pass rewrote, as it found it, so a rule is locked wherever readers
+     *              could disagree (#104). The pre-pass reads the render's block structure (#128), so this now agrees
+     *              with {@code renderedMath} on display math; comments and the editor follow {@code renderedMath}
      * @param renderedMath inline math and display math as the render draws it: a {@code $$} block spans only its parsed
      *              fence, so it stops where its container ends it. Comments and the editor read math this way, so what
      *              a reader sees is what they hide

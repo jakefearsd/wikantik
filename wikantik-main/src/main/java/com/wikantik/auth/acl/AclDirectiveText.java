@@ -215,6 +215,7 @@ public final class AclDirectiveText {
                 ranges.add( new int[]{ span.start(), span.end() } );
             }
         }
+        ranges.addAll( parsed.inMath() );   // math source is shown: a directive there is hidden like one in prose
         return without( tracked, merged( text, ranges ), replacement, true );
     }
 

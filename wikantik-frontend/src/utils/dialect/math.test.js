@@ -77,21 +77,23 @@ describe('DisplayMath node', () => {
   it('is not math when no `$$` line follows at all, even in a list item', () => {
     expect(nodes('- item\n  $$\n  x\n  y\n', 'DisplayMath')).toEqual([]);
   });
-  it('closes at a content line that is a bare fence (the generated math fence closes there)', () => {
-    // Rendered by the reader: renderedMath [0-6], [0-8], [0-10] for these three.
-    expect(nodes('$$\n```\n%%s%%\n```\n$$\n', 'DisplayMath')).toEqual(['$$\n```']);
-    expect(nodes('$$\nx\n```\n%%s%%\n$$\n', 'DisplayMath')).toEqual(['$$\nx\n```']);
-    expect(nodes('$$\nx\n  ```\n%%s%%\n$$\n', 'DisplayMath')).toEqual(['$$\nx\n  ```']);
+  it('does not close at a content line that is a bare fence: the reader writes a longer fence (#128)', () => {
+    expect(nodes('$$\n```\n%%s%%\n```\n$$\n', 'DisplayMath')).toEqual(['$$\n```\n%%s%%\n```\n$$']);
+    expect(nodes('$$\nx\n```\n%%s%%\n$$\n', 'DisplayMath')).toEqual(['$$\nx\n```\n%%s%%\n$$']);
+    expect(nodes('$$\nx\n  ```\n%%s%%\n$$\n', 'DisplayMath')).toEqual(['$$\nx\n  ```\n%%s%%\n$$']);
+  });
+  it('closes at a $$ line indented four or more columns, as the reader does (#128)', () => {
+    expect(nodes('$$\nx %%k\n    $$\nafter\n', 'DisplayMath')).toEqual(['$$\nx %%k\n    $$']);
   });
   it('does not close at an info-string fence or a tilde fence', () => {
     expect(nodes('$$\n```js\n%%s%%\n$$\n', 'DisplayMath')).toEqual(['$$\n```js\n%%s%%\n$$']);
     expect(nodes('$$\nx\n~~~\n%%s%%\n$$\n', 'DisplayMath')).toEqual(['$$\nx\n~~~\n%%s%%\n$$']);
   });
   it('holds the same shapes with CRLF line ends', () => {
-    expect(nodes('$$\r\nx\r\n```\r\n%%s%%\r\n$$\r\n', 'DisplayMath')).toEqual(["$$\r\nx\r\n```\r"]);
+    expect(nodes('$$\r\nx\r\n```\r\n%%s%%\r\n$$\r\n', 'DisplayMath')).toEqual(['$$\r\nx\r\n```\r\n%%s%%\r\n$$\r']);
     expect(nodes('- item\r\n  $$\r\n  x\r\ny\r\n  $$\r\n- next\r\n', 'DisplayMath')).toEqual(['$$\r\n  x\r']);
   });
-  it('stays code at an indent of four or more (code wins in the editor; the reader pre-pass is code-blind)', () => {
+  it('stays code at an indent of four or more, as in the reader', () => {
     expect(nodes('    $$\n    x\n    $$\n', 'DisplayMath')).toEqual([]);
   });
   it('does not treat $$ inside a fence as math', () => {

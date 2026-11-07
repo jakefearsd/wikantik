@@ -161,11 +161,11 @@ class ReaderCommentsTest {
     }
 
     @Test
-    void anEmptyDisplayMathFenceHoldsNothingButItsOpener() {
+    void aFenceLineInsideDisplayMathIsMath() {
         final String body = "$$\n```\n%%secret%%\n```\n$$\n";
-        assertEquals( "[0-6]", render( ReaderStructure.of( body, 0 ).renderedMath() ),
-                "the inner fence closes the generated math fence at once (the render draws an empty math block)" );
-        assertEquals( "[7-17]", render( ReaderComments.ranges( body ) ), "the comment is a paragraph of its own in the render" );
+        assertEquals( "[0-24]", render( ReaderStructure.of( body, 0 ).renderedMath() ),
+                "the generated math fence is longer than the inner one, so the math runs to its $$ closer (#128)" );
+        assertEquals( "[]", render( ReaderComments.ranges( body ) ), "the %% inside the math is math" );
     }
 
     /** The sentinel words of {@code body}'s comments are absent from the rendered page exactly when {@code strip} removed them. */

@@ -139,4 +139,62 @@ public class DisplayMathPreProcessorTest {
         assertEquals( expected, DisplayMathPreProcessor.transform( input ) );
     }
 
+    // #128: the pre-pass finds $$ blocks with the reader's block structure (a flexmark parse), not a code-blind regex.
+
+    @Test
+    public void testDollarLinesInsideAFencedCodeBlockStayCode() {
+        final String input = "```\n%%x\n$$\n%%\n$$\n```\n";
+        assertEquals( input, DisplayMathPreProcessor.transform( input ) );
+        final String tilde = "- a\n\n  ~~~\n  $$\n  x\n  $$\n  ~~~\n";
+        assertEquals( tilde, DisplayMathPreProcessor.transform( tilde ) );
+    }
+
+    @Test
+    public void testAnInnerFenceLineIsMathContentNotTheEndOfTheMath() {
+        assertEquals( "````math\na\n```\nb\n````\nafter\n", DisplayMathPreProcessor.transform( "$$\na\n```\nb\n$$\nafter\n" ) );
+        assertEquals( "`````math\n````\n`````", DisplayMathPreProcessor.transform( "$$\n````\n$$" ) );
+    }
+
+    @Test
+    public void testACloserIndentedFourOrMoreStillCloses() {
+        assertEquals( "```math\nx\n```\nafter\n", DisplayMathPreProcessor.transform( "$$\nx\n      $$\nafter\n" ) );
+    }
+
+    @Test
+    public void testAnOpenerIndentedFourOrMoreIsNotMath() {
+        final String code = "    $$\n    x\n    $$\n";
+        assertEquals( code, DisplayMathPreProcessor.transform( code ) );
+        final String continuation = "a\n    $$\n    x\n    $$\n";
+        assertEquals( continuation, DisplayMathPreProcessor.transform( continuation ) );
+    }
+
+    @Test
+    public void testMathEndsWithItsListItemAndItsLaterDollarLineIsNotAFence() {
+        // "y" ends the list item (a fence is never lazily continued), so the math ends there; the "  $$" after it has no
+        // $$ line below it and is text, not a generated closing fence that would open a code block.
+        assertEquals( "- i\n  ```math\n  x\ny\n  $$\nz\n", DisplayMathPreProcessor.transform( "- i\n  $$\n  x\ny\n  $$\nz\n" ) );
+        // ... and with a $$ line further down, that line opens the next block.
+        assertEquals( "- i\n  ```math\n  x\ny\n\n```math\nw\n```\n",
+                DisplayMathPreProcessor.transform( "- i\n  $$\n  x\ny\n\n$$\nw\n$$\n" ) );
+    }
+
+    /** A fence or HTML block that has ended (its end condition met, its container closed) does not hold the next lines. */
+    @Test
+    public void testMathRightAfterAnEndedHtmlBlockOrFenceIsMath() {
+        assertEquals( "<!-- note -->\n```math\nx\n```\n", DisplayMathPreProcessor.transform( "<!-- note -->\n$$\nx\n$$\n" ) );
+        assertEquals( "> ```\n```math\nx\n```\n", DisplayMathPreProcessor.transform( "> ```\n$$\nx\n$$\n" ) );
+        assertEquals( "- a\n\n  ```\n  b\n```math\nx\n```\n", DisplayMathPreProcessor.transform( "- a\n\n  ```\n  b\n$$\nx\n$$\n" ) );
+    }
+
+    @Test
+    public void testOnlyATextWithADollarOnlyLineIsParsed() {
+        final String inline = "a $$x$$ b and $$\ny$$";
+        assertEquals( inline, DisplayMathPreProcessor.transform( inline ) );
+    }
+
+    @Test
+    public void testADollarLineInsideABlockQuoteIsNotADelimiter() {
+        final String quoted = "> $$\n> x\n> $$\n";
+        assertEquals( quoted, DisplayMathPreProcessor.transform( quoted ) );
+    }
 }

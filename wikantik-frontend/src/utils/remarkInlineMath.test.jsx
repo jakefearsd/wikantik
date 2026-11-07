@@ -18,8 +18,7 @@ function collect(node, type, out = []) {
 const maths = (src) => collect(parser.parse(src), 'inlineMath').map((n) => n.value);
 
 describe('remarkInlineMath', () => {
-  // `$$x$$` is not single-dollar inline math; remark-math keeps its own `$$..$$` text math (tested below).
-  it.each(CASES.filter(([src]) => src !== '$$x$$'))('%j', (src, expected) => {
+  it.each(CASES)('%j', (src, expected) => {
     expect(maths(src)).toEqual(expected);
   });
 
@@ -42,8 +41,10 @@ describe('remarkInlineMath', () => {
     expect(collect(tree, 'math').map((n) => n.value)).toEqual(['x']);
     expect(collect(tree, 'inlineMath')).toEqual([]);
   });
-  it('still parses $$..$$ text math from remark-math', () => {
-    expect(maths('a $$x$$ b')).toEqual(['x']);
+  it('reads $$x$$ in prose as the reader does: a dollar, inline math, a dollar (#128)', () => {
+    const tree = parser.parse('a $$x$$ b');
+    expect(collect(tree, 'inlineMath').map((n) => n.value)).toEqual(['x']);
+    expect(collect(tree, 'text').map((n) => n.value).join('|')).toBe('a $|$ b');
   });
   it('renders katex for $x$ but not for currency', () => {
     const render = (src) => renderToStaticMarkup(

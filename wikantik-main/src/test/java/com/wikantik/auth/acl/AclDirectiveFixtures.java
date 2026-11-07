@@ -125,8 +125,9 @@ public final class AclDirectiveFixtures {
     }
 
     /**
-     * A rule inside a {@code $$} block whose generated math fence an inner fence closes early: the renderer reads the
-     * rule, so it must be hidden (round 1 mapped its span to nothing and kept it).
+     * A rule inside a {@code $$} block that holds a fence line. Until #128 the inner fence closed the generated math fence
+     * early and the renderer read the rule (round 1 mapped its span to nothing and kept it). Now the math runs to its
+     * {@code $$} closer: no reading takes the wrapped rule for one, and it is hidden as math source.
      */
     public static final Fixture MATH_FENCE = new Fixture( "rule in a $$ block broken by a fence",
             "[{ALLOW view All}]\n\n$$\n```\n[{ALLOW edit Admin,\n " + LOGIN + "}]\n$$\n```\n\n" + BODY + "\n",
@@ -176,7 +177,6 @@ public final class AclDirectiveFixtures {
             Map.entry( DENY.name(), Set.of( Shape.DENY ) ),
             Map.entry( KEYWORD_PREFIX.name(), Set.of( Shape.ALLOW_PREFIXED_WORD ) ),
             Map.entry( INLINE_MATH.name(), Set.of( Shape.IN_MATH ) ),
-            Map.entry( MATH_FENCE.name(), Set.of( Shape.IN_MATH ) ),
             Map.entry( "footnote that makes the render parse throw", Set.of( Shape.UNREADABLE ) ),
             Map.entry( "documentation example next to a line that trips the parse budget", Set.of( Shape.UNREADABLE ) ),
             Map.entry( "an ALLOW and a DENY for the same permission", Set.of( Shape.DENY ) ),

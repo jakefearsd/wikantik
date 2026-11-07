@@ -1,9 +1,10 @@
 /**
  * Inline math for the editor preview, following the same rule as `inlineMath.js` (Pandoc tex_math_dollars):
  * `$5 and $10` is currency, `$x$` is math. Use AFTER `[remarkMath, { singleDollarTextMath: false }]`: remark-math
- * still supplies display math, `$$..$$` text math and the mdast handlers; this plugin adds the single-`$` construct and
- * emits the same token types (`mathText`, `mathTextSequence`, `mathTextData`) so those handlers build `inlineMath`
- * nodes that rehype-katex renders unchanged.
+ * still supplies display math and the mdast handlers; this plugin switches off remark-math's own `$$..$$` text math
+ * (the reader has none: `$$x$$` is `$` + `$x$` + `$`, #128), adds the single-`$` construct, and emits the same token
+ * types (`mathText`, `mathTextSequence`, `mathTextData`) so those handlers build `inlineMath` nodes that rehype-katex
+ * renders unchanged.
  */
 const DOLLAR = 36;
 const BACKSLASH = 92;
@@ -11,13 +12,6 @@ const BACKSLASH = 92;
 const markdownLineEnding = (c) => c !== null && c < -2;
 const markdownLineEndingOrSpace = (c) => c !== null && (c < 0 || c === 32);
 const isDigit = (c) => c !== null && c >= 48 && c <= 57;
-
-/** Refuse a `$` that follows another `$` (that is `$$`), unless it follows an escape or a just-closed inline math. */
-function previous(code) {
-  if (code !== DOLLAR) return true;
-  const last = this.events[this.events.length - 1];
-  return !!last && (last[1].type === 'characterEscape' || last[1].type === 'mathText');
-}
 
 function tokenize(effects, ok, nok) {
   let newlines = 0;
@@ -81,10 +75,10 @@ function tokenize(effects, ok, nok) {
   }
 }
 
-const construct = { name: 'inlineDollarMath', tokenize, previous };
+const construct = { name: 'inlineDollarMath', tokenize };
 
 export default function remarkInlineMath() {
   const data = this.data();
   const extensions = data.micromarkExtensions || (data.micromarkExtensions = []);
-  extensions.push({ text: { [DOLLAR]: construct } });
+  extensions.push({ text: { [DOLLAR]: construct }, disable: { null: ['mathText'] } });
 }

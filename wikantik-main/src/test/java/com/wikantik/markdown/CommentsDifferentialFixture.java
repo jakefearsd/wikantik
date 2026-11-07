@@ -43,12 +43,13 @@ public final class CommentsDifferentialFixture {
 
     static final long SEED = 127L;
     static final int COUNT = 2000;
-    static final String GENERATOR = "java.util.Random(127): 4-17 tokens per document from a fixed list of 31, kept only if it contains %%";
+    static final String GENERATOR = "java.util.Random(127): 4-17 tokens per document from a fixed list of 35, kept only if it contains %%";
     static final Path FILE = Path.of( "..", "wikantik-frontend", "src", "utils", "__fixtures__", "comments-differential.json" );
 
     private static final String[] TOKENS = {
         "%%", "%%", "%%", "`", "`", "$", "$$\n", "|", " | ", "\n", "\n\n", "- ", "1. ", "> ", "    ", "  ", "```\n", "[[", "]]",
-        "<b t=\"", "\">", "\\", "a", "b ", " ", "|---|---|\n", "#t ", "==", "x\n", "$x$" };
+        "<b t=\"", "\">", "\\", "a", "b ", " ", "|---|---|\n", "#t ", "==", "x\n", "$x$",
+        "| a | b |\n", "|---|---|\n", "| `x | y` |\n", "| $a | b$ |\n" };
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 

@@ -1,82 +1,68 @@
 import { matchInlineMath } from '../inlineMath';
 
 const DOLLAR = 36;
-const LOOKAHEAD_CHARS = 64 * 1024;
 const TAB_WIDTH = 4;
 
-/**
- * Opener and closer test: the FULL line is `$$` with optional surrounding whitespace, exactly the reader's
- * `^[ \t]*\$\$[ \t]*$` (DisplayMathPreProcessor). So `> $$` and `- $$` never open or close display math, an indented
- * `  $$` inside a list item does, and an indent of four or more stays an indented code block (code wins in the editor;
- * the reader's pre-pass is code-blind, and the comment masks on both sides already treat such a line as code).
- */
-const isDelimiterLine = (line) => line.text.trim() === '$$' && line.indent - line.baseIndent < TAB_WIDTH;
+/** A line that is `$$` alone, spaces and tabs around it: the reader's test (`DisplayMathPreProcessor.isDollarLine`). */
+const DOLLAR_LINE = /^[ \t]*\$\$[ \t]*\r?$/;
+const isDollarText = (text) => DOLLAR_LINE.test(text);
 
 /**
- * Whether a `$$`-only line follows anywhere below. The reader's pre-pass (`DisplayMathPreProcessor`) pairs the opener
- * with the next such line, blank lines allowed and containers ignored, so a closer outside the opener's list item still
- * makes the opener a block (it then ends where the item does, see `DisplayMathBlock`). A block parser cannot rewind,
- * so this peeks at the input, in windows that double, up to LOOKAHEAD_CHARS.
+ * Opener test: a `$$`-alone line indented less than four columns past its container. So `> $$` and `- $$` never open
+ * display math, an indented `  $$` inside a list item does, and an indent of four or more stays code (or text), as in the
+ * reader, which finds `$$` blocks with a parse of the same rules (#128).
+ */
+const isOpenerLine = (line) => isDollarText(line.text) && line.indent - line.baseIndent < TAB_WIDTH;
+
+/**
+ * Whether a `$$`-alone line starts anywhere below the line. The reader opens a block only then. A block parser cannot
+ * rewind, so this reads the input forward to the first such line: from consecutive openers that is the next line, so a
+ * page of `$$` lines costs one pass, not a pass per line.
  */
 function closesAhead(cx, line) {
   const input = cx.input;
   if (!input || typeof input.read !== 'function') return false;
-  const start = cx.lineStart + line.text.length + 1;
-  if (start >= input.length) return false;
-  const end = Math.min(input.length, start + LOOKAHEAD_CHARS);
-  // Whole lines from a window that doubles: a closer one line away costs a line, not the 64 KB cap (which made a page
-  // of `$$` lines quadratic).
-  let from = start;
+  let from = cx.lineStart + line.text.length + 1;
   let window = 512;
-  while (from < end) {
-    let to = Math.min(end, from + window);
+  while (from < input.length) {
+    const to = Math.min(input.length, from + window);
     let chunk = input.read(from, to);
-    if (to < end) {
+    let next = to;
+    if (to < input.length) {
       const nl = chunk.lastIndexOf('\n');
       if (nl < 0) { window *= 2; continue; } // one line longer than the window
       chunk = chunk.slice(0, nl);
-      to = from + nl + 1;
+      next = from + nl + 1;
     }
-    for (const raw of chunk.split('\n')) if (raw.trim() === '$$') return true;
-    from = to;
+    for (const raw of chunk.split('\n')) if (isDollarText(raw)) return true;
+    from = next;
     window *= 2;
   }
   return false;
 }
 
 /**
- * A line that closes the generated ```` ```math ```` fence early: only backticks (three or more) and trailing
- * whitespace, indented less than four columns past the opener. The reader writes the block's content between a
- * ```` ```math ```` fence and a ```` ``` ```` fence, so a content line of that shape ends the math there (an info string
- * such as ```` ```js ````, or `~~~`, does not).
- */
-const isFenceCloser = (line, openerIndent) => /^`{3,}$/.test(line.text.trim()) && line.indent - openerIndent < TAB_WIDTH;
-
-/**
- * `$$` alone on a line to the next such line (blank lines inside allowed), as the render draws it: the block also ends
- * at a content line that is a bare ```` ``` ```` (the generated math fence closes there) and where the opener's
- * container ends (a dedented line, the fence cannot outlive its list item), whichever comes first. An unterminated `$$`
- * is left to the paragraph.
+ * `$$` alone on a line to the next such line in its container (blank lines inside allowed, any indent closes), as the
+ * reader draws it: everything between is math, a fence line too (the reader's generated fence is longer than any inside
+ * it). Where the opener's container ends first (a dedented line, a list item ends) the block ends there, and that later
+ * `$$` line is read afresh. A `$$` with no `$$` line below is left to the paragraph.
  */
 const DisplayMathBlock = {
   name: 'DisplayMath',
   before: 'FencedCode',
   parse(cx, line) {
-    if (line.next !== DOLLAR || !isDelimiterLine(line) || !closesAhead(cx, line)) return false;
+    if (line.next !== DOLLAR || !isOpenerLine(line) || !closesAhead(cx, line)) return false;
     const from = cx.lineStart + line.pos;
-    const openerIndent = line.indent;
     let to = cx.lineStart + line.text.length;
-    let ended = false;
-    let closed = false;
     while (cx.nextLine()) {
-      if (line.depth < cx.depth) { ended = true; break; }
+      if (line.depth < cx.depth) break;
       if (line.text.trim() !== '') to = cx.lineStart + line.text.length;
-      if (isDelimiterLine(line) || isFenceCloser(line, openerIndent)) { closed = true; cx.nextLine(); break; }
+      if (isDollarText(line.text)) { cx.nextLine(); break; }
     }
-    if (closed || ended) cx.addElement(cx.elt('DisplayMath', from, to));
+    cx.addElement(cx.elt('DisplayMath', from, to));
     return true;
   },
-  endLeaf: (cx, line) => line.next === DOLLAR && isDelimiterLine(line) && closesAhead(cx, line),
+  endLeaf: (cx, line) => line.next === DOLLAR && isOpenerLine(line) && closesAhead(cx, line),
 };
 
 /**

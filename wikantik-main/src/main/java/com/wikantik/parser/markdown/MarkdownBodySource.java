@@ -81,18 +81,17 @@ final class MarkdownBodySource {
         }
 
         /**
-         * The body span of a parsed fenced block that one display-math rewrite generated, or {@code null} when none did
-         * (the closing fence, when an early-ended container leaves it unclosed, parses as a fence of its own and is no
-         * math). It starts where the rewritten block starts (its opener line, indent included). It ends where the parse ended the
-         * fence: the block's closing delimiter when the fence ran to its generated closer, or earlier when its container
-         * (a list item) ended first, so the span is the block the render draws, not the {@code $$} pair the rewrite saw.
+         * The body span of a parsed fenced block that one display-math rewrite generated, or {@code null} when none did.
+         * It starts where the rewritten block starts (its opener line, indent included) and ends where the parse ended the
+         * fence: the block's closing delimiter, or where its container (a list item) ended. The rewrite finds its blocks with
+         * the same block structure (#128), so the two agree; the span is read off the parse all the same.
          *
          * @param nodeStart start of the fenced block in {@link #text}
          * @param nodeEnd   its exclusive end in {@link #text}
          */
         int[] displayMathNodeInBody( final int nodeStart, final int nodeEnd ) {
             final DisplayMathPreProcessor.Edit edit = editAt( nodeStart );
-            if ( edit == null || nodeStart >= edit.targetContent() || edit.sourceEnd() <= edit.sourceStart() ) {   // past the opener: the generated closer, re-read as an opening fence
+            if ( edit == null || nodeStart >= edit.targetContent() || edit.sourceEnd() <= edit.sourceStart() ) {   // not at a generated opener
                 return null;
             }
             final int start = fromNormalized( edit.sourceStart() );

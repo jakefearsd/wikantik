@@ -235,14 +235,18 @@ public final class AccessRules {
      * @param renderRules the rules the render path reads ({@link RenderPathAccessRules#find}); empty when the text is
      *                    unreadable
      * @param unreadable  why the text cannot be read the way the renderer reads it; {@code null} when it can
+     * @param inMath      {@code {start, end}} of each directive-shaped candidate inside math as the render reads it: shown
+     *                    to readers as math source, so hidden like a rule even where no reading takes it for one (#128: a
+     *                    fence line inside the math must not make the text scan call it code)
      */
-    record Parsed( Reading reading, List< RenderPathAccessRules.Rule > renderRules, RenderPathAccessRules.Unreadable unreadable ) {
+    record Parsed( Reading reading, List< RenderPathAccessRules.Rule > renderRules, RenderPathAccessRules.Unreadable unreadable,
+                   List< int[] > inMath ) {
     }
 
     /** {@link #read}, without its warning, with the render path's rules from the same parse. */
     static Parsed parse( final String fullText ) {
         if ( fullText == null || !DirectiveCandidates.mayHoldDirective( fullText, 0, fullText.length() ) ) {
-            return new Parsed( NONE, List.of(), null );
+            return new Parsed( NONE, List.of(), null, List.of() );
         }
         final int bodyStart = FrontmatterParser.bodyOffset( fullText );
         final TreeMap< Integer, Integer > candidates = DirectiveCandidates.find( fullText, bodyStart );
@@ -254,7 +258,7 @@ public final class AccessRules {
             // Only the frontmatter holds anything directive-shaped: no body to parse.
             return new Parsed( reading( fullText, unparsed( fullText, candidates, bodyStart, scanned ), start -> {
                 throw new IllegalStateException( "an unparsed text holds no rule span" );
-            } ), List.of(), null );
+            } ), List.of(), null, List.of() );
         }
         PARSES.incrementAndGet();
         final RenderPathAccessRules.Structure structure;
@@ -265,7 +269,7 @@ public final class AccessRules {
             // The text becomes a lock (administrators only); DefaultAclManager also warns once per page version, by name.
             LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them; "
                     + "the page locks to administrators: {}", fullText.length(), e.getMessage() );
-            return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e );
+            return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e, List.of() );
         }
         for ( final RenderPathAccessRules.Rule rule : structure.rules() ) {
             candidates.putIfAbsent( rule.start(), rule.end() );
@@ -276,7 +280,7 @@ public final class AccessRules {
         } catch ( final RenderPathAccessRules.Unreadable e ) {
             LOG.warn( "The access rules of a page text of {} characters cannot be read the way the renderer reads them once "
                     + "its comments are removed; the page locks to administrators: {}", fullText.length(), e.getMessage() );
-            return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e );
+            return new Parsed( unreadable( fullText, bodyStart, candidates, scanned, e.getMessage() ), List.of(), e, List.of() );
         }
         final SpanClassifier classifier = new SpanClassifier( fullText, bodyStart, structure, comments );
         final List< Span > spans = new ArrayList<>( candidates.size() );
@@ -286,7 +290,18 @@ public final class AccessRules {
                 spans.add( new Span( candidate.getKey(), candidate.getValue(), shape ) );
             }
         }
-        return new Parsed( reading( fullText, spans, classifier::ruleLine ), structure.rules(), null );
+        return new Parsed( reading( fullText, spans, classifier::ruleLine ), structure.rules(), null, inMath( candidates, structure.math() ) );
+    }
+
+    /** The candidates that start inside one of {@code math} (ascending, not overlapping), each cut at its region's end. */
+    private static List< int[] > inMath( final TreeMap< Integer, Integer > candidates, final List< int[] > math ) {
+        final List< int[] > out = new ArrayList<>();
+        for ( final int[] region : math ) {
+            for ( final Map.Entry< Integer, Integer > candidate : candidates.subMap( region[ 0 ], region[ 1 ] ).entrySet() ) {
+                out.add( new int[]{ candidate.getKey(), Math.min( candidate.getValue(), region[ 1 ] ) } );
+            }
+        }
+        return out;
     }
 
     /** @param ruleLines the canonical rule line of a rule span, by its start */

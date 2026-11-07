@@ -838,6 +838,29 @@ public class MarkdownRendererTest {
         Assertions.assertTrue( result.contains( "task-list-item-checkbox" ) && result.contains( "class=\"wikipage\"" ), result );
     }
 
+    /** #128: {@code $$} lines inside a fenced code block are code; the pre-pass used to rewrite them and break the block. */
+    @Test
+    public void testDisplayMathDelimitersInsideAFencedCodeBlockStayCode() throws Exception {
+        final String html = translate( "```\n$$\nx\n$$\n```\n" );
+        Assertions.assertEquals( 1, html.split( "<pre", -1 ).length - 1, html );
+        Assertions.assertTrue( html.contains( "$$\nx\n$$" ) && !html.contains( "math" ), html );
+    }
+
+    /** #128: a fence line inside display math is math; it used to end the generated fence and spill the rest as code. */
+    @Test
+    public void testAFenceLineInsideDisplayMathIsMath() throws Exception {
+        final String html = translate( "$$\na\n```\nb\n$$\n\nafter\n" );
+        Assertions.assertTrue( html.contains( "<div class=\"math-display\">\na\n&#96;&#96;&#96;\nb\n</div>" ), html );
+        Assertions.assertTrue( html.contains( "<p>after</p>" ) && !html.contains( "<pre" ), html );
+    }
+
+    /** #128: a {@code $} before a {@code $} is text and the second is tried alone, so {@code $$x$$} is {@code $} + math + {@code $}. */
+    @Test
+    public void testDoubleDollarInProseIsADollarAroundInlineMath() throws Exception {
+        Assertions.assertTrue( translate( "$$x$$" ).contains( "$<span class=\"math-inline\">x</span>$" ), translate( "$$x$$" ) );
+        Assertions.assertTrue( translate( "a $$x$$ b" ).contains( "a $<span class=\"math-inline\">x</span>$ b" ), translate( "a $$x$$ b" ) );
+    }
+
     @Test
     public void testDollarEscapeAndCurrencyRendering() throws Exception {
         final String esc = translate( "\\$5 and $x$" );

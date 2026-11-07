@@ -15,6 +15,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   over every production and repository page. ArchUnit rule F-1 (`FlexmarkParserArchTest`) forbids `Parser.builder(..)`
   anywhere else.
 
+### Fixed
+- **`$$` display math follows the page's block structure** (#128). The reader's `$$` pre-pass was a code-blind regex; it
+  now finds blocks with a flexmark parse using the editor's rules: `$$` lines inside a fenced code block stay code (they
+  used to break the block), a ```` ``` ```` line inside the math is math (the generated fence is longer than any inside
+  it), a block ends with its list item without leaving a stray fence that swallowed the rest of the page, and a `$$`
+  closer at any indent closes, in the editor too. The rewritten text is identical for every production and repository
+  page. Directive-shaped text inside math is hidden from readers wherever the math is, as it was in plain math.
+- **`$$x$$` in prose reads the same everywhere** (#128): `$` + inline math `x` + `$`, as the page renders it. The editor
+  preview pane and the math lint read it as one `$$…$$` span.
+
 ## [2.5.8] - 2026-11-06
 
 ### Changed

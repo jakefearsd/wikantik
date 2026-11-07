@@ -28,11 +28,15 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
+import com.wikantik.collab.CollabAudit;
 import com.wikantik.collab.CollabConfig;
+import com.wikantik.collab.CollabMetrics;
 import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.CollabPermissions;
+import com.wikantik.collab.CollabPorts;
 import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.model.CollabEvent;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
@@ -47,6 +51,8 @@ import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.LogEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -117,12 +123,12 @@ class CollabResourceTest {
         "updates.get.409.rejoin",
         "publish.200", "publish.409.publish-merged-retry", "publish.409.not-synced", "publish.422", "publish.423",
         "discard.204", "leave.204", "updates.post.403.evicted", "updates.get.403.evicted", "publish.403.no-create",
-        "updates.get.200.lifecycle-events" );
-
-    /** Fixture cases whose server half is Phase 3 (docs/superpowers/plans/2026-11-06-multiedit-phase3-*.md). */
-    private static final Set< String > DEFERRED_TO_PHASE_3 = Set.of(
+        "updates.get.200.lifecycle-events",
         "join.200.draft-contributors", "updates.get.200.draft-events", "draft.get.200", "draft.get.200.unchanged",
         "draft.get.403.evicted", "draft.get.404", "publish.200.markup", "updates.get.403.purged" );
+
+    /** Fixture cases whose server half is not built yet: none since Phase 3 (draft state, the draft summary, purge). */
+    private static final Set< String > DEFERRED_TO_PHASE_3 = Set.of();
 
     private InMemoryCollabStore store;
     private ScriptedPageWriter writer;
@@ -137,6 +143,19 @@ class CollabResourceTest {
     /** When set, the next call's response writes through it (then it is cleared). */
     private Writer nextWriter;
     private CollabResource resource;
+    /** The registry's metrics port ({@link #use}). */
+    private CollabMetrics metrics = CollabMetrics.NONE;
+    /** The draft-summary rate limiter's clock, in nanoseconds. */
+    private long draftNanos;
+    /** The pages the stub differ was asked to diff. */
+    private final List< String > diffCalls = new ArrayList<>();
+    /** Runs inside the stub differ, while the diff renders. */
+    private Runnable duringDiff = () -> { };
+    private final CollabDraft.Differ differ = ( page, from, to ) -> {
+        duringDiff.run();
+        diffCalls.add( page );
+        return "<table class=\"diff\">" + from.strip() + " -> " + to.strip() + "</table>";
+    };
 
     /** The wiki session of a participant is its login here. */
     private final CollabPermissions permissions = new CollabPermissions() {
@@ -190,9 +209,10 @@ class CollabResourceTest {
 
     private void use( final CollabConfig c, final long maxPageBytes, final long coalesceMs,
                       final CollabPageWriter pageWriter, final CollabPull.Dispatch dispatch ) {
-        registry = new CollabSessionRegistry( store, pageWriter, permissions, key -> key.substring( 0, 1 ).toUpperCase()
-            + key.substring( 1 ), clock, c, maxPageBytes );
+        registry = new CollabSessionRegistry( new CollabPorts( store, pageWriter, key -> key.substring( 0, 1 )
+            .toUpperCase() + key.substring( 1 ), permissions, clock, CollabAudit.NONE, metrics ), c, maxPageBytes );
         resource = new CollabResource( registry, access, ( ms, task ) -> delayed.add( task ), dispatch, coalesceMs );
+        resource.draftSupport( differ, () -> draftNanos );
     }
 
     // ---- request/response doubles -------------------------------------------------------------------------------
@@ -1553,5 +1573,339 @@ class CollabResourceTest {
         for( final Resp x : all ) {
             assertEquals( "no-store", x.headers.get( "Cache-Control" ), () -> x.status + " " + x.out );
         }
+    }
+
+    // ---- Phase 3: draft state, the draft summary, purge, telemetry ----------------------------------------------
+
+    private Resp draft( final String user, final Joined j ) throws Exception {
+        return draft( user, j, PAGE );
+    }
+
+    private Resp draft( final String user, final Joined j, final String page ) throws Exception {
+        final Map< String, String > q = new HashMap<>();
+        q.put( "sessionId", j.sessionId );
+        q.put( "participantId", j.participantId );
+        return call( "GET", user, "/" + page + "/draft", null, q );
+    }
+
+    private static Map< String, Object > meta( final Object... kv ) {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        for( int i = 0; i < kv.length; i += 2 ) {
+            m.put( ( String ) kv[ i ], kv[ i + 1 ] );
+        }
+        return m;
+    }
+
+    @Test
+    void joinCarriesDraftContributors() throws Exception {
+        final Joined a = join( "ada" );
+        final Joined r = join( "raj" );
+        assertEquals( 200, push( "raj", r, 0, update( r, 11, arr( 0, "!" ), 1 ) ).status );
+        clock.advance( Duration.ofMinutes( 1 ) );
+        assertEquals( 200, post( "ada", "updates", metaPush( a, 1, arr(),
+            obj( "field", "status", "value", "draft" ) ) ).status );
+
+        final Resp k = call( "POST", "kim", "/" + PAGE + "/join",
+            obj( "priorClientId", null, "initialText", null, "initialMeta", null ).toString(), Map.of() );
+        assertFixture( "join.200.draft-contributors", k );
+        final JsonObject d = k.body().getAsJsonObject( "draft" );
+        assertEquals( arr( "Raj", "Ada" ), d.get( "contributors" ), "display names, first-contribution order" );
+        assertTrue( d.get( "unpublished" ).getAsBoolean() );
+        assertEquals( T0.plus( Duration.ofMinutes( 1 ) ).toString(), d.get( "lastEditAt" ).getAsString() );
+        assertEquals( arr(), join( "cy", "OtherPage" ).body.getAsJsonObject( "draft" ).get( "contributors" ),
+            "a fresh draft has none" );
+    }
+
+    @Test
+    void pullCarriesTheDraftEventsInTheFixtureShape() throws Exception {
+        final boolean[] failNext = { false };
+        final CollabPageWriter failing = new CollabPageWriter() {
+            @Override
+            public Optional< PageState > latest( final String pageName ) {
+                return writer.latest( pageName );
+            }
+
+            @Override
+            public Optional< PageState > version( final String pageName, final int version ) {
+                return writer.version( pageName, version );
+            }
+
+            @Override
+            public PublishOutcome publish( final PublishRequest request ) throws WikiException {
+                if( failNext[ 0 ] ) {
+                    failNext[ 0 ] = false;
+                    throw new IllegalStateException( "disk full" );   // a runtime failure: 500 writer-failed
+                }
+                return writer.publish( request );
+            }
+        };
+        use( config( 20, 1000, 100, 500 ), 64, 0, failing, ( ac, task ) -> task.run() );
+        final Joined a = join( "ada" );
+        final CollabSession s = session( a );
+        assertEquals( 200, push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) ).status );    // draft-state
+        assertEquals( 200, post( "ada", "publish", publishBody( a, 1 ) ).status );              // published
+        final int head = s.view().head();
+        final int len = s.view().doc().length();
+        assertEquals( 200, push( "ada", a, head, update( a, len - 1, arr( 0, "?" ), 1 ) ).status );
+        failNext[ 0 ] = true;
+        final Resp failed = post( "ada", "publish", publishBody( a, s.view().head() ) );        // publish-failed
+        assertEquals( 500, failed.status, () -> failed.out.toString() );
+        assertEquals( "writer-failed", failed.reason() );
+        assertEquals( 204, post( "ada", "discard", ids( a ) ).status );                          // draft-discarded
+        writer.externalSave( PAGE, "x".repeat( 100 ), Map.of( "tags", List.of( "a" ) ), "raj" );
+        s.reconcile( writer.latest( PAGE ).orElseThrow() );                                       // oversize
+
+        final Resp p = pull( "ada", a, 0, 0, 0, 0 );
+        assertFixture( "updates.get.200.draft-events", p );
+        final Map< String, List< JsonObject > > byType = new HashMap<>();
+        for( final JsonElement e : p.body().getAsJsonArray( "events" ) ) {
+            byType.computeIfAbsent( e.getAsJsonObject().get( "type" ).getAsString(), k -> new ArrayList<>() )
+                .add( e.getAsJsonObject() );
+        }
+        assertTrue( byType.keySet().containsAll( List.of( "draft-state", "published", "publish-failed",
+            "draft-discarded", "oversize" ) ), "every draft event type: " + byType.keySet() );
+        assertEquals( "Ada", byType.get( "published" ).get( 0 ).get( "by" ).getAsString() );
+        assertEquals( "Ada", byType.get( "publish-failed" ).get( 0 ).get( "by" ).getAsString() );
+        assertEquals( "writer-failed", byType.get( "publish-failed" ).get( 0 ).get( "reason" ).getAsString() );
+        assertEquals( "Ada", byType.get( "draft-discarded" ).get( 0 ).get( "by" ).getAsString() );
+        assertEquals( 64, byType.get( "oversize" ).get( 0 ).get( "limit" ).getAsLong() );
+        final JsonObject firstState = byType.get( "draft-state" ).get( 0 );
+        assertEquals( arr( "Ada" ), firstState.get( "contributors" ) );
+        assertTrue( firstState.get( "unpublished" ).getAsBoolean() );
+        assertEquals( T0.toString(), firstState.get( "lastEditAt" ).getAsString() );
+        final JsonObject afterDiscard = byType.get( "draft-state" ).get( byType.get( "draft-state" ).size() - 1 );
+        assertFalse( afterDiscard.get( "unpublished" ).getAsBoolean(), "content-based: the discard emptied it" );
+        assertEquals( arr(), afterDiscard.get( "contributors" ) );
+    }
+
+    @Test
+    void aDraftStateBeforeTheFirstEditCarriesANullLastEditAt() {
+        final JsonObject e = CollabWire.event( new CollabEvent( 3, "draft-state",
+            Map.of( "unpublished", false, "contributors", List.of() ) ) );
+        assertTrue( e.has( "lastEditAt" ) && e.get( "lastEditAt" ).isJsonNull(), "an explicit null: " + e );
+        assertEquals( 3, e.get( "seq" ).getAsLong() );
+        final JsonObject other = CollabWire.event( new CollabEvent( 4, "published", Map.of( "pageVersion", 2 ) ) );
+        assertFalse( other.has( "lastEditAt" ), "only draft-state carries it" );
+    }
+
+    @Test
+    void draftSummaryInTheFixtureShape() throws Exception {
+        writer.seed( PAGE, "Hello world", meta( "summary", "s", "tags", List.of( "a" ) ) );
+        final Joined a = join( "ada" );
+        assertEquals( 200, post( "ada", "updates", metaPush( a, 0, arr( update( a, 11, arr( 0, "!" ), 1 ) ),
+            obj( "field", "tags", "add", "c" ), obj( "field", "summary", "value", null ),
+            obj( "field", "status", "value", "draft" ) ) ).status );
+
+        final Resp r = draft( "ada", a );
+        assertFixture( "draft.get.200", r );
+        final JsonObject b = r.body();
+        assertEquals( 1, b.get( "basePageVersion" ).getAsInt() );
+        assertEquals( 1, b.get( "version" ).getAsInt() );
+        assertTrue( b.get( "unpublished" ).getAsBoolean() );
+        assertEquals( arr( "Ada" ), b.get( "contributors" ) );
+        assertEquals( T0.toString(), b.get( "lastEditAt" ).getAsString() );
+        assertEquals( "<table class=\"diff\">Hello world -> Hello world!</table>", b.get( "diff" ).getAsString(),
+            "the published body diffed against the draft head" );
+        assertEquals( List.of( PAGE ), diffCalls );
+        assertEquals( arr( obj( "field", "summary", "before", "s", "after", null ),
+                obj( "field", "tags", "before", arr( "a" ), "after", arr( "a", "c" ) ),
+                obj( "field", "status", "before", null, "after", "draft" ) ), b.get( "metaChanges" ),
+            "the published page's field order, then the fields the draft added" );
+        assertEquals( "no-store", r.headers.get( "Cache-Control" ) );
+    }
+
+    @Test
+    void draftSummaryOfAnUnchangedDraftIsEmpty() throws Exception {
+        final Joined a = join( "ada" );
+        final Resp r = draft( "ada", a );
+        assertFixture( "draft.get.200.unchanged", r );
+        final JsonObject b = r.body();
+        assertEquals( "", b.get( "diff" ).getAsString() );
+        assertEquals( arr(), b.get( "metaChanges" ) );
+        assertEquals( arr(), b.get( "contributors" ) );
+        assertFalse( b.get( "unpublished" ).getAsBoolean() );
+        assertTrue( b.get( "lastEditAt" ).isJsonNull(), "an explicit null" );
+        assertEquals( 0, b.get( "version" ).getAsInt() );
+        assertTrue( diffCalls.isEmpty(), "no diff is rendered for an unchanged text" );
+    }
+
+    @Test
+    void draftSummaryRendersTheHtmlDiffOutsideTheLock() throws Exception {
+        final Joined a = join( "ada" );
+        assertEquals( 200, push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) ).status );
+        final CollabSession s = session( a );
+        final List< Boolean > lockFree = new ArrayList<>();
+        final ExecutorService other = Executors.newSingleThreadExecutor();
+        try {
+            duringDiff = () -> {
+                try {
+                    other.submit( s::view ).get( 5, TimeUnit.SECONDS );   // blocks if this thread held the lock
+                    lockFree.add( true );
+                } catch( final Exception e ) {
+                    lockFree.add( false );
+                }
+            };
+            assertEquals( 200, draft( "ada", a ).status );
+        } finally {
+            other.shutdownNow();
+        }
+        assertEquals( List.of( true ), lockFree, "the diff renders with the session lock released" );
+    }
+
+    @Test
+    void draftSummaryNamesContributorsByDisplayName() throws Exception {
+        final Joined a = join( "ada" );
+        final Joined r = join( "raj" );
+        assertEquals( 200, push( "raj", r, 0, update( r, 11, arr( 0, "!" ), 1 ) ).status );
+        assertEquals( 200, post( "ada", "updates", metaPush( a, 1, arr(),
+            obj( "field", "status", "value", "draft" ) ) ).status );
+        assertEquals( arr( "Raj", "Ada" ), draft( "ada", a ).body().get( "contributors" ), "never the logins" );
+    }
+
+    @Test
+    void draftSummaryOfAnEvictedParticipantIs403WithDetail() throws Exception {
+        final Joined a = join( "ada" );
+        final Joined c = join( "cy" );
+        session( a ).evict( c.participantId, "lost-edit" );
+        final Resp r = draft( "cy", c );
+        assertFixture( "draft.get.403.evicted", r );
+        assertEquals( "no-store", r.headers.get( "Cache-Control" ) );
+        assertTrue( diffCalls.isEmpty() );
+    }
+
+    @Test
+    void draftSummaryUnderAnUnrelatedNameIs404() throws Exception {
+        final Joined a = join( "ada" );
+        assertFixture( "draft.get.404", draft( "ada", a, "Other" ) );
+    }
+
+    @Test
+    void draftSummaryRefusesLikeEveryPostJoinCall() throws Exception {
+        final Joined a = join( "ada" );
+        assertEquals( "not-your-participant", draft( "mallory", a ).reason() );
+        assertEquals( 403, draft( "mallory", a ).status );
+        assertEquals( 409, draft( "ada", new Joined( a.sessionId, "pt-unknown", a.clientId, a.body ) ).status );
+        assertEquals( 409, draft( "ada", new Joined( UUID.randomUUID().toString(), a.participantId, a.clientId,
+            a.body ) ).status );
+        assertEquals( 400, draft( "ada", new Joined( a.sessionId, "", a.clientId, a.body ) ).status );
+        assertEquals( 401, draft( null, a ).status );
+        assertTrue( diffCalls.isEmpty() );
+    }
+
+    @Test
+    void draftSummaryIsRateLimitedPerParticipant() throws Exception {
+        final Joined a = join( "ada" );
+        final Joined r = join( "raj" );
+        assertEquals( 200, push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) ).status );
+        for( int i = 0; i < CollabDraft.BURST; i++ ) {
+            assertEquals( 200, draft( "ada", a ).status, "within the burst" );
+            assertEquals( 403, draft( "mallory", a ).status, "another user's refused call spends nothing" );
+        }
+        final Resp limited = draft( "ada", a );
+        assertEquals( 429, limited.status, () -> limited.out.toString() );
+        assertEquals( "rate-limited", limited.reason() );
+        assertTrue( limited.body().get( "retryAfterMs" ).getAsLong() > 0 );
+        assertEquals( CollabDraft.BURST, diffCalls.size(), "a refused summary renders no diff" );
+        assertEquals( 200, draft( "raj", r ).status, "another participant has its own budget" );
+        draftNanos += 1_000_000_000L / CollabDraft.PER_SECOND;
+        assertEquals( 200, draft( "ada", a ).status, "a token comes back" );
+        assertEquals( 429, draft( "ada", a ).status );
+    }
+
+    @Test
+    void metaChangesListAddedRemovedAndChangedFields() {
+        final java.util.Date midnight = java.util.Date.from( Instant.parse( "2026-01-15T00:00:00Z" ) );
+        final JsonArray changes = CollabDraft.metaChanges( meta( "date", midnight, "summary", "s", "tags",
+            List.of( "a" ), "n", 3 ), meta( "n", 3L, "tags", List.of( "a", "c" ), "date", "2026-01-15", "status",
+            "draft" ) );
+        assertEquals( arr( obj( "field", "summary", "before", "s", "after", null ),
+            obj( "field", "tags", "before", arr( "a" ), "after", arr( "a", "c" ) ),
+            obj( "field", "status", "before", null, "after", "draft" ) ), changes,
+            "a YAML Date against its JSON string and an Integer against a Long are no change (A14)" );
+        assertEquals( arr(), CollabDraft.metaChanges( Map.of(), Map.of() ) );
+    }
+
+    @Test
+    void publish200WithMarkupSyntax() throws Exception {
+        final Joined a = join( "ada" );
+        push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) );
+        final JsonObject body = publishBody( a, 1 );
+        body.addProperty( "markupSyntax", "markdown" );
+        final Resp r = post( "ada", "publish", body );
+        assertFixture( "publish.200.markup", r );
+        assertEquals( 2, r.body().get( "pageVersion" ).getAsInt() );
+    }
+
+    @Test
+    void aPurgedParticipantGets403Purged() throws Exception {
+        final Joined a = join( "ada" );
+        assertEquals( 200, push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) ).status );
+        final Resp parked = park( a );
+        assertEquals( 204, registry.purge( UUID.fromString( a.sessionId ), "admin" ).status() );
+        assertFixture( "updates.get.403.purged", parked );
+        parked.async.assertCompletedOnce();
+        final Resp later = pull( "ada", a, 1, 0, 0, 0 );
+        assertEquals( 409, later.status, "the session is gone: a later call is told to rejoin" );
+        assertEquals( "rejoin", later.reason() );
+    }
+
+    @Test
+    void pushLatencyIsRecorded() throws Exception {
+        final List< Long > latencies = new ArrayList<>();
+        metrics = new CollabMetrics() {
+            @Override
+            public void pushLatency( final long nanos ) {
+                latencies.add( nanos );
+            }
+        };
+        use( config( 20, 1000, 100, 500 ), CollabSessionRegistry.DEFAULT_MAX_PAGE_BYTES, 0 );
+        final Joined a = join( "ada" );
+        assertEquals( 200, push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) ).status );
+        assertEquals( 409, push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) ).status );
+        assertEquals( 2, latencies.size(), "one latency per push through REST, never two" );
+    }
+
+    @Test
+    void aLateHandOffLogsAtDebug() throws Exception {
+        use( config( 20, 1000, 100, 500 ), CollabSessionRegistry.DEFAULT_MAX_PAGE_BYTES, 50, writer, ( ac, task ) -> {
+            if( ( ( FakeAsyncContext ) ac ).isCompleted() ) {
+                throw new IllegalStateException( "the request is no longer in async mode" );
+            }
+            task.run();
+        } );
+        final Joined a = join( "ada" );
+        final Joined r = join( "raj" );
+        final Resp parked = park( a );
+        assertEquals( 200, push( "raj", r, 0, update( r, 11, arr( 0, "!" ), 1 ) ).status );
+        assertEquals( 1, delayed.size(), "the woken answer waits for the coalescing window" );
+        parked.async.fireTimeout();   // the container answers first, with the held answer
+        parked.async.assertCompletedOnce();
+
+        final List< LogEvent > logged = RestLogCapture.events( CollabPull.class, () -> delayed.forEach( Runnable::run ) );
+        assertTrue( logged.stream().noneMatch( e -> e.getLevel().isMoreSpecificThan( Level.WARN ) ),
+            () -> "no WARN for a hand-off that lost the race to the timeout: " + logged );
+        assertTrue( logged.stream().anyMatch( e -> e.getLevel() == Level.DEBUG
+            && e.getMessage().getFormattedMessage().contains( "already answered" ) ), () -> "logged: " + logged );
+        parked.async.assertCompletedOnce();
+    }
+
+    @Test
+    void aRefusedHandOffBeforeAnyWriteStillWarns() throws Exception {
+        use( config( 20, 1000, 100, 500 ), CollabSessionRegistry.DEFAULT_MAX_PAGE_BYTES, 0, writer, ( ac, task ) -> {
+            throw new IllegalStateException( "the pool is shut down" );
+        } );
+        final Joined a = join( "ada" );
+        final Joined r = join( "raj" );
+        final Resp parked = park( a );
+        final List< LogEvent > logged = RestLogCapture.events( CollabPull.class, () -> {
+            try {
+                assertEquals( 200, push( "raj", r, 0, update( r, 11, arr( 0, "!" ), 1 ) ).status );
+            } catch( final Exception e ) {
+                throw new IllegalStateException( e );
+            }
+        } );
+        assertTrue( logged.stream().anyMatch( e -> e.getLevel() == Level.WARN ), () -> "logged: " + logged );
+        parked.async.fireTimeout();
+        parked.async.assertCompletedOnce();
     }
 }

@@ -578,7 +578,9 @@ describe('useCollabSession', () => {
       const view = mountView(result);
       await advance();
       await act(async () => { await publishAs(bob); await vi.advanceTimersByTimeAsync(50); });
-      expect(result.current.draft).toEqual({ unpublished: false, contributors: [], lastEditAt: null });
+      // as the server: a publish clears the contributors; lastEditAt still names the last edit
+      expect(result.current.draft).toMatchObject({ unpublished: false, contributors: [] });
+      expect(result.current.draft.lastEditAt).toEqual(expect.any(String));
       await act(async () => { await typeAtEnd(bob, '?'); await vi.advanceTimersByTimeAsync(50); });
       expect(result.current.draft).toMatchObject({ unpublished: true, contributors: ['bob'] });
       view.destroy();

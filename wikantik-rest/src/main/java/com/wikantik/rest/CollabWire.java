@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.wikantik.collab.model.CollabEvent;
 import com.wikantik.collab.model.JoinResponse;
@@ -58,6 +59,8 @@ final class CollabWire {
 
     static final String REASON = "reason";
     static final String MESSAGE = "message";
+    private static final String DRAFT_STATE = "draft-state";
+    private static final String LAST_EDIT_AT = "lastEditAt";
 
     /** One answer: a status and a body ({@code null} for 204). */
     record Answer( int status, JsonElement body ) {
@@ -178,12 +181,27 @@ final class CollabWire {
         o.add( "participants", peers );
         final JsonObject draft = new JsonObject();
         draft.addProperty( "unpublished", j.unpublished() );
-        draft.add( "contributors", new JsonArray() );
-        draft.addProperty( "lastEditAt", j.lastEditAt() == null ? null : j.lastEditAt().toString() );
+        draft.add( "contributors", GSON.toJsonTree( j.contributors() ) );   // display names, first-contribution order
+        draft.addProperty( LAST_EDIT_AT, j.lastEditAt() == null ? null : j.lastEditAt().toString() );
         o.add( "draft", draft );
         o.addProperty( "eventSeq", j.eventSeq() );
         o.addProperty( "frozen", j.frozen() );
         return new Answer( 200, o );
+    }
+
+    /**
+     * One pulled event: {@code seq}, {@code type} and its fields. A {@code draft-state} always carries
+     * {@code lastEditAt}, as an explicit null before the first edit (the session's events hold no nulls).
+     */
+    static JsonObject event( final CollabEvent ev ) {
+        final JsonObject eo = new JsonObject();
+        eo.addProperty( "seq", ev.seq() );
+        eo.addProperty( "type", ev.type() );
+        ev.fields().forEach( ( k, v ) -> eo.add( k, GSON.toJsonTree( v ) ) );
+        if( DRAFT_STATE.equals( ev.type() ) && !eo.has( LAST_EDIT_AT ) ) {
+            eo.add( LAST_EDIT_AT, JsonNull.INSTANCE );
+        }
+        return eo;
     }
 
     static Answer pushed( final int version, final long metaSeq ) {
@@ -228,11 +246,7 @@ final class CollabWire {
         o.addProperty( "presenceSeq", r.presenceSeq() );
         final JsonArray events = new JsonArray();
         for( final CollabEvent ev : r.events() ) {
-            final JsonObject eo = new JsonObject();
-            eo.addProperty( "seq", ev.seq() );
-            eo.addProperty( "type", ev.type() );
-            ev.fields().forEach( ( k, v ) -> eo.add( k, GSON.toJsonTree( v ) ) );
-            events.add( eo );
+            events.add( event( ev ) );
         }
         o.add( "events", events );
         o.addProperty( "eventSeq", r.eventSeq() );

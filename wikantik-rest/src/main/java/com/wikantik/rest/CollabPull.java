@@ -204,13 +204,22 @@ final class CollabPull implements PullWaiter, AsyncListener {
         }
     }
 
-    /** Runs the write off this thread; if the hand-off is refused, the container timeout still answers (logged). */
+    /**
+     * Runs the write off this thread; if the hand-off is refused, the container timeout still answers (WARN). A late
+     * hand-off whose request was already answered (the container timed it out during the coalescing window, so the
+     * request is no longer in async mode) has nothing left to do and is logged at DEBUG.
+     */
     private void handOff( final AsyncContext ac, final Answer a ) {
         try {
             dispatch.run( ac, () -> write( a ) );
         } catch( final RuntimeException e ) {
-            LOG.warn( "collab: could not hand off the long-poll answer of {}; its timeout answers it: {}", participantId,
-                e.toString() );
+            if( written.get() ) {
+                LOG.debug( "collab: the long-poll of {} was already answered; dropping the late hand-off: {}",
+                    participantId, e.toString() );
+            } else {
+                LOG.warn( "collab: could not hand off the long-poll answer of {}; its timeout answers it: {}",
+                    participantId, e.toString() );
+            }
         }
     }
 

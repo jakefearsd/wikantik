@@ -137,6 +137,8 @@ class CollabAsyncFiltersTest {
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         final StringWriter out = new StringWriter();
         final List< String > writeContexts = new ArrayList<>();
+        /** The collab session id in the MDC at the moment of each write. */
+        final List< String > sessionContexts = new ArrayList<>();
         int status = 200;
         FakeAsyncContext async;
 
@@ -171,6 +173,7 @@ class CollabAsyncFiltersTest {
                 @Override
                 public void write( final char[] buf, final int off, final int len ) {
                     writeContexts.add( ThreadContext.get( RequestContextKeys.REQUEST_ID ) );
+                    sessionContexts.add( ThreadContext.get( CollabResource.MDC_SESSION ) );
                     out.write( buf, off, len );
                 }
 
@@ -241,6 +244,35 @@ class CollabAsyncFiltersTest {
         assertEquals( 1, recorded( 200 ) );
         assertEquals( 1, x.body().getAsJsonArray( "updates" ).size() );
         assertEquals( List.of( "req-parked" ), x.writeContexts.stream().distinct().toList() );
+    }
+
+    @Test
+    void collabLogsCarryTheSessionId() throws Exception {
+        assertEquals( "collab_session", CollabResource.MDC_SESSION );
+        final String id = session.id().toString();
+        // answered at once, on the request thread
+        session.push( ada.participantId(), "ada", 0,
+            List.of( new Update( ada.clientId(), ChangeSet.replace( session.view().doc().length(), 0, 0, "X" ) ) ) );
+        final Exchange now = new Exchange( true );
+        now.run();
+        assertEquals( null, now.async, "answered without parking" );
+        assertEquals( List.of( id ), now.sessionContexts.stream().distinct().toList(), "on the request thread" );
+        assertTrue( ThreadContext.isEmpty(), "nothing left behind on the request thread" );
+
+        // parked, then woken by a push on another thread: the waiter's captured MDC carries it
+        final Exchange parked = new Exchange( true );
+        when( parked.req.getParameter( "since" ) ).thenReturn( "1" );
+        when( parked.req.getParameter( "eventsSince" ) ).thenReturn( Long.toString( Long.MAX_VALUE ) );
+        parked.run();
+        assertNotNull( parked.async, "parked" );
+        assertTrue( ThreadContext.isEmpty(), "the parked request left nothing behind either" );
+        final Thread pusher = new Thread( () -> session.push( ada.participantId(), "ada", 1,
+            List.of( new Update( ada.clientId(), ChangeSet.replace( session.view().doc().length(), 0, 0, "Y" ) ) ) ) );
+        pusher.start();
+        pusher.join( 10_000 );
+        parked.async.assertCompletedOnce();
+        assertEquals( List.of( id ), parked.sessionContexts.stream().distinct().toList(), "in the waiter's completion" );
+        assertEquals( List.of( "req-parked" ), parked.writeContexts.stream().distinct().toList() );
     }
 
     @Test

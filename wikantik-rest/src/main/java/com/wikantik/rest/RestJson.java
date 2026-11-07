@@ -93,6 +93,28 @@ public final class RestJson {
     }
 
     /**
+     * Sends a JSON error response with a machine-readable {@code reason} beside the usual envelope.
+     *
+     * @param response the HTTP response
+     * @param status   the HTTP status code
+     * @param message  the error message
+     * @param reason   the machine-readable reason
+     * @throws IOException if writing fails
+     */
+    public static void sendError( final HttpServletResponse response, final int status, final String message,
+                                  final String reason ) throws IOException {
+        response.setStatus( status );
+        response.setContentType( "application/json" );
+        response.setCharacterEncoding( "UTF-8" );
+        response.getWriter().write( RestServletBase.GSON.toJson( Map.of(
+                "error", true,
+                "status", status,
+                "message", message,
+                "reason", reason
+        ) ) );
+    }
+
+    /**
      * Convenience for sending a 404 Not Found error.
      *
      * @param response the HTTP response

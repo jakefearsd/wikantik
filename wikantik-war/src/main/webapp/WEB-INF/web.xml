@@ -774,6 +774,11 @@
        <servlet-name>AdminAuditResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminAuditResource</servlet-class>
    </servlet>
+   <!-- MultiEdit Phase 3: the collaborative drafts list and purge (/admin/collab/drafts), behind AdminAuthFilter. -->
+   <servlet>
+       <servlet-name>AdminCollabResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminCollabResource</servlet-class>
+   </servlet>
    <servlet>
        <servlet-name>AdminExtractionResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminExtractionResource</servlet-class>
@@ -1142,6 +1147,10 @@
    <servlet-mapping>
        <servlet-name>AdminAuditResource</servlet-name>
        <url-pattern>/admin/audit/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminCollabResource</servlet-name>
+       <url-pattern>/admin/collab/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminExtractionResource</servlet-name>

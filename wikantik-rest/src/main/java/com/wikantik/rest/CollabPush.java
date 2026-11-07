@@ -141,7 +141,8 @@ final class CollabPush {
         try {
             return new Selection( anchor, head, v, unconfirmed );
         } catch( final IllegalArgumentException e ) {
-            return "selection: " + e.getMessage();
+            LOG.debug( "collab: malformed selection: {}", e.getMessage() );
+            return "selection: " + e.getMessage();   // run() logs the refusal at WARN
         }
     }
 
@@ -163,7 +164,8 @@ final class CollabPush {
             into.add( new Update( client.getAsString(), ChangeSetJson.fromJson( changes.getAsJsonArray() ) ) );
             return null;
         } catch( final RuntimeException ex ) {
-            return "malformed changes: " + ex.getMessage();
+            LOG.debug( "collab: malformed changes: {}", ex.getMessage() );
+            return "malformed changes: " + ex.getMessage();   // run() logs the refusal at WARN
         }
     }
 
@@ -180,7 +182,8 @@ final class CollabPush {
             final BigDecimal d = e.getAsBigDecimal();
             return d.intValueExact();
         } catch( final ArithmeticException | NumberFormatException ex ) {
-            return null;
+            LOG.debug( "collab: {} is not an exact int: {}", e, ex.getMessage() );
+            return null;   // the caller refuses the field by name
         }
     }
 }

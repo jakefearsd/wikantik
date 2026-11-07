@@ -22,6 +22,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.collab.model.MetaEdit;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +36,8 @@ import java.util.List;
  * after its identity, rate, freeze, version and text checks.
  */
 final class CollabMetaOps {
+
+    private static final Logger LOG = LogManager.getLogger( CollabMetaOps.class );
 
     /** Plain JSON values for SETs (numbers as doubles; the session normalises values through JSON). */
     private static final Gson VALUES = new Gson();
@@ -90,7 +94,8 @@ final class CollabMetaOps {
             } );
             return null;
         } catch( final IllegalArgumentException ex ) {
-            return "malformed meta op: " + ex.getMessage();
+            LOG.debug( "collab: malformed meta op: {}", ex.getMessage() );
+            return "malformed meta op: " + ex.getMessage();   // CollabPush.run logs the refusal at WARN
         }
     }
 }

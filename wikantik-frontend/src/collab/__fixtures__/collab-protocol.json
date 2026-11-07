@@ -22,10 +22,10 @@
     "metaIdempotent": "Every meta edit is idempotent: re-applying a SET of the current value, an ADD of a present item, or a REMOVE of an absent item changes nothing (no metaSeq advance, no pulled op), so a lost acknowledgement and retry is safe. Values are compared as normalised JSON, except that items of the set fields (tags, related, aliases) compare and store as strings (a numeric 2024 equals \"2024\"). A REMOVE drops every equal item, a REMOVE on an absent field and a SET of null on an absent field store nothing, removing the last item leaves []. A push still answers 200 when every edit was a no-op. A single meta value whose normalised JSON exceeds 64 KiB refuses the whole push with 400 {reason:'rejected'}, applying nothing.",
     "renamedSession": "Post-join calls resolve the session by sessionId. The {pageName} path segment may be the session's current name or any name it held earlier; any other name answers 404. A rename emits a page-renamed {to} event.",
     "evicted": "After an `evicted {participantId, reason}` event (reason lost-edit|signed-out|account-deleted) every post-join call by that participant answers 403 {reason:'evicted', detail:<same reason>}. Publishing a frozen draft without createPages answers 403 {reason:'no-create'}. participant-left carries reason left|timeout|evicted. Events: participant-joined {participant}, participant-left {participantId, reason}, external-change {source, pageVersion, version, ranges:[[from,to]], conflictFields:[...], recreated?} (version = collab head right after the server update; ranges in that document's coordinates), page-renamed {to}, page-deleted {}, evicted {participantId, reason}.",
-    "draftState": "Phase 3 (additive v1). `join.draft.contributors` lists the display names of the authors with unpublished contributions, in first-contribution order ([] when none); `draft.lastEditAt` is an ISO-8601 instant or null. Event `draft-state {seq, unpublished, contributors:[displayName], lastEditAt}` is emitted when the contributor set or `unpublished` changes (an author's first contribution since the last publish, a publish, a discard, a purge), NOT on every edit: a client advances `lastEditAt` itself whenever it receives an update or meta op. Events `published {by, pageVersion}`, `publish-failed {by}`, `draft-discarded {by}` and `oversize {bytes, limit}` are pinned by updates.get.200.draft-events.",
-    "draftSummary": "GET /api/collab/{pageName}/draft?sessionId&participantId answers 200 {basePageVersion, version, unpublished, contributors:[displayName], lastEditAt, diff:'<html>', metaChanges:[{field, before, after}]}. `diff` is the server's HTML diff of the published body against the draft head and is the empty string when there is no text change. `metaChanges` lists the top-level fields whose normalised values differ, in field order; a field the draft removed has after:null, a field it added has before:null. Refusals: 403 {reason:'not-your-participant'}, 403 {reason:'evicted', detail}, 409 {reason:'rejoin'} (unknown or expired participant, or a session id the server does not know), 404 (a page name the session does not answer to). POST /publish also accepts an optional markupSyntax ('markdown' or 'wiki'), passed to the save; the editor always sends its known syntax, since a save without one infers it from the file extension.",
+    "draftState": "Phase 3 (additive v1). `join.draft.contributors` lists the display names of the authors with unpublished contributions, in first-contribution order ([] when none); `draft.lastEditAt` is an ISO-8601 instant or null. `unpublished` is content-based: true while the draft's text or meta differ from the published page, so an edit typed and then deleted again turns it back to false. Event `draft-state {seq, unpublished, contributors:[displayName], lastEditAt}` is emitted when the contributor set or `unpublished` changes (an author's first contribution since the last publish, an edit that makes the draft differ from the published page or match it again, a publish, a discard), NOT on every edit; its `lastEditAt` is null before the first edit. A client advances `lastEditAt` itself whenever it receives an update or meta op. Events `published {by, pageVersion}`, `publish-failed {by, status, reason}` (500 `writer-failed` for a save that failed, 422 `writer-refused` for one the save pipeline refused; the publisher's own answer has the same status and reason), `draft-discarded {by}` and `oversize {bytes, limit}` are pinned by updates.get.200.draft-events.",
+    "draftSummary": "GET /api/collab/{pageName}/draft?sessionId&participantId answers 200 {basePageVersion, version, unpublished, contributors:[displayName], lastEditAt, diff:'<html>', metaChanges:[{field, before, after}]}. `diff` is the server's HTML diff of the published body against the draft head and is the empty string when there is no text change. `metaChanges` lists the top-level fields whose normalised values differ, in the published page's field order followed by the fields the draft added, in the draft's order; a field the draft removed has after:null, a field it added has before:null. Refusals: 403 {reason:'not-your-participant'}, 403 {reason:'evicted', detail}, 409 {reason:'rejoin'} (unknown or expired participant, or a session id the server does not know), 404 (a page name the session does not answer to), 429 {reason:'rate-limited', retryAfterMs} (each participant may fetch 3 summaries at once, then 1 a second). POST /publish also accepts an optional markupSyntax ('markdown' or 'wiki'), passed to the save; the editor always sends its known syntax, since a save without one infers it from the file extension.",
     "contributorsAreDisplayNames": "Contributors are display names (public identity), never login names, in first-contribution order. An author is added at their first update or meta op since the last publish; a publish, a discard and a purge clear the set.",
-    "purged": "An administrator removed the draft: every participant gets the event evicted {participantId, reason:'purged'} (and participant-left reason:'evicted'), and later calls answer 403 {reason:'evicted', detail:'purged'}. The client keeps unsynced text in the recovery panel, as for signed-out."
+    "purged": "An administrator removed the draft: every participant gets the event evicted {participantId, reason:'purged'} (and participant-left reason:'evicted'), and a parked GET /updates answers 403 {reason:'evicted', detail:'purged'} (updates.get.403.purged). The draft is deleted with its session, so a call made after the purge answers 409 {reason:'rejoin'}. The client keeps unsynced text in the recovery panel, as for signed-out."
   },
   "cases": [
     {
@@ -1000,7 +1000,9 @@
             {
               "seq": 3,
               "type": "publish-failed",
-              "by": "Raj"
+              "by": "Raj",
+              "status": 500,
+              "reason": "writer-failed"
             },
             {
               "seq": 4,
@@ -1041,11 +1043,6 @@
           "diff": "<div class=\"diff\"><del>Hello world</del><ins>Hello world!</ins></div>",
           "metaChanges": [
             {
-              "field": "status",
-              "before": null,
-              "after": "draft"
-            },
-            {
               "field": "summary",
               "before": "s",
               "after": null
@@ -1059,6 +1056,11 @@
                 "a",
                 "c"
               ]
+            },
+            {
+              "field": "status",
+              "before": null,
+              "after": "draft"
             }
           ]
         }

@@ -595,7 +595,8 @@ public final class CollabSession {
         try {
             saved = writer.publish( st.ticket().request() );
         } catch( final WikiException | RuntimeException e ) {
-            return failPublish( st.ticket(), e );
+            LOG.debug( "collab session {}: the save threw; ending the publish as failed: {}", id, e.toString() );
+            return failPublish( st.ticket(), e );   // logs the failure with its cause (PublishFlow.failed)
         } catch( final Error e ) {
             // a filter overflowed the stack, memory ran out, a class failed to link: the publish still ends
             Suppressing.run( e, () -> abandonPublish( st.ticket(), e ) );

@@ -565,7 +565,7 @@ describe('Phase 2 fixture cases against the fake', () => {
 
 describe('Phase 3 fixture cases against the fake: draft state, draft summary, publish events, purge', () => {
   let server;
-  beforeEach(() => { vi.useFakeTimers(); server = createFakeCollabServer({ initialMeta: { tags: ['a'], summary: 's' } }); });
+  beforeEach(() => { vi.useFakeTimers(); server = createFakeCollabServer({ initialMeta: { summary: 's', tags: ['a'] } }); });
   afterEach(() => { vi.useRealTimers(); });
   const call = (method, path, { user = 'ada', pid = 'pt-1', body = {}, query = {}, pageName } = {}) => server.handle({
     method, path, user, pageName,
@@ -671,10 +671,11 @@ describe('Phase 3 fixture cases against the fake: draft state, draft summary, pu
     expect(shapeDiff(res.body, byId['draft.get.200'].response.body)).toEqual([]);
     expect(res.body).toMatchObject({ basePageVersion: 7, version: 1, unpublished: true, contributors: ['ada'] });
     expect(res.body.diff).toContain('Hello world!');
+    // the published page's field order (summary, tags), then the field the draft added
     expect(res.body.metaChanges).toEqual([
-      { field: 'status', before: null, after: 'draft' },
       { field: 'summary', before: 's', after: null },
       { field: 'tags', before: ['a'], after: ['a', 'c'] },
+      { field: 'status', before: null, after: 'draft' },
     ]);
   });
 
@@ -742,7 +743,7 @@ describe('Phase 3 fixture cases against the fake: draft state, draft summary, pu
     expect(bad.body.reason).toBe('rejected');
   });
 
-  it('purge evicts every participant with reason purged and empties the draft', async () => {
+  it('purge evicts every participant with reason purged: a parked pull answers 403 purged, a later call 409 rejoin', async () => {
     const ada = await joinAs('ada');
     const raj = await joinAs('raj');
     await edit(ada, 0);
@@ -751,18 +752,28 @@ describe('Phase 3 fixture cases against the fake: draft state, draft summary, pu
     const released = await parked;
     expect(released.status).toBe(403);
     expect(released.body).toEqual({ reason: 'evicted', detail: 'purged' });
+    expect(shapeDiff(released.body, byId['updates.get.403.purged'].response.body)).toEqual([]);
+    // the draft is deleted with its session (the server's truth): later calls are told to rejoin
     const get = await pull('ada', ada.participantId, { since: 1 });
-    expect(get.status).toBe(403);
-    expect(shapeDiff(get.body, byId['updates.get.403.purged'].response.body)).toEqual([]);
-    expect(get.body.detail).toBe('purged');
-    expect((await call('POST', '/updates', { pid: ada.participantId, body: { version: 1, updates: [] } })).body).toEqual({ reason: 'evicted', detail: 'purged' });
+    expect(get.status).toBe(409);
+    expect(get.body.reason).toBe('rejoin');
+    expect((await call('POST', '/updates', { pid: ada.participantId, body: { version: 1, updates: [] } })).body).toEqual({ rejoin: true, reason: 'rejoin' });
+    expect((await call('POST', '/leave', { pid: ada.participantId })).status).toBe(204);
     expect(server.isLive(ada.participantId)).toBe(false);
     expect(server.isLive(raj.participantId)).toBe(false);
     const fresh = await joinAs('kim');
     expect(fresh.draft).toEqual({ unpublished: false, contributors: [], lastEditAt: null });
-    const events = (await pull('kim', fresh.participantId)).body.events;
-    const evicted = events.filter((e) => e.type === 'evicted');
-    expect(evicted.map((e) => [e.participantId, e.reason])).toEqual([[ada.participantId, 'purged'], [raj.participantId, 'purged']]);
-    expect(events.find((e) => e.type === 'draft-state' && e.contributors.length === 0)).toMatchObject({ unpublished: false });
+    expect(fresh.doc).toBe('Hello world');
+  });
+
+  it('unpublished is content-based: an edit typed and deleted again is no change, and draft-state says so', async () => {
+    const ada = await joinAs('ada');
+    await edit(ada, 0);
+    await call('POST', '/updates', { body: { version: 1, updates: [{ clientID: ada.clientID, changes: [11, [1]] }], metaOps: [] } });
+    const states = stateEvents(await pull());
+    expect(states.map((e) => e.unpublished)).toEqual([true, false]);
+    expect(states[1].contributors).toEqual(['ada']);
+    const draft = await call('GET', '/draft');
+    expect(draft.body).toMatchObject({ unpublished: false, diff: '', metaChanges: [] });
   });
 });

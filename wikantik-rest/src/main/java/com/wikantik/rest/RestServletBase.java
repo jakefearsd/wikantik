@@ -360,6 +360,22 @@ public abstract class RestServletBase extends HttpServlet {
     }
 
     /**
+     * Sends a JSON error response that also names a machine-readable {@code reason} (for example
+     * {@code publish-in-progress}): the {@link #sendError(HttpServletResponse, int, String)} envelope plus
+     * {@code reason}.
+     *
+     * @param response the HTTP response
+     * @param status   the HTTP status code
+     * @param message  the error message
+     * @param reason   the machine-readable reason
+     * @throws IOException if writing fails
+     */
+    protected void sendError( final HttpServletResponse response, final int status, final String message,
+                              final String reason ) throws IOException {
+        RestJson.sendError( response, status, message, reason );
+    }
+
+    /**
      * Convenience for sending a 404 Not Found error.
      *
      * @param response the HTTP response

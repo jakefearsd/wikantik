@@ -29,6 +29,8 @@ const utf8Bytes = (s) => new TextEncoder().encode(s).length;
 const MAX_META_VALUE_BYTES = 64 * 1024;
 const LIST_FIELDS = new Set(['tags', 'related', 'aliases']);
 const jsonEq = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/** Top-level meta equality as the server's map comparison: field order does not matter, an absent field is null. */
+const metaEq = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].every((f) => jsonEq(a[f], b[f]));
 const normalise = (v) => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
 const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
 
@@ -74,8 +76,8 @@ export function createFakeCollabServer({
   let basePageVersion = 7;
   // Draft summary state (Phase 3): who has contributed since the last publish, and what the published page holds.
   let contributors = []; // display names, in first-contribution order
-  let unpublishedFlag = false;
   let lastEditAt = null;
+  let announced = JSON.stringify({ unpublished: false, contributors: [] }); // the last draft-state reported
   let publishedText = initialText;
   let publishedMeta = { ...initialMeta };
   let failPublishBy = null;
@@ -98,31 +100,43 @@ export function createFakeCollabServer({
     if (sessionId && sessionId !== 's-1f3a') return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
     if (!p) return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
     if (p.owner !== user) return { error: reply(403, { reason: 'not-your-participant' }) };
+    if (p.purged) return { error: reply(409, { rejoin: true, reason: 'rejoin' }) }; // its draft is gone
     if (p.evicted) return { error: reply(403, { reason: 'evicted', detail: p.evicted }) };
     if (p.expired) return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
     p.lastSeen = Date.now();
     return { p };
   }
   const isoNow = () => new Date(Date.now()).toISOString();
-  const draftSummary = () => ({ unpublished: unpublishedFlag, contributors: [...contributors], lastEditAt });
-  /** Emits draft-state: the contributor set or `unpublished` changed (never on a plain edit). */
-  function emitDraftState() {
+  /** As the server: content-based, the draft's text or meta differ from the published page (meta key order aside). */
+  const unpublished = () => text() !== publishedText || !metaEq(metadata, publishedMeta);
+  const draftSummary = () => ({ unpublished: unpublished(), contributors: [...contributors], lastEditAt });
+  /** Emits draft-state when the contributor set or `unpublished` changed since the last one (never on a plain edit). */
+  function announce() {
+    const now = JSON.stringify({ unpublished: unpublished(), contributors });
+    if (now === announced) return;
+    announced = now;
     addEvent({ type: 'draft-state', ...draftSummary() });
   }
   /** Decision 2: an author counts at their first update or meta op since the last publish. */
   function contribute(name) {
     lastEditAt = isoNow();
-    const changed = !unpublishedFlag || !contributors.includes(name);
-    unpublishedFlag = true;
     if (!contributors.includes(name)) contributors.push(name);
-    if (changed) emitDraftState();
   }
-  function clearDraft() {
-    const changed = unpublishedFlag || contributors.length > 0;
-    unpublishedFlag = false;
+  /** Resets the draft to the published page, as server updates and server meta ops (a discard, a purge). */
+  function resetToPublished() {
+    if (text() !== publishedText) {
+      const cs = ChangeSet.of({ from: 0, to: doc.length, insert: publishedText }, doc.length);
+      doc = cs.apply(doc);
+      log.push({ clientID: 'server', changes: cs.toJSON() });
+      version += 1;
+    }
+    for (const field of Object.keys(metadata)) {
+      if (!(field in publishedMeta)) applyMeta({ field, value: null }, null);
+    }
+    for (const [field, value] of Object.entries(publishedMeta)) {
+      if (!jsonEq(value, metadata[field])) applyMeta({ field, value: normalise(value) }, null);
+    }
     contributors = [];
-    lastEditAt = null;
-    return changed;
   }
   const publicParticipant = (p) => ({ participantId: p.participantId, displayName: p.displayName, color: p.color });
 
@@ -263,6 +277,7 @@ export function createFakeCollabServer({
       presenceSeq += 1;
     }
     if (parsed.length > 0 || resolved.ops.length > 0) contribute(p.displayName);
+    announce();
     wake();
     return reply(200, { accepted: true, version, metaSeq });
   }
@@ -335,8 +350,8 @@ export function createFakeCollabServer({
     if (failPublishBy !== null) {
       const by = failPublishBy;
       failPublishBy = null;
-      addEvent({ type: 'publish-failed', by });
-      return reply(500, { error: 'publish_failed', message: 'the save failed' });
+      addEvent({ type: 'publish-failed', by, status: 500, reason: 'writer-failed' });
+      return reply(500, { reason: 'writer-failed' });
     }
     if (config.publishInvalid) {
       return reply(422, { error: 'frontmatter_validation_failed', violations: [{ field: 'tags', severity: 'ERROR', message: 'tags must be a list' }] });
@@ -345,15 +360,17 @@ export function createFakeCollabServer({
     publishedText = text();
     publishedMeta = { ...metadata };
     addEvent({ type: 'published', by: p.displayName, pageVersion: basePageVersion });
-    if (clearDraft()) emitDraftState();
+    contributors = [];
+    announce();
     return reply(200, { pageVersion: basePageVersion, warnings: [], mathWarnings: [] });
   }
 
   function discard(user, body) {
     const r = resolve(user, body.sessionId, body.participantId);
     if (r.error) return r.error;
+    resetToPublished();
     addEvent({ type: 'draft-discarded', by: r.p.displayName });
-    if (clearDraft()) emitDraftState();
+    announce();
     return reply(204);
   }
 
@@ -367,8 +384,9 @@ export function createFakeCollabServer({
     const added = after.filter((l) => !before.includes(l)).map((l) => `+${esc(l)}`);
     return `<pre>${[...removed, ...added].join('\n')}</pre>`;
   }
+  /** As the server: the published page's field order, then the fields the draft added in the draft's order. */
   function metaChanges() {
-    const fields = [...new Set([...Object.keys(publishedMeta), ...Object.keys(metadata)])].sort();
+    const fields = [...new Set([...Object.keys(publishedMeta), ...Object.keys(metadata)])];
     return fields.filter((f) => !jsonEq(publishedMeta[f], metadata[f]))
       .map((field) => ({ field, before: publishedMeta[field] ?? null, after: metadata[field] ?? null }));
   }
@@ -392,7 +410,8 @@ export function createFakeCollabServer({
     else if (key === 'GET /draft') res = draftGet(user, query);
     else if (key === 'POST /leave') {
       const p = participants.get(body.participantId);
-      if (p && p.owner !== user) res = reply(403, { reason: 'not-your-participant' });
+      if (p?.purged) res = reply(204); // the session is gone: a leave of it is done
+      else if (p && p.owner !== user) res = reply(403, { reason: 'not-your-participant' });
       else if (p?.evicted) res = reply(403, { reason: 'evicted', detail: p.evicted });
       else {
         if (p && !p.expired) {
@@ -516,27 +535,38 @@ export function createFakeCollabServer({
         if (!jsonEq(v, metadata[field])) applyMeta({ field, value: v }, null);
       }
       basePageVersion += 1;
+      // the outside write is the new published page (this fake replaces the whole document with it)
+      if (nextText != null) publishedText = nextText;
+      for (const [field, value] of Object.entries(meta)) publishedMeta[field] = normalise(value);
       addEvent({
         type: 'external-change', source, pageVersion: basePageVersion, version, ranges, conflictFields,
         ...(recreated ? { recreated: true } : {}),
       });
+      announce();
     },
-    /** An administrator removed the draft: every live participant is evicted `purged` and the draft is emptied. */
+    /**
+     * An administrator removed the draft: every live participant is evicted `purged` (a parked pull answers 403
+     * evicted purged) and the draft is deleted with its session, so a later call answers 409 rejoin and the next join
+     * starts a fresh draft from the published page.
+     */
     purge() {
       for (const p of participants.values()) {
         if (p.expired || p.evicted) continue;
         p.evicted = 'purged';
+        p.purged = true;
         expire(p);
         presenceSeq += 1;
         addEvent({ type: 'evicted', participantId: p.participantId, reason: 'purged' });
         addEvent({ type: 'participant-left', participantId: p.participantId, reason: 'evicted' });
       }
-      if (clearDraft()) emitDraftState();
+      resetToPublished();
+      lastEditAt = null;
+      announced = JSON.stringify({ unpublished: unpublished(), contributors });
       wake();
     },
     /** The server refuses the document as too large: an `oversize {bytes, limit}` event. */
     oversize(bytes, limit) { addEvent({ type: 'oversize', bytes, limit }); },
-    /** The next publish fails on the server: it emits publish-failed {by} and answers 500 once. */
+    /** The next publish fails on the server: it emits publish-failed {by, status, reason} and answers 500 writer-failed once. */
     failNextPublish(by) { failPublishBy = by; },
     forgetClientIds() { clientOwner.clear(); clientReleasedAt.clear(); },
   };

@@ -19,6 +19,10 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.spi.Wiki;
 import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.CollabSessionRegistry;
 import com.wikantik.collab.adapter.CollabWiring;
@@ -32,6 +36,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -40,9 +45,10 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
 
 /**
- * The collaborative-editing HTTP surface, {@code /api/collab/{page}/{join|updates|publish|discard|leave}}
+ * The collaborative-editing HTTP surface, {@code /api/collab/{page}/{join|updates|publish|discard|leave|draft}}
  * (docs/MultiEdit.MD section 6.2 with the section 0 amendments; the wire contract is the shared fixture
  * {@code wikantik-frontend/src/collab/__fixtures__/collab-protocol.json}).
  *
@@ -63,7 +69,11 @@ import java.util.concurrent.TimeUnit;
  *       else parked with {@code startAsync} for {@code poll.timeoutSeconds} ({@link CollabPull}).</li>
  *   <li>{@code publish} ({@link CollabPublish}) runs an uncached {@code edit} check of the publisher first, plus
  *       {@code createPages} for a page that does not exist yet (A5).</li>
+ *   <li>{@code GET draft} ({@link CollabDraft}) is the publish dialog's summary: the draft against the published page,
+ *       its HTML diff rendered outside the session lock, rate-limited per participant.</li>
  * </ul>
+ *
+ * <p>Once a request's session is known its id is in the log context as {@value #MDC_SESSION}.</p>
  *
  * <p><b>Kill switch.</b> Turning collaboration off refuses new joins only. Live sessions keep working: their pushes,
  * pulls, publishes, discards and leaves are served, so edits in flight complete and no draft is lost (plan Review Focus
@@ -85,6 +95,13 @@ public class CollabResource extends RestServletBase {
     private static final String PARTICIPANT_ID = "participantId";
     private static final String UPDATES = "updates";
     private static final String REJOIN = "rejoin";
+    private static final String DRAFT = "draft";
+    /**
+     * The log context key of the collab session a request works on (section 12.3: collab logs carry the session id
+     * alongside {@code correlation_id}); set once the session is known, removed when the request thread is done. A parked
+     * long-poll's waiter captures it with the rest of the request's context.
+     */
+    static final String MDC_SESSION = "collab_session";
     /** The actions under {@code POST}. */
     private static final Set< String > ACTIONS = Set.of( "join", UPDATES, "publish", "discard", "leave" );
 
@@ -114,6 +131,7 @@ public class CollabResource extends RestServletBase {
     private transient CollabPull.Delayer delayer;
     private transient CollabPull.Dispatch dispatch;
     private transient ScheduledExecutorService coalescer;
+    private transient CollabDraft draft;
     private final long coalesceMs;
 
     public CollabResource() {
@@ -139,6 +157,11 @@ public class CollabResource extends RestServletBase {
         this.coalesceMs = coalesceMs;
     }
 
+    /** For tests: the draft summary's differ and its rate limiter's clock (production: the wiki's diff, nanoTime). */
+    void draftSupport( final CollabDraft.Differ differ, final LongSupplier nanos ) {
+        this.draft = new CollabDraft( differ, nanos );
+    }
+
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
@@ -158,6 +181,17 @@ public class CollabResource extends RestServletBase {
         if( dispatch == null ) {
             dispatch = AsyncContext::start;
         }
+        if( draft == null ) {
+            draft = new CollabDraft( this::wikiDiff, System::nanoTime );
+        }
+    }
+
+    /** The wiki's own HTML diff ({@code DiffResource}'s {@code ?format=html}), for a page that may not exist yet. */
+    private String wikiDiff( final String pageName, final String from, final String to ) {
+        final Engine engine = getEngine();
+        final Page page = Wiki.contents().page( engine, pageName );
+        final Context context = Wiki.context().create( engine, page );
+        return getSubsystems().rendering().differenceManager().makeDiff( context, from, to );
     }
 
     @Override
@@ -182,6 +216,14 @@ public class CollabResource extends RestServletBase {
 
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
+        try {
+            post( request, response );
+        } finally {
+            ThreadContext.remove( MDC_SESSION );
+        }
+    }
+
+    private void post( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
         CollabWire.noStore( response );
         final String[] route = CollabRequests.route( request );
         final String action = route == null ? "" : route[ 1 ];
@@ -195,7 +237,11 @@ public class CollabResource extends RestServletBase {
         }
         final String page = route[ 0 ];
         if( "join".equals( action ) ) {
-            CollabWire.write( response, CollabJoin.run( registry(), access, request, caller, page ) );
+            final Answer joined = CollabJoin.run( registry(), access, request, caller, page );
+            if( joined.status() == 200 ) {
+                ThreadContext.put( MDC_SESSION, ( ( JsonObject ) joined.body() ).get( SESSION_ID ).getAsString() );
+            }
+            CollabWire.write( response, joined );
             return;
         }
         final long max = UPDATES.equals( action )
@@ -223,11 +269,20 @@ public class CollabResource extends RestServletBase {
         } );
     }
 
+    /** {@code GET /updates} (the long-poll) and {@code GET /draft} (the draft summary, {@link CollabDraft}). */
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
+        try {
+            get( request, response );
+        } finally {
+            ThreadContext.remove( MDC_SESSION );   // a parked pull's waiter has captured it already
+        }
+    }
+
+    private void get( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
         CollabWire.noStore( response );
         final String[] route = CollabRequests.route( request );
-        if( route == null || !UPDATES.equals( route[ 1 ] ) ) {
+        if( route == null || !UPDATES.equals( route[ 1 ] ) && !DRAFT.equals( route[ 1 ] ) ) {
             sendNotFound( response, "Unknown collaboration call" );
             return;
         }
@@ -241,7 +296,14 @@ public class CollabResource extends RestServletBase {
             CollabWire.write( response, refused );
             return;
         }
-        pull( request, response, ( Target ) target, caller );
+        final Target t = ( Target ) target;
+        if( DRAFT.equals( route[ 1 ] ) ) {
+            // rendered outside any session lock: the session's snapshot is the only locked step
+            CollabWire.write( response, draft.summarise( t.session(), t.participantId(), caller.authorKey(),
+                ( status, reason ) -> observe( t.session(), status, reason ) ) );
+            return;
+        }
+        pull( request, response, t, caller );
     }
 
     /**
@@ -283,6 +345,7 @@ public class CollabResource extends RestServletBase {
             o.addProperty( "error", "not_found" );
             return new Answer( 404, o );
         }
+        ThreadContext.put( MDC_SESSION, id.toString() );
         return new Target( s.get(), participantId );
     }
 

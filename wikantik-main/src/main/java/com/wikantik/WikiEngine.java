@@ -1150,6 +1150,14 @@ public class WikiEngine implements Engine {
                 LOG.warn( "connector runtime wiring failed (continuing without connectors): {}", e.getMessage() );
             }
 
+            // Wire collaborative editing (CollabWiring): the session registry + its 1 s tick (dark unless
+            // wikantik.collab.enabled). setManager-only, so ArchUnit-neutral; the REST layer reads it via registryFor.
+            try {
+                com.wikantik.collab.adapter.CollabWiring.wire( this, props, ds, pageManager );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "collaboration wiring failed (continuing without collaboration): {}", e.getMessage(), e );
+            }
+
             // Note: wireOntology's startup rebuildIfEmpty() has already run, so a first-boot
             // rebuild does NOT trigger a drift sweep — the first sweep comes from the nightly
             // scheduler or the admin dashboard. Intentional: keeps first deploy fast.
@@ -1987,6 +1995,7 @@ public class WikiEngine implements Engine {
         closeQuietly( com.wikantik.ontology.runtime.OntologyRuntime.class );
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
+        closeQuietly( com.wikantik.collab.adapter.CollabWiring.class );
         closeQuietly( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
         closeQuietly( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
         closeQuietly( com.wikantik.search.hybrid.QueryEmbedder.class );

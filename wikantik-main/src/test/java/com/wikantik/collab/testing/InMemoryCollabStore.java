@@ -20,11 +20,14 @@ package com.wikantik.collab.testing;
 
 import com.wikantik.collab.CollabStore;
 import com.wikantik.collab.MetaJson;
+import com.wikantik.collab.model.DraftEntry;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredMetaOp;
 import com.wikantik.collab.model.StoredUpdate;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -62,6 +65,23 @@ public final class InMemoryCollabStore implements CollabStore {
     private final Map< String, TreeMap< Integer, TreeSet< String > > > ledger = new HashMap<>();
     private final Map< Op, Integer > calls = new EnumMap<>( Op.class );
     private final Map< Op, Integer > failAt = new EnumMap<>( Op.class );
+    /**
+     * When each session's newest participant edit (a text update or an authored meta op) was stored, by this store's
+     * clock: the twin of the Postgres rows' {@code created_at}. Unlike those rows it survives truncation, which is
+     * harmless: truncation is clamped to a snapshot, and every snapshot stores the draft markers.
+     */
+    private final Map< UUID, Instant > lastEdits = new HashMap<>();
+    private final Clock clock;
+
+    /** A store whose edit times come from the system clock. */
+    public InMemoryCollabStore() {
+        this( Clock.systemUTC() );
+    }
+
+    /** A store whose edit times (as the database's {@code now()}) come from {@code clock}. */
+    public InMemoryCollabStore( final Clock clock ) {
+        this.clock = Objects.requireNonNull( clock, "clock" );
+    }
 
     /** The {@code nth} (1-based, counted from now) call of {@code op} throws before mutating anything; one-shot. */
     public void failOn( final Op op, final int nth ) {
@@ -81,8 +101,9 @@ public final class InMemoryCollabStore implements CollabStore {
     public InMemoryCollabStore copy() {
         lock.lock();
         try {
-            final InMemoryCollabStore c = new InMemoryCollabStore();
+            final InMemoryCollabStore c = new InMemoryCollabStore( clock );
             c.sessions.putAll( sessions );
+            c.lastEdits.putAll( lastEdits );
             updates.forEach( ( k, v ) -> c.updates.put( k, new TreeMap<>( v ) ) );
             metaOps.forEach( ( k, v ) -> c.metaOps.put( k, new TreeMap<>( v ) ) );
             snapshots.forEach( ( k, v ) -> c.snapshots.put( k, new TreeMap<>( v ) ) );
@@ -284,6 +305,7 @@ public final class InMemoryCollabStore implements CollabStore {
             final TreeMap< Integer, StoredUpdate > log = updates.get( id );
             list.forEach( u -> log.put( u.version(), u ) );
             sessions.put( id, s.withHead( s.headVersion() + list.size() ) );
+            touchText( id, list );
         } finally {
             lock.unlock();
         }
@@ -331,6 +353,15 @@ public final class InMemoryCollabStore implements CollabStore {
         final TreeMap< Long, StoredMetaOp > log = metaOps.get( id );
         ops.forEach( o -> log.put( o.seq(), detach( o ) ) );
         sessions.put( id, s.withMetaSeq( s.metaSeq() + ops.size() ) );
+        if( ops.stream().anyMatch( o -> o.authorKey() != null ) ) {
+            lastEdits.put( id, clock.instant() );
+        }
+    }
+
+    private void touchText( final UUID id, final List< StoredUpdate > list ) {
+        if( list.stream().anyMatch( u -> StoredUpdate.TEXT.equals( u.kind() ) ) ) {
+            lastEdits.put( id, clock.instant() );
+        }
     }
 
     @Override
@@ -346,6 +377,7 @@ public final class InMemoryCollabStore implements CollabStore {
                 final TreeMap< Integer, StoredUpdate > log = updates.get( id );
                 list.forEach( u -> log.put( u.version(), u ) );
                 sessions.put( id, s.withHead( s.headVersion() + list.size() ) );
+                touchText( id, list );
             }
             if( !ops.isEmpty() ) {
                 storeMeta( id, sessions.get( id ), ops );
@@ -514,6 +546,39 @@ public final class InMemoryCollabStore implements CollabStore {
             updates.remove( id );
             metaOps.remove( id );
             snapshots.remove( id );
+            lastEdits.remove( id );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public List< DraftEntry > draftEntries() {
+        lock.lock();
+        try {
+            return sessions.values().stream().map( this::entry )
+                .sorted( Comparator.comparing( DraftEntry::lastActivity ).thenComparing( DraftEntry::pageName ) )
+                .toList();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private DraftEntry entry( final SessionRecord s ) {
+        final Instant logged = lastEdits.get( s.id() );
+        final Instant marker = s.lastEditAt();
+        final Instant last = marker == null ? logged : logged == null || marker.isAfter( logged ) ? marker : logged;
+        return new DraftEntry( s.id(), s.pageName(), s.status(), s.hasUnpublished(), s.pendingPublishVersion() != null,
+            s.createdBy(), s.createdAt(), last );
+    }
+
+    @Override
+    public Map< String, Boolean > unpublishedByPage() {
+        lock.lock();
+        try {
+            final Map< String, Boolean > out = new HashMap<>();
+            sessions.values().forEach( s -> out.put( s.pageName(), s.hasUnpublished() ) );
+            return out;
         } finally {
             lock.unlock();
         }

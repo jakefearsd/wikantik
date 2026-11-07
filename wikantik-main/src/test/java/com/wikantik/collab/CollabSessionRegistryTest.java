@@ -814,8 +814,10 @@ class CollabSessionRegistryTest {
         final Joined a = join( "alice" );
         final UUID id = a.response().sessionId();
         assertEquals( 200, type( a, "alice", "x" ).status() );
+        store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );   // a wedged store: the unload's marker write fails
         forceReload( id );
-        assertFalse( store.session( id ).orElseThrow().hasUnpublished(), "the flag was never written (snapshot cadence)" );
+        assertFalse( store.session( id ).orElseThrow().hasUnpublished(),
+            "the flag was never written (snapshot cadence, and the unload's write failed)" );
         final Joined b = join( "bob" );
         assertNotEquals( a.session(), b.session() );
         leave( b, "bob" );

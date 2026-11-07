@@ -18,7 +18,6 @@
  */
 package com.wikantik.collab;
 
-import com.wikantik.collab.model.SessionRecord;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -30,10 +29,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * The page names that have a stored draft, active or frozen, held in memory for
- * {@link CollabSessionRegistry#draftActive}, which must never read the store. The tick reloads it from
- * {@link CollabStore#sessions} every {@link #RELOAD_EVERY} (drafts made on another node, or changed behind the
- * registry's back, appear within that); the registry updates it at once on create, rename, purge and delete.
+ * The page names whose stored draft (active or frozen) holds unpublished changes, held in memory for
+ * {@link CollabSessionRegistry#draftActive}, which must never read the store; a page with a live session is answered by
+ * the session, not by this index. The tick reloads it from {@link CollabStore#unpublishedByPage} (two columns, no
+ * bodies) every {@link #RELOAD_EVERY}, so drafts made on another node, or changed behind the registry's back, appear
+ * within that; the registry updates it at once when a session leaves memory, and on rename, purge and delete.
  *
  * <p>A change made while a reload is reading the store is replayed onto the reloaded set, so a reload never undoes it.
  * Reads are lock-free; changes and the reload's swap hold one monitor. A reload whose read fails throws and keeps the
@@ -51,7 +51,7 @@ final class DraftIndex {
     /** Tick thread only. */
     private Instant lastReload;
 
-    /** True when {@code pageName} has a stored draft, as far as this node knows. Lock-free. */
+    /** True when {@code pageName} has a stored draft with unpublished changes, as far as this node knows. Lock-free. */
     boolean contains( final String pageName ) {
         return pages.contains( pageName );
     }
@@ -64,7 +64,7 @@ final class DraftIndex {
         change( set -> set.remove( pageName ) );
     }
 
-    /** Sets whether {@code pageName} has a stored draft. */
+    /** Sets whether {@code pageName} has a stored draft with unpublished changes. */
     void set( final String pageName, final boolean present ) {
         if( present ) {
             add( pageName );
@@ -99,9 +99,11 @@ final class DraftIndex {
         }
         final Set< String > fresh = new HashSet<>();
         try {
-            for( final SessionRecord rec : store.sessions() ) {
-                fresh.add( rec.pageName() );
-            }
+            store.unpublishedByPage().forEach( ( page, unpublished ) -> {
+                if( unpublished ) {
+                    fresh.add( page );
+                }
+            } );
         } catch( final RuntimeException e ) {
             synchronized( lock ) {
                 sinceRead = null;

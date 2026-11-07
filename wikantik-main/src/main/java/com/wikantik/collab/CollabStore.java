@@ -18,6 +18,7 @@
  */
 package com.wikantik.collab;
 
+import com.wikantik.collab.model.DraftEntry;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredMetaOp;
@@ -147,6 +148,19 @@ public interface CollabStore {
      * {@code createdAt} (ties by page name).
      */
     List< SessionRecord > sessions();
+
+    /**
+     * Every draft, active and frozen, without its bodies: oldest real edit first ({@link DraftEntry#lastActivity}, ties
+     * by page name). {@link DraftEntry#lastEditAt} is the later of the stored {@code lastEditAt} and the newest retained
+     * text update or authored meta op; a server update (a merge, a seed) or an unauthored meta op is not an edit.
+     */
+    List< DraftEntry > draftEntries();
+
+    /**
+     * The page names that have a draft, active or frozen, each with its stored {@code hasUnpublished} flag. Reads only
+     * those two columns: the draft-active index reloads it often.
+     */
+    Map< String, Boolean > unpublishedByPage();
 
     // ---- page-version contributor ledger (page_version_contributor; docs/MultiEdit.MD section 7.3) -----------
 

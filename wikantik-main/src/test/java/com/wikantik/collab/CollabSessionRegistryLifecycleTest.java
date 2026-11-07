@@ -250,6 +250,16 @@ class CollabSessionRegistryLifecycleTest {
         }
 
         @Override
+        public List< com.wikantik.collab.model.DraftEntry > draftEntries() {
+            return d.draftEntries();
+        }
+
+        @Override
+        public Map< String, Boolean > unpublishedByPage() {
+            return d.unpublishedByPage();
+        }
+
+        @Override
         public void recordContributors( final String canonicalId, final int pageVersion, final Set< String > authorKeys,
                                         final boolean created ) {
             d.recordContributors( canonicalId, pageVersion, authorKeys, created );

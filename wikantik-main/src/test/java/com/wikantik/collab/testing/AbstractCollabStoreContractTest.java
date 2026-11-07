@@ -20,6 +20,7 @@ package com.wikantik.collab.testing;
 
 import com.wikantik.collab.CollabStore;
 import com.wikantik.collab.model.Contribution;
+import com.wikantik.collab.model.DraftEntry;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredMetaOp;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -866,5 +868,67 @@ public abstract class AbstractCollabStoreContractTest {
             "ordered by lastEditAt, an unedited session by createdAt" );
         assertEquals( SessionRecord.FROZEN, listed.get( 0 ).status() );
         assertEquals( a, listed.get( 2 ) );
+    }
+
+    // ---- light draft reads (Phase 3 Task 4 fix round 1) ----------------------------------------------------
+
+    @Test
+    void draftEntriesCarryTheRecordWithoutBodiesOldestEditFirst() {
+        assertTrue( store.draftEntries().isEmpty() );
+        final SessionRecord a = sessionAt( "PageA", T0.plusSeconds( 3600 ), T0.plusSeconds( 5 * 3600 ) );
+        final SessionRecord b = sessionAt( "PageB", T0.plusSeconds( 2 * 3600 ), null );
+        final SessionRecord c = sessionAt( "PageC", T0, T0.plusSeconds( 3 * 3600 ) )
+            .withPending( 4, 3, "carol" );
+        store.createSession( a );
+        store.createSession( b );
+        store.createSession( c );
+        store.updateSession( frozen( b ) );
+        final List< DraftEntry > listed = store.draftEntries();
+        assertEquals( List.of( b.id(), c.id(), a.id() ), listed.stream().map( DraftEntry::id ).toList() );
+        assertEquals( new DraftEntry( b.id(), "PageB", SessionRecord.FROZEN, false, false, "alice", b.createdAt(),
+            null ), listed.get( 0 ) );
+        assertTrue( listed.get( 1 ).publishPending() );
+        assertEquals( T0.plusSeconds( 5 * 3600 ), listed.get( 2 ).lastEditAt() );
+        assertEquals( T0.plusSeconds( 2 * 3600 ), listed.get( 0 ).lastActivity(), "never edited: its creation" );
+    }
+
+    @Test
+    void aDraftsLastEditIsTheLaterOfItsMarkerAndItsNewestLoggedEdit() {
+        final SessionRecord s = created( "PageA" );   // marker T0
+        final Instant before = Instant.now().minusSeconds( 5 );
+
+        store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, StoredUpdate.SERVER, "server", null, CS ) ) );
+        store.appendMetaOps( s.id(), List.of( new StoredMetaOp( 1, null, "title", "merged" ) ) );
+        assertEquals( T0, store.draftEntries().get( 0 ).lastEditAt(), "a merge or a seed is not an edit" );
+
+        store.appendUpdates( s.id(), List.of( upd( 2 ) ) );
+        final Instant afterText = store.draftEntries().get( 0 ).lastEditAt();
+        assertFalse( afterText.isBefore( before ), "a logged text edit newer than a stale marker: " + afterText );
+
+        final SessionRecord other = created( "PageB" );
+        store.appendMetaOps( other.id(), List.of( op( 1 ) ) );
+        final DraftEntry b = store.draftEntries().stream().filter( e -> e.id().equals( other.id() ) ).findFirst()
+            .orElseThrow();
+        assertFalse( b.lastEditAt().isBefore( before ), "an authored meta op is an edit" );
+
+        final Instant future = Instant.now().plusSeconds( 365L * 24 * 3600 ).truncatedTo( ChronoUnit.MILLIS );
+        store.updateSession( new SessionRecord( s.id(), "PageA", SessionRecord.ACTIVE, 3, "base body", Map.of( "k", "v" ),
+            "hash-3", 0, 0L, true, null, null, null, "alice", T0, future ) );
+        final DraftEntry a = store.draftEntries().stream().filter( e -> e.id().equals( s.id() ) ).findFirst()
+            .orElseThrow();
+        assertEquals( future, a.lastEditAt(), "a marker newer than the log wins" );
+        assertTrue( a.hasUnpublished() );
+    }
+
+    @Test
+    void unpublishedByPageNamesEveryDraftWithItsStoredFlag() {
+        assertTrue( store.unpublishedByPage().isEmpty() );
+        final SessionRecord a = created( "PageA" );
+        final SessionRecord b = created( "PageB" );
+        store.updateSession( new SessionRecord( b.id(), "PageB", SessionRecord.FROZEN, 3, "base body", Map.of( "k", "v" ),
+            "hash-3", 0, 0L, true, null, null, null, "alice", T0, T0 ) );
+        assertEquals( Map.of( "PageA", false, "PageB", true ), store.unpublishedByPage() );
+        store.deleteSession( a.id() );
+        assertEquals( Map.of( "PageB", true ), store.unpublishedByPage() );
     }
 }

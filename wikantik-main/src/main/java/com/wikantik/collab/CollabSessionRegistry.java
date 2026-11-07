@@ -72,7 +72,9 @@ import java.util.function.ToIntFunction;
  *
  * <p><b>Drafts</b> ({@link DraftAdmin}): the administrators' {@link #drafts} list, {@link #purge} (participants are
  * evicted with {@link #PURGED}; never publishes) and retention ({@code draft.retentionDays}). {@link #draftActive}
- * answers from memory only: the live sessions and the {@link DraftIndex}.</p>
+ * answers from memory only: a live session answers for itself, the {@link DraftIndex} for stored-only drafts with
+ * unpublished changes. A session leaving memory stores its draft markers ({@code hasUnpublished}, {@code lastEditAt})
+ * first.</p>
  *
  * <p><b>Engine events</b> arrive through {@code CollabPageEventListener} (adapter package): {@link #rekey} and
  * {@link #settleAll} on a rename, {@link #freeze} on a true delete (ruling Q10), {@link #evictSignedOut} and
@@ -296,7 +298,6 @@ public final class CollabSessionRegistry {
         }
         slot.opened( s, clock.instant() );
         byId.put( s.id(), slot );
-        index.add( pageName );
         return Opened.OK;
     }
 
@@ -386,31 +387,15 @@ public final class CollabSessionRegistry {
     }
 
     /**
-     * Takes the session out of memory, under its slot lock: drops any participants; then, for an idle eviction, deletes
-     * the draft when the session has no unpublished changes and truncates its log otherwise; then unmaps the slot.
+     * Takes the session out of memory, under its slot lock: drops any participants; then the draft is deleted (an idle
+     * eviction without unpublished changes) or its markers stored ({@link DraftAdmin#unloaded}); then unmaps the slot.
      */
     private void evictLocked( final SessionSlot slot, final CollabSession s, final boolean idle ) {
         slot.close();
         SessionSweeps.evictAll( s );
-        if( idle ) {
-            if( Hooks.hasUnpublishedChanges( s ) ) {
-                s.truncateLog();
-            } else {
-                deleteDraft( s );
-            }
-        }
+        admin.unloaded( s, idle );
         unmap( slot, s );
         LOG.debug( "collab session {} ({}) left memory", s.id(), s.pageName() );
-    }
-
-    private void deleteDraft( final CollabSession s ) {
-        try {
-            store.deleteSession( s.id() );
-            index.remove( s.pageName() );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): unchanged draft not deleted; the next join reloads it: {}", s.id(),
-                s.pageName(), e.toString() );
-        }
     }
 
     private void unmap( final SessionSlot slot, final CollabSession s ) {
@@ -519,8 +504,9 @@ public final class CollabSessionRegistry {
     }
 
     /**
-     * True when {@code pageName} has a live session with participants or unpublished changes, or a stored draft as the
-     * draft index knows it (reloaded every {@link DraftIndex#RELOAD_EVERY}, updated at once on this node's changes).
+     * True when someone is editing {@code pageName} or its draft holds unpublished changes. A live session answers for
+     * itself (participants, or unpublished changes); otherwise the draft index answers for a stored-only draft with
+     * unpublished changes (reloaded every {@link DraftIndex#RELOAD_EVERY}, updated at once on this node's changes).
      * Never reads the store.
      */
     public boolean draftActive( final String pageName ) {

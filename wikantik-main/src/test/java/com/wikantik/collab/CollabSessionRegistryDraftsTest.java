@@ -109,11 +109,13 @@ class CollabSessionRegistryDraftsTest {
 
     @BeforeEach
     void setUp() {
-        mem = new InMemoryCollabStore();
+        clock = new MutableClock( T0 );
+        mem = new InMemoryCollabStore( clock );
         store = ( CollabStore ) Proxy.newProxyInstance( CollabStore.class.getClassLoader(),
             new Class< ? >[]{ CollabStore.class }, ( proxy, method, args ) -> {
                 final String name = method.getName();
-                if( storeDown.get() && ( "sessions".equals( name ) || "sessionForPage".equals( name ) ) ) {
+                calls.computeIfAbsent( name, k -> new java.util.concurrent.atomic.AtomicInteger() ).incrementAndGet();
+                if( storeDown.get() && DOWN.contains( name ) ) {
                     throw new IllegalStateException( "test: the store is down (" + name + ")" );
                 }
                 try {
@@ -124,8 +126,18 @@ class CollabSessionRegistryDraftsTest {
             } );
         writer = new ScriptedPageWriter();
         writer.seed( PAGE, BODY, Map.of( "title", "T" ) );
-        clock = new MutableClock( T0 );
         registry = registry( config( 0 ) );
+    }
+
+    /** The registry's store calls so far, by method name. */
+    private final Map< String, java.util.concurrent.atomic.AtomicInteger > calls =
+        new java.util.concurrent.ConcurrentHashMap<>();
+    /** The reads that throw while {@link #storeDown} is set. */
+    private static final Set< String > DOWN = Set.of( "sessions", "sessionForPage", "draftEntries", "unpublishedByPage" );
+
+    private int calls( final String method ) {
+        final java.util.concurrent.atomic.AtomicInteger n = calls.get( method );
+        return n == null ? 0 : n.get();
     }
 
     private Joined join( final String page, final String author ) {
@@ -166,8 +178,13 @@ class CollabSessionRegistryDraftsTest {
 
     /** A record written straight into the store (no snapshot: never joined, only listed, purged or expired). */
     private SessionRecord rawDraft( final String page, final boolean pendingPublish ) {
+        return rawDraft( page, pendingPublish, false );
+    }
+
+    private SessionRecord rawDraft( final String page, final boolean pendingPublish, final boolean unpublished ) {
         final SessionRecord rec = CollabSession.newRecord( UUID.randomUUID(), page, Optional.empty(), "dave", clock );
-        final SessionRecord out = pendingPublish ? rec.withPending( 1, 0, "dave" ) : rec;
+        final SessionRecord pending = pendingPublish ? rec.withPending( 1, 0, "dave" ) : rec;
+        final SessionRecord out = unpublished ? SessionLoader.draftMarkers( pending, true, null ) : pending;
         mem.createSession( out );
         return out;
     }
@@ -369,12 +386,97 @@ class CollabSessionRegistryDraftsTest {
         assertTrue( mem.session( raw.id() ).isPresent() );
     }
 
-    // ---- the draft-active index --------------------------------------------------------------------------------
+    // ---- retention ages a draft by its real last edit (fix round 1, item 1) ------------------------------------
+
+    @Test
+    void retentionAgesADraftByItsRealLastEdit() {
+        registry = registry( config( 30 ) );
+        final Joined a = join( "alice" );                    // created at T0
+        assertEquals( 200, type( a, "alice", "a" ).status() );
+        leave( a, "alice" );
+        idleOut();
+        clock.set( T0.plus( Duration.ofDays( 1 ) ) );
+        final UUID early = storedDraftEditedAt( "Early", Duration.ofDays( 1 ) );   // created +1d, edited +2d
+        clock.set( T0.plus( Duration.ofDays( 20 ) ) );
+        final Joined b = join( "bob" );                      // the draft of T0, loaded again
+        assertEquals( a.response().sessionId(), b.response().sessionId() );
+        assertEquals( 200, type( b, "bob", "b" ).status() );    // edited at T0+20d
+        final Instant edited = clock.instant();
+        leave( b, "bob" );
+        idleOut();
+        assertTrue( registry.live( a.response().sessionId() ).isEmpty() );
+
+        clock.set( T0.plus( Duration.ofDays( 31 ) ) );
+        registry.tick();
+
+        assertTrue( mem.session( a.response().sessionId() ).isPresent(), "edited 11 days ago: kept" );
+        final List< DraftListing > all = registry.drafts();
+        assertEquals( edited, listingOf( all, a.response().sessionId() ).lastEditAt() );
+        assertEquals( List.of( early, a.response().sessionId() ), all.stream().map( DraftListing::sessionId ).toList(),
+            "sorted by the real last edit, not by creation" );
+    }
+
+    /** A stored-only draft on {@code page}, created now and edited {@code after} later, then idled out. */
+    private UUID storedDraftEditedAt( final String page, final Duration after ) {
+        final Joined j = join( page, "carol" );
+        clock.advance( after );
+        assertEquals( 200, type( j, "carol", "c" ).status() );
+        leave( j, "carol" );
+        idleOut();
+        return j.response().sessionId();
+    }
+
+    @Test
+    void retentionSurvivesACrashThatNeverStoredTheMarkers() {
+        final Joined a = join( "alice" );                    // created at T0
+        clock.advance( Duration.ofDays( 20 ) );
+        assertEquals( 200, type( a, "alice", "x" ).status() );   // edited at T0+20d, the marker not yet stored
+        assertTrue( mem.session( a.response().sessionId() ).orElseThrow().lastEditAt() == null );
+
+        // the node dies: a new registry over the same store, the old one's memory gone
+        registry = registry( config( 30 ) );
+        clock.set( T0.plus( Duration.ofDays( 31 ) ) );
+        registry.tick();
+
+        assertTrue( mem.session( a.response().sessionId() ).isPresent(), "the logged edit is 11 days old: kept" );
+        assertEquals( T0.plus( Duration.ofDays( 20 ) ),
+            listingOf( registry.drafts(), a.response().sessionId() ).lastEditAt() );
+    }
+
+    @Test
+    void idleEvictionStoresTheDraftMarkers() {
+        final Joined a = join( "alice" );
+        clock.advance( Duration.ofMinutes( 3 ) );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        final Instant edited = clock.instant();
+        leave( a, "alice" );
+        idleOut();
+        final SessionRecord stored = mem.session( a.response().sessionId() ).orElseThrow();
+        assertEquals( edited, stored.lastEditAt() );
+        assertTrue( stored.hasUnpublished() );
+    }
+
+    @Test
+    void theRegistryNeverReadsWholeSessionsForItsListsAndIndex() {
+        registry = registry( config( 30 ) );
+        storedDraft( "Stored" );
+        for( int i = 0; i < 3; i++ ) {
+            clock.advance( Duration.ofHours( 1 ) );
+            registry.tick();
+        }
+        registry.drafts();
+        assertEquals( 0, calls( "sessions" ), "base bodies are never read in bulk" );
+        assertTrue( calls( "unpublishedByPage" ) > 0 );
+        assertTrue( calls( "draftEntries" ) > 0 );
+    }
+
+    // ---- the draft-active index (fix round 1, item 2: live sessions answer for themselves) --------------------
 
     @Test
     void draftActiveReadsNoStoreOnTheCallPath() {
         storedDraft( "Stored" );
-        rawDraft( "Raw", false );
+        rawDraft( "Raw", false, true );
+        rawDraft( "Clean", false, false );
         join( "alice" );
         clock.advance( DraftIndex.RELOAD_EVERY );
         registry.tick();   // warm-up: the index reloads
@@ -382,6 +484,7 @@ class CollabSessionRegistryDraftsTest {
 
         assertTrue( registry.draftActive( "Stored" ) );
         assertTrue( registry.draftActive( "Raw" ) );
+        assertFalse( registry.draftActive( "Clean" ), "a stored draft without unpublished changes" );
         assertTrue( registry.draftActive( PAGE ) );
         assertFalse( registry.draftActive( "Nothing" ) );
 
@@ -392,13 +495,18 @@ class CollabSessionRegistryDraftsTest {
     }
 
     @Test
-    void draftActiveFollowsCreateRekeyAndPurge() {
+    void draftActiveFollowsLiveEditingRekeyAndPurge() {
         registry.tick();
         assertFalse( registry.draftActive( PAGE ) );
         final Joined a = join( "alice" );
-        assertTrue( registry.draftActive( PAGE ), "created" );
+        assertTrue( registry.draftActive( PAGE ), "someone is editing" );
         leave( a, "alice" );
-        assertTrue( registry.draftActive( PAGE ), "stored, nobody in it" );
+        assertFalse( registry.draftActive( PAGE ), "opened and closed without typing: nobody, nothing unpublished" );
+
+        final Joined b = join( "bob" );
+        assertEquals( 200, type( b, "bob", "b" ).status() );
+        leave( b, "bob" );
+        assertTrue( registry.draftActive( PAGE ), "unpublished changes, nobody in it" );
 
         writer.rename( PAGE, "B" );
         registry.rekey( PAGE, "B" );
@@ -410,19 +518,96 @@ class CollabSessionRegistryDraftsTest {
 
         final Joined c = join( "B", "carol" );
         leave( c, "carol" );
-        assertTrue( registry.draftActive( "B" ) );
+        assertFalse( registry.draftActive( "B" ) );
         idleOut();
         assertFalse( registry.draftActive( "B" ), "an unchanged draft deleted on idle eviction" );
     }
 
     @Test
+    void draftActiveIsFalseAfterAPublishWithEveryoneGone() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        assertEquals( 200, a.session().publish( a.response().participantId(), "alice", a.session().view().head(), "" )
+            .status() );
+        leave( a, "alice" );
+        assertFalse( registry.draftActive( PAGE ), "published, nobody editing" );
+        clock.advance( DraftIndex.RELOAD_EVERY );
+        idleOut();
+        assertFalse( registry.draftActive( PAGE ), "and after it left memory" );
+    }
+
+    @Test
+    void aStoredDraftWithChangesStaysActiveAfterItLeavesMemory() {
+        storedDraft( "Stored" );
+        assertTrue( registry.draftActive( "Stored" ), "told at once by the eviction" );
+        clock.advance( DraftIndex.RELOAD_EVERY );
+        registry.tick();
+        assertTrue( registry.draftActive( "Stored" ), "and by the reload" );
+    }
+
+    @Test
     void draftActiveSeesADraftCreatedElsewhereAfterTheReload() {
         registry.tick();
-        rawDraft( "Elsewhere", false );   // another node, say
+        rawDraft( "Elsewhere", false, true );   // another node, say
         assertFalse( registry.draftActive( "Elsewhere" ), "not yet reloaded" );
         clock.advance( Duration.ofSeconds( 30 ) );
         registry.tick();
         assertTrue( registry.draftActive( "Elsewhere" ) );
+    }
+
+    // ---- purge races and owed renames (fix round 1, items 4 and 5) --------------------------------------------
+
+    @Test
+    void aPublishStartedByAnEvictionCallbackNeverLeavesClientsToldPurgedWithTheDraftKept() throws Exception {
+        final Joined bob = join( "bob" );
+        final Joined alice = join( "alice" );
+        assertEquals( 200, type( alice, "alice", "x" ).status() );
+        final ScriptedPageWriter.PauseHandle pause = writer.pauseNextPublish();
+        final List< CompletableFuture< PublishResponse > > started = new ArrayList<>();
+        // bob's parked pull is answered as he is evicted; that moment, alice presses publish
+        final PullWaiter racing = r -> {
+            final CompletableFuture< PublishResponse > f = CompletableFuture.supplyAsync( () -> alice.session().publish(
+                alice.response().participantId(), "alice", alice.session().view().head(), "" ) );
+            started.add( f );
+            final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 5 );
+            while( !pause.entered() && !f.isDone() && System.nanoTime() < deadline ) {
+                Thread.onSpinWait();
+            }
+        };
+        assertEquals( null, bob.session().pullOrPark( bob.response().participantId(), "bob",
+            bob.session().view().head(), null, racing ) );
+
+        final PurgeOutcome out = registry.purge( alice.response().sessionId() );
+
+        assertEquals( 1, started.size() );
+        if( pause.entered() ) {
+            pause.release();
+        }
+        final PublishResponse publish = started.get( 0 ).get( 10, TimeUnit.SECONDS );
+        assertEquals( 204, out.status(), "every participant was evicted before anyone could start a publish: " + out );
+        assertEquals( 403, publish.status(), "alice was already evicted" );
+        assertTrue( mem.session( alice.response().sessionId() ).isEmpty() );
+    }
+
+    @Test
+    void aPurgedDraftWithAnOwedRenameLeavesNothingBehind() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        mem.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        org.junit.jupiter.api.Assertions.assertThrows( RuntimeException.class, () -> registry.rekey( PAGE, "B" ) );
+        writer.rename( PAGE, "B" );   // the rename into B is owed
+
+        assertEquals( 204, registry.purge( a.response().sessionId() ).status() );
+
+        final Joined b = join( "B", "bob" );   // not refused: the owed rename has nothing left to move
+        assertFalse( a.response().sessionId().equals( b.response().sessionId() ) );
+        assertEquals( BODY, b.response().doc(), "the page as it is, not the purged draft" );
+        clock.advance( Duration.ofMinutes( 10 ) );
+        registry.tick();
+        assertTrue( mem.sessionForPage( PAGE ).isEmpty() );
+        assertEquals( b.response().sessionId(), mem.sessionForPage( "B" ).orElseThrow().id(), "only bob's fresh draft" );
+        assertFalse( b.session().frozen() );
+        assertEquals( 1, mem.sessions().size() );
     }
 
     // ---- registry-wide tick steps ------------------------------------------------------------------------------

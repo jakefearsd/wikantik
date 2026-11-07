@@ -976,6 +976,45 @@ public final class CollabSession {
         }
 
         /**
+         * Evicts every participant with {@code reason} (a tombstone each; parked pulls answer 403 {@code evicted}) in one
+         * step under the session lock, unless a publish is running or its marker is stored: then nobody is evicted and
+         * false is returned. No publish can start in between, so a purge never tells clients {@code purged} and then
+         * keeps the draft for a publish that started meanwhile. Completions run after the lock is released.
+         */
+        static boolean evictAllUnlessPublishing( final CollabSession s, final String reason ) {
+            final List< Runnable > completions = new ArrayList<>();
+            final int n;
+            s.lock.lock();
+            try {
+                if( s.d.publishPending() ) {
+                    return false;
+                }
+                final List< Participant > all = List.copyOf( s.roster.all() );
+                for( final Participant p : all ) {
+                    s.life.evict( p.id, reason, s.clock.instant(), completions );
+                }
+                n = all.size();
+            } finally {
+                s.lock.unlock();
+            }
+            if( n > 0 ) {
+                LOG.info( "collab session {}: {} participant(s) evicted ({})", s.id, n, reason );
+            }
+            completions.forEach( Runnable::run );
+            return true;
+        }
+
+        /** Stores the draft markers from memory (the session is leaving memory); a failure only warns. */
+        static void storeMarkers( final CollabSession s ) {
+            s.lock.lock();
+            try {
+                s.d.storeMarkers();
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /**
          * {@link CollabSession#rekey} under the base lock (a rename must not interleave with a base change), returning
          * the parked-pull completions for the caller to run once it holds no lock (the registry also holds the slot).
          *

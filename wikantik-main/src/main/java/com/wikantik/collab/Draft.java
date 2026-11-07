@@ -241,6 +241,16 @@ final class Draft {
             return;
         }
         lastSnapshotVersion = head;
+        storeMarkers();
+        truncate( lowestConfirmed );
+    }
+
+    /**
+     * Stores the draft markers ({@code hasUnpublished}, {@code lastEditAt}) from memory: at snapshot cadence, and when the
+     * session leaves memory (the drafts list and retention read them). A failure only warns: retention also reads the
+     * update log's own times.
+     */
+    void storeMarkers() {
         try {
             final SessionRecord marked = SessionLoader.draftMarkers( record, hasUnpublished(), lastEditAt );
             store.updateSession( marked );
@@ -248,7 +258,6 @@ final class Draft {
         } catch( final RuntimeException e ) {
             LOG.warn( "collab session {} ({}): draft markers not stored: {}", id, pageName(), e.getMessage() );
         }
-        truncate( lowestConfirmed );
     }
 
     /**

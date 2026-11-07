@@ -25,8 +25,30 @@ import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.collab.CollabConfig;
+import com.wikantik.collab.CollabPermissions;
+import com.wikantik.collab.CollabSession;
+import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.CollabSessionRegistry.Joined;
+import com.wikantik.collab.adapter.CollabEngineAccess;
+import com.wikantik.collab.model.JoinRequest;
+import com.wikantik.collab.model.PushResponse;
+import com.wikantik.collab.model.Update;
+import com.wikantik.collab.testing.InMemoryCollabStore;
+import com.wikantik.collab.testing.MutableClock;
+import com.wikantik.collab.testing.ScriptedPageWriter;
+import com.wikantik.collab.text.ChangeSet;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.AppenderRef;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,10 +57,18 @@ import org.mockito.InOrder;
 import java.io.File;
 import java.nio.file.Files;
 import java.security.Principal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.sql.SQLException;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -230,5 +260,160 @@ class UserDeletionServiceTest {
         assertThrows( WikiSecurityException.class, () -> service().delete( session, LOGIN ) );
 
         verify( users, never() ).deleteByLoginName( anyString() );
+    }
+
+    // ---- collaboration (MultiEdit Phase 2 Task 6, §0 Minor: Deleted users) ------------------------------------------
+
+    private UserDeletionService serviceWithCollab( final Function< Engine, CollabSessionRegistry > collab ) {
+        return new UserDeletionService( engine, users, groups, apiKeys, pageOwners, trusted, collab );
+    }
+
+    /** Edit, create and sign-in granted to everyone: the eviction under test is by author, not by permission. */
+    private static final class AllowAll implements CollabPermissions {
+        @Override
+        public boolean canEdit( final Object participantSession, final String pageName ) {
+            return true;
+        }
+
+        @Override
+        public boolean canCreate( final Object participantSession, final String pageName ) {
+            return true;
+        }
+
+        @Override
+        public boolean signedIn( final Object participantSession ) {
+            return true;
+        }
+    }
+
+    private static Joined join( final CollabSessionRegistry registry, final String page, final String author ) {
+        return assertInstanceOf( Joined.class, registry.join( page,
+                new JoinRequest( author, null, new Object(), author.toUpperCase(), null, null ) ) );
+    }
+
+    private static PushResponse type( final Joined j, final String author ) {
+        final CollabSession.View v = j.session().view();
+        return j.session().push( j.response().participantId(), author, v.head(),
+                List.of( new Update( j.response().clientId(), ChangeSet.replace( v.doc().length(), 0, 0, "x" ) ) ) );
+    }
+
+    @Test
+    void aDeletedUsersParticipantsAreEvictedInEverySession() throws Exception {
+        final ScriptedPageWriter writer = new ScriptedPageWriter();
+        writer.seed( "One", "one\n", Map.of() );
+        writer.seed( "Two", "two\n", Map.of() );
+        final CollabSessionRegistry registry = new CollabSessionRegistry( new InMemoryCollabStore(), writer,
+                new AllowAll(), key -> null, new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) ),
+                new CollabConfig( true, 20, 65536, 25, 600, 30, 100, 500, 10, 0, 1000 ), 1 << 20 );
+        final Joined aliceOne = join( registry, "One", LOGIN );
+        final Joined aliceTwo = join( registry, "Two", LOGIN );
+        final Joined bob = join( registry, "Two", "bob" );
+
+        serviceWithCollab( e -> registry ).delete( session, LOGIN );
+
+        verify( users ).deleteByLoginName( LOGIN );
+        for ( final Joined gone : List.of( aliceOne, aliceTwo ) ) {
+            final PushResponse refused = type( gone, LOGIN );
+            assertEquals( 403, refused.status() );
+            assertEquals( CollabSession.EVICTED, refused.reason() );
+            assertEquals( CollabSession.ACCOUNT_DELETED, refused.detail() );
+        }
+        assertEquals( 200, type( bob, "bob" ).status(), "another user's participant stays" );
+    }
+
+    @Test
+    void theCollaborationEvictionComesAfterTheProfileRowIsDeleted() throws Exception {
+        final CollabSessionRegistry registry = mock( CollabSessionRegistry.class );
+
+        serviceWithCollab( e -> registry ).delete( session, LOGIN );
+
+        final InOrder order = inOrder( users, registry );
+        order.verify( users ).deleteByLoginName( LOGIN );
+        order.verify( registry ).evictAuthor( LOGIN );
+    }
+
+    @Test
+    void anAbortedDeleteEvictsNobody() throws Exception {
+        final CollabSessionRegistry registry = mock( CollabSessionRegistry.class );
+        doThrow( new RuntimeException( "trusted_authors remove failed" ) ).when( trusted ).remove( LOGIN );
+
+        assertThrows( WikiSecurityException.class, () -> serviceWithCollab( e -> registry ).delete( session, LOGIN ) );
+
+        verify( registry, never() ).evictAuthor( anyString() );
+    }
+
+    @Test
+    void aCollabFailureNeverAbortsAUserDelete() throws Exception {   // Review Focus #4
+        final CollabSessionRegistry registry = mock( CollabSessionRegistry.class );
+        when( registry.evictAuthor( LOGIN ) ).thenThrow( new IllegalStateException( "test: collab store down" ) );
+
+        final List< LogEvent > warns = capturingWarnings( () -> serviceWithCollab( e -> registry ).delete( session, LOGIN ) );
+
+        verify( users ).deleteByLoginName( LOGIN );
+        assertTrue( warns.stream().anyMatch( w -> w.getMessage().getFormattedMessage().contains( LOGIN )
+                && w.getMessage().getFormattedMessage().contains( "collaboration" )
+                && w.getThrown() instanceof IllegalStateException ), "a WARN with the cause: " + warns );
+    }
+
+    @Test
+    void aFailingRegistryLookupNeverAbortsAUserDeleteEither() throws Exception {
+        final List< LogEvent > warns = capturingWarnings( () -> serviceWithCollab( e -> {
+            throw new IllegalStateException( "test: engine half-built" );
+        } ).delete( session, LOGIN ) );
+
+        verify( users ).deleteByLoginName( LOGIN );
+        assertFalse( warns.isEmpty() );
+    }
+
+    @Test
+    void unwiredCollabIsANoOp() throws Exception {
+        assertNull( CollabEngineAccess.registry( engine ), "a mock engine is not a WikiEngine: nothing is wired" );
+        serviceWithCollab( e -> null ).delete( session, LOGIN );
+        service().delete( session, LOGIN );
+
+        verify( users, org.mockito.Mockito.times( 2 ) ).deleteByLoginName( LOGIN );
+    }
+
+    @FunctionalInterface
+    private interface Action {
+        void run() throws Exception;
+    }
+
+    /** Runs {@code action} with the WARN events of {@link UserDeletionService} captured. */
+    private static List< LogEvent > capturingWarnings( final Action action ) throws Exception {
+        final List< LogEvent > captured = new CopyOnWriteArrayList<>();
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext( false );
+        final Configuration config = ctx.getConfiguration();
+        final String name = "CollabEvictCapture-" + Thread.currentThread().threadId();
+        final AbstractAppender appender = new AbstractAppender( name, null, PatternLayout.createDefaultLayout(), true,
+                null ) {
+            @Override
+            public void append( final LogEvent event ) {
+                captured.add( event.toImmutable() );
+            }
+        };
+        appender.start();
+        config.addAppender( appender );
+        final String loggerName = UserDeletionService.class.getName();
+        LoggerConfig loggerConfig = config.getLoggerConfig( loggerName );
+        final boolean added = !loggerConfig.getName().equals( loggerName );
+        if ( added ) {
+            loggerConfig = LoggerConfig.newBuilder().setAdditivity( true ).setLevel( Level.WARN )
+                    .setLoggerName( loggerName ).setRefs( new AppenderRef[ 0 ] ).setConfig( config ).build();
+            config.addLogger( loggerName, loggerConfig );
+        }
+        loggerConfig.addAppender( appender, Level.WARN, null );
+        ctx.updateLoggers();
+        try {
+            action.run();
+        } finally {
+            loggerConfig.removeAppender( name );
+            if ( added ) {
+                config.removeLogger( loggerName );
+            }
+            ctx.updateLoggers();
+            appender.stop();
+        }
+        return captured.stream().filter( e -> e.getLevel() == Level.WARN ).toList();
     }
 }

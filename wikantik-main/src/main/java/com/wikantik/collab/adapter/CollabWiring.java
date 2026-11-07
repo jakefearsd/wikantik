@@ -22,10 +22,17 @@ import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.identity.PublicIdentities;
+import com.wikantik.auth.subsystem.AuthSubsystem;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.collab.CollabConfig;
 import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.CollabStore;
+import com.wikantik.event.WikiEventManager;
 import com.wikantik.jdbc.Jdbc;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -38,9 +45,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Builds the engine's {@link CollabSessionRegistry} over the wiki datasource and the three wiki adapters, and drives its
- * {@link CollabSessionRegistry#tick} once a second on one daemon thread. Registered on the engine's service registry
- * (read through {@link #registryFor}, never through {@code getManager}) and closed with the engine.
+ * Builds the engine's {@link CollabSessionRegistry} over the wiki datasource and the three wiki adapters, registers its
+ * {@link CollabPageEventListener} on the page manager, the filter manager, the page renamer and the security sources
+ * (session monitor, authentication manager, group manager), and drives its {@link CollabSessionRegistry#tick} once a
+ * second on one daemon thread. Registered on the engine's service registry (read through {@link CollabEngineAccess} and
+ * {@link #registryFor}, never through {@code getManager}), which keeps the listener strongly reachable
+ * ({@link WikiEventManager} holds listeners weakly), and closed with the engine.
  *
  * <p>Wiring happens whenever a datasource exists; with {@code wikantik.collab.enabled} false (the default) the registry
  * is present but {@link CollabSessionRegistry#isEnabled() disabled}; the tick thread runs regardless, as the flag can change. With no datasource nothing
@@ -53,10 +63,14 @@ public final class CollabWiring implements AutoCloseable {
     private static final long DEFAULT_MAX_PAGE_BYTES = 256L * 1024;
 
     private final CollabSessionRegistry registry;
+    /** Held strongly: {@link WikiEventManager} keeps listeners by weak reference. */
+    private final CollabPageEventListener listener;
     private final ScheduledExecutorService ticker;
 
-    private CollabWiring( final CollabSessionRegistry registry, final ScheduledExecutorService ticker ) {
+    private CollabWiring( final CollabSessionRegistry registry, final CollabPageEventListener listener,
+                          final ScheduledExecutorService ticker ) {
         this.registry = registry;
+        this.listener = listener;
         this.ticker = ticker;
     }
 
@@ -70,13 +84,26 @@ public final class CollabWiring implements AutoCloseable {
             LOG.info( "Collaboration not wired: no datasource" );
             return Optional.empty();
         }
+        return Optional.of( wireWith( engine, props, new JdbcCollabStore( new Jdbc( ds ) ), pages ) );
+    }
+
+    /**
+     * Builds the registry over {@code store} and the wiki adapters, registers its page event listener on the engine's
+     * event sources and the wiring on {@code engine}, and starts the tick. Tests wire an in-memory store this way.
+     */
+    static CollabWiring wireWith( final WikiEngine engine, final Properties props, final CollabStore store,
+                                  final PageManager pages ) {
         final CollabConfig config = CollabConfig.from( props );
-        final CollabSessionRegistry registry = new CollabSessionRegistry(
-                new JdbcCollabStore( new Jdbc( ds ) ),
-                new PageSaveHelperPageWriter( pages, new PageSaveHelper( engine, pages ) ),
+        final PageSaveHelperPageWriter writer = new PageSaveHelperPageWriter( pages, new PageSaveHelper( engine, pages ) );
+        final CollabSessionRegistry registry = new CollabSessionRegistry( store, writer,
                 new WikiCollabPermissions( engine ),
                 new PublicIdentityCollabIdentity( PublicIdentities.forEngine( engine ) ),
                 Clock.systemUTC(), config, maxPageBytes( props ) );
+        final CollabPageEventListener listener = new CollabPageEventListener( registry, writer );
+        final AuthSubsystem.Services auth = AuthSubsystemBridge.fromLegacyEngine( engine );
+        listener.register( pages, RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager(),
+                PageSubsystemBridge.fromLegacyEngine( engine ).pageRenamer(),
+                SessionMonitor.getInstance( engine ), auth.authentication(), auth.groups() );
         // Always ticking: the enabled flag can be flipped at runtime, and tick() over no sessions is cheap.
         final ScheduledExecutorService ticker = Executors.newSingleThreadScheduledExecutor( r -> {
             final Thread t = new Thread( r, "collab-tick" );
@@ -84,19 +111,20 @@ public final class CollabWiring implements AutoCloseable {
             return t;
         } );
         ticker.scheduleAtFixedRate( guarded( registry::tick ), 1, 1, TimeUnit.SECONDS );
-        final CollabWiring wiring = new CollabWiring( registry, ticker );
+        final CollabWiring wiring = new CollabWiring( registry, listener, ticker );
         engine.setManager( CollabWiring.class, wiring );
         LOG.info( "Collaboration wired (enabled={})", config.enabled() );
-        return Optional.of( wiring );
+        return wiring;
     }
 
     /** The registry wired on {@code engine}, or empty when none was (no datasource, or not a {@link WikiEngine}). */
     public static Optional< CollabSessionRegistry > registryFor( final Engine engine ) {
-        if( engine instanceof WikiEngine we ) {
-            final CollabWiring wiring = we.serviceRegistry().get( CollabWiring.class );
-            return wiring == null ? Optional.empty() : Optional.of( wiring.registry );
-        }
-        return Optional.empty();
+        return Optional.ofNullable( CollabEngineAccess.registry( engine ) );
+    }
+
+    /** The wired registry. */
+    CollabSessionRegistry registry() {
+        return registry;
     }
 
     /** True while the tick thread is running. */
@@ -131,8 +159,10 @@ public final class CollabWiring implements AutoCloseable {
         }
     }
 
+    /** Unregisters the page event listener and stops the tick thread. */
     @Override
     public void close() {
+        WikiEventManager.removeWikiEventListener( listener );
         if( ticker == null ) {
             return;
         }

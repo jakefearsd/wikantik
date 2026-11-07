@@ -57,7 +57,8 @@ public interface CollabPageWriter {
      * {@code expectedVersion} 0 means the page must not exist (see {@link PublishRequest}). A positive
      * {@code expectedVersion} on a page that no longer exists (renamed or deleted away) fails with the conflict
      * {@code VersionConflictException.pageGone} (message {@code page-gone}) and never recreates the page. A save that was
-     * stored but then failed in its post-save handling returns the version it wrote.
+     * stored but then failed in its post-save handling returns the version it wrote. A save that was stored but whose
+     * text could not be read back throws {@link PublishReadBackException} naming the version it wrote.
      */
     PublishOutcome publish( PublishRequest request ) throws WikiException;
 }

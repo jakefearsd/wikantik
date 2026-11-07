@@ -33,11 +33,13 @@ import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.PageReadException;
+import com.wikantik.collab.PublishReadBackException;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.collab.text.CollabText;
 import com.wikantik.providers.NoSuchVersionException;
+import com.wikantik.providers.RepositoryModifiedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -76,40 +78,65 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
         return read( pageName, version );
     }
 
-    /** From the page's metadata alone: no text read. */
+    /**
+     * From the page's metadata alone: no text read. The provider's {@link PageProvider#getPageInfoNoMetadata} throws on
+     * a provider error, where the page manager's {@code getPageInfo} would also run {@code CachingProvider}'s metadata
+     * refresh (a text read and a markup parse) and its {@code pageExists} would answer false. A repository modified
+     * under the lookup is asked once more, as the page manager does.
+     */
     @Override
     public boolean exists( final String pageName ) {
         try {
-            return pages.getPageInfo( pageName, PageProvider.LATEST_VERSION ) != null;
+            return pageInfoNoMetadata( pageName ) != null;
         } catch( final ProviderException e ) {
             throw new PageReadException( "collab: could not tell whether page '" + pageName + "' exists", e );
+        }
+    }
+
+    private Page pageInfoNoMetadata( final String pageName ) throws ProviderException {
+        final PageProvider provider = pages.getProvider();
+        try {
+            return provider.getPageInfoNoMetadata( pageName, PageProvider.LATEST_VERSION );
+        } catch( final RepositoryModifiedException e ) {
+            LOG.debug( "Page '{}' was modified outside the wiki while its existence was checked; asking again: {}",
+                    pageName, e.getMessage() );
+            return provider.getPageInfoNoMetadata( pageName, PageProvider.LATEST_VERSION );
         }
     }
 
     /**
      * Present, absent or unknown. Built on {@link PageManager#getPageInfo} and {@link PageManager#getPageText}, which
      * throw: the lenient {@code getPage} answers null and {@code getPureText} answers "" on a provider error, which would
-     * read as a missing page or an empty body (a settle merging "" empties the draft's base). A version that vanished
-     * between the two reads ({@link NoSuchVersionException}) is absent; any other provider error, or an existing page
-     * whose text reads as null, throws {@link PageReadException}.
+     * read as a missing page or an empty body (a settle merging "" empties the draft's base). The text read is of the
+     * version the page info names, also for the latest version: reading "latest" twice would let a save landing between
+     * the two reads pair version N with the text of N+1. A specific version that vanished between the two reads
+     * ({@link NoSuchVersionException}) is absent; for the latest version it is unknown (another version may now be the
+     * latest). Any other provider error, or an existing page whose text reads as null, throws {@link PageReadException}.
      */
     private Optional< PageState > read( final String pageName, final int version ) {
         final Page page;
         final String text;
+        final int textVersion;
         try {
             page = pages.getPageInfo( pageName, version );
             if( page == null ) {
                 return Optional.empty();
             }
-            text = pages.getPageText( pageName, version );
+            // a provider that keeps no version numbers reports none: its only text is the latest
+            textVersion = version == PageProvider.LATEST_VERSION && page.getVersion() > 0 ? page.getVersion() : version;
+            text = pages.getPageText( pageName, textVersion );
         } catch( final NoSuchVersionException e ) {
+            if( version == PageProvider.LATEST_VERSION ) {
+                throw new PageReadException( "collab: the latest version of page '" + pageName
+                        + "' changed while it was read", e );
+            }
             LOG.debug( "Page '{}' version {} vanished while it was read: {}", pageName, version, e.getMessage() );
             return Optional.empty();
         } catch( final ProviderException e ) {
             throw new PageReadException( "collab: could not read page '" + pageName + "' version " + version, e );
         }
         if( text == null ) {
-            throw new PageReadException( "collab: page '" + pageName + "' version " + version
+            throw new PageReadException( "collab: page '" + pageName + "' version " + textVersion
                     + " exists but its text could not be read" );
         }
         final ParsedPage parsed = FrontmatterParser.parse( text );
@@ -132,26 +159,26 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
         final SaveOutcome out = save( name, request, options );
         final int version = out.page() == null ? 0 : Math.max( out.version(), 1 );
         final int readVersion = out.version() > 0 ? out.version() : PageProvider.LATEST_VERSION;
-        final ParsedPage saved = FrontmatterParser.parse( readBack( name, readVersion ) );
+        final ParsedPage saved = FrontmatterParser.parse( readBack( name, readVersion, version ) );
         return new PublishOutcome( version, lf( saved.body() ), saved.metadata(), out.unchanged() );
     }
 
     /**
-     * The text a publish just saved. A failure throws (the save may have landed: the session's failed-publish path claims
-     * that version by its text hash and author, E39); an empty body would be mapped as the save filters' rewrite and
-     * wipe the draft.
+     * The text a publish just saved. A failure throws {@link PublishReadBackException} naming the version the save wrote:
+     * the save landed, so the session's failed-publish path claims that version as the publisher's own (E39), also when a
+     * save filter rewrote it. An empty body instead would be mapped as the filters' rewrite and wipe the draft.
      */
-    private String readBack( final String name, final int version ) throws WikiException {
+    private String readBack( final String name, final int readVersion, final int savedVersion ) throws WikiException {
         final String text;
         try {
-            text = pages.getPageText( name, version );
+            text = pages.getPageText( name, readVersion );
         } catch( final ProviderException e ) {
-            throw new WikiException( "Page '" + name + "' version " + version + " was saved but could not be read back: "
-                    + e.getMessage(), e );
+            throw new PublishReadBackException( "Page '" + name + "' version " + savedVersion
+                    + " was saved but could not be read back: " + e.getMessage(), savedVersion, e );
         }
         if( text == null ) {
-            throw new WikiException( "Page '" + name + "' version " + version
-                    + " was saved but its text could not be read back" );
+            throw new PublishReadBackException( "Page '" + name + "' version " + savedVersion
+                    + " was saved but its text could not be read back", savedVersion, null );
         }
         return text;
     }

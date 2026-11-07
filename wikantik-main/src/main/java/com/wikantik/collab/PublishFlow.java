@@ -308,7 +308,7 @@ final class PublishFlow {
                 re.getMessage() );
             return unfinishedLocked( t );
         }
-        if( next.isPresent() && claims( next.get(), t ) ) {
+        if( next.isPresent() && ( claims( next.get(), t ) || savedUnread( e, next.get(), t ) ) ) {
             return finish( t, outcomeOf( next.get() ), completions );
         }
         if( !clearMarker() ) {
@@ -498,6 +498,17 @@ final class PublishFlow {
     private static boolean claims( final PageState saved, final PublishStart.Ticket t ) {
         return t.authorKey().equals( saved.author() )
             && CollabText.contentHash( TextUtil.normalizePostData( t.doc() ) ).equals( saved.contentHash() );
+    }
+
+    /**
+     * The save wrote {@code saved}'s version but its text could not be read back ({@link PublishReadBackException}): the
+     * version is the publisher's own write even when its hash is not S_V's (a save filter rewrote the body), so it is
+     * finished with the rewrite as N, as {@link #finish} maps a filter's rewrite. Merging it as an outside write instead
+     * would apply the publisher's edits onto themselves and duplicate text. The author must still match.
+     */
+    private static boolean savedUnread( final Exception e, final PageState saved, final PublishStart.Ticket t ) {
+        return e instanceof PublishReadBackException unread && unread.savedVersion() == saved.version()
+            && t.authorKey().equals( saved.author() );
     }
 
     private static PublishOutcome outcomeOf( final PageState s ) {

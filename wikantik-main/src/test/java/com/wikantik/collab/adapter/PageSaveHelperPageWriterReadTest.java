@@ -20,14 +20,15 @@ package com.wikantik.collab.adapter;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
-import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOutcome;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.collab.PageReadException;
+import com.wikantik.collab.PublishReadBackException;
 import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.providers.NoSuchVersionException;
+import com.wikantik.providers.RepositoryModifiedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +55,7 @@ import static org.mockito.Mockito.when;
 class PageSaveHelperPageWriterReadTest {
 
     private PageManager pm;
+    private PageProvider provider;
     private PageSaveHelper helper;
     private PageSaveHelperPageWriter writer;
     private Page page;
@@ -61,6 +63,8 @@ class PageSaveHelperPageWriterReadTest {
     @BeforeEach
     void setUp() throws Exception {
         pm = mock( PageManager.class );
+        provider = mock( PageProvider.class );
+        when( pm.getProvider() ).thenReturn( provider );
         helper = mock( PageSaveHelper.class );
         writer = new PageSaveHelperPageWriter( pm, helper );
         page = mock( Page.class );
@@ -79,6 +83,7 @@ class PageSaveHelperPageWriterReadTest {
     void aProviderErrorReadingThePageInfoThrowsInsteadOfReadingAsMissing() throws Exception {
         lenientReadsSwallowTheError();
         when( pm.getPageInfo( eq( "P" ), anyInt() ) ).thenThrow( new ProviderException( "disk gone" ) );
+        when( provider.getPageInfoNoMetadata( eq( "P" ), anyInt() ) ).thenThrow( new ProviderException( "disk gone" ) );
         assertThrows( PageReadException.class, () -> writer.latest( "P" ) );
         assertThrows( PageReadException.class, () -> writer.version( "P", 2 ) );
         assertThrows( PageReadException.class, () -> writer.exists( "P" ) );
@@ -105,6 +110,7 @@ class PageSaveHelperPageWriterReadTest {
     @Test
     void absentPagesAndVersionsAreEmpty() throws Exception {
         when( pm.getPageInfo( eq( "Gone" ), anyInt() ) ).thenReturn( null );
+        when( provider.getPageInfoNoMetadata( eq( "Gone" ), anyInt() ) ).thenReturn( null );
         assertEquals( Optional.empty(), writer.latest( "Gone" ) );
         assertFalse( writer.exists( "Gone" ) );
         when( pm.getPageInfo( eq( "P" ), eq( 9 ) ) ).thenReturn( page );
@@ -116,15 +122,50 @@ class PageSaveHelperPageWriterReadTest {
     void aReadableEmptyPageIsAnEmptyBodyNotAnError() throws Exception {
         when( pm.getPageInfo( eq( "P" ), anyInt() ) ).thenReturn( page );
         when( pm.getPageText( eq( "P" ), anyInt() ) ).thenReturn( "" );
+        when( provider.getPageInfoNoMetadata( eq( "P" ), anyInt() ) ).thenReturn( page );
         assertEquals( "", writer.latest( "P" ).orElseThrow().body() );
         assertTrue( writer.exists( "P" ) );
     }
 
+    /**
+     * The page manager's {@code getPageInfo} runs {@code CachingProvider.refreshMetadata}, which reads and parses the text;
+     * {@code exists()} asks the provider's metadata-free lookup, which throws on a provider error.
+     */
     @Test
-    void existsReadsOnlyThePageInfo() throws Exception {
-        when( pm.getPageInfo( eq( "P" ), eq( PageProvider.LATEST_VERSION ) ) ).thenReturn( page );
+    void existsReadsOnlyTheMetadataFreePageInfo() throws Exception {
+        when( provider.getPageInfoNoMetadata( eq( "P" ), eq( PageProvider.LATEST_VERSION ) ) ).thenReturn( page );
+        when( pm.getPageInfo( any(), anyInt() ) ).thenThrow( new AssertionError( "exists() must not refresh metadata" ) );
         when( pm.getPageText( any(), anyInt() ) ).thenThrow( new AssertionError( "exists() must not read the text" ) );
         assertTrue( writer.exists( "P" ) );
+    }
+
+    @Test
+    void existsRetriesOnceWhenTheRepositoryWasModifiedUnderIt() throws Exception {
+        when( provider.getPageInfoNoMetadata( eq( "P" ), eq( PageProvider.LATEST_VERSION ) ) )
+                .thenThrow( new RepositoryModifiedException( "changed on disk", "P" ) ).thenReturn( null );
+        assertFalse( writer.exists( "P" ) );
+    }
+
+    /**
+     * Follow-up 1: the latest state is the text of the version the page info named. Reading "latest" twice lets a save
+     * land between the reads and yields version N with the text of N+1.
+     */
+    @Test
+    void latestReadsTheTextOfTheVersionItsPageInfoNamed() throws Exception {
+        when( pm.getPageInfo( eq( "P" ), eq( PageProvider.LATEST_VERSION ) ) ).thenReturn( page );   // version 3
+        when( pm.getPageText( eq( "P" ), eq( 3 ) ) ).thenReturn( "three\n" );
+        when( pm.getPageText( eq( "P" ), eq( PageProvider.LATEST_VERSION ) ) ).thenReturn( "four, saved meanwhile\n" );
+        final var state = writer.latest( "P" ).orElseThrow();
+        assertEquals( 3, state.version() );
+        assertEquals( "three\n", state.body() );
+    }
+
+    @Test
+    void aLatestPageWithoutAVersionNumberIsReadAsLatest() throws Exception {
+        when( page.getVersion() ).thenReturn( PageProvider.LATEST_VERSION );   // a provider that keeps no versions
+        when( pm.getPageInfo( eq( "P" ), eq( PageProvider.LATEST_VERSION ) ) ).thenReturn( page );
+        when( pm.getPageText( eq( "P" ), eq( PageProvider.LATEST_VERSION ) ) ).thenReturn( "only\n" );
+        assertEquals( "only\n", writer.latest( "P" ).orElseThrow().body() );
     }
 
     @Test
@@ -135,6 +176,7 @@ class PageSaveHelperPageWriterReadTest {
         final PublishRequest req = new PublishRequest( "P", "mine\n", Map.of(), 2, "alice", "note" );
         // a failed publish is claimed later by its text hash and author (E39); an empty body would be mapped as the save
         // filters' rewrite and wipe the draft
-        assertThrows( WikiException.class, () -> writer.publish( req ) );
+        final PublishReadBackException e = assertThrows( PublishReadBackException.class, () -> writer.publish( req ) );
+        assertEquals( 3, e.savedVersion(), "the version the save wrote, so the session claims it as its own" );
     }
 }

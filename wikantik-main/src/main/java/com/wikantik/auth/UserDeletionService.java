@@ -25,6 +25,8 @@ import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.login.LoginCookieFiles;
 import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.adapter.CollabEngineAccess;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 import org.apache.logging.log4j.LogManager;
@@ -32,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.security.Principal;
+import java.util.function.Function;
 
 /**
  * The single hard-delete path for a user account. Self-service delete and admin single/bulk delete all go
@@ -56,7 +59,8 @@ import java.security.Principal;
  *       reassign orphans later. It runs only once the fail-closed steps passed, so an aborted delete never leaves
  *       a still-existing account's pages orphaned.</li>
  *   <li>The login is tombstoned in {@code deleted_logins} (<b>fail-closed</b>, before the row goes: shown as "former member",
- *       never registrable again); the profile row is deleted; then the user's live sessions are demoted to guest (best-effort).</li>
+ *       never registrable again); the profile row is deleted; then the user's live sessions are demoted to guest and their
+ *       participants in live collaboration sessions are evicted (both best-effort: logged, never abort).</li>
  * </ol>
  *
  * <p>SCIM never hard-deletes (it routes decommission through {@link UserLifecycleService#deactivate}), so it does
@@ -72,6 +76,8 @@ public class UserDeletionService {
     private final ApiKeyService apiKeys;
     private final PageOwnerService pageOwners;
     private final TrustedAuthorsDao trustedAuthors;
+    /** The collaboration registry of an engine, or null when collaboration is not wired. */
+    private final Function< Engine, CollabSessionRegistry > collab;
 
     /**
      * @param apiKeys        {@code null} when no datasource is configured (nothing to revoke)
@@ -81,12 +87,20 @@ public class UserDeletionService {
     public UserDeletionService( final Engine engine, final UserDatabase users, final GroupManager groups,
                                 final ApiKeyService apiKeys, final PageOwnerService pageOwners,
                                 final TrustedAuthorsDao trustedAuthors ) {
+        this( engine, users, groups, apiKeys, pageOwners, trustedAuthors, CollabEngineAccess::registry );
+    }
+
+    /** As the public constructor, reaching the collaboration registry through {@code collab} (tests). */
+    UserDeletionService( final Engine engine, final UserDatabase users, final GroupManager groups,
+                         final ApiKeyService apiKeys, final PageOwnerService pageOwners,
+                         final TrustedAuthorsDao trustedAuthors, final Function< Engine, CollabSessionRegistry > collab ) {
         this.engine = engine;
         this.users = users;
         this.groups = groups;
         this.apiKeys = apiKeys;
         this.pageOwners = pageOwners;
         this.trustedAuthors = trustedAuthors;
+        this.collab = collab;
     }
 
     /**
@@ -108,7 +122,26 @@ public class UserDeletionService {
         recordTombstone( loginName );
         users.deleteByLoginName( loginName );
         endLiveSessions( loginName );
+        evictFromCollaboration( loginName );
         ProfileChangeNotifier.profileDeleted( engine, loginName );
+    }
+
+    /**
+     * Best-effort, never aborts (the account is already gone): the user's participants in every live collaboration
+     * session are evicted with {@code account-deleted}. Their typed edits stay in the drafts (§0 Minor, Deleted users).
+     */
+    private void evictFromCollaboration( final String loginName ) {
+        try {
+            final CollabSessionRegistry registry = collab.apply( engine );
+            if ( registry == null ) {
+                return;
+            }
+            final int evicted = registry.evictAuthor( loginName );
+            LOG.debug( "User delete: evicted {} collaboration participant(s) of user={}", evicted, loginName );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "User delete: could not evict user={} from live collaboration sessions; their participants lapse"
+                    + " at the idle timeout: {}", loginName, e.getMessage(), e );
+        }
     }
 
     /** Fail-closed: a deleted account must never be left without its tombstone, so a failure aborts before the row goes. */

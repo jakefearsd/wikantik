@@ -75,8 +75,9 @@ public final class JdbcCollabStore implements CollabStore {
         try {
             jdbc.update( "INSERT INTO collab_session ( id, page_name, status, base_page_version, base_body, base_meta,"
                 + " base_content_hash, head_version, meta_seq, has_unpublished, pending_publish_version,"
-                + " pending_publish_base_version, pending_publish_author, created_by, created_at, last_edit_at )"
-                + " VALUES ( ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )", ps -> {
+                + " pending_publish_base_version, pending_publish_author, created_by, created_at, last_edit_at,"
+                + " pending_publish_saved_version, pending_publish_canonical_id )"
+                + " VALUES ( ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )", ps -> {
                     ps.setObject( 1, s.id() );
                     ps.setString( 2, s.pageName() );
                     ps.setString( 3, s.status() );
@@ -93,6 +94,8 @@ public final class JdbcCollabStore implements CollabStore {
                     ps.setString( 14, s.createdBy() );
                     ps.setTimestamp( 15, Timestamp.from( s.createdAt() ) );
                     CollabRows.setInstant( ps, 16, s.lastEditAt() );
+                    CollabRows.setInteger( ps, 17, s.pendingPublishSavedVersion() );
+                    ps.setString( 18, s.pendingPublishCanonicalId() );
                 } );
         } catch( final SQLException e ) {
             throw translate( e, "createSession " + s.pageName() );

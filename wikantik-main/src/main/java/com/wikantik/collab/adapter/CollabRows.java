@@ -54,7 +54,8 @@ final class CollabRows {
 
     static final String SESSION_COLUMNS = "id, page_name, status, base_page_version, base_body, base_meta::text,"
         + " base_content_hash, head_version, meta_seq, has_unpublished, pending_publish_version,"
-        + " pending_publish_base_version, pending_publish_author, created_by, created_at, last_edit_at";
+        + " pending_publish_base_version, pending_publish_author, created_by, created_at, last_edit_at,"
+        + " pending_publish_saved_version, pending_publish_canonical_id";
 
     static void setInteger( final PreparedStatement ps, final int i, final Integer v ) throws SQLException {
         if( v == null ) {
@@ -89,8 +90,9 @@ final class CollabRows {
         final Timestamp lastEdit = rs.getTimestamp( 16 );
         return new SessionRecord( rs.getObject( 1, UUID.class ), rs.getString( 2 ), rs.getString( 3 ), rs.getInt( 4 ),
             rs.getString( 5 ), parseMeta( rs.getString( 6 ) ), rs.getString( 7 ), rs.getInt( 8 ), rs.getLong( 9 ),
-            rs.getBoolean( 10 ), getInteger( rs, 11 ), getInteger( rs, 12 ), rs.getString( 13 ), rs.getString( 14 ),
-            rs.getTimestamp( 15 ).toInstant(), lastEdit == null ? null : lastEdit.toInstant() );
+            rs.getBoolean( 10 ), getInteger( rs, 11 ), getInteger( rs, 12 ), rs.getString( 13 ), getInteger( rs, 17 ),
+            rs.getString( 18 ), rs.getString( 14 ), rs.getTimestamp( 15 ).toInstant(),
+            lastEdit == null ? null : lastEdit.toInstant() );
     }
 
     static StoredUpdate mapUpdate( final ResultSet rs ) throws SQLException {

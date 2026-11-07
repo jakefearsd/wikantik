@@ -41,7 +41,7 @@ class RecordsTest {
 
     private static SessionRecord session( final Integer pv, final Integer pbv, final String author ) {
         final Instant t = Instant.EPOCH;
-        return new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b", Map.of(), "h", 0, 0, false, pv, pbv, author,
+        return new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b", Map.of(), "h", 0, 0, false, pv, pbv, author, null, null,
             "u", t, t );
     }
 
@@ -102,6 +102,23 @@ class RecordsTest {
     }
 
     @Test
+    void theSavedVersionNeedsAPendingPublishAndTheCanonicalIdNeedsTheVersion() {
+        final SessionRecord marked = session( 3, 2, "alice" );
+        final SessionRecord saved = marked.withPublishSaved( 3, "cid" );
+        assertEquals( 3, saved.pendingPublishSavedVersion() );
+        assertEquals( "cid", saved.pendingPublishCanonicalId() );
+        assertThrows( IllegalArgumentException.class, () -> session( null, null ).withPublishSaved( 3, "cid" ) );
+        assertThrows( IllegalArgumentException.class, () -> marked.withPublishSaved( -1, null ) );
+        final Instant t = Instant.EPOCH;
+        assertThrows( IllegalArgumentException.class, () -> new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b",
+            Map.of(), "h", 0, 0, false, 3, 2, "alice", null, "cid", "u", t, t ) );
+        assertEquals( null, saved.withPending( 4, 3, "bob" ).pendingPublishSavedVersion(), "a new marker starts unsaved" );
+        assertEquals( null, saved.withPending( null, null, null ).pendingPublishCanonicalId() );
+        assertEquals( 3, saved.withHead( 9 ).withBase( 2, "x", Map.of(), "h2" ).withStatus( "frozen" ).withPageName( "Q" )
+            .withMetaSeq( 4 ).pendingPublishSavedVersion(), "every other with* keeps it" );
+    }
+
+    @Test
     void withPendingSetsAndClearsTheTriple() {
         final SessionRecord s = session( null, null ).withPending( 5, 4, "bob" );
         assertEquals( 5, s.pendingPublishVersion() );
@@ -116,7 +133,7 @@ class RecordsTest {
     void lastEditAtMayBeNullUntilTheFirstEdit() {
         final Instant t = Instant.EPOCH;
         final SessionRecord s = new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b", Map.of(), "h", 0, 0, false,
-            null, null, null, "u", t, null );
+            null, null, null, null, null, "u", t, null );
         assertEquals( null, s.lastEditAt() );
         assertEquals( null, s.withHead( 2 ).lastEditAt() );
     }
@@ -125,7 +142,7 @@ class RecordsTest {
     void baseContentHashIsRequired() {
         final Instant t = Instant.EPOCH;
         assertThrows( NullPointerException.class, () -> new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b",
-            Map.of(), null, 0, 0, false, null, null, null, "u", t, t ) );
+            Map.of(), null, 0, 0, false, null, null, null, null, null, "u", t, t ) );
     }
 
     @Test

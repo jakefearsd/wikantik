@@ -23,6 +23,7 @@ import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.model.CollabEvent;
 import com.wikantik.collab.model.MetaEdit;
 import com.wikantik.collab.model.PageState;
+import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PullCursor;
 import com.wikantik.collab.model.Selection;
 import com.wikantik.collab.model.SessionRecord;
@@ -121,11 +122,14 @@ import java.util.stream.Collectors;
  * ({@link #CANONICAL_ID}, seeded and on every outside save) so publishes are attributed. The scheduler keeps its own
  * {@link CollabInvariants.Attribution} model: an accepted push credits its author with the versions and meta seqs it
  * moved the head and the meta sequence by; a publish that takes a ticket records (V, M_V), B and S_V as the save
- * begins (cross-checked against the stored marker); it completes when its release answers 200, or, once its marker is
- * gone (an unfinished publish retried, the reload's pending-publish rule after a crash), when version B+1 is by its
- * author with S_V's stored text (A2's claim rule); otherwise it credits nobody. Invariants 10 and 11 are checked after
- * every step and at quiescence; while a publish is marked, the rows it may already have written before a failed
- * commit are accepted too.</p>
+ * begins (cross-checked against the stored marker), and, when its save returned to the server, the version it wrote
+ * (ruling D); it completes when its release answers 200, or, once its marker is gone (an unfinished publish retried,
+ * the reload's pending-publish rule after a crash), when the version its save wrote is by its author, or, when the
+ * server never learnt that version (the save threw, or a crash caught it inside the save or before the version was
+ * stored), when version B+1 is by its author with S_V's stored text (A2's claim rule); otherwise it credits nobody. A
+ * save that stored nothing new credits nobody and leaves its contributors pending (ruling R2). Invariants 10 and 11 are
+ * checked after every step and at quiescence; while a publish is marked, the rows it may already have written before a
+ * failed commit are accepted too.</p>
  *
  * <p><b>Coverage</b>: every run counts what it explored ({@link SimTrace#counters()}, keys below), so a test can assert
  * that a profile retune did not silently stop exercising a path.</p>
@@ -415,6 +419,9 @@ public final class SimScheduler {
         final Set< String > retired = new HashSet<>();
         /** The meta edits on the current push (given back to the meta model on its answer). */
         List< MetaState.Entry > pushMeta = List.of();
+        /** The selection the current push carries, and the last one a push delivered (null after a (re)join). */
+        Selection pushSelection;
+        Selection sentSelection;
         /** The meta and event cursors the current pull was sent with. */
         long pullMetaSince;
         long pullEventsSince;
@@ -432,7 +439,8 @@ public final class SimScheduler {
     /**
      * A publish the server took a ticket for, as the scheduler observed it when the save began: the publish point
      * (V, M_V), the base B it saves on (0 for a recreate), its author and S_V. {@code crashed} once a crash caught it
-     * inside its save (F8).
+     * inside its save (F8). {@code saved}: the new version its save wrote, once the save returned it to the server
+     * (null while it has not, after a save that threw, or when a crash lost the stored copy).
      */
     private static final class Ticket {
         final int version;
@@ -441,6 +449,7 @@ public final class SimScheduler {
         final String author;
         final String doc;
         boolean crashed;
+        Integer saved;
 
         Ticket( final int version, final long metaSeq, final int base, final String author, final String doc ) {
             this.version = version;
@@ -680,9 +689,19 @@ public final class SimScheduler {
             };
         }
 
-        /** Unconfirmed text or unsent meta edits, and not frozen (a frozen draft refuses every push). */
+        /**
+         * Unconfirmed text, unsent meta edits or a selection no push has delivered, and not frozen (a frozen draft refuses
+         * every push). The selection clause is the real client's: it pushes a selection-only change
+         * ({@code collabPeer.js} {@code pushNow}: anchor and head compared with the last selection a push delivered).
+         */
         private static boolean hasSomethingToPush( final Peer p ) {
-            return !p.sim.frozen() && ( !p.sim.sendable().isEmpty() || p.sim.meta().hasUnsent() );
+            return !p.sim.frozen() && ( !p.sim.sendable().isEmpty() || p.sim.meta().hasUnsent() || selectionUnsent( p ) );
+        }
+
+        private static boolean selectionUnsent( final Peer p ) {
+            final Selection s = p.sim.selection();
+            return s != null && ( p.sentSelection == null || s.anchor() != p.sentSelection.anchor()
+                || s.head() != p.sentSelection.head() );
         }
 
         private boolean pageExists() {
@@ -870,6 +889,7 @@ public final class SimScheduler {
                         settled();
                     }
                     case CRASH_RECOVER -> {
+                        forgetUnstoredSavedVersion();
                         // F8: the server and everything it held in memory (participants, parked pulls, publishes inside
                         // their save) is gone; a held save committed before the crash on even steps, never ran on odd ones
                         for( final PendingPublish pp : pendingPublishes ) {
@@ -978,8 +998,9 @@ public final class SimScheduler {
             }
             final String id = newId();
             p.pushMeta = p.sim.meta().takeSendable();
+            p.pushSelection = p.sim.selection();
             net.send( new Message( id, Type.PUSH, indexOf( p ), id, p.sim.participantId(), p.sim.version(),
-                p.sim.sendable(), new PushExtras( p.pushMeta, p.sim.selection() ) ) );
+                p.sim.sendable(), new PushExtras( p.pushMeta, p.pushSelection ) ) );
             p.sent = p.sim.sendable().size();
             p.push = id;
             p.pushAt = ordinal;
@@ -1224,8 +1245,13 @@ public final class SimScheduler {
             if( pp == null ) {
                 return;
             }
+            env.writer().takeLastReturned();
             final PublishResult r = server.releasePublish( pp.handle() );
             count( RELEASED_PUBLISHES, 1 );
+            final PublishOutcome returned = env.writer().takeLastReturned();
+            if( attribution != null && ticket != null ) {
+                learnSavedVersion( ticket, returned );
+            }
             if( attribution != null && ticket != null && r.status() == 200 ) {
                 // the save returned and the post-save half finished: the publish is complete at the answered version
                 complete( ticket, r.pageVersion() );
@@ -1286,59 +1312,85 @@ public final class SimScheduler {
         }
 
         /**
-         * A2 / E39: a settled marker was a completed publish when version B+1 of the session's page is by the ticket's
-         * author with S_V's text as the save stores it; otherwise the save never ran (or was another write) and the
-         * publish credits nobody.
+         * A2 / E39 as amended by ruling D: a settled marker was a completed publish when the version its save wrote (as
+         * the server learnt it) is by the ticket's author, or, when the server never learnt that version, when version
+         * B+1 is by the ticket's author with S_V's text as the save stores it; otherwise (the page moved on, or the save
+         * never ran) the publish credits nobody, and any rows it wrote early must be gone.
          */
         private void resolveByClaim() {
             final Ticket t = ticket;
-            final Optional< PageState > next = env.writer().version( server.view().pageName(), t.base + 1 );
-            if( next.isPresent() && t.author.equals( next.get().author() ) && next.get().contentHash().equals(
-                    CollabText.contentHash( TextUtil.normalizePostData( t.doc ) ) ) ) {
-                complete( t, t.base + 1 );
+            if( t.saved != null ? byAuthor( t, t.saved ) : claimedByHash( t ) ) {
+                complete( t, t.saved != null ? t.saved : t.base + 1 );
                 return;
             }
             count( UNCLAIMED_PUBLISHES, 1 );
             ticket = null;
-            if( CollabInvariants.tolerateOrphanedRows ) {
-                // known defect D2: rows an earlier attempt wrote before its failed commit stay behind; accepted only when
-                // the ledger is exactly the model plus those rows
-                final Map< Integer, List< String > > held = server.ledger( CANONICAL_ID );
-                for( final CollabInvariants.Attribution alt : orphans( t ) ) {
-                    if( held.equals( alt.ledger() ) && !held.equals( attribution.ledger() ) ) {
-                        attribution = alt;
-                        return;
-                    }
+            if( t.saved != null ) {
+                // the server knew the version the save wrote: rows it credited there (or held from an earlier page at
+                // that number) are removed, and a recreate's save restarted the numbering, so every earlier row goes
+                attribution.unclaimed( t.saved, t.base == 0 );
+            }
+        }
+
+        /** Version {@code at} of the session's page is by the ticket's author. */
+        private boolean byAuthor( final Ticket t, final int at ) {
+            final Optional< PageState > v = env.writer().version( server.view().pageName(), at );
+            return v.isPresent() && t.author.equals( v.get().author() );
+        }
+
+        /** A2: version B+1 of the session's page is by the ticket's author with S_V's text as the save stores it. */
+        private boolean claimedByHash( final Ticket t ) {
+            final Optional< PageState > next = env.writer().version( server.view().pageName(), t.base + 1 );
+            return next.isPresent() && t.author.equals( next.get().author() )
+                && next.get().contentHash().equals( CollabText.contentHash( TextUtil.normalizePostData( t.doc ) ) );
+        }
+
+        /**
+         * What the server learnt, as its release finished, of the version its save wrote (ruling D): the version a save
+         * returned (none for a save that stored nothing new); or, for a save that threw after persisting, version B+1 when
+         * A2's rule claimed it at once (the server then finished it from that version and stored it on the marker).
+         */
+        private void learnSavedVersion( final Ticket t, final PublishOutcome returned ) {
+            if( returned != null ) {
+                if( !returned.unchanged() ) {
+                    t.saved = returned.version();
                 }
+            } else if( claimedByHash( t ) ) {
+                t.saved = t.base + 1;
             }
         }
 
         /**
-         * The model as it would be with {@code t}'s rows written but the publish not completed: at B+1 (the save wrote a
-         * new version), and with known defect D1 tolerated at B too (the save stored nothing new).
+         * A crash keeps only what the store holds: a saved version the server learnt but could not store on the marker
+         * (a store fault) is lost with its memory, and the reload claims by A2's content-hash rule instead.
          */
-        private List< CollabInvariants.Attribution > orphans( final Ticket t ) {
-            final List< CollabInvariants.Attribution > out = new ArrayList<>();
-            for( final int pv : rowVersions( t ) ) {
-                final CollabInvariants.Attribution alt = attribution.copy();
-                alt.orphaned( pv, t.version, t.metaSeq, t.base == 0 );
-                out.add( alt );
+        private void forgetUnstoredSavedVersion() {
+            if( attribution == null || ticket == null || ticket.saved == null ) {
+                return;
             }
-            return out;
+            final Integer stored = env.store().session( sessionId ).map( SessionRecord::pendingPublishSavedVersion )
+                .orElse( null );
+            if( !Objects.equals( stored, ticket.saved ) ) {
+                ticket.saved = null;
+            }
         }
 
-        /** The page versions a finish attempt of {@code t} may credit: B+1, and B while known defect D1 is tolerated. */
-        private static List< Integer > rowVersions( final Ticket t ) {
-            return CollabInvariants.tolerateUnchangedSaveCredit && t.base > 0 ? List.of( t.base + 1, t.base )
-                : List.of( t.base + 1 );
+        /**
+         * The model as it would be with {@code t}'s rows written but the publish not completed, at the version its save
+         * wrote (B+1 when the scheduler has not seen it): a marked publish writes them before its commit.
+         */
+        private CollabInvariants.Attribution inFlight( final Ticket t ) {
+            final CollabInvariants.Attribution alt = attribution.copy();
+            alt.orphaned( t.saved != null ? t.saved : t.base + 1, t.version, t.metaSeq, t.base == 0 );
+            return alt;
         }
 
-        /** The ticket's publish completed at {@code pageVersion}; a version at or below B means the save stored nothing new. */
+        /**
+         * The ticket's publish completed at {@code pageVersion}; a version at or below B means the save stored nothing new,
+         * which credits nobody and leaves the contributors pending (ruling R2).
+         */
         private void complete( final Ticket t, final int pageVersion ) {
-            if( pageVersion <= t.base && CollabInvariants.tolerateUnchangedSaveCredit ) {
-                // known defect D1: the product credits the existing version B, replacing its rows
-                attribution.published( pageVersion, t.version, t.metaSeq, false );
-            } else if( pageVersion <= t.base ) {
+            if( pageVersion <= t.base ) {
                 attribution.publishedUnchanged( t.version, t.metaSeq );
             } else {
                 attribution.published( pageVersion, t.version, t.metaSeq, t.base == 0 );
@@ -1356,7 +1408,7 @@ public final class SimScheduler {
             CollabInvariants.contributors( server.contributors(), attribution );
             // a marked publish may have written its rows already, before the commit that failed (its retry rewrites them)
             CollabInvariants.ledger( server.ledger( CANONICAL_ID ), attribution,
-                ticket == null ? List.of() : orphans( ticket ) );
+                ticket == null ? List.of() : List.of( inFlight( ticket ) ) );
         }
 
         /** A clear point for {@link #externalPending}: cleared once the server has nothing queued or owed. */
@@ -1447,6 +1499,7 @@ public final class SimScheduler {
                         }
                         p.resync = false;
                         p.sent = 0;
+                        p.sentSelection = null;   // a new participant: the server holds no selection for it yet
                     }
                 }
                 case LEFT -> {
@@ -1469,6 +1522,9 @@ public final class SimScheduler {
             p.pushMeta = List.of();
             if( r.status() == 200 ) {
                 p.sim.meta().acked( meta, r.metaSeq() );
+                if( p.pushSelection != null ) {
+                    p.sentSelection = p.pushSelection;
+                }
                 return;
             }
             p.sim.meta().failed( meta );

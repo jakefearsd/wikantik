@@ -258,6 +258,21 @@ class CollabAuditTest {
     }
 
     @Test
+    void aPublishWhoseSaveStoresNothingNewAuditsNoContributors() {
+        final JoinResponse b = join( "bob" );
+        type( b, "bob", "X" );
+        writer.rewriteOnSave( body -> BODY );   // a save filter that takes the edit out: nothing new is stored
+        final int v = session.view().head();
+
+        final PublishResponse r = publish( b, "bob" );
+
+        assertEquals( 200, r.status() );
+        assertEquals( 1, r.pageVersion() );
+        assertEquals( List.of( "publish Page bob pageVersion=1 collabVersion=" + v + " []" ),
+            audit.starting( "publish" ), "rewrites credit nobody (R2)" );
+    }
+
+    @Test
     void anOrphaningPublishIsAudited() throws Exception {
         final JoinResponse a = join( "alice" );
         final JoinResponse b = join( "bob" );

@@ -162,7 +162,7 @@ public final class StubCollabAuthority implements SimServer {
         enterOrLeaveOversize( true );
         final Instant now = clock.instant();
         store.createSession( new SessionRecord( id, pageName, SessionRecord.ACTIVE, basePageVersion, baseBody, baseMeta,
-            CollabText.contentHash( baseBody ), 0, 0, false, null, null, null, "stub", now, now ) );
+            CollabText.contentHash( baseBody ), 0, 0, false, null, null, null, null, null, "stub", now, now ) );
         store.writeSnapshot( id, new Snapshot( 0, 0, basePageVersion, doc, baseMeta, local ) );
     }
 

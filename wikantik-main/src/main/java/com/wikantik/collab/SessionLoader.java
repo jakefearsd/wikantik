@@ -157,7 +157,8 @@ final class SessionLoader {
     static SessionRecord draftMarkers( final SessionRecord r, final boolean unpublished, final java.time.Instant lastEdit ) {
         return new SessionRecord( r.id(), r.pageName(), r.status(), r.basePageVersion(), r.baseBody(), r.baseMeta(),
             r.baseContentHash(), r.headVersion(), r.metaSeq(), unpublished, r.pendingPublishVersion(),
-            r.pendingPublishBaseVersion(), r.pendingPublishAuthor(), r.createdBy(), r.createdAt(), lastEdit );
+            r.pendingPublishBaseVersion(), r.pendingPublishAuthor(), r.pendingPublishSavedVersion(),
+            r.pendingPublishCanonicalId(), r.createdBy(), r.createdAt(), lastEdit );
     }
 
     /**

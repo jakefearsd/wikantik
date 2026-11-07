@@ -39,6 +39,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -172,6 +173,68 @@ class CollabSessionReadBackTest {
         assertEquals( 1, occurrences( v.doc(), "signed" ) );
         assertEquals( "mine hello\nworld\nsigned\n", v.baseBody() );
         assertEquals( v.doc(), v.local().apply( v.baseBody() ), "only bob's typing is unpublished" );
+    }
+
+    /**
+     * The Phase 2 residual (ruling D): the read-back fails AND so does the read of the version afterwards, so the publish
+     * is left unfinished. The version the save reported is stored on the marker at once, so the retry claims it by
+     * (saved version, author) even though the filter's rewrite broke S_V's content hash: finished, never merged as an
+     * outside write onto the publisher's own edits.
+     */
+    @Test
+    void anUnreadSaveWhoseVersionCannotBeReadEitherIsClaimedByItsSavedVersionOnRetry() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "mine " ).status() );
+        writer.rewriteOnSave( b -> b + "signed\n" );
+        final ScriptedPageWriter.PauseHandle pause = writer.pauseNextPublish();
+        writer.persistThenFail( unread( 2 ) );
+        final java.util.concurrent.CompletableFuture< PublishResponse > first =
+            java.util.concurrent.CompletableFuture.supplyAsync( () -> publish( a, "alice" ) );
+        pause.awaitEntered( java.time.Duration.ofSeconds( 10 ) );
+        writer.failReads( true );   // the page store stops answering reads while the save runs
+        pause.release();
+
+        assertEquals( 503, first.join().status(), "unfinished: owed a retry" );
+        assertEquals( 2, store.session( a.response().sessionId() ).orElseThrow().pendingPublishSavedVersion() );
+        writer.failReads( false );
+        a.session().settle();
+
+        assertNull( store.session( a.response().sessionId() ).orElseThrow().pendingPublishVersion() );
+        final String stored = CollabText.toLf( writer.latest( PAGE ).orElseThrow().body() );
+        final CollabSession.View v = a.session().view();
+        assertEquals( stored, v.doc(), "the rewrite adopted once" );
+        assertEquals( 1, occurrences( v.doc(), "mine " ), "the publisher's edit is not applied twice" );
+        assertEquals( 2, v.basePageVersion() );
+    }
+
+    /** As above, but the process dies before the retry: the reload's pending-publish rule claims by the stored version. */
+    @Test
+    void anUnreadSaveIsClaimedByItsStoredSavedVersionAfterARestart() {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "mine " ).status() );
+        writer.rewriteOnSave( b -> b + "signed\n" );
+        final ScriptedPageWriter.PauseHandle pause = writer.pauseNextPublish();
+        writer.persistThenFail( unread( 2 ) );
+        final java.util.concurrent.CompletableFuture< PublishResponse > first =
+            java.util.concurrent.CompletableFuture.supplyAsync( () -> publish( a, "alice" ) );
+        pause.awaitEntered( java.time.Duration.ofSeconds( 10 ) );
+        writer.failReads( true );
+        pause.release();
+        assertEquals( 503, first.join().status() );
+        writer.failReads( false );
+
+        final CollabSessionRegistry restarted = new CollabSessionRegistry( store, writer, new Permissions(), key -> null,
+            new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) ),
+            new CollabConfig( true, 20, 65536, 25, 600, 30, 100, 500, 10, 0, 1000 ), 1 << 20 );
+        final Joined again = assertInstanceOf( Joined.class, restarted.join( PAGE,
+            new JoinRequest( "alice", null, "alice", "ALICE", null, null ) ) );
+        again.session().settle();
+
+        assertNull( store.session( again.response().sessionId() ).orElseThrow().pendingPublishVersion() );
+        final CollabSession.View v = again.session().view();
+        assertEquals( CollabText.toLf( writer.latest( PAGE ).orElseThrow().body() ), v.doc() );
+        assertEquals( 1, occurrences( v.doc(), "mine " ) );
+        assertEquals( 2, v.basePageVersion() );
     }
 
     @Test

@@ -194,7 +194,7 @@ public final class CollabSession {
         final String body = latest.map( p -> CollabText.toLf( p.body() ) ).orElse( "" );
         return new SessionRecord( id, pageName, SessionRecord.ACTIVE, latest.map( PageState::version ).orElse( 0 ), body,
             latest.map( PageState::meta ).orElse( Map.of() ), CollabText.contentHash( body ), 0, 0, false, null, null,
-            null, createdBy, clock.instant(), null );
+            null, null, null, createdBy, clock.instant(), null );
     }
 
     /**
@@ -686,11 +686,12 @@ public final class CollabSession {
     }
 
     /**
-     * A save that threw. If the page holds version B+1 by the publisher with S_V's text, the save persisted before it
-     * failed and the publish is finished (A2); another version B+1 is an outside write, merged, and the answer is 409
-     * {@code publish-merged-retry} (E20), as for a version conflict; otherwise the draft is unchanged, the others get a
-     * {@code publish-failed} event, and the answer is 422 {@code writer-refused} carrying the exception (E19), or 500
-     * {@code writer-failed} for a runtime exception.
+     * A save that threw. If it reported the version it wrote ({@link PublishReadBackException}) and that version is
+     * the publisher's, or else if the page holds version B+1 by the publisher with S_V's text, the save persisted
+     * before it failed and the publish is finished (A2, ruling D); another version is an outside write, merged, and the
+     * answer is 409 {@code publish-merged-retry} (E20), as for a version conflict; otherwise the draft is unchanged,
+     * the others get a {@code publish-failed} event, and the answer is 422 {@code writer-refused} carrying the
+     * exception (E19), or 500 {@code writer-failed} for a runtime exception.
      *
      * @throws IllegalStateException when {@code ticket} is not the publish in progress
      */

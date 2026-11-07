@@ -70,7 +70,7 @@ class JdbcCollabStoreRollbackTest {
         faulty = new FaultInjectingDataSource( ds );
         faultyStore = new JdbcCollabStore( new Jdbc( faulty ) );
         s = new SessionRecord( UUID.randomUUID(), "PageA", SessionRecord.ACTIVE, 3, "base", Map.of(), "hash-3", 0, 0L,
-            false, null, null, null, "alice", T0, null );
+            false, null, null, null, null, null, "alice", T0, null );
         clean.createSession( s );
     }
 
@@ -238,6 +238,24 @@ class JdbcCollabStoreRollbackTest {
     }
 
     @Test
+    void v068IsANoOpOnReapply() throws Exception {
+        clean.updateSession( s.withPending( 4, 3, "alice" ).withPublishSaved( 4, "cid-1" ) );
+        final String sql = MigrationApplier.substituteAppUser( Files.readString(
+            MigrationApplier.findRepoRoot().resolve( "bin/db/migrations/V068__collab_publish_saved_version.sql" ) ),
+            "test" );
+        for( int i = 0; i < 2; i++ ) {
+            new Jdbc( ds ).execute( sql );
+        }
+        final Jdbc jdbc = new Jdbc( ds );
+        assertEquals( 2, jdbc.queryOne( "SELECT count(*) FROM information_schema.columns WHERE table_name = 'collab_session'"
+            + " AND column_name IN ( 'pending_publish_saved_version', 'pending_publish_canonical_id' )", ps -> { },
+            rs -> rs.getInt( 1 ) ).orElseThrow(), "each column exists once" );
+        final SessionRecord back = clean.session( s.id() ).orElseThrow();
+        assertEquals( 4, back.pendingPublishSavedVersion(), "re-applying must not touch existing data" );
+        assertEquals( "cid-1", back.pendingPublishCanonicalId() );
+    }
+
+    @Test
     void metaRoundTripsThroughJsonWithNullsAndNestedValues() {
         final Map< String, Object > meta = new LinkedHashMap<>();
         meta.put( "tags", List.of( "a", "b" ) );
@@ -246,7 +264,7 @@ class JdbcCollabStoreRollbackTest {
         meta.put( "x", 1.5 );
         meta.put( "nested", Map.of( "k", true ) );
         final SessionRecord withMeta = new SessionRecord( UUID.randomUUID(), "PageM", SessionRecord.ACTIVE, 1, "b", meta,
-            "h", 0, 0L, false, null, null, null, "alice", T0, T0 );
+            "h", 0, 0L, false, null, null, null, null, null, "alice", T0, T0 );
         clean.createSession( withMeta );
         final Map< String, Object > back = clean.session( withMeta.id() ).orElseThrow().baseMeta();
         assertEquals( List.of( "a", "b" ), back.get( "tags" ) );

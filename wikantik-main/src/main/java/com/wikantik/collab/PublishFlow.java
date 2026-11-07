@@ -29,7 +29,6 @@ import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.text.ChangeSet;
 import com.wikantik.collab.text.CollabText;
 import com.wikantik.collab.text.TextDiff;
-import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -57,7 +56,8 @@ final class PublishFlow {
     private final Draft d;
     private final ReentrantLock lock;
     private final CollabPageWriter writer;
-    private final CollabIdentity identity;
+    /** The pending-publish marker: the saved version on it, unclaimed rows, clearing (ruling D). */
+    private final PublishMarker marker;
     private final Answers answers;
     private final ExternalMerge merge;
     /** A finished publish is audited, among the completions (guarded: never throws). */
@@ -68,7 +68,7 @@ final class PublishFlow {
         this.d = d;
         this.lock = lock;
         this.writer = writer;
-        this.identity = identity;
+        this.marker = new PublishMarker( d, lock, identity );
         this.answers = answers;
         this.merge = merge;
         this.audit = audit;
@@ -195,16 +195,28 @@ final class PublishFlow {
     }
 
     /**
-     * Under the lock: W = the edits after V, the server update {@code N.map(W)}, {@code local = W.map(N)} on the new base,
-     * the contributors credited at (V, M_V) written to the ledger ({@link #credit}; before the commit clears the marker,
-     * so a failure leaves the publish to {@code settle}, whose retry writes them), the filters' meta changes folded as
-     * server meta ops (stored before the base change), the base change committed with a snapshot of the live head and of
-     * the contributors after the publish (live only once committed), a {@code published} event, then
-     * {@code draft-state}.
+     * Under the lock: the version the save wrote is stored on the marker first ({@link PublishMarker#saved}; ruling D), so every
+     * later claim of this publish matches it rather than S_V's content hash. Then W = the edits after V, the server
+     * update {@code N.map(W)}, {@code local = W.map(N)} on the new base, the contributors credited at (V, M_V) written to
+     * the ledger ({@link #credit}; before the commit clears the marker, so a failure leaves the publish to
+     * {@code settle}, whose retry writes them), the filters' meta changes folded as server meta ops (stored before the
+     * base change), the base change committed with a snapshot of the live head and of the contributors after the
+     * publish (live only once committed), a {@code published} event, then {@code draft-state}.
+     *
+     * <p>A save that stored nothing new ({@link PublishOutcome#unchanged}: normalising or a save filter made the text the
+     * latest version's) wrote no version: nothing is marked and nobody is credited (ruling R2: rewrites credit nobody),
+     * so the existing version keeps its rows, and the contributors are left pending for the next real publish (their
+     * edits were absorbed, not published). The draft still adopts the saved text and the client is answered 200 at the
+     * latest version.</p>
      */
     private PublishResponse applyPublished( final PublishStart.Ticket t, final ChangeSet n, final String savedBody,
                                             final PublishOutcome saved, final List< Runnable > completions ) {
         final Draft.State before = d.state();
+        final Map< String, Object > savedMeta = MetaJson.normalise( saved.savedMeta() );
+        final String canonicalId = canonicalId( savedMeta );
+        if( !saved.unchanged() && !marker.saved( saved.version(), canonicalId ) ) {
+            return unfinished( t );
+        }
         final ChangeSet w = d.composedSince( t.version(), t.doc().length() );
         if( w == null ) {
             LOG.warn( "collab session {} ({}): the edits after the published version {} are not available; the publish is"
@@ -216,11 +228,11 @@ final class PublishFlow {
         final String docAfter = u.apply( d.doc );
         final List< StoredUpdate > extra = u.empty() ? List.of()
             : List.of( new StoredUpdate( d.head + 1, StoredUpdate.SERVER, CollabSession.SERVER_CLIENT, null, u ) );
-        final Map< String, Object > savedMeta = MetaJson.normalise( saved.savedMeta() );
-        final Set< String > credited = d.contributors.creditedAt( t.version(), t.metaSeq() );
-        if( !credit( t, saved.version(), savedMeta, credited ) ) {
+        final Optional< Set< String > > recorded = credited( t, saved, canonicalId );
+        if( recorded.isEmpty() ) {
             return unfinished( t );
         }
+        final Set< String > credited = recorded.get();
         if( !d.appendMetaOps( MetaMerge.ops( MetaMerge.fold( t.meta(), d.meta, savedMeta ), d.metaSeq ) ) ) {
             return unfinished( t );
         }
@@ -230,7 +242,7 @@ final class PublishFlow {
         final SessionRecord updated = SessionLoader.draftMarkers( t.baseVersion() == 0
             ? based.withStatus( SessionRecord.ACTIVE ) : based, !localAfter.empty() || !d.meta.equals( savedMeta ),
             d.lastEditAt );
-        if( !d.commit( extra, docAfter, localAfter, updated, d.contributors.afterPublish( t.version(), t.metaSeq() ) ) ) {
+        if( !d.commit( extra, docAfter, localAfter, updated, contributorsAfter( t, saved ) ) ) {
             return unfinished( t );
         }
         d.unfinished = null;
@@ -243,16 +255,42 @@ final class PublishFlow {
     }
 
     /**
+     * Under the lock: the authors this publish credits, written to the ledger ({@link #credit}); none for a save that
+     * stored nothing new (ruling R2), which writes no row. Empty when the store refused (the publish is unfinished).
+     */
+    private Optional< Set< String > > credited( final PublishStart.Ticket t, final PublishOutcome saved,
+                                                final String canonicalId ) {
+        if( saved.unchanged() ) {
+            return Optional.of( Set.of() );
+        }
+        final Set< String > credited = d.contributors.creditedAt( t.version(), t.metaSeq() );
+        return credit( t, saved.version(), canonicalId, credited ) ? Optional.of( credited ) : Optional.empty();
+    }
+
+    /**
+     * The contributors after this publish: those of edits after (V, M_V); all of them, unchanged, after a save that
+     * stored nothing new (their edits were absorbed, not published, so the next real publish credits them).
+     */
+    private Contributors contributorsAfter( final PublishStart.Ticket t, final PublishOutcome saved ) {
+        return saved.unchanged() ? d.contributors : d.contributors.afterPublish( t.version(), t.metaSeq() );
+    }
+
+    /** The saved meta's {@code canonical_id}, trimmed; null when it has none. */
+    private static String canonicalId( final Map< String, Object > savedMeta ) {
+        final Object id = savedMeta.get( "canonical_id" );
+        final String trimmed = id == null ? "" : id.toString().trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
      * Under the lock: replaces the ledger rows of page version {@code pageVersion} with the authors whose contributions
      * are inside the published snapshot (V, M_V; ruling R2), clearing the page's earlier rows when the publish created
      * it (base 0, ruling R4). Idempotent, so the pending-publish rule repeats it safely. A saved page without a
      * {@code canonical_id} cannot be attributed: skipped with a WARN. False (logged) when the store refused.
      */
-    private boolean credit( final PublishStart.Ticket t, final int pageVersion, final Map< String, Object > savedMeta,
+    private boolean credit( final PublishStart.Ticket t, final int pageVersion, final String canonicalId,
                             final Set< String > credited ) {
-        final Object id = savedMeta.get( "canonical_id" );
-        final String canonicalId = id == null ? "" : id.toString().trim();
-        if( canonicalId.isEmpty() ) {
+        if( canonicalId == null ) {
             LOG.warn( "collab session {} ({}): page version {} was saved without a canonical_id; its contributors are not"
                 + " recorded", d.id, d.pageName(), pageVersion );
             return true;
@@ -296,29 +334,39 @@ final class PublishFlow {
     }
 
     /**
-     * A save that threw: version B+1 by the publisher with S_V's text means it persisted before failing (finished, A2);
-     * a page-gone conflict (renamed or deleted away under the save) merges nothing and freezes nothing (ruling Q10: only
-     * the delete listener freezes): it is owed a reconcile and answered 409 {@code publish-merged-retry}, and the rekey,
-     * the freeze or {@code settle} resolves it before the retry; another B+1, or a version conflict, is an outside write,
-     * merged, and answered 409 {@code publish-merged-retry} (E20, E27); otherwise the draft is unchanged and the others
-     * are told ({@code publish-failed}, E19).
+     * A save that threw. A save that reported the version it wrote although its text could not be read back
+     * ({@link PublishReadBackException}) has that version stored on the marker at once (ruling D) and is claimed when the
+     * version is the publisher's, also when a save filter rewrote it: merging it as an outside write instead would apply
+     * the publisher's edits onto themselves and duplicate text. A save that reported nothing is claimed by A2's rule:
+     * version B+1 by the publisher with S_V's text means it persisted before failing. Either claim finishes the publish
+     * with the version's text as N, as {@link #finish} maps a filter's rewrite. Otherwise: a page-gone conflict (renamed
+     * or deleted away under the save) merges nothing and freezes nothing (ruling Q10: only the delete listener freezes):
+     * it is owed a reconcile and answered 409 {@code publish-merged-retry}, and the rekey, the freeze or {@code settle}
+     * resolves it before the retry; another version, or a version conflict, is an outside write, merged, and answered
+     * 409 {@code publish-merged-retry} (E20, E27); otherwise the draft is unchanged and the others are told
+     * ({@code publish-failed}, E19). When the version cannot be read, the publish is left unfinished for
+     * {@link #settleMarker}, which claims a reported version the same way.
      */
     PublishResponse failed( final PublishStart.Ticket t, final Exception e, final List< Runnable > completions ) {
         LOG.warn( "collab session {} ({}): the save of the publish at version {} failed: {}", d.id, t.request().pageName(),
             t.version(), e.toString() );
         final String page = pageName();
+        final int reported = PublishMarker.reportedVersion( e, t );
+        if( reported > 0 ) {
+            marker.savedLocked( reported );   // logged when the store refuses; the in-memory marker still claims by it
+        }
+        final int at = reported > 0 ? reported : t.baseVersion() + 1;
         final Optional< PageState > next;
         try {
-            next = writer.version( page, t.baseVersion() + 1 );
+            next = writer.version( page, at );
         } catch( final RuntimeException re ) {
-            LOG.warn( "collab session {}: reading version {} after a failed save failed: {}", d.id, t.baseVersion() + 1,
-                re.getMessage() );
+            LOG.warn( "collab session {}: reading version {} after a failed save failed: {}", d.id, at, re.getMessage() );
             return unfinishedLocked( t );
         }
-        if( next.isPresent() && ( claims( next.get(), t ) || savedUnread( e, next.get(), t ) ) ) {
+        if( next.isPresent() && ( reported > 0 ? t.authorKey().equals( next.get().author() ) : PublishMarker.claims( next.get(), t ) ) ) {
             return finish( t, outcomeOf( next.get() ), completions );
         }
-        if( !clearMarker() ) {
+        if( !marker.dropUnclaimed() ) {
             return unfinishedLocked( t );
         }
         if( isPageGone( e ) && next.isEmpty() ) {
@@ -448,15 +496,20 @@ final class PublishFlow {
     }
 
     /**
-     * A2 / E39: with a pending-publish marker (V, B, author), version B+1 is claimed as that publish only when its author
-     * is the marked one and its text hash is S_V's as the save stores it (A9: CRLF, trailing newline); the post-save half
-     * then runs. Otherwise (another version, or none: the save never ran) the marker is cleared and a B+1 is merged as an
-     * outside write by the caller. False when a store write failed (the marker stays).
+     * A2 / E39 as amended by ruling D: with a pending-publish marker (V, B, author) the post-save half runs again when
+     * the publish's version is claimed. A marker that names the version its save wrote (stored as soon as the save
+     * returned) claims exactly that version when its author is the marked one, whatever its text (a save filter may have
+     * rewritten it); a marker without one (the process died inside the save, or the save threw without naming a version)
+     * claims version B+1 only when its author is the marked one and its text hash is S_V's as the save stores it (A9:
+     * CRLF, trailing newline). Otherwise (the page moved on: deleted, recreated or written by someone else; or the save
+     * never ran) the publish's early ledger rows are removed and the marker is cleared ({@link #dropUnclaimed}), and a
+     * B+1 is merged as an outside write by the caller. False when a store write failed (the marker stays).
      */
     private boolean settleMarker( final List< Runnable > completions ) {
         final Integer v;
         final int b;
         final String author;
+        final Integer savedVersion;
         final String page;
         lock.lock();
         try {
@@ -466,81 +519,26 @@ final class PublishFlow {
             }
             b = d.record.pendingPublishBaseVersion();
             author = d.record.pendingPublishAuthor();
+            savedVersion = d.record.pendingPublishSavedVersion();
             page = d.pageName();
         } finally {
             lock.unlock();
         }
-        final Optional< PageState > next = writer.version( page, b + 1 );
-        if( next.isPresent() ) {
-            final PublishStart.Ticket t = recoveredTicket( v, b, author, page );
+        final int at = savedVersion != null ? savedVersion : b + 1;
+        final Optional< PageState > next = writer.version( page, at );
+        if( next.isPresent() && author.equals( next.get().author() ) ) {
+            final PublishStart.Ticket t = marker.recovered( v, b, author, page );
             if( t == null ) {
                 LOG.warn( "collab session {} ({}): the published text at version {} cannot be rebuilt; page version {} is"
-                    + " treated as an outside write", d.id, page, v, b + 1 );
-            } else if( claims( next.get(), t ) ) {
+                    + " treated as an outside write", d.id, page, v, at );
+            } else if( savedVersion != null || PublishMarker.claims( next.get(), t ) ) {
                 return finish( t, outcomeOf( next.get() ), completions ).status() == 200;
             }
         }
-        return clearMarker();
-    }
-
-    /** The marked publish: the unfinished ticket in memory, or S_V rebuilt from the store; null when neither. */
-    private PublishStart.Ticket recoveredTicket( final int v, final int b, final String author, final String page ) {
-        lock.lock();
-        try {
-            if( d.unfinished != null && d.unfinished.version() == v && d.unfinished.baseVersion() == b ) {
-                return d.unfinished;
-            }
-            final String sv = d.docAt( v );
-            if( sv == null ) {
-                return null;
-            }
-            final Draft.AtPublish at = d.atPublish( v );
-            return new PublishStart.Ticket( null, author, identity.displayName( author ), v, sv, at.meta(), at.metaSeq(),
-                b, new PublishRequest( page, sv, at.meta(), b, author, "" ) );
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private static boolean claims( final PageState saved, final PublishStart.Ticket t ) {
-        return t.authorKey().equals( saved.author() )
-            && CollabText.contentHash( TextUtil.normalizePostData( t.doc() ) ).equals( saved.contentHash() );
-    }
-
-    /**
-     * The save wrote {@code saved}'s version but its text could not be read back ({@link PublishReadBackException}): the
-     * version is the publisher's own write even when its hash is not S_V's (a save filter rewrote the body), so it is
-     * finished with the rewrite as N, as {@link #finish} maps a filter's rewrite. Merging it as an outside write instead
-     * would apply the publisher's edits onto themselves and duplicate text. The author must still match.
-     */
-    private static boolean savedUnread( final Exception e, final PageState saved, final PublishStart.Ticket t ) {
-        return e instanceof PublishReadBackException unread && unread.savedVersion() == saved.version()
-            && t.authorKey().equals( saved.author() );
+        return marker.dropUnclaimed();
     }
 
     private static PublishOutcome outcomeOf( final PageState s ) {
         return new PublishOutcome( s.version(), s.body(), s.meta(), false );
-    }
-
-    private boolean clearMarker() {
-        lock.lock();
-        try {
-            if( d.record.pendingPublishVersion() == null ) {
-                return true;
-            }
-            final SessionRecord cleared = d.record.withPending( null, null, null );
-            try {
-                d.store.updateSession( cleared );
-            } catch( final RuntimeException e ) {
-                LOG.warn( "collab session {} ({}): clearing the pending-publish marker failed; retried later: {}", d.id,
-                    d.pageName(), e.getMessage() );
-                return false;
-            }
-            d.record = cleared;
-            d.unfinished = null;
-            return true;
-        } finally {
-            lock.unlock();
-        }
     }
 }

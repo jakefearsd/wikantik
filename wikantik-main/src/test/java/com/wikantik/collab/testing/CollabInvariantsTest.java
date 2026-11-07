@@ -60,7 +60,7 @@ class CollabInvariantsTest {
         id = UUID.randomUUID();
         final Instant t = Instant.parse( "2026-01-01T00:00:00Z" );
         store.createSession( new SessionRecord( id, PAGE, SessionRecord.ACTIVE, 1, BASE, Map.of(),
-            CollabText.contentHash( BASE ), 0, 0, false, null, null, null, "stub", t, t ) );
+            CollabText.contentHash( BASE ), 0, 0, false, null, null, null, null, null, "stub", t, t ) );
         store.appendUpdates( id, List.of( new StoredUpdate( 1, StoredUpdate.TEXT, "c1", "alice", ChangeSet.replace( 6, 0, 0, "X" ) ) ) );
     }
 
@@ -200,7 +200,7 @@ class CollabInvariantsTest {
         final CollabStore m = mock( CollabStore.class );
         final Instant t = Instant.parse( "2026-01-01T00:00:00Z" );
         when( m.session( any() ) ).thenReturn( java.util.Optional.of( new SessionRecord( id, PAGE, SessionRecord.ACTIVE, 1,
-            BASE, Map.of(), CollabText.contentHash( BASE ), sessionHead, 0, false, null, null, null, "stub", t, t ) ) );
+            BASE, Map.of(), CollabText.contentHash( BASE ), sessionHead, 0, false, null, null, null, null, null, "stub", t, t ) ) );
         when( m.updatesSince( any(), anyInt() ) ).thenReturn( log );
         return with( valid(), b -> { b.store = m; b.head = sessionHead; b.ring = List.of(); return b; } );
     }
@@ -429,14 +429,18 @@ class CollabInvariantsTest {
     }
 
     @Test
-    void inv11_aSaveThatWroteNoNewVersionAdvancesThePublishPointButWritesNoRows() {
+    void inv11_aSaveThatWroteNoNewVersionWritesNoRowsAndLeavesItsAuthorsPending() {
         final CollabInvariants.Attribution m = new CollabInvariants.Attribution();
         m.text( "alice", 1 );
         m.published( 2, 1, 0, false );
         m.text( "bob", 2 );   // trailing spaces the save filter strips: the save stores nothing new
         m.publishedUnchanged( 2, 0 );
         assertEquals( Map.of( 2, List.of( "alice" ) ), m.ledger(), "version 2 keeps the rows of its own publish" );
-        assertEquals( Set.of(), m.contributors(), "the rewrite took bob's edit out: nobody is owed credit" );
+        assertEquals( Set.of( "bob" ), m.contributors(), "bob's edit was absorbed, not published: still owed credit" );
+        m.text( "carol", 3 );
+        m.published( 3, 3, 0, false );
+        assertEquals( Map.of( 2, List.of( "alice" ), 3, List.of( "bob", "carol" ) ), m.ledger(),
+            "the next real publish credits him" );
     }
 
     @Test

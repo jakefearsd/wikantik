@@ -1,0 +1,428 @@
+{
+  "format": 1,
+  "seed": 285,
+  "profile": "PUBLISH_STORM",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "strip-trailing-spaces",
+    "clients": 2
+  },
+  "initialDoc": "集 l z𝄞l集i文😀l𝕏ufwl𝕏😀pw🎉𝕏\n文 zn文\n集vppb𝕏rd🎉🎉 i\nut𝕏\n\ni\nh\n𝄞tr作a",
+  "steps": [
+    {
+      "id": 6,
+      "action": "LOCAL_EDIT",
+      "client": 1,
+      "from": 23,
+      "to": 23,
+      "insert": "中l😀"
+    },
+    {
+      "id": 9,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 11,
+      "action": "PUBLISH",
+      "client": 1
+    },
+    {
+      "id": 12,
+      "action": "DELIVER",
+      "messageId": "9.0"
+    },
+    {
+      "id": 13,
+      "action": "DELIVER",
+      "messageId": "11.0"
+    },
+    {
+      "id": 14,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 49,
+      "action": "DELETE"
+    },
+    {
+      "id": 72,
+      "action": "EXTERNAL_SAVE",
+      "from": 6,
+      "to": 8,
+      "insert": " "
+    },
+    {
+      "id": 89,
+      "action": "SEND_PULL",
+      "client": 0
+    },
+    {
+      "id": 97,
+      "action": "DELIVER",
+      "messageId": "89.0"
+    },
+    {
+      "id": 103,
+      "action": "PERSIST_THEN_FAIL"
+    },
+    {
+      "id": 105,
+      "action": "DELIVER",
+      "messageId": "97.0"
+    },
+    {
+      "id": 112,
+      "action": "DELIVER",
+      "messageId": "105.0"
+    },
+    {
+      "id": 117,
+      "action": "DELIVER",
+      "messageId": "112.0"
+    },
+    {
+      "id": 118,
+      "action": "DELIVER",
+      "messageId": "117.0"
+    },
+    {
+      "id": 119,
+      "action": "DELIVER",
+      "messageId": "118.0"
+    },
+    {
+      "id": 121,
+      "action": "LOCAL_EDIT",
+      "client": 0,
+      "from": 2,
+      "to": 2,
+      "insert": "e"
+    },
+    {
+      "id": 122,
+      "action": "SEND_PUSH",
+      "client": 0
+    },
+    {
+      "id": 125,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 126,
+      "action": "DELIVER",
+      "messageId": "122.0"
+    },
+    {
+      "id": 135,
+      "action": "DELETE"
+    },
+    {
+      "id": 136,
+      "action": "DELIVER",
+      "messageId": "125.0"
+    },
+    {
+      "id": 143,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 150,
+      "action": "DELIVER",
+      "messageId": "143.0"
+    },
+    {
+      "id": 152,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 159,
+      "action": "DELIVER",
+      "messageId": "152.0"
+    },
+    {
+      "id": 175,
+      "action": "STORE_FAULT",
+      "op": "UPDATE_SESSION"
+    },
+    {
+      "id": 179,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 192,
+      "action": "DELETE"
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "invariant 11 (the ledger rows of every completed publish's page version are the authors with accepted ops in (V_prev, V] or (M_prev, M_V]) violated: page version 2 has [] but its publish credits [author-B] (ledger {}, expected {2=[author-B]})",
+    "at": "q5",
+    "kind": "invariant 11"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "集 l z𝄞l集i文😀l𝕏ufwl𝕏😀pw🎉𝕏\n文 zn文\n集vppb𝕏rd🎉🎉 i\nut𝕏\n\ni\nh\n𝄞tr作a\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                22,
+                [
+                  0,
+                  "中l😀"
+                ],
+                48
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                [
+                  73,
+                  " "
+                ],
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": " \n",
+          "sendable": []
+        },
+        {
+          "type": "resync",
+          "version": 2,
+          "clientId": "mjuohs00.1-c3",
+          "participantId": "mjuohs00.1-p3",
+          "doc": " \n",
+          "unsynced": 0
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": " \n",
+          "sendable": []
+        },
+        {
+          "type": "local",
+          "changes": [
+            2,
+            [
+              0,
+              "e"
+            ]
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": " \ne",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c3",
+              "changes": [
+                2,
+                [
+                  0,
+                  "e"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 3
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 4
+        },
+        {
+          "type": "receive",
+          "fromVersion": 2,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c3",
+              "changes": [
+                2,
+                [
+                  0,
+                  "e"
+                ]
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                [
+                  1,
+                  "",
+                  "e"
+                ],
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 4,
+          "doc": "\ne\ne",
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 4,
+          "updates": [
+            {
+              "clientID": "server",
+              "changes": [
+                4,
+                [
+                  0,
+                  "e",
+                  ""
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 5,
+          "doc": "\ne\nee\n",
+          "sendable": []
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "集 l z𝄞l集i文😀l𝕏ufwl𝕏😀pw🎉𝕏\n文 zn文\n集vppb𝕏rd🎉🎉 i\nut𝕏\n\ni\nh\n𝄞tr作a\n"
+        },
+        {
+          "type": "local",
+          "changes": [
+            22,
+            [
+              0,
+              "中l😀"
+            ],
+            48
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "集 l z𝄞l集i文😀l𝕏ufwl𝕏中l😀😀pw🎉𝕏\n文 zn文\n集vppb𝕏rd🎉🎉 i\nut𝕏\n\ni\nh\n𝄞tr作a\n",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                22,
+                [
+                  0,
+                  "中l😀"
+                ],
+                48
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 200,
+          "version": 1
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 4
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": [
+            {
+              "clientID": "mjuohs00.1-c2",
+              "changes": [
+                22,
+                [
+                  0,
+                  "中l😀"
+                ],
+                48
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                [
+                  73,
+                  " "
+                ],
+                1
+              ]
+            },
+            {
+              "clientID": "mjuohs00.1-c3",
+              "changes": [
+                2,
+                [
+                  0,
+                  "e"
+                ]
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                [
+                  1,
+                  "",
+                  "e"
+                ],
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 4,
+          "doc": "\ne\ne",
+          "sendable": []
+        }
+      ]
+    }
+  ]
+}

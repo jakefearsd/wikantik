@@ -68,23 +68,6 @@ import java.util.TreeSet;
  */
 public final class CollabInvariants {
 
-    /**
-     * Known defect D1 (CollabKnownDefectsTest): a publish whose save stores nothing new (the latest version already holds
-     * its text once normalised or rewritten by a save filter, {@code PublishOutcome.unchanged}) is finished as a publish
-     * of that existing version B, and its contributors replace B's ledger rows. While true, invariant 11's model follows
-     * the product (rows at B replaced); the expectation is that B keeps the rows of the publish that wrote it.
-     */
-    public static volatile boolean tolerateUnchangedSaveCredit = true;
-
-    /**
-     * Known defect D2 (CollabKnownDefectsTest): a publish writes its ledger rows before the commit that clears its
-     * marker; when that commit fails and the retry does not claim the saved version (a save filter rewrote it, so its
-     * hash is not S_V's; or the page was deleted and recreated first), the marker is cleared but the rows stay, while the
-     * contributors stay pending and are credited again by the next publish. While true, invariant 11's model accepts
-     * exactly those rows (and nothing else) when the scheduler resolves such a publish as unclaimed.
-     */
-    public static volatile boolean tolerateOrphanedRows = true;
-
     private CollabInvariants() {
     }
 
@@ -415,8 +398,9 @@ public final class CollabInvariants {
 
         /**
          * The rows a publish from ({@code version}, {@code metaSeq}) writes at {@code pageVersion}, without completing it:
-         * the publish point does not advance, so its authors stay contributors. Only known defect D2 leaves such rows
-         * ({@link CollabInvariants#tolerateOrphanedRows}).
+         * the publish point does not advance, so its authors stay contributors. A marked publish may have written them
+         * before its commit failed (the in-flight alternative of invariant 11); once its marker is settled they must be
+         * either completed by the claim or removed with the unclaimed marker.
          */
         public void orphaned( final int pageVersion, final int version, final long metaSeq, final boolean created ) {
             final Set< String > credited = upTo( version, metaSeq );
@@ -431,12 +415,26 @@ public final class CollabInvariants {
         }
 
         /**
-         * A completed publish whose save stored nothing new (the save filter's rewrite made it identical to the latest
-         * version): no version was written, so no row changes, but the publish point still advances (the rewrite took
-         * the edits out; rewrites credit nobody).
+         * A completed publish whose save stored nothing new (normalising or the save filter's rewrite made it identical to
+         * the latest version): no version was written, so no row changes (rewrites credit nobody, ruling R2), and the
+         * publish point does not advance: the authors of the absorbed edits stay contributors and are credited by the
+         * next real publish. So it records nothing.
          */
         public void publishedUnchanged( final int version, final long metaSeq ) {
-            advance( version, metaSeq );
+            // deliberately nothing: neither rows nor the publish point move (see above)
+        }
+
+        /**
+         * A publish that went unclaimed after the server learnt the version {@code pageVersion} its save wrote (the page
+         * moved on): the rows at that version are removed, whoever wrote them, and with {@code created} (its save created
+         * the page, restarting the numbering, ruling R4) every row is. The publish point does not advance.
+         */
+        public void unclaimed( final int pageVersion, final boolean created ) {
+            if( created ) {
+                rows.clear();
+            } else {
+                rows.remove( pageVersion );
+            }
         }
 
         /** An independent copy (the in-flight alternative of {@link CollabInvariants#ledger(Map, Attribution, Attribution)}). */

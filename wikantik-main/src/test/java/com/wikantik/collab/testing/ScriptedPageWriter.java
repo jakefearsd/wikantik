@@ -95,6 +95,8 @@ public final class ScriptedPageWriter implements CollabPageWriter {
     private Handle armedPause;
     private Exception failNext;
     private Exception persistThenFailNext;
+    /** The outcome of the last publish whose save returned normally (not thrown); {@link #takeLastReturned}. */
+    private PublishOutcome lastReturned;
     private volatile Duration releaseTimeout = DEFAULT_RELEASE_TIMEOUT;
     private volatile boolean readsFail;
 
@@ -360,7 +362,8 @@ public final class ScriptedPageWriter implements CollabPageWriter {
             final String stored = TextUtil.normalizePostData( rewrite.apply( request.body() ) );
             if( current > 0 && v.get( current - 1 ).body().equals( stored )
                     && v.get( current - 1 ).meta().equals( request.meta() ) ) {
-                return new PublishOutcome( current, stored, request.meta(), true );
+                lastReturned = new PublishOutcome( current, stored, request.meta(), true );
+                return lastReturned;
             }
             v.add( new Version( stored, copyMeta( request.meta() ), request.authorKey() ) );
             outcome = new PublishOutcome( v.size(), stored, request.meta(), false );
@@ -372,7 +375,28 @@ public final class ScriptedPageWriter implements CollabPageWriter {
         if( persistFail != null ) {
             throw asWiki( persistFail );
         }
+        lock.lock();
+        try {
+            lastReturned = outcome;
+        } finally {
+            lock.unlock();
+        }
         return outcome;
+    }
+
+    /**
+     * The outcome the last publish's save returned to its caller (so the caller knows the version it wrote, or that it
+     * stored nothing new), cleared by this call; null when no save returned since (none ran, or the save threw).
+     */
+    public PublishOutcome takeLastReturned() {
+        lock.lock();
+        try {
+            final PublishOutcome o = lastReturned;
+            lastReturned = null;
+            return o;
+        } finally {
+            lock.unlock();
+        }
     }
 
     private static WikiException asWiki( final Exception e ) {

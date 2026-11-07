@@ -63,6 +63,11 @@ The Phase 0 whole-branch review (ledger `.superpowers/sdd/2026-11-06-multiedit-p
   - Compute `TextDiff` outside the session lock, because both inputs are immutable snapshots.
   - F7 asserts the publishing flag resets and adds `EXTERNAL_SAVE` to its mix.
   - Add a randomized multi-hunk `TextDiff` property test with line-count changes, and assert the fallback WARN.
+- **Publish details (fix-wave re-review), Task 4:**
+  - Append meta ops with `appendMetaOps` *before* `commitBaseChange`, inside the pending-marker window, or widen the port to carry them. Also check `snapshot.metaSeq` ≤ the store's `metaSeq`.
+  - In the second locked section, snapshot the **live head**, after appending `N.map(W)` with `local = W.map(N)` relative to `saved.version`. Never snapshot S_V.
+  - While a publish is pending, clamp A10's truncation cut to ≤ `pendingPublishVersion`, so E39 recovery can still rebuild S_V.
+- **Seam rule, Task 3:** extend the rule to `LocalTime.now()`, `Year.now()`, `Clock.system(zone)`/`Clock.tick*`, `java.util.Timer`, and `CompletableFuture.runAsync`/`supplyAsync` without an executor. Stop flagging `Executors.callable`.
 - **Registry, Task 5:** E33 (idle eviction racing a join) under F7.
 - **Adapters, Task 6:**
   - For `expectedVersion == 0` ("must not exist", A11) the adapter passes its own `SaveGuard` to `PageManager.saveText(ctx, text, guard)`.

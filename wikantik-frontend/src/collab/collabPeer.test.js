@@ -518,6 +518,32 @@ describe('collabPeer metadata', () => {
     a.core.destroy();
   });
 
+  it('a resume() whose rejoin is still refused (sign-in cancelled) keeps the eviction; the next resume rejoins', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    let signedIn = true;
+    const a = await makeEditor(server, 'ada', {
+      wrap: (t) => ({
+        ...t,
+        join: (b) => (signedIn ? t.join(b) : Promise.reject(Object.assign(new Error('HTTP 401'), { status: 401, body: {} }))),
+      }),
+    });
+    signedIn = false;
+    server.evict(a.joined.participantId, 'signed-out');
+    a.type('Q', 3);
+    await advance(1000);
+    expect(a.statuses.at(-1)).toBe('auth-required');
+    a.core.resume(); // the login was cancelled: still signed out
+    await advance(1000);
+    expect(a.statuses.at(-1)).toBe('auth-required');
+    expect(a.core.getEvictedReason()).toBe('signed-out');
+    signedIn = true;
+    a.core.resume();
+    await settle(server, [a]);
+    expect(server.doc).toBe('abcQ');
+    expect(a.core.getEvictedReason()).toBeNull();
+    a.core.destroy();
+  });
+
   it('onMetaFailed hands back the inflight meta when a resync or an eviction abandons it, not on signed-out', async () => {
     const edits = [{ field: 'tags', add: 'x' }];
     const server = createFakeCollabServer({ initialText: 'abc' });

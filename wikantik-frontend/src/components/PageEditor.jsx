@@ -76,7 +76,8 @@ import LoginForm from './LoginForm';
 import { EditorView } from '@codemirror/view';
 import { sendableUpdates } from '@codemirror/collab';
 import { useCapabilities } from '../hooks/useCapabilities';
-import { useCollabSession } from '../collab/useCollabSession';
+import { useCollabSession, describeMetaEdit } from '../collab/useCollabSession';
+import { pageEditHref } from '../utils/pageUrl';
 import PresenceBar from '../collab/PresenceBar';
 import Modal from './ui/Modal';
 import { DiffHtml } from './DiffViewer';
@@ -141,6 +142,11 @@ function anchoredInsertPos(text, { before = '', after = '' }) {
     }
   }
   return text.length;
+}
+/** Local work the server never got (unsynced text, field edits), as one text to copy. */
+const hasLocalWork = (w) => !!w && (!!w.unsyncedText || w.metaEdits?.length > 0);
+function localWorkText(w) {
+  return [w.unsyncedText, ...(w.metaEdits ?? []).map(describeMetaEdit)].filter(Boolean).join('\n');
 }
 function publishFailureMessage(res) {
   if (res.reason === 'not-live') return 'Not connected to the shared draft — your edits are kept; publish again once it reconnects.';
@@ -214,10 +220,16 @@ export default function PageEditor({ collabTransport } = {}) {
   const { violations: liveViolations, validating } = useFrontmatterValidation(metadata, {
     enabled: metadata != null,
   });
+  // A refused save/publish's violations hold only while their field keeps the value that was refused: a change by any
+  // route (a widget, Raw YAML, another editor) hands the field back to live validation.
+  const [refusedMeta, setRefusedMeta] = useState(null);
   const displayViolations = useMemo(() => {
+    const top = (v) => String(v.field || '').split('.')[0];
+    const same = (f) => JSON.stringify(metadata?.[f] ?? null) === JSON.stringify(refusedMeta?.[f] ?? null);
+    const refused = refusedMeta ? violations.filter((v) => !top(v) || same(top(v))) : violations;
     const seen = new Set(liveViolations.map((v) => `${v.field}|${v.code}`));
-    return [...liveViolations, ...violations.filter((v) => !seen.has(`${v.field}|${v.code}`))];
-  }, [liveViolations, violations]);
+    return [...liveViolations, ...refused.filter((v) => !seen.has(`${v.field}|${v.code}`))];
+  }, [liveViolations, violations, metadata, refusedMeta]);
   const hasBlockingErrors = displayViolations.some((v) => v.severity === 'ERROR')
     || mathViolations.some((v) => v.severity === 'ERROR');
   const jumpToField = (field) => {
@@ -280,7 +292,7 @@ export default function PageEditor({ collabTransport } = {}) {
   const renamedTo = collabMode ? collab.renamedTo : null;
   if (renamedTo && renamedTo !== name && collabKeptFor !== renamedTo) setCollabKeptFor(renamedTo);
   useEffect(() => {
-    if (renamedTo && renamedTo !== name) navigate(`/edit/${renamedTo}`, { replace: true, state: { collabKeep: true } });
+    if (renamedTo && renamedTo !== name) navigate(pageEditHref(renamedTo), { replace: true, state: { collabKeep: true } });
   }, [renamedTo, name, navigate]);
   // Unsynced local edits (sendableUpdates non-empty): the only collab work that leaving would lose.
   const [unsynced, setUnsynced] = useState(false);
@@ -315,6 +327,8 @@ export default function PageEditor({ collabTransport } = {}) {
   const metaView = collabMeta ? collabMeta.view() : null;
   if (metaView && metaView !== metadata) setMetadata(metaView);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Recreate with local work the publish cannot carry: { unsyncedText, metaEdits, asking }
+  const [recreateCheck, setRecreateCheck] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
   // An outside save merged into the session (§7.4): a notice with the diff of that page version, and a toast.
   const externalChange = collabMode ? collab.externalChange : null;
@@ -328,7 +342,7 @@ export default function PageEditor({ collabTransport } = {}) {
     const to = ev.pageVersion;
     setDiffFor({ pageVersion: to, html: null, error: null });
     api.getDiff(name, to - 1, to)
-      .then((d) => setDiffFor((cur) => (cur?.pageVersion === to ? { ...cur, html: d?.diffHtml || d?.diff || '' } : cur)))
+      .then((d) => setDiffFor((cur) => (cur?.pageVersion === to ? { ...cur, html: d?.diff || '' } : cur)))
       .catch((err) => {
         console.warn('[collab] could not load the diff of the outside change', to, err?.message || err);
         setDiffFor((cur) => (cur?.pageVersion === to ? { ...cur, error: err?.message || 'Could not load the diff' } : cur));
@@ -1034,12 +1048,22 @@ export default function PageEditor({ collabTransport } = {}) {
       toast.error('Fix the highlighted math errors');
     } else {
       setViolations(body?.violations || []);
+      setRefusedMeta(metadata);
       toast.error('Fix the highlighted frontmatter fields');
     }
   };
 
   // Collab mode's Save: publish the shared draft once every local edit is on the server (the hook waits for sync).
-  const publishContent = async ({ stay = false } = {}) => {
+  const publishContent = async ({ stay = false, recreateConfirmed = false } = {}) => {
+    // Recreating a deleted page publishes the shared draft as the server holds it: the publish cannot carry this tab's
+    // unsynced text or field edits (the frozen draft refuses pushes). Show them to copy and ask first — never drop them.
+    if (collabFrozen && !recreateConfirmed) {
+      const local = collab.captureLocal();
+      if (local.unsyncedText || local.metaEdits.length) {
+        setRecreateCheck({ ...local, asking: true });
+        return false;
+      }
+    }
     setSaving(true);
     savingRef.current = true;
     setError(null);
@@ -1072,7 +1096,10 @@ export default function PageEditor({ collabTransport } = {}) {
         setOriginalVersion(res.pageVersion ?? originalVersion);
         return true;
       }
-      navigate(`/wiki/${name}`);
+      // Local work the publish did not carry (a recreate of a deleted page) goes through the guard, which asks first.
+      // Read live: the guard's own registration follows a render behind the sync that a normal publish waited for.
+      if (hasLocalWork(collab.captureLocal())) guardedNavigate(`/wiki/${name}`);
+      else navigate(`/wiki/${name}`);
       return true;
     } finally {
       setSaving(false);
@@ -1248,12 +1275,6 @@ export default function PageEditor({ collabTransport } = {}) {
     setError(res.reason === 'not-live' ? 'Not connected to the shared draft — try again once it reconnects.' : (res.message || 'Discard failed'));
   };
 
-  // A co-edited field: a refused publish's violation on it is the user's to re-check now (live validation takes over).
-  const coEditField = (field, value) => {
-    setViolations((vs) => (vs.some((v) => String(v.field || '').split('.')[0] === field)
-      ? vs.filter((v) => String(v.field || '').split('.')[0] !== field) : vs));
-    collabMeta?.setField(field, value);
-  };
   const copyRecoveryText = () => copyText(collab.resync?.unsyncedText || '');
   // Ruling P10, at click time: the rendered "alone" may lag a participant whose presence already reached the session.
   const restoreOfflineDraft = () => {
@@ -1458,10 +1479,50 @@ export default function PageEditor({ collabTransport } = {}) {
           This page was deleted — copy your text or recreate the page.
         </div>
       )}
+      {collabFrozen && recreateCheck && (
+        <div className="warning-banner" role="alert" data-testid="collab-recreate-recovery">
+          <strong>These edits of yours never reached the shared draft, so recreating the page will not include them.</strong>
+          {recreateCheck.unsyncedText && <pre className="collab-recovery-text">{recreateCheck.unsyncedText}</pre>}
+          {recreateCheck.metaEdits.length > 0 && (
+            <ul className="collab-recovery-meta-list">
+              {recreateCheck.metaEdits.map((e, i) => <li key={i}>{describeMetaEdit(e)}</li>)}
+            </ul>
+          )}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyText(localWorkText(recreateCheck))}>Copy my text</button>
+        </div>
+      )}
       {collabEvicted && (
         <div className="warning-banner" role="alert" data-testid="collab-evicted">
-          You no longer have permission to edit this page. Your edits that had not reached the shared draft were discarded,
-          and the editor is now read-only.
+          <span>
+            You no longer have permission to edit this page, so the editor is read-only.
+            {hasLocalWork(collab.evictedRecovery)
+              ? ' Your edits that had not reached the shared draft were not saved — copy it if you need it.'
+              : ' None of your edits were lost.'}
+          </span>
+          {hasLocalWork(collab.evictedRecovery) && (
+            <>
+              <pre className="collab-recovery-text">{localWorkText(collab.evictedRecovery)}</pre>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyText(localWorkText(collab.evictedRecovery))}>Copy</button>
+            </>
+          )}
+        </div>
+      )}
+      {collabEditing && collabMeta?.carried.length > 0 && (
+        <div className="warning-banner" role="alert" data-testid="collab-recovery-meta">
+          <strong>Your unsaved field changes did not reach the shared draft.</strong>{' '}
+          <span>They are not applied automatically, because the fields may have changed since. Apply the ones you still want:</span>
+          <ul className="collab-recovery-meta-list">
+            {collabMeta.carried.map((e, i) => (
+              <li key={i}>
+                <code>{describeMetaEdit(e)}</code>{' '}
+                <button type="button" className="btn btn-ghost btn-sm" disabled={collabReadOnly}
+                  onClick={() => collabMeta.applyCarried(e)}>Apply</button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="btn btn-ghost btn-sm"
+            onClick={() => copyText(collabMeta.carried.map(describeMetaEdit).join('\n'))}>Copy</button>
+          <button type="button" className="btn-link" onClick={collabMeta.dismissCarried}>Discard them</button>
         </div>
       )}
       {showExternal && (
@@ -1610,7 +1671,7 @@ export default function PageEditor({ collabTransport } = {}) {
                 <FrontmatterEditor
                   metadata={metadata}
                   onChange={setMetadata}
-                  onFieldChange={collabMeta ? coEditField : undefined}
+                  onFieldChange={collabMeta ? collabMeta.setField : undefined}
                   onReplace={collabMeta ? collabMeta.change : undefined}
                   onFieldFocus={collabMeta ? collabMeta.focus : undefined}
                   onFieldBlur={collabMeta ? collabMeta.blur : undefined}
@@ -1752,6 +1813,16 @@ export default function PageEditor({ collabTransport } = {}) {
         </div>
       )}
 
+      {collabFrozen && recreateCheck?.asking && (
+        <ConfirmDialog
+          title="Recreate the page without your unsynced edits?"
+          message="Your edits shown on the page are not included in the recreated page — copy them first if you need them."
+          confirmLabel="Recreate page"
+          cancelLabel="Not now"
+          onConfirm={() => { setRecreateCheck((c) => (c ? { ...c, asking: false } : c)); publishContent({ recreateConfirmed: true }); }}
+          onCancel={() => setRecreateCheck((c) => (c ? { ...c, asking: false } : c))}
+        />
+      )}
       {confirmDiscard && (
         <ConfirmDialog
           title="Discard the shared draft?"

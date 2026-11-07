@@ -2920,3 +2920,6 @@ h3:focus-within .heading-anchor {
 .collab-external-change { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
 .collab-diff-modal { width: min(56rem, calc(100vw - 32px)); max-height: 85vh; overflow: auto; }
 .collab-diff-title { font-size: 1.1rem; margin: 0 0 var(--space-md); }
+/* field edits a recovery panel offers (carried across a resync, left out of a recreate, abandoned on eviction) */
+.collab-recovery-meta-list { margin: var(--space-sm) 0; padding-left: 1.2rem; }
+.collab-recovery-meta-list li { margin: 2px 0; overflow-wrap: anywhere; }

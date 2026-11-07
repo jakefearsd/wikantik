@@ -323,8 +323,9 @@ export const api = {
   getHistory: (name) =>
     request(`/api/history/${encodeURIComponent(name)}`),
 
+  // The rendered HTML diff ({format:'html', diff}); without format=html the server answers its structured form (D31).
   getDiff: (name, from, to) =>
-    request(`/api/diff/${encodeURIComponent(name)}?from=${from}&to=${to}`),
+    request(`/api/diff/${encodeURIComponent(name)}?from=${from}&to=${to}&format=html`),
 
   // Links
   getBacklinks: (name) =>

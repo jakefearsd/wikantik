@@ -168,6 +168,28 @@ describe('createMetaState', () => {
   });
 });
 
+describe('createMetaState recovery helpers', () => {
+  it('unconfirmed lists the unsent and in-flight edits, not the acked ones', () => {
+    const m = createMetaState({ meta: {}, metaSeq: 0 });
+    m.edit('a', 1);
+    m.acked(m.takeSendable(), 5);
+    m.edit('b', 2);
+    m.takeSendable();
+    m.add('tags', 'x');
+    expect(m.unconfirmed()).toEqual([{ field: 'b', value: 2 }, { field: 'tags', add: 'x' }]);
+  });
+
+  it('discardPending drops every local edit: the view is the server metadata again', () => {
+    const m = createMetaState({ meta: { a: 0 }, metaSeq: 0 });
+    m.edit('a', 1);
+    m.takeSendable();
+    m.add('tags', 'x');
+    m.discardPending();
+    expect(m.view()).toEqual({ a: 0 });
+    expect(m.pending()).toEqual([]);
+  });
+});
+
 describe('meta state against the fake server', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });

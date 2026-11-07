@@ -686,7 +686,8 @@ describe('page CRUD methods', () => {
     await api.getHistory('Foo');
     expect(lastCall()[0]).toBe('/api/history/Foo');
     await api.getDiff('Foo', 1, 2);
-    expect(lastCall()[0]).toBe('/api/diff/Foo?from=1&to=2');
+    // the server defaults to the structured form (D31); every caller renders the HTML one
+    expect(lastCall()[0]).toBe('/api/diff/Foo?from=1&to=2&format=html');
   });
 
   it('getBacklinks / getOutboundLinks build the expected URLs', async () => {

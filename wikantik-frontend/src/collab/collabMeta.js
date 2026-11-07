@@ -105,6 +105,10 @@ export function createMetaState({ meta = {}, metaSeq = 0 } = {}) {
       return out;
     },
     pending: () => entries.map((e) => e.edit),
+    /** The edits the server has not confirmed (unsent or in flight): what a recovery would have to show. */
+    unconfirmed: () => entries.filter((e) => e.state !== 'acked').map((e) => e.edit),
+    /** Forgets every local edit (eviction for lost edit rights, A13): the view is the server's metadata again. */
+    discardPending() { entries = []; },
     serverSeq: () => serverSeq,
   };
 }

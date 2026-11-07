@@ -176,7 +176,7 @@ export function createCollabPeerCore({
           presenceSince = 0;
           lastSentSelection = null;
           onSessionChange(j);
-          return;
+          return true;
         } catch (err) {
           const code = err?.body?.reason;
           if (err?.status === 401 || err?.status === 403) { stop('auth-required'); return; }
@@ -367,15 +367,19 @@ export function createCollabPeerCore({
       pushFailures = 0;
       pullFailures = 0;
       setStatus('reconnecting');
-      // a signed-out eviction ended the participant on the server: rejoin (same clientID, so the edits are adoptable) first
-      const signedOut = evictedReason === 'signed-out';
-      evictedReason = null;
       const go = () => {
         if (destroyed || stopped) return;
         pullLoop();
         schedulePush(0);
       };
-      if (signedOut) rejoin().then(go); else go();
+      // a signed-out eviction ended the participant on the server: rejoin (same clientID, so the edits are adoptable)
+      // first. The eviction stands until a rejoin succeeds: a resume while still signed out stops in auth-required again.
+      if (evictedReason !== 'signed-out') { go(); return; }
+      rejoin().then((ok) => {
+        if (!ok) return;
+        evictedReason = null;
+        go();
+      });
     },
     destroy() {
       destroyed = true;

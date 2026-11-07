@@ -8,7 +8,7 @@
  * mount in a CodeMirror view initialised from `docAtJoin` (A4: the editor is uncontrolled in collab mode; A10: on
  * `status === 'resync'` the host shows `resync.unsyncedText` in a recovery panel and calls `restart()`: it awaits the leave of
  * the stale participant (and of a rejoin ghost, both done by the peer) and only then joins afresh, so the old participant is
- * gone from the server before the new one exists). `events` keeps the last 200. `participants` is self (from join) plus the presence entries; `renamedTo` is set after a `page-renamed` event, which retargets the transport in place.
+ * gone from the server before the new one exists). `events` keeps the last 200. `participants` is self (from join) plus the presence entries; `renamedTo` is set after a `page-renamed` event, which retargets the transport in place; it belongs to that session (a later navigation to another page clears it).
  *
  * `status`: idle | joining | live | reconnecting | resync | frozen | auth-required, or a refused join: disabled |
  * unavailable (derived page) | full | forbidden | error. A `page-deleted` event makes it `frozen`; an eviction for lost
@@ -40,6 +40,23 @@ const META_DEBOUNCE_MS = 400;
 const jsonOf = (v) => JSON.stringify(v === undefined ? null : v);
 const isEmptyValue = (v) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
 
+/** True when applying the wire edit `e` to `meta` would change nothing (the session already holds it). */
+function isAppliedIn(meta, e) {
+  const probe = createMetaState({ meta });
+  if ('add' in e) probe.add(e.field, e.add);
+  else if ('remove' in e) probe.remove(e.field, e.remove);
+  else probe.edit(e.field, e.value);
+  return diffMeta(meta, probe.view()).length === 0;
+}
+
+/** One wire edit as a line a person can read (recovery panels, copied text). */
+export function describeMetaEdit(e) {
+  const show = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
+  if ('add' in e) return `${e.field}: add ${show(e.add)}`;
+  if ('remove' in e) return `${e.field}: remove ${show(e.remove)}`;
+  return e.value === null || e.value === undefined ? `${e.field}: (removed)` : `${e.field}: ${show(e.value)}`;
+}
+
 /** The display/participant shape of a join's participant list, minus self: a presence map without cursors yet. */
 function presenceFromJoin(j) {
   const map = {};
@@ -69,9 +86,9 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   useEffect(() => { nameRef.current = pageName; });
   const [state, setState] = useState({ key, status: 'joining' });
   const [self, setSelf] = useState(null);
-  const [renamedTo, setRenamedTo] = useState(null);
+  const [renamed, setRenamed] = useState(null); // { key, to }: scoped to the session it happened in
   const [deleted, setDeleted] = useState(null); // the key whose page was deleted under the session
-  const [evicted, setEvicted] = useState(null); // { key, reason }
+  const [evicted, setEvicted] = useState(null); // { key, reason, unsyncedText, metaEdits }
   const [externalChange, setExternalChange] = useState(null);
   // meta co-editing (A14): one state + debounce queue per join, kept in a ref; `metaTick` re-renders on every change
   const metaRef = useRef(null);
@@ -81,7 +98,8 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   // the focused field: the ref for pull callbacks ({field, local, dirty, sent: Set<json>}), the state for rendering
   const focusRef = useRef(null);
   const [focus, setFocus] = useState(null);
-  const carryMetaRef = useRef([]); // edits a restart abandoned, re-queued into the next session
+  const carryMetaRef = useRef([]); // edits a restart abandoned, offered (never auto-sent) in the next session
+  const [carried, setCarried] = useState(null); // { key, edits } — the carried edits the new session does not hold yet
   const viewRef = useRef(null);
   const presenceRef = useRef({});
   const [presence, setPresence] = useState({});
@@ -126,12 +144,12 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
         const metaQueue = createMetaQueue({ debounceMs: META_DEBOUNCE_MS, onSend: () => sendMeta() });
         metaSession = { state: metaState, queue: metaQueue, send: sendMeta, handle };
         metaRef.current = metaSession;
-        for (const e of carryMetaRef.current) {
-          if ('add' in e) metaState.add(e.field, e.add);
-          else if ('remove' in e) metaState.remove(e.field, e.remove);
-          else metaState.edit(e.field, e.value);
-        }
+        // A10: never re-apply blind. A carried edit the new session already holds is dropped; the rest are offered in the
+        // recovery panel (apply each, or copy), because sending them now could overwrite a newer value.
+        const joinedMeta = j.metadata ?? {};
+        const unapplied = carryMetaRef.current.filter((e) => !isAppliedIn(joinedMeta, e));
         carryMetaRef.current = [];
+        setCarried(unapplied.length ? { key, edits: unapplied } : null);
         focusRef.current = null;
         setFocus(null);
         setRemoteChanged({});
@@ -182,7 +200,17 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             },
             onMetaAck: (edits, metaSeq) => { metaState.acked(edits, metaSeq); bump(); },
             onMetaFailed: (edits) => { metaState.failed(edits); bump(); },
-            onEvicted: ({ reason }) => { setEvicted({ key, reason }); },
+            onEvicted: ({ reason }) => {
+              // lost edit rights (A13): the unsynced text and field edits are not saved; keep a copy to offer, and stop
+              // showing the abandoned field edits as if they were current
+              const cap = handle.capture('evicted');
+              const metaEdits = metaState.unconfirmed();
+              if (metaSession) metaSession.closing = true;
+              metaQueue.dispose();
+              metaState.discardPending();
+              bump();
+              setEvicted({ key, reason, unsyncedText: cap?.unsyncedText ?? '', metaEdits });
+            },
             onPresence: (map) => {
               presenceRef.current = map;
               setPresence(map);
@@ -203,7 +231,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
                 } else if (e.type === 'page-renamed' && e.to) {
                   // the session lives on under the new name: later calls address it, no leave and no rejoin
                   transport.retarget?.(e.to);
-                  setRenamedTo(e.to);
+                  setRenamed({ key, to: e.to });
                   setAliases((a) => ({ joinedAs: a?.joinedAs ?? key, names: new Set([...(a?.names ?? [key]), e.to]) }));
                 } else if (e.type === 'page-deleted') {
                   setDeleted(key);
@@ -354,6 +382,9 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
 
   const current = state.key === key ? state : { key, status: 'joining' };
   const evictedReason = evicted?.key === key && current.status === 'forbidden' ? evicted.reason : null;
+  const evictedRecovery = evictedReason ? { unsyncedText: evicted.unsyncedText, metaEdits: evicted.metaEdits } : null;
+  const renamedTo = renamed?.key === key ? renamed.to : null;
+  const carriedEdits = carried?.key === key && current.extensions ? carried.edits : null;
   let status = enabled ? current.status : 'idle';
   // the page was deleted under the session: read-only (pushes answer frozen anyway), Publish recreates it
   if (deleted === key && current.extensions && !['resync', 'idle'].includes(status) && !evictedReason) status = 'frozen';
@@ -439,18 +470,39 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
       },
       remoteChanged,
       conflicts,
-      pending: m.queue.hasWaiting() || !!m.handle.core?.hasPendingMeta() || (!m.handle.core && m.state.pending().length > 0),
+      /** Field edits a resync carried over that this session does not hold: shown for the user to apply or copy. */
+      carried: carriedEdits ?? [],
+      applyCarried(e) {
+        if ('add' in e) add(e.field, e.add);
+        else if ('remove' in e) remove(e.field, e.remove);
+        else { edit(e.field, e.value); m.queue.flush(); m.send(); }
+        setCarried((c) => {
+          if (!c) return c;
+          const edits = c.edits.filter((x) => x !== e);
+          return edits.length ? { ...c, edits } : null;
+        });
+      },
+      dismissCarried() { setCarried(null); },
+      /** The edits the server has not confirmed: for a recovery that has to show them (recreating a deleted page). */
+      unconfirmed: () => m.state.unconfirmed(),
+      pending: m.queue.hasWaiting() || !!m.handle.core?.hasPendingMeta() || (!m.handle.core && m.state.pending().length > 0)
+        || !!carriedEdits?.length,
     };
     // metaTick: `pending` reads ref-held state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metaSession, metaView, remoteChanged, conflicts, metaTick]);
+  }, [metaSession, metaView, remoteChanged, conflicts, metaTick, carriedEdits]);
 
   const presenceNow = useCallback(() => presenceRef.current, []);
+  /** The editor's local state the server does not have: unsynced text and unconfirmed field edits. */
+  const captureLocal = useCallback(() => ({
+    unsyncedText: handleRef.current?.capture('local')?.unsyncedText ?? '',
+    metaEdits: metaRef.current?.state.unconfirmed() ?? [],
+  }), []);
 
   return {
     ...current,
     status,
     participants, self, presence, presenceNow, renamedTo, events, resync, dismissResync, restart, resume, publish, discard,
-    meta, evictedReason, externalChange: externalChange?.key === key ? externalChange : null,
+    meta, evictedReason, evictedRecovery, captureLocal, externalChange: externalChange?.key === key ? externalChange : null,
   };
 }

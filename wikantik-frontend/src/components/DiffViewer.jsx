@@ -88,7 +88,7 @@ export default function DiffViewer() {
     if (!diffTarget) return;
     let ignore = false;
     api.getDiff(name, fromVer, toVer)
-      .then((data) => { if (!ignore) setDiffHtml(data.diffHtml || data.diff || ''); })
+      .then((data) => { if (!ignore) setDiffHtml(data?.diff || ''); })
       .catch((err) => { if (!ignore) setError(err.message || 'Failed to load diff'); })
       .finally(() => { if (!ignore) setDiffLoading(false); });
     return () => { ignore = true; };

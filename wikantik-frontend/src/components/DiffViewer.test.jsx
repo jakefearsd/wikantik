@@ -69,7 +69,7 @@ describe('DiffViewer', () => {
 
   it('renders version selectors and diff when history loads successfully', async () => {
     api.getHistory.mockResolvedValue({ versions: VERSIONS });
-    api.getDiff.mockResolvedValue({ diffHtml: '<p>diff content</p>' });
+    api.getDiff.mockResolvedValue({ page: 'TestPage', from: 1, to: 2, format: 'html', diff: '<p>diff content</p>' });
     renderDiffViewer();
     expect(await screen.findByText('Compare versions: TestPage')).toBeInTheDocument();
     expect(await screen.findByText(/diff content/)).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('DiffViewer', () => {
 
   it('hides a previously-shown diff once the same version is selected on both sides', async () => {
     api.getHistory.mockResolvedValue({ versions: VERSIONS });
-    api.getDiff.mockResolvedValue({ diffHtml: '<p>diff content</p>' });
+    api.getDiff.mockResolvedValue({ page: 'TestPage', from: 1, to: 2, format: 'html', diff: '<p>diff content</p>' });
     renderDiffViewer();
     expect(await screen.findByText(/diff content/)).toBeInTheDocument();
 
@@ -98,7 +98,7 @@ describe('DiffViewer restore link', () => {
 
   beforeEach(() => {
     api.getHistory.mockResolvedValue({ versions: V3 });
-    api.getDiff.mockResolvedValue({ diffHtml: '<p>d</p>' });
+    api.getDiff.mockResolvedValue({ page: 'TestPage', from: 1, to: 3, format: 'html', diff: '<p>d</p>' });
   });
 
   it('offers Restore of the From version to editors, carrying route state', async () => {

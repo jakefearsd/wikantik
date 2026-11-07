@@ -192,8 +192,8 @@ describe('PageEditor collaborative mode', () => {
 
     placeCaret(view, docOf(view).length);
     typeAtCaret(view, ' typed');
-    // a parent re-render (the change-note input) must not touch the document
-    fireEvent.change(screen.getByTestId('editor-change-note'), { target: { value: 'a note' } });
+    // a parent re-render (the outline rail) must not touch the document
+    fireEvent.click(screen.getByTestId('editor-rail-toggle'));
     startRename('new');
     await until(() => docOf(view) === '![x](new.png) and [y](new.png) typed');
     await until(() => server.doc === docOf(view));
@@ -1128,13 +1128,27 @@ describe('PageEditor collaborative mode', () => {
     expect(server.calls.some((c) => c.path === '/publish')).toBe(false);
   });
 
+  it('theCollabHeaderIsCompact: no change-note field, presence and draft chip share one row under a one-line title', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    placeCaret(view, 11);
+    typeAtCaret(view, '!');
+    const chip = await screen.findByTestId('collab-draft-chip');
+    expect(screen.queryByTestId('editor-change-note')).toBeNull();
+    const row = screen.getByTestId('collab-subrow');
+    expect(within(row).getByTestId('collab-status')).toBeInTheDocument();
+    expect(row).toContainElement(chip);
+    expect(screen.getByTestId('editor-heading')).toHaveClass('editor-heading-compact');
+    // the dialog is where the note is written
+    const dialog = await openPublishDialog();
+    expect(within(dialog).getByLabelText('Change note')).toBeInTheDocument();
+  });
+
   it('confirmPublishesWithTheDialogsChangeNote', async () => {
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
-    fireEvent.change(screen.getByTestId('editor-change-note'), { target: { value: 'from the toolbar' } });
     const dialog = await openPublishDialog();
     const note = within(dialog).getByLabelText('Change note');
-    expect(note).toHaveValue('from the toolbar');
     fireEvent.change(note, { target: { value: 'from the dialog' } });
     fireEvent.click(within(dialog).getByTestId('publish-dialog-confirm'));
     await screen.findByTestId('wiki-view');
@@ -1256,6 +1270,38 @@ describe('PageEditor collaborative mode', () => {
     expect(writeText.mock.calls[0][0]).toContain('mine');
     // read-only is applied by react-codemirror in an effect: wait for it rather than racing the banner's commit
     await until(() => currentView().state.readOnly);
+  });
+
+  it('aPurgeAnnouncedByAnEventKeepsUnsyncedTextUnderThePurgeNotice', async () => {
+    // the real server announces a purge as an `evicted` event on a parked pull, and every later call answers 409 rejoin;
+    // the event reaches this client with unsynced text still queued, so the rejoin that follows must not read as a lost place
+    const real = server.transportFor('ada');
+    const gate = deferred();
+    let held = true;
+    const transport = {
+      ...real,
+      pull: async (q) => {
+        if (!held) return real.pull(q);
+        const event = await gate.promise;
+        return {
+          updates: [], metaOps: [], metaSeq: q.metaSince, presence: {}, presenceSeq: q.presenceSince,
+          events: [{ ...event, participantId: q.participantId, seq: q.eventsSince + 1 }], eventSeq: q.eventsSince + 1,
+        };
+      },
+    };
+    const { view } = await mount({ transport });
+    await until(() => docOf(view) === 'Hello world');
+    act(() => {
+      placeCaret(view, 11);
+      typeAtCaret(view, ' mine');
+      server.purge();
+      held = false;
+      gate.resolve({ type: 'evicted', reason: 'purged' });
+    });
+    const banner = await screen.findByTestId('collab-evicted');
+    expect(banner).toHaveTextContent('An administrator removed this draft');
+    expect(within(banner).getByTestId('collab-evicted-text')).toHaveTextContent('mine');
+    expect(screen.queryByTestId('collab-recovery')).toBeNull();
   });
 
   it('leavingWithSyncedWorkShowsANonBlockingNote', async () => {

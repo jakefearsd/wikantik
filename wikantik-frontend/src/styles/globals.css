@@ -1404,6 +1404,13 @@ a[data-attachment-missing] {
   white-space: nowrap;
 }
 
+/* Collaborative editor header: a one-line title with the presence bar and draft chip on a single row under it. */
+.editor-toolbar-title-group { flex: 1 1 auto; min-width: 0; }
+.editor-toolbar-title { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
+.editor-heading-compact { margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+.collab-subrow { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: nowrap; min-width: 0; }
+.collab-subrow .collab-status:has(.collab-presence) { white-space: nowrap; }
+
 .collab-recovery-text {
   max-height: 12rem;
   overflow: auto;

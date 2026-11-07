@@ -1566,27 +1566,49 @@ export default function PageEditor({ collabTransport } = {}) {
   return (
     <div className={`page-enter${panelOpen ? ' editor-with-panel' : ''}`} data-testid="page-editor" data-page-name={name}>
       <div className="editor-toolbar">
-        <div className="editor-toolbar-group">
-          <h2 data-testid="editor-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600 }}>
-            {isNew ? 'Create' : 'Edit'}: {name}
-          </h2>
+        <div className={`editor-toolbar-group${collabMode ? ' editor-toolbar-title-group' : ''}`}>
+          <div className="editor-toolbar-title">
+            <h2 data-testid="editor-heading" className={collabMode ? 'editor-heading-compact' : undefined}
+              title={`${isNew ? 'Create' : 'Edit'}: ${name}`}
+              style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600 }}>
+              {isNew ? 'Create' : 'Edit'}: {name}
+            </h2>
+            {collabMode && (
+              <div className="collab-subrow" data-testid="collab-subrow">
+            {collabMode && (collabEditing ? (
+              <div className="collab-status" data-testid="collab-status" data-status={collab.status}>
+                <PresenceBar self={collab.self} presence={collab.presence} status={collab.status} />
+              </div>
+            ) : (
+              <span className="collab-status" data-testid="collab-status" data-status={collab.status} role="status">
+                {COLLAB_STATUS_LABEL[collab.status] || collab.status}
+              </span>
+            ))}
+            {collabEditing && collabDraft?.unpublished && (
+              <div className="collab-draft-chip" data-testid="collab-draft-chip"><Chip label="Unpublished draft" /></div>
+            )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="editor-toolbar-group">
-          <input
-            type="text"
-            data-testid="editor-change-note"
-            placeholder="Change note…"
-            value={changeNote}
-            onChange={e => setChangeNote(e.target.value)}
-            style={{
-              padding: 'var(--space-xs) var(--space-sm)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.85rem',
-              width: '200px',
-              background: 'var(--bg)',
-            }}
-          />
+          {!collabMode && (
+            <input
+              type="text"
+              data-testid="editor-change-note"
+              placeholder="Change note…"
+              value={changeNote}
+              onChange={e => setChangeNote(e.target.value)}
+              style={{
+                padding: 'var(--space-xs) var(--space-sm)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.85rem',
+                width: '200px',
+                background: 'var(--bg)',
+              }}
+            />
+          )}
           <button className="btn btn-ghost" onClick={() => setPanelOpen(p => !p)}
             style={{ fontSize: '1.1rem', padding: 'var(--space-xs) var(--space-sm)' }}
             title="Attachments">
@@ -1596,18 +1618,6 @@ export default function PageEditor({ collabTransport } = {}) {
             aria-pressed={railOpen} title="Toggle outline rail">
             Outline
           </button>
-          {collabMode && (collabEditing ? (
-            <div className="collab-status" data-testid="collab-status" data-status={collab.status}>
-              <PresenceBar self={collab.self} presence={collab.presence} status={collab.status} />
-            </div>
-          ) : (
-            <span className="collab-status" data-testid="collab-status" data-status={collab.status} role="status">
-              {COLLAB_STATUS_LABEL[collab.status] || collab.status}
-            </span>
-          ))}
-          {collabEditing && collabDraft?.unpublished && (
-            <div className="collab-draft-chip" data-testid="collab-draft-chip"><Chip label="Unpublished draft" /></div>
-          )}
           <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
@@ -1754,7 +1764,9 @@ export default function PageEditor({ collabTransport } = {}) {
               ? 'An administrator removed this draft, so the editor is read-only.'
               : 'You no longer have permission to edit this page, so the editor is read-only.'}
             {hasLocalWork(collab.evictedRecovery)
-              ? ' Your edits that had not reached the shared draft were not saved — copy it if you need it.'
+              ? (collab.evictedReason === 'purged'
+                ? ' Your edits below had not reached the draft before it was removed — copy them if you need them.'
+                : ' Your edits that had not reached the shared draft were not saved — copy it if you need it.')
               : ' None of your edits were lost.'}
           </span>
           {hasLocalWork(collab.evictedRecovery) && (

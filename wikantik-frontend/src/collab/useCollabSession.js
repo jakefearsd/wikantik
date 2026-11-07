@@ -248,6 +248,15 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             destroy() { if (viewRef.current === view) viewRef.current = null; },
           };
         });
+        let purged = false; // an `evicted` event with reason purged addressed to this participant has arrived
+        const settleEviction = (reason, unsyncedText) => {
+          const metaEdits = metaState.unconfirmed();
+          if (metaSession) metaSession.closing = true;
+          metaQueue.dispose();
+          metaState.discardPending();
+          bump();
+          setEvicted({ key, reason, unsyncedText, metaEdits });
+        };
         const selfOf = (rj) => (rj.participants ?? []).find((p) => p.participantId === rj.participantId) ?? null;
         const extensions = [
           remoteCursors(),
@@ -261,7 +270,12 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             eventsSince: joinEventSeq,
             metaSince: typeof j.metaSeq === 'number' ? j.metaSeq : 0,
             onStatus: (status) => patch({ status }),
-            onResync: (payload) => { setResync(payload); },
+            onResync: (payload) => {
+              // an administrator purged the draft (the evicted event arrived before the 409 rejoin that stopped the peer):
+              // that is the purge notice, with the unsynced text kept under it, not a lost place
+              if (purged) { settleEviction('purged', payload.unsyncedText ?? ''); patch({ status: 'forbidden' }); return; }
+              setResync(payload);
+            },
             onMetaOps: (ops, metaSeq) => {
               metaState.applyRemote(ops, metaSeq);
               if (ops.length) touchDraft();
@@ -282,12 +296,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
               // lost edit rights (A13): the unsynced text and field edits are not saved; keep a copy to offer, and stop
               // showing the abandoned field edits as if they were current
               const cap = handle.capture('evicted');
-              const metaEdits = metaState.unconfirmed();
-              if (metaSession) metaSession.closing = true;
-              metaQueue.dispose();
-              metaState.discardPending();
-              bump();
-              setEvicted({ key, reason, unsyncedText: cap?.unsyncedText ?? '', metaEdits });
+              settleEviction(reason, cap?.unsyncedText ?? '');
             },
             onPresence: (map) => {
               presenceRef.current = map;
@@ -297,6 +306,12 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             onEvents: (batch) => {
               setEvents((prev) => [...prev, ...batch].slice(-MAX_EVENTS));
               for (const e of batch) {
+                if (e.type === 'evicted' && e.reason === 'purged'
+                    && (!e.participantId || e.participantId === sessionRef.current?.participantId)) {
+                  // stop the peer now: it would otherwise rejoin the fresh draft and push the unsynced text into it
+                  purged = true;
+                  handle.abandon('purged');
+                }
                 // no pre-mount replay needed: the peer (and so its pull loop) only starts once the view mounts
                 if (e.type === 'external-change') {
                   if (e.ranges?.length) {

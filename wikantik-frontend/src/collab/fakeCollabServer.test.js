@@ -340,6 +340,15 @@ describe('Phase 2 fixture cases against the fake', () => {
     expect(server.metadata.year).toBe('2024');
   });
 
+  it('a SET on a set field stores its items as strings too (Q7)', async () => {
+    await joinSample(server);
+    await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', value: [2024, 'x'] }, { field: 'year', value: [2024] }] });
+    expect(server.metadata.tags).toEqual(['2024', 'x']);
+    expect(server.metadata.year).toEqual([2024]);
+    const again = await push(server, { version: 0, updates: [], metaOps: [{ field: 'tags', value: ['2024', 'x'] }] });
+    expect(again.body.metaSeq).toBe(2);
+  });
+
   it('a meta value over 64 KiB refuses the whole push (Q8)', async () => {
     await joinSample(server);
     const big = 'x'.repeat(65 * 1024);

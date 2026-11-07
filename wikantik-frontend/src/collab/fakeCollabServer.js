@@ -134,7 +134,11 @@ export function createFakeCollabServer({
       const present = ['value', 'add', 'remove'].filter((k) => k in op);
       if (present.length !== 1) return bad('exactly one of value, add and remove is required');
       let value;
-      if (present[0] === 'value') value = normalise(op.value);
+      if (present[0] === 'value') {
+        value = normalise(op.value);
+        // Q7: a SET on a set field stores its items as strings too.
+        if (LIST_FIELDS.has(op.field) && Array.isArray(value)) value = value.map(String);
+      }
       else {
         if (!LIST_FIELDS.has(op.field)) return bad('add and remove are allowed only on tags, related and aliases');
         const item = op[present[0]];

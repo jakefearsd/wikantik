@@ -266,4 +266,36 @@ describe('useCollabSession', () => {
     expect(server.calls.length).toBe(before);
     view.destroy();
   });
+
+  it('restart() routes unpushed text to the recovery path, loses nothing typed during the leave, and leaves the participant once', async () => {
+    const base = server.transportFor('ada');
+    const transport = {
+      ...base,
+      leave: async (b) => { await new Promise((r) => setTimeout(r, 300)); return base.leave(b); },
+    };
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    const oldId = result.current.participants[0].participantId;
+    view.dispatch({ changes: { from: 5, insert: ' unpushed' } }); // inside the 100 ms debounce: not sent yet
+    expect(server.doc).toBe('Hello');
+    let p;
+    act(() => { p = result.current.restart(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    view.dispatch({ changes: { from: view.state.doc.length, insert: ' during-leave' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); await p; });
+    expect(result.current.resync.unsyncedText).toContain('unpushed');
+    expect(result.current.resync.unsyncedText).toContain('during-leave');
+    expect(result.current.resync.reason).toBe('restart');
+    expect(server.doc).toBe('Hello'); // never pushed, never re-applied
+    expect(server.calls.filter((c) => c.path === '/leave' && c.body.participantId === oldId)).toHaveLength(1);
+    expect(server.isLive(oldId)).toBe(false);
+    expect(result.current.status).toBe('live');
+    act(() => result.current.dismissResync());
+    expect(result.current.resync).toBeNull();
+    view.destroy();
+  });
 });

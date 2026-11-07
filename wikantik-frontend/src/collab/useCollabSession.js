@@ -2,7 +2,7 @@
  * React hook owning one collaborative-editing session for a page: joins on mount, leaves on unmount and on `pagehide`
  * (via `navigator.sendBeacon`), and exposes the pieces the editor needs.
  *
- * Returns `{ status, participants, presence, events, resync, restart, publish, discard, docAtJoin, startVersion, clientID,
+ * Returns `{ status, participants, presence, events, resync, dismissResync: () => setResync(null), restart, publish, discard, docAtJoin, startVersion, clientID,
  * sessionId, metadata, draft, basePageVersion, extensions }`. `extensions` is the `collab()` + `collabPeer()` pair to
  * mount in a CodeMirror view initialised from `docAtJoin` (A4: the editor is uncontrolled in collab mode; A10: on
  * `status === 'resync'` the host shows `resync.unsyncedText` in a recovery panel and calls `restart()`: it awaits the leave of
@@ -156,16 +156,22 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
     const handle = handleRef.current;
     const s = sessionRef.current;
     sessionRef.current = null;
-    handle?.destroy();
+    // unsynced text goes to the recovery path first (a peer already in resync has handed it over); the peer then stops
+    // accepting local edits for the server, so nothing typed during the awaited leaves can be pushed or lost
+    handle?.abandon('restart');
     await handle?.whenLeft();
-    if (transport && s) {
+    if (transport && s && !handle?.hasLeft(s.participantId)) {
       try {
         await transport.leave({ sessionId: s.sessionId, participantId: s.participantId });
       } catch (e) {
         console.warn('[collab] leave before restart failed', e?.status, e?.message);
       }
     }
-    setResync(null);
+    // capture again right before the remount: whatever was typed while the leaves were awaited is in the document too
+    const fresh = handle?.capture('restart');
+    // the recovery payload survives the remount until dismissResync(); with nothing unsynced there is nothing to recover
+    setResync((prev) => (fresh?.unsyncedText ? { ...fresh, reason: prev?.reason ?? fresh.reason } : null));
+    handle?.destroy();
     setEvents([]);
     setState({ key, status: 'joining' });
     setGeneration((g) => g + 1);
@@ -175,6 +181,6 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   return {
     ...current,
     status: enabled ? current.status : 'idle',
-    participants, presence, events, resync, restart, publish, discard,
+    participants, presence, events, resync, dismissResync: () => setResync(null), restart, publish, discard,
   };
 }

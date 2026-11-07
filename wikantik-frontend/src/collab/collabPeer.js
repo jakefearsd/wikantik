@@ -57,6 +57,7 @@ export function createCollabPeerCore({
   let lastPushAt = -Infinity;
   let rejoinPromise = null;
   let leavePromise = Promise.resolve();
+  const leftIds = new Set();
   const timers = new Set();
   let syncWaiters = [];
 
@@ -120,13 +121,19 @@ export function createCollabPeerCore({
   function leaveQuietly(participantId) {
     return Promise.resolve()
       .then(() => transport.leave({ sessionId: session.sessionId, participantId }))
+      .then(() => { leftIds.add(participantId); })
       .catch((e) => LOG('leave failed', e?.status, e?.message));
+  }
+
+  /** The recovery payload for the document as it is now (A10: handed to the host, never re-applied). */
+  function capture(reason) {
+    const state = host.getState();
+    return { reason, docText: state.doc.toString(), unsyncedText: unsyncedText(state) };
   }
 
   function resync(reason, { ghostParticipantId } = {}) {
     if (stopped) return;
-    const state = host.getState();
-    const payload = { reason, docText: state.doc.toString(), unsyncedText: unsyncedText(state) };
+    const payload = capture(reason);
     stop('resync');
     // leave the stale participant (and a ghost created by an unadoptable rejoin) before the host may join afresh
     const ids = new Set([session.participantId, ghostParticipantId].filter(Boolean));
@@ -305,6 +312,11 @@ export function createCollabPeerCore({
     },
     /** Resolves once the leave started by a resync has finished (immediately when there was none). */
     whenLeft: () => leavePromise,
+    /** Fresh recovery payload (current doc + unsynced text), for a host about to remount. */
+    capture,
+    /** Host-initiated restart: routes the unsynced text to the resync path (once) and stops the peer. */
+    abandon(reason = 'restart') { resync(reason); },
+    hasLeft: (participantId) => leftIds.has(participantId),
     getStatus: () => status,
     getSyncedVersion: () => getSyncedVersion(host.getState()),
     getSession: () => ({ ...session }),
@@ -340,6 +352,9 @@ export function createPeerHandle() {
     attach(core) { handle.core = core; handle.lastCore = core; },
     detach() { handle.core = null; },
     destroy() { handle.core?.destroy(); },
+    abandon(reason) { handle.core?.abandon(reason); },
+    capture: (reason) => handle.core?.capture(reason) ?? null,
+    hasLeft: (id) => !!handle.lastCore?.hasLeft(id),
     /** Resolves when the last peer's resync leave finished. */
     whenLeft: () => (handle.lastCore ? handle.lastCore.whenLeft() : Promise.resolve()),
     whenSynced: () => (handle.core ? handle.core.whenSynced() : Promise.resolve(true)),

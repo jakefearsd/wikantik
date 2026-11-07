@@ -121,6 +121,20 @@ function pushedMetaOps() {
 const tagsIn = (root) => [...root.querySelectorAll('[data-field="tags"] .chip span')].map((el) => el.textContent);
 const wait = (ms) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
 
+/** Publish (or Ctrl+S) opens the publish dialog; resolves once its summary has loaded and confirm is enabled. */
+async function openPublishDialog(open = () => fireEvent.click(screen.getByTestId('editor-save'))) {
+  open();
+  const dialog = await screen.findByTestId('publish-dialog');
+  await until(() => !within(dialog).getByTestId('publish-dialog-confirm').disabled);
+  return dialog;
+}
+/** Publishes the shared draft through the dialog. */
+async function publishThroughDialog() {
+  const dialog = await openPublishDialog();
+  fireEvent.click(within(dialog).getByTestId('publish-dialog-confirm'));
+  return dialog;
+}
+
 /** Every text update the editors pushed, as ChangeSets with the length of the document they applied to. */
 function pushedChanges() {
   return server.calls.filter((c) => c.method === 'POST' && c.path === '/updates' && c.status === 200)
@@ -194,7 +208,7 @@ describe('PageEditor collaborative mode', () => {
     await until(() => docOf(view) === 'Hello world');
     placeCaret(view, 11);
     typeAtCaret(view, ' more');
-    fireEvent.click(screen.getByTestId('editor-save')); // inside the peer's push debounce
+    await publishThroughDialog(); // Publish clicked inside the peer's push debounce
     await screen.findByTestId('wiki-view');
 
     const publish = server.calls.find((c) => c.path === '/publish');
@@ -258,7 +272,7 @@ describe('PageEditor collaborative mode', () => {
     server.config.publishInvalid = true;
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
-    fireEvent.click(screen.getByTestId('editor-save'));
+    await publishThroughDialog();
     // exactly as a refused save: the violation lands in the frontmatter summary and on its field, the toast names it
     await until(() => toast.error.mock.calls.length > 0);
     expect(toast.error).toHaveBeenCalledWith('Fix the highlighted frontmatter fields');
@@ -279,7 +293,7 @@ describe('PageEditor collaborative mode', () => {
     fireEvent.change(tags, { target: { value: 'fixed' } });
     fireEvent.keyDown(tags, { key: 'Enter' });
     await until(() => !screen.getByTestId('editor-save').disabled);
-    fireEvent.click(screen.getByTestId('editor-save'));
+    await publishThroughDialog();
     await screen.findByTestId('wiki-view');
   });
 
@@ -375,14 +389,6 @@ describe('PageEditor collaborative mode', () => {
     await until(() => docOf(view) === 'Hello there world');
     await until(() => server.doc === 'Hello there world');
     expect(pushedChanges().filter(isWholeDocumentReplacement)).toEqual([]);
-  });
-
-  it('Convert to Markdown is not offered while editing together (publish does not carry the markup flag yet)', async () => {
-    api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 7, markupSyntax: 'wiki' });
-    const { view } = await mount();
-    await until(() => docOf(view) === 'Hello world');
-    expect(screen.queryByRole('button', { name: 'Convert to Markdown' })).toBeNull();
-    expect(screen.getByTestId('collab-no-convert')).toBeInTheDocument();
   });
 
   it('Ctrl+S while a restart is joining never falls through to the single-author save', async () => {
@@ -500,7 +506,7 @@ describe('PageEditor collaborative mode', () => {
     await until(() => server.metadata.type === 'note');
     await until(() => !screen.getByTestId('editor-save').disabled);
     expect(currentView()).toBe(view);
-    fireEvent.click(screen.getByTestId('editor-save'));
+    await publishThroughDialog();
     await screen.findByTestId('wiki-view');
     expect(server.calls.find((c) => c.path === '/publish').status).toBe(200);
   });
@@ -581,8 +587,6 @@ describe('PageEditor collaborative mode', () => {
   });
 
   it('with others in the session an offline draft is only offered as text to copy, never applied to the shared draft', async () => {
-    const writeText = vi.fn().mockResolvedValue();
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     draftHook.draft = { content: 'Hello stale offline world', savedAt: Date.now() - 60000 };
     const bob = server.transportFor('bob');
     const bj = await bob.join({});
@@ -592,9 +596,6 @@ describe('PageEditor collaborative mode', () => {
     expect(offer).toHaveTextContent(/others are editing/i);
     expect(within(offer).queryByRole('button', { name: 'Restore into the shared draft' })).toBeNull();
     expect(within(offer).getByTestId('collab-offline-draft-text')).toHaveTextContent('Hello stale offline world');
-    fireEvent.click(within(offer).getByRole('button', { name: 'Copy my offline text' }));
-    await until(() => writeText.mock.calls.length === 1);
-    expect(writeText.mock.calls[0][0]).toBe('Hello stale offline world');
     await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
     expect(server.doc).toBe('Hello world');
     expect(docOf(view)).toBe('Hello world');
@@ -630,6 +631,7 @@ describe('PageEditor collaborative mode', () => {
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
     fireEvent.click(within(screen.getByTestId('collab-offline-draft')).getByRole('button', { name: 'Discard it' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete offline draft' }));
     expect(draftHook.clearDraft).toHaveBeenCalled();
     expect(screen.queryByTestId('collab-offline-draft')).toBeNull();
     expect(docOf(view)).toBe('Hello world');
@@ -884,7 +886,7 @@ describe('PageEditor collaborative mode', () => {
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
     fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Mine' } });
-    fireEvent.click(screen.getByTestId('editor-save'));
+    await publishThroughDialog();
     await screen.findByTestId('wiki-view');
     const publish = server.calls.findIndex((c) => c.path === '/publish');
     const metaPush = server.calls.findIndex((c) => c.path === '/updates' && c.method === 'POST' && (c.body.metaOps || []).some((op) => op.field === 'summary'));
@@ -994,7 +996,7 @@ describe('PageEditor collaborative mode', () => {
     server.config.publishInvalid = true;
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
-    fireEvent.click(screen.getByTestId('editor-save'));
+    await publishThroughDialog();
     await until(() => document.querySelector('[data-field="tags"]')?.textContent.includes('tags must be a list'));
     expect(screen.getByTestId('editor-save')).toBeDisabled();
     const bob = await joinAs('bob');
@@ -1009,7 +1011,7 @@ describe('PageEditor collaborative mode', () => {
       ? { metadata: { tags: ['fixed'] }, violations: [] } : { metadata: {}, violations: [] }));
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');
-    fireEvent.click(screen.getByTestId('editor-save'));
+    await publishThroughDialog();
     await until(() => screen.getByTestId('editor-save').disabled);
     fireEvent.click(screen.getByRole('tab', { name: 'Raw YAML' }));
     const raw = screen.getByLabelText('Raw frontmatter YAML');
@@ -1017,5 +1019,415 @@ describe('PageEditor collaborative mode', () => {
     fireEvent.blur(raw);
     await until(() => server.metadata.tags?.includes('fixed'));
     await until(() => !screen.getByTestId('editor-save').disabled);
+  });
+  // ── Phase 3 Task 11: draft banner, publish dialog, notices, convert-and-publish ──
+
+  const idsOf = ({ j }) => ({ sessionId: j.sessionId, participantId: j.participantId });
+  const lastPublish = () => server.calls.filter((c) => c.path === '/publish').at(-1);
+
+  it('theDraftBannerShowsOnOpenWithContributorsAndAge', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello world', initialMeta: { summary: 'Original' }, pollTimeoutMs: 2000 });
+    const bob = await joinAs('bob');
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(realNow - 2 * 3600_000);
+    try {
+      await pushMeta(bob, [{ field: 'summary', value: 'Bobs' }]);
+    } finally {
+      clock.mockRestore();
+    }
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const banner = await screen.findByTestId('collab-draft-banner');
+    expect(banner).toHaveTextContent('Unpublished changes by bob — last edit 2h ago');
+    expect(screen.getByTestId('collab-draft-chip')).toHaveTextContent('Unpublished draft');
+    // View changes: the dialog read-only, with the changed field and no confirm
+    fireEvent.click(within(banner).getByRole('button', { name: 'View changes' }));
+    const dialog = await screen.findByTestId('publish-dialog');
+    await until(() => within(dialog).queryByText('summary') !== null);
+    expect(within(dialog).queryByTestId('publish-dialog-confirm')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByTestId('publish-dialog')).toBeNull();
+    // Discard goes through the existing confirm
+    fireEvent.click(within(banner).getByRole('button', { name: 'Discard' }));
+    const confirm = await screen.findByRole('dialog');
+    expect(confirm).toHaveTextContent(/for all 2 editors/);
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+    // Publish opens the publish dialog
+    fireEvent.click(within(banner).getByRole('button', { name: 'Publish' }));
+    const publish = await screen.findByTestId('publish-dialog');
+    expect(within(publish).getByTestId('publish-dialog-confirm')).toBeInTheDocument();
+    fireEvent.click(within(publish).getByRole('button', { name: 'Cancel' }));
+    // Dismiss hides the banner; the chip stays while the draft is unpublished
+    fireEvent.click(within(banner).getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByTestId('collab-draft-banner')).toBeNull();
+    expect(screen.getByTestId('collab-draft-chip')).toBeInTheDocument();
+    expect(server.calls.some((c) => c.path === '/publish' || c.path === '/discard')).toBe(false);
+  });
+
+  it('noDraftBannerWhenTheJoinedDraftHasNothingUnpublished', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    placeCaret(view, 11);
+    typeAtCaret(view, '!');
+    // my own edit makes the draft unpublished: the chip says so, the on-open banner does not appear
+    await screen.findByTestId('collab-draft-chip');
+    expect(screen.queryByTestId('collab-draft-banner')).toBeNull();
+  });
+
+  it('theDraftChipFollowsUnpublished', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    expect(screen.queryByTestId('collab-draft-chip')).toBeNull();
+    placeCaret(view, 11);
+    typeAtCaret(view, ' more');
+    await screen.findByTestId('collab-draft-chip');
+    await until(() => server.doc === 'Hello world more');
+    const bob = await joinAs('bob');
+    await bob.t.publish({ ...idsOf(bob), version: server.version, changeNote: 'by bob' });
+    await until(() => screen.queryByTestId('collab-draft-chip') === null);
+  });
+
+  it('publishOpensTheDialogWithTheDiff', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    placeCaret(view, 11);
+    typeAtCaret(view, ' more');
+    const dialog = await openPublishDialog();
+    expect(within(dialog).getByTestId('diff-html')).toHaveTextContent('+Hello world more');
+    expect(within(dialog).getByText(/Changes by/)).toHaveTextContent('Changes by ada');
+    expect(server.calls.some((c) => c.path === '/publish')).toBe(false);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByTestId('publish-dialog')).toBeNull();
+    await wait(200);
+    expect(server.calls.some((c) => c.path === '/publish')).toBe(false);
+    expect(screen.queryByTestId('wiki-view')).toBeNull();
+  });
+
+  it('ctrlSOpensTheDialog', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const dialog = await openPublishDialog(() => fireEvent.keyDown(window, { key: 's', ctrlKey: true }));
+    expect(within(dialog).getByText('No text changes')).toBeInTheDocument();
+    // a second Ctrl+S with the dialog open does not publish or reopen it
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true });
+    await wait(100);
+    expect(server.calls.filter((c) => c.path === '/draft')).toHaveLength(1);
+    expect(server.calls.some((c) => c.path === '/publish')).toBe(false);
+  });
+
+  it('confirmPublishesWithTheDialogsChangeNote', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    fireEvent.change(screen.getByTestId('editor-change-note'), { target: { value: 'from the toolbar' } });
+    const dialog = await openPublishDialog();
+    const note = within(dialog).getByLabelText('Change note');
+    expect(note).toHaveValue('from the toolbar');
+    fireEvent.change(note, { target: { value: 'from the dialog' } });
+    fireEvent.click(within(dialog).getByTestId('publish-dialog-confirm'));
+    await screen.findByTestId('wiki-view');
+    expect(lastPublish().status).toBe(200);
+    expect(lastPublish().body.changeNote).toBe('from the dialog');
+    expect(toast.success).toHaveBeenCalledWith('Published');
+  });
+
+  it('theDialogWarnsAboutStillTypingParticipants', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const bob = await joinAs('bob');
+    await bob.t.push({ ...idsOf(bob), version: server.version, updates: [], metaOps: [], selection: { anchor: 0, head: 0, version: 0, unconfirmed: 2 } });
+    await until(() => screen.queryByRole('status', { name: 'Collaborators' })?.textContent.includes('2 editing'));
+    await wait(50);
+    const dialog = await openPublishDialog();
+    expect(within(dialog).getByTestId('publish-dialog-unsynced')).toHaveTextContent('Still typing: bob');
+  });
+
+  it('newerEditsAreCountedAtConfirm', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const dialog = await openPublishDialog();
+    expect(within(dialog).queryByTestId('publish-dialog-newer')).toBeNull();
+    const summaryVersion = server.version;
+    act(() => { server.externalReplace(0, 0, '>> '); });
+    await until(() => docOf(view) === '>> Hello world');
+    await until(() => within(dialog).queryByTestId('publish-dialog-newer') !== null);
+    expect(within(dialog).getByTestId('publish-dialog-newer')).toHaveTextContent('1 newer edit will be included');
+    fireEvent.click(within(dialog).getByTestId('publish-dialog-confirm'));
+    await screen.findByTestId('wiki-view');
+    expect(lastPublish().status).toBe(200);
+    expect(lastPublish().body.version).toBe(summaryVersion + 1);
+  });
+
+  it('someoneElsesPublishShowsAToastAndUpdatesTheVersion', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const bob = await joinAs('bob');
+    await bob.t.publish({ ...idsOf(bob), version: server.version, changeNote: 'by bob' });
+    await until(() => toast.info.mock.calls.some(([m]) => m === 'Published by bob as version 8'));
+    // the editor's page version follows: a fallback single-author save expects version 8, not the loaded 7
+    api.savePage.mockResolvedValue({ version: 9 });
+    server.config.disabled = true;
+    server.expireParticipant(server.liveParticipantIds().find((id) => id !== bob.j.participantId));
+    placeCaret(view, 3);
+    await until(() => screen.getByTestId('editor-save').textContent === 'Save');
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByTestId('wiki-view');
+    expect(api.savePage).toHaveBeenCalledWith('Existing', expect.objectContaining({ expectedVersion: 8 }));
+  });
+
+  it('myOwnPublishIsNotAnnouncedAsSomeoneElses', async () => {
+    useAttachments.mockImplementation(() => ({ list: [], uploadAttachment: vi.fn(), renameAttachment, deleteAttachment: vi.fn() }));
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const bob = await joinAs('bob');
+    await bob.t.discard(idsOf(bob));
+    await until(() => toast.info.mock.calls.some(([m]) => m === 'bob discarded the shared draft'));
+    fireEvent.click(screen.getByTestId('collab-discard'));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Discard for everyone' }));
+    await until(() => toast.success.mock.calls.some(([m]) => m === 'Shared draft discarded'));
+    await wait(300);
+    expect(toast.info.mock.calls.filter(([m]) => /discarded the shared draft/.test(m))).toEqual([['bob discarded the shared draft']]);
+  });
+
+  it('publishFailedAndDiscardedNotices', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    const bob = await joinAs('bob');
+    server.failNextPublish('bob');
+    await bob.t.publish({ ...idsOf(bob), version: server.version, changeNote: 'x' }).catch(() => {});
+    await until(() => toast.error.mock.calls.some(([m]) => m === "bob's publish was refused"));
+    await bob.t.discard(idsOf(bob));
+    await until(() => toast.info.mock.calls.some(([m]) => m === 'bob discarded the shared draft'));
+  });
+
+  it('oversizeBannerFollowsTheLocalSize', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.oversize(11, 8); });
+    const banner = await screen.findByTestId('collab-oversize');
+    expect(banner).toHaveTextContent('This draft is over the page size limit (11 of 8); trim it to publish');
+    // still over: the count follows the local document
+    placeCaret(view, 11);
+    typeAtCaret(view, 'é');
+    await until(() => screen.getByTestId('collab-oversize').textContent.includes('(13 of 8)'));
+    // trimmed under the limit: the banner goes
+    act(() => { view.dispatch({ changes: { from: 5, to: view.state.doc.length } }); });
+    await until(() => screen.queryByTestId('collab-oversize') === null);
+  });
+
+  it('aPurgeKeepsUnsyncedTextInTheRecoveryPanel', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => {
+      placeCaret(view, 11);
+      typeAtCaret(view, ' mine'); // its push (debounced) meets the purged participant
+      server.purge();
+    });
+    const banner = await screen.findByTestId('collab-evicted');
+    expect(banner).toHaveTextContent('An administrator removed this draft');
+    expect(banner).not.toHaveTextContent(/no longer have permission/i);
+    expect(within(banner).getByTestId('collab-evicted-text')).toHaveTextContent('mine');
+    fireEvent.click(within(banner).getByRole('button', { name: 'Copy' }));
+    await until(() => writeText.mock.calls.length === 1);
+    expect(writeText.mock.calls[0][0]).toContain('mine');
+    // read-only is applied by react-codemirror in an effect: wait for it rather than racing the banner's commit
+    await until(() => currentView().state.readOnly);
+  });
+
+  it('leavingWithSyncedWorkShowsANonBlockingNote', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    placeCaret(view, 11);
+    typeAtCaret(view, ' synced');
+    await until(() => server.doc === 'Hello world synced');
+    await screen.findByTestId('collab-draft-chip');
+    await wait(50);
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    await screen.findByTestId('wiki-view'); // never blocked
+    expect(screen.queryByTestId('guard-stay')).toBeNull();
+    expect(toast.info).toHaveBeenCalledWith('Your changes stay in the shared draft until someone publishes or discards them');
+  });
+
+  it('leavingWithNothingOfMineUnpublishedOrAfterPublishingShowsNoNote', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    placeCaret(view, 11);
+    typeAtCaret(view, ' synced');
+    await until(() => server.doc === 'Hello world synced');
+    await publishThroughDialog();
+    await screen.findByTestId('wiki-view');
+    expect(toast.info).not.toHaveBeenCalledWith(expect.stringMatching(/stay in the shared draft/));
+  });
+
+  it('theOfflineDraftIsOfferedOnceAndClearedOnDecision', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const savedAt = Date.now() - 60000;
+    draftHook.draft = { content: 'Hello offline world', savedAt };
+    let { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    expect(screen.getByTestId('collab-offline-draft')).toBeInTheDocument();
+    // ignored and the editor reopened: the same stored draft is not offered again
+    cleanup();
+    ({ view } = await mount());
+    await until(() => docOf(view) === 'Hello world');
+    await wait(50);
+    expect(screen.queryByTestId('collab-offline-draft')).toBeNull();
+    cleanup();
+
+    // Dismiss asks first; Cancel keeps it, the confirm clears it
+    draftHook.draft = { content: 'Another offline text', savedAt: savedAt + 1 };
+    ({ view } = await mount());
+    await until(() => docOf(view) === 'Hello world');
+    fireEvent.click(within(screen.getByTestId('collab-offline-draft')).getByRole('button', { name: 'Discard it' }));
+    const ask = await screen.findByRole('dialog');
+    expect(ask).toHaveTextContent(/offline draft/i);
+    fireEvent.click(within(ask).getByRole('button', { name: 'Cancel' }));
+    expect(draftHook.clearDraft).not.toHaveBeenCalled();
+    expect(screen.getByTestId('collab-offline-draft')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId('collab-offline-draft')).getByRole('button', { name: 'Discard it' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete offline draft' }));
+    expect(draftHook.clearDraft).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('collab-offline-draft')).toBeNull();
+    cleanup();
+
+    // with others present it is copy-only, and copying clears it too
+    draftHook.draft = { content: 'Third offline text', savedAt: savedAt + 2 };
+    await joinAs('bob');
+    ({ view } = await mount());
+    await until(() => docOf(view) === 'Hello world');
+    const offer = screen.getByTestId('collab-offline-draft');
+    expect(within(offer).queryByRole('button', { name: 'Restore into the shared draft' })).toBeNull();
+    fireEvent.click(within(offer).getByRole('button', { name: 'Copy my offline text' }));
+    await until(() => writeText.mock.calls.length === 1);
+    expect(writeText.mock.calls[0][0]).toBe('Third offline text');
+    await until(() => draftHook.clearDraft.mock.calls.length === 2);
+    expect(screen.queryByTestId('collab-offline-draft')).toBeNull();
+    expect(server.doc).toBe('Hello world');
+  });
+
+  it('convertAndPublishConfirmsAppliesOneTransactionAndPublishesMarkdown', async () => {
+    server = createFakeCollabServer({ initialText: "Hello ''world''", pollTimeoutMs: 2000 });
+    api.getPage.mockResolvedValue({ content: "Hello ''world''", metadata: {}, version: 7, markupSyntax: 'wiki' });
+    api.convertWikiToMarkdown.mockResolvedValue({ markdown: 'Hello *world*', warnings: ['a note'] });
+    await joinAs('bob');
+    const { view } = await mount();
+    await until(() => docOf(view) === "Hello ''world''");
+    expect(screen.queryByTestId('collab-no-convert')).toBeNull();
+    const before = pushedChanges().length;
+    fireEvent.click(screen.getByRole('button', { name: 'Convert and publish' }));
+    const ask = await screen.findByRole('dialog');
+    expect(ask).toHaveTextContent('This converts and publishes the page for all 2 editors');
+    expect(api.convertWikiToMarkdown).not.toHaveBeenCalled();
+    fireEvent.click(within(ask).getByRole('button', { name: 'Convert and publish' }));
+    await until(() => lastPublish()?.status === 200);
+    expect(docOf(view)).toBe('Hello *world*');
+    expect(server.doc).toBe('Hello *world*');
+    expect(lastPublish().body).toMatchObject({ markupSyntax: 'markdown', changeNote: 'Converted to Markdown' });
+    const pushed = pushedChanges().slice(before);
+    expect(pushed).toHaveLength(1); // one transaction
+    expect(pushed.filter(isWholeDocumentReplacement)).toEqual([]);
+    // still editing, now as Markdown
+    await until(() => screen.queryByRole('button', { name: 'Convert and publish' }) === null);
+    expect(screen.queryByTestId('wiki-view')).toBeNull();
+    expect(screen.getByText('a note')).toBeInTheDocument();
+  });
+
+  it('anotherEditorsConvertRefreshesMarkupSyntax', async () => {
+    api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 7, markupSyntax: 'wiki' });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    await screen.findByRole('button', { name: 'Convert and publish' });
+    api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 8, markupSyntax: 'markdown' });
+    const bob = await joinAs('bob');
+    await bob.t.publish({ ...idsOf(bob), version: server.version, changeNote: 'Converted to Markdown', markupSyntax: 'markdown' });
+    await until(() => screen.queryByRole('button', { name: 'Convert and publish' }) === null);
+    expect(api.getPage).toHaveBeenLastCalledWith('Existing');
+  });
+
+  it('collabPublishSendsMarkupSyntaxLikeThePut', async () => {
+    let { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    await publishThroughDialog();
+    await screen.findByTestId('wiki-view');
+    expect(lastPublish().body.markupSyntax).toBe('markdown');
+    cleanup();
+    // a legacy page publishes without the flag, as the PUT omits it
+    server = createFakeCollabServer({ initialText: 'Hello world', pollTimeoutMs: 2000 });
+    api.getPage.mockResolvedValue({ content: 'x', metadata: {}, version: 7, markupSyntax: 'wiki' });
+    ({ view } = await mount());
+    await until(() => docOf(view) === 'Hello world');
+    await publishThroughDialog();
+    await screen.findByTestId('wiki-view');
+    expect(lastPublish().status).toBe(200);
+    expect('markupSyntax' in lastPublish().body).toBe(false);
+  });
+
+  it('theRecreatePanelSurvivesAnUnfreeze', async () => {
+    const base = server.transportFor('ada');
+    let holdPushes = false;
+    const transport = { ...base, push: (b) => (holdPushes ? new Promise(() => {}) : base.push(b)) };
+    const { view } = await mount({ transport });
+    await until(() => docOf(view) === 'Hello world');
+    holdPushes = true; // my next edit never reaches the server
+    placeCaret(view, 11);
+    typeAtCaret(view, ' unsent');
+    act(() => { server.freeze(); });
+    await screen.findByTestId('collab-frozen');
+    fireEvent.click(screen.getByTestId('editor-save'));
+    const panel = await screen.findByTestId('collab-recreate-recovery');
+    expect(panel).toHaveTextContent('unsent');
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Not now' }));
+    // the status leaves frozen (here: an eviction) while the panel is open: it stays until dismissed
+    act(() => { server.evict(server.liveParticipantIds()[0], 'lost-edit'); });
+    await screen.findByTestId('collab-evicted');
+    expect(screen.queryByTestId('collab-frozen')).toBeNull();
+    expect(screen.getByTestId('collab-recreate-recovery')).toHaveTextContent('unsent');
+    fireEvent.click(within(screen.getByTestId('collab-recreate-recovery')).getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByTestId('collab-recreate-recovery')).toBeNull();
+  });
+
+  it('anAmbiguousAnchorIsNotGuessed', async () => {
+    server = createFakeCollabServer({ initialText: 'abcdefghijkl abcdefghijkl', maxPageBytes: 30, pollTimeoutMs: 2000 });
+    const uploaded = deferred();
+    useAttachments.mockImplementation(() => ({
+      list: [], uploadAttachment: vi.fn(() => uploaded.promise), renameAttachment, deleteAttachment: vi.fn(),
+    }));
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'abcdefghijkl abcdefghijkl');
+    act(() => {
+      placeCaret(view, 12);
+      typeAtCaret(view, 'unsynced two');
+      placeCaret(view, 0);
+      typeAtCaret(view, 'unsynced one ');
+    });
+    await screen.findByTestId('collab-recovery');
+    expect(docOf(view)).toBe('unsynced one abcdefghijklunsynced two abcdefghijkl');
+    // between the first phrase and my unsent text: only the 12-character "abcdefghijkl" survives, and it appears twice
+    placeCaret(view, 'unsynced one abcdefghijkl'.length);
+    const file = new File(['x'], 'pic.png', { type: 'image/png' });
+    fireEvent.change(screen.getByTestId('editor-image-input'), { target: { files: [file] } });
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+    await until(() => currentView() !== null && currentView() !== view);
+    const panel = await screen.findByTestId('collab-insert-recovery');
+    expect(panel).toHaveTextContent('Uploading pic.png');
+    expect(docOf(currentView())).toBe('abcdefghijkl abcdefghijkl');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Copy' }));
+    await until(() => writeText.mock.calls.length === 1);
+    expect(writeText.mock.calls[0][0]).toContain('![Uploading pic.png');
+    // the upload finishing turns the handed-back placeholder into its link, still in the panel, not in the document
+    await act(async () => { uploaded.resolve({}); await new Promise((r) => setTimeout(r, 20)); });
+    await until(() => !screen.getByTestId('collab-insert-recovery').textContent.includes('Uploading'));
+    expect(screen.getByTestId('collab-insert-recovery')).toHaveTextContent('pic.png');
+    expect(docOf(currentView())).toBe('abcdefghijkl abcdefghijkl');
+    // undismissed handed-back text guards leaving
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    fireEvent.click(await screen.findByTestId('guard-stay'));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByTestId('collab-insert-recovery')).toBeNull();
   });
 });

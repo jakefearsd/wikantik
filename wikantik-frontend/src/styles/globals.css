@@ -1419,6 +1419,8 @@ a[data-attachment-missing] {
 .collab-draft-banner { flex-wrap: wrap; }
 .collab-draft-banner-actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
 .collab-contributors { font-weight: 600; }
+.collab-draft-chip { display: inline-flex; }
+.collab-draft-chip .chip { font-size: 0.75rem; }
 .collab-publish-dialog { display: flex; flex-direction: column; gap: var(--space-md); }
 .collab-publish-dialog form { display: flex; flex-direction: column; gap: var(--space-sm); }
 .collab-publish-dialog .warning-banner { margin-bottom: 0; }

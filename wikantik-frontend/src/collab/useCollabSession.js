@@ -240,6 +240,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             handle,
             session: { sessionId: j.sessionId, clientID: j.clientID, participantId: j.participantId },
             eventsSince: joinEventSeq,
+            metaSince: typeof j.metaSeq === 'number' ? j.metaSeq : 0,
             onStatus: (status) => patch({ status }),
             onResync: (payload) => { setResync(payload); },
             onMetaOps: (ops, metaSeq) => {

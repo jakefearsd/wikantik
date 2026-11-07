@@ -27,6 +27,7 @@ export function createCollabPeerCore({
   transport,
   session: initialSession,
   eventsSince: initialEventsSince = 0,
+  metaSince: initialMetaSince = 0,
   host,
   getSelection,
   debounceMs = 100,
@@ -54,7 +55,8 @@ export function createCollabPeerCore({
   let pullFailures = 0;
   let pullRunning = false;
   let pullAbort = null;
-  let metaSince = 0;
+  // the join's meta cursor: the join's metadata already holds every op up to it (re-pulling them is not news)
+  let metaSince = typeof initialMetaSince === 'number' ? initialMetaSince : 0;
   let presenceSince = 0;
   // the join's cursor (R11): a joiner never replays older events; a rejoin keeps it, continuing the same feed
   let eventsSince = typeof initialEventsSince === 'number' ? initialEventsSince : 0;

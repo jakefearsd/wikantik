@@ -27,6 +27,7 @@ async function makeEditor(server, user, opts = {}) {
     transport,
     session: { sessionId: joined.sessionId, clientID: joined.clientID, participantId: joined.participantId },
     eventsSince: joined.eventSeq,
+    metaSince: joined.metaSeq,
     host,
     onStatus: (s) => editor.statuses.push(s),
     onResync: (r) => editor.resyncs.push(r),
@@ -264,6 +265,23 @@ describe('collabPeer', () => {
     server.oversize(7, 6);
     await advance(100);
     expect(a.events.map((e) => e.type)).toEqual(['oversize']);
+    a.core.destroy();
+  });
+
+  it('the pull starts at the join\'s meta cursor: a joiner never re-pulls the field edits its join already holds', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const bob = server.transportFor('bob');
+    const bj = await bob.join({});
+    await bob.push({ sessionId: bj.sessionId, participantId: bj.participantId, version: 0, updates: [], metaOps: [{ field: 'summary', value: 'Bobs' }] });
+    const a = await makeEditor(server, 'ada');
+    expect(a.joined.metaSeq).toBe(1);
+    await advance(100);
+    const firstPull = server.calls.find((c) => c.method === 'GET' && c.path === '/updates' && c.user === 'ada');
+    expect(firstPull.query.metaSince).toBe(1);
+    expect(a.metaOps).toEqual([]);
+    await bob.push({ sessionId: bj.sessionId, participantId: bj.participantId, version: 0, updates: [], metaOps: [{ field: 'type', value: 'note' }] });
+    await advance(100);
+    expect(a.metaOps).toEqual([expect.objectContaining({ field: 'type', value: 'note' })]);
     a.core.destroy();
   });
 

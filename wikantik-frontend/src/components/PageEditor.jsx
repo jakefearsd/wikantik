@@ -72,13 +72,16 @@ import { createTagSource } from '../utils/tagComplete';
 import AttachmentPanel from './AttachmentPanel';
 import AccessRuleLocation from './AccessRuleLocation';
 import ConfirmDialog from './ui/ConfirmDialog';
+import Chip from './ui/Chip';
 import LoginForm from './LoginForm';
 import { EditorView } from '@codemirror/view';
-import { sendableUpdates } from '@codemirror/collab';
+import { getSyncedVersion, sendableUpdates } from '@codemirror/collab';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { useCollabSession, describeMetaEdit } from '../collab/useCollabSession';
 import { pageEditHref } from '../utils/pageUrl';
 import PresenceBar from '../collab/PresenceBar';
+import DraftBanner from '../collab/DraftBanner';
+import PublishDialog from '../collab/PublishDialog';
 import Modal from './ui/Modal';
 import { DiffHtml } from './DiffViewer';
 import '../styles/article.css';
@@ -120,29 +123,43 @@ function sessionKeyOf(extensions) {
 /**
  * Where a queued insert goes once the editor is remounted (its offset is stale: the remounted document lacks the user's
  * unsynced text and has everyone else's): next to the text that surrounded it when it was queued, trying the full
- * context, then the text after it, then the text before it, with long and then short anchors. With no anchor found it
- * goes at the end of the document — never into someone else's text at a stale offset.
+ * context, then the text after it, then the text before it, with long and then short anchors. An anchor counts only
+ * where it occurs exactly once. With no anchor found it goes at the end of the document — never into someone else's
+ * text at a stale offset; with only anchors that occur more than once it is not guessed (null: the caller hands the
+ * text back to the user).
  */
 const ANCHOR_LENGTHS = [40, 12];
 function anchoredInsertPos(text, { before = '', after = '' }) {
+  let ambiguous = false;
+  /** The one place `probe` occurs, or -1 (absent, or present more than once). */
+  const onlyAt = (probe) => {
+    const at = text.indexOf(probe);
+    if (at < 0) return -1;
+    if (text.indexOf(probe, at + 1) >= 0) { ambiguous = true; return -1; }
+    return at;
+  };
   for (const n of ANCHOR_LENGTHS) {
     const b = before.slice(-n);
     const a = after.slice(0, n);
     if (b && a) {
-      const at = text.indexOf(b + a);
+      const at = onlyAt(b + a);
       if (at >= 0) return at + b.length;
     }
     if (a) {
-      const at = text.indexOf(a);
+      const at = onlyAt(a);
       if (at >= 0) return at;
     }
     if (b) {
-      const at = text.lastIndexOf(b);
+      const at = onlyAt(b);
       if (at >= 0) return at + b.length;
     }
   }
-  return text.length;
+  return ambiguous ? null : text.length;
 }
+/** Offline (localStorage) drafts already offered in this browser tab: each stored draft is offered once (§8.2). */
+const offeredOfflineDrafts = new Set();
+const offlineDraftKey = (login, page, savedAt) => `${login}\u0000${page}\u0000${savedAt}`;
+const LEAVE_NOTE = 'Your changes stay in the shared draft until someone publishes or discards them';
 /** Local work the server never got (unsynced text, field edits), as one text to copy. */
 const hasLocalWork = (w) => !!w && (!!w.unsyncedText || w.metaEdits?.length > 0);
 function localWorkText(w) {
@@ -296,8 +313,12 @@ export default function PageEditor({ collabTransport } = {}) {
   }, [renamedTo, name, navigate]);
   // Unsynced local edits (sendableUpdates non-empty): the only collab work that leaving would lose.
   const [unsynced, setUnsynced] = useState(false);
+  // The editor's synced version: the publish dialog counts the edits that arrived after its summary was taken.
+  const [syncedVersion, setSyncedVersion] = useState(null);
   const unsyncedListener = useMemo(() => EditorView.updateListener.of((u) => {
-    if (u.transactions.length) setUnsynced(sendableUpdates(u.state).length > 0);
+    if (!u.transactions.length) return;
+    setUnsynced(sendableUpdates(u.state).length > 0);
+    setSyncedVersion(getSyncedVersion(u.state));
   }), []);
   const collabExtensions = useMemo(
     () => (collab.extensions ? [collab.extensions, unsyncedListener] : null),
@@ -307,26 +328,47 @@ export default function PageEditor({ collabTransport } = {}) {
   const [restoreOffer, setRestoreOffer] = useState(null);
   const [offlineDraftOffer, setOfflineDraftOffer] = useState(null);
   const [joinedExtensions, setJoinedExtensions] = useState(null);
+  // The draft banner (D3, §8.3): shown on open when the join reported unpublished changes, until dismissed or published.
+  const [draftBannerOpen, setDraftBannerOpen] = useState(false);
   if (collabMode && collab.extensions && collab.extensions !== joinedExtensions) {
     setJoinedExtensions(collab.extensions);
     const joinedDoc = String(collab.docAtJoin ?? '');
     setBody(joinedDoc);
     setUnsynced(false);
+    setSyncedVersion(collab.startVersion ?? null);
+    if (!joinedExtensions) setDraftBannerOpen(!!collab.draft?.unpublished);
     // A restore into a session that already existed (others are editing): offer it instead of clobbering their work.
     const seedText = collabSeed?.name === name && collabSeed.restoreFrom ? String(collabSeed.initialText ?? '').replace(/\r\n?/g, '\n') : null;
     // (the server may end a session's text in a newline (A9): that alone does not make it someone else's session)
     const differs = seedText != null && seedText.replace(/\n+$/, '') !== joinedDoc.replace(/\n+$/, '');
     setRestoreOffer(differs && !joinedExtensions ? { text: seedText, from: collabSeed.restoreFrom } : null);
-    // An offline (localStorage) draft of this page, offered once on entering collab mode (§8.2).
-    if (!joinedExtensions && draft?.content) {
+    // An offline (localStorage) draft of this page, offered once per stored draft on entering collab mode (§8.2).
+    const offlineKey = draft?.content ? offlineDraftKey(login, name, draft.savedAt) : null;
+    if (!joinedExtensions && offlineKey && !offeredOfflineDrafts.has(offlineKey)) {
       const offline = stripFrontmatter(draft.content).replace(/\r\n?/g, '\n');
-      setOfflineDraftOffer(offline !== joinedDoc ? { text: offline, savedAt: draft.savedAt } : null);
+      setOfflineDraftOffer(offline !== joinedDoc ? { text: offline, savedAt: draft.savedAt, key: offlineKey } : null);
     }
   }
+  // remembered once shown (not during render: a discarded render must not use up the offer)
+  useEffect(() => {
+    if (offlineDraftOffer?.key) offeredOfflineDrafts.add(offlineDraftOffer.key);
+  }, [offlineDraftOffer]);
+  const collabDraft = collabMode ? collab.draft : null;
+  if (draftBannerOpen && collabDraft && !collabDraft.unpublished) setDraftBannerOpen(false);
   // In collab mode the form shows the co-edited metadata; the metadata state follows it (validation, preview, a fallback).
   const metaView = collabMeta ? collabMeta.view() : null;
   if (metaView && metaView !== metadata) setMetadata(metaView);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmOfflineDiscard, setConfirmOfflineDiscard] = useState(false);
+  const [confirmConvert, setConfirmConvert] = useState(false);
+  // The publish dialog (§8.3): { mode: 'publish' | 'view', summary (null while loading), unsynced: display names }
+  const [publishDialog, setPublishDialog] = useState(null);
+  const publishDialogRef = useRef(null);
+  useEffect(() => { publishDialogRef.current = publishDialog; });
+  // Queued inserts whose place in the remounted document is ambiguous: handed back to the user, never guessed.
+  const [unplacedInserts, setUnplacedInserts] = useState([]);
+  const unplacedRef = useRef(unplacedInserts);
+  useEffect(() => { unplacedRef.current = unplacedInserts; });
   // Recreate with local work the publish cannot carry: { unsyncedText, metaEdits, asking }
   const [recreateCheck, setRecreateCheck] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -338,6 +380,40 @@ export default function PageEditor({ collabTransport } = {}) {
     if (externalChange) toast.info(`Updated by ${externalChange.source || 'an outside change'}`);
   }, [externalChange, toast]);
   const showExternal = externalChange && externalChange !== externalDismissed ? externalChange : null;
+
+  // Draft notices (Phase 3), each about someone else's action (my own already has its own feedback).
+  const selfName = collab.self?.displayName ?? null;
+  const published = collabMode ? collab.published : null;
+  const notice = collabMode ? collab.notice : null;
+  const [seenPublished, setSeenPublished] = useState(null);
+  if (published !== seenPublished) {
+    setSeenPublished(published);
+    // the page has a newer version now: a later single-author save must expect it
+    if (published && published.by !== selfName && published.pageVersion != null) setOriginalVersion(published.pageVersion);
+  }
+  const announcedRef = useRef({ published: null, notice: null });
+  useEffect(() => {
+    if (!published || announcedRef.current.published === published) return;
+    announcedRef.current.published = published;
+    if (published.by === selfName) return;
+    toast.info(published.pageVersion != null
+      ? `Published by ${published.by} as version ${published.pageVersion}` : `Published by ${published.by}`);
+    // the publish may have changed the page's markup syntax (Convert and publish)
+    api.getPage(name)
+      .then((page) => setMarkupSyntax(page?.markupSyntax || 'markdown'))
+      .catch((err) => console.warn('[collab] could not refresh the page after a publish', err?.message || err));
+  }, [published, selfName, name, toast]);
+  useEffect(() => {
+    if (!notice || announcedRef.current.notice === notice) return;
+    announcedRef.current.notice = notice;
+    if (notice.by && notice.by === selfName) return;
+    if (notice.type === 'publish-failed') toast.error(`${notice.by}'s publish was refused`);
+    else if (notice.type === 'draft-discarded') toast.info(`${notice.by} discarded the shared draft`);
+  }, [notice, selfName, toast]);
+  // E25: the server reported the draft over the page size limit; the warning follows the local document's size
+  const oversizeLimit = collabMode ? collab.oversizeLimit : null;
+  const bodyBytes = useMemo(() => (oversizeLimit != null ? new TextEncoder().encode(body).length : 0), [body, oversizeLimit]);
+  const oversize = collabEditing && oversizeLimit != null && bodyBytes > oversizeLimit;
   const openExternalDiff = (ev) => {
     const to = ev.pageVersion;
     setDiffFor({ pageVersion: to, html: null, error: null });
@@ -371,10 +447,32 @@ export default function PageEditor({ collabTransport } = {}) {
   }, []);
 
   const guardActive = collabMode
-    ? (collabEditing && (unsynced || !!collabMeta?.pending)) || !!collab.resync?.unsyncedText
+    ? (collabEditing && (unsynced || !!collabMeta?.pending)) || !!collab.resync?.unsyncedText || unplacedInserts.length > 0
     : isDirty || (collabWanted && !!collab.resync?.unsyncedText);
   useNavigationGuard(guardActive);
   const guardedNavigate = useGuardedNavigate();
+
+  // §8.2: leaving with synced, unpublished work of mine is never blocked (only unsynced typing is); a note says where
+  // that work stays. Not after publishing it, and not for the navigation that follows a rename of the page.
+  const draftHasMine = !!collabDraft?.unpublished
+    && (!selfName || !collabDraft.contributors?.length || collabDraft.contributors.includes(selfName));
+  const leftPublishedRef = useRef(false);
+  const leaveNoteRef = useRef(false);
+  const toastRef = useRef(toast);
+  useEffect(() => {
+    toastRef.current = toast;
+    leaveNoteRef.current = collabEditing && (collab.status === 'live' || collab.status === 'reconnecting')
+      && draftHasMine && !guardActive && !(renamedTo && renamedTo !== name);
+  });
+  useEffect(() => {
+    const note = leaveNoteRef;
+    const published = leftPublishedRef;
+    const notify = toastRef;
+    published.current = false;
+    return () => {
+      if (note.current && !published.current) notify.current.info(LEAVE_NOTE);
+    };
+  }, [name]);
 
   // Keep the body in a ref so the stable scroll-sync / format callbacks read current text.
   // Written in an effect (runs after every render) rather than during render,
@@ -603,6 +701,12 @@ export default function PageEditor({ collabTransport } = {}) {
     },
     replaceText: (find, replacement) => {
       if (collabWriteBlockedRef.current) { queueCollabWrite({ kind: 'replace', find, replacement }); return true; }
+      // a finished upload whose placeholder was handed back (not placed): its link follows it into the recovery panel
+      const live = editorRef.current?.getText?.();
+      if (live != null && !live.includes(find) && unplacedRef.current.some((t) => t.includes(find))) {
+        setUnplacedInserts((list) => list.map((t) => (t.includes(find) ? t.replace(find, () => replacement) : t)).filter(Boolean));
+        return true;
+      }
       return editorRef.current?.replaceText?.(find, replacement) ?? false;
     },
   }), [queueCollabWrite]);
@@ -627,11 +731,17 @@ export default function PageEditor({ collabTransport } = {}) {
     const editor = editorRef.current;
     if (!ops.length || collabWriteBlockedRef.current || editor?.getText?.() == null) return;
     pendingWritesRef.current = [];
+    const unplaced = [];
     for (const op of ops) {
       if (op.kind === 'rename') editor.applyChanges(attachmentLinkChanges(editor.getText(), op.oldName, op.newName));
       else if (op.kind === 'replace') editor.replaceText(op.find, op.replacement);
-      else if (op.kind === 'insert') editor.insertText(anchoredInsertPos(editor.getText(), op), op.text);
+      else if (op.kind === 'insert') {
+        const at = anchoredInsertPos(editor.getText(), op);
+        if (at === null) unplaced.push(op.text); else editor.insertText(at, op.text);
+      }
     }
+    // (outside the caller's effect: the panel is news for the next render, not a cascade of this one)
+    if (unplaced.length) queueMicrotask(() => setUnplacedInserts((list) => [...list, ...unplaced]));
   }, []);
   // A fresh view: its mount runs inside react-codemirror's layout effect, before this component's refs are updated.
   const handleEditorReady = useCallback(() => { setTimeout(applyPendingWrites, 0); }, [applyPendingWrites]);
@@ -1006,7 +1116,8 @@ export default function PageEditor({ collabTransport } = {}) {
   const handleItalic = useCallback(() => applyFormat('italic'), [applyFormat]);
   const handleLink = useCallback(() => applyFormat('link'), [applyFormat]);
 
-  const handleConvert = async () => {
+  /** Converts the body to Markdown in place; true once the converted text is in the editor (one transaction, E7). */
+  const convertBody = async () => {
     // Convert exactly what the editor shows, and apply the result only if it still shows that: anything typed
     // during the request would otherwise be silently discarded by the replacement.
     const sent = editorRef.current?.getText?.() ?? bodyRef.current;
@@ -1017,17 +1128,25 @@ export default function PageEditor({ collabTransport } = {}) {
       const live = editorRef.current?.getText?.() ?? bodyRef.current;
       if (live !== sent) {
         setError('The page changed while converting — run Convert again.');
-        return;
+        return false;
       }
       replaceBody(result.markdown);
       setMarkupSyntax('markdown');
       setConversionWarnings(result.warnings || []);
+      return true;
     } catch (err) {
       console.warn('[editor] wiki-to-markdown conversion failed', err?.message || err);
       setError('Conversion failed: ' + (err.message || 'Unknown error'));
+      return false;
     } finally {
       setConverting(false);
     }
+  };
+  const handleConvert = () => { convertBody(); };
+  // Decision 8: in collab mode the markup syntax travels with a page version, so converting publishes for everyone.
+  const convertAndPublish = async () => {
+    setConfirmConvert(false);
+    if (await convertBody()) await publishContent({ stay: true, note: 'Converted to Markdown', markup: 'markdown' });
   };
 
   // #4 — extracted save function used by button and keyboard shortcut. Sends body + metadata object
@@ -1054,7 +1173,8 @@ export default function PageEditor({ collabTransport } = {}) {
   };
 
   // Collab mode's Save: publish the shared draft once every local edit is on the server (the hook waits for sync).
-  const publishContent = async ({ stay = false, recreateConfirmed = false } = {}) => {
+  // `note` and `markup` override the change note and the markup syntax (Convert and publish).
+  const publishContent = async ({ stay = false, recreateConfirmed = false, note, markup } = {}) => {
     // Recreating a deleted page publishes the shared draft as the server holds it: the publish cannot carry this tab's
     // unsynced text or field edits (the frozen draft refuses pushes). Show them to copy and ask first — never drop them.
     if (collabFrozen && !recreateConfirmed) {
@@ -1069,7 +1189,10 @@ export default function PageEditor({ collabTransport } = {}) {
     setError(null);
     setAccessRuleViolations([]);
     try {
-      const res = await collab.publish(changeNote || (isNew ? 'Created page' : 'Updated page'));
+      // the markup syntax goes exactly as the single-author PUT sends it
+      const syntax = markup ?? markupSyntax;
+      const res = await collab.publish(note || changeNote || (isNew ? 'Created page' : 'Updated page'),
+        { markupSyntax: syntax === 'markdown' ? 'markdown' : undefined });
       if (!res.ok) {
         if (res.status === 422) showRefusal(res.body);
         else {
@@ -1096,6 +1219,7 @@ export default function PageEditor({ collabTransport } = {}) {
         setOriginalVersion(res.pageVersion ?? originalVersion);
         return true;
       }
+      leftPublishedRef.current = true; // leaving after publishing: nothing stays behind in the draft to mention
       // Local work the publish did not carry (a recreate of a deleted page) goes through the guard, which asks first.
       // Read live: the guard's own registration follows a render behind the sync that a normal publish waited for.
       if (hasLocalWork(collab.captureLocal())) guardedNavigate(`/wiki/${name}`);
@@ -1172,10 +1296,45 @@ export default function PageEditor({ collabTransport } = {}) {
   // Any collab state publishes (a join in progress answers "Not connected…"): never the single-author PUT, which would
   // write e.g. the recovery text over the shared draft.
   const commit = collabMode ? publishContent : saveContent;
+
+  // Publish in collab mode goes through the dialog (§8.3, §16 decision 1): the summary is fetched once every local edit
+  // has reached the server, then shown. Recreating a deleted page keeps its own confirm.
+  const summaryToken = useRef(0);
+  const openPublishDialog = async (mode = 'publish') => {
+    if (publishDialogRef.current) return false;
+    const token = ++summaryToken.current;
+    const pending = { mode, summary: null, unsynced: collab.unsyncedParticipants() };
+    publishDialogRef.current = pending;
+    setPublishDialog(pending);
+    setError(null);
+    const res = await collab.draftSummary();
+    if (token !== summaryToken.current) return false;
+    if (!res.ok) {
+      console.warn('[collab] could not load the draft summary', res.status, res.reason);
+      publishDialogRef.current = null;
+      setPublishDialog(null);
+      setError(res.reason === 'not-live' ? publishFailureMessage(res) : 'Could not load the changes to publish — try again.');
+      return false;
+    }
+    setPublishDialog((d) => (d ? { ...d, summary: res.summary, unsynced: collab.unsyncedParticipants() } : d));
+    return true;
+  };
+  const closePublishDialog = () => {
+    summaryToken.current += 1;
+    publishDialogRef.current = null;
+    setPublishDialog(null);
+  };
+  const confirmPublish = async () => {
+    await publishContent();
+    closePublishDialog();
+  };
+  // edits that reached this editor after the summary was taken (they are published too: publish takes the head)
+  const newerEdits = publishDialog?.summary?.version != null && syncedVersion != null
+    ? Math.max(0, syncedVersion - publishDialog.summary.version) : 0;
+  const save = collabMode && !collabFrozen ? () => openPublishDialog('publish') : commit;
   useEffect(() => {
-    latestSaveRef.current = commit;
+    latestSaveRef.current = save;
   });
-  const save = commit;
 
   const restoreDraft = useCallback(async () => {
     const full = draft?.content || '';
@@ -1283,16 +1442,26 @@ export default function PageEditor({ collabTransport } = {}) {
       return;
     }
     replaceBody(offlineDraftOffer.text);
+    dropOfflineDraft();
+  };
+  // Every decision on the offline draft (restore, copy, delete) clears the local copy.
+  const dropOfflineDraft = () => {
     clearDraft();
     setOfflineDraftOffer(null);
   };
+  const copyOfflineDraft = async () => {
+    if (await copyText(offlineDraftOffer.text)) dropOfflineDraft();
+  };
+  /** Copies `text` to the clipboard; true on success. */
   const copyText = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
       toast.success('Copied');
+      return true;
     } catch (err) {
       console.warn('[collab] could not copy the text to the clipboard', err?.message || err);
       toast.error("Couldn't copy — select the text and copy it by hand");
+      return false;
     }
   };
 
@@ -1392,6 +1561,9 @@ export default function PageEditor({ collabTransport } = {}) {
               {COLLAB_STATUS_LABEL[collab.status] || collab.status}
             </span>
           ))}
+          {collabEditing && collabDraft?.unpublished && (
+            <div className="collab-draft-chip" data-testid="collab-draft-chip"><Chip label="Unpublished draft" /></div>
+          )}
           <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
@@ -1420,10 +1592,14 @@ export default function PageEditor({ collabTransport } = {}) {
       {(markupSyntax === 'wiki' || markupSyntax === 'likely-wiki') && (
         <div className="info-banner">
           {collabMode ? (
-            // Publish does not carry the page's markup flag yet, so a converted page would stay marked as wiki syntax.
-            <span data-testid="collab-no-convert">
-              This page uses legacy wiki syntax. Converting it to Markdown isn&apos;t available while editing together.
-            </span>
+            // Decision 8: the markup syntax travels with a page version, so converting publishes for all editors.
+            <>
+              <span>This page uses legacy wiki syntax. Convert it to Markdown and publish it?</span>
+              <button className="btn btn-primary btn-sm" onClick={() => setConfirmConvert(true)}
+                disabled={converting || saving || !collabEditing || collabReadOnly || collab.status === 'auth-required'}>
+                {converting ? 'Converting…' : 'Convert and publish'}
+              </button>
+            </>
           ) : (
             <>
               <span>This page uses legacy wiki syntax. Convert to Markdown?</span>
@@ -1453,6 +1629,28 @@ export default function PageEditor({ collabTransport } = {}) {
 
       {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
 
+      {collabEditing && draftBannerOpen && (
+        <DraftBanner draft={collabDraft} selfName={selfName}
+          onPublish={collabReadOnly ? undefined : () => openPublishDialog('publish')}
+          onDiscard={collabReadOnly ? undefined : () => setConfirmDiscard(true)}
+          onViewChanges={() => openPublishDialog('view')}
+          onDismiss={() => setDraftBannerOpen(false)} />
+      )}
+      {oversize && (
+        <div className="warning-banner" role="alert" data-testid="collab-oversize">
+          This draft is over the page size limit ({bodyBytes.toLocaleString()} of {oversizeLimit.toLocaleString()}); trim it to publish
+        </div>
+      )}
+      {unplacedInserts.length > 0 && (
+        <div className="warning-banner" role="alert" data-testid="collab-insert-recovery">
+          <strong>Text added while your editor was out of sync could not be placed.</strong>{' '}
+          <span>The text around it now appears more than once, so it was not inserted. Copy it and paste it where it belongs:</span>
+          <pre className="collab-recovery-text">{unplacedInserts.join('\n')}</pre>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyText(unplacedInserts.join('\n'))}>Copy</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUnplacedInserts([])}>Dismiss</button>
+        </div>
+      )}
+
       {collab.resync && (
         <div className="warning-banner" role="alert" data-testid="collab-recovery">
           <strong>Your editor lost its place in the shared draft.</strong>{' '}
@@ -1479,7 +1677,7 @@ export default function PageEditor({ collabTransport } = {}) {
           This page was deleted — copy your text or recreate the page.
         </div>
       )}
-      {collabFrozen && recreateCheck && (
+      {recreateCheck && (
         <div className="warning-banner" role="alert" data-testid="collab-recreate-recovery">
           <strong>These edits of yours never reached the shared draft, so recreating the page will not include them.</strong>
           {recreateCheck.unsyncedText && <pre className="collab-recovery-text">{recreateCheck.unsyncedText}</pre>}
@@ -1489,19 +1687,22 @@ export default function PageEditor({ collabTransport } = {}) {
             </ul>
           )}
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyText(localWorkText(recreateCheck))}>Copy my text</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRecreateCheck(null)}>Dismiss</button>
         </div>
       )}
       {collabEvicted && (
         <div className="warning-banner" role="alert" data-testid="collab-evicted">
           <span>
-            You no longer have permission to edit this page, so the editor is read-only.
+            {collab.evictedReason === 'purged'
+              ? 'An administrator removed this draft, so the editor is read-only.'
+              : 'You no longer have permission to edit this page, so the editor is read-only.'}
             {hasLocalWork(collab.evictedRecovery)
               ? ' Your edits that had not reached the shared draft were not saved — copy it if you need it.'
               : ' None of your edits were lost.'}
           </span>
           {hasLocalWork(collab.evictedRecovery) && (
             <>
-              <pre className="collab-recovery-text">{localWorkText(collab.evictedRecovery)}</pre>
+              <pre className="collab-recovery-text" data-testid="collab-evicted-text">{localWorkText(collab.evictedRecovery)}</pre>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyText(localWorkText(collab.evictedRecovery))}>Copy</button>
             </>
           )}
@@ -1566,13 +1767,12 @@ export default function PageEditor({ collabTransport } = {}) {
                 editing the shared draft now, so it is not applied: copy what you need from it and paste it in yourself.
               </span>
               <pre className="collab-recovery-text" data-testid="collab-offline-draft-text">{offlineDraftOffer.text}</pre>
-              <button type="button" className="draft-btn draft-btn-restore" onClick={() => copyText(offlineDraftOffer.text)}>
+              <button type="button" className="draft-btn draft-btn-restore" onClick={copyOfflineDraft}>
                 Copy my offline text
               </button>
             </>
           )}
-          <button type="button" className="draft-btn draft-btn-discard"
-            onClick={() => { clearDraft(); setOfflineDraftOffer(null); }}>
+          <button type="button" className="draft-btn draft-btn-discard" onClick={() => setConfirmOfflineDiscard(true)}>
             Discard it
           </button>
         </div>
@@ -1823,6 +2023,28 @@ export default function PageEditor({ collabTransport } = {}) {
           onCancel={() => setRecreateCheck((c) => (c ? { ...c, asking: false } : c))}
         />
       )}
+      {confirmOfflineDiscard && (
+        <ConfirmDialog
+          title="Delete your offline draft?"
+          message="Your offline copy of this page is deleted from this browser. The shared draft does not change."
+          confirmLabel="Delete offline draft"
+          onConfirm={() => { setConfirmOfflineDiscard(false); dropOfflineDraft(); }}
+          onCancel={() => setConfirmOfflineDiscard(false)}
+        />
+      )}
+      {confirmConvert && (
+        <ConfirmDialog
+          title="Convert to Markdown and publish?"
+          message={`This converts and publishes the page for all ${editorsLabel(editorCount)}.`}
+          confirmLabel="Convert and publish"
+          danger={false}
+          onConfirm={convertAndPublish}
+          onCancel={() => setConfirmConvert(false)}
+        />
+      )}
+      <PublishDialog isOpen={!!publishDialog} mode={publishDialog?.mode} summary={publishDialog?.summary}
+        unsynced={publishDialog?.unsynced} newerEdits={newerEdits} changeNote={changeNote} onChangeNote={setChangeNote}
+        onConfirm={confirmPublish} onCancel={closePublishDialog} busy={saving} />
       {confirmDiscard && (
         <ConfirmDialog
           title="Discard the shared draft?"

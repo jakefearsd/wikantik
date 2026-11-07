@@ -1,15 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { contributorText } from '../collab/ContributorList';
 
 /** The contributors other than the author; display names, rendered as plain text. */
 function othersOf(v) {
   return Array.isArray(v.contributors) ? v.contributors.filter((c) => c && c !== v.author) : [];
-}
-
-function joinNames(names) {
-  if (names.length < 2) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 export default function ChangeNotesPanel({ pageName, canEdit = false }) {
@@ -95,7 +91,7 @@ export default function ChangeNotesPanel({ pageName, canEdit = false }) {
                       </td>
                       <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap' }}>
                         {othersOf(v).length > 0
-                          ? `${v.author || '—'} with ${joinNames(othersOf(v))}`
+                          ? `${v.author || '—'} with ${contributorText(othersOf(v), othersOf(v).length)}`
                           : (v.author || '—')}
                       </td>
                       <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>

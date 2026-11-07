@@ -174,8 +174,8 @@ public class CollabRestIT {
 
         // Each sees the other as a live participant.
         b.pull( 0 );
-        assertTrue( b.lastPull.getAsJsonObject( "presence" ).size() >= 1 || b.sawParticipantEvent(),
-            "B knows about A: " + b.lastPull );
+        assertTrue( b.lastPull.getAsJsonObject( "presence" ).has( a.participantId ),
+            "B's presence map names A (" + a.participantId + "): " + b.lastPull );
 
         // A edits at the start. B, still at the old version, edits the end: its push is a stale base.
         assertEquals( 200, a.insert( 0, "A: " ).statusCode() );
@@ -264,7 +264,7 @@ public class CollabRestIT {
         // The outside change is folded into the draft; wait (bounded) for it to arrive, as the editor does.
         final long deadline = System.currentTimeMillis() + 20_000;
         while( !a.doc.contains( "edited by agent" ) && System.currentTimeMillis() < deadline ) {
-            a.pull( 0 );
+            a.pull( a.presenceSeq ); // parks as a real long-poll until something is ahead of the cursors
         }
         assertTrue( a.doc.contains( "edited by agent" ) && a.doc.contains( "A-edit" ), "the draft holds both: " + a.doc );
 
@@ -358,15 +358,6 @@ public class CollabRestIT {
             presenceSeq = lastPull.get( "presenceSeq" ).getAsLong();
             eventSeq = lastPull.get( "eventSeq" ).getAsLong();
             return this;
-        }
-
-        boolean sawParticipantEvent() {
-            for( final JsonElement e : lastPull.getAsJsonArray( "events" ) ) {
-                if( "participant-joined".equals( e.getAsJsonObject().get( "type" ).getAsString() ) ) {
-                    return true;
-                }
-            }
-            return false;
         }
 
         HttpResponse< String > publish( final int atVersion ) throws Exception {

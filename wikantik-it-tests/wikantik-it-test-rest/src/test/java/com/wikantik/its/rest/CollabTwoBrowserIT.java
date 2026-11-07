@@ -69,6 +69,8 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
 
     @BeforeEach
     void twoBrowsersSignedIn() throws Exception {
+        janneBrowser = null;
+        aliceBrowser = null;
         Selenide.closeWebDriver();
         ViewWikiPage.open( "Main" ).clickOnLogin().performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
         RestSeedHelper.awaitAdminReady();
@@ -87,19 +89,26 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
     @AfterEach
     void closeBoth() {
         try {
-            use( aliceBrowser );
-            clearEditorMode();
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "could not clear Alice's editor mode preference: {}", e.toString() );
+            if ( aliceBrowser != null ) {
+                try {
+                    use( aliceBrowser );
+                    clearEditorMode();
+                } catch ( final RuntimeException e ) {
+                    LOG.warn( "could not clear Alice's editor mode preference: {}", e.toString() );
+                }
+                try {
+                    aliceBrowser.quit();
+                } catch ( final RuntimeException e ) {
+                    LOG.warn( "could not close Alice's browser: {}", e.toString() );
+                }
+            }
+            if ( janneBrowser != null ) {
+                use( janneBrowser );
+            }
+            Selenide.closeWebDriver();
+        } finally {
+            RestSeedHelper.deletePageQuietly( PAGE );
         }
-        try {
-            aliceBrowser.quit();
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "could not close Alice's browser: {}", e.toString() );
-        }
-        use( janneBrowser );
-        Selenide.closeWebDriver();
-        RestSeedHelper.deletePageQuietly( PAGE );
     }
 
     @Test
@@ -190,7 +199,7 @@ public class CollabTwoBrowserIT extends WithIntegrationTestSetup {
             + "; janne has [" + a + "], Alice has [" + b + "]" );
     }
 
-    /** Clears the signed-in (current) browser's server editor-mode preference, which {@code pinMode} set. */
+    /** Clears the server editor-mode preference of the user signed in to the current browser (set by {@code pinMode}). */
     private static void clearEditorMode() {
         Selenide.executeAsyncJavaScript( """
             const cb = arguments[arguments.length - 1];

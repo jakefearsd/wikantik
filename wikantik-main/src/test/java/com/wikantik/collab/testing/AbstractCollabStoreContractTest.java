@@ -323,6 +323,67 @@ public abstract class AbstractCollabStoreContractTest {
         assertThrows( IllegalArgumentException.class, () -> store.appendMetaOps( UUID.randomUUID(), List.of( op( 1 ) ) ) );
     }
 
+    @Test
+    void metaOpValuesRoundTripIdenticallyInBothStores() {   // the Phase 1 Task 1 parity deferral
+        final SessionRecord s = created( "PageA" );
+        final Map< String, Object > nested = new java.util.LinkedHashMap<>();
+        nested.put( "n", 2 );
+        nested.put( "inner", Map.of( "x", 1.5 ) );
+        final Object[] in = { 3, 5L, 2.5, java.util.Date.from( Instant.parse( "2026-01-15T00:00:00Z" ) ),
+            java.util.Date.from( Instant.parse( "2026-01-15T10:30:00Z" ) ), List.of( 1, "a" ), nested, "s", true, null };
+        final Object[] out = { 3L, 5L, 2.5, "2026-01-15", "2026-01-15T10:30:00Z", List.of( 1L, "a" ),
+            Map.of( "n", 2L, "inner", Map.of( "x", 1.5 ) ), "s", true, null };
+        final List< StoredMetaOp > ops = new ArrayList<>();
+        for( int i = 0; i < in.length; i++ ) {
+            ops.add( new StoredMetaOp( i + 1, "alice", "f" + i, in[ i ] ) );
+        }
+        store.appendMetaOps( s.id(), ops );
+        final List< StoredMetaOp > back = store.metaOpsSince( s.id(), 0 );
+        assertEquals( in.length, back.size() );
+        for( int i = 0; i < in.length; i++ ) {
+            // equals is type-strict for numbers (Long 3 is not Integer 3), element by element inside lists and maps
+            assertEquals( out[ i ], back.get( i ).value(), "value " + i + " (" + in[ i ] + ")" );
+        }
+    }
+
+    // ---- batch (a push's text and meta) --------------------------------------------------------------------
+
+    @Test
+    void appendBatchStoresBothAndAdvancesBothCounters() {
+        final SessionRecord s = created( "PageA" );
+        store.appendBatch( s.id(), upds( 1, 2 ), List.of( op( 1 ) ) );
+        store.appendBatch( s.id(), List.of(), List.of( op( 2 ) ) );
+        store.appendBatch( s.id(), upds( 3, 3 ), List.of() );
+        store.appendBatch( s.id(), List.of(), List.of() );
+        final SessionRecord after = store.session( s.id() ).orElseThrow();
+        assertEquals( 3, after.headVersion() );
+        assertEquals( 2L, after.metaSeq() );
+        assertEquals( upds( 1, 3 ), store.updatesSince( s.id(), 0 ) );
+        assertEquals( List.of( op( 1 ), op( 2 ) ), store.metaOpsSince( s.id(), 0 ) );
+    }
+
+    @Test
+    void appendBatchIsAtomic() {
+        final SessionRecord s = created( "PageA" );
+        store.appendBatch( s.id(), upds( 1, 1 ), List.of( op( 1 ) ) );
+        // valid text, meta gap: nothing stored
+        assertThrows( IllegalStateException.class, () -> store.appendBatch( s.id(), upds( 2, 2 ), List.of( op( 3 ) ) ) );
+        // text gap, valid meta: nothing stored
+        assertThrows( IllegalStateException.class, () -> store.appendBatch( s.id(), upds( 3, 3 ), List.of( op( 2 ) ) ) );
+        final SessionRecord after = store.session( s.id() ).orElseThrow();
+        assertEquals( 1, after.headVersion() );
+        assertEquals( 1L, after.metaSeq() );
+        assertEquals( 1, store.updatesSince( s.id(), 0 ).size() );
+        assertEquals( 1, store.metaOpsSince( s.id(), 0 ).size() );
+    }
+
+    @Test
+    void appendBatchOnAnUnknownSessionThrowsIllegalArgument() {
+        assertThrows( IllegalArgumentException.class, () -> store.appendBatch( UUID.randomUUID(), upds( 1, 1 ),
+            List.of( op( 1 ) ) ) );
+        assertThrows( IllegalArgumentException.class, () -> store.appendBatch( UUID.randomUUID(), List.of(), List.of() ) );
+    }
+
     // ---- snapshots -----------------------------------------------------------------------------------------
 
     @Test

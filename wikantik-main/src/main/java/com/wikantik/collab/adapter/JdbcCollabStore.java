@@ -166,6 +166,20 @@ public final class JdbcCollabStore implements CollabStore {
     }
 
     @Override
+    public void appendBatch( final UUID id, final List< StoredUpdate > updates, final List< StoredMetaOp > ops ) {
+        try {
+            jdbc.inTransaction( conn -> {
+                final long[] counters = lockCounters( conn, id );
+                writes.appendUpdatesTx( conn, id, (int) counters[ 0 ], updates );
+                writes.appendMetaOpsTx( conn, id, counters[ 1 ], ops );
+                return null;
+            } );
+        } catch( final SQLException e ) {
+            throw translate( e, "appendBatch " + id );
+        }
+    }
+
+    @Override
     public List< StoredMetaOp > metaOpsSince( final UUID id, final long sinceSeq ) {
         try {
             return jdbc.query( "SELECT seq, author_key, field, value::text FROM collab_meta_op"
@@ -311,6 +325,12 @@ public final class JdbcCollabStore implements CollabStore {
     private long lockMetaSeq( final Connection conn, final UUID id ) throws SQLException {
         return jdbc.queryOne( conn, LOCK_SQL, ps -> ps.setObject( 1, id ), rs -> rs.getLong( 2 ) )
             .orElseThrow( () -> noSession( id ) );
+    }
+
+    /** The head version and meta sequence, read under the session row lock. */
+    private long[] lockCounters( final Connection conn, final UUID id ) throws SQLException {
+        return jdbc.queryOne( conn, LOCK_SQL, ps -> ps.setObject( 1, id ),
+            rs -> new long[] { rs.getInt( 1 ), rs.getLong( 2 ) } ).orElseThrow( () -> noSession( id ) );
     }
 
     private static IllegalArgumentException noSession( final UUID id ) {

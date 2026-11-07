@@ -82,6 +82,20 @@ final class Roster {
         return r.displayName() != null && !r.displayName().isBlank() ? r.displayName() : "Editor " + n;
     }
 
+    /**
+     * The public name of {@code authorKey} for a meta op's {@code by}: a live participant's display name, else
+     * {@link CollabIdentity}'s; null when neither has one. Never the key itself.
+     */
+    String nameOf( final String authorKey ) {
+        for( final Participant p : participants.values() ) {
+            if( p.authorKey.equals( authorKey ) ) {
+                return p.displayName;
+            }
+        }
+        final String name = identity.displayName( authorKey );
+        return name == null || name.isBlank() ? null : name;
+    }
+
     private String clientIdFor( final JoinRequest r, final int n ) {
         final String prior = r.priorClientId();
         final Retired retired = prior == null ? null : retiredClients.get( prior );

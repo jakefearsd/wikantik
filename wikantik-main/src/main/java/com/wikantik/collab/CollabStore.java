@@ -72,6 +72,14 @@ public interface CollabStore {
     /** As {@link #appendUpdates}, applied to {@code seq} and {@code metaSeq}. */
     void appendMetaOps( UUID id, List< StoredMetaOp > ops );
 
+    /**
+     * A push's text updates and meta ops (A14) as one atomic step: {@code updates} follow the rules of
+     * {@link #appendUpdates} and {@code ops} those of {@link #appendMetaOps}; if either list is not contiguous, or any
+     * write fails, nothing is stored ({@code IllegalStateException} for a contiguity failure). Either list may be empty;
+     * both empty is a no-op (on an unknown session it still throws {@code IllegalArgumentException}).
+     */
+    void appendBatch( UUID id, List< StoredUpdate > updates, List< StoredMetaOp > ops );
+
     /** Retained meta ops with {@code seq > sinceSeq}, ascending; a gap is detected as for {@link #updatesSince}. */
     List< StoredMetaOp > metaOpsSince( UUID id, long sinceSeq );
 

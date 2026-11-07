@@ -24,6 +24,7 @@ import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.collab.model.PublishResponse;
 import com.wikantik.collab.model.SessionRecord;
+import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredUpdate;
 import com.wikantik.collab.text.ChangeSet;
 import com.wikantik.collab.text.CollabText;
@@ -139,9 +140,13 @@ final class PublishFlow {
             new PublishRequest( d.pageName(), d.doc, MetaMerge.published( d.meta, original ), b, p.authorKey, note ) );
         final SessionRecord marked = d.record.withPending( d.head, b, p.authorKey );
         try {
+            // M_V made durable before the marker (A10: a snapshot at the publish point): the pending-publish rule reads
+            // it back, so a recovered fold never takes meta edits made during the save for filter changes (review M5)
+            d.store.writeSnapshot( d.id, new Snapshot( d.head, d.metaSeq, b, d.doc, d.meta, d.local ) );
+            d.lastSnapshotVersion = d.head;
             d.store.updateSession( marked );
         } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): the pending-publish marker was not stored; not publishing: {}", d.id,
+            LOG.warn( "collab session {} ({}): the publish snapshot or marker was not stored; not publishing: {}", d.id,
                 d.pageName(), e.getMessage() );
             return new PublishStart( new PublishResponse( 503, b, CollabSession.STORE, false ), null );
         }
@@ -376,8 +381,12 @@ final class PublishFlow {
                 return d.unfinished;
             }
             final String sv = d.docAt( v );
-            return sv == null ? null : new PublishStart.Ticket( null, author, identity.displayName( author ), v, sv, d.meta, b,
-                new PublishRequest( page, sv, d.meta, b, author, "" ) );
+            if( sv == null ) {
+                return null;
+            }
+            final Map< String, Object > mv = d.metaAtPublish( v );
+            return new PublishStart.Ticket( null, author, identity.displayName( author ), v, sv, mv, b,
+                new PublishRequest( page, sv, mv, b, author, "" ) );
         } finally {
             lock.unlock();
         }

@@ -19,11 +19,18 @@
 package com.wikantik.collab.model;
 
 /**
- * A meta field assignment as a pull carries it (section 6.1): {@code value} null removes the field. Unlike
- * {@link StoredMetaOp} it holds no author key, so no login ever reaches the wire.
+ * A meta field assignment as a pull carries it (section 6.1, A14): the server-resolved value ({@code value} null removes
+ * the field) and {@code by}, the public display name of the participant who authored it, or null for a server op (a
+ * publish fold or an external merge) or an author with no public name. Unlike {@link StoredMetaOp} it holds no author
+ * key, so no login ever reaches the wire.
  */
-public record MetaOp( String field, Object value ) {
+public record MetaOp( String field, Object value, String by ) {
     public MetaOp {
         ModelChecks.nonBlank( field, "field" );
+    }
+
+    /** A server op: no author. */
+    public MetaOp( final String field, final Object value ) {
+        this( field, value, null );
     }
 }

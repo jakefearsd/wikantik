@@ -236,7 +236,8 @@ final class Draft {
         return true;
     }
 
-    private void applyMetaOps( final List< StoredMetaOp > ops ) {
+    /** Stored meta ops applied in memory: meta, metaSeq and the pull feed. */
+    void applyMetaOps( final List< StoredMetaOp > ops ) {
         ops.forEach( op -> SessionLoader.applyMetaOp( meta, op ) );
         metaSeq += ops.size();
         feed.addMetaOps( ops );
@@ -265,6 +266,22 @@ final class Draft {
             w = w.compose( u.changes() );
         }
         return w;
+    }
+
+    /**
+     * M_V of the publish marked at version {@code v}: the meta of the snapshot the publish wrote at {@code v} before its
+     * marker. Falls back to the live meta (logged) when that snapshot is absent, as for a marker stored before publishes
+     * wrote one; the fold may then revert meta edits made during that save. A store failure propagates: the caller's
+     * pending-publish rule is retried by {@code settle}.
+     */
+    Map< String, Object > metaAtPublish( final int v ) {
+        final Optional< Snapshot > snap = store.snapshotAtOrBelow( id, v );
+        if( snap.isPresent() && snap.get().version() == v ) {
+            return MetaJson.normalise( snap.get().meta() );
+        }
+        LOG.warn( "collab session {} ({}): no snapshot at the published version {}; recovering with the live meta", id,
+            pageName(), v );
+        return meta;
     }
 
     /** The document at version {@code v}: from the newest snapshot at or below it plus the log; null when not rebuildable. */

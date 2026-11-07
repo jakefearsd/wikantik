@@ -23,12 +23,18 @@ package com.wikantik.collab.model;
  * mismatch, lone surrogate, another participant's clientID); 403 {@code not-your-participant} (A6); 409
  * {@code stale-base}, {@code rejoin} (unknown or expired participant) or {@code frozen}; 413 {@code oversize}; 429
  * {@code rate-limited} (A8); 503 {@code store} (the append failed, nothing applied, E35). {@code version} is the head
- * after the call and {@code reason} is null on 200.
+ * after the call and {@code reason} is null on 200. {@code metaSeq} is the meta sequence after an accepted push (A14),
+ * 0 on a refusal. A bad meta edit refuses the whole push (400 {@code rejected}: no text, meta or selection applied).
  */
-public record PushResponse( int status, int version, String reason ) {
+public record PushResponse( int status, int version, String reason, long metaSeq ) {
 
-    public static PushResponse accepted( final int version ) {
-        return new PushResponse( 200, version, null );
+    /** A refusal (or any answer without a meta sequence): {@code metaSeq} 0. */
+    public PushResponse( final int status, final int version, final String reason ) {
+        this( status, version, reason, 0L );
+    }
+
+    public static PushResponse accepted( final int version, final long metaSeq ) {
+        return new PushResponse( 200, version, null, metaSeq );
     }
 
     public static PushResponse refused( final int status, final int version, final String reason ) {

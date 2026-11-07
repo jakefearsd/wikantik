@@ -75,8 +75,9 @@ final class MetaMerge {
         final Map< String, Object > out = new LinkedHashMap<>();
         for( final Map.Entry< String, Object > e : meta.entrySet() ) {
             final String f = e.getKey();
-            out.put( f, original.containsKey( f ) && Objects.equals( normalise( original.get( f ) ), e.getValue() )
-                ? original.get( f ) : e.getValue() );
+            final boolean unchanged = original.containsKey( f )
+                && Objects.equals( MetaJson.normaliseValue( original.get( f ) ), e.getValue() );
+            out.put( f, unchanged ? original.get( f ) : e.getValue() );
         }
         return out;
     }
@@ -109,11 +110,5 @@ final class MetaMerge {
         final Set< String > out = new LinkedHashSet<>( a.keySet() );
         out.addAll( b.keySet() );
         return out;
-    }
-
-    private static Object normalise( final Object value ) {
-        final Map< String, Object > one = new LinkedHashMap<>();
-        one.put( "v", value );
-        return MetaJson.normalise( one ).get( "v" );
     }
 }

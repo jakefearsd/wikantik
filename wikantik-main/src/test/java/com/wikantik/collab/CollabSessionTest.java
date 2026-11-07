@@ -589,6 +589,7 @@ class CollabSessionTest {
         @Override public void appendUpdates( final UUID id, final List< StoredUpdate > u ) { d.appendUpdates( id, u ); }
         @Override public List< StoredUpdate > updatesSince( final UUID id, final int v ) { check(); return d.updatesSince( id, v ); }
         @Override public void appendMetaOps( final UUID id, final List< com.wikantik.collab.model.StoredMetaOp > o ) { d.appendMetaOps( id, o ); }
+        @Override public void appendBatch( final UUID id, final List< StoredUpdate > u, final List< com.wikantik.collab.model.StoredMetaOp > o ) { d.appendBatch( id, u, o ); }
         @Override public List< com.wikantik.collab.model.StoredMetaOp > metaOpsSince( final UUID id, final long s ) { check(); return d.metaOpsSince( id, s ); }
         @Override public void commitBaseChange( final UUID id, final List< StoredUpdate > u, final Snapshot s, final SessionRecord r ) { d.commitBaseChange( id, u, s, r ); }
         @Override public void writeSnapshot( final UUID id, final Snapshot s ) { d.writeSnapshot( id, s ); }

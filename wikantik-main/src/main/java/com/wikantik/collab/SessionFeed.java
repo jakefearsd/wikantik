@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * The side streams a pull carries besides text (section 6.2): the recent meta ops and the event stream, each bounded to
@@ -55,8 +56,12 @@ final class SessionFeed {
         }
     }
 
-    /** The ops after {@code since} up to {@code metaSeq} in wire form, or null when some of them are no longer held. */
-    List< MetaOp > metaOpsAfter( final long since, final long metaSeq ) {
+    /**
+     * The ops after {@code since} up to {@code metaSeq} in wire form, or null when some of them are no longer held. An
+     * op a participant authored carries {@code by}, {@code byName} of its author key (the public display name, never
+     * the key; null omits it); a server op (no author key) never does.
+     */
+    List< MetaOp > metaOpsAfter( final long since, final long metaSeq, final Function< String, String > byName ) {
         if( since >= metaSeq ) {
             return List.of();
         }
@@ -66,7 +71,8 @@ final class SessionFeed {
         final List< MetaOp > out = new ArrayList<>();
         for( final StoredMetaOp op : metaOps ) {
             if( op.seq() > since ) {
-                out.add( new MetaOp( op.field(), op.value() ) );
+                out.add( new MetaOp( op.field(), op.value(),
+                    op.authorKey() == null ? null : byName.apply( op.authorKey() ) ) );
             }
         }
         return out;

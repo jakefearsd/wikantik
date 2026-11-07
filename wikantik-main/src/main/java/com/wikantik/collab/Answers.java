@@ -57,7 +57,8 @@ final class Answers {
      * events after their cursors. 410 when the meta ops after the cursor are no longer held.
      */
     PullResponse answer( final List< StoredUpdate > updates, final String participantId, final PullCursor cursor ) {
-        final List< MetaOp > ops = d.feed.metaOpsAfter( Math.min( cursor.metaSince(), d.metaSeq ), d.metaSeq );
+        final List< MetaOp > ops = d.feed.metaOpsAfter( Math.min( cursor.metaSince(), d.metaSeq ), d.metaSeq,
+            roster::nameOf );
         if( ops == null ) {
             return PullResponse.refused( 410, d.head, "resync" );
         }

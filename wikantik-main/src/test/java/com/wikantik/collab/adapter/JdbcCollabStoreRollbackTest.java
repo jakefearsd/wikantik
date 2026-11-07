@@ -105,6 +105,34 @@ class JdbcCollabStoreRollbackTest {
     }
 
     @Test
+    void appendBatchRollsBackOnTheMetaInsert() {
+        // statements: 1 lock, 2 update insert, 3 head bump, 4 meta-op insert, 5 meta-seq bump
+        faulty.failOn( 4, new RuntimeException( "boom" ) );
+        assertThrows( RuntimeException.class, () -> faultyStore.appendBatch( s.id(), List.of( upd( 1 ) ),
+            List.of( new StoredMetaOp( 1, "alice", "tags", List.of( "x" ) ) ) ) );
+        assertTrue( clean.updatesSince( s.id(), 0 ).isEmpty(), "the text insert must have been rolled back" );
+        assertTrue( clean.metaOpsSince( s.id(), 0 ).isEmpty() );
+        final SessionRecord after = clean.session( s.id() ).orElseThrow();
+        assertEquals( 0, after.headVersion(), "the head bump must have been rolled back" );
+        assertEquals( 0L, after.metaSeq() );
+        assertTrue( faulty.rollbacks() >= 1, "the transaction must be rolled back explicitly" );
+    }
+
+    @Test
+    void appendBatchRollsBackWhicheverStatementFails() {
+        for( int failing = 2; failing <= 5; failing++ ) {
+            faulty.reset();
+            faulty.failOn( failing, new RuntimeException( "boom at " + failing ) );
+            assertThrows( RuntimeException.class, () -> faultyStore.appendBatch( s.id(), List.of( upd( 1 ) ),
+                List.of( new StoredMetaOp( 1, "alice", "title", "t" ) ) ), "statement " + failing );
+            assertTrue( clean.updatesSince( s.id(), 0 ).isEmpty(), "statement " + failing );
+            assertTrue( clean.metaOpsSince( s.id(), 0 ).isEmpty(), "statement " + failing );
+            assertEquals( 0, clean.session( s.id() ).orElseThrow().headVersion(), "statement " + failing );
+            assertEquals( 0L, clean.session( s.id() ).orElseThrow().metaSeq(), "statement " + failing );
+        }
+    }
+
+    @Test
     void commitBaseChangeRollsBackWhicheverStatementFails() {
         final Snapshot snap = new Snapshot( 1, 0L, 4, "base@4", Map.of(), CS );
         final SessionRecord updated = s.withBase( 4, "base@4", Map.of(), "hash-4" );

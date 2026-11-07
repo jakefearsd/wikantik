@@ -22,6 +22,7 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
 import com.wikantik.collab.model.LeaveResponse;
+import com.wikantik.collab.model.MetaEdit;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishResponse;
@@ -83,10 +84,10 @@ import java.util.function.Function;
  * ({@link #settle}, {@link #load}); any other version is an external write. After every publish and merge each
  * participant's {@code edit} is re-checked and those who lost it are evicted.</p>
  *
- * <p><b>Presence</b> (A12, ruling P7) rides on push and pull: a push without updates only records the selection and
- * skips the version check. Joins, leaves and selection changes move {@code presenceSeq}; a pull whose
- * {@code presenceSince} is older gets the full map of the other participants (display name from {@link CollabIdentity},
- * colour by join order) at once, and parked pulls are woken with it. Meta ops and the event stream
+ * <p><b>Presence</b> (A12, ruling P7) rides on push and pull: a push without updates only records the selection (and
+ * any meta edits, A14) and skips the version check. Joins, leaves and selection changes move {@code presenceSeq}; a
+ * pull whose {@code presenceSince} is older gets the full map of the other participants (display name from
+ * {@link CollabIdentity}, colour by join order) at once, and parked pulls are woken with it. Meta ops and the event stream
  * ({@code published}, {@code publish-failed}, {@code external-change}, {@code oversize}) ride on pull the same way
  * ({@link PullCursor}).</p>
  */
@@ -127,6 +128,7 @@ public final class CollabSession {
     private final Roster roster;
     private final Answers answers;
     private final PublishFlow flow;
+    private final SessionPush pusher;
     /** Created here and not yet joined: the first join may seed initial text (A11). */
     private boolean fresh;
 
@@ -142,6 +144,7 @@ public final class CollabSession {
         this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-", ports.identity(),
             Duration.ofSeconds( config.presenceTimeoutSeconds() ) );
         this.answers = new Answers( d, roster, new Waiters( id ) );
+        this.pusher = new SessionPush( d, roster, answers, config );
         this.flow = new PublishFlow( d, lock, writer, ports.identity(), answers,
             new ExternalMerge( d, lock, writer, ports.identity(), answers ) );
     }
@@ -308,72 +311,36 @@ public final class CollabSession {
 
     public PushResponse push( final String participantId, final String authorKey, final int version,
                               final List< Update > updates ) {
-        return push( participantId, authorKey, version, updates, null );
+        return push( participantId, authorKey, version, updates, List.of(), null );
+    }
+
+    public PushResponse push( final String participantId, final String authorKey, final int version,
+                              final List< Update > updates, final Selection selection ) {
+        return push( participantId, authorKey, version, updates, List.of(), selection );
     }
 
     /**
-     * Section 7.2: validates the whole batch, appends it to the store, then applies it in memory; on a store failure
-     * nothing changes (503, E35). Waiters are answered after the lock is released.
+     * Section 7.2 with A14's meta edits ({@link SessionPush}): validates the whole push (text and every meta edit),
+     * stores the text and the resolved meta ops in one step, then applies them in memory; on a store failure nothing
+     * changes (503, E35); a refusal applies nothing. A push without text skips the version check. Waiters are answered
+     * after the lock is released.
      */
     public PushResponse push( final String participantId, final String authorKey, final int version,
-                              final List< Update > updates, final Selection selection ) {
+                              final List< Update > updates, final List< MetaEdit > metaEdits,
+                              final Selection selection ) {
+        Objects.requireNonNull( updates, "updates" );
+        Objects.requireNonNull( metaEdits, "metaEdits" );
         final List< Runnable > completions = new ArrayList<>();
         final PushResponse out;
         lock.lock();
         try {
-            out = pushLocked( participantId, authorKey, version, updates, selection, completions );
+            out = pusher.push( participantId, authorKey, version, updates, metaEdits, selection, clock.instant(),
+                completions );
         } finally {
             lock.unlock();
         }
         completions.forEach( Runnable::run );
         return out;
-    }
-
-    private PushResponse pushLocked( final String participantId, final String authorKey, final int version,
-                                     final List< Update > updates, final Selection selection,
-                                     final List< Runnable > completions ) {
-        final Participant p = roster.get( participantId );
-        final Instant now = clock.instant();
-        final Gate.Refusal refused = Gate.push( p, authorKey, now, config.pushesPerSecond(),
-            SessionRecord.FROZEN.equals( d.record.status() ) );
-        if( refused != null ) {
-            return PushResponse.refused( refused.status(), d.head, refused.reason() );
-        }
-        Gate.confirm( p, version, d.head );
-        if( updates.isEmpty() ) {
-            // presence-only push (ruling P7): no version check, the selection is placed by its own version
-            if( keepSelection( p, selection ) ) {
-                answers.presenceChanged( p.id, completions );
-            }
-            return PushResponse.accepted( d.head );
-        }
-        if( version != d.head ) {
-            return PushResponse.refused( 409, d.head, STALE );
-        }
-        final PushCheck check = PushCheck.of( p, updates, d.doc, d.head, d.oversize.maxPageBytes() );
-        if( check.refusal() != null ) {
-            return PushResponse.refused( check.refusal().status(), d.head, check.refusal().reason() );
-        }
-        final List< StoredUpdate > accepted = check.accepted();
-        try {
-            d.store.appendUpdates( id, accepted );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab session {} ({}): push from {} not stored, nothing applied: {}", id, d.pageName(),
-                participantId, e.getMessage() );
-            return PushResponse.refused( 503, d.head, STORE );
-        }
-        d.applyAccepted( accepted, check.next() );
-        d.lastEditAt = now;
-        d.oversize.update( d.doc, false );
-        final Selection own = Presence.afterOwnPush( selection, version, accepted.size(), d.doc.length(), d.head );
-        if( own != null ? Presence.set( p, own ) : keepSelection( p, selection ) ) {
-            d.presenceSeq++;
-        }
-        if( d.snapshotDue( config.snapshotEveryUpdates() ) ) {
-            d.snapshot( roster.lowestConfirmed( d.head ) );
-        }
-        answers.wakeAll( accepted, completions );
-        return PushResponse.accepted( d.head );
     }
 
     // ---- pull ------------------------------------------------------------------------------------------------

@@ -74,4 +74,11 @@ public final class MetaJson {
         final Map< String, Object > out = GSON.fromJson( GSON.toJson( meta ), MAP_TYPE );
         return out == null ? new LinkedHashMap<>() : new LinkedHashMap<>( out );
     }
+
+    /** One meta value after the same JSON round trip (null stays null). */
+    public static Object normaliseValue( final Object value ) {
+        final Map< String, Object > one = new LinkedHashMap<>();
+        one.put( "v", value );
+        return normalise( one ).get( "v" );
+    }
 }

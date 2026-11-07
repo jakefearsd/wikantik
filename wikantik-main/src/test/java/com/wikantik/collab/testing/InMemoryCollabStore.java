@@ -19,6 +19,7 @@
 package com.wikantik.collab.testing;
 
 import com.wikantik.collab.CollabStore;
+import com.wikantik.collab.MetaJson;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredMetaOp;
@@ -43,7 +44,7 @@ public final class InMemoryCollabStore implements CollabStore {
 
     /** The mutating operations that carry a fault point. */
     public enum Op {
-        CREATE_SESSION, UPDATE_SESSION, APPEND_UPDATES, APPEND_META, WRITE_SNAPSHOT, COMMIT_BASE_CHANGE, TRUNCATE, DELETE
+        CREATE_SESSION, UPDATE_SESSION, APPEND_UPDATES, APPEND_META, APPEND_BATCH, WRITE_SNAPSHOT, COMMIT_BASE_CHANGE, TRUNCATE, DELETE
     }
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -114,8 +115,12 @@ public final class InMemoryCollabStore implements CollabStore {
         return new Snapshot( s.version(), s.metaSeq(), s.basePageVersion(), s.body(), deepMeta( s.meta() ), s.local() );
     }
 
+    /**
+     * Stored as the Postgres store reads it back: the JSON normalisation of the value (Long or Double numbers, ISO date
+     * strings), so both stores return identical values (the Phase 1 parity deferral). The round trip also detaches it.
+     */
     private static StoredMetaOp detach( final StoredMetaOp o ) {
-        return new StoredMetaOp( o.seq(), o.authorKey(), o.field(), deep( o.value() ) );
+        return new StoredMetaOp( o.seq(), o.authorKey(), o.field(), MetaJson.normaliseValue( o.value() ) );
     }
 
     private void fault( final Op op ) {
@@ -290,17 +295,47 @@ public final class InMemoryCollabStore implements CollabStore {
             if( ops.isEmpty() ) {
                 return;
             }
-            long expected = s.metaSeq();
-            for( final StoredMetaOp o : ops ) {
-                expected++;
-                if( o.seq() != expected ) {
-                    throw new IllegalStateException( "meta seq " + o.seq() + " is not " + expected
-                        + " (metaSeq " + s.metaSeq() + ")" );
-                }
+            checkContiguousMeta( s, ops );
+            storeMeta( id, s, ops );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private static void checkContiguousMeta( final SessionRecord s, final List< StoredMetaOp > ops ) {
+        long expected = s.metaSeq();
+        for( final StoredMetaOp o : ops ) {
+            expected++;
+            if( o.seq() != expected ) {
+                throw new IllegalStateException( "meta seq " + o.seq() + " is not " + expected
+                    + " (metaSeq " + s.metaSeq() + ")" );
             }
-            final TreeMap< Long, StoredMetaOp > log = metaOps.get( id );
-            ops.forEach( o -> log.put( o.seq(), detach( o ) ) );
-            sessions.put( id, s.withMetaSeq( s.metaSeq() + ops.size() ) );
+        }
+    }
+
+    private void storeMeta( final UUID id, final SessionRecord s, final List< StoredMetaOp > ops ) {
+        final TreeMap< Long, StoredMetaOp > log = metaOps.get( id );
+        ops.forEach( o -> log.put( o.seq(), detach( o ) ) );
+        sessions.put( id, s.withMetaSeq( s.metaSeq() + ops.size() ) );
+    }
+
+    @Override
+    public void appendBatch( final UUID id, final List< StoredUpdate > list, final List< StoredMetaOp > ops ) {
+        lock.lock();
+        try {
+            fault( Op.APPEND_BATCH );
+            final SessionRecord s = require( id );
+            // both checks before any write: all-or-nothing
+            checkContiguous( s, list );
+            checkContiguousMeta( s, ops );
+            if( !list.isEmpty() ) {
+                final TreeMap< Integer, StoredUpdate > log = updates.get( id );
+                list.forEach( u -> log.put( u.version(), u ) );
+                sessions.put( id, s.withHead( s.headVersion() + list.size() ) );
+            }
+            if( !ops.isEmpty() ) {
+                storeMeta( id, sessions.get( id ), ops );
+            }
         } finally {
             lock.unlock();
         }

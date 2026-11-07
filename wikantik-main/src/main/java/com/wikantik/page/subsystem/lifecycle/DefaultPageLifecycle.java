@@ -22,6 +22,8 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.api.pages.SaveGuard;
+import com.wikantik.api.pages.SaveOutcome;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.acl.AccessRuleShapeCheck;
@@ -29,6 +31,9 @@ import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.util.TextUtil;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 /**
@@ -69,14 +74,43 @@ public class DefaultPageLifecycle implements PageLifecycle {
     // PageLifecycle implementation
     // -------------------------------------------------------------------------
 
+    /** A per-page lock, reference-counted so the registry does not grow with every page name ever saved. */
+    private static final class PageLock {
+        final ReentrantLock lock = new ReentrantLock();
+        int refs;
+    }
+
+    private final ConcurrentHashMap< String, PageLock > pageLocks = new ConcurrentHashMap<>();
+
+    private PageLock acquire( final String name ) {
+        final PageLock pl = pageLocks.compute( name, ( k, v ) -> {
+            final PageLock l = v == null ? new PageLock() : v;
+            l.refs++;
+            return l;
+        } );
+        pl.lock.lock();
+        return pl;
+    }
+
+    private void release( final String name, final PageLock pl ) {
+        pl.lock.unlock();
+        pageLocks.computeIfPresent( name, ( k, v ) -> --v.refs == 0 ? null : v );
+    }
+
     @Override
     public void saveText( final Context context, final String text ) throws WikiException {
+        saveText( context, text, SaveGuard.NONE );
+    }
+
+    @Override
+    public SaveOutcome saveText( final Context context, final String text, final SaveGuard guard ) throws WikiException {
         // Check if page data actually changed; bail if not
         final Page page = context.getPage();
-        final String oldText = repository.getPureText( page.getName(), page.getVersion() );
+        final String name = page.getName();
+        final String oldText = repository.getPureText( name, page.getVersion() );
         final String proposedText = TextUtil.normalizePostData( text );
         if ( oldText != null && oldText.equals( proposedText ) ) {
-            return;
+            return unchanged( name, guard );
         }
 
         // Check if creation of empty pages is allowed; bail if not
@@ -84,8 +118,8 @@ public class DefaultPageLifecycle implements PageLifecycle {
                 CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(),
                 Engine.PROP_ALLOW_CREATION_OF_EMPTY_PAGES,
                 false );
-        if ( !allowEmpty && !repository.wikiPageExists( page.getName(), page.getVersion() ) && text.isBlank() ) {
-            return;
+        if ( !allowEmpty && !repository.wikiPageExists( name, page.getVersion() ) && text.isBlank() ) {
+            return unchanged( name, guard );
         }
 
         // Set the page author: the login (the stable storage key), never the session's full name; PublicIdentity turns it
@@ -96,24 +130,43 @@ public class DefaultPageLifecycle implements PageLifecycle {
             page2.setAuthor( authorKey );
         }
 
-        // Run pre-save filters
+        // Run pre-save filters. They depend on the input text, not on the stored page, so they run before the lock.
         final String saveText = getFilterManager().doPreSaveFiltering( context, proposedText );
 
-        // Refuse a text that adds an access rule the wiki cannot read (it would lock the page, #104). Checked here, on
-        // the text putPageText stores, and not as a filter in the chain: filters rewrite the text (the structural spine
-        // and the frontmatter defaults re-emit the frontmatter, decoding a YAML escape into a literal rule), and no filter
-        // priority is sure to run after every other filter, whichever optional subsystems are wired.
-        accessRuleShapes.check( page.getName(), saveText );
+        // The per-page lock covers guard check, access-rule check, write and reading back the written version. Post-save
+        // filters, reindex and events run after unlock so a listener that saves another page cannot deadlock.
+        final int written;
+        final PageLock pl = acquire( name );
+        try {
+            guard.check( repository.getPage( name ), repository.getPureText( name, PageProvider.LATEST_VERSION ) );
 
-        // Save the page text
-        repository.putPageText( page, saveText );
+            // Refuse a text that adds an access rule the wiki cannot read (it would lock the page, #104). Checked here, on
+            // the text putPageText stores, and not as a filter in the chain: filters rewrite the text (the structural
+            // spine and the frontmatter defaults re-emit the frontmatter, decoding a YAML escape into a literal rule),
+            // and no filter priority is sure to run after every other filter, whichever optional subsystems are wired.
+            accessRuleShapes.check( name, saveText );
+
+            repository.putPageText( page, saveText );
+
+            final Page latest = repository.getPage( name );
+            written = latest == null ? 0 : latest.getVersion();
+        } finally {
+            release( name, pl );
+        }
 
         // Refresh the context for post-save filtering
-        repository.getPage( page.getName() );
         getFilterManager().doPostSaveFiltering( context, saveText );
 
         // Reindex the saved page
-        page.setVersion( com.wikantik.api.providers.PageProvider.LATEST_VERSION );
+        page.setVersion( PageProvider.LATEST_VERSION );
         getSearchManager().reindexPage( page );
+
+        return new SaveOutcome( repository.getPage( name, written ), written, false );
+    }
+
+    private SaveOutcome unchanged( final String name, final SaveGuard guard ) throws WikiException {
+        final Page latest = repository.getPage( name );
+        guard.check( latest, repository.getPureText( name, PageProvider.LATEST_VERSION ) );
+        return new SaveOutcome( latest, latest == null ? 0 : latest.getVersion(), true );
     }
 }

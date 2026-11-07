@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **A strict-mode save could be silently overtaken.** A save carrying `expectedVersion` checked the version before the
+  pre-save filters ran and outside any lock, so an unguarded save landing in between was overwritten. The check now runs
+  under a per-page lock together with the write, and `PageSaveHelper.saveTracked` reports the version this call wrote.
+
 ## [2.5.9] - 2026-11-06
 
 ### Security

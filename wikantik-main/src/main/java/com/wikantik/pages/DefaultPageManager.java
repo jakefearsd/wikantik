@@ -176,6 +176,8 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     @Override public PageSorter getPageSorter()                                                  { return repository.getPageSorter(); }
 
     @Override public void saveText( final Context c, final String t ) throws WikiException       { lifecycle.saveText( c, t ); }
+    @Override public com.wikantik.api.pages.SaveOutcome saveText( final Context c, final String t,
+            final com.wikantik.api.pages.SaveGuard g ) throws WikiException                       { return lifecycle.saveText( c, t, g ); }
 
     // -------------------------------------------------------------------------
     // Event helper (retained for subclass / listener registration on *this*)

@@ -53,6 +53,24 @@ class PageSaveHelperTest {
     }
 
     @Test
+    void saveTrackedReturnsTheWrittenVersionNotTheLatest() throws Exception {
+        // Needs a versioning provider: the default test provider reports every version as -1.
+        final TestEngine vers = TestEngine.build( TestEngine.getTestProperties( "/wikantik-vers-custom.properties" ) );
+        try {
+            final PageManager vpm = vers.getManager( PageManager.class );
+            final PageSaveHelper vh = new PageSaveHelper( vers, vpm );
+            vh.saveText( "HelperTracked", "one", SaveOptions.builder().author( "Bot" ).build() );
+            final var out = vh.saveTracked( "HelperTracked", "two", SaveOptions.builder().author( "Bot" ).build() );
+            assertEquals( 2, out.version() );
+            assertEquals( 2, out.page().getVersion() );
+            assertFalse( out.unchanged() );
+        } finally {
+            vers.deleteTestPage( "HelperTracked" );
+            vers.stop();
+        }
+    }
+
+    @Test
     void testBasicSave() throws Exception {
         final Page saved = helper.saveText( "HelperBasic", "Hello world.",
                 SaveOptions.builder().author( "TestBot" ).build() );

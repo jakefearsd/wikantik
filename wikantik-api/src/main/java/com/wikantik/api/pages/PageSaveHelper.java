@@ -67,44 +67,43 @@ public class PageSaveHelper {
      * @throws WikiException            on any other save failure
      */
     public Page saveText( final String pageName, final String text, final SaveOptions options ) throws WikiException {
+        return saveTracked( pageName, text, options ).page();
+    }
+
+    /**
+     * As {@link #saveText}, but reports the version this call wrote (not whatever is latest by the time it returns), and
+     * evaluates the optimistic-locking checks atomically with the write.
+     */
+    public SaveOutcome saveTracked( final String pageName, final String text, final SaveOptions options )
+            throws WikiException {
         final PageManager pm = pageManager;
-
-        checkOptimisticLocking( pm, pageName, options );
-
         final String effectiveText = buildEffectiveText( pm, pageName, text, options );
 
         // Create page, set attributes, create context, save
         final Page page = Wiki.contents().page( engine, pageName );
         applyAttributes( page, options );
         final Context context = Wiki.context().create( engine, page );
-        pm.saveText( context, effectiveText );
-
-        return pm.getPage( pageName );
+        return pm.saveText( context, effectiveText, guardFor( pageName, options ) );
     }
 
-    /**
-     * Enforces the version and content-hash optimistic-locking checks, throwing
-     * {@link VersionConflictException} on a mismatch.
-     */
-    private void checkOptimisticLocking( final PageManager pm, final String pageName, final SaveOptions options )
-            throws VersionConflictException {
-        // Optimistic locking: version check
-        if( options.expectedVersion() > 0 ) {
-            final Page current = pm.getPage( pageName );
-            if( current != null && Math.max( current.getVersion(), 1 ) != options.expectedVersion() ) {
+    /** The version and content-hash optimistic-locking checks as a guard, evaluated under the page's save lock. */
+    private static SaveGuard guardFor( final String pageName, final SaveOptions options ) {
+        if( options.expectedVersion() <= 0 && options.expectedContentHash() == null ) {
+            return SaveGuard.NONE;
+        }
+        return ( current, currentText ) -> {
+            if( options.expectedVersion() > 0 && current != null
+                    && Math.max( current.getVersion(), 1 ) != options.expectedVersion() ) {
                 throw new VersionConflictException( pageName, Math.max( current.getVersion(), 1 ),
                         options.expectedVersion(), false );
             }
-        }
-
-        // Optimistic locking: content hash check
-        if( options.expectedContentHash() != null ) {
-            final String currentText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
-            final String currentHash = computeContentHash( currentText != null ? currentText : "" );
-            if( !currentHash.equals( options.expectedContentHash() ) ) {
-                throw new VersionConflictException( pageName, -1, -1, true );
+            if( options.expectedContentHash() != null ) {
+                final String currentHash = computeContentHash( currentText != null ? currentText : "" );
+                if( !currentHash.equals( options.expectedContentHash() ) ) {
+                    throw new VersionConflictException( pageName, -1, -1, true );
+                }
             }
-        }
+        };
     }
 
     /** Builds the page text to persist, merging/writing frontmatter when metadata is supplied. */

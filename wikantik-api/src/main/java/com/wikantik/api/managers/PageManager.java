@@ -147,6 +147,22 @@ public interface PageManager extends WikiEventListener {
     void saveText( Context context, String text ) throws WikiException;
 
     /**
+     * Saves the page text after evaluating {@code guard} atomically with the write. The default implementation
+     * (for test doubles) checks and then saves without atomicity; {@code DefaultPageManager} holds a per-page lock
+     * across the guard check and the write.
+     *
+     * @return the version this call wrote (or the existing latest version when nothing changed)
+     */
+    default com.wikantik.api.pages.SaveOutcome saveText( final Context context, final String text,
+            final com.wikantik.api.pages.SaveGuard guard ) throws WikiException {
+        final String name = context.getPage().getName();
+        guard.check( getPage( name ), getPureText( name, com.wikantik.api.providers.PageProvider.LATEST_VERSION ) );
+        saveText( context, text );
+        final Page latest = getPage( name );
+        return new com.wikantik.api.pages.SaveOutcome( latest, latest == null ? 0 : latest.getVersion(), false );
+    }
+
+    /**
      * Puts the page text into the repository.  Note that this method does NOT update
      * JSPWiki internal data structures, and therefore you should always use saveText()
      *

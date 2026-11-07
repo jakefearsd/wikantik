@@ -32,4 +32,8 @@ public interface PageLifecycle {
 
     /** @see com.wikantik.api.managers.PageManager#saveText(Context, String) */
     void saveText( Context context, String text ) throws WikiException;
+
+    /** Guarded save: the guard is checked atomically with the write; reports the version written. */
+    com.wikantik.api.pages.SaveOutcome saveText( Context context, String text, com.wikantik.api.pages.SaveGuard guard )
+            throws WikiException;
 }

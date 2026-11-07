@@ -50,7 +50,7 @@ import java.util.function.BiConsumer;
  * participants or a publish pending. A draft's last edit is the latest of the live session's own clock, the stored
  * marker (written at snapshot cadence and when a session leaves memory) and the newest edit in its log
  * ({@link CollabStore#draftEntries}), so neither a missed marker nor a crash ages a fresh draft. Each expiry is logged
- * at INFO.</p>
+ * at INFO and audited as the system's; each purge is audited as its administrator's ({@link CollabAudit#purged}).</p>
  */
 final class DraftAdmin {
 
@@ -88,16 +88,19 @@ final class DraftAdmin {
     private final DraftIndex index;
     /** The registry's unmapping of a closed slot. */
     private final BiConsumer< SessionSlot, CollabSession > unmap;
+    /** Purges and expiries are audited here (guarded: never throws). */
+    private final CollabAudit audit;
     /** When retention last ran. Tick thread only. */
     private Instant lastRetention;
 
     DraftAdmin( final CollabStore store, final PageSlots slots, final Map< UUID, SessionSlot > byId,
-                final DraftIndex index, final BiConsumer< SessionSlot, CollabSession > unmap ) {
+                final DraftIndex index, final BiConsumer< SessionSlot, CollabSession > unmap, final CollabAudit audit ) {
         this.store = store;
         this.slots = slots;
         this.byId = byId;
         this.index = index;
         this.unmap = unmap;
+        this.audit = audit;
     }
 
     private static PurgeOutcome inProgress( final String pageName, final boolean live ) {
@@ -206,12 +209,13 @@ final class DraftAdmin {
 
     // ---- purge -------------------------------------------------------------------------------------------------
 
-    /** An administrator's purge of draft {@code id} (see the class comment). */
-    PurgeOutcome purge( final UUID id ) {
+    /** Administrator {@code adminKey}'s purge of draft {@code id} (see the class comment). */
+    PurgeOutcome purge( final UUID id, final String adminKey ) {
         final PurgeOutcome out = remove( id, PURGE );
         if( out.status() == 204 ) {
             LOG.info( "collab: draft {} of {} purged by an administrator (live: {})", id, out.pageName(),
                 out.wasLive() );
+            audit.purged( id, out.pageName(), adminKey, false );
         }
         return out;
     }
@@ -372,9 +376,10 @@ final class DraftAdmin {
         }
     }
 
-    /** The expiry of one draft: logged, and the site of its audit entry. */
-    private static void expired( final DraftEntry rec, final PurgeOutcome out, final int retentionDays ) {
+    /** The expiry of one draft: logged, and audited as the system's ({@code collab.expire}). */
+    private void expired( final DraftEntry rec, final PurgeOutcome out, final int retentionDays ) {
         LOG.info( "collab: draft {} of {} expired (no edit for {} days; live: {}); deleted without publishing",
             rec.id(), out.pageName(), retentionDays, out.wasLive() );
+        audit.purged( rec.id(), out.pageName(), null, true );
     }
 }

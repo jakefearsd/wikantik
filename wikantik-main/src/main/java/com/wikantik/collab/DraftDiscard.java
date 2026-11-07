@@ -47,13 +47,16 @@ final class DraftDiscard {
 
     private final Draft d;
     private final ReentrantLock lock;
+    /** A stored discard is audited, among the completions (guarded: never throws). */
+    private final CollabAudit audit;
 
-    DraftDiscard( final Draft d, final ReentrantLock lock ) {
+    DraftDiscard( final Draft d, final ReentrantLock lock, final CollabAudit audit ) {
         this.d = d;
         this.lock = lock;
+        this.audit = audit;
     }
 
-    PushResponse reset( final String by, final Answers answers, final List< Runnable > completions ) {
+    PushResponse reset( final Participant by, final Answers answers, final List< Runnable > completions ) {
         for( int attempt = 1; attempt <= ATTEMPTS; attempt++ ) {
             final String doc;
             final int head;
@@ -96,7 +99,7 @@ final class DraftDiscard {
      * Edits that cancelled out (nothing to reset) still clear the contributors durably, without a
      * {@code draft-discarded} event.
      */
-    private PushResponse apply( final ChangeSet back, final String baseBody, final String by, final Answers answers,
+    private PushResponse apply( final ChangeSet back, final String baseBody, final Participant by, final Answers answers,
                                 final List< Runnable > completions ) {
         if( d.publishPending() ) {
             return PushResponse.refused( 423, d.head, CollabSession.IN_PROGRESS );
@@ -133,10 +136,12 @@ final class DraftDiscard {
         d.record = SessionLoader.draftMarkers( d.record, false, d.lastEditAt );
         d.contributors.clear();
         if( !cancelledOut ) {
-            d.feed.emit( "draft-discarded", Map.of( "by", by ) );
+            d.feed.emit( "draft-discarded", Map.of( "by", by.displayName ) );
         }
         d.announce( before );
         answers.wakeAll( extra, completions );
+        final String page = d.pageName();
+        completions.add( () -> audit.discarded( d.id, page, by.authorKey ) );
         return PushResponse.accepted( d.head, d.metaSeq );
     }
 }

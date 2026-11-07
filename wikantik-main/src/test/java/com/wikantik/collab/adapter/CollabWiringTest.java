@@ -21,12 +21,20 @@ package com.wikantik.collab.adapter;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.observability.MeterRegistryHolder;
+import com.wikantik.collab.CollabLogCapture;
+import com.wikantik.collab.CollabMetrics;
 import com.wikantik.collab.CollabSessionRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.LogEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -101,6 +109,38 @@ class CollabWiringTest {
         assertTrue( wiring.isTicking() );
         wiring.close();
         assertFalse( wiring.isTicking() );
+    }
+
+    @Test
+    void noMeterRegistryMeansNoOpMetricsAndOneWarn() {
+        final MeterRegistry saved = MeterRegistryHolder.get();
+        MeterRegistryHolder.clear();
+        try {
+            final List< LogEvent > warnings = CollabLogCapture.warnings( () -> wiring = CollabWiring.wire( engine,
+                new Properties(), mock( DataSource.class ), engine.getManager( PageManager.class ) ).orElseThrow() );
+            assertSame( CollabMetrics.NONE, wiring.registry().metrics() );
+            assertEquals( 1, warnings.stream().filter( e -> e.getLevel() == Level.WARN ).filter( e -> e.getMessage()
+                .getFormattedMessage().contains( "MeterRegistry" ) ).count(), warnings.toString() );
+        } finally {
+            MeterRegistryHolder.set( saved );
+        }
+    }
+
+    @Test
+    void aMeterRegistryGetsTheCollabMetersAndGauges() {
+        final MeterRegistry saved = MeterRegistryHolder.get();
+        final SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        MeterRegistryHolder.set( meters );
+        try {
+            wiring = CollabWiring.wire( engine, new Properties(), mock( DataSource.class ),
+                engine.getManager( PageManager.class ) ).orElseThrow();
+            wiring.registry().metrics().push( CollabMetrics.ACCEPTED );
+            assertEquals( 1.0, meters.get( "wikantik_collab_push_total" ).tag( "result", "accepted" ).counter().count() );
+            assertEquals( 0.0, meters.get( "wikantik_collab_sessions_active" ).gauge().value() );
+            assertEquals( 0.0, meters.get( "wikantik_collab_participants_active" ).gauge().value() );
+        } finally {
+            MeterRegistryHolder.set( saved );
+        }
     }
 
     @Test

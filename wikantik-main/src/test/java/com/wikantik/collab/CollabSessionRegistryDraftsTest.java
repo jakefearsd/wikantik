@@ -243,7 +243,7 @@ class CollabSessionRegistryDraftsTest {
             null, parked ) );
         final UUID id = a.response().sessionId();
 
-        final PurgeOutcome out = registry.purge( id );
+        final PurgeOutcome out = registry.purge( id, "admin" );
 
         assertEquals( new PurgeOutcome( 204, null, PAGE, true ), out );
         assertEquals( 1, parked.got.size(), "the parked pull is woken" );
@@ -267,7 +267,7 @@ class CollabSessionRegistryDraftsTest {
     @Test
     void purgeOfAStoredDraftDeletesIt() {
         final UUID id = storedDraft( "Stored" );
-        assertEquals( new PurgeOutcome( 204, null, "Stored", false ), registry.purge( id ) );
+        assertEquals( new PurgeOutcome( 204, null, "Stored", false ), registry.purge( id, "admin" ) );
         assertTrue( mem.session( id ).isEmpty() );
     }
 
@@ -281,21 +281,21 @@ class CollabSessionRegistryDraftsTest {
         pause.awaitEntered( Duration.ofSeconds( 10 ) );
 
         assertEquals( new PurgeOutcome( 423, "publish-in-progress", PAGE, true ),
-            registry.purge( a.response().sessionId() ) );
+            registry.purge( a.response().sessionId(), "admin" ) );
         assertTrue( a.session().hasParticipant( a.response().participantId() ), "nobody is evicted" );
         pause.release();
         assertEquals( 200, publish.get( 10, TimeUnit.SECONDS ).status() );
         assertTrue( mem.session( a.response().sessionId() ).isPresent() );
 
         final SessionRecord marked = rawDraft( "Marked", true );
-        assertEquals( new PurgeOutcome( 423, "publish-in-progress", "Marked", false ), registry.purge( marked.id() ),
+        assertEquals( new PurgeOutcome( 423, "publish-in-progress", "Marked", false ), registry.purge( marked.id(), "admin" ),
             "a stored pending-publish marker is a publish in progress too" );
         assertTrue( mem.session( marked.id() ).isPresent() );
     }
 
     @Test
     void purgeOfAnUnknownSessionIs404() {
-        assertEquals( new PurgeOutcome( 404, "unknown", null, false ), registry.purge( UUID.randomUUID() ) );
+        assertEquals( new PurgeOutcome( 404, "unknown", null, false ), registry.purge( UUID.randomUUID(), "admin" ) );
     }
 
     @Test
@@ -305,7 +305,7 @@ class CollabSessionRegistryDraftsTest {
         final UUID id = a.response().sessionId();
         mem.failOn( InMemoryCollabStore.Op.DELETE, 1 );
 
-        assertEquals( new PurgeOutcome( 503, "store", PAGE, true ), registry.purge( id ) );
+        assertEquals( new PurgeOutcome( 503, "store", PAGE, true ), registry.purge( id, "admin" ) );
 
         assertTrue( mem.session( id ).isPresent(), "the draft is kept" );
         assertTrue( registry.draftActive( PAGE ) );
@@ -513,7 +513,7 @@ class CollabSessionRegistryDraftsTest {
         assertFalse( registry.draftActive( PAGE ), "moved away" );
         assertTrue( registry.draftActive( "B" ), "moved here" );
 
-        assertEquals( 204, registry.purge( a.response().sessionId() ).status() );
+        assertEquals( 204, registry.purge( a.response().sessionId(), "admin" ).status() );
         assertFalse( registry.draftActive( "B" ), "purged" );
 
         final Joined c = join( "B", "carol" );
@@ -676,7 +676,7 @@ class CollabSessionRegistryDraftsTest {
         assertEquals( null, bob.session().pullOrPark( bob.response().participantId(), "bob",
             bob.session().view().head(), null, racing ) );
 
-        final PurgeOutcome out = registry.purge( alice.response().sessionId() );
+        final PurgeOutcome out = registry.purge( alice.response().sessionId(), "admin" );
 
         assertEquals( 1, started.size() );
         if( pause.entered() ) {
@@ -696,7 +696,7 @@ class CollabSessionRegistryDraftsTest {
         org.junit.jupiter.api.Assertions.assertThrows( RuntimeException.class, () -> registry.rekey( PAGE, "B" ) );
         writer.rename( PAGE, "B" );   // the rename into B is owed
 
-        assertEquals( 204, registry.purge( a.response().sessionId() ).status() );
+        assertEquals( 204, registry.purge( a.response().sessionId(), "admin" ).status() );
 
         final Joined b = join( "B", "bob" );   // not refused: the owed rename has nothing left to move
         assertFalse( a.response().sessionId().equals( b.response().sessionId() ) );

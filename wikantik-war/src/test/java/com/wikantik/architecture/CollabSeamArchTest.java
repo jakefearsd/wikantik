@@ -159,4 +159,14 @@ class CollabSeamArchTest {
             .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.api.core.Engine" )
             .orShould().dependOnClassesThat().resideInAnyPackage( "java.sql..", "javax.sql..", "com.wikantik.jdbc.." )
             .as( "collab core must not depend on WikiEngine, Engine, java.sql, javax.sql or com.wikantik.jdbc — use the ports" );
+
+    /** Audit entries and metrics leave the core through the CollabAudit and CollabMetrics ports (section 9, 12.3). */
+    @ArchTest
+    static final ArchRule coreDoesNotDependOnMicrometerOrAudit =
+        noClasses().that().resideInAPackage( "com.wikantik.collab.." )
+            .and().resideOutsideOfPackage( ADAPTERS )
+            .should().dependOnClassesThat().resideInAnyPackage( "io.micrometer..", "com.wikantik.audit..",
+                "com.wikantik.api.observability.." )
+            .as( "collab core must not depend on Micrometer, the audit service or the meter registry holder — use the"
+               + " CollabAudit and CollabMetrics ports" );
 }

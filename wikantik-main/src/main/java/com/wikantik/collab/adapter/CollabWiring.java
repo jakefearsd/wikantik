@@ -21,18 +21,22 @@ package com.wikantik.collab.adapter;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.observability.MeterRegistryHolder;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.collab.CollabConfig;
+import com.wikantik.collab.CollabMetrics;
+import com.wikantik.collab.CollabPorts;
 import com.wikantik.collab.CollabSessionRegistry;
 import com.wikantik.collab.CollabStore;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -51,6 +55,10 @@ import java.util.concurrent.TimeUnit;
  * second on one daemon thread. Registered on the engine's service registry (read through {@link CollabEngineAccess} and
  * {@link #registryFor}, never through {@code getManager}), which keeps the listener strongly reachable
  * ({@link WikiEventManager} holds listeners weakly), and closed with the engine.
+ *
+ * <p>Audit entries go to the engine's {@code AuditService} ({@link AuditServiceCollabAudit}, read per entry as it is
+ * built after this wiring) and metrics to the shared {@code MeterRegistry} ({@link MicrometerCollabMetrics}, with the
+ * session and participant gauges); with no registry installed the metrics are a no-op and one WARN says so.</p>
  *
  * <p>Wiring happens whenever a datasource exists; with {@code wikantik.collab.enabled} false (the default) the registry
  * is present but {@link CollabSessionRegistry#isEnabled() disabled}; the tick thread runs regardless, as the flag can change. With no datasource nothing
@@ -95,10 +103,15 @@ public final class CollabWiring implements AutoCloseable {
                                   final PageManager pages ) {
         final CollabConfig config = CollabConfig.from( props );
         final PageSaveHelperPageWriter writer = new PageSaveHelperPageWriter( pages, new PageSaveHelper( engine, pages ) );
-        final CollabSessionRegistry registry = new CollabSessionRegistry( store, writer,
-                new WikiCollabPermissions( engine ),
+        final MicrometerCollabMetrics meters = meters();
+        final CollabSessionRegistry registry = new CollabSessionRegistry( new CollabPorts( store, writer,
                 new PublicIdentityCollabIdentity( PublicIdentities.forEngine( engine ) ),
-                Clock.systemUTC(), config, maxPageBytes( props ) );
+                new WikiCollabPermissions( engine ), Clock.systemUTC(),
+                new AuditServiceCollabAudit( engine::getAuditService ),   // built after this wiring: read per entry
+                meters == null ? CollabMetrics.NONE : meters ), config, maxPageBytes( props ) );
+        if( meters != null ) {
+            meters.bindGauges( registry );
+        }
         final CollabPageEventListener listener = new CollabPageEventListener( registry, writer );
         final AuthSubsystem.Services auth = AuthSubsystemBridge.fromLegacyEngine( engine );
         listener.register( pages, RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager(),
@@ -142,6 +155,16 @@ public final class CollabWiring implements AutoCloseable {
                 LOG.error( "Collaboration tick failed; it will run again next second: {}", t.getMessage(), t );
             }
         };
+    }
+
+    /** The collaboration meters on the shared registry, or null (one WARN) when none is installed. */
+    private static MicrometerCollabMetrics meters() {
+        final MeterRegistry shared = MeterRegistryHolder.get();
+        if( shared == null ) {
+            LOG.warn( "No shared MeterRegistry installed: the wikantik_collab_* metrics will NOT be scraped" );
+            return null;
+        }
+        return new MicrometerCollabMetrics( shared );
     }
 
     private static long maxPageBytes( final Properties props ) {

@@ -56,16 +56,22 @@ final class Lifecycle {
     private final Draft d;
     private final Roster roster;
     private final Answers answers;
+    /** Joins and evictions are audited, among the completions (guarded: never throws). */
+    private final CollabAudit audit;
 
-    Lifecycle( final Draft d, final Roster roster, final Answers answers ) {
+    Lifecycle( final Draft d, final Roster roster, final Answers answers, final CollabAudit audit ) {
         this.d = d;
         this.roster = roster;
         this.answers = answers;
+        this.audit = audit;
     }
 
     // ---- participants ------------------------------------------------------------------------------------------
 
-    /** A participant joined: {@code participant-joined}, presence moves, every parked pull is answered. */
+    /**
+     * A participant joined: {@code participant-joined}, presence moves, every parked pull is answered; audited after the
+     * lock is released.
+     */
     void joined( final Participant p, final List< Runnable > completions ) {
         final Map< String, Object > who = new LinkedHashMap<>();
         who.put( PARTICIPANT_ID, p.id );
@@ -73,6 +79,8 @@ final class Lifecycle {
         who.put( "color", p.color );
         d.feed.emit( "participant-joined", Map.of( "participant", who ) );
         moved( p.id, completions );
+        final String page = d.pageName();
+        completions.add( () -> audit.joined( d.id, page, p.authorKey, p.id ) );
     }
 
     /**
@@ -99,11 +107,12 @@ final class Lifecycle {
     /**
      * A server eviction for {@code reason}: the tombstone is laid (later requests answer 403 {@code evicted} with the
      * reason), {@code evicted} then {@code participant-left (evicted)} are emitted, and its parked pull is answered 403
-     * {@code evicted} at once. Unknown ids are ignored.
+     * {@code evicted} at once. Unknown ids are ignored. Audited after the lock is released.
      */
     void evict( final String participantId, final String reason, final Instant now,
                 final List< Runnable > completions ) {
-        if( roster.evict( participantId, reason, now ) == null ) {
+        final Participant gone = roster.evict( participantId, reason, now );
+        if( gone == null ) {
             return;
         }
         parkedAnswered( answers.removeParked( participantId,
@@ -114,6 +123,8 @@ final class Lifecycle {
         d.feed.emit( CollabSession.EVICTED, f );
         emitLeft( participantId, CollabSession.EVICTED );
         moved( participantId, completions );
+        final String page = d.pageName();
+        completions.add( () -> audit.evicted( d.id, page, gone.authorKey, reason ) );
     }
 
     /** The participants not seen since {@code horizon} leave as timed out (E13); their next request rejoins. */

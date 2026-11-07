@@ -37,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -59,15 +60,18 @@ final class PublishFlow {
     private final CollabIdentity identity;
     private final Answers answers;
     private final ExternalMerge merge;
+    /** A finished publish is audited, among the completions (guarded: never throws). */
+    private final CollabAudit audit;
 
     PublishFlow( final Draft d, final ReentrantLock lock, final CollabPageWriter writer, final CollabIdentity identity,
-                 final Answers answers, final ExternalMerge merge ) {
+                 final Answers answers, final ExternalMerge merge, final CollabAudit audit ) {
         this.d = d;
         this.lock = lock;
         this.writer = writer;
         this.identity = identity;
         this.answers = answers;
         this.merge = merge;
+        this.audit = audit;
     }
 
     /** A publish answered before any save. */
@@ -213,7 +217,8 @@ final class PublishFlow {
         final List< StoredUpdate > extra = u.empty() ? List.of()
             : List.of( new StoredUpdate( d.head + 1, StoredUpdate.SERVER, CollabSession.SERVER_CLIENT, null, u ) );
         final Map< String, Object > savedMeta = MetaJson.normalise( saved.savedMeta() );
-        if( !credit( t, saved.version(), savedMeta ) ) {
+        final Set< String > credited = d.contributors.creditedAt( t.version(), t.metaSeq() );
+        if( !credit( t, saved.version(), savedMeta, credited ) ) {
             return unfinished( t );
         }
         if( !d.appendMetaOps( MetaMerge.ops( MetaMerge.fold( t.meta(), d.meta, savedMeta ), d.metaSeq ) ) ) {
@@ -232,6 +237,8 @@ final class PublishFlow {
         d.feed.emit( "published", byline( t, "pageVersion", saved.version() ) );
         d.announce( before );
         answers.wakeAll( extra, completions );
+        final String page = d.pageName();
+        completions.add( () -> audit.published( d.id, page, t.authorKey(), saved.version(), t.version(), credited ) );
         return new PublishResponse( 200, saved.version(), null, false );
     }
 
@@ -241,7 +248,8 @@ final class PublishFlow {
      * it (base 0, ruling R4). Idempotent, so the pending-publish rule repeats it safely. A saved page without a
      * {@code canonical_id} cannot be attributed: skipped with a WARN. False (logged) when the store refused.
      */
-    private boolean credit( final PublishStart.Ticket t, final int pageVersion, final Map< String, Object > savedMeta ) {
+    private boolean credit( final PublishStart.Ticket t, final int pageVersion, final Map< String, Object > savedMeta,
+                            final Set< String > credited ) {
         final Object id = savedMeta.get( "canonical_id" );
         final String canonicalId = id == null ? "" : id.toString().trim();
         if( canonicalId.isEmpty() ) {
@@ -250,8 +258,7 @@ final class PublishFlow {
             return true;
         }
         try {
-            d.store.recordContributors( canonicalId, pageVersion, d.contributors.creditedAt( t.version(), t.metaSeq() ),
-                t.baseVersion() == 0 );
+            d.store.recordContributors( canonicalId, pageVersion, credited, t.baseVersion() == 0 );
             return true;
         } catch( final RuntimeException e ) {
             LOG.warn( "collab session {} ({}): the contributors of page version {} were not recorded; the publish is"

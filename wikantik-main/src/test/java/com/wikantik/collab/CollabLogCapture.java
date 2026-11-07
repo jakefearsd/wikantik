@@ -32,8 +32,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Captures the collab package's WARN and ERROR log events for the registry's tick log tests. */
-final class CollabLogCapture {
+/** Captures the collab packages' WARN and ERROR log events (core and adapters) for the tick log and port tests. */
+public final class CollabLogCapture {
 
     private static final String PACKAGE = "com.wikantik.collab";
 
@@ -41,12 +41,12 @@ final class CollabLogCapture {
     }
 
     /**
-     * The WARN and ERROR events the collab package logged while {@code r} ran. Other tests in the same JVM leave
+     * The WARN and ERROR events the collab package and its adapters logged while {@code r} ran. Other tests in the same JVM leave
      * per-class logger configs behind ({@code Configurator.setLevel}), often at a level above WARN; each such config
      * under the package is opened to WARN, made non-additive and given the capturing appender for the duration, then
      * restored, so every event is captured exactly once whatever ran before.
      */
-    static List< LogEvent > warnings( final Runnable r ) {
+    public static List< LogEvent > warnings( final Runnable r ) {
         final List< LogEvent > got = Collections.synchronizedList( new ArrayList<>() );
         final AbstractAppender appender = new AbstractAppender( "collabLogCapture", null, null, true,
             Property.EMPTY_ARRAY ) {

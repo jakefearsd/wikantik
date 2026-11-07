@@ -156,17 +156,26 @@ public final class CollabSessionRegistry {
     public CollabSessionRegistry( final CollabStore store, final CollabPageWriter writer,
                                   final CollabPermissions permissions, final CollabIdentity identity, final Clock clock,
                                   final CollabConfig config, final long maxPageBytes ) {
-        this.ports = new CollabPorts( store, writer, identity, permissions, clock );   // checks every port for null
-        this.store = store;
-        this.writer = writer;
-        this.permissions = permissions;
-        this.clock = clock;
+        this( new CollabPorts( store, writer, identity, permissions, clock ), config, maxPageBytes );
+    }
+
+    /**
+     * Over every port, the audit and metrics sinks included.
+     *
+     * @param maxPageBytes {@code wikantik.api.maxPageBytes}, the page size limit behind section 7.2's 413
+     */
+    public CollabSessionRegistry( final CollabPorts ports, final CollabConfig config, final long maxPageBytes ) {
+        this.ports = Objects.requireNonNull( ports, "ports" );
+        this.store = ports.store();
+        this.writer = ports.writer();
+        this.permissions = ports.permissions();
+        this.clock = ports.clock();
         this.config = Objects.requireNonNull( config, "config" );
         this.maxPageBytes = maxPageBytes;
         this.enabled = config.enabled();
         this.renames = new Renames( slots, store, clock, this::freezeAt, writer::exists );
         this.orphans = new OrphanSweep( writer, renames, this::freezeAt );
-        this.admin = new DraftAdmin( store, slots, byId, index, this::unmap );
+        this.admin = new DraftAdmin( store, slots, byId, index, this::unmap, ports.audit() );
     }
 
     // ---- kill switch -----------------------------------------------------------------------------------------
@@ -188,6 +197,11 @@ public final class CollabSessionRegistry {
     /** The page size limit ({@code wikantik.api.maxPageBytes}); the HTTP surface sizes the join body from it. */
     public long maxPageBytes() {
         return maxPageBytes;
+    }
+
+    /** The metrics sink (the wiring binds the gauges over this registry). */
+    public CollabMetrics metrics() {
+        return ports.metrics();
     }
 
     // ---- join ------------------------------------------------------------------------------------------------
@@ -280,8 +294,10 @@ public final class CollabSessionRegistry {
     private Opened open( final SessionSlot slot, final String pageName, final JoinRequest r,
                          final PageState latest ) {
         final CollabSession s;
+        final boolean created;
         try {
             final UUID stored = store.sessionForPage( pageName ).map( SessionRecord::id ).orElse( null );
+            created = stored == null;
             if( stored == null && !PageSlots.samePage( latest, writer.latest( pageName ).orElse( null ) ) ) {
                 LOG.debug( "collab: {} changed while {} was joining; retrying", pageName, r.authorKey() );
                 return Opened.STALE;
@@ -298,6 +314,9 @@ public final class CollabSessionRegistry {
         }
         slot.opened( s, clock.instant() );
         byId.put( s.id(), slot );
+        if( created ) {
+            ports.audit().sessionOpened( s.id(), pageName, r.authorKey() );   // a reload is not an open
+        }
         return Opened.OK;
     }
 
@@ -496,11 +515,12 @@ public final class CollabSessionRegistry {
     }
 
     /**
-     * An administrator's purge of draft {@code id}: 204, 404 {@code unknown}, 423 {@code publish-in-progress} or 503
-     * {@code store} (the draft is kept). Every participant is evicted with {@link #PURGED} first. Never publishes.
+     * Administrator {@code adminKey}'s purge of draft {@code id}: 204, 404 {@code unknown}, 423
+     * {@code publish-in-progress} or 503 {@code store} (the draft is kept). Every participant is evicted with
+     * {@link #PURGED} first. Never publishes. A 204 is audited ({@link CollabAudit#purged}).
      */
-    public PurgeOutcome purge( final UUID id ) {
-        return admin.purge( id );
+    public PurgeOutcome purge( final UUID id, final String adminKey ) {
+        return admin.purge( id, adminKey );
     }
 
     /**

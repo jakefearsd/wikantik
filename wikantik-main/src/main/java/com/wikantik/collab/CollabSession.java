@@ -155,6 +155,9 @@ public final class CollabSession {
     private final PublishFlow flow;
     private final SessionPush pusher;
     private final Lifecycle life;
+    /** The audit and metrics ports (section 9, 12.3); guarded, so neither throws. */
+    private final CollabAudit audit;
+    private final CollabMetrics metrics;
     /** Created here and not yet joined: the first join may seed initial text (A11). */
     private boolean fresh;
 
@@ -164,16 +167,18 @@ public final class CollabSession {
         this.writer = ports.writer();
         this.permissions = ports.permissions();
         this.clock = ports.clock();
+        this.audit = ports.audit();
+        this.metrics = ports.metrics();
         this.config = Objects.requireNonNull( config, "config" );
         this.d = new Draft( record, ports.store(), maxPageBytes, config.historyInMemoryUpdates() );
         final int load = LOADS.computeIfAbsent( ports.store(), k -> new AtomicInteger() ).incrementAndGet();
         this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-", ports.identity(),
             Duration.ofSeconds( config.presenceTimeoutSeconds() ), Duration.ofMinutes( config.memoryIdleEvictMinutes() ) );
-        this.answers = new Answers( d, roster, new Waiters( id ) );
-        this.life = new Lifecycle( d, roster, answers );
+        this.answers = new Answers( d, roster, new Waiters( id ), metrics );
+        this.life = new Lifecycle( d, roster, answers, audit );
         this.pusher = new SessionPush( d, roster, answers, config );
         this.flow = new PublishFlow( d, lock, writer, ports.identity(), answers,
-            new ExternalMerge( d, lock, writer, ports.identity(), answers ) );
+            new ExternalMerge( d, lock, writer, ports.identity(), answers, metrics ), audit );
         d.follow = ( oldHead, applied, newHead ) -> Presence.follow( roster.all(), oldHead, applied, newHead );
         d.names = ports.identity()::displayName;
     }
@@ -426,7 +431,7 @@ public final class CollabSession {
         final PushResponse out;
         baseLock.lock();
         try {
-            out = new DraftDiscard( d, lock ).reset( p.displayName, answers, completions );
+            out = new DraftDiscard( d, lock, audit ).reset( p, answers, completions );
         } finally {
             baseLock.unlock();
         }
@@ -457,6 +462,7 @@ public final class CollabSession {
                               final Selection selection ) {
         Objects.requireNonNull( updates, "updates" );
         Objects.requireNonNull( metaEdits, "metaEdits" );
+        final Instant started = clock.instant();
         final List< Runnable > completions = new ArrayList<>();
         final PushResponse out;
         lock.lock();
@@ -467,6 +473,8 @@ public final class CollabSession {
             lock.unlock();
         }
         completions.forEach( Runnable::run );
+        metrics.push( GuardedMetrics.pushResult( out ) );
+        metrics.pushLatency( Duration.between( started, clock.instant() ).toNanos() );
         return out;
     }
 
@@ -580,6 +588,7 @@ public final class CollabSession {
                                     final String changeNote, final String markupSyntax ) {
         final PublishStart st = startPublish( participantId, authorKey, version, changeNote, markupSyntax );
         if( st.response() != null ) {
+            metrics.publish( GuardedMetrics.publishResult( st.response() ) );   // answered before any save
             return st.response();
         }
         final PublishOutcome saved;
@@ -722,6 +731,7 @@ public final class CollabSession {
             // the post-save half broke: the marker (if the save persisted) is left for settle(), and it is owed
             LOG.warn( "collab session {}: ending the publish of {} failed; settled later: {}", id, d.pageName(), e.toString() );
             flow.owe();
+            metrics.publish( CollabMetrics.FAILED );
             throw e;
         } finally {
             baseLock.unlock();
@@ -730,8 +740,10 @@ public final class CollabSession {
                 settle();   // the external merges queued meanwhile (A3)
             }
         }
+        metrics.publish( GuardedMetrics.publishResult( out ) );
         if( out.status() == 200 || !before.equals( flow.baseKey() ) ) {
-            recheckEdits();   // after a publish, or a merge of an outside write found by the failed save (A5)
+            // after a publish, or a merge of an outside write found by the failed save (A5)
+            Hooks.auditIfOrphaned( this, out, recheckEdits() );
         }
         return out;
     }
@@ -788,9 +800,10 @@ public final class CollabSession {
 
     /**
      * A5: every participant's {@code edit} is re-checked (after a publish or merge, and on the registry's cadence); those
-     * who lost it are evicted with {@link #LOST_EDIT}. The checks run with no session lock held.
+     * who lost it are evicted with {@link #LOST_EDIT}. The checks run with no session lock held. Returns how many were
+     * found to have lost it.
      */
-    public void recheckEdits() {
+    public int recheckEdits() {
         final List< Participant > all;
         final String page;
         lock.lock();
@@ -800,7 +813,9 @@ public final class CollabSession {
         } finally {
             lock.unlock();
         }
-        EditRecheck.lost( id, all, permissions, page ).forEach( pid -> evict( pid, LOST_EDIT ) );
+        final List< String > lost = EditRecheck.lost( id, all, permissions, page );
+        lost.forEach( pid -> evict( pid, LOST_EDIT ) );
+        return lost.size();
     }
 
     // ---- rename and freeze (section 7.4, A1) -----------------------------------------------------------------------
@@ -1068,6 +1083,29 @@ public final class CollabSession {
         /** For tests: true while the calling thread holds the session's base lock. */
         static boolean baseLockHeld( final CollabSession s ) {
             return s.baseLock.isHeldByCurrentThread();
+        }
+
+        /**
+         * Plan decision 7, after a publish's re-check (A5): when it answered 200, evicted {@code lost} participants and
+         * left nobody while unpublished changes remain, the draft is orphaned: audited, not frozen (an administrator
+         * can purge it; anyone with {@code edit} can still open it).
+         */
+        static void auditIfOrphaned( final CollabSession s, final PublishResponse out, final int lost ) {
+            if( out.status() != 200 || lost == 0 ) {
+                return;
+            }
+            final boolean orphaned;
+            final String page;
+            s.lock.lock();
+            try {
+                orphaned = s.roster.size() == 0 && s.d.hasUnpublished();
+                page = s.d.pageName();
+            } finally {
+                s.lock.unlock();
+            }
+            if( orphaned ) {
+                s.audit.orphaned( s.id, page );
+            }
         }
 
         /** True when {@code r} is a rejoin that replaces its own stale entry (it takes no new seat). */

@@ -53,14 +53,17 @@ final class ExternalMerge {
     private final CollabPageWriter writer;
     private final CollabIdentity identity;
     private final Answers answers;
+    /** Counts each {@code external-change} (guarded: never throws). */
+    private final CollabMetrics metrics;
 
     ExternalMerge( final Draft d, final ReentrantLock lock, final CollabPageWriter writer, final CollabIdentity identity,
-                   final Answers answers ) {
+                   final Answers answers, final CollabMetrics metrics ) {
         this.d = d;
         this.lock = lock;
         this.writer = writer;
         this.identity = identity;
         this.answers = answers;
+        this.metrics = metrics;
     }
 
     /**
@@ -171,6 +174,7 @@ final class ExternalMerge {
             }
             if( recreated || !extra.isEmpty() || mm.touched() ) {
                 d.feed.emit( "external-change", event( st, ePrime, mm, recreated ) );
+                metrics.externalMerge();
             }
             d.announce( before );   // a merge credits nobody, but may change unpublished
             answers.wakeAll( extra, completions );

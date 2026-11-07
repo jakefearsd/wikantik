@@ -45,11 +45,20 @@ final class Answers {
     private final Draft d;
     private final Roster roster;
     private final Waiters waiters;
+    /** Counts each 410 (guarded: never throws). */
+    private final CollabMetrics metrics;
 
-    Answers( final Draft d, final Roster roster, final Waiters waiters ) {
+    Answers( final Draft d, final Roster roster, final Waiters waiters, final CollabMetrics metrics ) {
         this.d = d;
         this.roster = roster;
         this.waiters = waiters;
+        this.metrics = metrics;
+    }
+
+    /** 410 {@code resync}: the client reloads the session; counted ({@code wikantik_collab_resync_total}). */
+    private PullResponse resync() {
+        metrics.resync();
+        return PullResponse.refused( 410, d.head, "resync" );
     }
 
     /**
@@ -60,7 +69,7 @@ final class Answers {
         final List< MetaOp > ops = d.feed.metaOpsAfter( Math.min( cursor.metaSince(), d.metaSeq ), d.metaSeq,
             roster::nameOf );
         if( ops == null ) {
-            return PullResponse.refused( 410, d.head, "resync" );
+            return resync();
         }
         final List< Update > out = new ArrayList<>( updates.size() );
         for( final StoredUpdate u : updates ) {
@@ -88,7 +97,7 @@ final class Answers {
             LOG.warn( "collab session {} ({}): catch-up read from {} failed: {}", d.id, d.pageName(), since, e.getMessage() );
             return PullResponse.refused( 503, d.head, CollabSession.STORE );
         }
-        return log == null ? PullResponse.refused( 410, d.head, "resync" ) : answer( log, participantId, cursor );
+        return log == null ? resync() : answer( log, participantId, cursor );
     }
 
     /** True when a pull at head has something to answer at once: presence (as of {@code seen}), meta ops or events. */
@@ -145,7 +154,7 @@ final class Answers {
             }
             LOG.warn( "collab session {}: parked pull of {} from {} is not in memory; answering resync", d.id, participantId,
                 since );
-            return PullResponse.refused( 410, d.head, "resync" );
+            return resync();
         } ) );
     }
 

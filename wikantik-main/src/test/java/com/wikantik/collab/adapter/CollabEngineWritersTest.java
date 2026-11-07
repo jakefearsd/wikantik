@@ -351,6 +351,21 @@ class CollabEngineWritersTest {
     }
 
     @Test
+    void closeUnregistersThePageEventListener() throws Exception {
+        engine.saveText( PAGE, BODY );
+        final Joined a = join( PAGE );
+        wiring.close();
+
+        new PageSaveHelper( engine, pm ).saveTracked( PAGE, BODY + "after close\n",
+            SaveOptions.builder().author( "Bot" ).build() );
+        WikiEventManager.fireEvent( engine.getManager( FilterManager.class ),
+            new WikiPageEvent( engine, WikiPageEvent.POST_SAVE_BEGIN, PAGE ) );
+
+        assertEquals( BODY, a.session().view().doc(), "no listener: the save events reach no session" );
+        assertEquals( 0, serverUpdates( a ) );
+    }
+
+    @Test
     void theWiringRegistersTheRegistryOnTheEngine() {
         assertNotNull( registry );
         assertTrue( CollabWiring.registryFor( engine ).isPresent() );

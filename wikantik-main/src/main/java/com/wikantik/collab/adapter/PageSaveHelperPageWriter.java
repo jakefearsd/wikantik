@@ -122,7 +122,12 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
             if( page == null ) {
                 return Optional.empty();
             }
-            // a provider that keeps no version numbers reports none: its only text is the latest
+            // Reading the text by the number the info named narrows the torn-read window to providers that keep no
+            // version numbers, and to an outside overwrite of the same version (the directory watcher's write, which makes
+            // no new version). There the pair can still be (N, text written just after the info read). That heals: the
+            // session reconciles by content hash, not by version number (A1). The next settle sees a hash that differs
+            // from the base it adopted and merges the difference. No text is lost, and none is merged twice.
+            // A provider that keeps no version numbers reports none: its only text is the latest.
             textVersion = version == PageProvider.LATEST_VERSION && page.getVersion() > 0 ? page.getVersion() : version;
             text = pages.getPageText( pageName, textVersion );
         } catch( final NoSuchVersionException e ) {

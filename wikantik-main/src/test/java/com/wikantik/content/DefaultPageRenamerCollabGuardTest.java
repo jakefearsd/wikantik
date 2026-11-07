@@ -25,8 +25,10 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorKeys;
+import com.wikantik.collab.CollabSession;
 import com.wikantik.collab.CollabSessionRegistry;
 import com.wikantik.collab.CollabStore;
+import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.adapter.CollabEngineAccess;
 import com.wikantik.collab.adapter.CollabTestWiring;
 import com.wikantik.collab.adapter.CollabWiring;
@@ -35,6 +37,13 @@ import com.wikantik.collab.testing.InMemoryCollabStore;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.time.Clock;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -110,15 +119,92 @@ class DefaultPageRenamerCollabGuardTest {
     }
 
     @Test
-    void aDraftCheckThatFailsDoesNotBlockTheRename() throws Exception {
+    void aStoreThatCannotTellRefusesTheRenameRatherThanRiskingADraft() throws Exception {
         final CollabStore broken = mock( CollabStore.class );
         when( broken.sessionForPage( any() ) ).thenThrow( new IllegalStateException( "test: collab store down" ) );
         wiring = CollabTestWiring.wire( engine, broken );
         engine.saveText( "GuardFrom", "the page to move\n" );
+        final int versionBefore = pm.getPage( "GuardFrom" ).getVersion();
 
-        assertEquals( "GuardTo", rename( "GuardFrom", "GuardTo" ) );
+        final WikiException e = assertThrows( WikiException.class, () -> rename( "GuardFrom", "GuardTo" ) );
 
-        assertNotNull( pm.getPage( "GuardTo" ) );
+        assertTrue( e.getMessage().contains( "collaboration store is unavailable" ), e.getMessage() );
+        assertInstanceOf( IllegalStateException.class, e.getCause() );
+        assertNotNull( pm.getPage( "GuardFrom" ) );
+        assertEquals( versionBefore, pm.getPage( "GuardFrom" ).getVersion(), "nothing was written" );
+        assertNull( pm.getPage( "GuardTo" ) );
+    }
+
+    /**
+     * A live new-page draft under the target while the store is down: the in-memory check refuses without the store.
+     * Failing open here would let the moved page's body be merged into that draft as an outside change.
+     */
+    @Test
+    void aLiveTargetDraftRefusesTheRenameEvenWhileTheStoreIsDown() throws Exception {
+        final InMemoryCollabStore memory = new InMemoryCollabStore();
+        final AtomicBoolean down = new AtomicBoolean();
+        wiring = CollabTestWiring.wire( engine, failingLookups( memory, down ) );
+        final CollabSessionRegistry registry = CollabEngineAccess.registry( engine );
+        engine.saveText( "GuardFrom", "the page to move\n" );
+        final Session admin = engine.adminSession();
+        final CollabSessionRegistry.Joined draft = assertInstanceOf( CollabSessionRegistry.Joined.class,
+            registry.join( "GuardDraft", new JoinRequest( AuthorKeys.authorKeyFor( admin ), null, admin, "Admin",
+                "their new page\n", null ) ) );
+        final String draftBefore = draft.session().view().doc();
+        down.set( true );
+
+        final WikiException e = assertThrows( WikiException.class, () -> rename( "GuardFrom", "GuardDraft" ) );
+
+        assertEquals( "Page 'GuardDraft' has an unpublished collaborative draft; publish or discard it first",
+            e.getMessage() );
+        assertNotNull( pm.getPage( "GuardFrom" ) );
+        assertNull( pm.getPage( "GuardDraft" ) );
+        assertEquals( draftBefore, draft.session().view().doc(), "the draft holds only its own text" );
+    }
+
+    @Test
+    void aFrozenDraftOnTheTargetRefusesTheRename() throws Exception {
+        final InMemoryCollabStore memory = new InMemoryCollabStore();
+        wiring = CollabTestWiring.wire( engine, memory );
+        engine.saveText( "GuardFrom", "the page to move\n" );
+        // a draft whose page was deleted: frozen for an administrator, stored, not live
+        memory.createSession( CollabSession.newRecord( UUID.randomUUID(), "GuardDraft", Optional.empty(), "someone",
+            Clock.systemUTC() ).withStatus( SessionRecord.FROZEN ) );
+        assertTrue( CollabEngineAccess.registry( engine ).liveForPage( "GuardDraft" ).isEmpty() );
+
+        final WikiException e = assertThrows( WikiException.class, () -> rename( "GuardFrom", "GuardDraft" ) );
+
+        assertEquals( "Page 'GuardDraft' has an unpublished collaborative draft; publish or discard it first",
+            e.getMessage() );
+        assertNotNull( pm.getPage( "GuardFrom" ) );
+    }
+
+    @Test
+    void aMissingSourceIsReportedBeforeTheDraftGuard() throws Exception {
+        final CollabStore broken = mock( CollabStore.class );
+        when( broken.sessionForPage( any() ) ).thenThrow( new IllegalStateException( "test: collab store down" ) );
+        wiring = CollabTestWiring.wire( engine, broken );
+        final Context ctx = Wiki.context().create( engine, Wiki.contents().page( engine, "GuardNowhere" ) );
+
+        final WikiException e = assertThrows( WikiException.class,
+            () -> engine.getManager( PageRenamer.class ).renamePage( ctx, "GuardNowhere", "GuardTo", true ) );
+
+        assertEquals( "No such page GuardNowhere", e.getMessage() );
+    }
+
+    /** {@code store} whose page lookups throw while {@code down} is set; every other call goes through. */
+    private static CollabStore failingLookups( final CollabStore store, final AtomicBoolean down ) {
+        return (CollabStore) Proxy.newProxyInstance( CollabStore.class.getClassLoader(), new Class< ? >[]{ CollabStore.class },
+            ( proxy, method, args ) -> {
+                if( down.get() && method.getName().equals( "sessionForPage" ) ) {
+                    throw new IllegalStateException( "test: collab store down" );
+                }
+                try {
+                    return method.invoke( store, args );
+                } catch( final InvocationTargetException ite ) {
+                    throw ite.getCause();
+                }
+            } );
     }
 
     @Test

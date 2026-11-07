@@ -25,6 +25,9 @@ import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.WikiEngine;
+import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.collab.CollabConfig;
 import com.wikantik.collab.CollabPermissions;
 import com.wikantik.collab.CollabSession;
@@ -362,7 +365,27 @@ class UserDeletionServiceTest {
         } ).delete( session, LOGIN ) );
 
         verify( users ).deleteByLoginName( LOGIN );
-        assertFalse( warns.isEmpty() );
+        assertTrue( warns.stream().anyMatch( w -> w.getMessage().getFormattedMessage().contains( LOGIN )
+                && w.getMessage().getFormattedMessage().contains( "collaboration" )
+                && w.getThrown() instanceof IllegalStateException
+                && "test: engine half-built".equals( w.getThrown().getMessage() ) ), "a WARN with the cause: " + warns );
+    }
+
+    @Test
+    void theDeletedProfileIsStillAnnouncedAfterACollabFailure() throws Exception {
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( wikiEngine.getAuthSubsystem() ).thenReturn(
+                new AuthSubsystem.Services( null, null, null, null, null, null, null, null, identity ) );
+        final CollabSessionRegistry registry = mock( CollabSessionRegistry.class );
+        when( registry.evictAuthor( LOGIN ) ).thenThrow( new IllegalStateException( "test: collab store down" ) );
+
+        new UserDeletionService( wikiEngine, users, groups, apiKeys, pageOwners, trusted, e -> registry )
+                .delete( session, LOGIN );
+
+        final InOrder order = inOrder( registry, identity );
+        order.verify( registry ).evictAuthor( LOGIN );
+        order.verify( identity ).invalidate( LOGIN );   // ProfileChangeNotifier.profileDeleted ran after the failure
     }
 
     @Test

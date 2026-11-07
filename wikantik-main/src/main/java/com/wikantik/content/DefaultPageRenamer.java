@@ -28,8 +28,6 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.auth.AuthorKeys;
-import com.wikantik.collab.CollabSessionRegistry;
-import com.wikantik.collab.adapter.CollabEngineAccess;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -90,11 +88,11 @@ public class DefaultPageRenamer implements PageRenamer {
         if( renameToClean.equals( renameFrom ) ) {
             throw new WikiException( "You cannot rename the page to itself" );
         }
-        refuseOntoADraft( context.getEngine(), renameToClean );
+        final Engine engine = context.getEngine();
+        RenameDraftGuard.check( engine, renameFrom, renameToClean );
 
         //  The move runs holding the old and the new name's save locks (RenameMove): a save of the old page cannot land
         //  between the read of its text and the re-write under the new name.
-        final Engine engine = context.getEngine();
         final RenameMove.Moved moved = RenameMove.move( context, renameFrom, renameToClean,
                 from -> getReferencesToChange( from, engine ) );
         final Page fromPage = moved.fromPage();
@@ -127,31 +125,6 @@ public class DefaultPageRenamer implements PageRenamer {
 
         //  Done, return the new name.
         return renameToClean;
-    }
-
-    /**
-     * A page name holding a collaborative draft (active or frozen) cannot be a rename's target: the store keeps one draft
-     * per page, so the moved page's own draft could not follow it (MultiEdit §0 Minor). Checked before any write. A
-     * collaboration store that cannot tell is logged and the rename goes on, as collaboration never blocks a core
-     * operation: a draft found there later makes the rekey refuse, and the moved draft is frozen, not lost.
-     */
-    private static void refuseOntoADraft( final Engine engine, final String renameTo ) throws WikiException {
-        final CollabSessionRegistry registry = CollabEngineAccess.registry( engine );
-        if( registry == null ) {
-            return;
-        }
-        final boolean draft;
-        try {
-            draft = registry.hasDraft( renameTo );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "Rename to '{}': could not check for a collaborative draft there; renaming anyway: {}", renameTo,
-                    e.getMessage(), e );
-            return;
-        }
-        if( draft ) {
-            throw new WikiException( "Page '" + renameTo + "' has an unpublished collaborative draft; publish or discard it"
-                    + " first" );
-        }
     }
 
     /**

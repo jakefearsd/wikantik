@@ -33,7 +33,9 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 
@@ -44,6 +46,31 @@ class PageSaveHelperTest {
 
     private PageSaveHelper newHelper( final PageManager pm ) {
         return new PageSaveHelper( mock( Engine.class ), pm );
+    }
+
+    /**
+     * Mirrors what DefaultPageManager does: evaluates the guard against the current page/text, then performs the
+     * two-argument save and reports the page as it stands afterwards. (A bare mock would return a null outcome.)
+     */
+    private static void stubSave( final PageManager pm, final String name ) throws Exception {
+        when( pm.saveText( any(), any(), any( SaveGuard.class ) ) ).thenAnswer( inv -> {
+            final Context ctx = inv.getArgument( 0 ); // null: the test SPI creates no contexts
+            inv.< SaveGuard >getArgument( 2 ).check( pm.getPage( name ),
+                    pm.getPureText( name, PageProvider.LATEST_VERSION ) );
+            pm.saveText( ctx, inv.getArgument( 1 ) );
+            final Page after = pm.getPage( name );
+            return new SaveOutcome( after, after == null ? 0 : after.getVersion(), false );
+        } );
+    }
+
+    /** As {@link #stubSave} but never reads the stored text (for tests asserting it is not consulted). */
+    private static void stubPlainSave( final PageManager pm, final String name ) throws Exception {
+        when( pm.saveText( any(), any(), any( SaveGuard.class ) ) ).thenAnswer( inv -> {
+            final Context ctx = inv.getArgument( 0 ); // null: the test SPI creates no contexts
+            pm.saveText( ctx, inv.getArgument( 1 ) );
+            final Page after = pm.getPage( name );
+            return new SaveOutcome( after, after == null ? 0 : after.getVersion(), false );
+        } );
     }
 
     // --- computeContentHash ------------------------------------------------
@@ -112,6 +139,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextThrowsVersionConflictWhenExpectedVersionMismatches() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Doc" );
         final Page current = mock( Page.class );
         when( current.getVersion() ).thenReturn( 4 );
         when( pm.getPage( "Doc" ) ).thenReturn( current );
@@ -130,6 +158,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextSkipsVersionCheckWhenPageDoesNotExistYet() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "NewPage" );
         final Page saved = mock( Page.class );
         when( pm.getPage( eq( "NewPage" ) ) ).thenReturn( null, saved ); // null before save, saved after
 
@@ -144,6 +173,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextThrowsVersionConflictOnContentHashMismatch() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Doc" );
         when( pm.getPureText( eq( "Doc" ), anyInt() ) ).thenReturn( "current text" );
 
         final SaveOptions options = SaveOptions.builder()
@@ -162,6 +192,7 @@ class PageSaveHelperTest {
         // pm.getPureText returns null (page has no prior text) — the hash comparison must
         // treat that as an empty string rather than NPE-ing on it.
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "New" );
         when( pm.getPureText( eq( "New" ), anyInt() ) ).thenReturn( null );
         final Page saved = mock( Page.class );
         when( pm.getPage( "New" ) ).thenReturn( saved );
@@ -179,6 +210,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextProceedsWhenContentHashMatches() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Doc" );
         when( pm.getPureText( eq( "Doc" ), anyInt() ) ).thenReturn( "current text" );
         final Page saved = mock( Page.class );
         when( pm.getPage( "Doc" ) ).thenReturn( saved );
@@ -198,6 +230,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextWithNoMetadataPassesBodyTextUnchanged() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Plain" );
         when( pm.getPage( "Plain" ) ).thenReturn( mock( Page.class ) );
 
         newHelper( pm ).saveText( "Plain", "just the body, no frontmatter", SaveOptions.builder().build() );
@@ -210,6 +243,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextWithReplaceMetadataTrueUsesOnlyGivenMetadata() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubPlainSave( pm, "Doc" );
         when( pm.getPage( "Doc" ) ).thenReturn( mock( Page.class ) );
 
         final SaveOptions options = SaveOptions.builder()
@@ -231,6 +265,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextWithMergeMetadataMergesExistingFrontmatter() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Doc" );
         when( pm.getPage( "Doc" ) ).thenReturn( mock( Page.class ) );
         when( pm.getPureText( eq( "Doc" ), anyInt() ) )
                 .thenReturn( "---\ntitle: Old Title\ncluster: Reference\n---\nold body" );
@@ -253,6 +288,7 @@ class PageSaveHelperTest {
     @Test
     void saveTextReturnsPageManagerGetPageAfterSaving() throws Exception {
         final PageManager pm = mock( PageManager.class );
+        stubSave( pm, "Doc" );
         final Page saved = mock( Page.class );
         when( pm.getPage( "Doc" ) ).thenReturn( saved );
 

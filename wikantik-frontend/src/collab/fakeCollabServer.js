@@ -564,6 +564,9 @@ export function createFakeCollabServer({
       }
       resetToPublished();
       lastEditAt = null;
+      // the next join starts a fresh draft, which (as the server's) has never seen any clientID: none is reclaimed
+      clientOwner.clear();
+      clientReleasedAt.clear();
       announced = JSON.stringify({ unpublished: unpublished(), contributors });
       wake();
     },

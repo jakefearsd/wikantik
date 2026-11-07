@@ -1262,7 +1262,7 @@ describe('PageEditor collaborative mode', () => {
       server.purge();
     });
     const banner = await screen.findByTestId('collab-evicted');
-    expect(banner).toHaveTextContent('An administrator removed this draft');
+    expect(banner).toHaveTextContent('An administrator removed this shared draft, including its unpublished changes');
     expect(banner).not.toHaveTextContent(/no longer have permission/i);
     expect(within(banner).getByTestId('collab-evicted-text')).toHaveTextContent('mine');
     fireEvent.click(within(banner).getByRole('button', { name: 'Copy' }));
@@ -1299,9 +1299,64 @@ describe('PageEditor collaborative mode', () => {
       gate.resolve({ type: 'evicted', reason: 'purged' });
     });
     const banner = await screen.findByTestId('collab-evicted');
-    expect(banner).toHaveTextContent('An administrator removed this draft');
+    expect(banner).toHaveTextContent('An administrator removed this shared draft, including its unpublished changes');
     expect(within(banner).getByTestId('collab-evicted-text')).toHaveTextContent('mine');
     expect(screen.queryByTestId('collab-recovery')).toBeNull();
+  });
+
+  it('aPurgeWithNothingUnsyncedNeverSaysNoEditsWereLost', async () => {
+    // the purge deleted the synced, unpublished edits with the draft: reassurance would be false
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    placeCaret(view, 11);
+    typeAtCaret(view, ' synced');
+    await until(() => server.doc === 'Hello world synced');
+    await wait(50);
+    act(() => { server.purge(); });
+    const banner = await screen.findByTestId('collab-evicted');
+    expect(banner).toHaveTextContent('An administrator removed this shared draft, including its unpublished changes.');
+    expect(banner).not.toHaveTextContent(/none of your edits were lost/i);
+    expect(within(banner).queryByTestId('collab-evicted-text')).toBeNull();
+  });
+
+  it('aLostEditRightEvictionWithNothingUnsyncedStillSaysNoEditsWereLost', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.evict(server.liveParticipantIds()[0], 'lost-edit'); });
+    const banner = await screen.findByTestId('collab-evicted');
+    expect(banner).toHaveTextContent(/no longer have permission/i);
+    expect(banner).toHaveTextContent('None of your edits were lost.');
+  });
+
+  it('aPurgeTheClientNeverHeardOfLeavesTheRecoveryPanelNeutral', async () => {
+    // the purge's parked-pull answer never reaches this client; its next call answers 409 rejoin and it rejoins a fresh
+    // draft, unable to tell a purge from any other lost draft: no reassurance that nothing was lost
+    const real = server.transportFor('ada');
+    const gate = deferred();
+    let held = true;
+    const transport = {
+      ...real,
+      pull: async (q) => {
+        if (!held) return real.pull(q);
+        await gate.promise;
+        held = false;
+        return real.pull(q);
+      },
+    };
+    const { view } = await mount({ transport });
+    await until(() => docOf(view) === 'Hello world');
+    placeCaret(view, 11);
+    typeAtCaret(view, ' synced');
+    await until(() => server.doc === 'Hello world synced');
+    await wait(50);
+    act(() => {
+      server.purge();
+      gate.resolve();
+    });
+    const panel = await screen.findByTestId('collab-recovery');
+    expect(panel).not.toHaveTextContent(/none of your edits were lost/i);
+    expect(panel).toHaveTextContent('You had no edits waiting to be sent.');
+    expect(screen.queryByTestId('collab-evicted')).toBeNull();
   });
 
   it('leavingWithSyncedWorkShowsANonBlockingNote', async () => {

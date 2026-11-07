@@ -167,6 +167,17 @@ const replaceInUnplaced = (list, find, replacement) =>
   list.map((t) => (t.includes(find) ? t.replace(find, () => replacement) : t)).filter(Boolean);
 /** Local work the server never got (unsynced text, field edits), as one text to copy. */
 const hasLocalWork = (w) => !!w && (!!w.unsyncedText || w.metaEdits?.length > 0);
+const PURGE_NOTE = 'An administrator removed this shared draft, including its unpublished changes.';
+/**
+ * Resyncs that keep the shared draft as it was (the server still holds every edit that reached it), so "none of your
+ * edits were lost" is true. A rejoin into a new draft or a server that is behind cannot tell a purge, an expiry or a lost
+ * update apart, so it gets neutral wording instead.
+ */
+const DRAFT_KEPT_RESYNCS = new Set(['resync', 'oversize', 'bad-since', 'rejected', 'restart']);
+function resyncNothingUnsyncedNote(reason, purged) {
+  if (purged) return PURGE_NOTE.replace('this shared draft', 'the shared draft');
+  return DRAFT_KEPT_RESYNCS.has(reason) ? 'None of your edits were lost.' : 'You had no edits waiting to be sent.';
+}
 function localWorkText(w) {
   return [w.unsyncedText, ...(w.metaEdits ?? []).map(describeMetaEdit)].filter(Boolean).join('\n');
 }
@@ -1727,7 +1738,7 @@ export default function PageEditor({ collabTransport } = {}) {
               <pre className="collab-recovery-text" data-testid="collab-recovery-text">{collab.resync.unsyncedText}</pre>
               <button type="button" className="btn btn-ghost btn-sm" onClick={copyRecoveryText}>Copy my text</button>
             </>
-          ) : <span>None of your edits were lost.</span>}
+          ) : <span>{resyncNothingUnsyncedNote(collab.resync.reason, collab.evictedReason === 'purged')}</span>}
           {collab.status === 'resync'
             ? <button type="button" className="btn btn-primary btn-sm" onClick={() => collab.restart()}>Continue editing</button>
             : <button type="button" className="btn btn-ghost btn-sm" onClick={collab.dismissResync}>Dismiss</button>}
@@ -1761,13 +1772,14 @@ export default function PageEditor({ collabTransport } = {}) {
         <div className="warning-banner" role="alert" data-testid="collab-evicted">
           <span>
             {collab.evictedReason === 'purged'
-              ? 'An administrator removed this draft, so the editor is read-only.'
+              ? `${PURGE_NOTE} The editor is read-only.`
               : 'You no longer have permission to edit this page, so the editor is read-only.'}
+            {/* a purge deleted the synced, unpublished edits too: never "none were lost" for it */}
             {hasLocalWork(collab.evictedRecovery)
               ? (collab.evictedReason === 'purged'
                 ? ' Your edits below had not reached the draft before it was removed — copy them if you need them.'
                 : ' Your edits that had not reached the shared draft were not saved — copy it if you need it.')
-              : ' None of your edits were lost.'}
+              : (collab.evictedReason === 'purged' ? '' : ' None of your edits were lost.')}
           </span>
           {hasLocalWork(collab.evictedRecovery) && (
             <>

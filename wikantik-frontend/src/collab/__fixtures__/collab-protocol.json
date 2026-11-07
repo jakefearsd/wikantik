@@ -17,7 +17,11 @@
     "rateLimitedIs429": "Ruling P3: rate-limited is HTTP 429 {reason:'rate-limited', retryAfterMs?} on POST /updates, never 409. retryAfterMs is optional; without it the client uses its own exponential backoff.",
     "participantId": "Every request except join carries `participantId` (the id join returned): in the JSON body for POST endpoints, as a query parameter on GET /updates, and in the pagehide beacon body. The server identifies the participant by it, not by the author key: two tabs of one user are two participants. The id is bound to the author key (A6): another user's participantId answers 403 {reason:'not-your-participant'}; an unknown or expired one answers 409 rejoin; a missing one 400.",
     "presenceOnlyPush": "A push with empty `updates` skips the version check (no stale-base): it only records the selection. A push with updates and version != head is a stale-base 409.",
-    "docHash": "DEFERRED, optional: join/pull MAY later carry `docHash` (hash of the document at `version`) so a client can detect divergence. Not part of protocol version 1; clients ignore unknown fields and no case here carries it."
+    "docHash": "DEFERRED, optional: join/pull MAY later carry `docHash` (hash of the document at `version`) so a client can detect divergence. Not part of protocol version 1; clients ignore unknown fields and no case here carries it.",
+    "metaEdits": "A14. `metaOps` items on POST /updates are {field, value} (SET; a present `value: null` removes the field), {field, add:\"x\"} (ADD) or {field, remove:\"x\"} (REMOVE). Exactly one of value/add/remove is present, else 400 {reason:'rejected'}; ADD and REMOVE take a string and are allowed only on tags, related and aliases. A push with empty `updates` and non-empty `metaOps` skips the version check (as a presence-only push does). A refused push applies nothing (no text, meta or selection). A push 200 carries `metaSeq`. A pulled meta op is the server-resolved assignment {field, value}, never add/remove, and carries `by` (the author's display name) when a participant authored it; server ops omit `by`.",
+    "metaIdempotent": "Every meta edit is idempotent: re-applying a SET of the current value, an ADD of a present item, or a REMOVE of an absent item changes nothing (no metaSeq advance, no pulled op), so a lost acknowledgement and retry is safe. Values are compared as normalised JSON.",
+    "renamedSession": "Post-join calls resolve the session by sessionId. The {pageName} path segment may be the session's current name or any name it held earlier; any other name answers 404. A rename emits a page-renamed {to} event.",
+    "evicted": "After an `evicted {participantId, reason}` event (reason lost-edit|signed-out|account-deleted) every post-join call by that participant answers 403 {reason:'evicted', detail:<same reason>}. Publishing a frozen draft without createPages answers 403 {reason:'no-create'}. participant-left carries reason left|timeout|evicted. Events: participant-joined {participant}, participant-left {participantId, reason}, external-change {source, pageVersion, version, ranges:[[from,to]], conflictFields:[...], recreated?} (version = collab head right after the server update; ranges in that document's coordinates), page-renamed {to}, page-deleted {}, evicted {participantId, reason}."
   },
   "cases": [
     {
@@ -633,6 +637,274 @@
       "response": {
         "status": 204,
         "body": null
+      }
+    },
+    {
+      "id": "updates.post.200.meta-set-ops",
+      "method": "POST",
+      "path": "/updates",
+      "request": {
+        "body": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "version": 1,
+          "updates": [],
+          "metaOps": [
+            {
+              "field": "tags",
+              "add": "c"
+            },
+            {
+              "field": "related",
+              "remove": "OldPage"
+            },
+            {
+              "field": "status",
+              "value": "draft"
+            },
+            {
+              "field": "summary",
+              "value": null
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "accepted": true,
+          "version": 1,
+          "metaSeq": 4
+        }
+      }
+    },
+    {
+      "id": "updates.post.200.meta-only",
+      "method": "POST",
+      "path": "/updates",
+      "request": {
+        "body": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "version": 0,
+          "updates": [],
+          "metaOps": [
+            {
+              "field": "status",
+              "value": "draft"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "accepted": true,
+          "version": 1,
+          "metaSeq": 1
+        }
+      }
+    },
+    {
+      "id": "updates.post.400.bad-meta-op",
+      "method": "POST",
+      "path": "/updates",
+      "request": {
+        "body": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "version": 1,
+          "updates": [],
+          "metaOps": [
+            {
+              "field": "status",
+              "add": "x"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "reason": "rejected",
+          "message": "add and remove are allowed only on tags, related and aliases"
+        }
+      }
+    },
+    {
+      "id": "updates.get.200.meta-by",
+      "method": "GET",
+      "path": "/updates",
+      "request": {
+        "query": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "since": 0,
+          "metaSince": 0,
+          "presenceSince": 0,
+          "eventsSince": 0
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "updates": [],
+          "metaOps": [
+            {
+              "field": "status",
+              "value": "draft",
+              "by": "Raj"
+            },
+            {
+              "field": "tags",
+              "value": [
+                "a",
+                "b"
+              ]
+            }
+          ],
+          "metaSeq": 2,
+          "presence": {},
+          "presenceSeq": 0,
+          "events": [],
+          "eventSeq": 0
+        }
+      }
+    },
+    {
+      "id": "updates.get.200.lifecycle-events",
+      "method": "GET",
+      "path": "/updates",
+      "request": {
+        "query": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "since": 0,
+          "metaSince": 0,
+          "presenceSince": 0,
+          "eventsSince": 0
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "updates": [],
+          "metaOps": [],
+          "metaSeq": 0,
+          "presence": {},
+          "presenceSeq": 0,
+          "events": [
+            {
+              "seq": 1,
+              "type": "participant-joined",
+              "participant": {
+                "participantId": "pt-2",
+                "displayName": "Raj",
+                "color": "#c2410c"
+              }
+            },
+            {
+              "seq": 2,
+              "type": "participant-left",
+              "participantId": "pt-2",
+              "reason": "left"
+            },
+            {
+              "seq": 3,
+              "type": "external-change",
+              "source": "disk",
+              "pageVersion": 8,
+              "version": 2,
+              "ranges": [
+                [
+                  0,
+                  5
+                ]
+              ],
+              "conflictFields": [
+                "status"
+              ]
+            },
+            {
+              "seq": 4,
+              "type": "page-renamed",
+              "to": "NewName"
+            },
+            {
+              "seq": 5,
+              "type": "page-deleted"
+            },
+            {
+              "seq": 6,
+              "type": "evicted",
+              "participantId": "pt-2",
+              "reason": "lost-edit"
+            }
+          ],
+          "eventSeq": 6
+        }
+      }
+    },
+    {
+      "id": "updates.post.403.evicted",
+      "method": "POST",
+      "path": "/updates",
+      "request": {
+        "body": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "version": 1,
+          "updates": [],
+          "metaOps": []
+        }
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "reason": "evicted",
+          "detail": "lost-edit"
+        }
+      }
+    },
+    {
+      "id": "updates.get.403.evicted",
+      "method": "GET",
+      "path": "/updates",
+      "request": {
+        "query": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "since": 1,
+          "metaSince": 0,
+          "presenceSince": 0,
+          "eventsSince": 0
+        }
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "reason": "evicted",
+          "detail": "lost-edit"
+        }
+      }
+    },
+    {
+      "id": "publish.403.no-create",
+      "method": "POST",
+      "path": "/publish",
+      "request": {
+        "body": {
+          "sessionId": "s-1f3a",
+          "participantId": "pt-1",
+          "version": 1,
+          "changeNote": ""
+        }
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "reason": "no-create"
+        }
       }
     }
   ]

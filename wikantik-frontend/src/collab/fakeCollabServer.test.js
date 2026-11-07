@@ -33,7 +33,8 @@ function shapeDiff(actual, expected, path = '$') {
       if (!(k in actual)) diffs.push(`${path}.${k}: missing`);
       else diffs.push(...shapeDiff(actual[k], expected[k], `${path}.${k}`));
     }
-    for (const k of Object.keys(actual)) if (!(k in expected)) diffs.push(`${path}.${k}: unexpected`);
+    // `by` on a pulled meta op is present only when a participant authored it, so it is optional against older cases
+    for (const k of Object.keys(actual)) if (!(k in expected) && !(k === 'by' && path.includes('.metaOps['))) diffs.push(`${path}.${k}: unexpected`);
     return diffs;
   }
   return [];
@@ -251,5 +252,160 @@ describe('fakeCollabServer matches the fixture', () => {
     await replay(server, 'publish.423', { version: 1 });
     await replay(server, 'discard.204');
     await replay(server, 'leave.204');
+  });
+});
+
+describe('Phase 2 fixture cases against the fake', () => {
+  let server;
+  beforeEach(() => { vi.useFakeTimers(); server = createFakeCollabServer({ initialMeta: { tags: ['a'], related: ['OldPage'], summary: 's' } }); });
+  afterEach(() => { vi.useRealTimers(); });
+  const pullAll = (srv, user = 'ada', participantId = 'pt-1', extra = {}) => srv.handle({
+    method: 'GET', path: '/updates', user,
+    query: { sessionId: 's-1f3a', participantId, since: 0, metaSince: 0, presenceSince: 0, eventsSince: 0, ...extra },
+  });
+  const replayCase = async (srv, id, { version, user = 'ada', participantId = 'pt-1' } = {}) => {
+    const c = byId[id];
+    const body = { ...structuredClone(c.request.body), sessionId: 's-1f3a', participantId };
+    if (version !== undefined) body.version = version;
+    const res = await srv.handle({ method: c.method, path: c.path, body, query: c.request.query, user });
+    expect(res.status, id).toBe(c.response.status);
+    expect(shapeDiff(res.body, c.response.body), id).toEqual([]);
+    return res;
+  };
+
+  it('fixture lists the new cases and notes', () => {
+    for (const id of ['updates.post.200.meta-set-ops', 'updates.post.200.meta-only', 'updates.post.400.bad-meta-op',
+      'updates.get.200.meta-by', 'updates.get.200.lifecycle-events', 'updates.post.403.evicted', 'updates.get.403.evicted',
+      'publish.403.no-create']) expect(byId[id], id).toBeDefined();
+    for (const n of ['metaEdits', 'metaIdempotent', 'renamedSession', 'evicted']) expect(fixture.notes[n], n).toBeTypeOf('string');
+  });
+
+  it('meta set, add, remove and null-removal resolve to assignments', async () => {
+    await joinSample(server);
+    await replayCase(server, 'updates.post.200.meta-set-ops', { version: 0 });
+    expect(server.metadata).toEqual({ tags: ['a', 'c'], related: [], status: 'draft' });
+    const pulled = await pullAll(server);
+    expect(pulled.body.metaOps).toEqual([
+      { field: 'tags', value: ['a', 'c'], by: 'ada' },
+      { field: 'related', value: [], by: 'ada' },
+      { field: 'status', value: 'draft', by: 'ada' },
+      { field: 'summary', value: null, by: 'ada' },
+    ]);
+    expect(pulled.body.metaSeq).toBe(4);
+  });
+
+  it('meta edits are idempotent: a repeat changes nothing', async () => {
+    await joinSample(server);
+    const ops = [{ field: 'tags', add: 'a' }, { field: 'related', remove: 'Nope' }, { field: 'summary', value: 's' }];
+    const res = await push(server, { version: 0, updates: [], metaOps: ops });
+    expect(res.status).toBe(200);
+    expect(res.body.metaSeq).toBe(0);
+    expect((await pullAll(server)).body.metaOps).toEqual([]);
+    const add = { field: 'tags', add: 'z' };
+    await push(server, { version: 0, updates: [], metaOps: [add] });
+    const again = await push(server, { version: 0, updates: [], metaOps: [add] });
+    expect(again.body.metaSeq).toBe(1);
+    expect(server.metadata.tags).toEqual(['a', 'z']);
+  });
+
+  it('a meta-only push skips the version check', async () => {
+    await joinSample(server);
+    await push(server, { version: 0, updates: [{ clientID: 'c1', changes: [11, [0, '!']] }] });
+    await replayCase(server, 'updates.post.200.meta-only', { version: 0 });
+    expect(server.metadata.status).toBe('draft');
+  });
+
+  it('a bad meta op is 400 rejected and applies nothing', async () => {
+    const j = await joinSample(server);
+    await replayCase(server, 'updates.post.400.bad-meta-op', { version: 0 });
+    const bads = [{ field: 'status', add: 'x' }, { field: 'tags', add: 5 }, { field: 'tags', value: [], add: 'x' }, { field: 'tags' }, { field: 'tags', remove: ['x'] }];
+    for (const bad of bads) {
+      const res = await push(server, {
+        version: 0, updates: [{ clientID: j.clientID, changes: [11, [0, '!']] }],
+        metaOps: [{ field: 'status', value: 'ok' }, bad], selection: { anchor: 1, head: 1, version: 0, unconfirmed: 0 },
+      });
+      expect(res.status, JSON.stringify(bad)).toBe(400);
+      expect(res.body.reason).toBe('rejected');
+    }
+    expect(server.doc).toBe('Hello world');
+    expect(server.version).toBe(0);
+    expect(server.metadata).toEqual({ tags: ['a'], related: ['OldPage'], summary: 's' });
+  });
+
+  it('a pulled meta op carries by only when a participant authored it', async () => {
+    await joinSample(server, 'ada');
+    const raj = await joinSample(server, 'raj');
+    await push(server, { version: 0, updates: [], metaOps: [{ field: 'status', value: 'draft' }] }, 'raj', raj.participantId);
+    server.externalChange({ source: 'disk', text: 'Hello world', meta: { owner: 'x' } });
+    const res = await pullAll(server);
+    expect(shapeDiff(res.body, byId['updates.get.200.meta-by'].response.body)).toEqual([]);
+    expect(res.body.metaOps[0]).toEqual({ field: 'status', value: 'draft', by: 'raj' });
+    expect(res.body.metaOps[1]).toEqual({ field: 'owner', value: 'x' });
+  });
+
+  it('emits every lifecycle event in the recorded shape', async () => {
+    await joinSample(server, 'ada');
+    const raj = await joinSample(server, 'raj');
+    await server.handle({ method: 'POST', path: '/leave', user: 'raj', body: { sessionId: 's-1f3a', participantId: raj.participantId } });
+    const kim = await joinSample(server, 'kim');
+    server.externalChange({ source: 'disk', text: 'Howdy world', meta: { status: 'x' }, conflictFields: ['status'] });
+    server.renamePage('NewName');
+    server.evict(kim.participantId, 'lost-edit');
+    const res = await pullAll(server);
+    const recorded = Object.fromEntries(byId['updates.get.200.lifecycle-events'].response.body.events.map((e) => [e.type, e]));
+    const got = {};
+    for (const e of res.body.events) got[e.type] ??= e;
+    for (const t of ['participant-joined', 'participant-left', 'external-change', 'page-renamed', 'evicted']) {
+      expect(shapeDiff(got[t], recorded[t]), t).toEqual([]);
+    }
+    expect(got['participant-left'].reason).toBe('left');
+    expect(got['external-change']).toMatchObject({ source: 'disk', version: 1, pageVersion: 8, conflictFields: ['status'] });
+    expect(got['external-change'].ranges).toEqual([[1, 5]]);
+    expect(got['page-renamed'].to).toBe('NewName');
+    expect(got.evicted).toMatchObject({ participantId: kim.participantId, reason: 'lost-edit' });
+    expect(res.body.events.map((e) => e.seq)).toEqual(res.body.events.map((_, i) => i + 1));
+    expect(server.doc).toBe('Howdy world');
+    expect(server.version).toBe(1);
+  });
+
+  it('an evicted participant gets 403 evicted on every post-join call', async () => {
+    const j = await joinSample(server);
+    server.evict(j.participantId, 'signed-out');
+    const post = await push(server, { version: 0, updates: [], metaOps: [] });
+    expect(post.status).toBe(403);
+    expect(post.body).toEqual({ reason: 'evicted', detail: 'signed-out' });
+    expect(shapeDiff(post.body, byId['updates.post.403.evicted'].response.body)).toEqual([]);
+    const get = await pullAll(server, 'ada', 'pt-1', { since: 0 });
+    expect(get.status).toBe(403);
+    expect(shapeDiff(get.body, byId['updates.get.403.evicted'].response.body)).toEqual([]);
+    for (const [method, path] of [['POST', '/publish'], ['POST', '/discard'], ['POST', '/leave']]) {
+      const r = await server.handle({ method, path, user: 'ada', body: { sessionId: 's-1f3a', participantId: 'pt-1', version: 0 } });
+      expect(r.status, path).toBe(403);
+      expect(r.body.reason).toBe('evicted');
+    }
+    expect(server.isLive(j.participantId)).toBe(false);
+  });
+
+  it('publishing a frozen draft without createPages is 403 no-create', async () => {
+    await joinSample(server);
+    server.freeze();
+    server.setCanCreate(false);
+    await replayCase(server, 'publish.403.no-create', { version: 0 });
+    server.setCanCreate(true);
+    const ok = await server.handle({ method: 'POST', path: '/publish', user: 'ada', body: { sessionId: 's-1f3a', participantId: 'pt-1', version: 0 } });
+    expect(ok.status).toBe(200);
+  });
+
+  it('a renamed session answers to its current and earlier names, and 404 to any other', async () => {
+    await joinSample(server);
+    const call = (pageName) => server.handle({
+      method: 'POST', path: '/updates', pageName, user: 'ada',
+      body: { sessionId: 's-1f3a', participantId: 'pt-1', version: 0, updates: [], metaOps: [] },
+    });
+    expect((await call('PageName')).status).toBe(200);
+    server.renamePage('Second');
+    server.renamePage('Third');
+    for (const n of ['PageName', 'Second', 'Third', undefined]) expect((await call(n)).status, String(n)).toBe(200);
+    expect((await call('Other')).status).toBe(404);
   });
 });

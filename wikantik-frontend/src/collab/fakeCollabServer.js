@@ -26,6 +26,9 @@ export function seededRandom(seed) {
 
 const COLORS = ['#1b6ec2', '#c2410c', '#15803d', '#7e22ce', '#be123c'];
 const utf8Bytes = (s) => new TextEncoder().encode(s).length;
+const LIST_FIELDS = new Set(['tags', 'related', 'aliases']);
+const jsonEq = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const normalise = (v) => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
 const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
 
 export function createFakeCollabServer({
@@ -56,8 +59,10 @@ export function createFakeCollabServer({
   const waiters = new Set();
   const config = {
     forbidJoin: false, derived: false, full: false, disabled: false, frozen: false,
-    publishing: false, publishMergedRetry: false, publishInvalid: false,
+    publishing: false, publishMergedRetry: false, publishInvalid: false, canCreate: true,
   };
+  let currentName = 'PageName';
+  const heldNames = new Set([currentName]);
   const calls = [];
   const drops = [];
   const pushTimes = new Map();
@@ -80,6 +85,7 @@ export function createFakeCollabServer({
     if (sessionId && sessionId !== 's-1f3a') return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
     if (!p) return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
     if (p.owner !== user) return { error: reply(403, { reason: 'not-your-participant' }) };
+    if (p.evicted) return { error: reply(403, { reason: 'evicted', detail: p.evicted }) };
     if (p.expired) return { error: reply(409, { rejoin: true, reason: 'rejoin' }) };
     p.lastSeen = Date.now();
     return { p };
@@ -117,6 +123,39 @@ export function createFakeCollabServer({
     });
   }
 
+  /** Validates the ops and resolves them against a scratch copy to server assignments; idempotent no-ops drop out. */
+  function resolveMetaOps(ops) {
+    const scratch = { ...metadata };
+    const out = [];
+    const bad = (message) => ({ error: reply(400, { reason: 'rejected', message }) });
+    for (const op of ops) {
+      if (!op || typeof op.field !== 'string' || !op.field) return bad('meta op needs a field');
+      const present = ['value', 'add', 'remove'].filter((k) => k in op);
+      if (present.length !== 1) return bad('exactly one of value, add and remove is required');
+      let value;
+      if (present[0] === 'value') value = normalise(op.value);
+      else {
+        if (!LIST_FIELDS.has(op.field)) return bad('add and remove are allowed only on tags, related and aliases');
+        const item = op[present[0]];
+        if (typeof item !== 'string') return bad('add and remove take a string');
+        const cur = scratch[op.field];
+        const list = Array.isArray(cur) ? [...cur] : typeof cur === 'string' && cur ? [cur] : [];
+        const has = list.includes(item);
+        if (present[0] === 'add') { if (!has) list.push(item); } else if (has) list.splice(list.indexOf(item), 1);
+        value = list;
+      }
+      if (jsonEq(value, scratch[op.field]) && (value !== null || op.field in scratch === false)) continue;
+      if (value === null) delete scratch[op.field]; else scratch[op.field] = value;
+      out.push({ field: op.field, value });
+    }
+    return { ops: out };
+  }
+  function applyMeta({ field, value }, by) {
+    if (value === null) delete metadata[field]; else metadata[field] = value;
+    metaSeq += 1;
+    metaLog.push({ field, value, ...(by ? { by } : {}), seq: metaSeq });
+  }
+
   function push(user, body) {
     const r = resolve(user, body.sessionId, body.participantId);
     if (r.error) return r.error;
@@ -150,14 +189,12 @@ export function createFakeCollabServer({
       }
       parsed.push({ clientID: u.clientID, changes: cs.toJSON() });
     }
+    const resolved = resolveMetaOps(body.metaOps ?? []);
+    if (resolved.error) return resolved.error;
     doc = next;
     for (const u of parsed) log.push(u);
     version += parsed.length;
-    for (const op of body.metaOps ?? []) {
-      if (op.value === null) delete metadata[op.field]; else metadata[op.field] = op.value;
-      metaSeq += 1;
-      metaLog.push({ ...op, seq: metaSeq });
-    }
+    for (const op of resolved.ops) applyMeta(op, p.displayName);
     if (body.selection) {
       const { anchor, head, version: v, unconfirmed } = body.selection;
       p.selection = { anchor, head, version: v, unconfirmed };
@@ -221,6 +258,7 @@ export function createFakeCollabServer({
     const r = resolve(user, body.sessionId, body.participantId);
     if (r.error) return r.error;
     const { p } = r;
+    if (config.frozen && !config.canCreate) return reply(403, { reason: 'no-create' });
     if (config.publishing) return reply(423, { reason: 'publish-in-progress' });
     if (config.publishMergedRetry) {
       config.publishMergedRetry = false;
@@ -235,12 +273,13 @@ export function createFakeCollabServer({
     return reply(200, { pageVersion: basePageVersion, warnings: [], mathWarnings: [] });
   }
 
-  async function handle({ method, path, query = {}, body = {}, user = 'ada' }) {
+  async function handle({ method, path, pageName, query = {}, body = {}, user = 'ada' }) {
     const entry = { method, path, user, query, body, status: null, reason: null };
     calls.push(entry);
     const key = `${method} ${path}`;
     let res;
-    if (key === 'POST /join') res = join(user, body);
+    if (pageName !== undefined && key !== 'POST /join' && !heldNames.has(pageName)) res = reply(404, { error: 'not_found' });
+    else if (key === 'POST /join') res = join(user, body);
     else if (key === 'POST /updates') res = push(user, body);
     else if (key === 'GET /updates') res = await pull(user, query);
     else if (key === 'POST /publish') res = publish(user, body);
@@ -248,11 +287,12 @@ export function createFakeCollabServer({
     else if (key === 'POST /leave') {
       const p = participants.get(body.participantId);
       if (p && p.owner !== user) res = reply(403, { reason: 'not-your-participant' });
+      else if (p?.evicted) res = reply(403, { reason: 'evicted', detail: p.evicted });
       else {
         if (p && !p.expired) {
           p.expired = true;
           presenceSeq += 1;
-          addEvent({ type: 'participant-left', participantId: p.participantId });
+          addEvent({ type: 'participant-left', participantId: p.participantId, reason: 'left' });
         }
         res = reply(204);
       }
@@ -324,6 +364,55 @@ export function createFakeCollabServer({
     isLive: (id) => { const p = participants.get(id); return !!p && !p.expired; },
     /** Truncate the in-memory ring below `v`, so a pull from an older version gets 410. */
     truncateBelow(v) { log.splice(0, v - ringStart); ringStart = v; },
+    /** The page is renamed: the session lives on and answers to every name it has held. */
+    renamePage(to) {
+      currentName = to;
+      heldNames.add(to);
+      addEvent({ type: 'page-renamed', to });
+    },
+    get pageName() { return currentName; },
+    /** The draft is frozen (its page was deleted under it): pushes answer 409 frozen. */
+    freeze() { config.frozen = true; wake(); },
+    setCanCreate(v) { config.canCreate = !!v; },
+    /** The server evicts a participant: its next post-join call answers 403 evicted. */
+    evict(participantId, reason) {
+      const p = participants.get(participantId);
+      if (!p) return;
+      p.evicted = reason;
+      p.expired = true;
+      presenceSeq += 1;
+      addEvent({ type: 'evicted', participantId, reason });
+      addEvent({ type: 'participant-left', participantId, reason: 'evicted' });
+    },
+    /**
+     * A change from outside the editors (disk save, agent) merged by the session: `text` replaces the document
+     * (as one span replacement), `meta` assigns fields (server ops, no author). Emits an external-change event.
+     */
+    externalChange({ source, text: nextText, meta = {}, conflictFields = [], recreated } = {}) {
+      let ranges = [];
+      if (nextText != null && nextText !== text()) {
+        const old = text();
+        let pre = 0;
+        while (pre < old.length && pre < nextText.length && old[pre] === nextText[pre]) pre += 1;
+        let suf = 0;
+        while (suf < old.length - pre && suf < nextText.length - pre
+          && old[old.length - 1 - suf] === nextText[nextText.length - 1 - suf]) suf += 1;
+        const cs = ChangeSet.of({ from: pre, to: old.length - suf, insert: nextText.slice(pre, nextText.length - suf) }, doc.length);
+        doc = cs.apply(doc);
+        log.push({ clientID: 'server', changes: cs.toJSON() });
+        version += 1;
+        ranges = [[pre, nextText.length - suf]];
+      }
+      for (const [field, value] of Object.entries(meta)) {
+        const v = normalise(value);
+        if (!jsonEq(v, metadata[field])) applyMeta({ field, value: v }, null);
+      }
+      basePageVersion += 1;
+      addEvent({
+        type: 'external-change', source, pageVersion: basePageVersion, version, ranges, conflictFields,
+        ...(recreated ? { recreated: true } : {}),
+      });
+    },
     forgetClientIds() { clientOwner.clear(); },
   };
 }

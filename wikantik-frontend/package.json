@@ -12,10 +12,12 @@
     "test:watch": "vitest",
     "bench": "vitest bench --run",
     "lint": "eslint .",
-    "check:mermaid": "node scripts/check-mermaid.mjs"
+    "check:mermaid": "node scripts/check-mermaid.mjs",
+    "collab:fixtures": "node scripts/collab-fixtures.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/collab": "6.1.1",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-markdown": "^6.5.2",
     "@codemirror/language": "^6.13.1",

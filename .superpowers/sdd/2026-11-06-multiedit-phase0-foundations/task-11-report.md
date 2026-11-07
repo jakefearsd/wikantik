@@ -18,3 +18,9 @@ Red: test compile failed (SimClient missing). Green: `SimClientTest` 10 tests, 0
 ## Concerns
 - recoveryText holds the whole local doc rather than only the unsynced diff; Task 13/spec may want the diff.
 - No SimServer/StubCollabAuthority changes needed.
+
+## Fix round 1
+- recoveryText now assigned on every resync (`unconfirmed.isEmpty() ? "" : doc`); test laterCleanResyncClearsStaleRecoveryText (red before: 14 run, failed on the new tests; the old keep-earlier test resyncWithNothingUnsyncedLeavesRecoveryEmpty still passes).
+- Trace: `join` entry from the constructor; `resync` carries clientId, participantId, doc; TraceEntry Javadoc documents all types, push = informational, and the E11 skip/gap rule. Test traceHasJoinAndResyncCarriesNewIdentity; traceRecordsEventsAsJson index adjusted (join is entry 0).
+- Added tiePositionRebaseOrdersForeignBeforeLocal (aBAb) and batchWithOwnUpdateAfterForeignOne.
+- Command: `mvn -o test -pl wikantik-main -Dtest=SimClientTest -Dsurefire.failIfNoSpecifiedTests=false` -> 14 run, 0 failures (see commit).

@@ -163,8 +163,51 @@ class SimClientTest {
         a.localEdit( insert( "abc", 0, "X" ) );
         a.receive( List.of( new Update( "cb", insert( "abc", 3, "R" ) ) ), 0 );
         final List< String > trace = a.trace();
-        assertTrue( trace.get( 0 ).contains( "\"type\":\"local\"" ), trace.get( 0 ) );
+        assertTrue( trace.get( 1 ).contains( "\"type\":\"local\"" ), trace.get( 1 ) );
         assertTrue( trace.stream().anyMatch( t -> t.contains( "\"type\":\"receive\"" ) && t.contains( "\"fromVersion\":0" ) ) );
         assertTrue( trace.stream().anyMatch( t -> t.contains( "\"sendable\"" ) ) );
+    }
+
+    @Test
+    void laterCleanResyncClearsStaleRecoveryText() {
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        a.localEdit( insert( "abc", 3, "MINE" ) );
+        a.resync( new Joined( "p-a2", "ca2", 7, "server doc" ) );
+        assertEquals( "abcMINE", a.recoveryText() );
+        a.resync( new Joined( "p-a3", "ca3", 8, "server doc 2" ) );
+        assertEquals( "", a.recoveryText() );
+    }
+
+    @Test
+    void tiePositionRebaseOrdersForeignBeforeLocal() {
+        final SimClient a = client( "a", "ca", 0, "ab" );
+        a.localEdit( insert( "ab", 1, "A" ) );
+        a.receive( List.of( new Update( "cb", insert( "ab", 1, "B" ) ) ), 0 );
+        assertEquals( "aBAb", a.doc() );
+        assertEquals( "aBAb", a.sendable().get( 0 ).changes().apply( "aBb" ) );
+    }
+
+    @Test
+    void batchWithOwnUpdateAfterForeignOne() {
+        final SimClient a = client( "a", "ca", 0, "abc" );
+        final ChangeSet own = insert( "abc", 0, "L" );
+        a.localEdit( own );
+        final Update f1 = new Update( "cb", insert( "abc", 3, "x" ) );
+        final Update ownAccepted = new Update( "ca", insert( "abcx", 0, "L" ) );
+        final Update f2 = new Update( "cc", insert( "Labcx", 5, "y" ) );
+        a.receive( List.of( f1, ownAccepted, f2 ), 0 );
+        assertEquals( "Labcxy", a.doc() );
+        assertEquals( 3, a.version() );
+        assertTrue( a.sendable().isEmpty() );
+    }
+
+    @Test
+    void traceHasJoinAndResyncCarriesNewIdentity() {
+        final SimClient a = client( "a", "ca", 4, "abc" );
+        assertTrue( a.trace().get( 0 ).contains( "\"type\":\"join\"" ) );
+        assertTrue( a.trace().get( 0 ).contains( "\"clientId\":\"ca\"" ) );
+        a.resync( new Joined( "p2", "ca2", 9, "new" ) );
+        assertTrue( a.trace().stream().anyMatch( t -> t.contains( "\"type\":\"resync\"" )
+            && t.contains( "\"clientId\":\"ca2\"" ) && t.contains( "\"doc\":\"new\"" ) ) );
     }
 }

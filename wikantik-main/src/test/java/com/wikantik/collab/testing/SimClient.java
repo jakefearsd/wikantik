@@ -40,7 +40,21 @@ import java.util.List;
  */
 public final class SimClient {
 
-    /** One protocol-relevant event. {@code type} is local, receive, gap, push, resync. */
+    /**
+     * One protocol-relevant event, in the order they happened. Types:
+     * <ul>
+     * <li>{@code join}: constructor; {@code participantId, clientId, version, doc}. Replay seeds the JS client from it.</li>
+     * <li>{@code local}: a local edit; {@code changes} (ChangeSet JSON).</li>
+     * <li>{@code receive}: a pull batch; {@code fromVersion} and {@code updates} ({@code clientID}, {@code changes}).
+     *     Skip rule (E11), which the JS replay must apply identically: when fromVersion is below the client version the
+     *     first {@code version - fromVersion} updates are skipped; fromVersion above the version is a gap and nothing
+     *     is applied.</li>
+     * <li>{@code gap}: the receive just before it was a gap and was ignored; {@code fromVersion, version}.</li>
+     * <li>{@code push}: a push answer; informational only, not replayed.</li>
+     * <li>{@code sendable}: snapshot after each step, {@code version} and {@code sendable} updates; the replay's expected value.</li>
+     * <li>{@code resync}: rejoin; {@code version, clientId, participantId, doc, unsynced}. Later updates carry the new clientId.</li>
+     * </ul>
+     */
     public record TraceEntry( String type, JsonObject data ) {
         public JsonObject toJson() {
             final JsonObject o = new JsonObject();
@@ -62,6 +76,12 @@ public final class SimClient {
     public SimClient( final String name, final Joined joined ) {
         this.name = name;
         adopt( joined );
+        final JsonObject d = new JsonObject();
+        d.addProperty( "participantId", joined.participantId() );
+        d.addProperty( "clientId", joined.clientId() );
+        d.addProperty( "version", joined.version() );
+        d.addProperty( "doc", joined.doc() );
+        trace.add( new TraceEntry( "join", d ) );
     }
 
     private void adopt( final Joined joined ) {
@@ -182,14 +202,15 @@ public final class SimClient {
 
     /**
      * A10: the participant was lost; rejoin from fresh state. Unsynced text goes to {@link #recoveryText()} and is
-     * never re-applied. A later resync with nothing unsynced keeps the earlier recovery text.
+     * never re-applied. Every resync replaces the recovery text (empty when nothing is unsynced).
      */
     public void resync( final Joined fresh ) {
-        if ( !unconfirmed.isEmpty() ) {
-            recoveryText = doc;
-        }
+        recoveryText = unconfirmed.isEmpty() ? "" : doc;
         final JsonObject d = new JsonObject();
         d.addProperty( "version", fresh.version() );
+        d.addProperty( "clientId", fresh.clientId() );
+        d.addProperty( "participantId", fresh.participantId() );
+        d.addProperty( "doc", fresh.doc() );
         d.addProperty( "unsynced", unconfirmed.size() );
         trace.add( new TraceEntry( "resync", d ) );
         adopt( fresh );

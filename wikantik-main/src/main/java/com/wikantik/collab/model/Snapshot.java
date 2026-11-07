@@ -20,15 +20,18 @@ package com.wikantik.collab.model;
 
 import com.wikantik.collab.text.ChangeSet;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
 /**
  * A checkpoint of a session at {@code version}/{@code metaSeq}; {@code local} is the unpublished change set, relative to
- * the page version {@code basePageVersion} the session was based on when the snapshot was taken.
+ * the page version {@code basePageVersion} the session was based on when the snapshot was taken. {@code contributors}
+ * maps each author key to their contribution since the last publish, as of this snapshot, in first-contribution order.
  */
 public record Snapshot( int version, long metaSeq, int basePageVersion, String body, Map< String, Object > meta,
-                        ChangeSet local ) {
+                        ChangeSet local, Map< String, Contribution > contributors ) {
     public Snapshot {
         ModelChecks.nonNegative( version, "version" );
         ModelChecks.nonNegative( metaSeq, "metaSeq" );
@@ -36,5 +39,21 @@ public record Snapshot( int version, long metaSeq, int basePageVersion, String b
         Objects.requireNonNull( body, "body" );
         meta = ModelChecks.copyMeta( meta, "meta" );
         Objects.requireNonNull( local, "local" );
+        contributors = copyContributors( contributors );
+    }
+
+    /** A snapshot with no contributors. */
+    public Snapshot( final int version, final long metaSeq, final int basePageVersion, final String body,
+                     final Map< String, Object > meta, final ChangeSet local ) {
+        this( version, metaSeq, basePageVersion, body, meta, local, Map.of() );
+    }
+
+    /** Unmodifiable insertion-ordered copy; author keys non-blank, contributions non-null. */
+    private static Map< String, Contribution > copyContributors( final Map< String, Contribution > in ) {
+        Objects.requireNonNull( in, "contributors" );
+        final Map< String, Contribution > copy = new LinkedHashMap<>();
+        in.forEach( ( key, c ) -> copy.put( ModelChecks.nonBlank( key, "contributor author key" ),
+            Objects.requireNonNull( c, "contribution of " + key ) ) );
+        return Collections.unmodifiableMap( copy );
     }
 }

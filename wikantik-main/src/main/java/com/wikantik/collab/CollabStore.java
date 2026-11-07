@@ -24,7 +24,9 @@ import com.wikantik.collab.model.StoredMetaOp;
 import com.wikantik.collab.model.StoredUpdate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -123,6 +125,35 @@ public interface CollabStore {
      */
     void truncateUpdatesBelow( UUID id, int cut );
 
-    /** Removes the session and its updates, meta ops and snapshots, and frees the page name for createSession. */
+    /**
+     * Removes the session and its updates, meta ops and snapshots, and frees the page name for createSession. The
+     * page-version contributor ledger ({@link #recordContributors}) is not session state and is kept.
+     */
     void deleteSession( UUID id );
+
+    /**
+     * Every session, active and frozen, oldest edit first: ordered by {@code lastEditAt}, a session never edited by its
+     * {@code createdAt} (ties by page name).
+     */
+    List< SessionRecord > sessions();
+
+    // ---- page-version contributor ledger (page_version_contributor; docs/MultiEdit.MD section 7.3) -----------
+
+    /**
+     * Replaces the contributors credited to page version {@code pageVersion} of the page whose {@code canonical_id} is
+     * {@code canonicalId}: deletes that version's rows and inserts one per author key. With {@code created} (the
+     * publish created the page, so version numbers restart) every earlier row of {@code canonicalId} is deleted first.
+     * One atomic step and idempotent; an empty {@code authorKeys} still performs the deletes. Unlike the session state
+     * the ledger outlives the draft.
+     *
+     * @throws IllegalArgumentException for a null or blank {@code canonicalId}, a {@code pageVersion < 1}, or a null or
+     *                                  blank author key
+     */
+    void recordContributors( String canonicalId, int pageVersion, Set< String > authorKeys, boolean created );
+
+    /**
+     * The ledger of {@code canonicalId}: page version (ascending) to its contributors' author keys, each list sorted
+     * ({@link String#compareTo}). An empty map when there are none.
+     */
+    Map< Integer, List< String > > contributorsByVersion( String canonicalId );
 }

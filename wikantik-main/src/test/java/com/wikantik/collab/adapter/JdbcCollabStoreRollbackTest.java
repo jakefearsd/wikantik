@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,8 +65,8 @@ class JdbcCollabStoreRollbackTest {
     @BeforeEach
     void setUp() {
         ds = PostgresTestDb.createDataSource();
-        PostgresTestDb.truncate( "collab_session" );
-        clean = new JdbcCollabStore( new Jdbc( ds ) );
+        PostgresTestDb.truncate( "collab_session", "page_version_contributor" );
+        clean =new JdbcCollabStore( new Jdbc( ds ) );
         faulty = new FaultInjectingDataSource( ds );
         faultyStore = new JdbcCollabStore( new Jdbc( faulty ) );
         s = new SessionRecord( UUID.randomUUID(), "PageA", SessionRecord.ACTIVE, 3, "base", Map.of(), "hash-3", 0, 0L,
@@ -173,6 +174,48 @@ class JdbcCollabStoreRollbackTest {
         }
         assertEquals( 1, clean.updatesSince( s.id(), 0 ).size(), "re-applying must not touch existing data" );
         assertEquals( 1, clean.session( s.id() ).orElseThrow().headVersion() );
+    }
+
+    @Test
+    void recordContributorsRollsBackOnTheInsert() {
+        clean.recordContributors( "cid-1", 1, Set.of( "alice" ), true );
+        clean.recordContributors( "cid-1", 2, Set.of( "bob" ), false );
+        final Map< Integer, List< String > > before = clean.contributorsByVersion( "cid-1" );
+        // created: 1 delete every row of the canonical id, 2 first insert, 3 second insert
+        for( int failing = 2; failing <= 3; failing++ ) {
+            faulty.reset();
+            faulty.failOn( failing, new RuntimeException( "boom at " + failing ) );
+            assertThrows( RuntimeException.class, () -> faultyStore.recordContributors( "cid-1", 1,
+                Set.of( "carol", "dave" ), true ), "statement " + failing );
+            assertEquals( before, clean.contributorsByVersion( "cid-1" ), "the old rows survive, statement " + failing );
+            assertTrue( faulty.rollbacks() >= 1, "the transaction must be rolled back explicitly" );
+        }
+        // not created: 1 delete the version's rows, 2 first insert
+        faulty.reset();
+        faulty.failOn( 2, new RuntimeException( "boom" ) );
+        assertThrows( RuntimeException.class, () -> faultyStore.recordContributors( "cid-1", 2, Set.of( "erin" ), false ) );
+        assertEquals( before, clean.contributorsByVersion( "cid-1" ) );
+    }
+
+    @Test
+    void v067IsANoOpOnReapply() throws Exception {
+        // a snapshot row written the pre-V067 way, without the contributors column
+        new Jdbc( ds ).update( "INSERT INTO collab_snapshot ( session_id, version, meta_seq, base_page_version, body, meta,"
+            + " local_changes ) VALUES ( ?, 0, 0, 3, 'old', '{}'::jsonb, '[]'::jsonb )", ps -> ps.setObject( 1, s.id() ) );
+        clean.recordContributors( "cid-1", 1, Set.of( "alice" ), true );
+        final String sql = MigrationApplier.substituteAppUser( Files.readString(
+            MigrationApplier.findRepoRoot().resolve( "bin/db/migrations/V067__collab_snapshot_contributors.sql" ) ), "test" );
+        for( int i = 0; i < 2; i++ ) {
+            new Jdbc( ds ).execute( sql );
+        }
+        final Jdbc jdbc = new Jdbc( ds );
+        assertEquals( 1, jdbc.queryOne( "SELECT count(*) FROM information_schema.columns WHERE table_name = 'collab_snapshot'"
+            + " AND column_name = 'contributors'", ps -> { }, rs -> rs.getInt( 1 ) ).orElseThrow(), "the column exists once" );
+        assertEquals( "[]", jdbc.queryOne( "SELECT contributors::text FROM collab_snapshot WHERE session_id = ?",
+            ps -> ps.setObject( 1, s.id() ), rs -> rs.getString( 1 ) ).orElseThrow(), "an old row reads []" );
+        assertTrue( clean.latestSnapshot( s.id() ).orElseThrow().contributors().isEmpty() );
+        assertEquals( Map.of( 1, List.of( "alice" ) ), clean.contributorsByVersion( "cid-1" ),
+            "re-applying must not touch existing data" );
     }
 
     @Test

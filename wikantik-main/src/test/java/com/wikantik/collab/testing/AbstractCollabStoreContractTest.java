@@ -19,6 +19,7 @@
 package com.wikantik.collab.testing;
 
 import com.wikantik.collab.CollabStore;
+import com.wikantik.collab.model.Contribution;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredMetaOp;
@@ -29,8 +30,10 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
@@ -666,5 +669,146 @@ public abstract class AbstractCollabStoreContractTest {
     @Test
     void mutatorsOnAnUnknownSessionThrowIllegalArgument() {
         assertThrows( IllegalArgumentException.class, () -> store.updateSession( session( "Ghost" ) ) );
+    }
+
+    // ---- snapshot contributors (Phase 3, V067) -------------------------------------------------------------
+
+    private static Map< String, Contribution > threeAuthorsOutOfKeyOrder() {
+        final Map< String, Contribution > c = new LinkedHashMap<>();
+        c.put( "mia", new Contribution( 1, 2, Contribution.NONE, Contribution.NONE ) );
+        c.put( "ann", new Contribution( Contribution.NONE, Contribution.NONE, 1, 1 ) );
+        c.put( "zoe", new Contribution( 2, 2, 2, 3 ) );
+        return c;
+    }
+
+    @Test
+    void snapshotContributorsRoundTripInOrder() {
+        final SessionRecord s = created( "PageA" );
+        final Map< String, Contribution > contributors = threeAuthorsOutOfKeyOrder();
+        store.writeSnapshot( s.id(), new Snapshot( 2, 3L, 3, "body@2", Map.of(), CS, contributors ) );
+        final Snapshot latest = store.latestSnapshot( s.id() ).orElseThrow();
+        assertEquals( contributors, latest.contributors() );
+        assertEquals( List.of( "mia", "ann", "zoe" ), List.copyOf( latest.contributors().keySet() ) );
+        assertEquals( List.of( "mia", "ann", "zoe" ),
+            List.copyOf( store.snapshotAtOrBelow( s.id(), 5 ).orElseThrow().contributors().keySet() ) );
+    }
+
+    @Test
+    void commitBaseChangeWritesTheSnapshotsContributors() {
+        final SessionRecord s = created( "PageA" );
+        final Map< String, Contribution > contributors = threeAuthorsOutOfKeyOrder();
+        store.commitBaseChange( s.id(), List.of(), new Snapshot( 0, 0L, 4, "b", Map.of(), CS, contributors ),
+            s.withBase( 4, "b", Map.of(), "hash-4" ) );
+        assertEquals( List.of( "mia", "ann", "zoe" ),
+            List.copyOf( store.latestSnapshot( s.id() ).orElseThrow().contributors().keySet() ) );
+    }
+
+    @Test
+    void aSnapshotWithoutContributorsReadsAsEmpty() {
+        final SessionRecord s = created( "PageA" );
+        store.writeSnapshot( s.id(), snap( 0 ) );
+        assertTrue( store.latestSnapshot( s.id() ).orElseThrow().contributors().isEmpty() );
+    }
+
+    @Test
+    void rewritingASnapshotReplacesItsContributors() {
+        final SessionRecord s = created( "PageA" );
+        store.writeSnapshot( s.id(), new Snapshot( 0, 0L, 3, "b", Map.of(), CS, threeAuthorsOutOfKeyOrder() ) );
+        store.writeSnapshot( s.id(), snap( 0 ) );
+        assertTrue( store.latestSnapshot( s.id() ).orElseThrow().contributors().isEmpty() );
+    }
+
+    // ---- page-version contributor ledger (Phase 3, R4) -----------------------------------------------------
+
+    @Test
+    void recordContributorsReplacesTheVersionsRows() {
+        store.recordContributors( "cid-1", 1, Set.of( "xavier" ), false );
+        store.recordContributors( "cid-1", 2, Set.of( "alice", "bob" ), false );
+        store.recordContributors( "cid-1", 2, Set.of( "carol" ), false );
+        assertEquals( Map.of( 1, List.of( "xavier" ), 2, List.of( "carol" ) ), store.contributorsByVersion( "cid-1" ) );
+    }
+
+    @Test
+    void recordContributorsWithNoAuthorsStillClearsTheVersion() {
+        store.recordContributors( "cid-1", 2, Set.of( "alice" ), false );
+        store.recordContributors( "cid-1", 2, Set.of(), false );
+        assertTrue( store.contributorsByVersion( "cid-1" ).isEmpty() );
+    }
+
+    @Test
+    void recordContributorsIsIdempotent() {
+        store.recordContributors( "cid-1", 3, Set.of( "alice", "bob" ), false );
+        store.recordContributors( "cid-1", 3, Set.of( "alice", "bob" ), false );
+        assertEquals( Map.of( 3, List.of( "alice", "bob" ) ), store.contributorsByVersion( "cid-1" ) );
+        store.recordContributors( "cid-1", 1, Set.of( "carol" ), true );
+        store.recordContributors( "cid-1", 1, Set.of( "carol" ), true );
+        assertEquals( Map.of( 1, List.of( "carol" ) ), store.contributorsByVersion( "cid-1" ) );
+    }
+
+    @Test
+    void createdClearsEveryEarlierRowOfTheCanonicalId() {
+        store.recordContributors( "cid-1", 1, Set.of( "alice" ), true );
+        store.recordContributors( "cid-1", 2, Set.of( "bob" ), false );
+        store.recordContributors( "cid-1", 3, Set.of( "carol" ), false );
+        store.recordContributors( "cid-2", 1, Set.of( "dave" ), true );
+        store.recordContributors( "cid-1", 1, Set.of( "erin" ), true );
+        assertEquals( Map.of( 1, List.of( "erin" ) ), store.contributorsByVersion( "cid-1" ) );
+        assertEquals( Map.of( 1, List.of( "dave" ) ), store.contributorsByVersion( "cid-2" ),
+            "another canonical id is untouched" );
+    }
+
+    @Test
+    void contributorsByVersionIsSortedPerVersion() {
+        store.recordContributors( "cid-1", 10, Set.of( "zoe", "Bob", "amy" ), false );
+        store.recordContributors( "cid-1", 2, Set.of( "mia", "eve" ), false );
+        final Map< Integer, List< String > > byVersion = store.contributorsByVersion( "cid-1" );
+        assertEquals( List.of( 2, 10 ), List.copyOf( byVersion.keySet() ), "versions ascend" );
+        assertEquals( List.of( "Bob", "amy", "zoe" ), byVersion.get( 10 ) );
+        assertEquals( List.of( "eve", "mia" ), byVersion.get( 2 ) );
+        assertTrue( store.contributorsByVersion( "cid-unknown" ).isEmpty() );
+    }
+
+    @Test
+    void aBlankCanonicalIdIsRejected() {
+        assertThrows( IllegalArgumentException.class, () -> store.recordContributors( " ", 1, Set.of( "a" ), false ) );
+        assertThrows( IllegalArgumentException.class, () -> store.recordContributors( "", 1, Set.of( "a" ), true ) );
+        assertThrows( IllegalArgumentException.class, () -> store.recordContributors( null, 1, Set.of( "a" ), false ) );
+        assertThrows( IllegalArgumentException.class, () -> store.recordContributors( "cid-1", 0, Set.of( "a" ), false ),
+            "page versions are 1-based" );
+        assertThrows( IllegalArgumentException.class, () -> store.recordContributors( "cid-1", 1, Set.of( " " ), false ),
+            "a blank author key" );
+        assertTrue( store.contributorsByVersion( "cid-1" ).isEmpty(), "a refused call stores nothing" );
+    }
+
+    @Test
+    void deleteSessionKeepsTheLedger() {
+        final SessionRecord s = created( "PageA" );
+        store.recordContributors( "cid-1", 4, Set.of( "alice", "bob" ), false );
+        store.deleteSession( s.id() );
+        assertEquals( Map.of( 4, List.of( "alice", "bob" ) ), store.contributorsByVersion( "cid-1" ) );
+    }
+
+    // ---- session listing (Phase 3) -------------------------------------------------------------------------
+
+    private static SessionRecord sessionAt( final String page, final Instant createdAt, final Instant lastEditAt ) {
+        return new SessionRecord( UUID.randomUUID(), page, SessionRecord.ACTIVE, 3, "base body", Map.of(), "hash-3", 0,
+            0L, false, null, null, null, "alice", createdAt, lastEditAt );
+    }
+
+    @Test
+    void sessionsListsActiveAndFrozenOldestEditFirst() {
+        assertTrue( store.sessions().isEmpty() );
+        final SessionRecord a = sessionAt( "PageA", T0.plusSeconds( 3600 ), T0.plusSeconds( 5 * 3600 ) );
+        final SessionRecord b = sessionAt( "PageB", T0.plusSeconds( 2 * 3600 ), null );
+        final SessionRecord c = sessionAt( "PageC", T0, T0.plusSeconds( 3 * 3600 ) );
+        store.createSession( a );
+        store.createSession( b );
+        store.createSession( c );
+        store.updateSession( frozen( b ) );
+        final List< SessionRecord > listed = store.sessions();
+        assertEquals( List.of( b.id(), c.id(), a.id() ), listed.stream().map( SessionRecord::id ).toList(),
+            "ordered by lastEditAt, an unedited session by createdAt" );
+        assertEquals( SessionRecord.FROZEN, listed.get( 0 ).status() );
+        assertEquals( a, listed.get( 2 ) );
     }
 }

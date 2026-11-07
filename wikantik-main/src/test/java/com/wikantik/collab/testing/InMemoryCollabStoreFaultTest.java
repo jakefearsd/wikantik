@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -106,6 +107,22 @@ class InMemoryCollabStoreFaultTest {
         store.failOn( InMemoryCollabStore.Op.DELETE, 1 );
         assertThrows( IllegalStateException.class, () -> store.deleteSession( s.id() ) );
         assertTrue( store.session( s.id() ).isPresent() );
+
+        store.recordContributors( "cid", 1, Set.of( "alice" ), true );
+        store.failOn( InMemoryCollabStore.Op.RECORD_CONTRIBUTORS, 1 );
+        assertThrows( IllegalStateException.class, () -> store.recordContributors( "cid", 1, Set.of( "bob" ), true ) );
+        assertEquals( Map.of( 1, List.of( "alice" ) ), store.contributorsByVersion( "cid" ) );
+    }
+
+    @Test
+    void copyCarriesTheContributorLedgerIndependently() {
+        final InMemoryCollabStore store = new InMemoryCollabStore();
+        store.recordContributors( "cid", 1, Set.of( "alice" ), true );
+        final InMemoryCollabStore copy = store.copy();
+        copy.recordContributors( "cid", 2, Set.of( "bob" ), false );
+        store.recordContributors( "cid", 1, Set.of( "carol" ), true );
+        assertEquals( Map.of( 1, List.of( "alice" ), 2, List.of( "bob" ) ), copy.contributorsByVersion( "cid" ) );
+        assertEquals( Map.of( 1, List.of( "carol" ) ), store.contributorsByVersion( "cid" ) );
     }
 
     @Test

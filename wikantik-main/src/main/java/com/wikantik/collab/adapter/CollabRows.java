@@ -19,8 +19,12 @@
 package com.wikantik.collab.adapter;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import com.wikantik.collab.model.Contribution;
 import com.wikantik.collab.model.SessionRecord;
 import com.wikantik.collab.model.Snapshot;
 import com.wikantik.collab.model.StoredUpdate;
@@ -34,6 +38,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -93,8 +98,48 @@ final class CollabRows {
             parseChanges( rs.getString( 5 ) ) );
     }
 
+    /** The columns {@link #mapSnapshot} reads, in order. */
+    static final String SNAPSHOT_COLUMNS = "version, meta_seq, base_page_version, body, meta::text, local_changes::text,"
+        + " contributors::text";
+
     static Snapshot mapSnapshot( final ResultSet rs ) throws SQLException {
         return new Snapshot( rs.getInt( 1 ), rs.getLong( 2 ), rs.getInt( 3 ), rs.getString( 4 ),
-            parseMeta( rs.getString( 5 ) ), parseChanges( rs.getString( 6 ) ) );
+            parseMeta( rs.getString( 5 ) ), parseChanges( rs.getString( 6 ) ), parseContributors( rs.getString( 7 ) ) );
+    }
+
+    // ---- collab_snapshot.contributors (V067) ---------------------------------------------------------------
+    // An array in first-contribution order, because JSONB does not keep object key order:
+    // [{"a":"<authorKey>","v":[first,last],"m":[first,last]}], [0,0] meaning "none of this kind".
+
+    static String contributorsToJson( final Map< String, Contribution > contributors ) {
+        final JsonArray out = new JsonArray();
+        contributors.forEach( ( key, c ) -> {
+            final JsonObject o = new JsonObject();
+            o.addProperty( "a", key );
+            o.add( "v", pair( c.firstVersion(), c.lastVersion() ) );
+            o.add( "m", pair( c.firstMetaSeq(), c.lastMetaSeq() ) );
+            out.add( o );
+        } );
+        return out.toString();
+    }
+
+    private static JsonArray pair( final long first, final long last ) {
+        final JsonArray a = new JsonArray();
+        a.add( first );
+        a.add( last );
+        return a;
+    }
+
+    static Map< String, Contribution > parseContributors( final String json ) {
+        final Map< String, Contribution > out = new LinkedHashMap<>();
+        for( final JsonElement e : JsonParser.parseString( json ).getAsJsonArray() ) {
+            final JsonObject o = e.getAsJsonObject();
+            final JsonArray v = o.getAsJsonArray( "v" );
+            final JsonArray m = o.getAsJsonArray( "m" );
+            out.put( o.get( "a" ).getAsString(), new Contribution(
+                v == null ? Contribution.NONE : v.get( 0 ).getAsInt(), v == null ? Contribution.NONE : v.get( 1 ).getAsInt(),
+                m == null ? Contribution.NONE : m.get( 0 ).getAsLong(), m == null ? Contribution.NONE : m.get( 1 ).getAsLong() ) );
+        }
+        return out;
     }
 }

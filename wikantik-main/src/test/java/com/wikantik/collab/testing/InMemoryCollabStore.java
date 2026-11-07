@@ -26,13 +26,18 @@ import com.wikantik.collab.model.StoredMetaOp;
 import com.wikantik.collab.model.StoredUpdate;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -44,7 +49,8 @@ public final class InMemoryCollabStore implements CollabStore {
 
     /** The mutating operations that carry a fault point. */
     public enum Op {
-        CREATE_SESSION, UPDATE_SESSION, APPEND_UPDATES, APPEND_META, APPEND_BATCH, WRITE_SNAPSHOT, COMMIT_BASE_CHANGE, TRUNCATE, DELETE
+        CREATE_SESSION, UPDATE_SESSION, APPEND_UPDATES, APPEND_META, APPEND_BATCH, WRITE_SNAPSHOT, COMMIT_BASE_CHANGE, TRUNCATE, DELETE,
+        RECORD_CONTRIBUTORS
     }
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -52,6 +58,8 @@ public final class InMemoryCollabStore implements CollabStore {
     private final Map< UUID, TreeMap< Integer, StoredUpdate > > updates = new HashMap<>();
     private final Map< UUID, TreeMap< Long, StoredMetaOp > > metaOps = new HashMap<>();
     private final Map< UUID, TreeMap< Integer, Snapshot > > snapshots = new HashMap<>();
+    /** page_version_contributor: canonical id to page version to author keys; not session state, so never deleted with one. */
+    private final Map< String, TreeMap< Integer, TreeSet< String > > > ledger = new HashMap<>();
     private final Map< Op, Integer > calls = new EnumMap<>( Op.class );
     private final Map< Op, Integer > failAt = new EnumMap<>( Op.class );
 
@@ -78,6 +86,11 @@ public final class InMemoryCollabStore implements CollabStore {
             updates.forEach( ( k, v ) -> c.updates.put( k, new TreeMap<>( v ) ) );
             metaOps.forEach( ( k, v ) -> c.metaOps.put( k, new TreeMap<>( v ) ) );
             snapshots.forEach( ( k, v ) -> c.snapshots.put( k, new TreeMap<>( v ) ) );
+            ledger.forEach( ( k, v ) -> {
+                final TreeMap< Integer, TreeSet< String > > rows = new TreeMap<>();
+                v.forEach( ( version, keys ) -> rows.put( version, new TreeSet<>( keys ) ) );
+                c.ledger.put( k, rows );
+            } );
             return c;
         } finally {
             lock.unlock();
@@ -112,7 +125,8 @@ public final class InMemoryCollabStore implements CollabStore {
     }
 
     private static Snapshot detach( final Snapshot s ) {
-        return new Snapshot( s.version(), s.metaSeq(), s.basePageVersion(), s.body(), deepMeta( s.meta() ), s.local() );
+        return new Snapshot( s.version(), s.metaSeq(), s.basePageVersion(), s.body(), deepMeta( s.meta() ), s.local(),
+            s.contributors() );
     }
 
     /**
@@ -400,6 +414,63 @@ public final class InMemoryCollabStore implements CollabStore {
                 updates.get( id ).headMap( floor, true ).clear();
                 snaps.headMap( floor, false ).clear();
             }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public List< SessionRecord > sessions() {
+        lock.lock();
+        try {
+            return sessions.values().stream()
+                .sorted( Comparator.comparing( ( SessionRecord s ) -> s.lastEditAt() == null ? s.createdAt() : s.lastEditAt() )
+                    .thenComparing( SessionRecord::pageName ) )
+                .map( InMemoryCollabStore::detach ).toList();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void recordContributors( final String canonicalId, final int pageVersion, final Set< String > authorKeys,
+                                    final boolean created ) {
+        lock.lock();
+        try {
+            fault( Op.RECORD_CONTRIBUTORS );
+            if( canonicalId == null || canonicalId.isBlank() ) {
+                throw new IllegalArgumentException( "canonicalId must not be blank" );
+            }
+            if( pageVersion < 1 ) {
+                throw new IllegalArgumentException( "pageVersion must be >= 1: " + pageVersion );
+            }
+            Objects.requireNonNull( authorKeys, "authorKeys" );
+            if( authorKeys.stream().anyMatch( k -> k == null || k.isBlank() ) ) {
+                throw new IllegalArgumentException( "author keys must not be blank: " + authorKeys );
+            }
+            final TreeMap< Integer, TreeSet< String > > rows = ledger.computeIfAbsent( canonicalId, c -> new TreeMap<>() );
+            if( created ) {
+                rows.clear();
+            }
+            rows.remove( pageVersion );
+            if( !authorKeys.isEmpty() ) {
+                rows.put( pageVersion, new TreeSet<>( authorKeys ) );
+            }
+            if( rows.isEmpty() ) {
+                ledger.remove( canonicalId );
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public Map< Integer, List< String > > contributorsByVersion( final String canonicalId ) {
+        lock.lock();
+        try {
+            final Map< Integer, List< String > > out = new TreeMap<>();
+            ledger.getOrDefault( canonicalId, new TreeMap<>() ).forEach( ( v, keys ) -> out.put( v, List.copyOf( keys ) ) );
+            return Collections.unmodifiableMap( out );
         } finally {
             lock.unlock();
         }

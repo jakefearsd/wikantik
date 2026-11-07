@@ -31,7 +31,7 @@ class JdbcCollabStoreContractTest extends AbstractCollabStoreContractTest {
     @Override
     protected CollabStore newStore() {
         // the child tables go with it (ON DELETE CASCADE)
-        PostgresTestDb.truncate( "collab_session" );
+        PostgresTestDb.truncate( "collab_session", "page_version_contributor" );
         return new JdbcCollabStore( new Jdbc( PostgresTestDb.createDataSource() ) );
     }
 }

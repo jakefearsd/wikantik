@@ -33,10 +33,12 @@ import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * PostgreSQL {@link CollabStore} over the V066 tables, through {@link Jdbc}. Every multi-statement write runs in one
+ * PostgreSQL {@link CollabStore} over the V066 tables (plus V067's {@code collab_snapshot.contributors}), through
+ * {@link Jdbc}. Every multi-statement write runs in one
  * {@link Jdbc#inTransaction}; each locks the session row first (`SELECT ... FOR UPDATE`), so concurrent writers to
  * one session queue up and the loser sees the winner's head, fails the contiguity check and throws
  * {@link IllegalStateException} with nothing stored (the ordering arbiter of docs/MultiEdit.MD section 12.4). The
@@ -55,10 +57,12 @@ public final class JdbcCollabStore implements CollabStore {
 
     private final Jdbc jdbc;
     private final CollabWrites writes;
+    private final ContributorLedger ledger;
 
     public JdbcCollabStore( final Jdbc jdbc ) {
         this.jdbc = java.util.Objects.requireNonNull( jdbc, "jdbc" );
         this.writes = new CollabWrites( jdbc );
+        this.ledger = new ContributorLedger( jdbc );
     }
 
     // ---- sessions ------------------------------------------------------------------------------------------
@@ -253,7 +257,7 @@ public final class JdbcCollabStore implements CollabStore {
     @Override
     public Optional< Snapshot > latestSnapshot( final UUID id ) {
         try {
-            return jdbc.queryOne( "SELECT version, meta_seq, base_page_version, body, meta::text, local_changes::text"
+            return jdbc.queryOne( "SELECT " + CollabRows.SNAPSHOT_COLUMNS
                 + " FROM collab_snapshot WHERE session_id = ? ORDER BY version DESC LIMIT 1",
                 ps -> ps.setObject( 1, id ), CollabRows::mapSnapshot );
         } catch( final SQLException e ) {
@@ -264,7 +268,7 @@ public final class JdbcCollabStore implements CollabStore {
     @Override
     public Optional< Snapshot > snapshotAtOrBelow( final UUID id, final int version ) {
         try {
-            return jdbc.queryOne( "SELECT version, meta_seq, base_page_version, body, meta::text, local_changes::text"
+            return jdbc.queryOne( "SELECT " + CollabRows.SNAPSHOT_COLUMNS
                 + " FROM collab_snapshot WHERE session_id = ? AND version <= ? ORDER BY version DESC LIMIT 1", ps -> {
                     ps.setObject( 1, id );
                     ps.setInt( 2, version );
@@ -312,6 +316,39 @@ public final class JdbcCollabStore implements CollabStore {
             }
         } catch( final SQLException e ) {
             throw translate( e, "deleteSession " + id );
+        }
+    }
+
+    @Override
+    public List< SessionRecord > sessions() {
+        try {
+            // COLLATE "C": the tie-break is code-point order, as String.compareTo in the in-memory twin
+            return jdbc.query( "SELECT " + CollabRows.SESSION_COLUMNS + " FROM collab_session"
+                + " ORDER BY coalesce( last_edit_at, created_at ), page_name COLLATE \"C\"", ps -> { },
+                CollabRows::mapSession );
+        } catch( final SQLException e ) {
+            throw translate( e, "sessions" );
+        }
+    }
+
+    // ---- page-version contributor ledger -------------------------------------------------------------------
+
+    @Override
+    public void recordContributors( final String canonicalId, final int pageVersion, final Set< String > authorKeys,
+                                    final boolean created ) {
+        try {
+            ledger.record( canonicalId, pageVersion, authorKeys, created );
+        } catch( final SQLException e ) {
+            throw translate( e, "recordContributors " + canonicalId + " v" + pageVersion );
+        }
+    }
+
+    @Override
+    public Map< Integer, List< String > > contributorsByVersion( final String canonicalId ) {
+        try {
+            return ledger.byVersion( canonicalId );
+        } catch( final SQLException e ) {
+            throw translate( e, "contributorsByVersion " + canonicalId );
         }
     }
 

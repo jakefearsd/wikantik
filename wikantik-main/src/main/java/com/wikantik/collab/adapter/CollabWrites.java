@@ -121,9 +121,10 @@ final class CollabWrites {
 
     void writeSnapshotTx( final Connection conn, final UUID id, final Snapshot s ) throws SQLException {
         jdbc.update( conn, "INSERT INTO collab_snapshot ( session_id, version, meta_seq, base_page_version, body, meta,"
-            + " local_changes ) VALUES ( ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb ) ON CONFLICT ( session_id, version )"
-            + " DO UPDATE SET meta_seq = EXCLUDED.meta_seq, base_page_version = EXCLUDED.base_page_version,"
-            + " body = EXCLUDED.body, meta = EXCLUDED.meta, local_changes = EXCLUDED.local_changes", ps -> {
+            + " local_changes, contributors ) VALUES ( ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb )"
+            + " ON CONFLICT ( session_id, version ) DO UPDATE SET meta_seq = EXCLUDED.meta_seq,"
+            + " base_page_version = EXCLUDED.base_page_version, body = EXCLUDED.body, meta = EXCLUDED.meta,"
+            + " local_changes = EXCLUDED.local_changes, contributors = EXCLUDED.contributors", ps -> {
                 ps.setObject( 1, id );
                 ps.setInt( 2, s.version() );
                 ps.setLong( 3, s.metaSeq() );
@@ -131,6 +132,7 @@ final class CollabWrites {
                 ps.setString( 5, s.body() );
                 ps.setString( 6, CollabRows.GSON.toJson( s.meta() ) );
                 ps.setString( 7, ChangeSetJson.toJson( s.local() ).toString() );
+                ps.setString( 8, CollabRows.contributorsToJson( s.contributors() ) );
             } );
     }
 

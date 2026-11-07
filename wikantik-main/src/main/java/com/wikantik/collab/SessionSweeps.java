@@ -24,11 +24,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 
 /**
  * The registry's server-side participant removals: the presence timeout (E13, {@link Hooks#expirePresence}, no
- * tombstone), lost {@code edit} (A5/E30) and a deleted user (evictions with a reason and a tombstone,
+ * tombstone), lost {@code edit} (A5/E30), a signed-out wiki session (A13) and a deleted user (evictions with a reason
+ * and a tombstone,
  * {@link CollabSession#evict(String, String)}), and a session leaving memory ({@link Hooks#dropAll}, no
  * tombstone). Each answers the participant's parked pull.
  */
@@ -80,9 +84,54 @@ final class SessionSweeps {
         }
     }
 
-    /** Every participant of {@code authorKey}. */
-    static void evictAuthor( final CollabSession s, final String authorKey ) {
-        evictWhere( s, m -> m.authorKey().equals( authorKey ), CollabSession.ACCOUNT_DELETED );
+    /** Every participant of {@code authorKey}; returns how many. */
+    static int evictAuthor( final CollabSession s, final String authorKey ) {
+        return evictWhere( s, m -> m.authorKey().equals( authorKey ), CollabSession.ACCOUNT_DELETED );
+    }
+
+    /** Every participant holding {@code wikiSession} (it expired, A13); returns how many. */
+    static int evictSignedOut( final CollabSession s, final Object wikiSession ) {
+        return evictWhere( s, m -> wikiSession.equals( m.wikiSession() ), CollabSession.SIGNED_OUT );
+    }
+
+    /**
+     * Every participant whose wiki session no longer reads as signed in (a logout, A13); returns how many. A check that
+     * throws keeps the participant (logged): signing out is not a revocation, and the edit re-check still applies.
+     */
+    static int evictSignedOutAll( final CollabSession s, final CollabPermissions permissions ) {
+        return evictWhere( s, m -> !signedIn( s, m, permissions ), CollabSession.SIGNED_OUT );
+    }
+
+    private static boolean signedIn( final CollabSession s, final Member m, final CollabPermissions permissions ) {
+        try {
+            return permissions.signedIn( m.wikiSession() );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: the sign-in check of {} failed; kept: {}", s.id(), m.participantId(),
+                e.toString() );
+            return true;
+        }
+    }
+
+    /** Sums {@code f} over the opened, unclosed slots' sessions (a snapshot of {@code slots}). */
+    static int forEachLive( final Collection< SessionSlot > slots, final ToIntFunction< CollabSession > f ) {
+        int n = 0;
+        for( final SessionSlot slot : List.copyOf( slots ) ) {
+            final CollabSession s = slot.session();
+            if( s != null && !slot.closed() ) {
+                n += f.applyAsInt( s );
+            }
+        }
+        return n;
+    }
+
+    /** {@link CollabSession#settle}, a failure logged (the tick retries what is owed); always 0. */
+    static int settleQuietly( final CollabSession s ) {
+        try {
+            s.settle();
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: settling after a rename failed; the tick retries: {}", s.id(), e.toString() );
+        }
+        return 0;
     }
 
     /** Everyone: the session leaves memory. */
@@ -90,12 +139,15 @@ final class SessionSweeps {
         Hooks.dropAll( s );
     }
 
-    private static void evictWhere( final CollabSession s, final Predicate< Member > which, final String reason ) {
+    private static int evictWhere( final CollabSession s, final Predicate< Member > which, final String reason ) {
+        int n = 0;
         for( final Member m : Hooks.members( s ) ) {
             if( which.test( m ) ) {
                 LOG.info( "collab session {}: participant {} evicted ({})", s.id(), m.participantId(), reason );
                 s.evict( m.participantId(), reason );
+                n++;
             }
         }
+        return n;
     }
 }

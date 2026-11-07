@@ -60,6 +60,16 @@ public final class WikiCollabPermissions implements CollabPermissions {
                         WikiPermission.CREATE_PAGES_ACTION ) );
     }
 
+    /**
+     * {@link Session#isAuthenticated()}: a logout invalidates the wiki session (its principals become the guest's)
+     * before {@code LOGOUT} fires, so its participants read as signed out. Anything but a wiki session is signed out.
+     */
+    @Override
+    public boolean signedIn( final Object participantSession ) {
+        final Session session = asSession( participantSession, "signed-in check", "(any page)" );
+        return session != null && session.isAuthenticated();
+    }
+
     private static Session asSession( final Object candidate, final String action, final String pageName ) {
         if( candidate instanceof Session session ) {
             return session;

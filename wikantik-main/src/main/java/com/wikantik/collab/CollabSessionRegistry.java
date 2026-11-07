@@ -35,6 +35,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.ToIntFunction;
 
 /**
  * The live sessions of this node, one per page (section 7.7): join creates or loads a page's session, {@link #tick}
@@ -57,7 +59,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * The stored {@code has_unpublished} flag is never consulted: it is written only at snapshot cadence. Each tick
  * first calls {@link CollabSession#settle}, the only retry of an owed external merge or an unfinished publish, and a
  * session that still owes one (a publish in its save, a stored pending-publish marker, a queued or failed merge) is
- * never evicted.</p>
+ * never evicted. Each tick also retries owed renames (with backoff, {@link Renames}), runs the orphan sweep
+ * ({@link OrphanSweep}: a draft whose page has been missing for {@link #ORPHAN_GRACE} with no rename owed is frozen),
+ * and, once after {@link #requestEditRecheck} (a group changed), re-checks every participant's {@code edit}.</p>
+ *
+ * <p><b>Engine events</b> arrive through {@code CollabPageEventListener} (adapter package): {@link #rekey} and
+ * {@link #settleAll} on a rename, {@link #freeze} on a true delete (ruling Q10), {@link #evictSignedOut} and
+ * {@link #evictSignedOutAll} on session expiry and logout (A13), {@link #requestEditRecheck} on a group change.</p>
  *
  * <p><b>Wedged sessions.</b> A commit the store reported as failed may still have landed (an ambiguous commit), after
  * which every append fails. The HTTP surface reports outcomes through {@link #observe}; after
@@ -78,6 +86,8 @@ public final class CollabSessionRegistry {
 
     /** Consecutive 503 {@code store} answers after which a session is dropped from memory for a reload. */
     public static final int STORE_FAILURE_LIMIT = 3;
+    /** How long the orphan sweep must find a draft's page missing before it freezes the draft ({@link OrphanSweep}). */
+    public static final Duration ORPHAN_GRACE = OrphanSweep.GRACE;
     /** {@code wikantik.api.maxPageBytes}'s default, for the six-argument constructor. */
     public static final long DEFAULT_MAX_PAGE_BYTES = 262_144L;
     static final String DERIVED = "derived-page";
@@ -110,8 +120,11 @@ public final class CollabSessionRegistry {
     private final long maxPageBytes;
     private final PageSlots slots = new PageSlots();
     private final Renames renames;
+    private final OrphanSweep orphans;
     /** Opened slots only. */
     private final Map< UUID, SessionSlot > byId = new ConcurrentHashMap<>();
+    /** Set by {@link #requestEditRecheck}; the next tick re-checks every live session's participants. */
+    private final AtomicBoolean editRecheckRequested = new AtomicBoolean();
     private volatile boolean enabled;
 
     public CollabSessionRegistry( final CollabStore store, final CollabPageWriter writer,
@@ -132,7 +145,8 @@ public final class CollabSessionRegistry {
         this.config = Objects.requireNonNull( config, "config" );
         this.maxPageBytes = maxPageBytes;
         this.enabled = config.enabled();
-        this.renames = new Renames( slots, store );
+        this.renames = new Renames( slots, store, clock, this::freezeAt, name -> writer.latest( name ).isPresent() );
+        this.orphans = new OrphanSweep( writer, renames, this::freezeAt );
     }
 
     // ---- kill switch -----------------------------------------------------------------------------------------
@@ -308,9 +322,10 @@ public final class CollabSessionRegistry {
         try {
             renames.retryPending();
             final Instant now = clock.instant();
+            final boolean recheck = editRecheckRequested.getAndSet( false );
             for( final SessionSlot slot : List.copyOf( byId.values() ) ) {
                 if( !slot.closed() ) {
-                    tickSession( slot, slot.session(), now );
+                    tickSession( slot, slot.session(), now, recheck );
                 }
             }
         } catch( final Throwable t ) {
@@ -320,7 +335,7 @@ public final class CollabSessionRegistry {
     }
 
     /** Each step on its own, so one failing step neither skips the others nor the other sessions. */
-    private void tickSession( final SessionSlot slot, final CollabSession s, final Instant now ) {
+    private void tickSession( final SessionSlot slot, final CollabSession s, final Instant now, final boolean recheck ) {
         slot.step( s, now, "waiter expiry", () -> s.expireWaiters().forEach( Runnable::run ) );
         slot.step( s, now, "presence", () -> SessionSweeps.expirePresence( s,
             now.minusSeconds( config.presenceTimeoutSeconds() ) ) );
@@ -328,6 +343,12 @@ public final class CollabSessionRegistry {
         slot.step( s, now, "settle", () -> {
             if( slot.needsSettle() ) {
                 s.settle();
+            }
+        } );
+        slot.step( s, now, "orphan sweep", () -> orphans.sweep( slot, s, now ) );
+        slot.step( s, now, "requested re-check", () -> {
+            if( recheck ) {
+                s.recheckEdits();   // a group changed (E29): at most one tick later
             }
         } );
         slot.step( s, now, "permission re-check", () -> {
@@ -434,17 +455,58 @@ public final class CollabSessionRegistry {
     }
 
 
-    /** Evicts every participant of {@code authorKey} in every live session (a deleted user, A10 Minor). */
-    public void evictAuthor( final String authorKey ) {
-        for( final SessionSlot slot : List.copyOf( byId.values() ) ) {
-            SessionSweeps.evictAuthor( slot.session(), authorKey );
-        }
+    /**
+     * Evicts every participant of {@code authorKey} in every live session, with {@code account-deleted} (a deleted user,
+     * A10 Minor); returns how many.
+     */
+    public int evictAuthor( final String authorKey ) {
+        return forEachLive( s -> SessionSweeps.evictAuthor( s, authorKey ) );
     }
 
     /**
-     * The page {@code from} was renamed to {@code to}: its live session or stored draft follows ({@link Renames}). A
-     * rename that fails is remembered: the tick retries it, and a join of {@code to} retries it first and is refused
-     * (503 {@code store}) rather than open a second session while it is owed.
+     * Evicts the participants holding {@code wikiSession} in every live session, with {@code signed-out} (the HTTP
+     * session expired, A13: the client keeps its edits and asks the user to log in); returns how many.
+     */
+    public int evictSignedOut( final Object wikiSession ) {
+        return wikiSession == null ? 0 : forEachLive( s -> SessionSweeps.evictSignedOut( s, wikiSession ) );
+    }
+
+    /**
+     * Evicts every participant whose wiki session {@link CollabPermissions#signedIn} reports signed out, with
+     * {@code signed-out} (a logout, whose event names no session, A13); returns how many.
+     */
+    public int evictSignedOutAll() {
+        return forEachLive( s -> SessionSweeps.evictSignedOutAll( s, permissions ) );
+    }
+
+    /** The next {@link #tick} re-checks {@code edit} for every participant of every live session (a group changed). */
+    public void requestEditRecheck() {
+        editRecheckRequested.set( true );
+    }
+
+    /**
+     * Reconciles every live session with its page by content hash (after a rename, whose referrer rewrites fire no save
+     * event, A1). One session failing is logged and the others go on; the tick retries what is owed.
+     */
+    public void settleAll() {
+        forEachLive( SessionSweeps::settleQuietly );
+    }
+
+    /** True when {@code pageName} has a draft in the store, active or frozen. */
+    public boolean hasDraft( final String pageName ) {
+        return store.sessionForPage( pageName ).isPresent();
+    }
+
+    private int forEachLive( final ToIntFunction< CollabSession > f ) {
+        return SessionSweeps.forEachLive( byId.values(), f );
+    }
+
+    /**
+     * The page {@code from} was renamed to {@code to}: its live session or stored draft follows ({@link Renames}), and
+     * so does a draft still owed a rename into {@code from} (a chain). A rename that fails is remembered: the tick
+     * retries it with backoff, and a join of {@code to} retries it first and is refused (503 {@code store}) rather than
+     * open a second session while it is owed. When {@code to} has a draft of its own the rename is refused and the
+     * orphan is frozen under {@code from} with a WARN.
      *
      * @throws IllegalStateException when {@code to} already has a session, live or stored
      */
@@ -452,8 +514,22 @@ public final class CollabSessionRegistry {
         renames.rekey( from, to );
     }
 
-    /** The page was deleted: its live session or stored draft is frozen for an administrator. */
+    /**
+     * The page was deleted (ruling Q10: only a true delete freezes): its live session or stored draft is frozen for an
+     * administrator. A draft still owed a rename into the deleted page never lands there: it is frozen where it is.
+     */
     public void freeze( final String pageName ) {
+        final String owedFrom = renames.dropInto( pageName );
+        freezeAt( pageName );
+        if( owedFrom != null ) {
+            LOG.warn( "collab: {} was deleted while the draft of {} was owed a rename into it; frozen under {}", pageName,
+                owedFrom, owedFrom );
+            freezeAt( owedFrom );
+        }
+    }
+
+    /** Freezes the live session or stored draft under {@code pageName}, if any. */
+    private void freezeAt( final String pageName ) {
         final SessionSlot slot = slots.get( pageName );
         final List< Runnable > done = slot == null ? null : slot.freezeIfLive();
         if( done != null ) {

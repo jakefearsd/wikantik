@@ -27,4 +27,12 @@ public interface CollabPermissions {
     boolean canEdit( Object participantSession, String pageName );
 
     boolean canCreate( Object participantSession, String pageName );
+
+    /**
+     * Whether the participant's wiki session is still signed in (A13): after a logout its participants are evicted
+     * with {@code signed-out}, keeping their edits on the client. Ports without a notion of sign-in answer true.
+     */
+    default boolean signedIn( final Object participantSession ) {
+        return true;
+    }
 }

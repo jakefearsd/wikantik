@@ -51,6 +51,8 @@ final class Roster {
 
     /** At most this many eviction tombstones are kept (oldest dropped first). */
     static final int MAX_TOMBSTONES = 1024;
+    /** At most this many retired clientIDs are kept (oldest dropped first), like the tombstones. */
+    static final int MAX_RETIRED_CLIENTS = 1024;
 
     private record Retired( String authorKey, Instant at ) {
     }
@@ -65,7 +67,7 @@ final class Roster {
     /** How long a retired clientID is kept: at least the idle-eviction period, so an A13 re-login reclaims it. */
     private final Duration clientRetention;
     private final Map< String, Participant > participants = new LinkedHashMap<>();
-    /** clientID of a participant that left, to its author and the time it left. */
+    /** clientID of a participant that left, to its author and the time it left; oldest first, bounded. */
     private final Map< String, Retired > retiredClients = new LinkedHashMap<>();
     /** Evicted participant id to its tombstone, oldest first. */
     private final Map< String, Tombstone > tombstones = new LinkedHashMap<>();
@@ -183,6 +185,9 @@ final class Roster {
         final Participant p = participants.remove( participantId );
         if( p != null ) {
             retiredClients.put( p.clientId, new Retired( p.authorKey, now ) );
+            while( retiredClients.size() > MAX_RETIRED_CLIENTS ) {
+                retiredClients.remove( retiredClients.keySet().iterator().next() );
+            }
         }
         return p;
     }

@@ -18,7 +18,12 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.adapter.CollabPageEventListener;
+import com.wikantik.collab.model.JoinRequest;
+import com.wikantik.collab.text.CollabText;
 import com.wikantik.collab.testing.ConcurrencyHarness.Report;
+import com.wikantik.event.WikiPageEvent;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -68,6 +73,25 @@ class ConcurrencyHarnessTest {
             new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) ), 1 << 20, 4, 16 );
     };
 
+    /**
+     * The real session opened by a registry, its outside saves delivered as the engine delivers them: both save events
+     * of every save, through {@link CollabPageEventListener} (Phase 2 Task 5).
+     */
+    static final Supplier< SimServer > LISTENER = () -> {
+        final ScriptedPageWriter writer = new ScriptedPageWriter();
+        writer.seed( "Stress", "seed text  \nsecond line\n", Map.of() );
+        writer.rewriteOnSave( SimEnv.rewrite( "strip-trailing-spaces" ) );
+        final InMemoryCollabStore store = new InMemoryCollabStore();
+        final CollabSessionRegistry registry = new CollabSessionRegistry( store, writer, CollabSessionSimServer.ALLOW_ALL,
+            CollabSessionSimServer.IDENTITY, new MutableClock( Instant.parse( "2026-01-01T00:00:00Z" ) ),
+            CollabSessionSimServer.config( 4, 16 ), 1 << 20 );
+        final CollabSessionRegistry.Joined opener = (CollabSessionRegistry.Joined) registry.join( "Stress",
+            JoinRequest.of( "opener", "opener", "Opener" ) );
+        opener.session().leave( opener.response().participantId(), "opener" );
+        return new ListenerDriven( CollabSessionSimServer.wrap( opener.session(), store, writer ),
+            new CollabPageEventListener( registry, writer ) );
+    };
+
     static Stream< Arguments > servers() {
         return Stream.of( Arguments.of( "stub", STUB ), Arguments.of( "session", SESSION ) );
     }
@@ -99,6 +123,16 @@ class ConcurrencyHarnessTest {
         assertTrue( r.joins() > r.runs() * 12L, r.toString() );
         // the session merges outside saves on the workers' threads (the harness also asserted no publish was left in flight)
         assertEquals( "session".equals( name ), r.externalSaves() > 0, r.toString() );
+    }
+
+    @Test
+    void listenerDrivenMergesKeepTheHarnessInvariants() {
+        final int runs = ConcurrencyHarness.runs();
+        final Report r = new ConcurrencyHarness( 12, runs, RUN_TIMEOUT, LISTENER ).run( 41 );
+        assertEquals( runs, r.runs() );
+        assertTrue( r.externalSaves() > 0, r.toString() );
+        assertTrue( r.publishes() > 0, r.toString() );
+        assertTrue( r.accepted() > 0, r.toString() );
     }
 
     @Test
@@ -255,6 +289,67 @@ class ConcurrencyHarnessTest {
         @Override
         public void truncate() {
             d.truncate();
+        }
+    }
+
+    /** Delivers each outside save as the engine does: POST_SAVE_BEGIN and POST_SAVE_END through the listener. */
+    private static final class ListenerDriven extends Forwarding {
+        private final SimServer session;
+        private final CollabPageEventListener listener;
+
+        ListenerDriven( final SimServer session, final CollabPageEventListener listener ) {
+            super( session );
+            this.session = session;
+            this.listener = listener;
+        }
+
+        @Override
+        public void externalSaved( final int version ) {
+            final String page = session.view().pageName();
+            listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE_BEGIN, page ) );
+            listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, page ) );
+        }
+
+        @Override
+        public boolean reconciled() {
+            return session.reconciled();
+        }
+
+        /**
+         * The quiescence settle goes through the listener too, never straight to the session; afterwards the draft's
+         * base must be the page's latest text, so a listener that dropped the events cannot pass unnoticed.
+         */
+        @Override
+        public void settle() {
+            final String page = session.view().pageName();
+            listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, page ) );
+            final InvariantView v = session.view();
+            final String latest = v.writer().latest( page ).map( p -> CollabText.toLf( p.body() ) ).orElse( "" );
+            if( !v.publishPending() && !v.baseBody().equals( latest ) ) {
+                throw new AssertionError( "the listener-driven merges missed an outside save: base " + v.baseBody().length()
+                    + " chars, page " + latest.length() + " chars" );
+            }
+        }
+
+        @Override
+        public boolean acceptsExternalSaves() {
+            return true;
+        }
+
+        @Override
+        public PublishStart beginPublish( final String participantId, final String authorKey, final int version,
+                                          final String note ) {
+            return session.beginPublish( participantId, authorKey, version, note );
+        }
+
+        @Override
+        public PublishResult releasePublish( final Object pending ) {
+            return session.releasePublish( pending );
+        }
+
+        @Override
+        public void abandonPublish( final Object pending, final boolean persist ) {
+            session.abandonPublish( pending, persist );
         }
     }
 }

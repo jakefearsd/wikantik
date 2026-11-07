@@ -44,6 +44,8 @@ final class SessionSlot {
     private volatile Instant lastRecheck;
     private volatile boolean closed;
     private volatile Instant lastWarn;
+    /** When the orphan sweep first found the session's page missing (null: present). Tick thread only. */
+    private volatile Instant absentSince;
     private Instant emptySince;
 
     void lock() {
@@ -116,6 +118,23 @@ final class SessionSlot {
      */
     boolean needsSettle() {
         return !CollabSession.Hooks.members( session ).isEmpty() || CollabSession.Hooks.owesThePageStore( session );
+    }
+
+    /**
+     * The orphan sweep (tick thread only): true once the page has been found missing on every sweep for {@code grace},
+     * counted from the first sweep that found it missing.
+     */
+    boolean absentFor( final Instant now, final Duration grace ) {
+        if( absentSince == null ) {
+            absentSince = now;
+            return false;
+        }
+        return !now.isBefore( absentSince.plus( grace ) );
+    }
+
+    /** The orphan sweep found the page (or a reason not to look): its grace starts over. Tick thread only. */
+    void present() {
+        absentSince = null;
     }
 
     /** True at most once per {@code every} (tick thread only): rate-limits a repeating warning. */

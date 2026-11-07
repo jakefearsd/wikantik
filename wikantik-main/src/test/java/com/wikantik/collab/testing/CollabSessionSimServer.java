@@ -202,6 +202,14 @@ public final class CollabSessionSimServer implements SimServer {
             config( ringSize, snapshotEvery ), maxPageBytes ), store, writer, grants );
     }
 
+    /**
+     * An already-open session, such as one a registry opened (the listener-driven harness, Phase 2 Task 5). The
+     * session was opened with the registry's own permissions, so this server's grant double only records checks.
+     */
+    static CollabSessionSimServer wrap( final CollabSession session, final CollabStore store, final CollabPageWriter writer ) {
+        return new CollabSessionSimServer( session, store, writer, new Grants() );
+    }
+
     static CollabPorts ports( final CollabStore store, final CollabPageWriter writer, final Clock clock,
                               final CollabPermissions permissions ) {
         return new CollabPorts( store, writer, IDENTITY, permissions, clock );

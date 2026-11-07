@@ -81,6 +81,15 @@ class WikiCollabPermissionsTest {
     }
 
     @Test
+    void signedInFollowsTheWikiSessionsAuthentication() {   // A13: a logout invalidates the session before LOGOUT
+        when( session.isAuthenticated() ).thenReturn( true, false );
+        assertTrue( permissions.signedIn( session ) );
+        assertFalse( permissions.signedIn( session ) );
+        assertFalse( permissions.signedIn( "not a session" ) );
+        assertFalse( permissions.signedIn( null ) );
+    }
+
+    @Test
     void aSessionOfTheWrongTypeIsDenied() {
         assertFalse( permissions.canEdit( "not a session", "Page" ) );
         assertFalse( permissions.canCreate( null, "Page" ) );

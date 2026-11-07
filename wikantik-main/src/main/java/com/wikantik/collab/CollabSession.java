@@ -888,6 +888,19 @@ public final class CollabSession {
         }
 
         /**
+         * True when the draft is based on a page that existed (base version above 0) and is not frozen: only such a
+         * draft is orphaned by its page going missing. A new page's draft (base 0) has no page by design.
+         */
+        static boolean basedOnAPage( final CollabSession s ) {
+            s.lock.lock();
+            try {
+                return !s.d.frozen() && s.d.record.basePageVersion() > 0;
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /**
          * True while this session object's publish is in its save (between start and finish/fail). A reload then would
          * give the page two writers: the reloaded session settling the marker and this object finishing the publish.
          */

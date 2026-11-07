@@ -27,8 +27,9 @@ import com.google.gson.JsonArray;
  * <p>{@link #fromJson} is stricter than CodeMirror's {@code fromJSON}, because its input arrives from the network:
  * lengths must be non-negative integers, the document lengths must fit a {@code String}, no section may be
  * zero-length (a {@code 0} kept span, or a change that deletes nothing and inserts nothing — CodeMirror's
- * {@code toJSON} never emits one, and its compose/map mishandle them), and an inserted line may not hold a line break
- * of its own (the line array is the only line break), which keeps {@code toJson(fromJson(x)).equals(x)} for every
+ * {@code toJSON} never emits one, and its compose/map mishandle them), no two kept spans and no two pure deletions may
+ * be adjacent (CodeMirror merges them, so its {@code toJSON} never emits such a pair), and an inserted line may not
+ * hold a line break of its own (the line array is the only line break), which keeps {@code toJson(fromJson(x)).equals(x)} for every
  * accepted {@code x} with non-empty insertions.</p>
  */
 public final class ChangeSetJson {

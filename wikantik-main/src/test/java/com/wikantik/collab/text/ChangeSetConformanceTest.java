@@ -127,7 +127,10 @@ class ChangeSetConformanceTest {
         assertRejected( json( "[1, [0], 2]" ), "zero-length section at element 1" );
         assertRejected( json( "[[0, \"\"], 3]" ), "zero-length section at element 0" );
         // a document length past what a String can hold
-        assertRejected( json( "[2147483647, 1]" ), "too long" );
+        assertRejected( json( "[2147483647, [1, \"x\"]]" ), "too long" );
+        // non-canonical: CodeMirror merges adjacent kept spans and adjacent pure deletions
+        assertRejected( json( "[2147483647, 1]" ), "kept span adjacent" );
+        assertRejected( json( "[1, [1], [1]]" ), "pure deletion adjacent" );
         assertRejected( json( "[[0, \"a\"], 2147483647]" ), "too long" );
 
         // insert past end: a set longer than the document it is applied to

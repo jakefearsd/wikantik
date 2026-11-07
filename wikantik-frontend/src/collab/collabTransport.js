@@ -10,10 +10,12 @@
 import { apiUrl, collabRequest } from '../api/client.js';
 
 export function createCollabTransport(pageName) {
-  const base = `/api/collab/${encodeURIComponent(pageName)}`;
+  let base = `/api/collab/${encodeURIComponent(pageName)}`;
   const post = (action, body) => collabRequest(`${base}/${action}`, { method: 'POST', body: JSON.stringify(body ?? {}) });
 
   return {
+    /** The page was renamed under the live session: later calls use the new name (the session id still identifies it). */
+    retarget: (newName) => { base = `/api/collab/${encodeURIComponent(newName)}`; },
     /** `{priorClientId, initialText, initialMeta}`: the server reissues priorClientId when it still knows it (7.2). */
     join: ({ priorClientId = null, initialText = null, initialMeta = null } = {}) =>
       post('join', { priorClientId, initialText, initialMeta }),

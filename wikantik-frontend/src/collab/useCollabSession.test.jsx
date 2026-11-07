@@ -347,4 +347,60 @@ describe('useCollabSession', () => {
     act(() => result.current.dismissResync());
     expect(result.current.resync).toBeNull();
   });
+
+  it('participantsFollowThePresenceMap', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    const bob = server.transportFor('bob');
+    await act(async () => { await bob.join({}); await vi.advanceTimersByTimeAsync(50); });
+    expect(Object.values(result.current.presence).map((e) => e.displayName)).toEqual(['bob']);
+    expect(result.current.participants.map((p) => p.displayName)).toEqual(['ada', 'bob']);
+    expect(result.current.participants[1].color).toBeTruthy();
+    await act(async () => { await bob.leave({ sessionId: 's-1f3a', participantId: 'pt-2' }); await vi.advanceTimersByTimeAsync(50); });
+    expect(result.current.participants.map((p) => p.displayName)).toEqual(['ada']);
+    view.destroy();
+  });
+
+  it('presence and external-change events reach the editor decorations', async () => {
+    const transport = server.transportFor('ada');
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    const bob = server.transportFor('bob');
+    let pt;
+    await act(async () => { pt = await bob.join({}); await vi.advanceTimersByTimeAsync(50); });
+    await act(async () => {
+      await bob.push({ sessionId: 's-1f3a', participantId: pt.participantId, version: 0, updates: [], metaOps: [], selection: { anchor: 2, head: 2, version: 0, unconfirmed: 0 } });
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(view.dom.querySelectorAll('.cm-remote-caret').length).toBe(1);
+    await act(async () => { server.externalChange({ source: 'disk', text: 'Hello there' }); await vi.advanceTimersByTimeAsync(50); });
+    expect(view.dom.querySelectorAll('.cm-external-change').length).toBeGreaterThan(0);
+    view.destroy();
+  });
+
+  it('pageRenamedRetargetsTheTransportWithoutRejoining', async () => {
+    const base = server.transportFor('ada');
+    const transport = { ...base, retarget: vi.fn() };
+    const { result } = renderHook(() => useCollabSession('P', { transport }));
+    await flush();
+    const view = new EditorView({
+      state: EditorState.create({ doc: result.current.docAtJoin, extensions: [result.current.extensions] }),
+      parent: document.body,
+    });
+    await act(async () => { server.renamePage('New'); await vi.advanceTimersByTimeAsync(50); });
+    expect(transport.retarget).toHaveBeenCalledWith('New');
+    expect(result.current.renamedTo).toBe('New');
+    expect(server.calls.filter((c) => c.path === '/join')).toHaveLength(1);
+    expect(result.current.status).toBe('live');
+    view.destroy();
+  });
 });

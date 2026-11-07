@@ -8,15 +8,18 @@
  * mount in a CodeMirror view initialised from `docAtJoin` (A4: the editor is uncontrolled in collab mode; A10: on
  * `status === 'resync'` the host shows `resync.unsyncedText` in a recovery panel and calls `restart()`: it awaits the leave of
  * the stale participant (and of a rejoin ghost, both done by the peer) and only then joins afresh, so the old participant is
- * gone from the server before the new one exists). `events` keeps the last 200.
+ * gone from the server before the new one exists). `events` keeps the last 200. `participants` is self (from join) plus the presence entries; `renamedTo` is set after a `page-renamed` event, which retargets the transport in place.
  *
  * `status`: idle | joining | live | reconnecting | resync | frozen | auth-required, or a refused join: disabled |
  * unavailable (derived page) | full | forbidden | error.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { collab } from '@codemirror/collab';
+import { ViewPlugin } from '@codemirror/view';
 import { createCollabTransport } from './collabTransport.js';
 import { collabPeer, createPeerHandle } from './collabPeer.js';
+import { remoteCursors, setRemotePresence } from './remoteCursors.js';
+import { externalHighlights, addExternalHighlight } from './externalHighlights.js';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 const MAX_EVENTS = 200;
@@ -33,7 +36,10 @@ function joinFailureStatus(err) {
 export function useCollabSession(pageName, { transport: transportOverride, initialText, initialMeta, enabled = true } = {}) {
   const key = `${pageName}`;
   const [state, setState] = useState({ key, status: 'joining' });
-  const [participants, setParticipants] = useState([]);
+  const [self, setSelf] = useState(null);
+  const [renamedTo, setRenamedTo] = useState(null);
+  const viewRef = useRef(null);
+  const presenceRef = useRef({});
   const [presence, setPresence] = useState({});
   const [events, setEvents] = useState([]);
   const [resync, setResync] = useState(null);
@@ -62,7 +68,27 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
           return;
         }
         sessionRef.current = { sessionId: j.sessionId, clientID: j.clientID, participantId: j.participantId };
+        const dispatchToView = (effects) => {
+          try {
+            viewRef.current?.dispatch({ effects });
+          } catch (e) {
+            console.warn('[collab] could not dispatch to the editor view', e);
+          }
+        };
+        // lets the hook reach the CodeMirror view that mounts these extensions (presence and external changes are effects)
+        const bridge = ViewPlugin.define((view) => {
+          viewRef.current = view;
+          if (Object.keys(presenceRef.current).length) {
+            // a presence map that arrived before the view mounted
+            queueMicrotask(() => { if (viewRef.current === view) dispatchToView(setRemotePresence.of(presenceRef.current)); });
+          }
+          return { destroy() { if (viewRef.current === view) viewRef.current = null; } };
+        });
+        const selfOf = (rj) => (rj.participants ?? []).find((p) => p.participantId === rj.participantId) ?? null;
         const extensions = [
+          remoteCursors(),
+          externalHighlights(),
+          bridge,
           collab({ startVersion: j.version, clientID: j.clientID }),
           collabPeer({
             transport,
@@ -70,28 +96,32 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             session: { sessionId: j.sessionId, clientID: j.clientID, participantId: j.participantId },
             onStatus: (status) => patch({ status }),
             onResync: (payload) => { setResync(payload); },
-            onPresence: (map) => setPresence(map),
+            onPresence: (map) => {
+              presenceRef.current = map;
+              setPresence(map);
+              dispatchToView(setRemotePresence.of(map));
+            },
             onEvents: (batch) => {
               setEvents((prev) => [...prev, ...batch].slice(-MAX_EVENTS));
-              setParticipants((prev) => {
-                let next = prev;
-                for (const e of batch) {
-                  if (e.type === 'participant-joined' && !next.some((p) => p.participantId === e.participant.participantId)) {
-                    next = [...next, e.participant];
-                  } else if (e.type === 'participant-left') {
-                    next = next.filter((p) => p.participantId !== e.participantId);
-                  }
+              for (const e of batch) {
+                if (e.type === 'external-change' && e.ranges?.length) {
+                  dispatchToView(addExternalHighlight.of({ ranges: e.ranges, version: e.version, id: `ext-${e.seq ?? e.version}` }));
+                } else if (e.type === 'page-renamed' && e.to) {
+                  // the session lives on under the new name: later calls address it, no leave and no rejoin
+                  transport.retarget?.(e.to);
+                  setRenamedTo(e.to);
                 }
-                return next;
-              });
+              }
             },
             onSessionChange: (rj) => {
               sessionRef.current = { sessionId: rj.sessionId, clientID: rj.clientID, participantId: rj.participantId };
-              setParticipants(rj.participants ?? []);
+              setSelf(selfOf(rj));
+              presenceRef.current = {};
+              setPresence({});
             },
           }),
         ];
-        setParticipants(j.participants ?? []);
+        setSelf(selfOf(j));
         patch({
           status: 'live', docAtJoin: j.doc, startVersion: j.version, clientID: j.clientID, sessionId: j.sessionId,
           metadata: j.metadata ?? {}, metaSeq: j.metaSeq ?? 0, basePageVersion: j.basePageVersion ?? null,
@@ -181,14 +211,21 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
     });
     handle?.destroy();
     setEvents([]);
+    setPresence({});
+    presenceRef.current = {};
     setState({ key, status: 'joining' });
     setGeneration((g) => g + 1);
   }
+
+  const participants = useMemo(() => [
+    ...(self ? [self] : []),
+    ...Object.entries(presence).map(([participantId, p]) => ({ participantId, displayName: p.displayName, color: p.color })),
+  ], [self, presence]);
 
   const current = state.key === key ? state : { key, status: 'joining' };
   return {
     ...current,
     status: enabled ? current.status : 'idle',
-    participants, presence, events, resync, dismissResync, restart, resume, publish, discard,
+    participants, self, presence, renamedTo, events, resync, dismissResync, restart, resume, publish, discard,
   };
 }

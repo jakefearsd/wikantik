@@ -86,4 +86,12 @@ describe('collabTransport', () => {
     vi.stubGlobal('navigator', { ...globalThis.navigator, sendBeacon: undefined });
     expect(createCollabTransport('P').leaveBeacon({ sessionId: 's' })).toBe(false);
   });
+
+  it('retarget sends every later call to the new page path, keeping the session', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { accepted: true, version: 1, metaSeq: 0 }));
+    const t = createCollabTransport('Old');
+    t.retarget('New Name');
+    await t.push({ sessionId: 's', participantId: 'p', version: 0, updates: [], metaOps: [] });
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/collab/New%20Name/updates');
+  });
 });

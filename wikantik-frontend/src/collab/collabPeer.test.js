@@ -406,3 +406,98 @@ describe('collabPeer', () => {
     expect(sendableUpdates(a.state)).toHaveLength(0);
   });
 });
+
+describe('collabPeer metadata', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('metaEditsRideOnAPresenceOnlyPush', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc', initialMeta: { tags: ['a'] } });
+    const acks = [];
+    const a = await makeEditor(server, 'ada', { core: { onMetaAck: (e, seq) => acks.push({ e, seq }) } });
+    a.core.queueMetaEdits([{ field: 'tags', add: 'x' }, { field: 'status', value: 'draft' }]);
+    await advance(500);
+    expect(server.metadata).toEqual({ tags: ['a', 'x'], status: 'draft' });
+    expect(server.version).toBe(0); // no text moved
+    expect(acks).toEqual([{ e: [{ field: 'tags', add: 'x' }, { field: 'status', value: 'draft' }], seq: 2 }]);
+    expect(a.core.hasPendingMeta()).toBe(false);
+  });
+
+  it('aStalePushKeepsTheMetaEditsForTheRetry', async () => {
+    const server = createFakeCollabServer({ initialText: 'one two' });
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    const a = await makeEditor(server, 'ada');
+    const b = await makeEditor(server, 'bob', { wrap: (t) => ({ ...t, pull: async (q) => { await gate; return t.pull(q); } }) });
+    a.type('A-', 0);
+    await advance(300);
+    b.type('!', 7);
+    b.core.queueMetaEdits([{ field: 'tags', add: 'x' }]);
+    await advance(300);
+    // meta rode the stale push, which was refused; the edit is still queued
+    expect(server.calls.some((c) => c.user === 'bob' && c.status === 409 && c.body.metaOps?.length)).toBe(true);
+    release();
+    await settle(server, [a, b]);
+    await advance(500);
+    expect(server.metadata.tags).toEqual(['x']);
+    expect(b.core.hasPendingMeta()).toBe(false);
+  });
+
+  it('a network failure and a 429 keep the meta edits queued and resend them', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    let fails = 2;
+    const a = await makeEditor(server, 'ada', {
+      wrap: (t) => ({
+        ...t,
+        push: async (b) => {
+          if (b.metaOps.length && fails-- > 0) {
+            throw fails === 1 ? new TypeError('Failed to fetch') : Object.assign(new Error('slow'), { status: 429, body: { retryAfterMs: 200 } });
+          }
+          return t.push(b);
+        },
+      }),
+    });
+    a.core.queueMetaEdits([{ field: 'tags', add: 'x' }]);
+    await advance(5000);
+    expect(server.metadata.tags).toEqual(['x']);
+  });
+
+  it('whenSyncedWaitsForTheMetaQueue', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const a = await makeEditor(server, 'ada');
+    server.setLatency(40);
+    a.core.queueMetaEdits([{ field: 'tags', add: 'x' }]);
+    let done = false;
+    a.core.whenSynced().then(() => { done = true; });
+    await advance(20);
+    expect(done).toBe(false);
+    await advance(2000);
+    expect(done).toBe(true);
+    expect(server.metadata.tags).toEqual(['x']);
+  });
+
+  it('evicted403MapsToStatusByDetail', async () => {
+    const run = async (detail) => {
+      const server = createFakeCollabServer({ initialText: 'abc' });
+      const evicted = [];
+      const a = await makeEditor(server, 'ada', { core: { onEvicted: (e) => evicted.push(e) } });
+      server.evict(a.joined.participantId, detail);
+      a.type('Q', 3);
+      a.core.queueMetaEdits([{ field: 'tags', add: 'x' }]);
+      await advance(1000);
+      return { a, evicted };
+    };
+    const lost = await run('lost-edit');
+    expect(lost.a.statuses.at(-1)).toBe('forbidden');
+    expect(lost.a.core.getEvictedReason()).toBe('lost-edit');
+    expect(lost.evicted).toEqual([{ reason: 'lost-edit' }]);
+    expect(lost.a.resyncs).toEqual([]);
+    const out = await run('signed-out');
+    expect(out.a.statuses.at(-1)).toBe('auth-required');
+    expect(sendableUpdates(out.a.state)).toHaveLength(1);
+    expect(out.a.core.hasPendingMeta()).toBe(true);
+    expect(out.evicted).toEqual([]);
+    const gone = await run('account-deleted');
+    expect(gone.a.statuses.at(-1)).toBe('forbidden');
+  });
+});

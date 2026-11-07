@@ -1,0 +1,432 @@
+[
+  {
+    "name": "tag add survives the gap between ack and pull",
+    "meta": {
+      "tags": [
+        "a"
+      ]
+    },
+    "metaSeq": 3,
+    "steps": [
+      {
+        "do": "add",
+        "field": "tags",
+        "item": "x",
+        "view": {
+          "tags": [
+            "a",
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "take",
+        "view": {
+          "tags": [
+            "a",
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "ack",
+        "metaSeq": 4,
+        "view": {
+          "tags": [
+            "a",
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [],
+        "metaSeq": 3,
+        "view": {
+          "tags": [
+            "a",
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [
+          {
+            "field": "tags",
+            "value": [
+              "a",
+              "x"
+            ]
+          }
+        ],
+        "metaSeq": 4,
+        "view": {
+          "tags": [
+            "a",
+            "x"
+          ]
+        },
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "name": "lost ack: the op arrives by pull, the resend is a no-op",
+    "meta": {
+      "tags": []
+    },
+    "metaSeq": 0,
+    "steps": [
+      {
+        "do": "add",
+        "field": "tags",
+        "item": "x",
+        "view": {
+          "tags": [
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "take",
+        "view": {
+          "tags": [
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "fail",
+        "view": {
+          "tags": [
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [
+          {
+            "field": "tags",
+            "value": [
+              "x"
+            ]
+          }
+        ],
+        "metaSeq": 1,
+        "view": {
+          "tags": [
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "take",
+        "view": {
+          "tags": [
+            "x"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "ack",
+        "metaSeq": 1,
+        "view": {
+          "tags": [
+            "x"
+          ]
+        },
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "name": "a remote op after mine wins",
+    "meta": {
+      "status": "draft"
+    },
+    "metaSeq": 0,
+    "steps": [
+      {
+        "do": "edit",
+        "field": "status",
+        "value": "active",
+        "view": {
+          "status": "active"
+        },
+        "pending": 1
+      },
+      {
+        "do": "take",
+        "view": {
+          "status": "active"
+        },
+        "pending": 1
+      },
+      {
+        "do": "ack",
+        "metaSeq": 1,
+        "view": {
+          "status": "active"
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [
+          {
+            "field": "status",
+            "value": "active"
+          },
+          {
+            "field": "status",
+            "value": "archived"
+          }
+        ],
+        "metaSeq": 2,
+        "view": {
+          "status": "archived"
+        },
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "name": "a remote op before mine is overlaid",
+    "meta": {
+      "status": "draft"
+    },
+    "metaSeq": 0,
+    "steps": [
+      {
+        "do": "edit",
+        "field": "status",
+        "value": "active",
+        "view": {
+          "status": "active"
+        },
+        "pending": 1
+      },
+      {
+        "do": "take",
+        "view": {
+          "status": "active"
+        },
+        "pending": 1
+      },
+      {
+        "do": "ack",
+        "metaSeq": 2,
+        "view": {
+          "status": "active"
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [
+          {
+            "field": "status",
+            "value": "archived"
+          }
+        ],
+        "metaSeq": 1,
+        "view": {
+          "status": "active"
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [
+          {
+            "field": "status",
+            "value": "active"
+          }
+        ],
+        "metaSeq": 2,
+        "view": {
+          "status": "active"
+        },
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "name": "removing the last item leaves an empty list; a scalar counts as one item",
+    "meta": {
+      "tags": "solo"
+    },
+    "metaSeq": 0,
+    "steps": [
+      {
+        "do": "remove",
+        "field": "tags",
+        "item": "solo",
+        "view": {
+          "tags": []
+        },
+        "pending": 1
+      },
+      {
+        "do": "add",
+        "field": "related",
+        "item": "P",
+        "view": {
+          "tags": [],
+          "related": [
+            "P"
+          ]
+        },
+        "pending": 2
+      },
+      {
+        "do": "add",
+        "field": "tags",
+        "item": "n",
+        "view": {
+          "tags": [
+            "n"
+          ],
+          "related": [
+            "P"
+          ]
+        },
+        "pending": 3
+      }
+    ]
+  },
+  {
+    "name": "unsent edits of one field coalesce; null removes a field",
+    "meta": {
+      "summary": "s"
+    },
+    "metaSeq": 0,
+    "steps": [
+      {
+        "do": "edit",
+        "field": "summary",
+        "value": "a",
+        "view": {
+          "summary": "a"
+        },
+        "pending": 1
+      },
+      {
+        "do": "edit",
+        "field": "summary",
+        "value": "ab",
+        "view": {
+          "summary": "ab"
+        },
+        "pending": 1
+      },
+      {
+        "do": "edit",
+        "field": "summary",
+        "value": null,
+        "view": {},
+        "pending": 1
+      }
+    ]
+  },
+  {
+    "name": "concurrent adds from two participants both survive",
+    "meta": {
+      "tags": [
+        "a"
+      ]
+    },
+    "metaSeq": 0,
+    "steps": [
+      {
+        "do": "add",
+        "field": "tags",
+        "item": "mine",
+        "view": {
+          "tags": [
+            "a",
+            "mine"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "take",
+        "view": {
+          "tags": [
+            "a",
+            "mine"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [
+          {
+            "field": "tags",
+            "value": [
+              "a",
+              "theirs"
+            ],
+            "by": "Raj"
+          }
+        ],
+        "metaSeq": 1,
+        "view": {
+          "tags": [
+            "a",
+            "theirs",
+            "mine"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "ack",
+        "metaSeq": 2,
+        "view": {
+          "tags": [
+            "a",
+            "theirs",
+            "mine"
+          ]
+        },
+        "pending": 1
+      },
+      {
+        "do": "remote",
+        "ops": [
+          {
+            "field": "tags",
+            "value": [
+              "a",
+              "theirs",
+              "mine"
+            ]
+          }
+        ],
+        "metaSeq": 2,
+        "view": {
+          "tags": [
+            "a",
+            "theirs",
+            "mine"
+          ]
+        },
+        "pending": 0
+      }
+    ]
+  }
+]

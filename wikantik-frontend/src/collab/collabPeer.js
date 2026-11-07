@@ -37,6 +37,8 @@ export function createCollabPeerCore({
   onPresence = () => {},
   onEvents = () => {},
   onMetaOps = () => {},
+  onMetaAck = () => {},
+  onEvicted = () => {},
   onSessionChange = () => {},
 }) {
   const session = { ...initialSession };
@@ -60,6 +62,8 @@ export function createCollabPeerCore({
   const leftIds = new Set();
   const timers = new Set();
   let syncWaiters = [];
+  let metaPending = []; // wire edits not yet acked; they stay queued across stale-base, network failure and 429
+  let evictedReason = null;
 
   const backoff = (n) => Math.min(backoffCapMs, backoffBaseMs * 2 ** Math.max(0, n - 1));
 
@@ -91,7 +95,7 @@ export function createCollabPeerCore({
   const sameSelection = (a, b) => !!a && !!b && a.anchor === b.anchor && a.head === b.head;
 
   function isSynced() {
-    return sendableUpdates(host.getState()).length === 0 && !pushing;
+    return sendableUpdates(host.getState()).length === 0 && metaPending.length === 0 && !pushing;
   }
   function checkSynced() {
     if (!syncWaiters.length || !isSynced()) return;
@@ -177,6 +181,14 @@ export function createCollabPeerCore({
     return rejoinPromise;
   }
 
+  /** 403 evicted: by `detail`. Permission loss discards the unsynced text (A13); a signed-out session keeps every edit. */
+  function evict(detail) {
+    evictedReason = detail ?? null;
+    if (detail === 'signed-out') { stop('auth-required'); return; }
+    stop('forbidden');
+    onEvicted({ reason: evictedReason });
+  }
+
   /** Common classification of an error from either loop; true when the caller should simply loop again. */
   async function handleError(err, { where, sentVersion }) {
     const status4 = err?.status;
@@ -195,6 +207,7 @@ export function createCollabPeerCore({
     }
     if (reason === 'rejoin' || err?.body?.rejoin) { await rejoin(); return; }
     if (reason === 'frozen') { stop('frozen'); return; }
+    if (status4 === 403 && reason === 'evicted') { evict(err.body?.detail); return; }
     if (status4 === 401 || status4 === 403) { stop('auth-required'); return; }
     if (status4 === 410 || err?.body?.resync) { resync('resync'); return; }
     if (status4 === 413 || reason === 'oversize') { resync('oversize'); return; }
@@ -213,10 +226,11 @@ export function createCollabPeerCore({
     const updates = sendableUpdates(state);
     const selection = readSelection();
     const selectionChanged = !!selection && !sameSelection(selection, lastSentSelection);
-    if (!updates.length && !selectionChanged) { checkSynced(); return; }
+    const metaOps = metaPending.slice();
+    if (!updates.length && !selectionChanged && !metaOps.length) { checkSynced(); return; }
     const version = getSyncedVersion(state);
     if (updates.length && version < gateVersion) return; // the pull has not caught up with the server's head yet
-    if (!updates.length) {
+    if (!updates.length && !metaOps.length) {
       const wait = presenceMinIntervalMs - (Date.now() - lastPushAt);
       if (wait > 0) { schedulePush(wait); return; }
     }
@@ -228,11 +242,15 @@ export function createCollabPeerCore({
         participantId: session.participantId,
         version,
         updates: updates.map((u) => ({ clientID: u.clientID, changes: u.changes.toJSON() })),
-        metaOps: [],
+        metaOps,
         ...(selection ? { selection: { anchor: selection.anchor, head: selection.head, version, unconfirmed: updates.length } } : {}),
       });
       if (destroyed) return;
       pushFailures = 0;
+      if (metaOps.length) {
+        metaPending = metaPending.slice(metaOps.length);
+        onMetaAck(metaOps, res?.metaSeq);
+      }
       if (selection) lastSentSelection = selection;
       if (updates.length && typeof res?.version === 'number') gateVersion = Math.max(gateVersion, res.version);
       if (status === 'reconnecting') setStatus('live');
@@ -245,7 +263,8 @@ export function createCollabPeerCore({
     if (destroyed || stopped) return;
     checkSynced();
     const next = sendableUpdates(host.getState()).length;
-    if (next && getSyncedVersion(host.getState()) >= gateVersion) schedulePush(0);
+    if (metaPending.length && next === 0) schedulePush(0);
+    else if (next && getSyncedVersion(host.getState()) >= gateVersion) schedulePush(0);
     else if (next === 0 && readSelection() && !sameSelection(readSelection(), lastSentSelection)) schedulePush(presenceMinIntervalMs);
   }
 
@@ -256,8 +275,10 @@ export function createCollabPeerCore({
       const updates = res.updates.map((u) => ({ clientID: u.clientID, changes: ChangeSet.fromJSON(u.changes) }));
       host.dispatch(receiveUpdates(state, updates));
     }
-    if (typeof res.metaSeq === 'number') metaSince = res.metaSeq;
-    if (res.metaOps?.length) onMetaOps(res.metaOps);
+    // the host needs the pull's metaSeq to retire acked edits, even when no op travelled with it
+    const metaAdvanced = typeof res.metaSeq === 'number' && res.metaSeq > metaSince;
+    if (typeof res.metaSeq === 'number') metaSince = Math.max(metaSince, res.metaSeq);
+    if (res.metaOps?.length || metaAdvanced) onMetaOps(res.metaOps ?? [], res.metaSeq);
     if (typeof res.presenceSeq === 'number' && res.presenceSeq > presenceSince) {
       presenceSince = res.presenceSeq;
       onPresence(res.presence ?? {});
@@ -288,7 +309,7 @@ export function createCollabPeerCore({
         setStatus('live');
         applyPull(res, since);
         checkSynced();
-        if (sendableUpdates(host.getState()).length && getSyncedVersion(host.getState()) >= gateVersion) schedulePush(0);
+        if ((sendableUpdates(host.getState()).length && getSyncedVersion(host.getState()) >= gateVersion) || metaPending.length) schedulePush(0);
         const empty = !res.updates?.length && !res.events?.length && !res.metaOps?.length;
         if (empty && Date.now() - startedAt < 50 && !(await delay(500))) break;
       }
@@ -300,6 +321,14 @@ export function createCollabPeerCore({
   return {
     start() { if (!destroyed) pullLoop(); },
     notifyChange() { schedulePush(); },
+    /** Queues metadata edits (`{field,value}`/`{field,add}`/`{field,remove}`); they ride on the next push, text or not. */
+    queueMetaEdits(edits) {
+      if (destroyed || !edits?.length) return;
+      metaPending.push(...edits);
+      schedulePush(0);
+    },
+    hasPendingMeta: () => metaPending.length > 0,
+    getEvictedReason: () => evictedReason,
     notifySelection() {
       const sel = readSelection();
       if (sel && !sameSelection(sel, lastSentSelection)) schedulePush(Math.max(debounceMs, presenceMinIntervalMs - (Date.now() - lastPushAt)));
@@ -360,6 +389,7 @@ export function createPeerHandle() {
     whenSynced: () => (handle.core ? handle.core.whenSynced() : Promise.resolve(true)),
     getSyncedVersion: () => (handle.core ? handle.core.getSyncedVersion() : null),
     resume: () => handle.core?.resume(),
+    queueMetaEdits: (edits) => handle.core?.queueMetaEdits(edits),
   };
   return handle;
 }

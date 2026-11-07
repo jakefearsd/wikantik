@@ -93,7 +93,8 @@ public final class CollabText {
         return false;
     }
 
-    private static boolean insidePair( final String doc, final int pos ) {
+    /** True when {@code pos} falls between the two halves of a surrogate pair in {@code doc}. */
+    static boolean insidePair( final String doc, final int pos ) {
         return pos > 0 && pos < doc.length()
                 && Character.isHighSurrogate( doc.charAt( pos - 1 ) ) && Character.isLowSurrogate( doc.charAt( pos ) );
     }

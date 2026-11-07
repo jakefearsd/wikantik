@@ -74,20 +74,15 @@ final class HunkScan {
         return i;
     }
 
-    private static boolean insidePair( final String s, final int pos ) {
-        return pos > 0 && pos < s.length() && Character.isHighSurrogate( s.charAt( pos - 1 ) )
-                && Character.isLowSurrogate( s.charAt( pos ) );
-    }
-
     /** Widens boundaries off surrogate pairs, then merges hunks the widening made touch or overlap. */
     static List< int[] > widenAndMerge( final String a, final String b, final List< int[] > hunks ) {
         final List< int[] > out = new ArrayList<>();
         for ( final int[] h : hunks ) {
-            while ( h[ 0 ] > 0 && ( insidePair( a, h[ 0 ] ) || insidePair( b, h[ 2 ] ) ) ) {
+            while ( h[ 0 ] > 0 && ( CollabText.insidePair( a, h[ 0 ] ) || CollabText.insidePair( b, h[ 2 ] ) ) ) {
                 h[ 0 ]--;
                 h[ 2 ]--;
             }
-            while ( h[ 1 ] < a.length() && ( insidePair( a, h[ 1 ] ) || insidePair( b, h[ 3 ] ) ) ) {
+            while ( h[ 1 ] < a.length() && ( CollabText.insidePair( a, h[ 1 ] ) || CollabText.insidePair( b, h[ 3 ] ) ) ) {
                 h[ 1 ]++;
                 h[ 3 ]++;
             }

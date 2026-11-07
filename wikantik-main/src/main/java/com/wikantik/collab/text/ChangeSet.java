@@ -25,8 +25,10 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * An immutable port of {@code @codemirror/state}'s {@code ChangeSet} (pinned to 6.7.6 by the shared corpus
- * {@code wikantik-frontend/src/collab/__fixtures__/changesets.json}, replayed by {@code ChangeSetConformanceTest}).
+ * An immutable port of {@code @codemirror/state}'s {@code ChangeSet}, held to the library by the shared corpus
+ * {@code wikantik-frontend/src/collab/__fixtures__/changesets.json} (replayed by {@code ChangeSetConformanceTest}).
+ * The corpus records the {@code @codemirror/state} version it was generated with (its {@code library} field);
+ * {@code package.json} allows any compatible {@code ^6.7.x}, so regenerate the corpus after an upgrade.
  *
  * <p>The representation is CodeMirror's own, so the port follows {@code change.ts} function by function:
  * {@code sections} holds {@code (len, ins)} pairs, where {@code len} is the length of the span in the old document

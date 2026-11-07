@@ -30,7 +30,15 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.util.Date;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
@@ -64,8 +72,16 @@ class CollabSeamArchTest {
                     .map( JavaClass::getName ).toList().equals( paramNames ) ) );
     }
 
+    /** Matches a call to any overload of {@code owner.name} (constructors are named {@code <init>}). */
+    private static DescribedPredicate<JavaCall<?>> anyCallTo( final Class<?> owner, final String name ) {
+        return JavaCall.Predicates.target( HasName.Predicates.name( name ) )
+            .and( JavaCall.Predicates.target(
+                HasOwner.Predicates.With.owner( JavaClass.Predicates.equivalentTo( owner ) ) ) );
+    }
+
     /**
-     * Zero-argument {@code now()} overloads only: {@code Instant.now(Clock)} is the sanctioned injected-clock pattern.
+     * Zero-argument {@code now()} overloads and the zero-argument {@code Date} constructor only: {@code Instant.now(Clock)}
+     * (and its siblings taking a {@code Clock}) is the sanctioned injected-clock pattern.
      */
     private static final DescribedPredicate<JavaCall<?>> READS_THE_CLOCK_OR_SLEEPS =
         callTo( Thread.class, "sleep", long.class )
@@ -75,6 +91,10 @@ class CollabSeamArchTest {
             .or( callTo( System.class, "nanoTime" ) )
             .or( callTo( Instant.class, "now" ) )
             .or( callTo( LocalDateTime.class, "now" ) )
+            .or( callTo( LocalDate.class, "now" ) )
+            .or( callTo( ZonedDateTime.class, "now" ) )
+            .or( callTo( OffsetDateTime.class, "now" ) )
+            .or( callTo( Date.class, "<init>" ) )
             .or( callTo( java.time.Clock.class, "systemUTC" ) )
             .or( callTo( java.time.Clock.class, "systemDefaultZone" ) );
 
@@ -82,10 +102,32 @@ class CollabSeamArchTest {
     static final ArchRule no_wall_clock_or_sleep =
         noClasses().that().resideInAPackage( "com.wikantik.collab.." )
             .and().resideOutsideOfPackage( ADAPTERS )
-            .should().callMethodWhere( READS_THE_CLOCK_OR_SLEEPS )
-            .as( "collab core must not call Thread.sleep, System.currentTimeMillis/nanoTime, zero-arg Instant.now/LocalDateTime.now,"
-               + " Clock.systemUTC/systemDefaultZone or "
-               + "LocalDateTime.now — inject a clock/scheduler" );
+            .should().callCodeUnitWhere( READS_THE_CLOCK_OR_SLEEPS )
+            .as( "collab core must not call Thread.sleep, System.currentTimeMillis/nanoTime, zero-arg"
+               + " Instant.now/LocalDateTime.now/LocalDate.now/ZonedDateTime.now/OffsetDateTime.now, new Date(),"
+               + " or Clock.systemUTC/systemDefaultZone — inject a clock/scheduler" );
+
+    /** Creating threads or executors; an injected executor or scheduler is the sanctioned pattern. */
+    private static final DescribedPredicate<JavaCall<?>> CREATES_THREADS_OR_EXECUTORS =
+        anyCallTo( Thread.class, "<init>" )
+            .or( anyCallTo( Thread.class, "ofVirtual" ) )
+            .or( anyCallTo( Thread.class, "ofPlatform" ) )
+            .or( anyCallTo( Thread.class, "startVirtualThread" ) )
+            .or( JavaCall.Predicates.target(
+                HasOwner.Predicates.With.owner( JavaClass.Predicates.equivalentTo( Executors.class ) ) ) )
+            .or( anyCallTo( ForkJoinPool.class, "commonPool" ) )
+            .or( anyCallTo( ForkJoinPool.class, "<init>" ) )
+            .or( anyCallTo( ThreadPoolExecutor.class, "<init>" ) )
+            .or( anyCallTo( ScheduledThreadPoolExecutor.class, "<init>" ) );
+
+    @ArchTest
+    static final ArchRule no_thread_or_executor_creation =
+        noClasses().that().resideInAPackage( "com.wikantik.collab.." )
+            .and().resideOutsideOfPackage( ADAPTERS )
+            .should().callCodeUnitWhere( CREATES_THREADS_OR_EXECUTORS )
+            .as( "collab core must not create threads or executors (new Thread, Thread.ofVirtual/ofPlatform/"
+               + "startVirtualThread, Executors.*, ForkJoinPool, ThreadPoolExecutor, ScheduledThreadPoolExecutor)"
+               + " — inject an executor/scheduler" );
 
     @ArchTest
     static final ArchRule no_synchronized_methods =
@@ -101,5 +143,5 @@ class CollabSeamArchTest {
             .should().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.WikiEngine" )
             .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.api.core.Engine" )
             .orShould().dependOnClassesThat().resideInAnyPackage( "java.sql..", "javax.sql..", "com.wikantik.jdbc.." )
-            .as( "collab core must not depend on WikiEngine, Engine java.sql, javax.sql or com.wikantik.jdbc — use the ports" );
+            .as( "collab core must not depend on WikiEngine, Engine, java.sql, javax.sql or com.wikantik.jdbc — use the ports" );
 }

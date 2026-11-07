@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * F7: real threads, for locking only (E38, E40). Tagged {@code stress}; the default build runs the short form
- * ({@value ConcurrencyHarness#DEFAULT_RUNS} runs), {@code -Dcollab.stress.runs=20000} is the soak.
+ * ({@value ConcurrencyHarness#DEFAULT_RUNS} runs), run with {@code -Dcollab.stress.runs=20000} for a soak.
  */
 @Tag( "stress" )
 class ConcurrencyHarnessTest {

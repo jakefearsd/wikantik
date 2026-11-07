@@ -73,7 +73,7 @@ import java.util.function.Supplier;
  */
 public final class ConcurrencyHarness {
 
-    /** The default-build run count; {@code -Dcollab.stress.runs} overrides (the weekly soak uses 20,000). */
+    /** The default-build run count; {@code -Dcollab.stress.runs} overrides (run with {@code -Dcollab.stress.runs=20000} for a soak). */
     public static final int DEFAULT_RUNS = 50;
     static final int OPS_PER_THREAD = 80;
     static final int ROUNDS = 8;

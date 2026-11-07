@@ -41,7 +41,7 @@ public interface SimServer {
     /**
      * {@code status}: 200 accepted, 400 rejected, 403 (participant belongs to another author), 409 stale / unknown
      * participant, 413 oversize, 503 store failure. {@code reason} is null on 200; otherwise: 400 {@code rejected};
-     * 403 {@code not-your-participant}; 409 {@code stale-base}, {@code rejoin} or {@code frozen} (reserved for Phase 1);
+     * 403 {@code not-your-participant}; 409 {@code stale-base}, {@code rejoin} or {@code frozen} (reserved for Phase 2);
      * 413 {@code oversize}; 503 {@code store} (append failed, nothing applied) or {@code poisoned}.
      */
     record PushResult( int status, int version, String reason ) {

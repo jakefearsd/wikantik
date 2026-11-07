@@ -767,7 +767,21 @@ public final class CollabSession {
         static boolean hasUnpublishedChanges( final CollabSession s ) {
             s.lock.lock();
             try {
-                return s.hasUnpublished();
+                return s.d.hasUnpublished();
+            } finally {
+                s.lock.unlock();
+            }
+        }
+
+        /**
+         * True while the session owes the page store something only it can finish: a publish in its save or a stored
+         * pending-publish marker, or a queued or failed external merge ({@link #settle} retries both). Such a session
+         * must stay in memory.
+         */
+        static boolean owesThePageStore( final CollabSession s ) {
+            s.lock.lock();
+            try {
+                return s.d.publishPending() || s.d.mergeQueued || s.d.mergeOwed;
             } finally {
                 s.lock.unlock();
             }
@@ -787,14 +801,20 @@ public final class CollabSession {
             relabel( s, r -> r.withStatus( SessionRecord.FROZEN ) );
         }
 
+        /** Under the base lock (no publish completion or merge replaces the record meanwhile), then the session lock. */
         private static void relabel( final CollabSession s, final java.util.function.UnaryOperator< SessionRecord > f ) {
-            s.lock.lock();
+            s.baseLock.lock();
             try {
-                final SessionRecord next = f.apply( s.record );
-                s.store.updateSession( next );
-                s.record = next;
+                s.lock.lock();
+                try {
+                    final SessionRecord next = f.apply( s.d.record );
+                    s.d.store.updateSession( next );
+                    s.d.record = next;
+                } finally {
+                    s.lock.unlock();
+                }
             } finally {
-                s.lock.unlock();
+                s.baseLock.unlock();
             }
         }
     }

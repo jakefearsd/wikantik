@@ -24,17 +24,31 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * One page's place in {@link CollabSessionRegistry}. {@link #lock} serialises opening, joining and evicting the page's
- * session; {@code closed} and the idle clock are guarded by it. The session and the re-check clock are read without it.
+ * One page's place in {@link CollabSessionRegistry}. Its lock ({@link #lock}) serialises opening, joining and evicting
+ * the page's session; {@code closed} and the idle clock are guarded by it. The session and the re-check clock are read
+ * without it.
  */
 final class SessionSlot {
 
-    final ReentrantLock lock = new ReentrantLock();
+    private final ReentrantLock lock = new ReentrantLock();
     private final AtomicInteger storeFailures = new AtomicInteger();
     private volatile CollabSession session;
     private volatile Instant lastRecheck;
     private boolean closed;
     private Instant emptySince;
+
+    void lock() {
+        lock.lock();
+    }
+
+    /** False when another thread holds the slot (a join opening or joining it). */
+    boolean tryLock() {
+        return lock.tryLock();
+    }
+
+    void unlock() {
+        lock.unlock();
+    }
 
     /** The session, or null until opened. */
     CollabSession session() {
@@ -63,11 +77,11 @@ final class SessionSlot {
     }
 
     /**
-     * Under the lock, on each tick: true once the session has been empty for {@code idle}, counted from the first tick
-     * that found it empty after the last join.
+     * Under the lock, on each tick of an opened slot: true once the session has been without participants for
+     * {@code idle}, counted from the first tick that found it empty after the last join.
      */
-    boolean idle( final boolean empty, final Instant now, final Duration idle ) {
-        if( !empty ) {
+    boolean idle( final Instant now, final Duration idle ) {
+        if( !CollabSession.Hooks.members( session ).isEmpty() ) {
             emptySince = null;
             return false;
         }

@@ -52,7 +52,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@code permission.recheckSeconds} re-checks each participant's {@code edit} with its wiki session (A5, E30) and
  * truncates the log (A10). A session without participants for {@code memory.idleEvictMinutes} leaves memory; its draft
  * is deleted when, by the session's memory, it has no unpublished changes (section 7.7, A10 Minor), and kept otherwise.
- * The stored {@code has_unpublished} flag is never consulted: it is written only at snapshot cadence.</p>
+ * The stored {@code has_unpublished} flag is never consulted: it is written only at snapshot cadence. Each tick
+ * first calls {@link CollabSession#settle}, the only retry of an owed external merge or an unfinished publish, and a
+ * session that still owes one (a publish in its save, a stored pending-publish marker, a queued or failed merge) is
+ * never evicted.</p>
  *
  * <p><b>Wedged sessions.</b> A commit the store reported as failed may still have landed (an ambiguous commit), after
  * which every append fails. The HTTP surface reports outcomes through {@link #observe}; after
@@ -96,10 +99,10 @@ public final class CollabSessionRegistry {
     public record Disabled() implements JoinOutcome {
     }
 
+    private final CollabPorts ports;
     private final CollabStore store;
     private final CollabPageWriter writer;
     private final CollabPermissions permissions;
-    private final CollabIdentity identity;
     private final Clock clock;
     private final CollabConfig config;
     private final long maxPageBytes;
@@ -120,11 +123,11 @@ public final class CollabSessionRegistry {
     public CollabSessionRegistry( final CollabStore store, final CollabPageWriter writer,
                                   final CollabPermissions permissions, final CollabIdentity identity, final Clock clock,
                                   final CollabConfig config, final long maxPageBytes ) {
-        this.store = Objects.requireNonNull( store, "store" );
-        this.writer = Objects.requireNonNull( writer, "writer" );
-        this.permissions = Objects.requireNonNull( permissions, "permissions" );
-        this.identity = Objects.requireNonNull( identity, "identity" );
-        this.clock = Objects.requireNonNull( clock, "clock" );
+        this.ports = new CollabPorts( store, writer, identity, permissions, clock );   // checks every port for null
+        this.store = store;
+        this.writer = writer;
+        this.permissions = permissions;
+        this.clock = clock;
         this.config = Objects.requireNonNull( config, "config" );
         this.maxPageBytes = maxPageBytes;
         this.enabled = config.enabled();
@@ -155,13 +158,13 @@ public final class CollabSessionRegistry {
         }
         while( true ) {
             final SessionSlot slot = slotFor( pageName );
-            slot.lock.lock();
+            slot.lock();
             try {
                 if( !slot.closed() ) {
                     return joinLocked( slot, pageName, r, latest );
                 }
             } finally {
-                slot.lock.unlock();
+                slot.unlock();
             }
             // evicted while we waited for its lock: the eviction unmapped it, so the next slot is a fresh one
         }
@@ -218,10 +221,9 @@ public final class CollabSessionRegistry {
         try {
             final UUID stored = store.sessionForPage( pageName ).map( SessionRecord::id ).orElse( null );
             s = stored != null
-                ? CollabSession.load( stored, store, writer, identity, clock, config, maxPageBytes )
+                ? CollabSession.load( stored, ports, config, maxPageBytes )
                 : CollabSession.create( CollabSession.newRecord( UUID.randomUUID(), pageName,
-                    Optional.ofNullable( latest ), r.authorKey(), clock ), store, writer, identity, clock, config,
-                    maxPageBytes );
+                    Optional.ofNullable( latest ), r.authorKey(), clock ), ports, config, maxPageBytes );
         } catch( final RuntimeException e ) {
             LOG.warn( "collab: could not open the session of {}: {}", pageName, e.toString() );
             slot.close();
@@ -277,6 +279,7 @@ public final class CollabSessionRegistry {
     }
 
     private void tickSession( final SessionSlot slot, final CollabSession s, final Instant now ) {
+        s.settle();   // the only retry of an owed external merge or an unfinished publish (Task 4)
         s.expireWaiters().forEach( Runnable::run );
         SessionSweeps.expirePresence( s, now.minusSeconds( config.presenceTimeoutSeconds() ) );
         if( slot.recheckDue( now, config.permissionRecheckSeconds() ) ) {
@@ -287,16 +290,17 @@ public final class CollabSessionRegistry {
     }
 
     private void evictIfIdle( final SessionSlot slot, final CollabSession s, final Instant now ) {
-        if( !slot.lock.tryLock() ) {
+        if( !slot.tryLock() ) {
             return;   // a join is opening or joining it: not idle
         }
         try {
             final Duration idle = Duration.ofMinutes( config.memoryIdleEvictMinutes() );
-            if( !slot.closed() && slot.idle( Hooks.members( s ).isEmpty(), now, idle ) ) {
+            final boolean idleLongEnough = !slot.closed() && slot.idle( now, idle );
+            if( idleLongEnough && !Hooks.owesThePageStore( s ) ) {
                 evictLocked( slot, s, true );
             }
         } finally {
-            slot.lock.unlock();
+            slot.unlock();
         }
     }
 
@@ -360,7 +364,7 @@ public final class CollabSessionRegistry {
     }
 
     private void evictWedged( final SessionSlot slot ) {
-        slot.lock.lock();
+        slot.lock();
         try {
             if( !slot.closed() ) {
                 final CollabSession s = slot.session();
@@ -369,7 +373,7 @@ public final class CollabSessionRegistry {
                 evictLocked( slot, s, false );
             }
         } finally {
-            slot.lock.unlock();
+            slot.unlock();
         }
     }
 
@@ -391,7 +395,7 @@ public final class CollabSessionRegistry {
             renameStored( from, to );
             return;
         }
-        slot.lock.lock();
+        slot.lock();
         try {
             if( slot.closed() || slot.session() == null ) {
                 renameStored( from, to );
@@ -399,7 +403,7 @@ public final class CollabSessionRegistry {
                 moveLive( slot, from, to );
             }
         } finally {
-            slot.lock.unlock();
+            slot.unlock();
         }
     }
 
@@ -432,7 +436,7 @@ public final class CollabSessionRegistry {
     }
 
     private static boolean freezeLive( final SessionSlot slot ) {
-        slot.lock.lock();
+        slot.lock();
         try {
             if( slot.closed() || slot.session() == null ) {
                 return false;
@@ -440,7 +444,7 @@ public final class CollabSessionRegistry {
             Hooks.freeze( slot.session() );
             return true;
         } finally {
-            slot.lock.unlock();
+            slot.unlock();
         }
     }
 }

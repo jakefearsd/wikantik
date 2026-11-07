@@ -451,6 +451,63 @@ class CollabSessionRegistryTest {
         assertTrue( registry.live( id ).isEmpty() );
     }
 
+    // ---- what the session owes the page store (Task 4's settle) ------------------------------------------------
+
+    /** An external save whose merge fails in the store: the session owes it (reconcilePending). */
+    private void oweAMerge( final CollabSession s ) {
+        writer.externalSave( PAGE, BODY + "external\n", Map.of( "title", "T" ), "agent" );
+        store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );
+        s.reconcile( writer.latest( PAGE ).orElseThrow() );
+        assertTrue( s.view().reconcilePending(), "the merge is owed" );
+    }
+
+    @Test
+    void theTickSettlesAnOwedMerge() {
+        final Joined a = join( "alice" );
+        final CollabSession s = a.session();
+        oweAMerge( s );
+        registry.tick();
+        assertFalse( s.view().reconcilePending() );
+        assertEquals( 2, s.view().basePageVersion() );
+        assertEquals( BODY + "external\n", s.view().doc() );
+    }
+
+    @Test
+    void idleEvictionWaitsForAnOwedMerge() {
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        leave( a, "alice" );
+        oweAMerge( a.session() );
+        store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );   // the tick's retry fails too
+        registry.tick();
+        clock.advance( Duration.ofMinutes( 10 ) );
+        store.failOn( InMemoryCollabStore.Op.COMMIT_BASE_CHANGE, 1 );
+        registry.tick();
+        assertTrue( a.session().view().reconcilePending() );
+        assertTrue( registry.live( id ).isPresent(), "a session that owes a merge stays in memory" );
+        registry.tick();   // the retry lands; idle long enough, nothing unpublished: evicted and deleted
+        assertTrue( registry.live( id ).isEmpty() );
+        assertTrue( store.session( id ).isEmpty() );
+    }
+
+    @Test
+    void idleEvictionWaitsForAPublishInFlight() throws Exception {
+        final Joined a = join( "alice" );
+        final UUID id = a.response().sessionId();
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        final PublishStart st = a.session().startPublish( a.response().participantId(), "alice",
+            a.session().view().head(), "note" );
+        assertNull( st.response(), "the publish is in its save" );
+        leave( a, "alice" );
+        idleOut();
+        assertTrue( registry.live( id ).isPresent(), "a session mid-publish stays in memory" );
+        assertEquals( 200, a.session().finishPublish( st.ticket(), writer.publish( st.ticket().request() ) ).status() );
+        registry.tick();
+        assertTrue( registry.live( id ).isEmpty(), "published, idle and unchanged: evicted" );
+        assertTrue( store.session( id ).isEmpty() );
+        assertEquals( "x" + BODY, writer.latest( PAGE ).orElseThrow().body().replace( "\r\n", "\n" ) );
+    }
+
     // ---- the ambiguous-commit wedge ---------------------------------------------------------------------------
 
     @Test

@@ -493,7 +493,7 @@ public final class CollabSession {
             return failPublish( st.ticket(), e );
         } catch( final Error e ) {
             // a filter overflowed the stack, memory ran out, a class failed to link: the publish still ends
-            abandonPublish( st.ticket(), e );
+            Suppressing.run( e, () -> abandonPublish( st.ticket(), e ) );
             throw e;
         }
         return finishPublish( st.ticket(), saved );

@@ -20,11 +20,6 @@ package com.wikantik.collab.text;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.suigeneris.jrcs.diff.Diff;
-import org.suigeneris.jrcs.diff.DifferentiationFailedException;
-import org.suigeneris.jrcs.diff.Revision;
-import org.suigeneris.jrcs.diff.delta.Delta;
-import org.suigeneris.jrcs.diff.myers.MyersDiff;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,11 +36,19 @@ public final class TextDiff {
 
     private static final Logger LOG = LogManager.getLogger( TextDiff.class );
 
+    /** Line-level Myers gives up beyond this many edited lines; the differing span is then replaced coarsely. */
+    static final int MAX_EDITS = 2000;
+
     private TextDiff() {
     }
 
     /** A change set {@code cs} with {@code cs.apply(from).equals(to)}. */
     public static ChangeSet changeSet( final String from, final String to ) {
+        return changeSet( from, to, MAX_EDITS );
+    }
+
+    /** As {@link #changeSet(String, String)} with an explicit line-edit-distance cap (tests force the fallback). */
+    static ChangeSet changeSet( final String from, final String to, final int maxD ) {
         if ( from.indexOf( '\r' ) >= 0 || to.indexOf( '\r' ) >= 0 ) {
             throw new IllegalArgumentException( "TextDiff inputs must be LF-only" );
         }
@@ -55,7 +58,7 @@ public final class TextDiff {
         final int aEnd = from.length() - suffix;
         final int bEnd = to.length() - suffix;
         if ( prefix < aEnd && prefix < bEnd ) {
-            lineHunks( from, prefix, aEnd, to, prefix, bEnd, hunks );
+            lineHunks( from, prefix, aEnd, to, prefix, bEnd, hunks, maxD );
         } else if ( prefix < aEnd || prefix < bEnd ) {
             hunks.add( new int[] { prefix, aEnd, prefix, bEnd } );
         }
@@ -63,28 +66,21 @@ public final class TextDiff {
     }
 
     private static void lineHunks( final String a, final int a0, final int a1, final String b, final int b0, final int b1,
-                                   final List< int[] > out ) {
+                                   final List< int[] > out, final int maxD ) {
         final int[] aLines = HunkScan.lineStarts( a, a0, a1 );
         final int[] bLines = HunkScan.lineStarts( b, b0, b1 );
         final String[] aText = HunkScan.lines( a, aLines, a1 );
         final String[] bText = HunkScan.lines( b, bLines, b1 );
-        final Revision rev;
-        try {
-            rev = Diff.diff( aText, bText, new MyersDiff() );
-        } catch ( final DifferentiationFailedException e ) {
-            LOG.warn( "Line diff failed ({}); replacing the whole differing span", e.getMessage(), e );
+        final List< int[] > lineHunks = LineMyers.diff( aText, bText, maxD );
+        if ( lineHunks == null ) {
+            LOG.warn( "Line diff exceeded {} edits ({} vs {} lines); replacing the whole differing span", maxD,
+                    aText.length, bText.length );
             refine( a, a0, a1, b, b0, b1, out );
             return;
         }
-        for ( int i = 0; i < rev.size(); i++ ) {
-            final Delta d = rev.getDelta( i );
-            final int la = d.getOriginal().first();
-            final int lb = d.getRevised().first();
-            final int as = lineOffset( aLines, la, a1 );
-            final int ae = lineOffset( aLines, la + d.getOriginal().size(), a1 );
-            final int bs = lineOffset( bLines, lb, b1 );
-            final int be = lineOffset( bLines, lb + d.getRevised().size(), b1 );
-            refine( a, as, ae, b, bs, be, out );
+        for ( final int[] h : lineHunks ) {
+            refine( a, lineOffset( aLines, h[ 0 ], a1 ), lineOffset( aLines, h[ 1 ], a1 ),
+                    b, lineOffset( bLines, h[ 2 ], b1 ), lineOffset( bLines, h[ 3 ], b1 ), out );
         }
     }
 

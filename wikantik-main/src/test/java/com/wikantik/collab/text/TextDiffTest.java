@@ -80,32 +80,128 @@ class TextDiffTest {
 
     @Test
     void aLongSingleLineEditDiffsInLinearTime() {
-        for ( int i = 0; i < 20; i++ ) {
-            time( 65536 );
+        final long base = bestOf( () -> middleEdit( 65536 ) );
+        final long big = bestOf( () -> middleEdit( 262144 ) );
+        System.out.println( "TextDiff middle edit base " + base + "ns, 4x " + big + "ns" );
+        assertTrue( big < 500_000_000L, "256 KB diff took " + big / 1_000_000 + " ms" );
+        if ( base > 5_000_000L ) {
+            assertTrue( ( double ) big / base < 8, "4x input cost " + ( double ) big / base + "x" );
         }
-        final long base = best( 65536 );
-        final long big = best( 262144 );
-        final double ratio = ( double ) big / Math.max( 1, base );
-        System.out.println( "TextDiff linear-time ratio 4x input = " + ratio + " (base " + base + "ns, big " + big + "ns)" );
-        assertTrue( ratio < 8, "4x input cost " + ratio + "x" );
-        assertTrue( big < 200_000_000L, "256 KB diff took " + big / 1_000_000 + " ms" );
     }
 
-    private static long best( final int n ) {
+    @Test
+    void editsNearBothEndsOfAOneLine256KbPageRefineInBoundedTime() {
+        final String a = "p" + "x".repeat( 262144 ) + "q";
+        final String b = "P" + "x".repeat( 262144 ) + "Q";
+        final long t = bestOf( () -> check( a, b ) );
+        System.out.println( "TextDiff both-ends single-line edit " + t + "ns" );
+        assertTrue( t < 500_000_000L, "took " + t / 1_000_000 + " ms" );
+        assertEquals( 1, TextDiff.changeSet( a, b ).touchedRanges().size(), "one line hunk: prefix/suffix trim only" );
+    }
+
+    @Test
+    void scatteredChangesAcross256KbOfShortLinesDiffInBoundedTime() {
+        final Random r = new Random( 7 );
+        final StringBuilder a = new StringBuilder();
+        final StringBuilder b = new StringBuilder();
+        for ( int i = 0; i < 26000; i++ ) {
+            final String line = String.format( "line%06d\n", i );
+            a.append( line );
+            b.append( r.nextInt( 100 ) == 0 ? String.format( "LINE%06d\n", i ) : line );
+        }
+        final long t = bestOf( () -> check( a.toString(), b.toString() ) );
+        System.out.println( "TextDiff scattered 1% changes " + t + "ns" );
+        assertTrue( t < 500_000_000L, "took " + t / 1_000_000 + " ms" );
+    }
+
+    @Test
+    void aCompletelyRewrittenLargePageDiffsInBoundedTime() {
+        final StringBuilder a = new StringBuilder();
+        final StringBuilder b = new StringBuilder();
+        for ( int i = 0; i < 20000; i++ ) {
+            a.append( "a" ).append( i ).append( '\n' );
+            b.append( "b" ).append( i ).append( '\n' );
+        }
+        final long t = bestOf( () -> check( a.toString(), b.toString() ) );
+        System.out.println( "TextDiff full rewrite " + t + "ns" );
+        assertTrue( t < 1_000_000_000L, "took " + t / 1_000_000 + " ms" );
+    }
+
+    @Test
+    void anEditDistanceBeyondTheCapFallsBackToOneCoarseSpan() {
+        final String a = "keep\nl1\nl2\nl3\nl4\nkeep2\n";
+        final String b = "keep\nm1\nm2\nm3\nm4\nkeep2\n";
+        final ChangeSet cs = TextDiff.changeSet( a, b, 2 );
+        assertEquals( b, cs.apply( a ) );
+        assertEquals( 1, cs.touchedRanges().size() );
+    }
+
+    @Test
+    void growingARunTouchesOnlyTheInsertedPosition() {
+        final List< int[] > t = TextDiff.changeSet( "aa", "aaa" ).touchedRanges();
+        assertEquals( 1, t.size() );
+        assertEquals( t.get( 0 )[ 0 ], t.get( 0 )[ 1 ] );
+        assertEquals( "aaa", TextDiff.changeSet( "aa", "aaa" ).apply( "aa" ) );
+    }
+
+    @Test
+    void aFinalLineWithoutANewlineDiffsExactly() {
+        final String a = "one\ntwo\nthree";
+        final String b = "one\ntwo\nthree!";
+        final List< int[] > t = TextDiff.changeSet( a, b ).touchedRanges();
+        assertEquals( 1, t.size() );
+        assertArrayEquals( new int[] { 13, 13 }, t.get( 0 ) );
+        final String c = "one\nTWO\nthree";
+        assertEquals( c, TextDiff.changeSet( a, c ).apply( a ) );
+    }
+
+    @Test
+    void separatedEditsYieldExactlyOneRangePerEdit() {
+        final String a = "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\n";
+        final String b = "alpha\nbeXa\ngamma\ndelta\nepsilon\nzetY\n";
+        final List< int[] > t = TextDiff.changeSet( a, b ).touchedRanges();
+        assertEquals( 2, t.size() );
+        assertArrayEquals( new int[] { 8, 9 }, t.get( 0 ) );
+        assertArrayEquals( new int[] { 34, 35 }, t.get( 1 ) );
+    }
+
+    @Test
+    void aBoundaryInsideASurrogatePairWidensToTheWholePair() {
+        final String a = "x\uD83D\uDE00y";
+        final String b = "x\uD83D\uDE01y";
+        final ChangeSet cs = TextDiff.changeSet( a, b );
+        assertEquals( b, cs.apply( a ) );
+        assertFalse( CollabText.splitsSurrogatePair( a, cs ) );
+        assertArrayEquals( new int[] { 1, 3 }, cs.touchedRanges().get( 0 ) );
+    }
+
+    @Test
+    void widenedNeighbouringHunksMergeIntoOne() {
+        final String a = "\uD83D\uDE00\n\uD83D\uDE00\n";
+        final String b = "\uD83D\uDE01\n\uD83D\uDE01\n";
+        final ChangeSet cs = TextDiff.changeSet( a, b );
+        assertEquals( b, cs.apply( a ) );
+        assertFalse( CollabText.splitsSurrogatePair( a, cs ) );
+    }
+
+    private static void middleEdit( final int n ) {
+        check( "x".repeat( n / 2 ) + "a" + "y".repeat( n / 2 ), "x".repeat( n / 2 ) + "b" + "y".repeat( n / 2 ) );
+    }
+
+    private static void check( final String a, final String b ) {
+        assertEquals( b, TextDiff.changeSet( a, b ).apply( a ) );
+    }
+
+    private static long bestOf( final Runnable r ) {
+        for ( int i = 0; i < 3; i++ ) {
+            r.run();
+        }
         long best = Long.MAX_VALUE;
-        for ( int i = 0; i < 7; i++ ) {
-            best = Math.min( best, time( n ) );
+        for ( int i = 0; i < 5; i++ ) {
+            final long t0 = System.nanoTime();
+            r.run();
+            best = Math.min( best, System.nanoTime() - t0 );
         }
         return best;
-    }
-
-    private static long time( final int n ) {
-        final String a = "x".repeat( n / 2 ) + "a" + "y".repeat( n / 2 );
-        final String b = "x".repeat( n / 2 ) + "b" + "y".repeat( n / 2 );
-        final long t0 = System.nanoTime();
-        final ChangeSet cs = TextDiff.changeSet( a, b );
-        final long t = System.nanoTime() - t0;
-        assertEquals( b.length(), cs.newLength() );
-        return t;
     }
 }

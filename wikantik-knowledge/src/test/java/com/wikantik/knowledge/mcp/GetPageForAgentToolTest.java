@@ -126,6 +126,30 @@ class GetPageForAgentToolTest {
     }
 
     @Test
+    void theMcpToolCarriesDraftActive() {
+        final java.util.concurrent.atomic.AtomicBoolean active = new java.util.concurrent.atomic.AtomicBoolean( false );
+        final GetPageForAgentTool live = new GetPageForAgentTool( svc, PageViewGate.ALLOW_ALL, () -> null,
+                slug -> "HybridRetrieval".equals( slug ) && active.get() );
+        final ForAgentProjection p = new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article", null,
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE, null, null, null, "s",
+                List.of(), List.of(), List.of(), List.of(), null, null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md", false, List.of(), List.of() );
+        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+
+        assertFalse( draftActive( live ) );
+        active.set( true );
+        assertTrue( draftActive( live ), "evaluated per call, not cached with the projection" );
+        assertFalse( draftActive( tool ), "the short constructors answer false" );
+    }
+
+    private static boolean draftActive( final GetPageForAgentTool t ) {
+        final McpSchema.CallToolResult result = t.execute( Map.of( "canonical_id", "01ABC" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        return JsonParser.parseString( text ).getAsJsonObject().get( "draft_active" ).getAsBoolean();
+    }
+
+    @Test
     void restrictedPageFilteredForGuest() {
         final ForAgentProjection secret = new ForAgentProjection(
                 "01SECRET", "Secret", "Secret Page", "article",

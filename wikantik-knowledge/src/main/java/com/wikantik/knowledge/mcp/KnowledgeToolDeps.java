@@ -34,6 +34,7 @@ import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.ontology.OntologyModelManager;
 
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -64,6 +65,7 @@ final class KnowledgeToolDeps {
     private final PageViewGate viewGate;
     private final Supplier< PublicIdentity > publicIdentity;
     private final Supplier< ReferenceManager > referenceManager;
+    private final Predicate< String > draftActive;
 
     private KnowledgeToolDeps( final Builder b ) {
         this.kgService = b.kgService;
@@ -82,6 +84,7 @@ final class KnowledgeToolDeps {
         this.viewGate = b.viewGate != null ? b.viewGate : PageViewGate.ALLOW_ALL;
         this.publicIdentity = b.publicIdentity != null ? b.publicIdentity : () -> null;
         this.referenceManager = b.referenceManager != null ? b.referenceManager : () -> null;
+        this.draftActive = b.draftActive != null ? b.draftActive : p -> false;
     }
 
     static Builder builder() {
@@ -104,6 +107,7 @@ final class KnowledgeToolDeps {
     PageViewGate viewGate() { return viewGate; }
     Supplier< PublicIdentity > publicIdentity() { return publicIdentity; }
     Supplier< ReferenceManager > referenceManager() { return referenceManager; }
+    Predicate< String > draftActive() { return draftActive; }
 
     static final class Builder {
         private KnowledgeGraphService kgService;
@@ -122,6 +126,7 @@ final class KnowledgeToolDeps {
         private PageViewGate viewGate;
         private Supplier< PublicIdentity > publicIdentity;
         private Supplier< ReferenceManager > referenceManager;
+        private Predicate< String > draftActive;
 
         Builder kgService( final KnowledgeGraphService v ) { this.kgService = v; return this; }
         Builder mentionIndex( final MentionIndex v ) { this.mentionIndex = v; return this; }
@@ -138,6 +143,7 @@ final class KnowledgeToolDeps {
         Builder briefingLog( final Supplier< BriefingLogService > v ) { this.briefingLog = v; return this; }
         Builder viewGate( final PageViewGate v ) { this.viewGate = v; return this; }
         Builder publicIdentity( final Supplier< PublicIdentity > v ) { this.publicIdentity = v; return this; }
+        Builder draftActive( final Predicate< String > v ) { this.draftActive = v; return this; }
         Builder referenceManager( final Supplier< ReferenceManager > v ) { this.referenceManager = v; return this; }
 
         KnowledgeToolDeps build() {

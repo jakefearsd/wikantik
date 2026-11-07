@@ -23,6 +23,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.wikantik.collab.adapter.CollabEngineAccess;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.agent.HeadingOutline;
@@ -105,7 +106,10 @@ public class PageForAgentResource extends RestServletBase {
 
         final JsonObject envelope = new JsonObject();
         // The service caches stored principals; show readers display names (verified_by, recent_changes[].author).
-        envelope.add( "data", toJson( p.withDisplayNames( getSubsystems().auth().publicIdentity() ) ) );
+        final JsonObject data = toJson( p.withDisplayNames( getSubsystems().auth().publicIdentity() ) );
+        // Added here, never on the cached projection: it is volatile (a live session answers first).
+        data.addProperty( "draft_active", CollabEngineAccess.draftActive( getEngine(), p.slug() ) );
+        envelope.add( "data", data );
         final String body = AGENT_GSON.toJson( envelope );
         resp.setContentType( "application/json; charset=UTF-8" );
         resp.setStatus( 200 );

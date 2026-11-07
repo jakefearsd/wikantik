@@ -335,6 +335,8 @@ public class PageResource extends RestServletBase {
         result.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
         result.put( "lastModified", page.getLastModified() );
         result.put( "exists", true );
+        // Live-session-first, never cached with the page: someone editing it, or an unpublished draft (MultiEdit 16).
+        result.put( "draft_active", com.wikantik.collab.adapter.CollabEngineAccess.draftActive( getEngine(), page.getName() ) );
 
         // D19: surface the content hash so clients can round-trip GET → PUT with
         // expectedContentHash without computing the digest themselves.

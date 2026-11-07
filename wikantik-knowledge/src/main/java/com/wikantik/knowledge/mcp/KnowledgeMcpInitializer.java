@@ -166,6 +166,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 .queryLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null )
                 .briefingLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null )
                 .viewGate( viewGate )
+                .draftActive( page -> com.wikantik.collab.adapter.CollabEngineAccess.draftActive( engine, page ) )
                 .publicIdentity( () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() )
                 .referenceManager( () -> PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager() )
                 .build() );
@@ -278,7 +279,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
     private static void addProjectionAndBundleTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
         final PageViewGate viewGate = deps.viewGate();
         if ( deps.forAgent() != null ) {
-            tools.add( new GetPageForAgentTool( deps.forAgent(), viewGate, deps.publicIdentity() ) );
+            tools.add( new GetPageForAgentTool( deps.forAgent(), viewGate, deps.publicIdentity(), deps.draftActive() ) );
         }
         if ( deps.bundleService() != null ) {
             // Resolve the query log lazily (the service is set during engine startup; resolving

@@ -21,6 +21,7 @@ package com.wikantik.knowledge.mcp;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
@@ -38,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -80,6 +82,7 @@ public class GetPageForAgentTool extends AbstractMcpTool {
     private final ForAgentProjectionService service;
     private final PageViewGate viewGate;
     private final Supplier< PublicIdentity > publicIdentity;
+    private final Predicate< String > draftActive;
 
     public GetPageForAgentTool( final ForAgentProjectionService service ) {
         this( service, PageViewGate.ALLOW_ALL );
@@ -95,6 +98,16 @@ public class GetPageForAgentTool extends AbstractMcpTool {
      */
     public GetPageForAgentTool( final ForAgentProjectionService service, final PageViewGate viewGate,
                                 final Supplier< PublicIdentity > publicIdentity ) {
+        this( service, viewGate, publicIdentity, p -> false );
+    }
+
+    /**
+     * @param draftActive answers, per call and by page name, whether someone is editing the page or its draft holds
+     *        unpublished changes; never cached with the projection
+     */
+    public GetPageForAgentTool( final ForAgentProjectionService service, final PageViewGate viewGate,
+                                final Supplier< PublicIdentity > publicIdentity, final Predicate< String > draftActive ) {
+        this.draftActive = draftActive == null ? p -> false : draftActive;
         this.service = service;
         this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
         this.publicIdentity = publicIdentity == null ? () -> null : publicIdentity;
@@ -133,6 +146,7 @@ public class GetPageForAgentTool extends AbstractMcpTool {
                 "lastModified", "2026-04-25T14:30:00Z",
                 "changeNote", "fix: typo in BM25 fallback section"
         ) ) );
+        exampleProjection.put( "draft_active", false );
         exampleProjection.put( "tool_hints", List.of(
                 "call get_page for the full body",
                 "call get_outbound_links on /wikantik-admin-mcp to expand neighbors"
@@ -179,6 +193,9 @@ public class GetPageForAgentTool extends AbstractMcpTool {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "no page for canonical_id " + s );
         }
-        return McpToolUtils.jsonResult( PROJECTION_GSON, maybe.get().withDisplayNames( publicIdentity.get() ) );
+        final ForAgentProjection projection = maybe.get().withDisplayNames( publicIdentity.get() );
+        final JsonObject payload = PROJECTION_GSON.toJsonTree( projection ).getAsJsonObject();
+        payload.addProperty( "draft_active", draftActive.test( projection.slug() ) );
+        return McpToolUtils.jsonResult( PROJECTION_GSON, payload );
     }
 }

@@ -19,9 +19,11 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.identity.IdentityDisplay;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.collab.adapter.CollabEngineAccess;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,9 +33,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 /**
  * REST servlet for page version history.
@@ -77,6 +81,8 @@ public class HistoryResource extends RestServletBase {
         }
 
         final List< ? extends Page > versions = pm.getVersionHistory( pageName );
+        final Map< Integer, List< String > > ledger =
+                CollabEngineAccess.contributorsByVersion( getEngine(), canonicalIdOf( pm, pageName ) );
 
         final List< Map< String, Object > > versionList;
         if ( versions == null || versions.isEmpty() ) {
@@ -86,6 +92,7 @@ public class HistoryResource extends RestServletBase {
             entry.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
             entry.put( "lastModified", page.getLastModified() );
             entry.put( "changeNote", IdentityDisplay.changeNote( identity, page.getAttribute( Page.CHANGENOTE ) ) );
+            entry.put( "contributors", contributors( identity, ledger, Math.max( page.getVersion(), 1 ), page.getAuthor() ) );
             versionList = List.of( entry );
         } else {
             versionList = versions.stream()
@@ -95,6 +102,7 @@ public class HistoryResource extends RestServletBase {
                         entry.put( "author", IdentityDisplay.ofAuthor( identity, v.getAuthor() ) );
                         entry.put( "lastModified", v.getLastModified() );
                         entry.put( "changeNote", IdentityDisplay.changeNote( identity, v.getAttribute( Page.CHANGENOTE ) ) );
+                        entry.put( "contributors", contributors( identity, ledger, Math.max( v.getVersion(), 1 ), v.getAuthor() ) );
                         return entry;
                     } )
                     .toList();
@@ -105,6 +113,40 @@ public class HistoryResource extends RestServletBase {
         result.put( "versions", versionList );
 
         sendJson( response, result );
+    }
+
+    /** The page's {@code canonical_id} from its latest text's frontmatter, or null when it has none or cannot be read. */
+    private static String canonicalIdOf( final PageManager pm, final String pageName ) {
+        try {
+            final Object id = FrontmatterParser.parse( pm.getPureText( pageName, -1 ) ).metadata().get( "canonical_id" );
+            return id == null ? null : id.toString();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "History of {}: the canonical_id could not be read, contributors are omitted: {}", pageName, e.toString() );
+            return null;
+        }
+    }
+
+    /**
+     * The display names of a version's contributors: the ledger's keys through {@link IdentityDisplay#ofAuthor} (a name
+     * for an account, "former member" for a deleted one, "unknown contributor" for an unresolvable email), deduplicated
+     * and sorted, with the version's own author, in the same form, first when it is among them. Never a raw key.
+     */
+    private static List< String > contributors( final PublicIdentity identity, final Map< Integer, List< String > > ledger,
+                                                final int version, final String author ) {
+        final TreeSet< String > names = new TreeSet<>();
+        for ( final String key : ledger.getOrDefault( version, List.of() ) ) {
+            final String shown = IdentityDisplay.ofAuthor( identity, key );
+            if ( shown != null && !shown.isBlank() ) {
+                names.add( shown );
+            }
+        }
+        final String authorShown = IdentityDisplay.ofAuthor( identity, author );
+        final List< String > out = new ArrayList<>();
+        if ( authorShown != null && names.remove( authorShown ) ) {
+            out.add( authorShown );
+        }
+        out.addAll( names );
+        return out;
     }
 
 }

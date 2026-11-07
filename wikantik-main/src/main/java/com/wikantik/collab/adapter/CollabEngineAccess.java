@@ -22,6 +22,9 @@ import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.collab.CollabSessionRegistry;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * The one place that unwraps an {@link Engine} to its collaboration registry, for the engine code that must consult it
  * (the page renamer's draft guard, the user deletion's eviction) without a constructor parameter: their construction
@@ -43,5 +46,26 @@ public final class CollabEngineAccess {
             return wiring == null ? null : wiring.registry();
         }
         return null;
+    }
+
+    /**
+     * True when someone is editing {@code pageName} or its draft holds unpublished changes
+     * ({@link CollabSessionRegistry#draftActive}); false when collaboration is not wired. Never reads the store.
+     */
+    public static boolean draftActive( final Engine engine, final String pageName ) {
+        final CollabSessionRegistry registry = registry( engine );
+        return registry != null && pageName != null && registry.draftActive( pageName );
+    }
+
+    /**
+     * The contributors' author keys per page version of {@code canonicalId}
+     * ({@link CollabSessionRegistry#contributorsByVersion}); an empty map when collaboration is not wired or
+     * {@code canonicalId} is null. The values are stored keys: a surface that shows them resolves them through
+     * {@code PublicIdentity} first.
+     */
+    public static Map< Integer, List< String > > contributorsByVersion( final Engine engine, final String canonicalId ) {
+        final CollabSessionRegistry registry = registry( engine );
+        return registry == null || canonicalId == null || canonicalId.isBlank()
+            ? Map.of() : registry.contributorsByVersion( canonicalId );
     }
 }

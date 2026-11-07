@@ -144,6 +144,48 @@ class PageForAgentResourceTest {
     }
 
     @Test
+    void forAgentCarriesDraftActiveWithoutCachingIt() throws Exception {
+        final ForAgentProjection p = new ForAgentProjection(
+                "01DRAFT", "HybridRetrieval", "Hybrid Retrieval", "article", null,
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE,
+                null, null, null, "s",
+                List.of(), List.of(), List.of(), List.of(),
+                null,
+                null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
+                false, List.of(), List.of() );
+        // The very same cached projection instance both times: only the serialisation may differ.
+        when( svc.project( "01DRAFT" ) ).thenReturn( Optional.of( p ) );
+
+        assertFalse( draftActiveOf( get( "/01DRAFT" ) ), "unwired: false" );
+
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, new com.wikantik.collab.testing.InMemoryCollabStore() );
+        try {
+            assertFalse( draftActiveOf( get( "/01DRAFT" ) ), "wired, no draft yet" );
+            final var admin = engine.adminSession();
+            com.wikantik.collab.adapter.CollabEngineAccess.registry( engine ).join( "HybridRetrieval",
+                new com.wikantik.collab.model.JoinRequest( com.wikantik.auth.AuthorKeys.authorKeyFor( admin ), null, admin,
+                    "Admin", null, null ) );
+            assertTrue( draftActiveOf( get( "/01DRAFT" ) ), "a draft opened between two GETs of one cached projection" );
+        } finally {
+            wiring.close();
+        }
+    }
+
+    private String get( final String pathInfo ) throws Exception {
+        final HttpServletRequest req = anonReq( pathInfo );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+        resource.doGet( req, resp );
+        return sw.toString();
+    }
+
+    private static boolean draftActiveOf( final String body ) {
+        return JsonParser.parseString( body ).getAsJsonObject().getAsJsonObject( "data" ).get( "draft_active" ).getAsBoolean();
+    }
+
+    @Test
     void happy_path_serialises_full_envelope() throws Exception {
         final ForAgentProjection p = new ForAgentProjection(
                 "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article",

@@ -181,6 +181,38 @@ class PageResourceTest {
     }
 
     @Test
+    void pageGetCarriesDraftActive() throws Exception {
+        engine.saveText( "RestDraftActivePage", "Hello draft." );
+        final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
+        try {
+            assertFalse( gson.fromJson( doGet( "RestDraftActivePage" ), JsonObject.class ).get( "draft_active" ).getAsBoolean() );
+
+            final Session admin = engine.adminSession();
+            final String key = com.wikantik.auth.AuthorKeys.authorKeyFor( admin );
+            com.wikantik.collab.adapter.CollabEngineAccess.registry( engine ).join( "RestDraftActivePage",
+                new com.wikantik.collab.model.JoinRequest( key, null, admin, "Admin", null, null ) );
+
+            assertTrue( gson.fromJson( doGet( "RestDraftActivePage" ), JsonObject.class ).get( "draft_active" ).getAsBoolean() );
+        } finally {
+            wiring.close();
+            engine.deleteQuietly( "RestDraftActivePage" );
+        }
+    }
+
+    @Test
+    void pageGetDraftActiveIsFalseWhenCollabIsNotWired() throws Exception {
+        engine.saveText( "RestDraftUnwiredPage", "Hello." );
+        try {
+            final JsonObject obj = gson.fromJson( doGet( "RestDraftUnwiredPage" ), JsonObject.class );
+            assertTrue( obj.has( "draft_active" ) );
+            assertFalse( obj.get( "draft_active" ).getAsBoolean() );
+        } finally {
+            engine.deleteQuietly( "RestDraftUnwiredPage" );
+        }
+    }
+
+    @Test
     void testGetPageFiresPageRequestedEvent() throws Exception {
         // Regression: wikantik_page_views_total stayed 0 because no code path
         // ever fired PAGE_REQUESTED. A GET of an existing page must fire it.

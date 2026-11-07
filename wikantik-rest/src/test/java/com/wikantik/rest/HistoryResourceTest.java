@@ -183,6 +183,119 @@ class HistoryResourceTest {
         }
     }
 
+    // ----- MultiEdit Phase 3 Task 8: contributors -----
+
+    private static final String CONTRIB_CID = "01HYCONTRIBUTORSHISTORY0001";
+
+    private static String savePageWithCanonicalId( final String name, final String cid ) throws Exception {
+        engine.saveText( name, "---\ncanonical_id: " + cid + "\n---\nVersion one body." );
+        final String text = engine.getManager( com.wikantik.api.managers.PageManager.class ).getPureText( name, -1 );
+        return com.wikantik.api.frontmatter.FrontmatterParser.parse( text ).metadata().get( "canonical_id" ).toString();
+    }
+
+    private JsonObject versionEntry( final String json, final int version ) {
+        for ( final com.google.gson.JsonElement e : gson.fromJson( json, JsonObject.class ).getAsJsonArray( "versions" ) ) {
+            if ( e.getAsJsonObject().get( "version" ).getAsInt() == version ) {
+                return e.getAsJsonObject();
+            }
+        }
+        return fail( "no version " + version + " in " + json );
+    }
+
+    private static java.util.List< String > names( final JsonObject entry ) {
+        final java.util.List< String > out = new java.util.ArrayList<>();
+        entry.getAsJsonArray( "contributors" ).forEach( e -> out.add( e.getAsString() ) );
+        return out;
+    }
+
+    @Test
+    void historyListsContributorsPerVersion() throws Exception {
+        final String cid = savePageWithCanonicalId( "RestHistoryContrib", CONTRIB_CID );
+        final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
+        try {
+            store.recordContributors( cid, 1, java.util.Set.of( "Zed Legacy", "Amy Legacy" ), true );
+            final JsonObject v1 = versionEntry( doGet( "RestHistoryContrib" ), 1 );
+            assertEquals( java.util.List.of( "Amy Legacy", "Zed Legacy" ), names( v1 ), "deduplicated and sorted" );
+        } finally {
+            wiring.close();
+            engine.deleteQuietly( "RestHistoryContrib" );
+        }
+    }
+
+    @Test
+    void historyContributorsAreDisplayNamesNeverLogins() throws Exception {
+        final String cid = savePageWithCanonicalId( "RestHistoryContribNames", "01HYCONTRIBUTORSHISTORY0002" );
+        final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
+        final var db = engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase();
+        try {
+            db.recordDeletedLogin( "gone-login" );
+            com.wikantik.api.identity.PublicIdentity identity =
+                com.wikantik.auth.identity.PublicIdentities.forEngine( engine );
+            identity.invalidate( null );
+            store.recordContributors( cid, 1, java.util.Set.of( "janne", "gone-login", "stranger@example.test" ), true );
+
+            final String json = doGet( "RestHistoryContribNames" );
+            final java.util.List< String > shown = names( versionEntry( json, 1 ) );
+            assertTrue( shown.contains( "Janne Jalkanen" ), shown.toString() );
+            assertTrue( shown.contains( com.wikantik.api.identity.PublicIdentity.FORMER_MEMBER ), shown.toString() );
+            assertTrue( shown.contains( com.wikantik.api.identity.PublicIdentity.UNKNOWN_CONTRIBUTOR ), shown.toString() );
+            assertFalse( json.contains( "gone-login" ), "no raw key in the body" );
+            assertFalse( json.contains( "stranger@example.test" ), "no raw key in the body" );
+            assertFalse( json.contains( "\"janne\"" ), "no raw login in the body" );
+        } finally {
+            wiring.close();
+            engine.deleteQuietly( "RestHistoryContribNames" );
+        }
+    }
+
+    @Test
+    void historyContributorsListTheVersionAuthorFirstInTheSameForm() throws Exception {
+        AuthoredPages.save( engine, "RestHistoryContribAuthor",
+            "---\ncanonical_id: 01HYCONTRIBUTORSHISTORY0003\n---\nbody", "janne" );
+        final String text = engine.getManager( com.wikantik.api.managers.PageManager.class )
+            .getPureText( "RestHistoryContribAuthor", -1 );
+        final String cid = com.wikantik.api.frontmatter.FrontmatterParser.parse( text ).metadata().get( "canonical_id" ).toString();
+        final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
+        try {
+            store.recordContributors( cid, 1, java.util.Set.of( "Aaron Legacy", "janne" ), true );
+            final JsonObject v1 = versionEntry( doGet( "RestHistoryContribAuthor" ), 1 );
+            assertEquals( "Janne Jalkanen", v1.get( "author" ).getAsString() );
+            assertEquals( java.util.List.of( "Janne Jalkanen", "Aaron Legacy" ), names( v1 ),
+                "author first, in the same display-name form, so the UI can filter by equality" );
+        } finally {
+            wiring.close();
+            engine.deleteQuietly( "RestHistoryContribAuthor" );
+        }
+    }
+
+    @Test
+    void historyWithoutCollabWiringHasEmptyContributors() throws Exception {
+        final JsonObject v1 = versionEntry( doGet( "RestHistoryPage" ), 1 );
+        assertTrue( v1.has( "contributors" ), "always present" );
+        assertTrue( names( v1 ).isEmpty() );
+    }
+
+    @Test
+    void aRenamedPageKeepsItsContributors() throws Exception {
+        final String cid = savePageWithCanonicalId( "RestHistoryRenameFrom", "01HYCONTRIBUTORSHISTORY0004" );
+        final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
+        try {
+            store.recordContributors( cid, 1, java.util.Set.of( "Amy Legacy" ), true );
+            final com.wikantik.api.core.Context ctx = com.wikantik.api.spi.Wiki.context().create( engine,
+                engine.getManager( com.wikantik.api.managers.PageManager.class ).getPage( "RestHistoryRenameFrom" ) );
+            engine.getManager( com.wikantik.content.PageRenamer.class )
+                .renamePage( ctx, "RestHistoryRenameFrom", "RestHistoryRenameTo", true );
+            assertEquals( java.util.List.of( "Amy Legacy" ), names( versionEntry( doGet( "RestHistoryRenameTo" ), 1 ) ) );
+        } finally {
+            wiring.close();
+            engine.deleteQuietly( "RestHistoryRenameFrom", "RestHistoryRenameTo" );
+        }
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {

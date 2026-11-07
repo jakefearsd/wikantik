@@ -105,8 +105,22 @@ export function createMetaState({ meta = {}, metaSeq = 0 } = {}) {
       return out;
     },
     pending: () => entries.map((e) => e.edit),
-    /** The edits the server has not confirmed (unsent or in flight): what a recovery would have to show. */
-    unconfirmed: () => entries.filter((e) => e.state !== 'acked').map((e) => e.edit),
+    /**
+     * The edits the server has not confirmed (unsent or in flight) that would still change something: what a recovery
+     * would have to show. Replayed in order over the server's metadata, so an in-flight edit a pull already delivered
+     * (ahead of its ack) is left out, while an edit undoing an earlier unconfirmed one is kept.
+     */
+    unconfirmed() {
+      let running = norm(server);
+      const out = [];
+      for (const e of entries) {
+        const next = norm(running);
+        applyEdit(next, e.edit);
+        if (e.state !== 'acked' && diffMeta(running, next).length > 0) out.push(e.edit);
+        running = next;
+      }
+      return out;
+    },
     /** Forgets every local edit (eviction for lost edit rights, A13): the view is the server's metadata again. */
     discardPending() { entries = []; },
     serverSeq: () => serverSeq,

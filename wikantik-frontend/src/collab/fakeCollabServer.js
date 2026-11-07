@@ -429,6 +429,7 @@ export function createFakeCollabServer({
       join: (b) => call('POST', '/join', { body: { priorClientId: b?.priorClientId ?? null, initialText: b?.initialText ?? null, initialMeta: b?.initialMeta ?? null } }),
       push: (b) => call('POST', '/updates', { body: b }),
       pull: ({ signal, ...q }) => call('GET', '/updates', { query: q, signal }),
+      draft: (q) => call('GET', '/draft', { query: q }),
       publish: (b) => call('POST', '/publish', { body: b }),
       discard: (b) => call('POST', '/discard', { body: b }),
       leave: (b) => call('POST', '/leave', { body: b }),

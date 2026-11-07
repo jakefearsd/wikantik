@@ -3,7 +3,8 @@
  * (via `navigator.sendBeacon`), and exposes the pieces the editor needs.
  *
  * Returns `{ status, participants, presence, events, resync, dismissResync, restart, resume, publish, discard, docAtJoin, startVersion,
- * clientID, sessionId, metadata, draft, basePageVersion, extensions, meta, presenceNow, evictedReason, externalChange }`. `resume()` restarts the peer after `auth-required`
+ * clientID, sessionId, metadata, draft, published, notice, oversizeLimit, draftSummary, unsyncedParticipants, basePageVersion,
+ * extensions, meta, presenceNow, evictedReason, externalChange }`. `resume()` restarts the peer after `auth-required`
  * once the user has signed in again, keeping every unsent edit (A13). `extensions` is the `collab()` + `collabPeer()` pair to
  * mount in a CodeMirror view initialised from `docAtJoin` (A4: the editor is uncontrolled in collab mode; A10: on
  * `status === 'resync'` the host shows `resync.unsyncedText` in a recovery panel and calls `restart()`: it awaits the leave of
@@ -23,19 +24,32 @@
  * whose change to that field was not applied over mine; `pending` is true while an edit is not yet acknowledged.
  * `presenceNow()` reads the live presence map (for click-time checks between renders). After `page-renamed` the hook keeps
  * the session when `pageName` becomes the new name (no leave, no rejoin).
+ *
+ * Draft state (Phase 3, display names only): `draft` is `{ unpublished, contributors, lastEditAt }`, seeded from the join and
+ * replaced by each `draft-state` event; the server sends that only when the contributor set or `unpublished` changes, so
+ * `lastEditAt` is advanced here on every received update or meta op. `published` is `{ by, pageVersion, seq }` from the
+ * latest `published` event; `notice` is `{ type, by?, bytes?, limit?, seq }` from the latest `publish-failed`,
+ * `draft-discarded` or `oversize`; `oversizeLimit` is the limit an `oversize` event reported. Events at or below the join's
+ * `eventSeq` (when the server sends one) predate the join and only replay the window: they set none of these. A join that
+ * answers `frozen` is frozen at once. `draftSummary()` flushes metadata, waits for the peer to sync and fetches the
+ * publish dialog's summary: `{ ok: true, summary } | { ok: false, status, reason }`. `unsyncedParticipants()` names the
+ * participants whose presence reports unconfirmed edits (§16 decision 1). `publish(changeNote, { markupSyntax })` sends
+ * `markupSyntax` only when given.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { collab } from '@codemirror/collab';
+import { Transaction } from '@codemirror/state';
 import { ViewPlugin } from '@codemirror/view';
 import { createCollabTransport } from './collabTransport.js';
 import { collabPeer, createPeerHandle } from './collabPeer.js';
-import { remoteCursors, setRemotePresence } from './remoteCursors.js';
+import { displayNames, labelOf, remoteCursors, setRemotePresence } from './remoteCursors.js';
 import { externalHighlights, addExternalHighlight } from './externalHighlights.js';
 import { createMetaQueue, createMetaState, diffMeta, SET_FIELDS } from './collabMeta.js';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 const MAX_EVENTS = 200;
 const META_DEBOUNCE_MS = 400;
+const LAST_EDIT_RESOLUTION_MS = 30_000;
 
 const jsonOf = (v) => JSON.stringify(v === undefined ? null : v);
 const isEmptyValue = (v) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
@@ -66,6 +80,31 @@ function presenceFromJoin(j) {
   }
   return map;
 }
+
+/** A join's `draft` block or a `draft-state` event as `{ unpublished, contributors, lastEditAt }`. */
+function draftOf(raw) {
+  return {
+    unpublished: !!raw?.unpublished,
+    contributors: displayNames(raw?.contributors),
+    lastEditAt: typeof raw?.lastEditAt === 'string' ? raw.lastEditAt : null,
+  };
+}
+
+/** `GET …/draft` as the publish dialog reads it. `diff` is server-rendered HTML: show it only through `DiffHtml`. */
+function summaryOf(body) {
+  return {
+    ...draftOf(body),
+    basePageVersion: typeof body?.basePageVersion === 'number' ? body.basePageVersion : null,
+    version: typeof body?.version === 'number' ? body.version : null,
+    diff: typeof body?.diff === 'string' ? body.diff : '',
+    metaChanges: (Array.isArray(body?.metaChanges) ? body.metaChanges : [])
+      .filter((c) => c && typeof c.field === 'string')
+      .map((c) => ({ field: c.field, before: c.before ?? null, after: c.after ?? null })),
+  };
+}
+
+const NOTICE_TYPES = ['publish-failed', 'draft-discarded', 'oversize'];
+const finite = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : null);
 
 function joinFailureStatus(err) {
   const reason = err?.body?.reason;
@@ -157,6 +196,19 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
         const seeded = presenceFromJoin(j);
         presenceRef.current = seeded;
         setPresence(seeded);
+        // the draft's page was deleted before this join: frozen now, whether or not page-deleted is still in the window
+        setDeleted((d) => (j.frozen ? key : d === key ? null : d));
+        // events up to the join's cursor happened before it: the pull replays them, but they are not news
+        const joinEventSeq = typeof j.eventSeq === 'number' ? j.eventSeq : 0;
+        const isNews = (e) => !(typeof e.seq === 'number' && e.seq <= joinEventSeq);
+        // coarse on purpose: "last edit" is shown to the minute, and a re-render per confirmed keystroke batch is waste
+        const touchDraft = () => setState((s) => {
+          if (s.key !== key || !s.draft) return s;
+          const now = Date.now();
+          const last = Date.parse(s.draft.lastEditAt ?? '');
+          if (!Number.isNaN(last) && now >= last && now - last < LAST_EDIT_RESOLUTION_MS) return s;
+          return { ...s, draft: { ...s.draft, lastEditAt: new Date(now).toISOString() } };
+        });
         const dispatchToView = (effects) => {
           try {
             viewRef.current?.dispatch({ effects });
@@ -171,7 +223,11 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             // a presence map that arrived before the view mounted
             queueMicrotask(() => { if (viewRef.current === view) dispatchToView(setRemotePresence.of(presenceRef.current)); });
           }
-          return { destroy() { if (viewRef.current === view) viewRef.current = null; } };
+          return {
+            // a received update (its own confirmations included) is an edit to the draft: the server's lastEditAt moved
+            update(u) { if (u.transactions.some((tr) => tr.annotation(Transaction.remote))) touchDraft(); },
+            destroy() { if (viewRef.current === view) viewRef.current = null; },
+          };
         });
         const selfOf = (rj) => (rj.participants ?? []).find((p) => p.participantId === rj.participantId) ?? null;
         const extensions = [
@@ -187,6 +243,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             onResync: (payload) => { setResync(payload); },
             onMetaOps: (ops, metaSeq) => {
               metaState.applyRemote(ops, metaSeq);
+              if (ops.length) touchDraft();
               const f = focusRef.current;
               if (f) {
                 // a remote op on my focused field: my input stays as it is; the field says who changed it (§8.2)
@@ -235,6 +292,15 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
                   setAliases((a) => ({ joinedAs: a?.joinedAs ?? key, names: new Set([...(a?.names ?? [key]), e.to]) }));
                 } else if (e.type === 'page-deleted') {
                   setDeleted(key);
+                } else if (e.type === 'draft-state' && isNews(e)) {
+                  patch({ draft: draftOf(e) });
+                } else if (e.type === 'published' && isNews(e)) {
+                  patch({ published: { by: labelOf(e.by), pageVersion: finite(e.pageVersion), seq: e.seq ?? null } });
+                } else if (NOTICE_TYPES.includes(e.type) && isNews(e)) {
+                  const notice = e.type === 'oversize'
+                    ? { type: e.type, bytes: finite(e.bytes), limit: finite(e.limit), seq: e.seq ?? null }
+                    : { type: e.type, by: labelOf(e.by), seq: e.seq ?? null };
+                  patch(e.type === 'oversize' && notice.limit !== null ? { notice, oversizeLimit: notice.limit } : { notice });
                 }
               }
             },
@@ -252,7 +318,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
         patch({
           status: 'live', docAtJoin: j.doc, startVersion: j.version, clientID: j.clientID, sessionId: j.sessionId,
           metadata: j.metadata ?? {}, metaSeq: j.metaSeq ?? 0, basePageVersion: j.basePageVersion ?? null,
-          draft: j.draft ?? null, extensions, metaSession,
+          draft: draftOf(j.draft), published: null, notice: null, oversizeLimit: null, extensions, metaSession,
         });
       })
       .catch((err) => {
@@ -300,7 +366,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   const dismissResync = useCallback(() => setResync(null), []);
   const resume = useCallback(() => { handleRef.current?.resume(); }, []);
 
-  async function publish(changeNote = '') {
+  async function publish(changeNote = '', { markupSyntax } = {}) {
     const transport = transportRef.current;
     const handle = handleRef.current;
     // metadata still inside its debounce window goes out first; whenSynced then covers it with the text
@@ -314,7 +380,10 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
       if (!recreating && !(await handle.whenSynced())) return { ok: false, reason: 'not-live' };
       const version = handle.getSyncedVersion() ?? state.startVersion ?? 0;
       try {
-        const res = await transport.publish({ sessionId: s.sessionId, participantId: s.participantId, version, changeNote });
+        const res = await transport.publish({
+          sessionId: s.sessionId, participantId: s.participantId, version, changeNote,
+          ...(markupSyntax != null ? { markupSyntax } : {}),
+        });
         return { ok: true, ...res };
       } catch (err) {
         const reason = err?.body?.reason;
@@ -324,6 +393,26 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
       }
     }
     return { ok: false, reason: 'retries-exhausted' };
+  }
+
+  /** The publish dialog's summary, fetched once every local edit (text and flushed metadata) has reached the server. */
+  async function draftSummary() {
+    const transport = transportRef.current;
+    const handle = handleRef.current;
+    metaRef.current?.queue.flush();
+    metaRef.current?.send();
+    if (!transport || !sessionRef.current) return { ok: false, reason: 'not-live' };
+    // a frozen draft's stopped peer can never sync: summarise what the server holds
+    if (status !== 'frozen' && handle && !(await handle.whenSynced())) return { ok: false, reason: 'not-live' };
+    const s = sessionRef.current;
+    if (!s) return { ok: false, reason: 'not-live' };
+    try {
+      const body = await transport.draft({ sessionId: s.sessionId, participantId: s.participantId });
+      return { ok: true, summary: summaryOf(body) };
+    } catch (err) {
+      console.warn('[collab] draft summary failed', err?.status, err?.body?.reason ?? err?.message);
+      return { ok: false, status: err?.status, reason: err?.body?.reason };
+    }
   }
 
   async function discard() {
@@ -359,8 +448,9 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
     // the recovery payload survives the remount until dismissResync(); with nothing unsynced there is nothing to recover
     // (a null capture, view already destroyed, never replaces a payload onResync already delivered)
     setResync((prev) => {
-      if (!fresh) return prev?.unsyncedText ? prev : null;
-      return fresh.unsyncedText ? { ...fresh, reason: prev?.reason ?? fresh.reason } : null;
+      // a capture with nothing unsynced (none at all, or an empty one) never replaces a payload already delivered
+      if (!fresh?.unsyncedText) return prev?.unsyncedText ? prev : null;
+      return { ...fresh, reason: prev?.reason ?? fresh.reason };
     });
     try {
       viewRef.current?.dispatch({ effects: setRemotePresence.of({}) });
@@ -493,6 +583,10 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   }, [metaSession, metaView, remoteChanged, conflicts, metaTick, carriedEdits]);
 
   const presenceNow = useCallback(() => presenceRef.current, []);
+  /** Who may still be typing (§16 decision 1): participants whose presence reports edits the server has not confirmed. */
+  const unsyncedParticipants = useCallback(() => displayNames(Object.values(presenceRef.current)
+    .filter((p) => typeof p?.unconfirmed === 'number' && p.unconfirmed > 0)
+    .map((p) => labelOf(p.displayName))), []);
   /** The editor's local state the server does not have: unsynced text and unconfirmed field edits. */
   const captureLocal = useCallback(() => ({
     unsyncedText: handleRef.current?.capture('local')?.unsyncedText ?? '',
@@ -503,6 +597,8 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
     ...current,
     status,
     participants, self, presence, presenceNow, renamedTo, events, resync, dismissResync, restart, resume, publish, discard,
+    draft: current.draft ?? null, published: current.published ?? null, notice: current.notice ?? null,
+    oversizeLimit: current.oversizeLimit ?? null, draftSummary, unsyncedParticipants,
     meta, evictedReason, evictedRecovery, captureLocal, externalChange: externalChange?.key === key ? externalChange : null,
   };
 }

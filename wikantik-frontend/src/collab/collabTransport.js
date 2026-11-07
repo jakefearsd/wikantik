@@ -4,7 +4,7 @@
  * `status` and the parsed `body` (so callers branch on `err.body.reason`); a network failure rejects without `status`.
  * Built on api/client.js, so credentials, CSRF/Origin and the context path behave exactly as for the rest of the SPA.
  *
- * The interface (join/push/pull/publish/discard/leave/leaveBeacon) is deliberately transport-agnostic: a WebSocket
+ * The interface (join/push/pull/draft/publish/discard/leave/leaveBeacon) is deliberately transport-agnostic: a WebSocket
  * implementation can drop in behind it (spec D2).
  */
 import { apiUrl, collabRequest } from '../api/client.js';
@@ -29,6 +29,12 @@ export function createCollabTransport(pageName) {
       });
       return collabRequest(`${base}/updates?${qs}`, { signal });
     },
+    /** The draft summary for the publish dialog: `{basePageVersion, version, unpublished, contributors, lastEditAt, diff, metaChanges}`. */
+    draft: ({ sessionId, participantId }) => {
+      const qs = new URLSearchParams({ sessionId, participantId });
+      return collabRequest(`${base}/draft?${qs}`);
+    },
+    /** `{sessionId, participantId, version, changeNote, markupSyntax?}`: the body goes out as given. */
     publish: (body) => post('publish', body),
     discard: (body) => post('discard', body),
     leave: (body) => post('leave', body),

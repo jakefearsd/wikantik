@@ -18,6 +18,16 @@ const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 export const colorOf = (c) => (typeof c === 'string' && SAFE_COLOR.test(c) ? c : '#6b7280');
 /** The one label rule for a participant: the display name, or a placeholder (never a login name). */
 export const labelOf = (name) => (typeof name === 'string' && name.trim() ? name.trim() : 'Anonymous');
+/** A list of server-supplied display names as the UI may show them: non-empty strings only, trimmed, once each, in order. */
+export function displayNames(list) {
+  const out = [];
+  for (const n of Array.isArray(list) ? list : []) {
+    if (typeof n !== 'string' || !n.trim()) continue;
+    const name = labelOf(n);
+    if (!out.includes(name)) out.push(name);
+  }
+  return out;
+}
 
 export function placeAtHead(pos, version, unconfirmed, state) {
   const len = state.doc.length;

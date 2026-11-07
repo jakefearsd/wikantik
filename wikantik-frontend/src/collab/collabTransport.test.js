@@ -55,6 +55,30 @@ describe('collabTransport', () => {
     expect(fetchMock.mock.calls.map((c) => c[0])).toEqual(['/api/collab/P/publish', '/api/collab/P/discard', '/api/collab/P/leave']);
   });
 
+  it('draft is a GET of the draft summary with the session ids as query parameters', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { version: 1, unpublished: true, contributors: ['Raj'], diff: '', metaChanges: [] }));
+    const t = createCollabTransport('My Page');
+    await expect(t.draft({ sessionId: 's1', participantId: 'pt1' })).resolves.toMatchObject({ contributors: ['Raj'] });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/collab/My%20Page/draft?sessionId=s1&participantId=pt1');
+    expect(init.method ?? 'GET').toBe('GET');
+  });
+
+  it('draft follows a retarget', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { diff: '' }));
+    const t = createCollabTransport('Old');
+    t.retarget('New');
+    await t.draft({ sessionId: 's', participantId: 'p' });
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/collab/New/draft?sessionId=s&participantId=p');
+  });
+
+  it('publish passes markupSyntax through', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { pageVersion: 9 }));
+    const t = createCollabTransport('P');
+    await t.publish({ sessionId: 's1', participantId: 'pt1', version: 2, changeNote: 'Converted to Markdown', markupSyntax: 'markdown' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ markupSyntax: 'markdown' });
+  });
+
   it('non-2xx responses reject with status and the parsed body (reason survives)', async () => {
     fetchMock.mockResolvedValue(jsonResponse(409, { accepted: false, reason: 'stale-base', version: 5 }));
     const t = createCollabTransport('P');

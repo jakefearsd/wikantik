@@ -1415,6 +1415,23 @@ a[data-attachment-missing] {
   font-family: var(--font-mono, monospace);
 }
 
+/* Collaborative editing (Phase 3): draft banner, publish dialog, contributor list */
+.collab-draft-banner { flex-wrap: wrap; }
+.collab-draft-banner-actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+.collab-contributors { font-weight: 600; }
+.collab-publish-dialog { display: flex; flex-direction: column; gap: var(--space-md); }
+.collab-publish-dialog form { display: flex; flex-direction: column; gap: var(--space-sm); }
+.collab-publish-dialog .warning-banner { margin-bottom: 0; }
+.collab-publish-contributors, .collab-publish-hint { margin: 0; font-size: 0.875rem; }
+.collab-publish-hint { color: var(--text-secondary); }
+.collab-publish-note { display: flex; flex-direction: column; gap: var(--space-xs); font-size: 0.875rem; }
+.collab-meta-changes { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.collab-meta-changes caption { text-align: left; font-weight: 600; margin-bottom: var(--space-xs); }
+.collab-meta-changes th, .collab-meta-changes td {
+  text-align: left; padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere; vertical-align: top;
+}
+
 .collab-joining {
   display: flex;
   align-items: center;

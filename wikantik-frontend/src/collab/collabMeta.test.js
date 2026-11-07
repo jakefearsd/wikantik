@@ -179,6 +179,26 @@ describe('createMetaState recovery helpers', () => {
     expect(m.unconfirmed()).toEqual([{ field: 'b', value: 2 }, { field: 'tags', add: 'x' }]);
   });
 
+  it('unconfirmedOmitsAnAppliedEdit', () => {
+    // in flight, and the pull that delivers them landed before the ack: the server already holds them
+    const m = createMetaState({ meta: { tags: ['a'] }, metaSeq: 0 });
+    m.add('tags', 'x');
+    m.edit('status', 'draft');
+    m.takeSendable();
+    m.applyRemote([{ field: 'tags', value: ['a', 'x'] }, { field: 'status', value: 'draft' }], 2);
+    expect(m.unconfirmed()).toEqual([]);
+    m.add('tags', 'y');
+    expect(m.unconfirmed()).toEqual([{ field: 'tags', add: 'y' }]);
+  });
+
+  it('unconfirmed replays in order: an edit undoing an earlier unconfirmed one is still listed', () => {
+    const m = createMetaState({ meta: { tags: ['x'] }, metaSeq: 0 });
+    m.remove('tags', 'x');
+    m.takeSendable();
+    m.add('tags', 'x');
+    expect(m.unconfirmed()).toEqual([{ field: 'tags', remove: 'x' }, { field: 'tags', add: 'x' }]);
+  });
+
   it('discardPending drops every local edit: the view is the server metadata again', () => {
     const m = createMetaState({ meta: { a: 0 }, metaSeq: 0 });
     m.edit('a', 1);

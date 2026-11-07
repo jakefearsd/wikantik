@@ -108,7 +108,9 @@ export function createMetaState({ meta = {}, metaSeq = 0 } = {}) {
     /**
      * The edits the server has not confirmed (unsent or in flight) that would still change something: what a recovery
      * would have to show. Replayed in order over the server's metadata, so an in-flight edit a pull already delivered
-     * (ahead of its ack) is left out, while an edit undoing an earlier unconfirmed one is kept.
+     * (ahead of its ack) is left out, while an edit undoing an earlier unconfirmed one is kept. Deliberately
+     * conservative: within one pull the server may have applied my value and then overwritten it, so an edit the server
+     * did apply can still be listed. Showing one edit too many in a recovery panel is safe; hiding a lost one is not.
      */
     unconfirmed() {
       let running = norm(server);

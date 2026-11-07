@@ -66,6 +66,17 @@ describe('PublishDialog', () => {
     expect(screen.getByTestId('publish-dialog-newer').textContent).toBe('1 newer edit will be included');
   });
 
+  it('confirm waits for the summary', () => {
+    const onConfirm = vi.fn();
+    const { rerender } = render(<PublishDialog isOpen summary={null} onConfirm={onConfirm} onCancel={() => {}} />);
+    const confirm = screen.getByTestId('publish-dialog-confirm');
+    expect(confirm.disabled).toBe(true);
+    fireEvent.submit(confirm.closest('form'));
+    expect(onConfirm).not.toHaveBeenCalled();
+    rerender(<PublishDialog isOpen summary={summary} onConfirm={onConfirm} onCancel={() => {}} />);
+    expect(screen.getByTestId('publish-dialog-confirm').disabled).toBe(false);
+  });
+
   it('busy disables confirm and the note; closed renders nothing', () => {
     const { rerender } = render(<PublishDialog isOpen busy summary={summary} onConfirm={() => {}} onCancel={() => {}} />);
     expect(screen.getByTestId('publish-dialog-confirm').disabled).toBe(true);

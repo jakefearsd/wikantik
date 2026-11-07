@@ -17,6 +17,19 @@ describe('DraftBanner', () => {
     expect(screen.getByTestId('collab-draft-banner').textContent).toContain('Unpublished changes by Ana and you');
   });
 
+  it('the live region announces the contributors, not the ticking age', () => {
+    const draft = { unpublished: true, contributors: ['Ana', 'Raj'], lastEditAt: hoursAgo(2) };
+    const { rerender } = render(<DraftBanner draft={draft} selfName="Kim" onPublish={() => {}} />);
+    const live = screen.getByRole('status');
+    expect(live.textContent).toBe('Unpublished changes by Ana and Raj');
+    expect(screen.getByTestId('collab-draft-banner').textContent).toContain('last edit 2h ago');
+    expect(live.contains(screen.getByRole('button', { name: 'Publish' }))).toBe(false);
+    rerender(<DraftBanner draft={{ ...draft, lastEditAt: hoursAgo(3) }} selfName="Kim" onPublish={() => {}} />);
+    expect(screen.getByRole('status').textContent).toBe('Unpublished changes by Ana and Raj');
+    rerender(<DraftBanner draft={{ ...draft, contributors: ['Ana'] }} selfName="Kim" onPublish={() => {}} />);
+    expect(screen.getByRole('status').textContent).toBe('Unpublished changes by Ana');
+  });
+
   it('theBannerIsHiddenWithoutUnpublishedChanges', () => {
     const { container, rerender } = render(<DraftBanner draft={{ unpublished: false, contributors: ['Ana'], lastEditAt: null }} />);
     expect(container.textContent).toBe('');

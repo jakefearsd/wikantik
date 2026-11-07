@@ -75,6 +75,7 @@ export function createFakeCollabServer({
   let publishedText = initialText;
   let publishedMeta = { ...initialMeta };
   let failPublishBy = null;
+  let deletedEventSeq = 0; // the latest page-deleted, so a frozen draft's joiners are told (Lifecycle.joinEventSeq)
 
   const text = () => doc.toString();
   const reply = (status, body) => ({ status, body: body === undefined ? null : body });
@@ -155,6 +156,8 @@ export function createFakeCollabServer({
       version, doc: text(), metaSeq, metadata: { ...metadata }, basePageVersion,
       participants: [...participants.values()].filter((x) => !x.expired).map(publicParticipant),
       draft: draftSummary(),
+      // after its own participant-joined; on a frozen draft just before the latest page-deleted
+      eventSeq: config.frozen && deletedEventSeq > 0 ? deletedEventSeq - 1 : eventSeq,
       frozen: !!config.frozen,
     });
   }
@@ -468,7 +471,7 @@ export function createFakeCollabServer({
     },
     get pageName() { return currentName; },
     /** The draft is frozen (its page was deleted under it): pushes answer 409 frozen. */
-    freeze() { config.frozen = true; addEvent({ type: 'page-deleted' }); },
+    freeze() { config.frozen = true; addEvent({ type: 'page-deleted' }); deletedEventSeq = eventSeq; },
     setCanCreate(v) { config.canCreate = !!v; },
     /** The server evicts a participant: its next post-join call answers 403 evicted. */
     evict(participantId, reason) {

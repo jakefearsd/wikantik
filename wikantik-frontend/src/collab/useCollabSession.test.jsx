@@ -645,21 +645,12 @@ describe('useCollabSession', () => {
       const bob = await joinAs('bob');
       server.oversize(2_000_000, 1_000_000);
       await publishAs(bob);
-      const base = server.transportFor('ada');
-      // the server's join carries the event cursor it was taken at (the fixture leaves it out, so the fake does too)
-      const transport = {
-        ...base,
-        join: async (b) => {
-          const j = await base.join(b);
-          const probe = await base.pull({ sessionId: j.sessionId, participantId: j.participantId, since: j.version, metaSince: j.metaSeq, presenceSince: 0, eventsSince: 0 });
-          return { ...j, eventSeq: probe.eventSeq };
-        },
-      };
+      const transport = server.transportFor('ada');
       const { result } = renderHook(() => useCollabSession('P', { transport }));
       await flush();
       const view = mountView(result);
       await advance();
-      expect(result.current.events.some((e) => e.type === 'oversize')).toBe(true); // the window was replayed
+      expect(result.current.events).toEqual([]); // the pull starts at the join's cursor
       expect(result.current.published).toBeNull();
       expect(result.current.notice).toBeNull();
       expect(result.current.oversizeLimit).toBeNull();
@@ -735,6 +726,41 @@ describe('useCollabSession', () => {
       const bodies = server.calls.filter((c) => c.path === '/publish').map((c) => c.body);
       expect(bodies[0]).toMatchObject({ changeNote: 'Converted to Markdown', markupSyntax: 'markdown' });
       expect('markupSyntax' in bodies[1]).toBe(false);
+    });
+
+    it('a page deleted and recreated, or renamed, before the join neither freezes the session nor sets renamedTo', async () => {
+      server.freeze();
+      server.config.frozen = false; // recreated before ada arrives
+      server.renamePage('Q');
+      const transport = server.transportFor('ada');
+      const { result } = renderHook(() => useCollabSession('P', { transport }));
+      await flush();
+      const view = mountView(result);
+      await advance();
+      expect(result.current.status).toBe('live');
+      expect(result.current.renamedTo).toBeNull();
+      view.destroy();
+    });
+
+    it('isNews stays a second line of defence: a replayed event at or below the join cursor sets nothing', async () => {
+      const bob = await joinAs('bob');
+      server.oversize(2_000_000, 1_000_000);
+      await publishAs(bob);
+      const base = server.transportFor('ada');
+      // a peer that (wrongly) replays the window from 0: the hook still treats those events as history
+      let firstPull = true;
+      const transport = {
+        ...base,
+        pull: (q) => { const replayed = firstPull ? { ...q, eventsSince: 0 } : q; firstPull = false; return base.pull(replayed); },
+      };
+      const { result } = renderHook(() => useCollabSession('P', { transport }));
+      await flush();
+      const view = mountView(result);
+      await advance();
+      expect(result.current.events.some((e) => e.type === 'oversize')).toBe(true);
+      expect(result.current.notice).toBeNull();
+      expect(result.current.published).toBeNull();
+      view.destroy();
     });
 
     it('a join that answers frozen is frozen at once, without the page-deleted event', async () => {

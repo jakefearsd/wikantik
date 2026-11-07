@@ -25,7 +25,7 @@ export default function PublishDialog({
   const newer = typeof newerEdits === 'number' && newerEdits > 0 ? newerEdits : 0;
   const submit = (e) => {
     e.preventDefault();
-    if (!busy) onConfirm?.();
+    if (!busy && summary) onConfirm?.();
   };
   return (
     <Modal isOpen={isOpen} onClose={close} labelledBy="publish-dialog-title" testId="publish-dialog"
@@ -74,7 +74,7 @@ export default function PublishDialog({
         <div className="modal-actions">
           <button type="button" className="btn btn-secondary" onClick={close} disabled={busy}>{view ? 'Close' : 'Cancel'}</button>
           {!view && (
-            <button type="submit" className="btn btn-primary" data-testid="publish-dialog-confirm" disabled={busy}>
+            <button type="submit" className="btn btn-primary" data-testid="publish-dialog-confirm" disabled={busy || !summary}>
               {busy ? 'Publishing…' : 'Publish'}
             </button>
           )}

@@ -95,6 +95,19 @@ describe('fakeCollabServer matches the fixture', () => {
     expect(body.frozen).toBe(true);
   });
 
+  it('a join\'s eventSeq is taken after its own participant-joined; a frozen draft\'s stops just before page-deleted', async () => {
+    const ada = await joinSample(server, 'ada');
+    expect(ada.eventSeq).toBe(1);
+    server.oversize(2, 1);
+    const raj = await joinSample(server, 'raj');
+    expect(raj.eventSeq).toBe(3);
+    server.freeze(); // page-deleted is event 4
+    const kim = await joinSample(server, 'kim');
+    expect(kim.eventSeq).toBe(3);
+    server.config.frozen = false; // recreated: the deletion is history
+    expect((await joinSample(server, 'lee')).eventSeq).toBe(6);
+  });
+
   it('join 200 and its error statuses', async () => {
     const joined = await expectCase(server, 'join.200');
     expect(byId['join.200'].response.body.doc).toBe('Hello world');

@@ -26,6 +26,7 @@ async function makeEditor(server, user, opts = {}) {
   editor.core = createCollabPeerCore({
     transport,
     session: { sessionId: joined.sessionId, clientID: joined.clientID, participantId: joined.participantId },
+    eventsSince: joined.eventSeq,
     host,
     onStatus: (s) => editor.statuses.push(s),
     onResync: (r) => editor.resyncs.push(r),
@@ -251,6 +252,33 @@ describe('collabPeer', () => {
     expect(server.doc).toBe('midBBB');
   });
 
+  it('the pull starts at the join\'s event cursor: a joiner never replays older events', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    server.oversize(5, 4);
+    server.renamePage('Q');
+    const a = await makeEditor(server, 'ada');
+    await advance(100);
+    const firstPull = server.calls.find((c) => c.method === 'GET' && c.path === '/updates' && c.user === 'ada');
+    expect(firstPull.query.eventsSince).toBe(a.joined.eventSeq);
+    expect(a.events).toEqual([]); // not the old events, not its own participant-joined
+    server.oversize(7, 6);
+    await advance(100);
+    expect(a.events.map((e) => e.type)).toEqual(['oversize']);
+    a.core.destroy();
+  });
+
+  it('a rejoin keeps its event cursor: events while it was away still arrive', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const a = await makeEditor(server, 'ada');
+    await advance(100);
+    server.expire('ada');
+    server.oversize(5, 4); // wakes the parked pull, which meets 409 rejoin
+    await advance(1000);
+    expect(server.calls.filter((c) => c.path === '/join' && c.user === 'ada')).toHaveLength(2);
+    expect(a.events.map((e) => e.type)).toContain('oversize');
+    a.core.destroy();
+  });
+
   it('a 409 rejoin rejoins with the prior clientID and keeps unsent edits (7.2)', async () => {
     const server = createFakeCollabServer({ initialText: 'abc' });
     const a = await makeEditor(server, 'ada');
@@ -389,7 +417,9 @@ describe('collabPeer', () => {
     expect(sel).toMatchObject({ version: 0, unconfirmed: 1 });
     const seen = b.presence.flatMap((p) => Object.values(p));
     expect(seen.some((p) => p.displayName === 'ada' && p.anchor === 2 && p.head === 4)).toBe(true);
-    expect(b.events.some((e) => e.type === 'participant-joined')).toBe(true);
+    // bob joined after ada's cursor, so ada hears of it; bob starts past his own join (R11)
+    expect(a.events.some((e) => e.type === 'participant-joined' && e.participant.displayName === 'bob')).toBe(true);
+    expect(b.events.some((e) => e.type === 'participant-joined')).toBe(false);
   });
 
   it('whenSynced resolves once every local edit is confirmed', async () => {

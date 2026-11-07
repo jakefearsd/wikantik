@@ -19,10 +19,13 @@ export default function DraftBanner({ draft, selfName, onPublish, onDiscard, onV
     ['Dismiss', onDismiss, 'btn-ghost'],
   ].filter(([, handler]) => typeof handler === 'function');
   return (
-    <div className="info-banner collab-draft-banner" role="status" data-testid="collab-draft-banner">
+    <div className="info-banner collab-draft-banner" data-testid="collab-draft-banner">
       <span className="collab-draft-banner-text">
-        Unpublished changes
-        {names.length > 0 && <> by <ContributorList names={names} /></>}
+        {/* the live region holds only who: it announces the banner's appearance and contributor changes, not the age */}
+        <span role="status">
+          Unpublished changes
+          {names.length > 0 && <> by <ContributorList names={names} /></>}
+        </span>
         {when && <> — last edit {when}</>}
       </span>
       {actions.length > 0 && (

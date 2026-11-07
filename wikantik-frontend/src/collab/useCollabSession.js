@@ -30,7 +30,7 @@
  * `lastEditAt` is advanced here on every received update or meta op. `published` is `{ by, pageVersion, seq }` from the
  * latest `published` event; `notice` is `{ type, by?, bytes?, limit?, seq }` from the latest `publish-failed`,
  * `draft-discarded` or `oversize`; `oversizeLimit` is the limit an `oversize` event reported. Events at or below the join's
- * `eventSeq` (when the server sends one) predate the join and only replay the window: they set none of these. A join that
+ * `eventSeq` predate the join: the peer's pull starts there (R11), and one that still arrives sets none of these. A join that
  * answers `frozen` is frozen at once. `draftSummary()` flushes metadata, waits for the peer to sync and fetches the
  * publish dialog's summary: `{ ok: true, summary } | { ok: false, status, reason }`. `unsyncedParticipants()` names the
  * participants whose presence reports unconfirmed edits (§16 decision 1). `publish(changeNote, { markupSyntax })` sends
@@ -198,7 +198,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
         setPresence(seeded);
         // the draft's page was deleted before this join: frozen now, whether or not page-deleted is still in the window
         setDeleted((d) => (j.frozen ? key : d === key ? null : d));
-        // events up to the join's cursor happened before it: the pull replays them, but they are not news
+        // the peer's pull starts at the join's cursor (R11); events at or below it are still not news if one arrives
         const joinEventSeq = typeof j.eventSeq === 'number' ? j.eventSeq : 0;
         const isNews = (e) => !(typeof e.seq === 'number' && e.seq <= joinEventSeq);
         // coarse on purpose: "last edit" is shown to the minute, and a re-render per confirmed keystroke batch is waste
@@ -239,6 +239,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
             transport,
             handle,
             session: { sessionId: j.sessionId, clientID: j.clientID, participantId: j.participantId },
+            eventsSince: joinEventSeq,
             onStatus: (status) => patch({ status }),
             onResync: (payload) => { setResync(payload); },
             onMetaOps: (ops, metaSeq) => {

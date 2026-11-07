@@ -26,6 +26,7 @@ const LOG = (...a) => console.warn('[collab]', ...a);
 export function createCollabPeerCore({
   transport,
   session: initialSession,
+  eventsSince: initialEventsSince = 0,
   host,
   getSelection,
   debounceMs = 100,
@@ -55,7 +56,8 @@ export function createCollabPeerCore({
   let pullAbort = null;
   let metaSince = 0;
   let presenceSince = 0;
-  let eventsSince = 0;
+  // the join's cursor (R11): a joiner never replays older events; a rejoin keeps it, continuing the same feed
+  let eventsSince = typeof initialEventsSince === 'number' ? initialEventsSince : 0;
   let lastSentSelection = null;
   let lastPushAt = -Infinity;
   let rejoinPromise = null;
@@ -318,10 +320,12 @@ export function createCollabPeerCore({
         if (destroyed || stopped) break;
         pullFailures = 0;
         setStatus('live');
+        const presenceBefore = presenceSince;
         applyPull(res, since);
         checkSynced();
         if ((sendableUpdates(host.getState()).length && getSyncedVersion(host.getState()) >= gateVersion) || metaPending.length) schedulePush(0);
-        const empty = !res.updates?.length && !res.events?.length && !res.metaOps?.length;
+        // a presence move is news too (a joiner's first pull often carries only that, now that it skips older events)
+        const empty = !res.updates?.length && !res.events?.length && !res.metaOps?.length && presenceSince === presenceBefore;
         if (empty && Date.now() - startedAt < 50 && !(await delay(500))) break;
       }
     } finally {
